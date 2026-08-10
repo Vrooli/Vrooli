@@ -2,10 +2,12 @@ package graph
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	clitest "prompt-manager/cli/internal/testutil"
 )
@@ -39,7 +41,27 @@ func cleanAuditContext(t *testing.T) *clitest.Context {
 	ctx.Respond("GET", "/orientation-cost", orientationCostReport{
 		Teams: []orientationCost{{TeamID: "alpha", Composite: 42, ScenarioCoverage: 1}},
 	})
+	ctx.Respond("GET", "/operating-models/coverage", operatingModelCoverageResponse{
+		Coverage: []operatingGraphCoverage{{Team: "alpha", Relationships: []operatingRelationshipCoverage{
+			{Relationship: "topic_read", RuntimeDeclared: 2, GraphShown: 2, Matched: 2},
+		}}},
+	})
+	concluded := "2026-08-01T00:00:00Z"
+	ctx.Respond("GET", "/experiments", []experimentLivenessRow{
+		{ID: "exp-1", Status: "concluded", ConcludedAt: &concluded},
+	})
+	stubCanonScript(t, "PASS one\nPassed: 9\nFailed: 0\n", nil)
 	return ctx
+}
+
+// stubCanonScript replaces the shell-out seam for one test. Without it the
+// sweep suite would run the real canon script and inherit its verdict, making
+// an unrelated canon regression fail every audit test.
+func stubCanonScript(t *testing.T, out string, err error) {
+	t.Helper()
+	prev := canonScriptRunner
+	canonScriptRunner = func(string, string) ([]byte, error) { return []byte(out), err }
+	t.Cleanup(func() { canonScriptRunner = prev })
 }
 
 func TestCmdAuditCoversEveryFrameworkHealthTarget(t *testing.T) {
@@ -77,6 +99,7 @@ func TestCmdAuditCoversEveryFrameworkHealthTarget(t *testing.T) {
 		"Discovery budget pressure",
 		"Prompt structure invariant",
 		"Catalogued rules with no finding",
+		"Open-loop target count",
 	}
 	got := strings.Join(auditTargetTitles(report), "|")
 	for _, w := range want {
@@ -104,12 +127,14 @@ func TestCmdAuditReportsUnsensoredTargetsRatherThanDroppingThem(t *testing.T) {
 	if report.OutOfBand != 0 {
 		t.Fatalf("clean fixtures should be in band, got %d out of band", report.OutOfBand)
 	}
-	// Six targets are open-loop in FRAMEWORK_HEALTH today. Two were added with
-	// this plan: the prompt structure invariant, enforced in the heartbeat unit
-	// suite rather than by a corpus-wide CLI sensor, and the rules-with-no-
-	// finding trend, which cannot be banded from a single reading.
-	if report.Unsensored != 6 {
-		t.Fatalf("unsensored = %d, want 6", report.Unsensored)
+	// Seven targets are open-loop in FRAMEWORK_HEALTH today. Two were added with
+	// the sensor-map plan: the prompt structure invariant, enforced in the
+	// heartbeat unit suite rather than by a corpus-wide CLI sensor, and the
+	// rules-with-no-finding trend, which cannot be banded from a single reading.
+	// The seventh is the open-loop count itself, which is a trend target for the
+	// same reason and therefore counts itself.
+	if report.Unsensored != 7 {
+		t.Fatalf("unsensored = %d, want 7", report.Unsensored)
 	}
 	// An unsensored target must name both the honest open-loop state and a dated
 	// marker for the work that closes it. The marker prevents an intentionally
@@ -118,8 +143,14 @@ func TestCmdAuditReportsUnsensoredTargetsRatherThanDroppingThem(t *testing.T) {
 		if tgt.Status != auditStatusNoSensor {
 			continue
 		}
-		if !strings.Contains(tgt.Observed, "pending-telemetry") && !strings.Contains(tgt.Observed, "pending-baseline") {
-			t.Fatalf("unsensored target must stay honest about it: %+v", tgt)
+		// The flag is the routing input — pending-telemetry means build an
+		// instrument, pending-baseline means run the sweep — so it is asserted
+		// on the typed field, and the prose is required to agree with it.
+		if tgt.HonestyFlag != auditHonestyTelemetry && tgt.HonestyFlag != auditHonestyBaseline {
+			t.Fatalf("unsensored target must carry a typed honesty flag: %+v", tgt)
+		}
+		if !strings.HasPrefix(tgt.Observed, tgt.HonestyFlag) {
+			t.Fatalf("observed prose must lead with the honesty flag %q: %q", tgt.HonestyFlag, tgt.Observed)
 		}
 		if !strings.HasPrefix(tgt.GapMarker, "2026-") {
 			t.Fatalf("unsensored target must carry a dated gap marker: %+v", tgt)
@@ -278,4 +309,319 @@ func TestCmdAuditRecordsEveryTeamsOrientationCost(t *testing.T) {
 		return
 	}
 	t.Fatal("audit did not report Team orientation cost")
+}
+
+// writeBaseline runs one sweep and persists it, returning the artifact path the
+// next sweep bands against. Round-tripping through --out is deliberate: it
+// proves the two flags agree on a shape rather than testing a hand-built one.
+func writeBaseline(t *testing.T, ctx *clitest.Context) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "baseline.json")
+	if _, _, err := clitest.Output(t, func() error {
+		return cmdAudit(ctx, []string{"--json", "--out", path})
+	}); err != nil {
+		t.Fatalf("write baseline: %v", err)
+	}
+	return path
+}
+
+func auditWithBaseline(t *testing.T, ctx *clitest.Context, baseline string) auditReport {
+	t.Helper()
+	stdout, _, err := clitest.Output(t, func() error {
+		return cmdAudit(ctx, []string{"--json", "--baseline", baseline})
+	})
+	if err != nil {
+		t.Fatalf("cmdAudit: %v", err)
+	}
+	var report auditReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	return report
+}
+
+func findTarget(t *testing.T, r auditReport, name string) auditTarget {
+	t.Helper()
+	for _, tgt := range r.Targets {
+		if tgt.Target == name {
+			return tgt
+		}
+	}
+	t.Fatalf("audit did not report %q", name)
+	return auditTarget{}
+}
+
+// A trend target is open-loop until a baseline arrives, then bands. This is the
+// whole point of --baseline: three targets reported pending-baseline forever
+// while the readings they needed were being written to a record nobody read.
+func TestCmdAuditBandsTrendTargetsAgainstBaseline(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	baseline := writeBaseline(t, ctx)
+
+	report := auditWithBaseline(t, ctx, baseline)
+	tgt := findTarget(t, report, "Team orientation cost")
+	if tgt.Status != auditStatusInBand {
+		t.Fatalf("flat orientation cost should band in-band, got %q (%s)", tgt.Status, tgt.Observed)
+	}
+	if report.BaselineFrom == "" {
+		t.Fatal("a banded sweep must name the baseline it compared against")
+	}
+	if tgt.GapMarker != "" {
+		t.Fatalf("a banded target must drop the gap marker that asked for the baseline: %q", tgt.GapMarker)
+	}
+}
+
+// A rise only counts where the guard series also rose. Orientation cost that
+// grew while scenario coverage held flat is expected growth, and banding it
+// out would make the deadband fire on the thing it explicitly permits.
+func TestCmdAuditGuardSuppressesRiseWithoutCoverageGrowth(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	baseline := writeBaseline(t, ctx)
+
+	// Composite climbs 42 -> 99; scenario coverage stays at 1.
+	ctx.Respond("GET", "/orientation-cost", orientationCostReport{
+		Teams: []orientationCost{{TeamID: "alpha", Composite: 99, ScenarioCoverage: 1}},
+	})
+	tgt := findTarget(t, auditWithBaseline(t, ctx, baseline), "Team orientation cost")
+	if tgt.Status != auditStatusInBand {
+		t.Fatalf("rise without coverage growth must stay in band, got %q (%s)", tgt.Status, tgt.Observed)
+	}
+
+	// Same rise, but coverage grew with it: now it is the defect the band names.
+	ctx.Respond("GET", "/orientation-cost", orientationCostReport{
+		Teams: []orientationCost{{TeamID: "alpha", Composite: 99, ScenarioCoverage: 5}},
+	})
+	tgt = findTarget(t, auditWithBaseline(t, ctx, baseline), "Team orientation cost")
+	if tgt.Status != auditStatusOutOfBand {
+		t.Fatalf("rise with coverage growth must be out of band, got %q (%s)", tgt.Status, tgt.Observed)
+	}
+	if len(tgt.Detail) == 0 || !strings.Contains(tgt.Detail[0], "42 → 99") {
+		t.Fatalf("out-of-band trend must name the movement, got %v", tgt.Detail)
+	}
+}
+
+// A team absent from the baseline is new, not a regression. Treating a first
+// reading as a rise would penalise declaring a team at all.
+func TestCmdAuditTreatsUnseenSeriesAsNewRatherThanRisen(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	baseline := writeBaseline(t, ctx)
+	ctx.Respond("GET", "/orientation-cost", orientationCostReport{Teams: []orientationCost{
+		{TeamID: "alpha", Composite: 42, ScenarioCoverage: 1},
+		{TeamID: "brand-new", Composite: 9000, ScenarioCoverage: 99},
+	}})
+	tgt := findTarget(t, auditWithBaseline(t, ctx, baseline), "Team orientation cost")
+	if tgt.Status != auditStatusInBand {
+		t.Fatalf("a new series must not read as a regression, got %q (%s)", tgt.Status, tgt.Observed)
+	}
+}
+
+// The open-loop count is one of the rows it counts. Whether it counts itself
+// depends on whether a baseline bands it, and the reported number must match a
+// tally of the printed list in both states.
+func TestCmdAuditOpenLoopCountMatchesTheListInBothStates(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	baseline := writeBaseline(t, ctx)
+
+	for _, tc := range []struct{ name, arg string }{
+		{"without baseline", ""},
+		{"with baseline", baseline},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			args := []string{"--json"}
+			if tc.arg != "" {
+				args = append(args, "--baseline", tc.arg)
+			}
+			stdout, _, err := clitest.Output(t, func() error { return cmdAudit(ctx, args) })
+			if err != nil {
+				t.Fatalf("cmdAudit: %v", err)
+			}
+			var report auditReport
+			if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			tgt := findTarget(t, report, "Open-loop target count")
+			if tgt.Trend == nil {
+				t.Fatal("the open-loop count must carry its reading as a trend")
+			}
+			// The invariant in both states: the number this target reports is
+			// the number of no-sensor rows a reader can tally from the list.
+			// Unbanded it counts itself (7 of 18); banded it does not (6 of 18).
+			if got := int(tgt.Trend.Values[""]); got != report.Unsensored {
+				t.Fatalf("open-loop count reported %d, list holds %d unsensored", got, report.Unsensored)
+			}
+			if !strings.Contains(tgt.Observed, fmt.Sprintf("%d of %d", report.Unsensored, len(report.Targets))) &&
+				tgt.Status == auditStatusNoSensor {
+				t.Fatalf("unbanded observed text must state the tally, got %q", tgt.Observed)
+			}
+		})
+	}
+}
+
+// A baseline the operator asked for but that cannot be read is an error, not a
+// silent fallback. Degrading quietly would report every trend as
+// pending-baseline while the operator believed a comparison had happened.
+func TestCmdAuditRejectsUnreadableBaseline(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	_, _, err := clitest.Output(t, func() error {
+		return cmdAudit(ctx, []string{"--json", "--baseline", filepath.Join(t.TempDir(), "missing.json")})
+	})
+	if err == nil {
+		t.Fatal("an unreadable --baseline must fail the sweep, not fall back to no baseline")
+	}
+}
+
+func TestCmdAuditRejectsBaselineFromAnotherSchemaVersion(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	path := filepath.Join(t.TempDir(), "old.json")
+	if err := os.WriteFile(path, []byte(`{"schema_version":0,"targets":[]}`), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	_, _, err := clitest.Output(t, func() error {
+		return cmdAudit(ctx, []string{"--json", "--baseline", path})
+	})
+	if err == nil {
+		t.Fatal("a baseline from a different schema version must be rejected, not compared")
+	}
+}
+
+// Canon coherence is collected now, so a failing script must reach the band.
+// It previously reported "not collected" while failing, which reads as a pass.
+func TestCmdAuditCollectsCanonCoherenceVerdict(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	stubCanonScript(t, "\x1b[31mFAIL  technique pairing\x1b[0m\nPassed: 8\nFailed: 1\n", nil)
+	stdout, _, err := clitest.Output(t, func() error { return cmdAudit(ctx, []string{"--json"}) })
+	if err != nil {
+		t.Fatalf("cmdAudit: %v", err)
+	}
+	var report auditReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	tgt := findTarget(t, report, "Canon coherence")
+	if tgt.Status != auditStatusOutOfBand {
+		t.Fatalf("a failing canon run must be out of band, got %q (%s)", tgt.Status, tgt.Observed)
+	}
+	if tgt.Observed != "8 pass, 1 fail" {
+		t.Fatalf("observed = %q, want the tally", tgt.Observed)
+	}
+	for _, d := range tgt.Detail {
+		if strings.Contains(d, "\x1b[") {
+			t.Fatalf("detail carried terminal escapes into the artifact: %q", d)
+		}
+	}
+}
+
+// A script whose output shape changed must surface as uncollected, never as
+// zero failures — the same dead-sensor shape the deadband rule forbids.
+func TestCmdAuditTreatsUnparseableCanonOutputAsUncollected(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	stubCanonScript(t, "something went very wrong\n", nil)
+	stdout, _, err := clitest.Output(t, func() error { return cmdAudit(ctx, []string{"--json"}) })
+	if err != nil {
+		t.Fatalf("cmdAudit: %v", err)
+	}
+	var report auditReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if tgt := findTarget(t, report, "Canon coherence"); tgt.Status != auditStatusExternal {
+		t.Fatalf("unparseable output must read as uncollected, got %q", tgt.Status)
+	}
+	if report.External != 1 {
+		t.Fatalf("external = %d, want 1 — uncollected targets must reach the summary", report.External)
+	}
+}
+
+// With no experiments at all the loop is not live, and the deadband's "once the
+// loop is live" precondition is unmet. Reporting out-of-band would flag a
+// failure to conclude work nobody started.
+func TestCmdAuditTreatsAbsentExperimentLoopAsOpenLoop(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	ctx.Respond("GET", "/experiments", []experimentLivenessRow{})
+	stdout, _, err := clitest.Output(t, func() error { return cmdAudit(ctx, []string{"--json"}) })
+	if err != nil {
+		t.Fatalf("cmdAudit: %v", err)
+	}
+	var report auditReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	tgt := findTarget(t, report, "Skill-experiment loop liveness")
+	if tgt.Status != auditStatusNoSensor {
+		t.Fatalf("an unstarted loop is open-loop, not a failure; got %q (%s)", tgt.Status, tgt.Observed)
+	}
+	// A live loop that concludes nothing IS the defect the band names.
+	ctx.Respond("GET", "/experiments", []experimentLivenessRow{{ID: "exp-1", Status: "running"}})
+	stdout, _, err = clitest.Output(t, func() error { return cmdAudit(ctx, []string{"--json"}) })
+	if err != nil {
+		t.Fatalf("cmdAudit: %v", err)
+	}
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if tgt := findTarget(t, report, "Skill-experiment loop liveness"); tgt.Status != auditStatusOutOfBand {
+		t.Fatalf("a live loop concluding nothing must be out of band, got %q", tgt.Status)
+	}
+}
+
+// The coupling deadband names two clauses; the edge count only speaks to one.
+// Before this, the check was `len(edges) > 0`, which could detect nothing but
+// total collapse of the map while runtime-only rows accumulated unseen.
+func TestCmdAuditCouplingDetectsRuntimeOnlyRows(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	ctx.Respond("GET", "/operating-models/coverage", operatingModelCoverageResponse{
+		Coverage: []operatingGraphCoverage{{Team: "alpha", Relationships: []operatingRelationshipCoverage{
+			{Relationship: "topic_read", RuntimeDeclared: 3, GraphShown: 1, Matched: 1, RuntimeOnly: 2},
+		}}},
+	})
+	stdout, _, err := clitest.Output(t, func() error { return cmdAudit(ctx, []string{"--json"}) })
+	if err != nil {
+		t.Fatalf("cmdAudit: %v", err)
+	}
+	var report auditReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	tgt := findTarget(t, report, "Cross-team coupling visibility")
+	if tgt.Status != auditStatusOutOfBand {
+		t.Fatalf("runtime-only rows must be out of band, got %q (%s)", tgt.Status, tgt.Observed)
+	}
+	if !strings.Contains(tgt.Observed, "2 runtime-only") {
+		t.Fatalf("observed must name the runtime-only count, got %q", tgt.Observed)
+	}
+	if len(tgt.Detail) == 0 || !strings.Contains(tgt.Detail[0], "alpha/topic_read") {
+		t.Fatalf("out-of-band coupling must name the relationship, got %v", tgt.Detail)
+	}
+}
+
+// A gap marker's date is parsed into a computable age. A marker frozen in a
+// string literal cannot answer "how long has this been open", which is the only
+// question that turns a declared hole into an overdue one.
+func TestCmdAuditComputesGapAgeFromMarkerDate(t *testing.T) {
+	prev := auditNow
+	auditNow = func() time.Time { return time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC) }
+	t.Cleanup(func() { auditNow = prev })
+
+	ctx := cleanAuditContext(t)
+	stdout, _, err := clitest.Output(t, func() error { return cmdAudit(ctx, []string{"--json"}) })
+	if err != nil {
+		t.Fatalf("cmdAudit: %v", err)
+	}
+	var report auditReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	// PoR entropy's marker is dated 2026-07-27: 14 days before the stubbed now.
+	tgt := findTarget(t, report, "PoR entropy")
+	if tgt.GapOpenedOn != "2026-07-27" {
+		t.Fatalf("gap_opened_on = %q, want 2026-07-27", tgt.GapOpenedOn)
+	}
+	if tgt.GapOpenDays != 14 {
+		t.Fatalf("gap_open_days = %d, want 14", tgt.GapOpenDays)
+	}
+	for _, other := range report.Targets {
+		if other.Status == auditStatusNoSensor && other.GapOpenDays <= 0 {
+			t.Fatalf("every open-loop target must carry a computable gap age: %q (%q)", other.Target, other.GapMarker)
+		}
+	}
 }

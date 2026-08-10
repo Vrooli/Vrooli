@@ -51,10 +51,16 @@ The phases below run in data-dependency order, not in value order. Rank findings
 #### Phase 1 — Sweep
 
 1. Run `prompt-manager graph regenerate`. The graph index is cached; an un-regenerated index reports deleted nodes that no longer exist.
-2. Run `prompt-manager graph audit`. One call reads every sensor in `FRAMEWORK_HEALTH.md` and reports each target as `in-band`, `out-of-band`, `external`, or `no-sensor`.
-3. Run the two `external` sensors that are commands: `bash scenarios/prompt-manager/test/agent_system_canon_test.sh` and `prompt-manager experiment list`. The third `external` target, objective coverage, is a document read; Phase 4 performs it.
-4. Treat every `out-of-band` target as a finding. Treat every `no-sensor` target as an open-loop gap, not as a pass.
-5. Read the honesty flag on each `no-sensor` target. `pending-telemetry` means no instrument exists and one must be built. `pending-baseline` means the instrument exists and only the corpus sweep is missing — a much cheaper fix, and a different actuator.
+2. Run the sweep **against the previous cycle**, and persist this one:
+
+   ```bash
+   prompt-manager graph audit --baseline <previous-cycle.json> --out <this-cycle.json>
+   ```
+
+   One call reads every sensor in `FRAMEWORK_HEALTH.md` and reports each target as `in-band`, `out-of-band`, `external`, or `no-sensor`. Retrieve the previous artifact from the `framework-health-audit/<date>` record; if none exists, run without `--baseline` and say so in the record — this cycle then becomes the baseline. **Do not skip `--out`.** Trend targets cannot band without a prior artifact, and skipping the write is what kept them at `pending-baseline` indefinitely.
+3. Canon coherence and skill-experiment liveness are collected by the sweep now — do not run them by hand. Anything still reported `external` genuinely was not collected (usually no repository root in reach), and the sweep prints the command to run for each under **Next Steps**.
+4. Treat every `out-of-band` target as a finding. Treat every `no-sensor` target as an open-loop gap, not as a pass. Read the tally line: it names out-of-band, unsensored, and not-collected separately, and a `not collected` count above zero means the sweep is blind, not clean.
+5. Read the `honesty_flag` field on each `no-sensor` target — it is typed, so do not parse it back out of the observed prose. `pending-telemetry` means no instrument exists and one must be built. `pending-baseline` means the instrument exists and only the corpus sweep or the prior reading is missing — a much cheaper fix, and a different actuator. Each also carries `gap_open_days`; rank the oldest first, since every marker reads as equally fresh without it.
 
 #### Phase 2 — Vertical conformance
 

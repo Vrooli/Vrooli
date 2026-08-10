@@ -229,6 +229,65 @@ for entry in "${TECHNIQUE_REGISTRIES[@]}"; do
 done
 
 # ---------------------------------------------------------------------------
+# Framework-health sensor map: the doc table and the Go registry are one list
+#
+# Every target's name lives in two homes — the FRAMEWORK_HEALTH.md sensor map
+# and a Go literal in cli/graph/audit.go — which is the double residency
+# LAYERS.md forbids. Generating one from the other is not practical while the
+# Observed column carries hand-written analysis, so this assertion holds them
+# equal instead: a row added to the doc without a collector is documentation of
+# a sensor that does not run, and a collector without a row is a reading no
+# canon accounts for.
+# ---------------------------------------------------------------------------
+
+AUDIT_GO="scenarios/prompt-manager/cli/graph/audit.go"
+FRAMEWORK_HEALTH="docs/agent-system/FRAMEWORK_HEALTH.md"
+
+audit_go_targets() {
+    grep -oE 'Target:[[:space:]]+"[^"]+"' "$AUDIT_GO" \
+        | sed -E 's/.*"([^"]+)"/\1/' | sort -u
+}
+
+framework_health_targets() {
+    # Only the sensor map table; FRAMEWORK_HEALTH.md holds other tables whose
+    # first column is not a target name.
+    awk '/^## Sensor map/{inmap=1; next} inmap && /^## /{exit} inmap && /^\|/{print}' "$FRAMEWORK_HEALTH" \
+        | grep -v '^| *Target *|' \
+        | grep -v '^|[ -]*|' \
+        | sed -E 's/^\|[[:space:]]*//; s/[[:space:]]*\|.*$//' \
+        | sed -E 's/^`//; s/`$//' \
+        | sed -E 's/[[:space:]]+$//' \
+        | grep -v '^$' | sort -u
+}
+
+sensor_map_in_sync() {
+    local in_go in_doc rc=0
+    in_go=$(audit_go_targets)
+    in_doc=$(framework_health_targets)
+    if [[ -z "$in_go" || -z "$in_doc" ]]; then
+        red "    could not extract targets (go=$(wc -l <<<"$in_go") doc=$(wc -l <<<"$in_doc")); check the parsers"
+        return 1
+    fi
+    while IFS= read -r name; do
+        [[ -z "$name" ]] && continue
+        if ! grep -qxF "$name" <<<"$in_doc"; then
+            red "    audit.go collects '$name' with no row in $FRAMEWORK_HEALTH"
+            rc=1
+        fi
+    done <<<"$in_go"
+    while IFS= read -r name; do
+        [[ -z "$name" ]] && continue
+        if ! grep -qxF "$name" <<<"$in_go"; then
+            red "    $FRAMEWORK_HEALTH declares '$name' with no collector in audit.go"
+            rc=1
+        fi
+    done <<<"$in_doc"
+    return "$rc"
+}
+
+check "Framework-health sensor map matches the audit collectors" sensor_map_in_sync
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 

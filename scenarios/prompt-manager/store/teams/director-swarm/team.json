@@ -7,6 +7,11 @@
   "objectivesServed": [
     {
       "id": "I1"
+    },
+    {
+      "id": "I3",
+      "role": "primary",
+      "note": "Ranking authority only; detection of missing instruments stays distributed across teams."
     }
   ],
   "enabled": true,
@@ -34,9 +39,9 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 15,
+  "revision": 16,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-07-23T22:45:00Z",
+  "updatedAt": "2026-08-09T00:00:00Z",
   "topicCatalog": [
     {
       "prefix": "goal-portfolio-record/YYYY-MM-DD",
@@ -184,7 +189,7 @@
     },
     "members": {
       "portfolio-manager": {
-        "lane": "Keep Swarm Manager goal flow healthy; apply accepted portfolio work items and propose bounded corrections.",
+        "lane": "Keep Swarm Manager goal flow healthy; apply accepted portfolio work items and propose bounded corrections. Hold ranking authority for objective I3 (Enablement): apply the instrument rule so a goal producing a sensor, measurement surface, or actuator borrows the band of the highest-ranked goal it unblocks rather than competing with it.",
         "allowedWrites": [
           {
             "kind": "knowledge"

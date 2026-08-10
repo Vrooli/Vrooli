@@ -21,6 +21,11 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,6 +46,48 @@ const (
 	auditStatusNoSensor  = "no-sensor"
 )
 
+// Honesty flags for open-loop targets, sharing the vocabulary defined in
+// docs/infra-health/strategy/RELIABILITY_TARGETS.md §"Honesty flags".
+//
+// The distinction is a routing decision, not a label: pending-telemetry means
+// no instrument exists and one must be built, while pending-baseline means the
+// instrument is built and only the sweep or the prior reading is missing. Those
+// are different actuators and very different costs, which is why the flag is a
+// field rather than a prefix a reader has to parse back out of prose.
+const (
+	auditHonestyTelemetry = "pending-telemetry"
+	auditHonestyBaseline  = "pending-baseline"
+)
+
+// discoveryBudgetCeiling is the share of budgeted discovery calls allowed to
+// exceed budget. It is declared once and rendered into the deadband text, so
+// the prose and the comparison cannot drift apart.
+const discoveryBudgetCeiling = 0.25
+
+// auditTrend carries the machine-comparable reading a trend target bands on.
+//
+// A trend target cannot be judged from one sweep — "downward trend" and "no
+// team's cost rises" are both statements about two cycles. Rather than each
+// such collector hand-rolling a comparison it has no data for, it emits its
+// reading here and stays `no-sensor`; applyBaseline upgrades it to a real band
+// when a prior cycle's artifact is supplied via --baseline.
+type auditTrend struct {
+	// Metric names what Values measure. A baseline whose metric differs is
+	// rejected rather than silently compared, so renaming what a target counts
+	// cannot produce a meaningless delta.
+	Metric string `json:"metric"`
+	// Values is keyed by entity, or by "" for a single scalar reading.
+	Values map[string]float64 `json:"values"`
+	// Guard, when set, is a second per-entity series that must also have risen
+	// for a rise in Values to count as a finding. Team orientation cost is only
+	// out of band when scenario coverage grew in the same cycle.
+	Guard map[string]float64 `json:"guard,omitempty"`
+	// Rising reports which direction is the defect. Every trend target today
+	// fails upward; the field exists so a future "should be climbing" target
+	// does not have to invert its Values to fit.
+	RiseIsDefect bool `json:"rise_is_defect"`
+}
+
 type auditTarget struct {
 	Target   string `json:"target"`
 	Sensor   string `json:"sensor"`
@@ -48,13 +95,26 @@ type auditTarget struct {
 	Actuator string `json:"actuator"`
 	Observed string `json:"observed"`
 	Status   string `json:"status"`
+	// HonestyFlag is set whenever Status is no-sensor, and names which kind of
+	// open loop it is. The audit skill routes on this value, so it is typed
+	// rather than left for a reader to grep out of Observed.
+	HonestyFlag string `json:"honesty_flag,omitempty"`
 	// GapMarker is required whenever a target has no automated corpus-wide
 	// sensor. It makes the missing instrument a dated, owned work item rather
 	// than a silent hole in the audit.
-	GapMarker string `json:"gap_marker,omitempty"`
+	//
+	// The date is parsed out into GapOpenedOn and GapOpenDays rather than left
+	// frozen inside the prose: a marker that cannot age cannot answer "how long
+	// has this been open", which is the question a trend board exists to ask.
+	GapMarker   string `json:"gap_marker,omitempty"`
+	GapOpenedOn string `json:"gap_opened_on,omitempty"`
+	GapOpenDays int    `json:"gap_open_days,omitempty"`
 	// Detail carries the first few offending entries when out of band, so a
 	// reader gets a lead without re-running the underlying sensor.
 	Detail []string `json:"detail,omitempty"`
+	// Trend is set by targets whose deadband is a comparison against the
+	// previous cycle. See auditTrend.
+	Trend *auditTrend `json:"trend,omitempty"`
 }
 
 type auditReport struct {
@@ -63,6 +123,14 @@ type auditReport struct {
 	Targets       []auditTarget `json:"targets"`
 	OutOfBand     int           `json:"out_of_band"`
 	Unsensored    int           `json:"unsensored"`
+	// External counts targets whose sensor lives outside this command. They
+	// were previously omitted from the printed summary, which let a sweep
+	// reporting "3 out of band" hide a target that was failing but uncollected.
+	External int `json:"external"`
+	// BaselineFrom records the generated_at of the artifact this sweep banded
+	// its trend targets against, empty when none was supplied. A trend verdict
+	// with no stated baseline is not reproducible.
+	BaselineFrom string `json:"baseline_from,omitempty"`
 }
 
 // cmdAudit runs the framework-health sweep.
@@ -70,23 +138,37 @@ func cmdAudit(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("audit", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	out := fs.String("out", "", "Write the JSON artifact to PATH (atomic)")
+	baseline := fs.String("baseline", "", "Band trend targets against the audit artifact at PATH (as written by --out)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	prior, err := loadAuditBaseline(*baseline)
+	if err != nil {
 		return err
 	}
 
 	report := auditReport{
 		SchemaVersion: auditSchemaVersion,
 		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
+		BaselineFrom:  prior.from,
 	}
 	for _, collect := range auditCollectors() {
-		report.Targets = append(report.Targets, collect(ctx))
+		report.Targets = append(report.Targets, applyBaseline(collect(ctx), prior))
 	}
+	// The open-loop count is derived from the other targets, so it is computed
+	// after they have been banded: a trend target the baseline just upgraded is
+	// no longer open-loop and must not be counted as one.
+	report.Targets = append(report.Targets,
+		applyBaseline(auditOpenLoopTargetCount(report.Targets, prior), prior))
 	for _, t := range report.Targets {
 		switch t.Status {
 		case auditStatusOutOfBand:
 			report.OutOfBand++
 		case auditStatusNoSensor:
 			report.Unsensored++
+		case auditStatusExternal:
+			report.External++
 		}
 	}
 
@@ -102,6 +184,150 @@ func cmdAudit(ctx appctx.Context, args []string) error {
 	}
 	printAuditReport(report)
 	return nil
+}
+
+// loadAuditBaseline reads a prior sweep's artifact and indexes it by target
+// name. An absent path is not an error — banding a trend is an upgrade over the
+// open-loop default, never a precondition for running the sweep.
+//
+// A malformed or unreadable path IS an error. Silently degrading to "no
+// baseline" would report every trend target as pending-baseline while the
+// operator believed a comparison had happened, which is the dead-sensor shape
+// FRAMEWORK_HEALTH.md's deadband rule exists to prevent.
+func loadAuditBaseline(path string) (auditBaseline, error) {
+	if path == "" {
+		return auditBaseline{}, nil
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return auditBaseline{}, fmt.Errorf("read audit baseline %q: %w", path, err)
+	}
+	var prior auditReport
+	if err := json.Unmarshal(raw, &prior); err != nil {
+		return auditBaseline{}, fmt.Errorf("parse audit baseline %q: %w", path, err)
+	}
+	if prior.SchemaVersion != auditSchemaVersion {
+		return auditBaseline{}, fmt.Errorf(
+			"audit baseline %q is schema version %d, this command writes %d; re-run the sweep to regenerate it",
+			path, prior.SchemaVersion, auditSchemaVersion)
+	}
+	b := auditBaseline{
+		from:    prior.GeneratedAt,
+		targets: make(map[string]auditTarget, len(prior.Targets)),
+	}
+	for _, t := range prior.Targets {
+		b.targets[strings.TrimSpace(t.Target)] = t
+	}
+	return b, nil
+}
+
+// auditBaseline is the previous cycle's readings, indexed by target name, plus
+// the timestamp every trend verdict cites. The zero value means "no baseline
+// supplied" and leaves trend targets open-loop.
+type auditBaseline struct {
+	from    string
+	targets map[string]auditTarget
+}
+
+// applyBaseline upgrades one trend target from open-loop to a real band by
+// comparing it against the same target in the previous cycle.
+//
+// Targets without a Trend pass through untouched: their deadband is absolute
+// and one reading already decides it.
+func applyBaseline(t auditTarget, prior auditBaseline) auditTarget {
+	if t.Trend == nil {
+		return t
+	}
+	was, ok := prior.targets[strings.TrimSpace(t.Target)]
+	if !ok || was.Trend == nil || was.Trend.Metric != t.Trend.Metric {
+		return t
+	}
+	risen := trendRisen(t.Trend, was.Trend)
+	t.Status = auditBand(len(risen) == 0)
+	// The gap marker and honesty flag both named the missing baseline. It has
+	// arrived, so leaving either would keep advertising work that is done.
+	t.GapMarker = ""
+	t.HonestyFlag = ""
+	t.GapOpenedOn = ""
+	t.GapOpenDays = 0
+	t.Detail = nil
+	for _, r := range risen {
+		t.Detail = appendCapped(t.Detail, r)
+	}
+	summary := fmt.Sprintf("%s; %d of %d series rose against the %s baseline",
+		trendSummary(t.Trend), len(risen), len(t.Trend.Values), prior.from)
+	if t.Trend.Guard != nil {
+		summary += " (a rise counts only where the guard series also rose)"
+	}
+	t.Observed = summary
+	return t
+}
+
+// trendRisen returns a human-readable line per series that moved in the defect
+// direction. A series absent from the baseline is not a rise — it is new, and
+// calling a first reading a regression would punish honest declaration.
+func trendRisen(now, was *auditTrend) []string {
+	keys := make([]string, 0, len(now.Values))
+	for k := range now.Values {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	risen := make([]string, 0, len(keys))
+	for _, k := range keys {
+		prev, seen := was.Values[k]
+		if !seen {
+			continue
+		}
+		cur := now.Values[k]
+		moved := cur > prev
+		if !now.RiseIsDefect {
+			moved = cur < prev
+		}
+		if !moved {
+			continue
+		}
+		// The guard gates the finding, not the reading: a cost that rose while
+		// its guard series held flat is expected growth, not decay.
+		if now.Guard != nil {
+			guardPrev, guardSeen := was.Guard[k]
+			if !guardSeen || now.Guard[k] <= guardPrev {
+				continue
+			}
+		}
+		label := k
+		if label == "" {
+			label = now.Metric
+		}
+		risen = append(risen, fmt.Sprintf("%s: %s → %s", label, trendNum(prev), trendNum(cur)))
+	}
+	return risen
+}
+
+func trendSummary(tr *auditTrend) string {
+	if len(tr.Values) == 1 {
+		if v, ok := tr.Values[""]; ok {
+			return fmt.Sprintf("%s = %s", tr.Metric, trendNum(v))
+		}
+	}
+	return fmt.Sprintf("%s across %d series", tr.Metric, len(tr.Values))
+}
+
+// trendNum prints whole numbers without a decimal tail; every trend reading
+// today is a count, and "62.0 → 63.0" reads as false precision.
+func trendNum(v float64) string {
+	if v == float64(int64(v)) {
+		return fmt.Sprintf("%d", int64(v))
+	}
+	return fmt.Sprintf("%.2f", v)
+}
+
+// priorTrendUsable reports whether a baseline can band the named target. The
+// open-loop count needs this before counting, because whether it counts itself
+// depends on whether it is about to be banded.
+func priorTrendUsable(prior auditBaseline, target, metric string) bool {
+	was, ok := prior.targets[target]
+	return ok && was.Trend != nil && was.Trend.Metric == metric
 }
 
 // auditCollectors returns one collector per FRAMEWORK_HEALTH target, in the
@@ -144,10 +370,9 @@ func auditPromptStructureInvariant(ctx appctx.Context) auditTarget {
 	// has the store and builder this CLI does not. Reporting it here without a
 	// corpus-wide sensor of its own would be a claim with nothing behind it, so
 	// it carries a gap marker instead.
-	t.Observed = "pending-telemetry: enforced in-process by TestAssembledPromptEmitsOnlyRegisteredSectionHeadings and TestPromptPrecedenceListNamesNonEmptySections, with no corpus-wide CLI sensor"
-	t.Status = auditStatusNoSensor
-	t.GapMarker = "2026-07-31: no corpus-wide CLI sensor; the invariant runs in the heartbeat unit suite, which owns the prompt builder"
-	return t
+	return openLoop(t, auditHonestyTelemetry,
+		"enforced in-process by TestAssembledPromptEmitsOnlyRegisteredSectionHeadings and TestPromptPrecedenceListNamesNonEmptySections, with no corpus-wide CLI sensor",
+		"2026-07-31: no corpus-wide CLI sensor; the invariant runs in the heartbeat unit suite, which owns the prompt builder")
 }
 
 // auditRulesWithNoFinding tracks the reduction metric Decision 7 carries. A
@@ -164,13 +389,62 @@ func auditRulesWithNoFinding(ctx appctx.Context) auditTarget {
 	if err := ctx.Get("/topics/rules", &resp); err != nil {
 		return auditFailed(t, err)
 	}
-	t.Observed = fmt.Sprintf("pending-baseline: %d of %d catalogued rules produced no finding this cycle; a trend needs the previous cycle to band", resp.Silent, resp.Total)
-	// A trend target cannot be judged from one reading; the band is comparison
-	// against the previous framework-health record, which this command does not
-	// hold. Reporting in-band here would assert a trend that was never measured.
-	t.Status = auditStatusNoSensor
-	t.GapMarker = "2026-07-31: trend target; needs the previous cycle's reading from the framework-health record to band"
-	return t
+	// A trend target cannot be judged from one reading. The reading is emitted
+	// as a Trend so --baseline can band it; without one it stays open-loop,
+	// because reporting in-band would assert a trend that was never measured.
+	t.Trend = &auditTrend{
+		Metric:       "silent_rules",
+		Values:       map[string]float64{"": float64(resp.Silent)},
+		RiseIsDefect: true,
+	}
+	return openLoop(t, auditHonestyBaseline,
+		fmt.Sprintf("%d of %d catalogued rules produced no finding this cycle; a trend needs the previous cycle to band", resp.Silent, resp.Total),
+		"2026-07-31: trend target; supply the previous cycle's artifact with --baseline to band")
+}
+
+// auditOpenLoopTargetCount is derived from the other targets rather than
+// collected beside them: it counts how many targets in this sweep have no
+// working instrument, which is a property of the sensor map itself.
+// `path:docs/director-swarm/strategy/OBJECTIVES.md` cites this count as the
+// measure for objective I3 (Enablement). The citation runs one way — the
+// measurement is defined and owned here, and the objective borrows it.
+//
+// It is no-sensor for the same reason auditRulesWithNoFinding is, which means
+// it counts itself. That is correct rather than cute: an open-loop count with
+// no trend to read against is itself open-loop, and saying otherwise would be
+// the dead-sensor shape FRAMEWORK_HEALTH.md's deadband rule names.
+func auditOpenLoopTargetCount(collected []auditTarget, prior auditBaseline) auditTarget {
+	t := auditTarget{
+		Target:   "Open-loop target count",
+		Sensor:   "prompt-manager graph audit — count of targets reported no-sensor",
+		Deadband: "downward trend across audit cycles; a single reading is a baseline, not a finding. Not banded against a fixed count — a target enters this set the moment it is honestly declared, so growth can mean new honesty rather than new decay",
+		Actuator: "capability-work in director-swarm, sequenced by the instrument rule in docs/director-swarm/strategy/PORTFOLIO_PHILOSOPHY.md",
+	}
+	names := make([]string, 0, len(collected))
+	for _, c := range collected {
+		if c.Status == auditStatusNoSensor {
+			names = append(names, c.Target)
+		}
+	}
+	// This target is one of the rows it counts, so whether it counts itself is
+	// decided by whether a baseline is about to band it — resolved here rather
+	// than after the fact, so the number it reports and the number a reader
+	// gets from tallying the printed list are the same in both states.
+	open := len(names)
+	if !priorTrendUsable(prior, t.Target, "open_loop_targets") {
+		open++
+	}
+	total := len(collected) + 1
+
+	t.Trend = &auditTrend{
+		Metric:       "open_loop_targets",
+		Values:       map[string]float64{"": float64(open)},
+		RiseIsDefect: true,
+	}
+	t.Detail = names
+	return openLoop(t, auditHonestyBaseline,
+		fmt.Sprintf("%d of %d targets have no working instrument; a trend needs the previous cycle to band", open, total),
+		"2026-08-09: trend target; supply the previous cycle's artifact with --baseline to band")
 }
 
 func auditContractValidity(ctx appctx.Context) auditTarget {
@@ -343,8 +617,28 @@ func auditCrossTeamCoupling(ctx appctx.Context) auditTarget {
 	if err := ctx.Get("/operating-models/map", &m); err != nil {
 		return auditFailed(t, err)
 	}
-	t.Observed = fmt.Sprintf("%d composed edges across %d teams", len(m.Edges), len(m.Teams))
-	t.Status = auditBand(len(m.Edges) > 0)
+	// The band has two clauses and the edge count only speaks to the second.
+	// Checking `len(m.Edges) > 0` alone could detect nothing but total collapse
+	// of the map — the dead-sensor shape the deadband rule names — so the
+	// runtime-only clause is read from the coverage endpoint that computes it.
+	var cov operatingModelCoverageResponse
+	if err := ctx.GetWithQuery("/operating-models/coverage", url.Values{}, &cov); err != nil {
+		return auditFailed(t, err)
+	}
+	runtimeOnly := 0
+	for _, graph := range cov.Coverage {
+		for _, rel := range graph.Relationships {
+			if rel.RuntimeOnly == 0 {
+				continue
+			}
+			runtimeOnly += rel.RuntimeOnly
+			t.Detail = appendCapped(t.Detail, fmt.Sprintf("%s/%s: %d runtime-only row(s) not shown in the graph",
+				graph.Team, rel.Relationship, rel.RuntimeOnly))
+		}
+	}
+	t.Observed = fmt.Sprintf("%d composed edges across %d teams, %d runtime-only row(s)",
+		len(m.Edges), len(m.Teams), runtimeOnly)
+	t.Status = auditBand(runtimeOnly == 0 && len(m.Edges) > 0)
 	return t
 }
 
@@ -378,17 +672,16 @@ func auditStaticallyUnreferencedSkills(ctx appctx.Context) auditTarget {
 	if err := ctx.Get("/graph/orphans", &nodes); err != nil {
 		return auditFailed(t, err)
 	}
-	t.Observed = fmt.Sprintf("pending-baseline — %d statically unreferenced; cross-check against prompt-manager skill-usage before treating any as dead", len(nodes))
-	t.Status = auditStatusNoSensor
-	t.GapMarker = "2026-07-31 — discovery and read telemetry are now instrumented (prompt-manager skill-usage); restore a band once a full window has accumulated and the three classes are joined in one reading"
-	return t
+	return openLoop(t, auditHonestyBaseline,
+		fmt.Sprintf("%d statically unreferenced; cross-check against prompt-manager skill-usage before treating any as dead", len(nodes)),
+		"2026-07-31 — discovery and read telemetry are now instrumented (prompt-manager skill-usage); restore a band once a full window has accumulated and the three classes are joined in one reading")
 }
 
 func auditDiscoveryBudgetPressure(ctx appctx.Context) auditTarget {
 	t := auditTarget{
 		Target:   "Discovery budget pressure",
 		Sensor:   "prompt-manager discovery-metrics --json — overBudgetRate",
-		Deadband: "under 25% of budgeted calls over budget",
+		Deadband: fmt.Sprintf("under %.0f%% of budgeted calls over budget", discoveryBudgetCeiling*100),
 		Actuator: "skill-improvement, owned by skill-optimizer",
 	}
 	var resp discoveryMetricsResponse
@@ -402,7 +695,7 @@ func auditDiscoveryBudgetPressure(ctx appctx.Context) auditTarget {
 	}
 	pct := resp.OverBudgetRate * 100
 	t.Observed = fmt.Sprintf("%.0f%% of %d budgeted calls over budget", pct, resp.BudgetedCallCount)
-	t.Status = auditBand(resp.OverBudgetRate < 0.25)
+	t.Status = auditBand(resp.OverBudgetRate < discoveryBudgetCeiling)
 	for _, h := range resp.BudgetHogs {
 		if h.OverBudgetSeen > 0 {
 			t.Detail = appendCapped(t.Detail, fmt.Sprintf("%s: %d chars, seen %d, over budget %d", h.ID, h.MaxChars, h.Seen, h.OverBudgetSeen))
@@ -411,30 +704,140 @@ func auditDiscoveryBudgetPressure(ctx appctx.Context) auditTarget {
 	return t
 }
 
-// auditCanonCoherence is external: the canon assertions live in a shell test,
-// and the CLI does not shell out to test scripts.
+// auditCanonCoherence runs the canon assertion script when the repository is
+// resolvable, and degrades to `external` when it is not.
+//
+// This is the one collector that shells out. The rule it bends — the CLI does
+// not invoke test scripts — existed because the binary installs to ~/.vrooli/bin
+// and may run with no checkout in reach. That is a reason to degrade, not a
+// reason to stay blind: the target was failing while the sweep reported "not
+// collected", and an uncollected failure reads exactly like a pass.
 func auditCanonCoherence(appctx.Context) auditTarget {
-	return auditTarget{
+	t := auditTarget{
 		Target:   "Canon coherence",
 		Sensor:   "bash scenarios/prompt-manager/test/agent_system_canon_test.sh",
 		Deadband: "all assertions pass",
 		Actuator: "framework-update",
-		Observed: "not collected — run the sensor command",
-		Status:   auditStatusExternal,
 	}
+	root := cliutil.ResolveRepoRoot()
+	if root == "" {
+		t.Observed = "not collected — no repository root in reach; run the sensor command from a checkout"
+		t.Status = auditStatusExternal
+		return t
+	}
+	script := filepath.Join(root, "scenarios", "prompt-manager", "test", "agent_system_canon_test.sh")
+	if _, err := os.Stat(script); err != nil {
+		t.Observed = "not collected — " + script + " is not present; run the sensor command"
+		t.Status = auditStatusExternal
+		return t
+	}
+	raw, err := canonScriptRunner(root, script)
+	passed, failed, parsed := parseCanonTally(string(raw))
+	if !parsed {
+		// An unparseable run is not a pass. Reporting external here keeps the
+		// reader on the hook to run it rather than banding on a guess.
+		t.Observed = "not collected — sensor ran but emitted no Passed/Failed tally; run the sensor command"
+		t.Status = auditStatusExternal
+		return t
+	}
+	t.Observed = fmt.Sprintf("%d pass, %d fail", passed, failed)
+	t.Status = auditBand(failed == 0 && err == nil)
+	for _, line := range strings.Split(string(raw), "\n") {
+		if strings.Contains(line, "FAIL") {
+			t.Detail = appendCapped(t.Detail, strings.TrimSpace(stripANSI(line)))
+		}
+	}
+	return t
 }
 
-// auditExperimentLiveness is external: experiment state is owned by the
-// experiment API, not the relationship graph.
-func auditExperimentLiveness(appctx.Context) auditTarget {
-	return auditTarget{
+// canonScriptRunner is a seam, not indirection for its own sake: without it the
+// unit suite would shell out to the real canon script on every run, making a
+// sweep test depend on repository state it does not own.
+var canonScriptRunner = func(root, script string) ([]byte, error) {
+	cmd := exec.Command("bash", script)
+	cmd.Dir = root
+	return cmd.CombinedOutput()
+}
+
+// parseCanonTally reads the script's trailing "Passed: N" / "Failed: N" lines.
+// It reports parsed=false when either is absent, so a script that changed its
+// output shape surfaces as uncollected instead of as zero failures.
+func parseCanonTally(out string) (passed, failed int, parsed bool) {
+	var sawPassed, sawFailed bool
+	for _, line := range strings.Split(out, "\n") {
+		clean := strings.TrimSpace(stripANSI(line))
+		if v, ok := strings.CutPrefix(clean, "Passed:"); ok {
+			if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+				passed, sawPassed = n, true
+			}
+		}
+		if v, ok := strings.CutPrefix(clean, "Failed:"); ok {
+			if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+				failed, sawFailed = n, true
+			}
+		}
+	}
+	return passed, failed, sawPassed && sawFailed
+}
+
+// stripANSI removes the colour escapes the canon script emits, so parsing and
+// Detail lines do not carry terminal control bytes into the JSON artifact.
+func stripANSI(s string) string {
+	return ansiEscape.ReplaceAllString(s, "")
+}
+
+var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// auditExperimentLiveness reads the experiment API directly.
+//
+// It was `external` on the grounds that experiment state is owned by the
+// experiment API rather than the relationship graph — but both are served by
+// the same prompt-manager API this context already talks to, so the split cost
+// a manual step and bought nothing.
+func auditExperimentLiveness(ctx appctx.Context) auditTarget {
+	t := auditTarget{
 		Target:   "Skill-experiment loop liveness",
 		Sensor:   "prompt-manager experiment list",
 		Deadband: "at least one concluded experiment per audit cycle once the loop is live",
 		Actuator: "skill-experiment-promotion",
-		Observed: "not collected — run the sensor command",
-		Status:   auditStatusExternal,
 	}
+	var experiments []experimentLivenessRow
+	if err := ctx.GetWithQuery("/experiments", url.Values{}, &experiments); err != nil {
+		return auditFailed(t, err)
+	}
+	concluded := 0
+	for _, e := range experiments {
+		if e.ConcludedAt != nil && *e.ConcludedAt != "" {
+			concluded++
+		}
+	}
+	// The deadband carries a precondition the sensor must respect: "at least one
+	// concluded experiment per audit cycle **once the loop is live**". With no
+	// experiments at all the loop is not live, and calling that out-of-band
+	// would report a failure to conclude work nobody started. It is open-loop,
+	// which is what no-sensor is for.
+	if len(experiments) == 0 {
+		return openLoop(t, auditHonestyBaseline,
+			"no experiments exist, so the per-cycle conclusion rate has nothing to band",
+			"2026-08-10 — the loop is instrumented but has never run; band once the first experiment is created")
+	}
+	t.Observed = fmt.Sprintf("%d experiment(s), %d concluded", len(experiments), concluded)
+	t.Status = auditBand(concluded > 0)
+	for _, e := range experiments {
+		if e.ConcludedAt == nil || *e.ConcludedAt == "" {
+			t.Detail = appendCapped(t.Detail, fmt.Sprintf("%s: %s, not concluded", e.ID, e.Status))
+		}
+	}
+	return t
+}
+
+// experimentLivenessRow is the narrow projection this target needs. The full
+// shape lives in the experiments package; duplicating two fields here keeps the
+// graph package from importing a sibling command package for one count.
+type experimentLivenessRow struct {
+	ID          string  `json:"id"`
+	Status      string  `json:"status"`
+	ConcludedAt *string `json:"concludedAt,omitempty"`
 }
 
 // auditObjectiveCoverage reads the objective join in both directions.
@@ -481,27 +884,25 @@ func auditObjectiveCoverage(ctx appctx.Context) auditTarget {
 }
 
 func auditSkillConditioning(appctx.Context) auditTarget {
-	return auditTarget{
-		Target:    "Skill conditioning quality",
-		Sensor:    "per-skill only: the divergence probe (skill-validation §3.3); no corpus-wide sweep exists",
-		Deadband:  "0 unreviewed divergence regressions once the corpus sweep exists",
-		Actuator:  "skill-improvement",
-		Observed:  "pending-baseline — the instrument is built, the sweep is not",
-		Status:    auditStatusNoSensor,
-		GapMarker: "2026-07-27 — build a corpus-wide divergence-probe sweep; blocked on a stable per-skill evaluation inventory",
-	}
+	return openLoop(auditTarget{
+		Target:   "Skill conditioning quality",
+		Sensor:   "per-skill only: the divergence probe (skill-validation §3.3); no corpus-wide sweep exists",
+		Deadband: "0 unreviewed divergence regressions once the corpus sweep exists",
+		Actuator: "skill-improvement",
+	}, auditHonestyBaseline,
+		"the instrument is built, the sweep is not",
+		"2026-07-27 — build a corpus-wide divergence-probe sweep; blocked on a stable per-skill evaluation inventory")
 }
 
 func auditPoREntropy(appctx.Context) auditTarget {
-	return auditTarget{
-		Target:    "PoR entropy",
-		Sensor:    "state-in-prose telemetry (not implemented)",
-		Deadband:  "0 unclassified state-in-prose findings once telemetry exists",
-		Actuator:  "framework-update",
-		Observed:  "pending-telemetry — state-in-prose is audited by judgment today",
-		Status:    auditStatusNoSensor,
-		GapMarker: "2026-07-27 — build state-in-prose telemetry; blocked on a stable document-state classification contract",
-	}
+	return openLoop(auditTarget{
+		Target:   "PoR entropy",
+		Sensor:   "state-in-prose telemetry (not implemented)",
+		Deadband: "0 unclassified state-in-prose findings once telemetry exists",
+		Actuator: "framework-update",
+	}, auditHonestyTelemetry,
+		"state-in-prose is audited by judgment today",
+		"2026-07-27 — build state-in-prose telemetry; blocked on a stable document-state classification contract")
 }
 
 // auditTeamOrientationCost reads the composite for every team.
@@ -518,24 +919,72 @@ func auditTeamOrientationCost(ctx appctx.Context) auditTarget {
 		Deadband:  "no team's orientation cost rises across an audit cycle in which its scenario coverage grew",
 		Actuator:  "team-capability-consolidation",
 		Status:    auditStatusNoSensor,
-		GapMarker: "2026-07-30 — the composite is built; the trend needs one prior framework-health-audit record to diff against",
+		GapMarker: "2026-07-30 — the composite is built; supply the previous cycle's artifact with --baseline to band",
 	}
 	var resp orientationCostReport
 	if err := ctx.GetWithQuery("/orientation-cost", url.Values{}, &resp); err != nil {
 		return auditFailed(t, err)
 	}
-	t.Observed = fmt.Sprintf("pending-baseline — %d team composite(s) read; the band needs a prior audit record", len(resp.Teams))
+	t = openLoop(t, auditHonestyBaseline,
+		fmt.Sprintf("%d team composite(s) read; the band needs a prior audit record", len(resp.Teams)),
+		t.GapMarker)
+	// The deadband is conditional — a rise is only a finding when scenario
+	// coverage grew in the same cycle — so coverage rides along as the guard
+	// series rather than being re-derived from the Detail prose next cycle.
+	t.Trend = &auditTrend{
+		Metric:       "orientation_composite",
+		Values:       make(map[string]float64, len(resp.Teams)),
+		Guard:        make(map[string]float64, len(resp.Teams)),
+		RiseIsDefect: true,
+	}
 	// Every team's reading is appended, not capped to the usual three leads.
 	// For other targets Detail is a lead into a sensor the reader can re-run;
 	// here it is the payload the next cycle diffs against, and a truncated
 	// record would silently lose teams from the trend.
 	for _, team := range resp.Teams {
+		t.Trend.Values[team.TeamID] = float64(team.Composite)
+		t.Trend.Guard[team.TeamID] = float64(team.ScenarioCoverage)
 		t.Detail = append(t.Detail, fmt.Sprintf("%s composite=%d (members=%d canon=%d topics=%d) scenarios=%d",
 			team.TeamID, team.Composite, team.Components.Members, team.Components.CanonLines,
 			team.Components.Topics, team.ScenarioCoverage))
 	}
 	return t
 }
+
+// openLoop marks a target as having no working instrument. It renders the
+// honesty prefix into Observed from the typed flag, so the field a consumer
+// routes on and the prose a human reads cannot disagree — and so the delimiter
+// stops varying between ": " and " — " from one collector to the next.
+func openLoop(t auditTarget, flag, detail, gapMarker string) auditTarget {
+	t.HonestyFlag = flag
+	t.Observed = flag + " — " + detail
+	t.Status = auditStatusNoSensor
+	t.GapMarker = gapMarker
+	if opened, ok := gapMarkerDate(gapMarker); ok {
+		t.GapOpenedOn = opened.Format("2006-01-02")
+		t.GapOpenDays = int(auditNow().Sub(opened).Hours() / 24)
+	}
+	return t
+}
+
+// gapMarkerDate lifts the leading YYYY-MM-DD out of a gap marker. Every marker
+// in this file starts with one by convention; parsing it rather than trusting
+// the convention means a marker that loses its date degrades to "no age known"
+// instead of reporting a wrong one.
+func gapMarkerDate(marker string) (time.Time, bool) {
+	if len(marker) < 10 {
+		return time.Time{}, false
+	}
+	opened, err := time.Parse("2006-01-02", marker[:10])
+	if err != nil {
+		return time.Time{}, false
+	}
+	return opened, true
+}
+
+// auditNow is a seam so gap ages are deterministic under test. Production reads
+// the wall clock; a test that asserted against it would rot on its own.
+var auditNow = func() time.Time { return time.Now().UTC() }
 
 func auditBand(inBand bool) string {
 	if inBand {
@@ -564,6 +1013,11 @@ func printAuditReport(r auditReport) {
 	for _, t := range r.Targets {
 		fmt.Printf("%-8s %s\n", auditStatusLabel(t.Status), t.Target)
 		fmt.Printf("         observed: %s\n", t.Observed)
+		// An open gap's age is the thing that turns a visible hole into an
+		// overdue one; without it every marker reads as equally fresh.
+		if t.GapOpenDays > 0 {
+			fmt.Printf("         gap open: %d days (since %s)\n", t.GapOpenDays, t.GapOpenedOn)
+		}
 		if t.Status == auditStatusOutOfBand {
 			if t.Deadband != "" {
 				fmt.Printf("         deadband: %s\n", t.Deadband)
@@ -574,12 +1028,29 @@ func printAuditReport(r auditReport) {
 			}
 		}
 	}
-	fmt.Printf("\n%d target(s) out of band, %d unsensored, %d total.\n",
-		r.OutOfBand, r.Unsensored, len(r.Targets))
+	// Externals are named in the tally rather than left implicit. A summary that
+	// counted only out-of-band and unsensored let an uncollected target read as
+	// a clean one — which is how a failing canon-coherence run stayed invisible.
+	fmt.Printf("\n%d target(s) out of band, %d unsensored, %d not collected, %d total.\n",
+		r.OutOfBand, r.Unsensored, r.External, len(r.Targets))
+	if r.BaselineFrom != "" {
+		fmt.Printf("Trend targets banded against the %s baseline.\n", r.BaselineFrom)
+	} else {
+		fmt.Println("No --baseline supplied: trend targets report their reading and stay open-loop.")
+	}
+
+	if r.OutOfBand == 0 && r.External == 0 {
+		return
+	}
+	fmt.Println("\nNext Steps")
 	if r.OutOfBand > 0 {
-		fmt.Println("\nNext Steps")
 		fmt.Println("Record the readings in a framework-health-audit/<date> topic, then route each")
 		fmt.Println("out-of-band target to the actuator named above.")
+	}
+	for _, t := range r.Targets {
+		if t.Status == auditStatusExternal {
+			fmt.Printf("Run the uncollected sensor for %q: %s\n", t.Target, t.Sensor)
+		}
 	}
 }
 

@@ -33,19 +33,11 @@ var Known = []Def{
 		ActionKind: ActionKindScenarioStart, ActionLabel: "Start Audio Tools",
 		OperatorCommand: "vrooli scenario start audio-tools --json",
 		Features:        []string{"voice-input", "voice-output"},
-	},
-	{
-		ID: "vrooli-events", Name: "Vrooli Events",
-		Description:    "Optional typed telemetry bus for governed program lifecycle events.",
-		DependencyKind: capabilityregistry.DependencyScenario, DependencySlug: "vrooli-events",
-		ActionKind: ActionKindScenarioStart, ActionLabel: "Start Vrooli Events",
-		OperatorCommand: "vrooli scenario start vrooli-events --json",
-		Features:        []string{"program-telemetry"},
+		Platform:        capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformDegraded, Reason: "voice capability depends on the declared audio provider and host media path"},
 	},
 }
 
 type ScenarioChecker struct{ Scenario string }
-
 
 func (c ScenarioChecker) Check(context.Context) (capabilityregistry.Status, string) {
 	scenario := c.Scenario

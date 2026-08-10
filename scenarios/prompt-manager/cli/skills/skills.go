@@ -11,10 +11,11 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"prompt-manager/cli/internal/appctx"
-	"prompt-manager/cli/internal/clipboard"
 	"strconv"
 	"strings"
+
+	"prompt-manager/cli/internal/appctx"
+	"prompt-manager/cli/internal/clipboard"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"

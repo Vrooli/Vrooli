@@ -6,9 +6,10 @@ import (
 	"flag"
 	"io"
 	"os"
-	"prompt-manager/teamconfig"
 	"strings"
 	"testing"
+
+	"prompt-manager/teamconfig"
 )
 
 func parseTeamFlagsForTest(t *testing.T, includeDefaults bool, args ...string) teamConfigFlagSet {
