@@ -304,6 +304,80 @@ internal/notes/
 ```
 <!-- EXAMPLE-DOMAIN:notes END -->
 
+## Planned scenario seams
+
+**None of the seams in this section exist in code yet.** They are the
+boundaries this scenario's design requires, recorded here before
+implementation so that two agents building adjacent pieces do not invent
+competing vocabularies for the same boundary. Each moves up into
+[Current seams](#current-seams) — with real interface paths, wiring, and
+fakes — as it lands.
+
+Listing a seam here is a claim about design, not about code. Treat a
+`Planned` row exactly as this scenario treats a declared-but-unprobed
+capability: honest about what it is, and never mistaken for the real thing.
+
+### The provenance rule
+
+Three of the seams below can be satisfied in more than one way. For those,
+**the return type must carry which way it was satisfied** — provenance is
+structural, never a side channel the caller is trusted to record.
+
+`Recorder` returns the capture *and* the method *and* the effective frame
+rate. `TargetResolver` returns the match *and* the rung *and* the
+confidence. If provenance were a separate field that the evidence layer had
+to remember to populate, it would eventually be forgotten, and the guarantees
+in `D-004` and `D-009` — that a reviewer can tell a proven result from an
+inferred one, and a native capture from a synthesized one — would quietly
+become untrue while every test still passed.
+
+Any future seam with more than one implementation path inherits this rule.
+
+### `Strategy` is not a ramp `Driver`
+
+The delivery-ramp spine (`packages/delivery-ramp-go`) defines a **Driver**
+adapter as "installs, launches, drives, and captures the artifact." That
+overlaps this scenario's `Strategy` seam, and the two must not merge.
+
+| Layer | Knows about | Does not know about |
+|---|---|---|
+| Ramp `Driver` | artifacts, journeys, release gates, one platform family | how a tap reaches a screen |
+| `Strategy` | pointer events, frames, one control mechanism | artifacts, ramps, releases, evidence gates |
+
+A ramp's `Driver` is a **thin translator**: it turns ramp-level intent
+("install this artifact, run this journey chapter") into device-control
+verbs. This scenario never learns what an artifact or a release is. Keeping
+that direction one-way is what stops device-control from growing a second
+copy of the ramp vocabulary — and what lets a non-deployment consumer use
+devices without depending on a delivery ramp (`D-008`).
+
+### Planned seam register
+
+| Seam | Planned interface | Test fake | Why it exists | Requirement |
+|---|---|---|---|---|
+| **Strategy** | `internal/strategies/strategy.go::Strategy` — `Observe() Frame`, `Actuate(Event) error`, `Describe() CapabilityDeclaration` | one fake per capability tier, so the executor can be tested at floor-only and at full-tier without a device | The extension point. Every control mechanism is an implementation; adding one must require no engine change. | `DVC-P0-001`, `DVC-P0-002` |
+| **CapabilityProber** | `internal/strategies/probe.go::CapabilityProber` — `Probe(ctx, Strategy) ProbeResult` | prober that *contradicts* the declaration | Verification must be separable from declaration — see below. | `DVC-P0-001` |
+| **FleetSource** | `internal/devices/fleet.go::FleetSource` — `List(ctx) ([]FleetMember, error)` | returns an attached device whose host node is offline | Lets the inventory be tested without a live bridge, and is the only way `DVC-P0-003`'s planned test can be written at all. | `DVC-P0-003` |
+| **LeaseStore** | `internal/sessions/lease.go::LeaseStore` — `Acquire`, `Renew`, `Release`, `Holder` | in-memory store driven by the existing `Clock` seam | Exclusivity is the scenario's hardest invariant. Paired with `Clock`, expiry is testable without sleeping. | `DVC-P0-004` |
+| **Recorder** | `internal/sessions/record.go::Recorder` — `Start(ctx) (Recording, error)` where `Recording` carries `ref`, `method`, `effectiveFPS` | native fake and synthesized fake | Guarantees video evidence on every strategy, and makes the native/synthesized distinction impossible to lose. | `DVC-P0-012` |
+| **TargetResolver** | `internal/flows/resolve.go::TargetResolver` — `Resolve(ctx, Target, Frame) (Match, error)` where `Match` carries `rung` and `confidence` | one fake per rung, plus one that resolves at no rung | The ladder is the mechanism that makes shared capabilities work on any strategy. The rung must be in the result, not beside it. | `DVC-P0-006` |
+| **Inference** | `internal/flows/inference.go::Inference` — the single outbound path to `ai-gateway` | records the request and returns a canned result; never calls out | Testing is the lesser reason. The primary reason is **enforcement**: `DVC-P0-007`'s AST check needs exactly one named place where outbound inference may occur. Scattered inference cannot be checked. | `DVC-P0-007` |
+| **EvidenceSink** | `internal/flows/evidence.go::EvidenceSink` — `Emit(ctx, Capture) (EvidenceRef, error)` | sink that fails redaction verification | The boundary where captures become references. Carries a hard invariant: an unverified capture is **withheld**, never emitted. | `DVC-P0-008` |
+
+### Why `Describe()` and `CapabilityProber` are two seams
+
+`Describe()` is what a strategy **claims**. `CapabilityProber` is what the
+host can **verify**. Collapsing them would make every strategy
+self-certifying, and the verification promised by `DVC-P0-001` — "declarations
+are verified by probing at inventory time" — would be theatre.
+
+Kept separate, the registry compares claim against probe and reports the
+delta. That is also the only way `device-control strategy verify` can catch
+an adapter that over-declares by accident rather than by malice, which is the
+realistic failure: an adapter author copies a richer strategy's declaration
+and never notices that one capability does not actually work on their
+transport.
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

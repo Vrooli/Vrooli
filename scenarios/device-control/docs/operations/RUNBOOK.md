@@ -37,6 +37,19 @@ naming, ports, health checks, and logs.
 | UI blank or stale | UI port, browser console, `ui/dist` freshness | `make setup` then `make restart` | Add troubleshooting entry if recurring. |
 | CLI talks to old API | `device-control status`, configured API base | Reinstall via `make setup` | Update CLI reference if command changed. |
 
+### Device-specific incidents
+
+| Symptom | What it actually means | Fix |
+|---|---|---|
+| A device disappeared from the inventory | It should not have. A device whose host node is offline must report `unreachable` with that reason. Disappearance means the **bridge fleet record was removed**, not that the device is merely offline. | Check bridge before checking this scenario. |
+| A verb is refused with no obvious holder | An expired-but-unreleased lease. | Leases expire on their own; a stuck one is a bug worth filing rather than working around by force-releasing. |
+| A capability regressed to `unavailable` | Usually a host tool disappeared — adb off `PATH`, Xcode updated, mirroring unpaired — not a strategy defect. | Read the named prerequisite in the capability snapshot before assuming a bug. |
+
+**Never force-kill a strategy process to end a session.** Use the kill control
+so the lease is released and the audit record is closed. A force-killed process
+leaves a held lease and an open audit entry, which produces the "refused with no
+obvious holder" symptom above.
+
 ## Backup / Restore
 
 The generated template uses local SQLite state. Product scenarios must
@@ -68,18 +81,3 @@ completed work to [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 - [`OBSERVABILITY.md`](OBSERVABILITY.md) — logs, metrics, and health signals
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — common fixes
 - [`../reference/configuration.md`](../reference/configuration.md) — runtime configuration
-
-## Scenario-specific operational notes
-
-- **A device disappeared from the inventory.** It should not have. A device
-  whose host node is offline must report `unreachable` with that reason.
-  Disappearance means the bridge fleet record was removed, not that the
-  device is merely offline — check bridge before checking this scenario.
-- **A verb is refused with no obvious holder.** Check for an expired-but-
-  unreleased lease. Leases expire on their own; a stuck one is a bug worth
-  filing rather than working around by force-releasing.
-- **A capability regressed to unavailable.** Read the named prerequisite in
-  the snapshot before assuming a strategy defect — the usual cause is a host
-  tool disappearing (adb off PATH, Xcode updated, mirroring unpaired).
-- **Never force-kill a strategy process to end a session.** Use the kill
-  control so the lease is released and the audit record is closed.

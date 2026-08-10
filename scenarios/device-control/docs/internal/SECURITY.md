@@ -30,6 +30,16 @@ install software. Treat the control capability itself as a credential.
 | Flow definitions | low–medium | flows | Ordinarily benign, but a flow may embed a target string that is itself sensitive (an account name, a search term). Treated as owner data, not shared by default. |
 | Strategy registrations | low | strategies | Adapter metadata only. |
 
+<!-- EXAMPLE-DOMAIN:notes START -->
+The shipped worked-example `notes` domain carries placeholder data only
+(removed by `template-manager detemplate`):
+
+| Data | Sensitivity | Owner | Details |
+|---|---|---|---|
+| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
+| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
+<!-- EXAMPLE-DOMAIN:notes END -->
+
 ## Threat Model
 
 | Threat | Mitigation | Status |
@@ -41,6 +51,41 @@ install software. Treat the control capability itself as a credential.
 | A session is left running unnoticed | Live sessions are persistently visible with holder and expiry, leases expire on their own, and kill is one action from CLI or UI. | Designed; `DVC-P0-009`. |
 | Screen content leaks to an inference provider | All inference routes through `ai-gateway`, which owns provider policy, privacy class, and route evidence. This scenario holds no provider client and cannot exfiltrate directly. | **Blocked** — `ai-gateway` has no visual-understanding request kind yet. `ai.*` steps stay `unavailable` until it exists; see `INTEGRATIONS.md`. |
 | Provider secrets leak from this scenario | This scenario stores no provider credential of any kind. Enforced by an AST check, mirroring `ai-gateway`'s conformance rule. | Designed; `DVC-P0-007`. |
+
+## Auth And Authorization
+
+Authorization is two-layer, and neither layer substitutes for the other.
+
+1. **Reach authorization — owned by `vrooli-bridge`.** Whether this caller
+   may address a given node or attached device at all: pairing, trust,
+   per-node scopes, and the allowlisted verb manifest. This scenario asks;
+   it never decides.
+2. **Exclusivity — owned by this scenario.** Whether this caller may act on
+   that device *right now*, given that someone else may hold it. That is the
+   lease (`DVC-P0-004`).
+
+**Key invariant: no verb reaches a strategy without both a bridge-authorized
+reach and a held, unexpired lease.** A verb that passes one check and fails
+the other is refused, audited, and reported with which check failed.
+
+Authorization is enforced at the API/service layer. The CLI and UI render
+the decision; they never make it locally. This matters more than usual here,
+because the CLI is the agent-facing control surface — a check that lives
+only in the CLI is a check an agent can be steered around.
+
+There is no end-user auth model because there is exactly one owner. If the
+fleet ever spans owners, that is a security architecture change rather than
+a configuration change; see obstacle 1 in
+[`../business/MONETIZATION.md`](../business/MONETIZATION.md).
+
+## Secrets
+
+| Secret | Source | Required? | Details |
+|---|---|---|---|
+| `vrooli-bridge` API token | secrets-manager, injected by the lifecycle | yes | Authenticates dispatch to the reach plane under this scenario's consumer identity. Never logged and never written into evidence. |
+| Provider API keys | **not held** | no | This scenario stores no provider credential of any kind. All inference routes through `ai-gateway`, which owns provider policy. Enforced by an AST check (`DVC-P0-007`). |
+| ADB device keys | host, `~/.android` | no | Host-level trust between a host node and an attached Android device. Owned by the host; this scenario consumes the resulting reachability, not the key. |
+| iOS signing identity | host keychain on the macOS node | no | Needed by `ios-xcuitest` to sign WebDriverAgent. The private key never leaves the node and is never handled by this scenario. |
 
 ## Open Security Decisions
 
@@ -57,42 +102,14 @@ ships, not after:
 3. **Grant granularity.** Per-consumer scoped grants — by device, by verb
    class, by time window — versus a single all-or-nothing control grant.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `template-manager detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
-## Auth And Authorization
-
-The generated template does not include an auth provider. Add auth only
-when product requirements identify protected data or user-specific
-behavior. UI and CLI must not enforce business authorization locally;
-authorization belongs at the API/service layer.
-
-## Secrets
-
-| Secret | Source | Required? | Details |
-|---|---|---|---|
-| None by default | n/a | no | Add entries when resources or third-party APIs require secrets. |
-
-## Threat Model
-
-| Risk | Impact | Mitigation | Status |
-|---|---|---|---|
-| Unsafe file upload handling | Malicious or oversized upload could affect storage. | Multipart handler validates metadata and BlobStore seam isolates bytes. | template-reference |
-| Missing auth for product data | User/customer data could be exposed if added without access control. | Add API-layer auth before storing protected data. | deferred |
-
 ## Security Gaps
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| No product-specific data classification | medium | Fill after PRD/domain map defines real data. |
-| No auth model | conditional | Required before protected or multi-user data. |
+| Redaction policy undefined | **high** | Before `DVC-P0-011` (`android-adb`) puts a real device's screen into an evidence store. |
+| No per-consumer grant granularity | medium | Before any consumer beyond the delivery ramps holds a lease. |
+| Unattended agent control unresolved | medium | Before `DVC-P1-005` (agent mode) ships. |
+| No visual-understanding route in `ai-gateway` | blocking for `ai.*` only | Declared dependency, not a workaround target. `ai.*` steps report `unavailable` naming it until the gateway capability exists. |
 
 ## Cross-References
 

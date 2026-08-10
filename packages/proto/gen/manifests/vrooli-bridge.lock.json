@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "vrooli-bridge",
-  "input_digest": "sha256:a0ac187c3acf5c98ef3656d12708c0f74af2d87413755d95962449e36dccb749",
+  "input_digest": "sha256:f605bb5bc22fc64e2a763be5dbe82edafa4a93863a4fc01aa4a5eef421a9702d",
   "input_files": [
     "schemas/vrooli-bridge/v1/artifacts/artifacts.proto",
     "schemas/vrooli-bridge/v1/audit/audit.proto",
@@ -59,7 +59,7 @@
     "gen/go/vrooli-bridge/v1/provision/provision_v1connect/provision.connect.go": "sha256:45aa9b003544674251a998e0e778af503b3676e3e6857ba56fc97b9cb60ebe76",
     "gen/go/vrooli-bridge/v1/queue/queue.pb.go": "sha256:f2f6acaaa39f9fccf9f799fff3fbe7a6e94b15dec55a3be4791441862dfbb5ea",
     "gen/go/vrooli-bridge/v1/queue/queue_v1connect/queue.connect.go": "sha256:510b3c6e6c9d10237d7555c0d3e335e023f54c7fd18c1ab4015bad3814077b8f",
-    "gen/go/vrooli-bridge/v1/registry/registry.pb.go": "sha256:1981a4c10187b9414d13683b8f98c9944546a8cf9c3d0b23ad19e8f93d84da69",
+    "gen/go/vrooli-bridge/v1/registry/registry.pb.go": "sha256:fe4fead5b5a07bd414da945bb0bbbf6656ba60d1e6b39f76c226516e03c81928",
     "gen/go/vrooli-bridge/v1/registry/registry_v1connect/registry.connect.go": "sha256:3d43d7bdbf9f1696e7cbfd2357490b37066b7bac0656456b7a08d57207af3823",
     "gen/go/vrooli-bridge/v1/runs/runs.pb.go": "sha256:855dfe6e4e7b11f995b441962adfe715130c864603290c6bc6cb4e1e0ac64441",
     "gen/go/vrooli-bridge/v1/runs/runs_v1connect/runs.connect.go": "sha256:1f7b7c0a0c470d5c96453142ca06b03f7bf092f421cf73e88c5a390669be93f6",
@@ -148,7 +148,7 @@
     "gen/typescript/vrooli-bridge/v1/presence/presence_pb.ts": "sha256:af57419f5e9ce485559d591d3c39553f71bb62025fef196b2c9f52dd84629eef",
     "gen/typescript/vrooli-bridge/v1/provision/provision_pb.ts": "sha256:fcdcf7d6640844c1f71e79282d4b0268e05326215fae3383fe04b44c46f7afc8",
     "gen/typescript/vrooli-bridge/v1/queue/queue_pb.ts": "sha256:99cfc36179e4e3d6cd52c899f2294119d827bde39c3cfbebed897aabe6500ecb",
-    "gen/typescript/vrooli-bridge/v1/registry/registry_pb.ts": "sha256:2f8da338f4327d45d9eb770a6cb6fa530dd2e2635f038dd835fdd1d76fb808fe",
+    "gen/typescript/vrooli-bridge/v1/registry/registry_pb.ts": "sha256:aa539e2b79754286cab213447ceb7f96373971494f5278a0f6e630ccc13bd35b",
     "gen/typescript/vrooli-bridge/v1/runs/runs_pb.ts": "sha256:74cffc3800aedc543cf4e5e78ddd8e8174f4f67d785b3423de5a7fe19fae7c1b"
   }
 }

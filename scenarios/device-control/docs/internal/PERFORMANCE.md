@@ -20,6 +20,18 @@ Use this document to answer:
 | API health | responsive under lifecycle health timeout | `/health` check | active |
 | UI health | responsive under lifecycle health timeout | `/health` check | active |
 
+### Scenario-specific budgets
+
+Device work is dominated by physical latency, so the budgets that matter are
+about *not adding* avoidable cost.
+
+| Surface | Budget | Why |
+|---|---|---|
+| Capability probe | Cheap enough to run on a schedule without disturbing an idle device | A probe that wakes a phone every minute is a battery bug, and the user notices before we do. |
+| Target resolution | Rung-dependent by design: `semantic` and `visual-anchor` are local and effectively free; `vision` costs an `ai-gateway` round trip plus tokens | The ladder is partly a performance mechanism — the fast path should be taken whenever the strategy allows it. |
+| Bounded waits | Explicit upper bounds, always | The performance question is never "how long did it sleep" but "was the bound appropriate and was it exceeded." |
+| Frame streaming | Degrades to a lower frame rate rather than blocking verb dispatch | Control latency is the property that matters; the frame is evidence. |
+
 ## Current Measurements
 
 | Measurement | Value | Source | Date |
@@ -49,23 +61,3 @@ Use this document to answer:
 - [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — release checklist
 - [`TESTING.md`](TESTING.md) — coverage and test expectations
 - [`PROBLEMS.md`](PROBLEMS.md) — unresolved performance debt
-
-## Scenario-specific budgets
-
-Device work is dominated by physical latency, so the budgets that matter are
-about *not adding* avoidable cost:
-
-- **Capability probe** should be cheap enough to run on a schedule without
-  disturbing an idle device. A probe that wakes a phone every minute is a
-  battery bug.
-- **Target resolution** cost is rung-dependent by design: `semantic` and
-  `visual-anchor` are local and effectively free; `vision` costs an
-  `ai-gateway` round trip plus tokens. The ladder exists partly as a
-  performance mechanism — the fast path should be taken whenever the
-  strategy allows it.
-- **Bounded waits** carry explicit upper bounds. The performance question is
-  never "how long did it sleep" but "was the bound appropriate and was it
-  exceeded."
-- **Frame streaming** must degrade to a lower frame rate rather than
-  blocking verb dispatch. Control latency is the property that matters; the
-  frame is evidence.

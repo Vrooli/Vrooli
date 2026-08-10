@@ -67,16 +67,18 @@ export type Node = Message<"vrooli.vrooli_bridge.v1.registry.Node"> & {
   endpoint: string;
 
   /**
-   * Self-reported capability advertisement (verb namespaces the node is
-   * willing to run). Authoritative authorization is `scopes`.
+   * Self-reported capability advertisement. It can describe what the node
+   * appears able to do, but never grants authority; registry `scopes` are
+   * authoritative.
    *
    * @generated from field: repeated string capabilities = 7;
    */
   capabilities: string[];
 
   /**
-   * The granted verb-namespace scopes that authorize what the node may be
-   * asked to run (e.g. "scenario test*"). Enforced at dispatch (Phase 3).
+   * Registry-owned execution scopes that authorize what the node may be asked
+   * to run (for example "vrooli-bridge:write" or a narrower "scenario test*").
+   * Enforced at dispatch; an empty list is presence-only.
    *
    * @generated from field: repeated string scopes = 8;
    */

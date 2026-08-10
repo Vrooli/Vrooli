@@ -122,7 +122,9 @@ upload exception. Copy its shape for your own domains, then remove it.
   - `describe() -> CapabilityDeclaration` — what else this strategy offers.
 - Everything else is optional and declared: semantic tree, app lifecycle,
   permission control, network control, orientation, clipboard, file
-  transfer, video recording, device logs.
+  transfer, native recording, device logs, WebView attach. Canonical IDs and
+  the construct that exercises each are in
+  [`../reference/capabilities.md`](../reference/capabilities.md).
 - Why the floor is this small: it is the largest set that
   `ios-mirror` — pixels and synthetic HID events only — can satisfy. Making
   the floor any richer would exclude a strategy we need, and shared
@@ -161,8 +163,19 @@ upload exception. Copy its shape for your own domains, then remove it.
 - Does not own: web-content automation semantics — a `bas.*` step delegates
   to `browser-automation-studio` and merges its result into one timeline.
 - Step vocabularies in one envelope:
-  - `device.*` — tap, swipe, type, key, launch, install, stop, uninstall,
-    permission, observe, record.
+  - `device.*` — split by what a strategy must declare to execute them:
+    - *floor-guaranteed*, working on every strategy with no declaration:
+      `tap`, `swipe`, `type`, `key`, `observe`, `record`.
+    - *capability-gated*: `launch`, `install`, `stop`, `uninstall`
+      (`app-lifecycle`); `permission` (`permission-control`); `network`
+      (`network-control`); `orientation` (`orientation`); `clipboard`
+      (`clipboard`); `push` and `pull` (`file-transfer`); `logs`
+      (`device-logs`).
+
+    Every declared capability has at least one verb that reaches it
+    (`D-012`). `record` is floor-guaranteed despite `native-recording`
+    being optional — see `D-009`. The authoritative step-to-capability
+    map is [`../reference/capabilities.md`](../reference/capabilities.md).
   - `ai.*` — see, decide, extract, verify. Always through `ai-gateway`.
   - `flow.*` — conditional, loop, subflow, parallel.
   - `wait.*` — named bounded readiness and settle policies with upper
@@ -184,6 +197,22 @@ upload exception. Copy its shape for your own domains, then remove it.
   on any strategy" true rather than aspirational. Vision is the universal
   fallback; semantics are the fast path. The same flow runs on both, and
   the strategy — not the flow author — determines which rung is used.
+- **Recording is guaranteed, not optional.** Because `observe()` is in the
+  floor, every strategy can produce frames by definition — so every strategy
+  can produce video:
+  - *native* — the strategy declares `record_video` and the platform
+    captures it (`adb screenrecord`, `simctl io recordVideo`). Full frame
+    rate, low overhead.
+  - *synthesized* — no native capability, so the frame stream from
+    `observe()` is encoded into a video. Lower and variable frame rate,
+    higher overhead, but always available.
+  The evidence records **which path produced the video and its effective
+  frame rate**. A synthesized capture is never labelled native, and a
+  reviewer is never left to assume a 2 fps reconstruction was a full-rate
+  capture. This is the same "build once against the floor" pattern as
+  vision, applied to evidence rather than control — and it is what lets the
+  delivery ramps claim video evidence on *every* device kind rather than
+  only the well-instrumented ones.
 - Requirements: `DVC-P0-005`, `DVC-P0-006`, `DVC-P0-007`, `DVC-P0-008`,
   `DVC-P1-007`, `DVC-P1-009`.
 

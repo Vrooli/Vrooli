@@ -23,7 +23,7 @@ Use this document to answer:
 | `ai-gateway` | scenario | for `ai.*` steps | `flows` | Provider-neutral inference by intent, role, and constraints | `ai.*` steps report `unavailable` naming the missing gateway capability. Flows with no `ai.*` step are unaffected. Never falls back to a direct provider call. |
 | `agent-manager` | scenario | for agent mode | `agent` | Run spawn, bounds, transcript, terminal state | `device-control agent run` reports `unavailable`. Flow execution is unaffected. |
 | `prompt-manager` | scenario | for agent mode | `agent` | The operator skill that teaches this scenario's CLI | Agent mode refuses to start rather than improvising without the skill. |
-| `browser-automation-studio` | scenario | optional | `flows` | Named flow execution against an attached WebView | `bas.*` steps report `unavailable`; every other step kind still runs. |
+| `browser-automation-studio` | scenario | optional | `flows` | Named flow execution against an attached WebView | `bas.*` steps report `unavailable`; every other step kind still runs. Also gated on the strategy declaring `webview-attach` — a `bas.*` step on a strategy without it is `unsupported`, not `unavailable`. |
 | `android-sdk` | resource | for `android-adb` | `strategies` | adb, platform-tools, emulator, system images, AVD lifecycle | The `android-adb` strategy reports `unavailable` naming the missing tool. Other strategies are unaffected. |
 | Xcode | host capability | for iOS strategies | `strategies` | `xcodebuild`, `simctl`, `devicectl`, signing identities | Probed and instructed, never installed by us. Missing Xcode makes the iOS strategies `unavailable` with an install next-action. |
 
@@ -55,6 +55,29 @@ dependency exists.
 | `browser-automation-studio` | optional | Owns **web-content automation**. Because generated apps wrap the same web bundle everywhere, a scenario's real UX flows are BAS's domain on every surface; this scenario drives only the native shell around them. | Named flow execution against an attached WebView; result merged into one evidence timeline. |
 | `deployment-manager` | none (indirect) | Consumes device evidence only through the delivery ramps, never directly. Listing it as a dependency would invert the layering. | No direct call in either direction. |
 | `device-sync-hub` | none (adjacent) | Moves files *between* trusted devices; this scenario *drives* them. Same fleet, opposite direction, no shared contract. | No direct call. |
+
+### Inbound consumers
+
+These scenarios depend on this one. They are listed because the
+direction is load-bearing: this scenario must never acquire a dependency
+on them, and a reverse import is an architecture defect rather than a
+convenience.
+
+| Scenario | Direction | Reason | Contract |
+|---|---|---|---|
+| `scenario-to-android` | inbound only | The ramp's `Driver` adapter is a thin translator that turns ramp intent — "install this artifact, run this journey chapter" — into device verbs. It serves emulator and physical Android identically through the `android-adb` strategy. | Calls this scenario's verb surface under a held lease. This scenario never learns what an artifact or a release is. |
+| `scenario-to-ios` | inbound only | Same translator role. Selects among `ios-simctl`, `ios-xcuitest`, and `ios-mirror` by what the target can prove, which is why capability probing rather than device kind decides. | As above. See the non-promotability gap in [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) before treating `ios-mirror` output as release evidence. |
+| `scenario-to-desktop` | inbound, optional | May consume the `host-desktop` strategy once it exists, reusing headless display and input tooling through the same flow vocabulary. Its existing Electron journey path is independent of this scenario. | Optional; no coupling today. |
+| `packages/delivery-ramp-go` | contract only | The shared ramp spine defines the `Driver` adapter these ramps implement. No code dependency in either direction — the boundary is described, not imported. | See [`../internal/SEAMS.md`](../internal/SEAMS.md#strategy-is-not-a-ramp-driver). |
+
+Mobile conformance chapters (`install_cold_start`,
+`process_death_restore`, `update_migration`, and the rest) are
+**ramp-owned journeys executed through this scenario's verbs**. The
+chapter set, its assertions, and the release gate belong to the ramp;
+this scenario supplies `app-lifecycle`, input, and capture, and knows
+nothing about why they were called. That is also why `manager` is the
+profile the ramps actually need — a `driver`-only strategy can validate
+a running app but cannot run a conformance journey.
 
 ### Blocking gap — `ai-gateway` has no visual-understanding request kind
 

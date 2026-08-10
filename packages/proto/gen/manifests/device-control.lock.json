@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "device-control",
+  "input_digest": "sha256:a20b78d6dda0144e45881c346d1b48333be173b30faeeb013aa9db5587168280",
+  "input_files": [
+    "schemas/device-control/v1/notes/attachments.proto",
+    "schemas/device-control/v1/notes/notes.proto",
+    "schemas/device-control/v1/shared/errors.proto",
+    "schemas/device-control/v1/shared/health.proto",
+    "schemas/measures/v1/measures.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/device-control/v1/notes/attachments.pb.go": "sha256:0d7c7b7b236efa519ddfee4c5b6cbfe40a17ceec11e9373fb706277055232ad2",
+    "gen/go/device-control/v1/notes/notes.pb.go": "sha256:40b186e4e9ceb704b5d5122cb29d349865bb56a70b37a0389bfbff47c5f8912a",
+    "gen/go/device-control/v1/notes/notes_v1connect/notes.connect.go": "sha256:b0471dee11ee3a7f55dee898ffb252a584f60c8ac16b8f88ea1d36a19f11c3bf",
+    "gen/go/device-control/v1/shared/errors.pb.go": "sha256:0f035542fd368d5384bbe796c53065dbc155fc2f7d19cd5a4fb9ca566dc2d589",
+    "gen/go/device-control/v1/shared/health.pb.go": "sha256:b990bb2a1c87985ba60f616552a052c69925e5e3e70799a9756cf691c960bd94",
+    "gen/python/device_control/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_control/v1/notes/attachments_pb2.py": "sha256:e088cfacc21f53f202b3e18d9be7044ca98a4ae4d52c20a55624961164e96318",
+    "gen/python/device_control/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/device_control/v1/notes/notes_pb2.py": "sha256:6dff5feff5bf62a7e38ffd07a49f32e7b76a65782d59e8c90f66c4c6cd0c6903",
+    "gen/python/device_control/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/device_control/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_control/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_control/v1/shared/errors_pb2.py": "sha256:8ca236b51b57bf72d49fd9d8e65ad2ed70f972e48aa48ddd359dcd4cb1b346f6",
+    "gen/python/device_control/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/device_control/v1/shared/health_pb2.py": "sha256:3652d5cffd4747fe3c5b54ff5845ee538a0a73ab3852af5e3edc00069978d959",
+    "gen/python/device_control/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/device_control/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/device-control/v1/notes/attachments_pb.ts": "sha256:bc3c2a35a8b92d6e2821c7329c73b0c77a4cbbcdc9b49acb616d177b62888d12",
+    "gen/typescript/device-control/v1/notes/notes_pb.ts": "sha256:4b5a6b444680f848ec35d28ab5c7919f0494df286dd4af806031cb030a0c5628",
+    "gen/typescript/device-control/v1/shared/errors_pb.ts": "sha256:4dedf4b347926963b05d9d8040799997088ce901013c4059419a696b765547fa",
+    "gen/typescript/device-control/v1/shared/health_pb.ts": "sha256:5c50e27c70d073999ee7d04f10805ac1207c155b11d2bbaf66dbd273c5dfa4b4",
+    "gen/typescript/js/device-control/v1/notes/attachments_pb.js": "sha256:7a9e98fedd5ae0e62808069be6b940da1f2bd91a85601e8e93c07f8efdf2e9f1",
+    "gen/typescript/js/device-control/v1/notes/notes_pb.js": "sha256:05cc9f89c7489f1be5761478adc47033d5f6b1cf91dbd3e88692ed41d0b54ca4",
+    "gen/typescript/js/device-control/v1/shared/errors_pb.js": "sha256:e3ff9adca4214fdc6937e16a82e9b9edd1209cdc3b21d18dfff088a28abd5a7f",
+    "gen/typescript/js/device-control/v1/shared/health_pb.js": "sha256:13adfe3651086d80b26f9352287f355eff7347bfa3ea795fad7e3afaef82f075"
+  }
+}

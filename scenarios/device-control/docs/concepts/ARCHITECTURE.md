@@ -31,10 +31,34 @@ This document does not own:
 - deployment and operations: [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md),
 - commercial strategy: [`../business/MONETIZATION.md`](../business/MONETIZATION.md).
 
+## Where This Scenario Sits
+
+Device Control owns exactly one layer of a four-layer stack. Each layer
+answers one question, and none answers two. The boundaries are the
+reason most of this scenario's dependencies exist; the rationale is
+`D-008` in [`../internal/DECISIONS.md`](../internal/DECISIONS.md).
+
+| Layer | Question it answers | Owner |
+|---|---|---|
+| Delivery ramps | "Is this artifact shippable for this platform?" | `scenario-to-ios`, `scenario-to-android`, `scenario-to-desktop` |
+| Web-content automation | "What should the app's UI do?" | `browser-automation-studio` |
+| **Device operation** | **"What can I do to this device, and did it work?"** | **this scenario** |
+| Reach and trust | "What do I control, and may I address it?" | `vrooli-bridge` |
+
+Two consequences shape every design choice below. This scenario never
+learns what an artifact or a release is — a ramp's `Driver` translates
+ramp intent into device verbs, one way only
+([`../internal/SEAMS.md`](../internal/SEAMS.md#strategy-is-not-a-ramp-driver)).
+And it never owns device identity — a phone is a bridge *attached
+device*, reachable only through a host node, so a second registry here
+would split the single answer to "what do I control."
+
 ## Scenario Shape
 
 A scenario is one product expressed through three coordinated surfaces
-and one canonical contract layer.
+and one canonical contract layer. Device Control adds one layer the
+plain template does not have: a strategy-adapter tier beneath the API,
+which is how a verb reaches a physical or virtual device.
 
 ```
                        ┌─────────────────────────────┐
@@ -52,11 +76,24 @@ and one canonical contract layer.
         │ + Vite   │            │ HTTP     │            │ cli-core │
         └──────────┘            └────┬─────┘            └──────────┘
                                      │
-                                     ▼
-                                ┌─────────┐
-                                │ SQLite  │
-                                │ (local) │
-                                └─────────┘
+                        ┌────────────┴────────────┐
+                        ▼                         ▼
+                  ┌──────────┐        ┌───────────────────────┐
+                  │  SQLite  │        │  Strategy adapters    │
+                  │ (local)  │        │  android-adb,         │
+                  └──────────┘        │  ios-simctl,          │
+                                      │  ios-xcuitest,        │
+                                      │  ios-mirror,          │
+                                      │  host-desktop         │
+                                      └───────────┬───────────┘
+                                                  │ device verbs
+                                                  ▼
+                                      ┌───────────────────────┐
+                                      │    vrooli-bridge      │
+                                      │  reach · trust · audit│
+                                      └───────────┬───────────┘
+                                                  ▼
+                                        host node ─▶ attached device
 ```
 
 | Surface | Role | Owns | Does Not Own |
@@ -64,12 +101,30 @@ and one canonical contract layer.
 | API (`api/`) | Scenario core | Business rules, persistence, integrations, transport edge | Browser state, CLI formatting |
 | UI (`ui/`) | Browser presentation | Components, i18n, accessibility, browser interaction | Business rules, persistence policy |
 | CLI (`cli/`) | Operator/agent wrapper | Argument parsing, output formatting, API invocation | Business rules, duplicated validation |
+| Strategies (`api/internal/strategies/`) | Control mechanism | One transport's floor operations and declared capabilities | Flow semantics, leases, evidence policy, ramp vocabulary |
 | Contracts (`packages/proto/schemas/device-control/`) | Wire shape | Proto messages/services and generated clients | Hand-written route/type mirrors |
 
 The load-bearing principle: the API is the only surface that contains
 business logic. UI and CLI translate user/operator intent into API
 calls. Proto types flow from one source of truth so wire-shape drift
 between surfaces is impossible.
+
+The CLI carries one extra obligation here. It is the agent-facing
+control surface, so a capability reachable only from the API or UI is
+invisible to agent mode and treated as incomplete (`D-007`). CLI parity
+is a functional requirement, not ergonomics.
+
+Two invariants hold across the whole shape and are enforced at the
+API/service layer, never in a surface:
+
+- **Capabilities are probed, never inferred** from device kind
+  (`D-002`). The registry in
+  [`../reference/capabilities.md`](../reference/capabilities.md) records
+  expectations; only a probe decides.
+- **No verb reaches a strategy without a bridge-authorized reach and a
+  held, unexpired lease** (`D-006`). Several strategies are physically
+  single-session, so a missing lease corrupts evidence rather than
+  erroring.
 
 ## System Boundaries
 
@@ -185,17 +240,40 @@ For detailed product ownership, update [`DOMAINS.md`](DOMAINS.md).
 For persistence and retention, update [`DATA.md`](DATA.md). For
 temporal behavior, update [`FLOWS.md`](FLOWS.md).
 
-## Architecture Maturity
+### Adding a control strategy
 
-Generated scenarios start with a mature template shape and starter
-reference domains. Replace this table as the scenario becomes real.
+Strategies are the scenario's primary extension point, and they follow
+a different path from a domain. Adding one must require **no engine
+change** — that property is what `DVC-P0-002`'s conformance suite
+exists to protect.
+
+1. Implement the three floor operations — `Observe`, `Actuate`,
+   `Describe` — against the `Strategy` seam.
+2. Declare optional capabilities using the canonical IDs in
+   [`../reference/capabilities.md`](../reference/capabilities.md). Never
+   invent an ID; an unlisted capability cannot be required by a step or
+   reported by a probe.
+3. Supply the probe that verifies each declared capability on a real
+   target. Declaration and verification are deliberately two seams
+   ([`../internal/SEAMS.md`](../internal/SEAMS.md#why-describe-and-capabilityprober-are-two-seams)).
+4. Run `device-control strategy verify <id>` and resolve any
+   declared-but-unprovable delta.
+
+If a strategy needs a capability the registry does not list, the
+registry is incomplete — add the capability *and* the construct that
+exercises it in the same change (`D-012`). Full walkthrough:
+[`../guides/adding-a-strategy.md`](../guides/adding-a-strategy.md).
+
+## Architecture Maturity
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Reference-ready | Domain-owned vertical-slice stack, module registry, per-domain schema, documented seams. | Starter domains must be replaced with scenario-specific capabilities. |
-| UI | Reference-ready | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Real scenarios may need routing/state patterns once multiple screens exist. |
-| CLI | Reference-ready | Domain command groups wrap API calls and render reports. | New domains must add commands intentionally; CLI should remain thin. |
-| Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints. | Scenario-specific stubs must be filled or marked not-applicable. |
+| Design | Authored | PRD operational targets, capability registry, decision log, and planned seam register are complete and mutually consistent. | Two design decisions remain open — lease enforcement point and the `ios-mirror` non-promotability mechanism. See [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md). |
+| API | Template-only | Generated `react-vite` shape: module registry, per-domain schema, documented seams. | No scenario domain implemented yet. The six domains in [`DOMAINS.md`](DOMAINS.md) and the seams in [`../internal/SEAMS.md`](../internal/SEAMS.md) are planned, not built. |
+| UI | Template-only | Feature folders, typed API clients, selector/i18n registries. | Fleet view, live session view, flow authoring, and run review are unbuilt. |
+| CLI | Template-only | Domain command groups wrap API calls and render reports. | CLI parity is a P0 functional requirement (`D-007`); no scenario command exists yet. |
+| Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints. Scenario-specific docs authored 2026-08-10. | Requirement validation entries are typed `manual` while tests are unwritten; convert as implementation lands. |
+| Strategies | Not started | Registry, floor, profiles, and expected matrix specified. | No adapter implemented. `android-adb` (`DVC-P0-011`) is the first and proves the floor, ladder, and conformance suite. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later
@@ -208,7 +286,8 @@ when they are deliberate and durable.
 
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
-| 2026-08-10 | None yet. | Generated from `react-vite`. | Update when the scenario intentionally diverges. |
+| 2026-08-10 | A strategy-adapter tier sits beneath the API, outside the template's surface model. | The template shape assumes the API's lowest layer is persistence. Here the API also drives external hardware through pluggable adapters, which is the scenario's primary extension point rather than an implementation detail of one domain. | A strategy stops being substitutable, or adapters collapse into a single domain. |
+| 2026-08-10 | Device identity is read from another scenario rather than owned locally. | `vrooli-bridge` owns the fleet registry; this scenario mirrors device records and owns only probing and health. Normally a scenario owns its primary entity's identity. | Bridge changes its fleet model, or a device class fits neither side (`D-008`). |
 
 ## Documentation Architecture
 
@@ -218,6 +297,7 @@ question, one canonical home.
 | Concern | Canonical Document |
 |---|---|
 | System map and extension rules | `docs/concepts/ARCHITECTURE.md` |
+| Device capability registry and step requirements | `docs/reference/capabilities.md` |
 | Product capabilities and bounded contexts | `docs/concepts/DOMAINS.md` |
 | Workflows and state transitions | `docs/concepts/FLOWS.md` |
 | Data ownership, retention, and migrations | `docs/concepts/DATA.md` |
@@ -241,6 +321,8 @@ Every durable scenario document should be registered in
 - [`START-HERE.md`](../START-HERE.md) — first implementation workflow
 - [`QUICKSTART.md`](../QUICKSTART.md) — clone-to-running flow
 - [`DOMAINS.md`](DOMAINS.md) — bounded contexts and ownership
+- [`../reference/capabilities.md`](../reference/capabilities.md) — capability registry, step requirements, resolution rungs
+- [`../internal/DECISIONS.md`](../internal/DECISIONS.md) — durable decisions behind this shape
 - [`FLOWS.md`](FLOWS.md) — workflow and state-transition map
 - [`DATA.md`](DATA.md) — data ownership and storage
 - [`INTEGRATIONS.md`](INTEGRATIONS.md) — dependency contracts

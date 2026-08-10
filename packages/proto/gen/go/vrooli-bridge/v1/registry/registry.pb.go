@@ -106,11 +106,13 @@ type Node struct {
 	// never dials in — the node dials out). Useful for operator display and for
 	// off-LAN reach bookkeeping via tunnel-manager.
 	Endpoint string `protobuf:"bytes,6,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
-	// Self-reported capability advertisement (verb namespaces the node is
-	// willing to run). Authoritative authorization is `scopes`.
+	// Self-reported capability advertisement. It can describe what the node
+	// appears able to do, but never grants authority; registry `scopes` are
+	// authoritative.
 	Capabilities []string `protobuf:"bytes,7,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
-	// The granted verb-namespace scopes that authorize what the node may be
-	// asked to run (e.g. "scenario test*"). Enforced at dispatch (Phase 3).
+	// Registry-owned execution scopes that authorize what the node may be asked
+	// to run (for example "vrooli-bridge:write" or a narrower "scenario test*").
+	// Enforced at dispatch; an empty list is presence-only.
 	Scopes []string `protobuf:"bytes,8,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	// Current status, with the presence overlay applied (see NodeStatus).
 	Status NodeStatus `protobuf:"varint,9,opt,name=status,proto3,enum=vrooli.vrooli_bridge.v1.registry.NodeStatus" json:"status,omitempty"`

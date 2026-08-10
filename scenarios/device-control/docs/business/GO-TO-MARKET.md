@@ -12,48 +12,50 @@ Use this document to answer:
 - What claim or offer will be tested?
 - What evidence changes the product or monetization plan?
 
+## Status — not applicable, deliberately
+
+**There is no external go-to-market for this scenario, and that is a decision
+rather than a gap.** The consumers are other Vrooli scenarios and the owner.
+Adoption is measured by whether the delivery ramps and agent runs can reach
+the devices they need — not by external users, signups, or channel reach.
+
+This is a narrower stance than [`MONETIZATION.md`](MONETIZATION.md) takes, and
+the two are not in conflict. Monetization identifies a real product wedge
+worth pursuing *later*; this document says no channel work should happen
+*yet*. The gate between them is the internal validation signal below.
+
 ## Audience And Positioning
 
-- Audience: define during PRD and monetization review.
-- Positioning: define after the first real domain proves value.
-- Main claim: deferred.
-- Proof needed: deferred.
+| Question | Answer |
+|---|---|
+| Audience | Internal: the delivery ramps, agent runs, and the owner. |
+| Positioning | A capability other scenarios build on, not a product surface. |
+| Main claim | Deferred until the internal validation signal lands. |
+| Proof needed | Physical-device evidence a reviewer actually trusts. |
 
 ## Channels
 
-| Channel | Hypothesis | Assets Needed | Validation Signal |
-|---|---|---|---|
-| None yet. | Generated scaffold. | n/a | Add when the scenario has a market-facing use case. |
+| Channel | Status | Reason |
+|---|---|---|
+| None. | not-applicable | No external audience exists yet. Adding channel assets before the ramps depend on this capability would be marketing a thing we have not proven to ourselves. |
 
-## Launch Motion
+## Revisit Trigger
 
-1. Complete scaffold orientation.
-2. Implement one real domain and remove template reference domains.
-3. Validate PRD requirements and scenario tests.
-4. Decide whether this is internal capability, direct product, bundle
-   component, or service accelerator.
-5. Add channel-specific assets only after the role is clear.
+Reopen this document when **all three** hold:
 
-## Messaging
+1. The delivery ramps produce physical-device evidence that a reviewer
+   trusts, and depend on it rather than merely tolerating it.
+2. The three open security questions in
+   [`../internal/SECURITY.md`](../internal/SECURITY.md) have real answers —
+   they are prerequisites to any external conversation, not follow-ups.
+3. Someone asks for it unprompted.
 
-| Message | Audience | Evidence | Status |
-|---|---|---|---|
-| None yet. | n/a | n/a | deferred |
-
-## Validation Experiments
-
-| Experiment | Channel | Threshold | Decision |
-|---|---|---|---|
-| None yet. | n/a | n/a | Add after monetization hypothesis exists. |
+Until then, this document stays `not-applicable` and no channel, messaging,
+or experiment work is scheduled.
 
 ## Cross-References
 
-- [`MONETIZATION.md`](MONETIZATION.md) — packaging and pricing hypothesis
+- [`MONETIZATION.md`](MONETIZATION.md) — the product wedge this defers
 - [`../../PRD.md`](../../PRD.md) — product outcomes
+- [`../internal/SECURITY.md`](../internal/SECURITY.md) — the questions that gate any external motion
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — validation signals and telemetry
-
-## Scenario stance — not applicable
-
-No external go-to-market. The consumers are other Vrooli scenarios and the
-owner. Adoption is measured by whether the delivery ramps and agent runs can
-reach the devices they need, not by external users.

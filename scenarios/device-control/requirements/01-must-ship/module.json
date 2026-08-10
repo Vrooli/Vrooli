@@ -8,7 +8,7 @@
   "requirements": [
     {
       "criticality": "P0",
-      "description": "Every strategy implements exactly three required operations — observe() returning a screen frame with size, scale and timestamp; actuate() accepting pointer and key events; describe() returning a capability declaration. Every richer capability (semantic tree, app lifecycle, permissions, network control, orientation, clipboard, file transfer, video recording, device logs) is optional and declared. Declarations are verified by probing at inventory time; an unprovable capability reports unavailable with the exact missing prerequisite and a next action, never silently present.",
+      "description": "Every strategy implements exactly three required operations — observe() returning a screen frame with size, scale and timestamp; actuate() accepting pointer and key events; describe() returning a capability declaration. Every richer capability (semantic tree, app lifecycle, permissions, network control, orientation, clipboard, file transfer, video recording, device logs, WebView attach) is optional and declared. Declarations are verified by probing at inventory time; an unprovable capability reports unavailable with the exact missing prerequisite and a next action, never silently present.",
       "id": "DVC-P0-001",
       "prd_ref": "OT-P0-001",
       "status": "planned",
@@ -168,6 +168,21 @@
           "type": "manual",
           "status": "planned",
           "notes": "integration phase — planned test `api/strategy/androidadb/adapter_test.go::TestAndroidAdbServesEmulatorAndPhysicalIdentically`. One adapter drives both device kinds: semantic hierarchy, app lifecycle, permissions, input, screenshot and recording, asserted against a fake adb transport."
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Video evidence is a guaranteed capability, not an optional one. A strategy that declares native recording (adb screenrecord, simctl recordVideo) uses it. A strategy that does not gets a recording synthesized from its floor-level observe() frame stream, which every strategy can produce by definition. Evidence records which path produced the video and its effective frame rate, so a reviewer can tell a native capture from a synthesized one and never mistakes a low-rate reconstruction for a full-rate capture. This is what lets the delivery ramps claim video evidence on every device kind rather than only the well-instrumented ones.",
+      "id": "DVC-P0-012",
+      "prd_ref": "OT-P0-012",
+      "status": "planned",
+      "title": "Recording on every strategy, native or synthesized",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "integration phase — planned test `api/flows/recording_test.go::TestRecordingIsGuaranteedNativeOrSynthesized`. A strategy declaring native recording produces a native capture; a floor-only strategy produces a video synthesized from its observe() frame stream. Both record which path produced them and the effective frame rate; a synthesized capture is never labelled native."
         }
       ]
     }

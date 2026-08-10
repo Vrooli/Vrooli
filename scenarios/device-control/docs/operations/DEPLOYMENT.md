@@ -14,12 +14,24 @@ Use this document to answer:
 
 ## Supported Tiers
 
+This scenario runs as a Tier 1 local service and is **not itself a deployment
+target**. It is the thing that *validates* deployment targets, so the deferred
+rows below are deferred by design rather than by backlog.
+
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
 | Local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, SQLite path | Replace template reference domains before product deployment. |
-| Desktop/mobile app | deferred | Cross-platform runtime, packaged UI/API, storage resolver | Run cross-platform readiness before adoption. |
-| Managed cloud/SaaS | deferred | Hosted runtime, auth, observability, cost model | Requires deployment and monetization review. |
-| Enterprise/self-host | deferred | Install docs, backup/restore, support model | Requires operational hardening. |
+| Desktop/mobile app | not-applicable | — | Deliberate. Packaging the device control plane as a device app inverts the layering. |
+| Managed cloud/SaaS | deferred | Hosted runtime, auth, observability, cost model | Owner-scoped bridge trust makes multi-tenancy an architecture project; see `../business/MONETIZATION.md` obstacle 1. |
+| Enterprise/self-host | deferred | Install docs, backup/restore, support model | Requires the three open security questions answered first. |
+
+### Placement constraint
+
+Device control is only useful on a node that can actually reach devices. An
+instance on a machine with no attached devices and no bridge reach is correct
+but useless — it reports an empty inventory rather than failing, which is the
+intended behavior. Placement is therefore a capability question, not a
+capacity one.
 
 ## Runtime Requirements
 
@@ -60,13 +72,4 @@ targets, document the deployment-specific rollback path before release.
 - [`OBSERVABILITY.md`](OBSERVABILITY.md) — health and telemetry
 - [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — dependencies
 - [`../reference/configuration.md`](../reference/configuration.md) — env vars and lifecycle config
-
-## Scenario stance — Tier 1 only, deliberately
-
-This scenario runs as a Tier 1 local service and is not itself a deployment
-target. It is the thing that *validates* deployment targets.
-
-One placement constraint matters: device control is only useful on a node
-that can actually reach devices. An instance on a machine with no attached
-devices and no bridge reach is correct but useless — it will report an empty
-inventory rather than failing, which is the intended behavior.
+- [`../business/MONETIZATION.md`](../business/MONETIZATION.md) — why self-host precedes SaaS

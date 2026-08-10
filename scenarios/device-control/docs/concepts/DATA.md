@@ -56,7 +56,12 @@ Each domain's schema file lives beside the code that interprets it. The
 
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
-| _(your domain tables)_ | _(owning domain)_ | `api/internal/<domain>/schema.sql` | That domain's repository/service/handlers |
+| Device records, capability snapshots | devices | `api/internal/devices/schema.sql` | devices repository/service/handlers; inventory probe |
+| Strategy registrations, conformance results | strategies | `api/internal/strategies/schema.sql` | strategies repository/service/handlers; `strategy verify` |
+| Lease records, verb audit | sessions | `api/internal/sessions/schema.sql` | sessions repository/service/handlers; lease enforcement, kill switch |
+| Flow definitions, runs, chapters, anchor metadata | flows | `api/internal/flows/schema.sql` | flows repository/service/handlers; executor, gap report, evidence sink |
+| Agent run records, promotion provenance | agent | `api/internal/agent/schema.sql` | agent repository/service/handlers; run-to-flow promotion |
+| Capture artifacts, anchor images | flows | Filesystem, producer-owned; referenced by checksum | Never a table. Consumers receive `common/v1` `EvidenceRef` only. |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 <!-- EXAMPLE-DOMAIN:notes START -->
