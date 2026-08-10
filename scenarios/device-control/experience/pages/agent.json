@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "agent",
+    "title": "Agent mode",
+    "routes": [
+      "/agent"
+    ],
+    "purpose": "Give a goal to an agent, watch it act under explicit bounds, and promote a successful run into a deterministic flow.",
+    "prd_refs": [
+      "OT-P1-005",
+      "OT-P1-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Step, cost, and lease bounds are visible before the run starts and counted down during it.",
+      "notes": "An unbounded agent on a personal device is the failure mode this surface exists to prevent."
+    },
+    {
+      "statement": "Abort is available at every moment of the run.",
+      "notes": "Bounds handle the expected case; abort handles the rest."
+    },
+    {
+      "statement": "A successful run offers promotion into a flow with the AI steps resolved away.",
+      "notes": "Infer once, replay free \u2014 the promotion path is the reason agent mode earns its cost."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No agent run in progress; goal entry available."
+    },
+    {
+      "id": "bounded-running",
+      "description": "Run active with remaining step and cost budget displayed."
+    },
+    {
+      "id": "bound-exhausted",
+      "description": "A bound was reached; the run stopped and says which bound."
+    },
+    {
+      "id": "aborted",
+      "description": "Operator cancelled; partial step record retained."
+    },
+    {
+      "id": "succeeded",
+      "description": "Goal reached; promotion to a deterministic flow offered."
+    },
+    {
+      "id": "unavailable",
+      "description": "agent-manager or the operator skill is unreachable; the missing dependency is named."
+    }
+  ]
+}

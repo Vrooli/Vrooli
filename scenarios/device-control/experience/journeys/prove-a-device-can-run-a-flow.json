@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "prove-a-device-can-run-a-flow",
+    "title": "Prove a device can run a flow, then run it",
+    "purpose": "The core operator loop: confirm what a device can actually do, check a flow against it before spending device time, run it under an explicit lease, and review the evidence.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-005",
+      "OT-P0-004",
+      "OT-P0-008"
+    ]
+  },
+  "steps": [
+    {
+      "page": "fleet",
+      "state": "populated",
+      "intent": "Find the target device and see its probed capability tier."
+    },
+    {
+      "page": "device-detail",
+      "state": "reachable",
+      "intent": "Confirm which strategy would be selected and which capabilities are proven.",
+      "via": "device row"
+    },
+    {
+      "page": "flows",
+      "state": "runnable",
+      "intent": "Check the flow against this device and confirm there is no capability gap.",
+      "via": "run on device"
+    },
+    {
+      "page": "session",
+      "state": "live",
+      "intent": "Acquire the lease and execute, with holder, expiry and kill visible throughout.",
+      "via": "start run"
+    },
+    {
+      "page": "run-review",
+      "state": "passed",
+      "intent": "Review the chapter timeline, the rung used per step, and the redacted evidence references.",
+      "via": "run completion"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "strategies",
+    "title": "Strategies",
+    "routes": [
+      "/strategies"
+    ],
+    "purpose": "Show the strategy registry and the conformance matrix: which capability tier each strategy actually satisfies, verified rather than declared.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Declared capability and verified capability are shown as separate columns.",
+      "notes": "The gap between them is the whole point of the conformance suite."
+    },
+    {
+      "statement": "A strategy that has never been verified is marked unverified, not assumed passing.",
+      "notes": "An unrun suite is missing evidence, not a pass."
+    },
+    {
+      "statement": "Each strategy shows which flow step kinds it can execute.",
+      "notes": "That is what an author needs to know before writing a flow against it."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Registry loading."
+    },
+    {
+      "id": "verified",
+      "description": "Conformance results current for every registered strategy."
+    },
+    {
+      "id": "unverified",
+      "description": "One or more strategies have no conformance result yet."
+    },
+    {
+      "id": "degraded",
+      "description": "A strategy's verified tier is lower than its declaration; the difference is called out."
+    }
+  ]
+}

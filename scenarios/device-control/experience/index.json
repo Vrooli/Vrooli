@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "device-control",
+  "description": "Experience contract for Device Control. The operator surface is a fleet console: which devices are controlled, what each can provably do, what is driving them right now, and what the resulting evidence shows. Disposition vocabulary (available / unavailable / unsupported / failed) is the most repeated element and is never collapsed.",
+  "pages": [
+    {
+      "id": "fleet",
+      "path": "pages/fleet.json",
+      "title": "Fleet",
+      "status": "active"
+    },
+    {
+      "id": "device-detail",
+      "path": "pages/device-detail.json",
+      "title": "Device",
+      "status": "active"
+    },
+    {
+      "id": "strategies",
+      "path": "pages/strategies.json",
+      "title": "Strategies",
+      "status": "active"
+    },
+    {
+      "id": "session",
+      "path": "pages/session.json",
+      "title": "Live session",
+      "status": "active"
+    },
+    {
+      "id": "flows",
+      "path": "pages/flows.json",
+      "title": "Flows",
+      "status": "active"
+    },
+    {
+      "id": "run-review",
+      "path": "pages/run-review.json",
+      "title": "Run review",
+      "status": "active"
+    },
+    {
+      "id": "agent",
+      "path": "pages/agent.json",
+      "title": "Agent mode",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    },
+    {
+      "id": "notes",
+      "path": "pages/notes.json",
+      "title": "Notes",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "prove-a-device-can-run-a-flow",
+      "path": "journeys/prove-a-device-can-run-a-flow.json",
+      "title": "Prove a device can run a flow, then run it",
+      "status": "active"
+    }
+  ]
+}

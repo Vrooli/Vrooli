@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "device-detail",
+    "title": "Device",
+    "routes": [
+      "/devices/:deviceId"
+    ],
+    "purpose": "Show one device's probed capability matrix, its host node and transport, its strategy options, and its session history.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-003",
+      "OT-P0-002"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The capability matrix distinguishes available, unavailable, and unsupported without collapsing them.",
+      "notes": "Unsupported is terminal; unavailable is fixable. Merging them hides the actionable case."
+    },
+    {
+      "statement": "Which strategy would be selected, and why, is visible before any run starts.",
+      "notes": "Strategy selection determines which resolution rungs are reachable, so it must not be implicit."
+    },
+    {
+      "statement": "Host node and transport are shown, because reachability depends on them.",
+      "notes": "An attached device is only as reachable as the node it hangs off."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Device record and latest snapshot loading."
+    },
+    {
+      "id": "reachable",
+      "description": "Host node online; capability matrix reflects a current probe."
+    },
+    {
+      "id": "unreachable",
+      "description": "Host node offline; the exact reason is displayed and no verb controls are offered."
+    },
+    {
+      "id": "probing",
+      "description": "A capability probe is in flight; prior snapshot shown as stale."
+    },
+    {
+      "id": "session-active",
+      "description": "A lease is held on this device; holder and expiry are visible."
+    }
+  ]
+}

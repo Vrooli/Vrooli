@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "fleet",
+    "title": "Fleet",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Answer the operator's first question \u2014 which devices do I control, what can each actually do right now, and what is running on them.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every controlled device is listed with its probed capability tier, never its assumed one.",
+      "notes": "A device kind usually having a capability is not evidence. The list shows what was proven at the last probe."
+    },
+    {
+      "statement": "An unavailable capability names its missing prerequisite and next action inline.",
+      "notes": "'Unavailable' with no reason forces the operator into the CLI to find out why."
+    },
+    {
+      "statement": "A device with a live session is visually distinct from an idle one.",
+      "notes": "The operator must never have to open a device to discover something is driving it."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Inventory is being fetched; no device rows are asserted yet."
+    },
+    {
+      "id": "empty",
+      "description": "Bridge is reachable but no devices are attached. Explains how to attach one."
+    },
+    {
+      "id": "bridge-unavailable",
+      "description": "Bridge cannot be reached; every device reports unreachable with that reason rather than vanishing."
+    },
+    {
+      "id": "populated",
+      "description": "One or more devices with probed capability tiers."
+    },
+    {
+      "id": "stale",
+      "description": "The newest capability snapshot is older than the probe interval; shown as stale rather than silently trusted."
+    }
+  ]
+}

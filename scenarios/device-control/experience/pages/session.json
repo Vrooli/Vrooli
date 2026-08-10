@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "session",
+    "title": "Live session",
+    "routes": [
+      "/sessions/:sessionId"
+    ],
+    "purpose": "Operate a device under an explicit lease, with the holder, the expiry, and the kill control always visible.",
+    "prd_refs": [
+      "OT-P0-004",
+      "OT-P0-009",
+      "OT-P0-010"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The lease holder, its expiry, and a one-click kill are always visible while the session is live.",
+      "notes": "This scenario can drive a personal device. Session visibility is a safety property, not a convenience."
+    },
+    {
+      "statement": "Every control is operable and every state perceivable without the video frame.",
+      "notes": "The frame is evidence, not the interface. A failed or unloaded frame must not disable control."
+    },
+    {
+      "statement": "Each dispatched verb appears in a running audit list with its outcome.",
+      "notes": "The operator should never wonder whether an action reached the device."
+    }
+  ],
+  "states": [
+    {
+      "id": "acquiring",
+      "description": "Lease requested, not yet granted."
+    },
+    {
+      "id": "refused",
+      "description": "Another consumer holds the lease; the holder and expiry are named."
+    },
+    {
+      "id": "live",
+      "description": "Lease held; verbs dispatchable; frame streaming."
+    },
+    {
+      "id": "frame-unavailable",
+      "description": "Lease held but no frame; all controls and state remain operable."
+    },
+    {
+      "id": "expiring",
+      "description": "Lease within its renewal window."
+    },
+    {
+      "id": "killed",
+      "description": "Session terminated; further verbs refused with that reason."
+    }
+  ]
+}

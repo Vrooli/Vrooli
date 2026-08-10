@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "flows",
+    "title": "Flows",
+    "routes": [
+      "/flows",
+      "/flows/:flowId"
+    ],
+    "purpose": "Author, validate, and browse reusable device flows, including the capability gap report that says whether a given device can run one.",
+    "prd_refs": [
+      "OT-P0-005",
+      "OT-P0-006",
+      "OT-P1-009"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "A flow's capability requirements and the resulting gap report are shown before any run can start.",
+      "notes": "A pre-execution gap is actionable; a mid-run failure is wasted device time and confusing evidence."
+    },
+    {
+      "statement": "Each step shows which resolution rung it will use on the selected device.",
+      "notes": "The difference between a deterministic and an inferred step is what a reviewer most needs to see."
+    },
+    {
+      "statement": "Bounded wait policies are shown with their upper bounds.",
+      "notes": "A named bound is reviewable; a raw sleep is not."
+    }
+  ],
+  "states": [
+    {
+      "id": "empty",
+      "description": "No flows authored yet; explains how to create one or promote an agent run."
+    },
+    {
+      "id": "editing",
+      "description": "Flow under edit; validation runs continuously."
+    },
+    {
+      "id": "invalid",
+      "description": "Validation errors shown per step, blocking run."
+    },
+    {
+      "id": "gap",
+      "description": "Flow is valid but the selected device cannot satisfy some required capability; the gap is enumerated."
+    },
+    {
+      "id": "runnable",
+      "description": "Valid and fully satisfied by the selected device."
+    }
+  ]
+}

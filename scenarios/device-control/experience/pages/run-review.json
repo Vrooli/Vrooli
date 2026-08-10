@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "run-review",
+    "title": "Run review",
+    "routes": [
+      "/runs/:runId"
+    ],
+    "purpose": "Review a completed run as an ordered chapter timeline with its disposition, evidence references, and the resolution rung used at each step.",
+    "prd_refs": [
+      "OT-P0-005",
+      "OT-P0-006",
+      "OT-P0-008"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The terminal disposition is shown verbatim and never softened.",
+      "notes": "Passed, failed, aborted and unavailable are different outcomes; collapsing them destroys the signal."
+    },
+    {
+      "statement": "Each chapter shows expected versus observed, plus the rung and confidence used to resolve its target.",
+      "notes": "This is how a reviewer tells a proven result from an inferred one."
+    },
+    {
+      "statement": "Captures are presented as redacted references with checksums, never raw bytes.",
+      "notes": "Screen frames can contain secrets; redaction status is part of the evidence, not an afterthought."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Run record loading."
+    },
+    {
+      "id": "passed",
+      "description": "All chapters asserted; evidence complete."
+    },
+    {
+      "id": "failed",
+      "description": "One or more chapters failed; the first failing chapter is anchored."
+    },
+    {
+      "id": "aborted",
+      "description": "Run cancelled; completed chapters retained."
+    },
+    {
+      "id": "unavailable",
+      "description": "Run could not execute; the missing capability and next action are shown."
+    },
+    {
+      "id": "redaction-pending",
+      "description": "Captures exist but redaction is unverified; they are withheld rather than displayed."
+    }
+  ]
+}
