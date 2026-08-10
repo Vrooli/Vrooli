@@ -62,6 +62,7 @@ test-genie execute my-scenario --preset comprehensive
 
 | Phase | Description | Timeout |
 |-------|-------------|---------|
+| Portability | Runs the deployability resolver against declared resource inputs and the observed host OS. | 2m |
 | Structure | Validates scenario skeleton and lifecycle wiring through structure-health. | 1m |
 | Contracts | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. | 90s |
 | UI Health | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. | 5m |
@@ -93,6 +94,7 @@ test-genie execute my-scenario --preset comprehensive
 
 | Phase | Quick | Smoke | Architecture Audit | Comprehensive |
 |-------|-------|-------|--------------------|---------------|
+| Portability | Adaptive | Adaptive | No | Yes |
 | Structure | Adaptive | Adaptive | Yes | Yes |
 | Contracts | Adaptive | Adaptive | Yes | Yes |
 | UI Health | Adaptive | Adaptive | Yes | Yes |

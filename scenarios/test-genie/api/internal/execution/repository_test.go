@@ -31,6 +31,10 @@ func TestSuiteExecutionRepositoryCreate(t *testing.T) {
 		PhaseSetDigest:           "phase-set:demo",
 		DescriptorSnapshotDigest: "ds:demo",
 		ConfigurationFingerprint: "execution-config:demo",
+		HostOS:                   "darwin",
+		HostArch:                 "amd64",
+		HostNode:                 "minimouse",
+		HostFactDigest:           "digest-demo",
 		FailFast:                 true,
 		Success:                  true,
 		Phases: []phases.ExecutionResult{
@@ -66,6 +70,9 @@ func TestSuiteExecutionRepositoryCreate(t *testing.T) {
 	}
 	if stored.PhaseSetDigest != record.PhaseSetDigest || stored.DescriptorSnapshotDigest != record.DescriptorSnapshotDigest || stored.ConfigurationFingerprint != record.ConfigurationFingerprint {
 		t.Fatalf("expected comparability metadata to round-trip: %#v", stored)
+	}
+	if stored.HostOS != record.HostOS || stored.HostArch != record.HostArch || stored.HostNode != record.HostNode || stored.HostFactDigest != record.HostFactDigest {
+		t.Fatalf("expected host provenance to round-trip: %#v", stored)
 	}
 }
 

@@ -92,13 +92,45 @@ func (i *Index) Path() string { return i.path }
 // ScenarioDir returns the scenario root owning this index and its run artifacts.
 func (i *Index) ScenarioDir() string { return i.scenarioDir }
 
-// withLock runs fn while holding an exclusive advisory lock on the index.
+// withLock runs fn while holding an exclusive advisory lock on the index,
+// creating the coverage directory and lock file if they do not exist yet. Only
+// mutations may use it: creating the directory is a side effect a caller must
+// have earned by actually writing something. Reads use withReadLock.
 func (i *Index) withLock(fn func() error) error {
 	if err := os.MkdirAll(filepath.Dir(i.lockPath), 0o755); err != nil {
 		return fmt.Errorf("create index dir: %w", err)
 	}
 	lf, err := os.OpenFile(i.lockPath, os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
+		return fmt.Errorf("open index lock: %w", err)
+	}
+	defer lf.Close()
+
+	unlock, err := lockFile(lf)
+	if err != nil {
+		return fmt.Errorf("acquire index lock: %w", err)
+	}
+	defer unlock()
+
+	return fn()
+}
+
+// withReadLock runs a read-only fn under the advisory lock, creating nothing.
+// A read of an index that was never written is the normal "no runs" state, so
+// it must not materialize coverage/ — doing so on a mere query is what created
+// phantom scenario directories for every non-scenario name that reached here.
+//
+// When the lock file is absent no index has ever been written, so there is
+// nothing to serialize against and fn reads a missing file. An index present
+// without its lock file is also safe to read unlocked: writeUnlocked replaces
+// the index by atomic rename, so a reader observes either the old or the new
+// file, never a torn one.
+func (i *Index) withReadLock(fn func() error) error {
+	lf, err := os.OpenFile(i.lockPath, os.O_RDWR, 0o644)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fn()
+		}
 		return fmt.Errorf("open index lock: %w", err)
 	}
 	defer lf.Close()
@@ -153,7 +185,7 @@ func (i *Index) writeUnlocked(records []RunRecord) error {
 // List returns all run records sorted newest-first (by StartedAt, then RunID).
 func (i *Index) List() ([]RunRecord, error) {
 	var records []RunRecord
-	err := i.withLock(func() error {
+	err := i.withReadLock(func() error {
 		loaded, err := i.readUnlocked()
 		if err != nil {
 			return err
@@ -172,7 +204,7 @@ func (i *Index) List() ([]RunRecord, error) {
 func (i *Index) Find(runID string) (RunRecord, error) {
 	var found RunRecord
 	var ok bool
-	err := i.withLock(func() error {
+	err := i.withReadLock(func() error {
 		records, err := i.readUnlocked()
 		if err != nil {
 			return err

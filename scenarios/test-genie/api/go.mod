@@ -27,6 +27,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/vrooli/platform-go v0.0.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
@@ -36,6 +37,8 @@ require (
 )
 
 replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 
@@ -105,3 +108,5 @@ replace github.com/vrooli/vrooli => ../../..
 replace intent-go => ../../../packages/intent-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime

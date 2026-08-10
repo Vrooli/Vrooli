@@ -75,6 +75,11 @@ VALUES (?, ?, ?, '[]', '2026-01-01T00:00:00.000Z', '2026-01-01T00:01:00.000Z')`,
 	if has, err := columnExists(ctx, db, "suite_executions", "terminal_outcome"); err != nil || !has {
 		t.Fatalf("column should exist after migration (has=%v err=%v)", has, err)
 	}
+	for _, column := range []string{"host_os", "host_arch", "host_node", "host_fact_digest"} {
+		if has, err := columnExists(ctx, db, "suite_executions", column); err != nil || !has {
+			t.Fatalf("%s should exist after migration (has=%v err=%v)", column, has, err)
+		}
+	}
 
 	// Rows preserved (the table was never recreated).
 	var count int

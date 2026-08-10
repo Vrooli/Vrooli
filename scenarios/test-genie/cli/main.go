@@ -21,11 +21,16 @@ func main() {
 		os.Exit(1)
 	}
 	if err := app.Run(os.Args[1:]); err != nil {
+		// Always report the reason, then honour a documented exit code. A coded
+		// error used to exit silently, which made every server-side failure that
+		// travelled through one — a missing scenario, an unreachable API — look
+		// like a command that simply produced no output. The message goes to
+		// stderr, so machine consumers reading stdout are unaffected.
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		var ec exitCoder
 		if errors.As(err, &ec) {
 			os.Exit(ec.ExitCode())
 		}
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }

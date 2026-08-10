@@ -172,9 +172,6 @@
             }
           }
         },
-        "aggregate_requirements": {
-          "$ref": "#/definitions/deployment_requirements"
-        },
         "tiers": {
           "type": "object",
           "properties": {
@@ -643,19 +640,6 @@
     "deployment_tier": {
       "type": "object",
       "properties": {
-        "status": {
-          "type": "string",
-          "enum": ["ready", "limited", "blocked"]
-        },
-        "fitness_score": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
-        },
-        "constraints": {
-          "type": "array",
-          "items": {"type": "string"}
-        },
         "notes": {
           "type": "string"
         },
@@ -719,7 +703,6 @@
             "type": "object",
             "properties": {
               "supported": {"type": "boolean"},
-              "fitness_score": {"type": "number"},
               "reason": {"type": "string"},
               "requirements": {"$ref": "#/definitions/deployment_requirements"},
               "alternatives": {

@@ -140,7 +140,7 @@ func (f *rpcFakeExecutor) ExecuteWithEvents(ctx context.Context, input execution
 }
 
 func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]
-	root := t.TempDir()
+	root := newFleetRoot(t)
 	fake := newRPCFake(root + "/demo")
 	fake.result.Phases = []phases.ExecutionResult{{
 		Name: "architecture", Status: "passed", DurationSeconds: 7,
@@ -243,7 +243,7 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 }
 
 func TestLifecycleRPC_StartRunPreviewsOnceForAdmission(t *testing.T) {
-	root := t.TempDir()
+	root := newFleetRoot(t)
 	fake := newRPCFake(root + "/demo")
 	planner := &countingRPCPlanner{preview: &execution.ExecutionPlanPreview{
 		ScenarioName: "demo", PhaseSetDigest: "phase:one", DescriptorSnapshotDigest: "descriptor:one", ConfigurationFingerprint: "config:one",
@@ -262,7 +262,7 @@ func TestLifecycleRPC_StartRunPreviewsOnceForAdmission(t *testing.T) {
 }
 
 func TestPrepareAdmissionProjectsPlanTimingIntoDurableRequest(t *testing.T) {
-	root := t.TempDir()
+	root := newFleetRoot(t)
 	if err := os.MkdirAll(root+"/demo", 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -299,7 +299,7 @@ func TestPrepareAdmissionProjectsPlanTimingIntoDurableRequest(t *testing.T) {
 }
 
 func TestPrepareAdmissionHonorsCancellation(t *testing.T) {
-	root := t.TempDir()
+	root := newFleetRoot(t)
 	if err := os.MkdirAll(root+"/demo", 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -318,7 +318,7 @@ func TestPrepareAdmissionHonorsCancellation(t *testing.T) {
 }
 
 func TestPrepareAdmissionUsesCustomScenarioPathForTreeDigest(t *testing.T) {
-	root := t.TempDir()
+	root := newFleetRoot(t)
 	if err := os.MkdirAll(root+"/demo", 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -341,7 +341,7 @@ func TestPrepareAdmissionUsesCustomScenarioPathForTreeDigest(t *testing.T) {
 }
 
 func TestLifecycleRPC_PreservesArtifactCatalogFailureAsDegradedEvidence(t *testing.T) {
-	root := t.TempDir()
+	root := newFleetRoot(t)
 	scenarioDir := root + "/demo"
 	idx := sharedruns.NewIndex(scenarioDir)
 	if err := idx.Append(sharedruns.RunRecord{RunID: "catalog-failed", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusInProgress}); err != nil {
@@ -375,7 +375,7 @@ func containsString(values []string, want string) bool {
 }
 
 func TestLifecycleRPC_LegacyTerminalReadIsExplicitlyDegraded(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]
-	root := t.TempDir()
+	root := newFleetRoot(t)
 	idx := sharedruns.NewIndex(root + "/demo")
 	if err := idx.Append(sharedruns.RunRecord{
 		RunID: "legacy", Scenario: "demo", StartedAt: time.Now().UTC(), CompletedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
@@ -400,7 +400,7 @@ func TestLifecycleRPC_LegacyTerminalReadIsExplicitlyDegraded(t *testing.T) { // 
 }
 
 func TestLifecycleRPC_Abort(t *testing.T) {
-	root := t.TempDir()
+	root := newFleetRoot(t)
 	fake := newRPCFake(root + "/demo")
 	fake.blockOnCtx = true
 	fake.result = &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: false, Verdict: "FAIL", CompletedAt: time.Now().UTC()}

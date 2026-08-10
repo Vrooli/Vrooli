@@ -24,6 +24,10 @@ type SuiteExecutionRecord struct {
 	PhaseSetDigest           string
 	DescriptorSnapshotDigest string
 	ConfigurationFingerprint string
+	HostOS                   string
+	HostArch                 string
+	HostNode                 string
+	HostFactDigest           string
 	FailFast                 bool
 	SchedulerDecision        string
 	Success                  bool

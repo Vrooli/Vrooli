@@ -40,6 +40,7 @@ below is provider-delegated and declares a maturity ladder; every phase's
 | `experience` | experience-manager | 4 | provider-delegated | `scenarios/test-genie/docs/phases/experience/README.md` |
 | `measures` | measures-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/measures/README.md` |
 | `performance` | performance-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/performance/README.md` |
+| `portability` | scenario-dependency-analyzer | 1 | provider-delegated | `scenarios/test-genie/docs/phases/portability/README.md` |
 | `proto` | proto-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/proto/README.md` |
 | `provider-conformance` | test-genie | 2 | provider-delegated (self) | `scenarios/test-genie/docs/phases/provider-conformance/README.md` |
 | `quality` | quality-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/quality/README.md` |

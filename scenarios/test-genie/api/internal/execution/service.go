@@ -69,6 +69,7 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 	}
 
 	startedAt := time.Now().UTC()
+	host := currentHostEvidence()
 	result, err := s.engine.ExecuteWithEvents(ctx, input.Request, emit)
 	if err != nil {
 		s.recordTerminalOutcome(ctx, input, startedAt, classifyTerminalError(ctx, err))
@@ -93,6 +94,10 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 		PhaseSetDigest:           result.PhaseSetDigest,
 		DescriptorSnapshotDigest: result.DescriptorSnapshotDigest,
 		ConfigurationFingerprint: result.ConfigurationFingerprint,
+		HostOS:                   host.OS,
+		HostArch:                 host.Arch,
+		HostNode:                 host.Node,
+		HostFactDigest:           host.FactDigest,
 		FailFast:                 result.FailFast,
 		SchedulerDecision:        result.SchedulerDecision,
 		Success:                  result.Success,
@@ -184,12 +189,17 @@ func (s *SuiteExecutionService) recordTerminalOutcome(ctx context.Context, input
 		return
 	}
 	writeCtx := context.WithoutCancel(ctx)
+	host := currentHostEvidence()
 	record := &SuiteExecutionRecord{
 		ID:              uuid.New(),
 		RunID:           input.Request.RunID,
 		ScenarioName:    input.Request.ScenarioName,
 		TargetKind:      requestTargetKind(input.Request),
 		TargetID:        requestTargetID(input.Request),
+		HostOS:          host.OS,
+		HostArch:        host.Arch,
+		HostNode:        host.Node,
+		HostFactDigest:  host.FactDigest,
 		Success:         false,
 		TerminalOutcome: outcome,
 		// Empty (non-nil) so it marshals to a valid JSON "[]" for the

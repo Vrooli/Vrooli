@@ -26,7 +26,11 @@ CREATE TABLE IF NOT EXISTS suite_executions (
 	phase_set_digest TEXT,
 	descriptor_snapshot_digest TEXT,
 	configuration_fingerprint TEXT,
-    fail_fast INTEGER NOT NULL DEFAULT 0 CHECK (fail_fast IN (0, 1)),
+	host_os TEXT,
+	host_arch TEXT,
+	host_node TEXT,
+	host_fact_digest TEXT,
+	fail_fast INTEGER NOT NULL DEFAULT 0 CHECK (fail_fast IN (0, 1)),
     success INTEGER NOT NULL CHECK (success IN (0, 1)),
     -- terminal_outcome classifies the run-level result: passed | failed |
     -- errored | aborted | timeout. Nullable so the brownfield migration can

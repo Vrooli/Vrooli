@@ -65,6 +65,11 @@
       "required": ["contract"],
       "properties": {
         "contract": { "const": "scenario-validation/v1" },
+        "capabilitySubset": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
         "includeExecution": { "type": "boolean" },
         "deliveryMode": {
           "type": "string",
@@ -219,6 +224,7 @@
       "minProperties": 1,
       "maxProperties": 1,
       "properties": {
+        "hostOS": { "type": "string", "minLength": 1 },
         "fileExists": { "type": "string", "minLength": 1 },
         "pathGlob": { "type": "string", "minLength": 1 },
         "scenarioDependency": { "type": "string", "minLength": 1 },

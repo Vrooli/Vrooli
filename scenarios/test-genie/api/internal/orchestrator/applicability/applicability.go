@@ -34,6 +34,7 @@ const (
 // Context is the target-scenario fact set used for declarative applicability.
 // The maps should be precomputed by the orchestrator workspace layer.
 type Context struct {
+	HostOS                string
 	TargetKind            string
 	TargetID              string
 	TargetRoot            string
@@ -139,6 +140,13 @@ func evaluatePredicate(predicate providerdescriptor.Predicate, ctx Context) (Rea
 		return Reason{}, false, &Reason{Code: CodeInvalidPredicate, Message: "predicate must set exactly one supported field"}
 	}
 	switch {
+	case strings.TrimSpace(predicate.HostOS) != "":
+		want := strings.ToLower(strings.TrimSpace(predicate.HostOS))
+		got := strings.ToLower(strings.TrimSpace(ctx.HostOS))
+		if got == want {
+			return Reason{Code: "applicability.host_os_matched", Message: fmt.Sprintf("host OS matched %s", want)}, true, nil
+		}
+		return Reason{Code: "applicability.host_os_mismatched", Message: fmt.Sprintf("host OS %s did not match %s", got, want)}, false, nil
 	case strings.TrimSpace(predicate.TargetKind) != "":
 		kind := strings.TrimSpace(predicate.TargetKind)
 		if ctx.TargetKind == kind {
@@ -281,6 +289,9 @@ func normalizeKey(value string) string {
 
 func countPredicateFields(predicate providerdescriptor.Predicate) int {
 	count := 0
+	if strings.TrimSpace(predicate.HostOS) != "" {
+		count++
+	}
 	if strings.TrimSpace(predicate.TargetKind) != "" {
 		count++
 	}

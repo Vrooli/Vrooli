@@ -101,6 +101,8 @@ var validTargetKinds = map[string]struct{}{
 	"team": {}, "package": {}, "control-plane": {}, "docs": {}, "project": {},
 }
 
+var validHostOS = map[string]struct{}{"linux": {}, "macos": {}, "windows": {}}
+
 func (t Targets) EffectiveKinds() []string {
 	if len(t.Kinds) == 0 {
 		return []string{"scenario"}
@@ -132,7 +134,8 @@ func (d *Descriptor) UnmarshalJSON(raw []byte) error {
 }
 
 type Validation struct {
-	Contract string `json:"contract"`
+	Contract         string   `json:"contract"`
+	CapabilitySubset []string `json:"capabilitySubset,omitempty"`
 	// DeliveryMode defaults to inline so existing descriptors remain source and
 	// behavior compatible. Durable providers must declare execution and the
 	// generic durable-run service explicitly.
@@ -153,6 +156,7 @@ type Applicability struct {
 }
 
 type Predicate struct {
+	HostOS               string `json:"hostOS,omitempty"`
 	TargetKind           string `json:"targetKind,omitempty"`
 	FileExists           string `json:"fileExists,omitempty"`
 	PathGlob             string `json:"pathGlob,omitempty"`
@@ -177,7 +181,7 @@ func (p *Predicate) UnmarshalJSON(raw []byte) error {
 	}
 	for key := range fields {
 		switch key {
-		case "targetKind", "fileExists", "pathGlob", "scenarioDependency", "serviceCapability", "serviceTag", "hasUI", "hasAPI", "testingConfigSection":
+		case "hostOS", "targetKind", "fileExists", "pathGlob", "scenarioDependency", "serviceCapability", "serviceTag", "hasUI", "hasAPI", "testingConfigSection":
 		default:
 			decoded.unknownFields = append(decoded.unknownFields, key)
 		}
@@ -268,7 +272,7 @@ func Load(opts LoadOptions) LoadResult {
 		if repoRoot == "" {
 			repoRoot = "."
 		}
-		matches, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", filepath.FromSlash(RelPath)))
+		matches, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "test-genie*.json"))
 		if err != nil {
 			diagnostics = append(diagnostics, Diagnostic{Code: "glob_failed", Message: err.Error()})
 			return LoadResult{Diagnostics: diagnostics}
@@ -352,7 +356,7 @@ func loadOne(path string, skillIDs map[string]struct{}, schemaPath string) (Desc
 	descriptor.Path = path
 	scenario := scenarioFromPath(path)
 	if scenario == "" {
-		diagnostics = append(diagnostics, Diagnostic{Path: path, Code: "invalid_path", Message: "descriptor must live at scenarios/<provider>/.vrooli/test-genie.json"})
+		diagnostics = append(diagnostics, Diagnostic{Path: path, Code: "invalid_path", Message: "descriptor must live under a scenario .vrooli directory with a test-genie*.json name"})
 	} else if descriptor.Scenario != scenario {
 		diagnostics = append(diagnostics, Diagnostic{Path: path, Code: "scenario_mismatch", Message: fmt.Sprintf("scenario %q must match directory %q", descriptor.Scenario, scenario)})
 	}
@@ -491,7 +495,8 @@ func validateRecommendedSkillIDs(path string, spec *assessment.Spec, skillIDs ma
 
 func scenarioFromPath(path string) string {
 	clean := filepath.Clean(path)
-	if filepath.Base(clean) != "test-genie.json" {
+	base := filepath.Base(clean)
+	if !strings.HasPrefix(base, "test-genie") || !strings.HasSuffix(base, ".json") {
 		return ""
 	}
 	vrooliDir := filepath.Dir(clean)
@@ -801,6 +806,11 @@ func validateApplicability(d *Descriptor) []Diagnostic {
 		if countPredicateFields(predicate) != 1 {
 			add("invalid_predicate", fmt.Sprintf("predicate %d must set exactly one supported field", i))
 		}
+		if predicate.HostOS != "" {
+			if _, ok := validHostOS[strings.ToLower(strings.TrimSpace(predicate.HostOS))]; !ok {
+				add("invalid_predicate_host_os", fmt.Sprintf("predicate %d uses unsupported hostOS %q", i, predicate.HostOS))
+			}
+		}
 		if predicate.TargetKind != "" {
 			if _, ok := validTargetKinds[predicate.TargetKind]; !ok {
 				add("invalid_predicate_target_kind", fmt.Sprintf("predicate %d uses unsupported target kind %q", i, predicate.TargetKind))
@@ -812,6 +822,9 @@ func validateApplicability(d *Descriptor) []Diagnostic {
 
 func countPredicateFields(p Predicate) int {
 	count := 0
+	if strings.TrimSpace(p.HostOS) != "" {
+		count++
+	}
 	if strings.TrimSpace(p.TargetKind) != "" {
 		count++
 	}

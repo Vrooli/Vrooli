@@ -73,6 +73,12 @@ func TestLoadRejectsDescriptorErrors(t *testing.T) {
 			scenario: "search-hub",
 		},
 		{
+			name:     "unknown host OS rejected",
+			body:     strings.Replace(validDescriptor("search-hub", "search"), `{"fileExists":".vrooli/search.json"}`, `{"hostOS":"plan9"}`, 1),
+			want:     "invalid_predicate_host_os",
+			scenario: "search-hub",
+		},
+		{
 			name:     "invalid embedded maturity",
 			body:     strings.Replace(validDescriptor("search-hub", "search"), `"version":"2.0.0"`, `"version":""`, 1),
 			want:     "invalid_maturity",

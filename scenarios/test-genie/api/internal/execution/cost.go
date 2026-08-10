@@ -65,6 +65,23 @@ type CostSource interface {
 
 const calibrationInterval = 7 * 24 * time.Hour
 
+// deadlineHistoryWindow bounds the history PhaseDurationEstimate reads. It is
+// shorter than the 30-day sizing window because that estimate takes the slowest
+// observation rather than a percentile, and the window is what keeps one
+// pathological run from serializing a phase indefinitely.
+const deadlineHistoryWindow = 14 * 24 * time.Hour
+
+// minUnmeasurableEvidence is how many measurable-but-never-RELIABLE samples a
+// phase must accumulate inside the calibration window before it is treated as
+// unmeasurable rather than uncalibrated.
+//
+// Three is chosen because the distinction it draws is "has not produced a
+// reliable sample yet" versus "cannot produce one here", and a single miss
+// cannot separate them. Set it lower and a phase that simply has not been run
+// uncontended yet is written off; set it higher and a permanently BEST_EFFORT
+// phase keeps vetoing concurrency for days while it accumulates evidence.
+const minUnmeasurableEvidence = 3
+
 // CalibrationDecision keeps at least one uncontended sample for every planned
 // phase that can produce one. It is intentionally separate from the 30-day
 // eligibility window in PhaseCostEstimate: this is a sampling cadence, not a
@@ -82,6 +99,20 @@ const calibrationInterval = 7 * 24 * time.Hour
 // returns unknown for it, and an unknown-size phase runs serially by its own
 // rule. Excluding it here removes a veto over *other* phases' concurrency,
 // which is not something its own unmeasurability entitles it to.
+//
+// UNAVAILABLE is not the only permanent case, and treating it as the only one
+// left a second false positive of the same shape. `Collector.cpuMemReliability`
+// in packages/api-core/metrics degrades CPU/RSS to BEST_EFFORT whenever more
+// than one collector is active *inside the provider process*. That is a
+// property of the provider's own concurrency, not of Test Genie's phase
+// scheduling: serializing this run's phases does not quiet a provider that is
+// also serving another run, and the global run cap is two. So a phase that
+// keeps reporting BEST_EFFORT cannot be calibrated by the remedy the veto
+// prescribes, and demanding it forever pins the whole run serial. Measured
+// 2026-08-08: the `experience` phase reported BEST_EFFORT and never RELIABLE
+// for source-ledger, vrooli-memory, and scenario-to-desktop, and those runs
+// executed all twenty phases one at a time (sum of phase durations 102.7 s
+// against 103.4 s of wall-clock).
 func (r *SuiteExecutionRepository) CalibrationDecision(ctx context.Context, scenario string, phases []string, descriptorDigest string) (bool, string) {
 	cutoff := time.Now().UTC().Add(-calibrationInterval).Format(time.RFC3339Nano)
 	for _, phase := range phases {
@@ -115,6 +146,12 @@ WHERE e.scenario_name = ? AND p.phase_name = ?
 			// reports its resources unavailable, so no serial run will ever
 			// change this. Reporting it as a calibration need would be a
 			// permanent false positive.
+		case measurable >= minUnmeasurableEvidence:
+			// Measured repeatedly, never reliably. Reaching this branch means
+			// zero RELIABLE samples in the window despite the provider stamping
+			// a reliability every time, which is the BEST_EFFORT case described
+			// above: caused inside the provider process and unreachable from
+			// here. Excluded for the same reason as UNAVAILABLE.
 		default:
 			return true, fmt.Sprintf("reliable sample for %s is older than calibration interval (%s)", phase, calibrationInterval)
 		}
@@ -197,6 +234,99 @@ func (r *SuiteExecutionRepository) PhaseCostEstimate(ctx context.Context, scenar
 	sort.Slice(cpuValues, func(i, j int) bool { return cpuValues[i] < cpuValues[j] })
 	index := func(n int) int { return (n*9+9)/10 - 1 }
 	return ramValues[index(len(ramValues))], cpuValues[index(len(cpuValues))], true
+}
+
+// PhaseDurationEstimate returns the slowest wall-clock the phase has been
+// observed to take recently, for the scheduler's deadline check.
+//
+// The slowest rather than the p90 PhaseCostEstimate uses for sizing, because
+// the two answer different questions with different costs of being wrong.
+// Sizing asks how much of the host to reserve, and over-reserving costs
+// throughput, so the middle of the distribution is the right input. This guard
+// asks whether contention could push a phase past its own timeout, and the two
+// errors are not symmetric: erring high costs one phase its concurrency, while
+// erring low costs a passing run a false timeout — a fabricated failure in the
+// surface whose entire job is to be trusted. A phase that runs in 10 s
+// nineteen times and 140 s on the twentieth is exactly what a timeout catches,
+// and every percentile short of the maximum waves it into a batch.
+//
+// The remedy for the maximum's usual weakness — one pathological run pinning a
+// phase to serial forever — is the window rather than the statistic. It is
+// deliberately shorter than the 30-day pool PhaseCostEstimate draws on, so a
+// fixed pathology ages out in a fortnight instead of a month.
+//
+// It is deliberately not the planner's estimate. The planner's number arrives
+// through the request as `EstimatedDurationSeconds`, is rounded to whole
+// seconds, and is biased upward by a sample pool the budget-planner work has
+// not yet corrected — measured 2026-08-08, it predicted 56 s for a `contracts`
+// phase that ran in 23.9 s. Sizing a *deadline* guard from an estimate that
+// overshoots by 2.3x serializes phases that are nowhere near their timeout,
+// which is the opposite of what the guard is for.
+//
+// Unlike PhaseCostEstimate this deliberately does not filter on reliability.
+// Reliability qualifies the CPU and RSS readings, which are sampled from
+// process-wide rusage; the duration is timed by Test Genie around the call and
+// is exact regardless. Failing phases are included because they are the slow
+// ones — 2.2x the passing average — and a guard that only saw passing runs
+// would understate the risk it exists to catch.
+func (r *SuiteExecutionRepository) PhaseDurationEstimate(ctx context.Context, scenario, phase string) (int64, bool) {
+	load := func(scope string) ([]int64, error) {
+		q := `SELECT COALESCE(p.wall_clock_ms, p.duration_ms)
+			FROM suite_execution_phases p JOIN suite_executions e ON e.id = p.execution_id
+			WHERE p.phase_name = ? AND e.completed_at >= ? AND e.completed_at < ?
+			AND p.cache_hit = 0 AND COALESCE(p.wall_clock_ms, p.duration_ms) > 0`
+		args := []any{
+			strings.TrimSpace(phase),
+			time.Now().UTC().Add(-deadlineHistoryWindow).Format(time.RFC3339Nano),
+			time.Now().UTC().Add(time.Second).Format(time.RFC3339Nano),
+		}
+		if strings.TrimSpace(scope) != "" {
+			q += " AND e.scenario_name = ?"
+			args = append(args, strings.TrimSpace(scope))
+		}
+		rows, err := r.db.QueryContext(ctx, q, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		var out []int64
+		for rows.Next() {
+			var ms int64
+			if err := rows.Scan(&ms); err != nil {
+				return nil, err
+			}
+			out = append(out, ms)
+		}
+		return out, rows.Err()
+	}
+	// Scenario-scoped history first: the same phase costs very different
+	// amounts on different scenarios (`security` measured a 54 s median on
+	// prompt-manager against 137 s on browser-automation-studio), so a fleet
+	// blend would both over- and under-state the deadline risk. The fleet pool
+	// is a fallback for a phase this scenario has barely run.
+	samples, err := load(scenario)
+	if err != nil {
+		return 0, false
+	}
+	if len(samples) < 5 {
+		all, allErr := load("")
+		if allErr != nil {
+			return 0, false
+		}
+		if len(all) > 0 {
+			samples = all
+		}
+	}
+	if len(samples) == 0 {
+		return 0, false
+	}
+	slowest := samples[0]
+	for _, ms := range samples[1:] {
+		if ms > slowest {
+			slowest = ms
+		}
+	}
+	return slowest, true
 }
 
 // HasPersistedMetrics reports whether a terminal run has a metrics rollup for

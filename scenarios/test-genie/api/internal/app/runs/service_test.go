@@ -33,13 +33,49 @@ func (p fixedExecutionPlanner) Preview(context.Context, orchestrator.SuiteExecut
 
 func newTestService(t *testing.T) (*Service, string) {
 	t.Helper()
-	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "demo"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	root := newFleetRoot(t)
 	// The read-only index RPCs under test need neither the run manager nor the
 	// planner.
 	return NewService(root, nil, nil, nil), root
+}
+
+// TestRunQueryForNonScenarioNameIsNotFoundAndCreatesNothing pins the rule that
+// makes a bare name a scenario: it must carry a scenario manifest. Without this
+// every well-formed word resolved to scenarios/<word>, so a run query for a
+// resource, package or top-level directory name both answered as if the target
+// existed and created the directory on the way.
+func TestRunQueryForNonScenarioNameIsNotFoundAndCreatesNothing(t *testing.T) {
+	svc, root := newTestService(t)
+
+	for _, name := range []string{"minio", "maturity-go", "docs", "internal"} {
+		_, err := svc.ListRuns(context.Background(), connect.NewRequest(&runspb.ListRunsRequest{Scenario: name}))
+		if err == nil {
+			t.Fatalf("ListRuns(%q): want error, got nil", name)
+		}
+		if got := connect.CodeOf(err); got != connect.CodeNotFound {
+			t.Fatalf("ListRuns(%q) code = %v, want %v", name, got, connect.CodeNotFound)
+		}
+		if _, statErr := os.Stat(filepath.Join(root, name)); !os.IsNotExist(statErr) {
+			t.Fatalf("querying %q created %s", name, filepath.Join(root, name))
+		}
+	}
+}
+
+// newFleetRoot returns a temporary scenarios root holding one real scenario,
+// "demo". The manifest is what makes the directory a scenario: the service
+// refuses a bare name whose directory carries no .vrooli/service.json, which is
+// what stops a run query for a non-scenario name from creating a directory.
+func newFleetRoot(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	dir := filepath.Join(root, "demo", ".vrooli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "service.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return root
 }
 
 func seedRecord(t *testing.T, root string, rec sharedruns.RunRecord) {

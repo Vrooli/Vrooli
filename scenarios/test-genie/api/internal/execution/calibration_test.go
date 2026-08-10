@@ -77,6 +77,50 @@ func TestCalibrationStillFiresForStaleMeasurablePhase(t *testing.T) {
 	}
 }
 
+// A phase that keeps reporting BEST_EFFORT is unmeasurable here, not
+// uncalibrated. api-core's collector degrades to BEST_EFFORT when more than one
+// collector is active inside the provider process, which serializing this run's
+// phases cannot quiet, so the veto's own remedy would never clear it. Measured
+// 2026-08-08: `experience` held this shape for source-ledger, vrooli-memory,
+// and scenario-to-desktop, and those runs executed every phase serially.
+func TestCalibrationIgnoresPhaseThatOnlyEverReportsBestEffort(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	now := time.Now().UTC()
+
+	insertCalibrationSample(t, db, "demo", "unit", now.Add(-time.Hour), reliable())
+	for i := 0; i < minUnmeasurableEvidence; i++ {
+		insertCalibrationSample(t, db, "demo", "experience", now.Add(-time.Duration(i+1)*time.Hour), bestEffort())
+	}
+
+	forceSerial, reason := repo.CalibrationDecision(context.Background(), "demo", []string{"unit", "experience"}, "")
+	if forceSerial {
+		t.Fatalf("forced serial for a phase that can only report best-effort: %s", reason)
+	}
+}
+
+// The exclusion is earned by evidence, not assumed on the first miss. Below the
+// threshold the phase is still treated as uncalibrated, because one best-effort
+// sample cannot distinguish "not measured uncontended yet" from "cannot be".
+func TestCalibrationStillFiresBelowUnmeasurableEvidenceThreshold(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	now := time.Now().UTC()
+
+	insertCalibrationSample(t, db, "demo", "unit", now.Add(-time.Hour), reliable())
+	for i := 0; i < minUnmeasurableEvidence-1; i++ {
+		insertCalibrationSample(t, db, "demo", "experience", now.Add(-time.Duration(i+1)*time.Hour), bestEffort())
+	}
+
+	forceSerial, reason := repo.CalibrationDecision(context.Background(), "demo", []string{"unit", "experience"}, "")
+	if !forceSerial {
+		t.Fatal("stopped calibrating before the evidence threshold was reached")
+	}
+	if !strings.Contains(reason, "experience") {
+		t.Fatalf("reason = %q, want it to name experience", reason)
+	}
+}
+
 // A phase with no history at all is calibrated, not skipped. Silence is not
 // evidence that a phase cannot be measured.
 func TestCalibrationFiresForPhaseWithNoHistory(t *testing.T) {

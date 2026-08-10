@@ -53,13 +53,17 @@ INSERT INTO suite_executions (
 	phase_set_digest,
 	descriptor_snapshot_digest,
 	configuration_fingerprint,
+	host_os,
+	host_arch,
+	host_node,
+	host_fact_digest,
 	fail_fast,
 	success,
 	terminal_outcome,
 		started_at,
 		completed_at
 ) VALUES (
-	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )`
 
 	// terminal_outcome is the run-level classification. A caller that did not
@@ -91,6 +95,10 @@ INSERT INTO suite_executions (
 		nullIfEmpty(record.PhaseSetDigest),
 		nullIfEmpty(record.DescriptorSnapshotDigest),
 		nullIfEmpty(record.ConfigurationFingerprint),
+		nullIfEmpty(record.HostOS),
+		nullIfEmpty(record.HostArch),
+		nullIfEmpty(record.HostNode),
+		nullIfEmpty(record.HostFactDigest),
 		boolToInt(record.FailFast),
 		boolToInt(record.Success),
 		outcome.String(),
@@ -132,6 +140,10 @@ SELECT
 	phase_set_digest,
 	descriptor_snapshot_digest,
 	configuration_fingerprint,
+	host_os,
+	host_arch,
+	host_node,
+	host_fact_digest,
 	fail_fast,
 	success,
 	terminal_outcome,
@@ -185,6 +197,10 @@ SELECT
 	phase_set_digest,
 	descriptor_snapshot_digest,
 	configuration_fingerprint,
+	host_os,
+	host_arch,
+	host_node,
+	host_fact_digest,
 	fail_fast,
 	success,
 	terminal_outcome,
@@ -411,6 +427,10 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 	var phaseSetDigest sql.NullString
 	var descriptorSnapshotDigest sql.NullString
 	var configurationFingerprint sql.NullString
+	var hostOS sql.NullString
+	var hostArch sql.NullString
+	var hostNode sql.NullString
+	var hostFactDigest sql.NullString
 	var failFast int
 	var success int
 	var terminalOutcome sql.NullString
@@ -431,6 +451,10 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 		&phaseSetDigest,
 		&descriptorSnapshotDigest,
 		&configurationFingerprint,
+		&hostOS,
+		&hostArch,
+		&hostNode,
+		&hostFactDigest,
 		&failFast,
 		&success,
 		&terminalOutcome,
@@ -487,6 +511,18 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 	}
 	if configurationFingerprint.Valid {
 		record.ConfigurationFingerprint = configurationFingerprint.String
+	}
+	if hostOS.Valid {
+		record.HostOS = hostOS.String
+	}
+	if hostArch.Valid {
+		record.HostArch = hostArch.String
+	}
+	if hostNode.Valid {
+		record.HostNode = hostNode.String
+	}
+	if hostFactDigest.Valid {
+		record.HostFactDigest = hostFactDigest.String
 	}
 	record.FailFast = failFast == 1
 	record.Success = success == 1

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -245,6 +246,7 @@ func applicabilityReasons(reasons []applicability.Reason) string {
 
 func buildApplicabilityContext(env workspacepkg.Environment, cfg *workspacepkg.Config, predicates []providerdescriptor.Predicate) (applicability.Context, error) {
 	ctx := applicability.Context{
+		HostOS:                normalizedHostOS(runtime.GOOS),
 		TargetKind:            env.TargetKind,
 		TargetID:              env.TargetID,
 		TargetRoot:            env.TargetRoot,
@@ -276,6 +278,17 @@ func buildApplicabilityContext(env workspacepkg.Environment, cfg *workspacepkg.C
 		}
 	}
 	return ctx, nil
+}
+
+func normalizedHostOS(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "darwin":
+		return "macos"
+	case "linux", "windows":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return ""
+	}
 }
 
 func safePathGlob(scenarioDir, pattern string) ([]string, error) {

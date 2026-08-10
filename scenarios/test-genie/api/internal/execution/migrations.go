@@ -23,7 +23,7 @@ func Migrate(ctx context.Context, db dbexec.Executor) error {
 	if _, err := db.ExecContext(ctx, Schema()); err != nil {
 		return fmt.Errorf("ensure execution phase schema: %w", err)
 	}
-	for _, column := range []string{"terminal_outcome", "run_id", "phase_set_digest", "descriptor_snapshot_digest", "configuration_fingerprint", "target_kind", "target_id"} {
+	for _, column := range []string{"terminal_outcome", "run_id", "phase_set_digest", "descriptor_snapshot_digest", "configuration_fingerprint", "host_os", "host_arch", "host_node", "host_fact_digest", "target_kind", "target_id"} {
 		hasColumn, err := columnExists(ctx, db, "suite_executions", column)
 		if err != nil {
 			return fmt.Errorf("introspect suite_executions: %w", err)

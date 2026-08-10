@@ -103,6 +103,7 @@ func ValidationProviderSpecFromDescriptor(descriptor providerdescriptor.Descript
 		Description:      descriptor.Description,
 		IncludeExecution: descriptor.Validation.Execution,
 		DeliveryMode:     descriptor.Validation.DeliveryMode,
+		CapabilitySubset: append([]string(nil), descriptor.Validation.CapabilitySubset...),
 	}
 	spec := delegatedSpec(delegated)
 	spec.Description = descriptor.Description

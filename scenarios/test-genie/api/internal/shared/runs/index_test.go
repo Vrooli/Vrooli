@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -21,6 +22,50 @@ func TestIndexPathMatchesFreshnessGo(t *testing.T) {
 	dir := t.TempDir()
 	if got, want := runindex.IndexPath(dir), sharedartifacts.RunsIndexPath(dir); got != want {
 		t.Fatalf("runindex.IndexPath = %q, test-genie writes %q", got, want)
+	}
+}
+
+// TestIndexReadsCreateNothing pins that querying an index which was never
+// written leaves the target directory untouched. withLock created coverage/ and
+// the lock file before discovering there was nothing to read, so a plain read of
+// scenarios/<name> materialized that directory — which is how phantom scenario
+// directories accumulated for every non-scenario name that reached the index.
+func TestIndexReadsCreateNothing(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "never-written")
+	idx := NewIndex(target)
+
+	records, err := idx.List()
+	if err != nil {
+		t.Fatalf("List on a missing index: %v", err)
+	}
+	if len(records) != 0 {
+		t.Fatalf("List = %d records, want 0", len(records))
+	}
+	if _, err := idx.Find("any-run"); !errors.Is(err, ErrRunNotFound) {
+		t.Fatalf("Find on a missing index = %v, want ErrRunNotFound", err)
+	}
+
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatalf("reading a missing index created %s; reads must not create the target directory", target)
+	}
+}
+
+// TestPinLeaseReadsCreateNothing pins the same rule for the pin-lease store,
+// which shares the create-then-lock shape.
+func TestPinLeaseReadsCreateNothing(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "never-pinned")
+
+	active, err := NewPinLeaseStore(target).ActiveForRun("any-run", time.Now())
+	if err != nil {
+		t.Fatalf("ActiveForRun on a missing store: %v", err)
+	}
+	if len(active) != 0 {
+		t.Fatalf("ActiveForRun = %d leases, want 0", len(active))
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatalf("reading a missing lease store created %s", target)
 	}
 }
 

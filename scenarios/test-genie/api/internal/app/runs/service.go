@@ -205,6 +205,19 @@ func (defaultVisualHealthComparer) CompareArtifacts(ctx context.Context, req *vi
 	return resp.Msg, nil
 }
 
+// scenarioManifest is the marker that makes a directory under scenarios/ a
+// scenario. It matches the `scenario` target marker in
+// .vrooli/repo-contract.json; the two must stay in step.
+const scenarioManifest = ".vrooli/service.json"
+
+// scenarioDir resolves a run-query target to the directory owning its run
+// artifacts. A kind:id expression goes through the target model; a bare slug is
+// a scenario, and must carry a scenario manifest to be one.
+//
+// The manifest check is the point. Without it any well-formed word resolved to
+// scenarios/<word>, so querying run history for a resource, a package or a
+// top-level directory name — minio, maturity-go, docs, internal — produced a
+// path that the read itself then created on disk.
 func (s *Service) scenarioDir(scenario string) (string, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
@@ -224,7 +237,15 @@ func (s *Service) scenarioDir(scenario string) (string, error) {
 	if scenario == "." || scenario == ".." || strings.ContainsAny(scenario, `/\`) || filepath.Clean(scenario) != scenario {
 		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario must be a scenario slug or kind:id target"))
 	}
-	return filepath.Join(s.scenariosRoot, scenario), nil
+	dir := filepath.Join(s.scenariosRoot, scenario)
+	if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(scenarioManifest))); err != nil {
+		// A well-formed name with no manifest is a missing scenario, not a
+		// malformed request. NotFound keeps callers from reading it as a
+		// scenario that merely has no runs yet.
+		return "", connect.NewError(connect.CodeNotFound,
+			fmt.Errorf("no scenario %q under %s (expected %s)", scenario, s.scenariosRoot, scenarioManifest))
+	}
+	return dir, nil
 }
 
 // ListRuns enumerates runs for a scenario, newest-first.

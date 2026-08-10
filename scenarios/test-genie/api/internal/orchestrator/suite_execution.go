@@ -137,6 +137,14 @@ type PhaseCostEstimator interface {
 	PhaseCostEstimate(context.Context, string, string) (ramBytes, cpuMilli int64, reliable bool)
 }
 
+// PhaseDurationEstimator supplies measured wall-clock history for the deadline
+// guard. It is optional: an estimator that does not implement it falls back to
+// the planner's predicted durations, which are available on every run but are
+// rounded and biased upward.
+type PhaseDurationEstimator interface {
+	PhaseDurationEstimate(context.Context, string, string) (p90Milliseconds int64, ok bool)
+}
+
 // PhaseCalibrationPlanner owns the age and descriptor-history policy for
 // reliable samples. The orchestrator consumes the decision and records its
 // reason; it does not infer freshness from elapsed test time.
@@ -1168,25 +1176,31 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 	anyFailure := false
 	total := len(defs)
 	forceSerial := phaseSchedulerForcedSerial()
+	// Fail-fast cannot honor its contract if phases are admitted concurrently:
+	// a later phase could start before an earlier failure is observable. Keep
+	// fail-fast runs serial so the first failure is a hard scheduling boundary.
+	if failFast {
+		forceSerial = true
+	}
 	if strings.TrimSpace(env.SchedulerDecision) != "" {
 		forceSerial = true
 	}
+	policy := o.phaseBatchPolicy(ctx, env.ScenarioName, forceSerial, predicted)
 	for start := 0; start < len(defs); {
 		// Everything from here to the goroutine launch is scheduling, not
 		// phase work. It is timed because it used to be invisible.
 		admissionStarted := time.Now()
-		parallelUnavailable := o.capacity == nil || o.costEstimator == nil
-		end := nextPhaseBatchWithPredictions(defs, start, forceSerial || parallelUnavailable, predicted)
+		end := nextPhaseBatch(defs, start, policy)
 		batch := defs[start:end]
 		metrics.AdmissionAttempts++
 		leases, admissionReason, admitted := o.admitPhaseBatch(ctx, env.ScenarioName, runID, batch)
-		if len(batch) > 1 && !admitted {
-			// An unknown estimate or a broker queue/deny is deliberately a serial
-			// fallback. Retry the remaining phases on later iterations so one
-			// unavailable phase cannot suppress unrelated safe work forever.
-			end = start + 1
+		if admitted < len(batch) {
+			// The host granted a shorter prefix than the batcher proposed. The
+			// phases past it are re-proposed on the next iteration rather than
+			// dropped, so a full host slows the run instead of changing what it
+			// validates.
+			end = start + admitted
 			batch = defs[start:end]
-			leases = nil
 		}
 		metrics.SchedulingMilliseconds += time.Since(admissionStarted).Milliseconds()
 		for offset, phase := range batch {
@@ -1399,41 +1413,118 @@ func (o *SuiteOrchestrator) saveCachedPhaseResult(env workspacepkg.Environment, 
 	_ = phasecache.New(env.ArtifactRoot).Save(phasecache.Key(identity), runID, result)
 }
 
-func (o *SuiteOrchestrator) admitPhaseBatch(ctx context.Context, scenario, runID string, batch []phases.Definition) ([]sharedcapacity.Lease, string, bool) {
+// phaseBatchPolicy resolves the batching predicates once per run.
+//
+// Both predicates query durable history, and the batcher consults them
+// repeatedly as it re-proposes the tail of the phase list, so the results are
+// memoized per phase. Without that, admission cost grows with the square of the
+// phase count — the shape that put 401 s of unattributed scheduling into a run
+// whose phases totalled 72.5 s on 2026-08-08.
+func (o *SuiteOrchestrator) phaseBatchPolicy(ctx context.Context, scenario string, forceSerial bool, predicted map[string]int64) phaseBatchPolicy {
+	policy := phaseBatchPolicy{forceSerial: forceSerial}
+	if forceSerial || o.capacity == nil || o.costEstimator == nil {
+		// Nothing is batchable, so the predicates are never consulted and the
+		// run walks the phase list one at a time.
+		return policy
+	}
+	sizableCache := make(map[string]bool, len(predicted))
+	policy.sizable = func(def phases.Definition) bool {
+		key := def.Name.Key()
+		if cached, ok := sizableCache[key]; ok {
+			return cached
+		}
+		ramBytes, cpuMilli, reliable := o.costEstimator.PhaseCostEstimate(ctx, scenario, key)
+		sizable := reliable && ramBytes > 0 && cpuMilli > 0
+		sizableCache[key] = sizable
+		return sizable
+	}
+
+	var measured func(phases.Definition) (int64, bool)
+	if estimator, ok := o.costEstimator.(PhaseDurationEstimator); ok {
+		type durationSample struct {
+			ms int64
+			ok bool
+		}
+		durationCache := make(map[string]durationSample, len(predicted))
+		measured = func(def phases.Definition) (int64, bool) {
+			key := def.Name.Key()
+			if cached, hit := durationCache[key]; hit {
+				return cached.ms, cached.ok
+			}
+			ms, found := estimator.PhaseDurationEstimate(ctx, scenario, key)
+			durationCache[key] = durationSample{ms: ms, ok: found}
+			return ms, found
+		}
+	}
+	policy.timeoutRisk = func(def phases.Definition) bool {
+		return phaseTimeoutRisk(def, predicted, measured)
+	}
+	return policy
+}
+
+// admitPhaseBatch acquires capacity for the longest prefix of batch the host
+// grants, and returns that prefix length along with the leases backing it.
+//
+// It admits a prefix rather than all-or-nothing because the previous behaviour
+// let one phase veto every phase beside it: a broker denial on the last member
+// released the grants already held for the others and dropped the whole batch
+// to serial, and the caller then re-proposed the remainder, denied again, and
+// walked the run one phase at a time. Sizing is no longer a failure mode here
+// at all — nextPhaseBatch refuses to put an unsizable phase in a batch — so the
+// only reason a prefix is short now is that the host is genuinely full, which
+// is a reason to run what fits rather than to run nothing.
+//
+// The returned length is always at least 1, so the caller always makes
+// progress. A prefix of exactly 1 carries the broker's reason so the run
+// records why it serialized.
+func (o *SuiteOrchestrator) admitPhaseBatch(ctx context.Context, scenario, runID string, batch []phases.Definition) ([]sharedcapacity.Lease, string, int) {
 	if len(batch) <= 1 || o.capacity == nil || o.costEstimator == nil {
-		return nil, "", true
+		return nil, "", len(batch)
 	}
-	leases := make([]sharedcapacity.Lease, len(batch))
-	for i, phase := range batch {
+	leases := make([]sharedcapacity.Lease, 0, len(batch))
+	release := func() {
+		for _, acquired := range leases {
+			if acquired != nil {
+				_ = acquired.Release(context.Background())
+			}
+		}
+	}
+	for _, phase := range batch {
 		ramBytes, cpuMilli, reliable := o.costEstimator.PhaseCostEstimate(ctx, scenario, phase.Name.Key())
-		if !reliable || ramBytes <= 0 || cpuMilli <= 0 {
-			return nil, fmt.Sprintf("no reliable measured size for phase %s", phase.Name), false
-		}
-		ownerID := fmt.Sprintf("test-genie:%s:%s", strings.TrimSpace(runID), phase.Name.Key())
-		lease, verdict, err := o.capacity.Acquire(ctx, ownerID, ramBytes, cpuMilli)
-		if err != nil {
-			for _, acquired := range leases {
-				if acquired != nil {
-					_ = acquired.Release(context.Background())
+		var (
+			lease   sharedcapacity.Lease
+			verdict sharedcapacity.Verdict
+			err     error
+			reason  string
+		)
+		switch {
+		case !reliable || ramBytes <= 0 || cpuMilli <= 0:
+			reason = fmt.Sprintf("no reliable measured size for phase %s", phase.Name)
+		default:
+			ownerID := fmt.Sprintf("test-genie:%s:%s", strings.TrimSpace(runID), phase.Name.Key())
+			lease, verdict, err = o.capacity.Acquire(ctx, ownerID, ramBytes, cpuMilli)
+			switch {
+			case err != nil:
+				reason = err.Error()
+			case verdict.Kind != "grant" && verdict.Kind != "degrade":
+				reason = verdict.Reason
+				if reason == "" {
+					reason = verdict.Kind
 				}
 			}
-			return nil, err.Error(), false
 		}
-		if verdict.Kind != "grant" && verdict.Kind != "degrade" {
-			for _, acquired := range leases {
-				if acquired != nil {
-					_ = acquired.Release(context.Background())
-				}
+		if reason != "" {
+			if len(leases) >= 2 {
+				// A partial batch still beats a serial walk. The phases past
+				// the stopping point are re-proposed on the next iteration.
+				return leases, reason, len(leases)
 			}
-			reason := verdict.Reason
-			if reason == "" {
-				reason = verdict.Kind
-			}
-			return nil, reason, false
+			release()
+			return nil, reason, 1
 		}
-		leases[i] = lease
+		leases = append(leases, lease)
 	}
-	return leases, "", true
+	return leases, "", len(leases)
 }
 
 func phaseSchedulerForcedSerial() bool {
@@ -1444,21 +1535,47 @@ func phaseSchedulerForcedSerial() bool {
 	return value == "1" || value == "true" || value == "yes" || value == "on"
 }
 
-func nextPhaseBatch(defs []phases.Definition, start int, forceSerial bool) int {
-	return nextPhaseBatchWithPredictions(defs, start, forceSerial, nil)
+// phaseBatchPolicy carries the per-run predicates the batcher consults. They
+// are injected rather than looked up inline so the batcher stays a pure
+// function of the phase list, and so a run resolves each phase's sizing and
+// duration history once instead of once per batch proposal.
+type phaseBatchPolicy struct {
+	forceSerial bool
+	// sizable reports whether admission can size the phase against the host
+	// ledger. A nil predicate means nothing is sizable, which yields the serial
+	// walk the scheduler falls back to when no broker is wired.
+	sizable func(phases.Definition) bool
+	// timeoutRisk reports whether the phase runs close enough to its own
+	// deadline that contention could turn a pass into a timeout.
+	timeoutRisk func(phases.Definition) bool
 }
 
-// nextPhaseBatchWithPredictions keeps phases with a measured duration close to
-// their own deadline out of concurrent batches. A phase that already consumes
-// most of its timeout budget has no meaningful contention headroom: admitting
-// it beside another phase can turn a passing run into a timeout without any
-// source or validation-contract change. Shorter phases retain the normal
-// contiguous batching behavior.
-func nextPhaseBatchWithPredictions(defs []phases.Definition, start int, forceSerial bool, predicted map[string]int64) int {
-	if forceSerial || start >= len(defs) || phaseConcurrencyMode(defs[start]) == "exclusive" {
-		return start + 1
+func (p phaseBatchPolicy) canBatch(def phases.Definition) bool {
+	if p.sizable == nil || !p.sizable(def) {
+		return false
 	}
-	if phaseTimeoutRisk(defs[start], predicted) {
+	return p.timeoutRisk == nil || !p.timeoutRisk(def)
+}
+
+// nextPhaseBatch returns the exclusive end of the next contiguous batch.
+//
+// It excludes three kinds of phase from a batch. A phase whose provider
+// declares `exclusive` never shares a batch. A phase whose duration sits close
+// to its own timeout is kept alone, because a phase that already consumes most
+// of its budget has no contention headroom and concurrency could turn a passing
+// run into a timeout with no source change. And a phase admission cannot size
+// is kept alone, because the host ledger cannot be asked whether it fits.
+//
+// That last exclusion is a boundary here rather than a rejection in
+// admitPhaseBatch on purpose. Sizing is a property of one phase, but rejecting
+// the batch punished every phase beside it: measured 2026-08-08, `workflow` had
+// zero reliable samples in 160 rows, so every batch it fell into collapsed to a
+// serial walk of the phases around it.
+func nextPhaseBatch(defs []phases.Definition, start int, policy phaseBatchPolicy) int {
+	if start >= len(defs) {
+		return start
+	}
+	if policy.forceSerial || phaseConcurrencyMode(defs[start]) == "exclusive" || !policy.canBatch(defs[start]) {
 		return start + 1
 	}
 	providers := map[string]struct{}{}
@@ -1467,7 +1584,7 @@ func nextPhaseBatchWithPredictions(defs []phases.Definition, start int, forceSer
 		if mode == "exclusive" {
 			return end
 		}
-		if end > start && phaseTimeoutRisk(defs[end], predicted) {
+		if end > start && !policy.canBatch(defs[end]) {
 			return end
 		}
 		if mode == "provider-serial" {
@@ -1484,7 +1601,33 @@ func nextPhaseBatchWithPredictions(defs []phases.Definition, start int, forceSer
 	return len(defs)
 }
 
-func phaseTimeoutRisk(def phases.Definition, predicted map[string]int64) bool {
+// contentionAllowance is how much slower a phase is assumed to run when it
+// shares the host with its batch. A phase is kept out of a batch when its
+// measured duration times this allowance would reach its timeout.
+//
+// Two is the same margin the original guard intended when it compared the
+// prediction against half the timeout. What changed is the input, not the
+// safety factor: phaseTimeoutRisk now measures against observed p90 wall-clock
+// instead of the planner's estimate, which is rounded to whole seconds and
+// overshoots — 56 s predicted for a `contracts` phase that ran in 23.9 s,
+// measured 2026-08-08. Loosening the margin to compensate for a biased input
+// would have hidden the bias; correcting the input keeps the margin honest.
+const contentionAllowance = 2
+
+// phaseTimeoutRisk reports whether concurrency could push the phase past its
+// own deadline. It prefers measured history and falls back to the planner's
+// prediction when a phase has none, so a phase nobody has run yet is still
+// guarded — conservatively, since the fallback input is the biased one.
+func phaseTimeoutRisk(def phases.Definition, predicted map[string]int64, measured func(phases.Definition) (int64, bool)) bool {
+	timeout := def.Timeout
+	if timeout <= 0 {
+		timeout = phases.DefaultTimeout
+	}
+	if measured != nil {
+		if observed, ok := measured(def); ok && observed > 0 {
+			return observed*contentionAllowance >= timeout.Milliseconds()
+		}
+	}
 	if len(predicted) == 0 {
 		return false
 	}
@@ -1492,12 +1635,7 @@ func phaseTimeoutRisk(def phases.Definition, predicted map[string]int64) bool {
 	if prediction <= 0 {
 		return false
 	}
-	timeout := def.Timeout
-	if timeout <= 0 {
-		timeout = phases.DefaultTimeout
-	}
-	// Reserve half of the phase budget for contention and runtime variance.
-	return prediction >= timeout.Milliseconds()/2
+	return prediction*contentionAllowance >= timeout.Milliseconds()
 }
 
 func phaseConcurrencyMode(def phases.Definition) string {

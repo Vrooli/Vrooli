@@ -36,14 +36,17 @@ type App struct {
 func NewApp() (*App, error) {
 	app := &App{}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
-		Name:                 appName,
-		Version:              appVersion,
-		Description:          "Test Genie CLI",
-		DefaultAPIBase:       defaultAPIBase,
-		BuildFingerprint:     buildFingerprint,
-		BuildTimestamp:       buildTimestamp,
-		BuildSourceRoot:      buildSourceRoot,
-		FreshnessInputs:      []string{"api/**", "cli/**", ".vrooli/service.json", ".vrooli/testing.json"},
+		Name:             appName,
+		Version:          appVersion,
+		Description:      "Test Genie CLI",
+		DefaultAPIBase:   defaultAPIBase,
+		BuildFingerprint: buildFingerprint,
+		BuildTimestamp:   buildTimestamp,
+		BuildSourceRoot:  buildSourceRoot,
+		// An override REPLACES the cliapp defaults rather than merging, so
+		// ../../packages/cli-core must be restated here or cli-core edits stop
+		// triggering a rebuild of this CLI.
+		FreshnessInputs:      []string{"api/**", "cli/**", ".vrooli/service.json", ".vrooli/testing.json", "../../packages/cli-core"},
 		AllowAnonymous:       true,
 		IncludeStatusCommand: boolPtr(true),
 		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {

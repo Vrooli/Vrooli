@@ -933,9 +933,10 @@ func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
 		stubRuntimePhaseRunners(orchestrator)
-		// Force the first phase (structure) to fail so fail-fast halts the rest.
-		// Structure is now delegated to structure-health, so the failure is
-		// injected via the runner rather than by corrupting the fake layout.
+		// Force structure to fail so fail-fast halts the rest. Portability is a
+		// descriptor-discovered prerequisite and therefore runs before structure;
+		// the failure is injected via the runner rather than by corrupting the
+		// fake layout.
 		orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Name("structure"), Runner: func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
 			return phasespkg.RunReport{Err: fmt.Errorf("forced structure failure")}
 		}})
@@ -952,11 +953,14 @@ func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 		if result.Success {
 			t.Fatalf("expected failure when first phase exits non-zero")
 		}
-		if len(result.Phases) != 1 {
-			t.Fatalf("expected a single executed phase due to fail-fast, got %d", len(result.Phases))
+		if len(result.Phases) != 2 {
+			t.Fatalf("expected portability plus the failing structure phase, got %d", len(result.Phases))
 		}
-		if result.Phases[0].Name != "structure" || result.Phases[0].Status != "failed" {
-			t.Fatalf("unexpected phase result: %#v", result.Phases[0])
+		if result.Phases[0].Name != "portability" || result.Phases[0].Status != "passed" {
+			t.Fatalf("unexpected portability phase result: %#v", result.Phases[0])
+		}
+		if result.Phases[1].Name != "structure" || result.Phases[1].Status != "failed" {
+			t.Fatalf("unexpected structure phase result: %#v", result.Phases[1])
 		}
 	})
 }

@@ -60,6 +60,23 @@ func TestEvaluateSearchApplicability(t *testing.T) {
 	}
 }
 
+func TestEvaluateHostOSApplicability(t *testing.T) {
+	declaration := providerdescriptor.Applicability{
+		Default: "not_applicable",
+		Any:     []providerdescriptor.Predicate{{HostOS: "windows"}},
+	}
+
+	got := Evaluate("windows-only", declaration, Context{HostOS: "linux"})
+	if got.Status != StatusNotApplicable || !hasReason(got, "applicability.host_os_mismatched") {
+		t.Fatalf("non-native host OS result = %#v, want not_applicable with mismatch reason", got)
+	}
+
+	got = Evaluate("windows-only", declaration, Context{HostOS: "windows"})
+	if got.Status != StatusApplies || !hasReason(got, "applicability.host_os_matched") {
+		t.Fatalf("native host OS result = %#v, want applies with match reason", got)
+	}
+}
+
 func TestEvaluateExplicitNonApplicableIsSurfaced(t *testing.T) {
 	got := Evaluate("search", providerdescriptor.Applicability{
 		Default: "not_applicable",

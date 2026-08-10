@@ -88,6 +88,13 @@ func (s *PinLeaseStore) Active(runID string, now time.Time) (bool, error) {
 // under the same lock. Read projections use this instead of historical index
 // pin metadata, ensuring the UI cannot advertise expired protection.
 func (s *PinLeaseStore) ActiveForRun(runID string, now time.Time) ([]PinLease, error) {
+	// No lease file means no run here was ever pinned: there is nothing to read
+	// and nothing to prune. Short-circuit before withLock, which would otherwise
+	// create coverage/ just to answer a query — the way phantom scenario
+	// directories were being created.
+	if _, err := os.Stat(s.path); os.IsNotExist(err) {
+		return nil, nil
+	}
 	var active []PinLease
 	err := s.withLock(func() error {
 		leases, err := s.readUnlocked()
