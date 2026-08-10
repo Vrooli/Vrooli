@@ -11,8 +11,18 @@ export function useAgentSessionEvents(session: AgentSession | undefined) {
   const [error, setError] = useState<string | null>(null);
   const afterSequenceRef = useRef<bigint>(0n);
 
+  // Only these three fields decide what this hook does. Depending on the whole
+  // session object meant a new message — or, before the store learned to skip
+  // unchanged polls, any poll at all — tore down the 2.5s events interval and
+  // immediately refetched, so events were pulled about twice as often as
+  // intended and never on the cadence the interval describes.
+  const sessionID = session?.id;
+  const sessionStatus = session?.status;
+  const sessionRunID = session?.runId;
+  const eventsActive = sessionStatus !== undefined && ACTIVE_EVENT_STATUSES.has(sessionStatus);
+
   const loadEvents = useCallback(async () => {
-    if (!session || session.status === "draft" || !session.runId) {
+    if (!sessionID || sessionStatus === "draft" || !sessionRunID) {
       setEvents([]);
       setError(null);
       afterSequenceRef.current = 0n;
@@ -21,7 +31,7 @@ export function useAgentSessionEvents(session: AgentSession | undefined) {
     setIsLoading(true);
     try {
       const result = await listSessionEvents({
-        sessionId: session.id,
+        sessionId: sessionID,
         afterSequence: afterSequenceRef.current > 0n ? afterSequenceRef.current : undefined,
         limit: 100,
       });
@@ -35,22 +45,22 @@ export function useAgentSessionEvents(session: AgentSession | undefined) {
     } finally {
       setIsLoading(false);
     }
-  }, [listSessionEvents, session]);
+  }, [listSessionEvents, sessionID, sessionStatus, sessionRunID]);
 
   useEffect(() => {
     setEvents([]);
     setError(null);
     afterSequenceRef.current = 0n;
-  }, [session?.id, session?.runId]);
+  }, [sessionID, sessionRunID]);
 
   useEffect(() => {
     void loadEvents();
-    if (!session || !ACTIVE_EVENT_STATUSES.has(session.status)) return undefined;
+    if (!eventsActive) return undefined;
     const interval = window.setInterval(() => {
       void loadEvents();
     }, 2500);
     return () => window.clearInterval(interval);
-  }, [loadEvents, session]);
+  }, [loadEvents, eventsActive]);
 
   return { events, isLoading, error, refreshEvents: loadEvents };
 }

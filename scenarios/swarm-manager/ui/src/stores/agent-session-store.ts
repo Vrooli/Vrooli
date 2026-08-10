@@ -224,8 +224,11 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
 
   refreshSession: async (sessionId): Promise<AgentSession> => {
     const session = await service.refresh(sessionId);
+    // The polling path, so it takes the change-detecting upsert. Mutations
+    // below keep the plain one: they always carry a real change, and paying a
+    // comparison to discover that would be pure overhead.
     set((state) => ({
-      sessions: upsertSession(state.sessions, session),
+      sessions: upsertSessionIfChanged(state.sessions, session),
     }));
     return session;
   },
@@ -329,6 +332,30 @@ export function artifactEntityKey(artifactType: AgentSessionArtifact["artifactTy
 
 function upsertSession(sessions: AgentSession[], session: AgentSession): AgentSession[] {
   return sortSessions([session, ...sessions.filter((entry) => entry.id !== session.id)]);
+}
+
+/**
+ * Upsert that keeps the existing array — and the existing session object —
+ * when the incoming copy is identical.
+ *
+ * The detail page polls every 3s for as long as a session is running. Most of
+ * those responses are byte-for-byte what we already hold, but replacing the
+ * object anyway re-rendered the entire page: new session object → new messages
+ * array → every bubble re-renders → every message re-parses its markdown, and
+ * (before the renderer was made identity-stable) every mermaid diagram
+ * remounted and re-laid-out. Returning the previous state lets Zustand's
+ * reference equality stop the update at the store instead.
+ *
+ * Compared by serialisation rather than field-by-field on purpose: both sides
+ * come from the same service deserialiser, so key order matches, and a
+ * hand-written comparison would silently go stale the next time the session
+ * shape grows a field. The cost is one pass over a payload we just parsed —
+ * far below the render it avoids.
+ */
+function upsertSessionIfChanged(sessions: AgentSession[], session: AgentSession): AgentSession[] {
+  const existing = sessions.find((entry) => entry.id === session.id);
+  if (existing && JSON.stringify(existing) === JSON.stringify(session)) return sessions;
+  return upsertSession(sessions, session);
 }
 
 function mergeSessions(existing: AgentSession[], incoming: AgentSession[]): AgentSession[] {

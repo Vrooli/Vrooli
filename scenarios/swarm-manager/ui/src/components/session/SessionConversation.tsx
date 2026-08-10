@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ExternalLink, Pencil, RotateCcw } from "lucide-react";
 import { ChatThread } from "../chat/ChatThread";
@@ -118,6 +118,29 @@ export function SessionConversation({
     setContextPickerOpen(true);
   };
 
+  // ChatThread hands these to every bubble, and the bubbles are memoized, so an
+  // inline arrow here would re-render the whole transcript on each 3s poll and
+  // undo that memoization. `attachments` is the only value any of them close
+  // over that changes during a session.
+  const handleReferenceNavigate = useCallback((href: string) => navigate(href), [navigate]);
+
+  const getMessageMeta = useCallback((message: ChatMessageView) => (
+    <>
+      <span>{message.role}</span>
+      {message.createdAt && <span>{formatRelativeTime(message.createdAt)}</span>}
+    </>
+  ), []);
+
+  const renderAttachmentPreview = useCallback((message: ChatMessageView) => (
+    <SessionMessageExtras message={message} attachments={attachments} onOpenContext={(path) => navigate(path)} />
+  ), [attachments, navigate]);
+
+  const renderMessageActions = useCallback((message: ChatMessageView) => (
+    message.delivery === "failed"
+      ? <PendingMessageActions onRetry={onRetryPendingMessage} onEdit={onEditPendingMessage} />
+      : null
+  ), [onRetryPendingMessage, onEditPendingMessage]);
+
   return (
     <section
       className={cn(
@@ -157,21 +180,10 @@ export function SessionConversation({
           density={density}
           className={cn(density === "comfortable" && "p-3", variant === "mobile" && "pb-40")}
           testId="agent-session-messages"
-          onReferenceNavigate={(href) => navigate(href)}
-          getMessageMeta={(message) => (
-            <>
-              <span>{message.role}</span>
-              {message.createdAt && <span>{formatRelativeTime(message.createdAt)}</span>}
-            </>
-          )}
-          renderAttachmentPreview={(message) => (
-            <SessionMessageExtras message={message} attachments={attachments} onOpenContext={(path) => navigate(path)} />
-          )}
-          renderMessageActions={(message) =>
-            message.delivery === "failed" ? (
-              <PendingMessageActions onRetry={onRetryPendingMessage} onEdit={onEditPendingMessage} />
-            ) : null
-          }
+          onReferenceNavigate={handleReferenceNavigate}
+          getMessageMeta={getMessageMeta}
+          renderAttachmentPreview={renderAttachmentPreview}
+          renderMessageActions={renderMessageActions}
         />
       )}
       <div

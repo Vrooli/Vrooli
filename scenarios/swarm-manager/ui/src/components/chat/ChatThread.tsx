@@ -97,19 +97,24 @@ export function ChatThread({
   const mountedAtRef = useRef(messages.length);
   const spokenIdsRef = useRef<Set<string>>(new Set(messages.slice(0, mountedAtRef.current).map((m) => m.id)));
 
+  // Depends on the two fields it actually reads rather than the whole
+  // controller. `tts` used to be a new object every render, so this effect ran
+  // on every render of the thread — including each 3s session poll — instead of
+  // only when a message arrived.
+  const { speak: ttsSpeak, unavailable: ttsUnavailable } = tts;
   useEffect(() => {
-    if (!audioPrefs.autoSpeak || tts.unavailable) return;
+    if (!audioPrefs.autoSpeak || ttsUnavailable) return;
     for (let i = mountedAtRef.current; i < messages.length; i++) {
       const m = messages[i];
       if (!m || m.role !== "assistant") continue;
       if (spokenIdsRef.current.has(m.id)) continue;
       if (!m.content.trim()) continue;
       spokenIdsRef.current.add(m.id);
-      tts.speak(m.id, m.content);
+      ttsSpeak(m.id, m.content);
       break; // Speak one new arrival per effect run; older ones queued naturally.
     }
     mountedAtRef.current = messages.length;
-  }, [messages, audioPrefs.autoSpeak, tts]);
+  }, [messages, audioPrefs.autoSpeak, ttsSpeak, ttsUnavailable]);
 
   const isCompact = density === "compact";
 

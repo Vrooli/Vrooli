@@ -5,7 +5,7 @@
 // Voice/speed settings come from audio-tools' shared config; auto-speak
 // is a swarm-manager-local pref in useAudioPrefs.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTextToSpeechCore, useAudioToolsUnavailableReason } from "../audio-integration";
 import * as ttsRuntime from "../audio-integration/api/tts";
 
@@ -49,51 +49,66 @@ export function useAgentMessageTTS(): UseAgentMessageTTSResult {
     },
   );
 
+  // Destructured rather than closing over `tts`: useTextToSpeechCore returns a
+  // fresh object literal on every render (it spreads its state into the
+  // result), so depending on the whole controller would invalidate these
+  // callbacks — and everything memoized downstream of them — continuously. The
+  // individual functions are useCallback'd inside the core and are the actual
+  // dependencies.
+  const { speak: coreSpeak, stop: coreStop, isSpeaking: coreIsSpeaking, error: coreError } = tts;
+
   const speak = useCallback(
     (messageId: string, text: string) => {
       if (unavailable || !text.trim()) return;
       setSpeakingMessageId(messageId);
       setLoadingMessageId(messageId);
-      tts.speak(text);
+      coreSpeak(text);
     },
-    [tts, unavailable],
+    [coreSpeak, unavailable],
   );
 
   const stop = useCallback(() => {
-    tts.stop();
+    coreStop();
     setSpeakingMessageId(null);
     setLoadingMessageId(null);
-  }, [tts]);
+  }, [coreStop]);
 
   // Drive the message-id bookkeeping off the core's isSpeaking transitions.
   // Tracking the previous value lets us tell the synth→play gap (never spoke
   // yet) apart from a natural end (was speaking, now stopped).
   const wasSpeakingRef = useRef(false);
   useEffect(() => {
-    if (tts.isSpeaking) {
+    if (coreIsSpeaking) {
       wasSpeakingRef.current = true;
       setLoadingMessageId(null);
     } else if (wasSpeakingRef.current) {
       wasSpeakingRef.current = false;
       setSpeakingMessageId(null);
     }
-  }, [tts.isSpeaking]);
+  }, [coreIsSpeaking]);
 
   // If synthesis fails before playback ever starts, clear the loading/speaking
   // ids so the bubble doesn't hang on a spinner.
   useEffect(() => {
-    if (tts.error && !tts.isSpeaking) {
+    if (coreError && !coreIsSpeaking) {
       setLoadingMessageId(null);
       setSpeakingMessageId(null);
     }
-  }, [tts.error, tts.isSpeaking]);
+  }, [coreError, coreIsSpeaking]);
 
-  return {
-    speak,
-    stop,
-    isSpeaking: tts.isSpeaking,
-    speakingMessageId,
-    loadingMessageId,
-    unavailable,
-  };
+  // Memoized because this controller is handed to every message bubble and is
+  // a dependency of ChatThread's auto-speak effect. Returned as a fresh object
+  // literal it defeated bubble memoization outright and re-ran that effect on
+  // every render of the thread, including the 3s session poll.
+  return useMemo(
+    () => ({
+      speak,
+      stop,
+      isSpeaking: coreIsSpeaking,
+      speakingMessageId,
+      loadingMessageId,
+      unavailable,
+    }),
+    [speak, stop, coreIsSpeaking, speakingMessageId, loadingMessageId, unavailable],
+  );
 }

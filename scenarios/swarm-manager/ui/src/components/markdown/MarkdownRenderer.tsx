@@ -9,7 +9,7 @@
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
-import { Component, type CSSProperties, type ErrorInfo, type MouseEvent, type ReactNode, useMemo } from "react";
+import { Component, type CSSProperties, type ErrorInfo, type MouseEvent, type ReactNode, useMemo, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CodeBlock } from "./CodeBlock";
@@ -59,24 +59,88 @@ const markdownTokens: CSSProperties & Record<`--${string}`, string> = {
   "--markdown-error": "var(--color-danger, currentColor)",
 };
 
+/**
+ * LOCAL EDIT (drift from markdown-renderer 0.3.2): identity-stable component
+ * map, and a memoized tree.
+ *
+ * The library builds `components` with the caller's callbacks in the useMemo
+ * dependency list. Every real caller passes at least one inline arrow (a
+ * message bubble closing over its own row), so the map was rebuilt on every
+ * render — and a rebuilt map means a brand-new `code` *function*, which React
+ * reads as a changed element type and responds to by unmounting the subtree and
+ * mounting a fresh one.
+ *
+ * That is invisible for a paragraph and expensive for anything holding state: a
+ * mermaid diagram restarted its full layout, a CodeBlock lost its "Copied"
+ * flash, a wide table lost its horizontal scroll position. On the session page,
+ * which polls every 3s, a diagram visibly flickered placeholder → SVG →
+ * placeholder forever.
+ *
+ * The fix routes the callbacks through a ref so the map can be memoized on []
+ * and the element types stay put. Two consequences worth knowing:
+ *
+ *  - Handlers are read at call time, so a re-render is enough to pick up a new
+ *    one; no remount is needed and none happens.
+ *  - `resolveInlineToken` / `looksLikeFileReference` run *during* child render,
+ *    so they stay in the tree memo's dependencies. A caller that stabilises
+ *    them (see ChatMessageBubble) gets the parse skipped entirely; a caller
+ *    that does not still gets a cheap re-render instead of a remount.
+ *
+ * Writing the ref during render is safe for this shape: it is a latest-props
+ * cache, rewritten wholesale on every render pass, and its only readers are
+ * this component's own children rendering later in the same pass.
+ */
 export function MarkdownRenderer({ content, className, inline = false, resolveInlineToken, looksLikeFileReference, onLinkClick, onFileReferenceClick, onMermaidOpen, "data-testid": testId }: MarkdownRendererProps) {
+  const callbacks = useRef({ resolveInlineToken, looksLikeFileReference, onLinkClick, onFileReferenceClick, onMermaidOpen });
+  callbacks.current = { resolveInlineToken, looksLikeFileReference, onLinkClick, onFileReferenceClick, onMermaidOpen };
+
+  // `onMermaidOpen`'s *presence* decides whether the diagram toolbar shows an
+  // Open button, so it is read as a boolean here and fed to the tree memo.
+  // Its identity still does not matter.
+  const canOpenMermaid = Boolean(onMermaidOpen);
+
   const components = useMemo(() => ({
     code: ({ children, className: codeClass }: { children?: ReactNode; className?: string }) => {
       const text = reactNodeText(children).replace(/\n$/, "");
       const language = codeClass?.replace(/^language-/, "");
-      if (language === "mermaid") return <MermaidDiagram code={text} onMermaidOpen={onMermaidOpen} />;
+      if (language === "mermaid") {
+        const open = callbacks.current.onMermaidOpen;
+        return <MermaidDiagram code={text} onMermaidOpen={open ? (value) => callbacks.current.onMermaidOpen?.(value) : undefined} />;
+      }
       if (language) return <CodeBlock code={text} language={language} />;
-      return <InlineCode resolveInlineToken={resolveInlineToken} looksLikeFileReference={looksLikeFileReference} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick}>{text}</InlineCode>;
+      return <InlineCode
+        resolveInlineToken={(value) => callbacks.current.resolveInlineToken?.(value) ?? null}
+        looksLikeFileReference={(value) => callbacks.current.looksLikeFileReference?.(value) ?? false}
+        onLinkClick={(href, event) => callbacks.current.onLinkClick?.(href, event)}
+        onFileReferenceClick={(path) => callbacks.current.onFileReferenceClick?.(path)}
+      >{text}</InlineCode>;
     },
-    a: ({ href = "", children }: { href?: string; children?: ReactNode }) => <a href={href} onClick={(event) => onLinkClick?.(href, event)} className="text-[var(--markdown-link)] underline underline-offset-2">{children}</a>,
+    a: ({ href = "", children }: { href?: string; children?: ReactNode }) => <a href={href} onClick={(event) => callbacks.current.onLinkClick?.(href, event)} className="text-[var(--markdown-link)] underline underline-offset-2">{children}</a>,
     blockquote: ({ children }: { children?: ReactNode }) => <blockquote className="my-3 border-l-2 border-[var(--markdown-link)] pl-3 italic text-[var(--markdown-muted)]">{children}</blockquote>,
     table: ({ children }: { children?: ReactNode }) => <div className="my-3 overflow-x-auto"><table className="border-collapse text-sm">{children}</table></div>,
     th: ({ children }: { children?: ReactNode }) => <th className="border border-[var(--markdown-border)] px-2 py-1 text-left">{children}</th>,
     td: ({ children }: { children?: ReactNode }) => <td className="border border-[var(--markdown-border)] px-2 py-1">{children}</td>,
-  }), [looksLikeFileReference, onFileReferenceClick, onLinkClick, onMermaidOpen, resolveInlineToken]);
+  }), []);
+
+  // Reusing the element instance lets React bail out of the whole subtree, so
+  // an unchanged message skips both the mdast parse and the React render.
+  //
+  // The last three dependencies look unused to the exhaustive-deps rule and are
+  // not: `components` reaches them through `callbacks.current` at child-render
+  // time, which static analysis cannot follow. They are exactly the inputs that
+  // affect rendered *output* — which tokens resolve to links, whether the
+  // diagram toolbar offers Open — so dropping them would serve a stale tree.
+  // The pure event handlers are deliberately absent: their identity changes
+  // nothing on screen.
+  const tree = useMemo(
+    () => <ReactMarkdown remarkPlugins={[remarkGfm, remarkProsePaths]} components={components}>{content}</ReactMarkdown>,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [content, components, canOpenMermaid, resolveInlineToken, looksLikeFileReference],
+  );
+
   if (!content) return null;
   const Wrapper = inline ? "span" : "div";
-  return <MarkdownErrorBoundary content={content}><Wrapper className={className} style={markdownTokens} data-testid={testId}><ReactMarkdown remarkPlugins={[remarkGfm, remarkProsePaths]} components={components}>{content}</ReactMarkdown></Wrapper></MarkdownErrorBoundary>;
+  return <MarkdownErrorBoundary content={content}><Wrapper className={className} style={markdownTokens} data-testid={testId}>{tree}</Wrapper></MarkdownErrorBoundary>;
 }
 
 export default MarkdownRenderer;

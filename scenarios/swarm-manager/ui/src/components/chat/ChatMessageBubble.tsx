@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useCallback, useMemo, type MouseEvent } from "react";
 import { AlertTriangle, Loader2, Volume2, VolumeX } from "lucide-react";
 import { detailPathFromNodeId } from "../../app/routes/route-paths";
 import { MarkdownRenderer, type InlineTokenResolution } from "../markdown/MarkdownRenderer";
@@ -74,7 +74,7 @@ interface ChatMessageBubbleProps {
   onReferenceNavigate?: (href: string) => void;
 }
 
-export function ChatMessageBubble({
+function ChatMessageBubbleImpl({
   message,
   accent = "cyan",
   density = "comfortable",
@@ -95,10 +95,21 @@ export function ChatMessageBubble({
 
   const references = useMemo(() => referencesFromContext(message.context), [message.context]);
 
-  const resolveInlineToken = (text: string): InlineTokenResolution | null => {
+  // Both markdown callbacks are stabilised on `references`, which is itself
+  // memoized on the message's context. MarkdownRenderer treats a stable
+  // resolveInlineToken as permission to reuse the parsed tree, so an unchanged
+  // message costs nothing to re-render — the difference between a transcript
+  // that re-parses every message every 3s and one that re-parses none.
+  const resolveInlineToken = useCallback((text: string): InlineTokenResolution | null => {
     const reference = references.find((candidate) => candidate.token === text);
     return reference ? { ...reference, kind: "entity" } : null;
-  };
+  }, [references]);
+
+  const handleLinkClick = useCallback((href: string, event: MouseEvent<HTMLAnchorElement>) => {
+    if (!references.some((reference) => reference.href === href) || !onReferenceNavigate) return;
+    event.preventDefault();
+    onReferenceNavigate(href);
+  }, [references, onReferenceNavigate]);
 
   const body = (
     <>
@@ -111,11 +122,7 @@ export function ChatMessageBubble({
         content={message.content}
         className="prose-sm-slate break-words"
         resolveInlineToken={resolveInlineToken}
-        onLinkClick={(href, event) => {
-          if (!references.some((reference) => reference.href === href) || !onReferenceNavigate) return;
-          event.preventDefault();
-          onReferenceNavigate(href);
-        }}
+        onLinkClick={handleLinkClick}
       />
       {renderAttachmentPreview?.(message)}
       <div className="flex flex-wrap items-center gap-2">
@@ -197,3 +204,14 @@ export function ChatMessageBubble({
     </article>
   );
 }
+
+/**
+ * Memoized because a transcript re-renders as a unit: the session polls every
+ * 3s, and without this every historical message — each one re-parsing its
+ * markdown — re-rendered to produce identical output. The props are all stable
+ * by construction now (ChatThread's slots are useCallback'd, the TTS
+ * controller is memoized, and the store no longer replaces unchanged session
+ * objects), so the default shallow comparison is enough; a custom comparator
+ * would only hide a future prop that genuinely should invalidate.
+ */
+export const ChatMessageBubble = memo(ChatMessageBubbleImpl);

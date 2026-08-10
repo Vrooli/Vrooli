@@ -30,6 +30,36 @@ const TOOLBAR_BUTTON =
   "rounded px-1.5 py-0.5 transition-colors hover:bg-white/5 hover:text-[var(--markdown-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--markdown-link)]";
 const TOOLBAR_BUTTON_ACTIVE = "bg-white/10 text-[var(--markdown-text)]";
 
+/**
+ * LOCAL EDIT (drift from markdown-renderer 0.3.2): a skeleton in place of the
+ * library's "Rendering diagram…" text line.
+ *
+ * The text line was both the wrong shape and the wrong height — one line where
+ * a diagram was about to appear, so every diagram shoved the transcript
+ * downward as it resolved. This reserves plausible diagram height and reads as
+ * a placeholder rather than as content, which matters most in the case it is
+ * actually for: a cold render of a diagram nobody has seen yet.
+ */
+function DiagramSkeleton() {
+  const bar = "rounded bg-white/10 motion-safe:animate-pulse";
+  return (
+    <div
+      className="flex min-h-32 flex-col items-center justify-center gap-3 p-3"
+      role="status"
+      aria-label="Rendering diagram"
+      data-testid="mermaid-skeleton"
+    >
+      <div className={`${bar} h-7 w-32`} />
+      <div className={`${bar} h-4 w-0.5`} />
+      <div className="flex gap-4">
+        <div className={`${bar} h-7 w-24`} />
+        <div className={`${bar} h-7 w-28`} />
+      </div>
+      <span className="sr-only">Rendering diagram…</span>
+    </div>
+  );
+}
+
 export function MermaidDiagram({ code, onMermaidOpen, sourceLabel = "Source", diagramLabel = "Diagram", openLabel = "Open", copyLabel = "Copy" }: MermaidDiagramProps) {
   const [showSource, setShowSource] = useState(false);
   const { svg, error, loading } = useMermaidSvg(code);
@@ -45,6 +75,14 @@ export function MermaidDiagram({ code, onMermaidOpen, sourceLabel = "Source", di
         {onMermaidOpen && <button type="button" onClick={() => onMermaidOpen(code)} className={`${TOOLBAR_BUTTON} text-[var(--markdown-link)]`}>{openLabel}</button>}
       </div>
     </header>
-    {showSource ? <pre className="p-3 text-xs text-[var(--markdown-code-text)]">{code}</pre> : error ? <><p role="alert" className="p-3 text-xs text-[var(--markdown-error)]">{error}</p><pre className="p-3 text-xs text-[var(--markdown-code-text)]">{code}</pre></> : loading ? <p className="p-3 text-xs text-[var(--markdown-muted)]">Rendering diagram…</p> : <div className="p-3 [&>svg]:max-w-full" dangerouslySetInnerHTML={{ __html: svg ?? "" }} />}
+    <div data-mermaid-host>
+      {showSource
+        ? <pre className="p-3 text-xs text-[var(--markdown-code-text)]">{code}</pre>
+        : error
+          ? <><p role="alert" className="p-3 text-xs text-[var(--markdown-error)]">{error}</p><pre className="p-3 text-xs text-[var(--markdown-code-text)]">{code}</pre></>
+          : loading
+            ? <DiagramSkeleton />
+            : <div className="p-3 [&>svg]:max-w-full" dangerouslySetInnerHTML={{ __html: svg ?? "" }} />}
+    </div>
   </section>;
 }

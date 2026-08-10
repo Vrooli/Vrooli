@@ -204,4 +204,55 @@ describe("agent-session-store", () => {
     expect(state.status).toBe("success");
     expect(state.error?.message).toBe("network");
   });
+
+  // The session detail page polls every 3s for the whole life of a running
+  // session, and almost every response is identical to the last. Replacing the
+  // stored object anyway re-rendered the entire transcript — re-parsing every
+  // message's markdown and remounting every mermaid diagram — to paint exactly
+  // the same pixels. Identity is the contract that stops it, so it is tested
+  // directly.
+  describe("refreshSession identity", () => {
+    it("keeps the same session object when the poll returns unchanged data", async () => {
+      vi.mocked(service.list).mockResolvedValue([SESSION_A]);
+      await useAgentSessionStore.getState().fetchSessions(undefined, { force: true });
+      const before = useAgentSessionStore.getState().sessions;
+
+      vi.mocked(service.refresh).mockResolvedValue({ ...SESSION_A });
+      await useAgentSessionStore.getState().refreshSession(SESSION_A.id);
+      await useAgentSessionStore.getState().refreshSession(SESSION_A.id);
+
+      const after = useAgentSessionStore.getState().sessions;
+      expect(after).toBe(before);
+      expect(after[0]).toBe(before[0]);
+    });
+
+    it("replaces the session object when the poll returns a new message", async () => {
+      vi.mocked(service.list).mockResolvedValue([SESSION_A]);
+      await useAgentSessionStore.getState().fetchSessions(undefined, { force: true });
+      const before = useAgentSessionStore.getState().sessions[0];
+
+      vi.mocked(service.refresh).mockResolvedValue({
+        ...SESSION_A,
+        messages: [{ id: "msg-1", role: "assistant", content: "Done.", createdAt: "2026-05-01T12:05:00Z", attachmentIds: [] }],
+      });
+      await useAgentSessionStore.getState().refreshSession(SESSION_A.id);
+
+      const after = useAgentSessionStore.getState().sessions[0];
+      expect(after).not.toBe(before);
+      expect(after?.messages).toHaveLength(1);
+    });
+
+    it("replaces the session object when only the status changes", async () => {
+      vi.mocked(service.list).mockResolvedValue([SESSION_A]);
+      await useAgentSessionStore.getState().fetchSessions(undefined, { force: true });
+      const before = useAgentSessionStore.getState().sessions[0];
+
+      vi.mocked(service.refresh).mockResolvedValue({ ...SESSION_A, status: "complete" });
+      await useAgentSessionStore.getState().refreshSession(SESSION_A.id);
+
+      const after = useAgentSessionStore.getState().sessions[0];
+      expect(after).not.toBe(before);
+      expect(after?.status).toBe("complete");
+    });
+  });
 });
