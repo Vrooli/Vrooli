@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestIntegrationConformanceAcceptsDeclaredRegistryContract(t *testing.T) {
+func TestIntegrationConformanceUsesServiceManifestAsDependencySource(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, "consumer")
 	dependency := filepath.Join(root, "audio-tools")
@@ -25,9 +25,8 @@ func TestIntegrationConformanceAcceptsDeclaredRegistryContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	registry := []byte(`package capabilities
-type Checker interface { Check() }
 type Def struct { Description string; DependencySlug string; ActionKind string }
-var Known = []Def{{Description: "shared voice capability", ActionKind: "scenario_start"}}
+var Known = []Def{{Description: "owned capability", ActionKind: "scenario_start"}}
 var audioTools = "audio-tools"
 `)
 	if err := os.WriteFile(filepath.Join(target, "api", "internal", "capabilities", "registry.go"), registry, 0o644); err != nil {
@@ -44,7 +43,7 @@ var audioTools = "audio-tools"
 	}
 }
 
-func TestIntegrationConformanceReportsMissingRegistryEntry(t *testing.T) {
+func TestIntegrationConformanceDoesNotRequireManifestDependencyInRegistry(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, "consumer")
 	dependency := filepath.Join(root, "audio-tools")
@@ -66,9 +65,41 @@ func TestIntegrationConformanceReportsMissingRegistryEntry(t *testing.T) {
 	}
 
 	h := &connectHandler{scenariosDir: func() string { return root }}
+	section, findings, _ := h.evaluateIntegrationConformance(withScenarioPath(context.Background(), target), "consumer")
+	if len(findings) != 0 || section.GetStatus() != "pass" {
+		t.Fatalf("expected manifest-only conformance pass, got section=%v findings=%v", section, findings)
+	}
+}
+
+func TestIntegrationConformanceRejectsRegistryDependencyDuplicate(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "consumer")
+	dependency := filepath.Join(root, "audio-tools")
+	if err := os.MkdirAll(filepath.Join(target, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(target, "api", "internal", "capabilities"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dependency, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := []byte(`{"dependencies":{"scenarios":{"audio-tools":{"required":false,"degraded_behavior":"Voice controls remain unavailable until audio-tools recovers."}}}}`)
+	if err := os.WriteFile(filepath.Join(target, ".vrooli", "service.json"), manifest, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	registry := []byte(`package capabilities
+type Def struct { DependencyKind string; DependencySlug string }
+var Known = []Def{{DependencyKind: "scenario", DependencySlug: "audio-tools"}}
+`)
+	if err := os.WriteFile(filepath.Join(target, "api", "internal", "capabilities", "registry.go"), registry, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	h := &connectHandler{scenariosDir: func() string { return root }}
 	_, findings, _ := h.evaluateIntegrationConformance(withScenarioPath(context.Background(), target), "consumer")
-	if len(findings) != 1 || findings[0].GetRuleId() != "INTEGRATION_REGISTRY_ENTRY_MISSING" {
-		t.Fatalf("expected missing-entry finding, got %v", findings)
+	if len(findings) != 1 || findings[0].GetRuleId() != "INTEGRATION_REGISTRY_DUPLICATES_MANIFEST" {
+		t.Fatalf("expected duplicate-entry finding, got %v", findings)
 	}
 }
 

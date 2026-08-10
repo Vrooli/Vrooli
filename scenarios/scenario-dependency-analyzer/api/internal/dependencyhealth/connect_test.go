@@ -770,6 +770,86 @@ func TestValidateScenarioAttachesMetrics(t *testing.T) {
 	}
 }
 
+func TestValidatePortabilityHostRejectsDeclaredUnsupportedResource(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "scenarios", "fixture")
+	writeFile(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), `{"dependencies":{"resources":{"native-only":{"required":true}}}}`)
+	writeFile(t, filepath.Join(root, "resources", "native-only", "resource.json"), `{"name":"native-only","bundling":"vendorable","platforms":{"linux":"unsupported","macos":"supported","windows":"supported"},"requirements":{"class":"utility","weight":1,"ram_mb":1,"disk_mb":1,"cpu_cores":1,"source":"measured","confidence":"high"}}`)
+
+	h := &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }}
+	if err := h.validatePortabilityHost(scenarioDir, "fixture"); err == nil {
+		t.Fatal("expected portability validation to reject the observed host")
+	} else if !strings.Contains(err.Error(), "contradict") {
+		t.Fatalf("error = %q, want a declaration/observation contradiction", err)
+	}
+}
+
+func TestValidatePortabilityHostRejectsToolWithoutMacOSAcquisition(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "scenarios", "fixture")
+	writeFile(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), `{"dependencies":{}}`)
+	writeFile(t, filepath.Join(root, "internal", "tools", "missing-path", "tool.json"), `{"name":"missing-path","platforms":["macos"],"bundling":"host-required","capability":"developer-utility","capability_role":"primary"}`)
+
+	h := &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }}
+	if err := h.validatePortabilityHost(scenarioDir, "fixture"); err == nil {
+		t.Fatal("expected portability validation to reject a macOS tool without acquisition")
+	} else if !strings.Contains(err.Error(), "missing-path") {
+		t.Fatalf("error = %q, want missing tool name", err)
+	}
+}
+
+func TestValidateScenarioPortabilitySubsetUsesResolverAndAssessment(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "scenarios", "fixture")
+	writeFile(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), `{"dependencies":{}}`)
+
+	spec := testMaturitySpec(t)
+	spec.Phase = "portability"
+	h := &connectHandler{
+		scenariosDir:    func() string { return filepath.Join(root, "scenarios") },
+		portabilitySpec: spec,
+	}
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario:         "fixture",
+		Path:             scenarioDir,
+		CapabilitySubset: []string{"portability"},
+	}))
+	if err != nil {
+		t.Fatalf("ValidateScenario(portability): %v", err)
+	}
+	if got := resp.Msg.GetAssessment().GetPhase(); got != "portability" {
+		t.Fatalf("assessment phase = %q, want portability", got)
+	}
+	if got := resp.Msg.GetStatus().String(); got != "VALIDATION_STATUS_PASSED" {
+		t.Fatalf("status = %q, want passed", got)
+	}
+}
+
+func TestValidateScenarioPortabilitySubsetRejectsContradiction(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "scenarios", "fixture")
+	writeFile(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), `{"dependencies":{"resources":{"native-only":{"required":true}}}}`)
+	writeFile(t, filepath.Join(root, "resources", "native-only", "resource.json"), `{"name":"native-only","bundling":"vendorable","platforms":{"linux":"unsupported","macos":"supported","windows":"supported"},"requirements":{"class":"utility","weight":1,"ram_mb":1,"disk_mb":1,"cpu_cores":1,"source":"measured","confidence":"high"}}`)
+
+	spec := testMaturitySpec(t)
+	spec.Phase = "portability"
+	h := &connectHandler{
+		scenariosDir:    func() string { return filepath.Join(root, "scenarios") },
+		portabilitySpec: spec,
+	}
+	_, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario:         "fixture",
+		Path:             scenarioDir,
+		CapabilitySubset: []string{"portability"},
+	}))
+	if err == nil {
+		t.Fatal("ValidateScenario(portability) unexpectedly accepted contradictory resource declaration")
+	}
+	if got := connect.CodeOf(err); got != connect.CodeFailedPrecondition {
+		t.Fatalf("error code = %v, want %v", got, connect.CodeFailedPrecondition)
+	}
+}
+
 func containsFinding(findings []*healthv1.DependencyHealthFinding, id string) bool {
 	for _, finding := range findings {
 		if finding.GetId() == id {

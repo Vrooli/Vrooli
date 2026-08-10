@@ -454,7 +454,7 @@ resource-fake something
 	}
 }
 
-func TestResourceHeuristicIgnoresPlainN8NMentions(t *testing.T) {
+func TestResourceHeuristicIgnoresPlainCustomResourceMentions(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
@@ -462,7 +462,7 @@ func TestResourceHeuristicIgnoresPlainN8NMentions(t *testing.T) {
 	defer env.Cleanup()
 
 	configureTestScenariosDir(t, env)
-	createTestResourceDirs(t, env, "n8n")
+	createTestResourceDirs(t, env, "declaredresource")
 
 	subjectPath := filepath.Join(env.ScenariosDir, "heuristic-noise")
 	os.MkdirAll(subjectPath, 0o755)
@@ -470,7 +470,7 @@ func TestResourceHeuristicIgnoresPlainN8NMentions(t *testing.T) {
 
 	content := `package main
 
-var resourceTypes = []string{"postgres", "redis", "n8n"}
+var resourceTypes = []string{"postgres", "redis", "declaredresource"}
 `
 	os.WriteFile(filepath.Join(subjectPath, "main.go"), []byte(content), 0o644)
 
@@ -480,13 +480,13 @@ var resourceTypes = []string{"postgres", "redis", "n8n"}
 	}
 
 	for _, dep := range deps {
-		if dep.DependencyName == "n8n" {
-			t.Fatalf("plain text mention should not be treated as n8n dependency")
+		if dep.DependencyName == "declaredresource" {
+			t.Fatalf("plain text mention should not be treated as a custom resource dependency")
 		}
 	}
 }
 
-func TestResourceHeuristicDetectsN8NEnvUsage(t *testing.T) {
+func TestResourceHeuristicDetectsDeclaredResourceEnvUsage(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
@@ -494,7 +494,7 @@ func TestResourceHeuristicDetectsN8NEnvUsage(t *testing.T) {
 	defer env.Cleanup()
 
 	configureTestScenariosDir(t, env)
-	createTestResourceDirs(t, env, "n8n")
+	createTestResourceDirs(t, env, "declaredresource")
 
 	subjectPath := filepath.Join(env.ScenariosDir, "heuristic-hit")
 	os.MkdirAll(subjectPath, 0o755)
@@ -504,8 +504,8 @@ func TestResourceHeuristicDetectsN8NEnvUsage(t *testing.T) {
 
 import "os"
 
-func useN8N() string {
-	return os.Getenv("N8N_URL")
+func useDeclaredResource() string {
+	return os.Getenv("DECLAREDRESOURCE_URL")
 }
 `
 	os.WriteFile(filepath.Join(subjectPath, "main.go"), []byte(content), 0o644)
@@ -517,14 +517,14 @@ func useN8N() string {
 
 	found := false
 	for _, dep := range deps {
-		if dep.DependencyName == "n8n" {
+		if dep.DependencyName == "declaredresource" {
 			found = true
 			break
 		}
 	}
 
 	if !found {
-		t.Fatalf("expected n8n dependency to be detected when referencing N8N_URL")
+		t.Fatalf("expected declared resource dependency to be detected when referencing DECLAREDRESOURCE_URL")
 	}
 }
 
@@ -938,7 +938,7 @@ func TestBuildDependencyDiff(t *testing.T) {
 	})
 
 	t.Run("ExtraDependencies", func(t *testing.T) {
-		declared := map[string]struct{}{"postgres": {}, "redis": {}, "n8n": {}}
+		declared := map[string]struct{}{"postgres": {}, "redis": {}, "declaredresource": {}}
 		detected := []types.ScenarioDependency{}
 
 		diff := buildDependencyDiff(declared, detected, func(name string) map[string]interface{} {
@@ -950,7 +950,7 @@ func TestBuildDependencyDiff(t *testing.T) {
 		}
 
 		// Verify sorted
-		expected := []string{"n8n", "postgres", "redis"}
+		expected := []string{"declaredresource", "postgres", "redis"}
 		for i, e := range diff.Extra {
 			if e.Name != expected[i] {
 				t.Errorf("At position %d: expected %q, got %q", i, expected[i], e.Name)

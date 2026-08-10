@@ -463,10 +463,7 @@ func shouldCheckHealthServiceJSON(path string) bool {
 		return false
 	}
 	base := strings.ToLower(filepath.Base(path))
-	if base == "service.json" {
-		return true
-	}
-	return false
+	return base == "service.json"
 }
 
 func findHealthJSONLine(content string, tokens ...string) int {

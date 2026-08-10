@@ -55,6 +55,7 @@ func Evaluate(in Input) []Finding {
 	out = append(out, apiBinaryNameRules(in)...)
 	out = append(out, productionServeRules(in)...)
 	out = append(out, reconcileRules(in)...)
+	out = append(out, deployabilityInstanceRules(in)...)
 	return out
 }
 

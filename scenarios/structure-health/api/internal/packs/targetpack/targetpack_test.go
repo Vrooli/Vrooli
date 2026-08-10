@@ -133,6 +133,41 @@ func TestPackagePackRequiresManifest(t *testing.T) {
 	}
 }
 
+func TestCredentialClientPackageLayoutFindingRemainsReachable(t *testing.T) {
+	repoRoot, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 6 {
+		repoRoot = filepath.Dir(repoRoot)
+	}
+	root := filepath.Join(repoRoot, "packages", "credentialclient-go")
+	if _, err := os.Stat(root); err != nil {
+		t.Skipf("repository package fixture unavailable: %v", err)
+	}
+	if got := codes(Evaluate("package", root, "credentialclient-go")); !got["PACKAGE_LAYOUT_MISSING"] {
+		t.Fatalf("expected credentialclient-go layout finding, got %v", got)
+	}
+}
+
+func TestPackageParseUnitRulesUseRootEvidence(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, ".vrooli/package.json", `{"$schema":"schemas/package.schema.json","version":"1.0.0","package":{"name":"demo","kind":"go_runtime","module_identifiers":["example/demo"],"adoption":{},"lifecycle":{},"refresh":{}}}`)
+	write(t, root, "README.md", "# demo\n")
+	write(t, root, "main.go", "package demo\n\nimport _ \"github.com/vrooli/vrooli/internal/config\"\n")
+	got := codes(EvaluateWithParseUnits("package", root, "demo", []ParseUnit{{Language: "go", RootPath: filepath.Dir(root), ConfigPath: filepath.Join(filepath.Dir(root), "go.mod"), Status: "proven"}}))
+	if !got["PACKAGE_OWN_MODULE_MISSING"] {
+		t.Fatalf("expected own-module finding, got %v", got)
+	}
+	if got["PACKAGE_INTERNAL_IMPORT"] {
+		t.Fatalf("must not apply package-root Go rule when parse unit is rooted elsewhere: %v", got)
+	}
+	got = codes(EvaluateWithParseUnits("package", root, "demo", []ParseUnit{{Language: "go", RootPath: root, ConfigPath: filepath.Join(root, "go.mod"), Status: "proven"}}))
+	if !got["PACKAGE_INTERNAL_IMPORT"] {
+		t.Fatalf("expected root-internal import finding, got %v", got)
+	}
+}
+
 func TestControlPlanePackPositiveAndNegative(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "main.go", "package main\n")

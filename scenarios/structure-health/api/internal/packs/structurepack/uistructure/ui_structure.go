@@ -573,11 +573,7 @@ func normalizeScriptPath(shellPath, src string) string {
 }
 
 func hasFallbackEntrypoint(root string, files map[string]struct{}) bool {
-	if isCreateReactAppEntrypoint(root, files) {
-		return true
-	}
-
-	return false
+	return isCreateReactAppEntrypoint(root, files)
 }
 
 func isCreateReactAppEntrypoint(root string, files map[string]struct{}) bool {
@@ -607,34 +603,4 @@ func isCreateReactAppEntrypoint(root string, files map[string]struct{}) bool {
 	}
 
 	return false
-}
-
-func hasSupportedScriptExtension(path string) bool {
-	for _, ext := range []string{".js", ".ts", ".tsx", ".jsx", ".mjs", ".cjs"} {
-		if strings.HasSuffix(path, ext) {
-			return true
-		}
-	}
-	return false
-}
-
-func containsString(items []string, target string) bool {
-	for _, item := range items {
-		if item == target {
-			return true
-		}
-	}
-	return false
-}
-
-func isNumericString(value string) bool {
-	if value == "" {
-		return false
-	}
-	for _, r := range value {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
 }

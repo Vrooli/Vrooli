@@ -2,9 +2,13 @@ package dependencyhealth
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -12,11 +16,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
+	"github.com/vrooli/vrooli/packages/deployability"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health"
 	healthconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health/dependency_health_v1connect"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	"scenario-dependency-analyzer/internal/coreset"
 )
 
 const (
@@ -32,16 +38,38 @@ type Options struct {
 	Environment *commonv1.CaptureEnvironment
 }
 
+func loadPortabilitySpec(scenariosRoot string) (*assessment.Spec, error) {
+	path := filepath.Join(scenariosRoot, "scenario-dependency-analyzer", ".vrooli", "test-genie-portability.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read portability descriptor: %w", err)
+	}
+	var descriptor struct {
+		Maturity json.RawMessage `json:"maturity"`
+	}
+	if err := json.Unmarshal(data, &descriptor); err != nil {
+		return nil, fmt.Errorf("decode portability descriptor: %w", err)
+	}
+	spec, err := assessment.ParseEmbeddedSpec(descriptor.Maturity, "scenario-dependency-analyzer", "portability")
+	if err != nil {
+		return nil, fmt.Errorf("parse portability maturity: %w", err)
+	}
+	return spec, nil
+}
+
 // RegisterConnectRoutes mounts the dependency-health producer contract.
 func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string, opts ...Options) {
 	var cfg Options
 	if len(opts) > 0 {
 		cfg = opts[0]
 	}
+	portabilitySpec, portabilitySpecErr := loadPortabilitySpec(scenariosDir())
 	handler := &connectHandler{
-		scenariosDir: scenariosDir,
-		spec:         cfg.MaturitySpec,
-		environment:  cfg.Environment,
+		scenariosDir:       scenariosDir,
+		spec:               cfg.MaturitySpec,
+		environment:        cfg.Environment,
+		portabilitySpec:    portabilitySpec,
+		portabilitySpecErr: portabilitySpecErr,
 	}
 	nativePath, nativeHandler := healthconnect.NewDependencyHealthServiceHandler(handler)
 	// DescribeProvider answers readiness from this provider's own descriptor, so a
@@ -54,12 +82,14 @@ func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string, opts 
 }
 
 type connectHandler struct {
-	scenariosDir      func() string
-	surfaceDiscoverer surfaceDiscoverer
-	commandLookup     func(string) (string, error)
-	commandRunner     commandRunner
-	statusFetcher     runtimeStatusFetcher
-	spec              *assessment.Spec
+	scenariosDir       func() string
+	surfaceDiscoverer  surfaceDiscoverer
+	commandLookup      func(string) (string, error)
+	commandRunner      commandRunner
+	statusFetcher      runtimeStatusFetcher
+	spec               *assessment.Spec
+	portabilitySpec    *assessment.Spec
+	portabilitySpecErr error
 	// environment is the host CaptureEnvironment captured once at server init.
 	// nil is safe — the metrics collector backfills os/arch/num_cpu from stdlib.
 	environment *commonv1.CaptureEnvironment
@@ -77,7 +107,6 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
-
 	collector := metricsFrom(ctx)
 
 	resp := &healthv1.DependencyHealthResponse{
@@ -168,6 +197,148 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 	return connect.NewResponse(resp), nil
 }
 
+func hasCapability(values []string, wanted string) bool {
+	for _, value := range values {
+		if strings.EqualFold(strings.TrimSpace(value), wanted) {
+			return true
+		}
+	}
+	return false
+}
+
+type portabilityServiceManifest struct {
+	Dependencies struct {
+		Resources map[string]json.RawMessage `json:"resources"`
+	} `json:"dependencies"`
+}
+
+type portabilityResourceManifest struct {
+	Name         string            `json:"name"`
+	Bundling     string            `json:"bundling"`
+	Platforms    map[string]string `json:"platforms"`
+	Requirements struct {
+		Class      string  `json:"class"`
+		Weight     float64 `json:"weight"`
+		RAMMB      float64 `json:"ram_mb"`
+		DiskMB     float64 `json:"disk_mb"`
+		CPUCores   float64 `json:"cpu_cores"`
+		GPU        bool    `json:"gpu"`
+		Network    string  `json:"network"`
+		Source     string  `json:"source"`
+		Confidence string  `json:"confidence"`
+	} `json:"requirements"`
+}
+
+func (h *connectHandler) validatePortabilityHost(explicitPath, scenario string) error {
+	root := explicitPath
+	if root == "" {
+		root = filepath.Join(h.resolveScenariosDir(), scenario)
+	}
+	serviceData, err := os.ReadFile(filepath.Join(root, ".vrooli", "service.json"))
+	if err != nil {
+		return fmt.Errorf("read target service manifest: %w", err)
+	}
+	var service portabilityServiceManifest
+	if err := json.Unmarshal(serviceData, &service); err != nil {
+		return fmt.Errorf("decode target service manifest: %w", err)
+	}
+	hostOS, ok := portabilityHostOS()
+	if !ok {
+		return fmt.Errorf("unsupported runtime OS %q", runtime.GOOS)
+	}
+	repoRoot := filepath.Dir(filepath.Dir(root))
+	if err := coreset.ValidateConfiguredTrustedBaseClosure(repoRoot); err != nil {
+		return fmt.Errorf("validate trusted-base closure: %w", err)
+	}
+	if err := validateToolMacOSAcquisitions(repoRoot); err != nil {
+		return fmt.Errorf("validate tool acquisition paths: %w", err)
+	}
+	resourceRoot := filepath.Join(filepath.Dir(filepath.Dir(root)), "resources")
+	names := make([]string, 0, len(service.Dependencies.Resources))
+	for name := range service.Dependencies.Resources {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	declarations := make([]deployability.DependencyDeclaration, 0, len(names))
+	for _, name := range names {
+		var input struct {
+			Required bool  `json:"required"`
+			Enabled  *bool `json:"enabled"`
+		}
+		if raw := service.Dependencies.Resources[name]; len(raw) > 0 && string(raw) != "null" {
+			if err := json.Unmarshal(raw, &input); err != nil {
+				return fmt.Errorf("decode resource dependency %q: %w", name, err)
+			}
+		}
+		if input.Enabled != nil && !*input.Enabled {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(resourceRoot, name, "resource.json"))
+		if err != nil {
+			return fmt.Errorf("read declared resource %q: %w", name, err)
+		}
+		var resource portabilityResourceManifest
+		if err := json.Unmarshal(data, &resource); err != nil {
+			return fmt.Errorf("decode resource %q: %w", name, err)
+		}
+		platforms := make(map[deployability.HostOS]deployability.PlatformDeclaration, len(resource.Platforms))
+		for rawOS, status := range resource.Platforms {
+			if resourceOS, ok := portabilityNormalizeOS(rawOS); ok {
+				platforms[resourceOS] = deployability.PlatformDeclaration{Status: status}
+			}
+		}
+		if resource.Name == "" {
+			resource.Name = name
+		}
+		declarations = append(declarations, deployability.DependencyDeclaration{
+			Kind: "resource", Name: resource.Name, Required: input.Required, Present: true,
+			Bundling: deployability.Bundling(resource.Bundling), PlatformSupport: platforms,
+			Requirements: &deployability.ResourceRequirements{
+				Class: resource.Requirements.Class, Weight: resource.Requirements.Weight,
+				RAMMB: resource.Requirements.RAMMB, DiskMB: resource.Requirements.DiskMB,
+				CPUCores: resource.Requirements.CPUCores, GPU: resource.Requirements.GPU,
+				Network: resource.Requirements.Network, Source: resource.Requirements.Source,
+				Confidence: resource.Requirements.Confidence,
+			},
+		})
+	}
+	resolution := deployability.Resolve(deployability.ResolutionInput{Target: deployability.TargetDeclaration{Name: scenario, Dependencies: declarations}, Tier: deployability.TierLocal, OS: hostOS})
+	if resolution.Verdict == deployability.VerdictIneligible || resolution.Verdict == deployability.VerdictUnknown {
+		messages := make([]string, 0, len(resolution.Reasons))
+		for _, reason := range resolution.Reasons {
+			messages = append(messages, reason.Message)
+		}
+		return fmt.Errorf("declared deployment input contradicts observed host %s: %s", hostOS, strings.Join(messages, "; "))
+	}
+	return nil
+}
+
+func portabilityHostOS() (deployability.HostOS, bool) {
+	switch runtime.GOOS {
+	case "linux":
+		return deployability.HostOSLinux, true
+	case "darwin":
+		return deployability.HostOSMacOS, true
+	case "windows":
+		return deployability.HostOSWindows, true
+	default:
+		return "", false
+	}
+}
+
+func portabilityNormalizeOS(value string) (deployability.HostOS, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "linux":
+		return deployability.HostOSLinux, true
+	case "macos", "darwin":
+		return deployability.HostOSMacOS, true
+	case "windows", "win32":
+		return deployability.HostOSWindows, true
+	default:
+		return "", false
+	}
+}
+
 // ValidateScenario adapts SDA's rich dependency-health report to the shared
 // ScenarioValidationService contract consumed by Test Genie. The full native
 // DependencyHealthResponse remains available in native_detail for SDA's own CLI.
@@ -188,6 +359,28 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	// scenarios/ tree), thread it so the evaluation stages read service.json,
 	// surfaces, and release-age policy from that directory.
 	evalCtx := withScenarioPath(ctx, msg.GetPath())
+	if hasCapability(msg.GetCapabilitySubset(), "portability") {
+		if err := h.validatePortabilityHost(scenarioPathFrom(evalCtx), scenario); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		if h.portabilitySpecErr != nil || h.portabilitySpec == nil {
+			if h.portabilitySpecErr != nil {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, h.portabilitySpecErr)
+			}
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("portability maturity spec is not configured"))
+		}
+		collector := metrics.Start(metrics.WithEnvironment(h.environment))
+		execMetrics := collector.Stop()
+		portabilityAssessment, assessmentErr := buildMaturityAssessment(&healthv1.DependencyHealthResponse{Scenario: scenario}, h.portabilitySpec)
+		if assessmentErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build portability maturity assessment: %w", assessmentErr))
+		}
+		resp, responseErr := assessment.BuildValidationResponse(scenario, portabilityAssessment, &healthv1.DependencyHealthResponse{Scenario: scenario}, execMetrics)
+		if responseErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build portability validation response: %w", responseErr))
+		}
+		return connect.NewResponse(resp), nil
+	}
 	collector := metrics.Start(metrics.WithEnvironment(h.environment))
 	native, err := h.ValidateDependencyHealth(withMetrics(evalCtx, collector), connect.NewRequest(&healthv1.ValidateDependencyHealthRequest{
 		Scenario: scenario,

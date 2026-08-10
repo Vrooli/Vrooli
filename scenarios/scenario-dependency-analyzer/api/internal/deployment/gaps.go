@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/vrooli/vrooli/packages/deployability"
 	"scenario-dependency-analyzer/internal/config"
 
 	types "scenario-dependency-analyzer/internal/types"
@@ -223,8 +224,9 @@ func buildGapRecommendations(
 	return recommendations
 }
 
-// DetectSecretRequirements analyzes dependencies and identifies which ones require secret configuration.
-// Delegates to ClassifySecretRequirements for the actual decision logic.
+// DetectSecretRequirements analyzes dependencies using the credential declarations
+// owned by each resource manifest. Missing manifests are reported as analysis gaps,
+// never converted into guessed credentials.
 func DetectSecretRequirements(nodes []types.DeploymentDependencyNode) []types.SecretRequirement {
 	requirements := []types.SecretRequirement{}
 	seen := make(map[string]bool)
@@ -238,10 +240,9 @@ func DetectSecretRequirements(nodes []types.DeploymentDependencyNode) []types.Se
 			}
 			seen[key] = true
 
-			// Delegate secret classification to centralized decision logic
-			classification := ClassifySecretRequirements(node.Name)
-			if classification != nil {
-				requirements = append(requirements, BuildSecretRequirement(node.Name, node.Type, classification))
+			declared, err := ReadSecretRequirements(node.Path, node.Name, node.Type)
+			if err == nil {
+				requirements = append(requirements, declared...)
 			}
 		}
 
@@ -257,26 +258,19 @@ func DetectSecretRequirements(nodes []types.DeploymentDependencyNode) []types.Se
 	return requirements
 }
 
-// SuggestResourceSwaps analyzes dependencies and suggests lighter alternatives for specific deployment tiers.
-// Delegates to DecideResourceSwaps for the actual decision logic.
+// SuggestResourceSwaps analyzes dependencies using alternatives declared by
+// deployment metadata. There is no name-based fallback catalog.
 func SuggestResourceSwaps(nodes []types.DeploymentDependencyNode) []types.ResourceSwapSuggestion {
-	suggestions := []types.ResourceSwapSuggestion{}
-	seen := make(map[string]bool)
+	sources := make([]deployability.SwapSource, 0)
 
 	var walk func(types.DeploymentDependencyNode)
 	walk = func(node types.DeploymentDependencyNode) {
 		if node.Type == "resource" {
-			key := node.Name
-			if seen[key] {
-				return
+			alternatives := make([]deployability.SwapAlternative, 0, len(node.Alternatives))
+			for _, alternative := range node.Alternatives {
+				alternatives = append(alternatives, deployability.SwapAlternative{Name: alternative})
 			}
-			seen[key] = true
-
-			// Delegate swap decisions to centralized decision logic
-			recommendations := DecideResourceSwaps(node.Name)
-			for _, rec := range recommendations {
-				suggestions = append(suggestions, BuildSwapSuggestion(node.Name, rec))
-			}
+			sources = append(sources, deployability.SwapSource{Original: node.Name, Alternatives: alternatives})
 		}
 
 		for _, child := range node.Children {
@@ -288,5 +282,17 @@ func SuggestResourceSwaps(nodes []types.DeploymentDependencyNode) []types.Resour
 		walk(node)
 	}
 
+	shared := deployability.SuggestResourceSwaps(sources)
+	suggestions := make([]types.ResourceSwapSuggestion, 0, len(shared))
+	for _, suggestion := range shared {
+		suggestions = append(suggestions, types.ResourceSwapSuggestion{
+			OriginalResource:    suggestion.OriginalResource,
+			AlternativeResource: suggestion.AlternativeResource,
+			Reason:              suggestion.Reason,
+			ApplicableTiers:     suggestion.ApplicableTiers,
+			Relationship:        suggestion.Relationship,
+			ImpactDescription:   suggestion.ImpactDescription,
+		})
+	}
 	return suggestions
 }

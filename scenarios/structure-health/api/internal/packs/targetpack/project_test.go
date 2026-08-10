@@ -21,6 +21,7 @@ func validProjectFixture(t *testing.T) string {
 	write(t, root, "resources/demo/resource.json", `{}`)
 	write(t, root, "go.mod", "module example.test/repo\n\ngo 1.25\n")
 	write(t, root, ".vrooli/schemas/resource-definitions.json", `{}`)
+	write(t, root, "pnpm-workspace.yaml", "packages:\n  - packages/*\nautoInstallPeers: false\nlink-workspace-packages: false\n")
 	write(t, root, "docs/repo-contract.md", "`vrooli contract validate` `vrooli contract show` `vrooli contract resolve scenario <name> --file service` `vrooli contract match-glob <pattern> <path>` `structure-health-contract` ## Allowed `.vrooli/` Surface `~/.vrooli/secrets.json` ## Landed Consumer Migrations `swarm-manager`")
 	return root
 }
@@ -136,7 +137,7 @@ func TestProjectPackNegativeRuleFixtures(t *testing.T) {
 				doc["profiles"].(map[string]any)["mini_vrooli_bundle"].(map[string]any)["include"] = []any{".vrooli"}
 			})
 		}},
-		{"docs-alignment", "PROJECT_DOCS_ALIGNMENT", func(root string) { write(t, root, "docs/repo-contract.md", "outdated") }},
+		{"root-lock", "PROJECT_ROOT_PNPM_LOCK", func(root string) { write(t, root, "pnpm-lock.yaml", "lockfileVersion: 9") }},
 		{"resource-artifacts", "PROJECT_RESOURCE_ARTIFACTS", func(root string) {
 			if err := os.Remove(filepath.Join(root, ".vrooli/schemas/resource-definitions.json")); err != nil {
 				t.Fatal(err)

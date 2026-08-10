@@ -58,7 +58,7 @@ func AllRules() []RuleEntry {
 				ID:             "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION",
 				Title:          "Scenario shared-package adoption follows package governance policy",
 				Summary:        "Ensures scenario package adoption follows governed package manifests, avoids unsupported workspace semantics, and removes package-propagation postinstall hacks.",
-				WhyImportant:   "Scenario independence only works when shared-package adoption remains explicit, isolated, and centrally governed. This rule delegates to `vrooli package audit` so stack governance stays aligned with the canonical package-governance engine rather than drifting into duplicate policy logic.",
+				WhyImportant:   "Scenario independence only works when shared-package adoption remains explicit, isolated, and centrally governed. This rule delegates to Structure Health's project target so stack governance consumes the structural authority rather than re-implementing package policy.",
 				Category:       "packages",
 				Severity:       "error",
 				DefaultEnabled: true,

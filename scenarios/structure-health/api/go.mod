@@ -8,6 +8,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.50.1
@@ -58,3 +59,7 @@ require github.com/vrooli/cli-core v0.0.0 // indirect
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go
+
+replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime

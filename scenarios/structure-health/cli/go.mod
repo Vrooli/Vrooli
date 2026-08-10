@@ -7,6 +7,12 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
+	structure-health v0.0.0
+)
+
+require (
+	github.com/vrooli/api-core v0.0.0 // indirect
+	github.com/vrooli/vrooli v0.0.0 // indirect
 )
 
 require (
@@ -22,6 +28,8 @@ require (
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
+replace structure-health => ../api
+
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
@@ -33,3 +41,9 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
+
+replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime

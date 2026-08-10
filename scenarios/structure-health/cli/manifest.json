@@ -41,6 +41,104 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "resource",
+          "description": "Validate a resource target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "tool",
+          "description": "Validate a tool target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "safeguard",
+          "description": "Validate a safeguard target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "team",
+          "description": "Validate a team target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "package",
+          "description": "Validate a package target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "control-plane",
+          "description": "Validate a control-plane target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "docs",
+          "description": "Validate the documentation target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "project",
+          "description": "Validate the repository project target",
+          "positionals": [{"name": "target", "description": "Target identifier"}],
+          "flags": [{"name": "path", "description": "Filesystem path for the target"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "all",
+          "description": "Validate every enumerated repository target",
+          "flags": [{"name": "path", "description": "Repository root to enumerate"}, {"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "rules",
+      "description": "Inspect the structural rule catalog and computed coverage",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List every structural rule",
+          "flags": [{"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
+        },
+        {
+          "name": "coverage",
+          "description": "Show rule coverage and target-kind reachability",
+          "flags": [{"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
+        },
+        {
+          "name": "docs",
+          "description": "Render generated catalog documentation",
+          "flags": [{"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
         }
       ]
     },

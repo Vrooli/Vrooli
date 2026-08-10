@@ -401,7 +401,7 @@ func buildAPIServiceFromFolder(scenarioName, scenarioPath string, folder Detecte
 		service.Build = buildConfigForLanguage(scenarioName, folder)
 	}
 
-	service.Env = deriveServiceEnv(cfg, service.ID, service.Ports, scenarioName, service.Env)
+	service.Env = deriveServiceEnv(cfg, service.ID, service.Ports, service.Env)
 
 	return service
 }
@@ -507,7 +507,7 @@ func buildUIServiceFromFolder(scenarioName, scenarioPath string, folder Detected
 		Critical: ptrBool(true),
 	}
 
-	service.Env = deriveServiceEnv(cfg, service.ID, service.Ports, scenarioName, service.Env)
+	service.Env = deriveServiceEnv(cfg, service.ID, service.Ports, service.Env)
 
 	return service
 }
@@ -612,8 +612,10 @@ func platformBinaryPath(folder, platform, base string) string {
 	return filepath.ToSlash(filepath.Join("bin", folder, platform, base+ext))
 }
 
-// deriveServiceEnv injects lifecycle protection, port bindings, and swap-aware overrides.
-func deriveServiceEnv(cfg *types.ServiceConfig, serviceID string, ports *types.BundleSkeletonServicePorts, scenarioName string, existing map[string]string) map[string]string {
+// deriveServiceEnv injects lifecycle protection and port bindings. Scenario-
+// specific swap behavior belongs in the scenario's authored lifecycle/env
+// configuration, never in this generic deployment analyzer.
+func deriveServiceEnv(cfg *types.ServiceConfig, serviceID string, ports *types.BundleSkeletonServicePorts, existing map[string]string) map[string]string {
 	env := map[string]string{}
 	for k, v := range existing {
 		env[k] = v
@@ -634,14 +636,6 @@ func deriveServiceEnv(cfg *types.ServiceConfig, serviceID string, ports *types.B
 		}
 	}
 
-	// Swap-aware defaults: if Postgres -> SQLite is suggested, prefer SQLite backend for the API service.
-	if serviceID == fmt.Sprintf("%s-api", scenarioName) && prefersSQLite(cfg) {
-		env["BAS_DB_BACKEND"] = "sqlite"
-		if _, ok := env["BAS_SQLITE_PATH"]; !ok {
-			env["BAS_SQLITE_PATH"] = filepath.ToSlash(filepath.Join("${data}", "api", fmt.Sprintf("%s.sqlite", scenarioName)))
-		}
-	}
-
 	return env
 }
 
@@ -659,23 +653,6 @@ func extractPortEnv(cfg *types.ServiceConfig) map[string]string {
 		}
 	}
 	return result
-}
-
-// prefersSQLite checks deployment metadata for a Postgres->SQLite swap hint.
-func prefersSQLite(cfg *types.ServiceConfig) bool {
-	if cfg == nil || cfg.Deployment == nil || cfg.Deployment.Dependencies.Resources == nil {
-		return false
-	}
-	res, ok := cfg.Deployment.Dependencies.Resources["postgres"]
-	if !ok {
-		return false
-	}
-	for _, sw := range res.SwappableWith {
-		if strings.EqualFold(sw.ID, "sqlite") {
-			return true
-		}
-	}
-	return false
 }
 
 func ptrBool(v bool) *bool {

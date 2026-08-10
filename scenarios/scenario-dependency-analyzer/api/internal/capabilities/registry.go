@@ -11,6 +11,19 @@ const (
 	StatusUnavailable Status = "unavailable"
 )
 
+type PlatformVerdict struct {
+	Support string `json:"support,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+}
+
+// RegistryMetadata describes dependency analysis itself. Manifest
+// dependencies remain in service.json and are not repeated in Known.
+type RegistryMetadata struct {
+	Platform PlatformVerdict `json:"platform"`
+}
+
+var Metadata = RegistryMetadata{Platform: PlatformVerdict{Support: "supported", Reason: "Dependency analysis is host-neutral; platform-specific deployability is resolved from declared inputs."}}
+
 type Checker interface {
 	Check(context.Context) (Status, string)
 }
@@ -23,22 +36,12 @@ type Def struct {
 	ActionKind      string
 	ActionLabel     string
 	OperatorCommand string
+	Platform        PlatformVerdict
 }
 
-var Known = []Def{
-	{
-		ID: "proto-health", Description: "Batch protobuf surface facts for interface graph attribution.",
-		DependencyKind: "scenario", DependencySlug: "proto-health",
-		ActionKind: "scenario_start", ActionLabel: "Start Proto Health",
-		OperatorCommand: "vrooli scenario start proto-health --json",
-	},
-	{
-		ID: "code-facts", Description: "Batch import facts for cross-scenario usage evidence.",
-		DependencyKind: "scenario", DependencySlug: "code-facts",
-		ActionKind: "scenario_start", ActionLabel: "Start Code Facts",
-		OperatorCommand: "vrooli scenario start code-facts --json",
-	},
-}
+// Known contains optional capabilities only. service.json is the source of
+// truth for declared dependencies.
+var Known = []Def{}
 
 type StaticChecker struct{ Available bool }
 

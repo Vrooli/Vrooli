@@ -445,15 +445,9 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 		},
 	}
 	childCfg.Deployment = &types.ServiceDeployment{
-		AggregateRequirements: &types.DeploymentRequirements{
-			RAMMB:    floatPtr(256),
-			DiskMB:   floatPtr(256),
-			CPUCores: floatPtr(0.5),
-		},
 		Tiers: map[string]types.DeploymentTier{
 			"tier-2-desktop": {
-				Status:       "limited",
-				FitnessScore: floatPtr(0.4),
+				Requirements: &types.DeploymentRequirements{RAMMB: floatPtr(256), DiskMB: floatPtr(256), CPUCores: floatPtr(0.5)},
 			},
 		},
 		Dependencies: types.DeploymentDependencyCatalog{
@@ -483,19 +477,11 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 		},
 	}
 	rootCfg.Deployment = &types.ServiceDeployment{
-		AggregateRequirements: &types.DeploymentRequirements{
-			RAMMB:    floatPtr(1024),
-			DiskMB:   floatPtr(2048),
-			CPUCores: floatPtr(1),
-		},
 		Tiers: map[string]types.DeploymentTier{
 			"tier-1-local": {
-				Status:       "ready",
-				FitnessScore: floatPtr(0.95),
+				Requirements: &types.DeploymentRequirements{RAMMB: floatPtr(1024), DiskMB: floatPtr(2048), CPUCores: floatPtr(1)},
 			},
 			"tier-2-desktop": {
-				Status:       "limited",
-				FitnessScore: floatPtr(0.6),
 				Adaptations: []types.DeploymentAdaptation{
 					{Swap: "sqlite"},
 				},
@@ -879,72 +865,6 @@ func TestCalculateResourceConfidence(t *testing.T) {
 			if confidence < tt.minExpected || confidence > tt.maxExpected {
 				t.Errorf("Expected confidence between %f and %f, got %f",
 					tt.minExpected, tt.maxExpected, confidence)
-			}
-		})
-	}
-}
-
-// TestGetHeuristicPredictions tests heuristic-based predictions
-func TestGetHeuristicPredictions(t *testing.T) {
-	tests := []struct {
-		description       string
-		expectedResources []string
-		minPredictions    int
-	}{
-		{
-			description:       "Need database to store user data",
-			expectedResources: []string{"postgres"},
-			minPredictions:    1,
-		},
-		{
-			description:       "Build AI chat with language model",
-			expectedResources: []string{"ollama"},
-			minPredictions:    1,
-		},
-		{
-			description:       "Use cache for session storage",
-			expectedResources: []string{"redis"},
-			minPredictions:    1,
-		},
-		{
-			description:       "Vector search with semantic similarity and embedding",
-			expectedResources: []string{"qdrant"},
-			minPredictions:    1,
-		},
-		{
-			description:       "Workflow automation with triggers",
-			expectedResources: []string{"n8n"},
-			minPredictions:    1,
-		},
-		{
-			description:       "File upload and document storage",
-			expectedResources: []string{"minio"},
-			minPredictions:    1,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.description, func(t *testing.T) {
-			predictions := getHeuristicPredictions(tt.description)
-
-			if len(predictions) < tt.minPredictions {
-				t.Errorf("Expected at least %d predictions, got %d", tt.minPredictions, len(predictions))
-			}
-
-			// Verify expected resources are in predictions
-			for _, expectedResource := range tt.expectedResources {
-				found := false
-				for _, pred := range predictions {
-					if resourceName, ok := pred["resource_name"].(string); ok {
-						if resourceName == expectedResource {
-							found = true
-							break
-						}
-					}
-				}
-				if !found {
-					t.Errorf("Expected resource %q not found in predictions", expectedResource)
-				}
 			}
 		})
 	}

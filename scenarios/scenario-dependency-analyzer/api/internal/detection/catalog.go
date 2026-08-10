@@ -1,6 +1,7 @@
 package detection
 
 import (
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -61,6 +62,9 @@ func (c *catalogManager) refresh() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if scenariosDir := os.Getenv("VROOLI_SCENARIOS_DIR"); scenariosDir != "" {
+		c.cfg.ScenariosDir = scenariosDir
+	}
 	c.loaded = false
 	c.knownScenarios = nil
 	c.knownResources = nil
@@ -111,5 +115,21 @@ func (c *catalogManager) getScenarioCatalog() map[string]struct{} {
 		snapshot[k] = struct{}{}
 	}
 
+	return snapshot
+}
+
+// getResourceCatalog returns a snapshot of resource manifest names. Detection
+// builds heuristics from this catalog; the analyzer does not own a second list
+// of resource instances.
+func (c *catalogManager) getResourceCatalog() map[string]struct{} {
+	c.ensureLoaded()
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	snapshot := make(map[string]struct{}, len(c.knownResources))
+	for name := range c.knownResources {
+		snapshot[name] = struct{}{}
+	}
 	return snapshot
 }

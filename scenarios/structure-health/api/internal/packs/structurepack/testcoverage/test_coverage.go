@@ -283,10 +283,7 @@ func shouldSkipForCoverage(path, scenarioRoot string) bool {
 		return true
 	case "types.go", "constants.go", "interfaces.go":
 		if hasFile {
-			if fileHasExecutableLogic(absPath) {
-				return false
-			}
-			return true
+			return !fileHasExecutableLogic(absPath)
 		}
 		return false
 	}
@@ -388,61 +385,10 @@ func absoluteScenarioPath(root, rel string) (string, bool) {
 	return candidates[0], false
 }
 
-func fileIsTrivialMain(path string) bool {
-	src, err := os.ReadFile(path)
-	if err != nil {
-		return false
-	}
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, path, src, parser.SkipObjectResolution)
-	if err != nil {
-		return false
-	}
-	hasOtherFuncs := false
-	var mainDecl *ast.FuncDecl
-	for _, decl := range file.Decls {
-		fd, ok := decl.(*ast.FuncDecl)
-		if !ok {
-			continue
-		}
-		if fd.Name == nil {
-			continue
-		}
-		if fd.Name.Name != "main" || fd.Recv != nil {
-			hasOtherFuncs = true
-			break
-		}
-		mainDecl = fd
-	}
-	if hasOtherFuncs || mainDecl == nil || mainDecl.Body == nil {
-		return false
-	}
-	if len(mainDecl.Body.List) > 3 {
-		return false
-	}
-	for _, stmt := range mainDecl.Body.List {
-		switch s := stmt.(type) {
-		case *ast.ExprStmt:
-			if !isSimpleCallExpression(s.X) {
-				return false
-			}
-		case *ast.BlockStmt, *ast.AssignStmt, *ast.ForStmt, *ast.RangeStmt, *ast.IfStmt,
-			*ast.SwitchStmt, *ast.SelectStmt, *ast.GoStmt, *ast.DeferStmt:
-			return false
-		default:
-			return false
-		}
-	}
-	return true
-}
-
 func fileHasExecutableLogic(path string) bool {
 	src, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-		return true
+		return !os.IsNotExist(err)
 	}
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, src, parser.SkipObjectResolution)
@@ -474,28 +420,6 @@ func fileHasExecutableLogic(path string) bool {
 		}
 	}
 	return false
-}
-
-func isSimpleCallExpression(expr ast.Expr) bool {
-	call, ok := expr.(*ast.CallExpr)
-	if !ok {
-		return false
-	}
-	switch call.Fun.(type) {
-	case *ast.Ident, *ast.SelectorExpr:
-		// acceptable
-	default:
-		return false
-	}
-	for _, arg := range call.Args {
-		switch arg.(type) {
-		case *ast.BasicLit, *ast.Ident, *ast.SelectorExpr, *ast.CompositeLit, *ast.CallExpr:
-			continue
-		default:
-			return false
-		}
-	}
-	return true
 }
 
 func typeDeclHasBehaviour(decl *ast.GenDecl) bool {

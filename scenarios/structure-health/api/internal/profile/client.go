@@ -45,7 +45,18 @@ type Facts struct {
 	TargetKind     string
 	RootPath       string
 	Surfaces       []Surface
+	ParseUnits     []ParseUnit
 	DegradedReason string
+}
+
+// ParseUnit is proven language evidence returned by Code Facts. RootPath is
+// the region governed by the configuration at ConfigPath; callers must not
+// infer language from file names when a unit is available.
+type ParseUnit struct {
+	Language   string
+	RootPath   string
+	ConfigPath string
+	Status     string
 }
 
 // Locator resolves a scenario id or path to a concrete root directory.
@@ -69,7 +80,11 @@ func (l DefaultLocator) Locate(_ context.Context, scenario, path string) (string
 	scenario = strings.TrimSpace(scenario)
 	path = strings.TrimSpace(path)
 	if path != "" {
-		abs, err := filepath.Abs(path)
+		candidate := path
+		if !filepath.IsAbs(candidate) && strings.TrimSpace(l.RepoRoot) != "" {
+			candidate = filepath.Join(l.RepoRoot, candidate)
+		}
+		abs, err := filepath.Abs(candidate)
 		if err != nil {
 			return "", "", "", err
 		}
@@ -197,8 +212,20 @@ func fromCodeFacts(report *factsv1.CodeFactsReport, scenarioName, targetKind, ro
 			Confidence:     confidence(s.GetEvidence()),
 		})
 	}
+	for _, unit := range report.GetParseUnits() {
+		root := unit.GetRootPath()
+		if !filepath.IsAbs(root) && f.RootPath != "" {
+			root = filepath.Join(f.RootPath, root)
+		}
+		config := unit.GetConfigPath()
+		if !filepath.IsAbs(config) && f.RootPath != "" {
+			config = filepath.Join(f.RootPath, config)
+		}
+		f.ParseUnits = append(f.ParseUnits, ParseUnit{Language: strings.ToLower(unit.GetLanguage()), RootPath: filepath.Clean(root), ConfigPath: filepath.Clean(config), Status: strings.ToLower(strings.TrimPrefix(unit.GetStatus().String(), "evidence_status_"))})
+	}
 	if len(f.Surfaces) == 0 {
 		fallback := fallbackFacts(f.Scenario, f.TargetKind, f.RootPath)
+		fallback.ParseUnits = f.ParseUnits
 		fallback.DegradedReason = "Code Facts returned no surfaces"
 		return fallback
 	}
@@ -207,6 +234,12 @@ func fromCodeFacts(report *factsv1.CodeFactsReport, scenarioName, targetKind, ro
 
 func fallbackFacts(scenarioName, targetKind, rootPath string) Facts {
 	f := Facts{Scenario: scenarioName, TargetKind: targetKind, RootPath: rootPath}
+	if fileExists(filepath.Join(rootPath, "go.mod")) {
+		f.ParseUnits = append(f.ParseUnits, ParseUnit{Language: "go", RootPath: rootPath, ConfigPath: filepath.Join(rootPath, "go.mod"), Status: "proven"})
+	}
+	if fileExists(filepath.Join(rootPath, "package.json")) || fileExists(filepath.Join(rootPath, "tsconfig.json")) {
+		f.ParseUnits = append(f.ParseUnits, ParseUnit{Language: "typescript", RootPath: rootPath, ConfigPath: filepath.Join(rootPath, "tsconfig.json"), Status: "proven"})
+	}
 	for _, spec := range []struct {
 		id   string
 		kind string
@@ -231,6 +264,11 @@ func fallbackFacts(scenarioName, targetKind, rootPath string) Facts {
 		}
 	}
 	return f
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
 }
 
 func nearestParseUnit(units map[string]*factsv1.ParseUnit, root string) *factsv1.ParseUnit {

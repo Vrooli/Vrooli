@@ -63,9 +63,7 @@ func directDependentsFrom(dependencyName string, deps []types.ScenarioDependency
 			Metadata:     metadata,
 		}
 
-		if alternatives := suggestAlternatives(dep.DependencyName); len(alternatives) > 0 {
-			dependent.Alternatives = alternatives
-		}
+		dependent.Alternatives = declaredAlternatives(dep.Configuration)
 
 		result = append(result, dependent)
 	}
@@ -133,22 +131,7 @@ func determineDependencyType(dependencyName string, directDeps []types.Dependent
 		}
 	}
 
-	if isLikelyResource(dependencyName) {
-		return "resource"
-	}
-
 	return "unknown"
-}
-
-// isLikelyResource checks if the name follows resource naming patterns.
-func isLikelyResource(name string) bool {
-	resourcePatterns := []string{"postgres", "redis", "qdrant", "claude-code", "ollama", "n8n", "minio", "browserless", "vault"}
-	for _, pattern := range resourcePatterns {
-		if name == pattern {
-			return true
-		}
-	}
-	return false
 }
 
 // calculateImpactSeverity determines the severity level of removing this dependency.
@@ -239,23 +222,15 @@ func generateImpactSummary(dependencyName, depType string, directCount, indirect
 		depTypeLabel, dependencyName, totalCount, directCount, indirectCount, severity)
 }
 
-// suggestAlternatives returns potential alternatives for common dependencies.
-func suggestAlternatives(dependencyName string) []string {
-	alternatives := map[string][]string{
-		"postgres":    {"sqlite", "mysql"},
-		"redis":       {"memcached", "in-memory-cache"},
-		"ollama":      {"openrouter", "claude-code", "openai"},
-		"qdrant":      {"pinecone", "weaviate", "chromadb"},
-		"n8n":         {"zapier", "make", "custom-workflows"},
-		"minio":       {"s3", "local-filesystem"},
-		"browserless": {"puppeteer", "playwright"},
+func declaredAlternatives(configuration map[string]interface{}) []string {
+	if configuration == nil {
+		return nil
 	}
-
-	if alts, ok := alternatives[dependencyName]; ok {
-		return alts
+	raw, ok := configuration["alternatives"]
+	if !ok {
+		return nil
 	}
-
-	return []string{}
+	return coerceStringSlice(raw)
 }
 
 func normalizeDependencyName(name string) string {

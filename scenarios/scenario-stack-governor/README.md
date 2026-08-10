@@ -42,8 +42,8 @@ The Go CLI follows the standard `cli-core` contract:
 - `REACT_VITE_UI_INSTALLS_DEPENDENCIES`: verifies React/Vite scenario UIs install dependencies in the scenario-local UI directory.
 
 ## Package governance
-- `PACKAGE_GOVERNANCE_SCENARIO_ADOPTION`: delegates to `vrooli package audit --all` and turns scenario-scoped package governance issues into stack-governor findings.
-- This keeps package policy centralized in the native `vrooli package ...` command surface while still exposing enforcement through `scenario-auditor` external rules.
+- `PACKAGE_GOVERNANCE_SCENARIO_ADOPTION`: delegates to Structure Health's project target and turns scenario-scoped package-boundary findings into stack-governor findings.
+- This keeps package policy centralized in the Structure Health catalog while still exposing enforcement through stack-governor's rule surface.
 
 ## Docs
 - `scenarios/scenario-stack-governor/PRD.md`

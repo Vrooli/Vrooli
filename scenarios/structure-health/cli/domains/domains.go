@@ -5,6 +5,7 @@ import (
 
 	"structure-health/cli/domains/fixconfig"
 	"structure-health/cli/domains/fleet"
+	"structure-health/cli/domains/rules"
 	"structure-health/cli/domains/validate"
 )
 
@@ -50,5 +51,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{validateGroup, fixConfigGroup, fleetGroup}, nil
+	rulesGroup, err := rules.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{validateGroup, fixConfigGroup, fleetGroup, rulesGroup}, nil
 }

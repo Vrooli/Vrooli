@@ -252,14 +252,25 @@ func EvaluateTarget(kind, root, id string) []rules.Finding {
 	return targetpack.Evaluate(kind, root, id)
 }
 
+// EvaluateTargetWithParseUnits keeps Code Facts evidence attached to package
+// validation without making targetpack depend on the profile client.
+func EvaluateTargetWithParseUnits(kind, root, id string, units []targetpack.ParseUnit) []rules.Finding {
+	return targetpack.EvaluateWithParseUnits(kind, root, id, units)
+}
+
 func toFinding(e entry, v auditrules.Violation, sc *scan.Context, enforce bool) rules.Finding {
 	sev := mapSeverity(firstNonEmpty(v.Severity, e.Severity))
 	code := e.Code
+	remediation := v.Recommendation
 	if !enforce {
 		// Advisory for unrecognized profiles: never block, and surface that the
 		// finding is a profile-convention check that may not apply.
 		sev = "warning"
 		code = "PROFILE_CONFORMANCE_VIOLATION"
+	}
+	if catalogEntry, ok := rules.Lookup(code); ok {
+		sev = catalogEntry.Severity
+		remediation = catalogEntry.Remediation
 	}
 	return rules.Finding{
 		Code:        code,
@@ -267,7 +278,7 @@ func toFinding(e entry, v auditrules.Violation, sc *scan.Context, enforce bool) 
 		Title:       firstNonEmpty(v.Title, e.Name),
 		Message:     firstNonEmpty(v.Message, v.Description),
 		Location:    relativize(firstNonEmpty(v.FilePath, v.File), sc.RootPath),
-		Remediation: v.Recommendation,
+		Remediation: remediation,
 		Surface:     e.Surface,
 	}
 }

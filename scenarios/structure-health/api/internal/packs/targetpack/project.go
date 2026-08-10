@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"structure-health/internal/rules"
@@ -95,10 +96,11 @@ func evaluateProject(root string) []rules.Finding {
 	appendProjectCheck(&out, projectRuntimeHome(contract), "PROJECT_RUNTIME_HOME", ".vrooli/repo-contract.json", "Restore the runtime-home structural authority.")
 	appendProjectCheck(&out, projectLiveStructure(root, contract), "PROJECT_LIVE_STRUCTURE", ".", "Restore the required repository directories, files, and manifests.")
 	out = append(out, projectConfigSurface(root, contract)...)
+	out = append(out, projectWorkspaceSmells(root)...)
+	out = append(out, projectClaimResolution(root)...)
 	appendProjectCheck(&out, projectExcludedLegacy(contract, string(raw), root), "PROJECT_EXCLUDED_LEGACY", ".vrooli/repo-contract.json", "Remove retired paths and legacy contract entries.")
 	appendProjectCheck(&out, projectProfileRoots(contract), "PROJECT_PROFILE_ROOTS", ".vrooli/repo-contract.json", "Keep profile includes inside canonical repository roots.")
 	appendProjectCheck(&out, projectBundleProfile(contract), "PROJECT_BUNDLE_PROFILE", ".vrooli/repo-contract.json", "Restore the mini_vrooli_bundle include, exclude, and parameter policy.")
-	appendProjectCheck(&out, projectDocsAlignment(root), "PROJECT_DOCS_ALIGNMENT", "docs/repo-contract.md", "Update docs/repo-contract.md to describe the enforced contract.")
 	appendProjectCheck(&out, projectResourceArtifacts(root), "PROJECT_RESOURCE_ARTIFACTS", ".vrooli/schemas/resource-definitions.json", "Regenerate resource schema artifacts and repair missing resource references.")
 	return out
 }
@@ -272,17 +274,111 @@ func projectBundleProfile(c projectContract) error {
 	return nil
 }
 
-func projectDocsAlignment(root string) error {
-	raw, err := os.ReadFile(filepath.Join(root, "docs", "repo-contract.md"))
-	if err != nil {
-		return err
+func projectWorkspaceSmells(root string) []rules.Finding {
+	var out []rules.Finding
+	add := func(code, title, location, remediation string) {
+		out = append(out, finding(code, "error", title, location, remediation))
 	}
-	for _, snippet := range []string{"`vrooli contract validate`", "`vrooli contract show`", "`vrooli contract resolve scenario <name> --file service`", "`vrooli contract match-glob <pattern> <path>`", "`structure-health-contract`", "## Allowed `.vrooli/` Surface", "`~/.vrooli/secrets.json`", "## Landed Consumer Migrations", "`swarm-manager`"} {
-		if !strings.Contains(string(raw), snippet) {
-			return fmt.Errorf("docs/repo-contract.md is missing %q", snippet)
+	if fileExists(filepath.Join(root, "pnpm-lock.yaml")) {
+		add("PROJECT_ROOT_PNPM_LOCK", "root pnpm-lock.yaml is not allowed", "pnpm-lock.yaml", "Remove the root pnpm-lock.yaml; scenario UIs own their lockfiles.")
+	}
+	if fileExists(filepath.Join(root, "go.work.sum")) && !fileExists(filepath.Join(root, "go.work")) {
+		add("PROJECT_ORPHAN_GO_WORK_SUM", "go.work.sum has no go.work owner", "go.work.sum", "Remove the orphaned go.work.sum or restore its intentional go.work owner.")
+	}
+	if fileExists(filepath.Join(root, ".npmrc")) {
+		add("PROJECT_ROOT_NPMRC", "root .npmrc leaks package-manager configuration", ".npmrc", "Remove the root .npmrc or move configuration to its owning boundary.")
+	}
+	workspacePath := filepath.Join(root, "pnpm-workspace.yaml")
+	if raw, err := os.ReadFile(workspacePath); err == nil {
+		text := string(raw)
+		if !strings.Contains(text, "packages:") || !strings.Contains(text, "packages/*") || strings.Contains(text, "scenarios/") || !strings.Contains(text, "autoInstallPeers: false") || !strings.Contains(text, "link-workspace-packages: false") {
+			add("PROJECT_PNPM_WORKSPACE_INVALID", "root pnpm workspace settings are invalid", "pnpm-workspace.yaml", "Keep the root workspace scoped to packages/* with isolated package settings.")
 		}
 	}
-	return nil
+	scenariosRoot := filepath.Join(root, "scenarios")
+	entries, _ := os.ReadDir(scenariosRoot)
+	for _, scenario := range entries {
+		if !scenario.IsDir() {
+			continue
+		}
+		uiRoot := filepath.Join(scenariosRoot, scenario.Name(), "ui")
+		if !fileExists(filepath.Join(uiRoot, "package.json")) {
+			continue
+		}
+		base := filepath.ToSlash(filepath.Join("scenarios", scenario.Name(), "ui"))
+		if !fileExists(filepath.Join(uiRoot, "pnpm-workspace.yaml")) {
+			add("SCENARIO_UI_BOUNDARY_MISSING", "scenario UI has no pnpm workspace boundary", base+"/pnpm-workspace.yaml", "Add a ui/pnpm-workspace.yaml boundary file.")
+		}
+		if !fileExists(filepath.Join(uiRoot, "pnpm-lock.yaml")) {
+			add("SCENARIO_UI_LOCKFILE_MISSING", "scenario UI has no pnpm lockfile", base+"/pnpm-lock.yaml", "Generate and commit the UI lockfile through Scenario Dependency Analyzer.")
+		}
+		if raw, err := os.ReadFile(filepath.Join(uiRoot, "package.json")); err == nil {
+			var pkg map[string]any
+			if json.Unmarshal(raw, &pkg) == nil {
+				if deps, ok := pkg["dependencies"].(map[string]any); ok {
+					for name, value := range deps {
+						if strings.HasPrefix(stringValue(value), "workspace:") {
+							add("SCENARIO_WORKSPACE_DEPENDENCY", "scenario UI uses workspace protocol dependency", base+"/package.json#/dependencies/"+name, "Use an explicit package version or governed local dependency declaration.")
+						}
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
+func projectClaimResolution(root string) []rules.Finding {
+	claims, err := catalogClaims()
+	if err != nil {
+		return []rules.Finding{finding("PROJECT_CLAIM_UNRESOLVED", "error", "structure rule catalog is unavailable: "+err.Error(), "scenarios/structure-health/api/internal/rules/catalog.go", "Restore the Structure Health rule catalog before validating enforcement claims.")}
+	}
+	var out []rules.Finding
+	docsRoot := filepath.Join(root, "docs")
+	_ = filepath.WalkDir(docsRoot, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil || entry.IsDir() || strings.ToLower(filepath.Ext(path)) != ".md" {
+			return walkErr
+		}
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+		for _, token := range claimTokens(string(raw)) {
+			if claims[token] {
+				continue
+			}
+			rel, _ := filepath.Rel(root, path)
+			out = append(out, finding("PROJECT_CLAIM_UNRESOLVED", "error", fmt.Sprintf("documentation claim %q does not resolve to a catalog claim", token), filepath.ToSlash(rel), "Use a claim:<catalog-claim> marker or add the claim to Structure Health's catalog."))
+		}
+		return nil
+	})
+	return out
+}
+
+func catalogClaims() (map[string]bool, error) {
+	claims := map[string]bool{}
+	for _, entry := range rules.Catalog() {
+		if entry.Claim != "" {
+			claims[entry.Claim] = true
+		}
+	}
+	return claims, nil
+}
+
+var claimMarkerPattern = regexp.MustCompile(`claim:([A-Za-z0-9._-]+)`)
+
+func claimTokens(raw string) []string {
+	matches := claimMarkerPattern.FindAllStringSubmatch(raw, -1)
+	out := make([]string, 0, len(matches))
+	seen := map[string]bool{}
+	for _, match := range matches {
+		if len(match) < 2 || seen[match[1]] {
+			continue
+		}
+		seen[match[1]] = true
+		out = append(out, match[1])
+	}
+	return out
 }
 
 func projectResourceArtifacts(root string) error {

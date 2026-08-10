@@ -359,7 +359,6 @@ type envAcc struct {
 }
 
 var (
-	goAssignPattern   = regexp.MustCompile(`(?i)([A-Za-z_][A-Za-z0-9_]*)\s*(?:,.*)?:=\s*os\.Getenv\(`)
 	bashAssignPattern = regexp.MustCompile(`(?i)(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*\$\{?([A-Z_][A-Z0-9_]*)`)
 	bashVarPattern    = regexp.MustCompile(`\$\{([A-Z_][A-Z0-9_]*)\}|\$([A-Z_][A-Z0-9_]*)`)
 	jsAssignPattern   = regexp.MustCompile(`(?i)(?:const|let|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*process\.env\.([A-Za-z_][A-Za-z0-9_]*)`)
@@ -1012,34 +1011,6 @@ func containsVarReference(line, envVar string) bool {
 
 func isIdentifierChar(r rune) bool {
 	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_'
-}
-
-func extractEnvVarName(line string) string {
-	start := strings.Index(line, `"`)
-	if start == -1 {
-		start = strings.Index(line, `'`)
-	}
-	if start == -1 {
-		return "UNKNOWN"
-	}
-
-	end := strings.Index(line[start+1:], `"`)
-	if end == -1 {
-		end = strings.Index(line[start+1:], `'`)
-	}
-	if end == -1 {
-		return "UNKNOWN"
-	}
-
-	return line[start+1 : start+1+end]
-}
-
-func extractAssignedVarName(line string) string {
-	matches := goAssignPattern.FindStringSubmatch(line)
-	if len(matches) > 1 {
-		return matches[1]
-	}
-	return ""
 }
 
 // extractAllEnvVarNames extracts all environment variable names from os.Getenv() calls

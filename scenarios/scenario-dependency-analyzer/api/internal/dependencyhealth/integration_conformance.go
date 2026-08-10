@@ -1,11 +1,10 @@
 package dependencyhealth
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"go/format"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"io"
@@ -13,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,9 +45,10 @@ type registryState struct {
 	OperatorCommand string `json:"operatorCommand"`
 }
 
-// evaluateIntegrationConformance checks the declared scenario graph against
-// the registry's public description. A running target is authoritative: it
-// proves that the handler is wired and that Registry.Describe passed its own
+// evaluateIntegrationConformance checks authored service.json integrations
+// and ensures optional capability registries do not duplicate them. A running
+// target is authoritative for its optional capability description: it proves
+// that the handler is wired and that Registry.Describe passed its own
 // checker/state validation. Stopped or generated targets use the source
 // contract as a deterministic fallback so the gate remains useful offline.
 func (h *connectHandler) evaluateIntegrationConformance(ctx context.Context, scenario string) (*healthv1.DependencyHealthSection, []*healthv1.DependencyHealthFinding, []*healthv1.DegradedDependency) {
@@ -55,7 +56,7 @@ func (h *connectHandler) evaluateIntegrationConformance(ctx context.Context, sce
 	if err != nil {
 		return section("integration_conformance", "Integration conformance", "degraded", "Integration declarations could not be read."), nil, nil
 	}
-	if len(manifest.Dependencies.Scenarios) == 0 {
+	if len(manifest.Dependencies.Scenarios) == 0 && len(manifest.Dependencies.Resources) == 0 {
 		return section("integration_conformance", "Integration conformance", "not_applicable", "No scenario dependency is declared."), nil, nil
 	}
 
@@ -68,13 +69,36 @@ func (h *connectHandler) evaluateIntegrationConformance(ctx context.Context, sce
 			}
 		}
 	}
-	registryText := ""
+	var sourceDefinitions []registryDefinition
 	if !runtimeVerified {
 		registryDir := filepath.Join(h.scenarioDir(ctx, scenario), "api", "internal", "capabilities")
-		registryText = readRegistryText(registryDir)
+		sourceDefinitions = readRegistryDefinitions(registryDir)
 	}
 
 	var findings []*healthv1.DependencyHealthFinding
+	manifestDependencies := make(map[string]struct{}, len(manifest.Dependencies.Resources)+len(manifest.Dependencies.Scenarios))
+	for slug := range manifest.Dependencies.Resources {
+		manifestDependencies["resource:"+slug] = struct{}{}
+	}
+	for slug := range manifest.Dependencies.Scenarios {
+		manifestDependencies["scenario:"+slug] = struct{}{}
+	}
+	definitions := sourceDefinitions
+	if runtimeVerified {
+		definitions = evidence.Definitions
+	}
+	for _, definition := range definitions {
+		key := strings.TrimSpace(definition.DependencyKind) + ":" + strings.TrimSpace(definition.DependencySlug)
+		if _, duplicate := manifestDependencies[key]; duplicate {
+			findings = append(findings, integrationFinding(
+				"INTEGRATION_REGISTRY_DUPLICATES_MANIFEST",
+				"Capability registry duplicates a manifest dependency",
+				fmt.Sprintf("Registry entry %q repeats a dependency already authored in service.json.", definition.DependencySlug),
+				"capability entry with no manifest dependency duplicate",
+				definition.DependencySlug,
+			))
+		}
+	}
 	scenariosRoot := h.resolveScenariosDir()
 	if explicit := scenarioPathFrom(ctx); explicit != "" {
 		// Deep validation may inspect a generated scenario outside the repository
@@ -87,52 +111,12 @@ func (h *connectHandler) evaluateIntegrationConformance(ctx context.Context, sce
 			continue
 		}
 
-		var def registryDefinition
-		var state registryState
-		found := false
-		if runtimeVerified {
-			for _, candidate := range evidence.Definitions {
-				if candidate.DependencySlug == slug || candidate.ID == slug {
-					def = candidate
-					found = true
-					break
-				}
-			}
-			for _, candidate := range evidence.States {
-				if candidate.ID == def.ID || candidate.ID == slug {
-					state = candidate
-					break
-				}
-			}
-		} else {
-			found = strings.Contains(registryText, slug)
-		}
-		if !found {
-			findings = append(findings, integrationFinding("INTEGRATION_REGISTRY_ENTRY_MISSING", "Capability registry entry missing", fmt.Sprintf("The scenario declares %q but its capability registry does not mention that dependency.", slug), "registry definition for dependency", slug))
-			continue
-		}
-
-		if runtimeVerified {
-			if strings.TrimSpace(def.Description) == "" || (def.DependencyKind != "scenario" && def.DependencyKind != "resource") || def.DependencySlug != slug {
-				findings = append(findings, integrationFinding("INTEGRATION_REGISTRY_INCOMPLETE", "Capability registry entry incomplete", fmt.Sprintf("The runtime registry entry for %q does not expose a valid description, kind, and matching slug.", slug), "description, dependency kind, and matching slug", slug))
-			}
-			if strings.TrimSpace(def.ActionKind) == "" && strings.TrimSpace(state.ActionKind) == "" {
-				findings = append(findings, integrationFinding("INTEGRATION_NO_OPERATOR_ACTION", "Operator action is not declared", fmt.Sprintf("Registry entry %q has no operator recovery action.", slug), "operator action metadata", slug))
-			}
-		} else {
-			if !strings.Contains(registryText, "Description") || !strings.Contains(registryText, "DependencySlug") || (!strings.Contains(registryText, "Checker") && !strings.Contains(registryText, "Check(")) {
-				findings = append(findings, integrationFinding("INTEGRATION_REGISTRY_INCOMPLETE", "Capability registry entry incomplete", fmt.Sprintf("The registry entry for %q does not expose a description, matching dependency slug, and reachability checker.", slug), "description, dependency kind, matching slug, and reachability checker", slug))
-			}
-			if !strings.Contains(registryText, "ActionKind") && !strings.Contains(registryText, "operator_command") {
-				findings = append(findings, integrationFinding("INTEGRATION_NO_OPERATOR_ACTION", "Operator action is not declared", fmt.Sprintf("Registry entry %q has no operator recovery action.", slug), "operator action metadata", slug))
-			}
-		}
 		if strings.TrimSpace(declaration.DegradedBehavior) == "" {
 			findings = append(findings, integrationFinding("INTEGRATION_DEGRADED_BEHAVIOR_UNDECLARED", "Degraded behavior is not declared", fmt.Sprintf("Dependency %q has no actionable degraded_behavior declaration.", slug), "non-empty degraded_behavior", slug))
 		}
 	}
 	status := statusFromFindings(findings, "integration_conformance")
-	return sectionWithFindingIDs("integration_conformance", "Integration conformance", status, fmt.Sprintf("Checked %d declared scenario integration(s) using %s registry evidence.", len(manifest.Dependencies.Scenarios), evidenceSource(runtimeVerified)), findingIDs(findings, "integration")), findings, nil
+	return sectionWithFindingIDs("integration_conformance", "Integration conformance", status, fmt.Sprintf("Checked %d declared scenario integration(s) and %d resource integration(s) against service.json using %s registry evidence.", len(manifest.Dependencies.Scenarios), len(manifest.Dependencies.Resources), evidenceSource(runtimeVerified)), findingIDs(findings, "integration")), findings, nil
 }
 
 func evidenceSource(runtimeVerified bool) string {
@@ -187,36 +171,59 @@ func fetchRuntimeRegistryDescription(ctx context.Context, scenario string) ([]by
 	return io.ReadAll(resp.Body)
 }
 
-func readRegistryText(dir string) string {
-	var b strings.Builder
+// readRegistryDefinitions extracts dependency-bearing struct literals from a
+// source fallback registry. It uses the AST so comments, examples, checker
+// commands, and unrelated strings cannot satisfy or evade the no-duplicate
+// contract when the scenario is not running.
+func readRegistryDefinitions(dir string) []registryDefinition {
+	var definitions []registryDefinition
 	_ = filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
 		if err != nil || entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
 		data, readErr := os.ReadFile(path)
-		if readErr == nil {
-			// Source fallback is structural evidence, not a text grep. Render
-			// the parsed AST without comments so a stale example or comment
-			// mentioning a dependency cannot satisfy the registry gate.
-			fileSet := token.NewFileSet()
-			file, parseErr := parser.ParseFile(fileSet, path, data, 0)
-			if parseErr == nil {
-				var rendered bytes.Buffer
-				if formatErr := format.Node(&rendered, fileSet, file); formatErr == nil {
-					b.Write(rendered.Bytes())
-					b.WriteByte('\n')
-					return nil
+		if readErr != nil {
+			return nil
+		}
+		file, parseErr := parser.ParseFile(token.NewFileSet(), path, data, 0)
+		if parseErr != nil {
+			return nil
+		}
+		ast.Inspect(file, func(node ast.Node) bool {
+			literal, ok := node.(*ast.CompositeLit)
+			if !ok {
+				return true
+			}
+			definition := registryDefinition{}
+			for _, element := range literal.Elts {
+				field, ok := element.(*ast.KeyValueExpr)
+				if !ok {
+					continue
+				}
+				key, keyOK := field.Key.(*ast.Ident)
+				value, valueOK := field.Value.(*ast.BasicLit)
+				if !keyOK || !valueOK || value.Kind != token.STRING {
+					continue
+				}
+				decoded, unquoteErr := strconv.Unquote(value.Value)
+				if unquoteErr != nil {
+					continue
+				}
+				switch key.Name {
+				case "DependencyKind":
+					definition.DependencyKind = decoded
+				case "DependencySlug":
+					definition.DependencySlug = decoded
 				}
 			}
-			// Preserve deterministic fallback behavior for a source file the
-			// parser cannot understand; malformed source is separately reported
-			// by dependency health and must not make this reader panic.
-			b.Write(data)
-			b.WriteByte('\n')
-		}
+			if definition.DependencyKind != "" && definition.DependencySlug != "" {
+				definitions = append(definitions, definition)
+			}
+			return true
+		})
 		return nil
 	})
-	return b.String()
+	return definitions
 }
 
 func integrationFinding(rule, title, description, expected, observed string) *healthv1.DependencyHealthFinding {
@@ -224,5 +231,9 @@ func integrationFinding(rule, title, description, expected, observed string) *he
 	if rule == "INTEGRATION_NO_OPERATOR_ACTION" || rule == "INTEGRATION_DEGRADED_BEHAVIOR_UNDECLARED" {
 		severity = "WARNING"
 	}
-	return &healthv1.DependencyHealthFinding{Id: strings.ToLower(strings.ReplaceAll(rule, "_", "-")), Severity: severity, SourceDomain: "integration_conformance", Title: title, Description: description, Remediation: "Add or repair the shared capability-registry entry and rerun the dependencies phase.", RuleId: rule, Observed: observed, Expected: expected}
+	remediation := "Repair the authored service.json integration or rerun the dependencies phase."
+	if rule == "INTEGRATION_REGISTRY_DUPLICATES_MANIFEST" {
+		remediation = "Remove the duplicated dependency from the optional capability registry and rerun the dependencies phase."
+	}
+	return &healthv1.DependencyHealthFinding{Id: strings.ToLower(strings.ReplaceAll(rule, "_", "-")), Severity: severity, SourceDomain: "integration_conformance", Title: title, Description: description, Remediation: remediation, RuleId: rule, Observed: observed, Expected: expected}
 }

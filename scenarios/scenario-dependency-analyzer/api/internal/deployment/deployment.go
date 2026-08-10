@@ -11,14 +11,18 @@
 package deployment
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
 
+	deployability "github.com/vrooli/vrooli/packages/deployability"
 	"scenario-dependency-analyzer/internal/config"
 
 	"github.com/vrooli/api-core/storage"
@@ -29,9 +33,6 @@ import (
 const (
 	// ReportVersion tracks the schema version of deployment reports.
 	ReportVersion = 1
-
-	// TierBlockerThreshold is the fitness score below which a dependency blocks a tier.
-	TierBlockerThreshold = 0.75
 )
 
 // BuildReport orchestrates the full deployment analysis workflow.
@@ -75,16 +76,27 @@ func BuildReport(scenarioName, scenarioPath, scenariosDir string, cfg *types.Ser
 	}
 	// Add standard tiers if none found
 	if len(knownTiers) == 0 {
-		knownTiers = []string{"desktop", "server", "mobile", "saas"}
+		knownTiers = []string{
+			string(deployability.TierLocal),
+			string(deployability.TierDesktop),
+			string(deployability.TierMobile),
+			string(deployability.TierSaaS),
+			string(deployability.TierEnterprise),
+		}
 	}
 	sort.Strings(knownTiers)
 
 	gaps := AnalyzeGaps(scenarioName, scenarioPath, scenariosDir, nodes, knownTiers)
 
 	return &types.DeploymentAnalysisReport{
-		Scenario:       scenarioName,
-		ReportVersion:  ReportVersion,
-		GeneratedAt:    generatedAt,
+		Scenario:      scenarioName,
+		ReportVersion: ReportVersion,
+		GeneratedAt:   generatedAt,
+		Provenance: types.DeploymentVerdictProvenance{
+			Analyzer:        "scenario-dependency-analyzer",
+			AnalyzerVersion: "2",
+			ComputedAt:      generatedAt,
+		},
 		Dependencies:   nodes,
 		Aggregates:     aggregates,
 		BundleManifest: manifest,
@@ -108,10 +120,6 @@ func buildRootScenarioNode(scenarioName, scenarioPath string, cfg *types.Service
 		Source:   "root",
 	}
 
-	if cfg.Deployment.AggregateRequirements != nil {
-		node.Requirements = cfg.Deployment.AggregateRequirements
-	}
-
 	if len(cfg.Deployment.Tiers) > 0 {
 		node.TierSupport = convertTierTierMap(cfg.Deployment.Tiers)
 	}
@@ -132,6 +140,11 @@ func PersistReport(scenarioPath string, report *types.DeploymentAnalysisReport) 
 	if err != nil {
 		return err
 	}
+	report.Provenance.InputDigest = digestManifestInputs(scenarioPath, report)
+	// Persisted reports are written only after being recomputed against the
+	// current inputs. Clear a stale marker if the caller is refreshing a loaded
+	// report in place.
+	report.Stale = false
 	reportDir := filepath.Dir(reportPath)
 	if err := os.MkdirAll(reportDir, 0o750); err != nil {
 		return err
@@ -155,6 +168,56 @@ func PersistReport(scenarioPath string, report *types.DeploymentAnalysisReport) 
 		return err
 	}
 	return os.Rename(tmpPath, reportPath)
+}
+
+// digestManifestInputs hashes the service manifest and every declared resource
+// or child scenario manifest reachable from the report. Missing inputs are
+// included as explicit markers, so a missing file cannot silently look current.
+func digestManifestInputs(scenarioPath string, report *types.DeploymentAnalysisReport) string {
+	paths := map[string]struct{}{}
+	add := func(path string) {
+		if strings.TrimSpace(path) != "" {
+			paths[filepath.Clean(path)] = struct{}{}
+		}
+	}
+	add(filepath.Join(scenarioPath, ".vrooli", "service.json"))
+	root := filepath.Dir(filepath.Dir(scenarioPath))
+	var walk func([]types.DeploymentDependencyNode)
+	walk = func(nodes []types.DeploymentDependencyNode) {
+		for _, node := range nodes {
+			switch node.Type {
+			case "resource":
+				add(filepath.Join(root, "resources", node.Name, "resource.json"))
+			case "scenario":
+				if node.Path != "" {
+					add(filepath.Join(node.Path, ".vrooli", "service.json"))
+				}
+			}
+			walk(node.Children)
+		}
+	}
+	if report != nil {
+		walk(report.Dependencies)
+	}
+
+	pathsList := make([]string, 0, len(paths))
+	for path := range paths {
+		pathsList = append(pathsList, path)
+	}
+	sort.Strings(pathsList)
+	h := sha256.New()
+	for _, path := range pathsList {
+		_, _ = h.Write([]byte(path))
+		data, readErr := os.ReadFile(path) // #nosec G304 -- paths are derived from the scenario workspace and manifest names.
+		if readErr != nil {
+			_, _ = h.Write([]byte("\x00missing\x00"))
+			continue
+		}
+		_, _ = h.Write([]byte("\x00"))
+		_, _ = h.Write(data)
+		_, _ = h.Write([]byte("\x00"))
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func reportsEqualIgnoringGeneratedAt(a, b *types.DeploymentAnalysisReport) bool {
@@ -205,6 +268,11 @@ func LoadReport(scenarioPath string) (*types.DeploymentAnalysisReport, error) {
 	if err := json.Unmarshal(data, &report); err != nil {
 		return nil, err
 	}
+	currentDigest := digestManifestInputs(scenarioPath, &report)
+	// An absent digest is also stale: it represents a legacy or manually
+	// authored report whose inputs were never proven. Keep the report available
+	// for diagnostics, but make the stale state explicit to every consumer.
+	report.Stale = strings.TrimSpace(report.Provenance.InputDigest) == "" || report.Provenance.InputDigest != currentDigest
 	return &report, nil
 }
 

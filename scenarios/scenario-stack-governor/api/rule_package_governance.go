@@ -1,39 +1,26 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
-	"os/exec"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
 const packageGovernanceRuleID = "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION"
 
-var packageAuditTimeout = 2 * time.Minute
+var structureHealthTimeout = 2 * time.Minute
 
-type packageAuditCLIResponse struct {
-	Success bool `json:"success"`
-	Audit   struct {
-		Validation struct {
-			Issues []packageGovernanceIssue `json:"issues"`
-		} `json:"validation"`
-		Issues    []packageGovernanceIssue `json:"issues"`
-		ScanStats packageAuditScanStats    `json:"scan_stats"`
-	} `json:"audit"`
-}
-
-type packageAuditScanStats struct {
-	FilesScanned    string            `json:"files_scanned"`
-	FilesSkipped    string            `json:"files_skipped"`
-	BytesScanned    string            `json:"bytes_scanned"`
-	SkippedByReason map[string]string `json:"skipped_by_reason"`
-	BudgetExceeded  bool              `json:"budget_exceeded"`
-}
+var resolveStructureHealthURL = discovery.ResolveScenarioURLDefault
+var structureHealthHTTPClient = http.DefaultClient
 
 type packageGovernanceIssue struct {
 	Severity string `json:"severity"`
@@ -53,31 +40,20 @@ func RunPackageGovernanceScenarioAdoption(ctx context.Context, repoRoot, scenari
 		result.Passed = !hasActionableFindings(result.Findings)
 	}()
 
-	report, stderr, err := runPackageAuditCLI(ctx, repoRoot)
+	issues, err := runStructureHealthProjectValidation(ctx, repoRoot)
 	if err != nil {
 		result.Findings = append(result.Findings, Finding{
 			Level:   "error",
-			Message: fmt.Sprintf("package governance audit failed: %v", err),
+			Message: fmt.Sprintf("package governance validation failed: %v", err),
 			Evidence: []Evidence{
-				{Type: "command", Ref: packageAuditCommandRef()},
-				{Type: "note", Detail: strings.TrimSpace(stderr)},
+				{Type: "scenario", Ref: "structure-health"},
 			},
 		})
 		return result
 	}
-	if report.Audit.ScanStats.BudgetExceeded {
-		result.Findings = append(result.Findings, Finding{
-			Level:   "warn",
-			Message: "package governance audit hit a text scan budget; review scan stats before treating the audit as complete",
-			Evidence: []Evidence{
-				{Type: "command", Ref: packageAuditCommandRef()},
-				{Type: "note", Detail: fmt.Sprintf("scan_stats: files_scanned=%s files_skipped=%s bytes_scanned=%s", report.Audit.ScanStats.FilesScanned, report.Audit.ScanStats.FilesSkipped, report.Audit.ScanStats.BytesScanned)},
-			},
-		})
-	}
 
 	filter := strings.TrimSpace(scenarioName)
-	for _, issue := range report.Audit.Issues {
+	for _, issue := range issues {
 		scenario, ok := scenarioFromIssuePath(repoRoot, issue.Path)
 		if !ok {
 			continue
@@ -97,9 +73,7 @@ func RunPackageGovernanceScenarioAdoption(ctx context.Context, repoRoot, scenari
 }
 
 func packageIssueEvidence(issue packageGovernanceIssue) []Evidence {
-	evidence := []Evidence{
-		{Type: "command", Ref: packageAuditCommandRef()},
-	}
+	evidence := []Evidence{{Type: "scenario", Ref: "structure-health"}}
 	if strings.TrimSpace(issue.Path) != "" {
 		evidence = append(evidence, Evidence{Type: "file", Ref: issue.Path})
 	}
@@ -115,7 +89,7 @@ func packageIssueEvidence(issue packageGovernanceIssue) []Evidence {
 func packageGovernanceRecommendation(code string) string {
 	switch strings.TrimSpace(code) {
 	case "package-no-workspace-deps":
-		return "Replace workspace-star shared-package references with a supported isolated adoption mode such as file: or a governed Go replace directive."
+		return "Replace workspace protocol shared-package references with a supported isolated adoption mode such as file: or a governed Go replace directive."
 	case "package-no-unauthorized-postinstall":
 		return "Move shared-package hydration into vrooli-managed lifecycle/setup behavior and remove package propagation from scenario-local postinstall scripts."
 	case "package-adoption-supported":
@@ -125,7 +99,7 @@ func packageGovernanceRecommendation(code string) string {
 	case "package-go-module-replace-required":
 		return "Add the required local replace directive for the governed Go package so the consumer stays workspace-independent."
 	default:
-		return "Review the governed package manifest and align the scenario's package adoption with `vrooli package audit`."
+		return "Review the Structure Health rule catalog and align the package boundary with its remediation."
 	}
 }
 
@@ -161,43 +135,49 @@ func scenarioFromIssuePath(repoRoot, issuePath string) (string, bool) {
 	return parts[0], true
 }
 
-func packageAuditCommandRef() string {
-	return filepath.Base(packageGovernanceBinary()) + " --json --no-stale-check package audit --all"
-}
-
-func runPackageAuditCLI(ctx context.Context, repoRoot string) (packageAuditCLIResponse, string, error) {
-	auditCtx, cancel := context.WithTimeout(ctx, packageAuditTimeout)
+func runStructureHealthProjectValidation(ctx context.Context, repoRoot string) ([]packageGovernanceIssue, error) {
+	validationCtx, cancel := context.WithTimeout(ctx, structureHealthTimeout)
 	defer cancel()
-
-	command := exec.CommandContext(auditCtx, packageGovernanceBinary(), "--json", "--no-stale-check", "package", "audit", "--all")
-	command.Dir = repoRoot
-	command.Env = append(os.Environ(), "VROOLI_SOURCE_ROOT="+repoRoot)
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	command.Stdout = &stdout
-	command.Stderr = &stderr
-
-	if err := command.Run(); err != nil {
-		if auditCtx.Err() != nil {
-			return packageAuditCLIResponse{}, stderr.String(), fmt.Errorf("package audit timed out after %s: %w", packageAuditTimeout, auditCtx.Err())
+	baseURL, err := resolveStructureHealthURL(validationCtx, "structure-health")
+	if err != nil {
+		return nil, fmt.Errorf("resolve structure-health: %w", err)
+	}
+	if strings.TrimSpace(baseURL) == "" {
+		return nil, fmt.Errorf("structure-health returned an empty base URL")
+	}
+	client := scenariovalidationconnect.NewScenarioValidationServiceClient(structureHealthHTTPClient, strings.TrimRight(baseURL, "/"))
+	response, err := client.ValidateTarget(validationCtx, connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Target: &commonv1.ValidationTarget{
+			Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT,
+			Id:   "repo",
+			Root: repoRoot,
+		},
+		Path: repoRoot,
+	}))
+	if err != nil {
+		if validationCtx.Err() != nil {
+			return nil, fmt.Errorf("structure-health validation timed out after %s: %w", structureHealthTimeout, validationCtx.Err())
 		}
-		return packageAuditCLIResponse{}, stderr.String(), err
+		return nil, err
 	}
-
-	var response packageAuditCLIResponse
-	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
-		return packageAuditCLIResponse{}, stderr.String(), fmt.Errorf("decode package audit response: %w", err)
+	if response == nil || response.Msg == nil || response.Msg.GetAssessment() == nil {
+		return nil, fmt.Errorf("structure-health returned no assessment")
 	}
-	if !response.Success {
-		return packageAuditCLIResponse{}, stderr.String(), fmt.Errorf("package audit returned success=false")
+	issues := make([]packageGovernanceIssue, 0, len(response.Msg.GetAssessment().GetFindings()))
+	for _, finding := range response.Msg.GetAssessment().GetFindings() {
+		if finding == nil {
+			continue
+		}
+		location := filepath.FromSlash(strings.TrimSpace(finding.GetLocation()))
+		if location != "" && !filepath.IsAbs(location) {
+			location = filepath.Join(repoRoot, location)
+		}
+		issues = append(issues, packageGovernanceIssue{
+			Severity: finding.GetSeverity(),
+			Code:     finding.GetCode(),
+			Message:  finding.GetMessage(),
+			Path:     location,
+		})
 	}
-	return response, stderr.String(), nil
-}
-
-func packageGovernanceBinary() string {
-	if path := strings.TrimSpace(os.Getenv("VROOLI_BIN")); path != "" {
-		return path
-	}
-	return "vrooli"
+	return issues, nil
 }

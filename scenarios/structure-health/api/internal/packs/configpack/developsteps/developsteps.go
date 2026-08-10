@@ -683,12 +683,10 @@ func extractBinaryName(run string) string {
 }
 
 func trimCommandToken(value string) string {
-	end := len(value)
 	for i, r := range value {
 		switch r {
 		case ' ', '\t', '\n', '\r', '&', '|', ';':
-			end = i
-			return value[:end]
+			return value[:i]
 		}
 	}
 	return value
@@ -730,11 +728,7 @@ func isAllowedAPIRun(runValue, expectedBinary, binaryName string) bool {
 	}
 
 	directInvocation := fmt.Sprintf("./api/%s", expectedBinary)
-	if strings.Contains(trimmed, directInvocation) {
-		return true
-	}
-
-	return false
+	return strings.Contains(trimmed, directInvocation)
 }
 
 func usesDevServerCommand(run string) bool {
@@ -799,9 +793,7 @@ func isProductionUIServerRun(run string, bundlePath string) bool {
 	}
 	normalizedBundle := normalizeSlashes(strings.ToLower(bundlePath))
 	bundleDir := normalizedBundle
-	if strings.HasSuffix(bundleDir, "index.html") {
-		bundleDir = strings.TrimSuffix(bundleDir, "index.html")
-	}
+	bundleDir = strings.TrimSuffix(bundleDir, "index.html")
 	bundleDir = strings.TrimRight(bundleDir, "/")
 	for _, token := range staticServerTokens {
 		if strings.Contains(lower, token) {
@@ -852,7 +844,7 @@ func buildAPIStartMessage(expectedBinary, scenarioName string) string {
 	}
 	nameSuffix := "the scenario"
 	if scenarioName != "" {
-		nameSuffix = fmt.Sprintf("%s", scenarioName)
+		nameSuffix = scenarioName
 	}
 	return fmt.Sprintf(
 		"start-api step must execute \"cd api && ./%[1]s\" or \"./api/%[1]s\" so the lifecycle can restart %[2]s with the same binary, inject resource env vars, and detect stale builds. Launching the API through wrapper scripts or alternate names bypasses that lifecycle logic.",

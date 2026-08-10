@@ -127,41 +127,9 @@ func coerceStringSlice(v interface{}) []string {
 
 // Helper functions for analysis
 func getHeuristicPredictions(description string) []map[string]interface{} {
-	var predictions []map[string]interface{}
-
-	heuristics := map[string][]string{
-		"postgres": {"data", "database", "store", "persist", "sql", "table"},
-		"redis":    {"cache", "session", "temporary", "fast", "memory"},
-		"ollama":   {"ai", "llm", "language model", "chat", "generate", "intelligent"},
-		"n8n":      {"workflow", "automation", "process", "trigger", "orchestrate"},
-		"qdrant":   {"vector", "semantic", "search", "similarity", "embedding"},
-		"minio":    {"file", "upload", "storage", "document", "asset", "image"},
-	}
-
-	for resource, keywords := range heuristics {
-		confidence := 0.0
-		matches := 0
-
-		for _, keyword := range keywords {
-			if strings.Contains(description, keyword) {
-				matches++
-				confidence += 0.1
-			}
-		}
-
-		if confidence > 0 {
-			// Normalize confidence based on number of matches
-			confidence = math.Min(confidence, 0.8)
-
-			predictions = append(predictions, map[string]interface{}{
-				"resource_name": resource,
-				"confidence":    confidence,
-				"reasoning":     fmt.Sprintf("Heuristic match: %d keywords detected", matches),
-			})
-		}
-	}
-
-	return predictions
+	// Resource-specific semantic mappings belong in resource manifests or the
+	// embedding provider. The analyzer does not maintain a second instance table.
+	return nil
 }
 
 func deduplicateResources(resources []map[string]interface{}) []map[string]interface{} {

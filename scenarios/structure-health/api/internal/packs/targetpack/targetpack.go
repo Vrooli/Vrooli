@@ -17,9 +17,23 @@ import (
 
 var digestPattern = regexp.MustCompile(`@sha256:[0-9a-fA-F]{64}$`)
 
+// ParseUnit is the subset of Code Facts evidence needed by package rules.
+// The package evaluator never guesses language from extensions when a proven
+// unit is available.
+type ParseUnit struct {
+	Language   string
+	RootPath   string
+	ConfigPath string
+	Status     string
+}
+
 // Evaluate runs the pack owned by kind. Unknown kinds intentionally produce no
 // findings here; the provider contract is the authority for declared support.
 func Evaluate(kind, root, id string) []rules.Finding {
+	return EvaluateWithParseUnits(kind, root, id, nil)
+}
+
+func EvaluateWithParseUnits(kind, root, id string, parseUnits []ParseUnit) []rules.Finding {
 	kind = strings.ToLower(strings.TrimSpace(kind))
 	var findings []rules.Finding
 	switch kind {
@@ -30,7 +44,7 @@ func Evaluate(kind, root, id string) []rules.Finding {
 	case "safeguard":
 		findings = evaluateSafeguard(root, id)
 	case "package":
-		findings = evaluatePackage(root, id)
+		findings = evaluatePackage(root, id, parseUnits)
 	case "control-plane":
 		findings = evaluateControlPlane(root)
 	case "docs":
@@ -49,7 +63,7 @@ func Evaluate(kind, root, id string) []rules.Finding {
 	return findings
 }
 
-func evaluatePackage(root, id string) []rules.Finding {
+func evaluatePackage(root, id string, parseUnits []ParseUnit) []rules.Finding {
 	manifestPath := filepath.Join(root, ".vrooli", "package.json")
 	_, doc, ok := loadObject(manifestPath)
 	if !ok {
@@ -71,7 +85,7 @@ func evaluatePackage(root, id string) []rules.Finding {
 		out = append(out, finding("PACKAGE_MANIFEST_INVALID", "error", "package manifest is incomplete", ".vrooli/package.json#/package", "Declare package kind and at least one module identifier."))
 	}
 	if !fileExists(filepath.Join(root, "README.md")) || (!fileExists(filepath.Join(root, "go.mod")) && !fileExists(filepath.Join(root, "package.json"))) {
-		out = append(out, finding("PACKAGE_LAYOUT_MISSING", "error", "package layout is incomplete", ".", "Provide README.md and a go.mod or package.json at the package root."))
+		out = append(out, finding("PACKAGE_LAYOUT_MISSING", "error", "package layout is incomplete", ".", "Provide README.md and a go.mod or package.json at the package root, or record an intentional module-boundary exception."))
 	}
 	if module := goModule(root); module != "" && !stringArrayContains(identifiers, module) {
 		out = append(out, finding("PACKAGE_MODULE_PATH_MISMATCH", "error", "Go module is absent from package governance identifiers", "go.mod", "Add the go.mod module path to package.module_identifiers."))
@@ -79,7 +93,139 @@ func evaluatePackage(root, id string) []rules.Finding {
 	if npmName := packageJSONName(root); npmName != "" && !stringArrayContains(identifiers, npmName) {
 		out = append(out, finding("PACKAGE_MODULE_PATH_MISMATCH", "error", "JavaScript package name is absent from package governance identifiers", "package.json#/name", "Add the package.json name to package.module_identifiers."))
 	}
+	out = append(out, packageParseUnitRules(root, parseUnits)...)
 	return out
+}
+
+func packageParseUnitRules(root string, parseUnits []ParseUnit) []rules.Finding {
+	var out []rules.Finding
+	root = filepath.Clean(root)
+	for _, unit := range parseUnits {
+		if !strings.EqualFold(unit.Status, "proven") && unit.Status != "" {
+			continue
+		}
+		unitRoot := filepath.Clean(unit.RootPath)
+		// A Go module is the package boundary this rule governs. TypeScript,
+		// JavaScript, Rust, and Python parse units are useful evidence for their
+		// own profile packs, but do not imply that a Go package module is missing.
+		if !strings.EqualFold(unit.Language, "go") {
+			continue
+		}
+		if unitRoot != root && !packageHasModuleException(root) {
+			out = append(out, finding("PACKAGE_OWN_MODULE_MISSING", "error", "package is covered by a module rooted elsewhere", ".", "Add a module configuration at the package root or record an intentional exception."))
+			break
+		}
+		if hasRootInternalImport(root) {
+			out = append(out, finding("PACKAGE_INTERNAL_IMPORT", "error", "package imports the root control plane internal package", ".", "Promote or duplicate the shared capability and remove the root internal import."))
+		}
+		out = append(out, missingRootReplaces(root)...)
+		break
+	}
+	return out
+}
+
+func packageHasModuleException(root string) bool {
+	_, doc, ok := loadObject(filepath.Join(root, ".vrooli", "package.json"))
+	if !ok {
+		return false
+	}
+	entry, _ := doc["package"].(map[string]any)
+	return intentionalModuleException(entry)
+}
+
+func intentionalModuleException(entry map[string]any) bool {
+	boundary, _ := entry["module_boundary"].(map[string]any)
+	return stringValue(boundary["status"]) == "intentional_exception" && strings.TrimSpace(stringValue(boundary["reason"])) != ""
+}
+
+func hasRootInternalImport(root string) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || found || entry.IsDir() || filepath.Ext(path) != ".go" {
+			return err
+		}
+		raw, readErr := os.ReadFile(path)
+		if readErr == nil && strings.Contains(string(raw), "github.com/vrooli/vrooli/internal/") {
+			found = true
+		}
+		return nil
+	})
+	return found
+}
+
+func missingRootReplaces(root string) []rules.Finding {
+	rootGoMod := ancestorGoMod(root)
+	if rootGoMod == "" {
+		return nil
+	}
+	rootModRaw, err := os.ReadFile(rootGoMod)
+	if err != nil {
+		return nil
+	}
+	localReplaces := moduleDirectives(string(rootModRaw), "replace")
+	modRaw, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		return nil
+	}
+	requires := moduleDirectives(string(modRaw), "require")
+	consumerReplaces := moduleDirectives(string(modRaw), "replace")
+	var out []rules.Finding
+	for module := range requires {
+		if localReplaces[module] && !consumerReplaces[module] {
+			out = append(out, finding("PACKAGE_GO_REPLACE_MISSING", "error", "module is missing a required local replace", "go.mod", "Use Scenario Dependency Analyzer to reconcile the module's local replaces."))
+		}
+	}
+	return out
+}
+
+// ancestorGoMod returns the nearest go.mod above a package root. A package's
+// own go.mod is deliberately skipped: the caller needs the repository module
+// whose local replaces must be reproduced by the dependent module.
+func ancestorGoMod(root string) string {
+	dir := filepath.Dir(filepath.Clean(root))
+	for {
+		candidate := filepath.Join(dir, "go.mod")
+		if fileExists(candidate) {
+			return candidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+// moduleDirectives extracts module names from both single-line and grouped
+// go.mod require/replace directives. It intentionally reads only the module
+// identity; versions and replacement paths are not needed for this rule.
+func moduleDirectives(raw, directive string) map[string]bool {
+	result := map[string]bool{}
+	inBlock := false
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(strings.SplitN(line, "//", 2)[0])
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, directive+" (") {
+			inBlock = true
+			continue
+		}
+		if inBlock && line == ")" {
+			inBlock = false
+			continue
+		}
+		if strings.HasPrefix(line, directive+" ") {
+			line = strings.TrimSpace(strings.TrimPrefix(line, directive))
+		} else if !inBlock {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) > 0 {
+			result[fields[0]] = true
+		}
+	}
+	return result
 }
 
 func evaluateControlPlane(root string) []rules.Finding {
@@ -361,6 +507,10 @@ func hasFileExtension(root, extension string) bool {
 }
 
 func finding(code, severity, title, location, remediation string) rules.Finding {
+	if entry, ok := rules.Lookup(code); ok {
+		severity = entry.Severity
+		remediation = entry.Remediation
+	}
 	return rules.Finding{Code: code, Severity: severity, Title: title, Message: title, Location: location, Remediation: remediation}
 }
 

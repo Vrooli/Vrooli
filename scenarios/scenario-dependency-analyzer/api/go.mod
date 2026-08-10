@@ -17,6 +17,7 @@ require (
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/searchregister-go v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
+	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.50.1

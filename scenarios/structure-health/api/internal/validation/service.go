@@ -15,6 +15,7 @@ import (
 	"structure-health/internal/intent"
 	"structure-health/internal/packs"
 	"structure-health/internal/packs/scan"
+	"structure-health/internal/packs/targetpack"
 	"structure-health/internal/portswitch"
 	"structure-health/internal/profile"
 	"structure-health/internal/reconcile"
@@ -151,7 +152,11 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 			resp.DegradedReason = appendReason(resp.DegradedReason, fmt.Sprintf("conformance scan failed: %v", scanErr))
 		}
 	} else {
-		findings = packs.EvaluateTarget(targetKind, facts.RootPath, facts.Scenario)
+		units := make([]targetpack.ParseUnit, 0, len(facts.ParseUnits))
+		for _, unit := range facts.ParseUnits {
+			units = append(units, targetpack.ParseUnit{Language: unit.Language, RootPath: unit.RootPath, ConfigPath: unit.ConfigPath, Status: unit.Status})
+		}
+		findings = packs.EvaluateTargetWithParseUnits(targetKind, facts.RootPath, facts.Scenario, units)
 	}
 	errCount, warnCount := 0, 0
 	for _, f := range findings {

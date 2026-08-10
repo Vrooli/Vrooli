@@ -3,6 +3,7 @@ package coreset
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -161,5 +162,35 @@ func TestTrustedBaseSubset(t *testing.T) {
 		if !has(res.TrustedBase, want) {
 			t.Errorf("expected %q in trusted base subset", want)
 		}
+	}
+}
+
+func TestValidateTrustedBaseClosureRejectsInconsistentGrant(t *testing.T) {
+	root := t.TempDir()
+	scenariosRoot := filepath.Join(root, "scenarios")
+	writeService(t, scenariosRoot, "trusted", map[string]bool{"outside": true})
+
+	stateDir := filepath.Join(root, ".vrooli")
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	state := `{"version":"1.0.0","core":{"seed":["trusted"],"trusted_base":["trusted"]}}`
+	if err := os.WriteFile(filepath.Join(stateDir, "operator-state.json"), []byte(state), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ValidateTrustedBaseClosure(root); err == nil {
+		t.Fatal("inconsistent trusted-base grant was accepted")
+	}
+}
+
+func TestRepositoryTrustedBaseClosure(t *testing.T) {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(filename), "../../../../.."))
+	if err := ValidateTrustedBaseClosure(repoRoot); err != nil {
+		t.Fatalf("repository trusted-base closure is invalid: %v", err)
 	}
 }

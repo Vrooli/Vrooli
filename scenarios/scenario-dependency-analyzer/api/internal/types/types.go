@@ -51,11 +51,11 @@ type ServiceHealthConfig struct {
 
 // Resource describes a single resource dependency declaration.
 type Resource struct {
-	Type           string                   `json:"type"`
-	Enabled        bool                     `json:"enabled"`
-	Required       bool                     `json:"required"`
-	Purpose        string                   `json:"purpose"`
-	Models         []string                 `json:"models,omitempty"`
+	Type     string   `json:"type"`
+	Enabled  bool     `json:"enabled"`
+	Required bool     `json:"required"`
+	Purpose  string   `json:"purpose"`
+	Models   []string `json:"models,omitempty"`
 }
 
 // ScenarioDependencySpec captures declared scenario dependencies.
@@ -72,14 +72,12 @@ type ScenarioDependencySpec struct {
 // ServiceDeployment stores deployment metadata and tier readiness.
 // Supports both v1.x (analyzer-generated) and v2.0 (user-defined) formats.
 type ServiceDeployment struct {
-	// v1.x analyzer-generated fields
-	MetadataVersion       int                         `json:"metadata_version"`
-	LastAnalyzedAt        string                      `json:"last_analyzed_at"`
-	Analyzer              *DeploymentAnalyzerInfo     `json:"analyzer"`
-	AggregateRequirements *DeploymentRequirements     `json:"aggregate_requirements"`
-	Tiers                 map[string]DeploymentTier   `json:"tiers"`
-	Dependencies          DeploymentDependencyCatalog `json:"dependencies"`
-	Overrides             []DeploymentOverride        `json:"overrides"`
+	// Authored deployment inputs. Derived readiness and aggregate verdicts are
+	// persisted in the analyzer report, never in service.json.
+	MetadataVersion int                         `json:"metadata_version"`
+	Tiers           map[string]DeploymentTier   `json:"tiers"`
+	Dependencies    DeploymentDependencyCatalog `json:"dependencies"`
+	Overrides       []DeploymentOverride        `json:"overrides"`
 
 	// v2.0 user-defined fields
 	SupportedTiers   []int                         `json:"supported_tiers"`
@@ -95,12 +93,6 @@ type ServiceBuildConfig struct {
 	SourceDir     string `json:"source_dir"`     // relative path to source directory
 	EntryPoint    string `json:"entry_point"`    // main file or package (e.g., "." for Go)
 	OutputPattern string `json:"output_pattern"` // output path with {{platform}} and {{ext}} placeholders
-}
-
-// DeploymentAnalyzerInfo identifies the analyzer that produced the deployment block.
-type DeploymentAnalyzerInfo struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
 }
 
 // DeploymentDependencyCatalog captures curated metadata for dependencies.
@@ -120,6 +112,8 @@ type DeploymentDependency struct {
 
 // DeploymentRequirements defines the estimated requirement footprint.
 type DeploymentRequirements struct {
+	Class            string   `json:"class,omitempty"`
+	Weight           *float64 `json:"weight,omitempty"`
 	RAMMB            *float64 `json:"ram_mb,omitempty"`
 	DiskMB           *float64 `json:"disk_mb,omitempty"`
 	CPUCores         *float64 `json:"cpu_cores,omitempty"`
@@ -151,9 +145,6 @@ type DependencySwap struct {
 
 // DeploymentTier holds tier readiness metadata.
 type DeploymentTier struct {
-	Status       string                  `json:"status"`
-	FitnessScore *float64                `json:"fitness_score,omitempty"`
-	Constraints  []string                `json:"constraints,omitempty"`
 	Requirements *DeploymentRequirements `json:"requirements,omitempty"`
 	Adaptations  []DeploymentAdaptation  `json:"adaptations,omitempty"`
 	Secrets      []DeploymentTierSecret  `json:"secrets,omitempty"`
@@ -351,13 +342,27 @@ type DependencyDrift struct {
 
 // DeploymentAnalysisReport encapsulates deployment readiness output.
 type DeploymentAnalysisReport struct {
-	Scenario       string                             `json:"scenario"`
-	ReportVersion  int                                `json:"report_version"`
-	GeneratedAt    time.Time                          `json:"generated_at"`
+	Scenario      string    `json:"scenario"`
+	ReportVersion int       `json:"report_version"`
+	GeneratedAt   time.Time `json:"generated_at"`
+	// Stale is derived when a persisted report's input digest no longer
+	// matches the manifests currently on disk. A stale report is evidence of
+	// an older computation, never a current deployment answer.
+	Stale          bool                               `json:"stale,omitempty"`
+	Provenance     DeploymentVerdictProvenance        `json:"provenance"`
 	Dependencies   []DeploymentDependencyNode         `json:"dependencies"`
 	Aggregates     map[string]DeploymentTierAggregate `json:"aggregates"`
 	BundleManifest BundleManifest                     `json:"bundle_manifest"`
 	MetadataGaps   *DeploymentMetadataGaps            `json:"metadata_gaps,omitempty"`
+}
+
+// DeploymentVerdictProvenance identifies the computation and the authored
+// manifests it consumed. The digest lets readers reject stale cached answers.
+type DeploymentVerdictProvenance struct {
+	Analyzer        string    `json:"analyzer"`
+	AnalyzerVersion string    `json:"analyzer_version"`
+	ComputedAt      time.Time `json:"computed_at"`
+	InputDigest     string    `json:"input_digest"`
 }
 
 // DeploymentDependencyNode is a node in the recursive dependency DAG.

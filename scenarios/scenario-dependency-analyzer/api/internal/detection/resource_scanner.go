@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -128,21 +129,25 @@ func (s *resourceScanner) detectResourceCLICommands(content, relPath, scenarioNa
 // usage is delegated to code-facts/go-code-graph in the
 // scenario-dependency-analyzer-code-evidence-via-ast-facts follow-up.
 func (s *resourceScanner) detectResourceHeuristics(content, relPath, scenarioName string, results map[string]types.ScenarioDependency) {
-	for _, heuristic := range resourceHeuristicCatalog {
-		for _, pattern := range heuristic.Patterns {
-			if pattern.MatchString(content) {
-				s.recordDetection(
-					results,
-					scenarioName,
-					heuristic.Name,
-					"heuristic",
-					pattern.String(),
-					relPath,
-					heuristic.Type,
-				)
-				break // Only record once per heuristic
+	for resourceName := range s.catalog.getResourceCatalog() {
+		for _, pattern := range resourceHeuristicPatterns(resourceName) {
+			if !pattern.MatchString(content) {
+				continue
 			}
+			s.recordDetection(results, scenarioName, resourceName, "heuristic", pattern.String(), relPath, "declared-resource")
+			break
 		}
+	}
+}
+
+func resourceHeuristicPatterns(resourceName string) []*regexp.Regexp {
+	name := regexp.QuoteMeta(normalizeName(resourceName))
+	upper := regexp.QuoteMeta(strings.ToUpper(normalizeName(resourceName)))
+	return []*regexp.Regexp{
+		regexp.MustCompile(`resource-` + name + `\b`),
+		regexp.MustCompile(`(?i)\b` + name + `://`),
+		regexp.MustCompile(`\b` + upper + `_(?:HOST|URL|API|BASE_URL|ENDPOINT|WEBHOOK|KEY)\b`),
+		regexp.MustCompile(`(?i)https?://[^"'\s]*\b` + name + `\b`),
 	}
 }
 

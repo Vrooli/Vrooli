@@ -27,26 +27,13 @@ const (
 
 var Known = []Def{
 	{
-		ID: "ai-gateway", Name: "AI Gateway",
-		Description:    "Governed inference gateway for classification, embeddings, and compaction summaries.",
-		DependencyKind: capabilityregistry.DependencyScenario, DependencySlug: "ai-gateway",
-		ActionKind: ActionKindScenarioStart, ActionLabel: "Start AI Gateway",
-		OperatorCommand: "vrooli scenario start ai-gateway --json",
-	},
-	{
-		ID: "search-hub", Name: "Search Hub",
-		Description:    "Optional federated search registration for source-ledger corpus discovery.",
-		DependencyKind: capabilityregistry.DependencyScenario, DependencySlug: "search-hub",
-		ActionKind: ActionKindScenarioStart, ActionLabel: "Start Search Hub",
-		OperatorCommand: "vrooli scenario start search-hub --json",
-	},
-	{
 		ID: "audio-tools", Name: "Audio Tools",
 		Description:    "Optional shared voice input and audio output for this scenario.",
 		DependencyKind: capabilityregistry.DependencyScenario, DependencySlug: "audio-tools",
 		ActionKind: ActionKindScenarioStart, ActionLabel: "Start Audio Tools",
 		OperatorCommand: "vrooli scenario start audio-tools --json",
 		Features:        []string{"voice-input", "voice-output"},
+		Platform:        capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformDegraded, Reason: "optional audio capability depends on the selected provider and host media path"},
 	},
 }
 

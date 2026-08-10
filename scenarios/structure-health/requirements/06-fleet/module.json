@@ -36,15 +36,15 @@
     {
       "id": "SH-FLEET-003",
       "title": "Enumerate and roll up all repository target kinds",
-      "status": "planned",
+      "status": "implemented",
       "prd_ref": "OT-P1-005",
       "category": "api",
       "criticality": "P1",
       "description": "The fleet scanner enumerates scenario, resource, tool, safeguard, package, control-plane, docs, team, and project targets, preserves their kind/id/path identity, and exposes typed rollups through the FleetService RPC.",
       "tags": ["fleet", "target-kind", "all-kind", "api"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "fleet/fleet_test.go asserts all nine target kinds are enumerated and retained in deterministic order."},
-        {"type": "manual", "status": "planned", "notes": "A live ScanFleet request with one representative target per kind returns nine typed entries."}
+        {"type": "unit", "status": "implemented", "notes": "fleet/fleet_test.go asserts all nine target kinds are enumerated and retained in deterministic order; the Structure Health CLI reachability test covers every declared kind."},
+        {"type": "manual", "status": "implemented", "notes": "Live `structure-health validate all --path . --json` traversed scenario, resource, tool, safeguard, team, package, control-plane, docs, and project targets."}
       ]
     },
     {

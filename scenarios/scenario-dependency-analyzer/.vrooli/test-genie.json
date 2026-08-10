@@ -13,7 +13,10 @@
     "contract": "scenario-validation/v1"
   },
   "applicability": {
-    "default": "applies"
+    "default": "not_applicable",
+    "all": [
+      {"hostOS": "linux"}
+    ]
   },
   "policy": {
     "selection": "default_when_applicable",

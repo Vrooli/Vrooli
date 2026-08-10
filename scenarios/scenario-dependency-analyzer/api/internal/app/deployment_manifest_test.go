@@ -270,90 +270,6 @@ func TestBuildBundleManifestFilesDiscovery(t *testing.T) {
 	}
 }
 
-func TestClassifyResource(t *testing.T) {
-	tests := []struct {
-		name         string
-		resourceName string
-		wantClass    deployment.ResourceClass
-	}{
-		{"DatabasePostgres", "postgres", deployment.ResourceClassDatabase},
-		{"CacheRedis", "redis", deployment.ResourceClassDatabase}, // redis is classified as database
-		{"AIServiceOllama", "ollama", deployment.ResourceClassAI},
-		{"BrowserBrowserless", "browserless", deployment.ResourceClassBrowser},
-		{"StorageMinio", "minio", deployment.ResourceClassStorage},
-		{"UnknownResource", "unknown-resource", deployment.ResourceClassService},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			classification := deployment.ClassifyResource(tt.resourceName)
-			if classification.Class != tt.wantClass {
-				t.Errorf("ClassifyResource(%q).Class = %q, want %q",
-					tt.resourceName, classification.Class, tt.wantClass)
-			}
-		})
-	}
-}
-
-func TestDecideTierFitness(t *testing.T) {
-	tests := []struct {
-		name          string
-		tier          string
-		resource      string
-		wantSupported bool
-		minScore      float64
-		maxScore      float64
-	}{
-		{
-			name:          "PostgresDesktopSupported",
-			tier:          "desktop",
-			resource:      "postgres",
-			wantSupported: true,
-			minScore:      0.5, // Should work but not optimal
-			maxScore:      1.0,
-		},
-		{
-			name:          "OllamaDesktopSupported",
-			tier:          "desktop",
-			resource:      "ollama",
-			wantSupported: true,
-			minScore:      0.5, // AI is heavy ops, lower score
-			maxScore:      1.0,
-		},
-		{
-			name:          "PostgresServerHighFitness",
-			tier:          "server",
-			resource:      "postgres",
-			wantSupported: true,
-			minScore:      0.9, // Server tier is ideal
-			maxScore:      1.0,
-		},
-		{
-			name:          "PostgresLocalPerfectFitness",
-			tier:          "local",
-			resource:      "postgres",
-			wantSupported: true,
-			minScore:      1.0, // Local development = everything works
-			maxScore:      1.0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			classification := deployment.ClassifyResource(tt.resource)
-			decision := deployment.DecideTierFitness(tt.tier, classification)
-			if decision.Supported != tt.wantSupported {
-				t.Errorf("DecideTierFitness(%q, %q).Supported = %v, want %v",
-					tt.tier, tt.resource, decision.Supported, tt.wantSupported)
-			}
-			if decision.FitnessScore < tt.minScore || decision.FitnessScore > tt.maxScore {
-				t.Errorf("DecideTierFitness(%q, %q).FitnessScore = %v, want between %v and %v",
-					tt.tier, tt.resource, decision.FitnessScore, tt.minScore, tt.maxScore)
-			}
-		})
-	}
-}
-
 func TestComputeTierAggregates(t *testing.T) {
 	supported := true
 	nodes := []types.DeploymentDependencyNode{
@@ -391,34 +307,33 @@ func TestComputeTierAggregates(t *testing.T) {
 }
 
 func TestDetectSecretRequirements(t *testing.T) {
+	manifestPath := filepath.Join(t.TempDir(), "resource.json")
+	if err := os.WriteFile(manifestPath, []byte(`{"credentials":{"descriptors":[{"logical_id":"custom/token","field":"token","label":"API token","description":"declared credential","required":true}]}}`), 0o644); err != nil {
+		t.Fatalf("write resource manifest: %v", err)
+	}
 	nodes := []types.DeploymentDependencyNode{
-		{Name: "postgres", Type: "resource"},
-		{Name: "redis", Type: "resource"},
-		{Name: "ollama", Type: "resource"},
+		{Name: "custom-resource", Type: "resource", Path: manifestPath},
 	}
 
 	secrets := deployment.DetectSecretRequirements(nodes)
 
-	// Should detect postgres needs credentials
-	var foundPostgresSecret bool
+	var foundDeclaredSecret bool
 	for _, secret := range secrets {
-		if secret.DependencyName == "postgres" {
-			foundPostgresSecret = true
+		if secret.DependencyName == "custom-resource" {
+			foundDeclaredSecret = true
 			if secret.SecretType == "" {
 				t.Error("postgres secret should have a type")
 			}
 		}
 	}
-	if !foundPostgresSecret {
-		t.Error("expected postgres secret requirement to be detected")
+	if !foundDeclaredSecret {
+		t.Error("expected declared credential requirement to be detected")
 	}
 }
 
 func TestSuggestResourceSwaps(t *testing.T) {
 	nodes := []types.DeploymentDependencyNode{
-		{Name: "postgres", Type: "resource"},
-		{Name: "redis", Type: "resource"},
-		{Name: "unknown-resource", Type: "resource"},
+		{Name: "custom-resource", Type: "resource", Alternatives: []string{"declared-peer"}},
 	}
 
 	swaps := deployment.SuggestResourceSwaps(nodes)
@@ -428,14 +343,8 @@ func TestSuggestResourceSwaps(t *testing.T) {
 		swapMap[swap.OriginalResource] = append(swapMap[swap.OriginalResource], swap.AlternativeResource)
 	}
 
-	// Postgres should suggest sqlite
-	if len(swapMap["postgres"]) == 0 {
-		t.Error("expected postgres swap suggestions")
-	}
-
-	// Redis should suggest embedded alternatives
-	if len(swapMap["redis"]) == 0 {
-		t.Error("expected redis swap suggestions")
+	if len(swapMap["custom-resource"]) != 1 || swapMap["custom-resource"][0] != "declared-peer" {
+		t.Errorf("expected declared alternative, got %v", swapMap)
 	}
 }
 
