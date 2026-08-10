@@ -4,6 +4,7 @@
   "name": "graph-sustained-pan",
   "folder_path": "/bas/flows",
   "description": "Interaction performance capture for sustained driver-level panning on the canonical Graph surface.",
+  "metadata": { "name": "graph-sustained-pan", "description": "Sustained Graph panning performance capture.", "execution_mode": "mutating", "labels": { "requires_confirmation": "true", "routed_isolation": "true" } },
   "tags": [
     "intent:performance",
     "reset:none",

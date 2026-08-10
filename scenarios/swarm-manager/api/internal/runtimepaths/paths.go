@@ -16,6 +16,21 @@ func resolver() (*storage.Resolver, error) {
 	})
 }
 
+// Paths resolves the primary class roots used by the API's durable file
+// stores. Request-scoped mutating handlers pair these roots with
+// filerouting.RoutedRoots so a Test Genie lease can replace them atomically.
+func Paths() (storage.Paths, error) {
+	r, err := resolver()
+	if err != nil {
+		return storage.Paths{}, err
+	}
+	ns, err := storage.ScenarioNamespace(scenarioID)
+	if err != nil {
+		return storage.Paths{}, err
+	}
+	return r.Resolve(storage.Options{ScenarioID: ns})
+}
+
 func pathFor(class storage.Class, rel string) (string, error) {
 	r, err := resolver()
 	if err != nil {

@@ -52,6 +52,49 @@ describe("ReviewDecisionCard", () => {
     expect(screen.getByText("settled")).toBeInTheDocument();
   });
 
+  it("warns about criteria that are actually unsettled, not about missing props", () => {
+    // The old warning fired whenever `criteria` was empty, which in the
+    // decision stream was always, because the call site never passed it.
+    const criteria = [
+      { $typeName: "vrooli.swarm_manager.v1.shared.BacklogCriterion", id: "c1", gherkin: "Proven by evidence." },
+      { $typeName: "vrooli.swarm_manager.v1.shared.BacklogCriterion", id: "c2", gherkin: "Nothing proves this yet." },
+    ] as BacklogCriterion[];
+    const evidence = [{ id: "e1", type: "api_test", title: "t", description: "d", verified: true, criterion_id: "c1", settlement: "settled" }] as EvidenceItem[];
+    renderWithProviders(<ReviewDecisionCard kind="execute" name="item-a" round={{ ...baseRound, evidence }} criteria={criteria} onDecided={vi.fn()} />);
+
+    expect(screen.getByText("1 of 2 criteria unsettled. Accepting closes them as delivered.")).toBeInTheDocument();
+    expect(screen.queryByText(/no typed criteria/)).not.toBeInTheDocument();
+    expect(screen.getByText("unsettled")).toBeInTheDocument();
+  });
+
+  it("confirms when every criterion is settled", () => {
+    const criteria = [{ $typeName: "vrooli.swarm_manager.v1.shared.BacklogCriterion", id: "c1", gherkin: "Proven." }] as BacklogCriterion[];
+    const evidence = [{ id: "e1", type: "api_test", title: "t", description: "d", verified: true, criterion_id: "c1", settlement: "settled" }] as EvidenceItem[];
+    renderWithProviders(<ReviewDecisionCard kind="execute" name="item-a" round={{ ...baseRound, evidence }} criteria={criteria} onDecided={vi.fn()} />);
+    expect(screen.getByText("All 1 criteria settled by evidence.")).toBeInTheDocument();
+  });
+
+  it("still warns when the item genuinely has no typed criteria", () => {
+    renderWithProviders(<ReviewDecisionCard kind="execute" name="item-a" round={baseRound} criteria={[]} onDecided={vi.fn()} />);
+    expect(screen.getByText(/no typed criteria/)).toBeInTheDocument();
+  });
+
+  it("remembers the operator identity across decisions", async () => {
+    decide.mockResolvedValue({});
+    window.localStorage.clear();
+    const first = renderWithProviders(<ReviewDecisionCard kind="execute" name="item-a" round={baseRound} onDecided={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Operator identity"), { target: { value: "matthalloran8" } });
+    fireEvent.click(screen.getByLabelText("Agree with the review's assessment"));
+    fireEvent.click(screen.getByRole("button", { name: /Accept/ }));
+    await waitFor(() => expect(decide).toHaveBeenCalled());
+    first.unmount();
+
+    // A queue of hundreds of decisions must not demand the same keystrokes
+    // each time; a retyped-and-typo'd actor splits one person's audit trail.
+    renderWithProviders(<ReviewDecisionCard kind="execute" name="item-b" round={baseRound} onDecided={vi.fn()} />);
+    expect(screen.getByLabelText("Operator identity")).toHaveValue("matthalloran8");
+  });
+
   it("opens the prepared follow-up path only after saving Send back", async () => {
     decide.mockResolvedValue({});
     const onSendBack = vi.fn();

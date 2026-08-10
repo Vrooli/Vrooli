@@ -1,4 +1,12 @@
 {
+  "metadata": {
+    "name": "plan-workshop-open-policy",
+    "description": "Verify the explicit review-only Plan Workshop policy and absence of automatic rounds.",
+    "requirement": "SWM-P0-003",
+    "version": "1",
+    "execution_mode": "mutating",
+    "labels": { "reset": "none", "requires_confirmation": "true", "routed_isolation": "true" }
+  },
   "id": "c510757f-19b0-4baf-9599-67730a26f3f4",
   "project_id": "5139074a-06f7-4b93-a47f-9a9aaf3b4cd4",
   "name": "plan-workshop-open-policy",

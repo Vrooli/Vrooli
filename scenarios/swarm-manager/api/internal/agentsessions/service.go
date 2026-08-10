@@ -96,6 +96,13 @@ type Service struct {
 	eventDispatcher           dispatch.Invalidator
 }
 
+func (s *Service) storeFor(ctx context.Context) (Store, error) {
+	if routed, ok := s.store.(ContextStore); ok {
+		return routed.ForContext(ctx)
+	}
+	return s.store, nil
+}
+
 // SetEventDispatcher installs the graph invalidation seam. Proposal state is
 // read by cross-domain projections — the operator inbox counts pending
 // decisions per entity — so a proposal write must announce itself the same way
@@ -107,8 +114,12 @@ func (s *Service) SetEventDispatcher(invalidator dispatch.Invalidator) {
 // saveProposal is the single durable write path for proposal state. Every
 // proposal write goes through it so the announcement cannot be forgotten at a
 // new call site.
-func (s *Service) saveProposal(sessionID string, proposal Proposal) error {
-	if err := s.store.SaveProposal(sessionID, proposal); err != nil {
+func (s *Service) saveProposal(ctx context.Context, sessionID string, proposal Proposal) error {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return err
+	}
+	if err := store.SaveProposal(sessionID, proposal); err != nil {
 		return err
 	}
 	if s.eventDispatcher != nil {
@@ -198,6 +209,10 @@ func (s *Service) SetMutationProposalProcessor(processor MutationProposalProcess
 }
 
 func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, err
+	}
 	req.Title = strings.TrimSpace(req.Title)
 	if !IsKnownKind(req.Kind) {
 		return Session{}, apierr.BadRequest("session kind is invalid")
@@ -227,19 +242,23 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error
 	if req.ProposalTarget != nil {
 		session.SkillID = SkillProposals
 	}
-	if err := s.store.CreateSession(session); err != nil {
+	if err := store.CreateSession(session); err != nil {
 		return Session{}, err
 	}
 	s.emitCreated(session)
-	return s.store.LoadSession(session.ID)
+	return store.LoadSession(session.ID)
 }
 
 func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, err
+	}
 	messageText := strings.TrimSpace(req.Message)
 	if messageText == "" && len(req.AttachmentIDs) == 0 && len(req.ContextRefs) == 0 {
 		return Session{}, apierr.BadRequest("message, attachment, or context is required")
 	}
-	session, err := s.store.LoadSession(strings.TrimSpace(req.SessionID))
+	session, err := store.LoadSession(strings.TrimSpace(req.SessionID))
 	if err != nil {
 		return Session{}, mapStoreError(err)
 	}
@@ -267,12 +286,12 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 		AttachmentIDs: append([]string(nil), req.AttachmentIDs...),
 		Context:       contextItems,
 	}
-	if err := s.store.AppendMessage(session.ID, userMessage); err != nil {
+	if err := store.AppendMessage(session.ID, userMessage); err != nil {
 		return Session{}, err
 	}
 	session.Status = StatusStarting
 	session.UpdatedAt = now
-	if err := s.store.SaveSession(session); err != nil {
+	if err := store.SaveSession(session); err != nil {
 		return Session{}, err
 	}
 
@@ -295,7 +314,7 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 		failed.Status = StatusFailed
 		failed.FailureReason = err.Error()
 		failed.UpdatedAt = nowRFC3339()
-		if err := s.store.SaveSession(failed); err != nil {
+		if err := store.SaveSession(failed); err != nil {
 			slog.Warn("agentsessions: persist session failed", "session", failed.ID, "err", err)
 		}
 		s.emitFailed(failed)
@@ -306,15 +325,19 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 	session.RunID = strings.TrimSpace(run.RunID)
 	session.Status = StatusRunning
 	session.UpdatedAt = nowRFC3339()
-	if err := s.store.SaveSession(session); err != nil {
+	if err := store.SaveSession(session); err != nil {
 		return Session{}, err
 	}
 	s.emitStarted(session)
-	return s.store.LoadSession(session.ID)
+	return store.LoadSession(session.ID)
 }
 
 func (s *Service) List(ctx context.Context, filters ListFilters) ([]Session, error) {
-	sessions, err := s.store.ListSessions(filters)
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sessions, err := store.ListSessions(filters)
 	if err != nil {
 		return nil, err
 	}
@@ -357,7 +380,11 @@ func (s *Service) ResolveSessionForRun(ctx context.Context, runID string) (ident
 }
 
 func (s *Service) Get(ctx context.Context, sessionID string) (Session, error) {
-	session, err := s.store.LoadSession(strings.TrimSpace(sessionID))
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
 	if err != nil {
 		return Session{}, mapStoreError(err)
 	}
@@ -380,11 +407,15 @@ func (s *Service) hydrateArtifacts(ctx context.Context, session *Session) error 
 }
 
 func (s *Service) Continue(ctx context.Context, req ContinueRequest) (Session, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, err
+	}
 	messageText := strings.TrimSpace(req.Message)
 	if messageText == "" && len(req.AttachmentIDs) == 0 && len(req.ContextRefs) == 0 {
 		return Session{}, apierr.BadRequest("message, attachment, or context is required")
 	}
-	session, err := s.store.LoadSession(strings.TrimSpace(req.SessionID))
+	session, err := store.LoadSession(strings.TrimSpace(req.SessionID))
 	if err != nil {
 		return Session{}, mapStoreError(err)
 	}
@@ -408,12 +439,12 @@ func (s *Service) Continue(ctx context.Context, req ContinueRequest) (Session, e
 		Context:       contextItems,
 		CreatedAt:     now,
 	}
-	if err := s.store.AppendMessage(session.ID, message); err != nil {
+	if err := store.AppendMessage(session.ID, message); err != nil {
 		return Session{}, err
 	}
 	session.Status = StatusRunning
 	session.UpdatedAt = now
-	if err := s.store.SaveSession(session); err != nil {
+	if err := store.SaveSession(session); err != nil {
 		return Session{}, err
 	}
 
@@ -422,18 +453,22 @@ func (s *Service) Continue(ctx context.Context, req ContinueRequest) (Session, e
 		session.Status = StatusFailed
 		session.FailureReason = err.Error()
 		session.UpdatedAt = nowRFC3339()
-		if err := s.store.SaveSession(session); err != nil {
+		if err := store.SaveSession(session); err != nil {
 			slog.Warn("agentsessions: persist session failed", "session", session.ID, "err", err)
 		}
 		s.emitFailed(session)
 		return Session{}, mapSpawnError(err)
 	}
 	s.emitContinued(session)
-	return s.store.LoadSession(session.ID)
+	return store.LoadSession(session.ID)
 }
 
 func (s *Service) Refresh(ctx context.Context, sessionID string) (Session, error) {
-	session, err := s.store.LoadSession(strings.TrimSpace(sessionID))
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
 	if err != nil {
 		return Session{}, mapStoreError(err)
 	}
@@ -456,7 +491,7 @@ func (s *Service) Refresh(ctx context.Context, sessionID string) (Session, error
 		changed = true
 	}
 	if changed {
-		if err := s.store.SaveSession(session); err != nil {
+		if err := store.SaveSession(session); err != nil {
 			return Session{}, err
 		}
 	}
@@ -474,7 +509,7 @@ func (s *Service) Refresh(ctx context.Context, sessionID string) (Session, error
 		if enricher, ok := s.contextResolver.(MessageReferenceEnricher); ok {
 			assistantMessage.Context = enricher.EnrichMessageReferences(ctx, assistantMessage.Content)
 		}
-		if err := s.store.AppendMessage(session.ID, assistantMessage); err != nil {
+		if err := store.AppendMessage(session.ID, assistantMessage); err != nil {
 			return Session{}, err
 		}
 		if err := s.ingestMutationProposal(ctx, session, assistantMessage.Content); err != nil {
@@ -489,7 +524,7 @@ func (s *Service) Refresh(ctx context.Context, sessionID string) (Session, error
 			s.emitCompleted(session)
 		}
 	}
-	return s.store.LoadSession(session.ID)
+	return store.LoadSession(session.ID)
 }
 
 func shouldAppendAssistantSummary(session Session, summary string) bool {
@@ -507,7 +542,11 @@ func shouldAppendAssistantSummary(session Session, summary string) bool {
 }
 
 func (s *Service) Cancel(ctx context.Context, sessionID string) (Session, error) {
-	session, err := s.store.LoadSession(strings.TrimSpace(sessionID))
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
 	if err != nil {
 		return Session{}, mapStoreError(err)
 	}
@@ -518,15 +557,19 @@ func (s *Service) Cancel(ctx context.Context, sessionID string) (Session, error)
 	}
 	session.Status = StatusCanceled
 	session.UpdatedAt = nowRFC3339()
-	if err := s.store.SaveSession(session); err != nil {
+	if err := store.SaveSession(session); err != nil {
 		return Session{}, err
 	}
 	s.emitCanceled(session)
-	return s.store.LoadSession(session.ID)
+	return store.LoadSession(session.ID)
 }
 
 func (s *Service) Delete(ctx context.Context, sessionID string) error {
-	session, err := s.store.LoadSession(strings.TrimSpace(sessionID))
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
 	if err != nil {
 		return mapStoreError(err)
 	}
@@ -535,7 +578,7 @@ func (s *Service) Delete(ctx context.Context, sessionID string) error {
 			return mapSpawnError(err)
 		}
 	}
-	if err := s.store.DeleteSession(session.ID); err != nil {
+	if err := store.DeleteSession(session.ID); err != nil {
 		return mapStoreError(err)
 	}
 	s.emitDeleted(session)

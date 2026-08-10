@@ -1,12 +1,48 @@
 package agentsessions
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
+
+func TestRoutedFileStoreUsesLeasedDataRoot(t *testing.T) {
+	primary := t.TempDir()
+	leased := t.TempDir()
+	paths := func(root string) storage.Paths {
+		return storage.Paths{DataDir: filepath.Join(root, "data")}
+	}
+	roots := filerouting.New(paths(primary))
+	if err := roots.InstallTestRoots(paths(leased), "session-lease", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	store := NewRoutedFileStore(roots)
+	scoped, err := store.ForContext(database.WithTestMode(context.Background()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	session := validStoredSession("sess_routed")
+	if err := scoped.CreateSession(session); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(leased, "data", "agent-sessions", session.ID, sessionFileName)); err != nil {
+		t.Fatalf("leased session missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(primary, "data", "agent-sessions", session.ID, sessionFileName)); !os.IsNotExist(err) {
+		t.Fatalf("primary session unexpectedly exists: %v", err)
+	}
+	if got := roots.LeaseStats().TestRootWrites; got == 0 {
+		t.Fatal("expected routed store to record a leased-root write")
+	}
+}
 
 func TestFileStoreReadsLegacyArtifactsForMigration(t *testing.T) {
 	store := NewFileStore(t.TempDir())

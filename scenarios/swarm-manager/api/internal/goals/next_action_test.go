@@ -1,6 +1,7 @@
 package goals
 
 import (
+	"strings"
 	"testing"
 
 	"swarm-manager/internal/backlog"
@@ -63,5 +64,31 @@ func TestGoalFunnelNeverHidesMilestoneWithoutCriteria(t *testing.T) {
 				t.Fatalf("status %q action = %+v, want enabled define_criteria", status, action)
 			}
 		})
+	}
+}
+
+// The milestone-review action is derived purely from state: no evidence has
+// been gathered when it fires, and pressing it dispatches an agent to gather
+// some. Copy that says evidence is "awaiting review" sends the operator
+// hunting for a packet that does not exist, which is exactly what happened.
+func TestMilestoneReviewCopyDoesNotClaimEvidenceExists(t *testing.T) {
+	action, _ := ResolveNextAction(Goal{Status: StatusActive}, NextActionInput{ReviewMilestone: "graph-workspace"})
+
+	if action.Target != "milestone_review:graph-workspace" {
+		t.Fatalf("Target = %q, want the milestone carried through for deep-linking", action.Target)
+	}
+	for _, forbidden := range []string{"awaiting evidence review", "awaiting review"} {
+		if strings.Contains(strings.ToLower(action.Reason), forbidden) {
+			t.Errorf("Reason implies gathered evidence is waiting: %q", action.Reason)
+		}
+	}
+	// It must say what pressing the button does.
+	lowered := strings.ToLower(action.Reason + " " + action.CompactLabel + " " + action.ExpandedLabel)
+	if !strings.Contains(lowered, "start") {
+		t.Errorf("neither the labels nor the reason say a review is started: %q / %q / %q",
+			action.CompactLabel, action.ExpandedLabel, action.Reason)
+	}
+	if !strings.Contains(strings.ToLower(action.Reason), "acceptance criteria") {
+		t.Errorf("Reason does not say what the review grades against: %q", action.Reason)
 	}
 }

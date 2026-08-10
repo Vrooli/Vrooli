@@ -26,19 +26,15 @@ const (
 	StatusUnavailable       = capabilityregistry.StatusUnavailable
 )
 
-var Known = []Def{
-	{ID: "agent-manager", Name: "Agent Manager", Description: "Sandboxed agent execution for swarm-manager dispatch.", DependencyKind: DependencyScenario, DependencySlug: "agent-manager", ActionKind: capabilityregistry.ActionKindScenarioStart, ActionLabel: "Start Agent Manager", OperatorCommand: "vrooli scenario start agent-manager --json"},
-	{ID: "audio-tools", Name: "Audio Tools", Description: "Speech input and audio output for swarm-manager composer and assistant sessions.", DependencyKind: DependencyScenario, DependencySlug: "audio-tools", Features: []string{"voice-input", "voice-output"}, ActionKind: capabilityregistry.ActionKindScenarioStart, ActionLabel: "Start Audio Tools", OperatorCommand: "vrooli scenario start audio-tools --json"},
-	{ID: "git-control-tower", Name: "Git Control Tower", Description: "Repository baseline and change-control operations for swarm-manager.", DependencyKind: DependencyScenario, DependencySlug: "git-control-tower", ActionKind: capabilityregistry.ActionKindScenarioStart, ActionLabel: "Start Git Control Tower", OperatorCommand: "vrooli scenario start git-control-tower --json"},
-	{ID: "knowledge-observatory", Name: "Knowledge Observatory", Description: "Durable knowledge and observability support for swarm-manager.", DependencyKind: DependencyScenario, DependencySlug: "knowledge-observatory", ActionKind: capabilityregistry.ActionKindScenarioStart, ActionLabel: "Start Knowledge Observatory", OperatorCommand: "vrooli scenario start knowledge-observatory --json"},
-	{ID: "plan-manager", Name: "Plan Manager", Description: "Plan execution and evidence tracking for swarm-manager.", DependencyKind: DependencyScenario, DependencySlug: "plan-manager", ActionKind: capabilityregistry.ActionKindScenarioStart, ActionLabel: "Start Plan Manager", OperatorCommand: "vrooli scenario start plan-manager --json"},
-	{ID: "prompt-manager", Name: "Prompt Manager", Description: "Prompt and skill discovery support for swarm-manager.", DependencyKind: DependencyScenario, DependencySlug: "prompt-manager", ActionKind: capabilityregistry.ActionKindScenarioStart, ActionLabel: "Start Prompt Manager", OperatorCommand: "vrooli scenario start prompt-manager --json"},
-	{ID: "scenario-completeness-scoring", Name: "Scenario Completeness Scoring", Description: "Completeness scoring support for swarm-manager work products.", DependencyKind: DependencyScenario, DependencySlug: "scenario-completeness-scoring", ActionKind: capabilityregistry.ActionKindScenarioStart, ActionLabel: "Start Completeness Scoring", OperatorCommand: "vrooli scenario start scenario-completeness-scoring --json"},
-	{ID: "test-genie", Name: "Test Genie", Description: "Server-owned scenario validation and evidence collection.", DependencyKind: DependencyScenario, DependencySlug: "test-genie", ActionKind: capabilityregistry.ActionKindScenarioStart, ActionLabel: "Start Test Genie", OperatorCommand: "vrooli scenario start test-genie --json"},
-	{ID: "visited-tracker", Name: "Visited Tracker", Description: "Visited-state tracking support for swarm-manager navigation.", DependencyKind: DependencyScenario, DependencySlug: "visited-tracker", ActionKind: capabilityregistry.ActionKindScenarioStart, ActionLabel: "Start Visited Tracker", OperatorCommand: "vrooli scenario start visited-tracker --json"},
-	{ID: "ollama", Name: "Ollama", Description: "Local model inference for swarm-manager assistance.", DependencyKind: capabilityregistry.DependencyResource, DependencySlug: "ollama", ActionKind: capabilityregistry.ActionKindOwnerGuidance, ActionLabel: "Review Ollama", OperatorCommand: "vrooli resource status ollama --json"},
-	{ID: "qdrant", Name: "Qdrant", Description: "Vector search storage for swarm-manager knowledge features.", DependencyKind: capabilityregistry.DependencyResource, DependencySlug: "qdrant", ActionKind: capabilityregistry.ActionKindOwnerGuidance, ActionLabel: "Review Qdrant", OperatorCommand: "vrooli resource status qdrant --json"},
+type RegistryMetadata struct {
+	Platform capabilityregistry.PlatformVerdict `json:"platform"`
 }
+
+var Metadata = RegistryMetadata{Platform: capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformSupported, Reason: "Swarm orchestration and durable work records are host-neutral; provider constraints are declared by their manifests."}}
+
+// Known contains optional capabilities only. service.json is the source of
+// truth for declared resource and scenario dependencies.
+var Known = []Def{}
 
 // NewRegistry is the single registry construction seam used by future API
 // capability handlers. Concrete HTTP checkers remain scenario-owned.

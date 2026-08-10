@@ -691,10 +691,15 @@ func emptyDash(s string) string {
 	return s
 }
 
+// truncate limits s to n characters. It counts runes rather than bytes:
+// slicing a byte offset splits multi-byte characters and emits replacement
+// glyphs, which shows up wherever a description contains an em dash or an
+// accented name.
 func truncate(s string, n int) string {
 	s = strings.TrimSpace(s)
-	if len(s) <= n {
+	runes := []rune(s)
+	if len(runes) <= n {
 		return s
 	}
-	return s[:n] + "..."
+	return string(runes[:n]) + "..."
 }

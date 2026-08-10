@@ -2,7 +2,7 @@
  * GoalDetailsPage — inspect a goal's targets, computed scope, blockers, and ETA.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -243,8 +243,16 @@ function ScopeHistory({ goal }: { goal: GoalWithScope["goal"] }) {
   );
 }
 
-function MilestoneGroups({ milestones, entities, onEdit, onArchive, onManageItems }: { milestones: GoalMilestone[]; entities?: GoalScopeEntities; onEdit: (milestone: GoalMilestone) => void; onArchive: (milestone: GoalMilestone) => void; onManageItems: (milestone: GoalMilestone) => void }) {
+function MilestoneGroups({ milestones, entities, highlightMilestone, onEdit, onArchive, onManageItems }: { milestones: GoalMilestone[]; entities?: GoalScopeEntities; highlightMilestone?: string; onEdit: (milestone: GoalMilestone) => void; onArchive: (milestone: GoalMilestone) => void; onManageItems: (milestone: GoalMilestone) => void }) {
   const active = milestones.filter((milestone) => !milestone.archivedAt);
+  const highlightRef = useRef<HTMLDivElement | null>(null);
+
+  // A decision-stream card that is about one milestone deep-links to it. Land
+  // the operator on that milestone rather than the top of the goal.
+  useEffect(() => {
+    if (!highlightMilestone) return;
+    highlightRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [highlightMilestone, active.length]);
   if (active.length === 0) {
     return <p className="text-sm text-slate-500">This goal does not have milestone groups yet.</p>;
   }
@@ -252,8 +260,13 @@ function MilestoneGroups({ milestones, entities, onEdit, onArchive, onManageItem
   return (
     <div>
       {active.map((milestone) => (
-        <DetailSection
+        <div
           key={milestone.name}
+          ref={milestone.name === highlightMilestone ? highlightRef : undefined}
+          className={milestone.name === highlightMilestone ? "rounded-lg ring-2 ring-cyan-400/60" : undefined}
+          data-testid={milestone.name === highlightMilestone ? "goal-milestone-highlighted" : undefined}
+        >
+        <DetailSection
           title={milestone.title || milestone.name}
           action={<div className="flex gap-1"><button type="button" onClick={() => onManageItems(milestone)} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white" aria-label={`Manage ${milestone.title || milestone.name} items`}><Target className="h-3.5 w-3.5" /></button><button type="button" onClick={() => onEdit(milestone)} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white" aria-label={`Edit ${milestone.title || milestone.name}`}><Edit className="h-3.5 w-3.5" /></button><button type="button" onClick={() => onArchive(milestone)} className="rounded p-1 text-slate-400 hover:bg-red-500/10 hover:text-red-300" aria-label={`Archive ${milestone.title || milestone.name}`}><Archive className="h-3.5 w-3.5" /></button></div>}
           storageKey={`goal.milestone.${milestone.name}`}
@@ -266,6 +279,7 @@ function MilestoneGroups({ milestones, entities, onEdit, onArchive, onManageItem
             <RefList refs={milestone.items} emptyText="No work assigned to this milestone yet." entities={entities} />
           </div>
         </DetailSection>
+        </div>
       ))}
     </div>
   );
@@ -594,7 +608,7 @@ export function GoalDetailsPage() {
         </DetailSection>}
 
         {activeTab === "milestones" && <DetailSection title="Milestone Groups" icon={ListChecks} storageKey="goal.milestones" data-testid="goal-milestones" action={<button type="button" onClick={() => { setMilestoneEditor(null); setMilestoneDraft({ name: "", title: "", description: "", items: [], acceptanceCriteria: [], dependsOn: [] }); }} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-cyan-300 hover:bg-cyan-500/10"><Plus className="h-3.5 w-3.5" />Add</button>}>
-          <MilestoneGroups milestones={goal.milestones} entities={query.data.scopeEntities} onEdit={(milestone) => { setMilestoneEditor(milestone); setMilestoneDraft({ ...milestone }); }} onArchive={(milestone) => archiveMilestoneMutation.mutate(milestone.name)} onManageItems={(milestone) => { setMilestoneItemEditor(milestone); setMilestoneItemDraft(milestone.items); }} />
+          <MilestoneGroups milestones={goal.milestones} entities={query.data.scopeEntities} highlightMilestone={searchParams.get("milestone") ?? undefined} onEdit={(milestone) => { setMilestoneEditor(milestone); setMilestoneDraft({ ...milestone }); }} onArchive={(milestone) => archiveMilestoneMutation.mutate(milestone.name)} onManageItems={(milestone) => { setMilestoneItemEditor(milestone); setMilestoneItemDraft(milestone.items); }} />
         </DetailSection>}
 
         {activeTab === "overview" && <DetailSection title="Ready Work" icon={ListChecks} storageKey="goal.ready-work" data-testid="goal-ready">

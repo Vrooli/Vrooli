@@ -4,6 +4,7 @@
   "name": "plan-decision-drawer",
   "folder_path": "/bas/flows",
   "description": "Performance capture for the ranked decision drawer. Opens /plan with the decision drawer routed open, waits for the ranked next-action list, and records how many entries rendered.",
+  "metadata": { "name": "plan-decision-drawer", "description": "Plan decision drawer performance capture.", "execution_mode": "mutating", "labels": { "requires_confirmation": "true", "routed_isolation": "true" } },
   "tags": [
     "intent:performance",
     "reset:none",

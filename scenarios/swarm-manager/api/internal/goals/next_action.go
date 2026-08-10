@@ -55,7 +55,18 @@ func ResolveNextAction(goal Goal, input NextActionInput) (backlog.NextActionProj
 		return goalAction(backlog.NextActionDecide, "Decide", "Review goal proposal", "A proposed goal change is waiting for an operator decision.", "proposal_decision"), ""
 	}
 	if input.ReviewMilestone != "" {
-		return goalAction(backlog.NextActionReview, "Review", "Review milestone evidence", "A delivered milestone is awaiting evidence review.", "milestone_review:"+input.ReviewMilestone), ""
+		// Wording matters here: no evidence exists yet. This action is derived
+		// purely from state (every member item terminal, criteria present, not
+		// yet verified), and the operator's move is to *start* a review that
+		// gathers the evidence. "Awaiting evidence review" read as though a
+		// gathered packet were already sitting somewhere to be found.
+		return goalAction(
+			backlog.NextActionReview,
+			"Start review",
+			"Start milestone review",
+			"Every item in this milestone is complete. Starting a review dispatches an agent to gather evidence against its acceptance criteria; you decide on that evidence afterwards.",
+			"milestone_review:"+input.ReviewMilestone,
+		), ""
 	}
 	if milestone := MilestoneMissingCriteria(goal); milestone != "" {
 		return goalAction(backlog.NextActionDefineCriteria, "Define criteria", "Define milestone criteria", "This milestone needs acceptance criteria before it can be independently reviewed.", "milestone_criteria:"+milestone), ""

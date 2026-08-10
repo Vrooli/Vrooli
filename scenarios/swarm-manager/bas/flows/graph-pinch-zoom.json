@@ -4,6 +4,7 @@
   "name": "graph-pinch-zoom",
   "folder_path": "/bas/flows",
   "description": "Pinch-style interaction performance capture for the canonical Graph surface. Current BAS pinch support is wheel-backed, so this is a separate marked workload rather than proof of true multi-touch parity.",
+  "metadata": { "name": "graph-pinch-zoom", "description": "Pinch-style Graph interaction performance capture.", "execution_mode": "mutating", "labels": { "requires_confirmation": "true", "routed_isolation": "true" } },
   "tags": [
     "intent:performance",
     "reset:none",

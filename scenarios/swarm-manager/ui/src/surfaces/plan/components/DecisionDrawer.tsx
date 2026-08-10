@@ -17,6 +17,7 @@ import { DecisionStreamView } from "../../../components/command-post/DecisionStr
 import { ProposalDecisionStreamView, type ProposalDecisionStreamItem } from "../../../components/command-post/ProposalDecisionStreamView";
 import { ReviewDecisionCard } from "../../../components/backlog/activity-surface/review-decision-card";
 import { RunSheet, type RunSheetTarget } from "../../../components/backlog/run-sheet";
+import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { Drawer } from "../../../components/ui/drawer";
 import { Input } from "../../../components/ui/input";
 import { Popover } from "../../../components/ui/popover";
@@ -32,10 +33,39 @@ import { buildActiveBacklogKeys, useBacklogStore } from "../../../stores/backlog
 import { useSnoozeStore, useSnoozedKeys } from "../../../stores/snooze-store";
 import { nextActionIcon } from "../../../types/constants";
 import type { BacklogKind } from "../../../types";
+import type { GoalMilestone } from "../../../types/goal";
 
 const SNOOZE_MS = 3_600_000;
 /** Rows rendered in the jump list before asking the operator to filter. */
 const NAVIGATOR_VISIBLE_LIMIT = 100;
+
+/** Milestone name carried by a milestone-scoped action target, if any. */
+function milestoneTargetOf(actionTarget: string | undefined): string {
+  for (const prefix of ["milestone_review:", "milestone_criteria:"]) {
+    if (actionTarget?.startsWith(prefix)) return actionTarget.slice(prefix.length);
+  }
+  return "";
+}
+
+/**
+ * Detects the auto-generated milestone criterion that names nothing checkable
+ * ("…when the milestone is independently reviewed, then its described outcome
+ * is delivered with supporting evidence"). The server's `define_criteria`
+ * action only fires on *zero* criteria, so a milestone carrying one of these
+ * looks covered while being unreviewable in practice.
+ */
+function isBoilerplateCriterion(criterion: string): boolean {
+  const text = criterion.toLowerCase();
+  return text.includes("is independently reviewed")
+    && text.includes("described outcome is delivered");
+}
+
+/** Direct actions that remove or interrupt state, so they confirm first. */
+const DESTRUCTIVE_ACTION_IDS = new Set(["archive"]);
+
+const DESTRUCTIVE_ACTION_CONSEQUENCE: Record<string, string> = {
+  archive: "It leaves the backlog and the decision queue. Items depending on it keep their edges until retargeted. Reversible with the unarchive action.",
+};
 
 type EntryVariant = "proposal" | "question" | "review" | "followup" | "action";
 
@@ -84,9 +114,13 @@ export function DecisionDrawer({ isOpen, onClose, scopeItemKey, currentQuestionI
     return scopeItemKey ? all.filter((question) => `${question.parentKind}/${question.parentName}` === scopeItemKey) : all;
   }, [summaryQuery.data?.pending_questions, snoozedKeys, activeItemKeys, scopeItemKey]);
 
+  // Keep recommendations need an explicit accept just as mutation lists do, so
+  // they belong in the queue. Filtering on `kind === "mutation_list"` alone
+  // made them undecidable from here — the only surface that could accept one
+  // was the item's own proposals panel.
   const proposals = useMemo<ProposalDecisionStreamItem[]>(
     () => (proposalQuery.data ?? []).flatMap((session) => (session.proposals ?? [])
-      .filter((proposal) => proposal.kind === "mutation_list" && proposal.status === "ready")
+      .filter((proposal) => (proposal.kind === "mutation_list" || proposal.kind === "no_change_recommendation") && proposal.status === "ready")
       .map((proposal) => ({ sessionId: session.id, sessionTitle: session.title, proposal, target: session.proposal_target }))),
     [proposalQuery.data],
   );
@@ -119,7 +153,12 @@ export function DecisionDrawer({ isOpen, onClose, scopeItemKey, currentQuestionI
       if (kind && name) navigate(`${backlogDetailPath(kind as BacklogKind, name)}${suffix}`);
       return;
     }
-    navigate(`/goals/${target.entity_ref}${suffix}`);
+    // A milestone-scoped action opened the goal's overview and left the
+    // operator to hunt for the milestone the card was actually about. Carry
+    // the milestone through so the page can land on it.
+    const milestone = milestoneTargetOf(target.action.target);
+    const milestoneSuffix = milestone ? `&tab=milestones&milestone=${encodeURIComponent(milestone)}` : "";
+    navigate(`/goals/${target.entity_ref}${suffix}${milestoneSuffix}`);
   }, [boundedPosition, navigate]);
 
   const handleChanged = useCallback(() => {
@@ -411,6 +450,26 @@ function EntryBody({ entry, variant, questions, proposals, onSnooze, onOpen, onC
     queryFn: () => goalsService.get(entry.entity_ref),
     enabled: entry.entity_kind === "goal" && entry.action.id === "close_out",
   });
+  // A milestone-review card used to name neither the milestone nor anything
+  // the review would look at, even though the milestone name is already
+  // encoded in action.target. The operator could not tell what was being
+  // reviewed without leaving the queue.
+  const milestoneName = milestoneTargetOf(entry.action.target);
+
+  const milestoneQuery = useQuery({
+    queryKey: ["goal", entry.entity_ref, "milestone-review"],
+    queryFn: () => goalsService.get(entry.entity_ref),
+    enabled: entry.entity_kind === "goal" && Boolean(milestoneName),
+  });
+  // The review card branches on `criteria`, and an empty list makes it warn
+  // that the item has none. Without this query the stream passed nothing, so
+  // every review decision claimed the item had no typed criteria and hid the
+  // criterion/settlement/evidence table that the item detail page shows.
+  const reviewItemQuery = useQuery({
+    queryKey: ["backlog-item", backlogKind, backlogName],
+    queryFn: () => backlogService.get(backlogKind as BacklogKind, backlogName),
+    enabled: variant === "review" && backlogRef.length === 2,
+  });
 
   if (variant === "proposal") {
     return (
@@ -420,6 +479,7 @@ function EntryBody({ entry, variant, questions, proposals, onSnooze, onOpen, onC
           proposals={proposals}
           onBack={() => undefined}
           onComplete={onChanged}
+          onItemChanged={onChanged}
           onSnooze={(id) => onSnooze(`proposal:${id}`, Date.now() + SNOOZE_MS)}
           onOpenItem={onOpen}
         />
@@ -446,7 +506,16 @@ function EntryBody({ entry, variant, questions, proposals, onSnooze, onOpen, onC
   if (variant === "review") {
     return (
       <section className="space-y-3 p-4" data-testid="next-action-stream-review">
-        <ReviewDecisionCard kind={backlogKind} name={backlogName} round={reviewQuery.data?.at(-1)} onDecided={onChanged} />
+        <ReviewDecisionCard
+          kind={backlogKind}
+          name={backlogName}
+          round={reviewQuery.data?.at(-1)}
+          criteria={reviewItemQuery.data?.acceptanceCriteria}
+          onDecided={onChanged}
+          // Recovery is authored on the item, so a send-back hands the
+          // operator to the place that owns the next step.
+          onSendBack={onOpen}
+        />
         <button type="button" onClick={onOpen} className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
           Open
         </button>
@@ -463,6 +532,7 @@ function EntryBody({ entry, variant, questions, proposals, onSnooze, onOpen, onC
       entry={entry}
       backlogRef={backlogRef}
       closeOutMilestones={closeOutQuery.data?.goal.milestones}
+      reviewMilestone={milestoneQuery.data?.goal.milestones?.find((milestone) => milestone.name === milestoneName)}
       onChanged={onChanged}
       onOpen={onOpen}
       onFeedback={onFeedback}
@@ -470,10 +540,12 @@ function EntryBody({ entry, variant, questions, proposals, onSnooze, onOpen, onC
   );
 }
 
-function ActionCard({ entry, backlogRef, closeOutMilestones, onChanged, onOpen, onFeedback }: {
+function ActionCard({ entry, backlogRef, closeOutMilestones, reviewMilestone, onChanged, onOpen, onFeedback }: {
   entry: NextActionFeedEntry;
   backlogRef: string[];
   closeOutMilestones?: Array<{ name: string; title: string; archivedAt?: string | null; verifiedDeliveredAt?: string | null }>;
+  /** The milestone a `milestone_review` action targets, once resolved. */
+  reviewMilestone?: GoalMilestone;
   onChanged: () => void;
   onOpen: () => void;
   onFeedback: () => Promise<void>;
@@ -481,6 +553,7 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, onChanged, onOpen, 
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [runTarget, setRunTarget] = useState<RunSheetTarget | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const isGoalPlan = entry.entity_kind === "goal" && entry.action.id === "plan_goal";
   const goalMilestone = entry.action.target?.startsWith("milestone_review:") ? entry.action.target.slice("milestone_review:".length) : "";
@@ -565,17 +638,38 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, onChanged, onOpen, 
   };
 
   const PrimaryIcon = nextActionIcon(entry.action.id);
+  // The queue is built for rapid sequential taps on a phone, so an action that
+  // removes state must not be one tap away from the same spot as "Open".
+  const destructive = DESTRUCTIVE_ACTION_IDS.has(entry.action.id);
   const primaryLabel = pending
     ? "Working…"
     : entry.action.id === "run"
       ? "Choose run"
       : direct || isGoalPlan || goalMilestone
-        ? entry.action.compact_label
+        ? `${entry.action.compact_label}${destructive ? "…" : ""}`
         : "Open";
+
+  const startPrimary = () => {
+    if (destructive) { setConfirmOpen(true); return; }
+    if (isGoalPlan) void completeGoalPlan();
+    else if (goalMilestone) void startMilestoneReview();
+    else void run();
+  };
 
   return (
     <section className="space-y-4 p-4" data-testid="next-action-stream-card">
       {runTarget ? <RunSheet isOpen onClose={() => setRunTarget(null)} target={runTarget} onSuccess={onChanged} /> : null}
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() => { setConfirmOpen(false); void run(); }}
+        title={`${entry.action.compact_label}?`}
+        description={`${entry.entity_title || entry.entity_ref} — ${DESTRUCTIVE_ACTION_CONSEQUENCE[entry.action.id] ?? "This removes state."}`}
+        confirmLabel={entry.action.compact_label}
+        isLoading={pending}
+        errorMessage={error ?? undefined}
+        testIds={{ dialog: "next-action-destructive-confirm" }}
+      />
       <p className="text-xs text-slate-500">{entry.entity_ref} · Tier {entry.tier}</p>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
@@ -604,6 +698,48 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, onChanged, onOpen, 
               {entry.action.follow_up.disposition.replaceAll("_", " ")}
               {entry.action.follow_up.items?.length ? ` · ${entry.action.follow_up.items.length} proposed item(s)` : ""}
             </p>
+          </div>
+        ) : null}
+
+        {/* Nothing has been gathered yet for a milestone review — the action is
+            derived from state. Showing the criteria the agent will grade against
+            and the items it will grade is the only substance that exists, and it
+            is what tells the operator whether starting a review is worthwhile. */}
+        {goalMilestone ? (
+          <div className="mt-3 border-t border-slate-800 pt-3">
+            <p className="text-sm font-medium text-slate-100">{reviewMilestone?.title || goalMilestone}</p>
+            <code className="text-xs text-cyan-200">{goalMilestone}</code>
+            {reviewMilestone ? (
+              <>
+                <p className="mt-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Will be graded against {reviewMilestone.acceptanceCriteria.length} criteri{reviewMilestone.acceptanceCriteria.length === 1 ? "on" : "a"}
+                </p>
+                <ol className="mt-1 flex flex-col gap-1">
+                  {reviewMilestone.acceptanceCriteria.map((criterion, index) => (
+                    <li key={criterion} className="flex gap-1.5 text-xs leading-5 text-slate-300">
+                      <span className="shrink-0 tabular-nums text-slate-600">{index + 1}</span>
+                      <span className="min-w-0">{criterion}</span>
+                    </li>
+                  ))}
+                </ol>
+                {reviewMilestone.acceptanceCriteria.every(isBoilerplateCriterion) && reviewMilestone.acceptanceCriteria.length > 0 ? (
+                  <p className="mt-2 rounded border border-amber-300/25 bg-amber-300/[0.08] p-2 text-xs text-amber-100">
+                    These criteria restate the milestone rather than naming anything checkable, so a review can only
+                    confirm the work is finished — not that it is correct. Sharpen them first for a review worth having.
+                  </p>
+                ) : null}
+                <p className="mt-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Covering {reviewMilestone.items.length} completed item{reviewMilestone.items.length === 1 ? "" : "s"}
+                </p>
+                <ul className="mt-1 flex flex-col gap-0.5">
+                  {reviewMilestone.items.map((ref) => (
+                    <li key={ref}><code className="break-all text-xs text-slate-400">{ref}</code></li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="mt-2 text-xs text-slate-500">Loading the milestone's criteria and members…</p>
+            )}
           </div>
         ) : null}
 
@@ -642,12 +778,12 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, onChanged, onOpen, 
         <button
           type="button"
           disabled={pending || Boolean(transitionUnavailableReason)}
-          onClick={() => {
-            if (isGoalPlan) void completeGoalPlan();
-            else if (goalMilestone) void startMilestoneReview();
-            else void run();
-          }}
-          className="flex items-center gap-1.5 rounded bg-cyan-500 px-3 py-1.5 text-sm font-medium text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+          onClick={startPrimary}
+          className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
+            destructive
+              ? "border border-rose-400/40 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
+              : "bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+          }`}
         >
           <PrimaryIcon className="h-4 w-4" aria-hidden />
           {primaryLabel}

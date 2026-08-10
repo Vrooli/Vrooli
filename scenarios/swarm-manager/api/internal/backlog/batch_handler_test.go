@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -264,7 +265,7 @@ func TestBatchCreate_StampsCreatedByFromRequestProvenance(t *testing.T) {
 		if saved.CreatedBy == nil {
 			t.Fatalf("%s/%s missing created_by", tc.kind, tc.name)
 		}
-		if *saved.CreatedBy != prov {
+		if !reflect.DeepEqual(*saved.CreatedBy, prov) {
 			t.Fatalf("%s/%s created_by = %+v, want %+v", tc.kind, tc.name, saved.CreatedBy, prov)
 		}
 	}
@@ -272,7 +273,7 @@ func TestBatchCreate_StampsCreatedByFromRequestProvenance(t *testing.T) {
 	if snapshot.CreatedBy == nil {
 		t.Fatal("batch-created milestone missing created_by")
 	}
-	if *snapshot.CreatedBy != prov {
+	if !reflect.DeepEqual(*snapshot.CreatedBy, prov) {
 		t.Fatalf("batch-created milestone created_by = %+v, want %+v", snapshot.CreatedBy, prov)
 	}
 }

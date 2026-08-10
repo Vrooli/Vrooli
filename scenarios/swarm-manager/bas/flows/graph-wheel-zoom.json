@@ -4,6 +4,7 @@
   "name": "graph-wheel-zoom",
   "folder_path": "/bas/flows",
   "description": "Interaction performance capture for sustained driver-level ctrl-wheel zoom in and out on the canonical Graph surface.",
+  "metadata": { "name": "graph-wheel-zoom", "description": "Sustained Graph wheel-zoom performance capture.", "execution_mode": "mutating", "labels": { "requires_confirmation": "true", "routed_isolation": "true" } },
   "tags": [
     "intent:performance",
     "reset:none",

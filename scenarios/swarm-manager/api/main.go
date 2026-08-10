@@ -79,9 +79,11 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	corediscovery "github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
 	searchregister "github.com/vrooli/searchregister-go"
 	_ "modernc.org/sqlite"
 )
@@ -122,6 +124,7 @@ type Server struct {
 	scenarioRoot        string
 	dataRoot            string
 	cacheRoot           string
+	fileRoots           *filerouting.RoutedRoots
 	promptClient        promptmanager.Client
 	eventDB             *database.RoutedDB
 	emitter             *eventlog.Emitter
@@ -156,6 +159,20 @@ type executionSnapshotLister struct {
 	svc *execution.Service
 }
 
+// fileRootPath is the single request-scoped file path seam for mutating API
+// surfaces. It is deliberately context-aware: the test-mode middleware marks
+// the request and RoutedRoots.Pick(ctx, class) then selects the leased root.
+func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
+	if roots == nil {
+		return "", fmt.Errorf("routed file roots are unavailable")
+	}
+	root, err := roots.Pick(ctx, class)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, rel), nil
+}
+
 func (l executionSnapshotLister) List(ctx context.Context, filters execution.ListFilters) ([]execution.Record, error) {
 	return l.svc.ListSnapshot(ctx, filters)
 }
@@ -187,6 +204,19 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 	if err := os.MkdirAll(cacheRoot, 0o750); err != nil {
 		log.Fatalf("create runtime cache root %q: %v", cacheRoot, err)
 	}
+	primaryPaths, err := runtimepaths.Paths()
+	if err != nil {
+		log.Fatalf("resolve routed storage roots: %v", err)
+	}
+	for _, class := range []storage.Class{storage.ClassConfig, storage.ClassData, storage.ClassCache, storage.ClassLogs, storage.ClassState} {
+		root, rootErr := primaryPaths.ForClass(class)
+		if rootErr != nil {
+			log.Fatalf("resolve routed %s root: %v", class, rootErr)
+		}
+		if rootErr := os.MkdirAll(root, 0o750); rootErr != nil {
+			log.Fatalf("create routed %s root %q: %v", class, root, rootErr)
+		}
+	}
 
 	agentEnabled := strings.ToLower(strings.TrimSpace(os.Getenv("AGENT_MANAGER_ENABLED"))) != "false"
 	// Agent Manager owns declared workflow resolution and execution; Swarm only
@@ -209,6 +239,7 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 		scenarioRoot:        scenarioRoot,
 		dataRoot:            dataRoot,
 		cacheRoot:           cacheRoot,
+		fileRoots:           filerouting.New(primaryPaths),
 		promptClient:        promptClient,
 		audioToolsResolver:  resolveAudioToolsResolver(),
 	}
@@ -920,7 +951,7 @@ func (s *Server) registerAgentSessionRoutes(dataRoot, scenarioRoot string) {
 	if err := agentsessions.MigrateLegacySourceData(scenarioRoot, dataRoot); err != nil {
 		panic(fmt.Sprintf("migrate legacy agent session data: %v", err))
 	}
-	sessionStore := agentsessions.NewFileStore(dataRoot)
+	sessionStore := agentsessions.NewRoutedFileStore(s.fileRoots)
 	svc, err := agentsessions.NewService(agentsessions.ServiceConfig{
 		Store:       sessionStore,
 		Spawner:     s.requireTrackedAgentService(),
@@ -1064,7 +1095,9 @@ func main() {
 	// specific than "/", so http.ServeMux routes it ahead of the API handler.
 	rootMux := http.NewServeMux()
 	if srv.eventDB != nil {
-		devrouting.Register(rootMux, srv.eventDB)
+		// RoutedRoots.Pick(ctx, class) is the request-scoped file seam paired
+		// with RoutedDB for mutating browser workflows.
+		devrouting.RegisterWithFileRoots(rootMux, srv.eventDB, srv.fileRoots)
 	}
 	rootMux.Handle("/", srv.Handler())
 

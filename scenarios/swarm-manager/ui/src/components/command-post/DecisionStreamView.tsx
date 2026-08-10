@@ -14,7 +14,7 @@ import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import { BACKLOG_KIND_ICONS, BACKLOG_KIND_LABELS } from "../../types";
 import type { CrossItemQuestion } from "../../lib/command-post-utils";
-import { ReviewQuestionView } from "../backlog/question-renderers";
+import { ReviewQuestionView, WorkshopQuestionView } from "../backlog/question-renderers";
 import { useDecisionStreamLogic } from "../../hooks/useDecisionStreamLogic";
 import { ScenarioNavigatorPopover } from "./ScenarioNavigatorPopover";
 import type { DecisionStreamResults } from "../../hooks/useDecisionStreamLogic";
@@ -219,20 +219,70 @@ export function DecisionStreamView({
       </div>
       )}
 
+      {/* Embedded, the drawer's header owns the entity title and queue
+          position; this states only where we are inside this entry, and only
+          when there is more than one question to be inside of. */}
+      {embedded && total > 1 && (
+        <p className="shrink-0 border-b border-slate-800 px-3 py-1.5 text-xs text-slate-500" data-testid="ds-sub-position">
+          Question {safeIndex + 1} of {total} for this item
+        </p>
+      )}
+
       {/* Question content */}
       <div
         className="flex-1 overflow-y-auto px-3 py-2"
         data-testid={selectors.commandPost.decisionStream.questionArea}
       >
         <div className="mx-auto max-w-2xl">
-          <ReviewQuestionView
-            question={current.question}
-            answer={answer}
-            disabled={isSaving}
-            onUpdate={(patch) => updateAnswer(current.question.id, patch)}
-          />
+          {/* Workshop and review questions carry different fields: a workshop
+              question has topic/text/options, a review question has
+              title/description. Rendering every question through the review
+              view left workshop questions showing only their id — no text, no
+              options, and no way to answer. */}
+          {current.question.source === "workshop" ? (
+            <WorkshopQuestionView
+              question={current.question}
+              answer={answer}
+              disabled={isSaving}
+              onUpdate={(patch) => updateAnswer(current.question.id, patch)}
+            />
+          ) : (
+            <ReviewQuestionView
+              question={current.question}
+              answer={answer}
+              disabled={isSaving}
+              onUpdate={(patch) => updateAnswer(current.question.id, patch)}
+            />
+          )}
           {saveError && (
             <p className="mt-2 text-[10px] text-red-400">{saveError}</p>
+          )}
+
+          {/* Embedded, the drawer owns the queue footer. Within-entry movement
+              becomes an affirmative control here, and every label says
+              "question" so it can never be read as moving the queue. */}
+          {embedded && (
+            <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="ds-embedded-question-actions">
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={advance}
+                className="inline-flex min-h-[40px] items-center gap-1 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-cyan-500 disabled:opacity-50"
+              >
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {isSaving ? "Saving…" : isLast ? "Save answer" : "Save & next question"}
+              </button>
+              {!isFirst && (
+                <button type="button" onClick={goBack} className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300 transition-colors hover:bg-slate-800">
+                  <ChevronLeft className="h-4 w-4" />Previous question
+                </button>
+              )}
+              {!isLast && (
+                <button type="button" onClick={skip} className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-400 transition-colors hover:bg-slate-800">
+                  <SkipForward className="h-4 w-4" />Skip question
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -245,7 +295,12 @@ export function DecisionStreamView({
         />
       </div>
 
-      {/* Navigation row — 44px touch targets + safe area bottom */}
+      {/* Navigation row — 44px touch targets + safe area bottom.
+          Suppressed when embedded: the decision drawer already renders a
+          queue-level Previous/Snooze/Skip footer, and two bars with identical
+          labels but different scopes is how a "Skip" that moved the whole
+          queue entry got mistaken for one that moved a question. */}
+      {!embedded && (
       <div
         className="border-t border-slate-700/50 px-3 py-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
         data-testid={selectors.commandPost.decisionStream.navBar}
@@ -308,6 +363,7 @@ export function DecisionStreamView({
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }

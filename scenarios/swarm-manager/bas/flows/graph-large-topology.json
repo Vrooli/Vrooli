@@ -4,6 +4,7 @@
   "name": "graph-large-topology",
   "folder_path": "/bas/flows",
   "description": "Performance capture for the single Graph surface: open /graph, wait for React Flow topology nodes, pan and zoom the canvas, then select a representative node so performance-health can attribute large-graph load and interaction cost. Assertion-free by design.",
+  "metadata": { "name": "graph-large-topology", "description": "Large graph load and interaction performance capture.", "execution_mode": "mutating", "labels": { "requires_confirmation": "true", "routed_isolation": "true" } },
   "tags": [
     "intent:performance",
     "reset:none"

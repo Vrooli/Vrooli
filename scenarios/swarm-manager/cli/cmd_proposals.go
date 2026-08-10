@@ -6,6 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"slices"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -63,15 +65,96 @@ type cliProposalSessionsResponse struct {
 	Sessions []cliProposalSession `json:"sessions"`
 }
 
-// mutationSummary is the decidable shape inside a mutation-list payload. Only
-// the fields an operator needs to choose a subset are decoded; the payload is
-// authored by an agent and may carry more.
+// mutationSummary decodes the payload envelope for human rendering.
+//
+// The CLI is a separate module from the API, so it cannot import
+// proposals.Proposal; this mirrors the payload fields the renderer needs.
+// It previously carried only id and op, which made `proposals get` print
+// "m1  update_item" and nothing else — thinner than the UI it backstops.
 type mutationSummary struct {
-	BaseVersion string `json:"base_version"`
-	Mutations   []struct {
-		ID string `json:"id"`
-		Op string `json:"op"`
-	} `json:"mutations"`
+	BaseVersion string        `json:"base_version"`
+	Rationale   string        `json:"rationale"`
+	Mutations   []cliMutation `json:"mutations"`
+}
+
+type cliMutation struct {
+	ID         string   `json:"id"`
+	Op         string   `json:"op"`
+	Rationale  string   `json:"rationale"`
+	Target     string   `json:"target"`
+	Status     string   `json:"status"`
+	Priority   *int     `json:"priority"`
+	From       string   `json:"from"`
+	To         string   `json:"to"`
+	Milestone  string   `json:"milestone"`
+	Sources    []string `json:"sources"`
+	Items      []string `json:"items"`
+	Targets    []string `json:"targets"`
+	ResetScope []string `json:"reset_scope"`
+
+	Item  *cliItemSpec   `json:"item"`
+	Into  []cliItemSpec  `json:"into"`
+	Patch map[string]any `json:"patch"`
+
+	Goal          *cliNamed `json:"goal"`
+	GoalMilestone *cliNamed `json:"goal_milestone"`
+	MilestoneName string    `json:"milestone_name"`
+}
+
+type cliItemSpec struct {
+	Kind            string   `json:"kind"`
+	Name            string   `json:"name"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description"`
+	Priority        int      `json:"priority"`
+	Effort          string   `json:"effort"`
+	Tags            []string `json:"tags"`
+	Milestone       string   `json:"milestone"`
+	AcceptanceAllow []string `json:"acceptance_allow"`
+}
+
+type cliNamed struct {
+	Name  string `json:"name"`
+	Title string `json:"title"`
+}
+
+func (s cliItemSpec) ref() string {
+	if s.Kind == "" || s.Name == "" {
+		return ""
+	}
+	return s.Kind + "/" + s.Name
+}
+
+// subject resolves the reference a mutation acts on. Creation ops carry no
+// target by design, so they resolve to the ref they will bring into existence
+// rather than printing an empty column.
+func (m cliMutation) subject() string {
+	switch m.Op {
+	case "add_item", "merge_items":
+		if m.Item != nil {
+			if ref := m.Item.ref(); ref != "" {
+				return ref
+			}
+		}
+	case "create_goal":
+		if m.Goal != nil {
+			return m.Goal.Name
+		}
+	case "create_milestone", "update_milestone", "archive_milestone":
+		if m.GoalMilestone != nil && m.GoalMilestone.Name != "" {
+			return m.GoalMilestone.Name
+		}
+		return m.MilestoneName
+	case "assign_milestone_items", "unassign_milestone_items":
+		if m.MilestoneName != "" {
+			return m.MilestoneName
+		}
+	case "add_edge", "remove_edge":
+		if m.From != "" {
+			return m.From
+		}
+	}
+	return m.Target
 }
 
 func (a *App) listProposalSessions(targetType, targetRef string) ([]cliProposalSession, error) {
@@ -215,17 +298,173 @@ func (a *App) cmdProposalsGet(args []string) error {
 		fmt.Printf("  Parse warning: %s\n", warning)
 	}
 	var payload mutationSummary
-	if err := json.Unmarshal([]byte(proposal.PayloadJSON), &payload); err == nil && len(payload.Mutations) > 0 {
-		fmt.Printf("  Mutations (base version %s):\n", payload.BaseVersion)
-		for _, mutation := range payload.Mutations {
-			fmt.Printf("    %s  %s\n", mutation.ID, mutation.Op)
+	if err := json.Unmarshal([]byte(proposal.PayloadJSON), &payload); err == nil {
+		if payload.Rationale != "" {
+			fmt.Printf("  Rationale: %s\n", payload.Rationale)
 		}
-		fmt.Println("  Accept a subset with: proposals decide --id " + proposal.ID + " --accept <id>,<id>")
+		if len(payload.Mutations) > 0 {
+			fmt.Printf("  Mutations (base version %s):\n", payload.BaseVersion)
+			for _, mutation := range payload.Mutations {
+				renderMutation(mutation)
+			}
+			fmt.Println("  Accept a subset with: proposals decide --id " + proposal.ID + " --accept <id>,<id>")
+		}
 	}
 	for _, decision := range proposal.Decisions {
 		fmt.Printf("  Decision %s at %s — accepted %d, rejected %d\n", decision.Kind, decision.DecidedAt, len(decision.AcceptedMutationIDs), len(decision.RejectedMutationIDs))
 	}
 	return nil
+}
+
+// patchFieldOrder keeps `proposals get` output stable across runs; ranging a
+// map directly would reorder the fields on every invocation and make the
+// command useless for diffing two proposals.
+var patchFieldOrder = []string{
+	"title", "description", "note", "priority", "effort",
+	"tags", "depends_on", "acceptance_allow", "acceptance_deny",
+}
+
+// renderMutation prints one mutation with the payload that decides it. The op
+// name alone is not a reviewable change.
+func renderMutation(mutation cliMutation) {
+	subject := mutation.subject()
+	if subject == "" {
+		subject = "(no target)"
+	}
+	fmt.Printf("    %s  %s  %s\n", mutation.ID, mutation.Op, subject)
+	if mutation.Rationale != "" {
+		fmt.Printf("        why: %s\n", mutation.Rationale)
+	}
+
+	if mutation.Item != nil {
+		renderItemSpec("        ", *mutation.Item)
+	}
+	for _, child := range mutation.Into {
+		renderItemSpec("        + ", child)
+	}
+	if len(mutation.Patch) > 0 {
+		fmt.Printf("        patch: %s\n", strings.Join(patchedFieldNames(mutation.Patch), ", "))
+		for _, field := range patchFieldOrder {
+			value, ok := mutation.Patch[field]
+			if !ok {
+				continue
+			}
+			fmt.Printf("          %s = %s\n", field, truncate(formatPatchValue(value), 400))
+		}
+	}
+	if mutation.Status != "" {
+		fmt.Printf("        status -> %s\n", mutation.Status)
+	}
+	if mutation.Priority != nil {
+		fmt.Printf("        priority -> %d\n", *mutation.Priority)
+	}
+	if mutation.Op == "move_milestone" {
+		destination := mutation.Milestone
+		if destination == "" {
+			destination = "(detach from milestone)"
+		}
+		fmt.Printf("        milestone -> %s\n", destination)
+	}
+	if mutation.From != "" || mutation.To != "" {
+		fmt.Printf("        edge: %s depends on %s\n", orPlaceholder(mutation.From), orPlaceholder(mutation.To))
+	}
+	for _, source := range mutation.Sources {
+		fmt.Printf("        source (archived): %s\n", source)
+	}
+	if len(mutation.Items) > 0 {
+		fmt.Printf("        items: %s\n", strings.Join(mutation.Items, ", "))
+	}
+	if len(mutation.Targets) > 0 {
+		fmt.Printf("        targets: %s\n", strings.Join(mutation.Targets, ", "))
+	}
+	if len(mutation.ResetScope) > 0 {
+		fmt.Printf("        removes: %s\n", strings.Join(mutation.ResetScope, ", "))
+	}
+	if mutation.Goal != nil {
+		fmt.Printf("        goal: %s (%s)\n", mutation.Goal.Title, mutation.Goal.Name)
+	}
+	if mutation.GoalMilestone != nil {
+		fmt.Printf("        milestone: %s (%s)\n", mutation.GoalMilestone.Title, mutation.GoalMilestone.Name)
+	}
+}
+
+func renderItemSpec(indent string, spec cliItemSpec) {
+	fmt.Printf("%stitle: %s\n", indent, spec.Title)
+	if ref := spec.ref(); ref != "" {
+		fmt.Printf("%sref: %s\n", indent, ref)
+	}
+	meta := make([]string, 0, 4)
+	if spec.Priority != 0 {
+		meta = append(meta, fmt.Sprintf("priority %d", spec.Priority))
+	}
+	if spec.Effort != "" {
+		meta = append(meta, "effort "+spec.Effort)
+	}
+	if spec.Milestone != "" {
+		meta = append(meta, "milestone "+spec.Milestone)
+	}
+	if len(spec.Tags) > 0 {
+		meta = append(meta, "tags "+strings.Join(spec.Tags, "/"))
+	}
+	if len(meta) > 0 {
+		fmt.Printf("%s%s\n", indent, strings.Join(meta, " · "))
+	}
+	if spec.Description != "" {
+		fmt.Printf("%sdescription: %s\n", indent, truncate(spec.Description, 400))
+	}
+	for index, criterion := range spec.AcceptanceAllow {
+		fmt.Printf("%sacceptance %d: %s\n", indent, index+1, truncate(criterion, 240))
+	}
+}
+
+func patchedFieldNames(patch map[string]any) []string {
+	names := make([]string, 0, len(patch))
+	for _, field := range patchFieldOrder {
+		if _, ok := patch[field]; ok {
+			names = append(names, field)
+		}
+	}
+	// Any field the server gained that this list predates still gets named.
+	for field := range patch {
+		if !slices.Contains(patchFieldOrder, field) {
+			names = append(names, field)
+		}
+	}
+	return names
+}
+
+func formatPatchValue(value any) string {
+	switch typed := value.(type) {
+	case nil:
+		return "(cleared)"
+	case string:
+		if typed == "" {
+			return "(cleared)"
+		}
+		return typed
+	case []any:
+		if len(typed) == 0 {
+			return "(cleared)"
+		}
+		parts := make([]string, 0, len(typed))
+		for _, entry := range typed {
+			parts = append(parts, fmt.Sprint(entry))
+		}
+		return strings.Join(parts, ", ")
+	case float64:
+		// encoding/json decodes every number into float64; integers are the
+		// only numeric values the patch schema carries.
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	default:
+		return fmt.Sprint(typed)
+	}
+}
+
+func orPlaceholder(value string) string {
+	if value == "" {
+		return "(unset)"
+	}
+	return value
 }
 
 // cmdProposalsDecide applies a mutation-list proposal. Omitting --accept

@@ -4,6 +4,7 @@
   "name": "graph-load",
   "folder_path": "/bas/flows",
   "description": "Load-only performance capture for the canonical Graph surface. Opens /graph, waits for rendered React Flow nodes and edges, and records graph size without driving interaction input.",
+  "metadata": { "name": "graph-load", "description": "Canonical Graph load-only performance capture.", "execution_mode": "mutating", "labels": { "requires_confirmation": "true", "routed_isolation": "true" } },
   "tags": [
     "interaction:load-only",
     "intent:performance",

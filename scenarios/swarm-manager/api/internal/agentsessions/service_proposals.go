@@ -12,7 +12,7 @@ import (
 	"swarm-manager/internal/idgen"
 )
 
-func (s *Service) RecordProposal(_ context.Context, sessionID string, proposal Proposal) (Proposal, error) {
+func (s *Service) RecordProposal(ctx context.Context, sessionID string, proposal Proposal) (Proposal, error) {
 	if proposal.ID == "" {
 		proposal.ID = "prop_" + idgen.Generate()
 	}
@@ -21,7 +21,7 @@ func (s *Service) RecordProposal(_ context.Context, sessionID string, proposal P
 		proposal.CreatedAt = now
 	}
 	proposal.UpdatedAt = now
-	if err := s.saveProposal(sessionID, proposal); err != nil {
+	if err := s.saveProposal(ctx, sessionID, proposal); err != nil {
 		return Proposal{}, err
 	}
 	s.emitProposalCreated(sessionID, proposal)
@@ -107,7 +107,7 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 	session.Status = StatusWaitingForUser
 	session.FailureReason = ""
 	session.UpdatedAt = proposal.UpdatedAt
-	if err := s.saveProposal(session.ID, proposal); err != nil {
+	if err := s.saveProposal(ctx, session.ID, proposal); err != nil {
 		return Session{}, nil, err
 	}
 	if err := s.store.SaveSession(session); err != nil {
@@ -148,7 +148,7 @@ func (s *Service) executeProposalApplyWork(ctx context.Context, session *Session
 	case ProposalBacklogBatchImport:
 		artifacts, err = s.backlogBatchApplier.ApplyAgentSessionBacklogBatchImport(identity.NewContext(ctx, prov), proposal.PayloadJSON, prov)
 		if err != nil {
-			return nil, s.failProposalApply(session, proposal, err)
+			return nil, s.failProposalApply(ctx, session, proposal, err)
 		}
 	}
 	return artifacts, nil
@@ -157,13 +157,13 @@ func (s *Service) executeProposalApplyWork(ctx context.Context, session *Session
 // failProposalApply rolls the proposal back to failed and the session back to
 // proposal_ready, best-effort persisting both, and returns applyErr unchanged so
 // callers can `return ..., s.failProposalApply(...)`.
-func (s *Service) failProposalApply(session *Session, proposal *Proposal, applyErr error) error {
+func (s *Service) failProposalApply(ctx context.Context, session *Session, proposal *Proposal, applyErr error) error {
 	proposal.Status = ProposalStatusFailed
 	proposal.UpdatedAt = nowRFC3339()
 	session.Status = StatusProposalReady
 	session.FailureReason = applyErr.Error()
 	session.UpdatedAt = proposal.UpdatedAt
-	if err := s.saveProposal(session.ID, *proposal); err != nil {
+	if err := s.saveProposal(ctx, session.ID, *proposal); err != nil {
 		slog.Warn("agentsessions: persist proposal failed", "session", session.ID, "proposal", proposal.ID, "err", err)
 	}
 	if err := s.store.SaveSession(*session); err != nil {

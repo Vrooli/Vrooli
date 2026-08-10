@@ -5,54 +5,30 @@ import { useNavigate } from "react-router-dom";
 import { sessionDetailPath } from "../../app/routes/route-paths";
 import { selectors } from "../../consts/selectors";
 import { formatDisplayText } from "../../lib/format-utils";
+import { isNoChangeProposal, parseProposalPayload, proposalMutations, type MutationBaseState } from "../../lib/mutation-archetypes";
 import { proposalSessionService, type ProposalSessionProposal, type ProposalSessionTargetType } from "../../services/proposal-session-service";
+import type { ProposalMutation } from "../../types/proposal";
 import { Button } from "../ui/button";
 import { EntityAttachToSessionSheet } from "./context/EntityAttachToSessionSheet";
+import { MutationView } from "./MutationView";
 
 interface ProposalSessionsPanelProps {
   target?: { type: ProposalSessionTargetType; ref: string; name: string };
 }
 
-export interface MutationPreview {
-  id: string;
-  op: string;
-  target: string;
-  rationale?: string;
-  reset_scope?: string[];
-}
-
-export interface ProposalPayload {
-  form?: string;
-  rationale?: string;
-  mutations?: MutationPreview[];
-}
-
-export function proposalPayload(proposal: ProposalSessionProposal): ProposalPayload {
-  try {
-    return JSON.parse(proposal.payload_json) as ProposalPayload;
-  } catch {
-    return {};
-  }
-}
-
-export function mutationPreviews(proposal: ProposalSessionProposal): MutationPreview[] {
-  return (proposalPayload(proposal).mutations ?? []).filter((mutation): mutation is MutationPreview => Boolean(mutation.id));
-}
+/*
+ * Payload access goes through `lib/mutation-archetypes`, which parses into the
+ * full Proposal shape. A local narrowed type used to live here and dropped
+ * every payload field except `reset_scope`, so operators approved mutations
+ * whose contents no surface displayed.
+ */
 
 function isMutationProposal(proposal: ProposalSessionProposal): boolean {
   return proposal.kind === "mutation_list" && !isNoChangeRecommendation(proposal);
 }
 
 function isNoChangeRecommendation(proposal: ProposalSessionProposal): boolean {
-  if (proposal.kind === "no_change_recommendation") return true;
-  // Sessions created before the dedicated outcome kind stored no-change
-  // conclusions as an empty mutation list. Preserve a clear review experience
-  // for that history rather than requiring data migration.
-  const payload = proposalPayload(proposal);
-  return proposal.kind === "mutation_list"
-    && payload.form === "mutation_list"
-    && Array.isArray(payload.mutations)
-    && payload.mutations.length === 0;
+  return isNoChangeProposal(proposal);
 }
 
 function isDecidable(status: string): boolean {
@@ -124,7 +100,7 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
         : proposalSessionService.decide(
           session.id,
           proposal.id,
-          action === "apply" ? mutationPreviews(proposal).map((mutation) => mutation.id) : [],
+          action === "apply" ? proposalMutations(proposal.payload_json).map((mutation) => mutation.id) : [],
           batchNote,
         )));
       setSelectedCards(new Set());
@@ -186,7 +162,7 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
           <p className="mx-auto mt-1 max-w-sm text-xs text-slate-500">Proposals carry an agent&apos;s recommended changes, or a documented conclusion that no changes are needed, for you to accept or reject.</p>
         </div>
       ) : proposals.map(({ session, proposal }) => {
-        const mutations = mutationPreviews(proposal);
+        const mutations = proposalMutations(proposal.payload_json);
         const noChangeRecommendation = isNoChangeRecommendation(proposal);
         const canAcceptKeep = noChangeRecommendation && session.proposal_target?.type === "backlog_item";
         const note = notes[proposal.id] ?? "";
@@ -233,7 +209,7 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
 }
 
 function NoChangeRecommendation({ proposal }: { proposal: ProposalSessionProposal }) {
-  const rationale = proposalPayload(proposal).rationale;
+  const rationale = parseProposalPayload(proposal.payload_json).rationale;
   return (
     <div className="mt-4 rounded-lg border border-emerald-400/25 bg-emerald-400/5 p-3">
       <p className="text-sm font-medium text-emerald-100">{proposal.status === "applied" ? "This keep recommendation was accepted and recorded as a review." : "The review recommends keeping this target as it is."}</p>
@@ -249,7 +225,13 @@ function NoChangeRecommendation({ proposal }: { proposal: ProposalSessionProposa
  * getting its own bordered card — three nested borders pushed the actual
  * mutation text into a narrow gutter on a phone.
  */
-export function ProposalReview({ mutations, proposal, defaultOpen = true }: { mutations: MutationPreview[]; proposal: ProposalSessionProposal; defaultOpen?: boolean }) {
+export function ProposalReview({ mutations, proposal, base, defaultOpen = true }: {
+  mutations: ProposalMutation[];
+  proposal: ProposalSessionProposal;
+  /** Current state of the target, so edits render as before/after. */
+  base?: MutationBaseState;
+  defaultOpen?: boolean;
+}) {
   return (
     <details className="mt-3 rounded-lg border border-slate-800 bg-slate-950/35" open={defaultOpen}>
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-slate-200">
@@ -261,13 +243,8 @@ export function ProposalReview({ mutations, proposal, defaultOpen = true }: { mu
         {mutations.length === 0 ? <p className="text-xs text-slate-400">This proposal has no individually reviewable mutations.</p> : (
           <ul className="divide-y divide-slate-800/70">
             {mutations.map((mutation) => (
-              <li key={mutation.id} className="py-2 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
-                  <span className="font-medium text-slate-100">{formatDisplayText(mutation.op)}</span>
-                  <code className="min-w-0 break-all text-xs text-cyan-200">{mutation.target}</code>
-                </div>
-                {mutation.rationale && <p className="mt-1 text-xs leading-5 text-slate-400">{mutation.rationale}</p>}
-                {mutation.reset_scope && mutation.reset_scope.length > 0 && <p className="mt-1 text-xs text-slate-500">Scope: {mutation.reset_scope.map(formatDisplayText).join(", ")}</p>}
+              <li key={mutation.id} className="py-2.5 first:pt-0 last:pb-0">
+                <MutationView mutation={mutation} base={base} />
               </li>
             ))}
           </ul>

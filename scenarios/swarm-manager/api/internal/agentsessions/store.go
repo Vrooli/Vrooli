@@ -2,6 +2,7 @@ package agentsessions
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,9 @@ import (
 	"sync"
 
 	"swarm-manager/internal/storage"
+
+	"github.com/vrooli/api-core/filerouting"
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
 var ErrNotFound = errors.New("agent session not found")
@@ -105,6 +109,13 @@ type Store interface {
 	AttachmentPath(sessionID string, attachmentID string) (string, Attachment, error)
 }
 
+// ContextStore can derive a request-scoped store from the active routed
+// storage lease. The Store interface intentionally remains context-free for
+// the many small file operations; services select this view once per request.
+type ContextStore interface {
+	ForContext(context.Context) (Store, error)
+}
+
 type ListFilters struct {
 	Kind       Kind
 	Status     Status
@@ -113,12 +124,42 @@ type ListFilters struct {
 }
 
 type FileStore struct {
-	root string
-	mu   sync.Mutex
+	root     string
+	mu       sync.Mutex
+	roots    *filerouting.RoutedRoots
+	writeCtx context.Context
 }
 
 func NewFileStore(root string) *FileStore {
 	return &FileStore{root: filepath.Join(root, "agent-sessions")}
+}
+
+// NewRoutedFileStore selects the data-class root for each request. This is the
+// store used by the production server; tests that construct NewFileStore keep
+// the small, deterministic primary-root implementation.
+func NewRoutedFileStore(roots *filerouting.RoutedRoots) *FileStore {
+	return &FileStore{roots: roots}
+}
+
+func (s *FileStore) ForContext(ctx context.Context) (Store, error) {
+	if s.roots == nil {
+		return s, nil
+	}
+	root, err := s.roots.Pick(ctx, corestorage.ClassData)
+	if err != nil {
+		return nil, fmt.Errorf("resolve routed agent-session data root: %w", err)
+	}
+	scoped := *s
+	scoped.root = filepath.Join(root, "agent-sessions")
+	scoped.roots = s.roots
+	scoped.writeCtx = ctx
+	return &scoped, nil
+}
+
+func (s *FileStore) recordWrite() {
+	if s.roots != nil && s.writeCtx != nil {
+		s.roots.RecordWrite(s.writeCtx)
+	}
 }
 
 func (s *FileStore) CreateSession(session Session) error {
@@ -138,6 +179,7 @@ func (s *FileStore) CreateSession(session Session) error {
 	if err := os.MkdirAll(filepath.Join(dir, proposalsDirName), 0o750); err != nil {
 		return err
 	}
+	s.recordWrite()
 	return storage.WriteJSONAtomic(filepath.Join(dir, sessionFileName), session)
 }
 
@@ -158,6 +200,7 @@ func (s *FileStore) DeleteSession(sessionID string) error {
 	if _, err := s.loadSessionLocked(safeID); err != nil {
 		return err
 	}
+	s.recordWrite()
 	return os.RemoveAll(s.sessionDir(safeID))
 }
 
@@ -228,6 +271,7 @@ func (s *FileStore) AppendMessage(sessionID string, message Message) error {
 	if err := appendJSONL(filepath.Join(s.sessionDir(session.ID), messagesFileName), message); err != nil {
 		return err
 	}
+	s.recordWrite()
 	session.UpdatedAt = message.CreatedAt
 	return s.saveSessionLocked(session)
 }
@@ -247,6 +291,7 @@ func (s *FileStore) SaveProposal(sessionID string, proposal Proposal) error {
 	if err := storage.WriteJSONAtomic(path, proposal); err != nil {
 		return err
 	}
+	s.recordWrite()
 	session.UpdatedAt = proposal.UpdatedAt
 	if proposal.Status == ProposalStatusReady {
 		session.Status = StatusProposalReady
@@ -275,6 +320,7 @@ func (s *FileStore) AppendArtifacts(sessionID string, artifacts []Artifact) erro
 	}
 	path := filepath.Join(s.sessionDir(sessionID), artifactsFileName)
 	for _, artifact := range artifacts {
+		s.recordWrite()
 		if err := appendJSONL(path, artifact); err != nil {
 			return err
 		}
@@ -337,6 +383,7 @@ func (s *FileStore) SaveAttachment(sessionID string, attachment Attachment, read
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
+	s.recordWrite()
 	path := filepath.Join(dir, sanitizeAttachmentFilename(attachment.Filename))
 	file, err := os.Create(path)
 	if err != nil {
@@ -389,6 +436,7 @@ func (s *FileStore) saveSessionLocked(session Session) error {
 		}
 		return err
 	}
+	s.recordWrite()
 	return storage.WriteJSONAtomic(filepath.Join(s.sessionDir(session.ID), sessionFileName), session)
 }
 
