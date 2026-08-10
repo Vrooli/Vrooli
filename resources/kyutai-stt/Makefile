@@ -1,4 +1,4 @@
-.PHONY: help fmt fmt-go lint lint-go type type-go test test-go check check-go
+.PHONY: help fmt fmt-go lint lint-go type type-go test test-go test-python check check-go
 
 .DEFAULT_GOAL := help
 
@@ -44,11 +44,19 @@ type-go: ## Compile-check Go packages without running tests
 		cd "$(CLI_DIR)" && go test -run '^$$' ./...; \
 	fi
 
-test: test-go ## Run Go tests
+test: test-go test-python ## Run Go and server-state-machine tests
 
 test-go: ## Run Go tests
 	@if [ -d "$(CLI_DIR)" ]; then \
 		cd "$(CLI_DIR)" && go test ./...; \
+	fi
+
+test-python: ## Run the dependency-light Kyutai server tests
+	@if command -v python3 >/dev/null && python3 -c 'import pytest' >/dev/null 2>&1; then \
+		python3 -m pytest docker/test_server.py docker/test_server_backpressure.py; \
+	else \
+		echo "python3 with pytest is required for Kyutai server tests"; \
+		exit 1; \
 	fi
 
 check: check-go ## Run Go quality gates

@@ -124,8 +124,18 @@
       }
     }
   },
-  "portability_tier": "full",
   "category": "storage",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 4096,
+    "cpu_cores": 1,
+    "network": "optional",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "storage",
+    "weight": 2
+  },
   "platforms": {
     "linux": "supported",
     "macos": "supported",
@@ -167,11 +177,23 @@
   },
   "managed_service": {
     "provider_policy": {
-      "target_defaults": {"control-plane": "managed-shared", "desktop-bundle": "managed-private"},
-      "allowed_modes": ["managed-private", "managed-shared", "attach-only", "remote-vrooli", "managed-discovered"],
+      "target_defaults": {
+        "control-plane": "managed-shared",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
       "shared_reuse_requires_consent": true,
       "external_management": "forbidden",
-      "external_access_capabilities": ["read-only", "read-write"]
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
     },
     "artifact": {
       "path": "server/minio",
@@ -186,7 +208,14 @@
       "bundle_artifact": "minio_${os}_${arch}"
     },
     "attach_health_path": "/minio/health/ready",
-    "arguments": ["server", "--address", "127.0.0.1:${RESOURCE_PORT_API}", "${RESOURCE_DATA_DIR}", "--console-address", "127.0.0.1:${RESOURCE_PORT_CONSOLE}"],
+    "arguments": [
+      "server",
+      "--address",
+      "127.0.0.1:${RESOURCE_PORT_API}",
+      "${RESOURCE_DATA_DIR}",
+      "--console-address",
+      "127.0.0.1:${RESOURCE_PORT_CONSOLE}"
+    ],
     "environment": {
       "MINIO_ROOT_USER": "minioadmin",
       "MINIO_ROOT_PASSWORD": "minioadmin",

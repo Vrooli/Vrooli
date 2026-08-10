@@ -8,5 +8,7 @@
   "installHint": "Install and authenticate Claude Code before using this host-managed resource.",
   "platforms": ["linux", "macos", "windows"],
   "manual": true,
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "ai-cli",
+  "capability_role": "primary"
 }

@@ -199,8 +199,18 @@
       }
     }
   },
-  "portability_tier": "partial",
   "category": "storage",
+  "requirements": {
+    "ram_mb": 512,
+    "disk_mb": 1024,
+    "cpu_cores": 1,
+    "network": "optional",
+    "bucket": "small",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "storage",
+    "weight": 1
+  },
   "platforms": {
     "linux": "partial",
     "macos": "partial",

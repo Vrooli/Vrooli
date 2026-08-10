@@ -198,6 +198,18 @@ def test_processed_batch_signal_is_coalesced_and_monotonic():
     assert [m for m in ws.sent if m.get("type") == "processed"] == processed
 
 
+def test_processed_coverage_precedes_terminal_done():
+    """The provider stops consuming after ``done``; final coverage must arrive first."""
+    ws = FakeWS()
+    session = server.StreamSession(ws)
+    session.processed_batches = 1
+    session.enqueue_done()
+
+    asyncio.run(session._drain_outbound())
+
+    assert [message["type"] for message in ws.sent] == ["processed", "done"]
+
+
 def test_bare_websocket_cannot_reserve_decoder_admission():
     """The required start header precedes FIFO admission.
 

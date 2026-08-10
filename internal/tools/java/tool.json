@@ -27,5 +27,7 @@
     "windows"
   ],
   "notes": "Required for `quint verify`; keep version guidance aligned with Quint verification backend requirements.",
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "build-toolchain",
+  "capability_role": "primary"
 }

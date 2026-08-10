@@ -31,5 +31,7 @@
     "linux"
   ],
   "installHint": "Install mcelog via your package manager. On modern AMD systems mcelog is often superseded by rasdaemon — that is acceptable; this tool reports ExecutionAlreadyPresent in that case.",
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "crash-forensics",
+  "capability_role": "primary"
 }

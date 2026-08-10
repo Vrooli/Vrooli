@@ -75,5 +75,7 @@
       }
     }
   },
-  "bundling": "vendorable"
+ "bundling": "vendorable",
+  "capability": "runtime-language",
+  "capability_role": "primary"
 }

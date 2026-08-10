@@ -22,5 +22,7 @@
     "macos",
     "windows"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "runtime-language",
+  "capability_role": "primary"
 }

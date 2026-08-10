@@ -11,7 +11,8 @@
   ],
   "defaultPackage": "ffmpeg",
   "packages": {
-    "winget": "Gyan.FFmpeg"
+    "winget": "Gyan.FFmpeg",
+    "brew": "ffmpeg"
   },
   "installHint": "Install FFmpeg for media-processing scenarios and resources",
   "platforms": [
@@ -19,5 +20,7 @@
     "macos",
     "windows"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "media-processing",
+  "capability_role": "primary"
 }

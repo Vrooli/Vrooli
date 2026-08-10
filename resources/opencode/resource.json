@@ -168,8 +168,18 @@
   "version_args": [
     "--version"
   ],
-  "portability_tier": "partial",
   "category": "development",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 2048,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "development",
+    "weight": 2
+  },
   "platforms": {
     "linux": "supported",
     "macos": "supported",
@@ -224,13 +234,13 @@
   },
   "install": {
     "platforms": {
-    "linux": [
-      "resource-opencode",
-      "install-direct"
+      "linux": [
+        "resource-opencode",
+        "install-direct"
       ],
-    "macos": [
-      "resource-opencode",
-      "install-direct"
+      "macos": [
+        "resource-opencode",
+        "install-direct"
       ]
     }
   },

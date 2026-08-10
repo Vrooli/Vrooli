@@ -19,5 +19,7 @@
     "linux",
     "macos"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "test-execution",
+  "capability_role": "primary"
 }

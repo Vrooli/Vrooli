@@ -33,5 +33,7 @@
     ],
     "expectExitCode": 0
   },
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "container-runtime",
+  "capability_role": "primary"
 }

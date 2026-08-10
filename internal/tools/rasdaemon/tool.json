@@ -56,5 +56,7 @@
     "linux"
   ],
   "installHint": "Install rasdaemon via your package manager and enable the systemd unit (rasdaemon.service).",
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "hardware-error-telemetry",
+  "capability_role": "primary"
 }

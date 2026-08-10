@@ -9,6 +9,8 @@
   ],
   "risk": "medium",
   "privilege": "elevated",
-  "bundling": "prohibited",
+ "bundling": "prohibited",
+  "capability": "clock-accuracy",
+  "capability_role": "primary",
   "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
 }

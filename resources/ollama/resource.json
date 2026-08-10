@@ -31,7 +31,10 @@
           "max_age": "30d",
           "rationale": "Model recommendation metadata is regenerable and was observed under the resource data root."
         },
-        "relocation": { "key": "OLLAMA_MODELS", "scope": "process-tree" },
+        "relocation": {
+          "key": "OLLAMA_MODELS",
+          "scope": "process-tree"
+        },
         "rationale": "Ollama recommendation cache is not model state and may be reclaimed by age."
       },
       "credentials": {
@@ -170,8 +173,19 @@
       ]
     }
   ],
-  "portability_tier": "partial",
   "category": "ai",
+  "requirements": {
+    "ram_mb": 8192,
+    "disk_mb": 12288,
+    "cpu_cores": 4,
+    "gpu": true,
+    "network": "optional",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "ai",
+    "weight": 3
+  },
   "platforms": {
     "linux": "supported",
     "macos": "supported",
@@ -188,7 +202,10 @@
     {
       "type": "command",
       "kind": "readiness",
-      "command": ["resource-ollama", "health-ready"],
+      "command": [
+        "resource-ollama",
+        "health-ready"
+      ],
       "interval_seconds": 10,
       "timeout_seconds": 10
     },

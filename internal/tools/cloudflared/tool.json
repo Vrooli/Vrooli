@@ -20,5 +20,7 @@
     "macos",
     "windows"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "web-proxy",
+  "capability_role": "primary"
 }

@@ -37,5 +37,7 @@
     "macos",
     "windows"
   ],
-  "bundling": "vendorable"
+ "bundling": "vendorable",
+  "capability": "data-query",
+  "capability_role": "primary"
 }

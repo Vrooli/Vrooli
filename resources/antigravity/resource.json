@@ -138,8 +138,18 @@
   "version_args": [
     "--version"
   ],
-  "portability_tier": "partial",
   "category": "developer-tooling",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 2048,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "developer-tooling",
+    "weight": 2
+  },
   "platforms": {
     "linux": "supported",
     "macos": "supported",
@@ -171,13 +181,13 @@
   },
   "install": {
     "platforms": {
-    "linux": [
-      "resource-antigravity",
-      "install-direct"
+      "linux": [
+        "resource-antigravity",
+        "install-direct"
       ],
-    "macos": [
-      "resource-antigravity",
-      "install-direct"
+      "macos": [
+        "resource-antigravity",
+        "install-direct"
       ]
     }
   },

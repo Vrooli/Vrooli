@@ -42,5 +42,7 @@
       "linux/arm64": "stable-diffusion.cpp publishes no Linux arm64 Vulkan release artifact; building the missing upstream target is outside host provisioning scope."
     }
   },
-  "bundling": "vendorable"
+ "bundling": "vendorable",
+  "capability": "gpu-driver-health",
+  "capability_role": "primary"
 }

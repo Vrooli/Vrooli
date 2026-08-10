@@ -89,15 +89,22 @@ message AgentSessionProposal {
 // proposal review surface owns a session's proposals.
 message AgentSessionProposalTarget {
   // Entity kind receiving the proposed changes.
+  //
+  // Must stay in step with the server's ProposalTarget.Validate and the
+  // capture intake path that creates these sessions. The client validates
+  // responses against these rules, and a single non-conforming target
+  // rejects the whole list response — so a value the domain accepts but this
+  // list omits takes down the entire Sessions view, not just one row.
   string type = 1 [(buf.validate.field).string = {
     in: [
       "backlog_item",
-      "goal"
+      "goal",
+      "capture"
     ]
   }];
 
-  // Stable entity reference. Backlog items use "kind/name"; goals use
-  // their goal name.
+  // Stable entity reference. Backlog items use "kind/name"; goals use their
+  // goal name; captures use their capture id.
   string ref = 2 [(buf.validate.field).string.min_len = 1];
 
   // Human-readable target title.

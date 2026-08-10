@@ -9,7 +9,9 @@
   ],
   "risk": "high",
   "privilege": "elevated",
-  "bundling": "prohibited",
+ "bundling": "prohibited",
+  "capability": "hardware-error-telemetry",
+  "capability_role": "primary",
   "config": {
     "type": "object",
     "additionalProperties": false,

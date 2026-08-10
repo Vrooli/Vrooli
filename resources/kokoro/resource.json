@@ -1,7 +1,10 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "kokoro",
-  "storage": {"entries": {}, "rationale": "No additional host storage is owned by this resource on the supported lifecycle path; the explicit empty declaration prevents an implicit-storage assumption."},
+  "storage": {
+    "entries": {},
+    "rationale": "No additional host storage is owned by this resource on the supported lifecycle path; the explicit empty declaration prevents an implicit-storage assumption."
+  },
   "display_name": "Kokoro",
   "description": "Managed Kokoro text-to-speech service with native compose-backed lifecycle and shell-retained voice synthesis workflows.",
   "cli": {
@@ -110,7 +113,6 @@
       "KOKORO_IMAGE": "ghcr.io/remsky/kokoro-fastapi-gpu@sha256:79d81c41d8883611291c5785e47db2ba00765e9b89dd59de05d9f28e1945f905"
     }
   },
-  "portability_tier": "partial",
   "capacity": {
     "resource_kind": "vram",
     "gpu_index": 0,
@@ -119,6 +121,18 @@
     "priority": "service"
   },
   "category": "ai",
+  "requirements": {
+    "ram_mb": 4096,
+    "disk_mb": 6144,
+    "cpu_cores": 2,
+    "gpu": true,
+    "network": "required",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "ai",
+    "weight": 3
+  },
   "platforms": {
     "linux": "supported",
     "macos": "partial",

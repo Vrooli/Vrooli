@@ -1,7 +1,10 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "gemini",
-  "storage": {"entries": {}, "rationale": "No additional host storage is owned by this resource on the supported lifecycle path; the explicit empty declaration prevents an implicit-storage assumption."},
+  "storage": {
+    "entries": {},
+    "rationale": "No additional host storage is owned by this resource on the supported lifecycle path; the explicit empty declaration prevents an implicit-storage assumption."
+  },
   "display_name": "Google Gemini API",
   "description": "Hosted Gemini API integration for multimodal and text generation workloads.",
   "cli": {
@@ -151,8 +154,18 @@
     "recovery_delay_seconds": 5,
     "priority": "medium"
   },
-  "portability_tier": "full",
   "category": "hosted-service",
+  "requirements": {
+    "ram_mb": 128,
+    "disk_mb": 128,
+    "cpu_cores": 0.25,
+    "network": "required",
+    "bucket": "small",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "hosted-service",
+    "weight": 1
+  },
   "platforms": {
     "linux": "supported",
     "macos": "supported",

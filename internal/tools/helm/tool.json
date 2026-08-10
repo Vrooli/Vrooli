@@ -21,5 +21,7 @@
     "windows"
   ],
   "notes": "Not yet declared by any scenario — kept for upcoming scenario-to-cloud integration",
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "container-runtime",
+  "capability_role": "primary"
 }

@@ -57,5 +57,7 @@
       }
     }
   },
-  "bundling": "vendorable"
+ "bundling": "vendorable",
+  "capability": "package-management",
+  "capability_role": "primary"
 }

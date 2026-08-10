@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"resource-claude-code/cli/internal/permissionscli"
@@ -22,6 +23,24 @@ const (
 	// diverges from this string.
 	upstreamPinnedVersion = "2.1.185"
 )
+
+func runClaude(args []string) error {
+	if len(args) > 0 && args[0] == "--" {
+		args = args[1:]
+	}
+	if len(args) == 0 {
+		return fmt.Errorf("claude arguments are required")
+	}
+	path := os.Getenv("CLAUDE_CODE_PATH")
+	if path == "" {
+		path = "claude"
+	}
+	cmd := exec.Command(path, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
 
 var (
 	buildFingerprint = "unknown"
@@ -56,8 +75,17 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
+	commands := append(app.StandardLifecycleCommands(),
+		cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{Binary: "claude", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".claude"), Version: upstreamPinnedVersion, NPM: "@anthropic-ai/claude-code"})}},
+		cliapp.CommandGroup{Title: "Execution", Commands: []cliapp.Command{{
+			Name:        "run",
+			Description: "Run the resource-owned Claude Code executable",
+			Usage:       "resource-claude-code run -- <claude arguments>",
+			Run:         runClaude,
+		}}},
+	)
 	app.SetCommandsWithSubgroups(
-		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{Binary: "claude", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".claude"), Version: upstreamPinnedVersion, NPM: "@anthropic-ai/claude-code"})}}),
+		commands,
 		[]cliapp.SubcommandGroup{
 			agentpolicy.ModelDiscoveryCommands(agentpolicy.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName)}),
 			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Claude native permission denials remain active; verify the installed Claude version with a PreToolUse runner canary before treating the portable hook as enforced."}}}),

@@ -8,5 +8,7 @@
   "installHint": "Install Kopia before using this host-managed resource.",
   "platforms": ["linux", "macos", "windows"],
   "manual": true,
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "backup-storage",
+  "capability_role": "primary"
 }

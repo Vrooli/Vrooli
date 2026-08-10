@@ -16,5 +16,7 @@
   ],
   "manual": true,
   "installHint": "Python tool — install with `pipx install iopaint` (or `pip install iopaint`). Not a single-binary release, so it is not auto-fetched.",
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "media-processing",
+  "capability_role": "primary"
 }

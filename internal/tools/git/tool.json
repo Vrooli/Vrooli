@@ -11,7 +11,8 @@
   ],
   "defaultPackage": "git",
   "packages": {
-    "winget": "Git.Git"
+    "winget": "Git.Git",
+    "brew": "git"
   },
   "installHint": "Install Git for repository operations",
   "platforms": [
@@ -19,5 +20,7 @@
     "macos",
     "windows"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "source-control",
+  "capability_role": "primary"
 }

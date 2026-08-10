@@ -45,5 +45,7 @@
     }
   },
   "notes": "Pinned to 1.37.0 alongside packages/proto codegen. Bump in lockstep with the proto-codegen byte-stability gate (`make check`).",
-  "bundling": "vendorable"
+ "bundling": "vendorable",
+  "capability": "protobuf-toolchain",
+  "capability_role": "primary"
 }

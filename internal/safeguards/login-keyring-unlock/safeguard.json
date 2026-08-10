@@ -10,7 +10,9 @@
   "platforms": ["linux"],
   "risk": "high",
   "privilege": "elevated",
-  "bundling": "prohibited",
+ "bundling": "prohibited",
+  "capability": "credential-storage",
+  "capability_role": "primary",
   "deployment": {
     "profiles": {
       "desktop": {

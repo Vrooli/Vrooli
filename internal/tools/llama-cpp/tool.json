@@ -17,5 +17,7 @@
   ],
   "manual": true,
   "installHint": "Build or install llama.cpp and place llama-mtmd-cli (or llama-cli) on PATH or in ~/.vrooli/bin; see https://github.com/ggml-org/llama.cpp. No stable single-binary release is pinned, so it is not auto-fetched.",
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "gpu-driver-health",
+  "capability_role": "primary"
 }

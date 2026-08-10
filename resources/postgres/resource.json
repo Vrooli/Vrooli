@@ -144,8 +144,18 @@
       }
     }
   },
-  "portability_tier": "full",
   "category": "storage",
+  "requirements": {
+    "ram_mb": 2048,
+    "disk_mb": 8192,
+    "cpu_cores": 2,
+    "network": "optional",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "storage",
+    "weight": 3
+  },
   "platforms": {
     "linux": "supported",
     "macos": "supported",
@@ -163,7 +173,16 @@
     {
       "type": "command",
       "kind": "readiness",
-      "command": ["docker", "exec", "vrooli-postgres-main", "pg_isready", "-U", "vrooli", "-h", "127.0.0.1"],
+      "command": [
+        "docker",
+        "exec",
+        "vrooli-postgres-main",
+        "pg_isready",
+        "-U",
+        "vrooli",
+        "-h",
+        "127.0.0.1"
+      ],
       "target": "",
       "interval_seconds": 10,
       "timeout_seconds": 5

@@ -121,8 +121,18 @@
   "version_args": [
     "version"
   ],
-  "portability_tier": "full",
   "category": "development",
+  "requirements": {
+    "ram_mb": 512,
+    "disk_mb": 1024,
+    "cpu_cores": 1,
+    "network": "optional",
+    "bucket": "small",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "development",
+    "weight": 1
+  },
   "platforms": {
     "linux": "supported",
     "macos": "supported",

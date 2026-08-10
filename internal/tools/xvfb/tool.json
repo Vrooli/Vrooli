@@ -19,5 +19,7 @@
   "platforms": [
     "linux"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "headless-gui",
+  "capability_role": "primary"
 }

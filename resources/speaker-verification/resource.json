@@ -157,8 +157,19 @@
     "floor_bytes": 751619277,
     "priority": "service"
   },
-  "portability_tier": "partial",
   "category": "ai",
+  "requirements": {
+    "ram_mb": 2048,
+    "disk_mb": 4096,
+    "cpu_cores": 2,
+    "gpu": true,
+    "network": "required",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "ai",
+    "weight": 3
+  },
   "platforms": {
     "linux": "supported",
     "macos": "partial",

@@ -16,5 +16,7 @@
   "platforms": [
     "linux"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "remote-desktop",
+  "capability_role": "primary"
 }

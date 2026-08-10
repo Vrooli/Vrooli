@@ -24,9 +24,11 @@ batches:
 ```
 
 `processed_batches` is an absolute, monotonically increasing count. Audio Tools
-uses it as a bounded credit window (eight unprocessed PCM batches maximum), so a
-fast deterministic replay cannot fill the transport write buffer and block
-WebSocket ping/pong control traffic. It carries no audio or transcript data.
+uses it both as a bounded credit window (eight unprocessed PCM batches maximum)
+and as the backend-confirmed processed-coverage cursor for its recovery ledger.
+That keeps a fast deterministic replay from filling the transport write buffer
+while ensuring captured audio is not compacted merely because a local write was
+queued. The frame carries no audio or transcript data.
 
 ## Model & Hardware
 

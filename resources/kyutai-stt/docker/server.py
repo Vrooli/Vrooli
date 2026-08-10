@@ -511,15 +511,24 @@ class StreamSession:
         """Flush all pending durables in order, then the coalesced partial.
         Durable sends may block on a slow consumer — that is fine, they are
         lossless; only the worker waits, never the decode loop."""
+        async def send_processed() -> None:
+            if self.processed_batches > self._last_sent_processed_batches:
+                self._last_sent_processed_batches = self.processed_batches
+                await self.ws.send_text(json.dumps({
+                    "type": "processed",
+                    "processed_batches": self.processed_batches,
+                }))
+
         while self._durables:
             obj = self._durables.popleft()
+            # Providers treat done as terminal and stop consuming immediately.
+            # The final processed cursor must therefore cross the wire first,
+            # otherwise a fully decoded tail can remain in the browser journal
+            # despite the resource having accepted it.
+            if obj.get("type") == "done":
+                await send_processed()
             await self.ws.send_text(json.dumps(obj))
-        if self.processed_batches > self._last_sent_processed_batches:
-            self._last_sent_processed_batches = self.processed_batches
-            await self.ws.send_text(json.dumps({
-                "type": "processed",
-                "processed_batches": self.processed_batches,
-            }))
+        await send_processed()
         if self._latest_partial is not None and self._latest_partial != self._last_sent_partial:
             self._last_sent_partial = self._latest_partial
             partial = self._latest_partial

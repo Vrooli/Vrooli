@@ -147,8 +147,18 @@
   "version_args": [
     "--version"
   ],
-  "portability_tier": "full",
   "category": "storage",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 4096,
+    "cpu_cores": 1,
+    "network": "optional",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "storage",
+    "weight": 2
+  },
   "platforms": {
     "linux": "supported",
     "macos": "supported",

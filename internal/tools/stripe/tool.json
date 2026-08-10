@@ -20,5 +20,7 @@
     "macos",
     "windows"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "network-transfer",
+  "capability_role": "primary"
 }

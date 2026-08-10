@@ -10,10 +10,13 @@
     "-V"
   ],
   "defaultPackage": "tmux",
+  "packages": {"brew": "tmux"},
   "installHint": "Install tmux for detachable operator workflows",
   "platforms": [
     "linux",
     "macos"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "terminal-multiplexing",
+  "capability_role": "primary"
 }

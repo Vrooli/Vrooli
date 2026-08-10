@@ -134,8 +134,18 @@
     "recovery_attempts": 2,
     "priority": "low"
   },
-  "portability_tier": "full",
   "category": "communications",
+  "requirements": {
+    "ram_mb": 128,
+    "disk_mb": 128,
+    "cpu_cores": 0.25,
+    "network": "required",
+    "bucket": "small",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "communications",
+    "weight": 1
+  },
   "platforms": {
     "linux": "supported",
     "macos": "supported",

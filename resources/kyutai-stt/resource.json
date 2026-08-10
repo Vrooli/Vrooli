@@ -130,8 +130,19 @@
       "upshift": false
     }
   },
-  "portability_tier": "platform-specific",
   "category": "ai",
+  "requirements": {
+    "ram_mb": 4096,
+    "disk_mb": 8192,
+    "cpu_cores": 2,
+    "gpu": true,
+    "network": "required",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "ai",
+    "weight": 3
+  },
   "platforms": {
     "linux": "supported",
     "macos": "unsupported",

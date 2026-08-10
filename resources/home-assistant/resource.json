@@ -187,8 +187,18 @@
     }
   },
   "compose_file": "compose.yaml",
-  "portability_tier": "partial",
   "category": "automation",
+  "requirements": {
+    "ram_mb": 2048,
+    "disk_mb": 4096,
+    "cpu_cores": 2,
+    "network": "required",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "automation",
+    "weight": 3
+  },
   "platforms": {
     "linux": "supported",
     "macos": "partial",

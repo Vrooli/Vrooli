@@ -137,8 +137,18 @@
       }
     }
   },
-  "portability_tier": "full",
   "category": "search",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 2048,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "search",
+    "weight": 2
+  },
   "platforms": {
     "linux": "supported",
     "macos": "supported",

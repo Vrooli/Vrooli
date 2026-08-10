@@ -35,7 +35,9 @@
     ]
   },
   "privilege": "elevated",
-  "bundling": "prohibited",
+ "bundling": "prohibited",
+  "capability": "developer-utility",
+  "capability_role": "primary",
   "deployment": {
     "profiles": {
       "desktop": {

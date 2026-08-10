@@ -18,5 +18,7 @@
   "platforms": [
     "linux"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "credential-storage",
+  "capability_role": "peer"
 }

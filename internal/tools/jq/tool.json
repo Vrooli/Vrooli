@@ -11,7 +11,8 @@
   ],
   "defaultPackage": "jq",
   "packages": {
-    "winget": "jqlang.jq"
+    "winget": "jqlang.jq",
+    "brew": "jq"
   },
   "installHint": "Install jq for JSON processing in setup and resource flows",
   "platforms": [
@@ -19,5 +20,7 @@
     "macos",
     "windows"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "data-query",
+  "capability_role": "primary"
 }

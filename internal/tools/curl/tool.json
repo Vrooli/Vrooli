@@ -10,11 +10,14 @@
     "--version"
   ],
   "defaultPackage": "curl",
+  "packages": {"brew": "curl"},
   "installHint": "Install curl for HTTP-based setup and diagnostics",
   "platforms": [
     "linux",
     "macos",
     "windows"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "network-transfer",
+  "capability_role": "primary"
 }

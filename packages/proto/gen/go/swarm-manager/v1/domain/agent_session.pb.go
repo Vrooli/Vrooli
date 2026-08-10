@@ -239,9 +239,15 @@ func (x *AgentSessionProposal) GetAttribution() *shared.AgentSessionAttribution 
 type AgentSessionProposalTarget struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Entity kind receiving the proposed changes.
+	//
+	// Must stay in step with the server's ProposalTarget.Validate and the
+	// capture intake path that creates these sessions. The client validates
+	// responses against these rules, and a single non-conforming target
+	// rejects the whole list response — so a value the domain accepts but this
+	// list omits takes down the entire Sessions view, not just one row.
 	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
-	// Stable entity reference. Backlog items use "kind/name"; goals use
-	// their goal name.
+	// Stable entity reference. Backlog items use "kind/name"; goals use their
+	// goal name; captures use their capture id.
 	Ref string `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
 	// Human-readable target title.
 	Name          string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
@@ -519,9 +525,9 @@ const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\a \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12^\n" +
 	"\vattribution\x18\b \x01(\v27.vrooli.swarm_manager.v1.shared.AgentSessionAttributionH\x00R\vattribution\x88\x01\x01B\x0e\n" +
-	"\f_attribution\"\x83\x01\n" +
-	"\x1aAgentSessionProposalTarget\x12-\n" +
-	"\x04type\x18\x01 \x01(\tB\x19\xbaH\x16r\x14R\fbacklog_itemR\x04goalR\x04type\x12\x19\n" +
+	"\f_attribution\"\x8c\x01\n" +
+	"\x1aAgentSessionProposalTarget\x126\n" +
+	"\x04type\x18\x01 \x01(\tB\"\xbaH\x1fr\x1dR\fbacklog_itemR\x04goalR\acaptureR\x04type\x12\x19\n" +
 	"\x03ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03ref\x12\x1b\n" +
 	"\x04name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\xad\t\n" +
 	"\fAgentSession\x12\x17\n" +

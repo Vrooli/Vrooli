@@ -31,5 +31,7 @@
     "linux"
   ],
   "installHint": "Install kdump-tools and reboot after the crashkernel_reserve safeguard adds the crashkernel= parameter. Without crashkernel reserved, kdump cannot operate.",
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "crash-forensics",
+  "capability_role": "primary"
 }

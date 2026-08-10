@@ -7,7 +7,9 @@
   "platforms": ["linux", "macos", "windows"],
   "risk": "low",
   "privilege": "user",
-  "bundling": "prohibited",
+ "bundling": "prohibited",
+  "capability": "developer-utility",
+  "capability_role": "primary",
 	"config": {
 	  "type": "object",
 	  "additionalProperties": false,

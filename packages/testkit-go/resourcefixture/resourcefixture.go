@@ -41,14 +41,13 @@ type ResourceTemplateOption func(*ResourceTemplateManifest)
 
 func ResourceManifest(name string, opts ...ResourceManifestOption) manifestpkg.ResourceManifest {
 	manifest := manifestpkg.ResourceManifest{
-		Name:            name,
-		DisplayName:     displayname.Default(name),
-		Description:     fmt.Sprintf("%s fixture", displayname.Default(name)),
-		CLI:             defaultResourceCLIConfig(name),
-		Driver:          "external-cli",
-		Template:        "external-cli",
-		Binary:          "bash",
-		PortabilityTier: "full",
+		Name:        name,
+		DisplayName: displayname.Default(name),
+		Description: fmt.Sprintf("%s fixture", displayname.Default(name)),
+		CLI:         defaultResourceCLIConfig(name),
+		Driver:      "external-cli",
+		Template:    "external-cli",
+		Binary:      "bash",
 		Platforms: manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",

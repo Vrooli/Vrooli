@@ -17,5 +17,7 @@
     "linux",
     "macos"
   ],
-  "bundling": "host-required"
+ "bundling": "host-required",
+  "capability": "code-analysis",
+  "capability_role": "primary"
 }
