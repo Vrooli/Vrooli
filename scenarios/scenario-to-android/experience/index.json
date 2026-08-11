@@ -34,9 +34,9 @@
       "status": "active"
     },
     {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
+      "id": "distribution",
+      "path": "pages/distribution.json",
+      "title": "Distribution",
       "status": "active"
     },
     {
@@ -48,14 +48,14 @@
   ],
   "journeys": [
     {
-      "id": "ship-a-scenario-to-a-phone",
-      "path": "journeys/ship-a-scenario-to-a-phone.json",
-      "title": "Take a scenario from source to an installable app",
+      "id": "ship-a-scenario-to-a-device",
+      "path": "journeys/ship-a-scenario-to-a-device.json",
+      "title": "Take a scenario from source to an installable Android app",
       "status": "active"
     },
     {
-      "id": "find-out-why-a-target-cannot-be-proven",
-      "path": "journeys/find-out-why-a-target-cannot-be-proven.json",
+      "id": "diagnose-a-blocked-target",
+      "path": "journeys/diagnose-a-blocked-target.json",
       "title": "Find out why a target cannot be proven, and fix it",
       "status": "active"
     }

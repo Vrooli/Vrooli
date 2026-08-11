@@ -10,7 +10,6 @@
     "bottomNavLabel": "التنقل على الهاتف",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "notes": "الملاحظات",
       "settings": "الإعدادات"
     }
   },
@@ -27,9 +26,6 @@
       "title": "لوحة التحكم",
       "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
       "statPlaceholderLabel": "إحصائية"
-    },
-    "notes": {
-      "title": "الملاحظات"
     },
     "settings": {
       "title": "الإعدادات",
@@ -52,31 +48,6 @@
     "summary": "{{count}} إشعارات",
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
-  },
-  "notes": {
-    "title": "الملاحظات",
-    "loading": "جارٍ تحميل الملاحظات…",
-    "empty": "لا توجد ملاحظات بعد.",
-    "create": "إنشاء ملاحظة",
-    "createdAtLabel": "تاريخ الإنشاء:",
-    "attachmentsLabel": "{{count}} مرفقات",
-    "attachmentsLabel_one": "مرفق واحد",
-    "table": {
-      "title": "العنوان",
-      "created": "تاريخ الإنشاء",
-      "attachments": "المرفقات",
-      "actions": "الإجراءات",
-      "search": "البحث في الملاحظات"
-    },
-    "uploadAttachment": "رفع مرفق",
-    "attachmentFileLabel": "ملف المرفق",
-    "uploadSuccess": "تم رفع {{name}}.",
-    "noFileSelected": "اختر ملفًا قبل الرفع.",
-    "measure": {
-      "title": "ملاحظات هذا الأسبوع",
-      "loading": "جارٍ العد…",
-      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

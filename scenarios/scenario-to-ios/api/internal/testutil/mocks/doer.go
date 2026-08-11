@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
+
 	"scenario-to-ios/internal/httpc"
 )
 

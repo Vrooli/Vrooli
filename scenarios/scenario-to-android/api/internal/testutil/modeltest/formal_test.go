@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
 	"scenario-to-android/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

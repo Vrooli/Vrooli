@@ -48,70 +48,6 @@
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
     },
-    "notes.card": {
-      "testId": "notes-card",
-      "selector": "[data-testid=\"notes-card\"]"
-    },
-    "notes.list": {
-      "testId": "notes-list",
-      "selector": "[data-testid=\"notes-list\"]"
-    },
-    "notes.loading": {
-      "testId": "notes-loading",
-      "selector": "[data-testid=\"notes-loading\"]"
-    },
-    "notes.empty": {
-      "testId": "notes-empty",
-      "selector": "[data-testid=\"notes-empty\"]"
-    },
-    "notes.error": {
-      "testId": "notes-error",
-      "selector": "[data-testid=\"notes-error\"]"
-    },
-    "notes.createButton": {
-      "testId": "notes-create-button",
-      "selector": "[data-testid=\"notes-create-button\"]"
-    },
-    "notes.createdAt": {
-      "testId": "notes-created-at",
-      "selector": "[data-testid=\"notes-created-at\"]"
-    },
-    "notes.attachmentCount": {
-      "testId": "notes-attachment-count",
-      "selector": "[data-testid=\"notes-attachment-count\"]"
-    },
-    "notes.attachmentUpload": {
-      "testId": "notes-attachment-upload",
-      "selector": "[data-testid=\"notes-attachment-upload\"]"
-    },
-    "notes.attachmentFile": {
-      "testId": "notes-attachment-file",
-      "selector": "[data-testid=\"notes-attachment-file\"]"
-    },
-    "notes.attachmentButton": {
-      "testId": "notes-attachment-button",
-      "selector": "[data-testid=\"notes-attachment-button\"]"
-    },
-    "notes.attachmentStatus": {
-      "testId": "notes-attachment-status",
-      "selector": "[data-testid=\"notes-attachment-status\"]"
-    },
-    "notes.measure.card": {
-      "testId": "notes-measure-card",
-      "selector": "[data-testid=\"notes-measure-card\"]"
-    },
-    "notes.measure.value": {
-      "testId": "notes-measure-value",
-      "selector": "[data-testid=\"notes-measure-value\"]"
-    },
-    "notes.measure.loading": {
-      "testId": "notes-measure-loading",
-      "selector": "[data-testid=\"notes-measure-loading\"]"
-    },
-    "notes.measure.error": {
-      "testId": "notes-measure-error",
-      "selector": "[data-testid=\"notes-measure-error\"]"
-    },
     "layout.shell": {
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
@@ -140,13 +76,29 @@
       "testId": "theme-select",
       "selector": "[data-testid=\"theme-select\"]"
     },
+    "delivery.targetMatrix": {
+      "testId": "dashboard-target-matrix",
+      "selector": "[data-testid=\"dashboard-target-matrix\"]"
+    },
     "pages.dashboard": {
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
     },
-    "pages.notes": {
-      "testId": "page-notes",
-      "selector": "[data-testid=\"page-notes\"]"
+    "pages.targetDetail": {
+      "testId": "page-target-detail",
+      "selector": "[data-testid=\"page-target-detail\"]"
+    },
+    "pages.runReview": {
+      "testId": "page-run-review",
+      "selector": "[data-testid=\"page-run-review\"]"
+    },
+    "pages.readiness": {
+      "testId": "page-readiness",
+      "selector": "[data-testid=\"page-readiness\"]"
+    },
+    "pages.distribution": {
+      "testId": "page-distribution",
+      "selector": "[data-testid=\"page-distribution\"]"
     },
     "pages.settings": {
       "testId": "page-settings",
@@ -172,7 +124,6 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
             "settings"
           ]
         }
@@ -188,7 +139,6 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
             "settings"
           ]
         }

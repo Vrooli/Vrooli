@@ -25,10 +25,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "scenario-to-ios/handlers/health"
-	notesH "scenario-to-ios/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "scenario-to-ios/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-ios/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +36,6 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	return out
 }
 
@@ -65,9 +61,7 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_scenario_to_ios_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
-	}
+	return []ProtoFileEntry{}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
@@ -81,6 +75,5 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
 	}
 }

@@ -6,6 +6,7 @@ package mocks
 import (
 	"sync"
 	"time"
+
 	"scenario-to-ios/internal/clock"
 )
 

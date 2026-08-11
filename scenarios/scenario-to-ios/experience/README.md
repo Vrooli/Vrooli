@@ -18,11 +18,19 @@ Machine-tier claims should only be added when the UI has stable selectors and
 the claim can be checked by the experience phase. Manual claims need
 attestations with expiry; aspirational claims are useful intent but never gate.
 
-The generated `notes` page is part of the removable example domain. Running
-`template-manager detemplate scenario-to-ios` removes its page spec and registry
-entry with the rest of the notes example.
+The example `notes` domain has been detemplated; every page here is real.
 
-The Notes example also demonstrates the generated semantic foundation: its
-`notes` region is bound to `data-experience-surface="notes"` and reports the
-canonical lifecycle vocabulary. Keep this boundary for every independently
-meaningful async region; passive UI primitives inherit their parent state.
+Each page declares `elements` (intent-level, role + accessible name) and a
+`bindings.elements` map from element id to `data-testid`. Bindings are the
+volatile layer — the only section a pure restyle should touch — and they are the
+selector source of truth for `bas/` case scaffolding. Keep an element's id stable
+even when its testid changes.
+
+Machine-tier claims require both an element and its binding; a `custom` claim can
+only ever be `manual` or `aspirational`. Prefer a typed claim
+(`element-present`, `element-absent`, `state-distinct`, `reading-order`,
+`visible-without-scroll`) over prose whenever the property is observable in the
+accessibility tree — a machine claim gates CI, a manual one does not.
+
+Keep the `data-experience-surface` boundary for every independently meaningful
+async region; passive UI primitives inherit their parent state.

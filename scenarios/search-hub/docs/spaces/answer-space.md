@@ -5,6 +5,12 @@
 > legend are defined once in the canonical model doc:
 > `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`. This document does not re-explain them.
 
+> **Condition** — every cell that resolves `NOW` here puts its **provider** into the Condition
+> population, and `search-hub` owes that provider's serving, freshness, and exercise signals as
+> declared Measures. Condition is not a denominator and is not authored in this file; the model,
+> the required signals, and this owner's current instrumentation are in
+> `meta-optimization-manager/docs/concepts/CONDITION-MODEL.md`.
+
 ## Purpose
 
 The **denominator** for the *Answer* projection: the bounded set of architectural questions,

@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"net/http"
+
 	"scenario-to-android/internal/capabilities"
 	"scenario-to-android/internal/module"
 

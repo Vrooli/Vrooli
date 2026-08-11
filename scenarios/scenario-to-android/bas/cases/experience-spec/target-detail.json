@@ -1,0 +1,50 @@
+{
+  "metadata": {
+    "name": "experience-target-detail-spec-smoke",
+    "description": "Observer smoke for active experience page target-detail.",
+    "requirement": "OT-P0-003",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "target-detail",
+      "surface": "experience-target-detail"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-target-detail",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "scenario-to-android",
+          "scenario_path": "/targets/local-emulator",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Target detail"
+        }
+      }
+    },
+    {
+      "id": "wait-target-detail-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.targetDetail",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Target detail page visible"
+        }
+      }
+    }
+  ]
+}

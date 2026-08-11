@@ -37,12 +37,107 @@
       "notes": "A lapsed membership must not continue to read as satisfied."
     }
   ],
+  "elements": [
+    {
+      "id": "rung-list",
+      "role": "list",
+      "name": "Readiness rungs",
+      "description": "The ordered ladder from no account to App Review submission. Array order is the dependency order."
+    },
+    {
+      "id": "rung-state",
+      "role": "status",
+      "name": "Rung state",
+      "description": "The probed state of one rung, carrying a text label as well as a status colour."
+    },
+    {
+      "id": "rung-owner",
+      "role": "note",
+      "name": "Completed by",
+      "description": "Whether the ramp can complete this rung or only the owner can."
+    },
+    {
+      "id": "rung-cost",
+      "role": "note",
+      "name": "Cost",
+      "description": "The monetary cost of a rung where one exists, shown as part of the rung rather than in documentation."
+    },
+    {
+      "id": "rung-next-action",
+      "role": "button",
+      "name": "Next action",
+      "description": "The single action that advances the first unsatisfied rung."
+    },
+    {
+      "id": "rung-deadline",
+      "role": "note",
+      "name": "Deadline",
+      "description": "The dated external obligation attached to a rung, where one exists."
+    },
+    {
+      "id": "mirror-path-note",
+      "role": "note",
+      "name": "Path without enrollment",
+      "description": "Statement that a physical-device path exists that requires no enrollment, together with its non-promotable caveat."
+    }
+  ],
   "states": [
     {
       "id": "default",
       "description": "Live rung state as probed.",
       "setup": {
         "route": "/readiness"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Rung states are being probed; none are asserted yet.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No Apple account has been configured at all, so no rung can even be probed. Distinct from a probed-and-unsatisfied ladder.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some rungs were probed and others could not be reached; the unprobed ones are explicitly unknown rather than assumed unsatisfied.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Rung state is from an old probe. Age is shown, because a lapsed membership must not continue to read as satisfied.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The readiness probe failed. Reported as a failure rather than as an unsatisfied ladder.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "request-error"
+        }
       }
     },
     {
@@ -88,32 +183,139 @@
   ],
   "claims": [
     {
-      "id": "rung-order-is-enforced",
-      "type": "custom",
-      "statement": "No rung reports ready while any rung it depends on is unsatisfied.",
-      "tier": "automated",
-      "rationale": "S2I-P0-009. A ladder that reports a later rung ready out of order is displaying independent flags, not modelling a dependency."
+      "id": "rung-order-is-the-reading-order",
+      "type": "reading-order",
+      "elements": [
+        "rung-list"
+      ],
+      "states": [
+        "default",
+        "nothing-started",
+        "ready-to-ship"
+      ],
+      "tier": "machine",
+      "statement": "The ladder is presented in dependency order, so the first unsatisfied rung is the first one an owner reads.",
+      "rationale": "S2I-P0-009. Order is the information. A ladder whose rungs can be read in any order is just a checklist."
     },
     {
-      "id": "human-only-rungs-are-labelled",
-      "type": "custom",
-      "statement": "Every rung indicates whether it can be automated by the ramp or requires an owner action.",
-      "tier": "automated",
+      "id": "every-rung-names-its-owner",
+      "type": "element-present",
+      "elements": [
+        "rung-state",
+        "rung-owner"
+      ],
+      "states": [
+        "default",
+        "nothing-started",
+        "enrollment-pending",
+        "ready-to-ship"
+      ],
+      "tier": "machine",
+      "statement": "Every rung shows its state and whether the ramp or the owner completes it.",
       "rationale": "The purpose of the surface is to tell the owner what to do next; conflating 'blocked on you' with 'blocked on the system' defeats it."
     },
     {
-      "id": "mirror-path-surfaced-when-blocked",
-      "type": "custom",
-      "statement": "When enrollment is absent, the surface names the physical-device path that needs no enrollment, and states that its evidence cannot gate a release.",
-      "tier": "manual",
-      "rationale": "S2I-P1-003. Without this the owner concludes that no physical-device work is possible at all, which is false — but presenting it without the non-promotable caveat would be misleading in the other direction."
+      "id": "enrollment-shows-its-cost",
+      "type": "element-present",
+      "elements": [
+        "rung-cost"
+      ],
+      "states": [
+        "nothing-started",
+        "default"
+      ],
+      "tier": "machine",
+      "statement": "A rung that costs money displays that cost.",
+      "rationale": "S2I-P0-009. $99/yr is a decision, not a task. A rung that reads only 'not started' hides that it is a purchase."
     },
     {
-      "id": "host-expiry-is-dated-not-vague",
-      "type": "custom",
-      "statement": "A build host approaching or past its submittable-build capability shows the specific requirement it will fail, not a generic warning.",
-      "tier": "manual",
+      "id": "blocked-ladder-offers-one-next-action",
+      "type": "element-present",
+      "elements": [
+        "rung-next-action"
+      ],
+      "states": [
+        "nothing-started"
+      ],
+      "tier": "machine",
+      "statement": "An unstarted ladder presents the single next action that advances it.",
+      "rationale": "The ladder exists to answer 'what do I do now'. Showing six blocked rungs without one action does not answer it."
+    },
+    {
+      "id": "mirror-path-surfaced-when-blocked",
+      "type": "element-present",
+      "elements": [
+        "mirror-path-note"
+      ],
+      "states": [
+        "nothing-started"
+      ],
+      "tier": "machine",
+      "statement": "When enrollment is absent, the surface names the physical-device path that needs no enrollment.",
+      "rationale": "S2I-P1-002. Without this the owner concludes that no physical-device work is possible at all, which is false."
+    },
+    {
+      "id": "host-expiry-is-dated",
+      "type": "element-present",
+      "elements": [
+        "rung-deadline"
+      ],
+      "states": [
+        "host-expiring"
+      ],
+      "tier": "machine",
+      "statement": "A build host approaching its submittable-build limit shows the dated requirement it will fail.",
       "rationale": "S2I-P0-004. 'This host may stop working' is not actionable; 'Xcode 27 requires Apple Silicon' is."
+    },
+    {
+      "id": "waiting-on-them-differs-from-waiting-on-you",
+      "type": "state-distinct",
+      "states": [
+        "nothing-started",
+        "enrollment-pending"
+      ],
+      "tier": "machine",
+      "statement": "A ladder awaiting an Apple decision renders distinguishably from one awaiting an owner action.",
+      "rationale": "Enrollment review can take days. An owner who cannot tell these apart will either wait on themselves or re-submit something already pending."
+    },
+    {
+      "id": "rung-state-is-reprobed-not-stored",
+      "type": "custom",
+      "statement": "Rung state shown to the owner reflects a probe rather than a stored completion flag, so a lapsed or revoked membership stops reading as satisfied.",
+      "tier": "manual",
+      "rationale": "S2I-P0-009. This is a data-provenance property that cannot be observed from the rendered tree alone; it needs a human or an integration test to attest."
+    },
+    {
+      "id": "mirror-caveat-accompanies-mirror-path",
+      "type": "custom",
+      "statement": "Wherever the no-enrollment physical path is offered, its non-promotable status is stated with it.",
+      "tier": "manual",
+      "rationale": "S2I-P1-002. Surfacing the escape hatch without the caveat is misleading in the opposite direction from hiding it."
     }
-  ]
+  ],
+  "bindings": {
+    "elements": {
+      "rung-list": {
+        "testid": "readiness-rung-list"
+      },
+      "rung-state": {
+        "testid": "readiness-rung-state"
+      },
+      "rung-owner": {
+        "testid": "readiness-rung-owner"
+      },
+      "rung-cost": {
+        "testid": "readiness-rung-cost"
+      },
+      "rung-next-action": {
+        "testid": "readiness-rung-next-action"
+      },
+      "rung-deadline": {
+        "testid": "readiness-rung-deadline"
+      },
+      "mirror-path-note": {
+        "testid": "readiness-mirror-path-note"
+      }
+    }
+  }
 }

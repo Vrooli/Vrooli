@@ -27,6 +27,60 @@
     {
       "statement": "The driving strategy and its capability tier are named before a run, not only after.",
       "notes": "An operator should know they are about to get pixel-grade evidence before spending a run on it."
+    },
+    {
+      "statement": "Transport is explicit — local host or a named bridge node.",
+      "notes": "The operator must be able to tell where work will actually execute, because that changes what can fail."
+    }
+  ],
+  "elements": [
+    {
+      "id": "target-disposition",
+      "role": "status",
+      "name": "Target disposition",
+      "description": "The closed-vocabulary disposition for this target, carrying a text label as well as a status colour."
+    },
+    {
+      "id": "capability-list",
+      "role": "list",
+      "name": "Probed capabilities",
+      "description": "One entry per probed prerequisite with its individual result."
+    },
+    {
+      "id": "probe-timestamp",
+      "role": "note",
+      "name": "Probed at",
+      "description": "When the capability snapshot was taken."
+    },
+    {
+      "id": "missing-capability",
+      "role": "note",
+      "name": "Missing capability",
+      "description": "The specific prerequisite that is absent, named rather than generalised."
+    },
+    {
+      "id": "next-action",
+      "role": "button",
+      "name": "Next action",
+      "description": "The single action that would resolve this target's blocked state. Must not exist for a terminal target."
+    },
+    {
+      "id": "transport",
+      "role": "note",
+      "name": "Transport",
+      "description": "Local host or the named bridge node through which this target is reached."
+    },
+    {
+      "id": "strategy-tier",
+      "role": "note",
+      "name": "Driving strategy",
+      "description": "The device-control strategy that would drive this target and whether it is semantic or pixel-grade."
+    },
+    {
+      "id": "lease-holder",
+      "role": "note",
+      "name": "Lease holder",
+      "description": "The consumer currently holding the device-control lease on this target, and since when."
     }
   ],
   "states": [
@@ -35,6 +89,57 @@
       "description": "A fully available simulator target on a macOS node.",
       "setup": {
         "route": "/targets/mac-simulator"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "The capability snapshot is being fetched; no results are asserted yet.",
+      "setup": {
+        "route": "/targets/mac-simulator",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The target has never been probed. Explains that no snapshot exists rather than showing an empty capability list.",
+      "setup": {
+        "route": "/targets/mac-simulator",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some capabilities were probed and others could not be reached; the unprobed ones are explicitly unknown rather than assumed absent.",
+      "setup": {
+        "route": "/targets/mac-simulator",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "The capability snapshot is old enough that it may no longer hold. Age is shown prominently.",
+      "setup": {
+        "route": "/targets/mac-simulator",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The probe request failed. Reported as a failure rather than as an unavailable target.",
+      "setup": {
+        "route": "/targets/mac-simulator",
+        "query": {
+          "fixture": "request-error"
+        }
       }
     },
     {
@@ -76,36 +181,176 @@
           "fixture": "physical-no-enrollment"
         }
       }
+    },
+    {
+      "id": "device-leased-elsewhere",
+      "description": "The device is healthy and fully capable, but another consumer holds its device-control lease. Availability is a scheduling fact here, not a capability gap.",
+      "setup": {
+        "route": "/targets/iphone-physical",
+        "query": {
+          "fixture": "device-leased-elsewhere"
+        }
+      }
     }
   ],
   "claims": [
     {
-      "id": "terminal-offers-no-remedy",
-      "type": "custom",
+      "id": "terminal-offers-no-action",
+      "type": "element-absent",
+      "elements": [
+        "next-action"
+      ],
+      "states": [
+        "terminal-linux"
+      ],
+      "tier": "machine",
       "statement": "A target in the unsupported state presents an explanation and no action control.",
-      "tier": "automated",
-      "rationale": "S2I-P0-003. An affordance implies a path; there is none, and offering one wastes the operator's time on something structurally impossible."
+      "rationale": "S2I-P0-003. An affordance implies a path; there is none, and offering one wastes the operator's time on something structurally impossible while quietly destroying trust in every other disposition the UI reports."
     },
     {
-      "id": "each-prerequisite-fails-distinctly",
-      "type": "custom",
-      "statement": "Missing Xcode, missing runtime variant, missing GUI session, and missing signing identity produce four different messages with four different next actions.",
-      "tier": "automated",
-      "rationale": "S2I-P0-003. These fail for unrelated reasons and a single generic 'macOS node not ready' would make all four undiagnosable."
+      "id": "blocked-always-offers-an-action",
+      "type": "element-present",
+      "elements": [
+        "next-action",
+        "missing-capability"
+      ],
+      "states": [
+        "no-gui-session",
+        "missing-runtime-variant",
+        "physical-no-enrollment"
+      ],
+      "tier": "machine",
+      "statement": "Every unavailable target names both the missing capability and one next action.",
+      "rationale": "S2I-P0-003. The counterpart promise: if terminal states must offer nothing, actionable states must always offer something specific."
     },
     {
-      "id": "strategy-tier-shown-before-running",
-      "type": "custom",
-      "statement": "A physical-device target names which strategy would drive it and whether that strategy is semantic or pixel-grade, before a run is started.",
-      "tier": "automated",
-      "rationale": "S2I-P1-002. Pixel-grade evidence is non-promotable; an operator must know that before spending a run rather than discovering it in review."
+      "id": "terminal-and-blocked-are-distinct",
+      "type": "state-distinct",
+      "states": [
+        "terminal-linux",
+        "no-gui-session"
+      ],
+      "tier": "machine",
+      "statement": "A terminal target and a blocked-but-fixable target render distinguishably.",
+      "rationale": "S2I-P0-003. These are semantically opposite answers and must not require reading the prose to tell apart."
+    },
+    {
+      "id": "distinct-causes-give-distinct-remedies",
+      "type": "state-distinct",
+      "states": [
+        "no-gui-session",
+        "missing-runtime-variant"
+      ],
+      "tier": "machine",
+      "statement": "Missing GUI session and missing simulator runtime variant render as different states on the same node.",
+      "rationale": "S2I-P0-003. These fail for unrelated reasons; a single generic 'macOS node not ready' would make both undiagnosable."
     },
     {
       "id": "probe-age-is-visible",
-      "type": "custom",
-      "statement": "Every capability result displays when it was probed.",
-      "tier": "automated",
+      "type": "element-present",
+      "elements": [
+        "probe-timestamp",
+        "capability-list"
+      ],
+      "states": [
+        "default",
+        "no-gui-session",
+        "missing-runtime-variant",
+        "stale"
+      ],
+      "tier": "machine",
+      "statement": "Every capability result is accompanied by when it was probed.",
       "rationale": "Capability is a measurement, and a measurement without a timestamp cannot be judged current."
+    },
+    {
+      "id": "transport-is-named",
+      "type": "element-present",
+      "elements": [
+        "transport"
+      ],
+      "states": [
+        "default",
+        "no-gui-session",
+        "missing-runtime-variant",
+        "physical-no-enrollment"
+      ],
+      "tier": "machine",
+      "statement": "Every reachable target names the transport through which work will execute.",
+      "rationale": "S2I-P0-004. Where work runs changes what can fail, so it is part of reading the target."
+    },
+    {
+      "id": "strategy-tier-shown-before-running",
+      "type": "element-present",
+      "elements": [
+        "strategy-tier"
+      ],
+      "states": [
+        "physical-no-enrollment",
+        "default"
+      ],
+      "tier": "machine",
+      "statement": "A target names which strategy would drive it and whether that strategy is semantic or pixel-grade, before a run is started.",
+      "rationale": "S2I-P1-002. Pixel-grade evidence is non-promotable; an operator must know that before spending a run rather than discovering it in review."
+    },
+    {
+      "id": "two-strategies-one-device-are-comparable",
+      "type": "custom",
+      "statement": "When one physical device offers both a semantic and a pixel-grade strategy, their differing availability and evidence tier are legible side by side before either is chosen.",
+      "tier": "manual",
+      "rationale": "S2I-P1-001, S2I-P1-002. The iPhone is the only target with two strategies at different tiers, and choosing the wrong one wastes a run and produces evidence that cannot gate a release."
+    },
+    {
+      "id": "leased-device-names-its-holder",
+      "type": "element-present",
+      "elements": [
+        "lease-holder",
+        "next-action"
+      ],
+      "states": [
+        "device-leased-elsewhere"
+      ],
+      "tier": "machine",
+      "statement": "A target blocked by a held device-control lease names the holder and offers a next action rather than reporting a bare unavailable.",
+      "rationale": "S2I-P0-005. A device is a single-occupancy resource. Without the holder named, contention is indistinguishable from a broken probe, and the operator goes looking for a fault that does not exist."
+    },
+    {
+      "id": "contention-differs-from-incapacity",
+      "type": "state-distinct",
+      "states": [
+        "device-leased-elsewhere",
+        "default"
+      ],
+      "tier": "machine",
+      "statement": "A target that is merely leased elsewhere renders distinguishably from one that is free and ready.",
+      "rationale": "S2I-P0-005. A busy device becomes available by waiting; an incapable one never does. Collapsing them turns a queue into a phantom capability gap."
     }
-  ]
+  ],
+  "bindings": {
+    "elements": {
+      "target-disposition": {
+        "testid": "target-detail-disposition"
+      },
+      "capability-list": {
+        "testid": "target-detail-capability-list"
+      },
+      "probe-timestamp": {
+        "testid": "target-detail-probe-timestamp"
+      },
+      "missing-capability": {
+        "testid": "target-detail-missing-capability"
+      },
+      "next-action": {
+        "testid": "target-detail-next-action"
+      },
+      "transport": {
+        "testid": "target-detail-transport"
+      },
+      "strategy-tier": {
+        "testid": "target-detail-strategy-tier"
+      },
+      "lease-holder": {
+        "testid": "target-detail-lease-holder"
+      }
+    }
+  }
 }

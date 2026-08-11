@@ -71,23 +71,6 @@ curl -s "http://localhost:${API_PORT}/health"
 # Proto-typed calls hit /vrooli.scenario_to_android.v1.<domain>.<Service>/<Method>
 ```
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain illustrates the full shape —
-copy it, then remove it with `template-manager detemplate`:
-
-```bash
-scenario-to-android notes list
-scenario-to-android notes create --title "First note" --body "Hello"
-```
-
-```bash
-API_PORT=$(vrooli scenario port scenario-to-android API_PORT)
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.scenario_to_android.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## 5 — Run the tests
 
 ```bash

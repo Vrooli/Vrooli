@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"net/http"
+
 	"scenario-to-ios/internal/capabilities"
 	"scenario-to-ios/internal/module"
 

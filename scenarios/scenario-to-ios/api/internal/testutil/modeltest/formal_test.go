@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
 	"scenario-to-ios/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

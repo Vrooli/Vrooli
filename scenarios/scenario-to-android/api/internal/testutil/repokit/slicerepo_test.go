@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
 	"scenario-to-android/internal/testutil/repokit"
 
 	"github.com/stretchr/testify/require"

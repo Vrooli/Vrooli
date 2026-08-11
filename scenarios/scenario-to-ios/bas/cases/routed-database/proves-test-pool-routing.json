@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "routed-smoke",
-    "description": "End-to-end proof that test-genie's routed test-database path actually works: navigates to a page served by the live scenario that reads from the database, and asserts that a fixture slug seeded into the per-run test pool ('routed-smoke-001') is rendered. The slug exists only in the test pool; if the API failed to route the request to the test pool (e.g., X-Vrooli-Test-Mode header not attached, TestModeMiddleware missing, RoutedDB.pick(ctx) returning the primary), the assertion fails.\n\nCustomize this for your scenario: replace the scenario_path with your DB-backed list view, the @selector/notes.list selector with your real list selector, and the slug with whatever bas/seeds/seed.go inserts into the test pool.",
+    "description": "End-to-end proof that test-genie's routed test-database path actually works: navigates to the DB-backed delivery matrix and asserts that a fixture slug seeded into the per-run test pool ('routed-smoke-001') is rendered. The slug exists only in the test pool; if the API failed to route the request to the test pool (e.g., X-Vrooli-Test-Mode header not attached, TestModeMiddleware missing, RoutedDB.pick(ctx) returning the primary), the assertion fails.\n\nPENDING: this case cannot pass until (a) the delivery matrix renders target rows from the targets domain and (b) bas/seeds/seed.go inserts a target whose identifier is 'routed-smoke-001' into the test pool. Both are P0 work; the case is wired to the real surface so it starts proving routing the moment they land.",
     "requirement": "REQ-ROUTED-DB-E2E",
     "version": "1",
     "labels": {
@@ -28,7 +28,9 @@
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Navigate to DB-backed list view" }
+        "metadata": {
+          "label": "Navigate to the DB-backed delivery matrix"
+        }
       }
     },
     {
@@ -36,11 +38,13 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/notes.list",
+          "selector": "@selector/pages.dashboard",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "List container visible" }
+        "metadata": {
+          "label": "Delivery matrix page visible"
+        }
       }
     },
     {
@@ -48,14 +52,18 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/notes.list",
+          "selector": "@selector/delivery.targetMatrix",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
-          "expected": { "stringValue": "routed-smoke-001" },
+          "expected": {
+            "stringValue": "routed-smoke-001"
+          },
           "case_sensitive": true,
           "timeout_ms": 10000,
-          "failure_message": "Seeded fixture 'routed-smoke-001' not visible in the list — the UI->API request did not reach the routed test pool. Check that X-Vrooli-Test-Mode is being attached by Playwright (browser_profile.extra_headers), that TestModeMiddleware is mounted, and that the list's repository uses *database.RoutedDB."
+          "failure_message": "Seeded fixture 'routed-smoke-001' not visible in the target matrix — either the seed has not been written yet, or the UI->API request did not reach the routed test pool. Check that X-Vrooli-Test-Mode is attached by Playwright (browser_profile.extra_headers), that TestModeMiddleware is mounted, and that the targets repository uses *database.RoutedDB."
         },
-        "metadata": { "label": "Assert seeded slug is rendered (proves routing end-to-end)" }
+        "metadata": {
+          "label": "Assert seeded slug is rendered (proves routing end-to-end)"
+        }
       }
     }
   ]
