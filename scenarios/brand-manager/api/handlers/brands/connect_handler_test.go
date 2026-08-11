@@ -50,6 +50,41 @@ func TestConnect_CreateThenGet(t *testing.T) {
 	require.Equal(t, "#fff", got.Msg.Brand.Colors.Primary)
 }
 
+func TestConnect_GetTokensProjectsBrandColors(t *testing.T) {
+	client, _ := newClient(t)
+	ctx := context.Background()
+
+	created, err := client.CreateBrand(ctx, connect.NewRequest(&brandsv1.CreateBrandRequest{
+		Name: "Acme",
+		Colors: &brandsv1.Colors{
+			Primary: "#112233", Secondary: "#445566", Accent: "#778899",
+			Background: "#000000", Surface: "#ffffff", Text: "#fefefe", Error: "#ff0000",
+		},
+	}))
+	require.NoError(t, err)
+
+	got, err := client.GetTokens(ctx, connect.NewRequest(&brandsv1.GetTokensRequest{BrandId: created.Msg.Brand.Id}))
+	require.NoError(t, err)
+	require.Equal(t, []string{"$brand.primary", "$brand.secondary", "$brand.accent", "$brand.background", "$brand.surface", "$brand.text", "$brand.error"}, tokenNames(got.Msg.Tokens))
+	require.Equal(t, []string{"#112233", "#445566", "#778899", "#000000", "#ffffff", "#fefefe", "#ff0000"}, tokenValues(got.Msg.Tokens))
+}
+
+func tokenNames(tokens []*brandsv1.Token) []string {
+	values := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		values = append(values, token.Name)
+	}
+	return values
+}
+
+func tokenValues(tokens []*brandsv1.Token) []string {
+	values := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		values = append(values, token.Value)
+	}
+	return values
+}
+
 func TestConnect_CreateRejectsEmptyName(t *testing.T) {
 	client, _ := newClient(t)
 	_, err := client.CreateBrand(context.Background(), connect.NewRequest(&brandsv1.CreateBrandRequest{Name: "  "}))

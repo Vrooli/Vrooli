@@ -26,6 +26,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"BrandsService.UpdateBrand":       h.update,
 		"BrandsService.DeleteBrand":       h.delete,
 		"BrandsService.ListBrandVersions": h.versions,
+		"BrandsService.GetTokens":          h.tokens,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

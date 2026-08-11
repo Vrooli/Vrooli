@@ -154,6 +154,26 @@ func (h *handlers) versions(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) tokens(ctx cliapp.RunContext) error {
+	brandID := ctx.Positional("brand-id")
+	resp, err := h.client.GetTokens(context.Background(), connect.NewRequest(&brandsv1.GetTokensRequest{BrandId: brandID}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("get tokens for brand %q", brandID), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no tokens response")
+	}
+	results := make([]string, 0, len(resp.Msg.Tokens))
+	for _, token := range resp.Msg.Tokens {
+		results = append(results, fmt.Sprintf("%s=%s", token.Name, token.Value))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d token(s) for brand %s.", len(resp.Msg.Tokens), brandID)},
+		ResultsHeading: "Design tokens",
+		Results:        results,
+	})
+}
+
 // identityFromFlags builds an Identity message from the display-name/tagline
 // flags. Returns nil when neither is set so the partial-update merge leaves the
 // facet untouched.

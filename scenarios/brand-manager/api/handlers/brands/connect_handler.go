@@ -108,6 +108,16 @@ func (h *connectHandler) ListBrandVersions(ctx context.Context, req *connect.Req
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) GetTokens(ctx context.Context, req *connect.Request[brandsv1.GetTokensRequest]) (*connect.Response[brandsv1.GetTokensResponse], error) {
+	brand, err := h.deps.Service.Get(ctx, req.Msg.GetBrandId())
+	if err != nil {
+		return nil, h.translate("brands.GetTokens", err)
+	}
+	colors := brand.Colors
+	values := []*brandsv1.Token{{Name: "$brand.primary", Value: colors.Primary}, {Name: "$brand.secondary", Value: colors.Secondary}, {Name: "$brand.accent", Value: colors.Accent}, {Name: "$brand.background", Value: colors.Background}, {Name: "$brand.surface", Value: colors.Surface}, {Name: "$brand.text", Value: colors.Text}, {Name: "$brand.error", Value: colors.Error}}
+	return connect.NewResponse(&brandsv1.GetTokensResponse{Tokens: values}), nil
+}
+
 // translate maps a domain error to a Connect error, logging only genuine
 // internal failures (never the client-fault 4xx-equivalent codes).
 func (h *connectHandler) translate(op string, err error) error {

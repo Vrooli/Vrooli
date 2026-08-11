@@ -147,4 +147,19 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors:      []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Repository read failure"}},
 		Examples:    []module.Example{{Name: "List versions", Curl: "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/ListBrandVersions -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\"}'"}},
 	},
+	{
+		ID:          "brands_tokens",
+		Path:        brandsconnect.BrandsServiceGetTokensProcedure,
+		Method:      "POST",
+		Summary:     "Get brand design tokens",
+		Description: "Projects a brand's color system into stable $brand.* tokens for downstream image and content composition.",
+		Category:    "brands",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"brand_id": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"tokens": "array<Token>"}},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No brand with that id exists"},
+			{Status: 500, Code: "internal", Description: "Repository read failure"},
+		},
+		Examples: []module.Example{{Name: "Get brand tokens", Curl: "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/GetTokens -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\"}'"}},
+	},
 }

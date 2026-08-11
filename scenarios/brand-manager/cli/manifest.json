@@ -244,6 +244,29 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "tokens",
+          "description": "Project a brand's color system into stable $brand.* design tokens",
+          "positionals": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "GetTokens"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
