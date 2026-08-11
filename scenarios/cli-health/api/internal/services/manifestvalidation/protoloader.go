@@ -153,12 +153,15 @@ func surfaceFromFDSet(fds *descriptorpb.FileDescriptorSet, scenario string, shar
 				svc := fd.Services().Get(i)
 				for j := 0; j < svc.Methods().Len(); j++ {
 					method := svc.Methods().Get(j)
-					key := string(svc.Name()) + "." + string(method.Name())
+					shortKey := string(svc.Name()) + "." + string(method.Name())
+					fullKey := string(svc.FullName()) + "." + string(method.Name())
 					candidate := ProtoRequestCandidate{Request: method.Input(), Source: fd.Path(), Shared: isShared}
-					requestCandidates[key] = append(requestCandidates[key], candidate)
-					if _, exists := requests[key]; !exists {
-						requests[key] = method.Input()
+					requestCandidates[shortKey] = append(requestCandidates[shortKey], candidate)
+					requestCandidates[fullKey] = append(requestCandidates[fullKey], candidate)
+					if _, exists := requests[shortKey]; !exists {
+						requests[shortKey] = method.Input()
 					}
+					requests[fullKey] = method.Input()
 				}
 			}
 			return true
@@ -185,7 +188,11 @@ func surfaceFromFDSet(fds *descriptorpb.FileDescriptorSet, scenario string, shar
 			for _, m := range svc.GetMethod() {
 				methods = append(methods, m.GetName())
 			}
-			ps := ProtoService{Name: svc.GetName(), Methods: methods}
+			fullName := svc.GetName()
+			if pkg := f.GetPackage(); pkg != "" {
+				fullName = pkg + "." + fullName
+			}
+			ps := ProtoService{Name: svc.GetName(), FullName: fullName, Methods: methods}
 			if isOwn {
 				own = append(own, ps)
 			} else {

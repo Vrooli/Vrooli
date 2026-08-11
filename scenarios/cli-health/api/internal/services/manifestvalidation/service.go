@@ -359,14 +359,25 @@ func crossCheck(m *cliapp.Manifest, surface ProtoSurface, manifestPath string) [
 	var orphans []string
 	for _, svc := range surface.Services {
 		for _, method := range svc.Methods {
-			key := svc.Name + "." + method
-			if _, isBound := bound[key]; isBound {
+			shortKey := svc.Name + "." + method
+			fullKey := svc.FullName + "." + method
+			if _, isBound := bound[shortKey]; isBound {
 				continue
 			}
-			if _, isOmitted := omitted[key]; isOmitted {
+			if svc.FullName != "" {
+				if _, isBound := bound[fullKey]; isBound {
+					continue
+				}
+			}
+			if _, isOmitted := omitted[shortKey]; isOmitted {
 				continue
 			}
-			orphans = append(orphans, key)
+			if svc.FullName != "" {
+				if _, isOmitted := omitted[fullKey]; isOmitted {
+					continue
+				}
+			}
+			orphans = append(orphans, shortKey)
 		}
 	}
 	sort.Strings(orphans)

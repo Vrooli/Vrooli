@@ -100,6 +100,17 @@ func TestPerFileRuleFeedsAPIFiles(t *testing.T) {
 	}
 }
 
+func TestSharedPackageSourceBypassIsBlockingForRecognizedScenarios(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "ui/vite.config.ts", `export default { resolve: { alias: { "@vrooli/audio-capture-browser": "../../../packages/audio-capture-browser/src/index.ts" } } }`)
+
+	fs := toLocal(t, root, "demo", true, DefaultProfileID)
+	counts := codeCounts(fs)
+	if counts["SCENARIO_SHARED_PACKAGE_BYPASS"] != 1 {
+		t.Fatalf("expected one shared package bypass finding, got %v", counts)
+	}
+}
+
 // TestUnrecognizedProfileDowngradesToAdvisory proves the core de-rigidification
 // promise: a scenario whose profile is not the recognized default is never
 // failed by react-vite/Go conventions — every pack finding becomes an advisory

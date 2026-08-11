@@ -9,6 +9,7 @@ package packs
 
 import (
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"structure-health/internal/packs/auditrules"
@@ -96,6 +97,13 @@ var registry = []entry{
 		run: func(c, p, s string) []auditrules.Violation {
 			v, _ := uilifecyclelaunch.CheckUISharedLifecycleLaunch([]byte(c), p, s)
 			return v
+		},
+	},
+	{
+		Code: "SCENARIO_SHARED_PACKAGE_BYPASS", Name: "Shared Package Source Bypass",
+		Feed: feedPerFile, Target: scan.TargetUI, Severity: "high",
+		run: func(c, p, s string) []auditrules.Violation {
+			return checkSharedPackageBypass(c, p)
 		},
 	},
 
@@ -213,6 +221,21 @@ var registry = []entry{
 	// spatial-nav-provider) moved to the ui-health scenario, which is now the
 	// single authority for all static UI-interop validation. structure-health
 	// keeps only generic skeleton facts.
+}
+
+var sharedPackageSourcePath = regexp.MustCompile("packages/[^/\\s\\\"']+/src(?:/|[\\\"'])")
+
+func checkSharedPackageBypass(content, path string) []auditrules.Violation {
+	if !sharedPackageSourcePath.MatchString(content) {
+		return nil
+	}
+	return []auditrules.Violation{{
+		Severity:       "high",
+		Title:          "Shared package source bypass",
+		Message:        "scenario UI resolves a shared package directly from packages/*/src instead of consuming its governed package output",
+		FilePath:       path,
+		Recommendation: "Remove the source-tree alias and consume the package through its declared file dependency and compiled exports.",
+	}}
 }
 
 // Evaluate runs every conformance pack against the scanned scenario and returns

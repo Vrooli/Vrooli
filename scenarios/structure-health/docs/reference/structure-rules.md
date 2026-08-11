@@ -10,6 +10,8 @@ This page is generated from the Structure Health rule catalog. The executable ca
 | DOCS_LAYOUT_MISSING | docs | warning | enforced | docs.layout |
 | DOCS_MANIFEST_INVALID | docs | error | enforced | docs.manifest |
 | PACKAGE_GO_REPLACE_MISSING | package | error | enforced | package.go-replaces |
+| PACKAGE_BUILD_OUTPUTS_COMMITTED | package | error | enforced | package.no-committed-build-outputs |
+| PACKAGE_BUILD_OUTPUTS_UNDECLARED | package | error | enforced | package.build-output-declarations |
 | PACKAGE_INTERNAL_IMPORT | package | error | enforced | package.no-root-internal |
 | PACKAGE_LAYOUT_MISSING | package | error | enforced | package.layout |
 | PACKAGE_MANIFEST_INVALID | package | error | enforced | package.manifest-shape |
@@ -17,6 +19,7 @@ This page is generated from the Structure Health rule catalog. The executable ca
 | PACKAGE_MODULE_PATH_MISMATCH | package | error | enforced | package.module-identifiers |
 | PACKAGE_NAME_MISMATCH | package | error | enforced | package.identity |
 | PACKAGE_OWN_MODULE_MISSING | package | error | enforced | package.own-module |
+| PACKAGE_SOURCE_ENTRYPOINT | package | error | enforced | package.compiled-entrypoints |
 | PROFILE_CONFORMANCE_VIOLATION | scenario | warning | advisory | scenario.profile-advisory |
 | PROFILE_DEVELOP_STEPS | scenario | warning | enforced | scenario.develop-steps |
 | PROFILE_ENV_VALIDATION | scenario | warning | enforced | scenario.environment-validation |
@@ -56,6 +59,7 @@ This page is generated from the Structure Health rule catalog. The executable ca
 | SCENARIO_UI_BOUNDARY_MISSING | scenario | error | enforced | scenario.ui-boundary |
 | SCENARIO_UI_LOCKFILE_MISSING | scenario | error | enforced | scenario.ui-lockfile |
 | SCENARIO_WORKSPACE_DEPENDENCY | scenario | error | enforced | scenario.no-workspace-star |
+| SCENARIO_SHARED_PACKAGE_BYPASS | scenario | error | enforced | scenario.shared-package-boundary |
 | TEAM_LAYOUT_MISSING | team | error | enforced | team.layout |
 | TEAM_MANIFEST_INVALID | team | error | enforced | team.manifest |
 | TEAM_OWNER_MISMATCH | team | error | enforced | team.identity |

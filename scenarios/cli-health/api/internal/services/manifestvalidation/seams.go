@@ -73,8 +73,9 @@ type ProtoRequestCandidate struct {
 }
 
 type ProtoService struct {
-	Name    string
-	Methods []string
+	Name     string
+	FullName string
+	Methods  []string
 }
 
 // HasMethod reports whether the named service (own OR shared) exposes the named
@@ -85,7 +86,7 @@ func (p ProtoSurface) HasMethod(service, method string) bool {
 
 func hasMethodIn(svcs []ProtoService, service, method string) bool {
 	for _, s := range svcs {
-		if s.Name != service {
+		if s.Name != service && s.FullName != service {
 			continue
 		}
 		for _, m := range s.Methods {
@@ -114,12 +115,12 @@ func (p ProtoSurface) HasAnyMethod() bool {
 // shared).
 func (p ProtoSurface) HasService(service string) bool {
 	for _, s := range p.Services {
-		if s.Name == service {
+		if s.Name == service || s.FullName == service {
 			return true
 		}
 	}
 	for _, s := range p.Shared {
-		if s.Name == service {
+		if s.Name == service || s.FullName == service {
 			return true
 		}
 	}

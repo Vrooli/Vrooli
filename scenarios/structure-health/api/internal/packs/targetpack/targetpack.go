@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -93,7 +94,143 @@ func evaluatePackage(root, id string, parseUnits []ParseUnit) []rules.Finding {
 	if npmName := packageJSONName(root); npmName != "" && !stringArrayContains(identifiers, npmName) {
 		out = append(out, finding("PACKAGE_MODULE_PATH_MISMATCH", "error", "JavaScript package name is absent from package governance identifiers", "package.json#/name", "Add the package.json name to package.module_identifiers."))
 	}
+	out = append(out, packageBuildOutputRules(root)...)
+	out = append(out, packageSourceEntrypointRules(root)...)
 	out = append(out, packageParseUnitRules(root, parseUnits)...)
+	return out
+}
+
+func packageBuildOutputRules(root string) []rules.Finding {
+	_, doc, ok := loadObject(filepath.Join(root, ".vrooli", "package.json"))
+	if !ok {
+		return nil
+	}
+	entry, _ := doc["package"].(map[string]any)
+	lifecycle, _ := entry["lifecycle"].(map[string]any)
+	var out []rules.Finding
+	for _, phase := range []string{"generate", "build"} {
+		commands, _ := lifecycle[phase].([]any)
+		for index, raw := range commands {
+			command, _ := raw.(map[string]any)
+			name := stringValue(command["name"])
+			outputs, _ := command["outputs"].([]any)
+			if phase == "build" && len(outputs) == 0 {
+				out = append(out, finding("PACKAGE_BUILD_OUTPUTS_UNDECLARED", "error", "package lifecycle command has no declared build outputs", filepath.ToSlash(filepath.Join(".vrooli", "package.json"))+"#/package/lifecycle/"+phase+"/"+strconv.Itoa(index), "Declare non-empty outputs globs for every generate or build command."))
+				continue
+			}
+			if phase != "build" {
+				continue
+			}
+			for outputIndex, rawOutput := range outputs {
+				pattern := stringValue(rawOutput)
+				if strings.TrimSpace(pattern) == "" {
+					out = append(out, finding("PACKAGE_BUILD_OUTPUTS_UNDECLARED", "error", "package lifecycle command declares an empty build output glob", filepath.ToSlash(filepath.Join(".vrooli", "package.json"))+"#/package/lifecycle/"+phase+"/"+strconv.Itoa(index)+"/outputs/"+strconv.Itoa(outputIndex), "Replace empty output entries with repository-relative output globs."))
+				}
+			}
+			if name == "" {
+				out = append(out, finding("PACKAGE_BUILD_OUTPUTS_UNDECLARED", "error", "package lifecycle build command has no stable name", filepath.ToSlash(filepath.Join(".vrooli", "package.json"))+"#/package/lifecycle/"+phase+"/"+strconv.Itoa(index)+"/name", "Name every generate or build command so diagnostics identify the provisioning command."))
+			}
+			out = append(out, committedPackageOutputs(root, outputs)...)
+		}
+	}
+	return out
+}
+
+func committedPackageOutputs(root string, outputs []any) []rules.Finding {
+	repoRoot := root
+	for {
+		if fileExists(filepath.Join(repoRoot, ".git", "HEAD")) || fileExists(filepath.Join(repoRoot, ".git")) {
+			break
+		}
+		parent := filepath.Dir(repoRoot)
+		if parent == repoRoot {
+			return nil
+		}
+		repoRoot = parent
+	}
+	relRoot, err := filepath.Rel(repoRoot, root)
+	if err != nil || strings.HasPrefix(relRoot, "..") {
+		return nil
+	}
+	var out []rules.Finding
+	for _, raw := range outputs {
+		pattern := stringValue(raw)
+		if strings.TrimSpace(pattern) == "" {
+			continue
+		}
+		matches, err := gitTrackedMatches(repoRoot, filepath.ToSlash(filepath.Join(relRoot, pattern)))
+		if err != nil {
+			continue
+		}
+		for _, match := range matches {
+			out = append(out, finding("PACKAGE_BUILD_OUTPUTS_COMMITTED", "error", "generated package build output is tracked by git", match, "Remove generated outputs from version control and keep the declared output paths ignored."))
+		}
+		if len(matches) == 0 && !packageOutputIgnored(repoRoot, filepath.ToSlash(filepath.Join(relRoot, pattern))) {
+			out = append(out, finding("PACKAGE_BUILD_OUTPUTS_COMMITTED", "error", "declared package build output is not ignored by git", ".gitignore", "Add the declared build output path to .gitignore so generated files cannot be committed."))
+		}
+	}
+	return out
+}
+
+func packageOutputIgnored(repoRoot, pattern string) bool {
+	representative := pattern
+	if index := strings.IndexAny(representative, "*?["); index >= 0 {
+		representative = representative[:index]
+		representative = strings.TrimSuffix(representative, "/")
+		if representative == "" {
+			return false
+		}
+		representative += "/.vrooli-generated-output"
+	}
+	cmd := exec.Command("git", "-C", repoRoot, "check-ignore", "--no-index", "-q", "--", representative)
+	return cmd.Run() == nil
+}
+
+func gitTrackedMatches(repoRoot, pattern string) ([]string, error) {
+	cmd := exec.Command("git", "-C", repoRoot, "ls-files", "--", pattern)
+	raw, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	var matches []string
+	for _, line := range strings.Split(string(raw), "\n") {
+		if line != "" {
+			matches = append(matches, line)
+		}
+	}
+	return matches, nil
+}
+
+func packageSourceEntrypointRules(root string) []rules.Finding {
+	path := filepath.Join(root, "package.json")
+	_, doc, ok := loadObject(path)
+	if !ok {
+		return nil
+	}
+	var out []rules.Finding
+	var walk func(any, string)
+	walk = func(value any, location string) {
+		switch typed := value.(type) {
+		case string:
+			clean := filepath.ToSlash(strings.TrimSpace(typed))
+			if strings.HasPrefix(clean, "./src/") || clean == "./src" || strings.HasPrefix(clean, "src/") || clean == "src" {
+				out = append(out, finding("PACKAGE_SOURCE_ENTRYPOINT", "error", "package metadata exposes a source-tree entrypoint", location, "Point package main, module, browser, and exports entries at compiled output under dist/ or the package's declared generated directory."))
+			}
+		case map[string]any:
+			for key, child := range typed {
+				walk(child, location+"/"+key)
+			}
+		case []any:
+			for index, child := range typed {
+				walk(child, location+"/"+strconv.Itoa(index))
+			}
+		}
+	}
+	for _, key := range []string{"main", "module", "browser", "types", "exports"} {
+		if value, exists := doc[key]; exists {
+			walk(value, "package.json#/"+key)
+		}
+	}
 	return out
 }
 

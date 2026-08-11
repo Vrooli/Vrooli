@@ -133,6 +133,28 @@ func TestPackagePackRequiresManifest(t *testing.T) {
 	}
 }
 
+func TestPackageBuildContractRejectsMissingOutputsAndSourceEntrypoints(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, ".vrooli/package.json", `{"$schema":"schemas/package.schema.json","version":"1.0.0","package":{"name":"demo","kind":"js_runtime","language":"typescript","module_identifiers":["@vrooli/demo"],"adoption":{},"lifecycle":{"build":[{"name":"build","run":["pnpm","build"]}]},"refresh":{}}}`)
+	write(t, root, "README.md", "# demo\n")
+	write(t, root, "package.json", `{"name":"@vrooli/demo","exports":{".":"./src/index.ts"}}`)
+	got := codes(Evaluate("package", root, "demo"))
+	if !got["PACKAGE_BUILD_OUTPUTS_UNDECLARED"] || !got["PACKAGE_SOURCE_ENTRYPOINT"] {
+		t.Fatalf("expected build-output and source-entrypoint findings, got %v", got)
+	}
+}
+
+func TestPackageBuildContractAcceptsCompiledEntrypoints(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, ".vrooli/package.json", `{"$schema":"schemas/package.schema.json","version":"1.0.0","package":{"name":"demo","kind":"js_runtime","language":"typescript","module_identifiers":["@vrooli/demo"],"adoption":{},"lifecycle":{"build":[{"name":"build","run":["pnpm","build"],"outputs":["dist/**"]}]},"refresh":{}}}`)
+	write(t, root, "README.md", "# demo\n")
+	write(t, root, ".gitignore", "dist/\n")
+	write(t, root, "package.json", `{"name":"@vrooli/demo","exports":{".":{"import":"./dist/index.js","types":"./dist/index.d.ts"}}}`)
+	if got := codes(Evaluate("package", root, "demo")); got["PACKAGE_BUILD_OUTPUTS_UNDECLARED"] || got["PACKAGE_SOURCE_ENTRYPOINT"] {
+		t.Fatalf("compiled package should pass contract rules, got %v", got)
+	}
+}
+
 func TestCredentialClientPackageLayoutFindingRemainsReachable(t *testing.T) {
 	repoRoot, err := os.Getwd()
 	if err != nil {
