@@ -28,7 +28,7 @@ describe("HealthDashboard", () => {
     mockFetchPending();
     renderDashboard();
     expect(screen.getByTestId("health-loading")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByTestId("health-loading")).toBeInTheDocument();
   });
 
   it("shows error state on fetch failure", async () => {

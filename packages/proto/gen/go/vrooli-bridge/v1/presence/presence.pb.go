@@ -7,7 +7,7 @@
 package presence_v1
 
 import (
-	channel "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -25,7 +25,7 @@ const (
 type ReportHeartbeatRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The node's heartbeat (node_id + sequence + health + sent_at).
-	Heartbeat     *channel.Heartbeat `protobuf:"bytes,1,opt,name=heartbeat,proto3" json:"heartbeat,omitempty"`
+	Heartbeat     *shared.Heartbeat `protobuf:"bytes,1,opt,name=heartbeat,proto3" json:"heartbeat,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -60,7 +60,7 @@ func (*ReportHeartbeatRequest) Descriptor() ([]byte, []int) {
 	return file_vrooli_bridge_v1_presence_presence_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ReportHeartbeatRequest) GetHeartbeat() *channel.Heartbeat {
+func (x *ReportHeartbeatRequest) GetHeartbeat() *shared.Heartbeat {
 	if x != nil {
 		return x.Heartbeat
 	}
@@ -71,7 +71,7 @@ type ReportHeartbeatResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The control plane's verdict on the node's protocol version (echoed from the
 	// handshake negotiation). OK while the agent is current.
-	Compatibility channel.CompatibilityStatus `protobuf:"varint,1,opt,name=compatibility,proto3,enum=vrooli.vrooli_bridge.v1.channel.CompatibilityStatus" json:"compatibility,omitempty"`
+	Compatibility shared.CompatibilityStatus `protobuf:"varint,1,opt,name=compatibility,proto3,enum=vrooli.vrooli_bridge.v1.shared.CompatibilityStatus" json:"compatibility,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -106,22 +106,22 @@ func (*ReportHeartbeatResponse) Descriptor() ([]byte, []int) {
 	return file_vrooli_bridge_v1_presence_presence_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ReportHeartbeatResponse) GetCompatibility() channel.CompatibilityStatus {
+func (x *ReportHeartbeatResponse) GetCompatibility() shared.CompatibilityStatus {
 	if x != nil {
 		return x.Compatibility
 	}
-	return channel.CompatibilityStatus(0)
+	return shared.CompatibilityStatus(0)
 }
 
 var File_vrooli_bridge_v1_presence_presence_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_presence_presence_proto_rawDesc = "" +
 	"\n" +
-	"(vrooli-bridge/v1/presence/presence.proto\x12 vrooli.vrooli_bridge.v1.presence\x1a&vrooli-bridge/v1/channel/channel.proto\"b\n" +
-	"\x16ReportHeartbeatRequest\x12H\n" +
-	"\theartbeat\x18\x01 \x01(\v2*.vrooli.vrooli_bridge.v1.channel.HeartbeatR\theartbeat\"u\n" +
-	"\x17ReportHeartbeatResponse\x12Z\n" +
-	"\rcompatibility\x18\x01 \x01(\x0e24.vrooli.vrooli_bridge.v1.channel.CompatibilityStatusR\rcompatibility2\x9a\x01\n" +
+	"(vrooli-bridge/v1/presence/presence.proto\x12 vrooli.vrooli_bridge.v1.presence\x1a$vrooli-bridge/v1/shared/shared.proto\"a\n" +
+	"\x16ReportHeartbeatRequest\x12G\n" +
+	"\theartbeat\x18\x01 \x01(\v2).vrooli.vrooli_bridge.v1.shared.HeartbeatR\theartbeat\"t\n" +
+	"\x17ReportHeartbeatResponse\x12Y\n" +
+	"\rcompatibility\x18\x01 \x01(\x0e23.vrooli.vrooli_bridge.v1.shared.CompatibilityStatusR\rcompatibility2\x9a\x01\n" +
 	"\x0fPresenceService\x12\x86\x01\n" +
 	"\x0fReportHeartbeat\x128.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest\x1a9.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1b\x06proto3"
 
@@ -139,14 +139,14 @@ func file_vrooli_bridge_v1_presence_presence_proto_rawDescGZIP() []byte {
 
 var file_vrooli_bridge_v1_presence_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_vrooli_bridge_v1_presence_presence_proto_goTypes = []any{
-	(*ReportHeartbeatRequest)(nil),   // 0: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
-	(*ReportHeartbeatResponse)(nil),  // 1: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse
-	(*channel.Heartbeat)(nil),        // 2: vrooli.vrooli_bridge.v1.channel.Heartbeat
-	(channel.CompatibilityStatus)(0), // 3: vrooli.vrooli_bridge.v1.channel.CompatibilityStatus
+	(*ReportHeartbeatRequest)(nil),  // 0: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
+	(*ReportHeartbeatResponse)(nil), // 1: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse
+	(*shared.Heartbeat)(nil),        // 2: vrooli.vrooli_bridge.v1.shared.Heartbeat
+	(shared.CompatibilityStatus)(0), // 3: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
 }
 var file_vrooli_bridge_v1_presence_presence_proto_depIdxs = []int32{
-	2, // 0: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest.heartbeat:type_name -> vrooli.vrooli_bridge.v1.channel.Heartbeat
-	3, // 1: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse.compatibility:type_name -> vrooli.vrooli_bridge.v1.channel.CompatibilityStatus
+	2, // 0: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest.heartbeat:type_name -> vrooli.vrooli_bridge.v1.shared.Heartbeat
+	3, // 1: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse.compatibility:type_name -> vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
 	0, // 2: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat:input_type -> vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
 	1, // 3: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat:output_type -> vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse
 	3, // [3:4] is the sub-list for method output_type

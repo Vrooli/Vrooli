@@ -1,5 +1,5 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
-import type { Resource, ResourceHealthResponse, GlossaryResponse, OperatorState, V2ScenarioResponse, V2ReadinessResponse, V2HostRequirementsResponse } from "../types";
+import type { Resource, ResourceHealthResponse, GlossaryResponse, OperatorState, OperatorStatePatch, V2ScenarioResponse, V2ReadinessResponse, V2HostRequirementsResponse, V2ClosureResponse, V2ResourceResponse, V2ApplyResponse } from "../types";
 
 // Simple! Just specify if you want the /api/v1 suffix
 const API_BASE = resolveApiBase({ appendSuffix: true });
@@ -38,9 +38,24 @@ export function fetchV2HostRequirements() {
   return typedFetch<V2HostRequirementsResponse>(url, { cache: "no-store" });
 }
 
+export function fetchV2Closure() {
+  const url = buildApiUrl("/v2/closure", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<V2ClosureResponse>(url, { cache: "no-store" });
+}
+
+export function fetchV2Resources() {
+  const url = buildApiUrl("/v2/resources", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<V2ResourceResponse>(url, { cache: "no-store" });
+}
+
 export function provisionCredential(input: { logical_id: string; field: string; value: string }) {
   const url = buildApiUrl("/v2/credentials/provision", { baseUrl: API_BASE.replace(/\/v1$/, "") });
   return typedFetch<{ status: "provisioned"; logical_id: string; field: string }>(url, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function applyOnboarding() {
+  const url = buildApiUrl("/v2/apply", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<V2ApplyResponse>(url, { method: "POST", body: "{}" });
 }
 
 export function fetchOperatorState() {
@@ -48,9 +63,9 @@ export function fetchOperatorState() {
   return typedFetch<OperatorState>(url, { cache: "no-store" });
 }
 
-export function saveOperatorState(state: OperatorState) {
-  const url = buildApiUrl("/operator-state", { baseUrl: API_BASE });
-  return typedFetch<OperatorState>(url, { method: "PUT", body: JSON.stringify(state) });
+export function saveOperatorState(patch: OperatorStatePatch) {
+	const url = buildApiUrl("/operator-state", { baseUrl: API_BASE.replace(/\/v1$/, "/v2") });
+	return typedFetch<OperatorState>(url, { method: "PATCH", headers: { "Content-Type": "application/merge-patch+json" }, body: JSON.stringify(patch) });
 }
 
 export async function fetchResources() {

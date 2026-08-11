@@ -1,0 +1,202 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "setup-apply",
+    "title": "Apply",
+    "routes": [
+      "/setup/apply"
+    ],
+    "purpose": "Turn the recorded selection into host state, and report exactly what happened to each item.",
+    "prd_refs": [
+      "OT-P0-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The operator knows this is the step that changes their machine, before it runs."
+    },
+    {
+      "statement": "Progress is legible while it runs; the report is legible after."
+    },
+    {
+      "statement": "A partial failure is a state the operator can act on, not a dead end."
+    }
+  ],
+  "states": [
+    {
+      "id": "ready",
+      "description": "The plan is shown and awaiting confirmation.",
+      "setup": {
+        "route": "/setup/apply"
+      }
+    },
+    {
+      "id": "running",
+      "description": "Items are being applied; per-item progress is visible."
+    },
+    {
+      "id": "applied",
+      "description": "Every item succeeded."
+    },
+    {
+      "id": "partially-applied",
+      "description": "At least one item failed; dependants were skipped and are named."
+    },
+    {
+      "id": "already-satisfied",
+      "description": "A re-run found nothing to change."
+    }
+  ],
+  "elements": [
+    {
+      "id": "apply-plan",
+      "role": "list",
+      "description": "The items that will be applied, in dependency order."
+    },
+    {
+      "id": "privilege-warning",
+      "role": "note",
+      "description": "Names the items that will require elevated privilege."
+    },
+    {
+      "id": "apply-confirm",
+      "role": "button",
+      "description": "Runs apply.",
+      "name": "Apply"
+    },
+    {
+      "id": "apply-progress",
+      "role": "progressbar",
+      "description": "Per-item progress while the run proceeds."
+    },
+    {
+      "id": "apply-report",
+      "role": "table",
+      "description": "Per-item outcome with a remediation on each failure."
+    },
+    {
+      "id": "skipped-note",
+      "role": "note",
+      "description": "Names the dependency that caused an item to be skipped."
+    },
+    {
+      "id": "retry",
+      "role": "button",
+      "description": "Re-runs apply after a fix.",
+      "name": "Apply again"
+    }
+  ],
+  "claims": [
+    {
+      "id": "plan-precedes-action",
+      "type": "element-present",
+      "statement": "The items that will change the host are listed before the operator confirms.",
+      "tier": "machine",
+      "elements": [
+        "apply-plan"
+      ],
+      "states": [
+        "ready"
+      ]
+    },
+    {
+      "id": "confirm-is-dominant",
+      "type": "single-dominant-action",
+      "statement": "On the ready state, confirming apply is the single dominant action.",
+      "tier": "aspirational",
+      "elements": [
+        "apply-confirm"
+      ],
+      "states": [
+        "ready"
+      ]
+    },
+    {
+      "id": "privilege-disclosed-before-run",
+      "type": "element-present",
+      "statement": "Items requiring elevated privilege are named before apply runs.",
+      "tier": "machine",
+      "elements": [
+        "privilege-warning"
+      ],
+      "states": [
+        "ready"
+      ]
+    },
+    {
+      "id": "progress-is-legible",
+      "type": "element-present",
+      "statement": "While apply runs, per-item progress is visible rather than an undifferentiated spinner.",
+      "tier": "aspirational",
+      "elements": [
+        "apply-progress"
+      ],
+      "states": [
+        "running"
+      ]
+    },
+    {
+      "id": "report-is-per-item",
+      "type": "element-present",
+      "statement": "The report names every attempted item with its outcome.",
+      "tier": "aspirational",
+      "elements": [
+        "apply-report"
+      ],
+      "states": [
+        "applied",
+        "partially-applied"
+      ]
+    },
+    {
+      "id": "partial-failure-is-actionable",
+      "type": "state-covered",
+      "statement": "A partially applied run names each failure's remediation and each skipped item's blocking dependency.",
+      "tier": "aspirational",
+      "elements": [
+        "skipped-note",
+        "retry"
+      ],
+      "states": [
+        "partially-applied"
+      ]
+    },
+    {
+      "id": "idempotent-run-is-distinct",
+      "type": "state-distinct",
+      "statement": "A re-run that changed nothing reads differently from a first successful run.",
+      "tier": "aspirational",
+      "states": [
+        "already-satisfied",
+        "applied"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "apply-plan": {
+        "testid": "apply-plan"
+      },
+      "privilege-warning": {
+        "testid": "privilege-warning"
+      },
+      "apply-confirm": {
+        "testid": "apply-confirm"
+      },
+      "apply-progress": {
+        "testid": "apply-progress"
+      },
+      "apply-report": {
+        "testid": "apply-report"
+      },
+      "skipped-note": {
+        "testid": "skipped-note"
+      },
+      "retry": {
+        "testid": "retry"
+      }
+    }
+  }
+}

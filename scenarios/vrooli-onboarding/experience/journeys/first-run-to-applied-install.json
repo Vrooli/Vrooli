@@ -1,0 +1,82 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "first-run-to-applied-install",
+    "title": "First run: from an empty host to an applied, verified install",
+    "purpose": "The primary journey. A new operator selects capabilities, provisions what they need, consents to host changes, applies, and reaches a green readiness report without editing a file.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-004",
+      "OT-P0-006",
+      "OT-P0-007",
+      "OT-P1-001"
+    ]
+  },
+  "steps": [
+    {
+      "page": "setup-scenarios",
+      "intent": "Find and select the capabilities this install should run, and see what each pulls in.",
+      "via": "search, then scenario selection",
+      "state": "cascade-visible"
+    },
+    {
+      "page": "setup-resources",
+      "intent": "Confirm the derived resource set and add an optional resource.",
+      "via": "optional resource toggle",
+      "state": "default"
+    },
+    {
+      "page": "setup-credentials",
+      "intent": "Provision each required credential, using the card's purpose text and obtain link.",
+      "via": "credential card entry and save",
+      "state": "default"
+    },
+    {
+      "page": "setup-integrations",
+      "intent": "Acknowledge that integration binding is deferred.",
+      "via": "deferral notice",
+      "state": "deferred"
+    },
+    {
+      "page": "setup-host",
+      "intent": "Consent to the required tools and one medium-risk safeguard after reading its risk and privilege.",
+      "via": "requirement rows",
+      "state": "default"
+    },
+    {
+      "page": "setup-operating-mode",
+      "intent": "Confirm which scenarios stay running.",
+      "via": "keep-running toggles",
+      "state": "default"
+    },
+    {
+      "page": "setup-apply",
+      "intent": "Review the plan, confirm, and read the per-item result.",
+      "via": "apply plan and confirm",
+      "state": "applied"
+    },
+    {
+      "page": "setup-validation",
+      "intent": "Confirm every required item is ready.",
+      "via": "readiness summary",
+      "state": "ready"
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-file-editing",
+      "type": "custom",
+      "statement": "The operator reaches an applied, verified install without opening a JSON file at any point.",
+      "tier": "manual",
+      "rationale": "The whole point of the wizard. Verified by observing the recorded run, not by a DOM assertion."
+    },
+    {
+      "id": "consequence-before-commitment",
+      "type": "custom",
+      "statement": "At every step, the consequence of a choice is visible before the operator moves past it.",
+      "tier": "manual"
+    }
+  ]
+}

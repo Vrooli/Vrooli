@@ -1,0 +1,88 @@
+import datetime
+
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from collections.abc import Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
+
+DESCRIPTOR: _descriptor.FileDescriptor
+
+class CompatibilityStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    COMPATIBILITY_STATUS_UNSPECIFIED: _ClassVar[CompatibilityStatus]
+    COMPATIBILITY_STATUS_OK: _ClassVar[CompatibilityStatus]
+    COMPATIBILITY_STATUS_NEEDS_UPDATE: _ClassVar[CompatibilityStatus]
+    COMPATIBILITY_STATUS_INCOMPATIBLE: _ClassVar[CompatibilityStatus]
+
+class RunEventKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RUN_EVENT_KIND_UNSPECIFIED: _ClassVar[RunEventKind]
+    RUN_EVENT_KIND_LOG: _ClassVar[RunEventKind]
+    RUN_EVENT_KIND_STATUS: _ClassVar[RunEventKind]
+    RUN_EVENT_KIND_EXIT: _ClassVar[RunEventKind]
+    RUN_EVENT_KIND_ARTIFACT_REF: _ClassVar[RunEventKind]
+COMPATIBILITY_STATUS_UNSPECIFIED: CompatibilityStatus
+COMPATIBILITY_STATUS_OK: CompatibilityStatus
+COMPATIBILITY_STATUS_NEEDS_UPDATE: CompatibilityStatus
+COMPATIBILITY_STATUS_INCOMPATIBLE: CompatibilityStatus
+RUN_EVENT_KIND_UNSPECIFIED: RunEventKind
+RUN_EVENT_KIND_LOG: RunEventKind
+RUN_EVENT_KIND_STATUS: RunEventKind
+RUN_EVENT_KIND_EXIT: RunEventKind
+RUN_EVENT_KIND_ARTIFACT_REF: RunEventKind
+
+class HealthSnapshot(_message.Message):
+    __slots__ = ("toolchain_present", "disk_headroom_bytes", "container_runtime_up", "details", "reported_at")
+    class DetailsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    TOOLCHAIN_PRESENT_FIELD_NUMBER: _ClassVar[int]
+    DISK_HEADROOM_BYTES_FIELD_NUMBER: _ClassVar[int]
+    CONTAINER_RUNTIME_UP_FIELD_NUMBER: _ClassVar[int]
+    DETAILS_FIELD_NUMBER: _ClassVar[int]
+    REPORTED_AT_FIELD_NUMBER: _ClassVar[int]
+    toolchain_present: bool
+    disk_headroom_bytes: int
+    container_runtime_up: bool
+    details: _containers.ScalarMap[str, str]
+    reported_at: _timestamp_pb2.Timestamp
+    def __init__(self, toolchain_present: _Optional[bool] = ..., disk_headroom_bytes: _Optional[int] = ..., container_runtime_up: _Optional[bool] = ..., details: _Optional[_Mapping[str, str]] = ..., reported_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class Heartbeat(_message.Message):
+    __slots__ = ("node_id", "sequence", "health", "sent_at")
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    HEALTH_FIELD_NUMBER: _ClassVar[int]
+    SENT_AT_FIELD_NUMBER: _ClassVar[int]
+    node_id: str
+    sequence: int
+    health: HealthSnapshot
+    sent_at: _timestamp_pb2.Timestamp
+    def __init__(self, node_id: _Optional[str] = ..., sequence: _Optional[int] = ..., health: _Optional[_Union[HealthSnapshot, _Mapping]] = ..., sent_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class RunEvent(_message.Message):
+    __slots__ = ("run_id", "kind", "sequence", "log_chunk", "status", "exit_code", "artifact_ref", "emitted_at")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    LOG_CHUNK_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    EXIT_CODE_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_REF_FIELD_NUMBER: _ClassVar[int]
+    EMITTED_AT_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    kind: RunEventKind
+    sequence: int
+    log_chunk: str
+    status: str
+    exit_code: int
+    artifact_ref: str
+    emitted_at: _timestamp_pb2.Timestamp
+    def __init__(self, run_id: _Optional[str] = ..., kind: _Optional[_Union[RunEventKind, str]] = ..., sequence: _Optional[int] = ..., log_chunk: _Optional[str] = ..., status: _Optional[str] = ..., exit_code: _Optional[int] = ..., artifact_ref: _Optional[str] = ..., emitted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...

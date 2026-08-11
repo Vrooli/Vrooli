@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "setup-welcome",
+    "title": "Welcome",
+    "routes": [
+      "/setup/welcome"
+    ],
+    "purpose": "Orient an operator to the install decision and provide an explicit entry into capability selection.",
+    "prd_refs": [
+      "OT-P0-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The operator understands that onboarding configures the install before any changes are applied."
+    },
+    {
+      "statement": "The entry action is obvious and keyboard accessible."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Welcome message and setup entry action render.",
+      "setup": {
+        "route": "/setup/welcome"
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "welcome-content",
+      "role": "main",
+      "description": "Orientation content for the onboarding flow."
+    },
+    {
+      "id": "start-setup",
+      "role": "button",
+      "description": "Begins capability selection.",
+      "name": "Get started"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "first-run-entry",
+      "description": "A new operator can enter the onboarding wizard from the welcome route."
+    }
+  ],
+  "responsive": {
+    "mobile": "The orientation remains readable and the entry action remains reachable without horizontal scrolling.",
+    "desktop": "The orientation is centered with a clear primary entry action."
+  },
+  "accessibility": [
+    "The page has one level-one heading.",
+    "The entry action is keyboard reachable with an accessible name."
+  ],
+  "evidence": {
+    "required": [
+      "A browser workflow opens /setup/welcome and observes the welcome content and entry action."
+    ]
+  },
+  "bindings": {
+    "elements": {
+      "welcome-content": {
+        "testid": "step-welcome"
+      },
+      "start-setup": {
+        "testid": "wizard-next"
+      }
+    }
+  }
+}

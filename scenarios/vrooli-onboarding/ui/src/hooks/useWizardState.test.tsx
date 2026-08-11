@@ -6,6 +6,7 @@ import { TOTAL_STEPS } from "../types";
 
 describe("useWizardState", () => {
   beforeEach(() => {
+    window.history.replaceState({}, "", "/");
     // Default: no saved progress
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
   });

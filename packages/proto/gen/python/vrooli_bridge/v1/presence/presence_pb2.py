@@ -22,10 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-from vrooli_bridge.v1.channel import channel_pb2 as vrooli__bridge_dot_v1_dot_channel_dot_channel__pb2
+from vrooli_bridge.v1.shared import shared_pb2 as vrooli__bridge_dot_v1_dot_shared_dot_shared__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(vrooli-bridge/v1/presence/presence.proto\x12 vrooli.vrooli_bridge.v1.presence\x1a&vrooli-bridge/v1/channel/channel.proto\"b\n\x16ReportHeartbeatRequest\x12H\n\theartbeat\x18\x01 \x01(\x0b\x32*.vrooli.vrooli_bridge.v1.channel.HeartbeatR\theartbeat\"u\n\x17ReportHeartbeatResponse\x12Z\n\rcompatibility\x18\x01 \x01(\x0e\x32\x34.vrooli.vrooli_bridge.v1.channel.CompatibilityStatusR\rcompatibility2\x9a\x01\n\x0fPresenceService\x12\x86\x01\n\x0fReportHeartbeat\x12\x38.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest\x1a\x39.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(vrooli-bridge/v1/presence/presence.proto\x12 vrooli.vrooli_bridge.v1.presence\x1a$vrooli-bridge/v1/shared/shared.proto\"a\n\x16ReportHeartbeatRequest\x12G\n\theartbeat\x18\x01 \x01(\x0b\x32).vrooli.vrooli_bridge.v1.shared.HeartbeatR\theartbeat\"t\n\x17ReportHeartbeatResponse\x12Y\n\rcompatibility\x18\x01 \x01(\x0e\x32\x33.vrooli.vrooli_bridge.v1.shared.CompatibilityStatusR\rcompatibility2\x9a\x01\n\x0fPresenceService\x12\x86\x01\n\x0fReportHeartbeat\x12\x38.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest\x1a\x39.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,10 +33,10 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'vrooli_bridge.v1.presence.p
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1'
-  _globals['_REPORTHEARTBEATREQUEST']._serialized_start=118
-  _globals['_REPORTHEARTBEATREQUEST']._serialized_end=216
-  _globals['_REPORTHEARTBEATRESPONSE']._serialized_start=218
-  _globals['_REPORTHEARTBEATRESPONSE']._serialized_end=335
-  _globals['_PRESENCESERVICE']._serialized_start=338
-  _globals['_PRESENCESERVICE']._serialized_end=492
+  _globals['_REPORTHEARTBEATREQUEST']._serialized_start=116
+  _globals['_REPORTHEARTBEATREQUEST']._serialized_end=213
+  _globals['_REPORTHEARTBEATRESPONSE']._serialized_start=215
+  _globals['_REPORTHEARTBEATRESPONSE']._serialized_end=331
+  _globals['_PRESENCESERVICE']._serialized_start=334
+  _globals['_PRESENCESERVICE']._serialized_end=488
 # @@protoc_insertion_point(module_scope)

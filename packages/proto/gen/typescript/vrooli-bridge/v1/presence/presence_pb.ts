@@ -4,15 +4,15 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { CompatibilityStatus, Heartbeat } from "../channel/channel_pb";
-import { file_vrooli_bridge_v1_channel_channel } from "../channel/channel_pb";
+import type { CompatibilityStatus, Heartbeat } from "../shared/shared_pb";
+import { file_vrooli_bridge_v1_shared_shared } from "../shared/shared_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file vrooli-bridge/v1/presence/presence.proto.
  */
 export const file_vrooli_bridge_v1_presence_presence: GenFile = /*@__PURE__*/
-  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL3ByZXNlbmNlL3ByZXNlbmNlLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZSJXChZSZXBvcnRIZWFydGJlYXRSZXF1ZXN0Ej0KCWhlYXJ0YmVhdBgBIAEoCzIqLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSGVhcnRiZWF0ImYKF1JlcG9ydEhlYXJ0YmVhdFJlc3BvbnNlEksKDWNvbXBhdGliaWxpdHkYASABKA4yNC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkNvbXBhdGliaWxpdHlTdGF0dXMymgEKD1ByZXNlbmNlU2VydmljZRKGAQoPUmVwb3J0SGVhcnRiZWF0EjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0SGVhcnRiZWF0UmVxdWVzdBo5LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnByZXNlbmNlLlJlcG9ydEhlYXJ0YmVhdFJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9wcmVzZW5jZTtwcmVzZW5jZV92MWIGcHJvdG8z", [file_vrooli_bridge_v1_channel_channel]);
+  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL3ByZXNlbmNlL3ByZXNlbmNlLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZSJWChZSZXBvcnRIZWFydGJlYXRSZXF1ZXN0EjwKCWhlYXJ0YmVhdBgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5IZWFydGJlYXQiZQoXUmVwb3J0SGVhcnRiZWF0UmVzcG9uc2USSgoNY29tcGF0aWJpbGl0eRgBIAEoDjIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5Db21wYXRpYmlsaXR5U3RhdHVzMpoBCg9QcmVzZW5jZVNlcnZpY2UShgEKD1JlcG9ydEhlYXJ0YmVhdBI4LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnByZXNlbmNlLlJlcG9ydEhlYXJ0YmVhdFJlcXVlc3QaOS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZS5SZXBvcnRIZWFydGJlYXRSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvcHJlc2VuY2U7cHJlc2VuY2VfdjFiBnByb3RvMw", [file_vrooli_bridge_v1_shared_shared]);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
@@ -21,7 +21,7 @@ export type ReportHeartbeatRequest = Message<"vrooli.vrooli_bridge.v1.presence.R
   /**
    * The node's heartbeat (node_id + sequence + health + sent_at).
    *
-   * @generated from field: vrooli.vrooli_bridge.v1.channel.Heartbeat heartbeat = 1;
+   * @generated from field: vrooli.vrooli_bridge.v1.shared.Heartbeat heartbeat = 1;
    */
   heartbeat?: Heartbeat | undefined;
 };
@@ -41,7 +41,7 @@ export type ReportHeartbeatResponse = Message<"vrooli.vrooli_bridge.v1.presence.
    * The control plane's verdict on the node's protocol version (echoed from the
    * handshake negotiation). OK while the agent is current.
    *
-   * @generated from field: vrooli.vrooli_bridge.v1.channel.CompatibilityStatus compatibility = 1;
+   * @generated from field: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus compatibility = 1;
    */
   compatibility: CompatibilityStatus;
 };

@@ -27,9 +27,9 @@ func TestOperatorStateRoundTripIsAtomicAndDoesNotNeedDatabase(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("GET = %d: %s", w.Code, w.Body.String())
 	}
-	w = doRequest(t, srv, http.MethodPut, "/api/v1/operator-state", `{"scenarios":{"example":{"enabled":true,"auto_restart":false}}}`)
+	w = doRequest(t, srv, http.MethodPatch, "/api/v2/operator-state", `{"scenarios":{"example":{"enabled":true,"auto_restart":false}}}`)
 	if w.Code != http.StatusOK {
-		t.Fatalf("PUT = %d: %s", w.Code, w.Body.String())
+		t.Fatalf("PATCH = %d: %s", w.Code, w.Body.String())
 	}
 	w = doGet(t, srv, "/api/v1/operator-state")
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"example"`) {
@@ -80,7 +80,7 @@ func TestOperatorStateRejectsInvalidSafeguardConfigBeforeWrite(t *testing.T) {
 	t.Cleanup(func() { operatorStatePath = oldPath })
 	operatorStatePath = func() (string, error) { return filepath.Join(t.TempDir(), "operator-state.json"), nil }
 	srv := NewServer()
-	w := doRequest(t, srv, http.MethodPut, "/api/v1/operator-state", `{"host_safeguards":{"remote_desktop_access":{"opted_in":true,"config":{"experience":"not-a-real-experience"}}}}`)
+	w := doRequest(t, srv, http.MethodPatch, "/api/v2/operator-state", `{"host_safeguards":{"remote_desktop_access":{"opted_in":true,"config":{"experience":"not-a-real-experience"}}}}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("invalid config status = %d, want %d: %s", w.Code, http.StatusBadRequest, w.Body.String())
 	}

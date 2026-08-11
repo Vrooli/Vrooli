@@ -1,7 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from vrooli_bridge.v1.channel import channel_pb2 as _channel_pb2
+from vrooli_bridge.v1.shared import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -65,8 +65,8 @@ class GetRunResponse(_message.Message):
     RUN_FIELD_NUMBER: _ClassVar[int]
     EVENTS_FIELD_NUMBER: _ClassVar[int]
     run: Run
-    events: _containers.RepeatedCompositeFieldContainer[_channel_pb2.RunEvent]
-    def __init__(self, run: _Optional[_Union[Run, _Mapping]] = ..., events: _Optional[_Iterable[_Union[_channel_pb2.RunEvent, _Mapping]]] = ...) -> None: ...
+    events: _containers.RepeatedCompositeFieldContainer[_shared_pb2.RunEvent]
+    def __init__(self, run: _Optional[_Union[Run, _Mapping]] = ..., events: _Optional[_Iterable[_Union[_shared_pb2.RunEvent, _Mapping]]] = ...) -> None: ...
 
 class ListRunsRequest(_message.Message):
     __slots__ = ("node_id", "limit")
@@ -121,14 +121,14 @@ class StreamRunEventsRequest(_message.Message):
 class RunEventMessage(_message.Message):
     __slots__ = ("event",)
     EVENT_FIELD_NUMBER: _ClassVar[int]
-    event: _channel_pb2.RunEvent
-    def __init__(self, event: _Optional[_Union[_channel_pb2.RunEvent, _Mapping]] = ...) -> None: ...
+    event: _shared_pb2.RunEvent
+    def __init__(self, event: _Optional[_Union[_shared_pb2.RunEvent, _Mapping]] = ...) -> None: ...
 
 class ReportRunEventRequest(_message.Message):
     __slots__ = ("event",)
     EVENT_FIELD_NUMBER: _ClassVar[int]
-    event: _channel_pb2.RunEvent
-    def __init__(self, event: _Optional[_Union[_channel_pb2.RunEvent, _Mapping]] = ...) -> None: ...
+    event: _shared_pb2.RunEvent
+    def __init__(self, event: _Optional[_Union[_shared_pb2.RunEvent, _Mapping]] = ...) -> None: ...
 
 class ReportRunEventResponse(_message.Message):
     __slots__ = ("accepted",)

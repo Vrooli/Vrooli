@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,49 +14,33 @@ import (
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 )
 
-// OperatorState mirrors .vrooli/schemas/operator-state.schema.json. It owns
-// mutable operator decisions only; manifests remain the declarative source.
-type OperatorState struct {
-	Schema         string                    `json:"$schema,omitempty"`
-	Version        string                    `json:"version"`
-	UpdatedAt      string                    `json:"updated_at"`
-	ActiveProfile  *string                   `json:"active_profile,omitempty"`
-	Scenarios      map[string]ScenarioChoice `json:"scenarios,omitempty"`
-	Resources      map[string]EnabledChoice  `json:"resources,omitempty"`
-	HostTools      map[string]OptInChoice    `json:"host_tools,omitempty"`
-	HostSafeguards map[string]OptInChoice    `json:"host_safeguards,omitempty"`
-}
-
-type ScenarioChoice struct {
-	Enabled     *bool `json:"enabled,omitempty"`
-	AutoRestart *bool `json:"auto_restart,omitempty"`
-}
-type EnabledChoice struct {
-	Enabled *bool `json:"enabled,omitempty"`
-}
-type OptInChoice struct {
-	OptedIn *bool `json:"opted_in,omitempty"`
-	// Config is intentionally an open map. Safeguard manifests own the schema,
-	// and onboarding must preserve keys introduced by a newer manifest even
-	// when this binary does not know their names yet.
-	Config map[string]any `json:"config,omitempty"`
-}
+// These aliases keep the API projection small while making the control-plane
+// operatorstate package the only production writer and evaluator.
+type (
+	OperatorState  = operatorstate.Document
+	ScenarioChoice = operatorstate.ScenarioChoice
+	EnabledChoice  = operatorstate.EnabledChoice
+	OptInChoice    = operatorstate.OptInChoice
+)
 
 var (
 	operatorStateNow   = time.Now
 	operatorStateRoots *filerouting.RoutedRoots
-	operatorStatePath  = func() (string, error) {
+	// operatorStatePath remains a test seam for existing API fixtures. Normal
+	// runtime path resolution is performed by internal/operatorstate.
+	operatorStatePath = func() (string, error) {
 		root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
 		if root != "" {
-			return filepath.Join(root, ".vrooli", "operator-state.json"), nil
+			return filepath.Join(root, ".vrooli", operatorstate.StateFile), nil
 		}
 		storageRoot := strings.TrimSpace(os.Getenv("VROOLI_STORAGE_ROOT"))
 		if storageRoot == "" {
 			return "", fmt.Errorf("VROOLI_ROOT or VROOLI_STORAGE_ROOT is required to locate operator state")
 		}
-		return filepath.Join(storageRoot, "operator-state.json"), nil
+		return filepath.Join(storageRoot, operatorstate.StateFile), nil
 	}
 )
 
@@ -69,66 +54,35 @@ func configureOperatorStateRoots() error {
 	return nil
 }
 
-func operatorStatePathFor(ctx context.Context) (string, error) {
-	if operatorStateRoots == nil {
-		return operatorStatePath()
-	}
-	root, err := operatorStateRoots.Pick(ctx, storage.ClassConfig)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(root, "operator-state.json"), nil
+func operatorStateService() *operatorstate.Service {
+	root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
+	storageRoot := strings.TrimSpace(os.Getenv("VROOLI_STORAGE_ROOT"))
+	return operatorstate.New(operatorstate.Config{
+		RepoRoot: root, StorageRoot: storageRoot, Roots: operatorStateRoots,
+		StatePath: func(context.Context) (string, error) { return operatorStatePath() },
+		Now:       operatorStateNow,
+	})
 }
 
-func defaultOperatorState() OperatorState {
-	return OperatorState{Schema: ".vrooli/schemas/operator-state.schema.json", Version: "1.0.0", Scenarios: map[string]ScenarioChoice{}, Resources: map[string]EnabledChoice{}, HostTools: map[string]OptInChoice{}, HostSafeguards: map[string]OptInChoice{}}
-}
+func defaultOperatorState() OperatorState { return operatorstate.Default() }
 
 func loadOperatorState() (OperatorState, error) {
 	return loadOperatorStateFor(context.Background())
 }
 
 func loadOperatorStateFor(ctx context.Context) (OperatorState, error) {
-	path, err := operatorStatePathFor(ctx)
-	if err != nil {
-		return OperatorState{}, err
-	}
-	state := defaultOperatorState()
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return state, nil
-	}
-	if err != nil {
-		return OperatorState{}, fmt.Errorf("read operator state: %w", err)
-	}
-	if err := json.Unmarshal(data, &state); err != nil {
-		return OperatorState{}, fmt.Errorf("decode operator state: %w", err)
-	}
-	if state.Version == "" {
-		return OperatorState{}, fmt.Errorf("operator state version is required")
-	}
-	return state, nil
+	return operatorStateService().Load(ctx)
 }
 
+// saveOperatorStateFor exists only as a narrow adapter for older internal
+// callers and fixtures. New writers submit a merge patch directly.
 func saveOperatorStateFor(ctx context.Context, state OperatorState) error {
-	path, err := operatorStatePathFor(ctx)
+	data, err := json.Marshal(state)
 	if err != nil {
 		return err
 	}
-	state.Schema = ".vrooli/schemas/operator-state.schema.json"
-	state.Version = "1.0.0"
-	state.UpdatedAt = operatorStateNow().UTC().Format(time.RFC3339)
-	data, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return err
-	}
-	if err := storage.WriteFileAtomic(path, append(data, '\n'), storage.SecretFilePerm); err != nil {
-		return err
-	}
-	if operatorStateRoots != nil {
-		operatorStateRoots.RecordWrite(ctx)
-	}
-	return nil
+	_, err = operatorStateService().Apply(ctx, data)
+	return err
 }
 
 func (s *Server) handleOperatorState(w http.ResponseWriter, r *http.Request) {
@@ -140,20 +94,24 @@ func (s *Server) handleOperatorState(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusOK, state)
-	case http.MethodPut:
-		var state OperatorState
-		if !decodeJSONBody(w, r, &state) {
+	case http.MethodPatch:
+		patch, err := io.ReadAll(io.LimitReader(r.Body, 2<<20))
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "read merge patch: " + err.Error()})
 			return
 		}
-		if err := validateOperatorStateSafeguardConfigs(state); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-			return
-		}
-		if err := saveOperatorStateFor(r.Context(), state); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		state, err := operatorStateService().ApplyValidated(r.Context(), patch, validateOperatorStateSafeguardConfigs)
+		if err != nil {
+			status := http.StatusInternalServerError
+			if strings.Contains(err.Error(), "validation failed") || strings.Contains(err.Error(), "invalid safeguard") || strings.Contains(err.Error(), "merge patch") {
+				status = http.StatusBadRequest
+			}
+			writeJSON(w, status, map[string]string{"error": err.Error()})
 			return
 		}
 		writeJSON(w, http.StatusOK, state)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 

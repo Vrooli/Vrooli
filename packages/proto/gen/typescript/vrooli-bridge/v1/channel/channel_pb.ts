@@ -2,17 +2,19 @@
 // @generated from file vrooli-bridge/v1/channel/channel.proto (package vrooli.vrooli_bridge.v1.channel, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { CompatibilityStatus, Heartbeat, RunEvent } from "../shared/shared_pb";
+import { file_vrooli_bridge_v1_shared_shared } from "../shared/shared_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file vrooli-bridge/v1/channel/channel.proto.
  */
 export const file_vrooli_bridge_v1_channel_channel: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL2NoYW5uZWwvY2hhbm5lbC5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbCKDAQoJSGFuZHNoYWtlEhgKEHByb3RvY29sX3ZlcnNpb24YASABKA0SDwoHbm9kZV9pZBgCIAEoCRIVCg1hZ2VudF92ZXJzaW9uGAMgASgJEgoKAm9zGAQgASgJEgwKBGFyY2gYBSABKAkSFAoMY2FwYWJpbGl0aWVzGAYgAygJSgQIBxAQIrkBCgxIYW5kc2hha2VBY2sSEAoIYWNjZXB0ZWQYASABKAgSSwoNY29tcGF0aWJpbGl0eRgCIAEoDjI0LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQ29tcGF0aWJpbGl0eVN0YXR1cxImCh5jb250cm9sX3BsYW5lX3Byb3RvY29sX3ZlcnNpb24YAyABKA0SEgoKc2Vzc2lvbl9pZBgEIAEoCRIOCgZyZWFzb24YBSABKAkilgIKDkhlYWx0aFNuYXBzaG90EhkKEXRvb2xjaGFpbl9wcmVzZW50GAEgASgIEhsKE2Rpc2tfaGVhZHJvb21fYnl0ZXMYAiABKAMSHAoUY29udGFpbmVyX3J1bnRpbWVfdXAYAyABKAgSTQoHZGV0YWlscxgEIAMoCzI8LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSGVhbHRoU25hcHNob3QuRGV0YWlsc0VudHJ5Ei8KC3JlcG9ydGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBouCgxEZXRhaWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKcAQoJSGVhcnRiZWF0Eg8KB25vZGVfaWQYASABKAkSEAoIc2VxdWVuY2UYAiABKAQSPwoGaGVhbHRoGAMgASgLMi8udnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5IZWFsdGhTbmFwc2hvdBIrCgdzZW50X2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKoAQoHSm9iUHVzaBIOCgZydW5faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDAoEdmVyYhgDIAEoCRIMCgRhcmdzGAQgAygJEhcKD3RpbWVvdXRfc2Vjb25kcxgFIAEoAxJACgdvdXRwdXRzGAYgAygLMi8udnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5BcnRpZmFjdE91dHB1dEoECAcQECJaCg5BcnRpZmFjdE91dHB1dBIMCgRuYW1lGAEgASgJEhIKCm1lZGlhX3R5cGUYAiABKAkSEwoLb3V0cHV0X2ZsYWcYAyABKAkSEQoJbWF4X2J5dGVzGAQgASgDIlsKEFByb3Zpc2lvbkNvbW1hbmQSDQoFb3BfaWQYASABKAkSFwoPdGFyZ2V0X3JldmlzaW9uGAIgASgJEhkKEXJvbGxiYWNrX3JldmlzaW9uGAMgASgJSgQIBBAQIjoKC0NvbnRyb2xQaW5nEisKB3NlbnRfYXQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjAKCEFib3J0Sm9iEg4KBnJ1bl9pZBgBIAEoCRIOCgZyZWFzb24YAiABKAlKBAgDEBAi5QEKCFJ1bkV2ZW50Eg4KBnJ1bl9pZBgBIAEoCRI7CgRraW5kGAIgASgOMi0udnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5SdW5FdmVudEtpbmQSEAoIc2VxdWVuY2UYAyABKAQSEQoJbG9nX2NodW5rGAQgASgJEg4KBnN0YXR1cxgFIAEoCRIRCglleGl0X2NvZGUYBiABKAUSFAoMYXJ0aWZhY3RfcmVmGAcgASgJEi4KCmVtaXR0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wItECCgtTZXJ2ZXJGcmFtZRI8CgNhY2sYASABKAsyLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkhhbmRzaGFrZUFja0gAEjcKA2pvYhgCIAEoCzIoLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSm9iUHVzaEgAEkYKCXByb3Zpc2lvbhgDIAEoCzIxLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuUHJvdmlzaW9uQ29tbWFuZEgAEjwKBHBpbmcYBCABKAsyLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkNvbnRyb2xQaW5nSAASOgoFYWJvcnQYBSABKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkFib3J0Sm9iSABCCQoHcGF5bG9hZCI1ChFTaWduZWRTZXJ2ZXJGcmFtZRINCgVmcmFtZRgBIAEoDBIRCglzaWduYXR1cmUYAiABKAwi2AEKCU5vZGVGcmFtZRI/CgloYW5kc2hha2UYASABKAsyKi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkhhbmRzaGFrZUgAEj8KCWhlYXJ0YmVhdBgCIAEoCzIqLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSGVhcnRiZWF0SAASPgoJcnVuX2V2ZW50GAMgASgLMikudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5SdW5FdmVudEgAQgkKB3BheWxvYWQqpgEKE0NvbXBhdGliaWxpdHlTdGF0dXMSJAogQ09NUEFUSUJJTElUWV9TVEFUVVNfVU5TUEVDSUZJRUQQABIbChdDT01QQVRJQklMSVRZX1NUQVRVU19PSxABEiUKIUNPTVBBVElCSUxJVFlfU1RBVFVTX05FRURTX1VQREFURRACEiUKIUNPTVBBVElCSUxJVFlfU1RBVFVTX0lOQ09NUEFUSUJMRRADKpsBCgxSdW5FdmVudEtpbmQSHgoaUlVOX0VWRU5UX0tJTkRfVU5TUEVDSUZJRUQQABIWChJSVU5fRVZFTlRfS0lORF9MT0cQARIZChVSVU5fRVZFTlRfS0lORF9TVEFUVVMQAhIXChNSVU5fRVZFTlRfS0lORF9FWElUEAMSHwobUlVOX0VWRU5UX0tJTkRfQVJUSUZBQ1RfUkVGEARCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL2NoYW5uZWw7Y2hhbm5lbF92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL2NoYW5uZWwvY2hhbm5lbC5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbCKDAQoJSGFuZHNoYWtlEhgKEHByb3RvY29sX3ZlcnNpb24YASABKA0SDwoHbm9kZV9pZBgCIAEoCRIVCg1hZ2VudF92ZXJzaW9uGAMgASgJEgoKAm9zGAQgASgJEgwKBGFyY2gYBSABKAkSFAoMY2FwYWJpbGl0aWVzGAYgAygJSgQIBxAQIrgBCgxIYW5kc2hha2VBY2sSEAoIYWNjZXB0ZWQYASABKAgSSgoNY29tcGF0aWJpbGl0eRgCIAEoDjIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5Db21wYXRpYmlsaXR5U3RhdHVzEiYKHmNvbnRyb2xfcGxhbmVfcHJvdG9jb2xfdmVyc2lvbhgDIAEoDRISCgpzZXNzaW9uX2lkGAQgASgJEg4KBnJlYXNvbhgFIAEoCSKoAQoHSm9iUHVzaBIOCgZydW5faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDAoEdmVyYhgDIAEoCRIMCgRhcmdzGAQgAygJEhcKD3RpbWVvdXRfc2Vjb25kcxgFIAEoAxJACgdvdXRwdXRzGAYgAygLMi8udnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5BcnRpZmFjdE91dHB1dEoECAcQECJaCg5BcnRpZmFjdE91dHB1dBIMCgRuYW1lGAEgASgJEhIKCm1lZGlhX3R5cGUYAiABKAkSEwoLb3V0cHV0X2ZsYWcYAyABKAkSEQoJbWF4X2J5dGVzGAQgASgDIlsKEFByb3Zpc2lvbkNvbW1hbmQSDQoFb3BfaWQYASABKAkSFwoPdGFyZ2V0X3JldmlzaW9uGAIgASgJEhkKEXJvbGxiYWNrX3JldmlzaW9uGAMgASgJSgQIBBAQIjoKC0NvbnRyb2xQaW5nEisKB3NlbnRfYXQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjAKCEFib3J0Sm9iEg4KBnJ1bl9pZBgBIAEoCRIOCgZyZWFzb24YAiABKAlKBAgDEBAi0QIKC1NlcnZlckZyYW1lEjwKA2FjaxgBIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSGFuZHNoYWtlQWNrSAASNwoDam9iGAIgASgLMigudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5Kb2JQdXNoSAASRgoJcHJvdmlzaW9uGAMgASgLMjEudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5Qcm92aXNpb25Db21tYW5kSAASPAoEcGluZxgEIAEoCzIsLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQ29udHJvbFBpbmdIABI6CgVhYm9ydBgFIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQWJvcnRKb2JIAEIJCgdwYXlsb2FkIjUKEVNpZ25lZFNlcnZlckZyYW1lEg0KBWZyYW1lGAEgASgMEhEKCXNpZ25hdHVyZRgCIAEoDCLWAQoJTm9kZUZyYW1lEj8KCWhhbmRzaGFrZRgBIAEoCzIqLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSGFuZHNoYWtlSAASPgoJaGVhcnRiZWF0GAIgASgLMikudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkhlYXJ0YmVhdEgAEj0KCXJ1bl9ldmVudBgDIAEoCzIoLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5SdW5FdmVudEgAQgkKB3BheWxvYWRCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL2NoYW5uZWw7Y2hhbm5lbF92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_shared_shared]);
 
 /**
  * Handshake is the first frame a node sends when it opens the channel. It
@@ -92,7 +94,7 @@ export type HandshakeAck = Message<"vrooli.vrooli_bridge.v1.channel.HandshakeAck
   /**
    * The control plane's verdict on the node's protocol_version.
    *
-   * @generated from field: vrooli.vrooli_bridge.v1.channel.CompatibilityStatus compatibility = 2;
+   * @generated from field: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus compatibility = 2;
    */
   compatibility: CompatibilityStatus;
 
@@ -132,94 +134,9 @@ export const HandshakeAckSchema: GenMessage<HandshakeAck> = /*@__PURE__*/
  * HealthSnapshot is the node's self-reported readiness, sent on connect and on
  * every Heartbeat. Dispatch only targets nodes whose snapshot shows they can
  * do the work (OT-P0-003).
- *
- * @generated from message vrooli.vrooli_bridge.v1.channel.HealthSnapshot
- */
-export type HealthSnapshot = Message<"vrooli.vrooli_bridge.v1.channel.HealthSnapshot"> & {
-  /**
-   * The Vrooli toolchain (`vrooli` CLI + setup) is present and runnable.
-   *
-   * @generated from field: bool toolchain_present = 1;
-   */
-  toolchainPresent: boolean;
-
-  /**
-   * Free disk headroom in bytes on the work volume.
-   *
-   * @generated from field: int64 disk_headroom_bytes = 2;
-   */
-  diskHeadroomBytes: bigint;
-
-  /**
-   * A container runtime (Docker/Podman) the node needs for some jobs is up.
-   *
-   * @generated from field: bool container_runtime_up = 3;
-   */
-  containerRuntimeUp: boolean;
-
-  /**
-   * Free-form extra readiness facts (e.g. "go" -> "1.25.0"), kept open so the
-   * agent can report new signals without a proto change.
-   *
-   * @generated from field: map<string, string> details = 4;
-   */
-  details: { [key: string]: string };
-
-  /**
-   * When the agent sampled this snapshot.
-   *
-   * @generated from field: google.protobuf.Timestamp reported_at = 5;
-   */
-  reportedAt?: Timestamp | undefined;
-};
-
-/**
- * Describes the message vrooli.vrooli_bridge.v1.channel.HealthSnapshot.
- * Use `create(HealthSnapshotSchema)` to create a new message.
- */
-export const HealthSnapshotSchema: GenMessage<HealthSnapshot> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 2);
-
-/**
  * Heartbeat is the node's periodic liveness + readiness ping (node → control
  * plane). Absence of heartbeats past the liveness window flips the node
  * offline (presence domain).
- *
- * @generated from message vrooli.vrooli_bridge.v1.channel.Heartbeat
- */
-export type Heartbeat = Message<"vrooli.vrooli_bridge.v1.channel.Heartbeat"> & {
-  /**
-   * @generated from field: string node_id = 1;
-   */
-  nodeId: string;
-
-  /**
-   * Monotonic per-connection counter; lets the control plane detect dropped or
-   * reordered heartbeats.
-   *
-   * @generated from field: uint64 sequence = 2;
-   */
-  sequence: bigint;
-
-  /**
-   * @generated from field: vrooli.vrooli_bridge.v1.channel.HealthSnapshot health = 3;
-   */
-  health?: HealthSnapshot | undefined;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp sent_at = 4;
-   */
-  sentAt?: Timestamp | undefined;
-};
-
-/**
- * Describes the message vrooli.vrooli_bridge.v1.channel.Heartbeat.
- * Use `create(HeartbeatSchema)` to create a new message.
- */
-export const HeartbeatSchema: GenMessage<Heartbeat> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 3);
-
-/**
  * JobPush is the typed job the control plane pushes for the node to run
  * (OT-P0-004). It is NEVER a shell string: {scenario, verb, args} is validated
  * against the scenario-CLI manifest + per-node scopes before it is pushed. The
@@ -275,7 +192,7 @@ export type JobPush = Message<"vrooli.vrooli_bridge.v1.channel.JobPush"> & {
  * Use `create(JobPushSchema)` to create a new message.
  */
 export const JobPushSchema: GenMessage<JobPush> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 4);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 2);
 
 /**
  * ArtifactOutput describes one bounded file a typed job is allowed to produce.
@@ -311,7 +228,7 @@ export type ArtifactOutput = Message<"vrooli.vrooli_bridge.v1.channel.ArtifactOu
  * Use `create(ArtifactOutputSchema)` to create a new message.
  */
 export const ArtifactOutputSchema: GenMessage<ArtifactOutput> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 5);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 3);
 
 /**
  * ProvisionCommand is the privileged-tier push that brings a node to a target
@@ -351,7 +268,7 @@ export type ProvisionCommand = Message<"vrooli.vrooli_bridge.v1.channel.Provisio
  * Use `create(ProvisionCommandSchema)` to create a new message.
  */
 export const ProvisionCommandSchema: GenMessage<ProvisionCommand> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 6);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 4);
 
 /**
  * ControlPing is a control-plane → node keepalive so the SSE stream stays warm
@@ -371,7 +288,7 @@ export type ControlPing = Message<"vrooli.vrooli_bridge.v1.channel.ControlPing">
  * Use `create(ControlPingSchema)` to create a new message.
  */
 export const ControlPingSchema: GenMessage<ControlPing> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 7);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 5);
 
 /**
  * AbortJob is the control-plane → node push that cancels an in-flight run
@@ -405,76 +322,12 @@ export type AbortJob = Message<"vrooli.vrooli_bridge.v1.channel.AbortJob"> & {
  * Use `create(AbortJobSchema)` to create a new message.
  */
 export const AbortJobSchema: GenMessage<AbortJob> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 8);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 6);
 
 /**
  * RunEvent streams a durable run's progress back to the control plane (node →
  * control plane, OT-P0-005). The runs domain proxies these to the block-once
  * wait verb so a re-attaching client sees the same stream.
- *
- * @generated from message vrooli.vrooli_bridge.v1.channel.RunEvent
- */
-export type RunEvent = Message<"vrooli.vrooli_bridge.v1.channel.RunEvent"> & {
-  /**
-   * @generated from field: string run_id = 1;
-   */
-  runId: string;
-
-  /**
-   * @generated from field: vrooli.vrooli_bridge.v1.channel.RunEventKind kind = 2;
-   */
-  kind: RunEventKind;
-
-  /**
-   * Monotonic per-run sequence so the control plane can order/dedupe events on
-   * reconnect (stale-completion safety).
-   *
-   * @generated from field: uint64 sequence = 3;
-   */
-  sequence: bigint;
-
-  /**
-   * Set when kind == RUN_EVENT_KIND_LOG: a chunk of combined output.
-   *
-   * @generated from field: string log_chunk = 4;
-   */
-  logChunk: string;
-
-  /**
-   * Set when kind == RUN_EVENT_KIND_STATUS: a lifecycle transition label.
-   *
-   * @generated from field: string status = 5;
-   */
-  status: string;
-
-  /**
-   * Set when kind == RUN_EVENT_KIND_EXIT: the terminal process exit code.
-   *
-   * @generated from field: int32 exit_code = 6;
-   */
-  exitCode: number;
-
-  /**
-   * Set when kind == RUN_EVENT_KIND_ARTIFACT_REF: a device-sync-hub reference.
-   *
-   * @generated from field: string artifact_ref = 7;
-   */
-  artifactRef: string;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp emitted_at = 8;
-   */
-  emittedAt?: Timestamp | undefined;
-};
-
-/**
- * Describes the message vrooli.vrooli_bridge.v1.channel.RunEvent.
- * Use `create(RunEventSchema)` to create a new message.
- */
-export const RunEventSchema: GenMessage<RunEvent> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 9);
-
-/**
  * ServerFrame is the multiplexed envelope every control-plane → node push is
  * wrapped in over the SSE stream. New push kinds extend this oneof; the node
  * parses with DiscardUnknown and ignores kinds it does not understand.
@@ -523,7 +376,7 @@ export type ServerFrame = Message<"vrooli.vrooli_bridge.v1.channel.ServerFrame">
  * Use `create(ServerFrameSchema)` to create a new message.
  */
 export const ServerFrameSchema: GenMessage<ServerFrame> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 10);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 7);
 
 /**
  * SignedServerFrame is the mutual-auth envelope EVERY control-plane → node push
@@ -565,7 +418,7 @@ export type SignedServerFrame = Message<"vrooli.vrooli_bridge.v1.channel.SignedS
  * Use `create(SignedServerFrameSchema)` to create a new message.
  */
 export const SignedServerFrameSchema: GenMessage<SignedServerFrame> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 11);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 8);
 
 /**
  * NodeFrame documents the union of node → control-plane actions. In production
@@ -587,13 +440,13 @@ export type NodeFrame = Message<"vrooli.vrooli_bridge.v1.channel.NodeFrame"> & {
     case: "handshake";
   } | {
     /**
-     * @generated from field: vrooli.vrooli_bridge.v1.channel.Heartbeat heartbeat = 2;
+     * @generated from field: vrooli.vrooli_bridge.v1.shared.Heartbeat heartbeat = 2;
      */
     value: Heartbeat;
     case: "heartbeat";
   } | {
     /**
-     * @generated from field: vrooli.vrooli_bridge.v1.channel.RunEvent run_event = 3;
+     * @generated from field: vrooli.vrooli_bridge.v1.shared.RunEvent run_event = 3;
      */
     value: RunEvent;
     case: "runEvent";
@@ -605,101 +458,5 @@ export type NodeFrame = Message<"vrooli.vrooli_bridge.v1.channel.NodeFrame"> & {
  * Use `create(NodeFrameSchema)` to create a new message.
  */
 export const NodeFrameSchema: GenMessage<NodeFrame> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 12);
-
-/**
- * CompatibilityStatus is the control plane's verdict on a node's negotiated
- * protocol_version, returned in HandshakeAck. It is the mechanism that keeps a
- * version-drifted node from being silently mis-driven.
- *
- * @generated from enum vrooli.vrooli_bridge.v1.channel.CompatibilityStatus
- */
-export enum CompatibilityStatus {
-  /**
-   * Never set on the wire; a zero value means the ack predates compatibility
-   * negotiation and must be treated as INCOMPATIBLE by a strict node.
-   *
-   * @generated from enum value: COMPATIBILITY_STATUS_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * The node's protocol_version is fully drivable; it may receive jobs and
-   * provisioning commands.
-   *
-   * @generated from enum value: COMPATIBILITY_STATUS_OK = 1;
-   */
-  OK = 1,
-
-  /**
-   * The control plane can still hold the node's presence but will not dispatch
-   * work until the agent is updated. Surfaced to the operator as "needs
-   * update".
-   *
-   * @generated from enum value: COMPATIBILITY_STATUS_NEEDS_UPDATE = 2;
-   */
-  NEEDS_UPDATE = 2,
-
-  /**
-   * The node's protocol_version cannot be driven at all; the channel is
-   * refused.
-   *
-   * @generated from enum value: COMPATIBILITY_STATUS_INCOMPATIBLE = 3;
-   */
-  INCOMPATIBLE = 3,
-}
-
-/**
- * Describes the enum vrooli.vrooli_bridge.v1.channel.CompatibilityStatus.
- */
-export const CompatibilityStatusSchema: GenEnum<CompatibilityStatus> = /*@__PURE__*/
-  enumDesc(file_vrooli_bridge_v1_channel_channel, 0);
-
-/**
- * RunEventKind discriminates the payload a RunEvent carries back from a node's
- * durable run. The runs domain (Phase 3) interprets these.
- *
- * @generated from enum vrooli.vrooli_bridge.v1.channel.RunEventKind
- */
-export enum RunEventKind {
-  /**
-   * @generated from enum value: RUN_EVENT_KIND_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * log_chunk carries a slice of combined stdout/stderr.
-   *
-   * @generated from enum value: RUN_EVENT_KIND_LOG = 1;
-   */
-  LOG = 1,
-
-  /**
-   * status carries a human-readable lifecycle transition (e.g. "running").
-   *
-   * @generated from enum value: RUN_EVENT_KIND_STATUS = 2;
-   */
-  STATUS = 2,
-
-  /**
-   * exit_code is the terminal process exit code; the run is terminal after it.
-   *
-   * @generated from enum value: RUN_EVENT_KIND_EXIT = 3;
-   */
-  EXIT = 3,
-
-  /**
-   * artifact_ref carries a device-sync-hub reference to a produced artifact;
-   * the bytes never transit the control-plane store (DATA.md).
-   *
-   * @generated from enum value: RUN_EVENT_KIND_ARTIFACT_REF = 4;
-   */
-  ARTIFACT_REF = 4,
-}
-
-/**
- * Describes the enum vrooli.vrooli_bridge.v1.channel.RunEventKind.
- */
-export const RunEventKindSchema: GenEnum<RunEventKind> = /*@__PURE__*/
-  enumDesc(file_vrooli_bridge_v1_channel_channel, 1);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 9);
 

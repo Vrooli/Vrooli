@@ -1,0 +1,47 @@
+{
+  "metadata": {
+    "name": "onboarding-first-run-to-applied-install",
+    "description": "Open the first-run wizard, move through capability selection, and reach validation.",
+    "requirement": "ONB-UX-JOURNEY-EVIDENCE",
+    "version": "1",
+    "labels": { "reset": "none", "spec_entry_id": "setup-scenarios", "journey_id": "first-run-to-applied-install", "surface": "experience-onboarding", "requires_confirmation": "true", "routed_isolation": "true" },
+    "execution_mode": "mutating"
+  },
+  "id": "00000000-0000-4000-8000-000000000001",
+  "project_id": "00000000-0000-4000-8000-000000000000",
+  "name": "onboarding-first-run-to-applied-install",
+  "folder_path": "/bas/cases/experience",
+  "description": "Open the first-run wizard, move through capability selection, and reach validation.",
+  "tags": ["reset:none"],
+  "version": 1,
+  "flow_definition": { "settings": { "viewport_width": 1280, "viewport_height": 800 },
+  "nodes": [
+    { "id": "open-welcome", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/welcome", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open onboarding welcome" } } },
+    { "id": "wait-welcome", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.welcome", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Welcome step renders" } } },
+    { "id": "assert-welcome", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/wizard.next", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Welcome must expose the Get Started action" }, "metadata": { "label": "Get Started is visible" } } },
+    { "id": "next-to-scenarios", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/wizard.next" }, "metadata": { "label": "Start setup" } } },
+    { "id": "wait-scenarios", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.scenarios", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Scenario selection renders" } } },
+    { "id": "assert-scenario-search", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/wizard.scenarioSearch", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Scenario search must be visible" }, "metadata": { "label": "Scenario search is visible" } } },
+    { "id": "assert-scenario-filter", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/wizard.scenarioFilter", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Scenario selection filter must be visible" }, "metadata": { "label": "Scenario filter is visible" } } },
+    { "id": "open-resources", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/resources", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open derived resources" } } },
+    { "id": "wait-resources", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.resources", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Derived resource view renders" } } },
+    { "id": "open-credentials", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/credentials", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open credential readiness" } } },
+    { "id": "wait-credentials", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.readiness", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Credential readiness renders" } } },
+    { "id": "open-integrations", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/integrations", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open deferred integrations" } } },
+    { "id": "wait-integrations", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.integrations", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Integration deferral renders" } } },
+    { "id": "open-host", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/host", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open host requirements" } } },
+    { "id": "wait-host", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.host", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Host requirements render" } } },
+    { "id": "open-operating-mode", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/operating-mode", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open operating mode" } } },
+    { "id": "wait-operating-mode", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.operatingMode", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Operating mode renders" } } },
+    { "id": "open-apply", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/apply", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open apply review" } } },
+    { "id": "wait-apply", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.readiness", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Apply review renders" } } },
+    { "id": "assert-apply-plan", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/apply.plan", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Apply must show its plan before confirmation" }, "metadata": { "label": "Apply plan is visible" } } },
+    { "id": "open-validation", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/validation", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open validation" } } },
+    { "id": "wait-validation", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.readiness", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Validation renders" } } },
+    { "id": "assert-readiness", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/readiness.summary", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Validation must show a readiness summary" }, "metadata": { "label": "Readiness summary is visible" } } }
+  ],
+  "edges": [
+    { "source": "open-welcome", "target": "wait-welcome" }, { "source": "wait-welcome", "target": "assert-welcome" }, { "source": "assert-welcome", "target": "next-to-scenarios" }, { "source": "next-to-scenarios", "target": "wait-scenarios" }, { "source": "wait-scenarios", "target": "assert-scenario-search" }, { "source": "assert-scenario-search", "target": "assert-scenario-filter" }, { "source": "assert-scenario-filter", "target": "open-resources" }, { "source": "open-resources", "target": "wait-resources" }, { "source": "wait-resources", "target": "open-credentials" }, { "source": "open-credentials", "target": "wait-credentials" }, { "source": "wait-credentials", "target": "open-integrations" }, { "source": "open-integrations", "target": "wait-integrations" }, { "source": "wait-integrations", "target": "open-host" }, { "source": "open-host", "target": "wait-host" }, { "source": "wait-host", "target": "open-operating-mode" }, { "source": "open-operating-mode", "target": "wait-operating-mode" }, { "source": "wait-operating-mode", "target": "open-apply" }, { "source": "open-apply", "target": "wait-apply" }, { "source": "wait-apply", "target": "assert-apply-plan" }, { "source": "assert-apply-plan", "target": "open-validation" }, { "source": "open-validation", "target": "wait-validation" }, { "source": "wait-validation", "target": "assert-readiness" }
+  ]
+  }
+}

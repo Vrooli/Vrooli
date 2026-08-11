@@ -2,48 +2,106 @@
 
 ## Purpose Of This Document
 
-Describe the data that Vrooli Onboarding owns and the data it deliberately
-projects without owning.
+Name the data onboarding owns, the data it projects without owning, and the data
+it must never hold.
 
-## Storage Overview
+## Storage overview
 
-The sole durable onboarding record is `.vrooli/operator-state.json`, written
-atomically by the API. Credential values remain in the native credential
-authority and are never written to operator state, browser storage, or the
-scenario database.
+Onboarding has **no scenario-owned database and no scenario-owned file**. The
+one durable record it participates in is `.vrooli/operator-state.json`, and that
+document is owned by `internal/operatorstate` in the control plane. Onboarding
+patches it through that service.
 
-## Data Ownership
+```mermaid
+flowchart LR
+  subgraph OWNED["Owned elsewhere, read here"]
+    M[("Manifests<br/>immutable, source-controlled")]
+    C[("Credential authority<br/>native store or encrypted file")]
+  end
+  subgraph SHARED["Shared, patched here"]
+    S[("operator-state.json")]
+  end
+  subgraph NONE["Held here"]
+    X["Nothing durable.<br/>Read models are recomputed per request."]
+  end
+  M --> X
+  C -- "configured / unconfigured only" --> X
+  X -- "field-scoped patch" --> S
+  S --> X
 
-Onboarding owns scenario selections, optional-resource choices, operating
-mode, and the current operator intent. Resource manifests own descriptors;
-credential authorities own values.
+  classDef store fill:none,stroke-dasharray:4 3
+  class M,C,S store
+```
 
-## Schema Map
+## Data ownership
 
-`operator-state.schema.json` defines the persisted record. V2 read models are
-derived views and have no independent schema or storage.
+| Data | Owner | Onboarding |
+|---|---|---|
+| Scenario, resource, tool, safeguard declarations | Manifests | Reads |
+| Credential descriptors | Manifests | Reads |
+| Credential **values** | Credential authority | Relays once; never stores, reads, or returns |
+| Scenario enablement, auto-restart override | `operator-state.scenarios.*` | Patches |
+| Resource enablement | `operator-state.resources.*` | Patches — and this is the only authority for it |
+| Host tool and safeguard opt-in, safeguard config | `operator-state.host_tools.*`, `host_safeguards.*` | Patches |
+| Completion marker and degraded acknowledgement | `operator-state` | Patches |
+| Trust posture | `operator-state.trust_posture` | **Preserves. Never writes.** |
+| Core-set authority | `operator-state.core` | **Preserves. Never writes.** |
+| Active profile | `operator-state.active_profile` | Reserved; deferred |
+| Integration bindings | integration-hub | Deferred; creates nothing |
 
-## Migrations And Compatibility
+The two "preserves, never writes" rows are load-bearing. Trust posture selects
+token, break-glass, node-execution, and JWKS-cache defaults across the whole
+install; the core set grants control-plane fallback protection. Neither is an
+onboarding decision, and both live in a document onboarding writes — so the
+write path must be incapable of touching them.
 
-V2 replaces the former progress record. Legacy progress is not a fallback or
-configuration authority.
+## Schema map
 
-## Import / Export
+| File | Schema | Written by |
+|---|---|---|
+| `.vrooli/operator-state.json` | [`operator-state.schema.json`](../../../../.vrooli/schemas/operator-state.schema.json) | `internal/operatorstate` only |
+| `scenarios/*/.vrooli/service.json` | `service.schema.json` | Scenario authors |
+| `resources/*/resource.json` | `resource.schema.json` | Resource authors |
+| `internal/tools/*/tool.json` | `tool.schema.json` | Tool authors |
+| `internal/safeguards/*/safeguard.json` | `safeguard.schema.json` | Safeguard authors |
 
-Operator state is inspectable configuration. Credential recovery is performed
-only through the encrypted control-plane recovery export and restore commands.
+Read models — scenarios, host requirements, readiness, union — are derived views
+with no independent schema and no storage. They are recomputed per request, so a
+newly installed scenario appears without a migration or a cache flush.
 
-## Retention And Deletion
+The state schema sets `additionalProperties: false`. That makes an invalid write
+unrecoverable without hand repair, which is why validation happens **before** the
+write rather than at read time.
 
-Deleting operator state resets onboarding choices. Credential deletion is an
-explicit authority operation and is not implied by reset.
+## Migrations and compatibility
 
-## Privacy Notes
+The document is versioned and additive. A field a binary does not model is
+preserved on write, so an older binary cannot truncate a newer document. This is
+the compatibility guarantee that lets the control plane, the wizard, the CLI, and
+a bundled desktop binary of a different vintage share one file.
 
-No credential values, tokens, or recovery passphrases are stored in this
-scenario's files, logs, API responses, or UI state.
+The retired V1 progress database is not a fallback and is not read.
+
+## Import, export, and retention
+
+Operator state is inspectable configuration and is safe to read, diff, and copy
+between hosts. Deleting it resets onboarding choices and nothing else.
+
+Credential material is never part of that copy. Recovery is an explicit
+credential-authority operation through the encrypted bundle export and restore
+commands, and deleting operator state does not delete a credential.
+
+The union export is a derived artifact describing what a target must carry. It
+is regenerated on demand and is never a stored authority.
+
+## Privacy
+
+No credential value, token, or recovery passphrase is written to this scenario's
+files, logs, API responses, CLI output, browser storage, or URLs — at any point,
+in any form, on any tier.
 
 ## Cross-References
 
-- [Domains](DOMAINS.md)
-- [Wizard flow](../WIZARD_FLOW.md)
+- [Architecture](ARCHITECTURE.md) · [Flows](FLOWS.md) · [Domains](DOMAINS.md)
+- [Configuration reference](../reference/configuration.md)
+- [Security](../internal/SECURITY.md)

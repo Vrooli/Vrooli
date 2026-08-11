@@ -2,8 +2,16 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "storage": {
-    "entries": {},
-    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+    "entries": {
+      "operator_state": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "config",
+        "regenerable": true,
+        "rationale": "Per-install operator choices are persisted atomically through the routed operator-state authority."
+      }
+    },
+    "rationale": "The scenario owns one routed configuration file; credential values and runtime databases remain owned by their authorities."
   },
   "service": {
     "parent": "vrooli",

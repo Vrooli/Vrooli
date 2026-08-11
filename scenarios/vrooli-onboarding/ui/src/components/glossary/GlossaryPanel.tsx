@@ -4,6 +4,8 @@ import { Loader2, BookOpen } from "lucide-react";
 import { fetchGlossary } from "../../lib/api";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { SearchInput, type SearchInputHandle } from "../ui/SearchInput";
+import { Button } from "../ui/button";
+import { StatusBadge } from "../ui/StatusBadge";
 
 export function GlossaryPanel() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -54,9 +56,9 @@ export function GlossaryPanel() {
       {/* Content */}
       <div className={entries.length > 0 ? "mt-2" : "mt-6"}>
         {isLoading ? (
-          <div data-testid="glossary-loading" className="flex items-center justify-center py-12 text-slate-300" role="status">
+          <div data-testid="glossary-loading" className="flex items-center justify-center py-12 text-slate-300" aria-live="polite">
             <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-            <span className="ml-2 text-sm">Loading glossary...</span>
+            <StatusBadge className="ml-2 text-sm">Loading glossary...</StatusBadge>
           </div>
         ) : entries.length === 0 ? (
           <div data-testid="glossary-empty" className="flex flex-col items-center justify-center py-12 text-slate-300">
@@ -65,13 +67,13 @@ export function GlossaryPanel() {
             {searchTerm ? (
               <p className="mt-1 text-xs text-slate-300">
                 Try a different search term or{" "}
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={() => { setSearchTerm(""); searchRef.current?.focus(); }}
                   className="text-emerald-400 underline underline-offset-2 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
                 >
                   clear the search
-                </button>
+                </Button>
                 .
               </p>
             ) : (

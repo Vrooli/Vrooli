@@ -64,6 +64,9 @@ func mergeHostRequirements(target map[string]hostRequirement, source []hostRequi
 func hostManifest(root, kind, name string) ([]byte, error) {
 	entries, err := os.ReadDir(filepath.Join(root, "internal", kind))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, &catalogUnavailableError{Missing: filepath.ToSlash(filepath.Join("catalog", "internal", kind)), Remediation: "rebuild the bundle with the tool and safeguard catalogs, then restart onboarding"}
+		}
 		return nil, err
 	}
 	fileName := strings.TrimSuffix(kind, "s") + ".json"
@@ -155,6 +158,9 @@ func deriveV2HostRequirements(root string, state OperatorState, models []Scenari
 func (s *Server) handleV2HostRequirements(w http.ResponseWriter, _ *http.Request) {
 	root, err := manifestRoot()
 	if err != nil {
+		if writeCatalogDegraded(w, err) {
+			return
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
@@ -165,11 +171,17 @@ func (s *Server) handleV2HostRequirements(w http.ResponseWriter, _ *http.Request
 	}
 	models, err := selectedScenarioModels()
 	if err != nil {
+		if writeCatalogDegraded(w, err) {
+			return
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 	response, err := deriveV2HostRequirements(root, state, models)
 	if err != nil {
+		if writeCatalogDegraded(w, err) {
+			return
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}

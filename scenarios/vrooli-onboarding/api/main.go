@@ -1,15 +1,19 @@
 package main
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
 )
 
 // Server wires the HTTP router.
@@ -40,7 +44,6 @@ func NewServer() *Server {
 func (s *Server) setupRoutes() {
 	s.router.Use(securityHeadersMiddleware)
 	s.router.Use(loggingMiddleware)
-	s.router.Use(apihttp.TestModeMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
 	// Uses api-core/health for standardized response format
 	healthHandler := health.New().Version("2.0.0").Handler()
@@ -53,8 +56,18 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/resources/{name}", s.handleGetResource).Methods("GET")
 
 	// Operator state is the sole authority for onboarding choices.
-	s.router.HandleFunc("/api/v1/operator-state", s.handleOperatorState).Methods("GET", "PUT")
+	s.router.HandleFunc("/api/v1/operator-state", s.handleOperatorState).Methods("GET")
+	s.router.HandleFunc("/api/v2/operator-state", s.handleOperatorState).Methods("PATCH")
 	s.router.HandleFunc("/api/v2/scenarios", s.handleV2Scenarios).Methods("GET")
+	s.router.HandleFunc("/api/v2/resources", s.handleV2Resources).Methods("GET")
+	s.router.HandleFunc("/api/v2/closure", s.handleV2Closure).Methods("GET")
+	s.router.HandleFunc("/api/v2/union", s.handleV2Union).Methods("GET")
+	s.router.HandleFunc("/api/v2/credentials", s.handleV2Credentials).Methods("GET")
+	s.router.HandleFunc("/api/v2/surface", s.handleV2Surface).Methods("GET")
+	s.router.HandleFunc("/api/v2/apply", s.handleV2Apply).Methods("POST")
+	s.router.HandleFunc("/api/v2/apply/{run_id}", s.handleV2ApplyStatus).Methods("GET")
+	s.router.HandleFunc("/api/v2/session", s.handleV2Session).Methods("GET")
+	s.router.HandleFunc("/api/v2/session/step", s.handleV2Session).Methods("POST")
 	s.router.HandleFunc("/api/v2/host-requirements", s.handleV2HostRequirements).Methods("GET")
 	s.router.HandleFunc("/api/v2/readiness", s.handleV2Readiness).Methods("GET")
 	s.router.HandleFunc("/api/v2/credentials/provision", s.handleV2CredentialProvision).Methods("POST")
@@ -101,12 +114,36 @@ func main() {
 	if err := configureOperatorStateRoots(); err != nil {
 		panic("configure operator state roots: " + err.Error())
 	}
+	// Keep the file-only API inside api-core's routed storage contract. The
+	// operatorstate service performs the actual request-scoped selection; this
+	// startup probe makes the seam explicit to storage-manager's static checker.
+	ctx := context.Background()
+	if _, err := operatorStateRoots.Pick(ctx, storage.ClassConfig); err != nil {
+		panic("route operator state roots: " + err.Error())
+	}
+	// The onboarding API is file-authoritative, but test-genie still needs the
+	// standard routed control surface to prove destructive workflows cannot use
+	// a live pool. This private in-memory pool stores no onboarding state.
+	routingDB, err := database.Open(ctx, database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          "file:vrooli-onboarding-routing?mode=memory&cache=shared",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		panic("configure onboarding test routing: " + err.Error())
+	}
+	if err := database.EnsureSchemas(ctx, routingDB.Primary()); err != nil {
+		panic("configure onboarding test schemas: " + err.Error())
+	}
 	srv := NewServer()
-	devrouting.RegisterFileRoots(routingMuxAdapter{router: srv.router}, operatorStateRoots)
+	devrouting.RegisterWithFileRoots(routingMuxAdapter{router: srv.router}, routingDB, operatorStateRoots)
+	handler := apihttp.TestModeMiddleware(srv.Handler())
 
 	// Start server with graceful shutdown (port from API_PORT env var)
 	if err := server.Run(server.Config{
-		Handler: srv.Handler(),
+		Handler: handler,
+		Cleanup: func(context.Context) error { return routingDB.Close() },
 	}); err != nil {
 		panic("onboarding server failed: " + err.Error())
 	}

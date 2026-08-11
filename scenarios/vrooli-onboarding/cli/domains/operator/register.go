@@ -17,7 +17,7 @@ import (
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "operator", Description: "Inspect and commit V2 operator state", NeedsAPI: true, Subcommands: []cliapp.Command{
 		{Name: "show", Description: "Show persisted operator state", Run: func(args []string) error { return runShow(core, args) }},
-		{Name: "apply", Description: "Atomically apply operator state from --body-file", Run: func(args []string) error { return runApply(core, args) }},
+		{Name: "patch", Description: "Atomically apply an RFC 7386 operator-state merge patch from --body-file", Run: func(args []string) error { return runPatch(core, args) }},
 		{Name: "set-safeguard-config", Description: "Set one typed safeguard config value", Run: func(args []string) error { return runSetSafeguardConfig(core, args) }},
 		{Name: "scenarios", Description: "Show manifest-derived scenario choices", Run: func(args []string) error { return runGet(core, args, "/v2/scenarios") }},
 		{Name: "readiness", Description: "Show metadata-safe composed readiness", Run: func(args []string) error { return runGet(core, args, "/v2/readiness") }},
@@ -51,9 +51,9 @@ func runGet(core *cliapp.ScenarioApp, args []string, path string) error {
 	return err
 }
 
-func runApply(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("operator apply")
-	bodyFile := fs.String("body-file", "", "Path to an operator-state JSON document")
+func runPatch(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("operator patch")
+	bodyFile := fs.String("body-file", "", "Path to an RFC 7386 operator-state merge patch")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
@@ -62,7 +62,7 @@ func runApply(core *cliapp.ScenarioApp, args []string) error {
 	if err != nil {
 		return err
 	}
-	response, err := core.Request("PUT", "/operator-state", nil, body)
+	response, err := core.Request("PATCH", "/v2/operator-state", nil, body)
 	if err != nil {
 		return err
 	}
@@ -90,36 +90,11 @@ func runSetSafeguardConfig(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("parse --value-json: %w", err)
 	}
 
-	body, err := core.Get("/operator-state", nil)
+	patchBody, err := json.Marshal(map[string]any{"host_safeguards": map[string]any{*name: map[string]any{"config": map[string]any{*key: value}}}})
 	if err != nil {
-		return err
+		return fmt.Errorf("encode safeguard patch: %w", err)
 	}
-	var state map[string]any
-	if err := json.Unmarshal(body, &state); err != nil {
-		return fmt.Errorf("decode operator state: %w", err)
-	}
-	hostSafeguards, ok := state["host_safeguards"].(map[string]any)
-	if !ok {
-		hostSafeguards = map[string]any{}
-		state["host_safeguards"] = hostSafeguards
-	}
-	entry, ok := hostSafeguards[*name].(map[string]any)
-	if !ok {
-		entry = map[string]any{}
-		hostSafeguards[*name] = entry
-	}
-	config, ok := entry["config"].(map[string]any)
-	if !ok {
-		config = map[string]any{}
-		entry["config"] = config
-	}
-	config[*key] = value
-
-	requestBody, err := json.Marshal(state)
-	if err != nil {
-		return fmt.Errorf("encode operator state: %w", err)
-	}
-	response, err := core.Request("PUT", "/operator-state", nil, requestBody)
+	response, err := core.Request("PATCH", "/v2/operator-state", nil, patchBody)
 	if err != nil {
 		return err
 	}

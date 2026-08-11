@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "name": "onboarding-headless-parity-with-the-ui",
+    "description": "Capture the browser-side selection surface used as the reference for declarative and interactive onboarding.",
+    "requirement": "ONB-UX-JOURNEY-EVIDENCE",
+    "version": "1",
+    "labels": { "reset": "none", "spec_entry_id": "setup-scenarios", "journey_id": "headless-parity-with-the-ui", "surface": "experience-onboarding" },
+    "execution_mode": "observer"
+  },
+  "id": "00000000-0000-4000-8000-000000000006",
+  "project_id": "00000000-0000-4000-8000-000000000000",
+  "name": "onboarding-headless-parity-with-the-ui",
+  "folder_path": "/bas/cases/experience",
+  "description": "Capture the browser-side selection surface used as the reference for declarative and interactive onboarding.",
+  "tags": ["reset:none"],
+  "version": 1,
+  "flow_definition": { "settings": { "viewport_width": 1280, "viewport_height": 800 },
+  "nodes": [
+    { "id": "open-scenarios", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/scenarios", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open browser selection reference" } } },
+    { "id": "wait-scenarios", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.scenarios", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Browser selection renders" } } },
+    { "id": "assert-search", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/wizard.scenarioSearch", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Headless parity requires the same scenario search control" }, "metadata": { "label": "Search control is shared" } } },
+    { "id": "assert-rollup", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/scenario.resourceRollup", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Headless parity requires the derived resource rollup" }, "metadata": { "label": "Resource rollup is shared" } } },
+    { "id": "open-validation", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/validation", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open validation" } } },
+    { "id": "wait-validation", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.readiness", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Validation renders" } } },
+    { "id": "assert-summary", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/readiness.summary", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "UI and headless paths must expose the same readiness summary" }, "metadata": { "label": "Readiness summary is shared" } } }
+  ],
+  "edges": [{ "source": "open-scenarios", "target": "wait-scenarios" }, { "source": "wait-scenarios", "target": "assert-search" }, { "source": "assert-search", "target": "assert-rollup" }, { "source": "assert-rollup", "target": "open-validation" }, { "source": "open-validation", "target": "wait-validation" }, { "source": "wait-validation", "target": "assert-summary" }]
+  }
+}

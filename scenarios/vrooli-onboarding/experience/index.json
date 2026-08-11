@@ -1,0 +1,117 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "vrooli-onboarding",
+  "description": "The UX contract for the eight-step operator setup flow and its health and glossary surfaces. Every page is draft: the intent is authored ahead of the target build, so reconciliation runs advisory until the build conforms. Component specs land with the shared-component-library adoption that gives them catalog specimens to reference.",
+  "pages": [
+    {
+      "id": "setup-welcome",
+      "path": "pages/setup-welcome.json",
+      "title": "Welcome",
+      "status": "active"
+    },
+    {
+      "id": "setup-scenarios",
+      "path": "pages/setup-scenarios.json",
+      "title": "Choose capabilities",
+      "status": "active"
+    },
+    {
+      "id": "setup-resources",
+      "path": "pages/setup-resources.json",
+      "title": "Resources",
+      "status": "active"
+    },
+    {
+      "id": "setup-credentials",
+      "path": "pages/setup-credentials.json",
+      "title": "Credentials",
+      "status": "active"
+    },
+    {
+      "id": "setup-integrations",
+      "path": "pages/setup-integrations.json",
+      "title": "Integrations",
+      "status": "active"
+    },
+    {
+      "id": "setup-host",
+      "path": "pages/setup-host.json",
+      "title": "Host tools and safeguards",
+      "status": "active"
+    },
+    {
+      "id": "setup-operating-mode",
+      "path": "pages/setup-operating-mode.json",
+      "title": "Operating mode",
+      "status": "active"
+    },
+    {
+      "id": "setup-apply",
+      "path": "pages/setup-apply.json",
+      "title": "Apply",
+      "status": "active"
+    },
+    {
+      "id": "setup-validation",
+      "path": "pages/setup-validation.json",
+      "title": "Validation",
+      "status": "active"
+    },
+    {
+      "id": "health-dashboard",
+      "path": "pages/health-dashboard.json",
+      "title": "Health",
+      "status": "active"
+    },
+    {
+      "id": "glossary",
+      "path": "pages/glossary.json",
+      "title": "Glossary",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "first-run-to-applied-install",
+      "path": "journeys/first-run-to-applied-install.json",
+      "title": "First run: empty host to applied install",
+      "status": "active"
+    },
+    {
+      "id": "re-entry-revise-and-reapply",
+      "path": "journeys/re-entry-revise-and-reapply.json",
+      "title": "Re-entry: add a capability",
+      "status": "active"
+    },
+    {
+      "id": "provision-credential-on-headless-host",
+      "path": "journeys/provision-credential-on-headless-host.json",
+      "title": "Provision a credential with no desktop session",
+      "status": "active"
+    },
+    {
+      "id": "consent-to-a-host-safeguard",
+      "path": "journeys/consent-to-a-host-safeguard.json",
+      "title": "Consent to a medium-risk safeguard",
+      "status": "active"
+    },
+    {
+      "id": "continue-with-a-degraded-install",
+      "path": "journeys/continue-with-a-degraded-install.json",
+      "title": "Finish setup with an optional gap",
+      "status": "active"
+    },
+    {
+      "id": "headless-parity-with-the-ui",
+      "path": "journeys/headless-parity-with-the-ui.json",
+      "title": "Configure the same install from a terminal",
+      "status": "active"
+    }
+  ]
+}

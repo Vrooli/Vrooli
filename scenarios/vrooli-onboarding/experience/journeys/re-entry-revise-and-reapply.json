@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "re-entry-revise-and-reapply",
+    "title": "Re-entry: add a capability to a configured install",
+    "purpose": "An operator returns to a configured install, adds one scenario, and re-applies \u2014 without re-answering decisions they already made.",
+    "prd_refs": [
+      "OT-P1-002",
+      "OT-P0-006"
+    ]
+  },
+  "steps": [
+    {
+      "page": "setup-validation",
+      "intent": "Arrive at the resumed step rather than the first step.",
+      "via": "resumed session",
+      "state": "ready"
+    },
+    {
+      "page": "setup-scenarios",
+      "intent": "Navigate back and add one more capability.",
+      "via": "progress rail navigation",
+      "state": "cascade-visible"
+    },
+    {
+      "page": "setup-host",
+      "intent": "Consent to the additional host requirement the new capability introduced.",
+      "via": "requirement row",
+      "state": "default"
+    },
+    {
+      "page": "setup-apply",
+      "intent": "Re-apply and see that unchanged items report as already satisfied.",
+      "via": "apply confirm",
+      "state": "already-satisfied"
+    },
+    {
+      "page": "setup-validation",
+      "intent": "Confirm readiness is still green.",
+      "via": "recheck",
+      "state": "ready"
+    }
+  ],
+  "claims": [
+    {
+      "id": "resumes-not-restarts",
+      "type": "custom",
+      "statement": "Re-entry lands at the resumed step, not at the beginning of the flow.",
+      "tier": "manual"
+    },
+    {
+      "id": "prior-decisions-preserved",
+      "type": "custom",
+      "statement": "No decision made in the first pass has to be made again.",
+      "tier": "manual"
+    },
+    {
+      "id": "reapply-is-idempotent",
+      "type": "custom",
+      "statement": "Re-applying reports unchanged items as already satisfied rather than repeating work.",
+      "tier": "manual"
+    }
+  ]
+}

@@ -2,52 +2,66 @@
 
 ## Purpose Of This Document
 
-This inventory names the product capabilities that own onboarding behavior and
-the evidence used by the requirements registry. It is intentionally scenario-
-first: resources, credentials, and operating choices are derived from manifests
-and persisted operator state rather than treated as separate configuration
-products.
+Name the capabilities that own onboarding behaviour, so requirements, code, and
+tests agree on where a decision lives.
 
-## Domain Inventory
+## Domain inventory
 
-| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
+| Domain | Purpose | Archetype | Owns data | Source Paths | Surfaces | Requirements |
 |---|---|---|---|---|---|---|
-| onboarding-read-model | Derive selectable scenarios, resources, host requirements, credential metadata, and readiness from manifests. | reporting | No durable data; assembles manifest and credential-authority metadata. | API, UI | REQ-P0-001, REQ-P0-002, REQ-P0-003, REQ-P1-002, REQ-P2-001, REQ-P2-003 | `api/v2_read_model.go`, `api/v2_read_model_test.go`, `api/v2_readiness.go`, `ui/src/components/wizard/StepSelectScenarios.tsx`, `ui/src/components/wizard/StepDerivedResources.tsx`, `ui/src/components/wizard/StepReadiness.tsx` |
-| operator-state | Commit and re-enter operator choices atomically without using disposable wizard navigation or generated configuration as authority. | mutation | `.vrooli/operator-state.json` through the API-owned file boundary. | API, UI | REQ-P0-004, REQ-P0-005, REQ-P0-006, REQ-P1-001 | `api/operator_state.go`, `api/operator_state_test.go`, `ui/src/hooks/useWizardState.ts`, `ui/src/hooks/useWizardState.test.tsx` |
-| onboarding-experience | Guide the operator through scenario-first setup, explicit deferred integrations, operating choices, validation, and accessible completion. | orchestration | Browser-local navigation only; it is not operator authority. | UI | REQ-P1-003, REQ-P1-004, REQ-P2-002 | `ui/src/App.tsx`, `ui/src/App.accessibility.test.tsx`, `ui/src/components/wizard/` |
+| capability-selection | Turn a scenario choice into a resolved stack: transitive closure, derived and optional resources, operating-mode recommendation, and the union other tiers consume. | reporting | No | `api/closure.go`, scenario manifests | API, UI, CLI | `ONB-SELECT-*`, `ONB-OPMODE-PER-SCENARIO` |
+| operator-state-authority | Commit every operator decision through one typed service that merges field-scoped patches, validates before writing, and preserves fields it does not own. | mutation | `.vrooli/operator-state.json`, via the control-plane service | `internal/operatorstate/**` | API, CLI, control plane | `ONB-STATE-*`, `ONB-REENTRY-RESUMES` |
+| credentials | Present descriptor-complete guidance and relay a value to the credential authority without it crossing any other boundary. | integration | No | `api/v2_credentials.go`, credential descriptors | API, UI, CLI | `ONB-CRED-*` |
+| host-consent | Derive host tools and safeguards from manifests and obtain informed operator consent before any host change. | reporting | No | `api/v2_host_requirements.go`, `internal/tools/**`, `internal/safeguards/**` | API, UI, CLI | `ONB-HOST-*` |
+| apply-and-readiness | Turn recorded intent into applied host state by delegating to control-plane handlers, then probe and report honest readiness. | orchestration | No | `api/v2_apply.go`, `api/v2_readiness.go` | API, UI, CLI | `ONB-APPLY-*`, `ONB-READY-*` |
+| surface-parity | Keep the UI, interactive CLI, non-interactive CLI, and API equal in capability and identical in result. | orchestration | Session pointer, in shared state | `api/v2_session.go`, `cli/domains/wizard/**` | API, CLI, UI | `ONB-PARITY-*`, `ONB-CLI-*` |
+| deployment-tiers | Resolve catalog and state location from the running tier so one flow serves repository, bundle, and remote installs. | integration | No | `api/v2_read_model.go`, desktop catalog packager | API | `ONB-TIER-*` |
+| experience | Satisfy the declared page, state, claim, and journey contract, with accessibility and theming as gates. | orchestration | Browser-local navigation only | `ui/src/components/wizard/**`, `experience/**` | UI | `ONB-UX-*`, `ONB-REENTRY-REVISABLE` |
+| contract-evidence | Keep declared endpoint, CLI, and requirement contracts equal to the running code, enforced by tests. | reporting | No | `.vrooli/endpoints.json`, `requirements/**`, `api/*_test.go` | API, CLI | `ONB-CONTRACT-*` |
 
-## Domain Details
+## Domain relationships
 
-The read model is a pure manifest-plus-authority projection. Operator state is
-the only durable configuration written by this scenario. The experience domain
-renders and commits those decisions, but its browser navigation is disposable.
+```mermaid
+flowchart TB
+  CS["capability-selection"] --> AR["apply-and-readiness"]
+  CS --> DT["deployment-tiers"]
+  CR["credentials"] --> AR
+  HC["host-consent"] --> AR
+  CS & CR & HC & AR --> OSA["operator-state-authority"]
+  SP["surface-parity"] --> CS & CR & HC & AR
+  EX["experience"] --> SP
+  CE["contract-evidence"] -. "gates" .-> SP & CS & CR & HC & AR
+  DT -. "resolves catalog + state location for" .-> CS & HC
+```
 
-## Shared Concepts
+`operator-state-authority` is downstream of every decision domain and upstream of
+none. That is deliberate: a domain that both decides and stores becomes the
+second authority for whatever it stores.
 
-Logical credential identities and deployment-tier provider policy are shared
-control-plane concepts. They are surfaced as status metadata only; values cross
-the boundary solely through stdin provisioning and scoped runtime injection.
+## Shared concepts
 
-## Non-Domains
+Logical credential identities, deployment-tier provider policy, trust posture,
+and the core-set authority are control-plane concepts. Onboarding surfaces them
+as metadata, patches only the fields it owns, and preserves the rest.
 
-- `api/main.go` and `api/helpers_test.go` are HTTP composition and test support.
-- `ui/src/lib/` is transport support; it does not own onboarding decisions.
-- `ui/src/components/ui/` and `ui/src/test-utils.tsx` are shared presentation
-  and testing primitives.
-- `cli/` is a thin operator surface and does not own onboarding state.
+## Non-domains
 
-## Deferred Domains
+- `api/main.go` — HTTP composition.
+- `api/helpers.go` and the test-support packages — transport and test scaffolding.
+- `ui/src/lib/` — transport support; owns no decision.
+- `ui/src/components/ui/` — presentation primitives, migrating to the shared library.
+- `platforms/electron/` — a presentation host for the bundled runtime; see [SEAMS](../internal/SEAMS.md).
 
-| Candidate Domain | Why Deferred | Revisit Trigger |
+## Deferred domains
+
+| Candidate | Why deferred | Revisit trigger |
 |---|---|---|
-| integrations | Integration Hub, connection binding, and OAuth are explicitly out of scope for V2. | Integration Hub is available as a real dependency. |
+| integrations | Connector and connection models are owned by integration-hub | integration-hub ships |
+| profiles | A format designed against one example fits one example | A second concrete profile exists |
+| configuration-discovery | Needs the operator-surface feed first | The feed lands; search-hub's provider gap is filled |
 
 ## Cross-References
 
-- [`../WIZARD_FLOW.md`](../WIZARD_FLOW.md)
-- [`ARCHITECTURE.md`](ARCHITECTURE.md)
-- [`FLOWS.md`](FLOWS.md)
-- [`DATA.md`](DATA.md)
-- [`../internal/SEAMS.md`](../internal/SEAMS.md)
-- [`../../PRD.md`](../../PRD.md)
-- [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md)
+- [Architecture](ARCHITECTURE.md) · [Data](DATA.md) · [Flows](FLOWS.md)
+- [Wizard flow](../WIZARD_FLOW.md) · [`requirements/`](../../requirements/)
+- [PRD](../../PRD.md) · [Problems](../internal/PROBLEMS.md)

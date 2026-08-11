@@ -13,8 +13,15 @@ import { GlossaryPanel } from "./components/glossary/GlossaryPanel";
 import { useGlobalKeyboardShortcuts } from "./hooks/useGlobalKeyboardShortcuts";
 import { useWizardState } from "./hooks/useWizardState";
 import { cn } from "./lib/utils";
+import { Button } from "./components/ui/button";
 
 type AppView = "wizard" | "dashboard" | "glossary";
+
+function initialViewForPath(pathname: string): AppView {
+  if (pathname === "/health-dashboard") return "dashboard";
+  if (pathname === "/glossary") return "glossary";
+  return "wizard";
+}
 
 const NAV_ITEMS: { id: AppView; label: string; icon: React.ReactNode; testId: string }[] = [
   { id: "wizard", label: "Setup Wizard", icon: <Wand2 className="h-4 w-4" aria-hidden="true" />, testId: "nav-wizard" },
@@ -25,7 +32,7 @@ const NAV_ITEMS: { id: AppView; label: string; icon: React.ReactNode; testId: st
 const VIEW_IDS = NAV_ITEMS.map((item) => item.id);
 
 export default function App() {
-  const [view, setView] = useState<AppView>("wizard");
+  const [view, setView] = useState<AppView>(() => initialViewForPath(window.location.pathname));
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const {
@@ -36,6 +43,7 @@ export default function App() {
     toggleScenario,
     setScenarioAutoRestart,
     setHostOptIn,
+    setResourceEnabled,
     goNext,
     goPrev,
     goToStep,
@@ -91,14 +99,16 @@ export default function App() {
       </a>
 
       {/* Navigation */}
-      <nav
+      <div
+        role="navigation"
         data-testid="app-nav"
         aria-label="Main navigation"
         className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/95 backdrop-blur-sm"
       >
         <div className="mx-auto flex max-w-5xl items-center gap-0.5 px-2 py-1.5 sm:gap-1 sm:px-6 sm:py-3" role="tablist" aria-label="Application views">
           {NAV_ITEMS.map((item, idx) => (
-            <button
+            <Button
+              variant="ghost"
               key={item.id}
               ref={(el) => { tabRefs.current[idx] = el; }}
               role="tab"
@@ -132,10 +142,10 @@ export default function App() {
                   {selectedScenarios.size}
                 </span>
               )}
-            </button>
+            </Button>
           ))}
         </div>
-      </nav>
+      </div>
 
       {/* Screen reader step announcement */}
       <div className="sr-only" aria-live="assertive" aria-atomic="true" data-testid="step-announcement">
@@ -153,7 +163,7 @@ export default function App() {
               onGoToStep={goToStep}
               nextDisabled={currentStep === 1 && selectedScenarios.size === 0}
               nextLabel={nextLabel}
-              showPrev={currentStep > 0 && !isLastStep}
+              showPrev={currentStep > 0}
               showNext={!isLastStep}
             >
               <div ref={stepContentRef} key={currentStep} className="animate-step-enter">
@@ -163,7 +173,7 @@ export default function App() {
                 </>
               )}
               {currentStep === 1 && <StepSelectScenarios selected={selectedScenarios} onToggle={toggleScenario} />}
-              {currentStep === 2 && <StepDerivedResources selected={selectedScenarios} />}
+              {currentStep === 2 && <StepDerivedResources selected={selectedScenarios} operatorState={operatorState} onToggle={setResourceEnabled} />}
               {currentStep === 3 && <StepReadiness title="Credentials" />}
               {currentStep === 4 && <StepIntegrationsDeferred />}
               {currentStep === 5 && <StepHostRequirements onTool={(name, value) => setHostOptIn("host_tools", name, value)} onSafeguard={(name, value) => setHostOptIn("host_safeguards", name, value)} />}

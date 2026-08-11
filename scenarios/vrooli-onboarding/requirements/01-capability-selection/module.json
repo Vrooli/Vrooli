@@ -1,0 +1,207 @@
+{
+  "_metadata": {
+    "description": "Scenario-first capability selection: manifest read models, transitive dependency closure, optional-resource choice, and the union export other deployment tiers consume.",
+    "last_validated_at": "2026-08-11T03:50:54-04:00",
+    "module": "onboarding.selection",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ONB-SELECT-CAPABILITY-FIRST",
+      "title": "The wizard shall make scenarios the unit of operator selection and derive every resource consequence from manifests.",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "selection",
+      "description": "Compositional claim for the selection domain. It holds only when the read model, the dependency closure, the cascade disclosure, the locked system set, and the optional-resource choice all hold.",
+      "children": [
+        "ONB-SELECT-READ-MODEL",
+        "ONB-SELECT-CLOSURE",
+        "ONB-SELECT-CASCADE-DISCLOSURE",
+        "ONB-SELECT-SYSTEM-LOCKED",
+        "ONB-SELECT-OPTIONAL-RESOURCES"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_read_model_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers the read-model half; closure and optional-resource halves are planned."
+        }
+      ]
+    },
+    {
+      "id": "ONB-SELECT-READ-MODEL",
+      "title": "The read model shall derive each scenario's name, description, system-required flag, runtime kind, and auto-restart recommendation from its service manifest.",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "selection",
+      "description": "The API reads scenario manifests from the resolved catalog root and overlays committed operator choices. It never authors a manifest and never treats browser state as authority.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_read_model_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fixture catalog proves manifest derivation and operator-state overlay."
+        }
+      ]
+    },
+    {
+      "id": "ONB-SELECT-CLOSURE",
+      "title": "When an operator selects a scenario, the read model shall resolve the transitive closure of its declared scenario and resource dependencies.",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "selection",
+      "description": "The closure walks dependencies.scenarios and dependencies.resources to a fixed point, records why each member entered the set, and detects a dependency cycle instead of looping. This computation is shared with the union export and with bundle planning.",
+      "depends_on": [
+        "ONB-SELECT-READ-MODEL"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Planned target `api/v2_closure_test.go`: fixture graph with a diamond dependency, a try_start edge, and a cycle."
+        }
+      ]
+    },
+    {
+      "id": "ONB-SELECT-CASCADE-DISCLOSURE",
+      "title": "When a selection pulls in another scenario, the wizard shall name each pulled-in scenario before the operator continues.",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "selection",
+      "description": "A required dependency reads as 'pulls in'. A try_start dependency reads as 'tries', with the degraded behaviour named. The step footer rolls up the implied resource set so the consequence is visible on the same screen as the choice.",
+      "depends_on": [
+        "ONB-SELECT-CLOSURE"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Planned target `ui/src/components/wizard/StepSelectScenarios.test.tsx`: asserts pulled-in names and the resource rollup render for a diamond fixture."
+        }
+      ]
+    },
+    {
+      "id": "ONB-SELECT-SYSTEM-LOCKED",
+      "title": "While a scenario declares system_required, the wizard shall render it enabled and the API shall ignore an operator attempt to disable it.",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "selection",
+      "description": "System-required scenarios are part of Vrooli's own operation. The manifest wins over operator state for this field by design, so a hand-edited state file cannot disable the control plane.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_read_model_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts the manifest flag overrides a conflicting operator-state enabled value."
+        }
+      ]
+    },
+    {
+      "id": "ONB-SELECT-FILTER",
+      "title": "The wizard should let an operator find a scenario by name, description, or selection state without scrolling the whole catalog.",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "selection",
+      "description": "The catalog exceeds one hundred scenarios. Search filters by name and description; the filter control narrows to all, core, or enabled. A no-results state offers a one-click clear.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Planned target `ui/src/components/wizard/StepSelectScenarios.test.tsx`: search narrows the rendered set; filter chips narrow by selection state."
+        }
+      ]
+    },
+    {
+      "id": "ONB-SELECT-OPTIONAL-RESOURCES",
+      "title": "The wizard shall present manifest-declared optional resources as selectable and shall persist the choice to operator state.",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "selection",
+      "description": "Required resources derived from the closure render locked and checked. Optional resources declared through optional_dependencies render toggleable. Standalone resources that no selected scenario requires render in their own group.",
+      "depends_on": [
+        "ONB-SELECT-CLOSURE"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Planned target `ui/src/components/wizard/StepResources.test.tsx`: required entries are non-interactive; optional toggles emit the operator-state patch."
+        }
+      ]
+    },
+    {
+      "id": "ONB-SELECT-UNION-EXPORT",
+      "title": "The API should export the union of scenarios, resources, host tools, and safeguards implied by the current selection.",
+      "status": "complete",
+      "prd_ref": "OT-P1-005",
+      "category": "selection",
+      "description": "One computation serves four consumers: the wizard's rollup, the desktop bundle's catalog contents, the VPS provisioning list, and the bridge's subset decision. Exporting it prevents each consumer from re-deriving a slightly different answer.",
+      "depends_on": [
+        "ONB-SELECT-CLOSURE"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Planned target `api/v2_union_test.go`: union for a fixture selection matches the closure plus host requirements."
+        }
+      ]
+    },
+    {
+      "id": "ONB-SELECT-NO-HARDCODED-INVENTORY",
+      "title": "If a manifest declares a scenario, resource, category, tool, or safeguard the binary does not know, then the wizard shall render it without a code change.",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "selection",
+      "description": "Host requirements already meet this bar. Two code-owned inventories still violate it: the resource-category map and the glossary, both hard-coded in the Go API. Both move to manifest declarations.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_host_requirements_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Host half proven. Planned companion asserts an unknown fixture resource renders with its manifest-declared category."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Planned target `api/resources_test.go`: a fixture resource with a novel category renders from the manifest, not from a map."
+        }
+      ]
+    },
+    {
+      "id": "ONB-OPMODE-PER-SCENARIO",
+      "title": "The wizard may present each selected scenario's manifest-recommended auto-restart choice and may persist an operator override.",
+      "status": "complete",
+      "prd_ref": "OT-P2-001",
+      "category": "selection",
+      "description": "The manifest recommends; the operator decides. The toggle is hidden for on-demand and one-shot runtimes, where auto-restart has no meaning. The effective value resolves operator override first, then the manifest default.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_read_model_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts the operator override wins over the manifest default in the read model."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts the per-scenario toggle emits the operator-state change."
+        }
+      ]
+    }
+  ]
+}

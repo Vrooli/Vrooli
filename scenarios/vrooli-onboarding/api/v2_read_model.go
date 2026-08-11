@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,6 +10,30 @@ import (
 	"sort"
 	"strings"
 )
+
+type catalogUnavailableError struct {
+	Missing     string
+	Remediation string
+}
+
+func (e *catalogUnavailableError) Error() string {
+	return fmt.Sprintf("catalog %q is unavailable: %s", e.Missing, e.Remediation)
+}
+
+func writeCatalogDegraded(w http.ResponseWriter, err error) bool {
+	var unavailable *catalogUnavailableError
+	if !errors.As(err, &unavailable) {
+		return false
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status": "degraded",
+		"error": map[string]string{
+			"code": "catalog_unavailable", "missing_catalog": unavailable.Missing,
+			"remediation": unavailable.Remediation,
+		},
+	})
+	return true
+}
 
 // ScenarioReadModel is derived from scenario manifests plus operator state.
 // It is intentionally a read model: onboarding never authors service.json.
@@ -30,14 +55,14 @@ func manifestRoot() (string, error) {
 	}
 	bundleRoot := strings.TrimSpace(os.Getenv("BUNDLE_ROOT"))
 	if bundleRoot == "" {
-		return "", fmt.Errorf("VROOLI_ROOT or BUNDLE_ROOT is required to load scenario manifests")
+		return "", &catalogUnavailableError{Missing: "manifest root", Remediation: "set VROOLI_ROOT for a repository install or stage BUNDLE_ROOT/catalog for a bundle"}
 	}
 	catalog := filepath.Join(bundleRoot, "catalog")
 	if info, err := os.Stat(catalog); err != nil || !info.IsDir() {
 		if err != nil {
-			return "", fmt.Errorf("desktop manifest catalog unavailable: %w", err)
+			return "", &catalogUnavailableError{Missing: "catalog", Remediation: "rebuild the bundle with its declared catalog requirements"}
 		}
-		return "", fmt.Errorf("desktop manifest catalog unavailable")
+		return "", &catalogUnavailableError{Missing: "catalog", Remediation: "rebuild the bundle with its declared catalog requirements"}
 	}
 	return catalog, nil
 }
@@ -53,6 +78,9 @@ func loadScenarioReadModels() ([]ScenarioReadModel, error) {
 	}
 	entries, err := os.ReadDir(filepath.Join(root, "scenarios"))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, &catalogUnavailableError{Missing: "catalog/scenarios", Remediation: "rebuild the bundle with the scenario catalog, then restart onboarding"}
+		}
 		return nil, err
 	}
 	models := make([]ScenarioReadModel, 0, len(entries))
@@ -111,6 +139,9 @@ func loadScenarioReadModels() ([]ScenarioReadModel, error) {
 func (s *Server) handleV2Scenarios(w http.ResponseWriter, _ *http.Request) {
 	models, err := loadScenarioReadModels()
 	if err != nil {
+		if writeCatalogDegraded(w, err) {
+			return
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}

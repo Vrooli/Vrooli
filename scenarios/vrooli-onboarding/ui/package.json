@@ -6,14 +6,15 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm type-check && vite build",
+    "build": "pnpm selector:manifest && pnpm type-check && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
     "lint:fix": "eslint src --ext ts,tsx --fix",
     "strings:check": "node -e \"const fs=require('fs'); const path='src'; if (!fs.existsSync(path)) process.exit(1);\"",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run --coverage",
-    "test:coverage": "vitest run --coverage",
+    "type-check": "pnpm selector:manifest && tsc --noEmit",
+    "test": "pnpm selector:manifest && vitest run --coverage",
+    "test:coverage": "pnpm selector:manifest && vitest run --coverage",
+    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs",
     "test:no-coverage": "vitest run"
   },
   "dependencies": {

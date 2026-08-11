@@ -1,18 +1,25 @@
 package main
 
-import (
-	"fmt"
-	"os"
-)
+import "os"
 
 func main() {
+	os.Exit(runExitCode(os.Args[1:]))
+}
+
+func runMain(args []string) error {
 	app, err := NewApp()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		return err
 	}
-	if err := app.Run(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+	return app.Run(args)
+}
+
+func runExitCode(args []string) int {
+	if err := runMain(args); err != nil {
+		if coded, ok := err.(interface{ ExitCode() int }); ok {
+			return coded.ExitCode()
+		}
+		return 1
 	}
+	return 0
 }

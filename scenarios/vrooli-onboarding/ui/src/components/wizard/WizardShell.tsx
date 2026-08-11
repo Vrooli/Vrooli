@@ -45,11 +45,11 @@ export function WizardShell({
               const isCompleted = i < currentStep;
               const isClickable = isCompleted && onGoToStep;
               return isClickable ? (
-                <button
+                <Button variant="ghost"
                   key={label}
                   type="button"
                   role="listitem"
-                  className="h-2 w-2 rounded-full bg-emerald-500 transition-colors cursor-pointer hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                  className="h-2 w-2 rounded-[50%] bg-emerald-500 transition-colors cursor-pointer hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                   aria-label={`Go back to ${label} (completed)`}
                   onClick={() => onGoToStep(i)}
                 />
@@ -58,7 +58,7 @@ export function WizardShell({
                   key={label}
                   role="listitem"
                   className={cn(
-                    "h-2 w-2 rounded-full transition-colors",
+                    "h-2 w-2 rounded-[50%] transition-colors",
                     isCompleted
                       ? "bg-emerald-500"
                       : i === currentStep
@@ -78,10 +78,10 @@ export function WizardShell({
               const isClickable = isCompleted && onGoToStep;
               return (
                 <li key={label} className="flex items-center gap-2" aria-current={i === currentStep ? "step" : undefined}>
-                  <button
+                  <Button variant="ghost"
                     type="button"
                     className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors",
+                      "flex h-8 w-8 items-center justify-center rounded-[50%] text-sm font-medium transition-colors",
                       isCompleted
                         ? "bg-emerald-500 text-white"
                         : i === currentStep
@@ -98,7 +98,7 @@ export function WizardShell({
                     aria-hidden={!isClickable ? "true" : undefined}
                   >
                     {isCompleted ? "\u2713" : i + 1}
-                  </button>
+                  </Button>
 				  <span className="sr-only">
 					{label}{isCompleted ? " (completed)" : i === currentStep ? " (current)" : ""}
 				  </span>
@@ -110,9 +110,9 @@ export function WizardShell({
             })}
           </ol>
           {/* Progress bar */}
-          <div className="h-1 w-full rounded-full bg-white/10" role="progressbar" aria-valuenow={currentStep} aria-valuemin={0} aria-valuemax={STEP_LABELS.length - 1} aria-label="Wizard progress">
+          <div className="h-1 w-full rounded-[50%] bg-white/10" role="progressbar" aria-valuenow={currentStep} aria-valuemin={0} aria-valuemax={STEP_LABELS.length - 1} aria-label="Wizard progress">
             <div
-              className="h-1 rounded-full bg-emerald-500 transition-all duration-300"
+              className="h-1 rounded-[50%] bg-emerald-500 transition-all duration-300"
               style={{ width: `${(currentStep / (STEP_LABELS.length - 1)) * 100}%` }}
               data-testid="progress-bar"
             />

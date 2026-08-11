@@ -20,9 +20,9 @@ func TestCategorize(t *testing.T) {
 		resource string
 		want     string
 	}{
-		{"postgres is database", "postgres", "database"},
+		{"postgres uses its declared category", "postgres", "storage"},
 		{"ollama is ai", "ollama", "ai"},
-		{"redis is database", "redis", "database"},
+		{"redis uses its declared category", "redis", "storage"},
 		{"minio is storage", "minio", "storage"},
 		{"unknown falls back to general", "some-unknown-resource", "general"},
 		{"empty string falls back to general", "", "general"},
@@ -236,8 +236,8 @@ func TestLoadResources(t *testing.T) {
 	if resources[0].Name != "postgres" {
 		t.Errorf("resources[0].Name = %q, want %q", resources[0].Name, "postgres")
 	}
-	if resources[0].Category != "database" {
-		t.Errorf("resources[0].Category = %q, want %q", resources[0].Category, "database")
+	if resources[0].Category != "storage" {
+		t.Errorf("resources[0].Category = %q, want %q", resources[0].Category, "storage")
 	}
 	if resources[0].Status != "running" {
 		t.Errorf("resources[0].Status = %q, want %q", resources[0].Status, "running")
@@ -324,8 +324,8 @@ func TestHandleGetResource(t *testing.T) {
 	if res.Name != "postgres" {
 		t.Errorf("Name = %q, want %q", res.Name, "postgres")
 	}
-	if res.Category != "database" {
-		t.Errorf("Category = %q, want %q", res.Category, "database")
+	if res.Category != "storage" {
+		t.Errorf("Category = %q, want %q", res.Category, "storage")
 	}
 }
 
@@ -451,10 +451,10 @@ func TestCategorizeSpecificResources(t *testing.T) {
 		resource string
 		want     string
 	}{
-		{"vault", "security"},
-		{"qdrant", "database"},
-		{"nextcloud", "collaboration"},
-		{"n8n", "devops"},
+		{"vault", "storage"},
+		{"qdrant", "storage"},
+		{"nextcloud", "general"},
+		{"n8n", "general"},
 	}
 
 	for _, tc := range tests {
@@ -507,8 +507,8 @@ func TestHandleGetResourceAllFields(t *testing.T) {
 	if res.Name != "postgres" {
 		t.Errorf("Name = %q, want %q", res.Name, "postgres")
 	}
-	if res.Category != "database" {
-		t.Errorf("Category = %q, want %q", res.Category, "database")
+	if res.Category != "storage" {
+		t.Errorf("Category = %q, want %q", res.Category, "storage")
 	}
 	if res.Status != "running" {
 		t.Errorf("Status = %q, want %q", res.Status, "running")

@@ -7,7 +7,7 @@
 package runs_v1
 
 import (
-	channel "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -285,7 +285,7 @@ type GetRunResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Run   *Run                   `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
 	// The full persisted event history for the run, in sequence order.
-	Events        []*channel.RunEvent `protobuf:"bytes,2,rep,name=events,proto3" json:"events,omitempty"`
+	Events        []*shared.RunEvent `protobuf:"bytes,2,rep,name=events,proto3" json:"events,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -327,7 +327,7 @@ func (x *GetRunResponse) GetRun() *Run {
 	return nil
 }
 
-func (x *GetRunResponse) GetEvents() []*channel.RunEvent {
+func (x *GetRunResponse) GetEvents() []*shared.RunEvent {
 	if x != nil {
 		return x.Events
 	}
@@ -685,7 +685,7 @@ func (x *StreamRunEventsRequest) GetId() string {
 // RunEventMessage wraps a streamed RunEvent for the server-streaming response.
 type RunEventMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Event         *channel.RunEvent      `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	Event         *shared.RunEvent       `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -720,7 +720,7 @@ func (*RunEventMessage) Descriptor() ([]byte, []int) {
 	return file_vrooli_bridge_v1_runs_runs_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *RunEventMessage) GetEvent() *channel.RunEvent {
+func (x *RunEventMessage) GetEvent() *shared.RunEvent {
 	if x != nil {
 		return x.Event
 	}
@@ -729,7 +729,7 @@ func (x *RunEventMessage) GetEvent() *channel.RunEvent {
 
 type ReportRunEventRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Event         *channel.RunEvent      `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	Event         *shared.RunEvent       `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -764,7 +764,7 @@ func (*ReportRunEventRequest) Descriptor() ([]byte, []int) {
 	return file_vrooli_bridge_v1_runs_runs_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *ReportRunEventRequest) GetEvent() *channel.RunEvent {
+func (x *ReportRunEventRequest) GetEvent() *shared.RunEvent {
 	if x != nil {
 		return x.Event
 	}
@@ -822,7 +822,7 @@ var File_vrooli_bridge_v1_runs_runs_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_runs_runs_proto_rawDesc = "" +
 	"\n" +
-	" vrooli-bridge/v1/runs/runs.proto\x12\x1cvrooli.vrooli_bridge.v1.runs\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&vrooli-bridge/v1/channel/channel.proto\"\xd1\x03\n" +
+	" vrooli-bridge/v1/runs/runs.proto\x12\x1cvrooli.vrooli_bridge.v1.runs\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$vrooli-bridge/v1/shared/shared.proto\"\xd1\x03\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x1a\n" +
@@ -841,10 +841,10 @@ const file_vrooli_bridge_v1_runs_runs_proto_rawDesc = "" +
 	"finishedAt\x12#\n" +
 	"\rartifact_refs\x18\f \x03(\tR\fartifactRefs\"\x1f\n" +
 	"\rGetRunRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x88\x01\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x87\x01\n" +
 	"\x0eGetRunResponse\x123\n" +
-	"\x03run\x18\x01 \x01(\v2!.vrooli.vrooli_bridge.v1.runs.RunR\x03run\x12A\n" +
-	"\x06events\x18\x02 \x03(\v2).vrooli.vrooli_bridge.v1.channel.RunEventR\x06events\"@\n" +
+	"\x03run\x18\x01 \x01(\v2!.vrooli.vrooli_bridge.v1.runs.RunR\x03run\x12@\n" +
+	"\x06events\x18\x02 \x03(\v2(.vrooli.vrooli_bridge.v1.shared.RunEventR\x06events\"@\n" +
 	"\x0fListRunsRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"I\n" +
@@ -862,11 +862,11 @@ const file_vrooli_bridge_v1_runs_runs_proto_rawDesc = "" +
 	"\x10AbortRunResponse\x123\n" +
 	"\x03run\x18\x01 \x01(\v2!.vrooli.vrooli_bridge.v1.runs.RunR\x03run\"(\n" +
 	"\x16StreamRunEventsRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"R\n" +
-	"\x0fRunEventMessage\x12?\n" +
-	"\x05event\x18\x01 \x01(\v2).vrooli.vrooli_bridge.v1.channel.RunEventR\x05event\"X\n" +
-	"\x15ReportRunEventRequest\x12?\n" +
-	"\x05event\x18\x01 \x01(\v2).vrooli.vrooli_bridge.v1.channel.RunEventR\x05event\"4\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"Q\n" +
+	"\x0fRunEventMessage\x12>\n" +
+	"\x05event\x18\x01 \x01(\v2(.vrooli.vrooli_bridge.v1.shared.RunEventR\x05event\"W\n" +
+	"\x15ReportRunEventRequest\x12>\n" +
+	"\x05event\x18\x01 \x01(\v2(.vrooli.vrooli_bridge.v1.shared.RunEventR\x05event\"4\n" +
 	"\x16ReportRunEventResponse\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\bR\baccepted*\x9c\x01\n" +
 	"\tRunStatus\x12\x1a\n" +
@@ -914,7 +914,7 @@ var file_vrooli_bridge_v1_runs_runs_proto_goTypes = []any{
 	(*ReportRunEventRequest)(nil),  // 12: vrooli.vrooli_bridge.v1.runs.ReportRunEventRequest
 	(*ReportRunEventResponse)(nil), // 13: vrooli.vrooli_bridge.v1.runs.ReportRunEventResponse
 	(*timestamppb.Timestamp)(nil),  // 14: google.protobuf.Timestamp
-	(*channel.RunEvent)(nil),       // 15: vrooli.vrooli_bridge.v1.channel.RunEvent
+	(*shared.RunEvent)(nil),        // 15: vrooli.vrooli_bridge.v1.shared.RunEvent
 }
 var file_vrooli_bridge_v1_runs_runs_proto_depIdxs = []int32{
 	0,  // 0: vrooli.vrooli_bridge.v1.runs.Run.status:type_name -> vrooli.vrooli_bridge.v1.runs.RunStatus
@@ -922,12 +922,12 @@ var file_vrooli_bridge_v1_runs_runs_proto_depIdxs = []int32{
 	14, // 2: vrooli.vrooli_bridge.v1.runs.Run.started_at:type_name -> google.protobuf.Timestamp
 	14, // 3: vrooli.vrooli_bridge.v1.runs.Run.finished_at:type_name -> google.protobuf.Timestamp
 	1,  // 4: vrooli.vrooli_bridge.v1.runs.GetRunResponse.run:type_name -> vrooli.vrooli_bridge.v1.runs.Run
-	15, // 5: vrooli.vrooli_bridge.v1.runs.GetRunResponse.events:type_name -> vrooli.vrooli_bridge.v1.channel.RunEvent
+	15, // 5: vrooli.vrooli_bridge.v1.runs.GetRunResponse.events:type_name -> vrooli.vrooli_bridge.v1.shared.RunEvent
 	1,  // 6: vrooli.vrooli_bridge.v1.runs.ListRunsResponse.runs:type_name -> vrooli.vrooli_bridge.v1.runs.Run
 	1,  // 7: vrooli.vrooli_bridge.v1.runs.WaitRunResponse.run:type_name -> vrooli.vrooli_bridge.v1.runs.Run
 	1,  // 8: vrooli.vrooli_bridge.v1.runs.AbortRunResponse.run:type_name -> vrooli.vrooli_bridge.v1.runs.Run
-	15, // 9: vrooli.vrooli_bridge.v1.runs.RunEventMessage.event:type_name -> vrooli.vrooli_bridge.v1.channel.RunEvent
-	15, // 10: vrooli.vrooli_bridge.v1.runs.ReportRunEventRequest.event:type_name -> vrooli.vrooli_bridge.v1.channel.RunEvent
+	15, // 9: vrooli.vrooli_bridge.v1.runs.RunEventMessage.event:type_name -> vrooli.vrooli_bridge.v1.shared.RunEvent
+	15, // 10: vrooli.vrooli_bridge.v1.runs.ReportRunEventRequest.event:type_name -> vrooli.vrooli_bridge.v1.shared.RunEvent
 	2,  // 11: vrooli.vrooli_bridge.v1.runs.RunsService.GetRun:input_type -> vrooli.vrooli_bridge.v1.runs.GetRunRequest
 	4,  // 12: vrooli.vrooli_bridge.v1.runs.RunsService.ListRuns:input_type -> vrooli.vrooli_bridge.v1.runs.ListRunsRequest
 	6,  // 13: vrooli.vrooli_bridge.v1.runs.RunsService.WaitRun:input_type -> vrooli.vrooli_bridge.v1.runs.WaitRunRequest

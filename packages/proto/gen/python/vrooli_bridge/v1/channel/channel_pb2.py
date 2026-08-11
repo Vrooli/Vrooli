@@ -23,9 +23,10 @@ _sym_db = _symbol_database.Default()
 
 
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
+from vrooli_bridge.v1.shared import shared_pb2 as vrooli__bridge_dot_v1_dot_shared_dot_shared__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&vrooli-bridge/v1/channel/channel.proto\x12\x1fvrooli.vrooli_bridge.v1.channel\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc2\x01\n\tHandshake\x12)\n\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12\x17\n\x07node_id\x18\x02 \x01(\tR\x06nodeId\x12#\n\ragent_version\x18\x03 \x01(\tR\x0c\x61gentVersion\x12\x0e\n\x02os\x18\x04 \x01(\tR\x02os\x12\x12\n\x04\x61rch\x18\x05 \x01(\tR\x04\x61rch\x12\"\n\x0c\x63\x61pabilities\x18\x06 \x03(\tR\x0c\x63\x61pabilitiesJ\x04\x08\x07\x10\x10\"\x82\x02\n\x0cHandshakeAck\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08R\x08\x61\x63\x63\x65pted\x12Z\n\rcompatibility\x18\x02 \x01(\x0e\x32\x34.vrooli.vrooli_bridge.v1.channel.CompatibilityStatusR\rcompatibility\x12\x43\n\x1e\x63ontrol_plane_protocol_version\x18\x03 \x01(\rR\x1b\x63ontrolPlaneProtocolVersion\x12\x1d\n\nsession_id\x18\x04 \x01(\tR\tsessionId\x12\x16\n\x06reason\x18\x05 \x01(\tR\x06reason\"\xf0\x02\n\x0eHealthSnapshot\x12+\n\x11toolchain_present\x18\x01 \x01(\x08R\x10toolchainPresent\x12.\n\x13\x64isk_headroom_bytes\x18\x02 \x01(\x03R\x11\x64iskHeadroomBytes\x12\x30\n\x14\x63ontainer_runtime_up\x18\x03 \x01(\x08R\x12\x63ontainerRuntimeUp\x12V\n\x07\x64\x65tails\x18\x04 \x03(\x0b\x32<.vrooli.vrooli_bridge.v1.channel.HealthSnapshot.DetailsEntryR\x07\x64\x65tails\x12;\n\x0breported_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nreportedAt\x1a:\n\x0c\x44\x65tailsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\xbe\x01\n\tHeartbeat\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n\x08sequence\x18\x02 \x01(\x04R\x08sequence\x12G\n\x06health\x18\x03 \x01(\x0b\x32/.vrooli.vrooli_bridge.v1.channel.HealthSnapshotR\x06health\x12\x33\n\x07sent_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x06sentAt\"\xde\x01\n\x07JobPush\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x12\n\x04verb\x18\x03 \x01(\tR\x04verb\x12\x12\n\x04\x61rgs\x18\x04 \x03(\tR\x04\x61rgs\x12\'\n\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\x12I\n\x07outputs\x18\x06 \x03(\x0b\x32/.vrooli.vrooli_bridge.v1.channel.ArtifactOutputR\x07outputsJ\x04\x08\x07\x10\x10\"\x81\x01\n\x0e\x41rtifactOutput\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n\nmedia_type\x18\x02 \x01(\tR\tmediaType\x12\x1f\n\x0boutput_flag\x18\x03 \x01(\tR\noutputFlag\x12\x1b\n\tmax_bytes\x18\x04 \x01(\x03R\x08maxBytes\"\x83\x01\n\x10ProvisionCommand\x12\x13\n\x05op_id\x18\x01 \x01(\tR\x04opId\x12\'\n\x0ftarget_revision\x18\x02 \x01(\tR\x0etargetRevision\x12+\n\x11rollback_revision\x18\x03 \x01(\tR\x10rollbackRevisionJ\x04\x08\x04\x10\x10\"B\n\x0b\x43ontrolPing\x12\x33\n\x07sent_at\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x06sentAt\"?\n\x08\x41\x62ortJob\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reasonJ\x04\x08\x03\x10\x10\"\xb0\x02\n\x08RunEvent\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x41\n\x04kind\x18\x02 \x01(\x0e\x32-.vrooli.vrooli_bridge.v1.channel.RunEventKindR\x04kind\x12\x1a\n\x08sequence\x18\x03 \x01(\x04R\x08sequence\x12\x1b\n\tlog_chunk\x18\x04 \x01(\tR\x08logChunk\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12\x1b\n\texit_code\x18\x06 \x01(\x05R\x08\x65xitCode\x12!\n\x0c\x61rtifact_ref\x18\x07 \x01(\tR\x0b\x61rtifactRef\x12\x39\n\nemitted_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\temittedAt\"\xf3\x02\n\x0bServerFrame\x12\x41\n\x03\x61\x63k\x18\x01 \x01(\x0b\x32-.vrooli.vrooli_bridge.v1.channel.HandshakeAckH\x00R\x03\x61\x63k\x12<\n\x03job\x18\x02 \x01(\x0b\x32(.vrooli.vrooli_bridge.v1.channel.JobPushH\x00R\x03job\x12Q\n\tprovision\x18\x03 \x01(\x0b\x32\x31.vrooli.vrooli_bridge.v1.channel.ProvisionCommandH\x00R\tprovision\x12\x42\n\x04ping\x18\x04 \x01(\x0b\x32,.vrooli.vrooli_bridge.v1.channel.ControlPingH\x00R\x04ping\x12\x41\n\x05\x61\x62ort\x18\x05 \x01(\x0b\x32).vrooli.vrooli_bridge.v1.channel.AbortJobH\x00R\x05\x61\x62ortB\t\n\x07payload\"G\n\x11SignedServerFrame\x12\x14\n\x05\x66rame\x18\x01 \x01(\x0cR\x05\x66rame\x12\x1c\n\tsignature\x18\x02 \x01(\x0cR\tsignature\"\xf8\x01\n\tNodeFrame\x12J\n\thandshake\x18\x01 \x01(\x0b\x32*.vrooli.vrooli_bridge.v1.channel.HandshakeH\x00R\thandshake\x12J\n\theartbeat\x18\x02 \x01(\x0b\x32*.vrooli.vrooli_bridge.v1.channel.HeartbeatH\x00R\theartbeat\x12H\n\trun_event\x18\x03 \x01(\x0b\x32).vrooli.vrooli_bridge.v1.channel.RunEventH\x00R\x08runEventB\t\n\x07payload*\xa6\x01\n\x13\x43ompatibilityStatus\x12$\n COMPATIBILITY_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n\x17\x43OMPATIBILITY_STATUS_OK\x10\x01\x12%\n!COMPATIBILITY_STATUS_NEEDS_UPDATE\x10\x02\x12%\n!COMPATIBILITY_STATUS_INCOMPATIBLE\x10\x03*\x9b\x01\n\x0cRunEventKind\x12\x1e\n\x1aRUN_EVENT_KIND_UNSPECIFIED\x10\x00\x12\x16\n\x12RUN_EVENT_KIND_LOG\x10\x01\x12\x19\n\x15RUN_EVENT_KIND_STATUS\x10\x02\x12\x17\n\x13RUN_EVENT_KIND_EXIT\x10\x03\x12\x1f\n\x1bRUN_EVENT_KIND_ARTIFACT_REF\x10\x04\x42TZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel;channel_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&vrooli-bridge/v1/channel/channel.proto\x12\x1fvrooli.vrooli_bridge.v1.channel\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$vrooli-bridge/v1/shared/shared.proto\"\xc2\x01\n\tHandshake\x12)\n\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12\x17\n\x07node_id\x18\x02 \x01(\tR\x06nodeId\x12#\n\ragent_version\x18\x03 \x01(\tR\x0c\x61gentVersion\x12\x0e\n\x02os\x18\x04 \x01(\tR\x02os\x12\x12\n\x04\x61rch\x18\x05 \x01(\tR\x04\x61rch\x12\"\n\x0c\x63\x61pabilities\x18\x06 \x03(\tR\x0c\x63\x61pabilitiesJ\x04\x08\x07\x10\x10\"\x81\x02\n\x0cHandshakeAck\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08R\x08\x61\x63\x63\x65pted\x12Y\n\rcompatibility\x18\x02 \x01(\x0e\x32\x33.vrooli.vrooli_bridge.v1.shared.CompatibilityStatusR\rcompatibility\x12\x43\n\x1e\x63ontrol_plane_protocol_version\x18\x03 \x01(\rR\x1b\x63ontrolPlaneProtocolVersion\x12\x1d\n\nsession_id\x18\x04 \x01(\tR\tsessionId\x12\x16\n\x06reason\x18\x05 \x01(\tR\x06reason\"\xde\x01\n\x07JobPush\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x12\n\x04verb\x18\x03 \x01(\tR\x04verb\x12\x12\n\x04\x61rgs\x18\x04 \x03(\tR\x04\x61rgs\x12\'\n\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\x12I\n\x07outputs\x18\x06 \x03(\x0b\x32/.vrooli.vrooli_bridge.v1.channel.ArtifactOutputR\x07outputsJ\x04\x08\x07\x10\x10\"\x81\x01\n\x0e\x41rtifactOutput\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n\nmedia_type\x18\x02 \x01(\tR\tmediaType\x12\x1f\n\x0boutput_flag\x18\x03 \x01(\tR\noutputFlag\x12\x1b\n\tmax_bytes\x18\x04 \x01(\x03R\x08maxBytes\"\x83\x01\n\x10ProvisionCommand\x12\x13\n\x05op_id\x18\x01 \x01(\tR\x04opId\x12\'\n\x0ftarget_revision\x18\x02 \x01(\tR\x0etargetRevision\x12+\n\x11rollback_revision\x18\x03 \x01(\tR\x10rollbackRevisionJ\x04\x08\x04\x10\x10\"B\n\x0b\x43ontrolPing\x12\x33\n\x07sent_at\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x06sentAt\"?\n\x08\x41\x62ortJob\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reasonJ\x04\x08\x03\x10\x10\"\xf3\x02\n\x0bServerFrame\x12\x41\n\x03\x61\x63k\x18\x01 \x01(\x0b\x32-.vrooli.vrooli_bridge.v1.channel.HandshakeAckH\x00R\x03\x61\x63k\x12<\n\x03job\x18\x02 \x01(\x0b\x32(.vrooli.vrooli_bridge.v1.channel.JobPushH\x00R\x03job\x12Q\n\tprovision\x18\x03 \x01(\x0b\x32\x31.vrooli.vrooli_bridge.v1.channel.ProvisionCommandH\x00R\tprovision\x12\x42\n\x04ping\x18\x04 \x01(\x0b\x32,.vrooli.vrooli_bridge.v1.channel.ControlPingH\x00R\x04ping\x12\x41\n\x05\x61\x62ort\x18\x05 \x01(\x0b\x32).vrooli.vrooli_bridge.v1.channel.AbortJobH\x00R\x05\x61\x62ortB\t\n\x07payload\"G\n\x11SignedServerFrame\x12\x14\n\x05\x66rame\x18\x01 \x01(\x0cR\x05\x66rame\x12\x1c\n\tsignature\x18\x02 \x01(\x0cR\tsignature\"\xf6\x01\n\tNodeFrame\x12J\n\thandshake\x18\x01 \x01(\x0b\x32*.vrooli.vrooli_bridge.v1.channel.HandshakeH\x00R\thandshake\x12I\n\theartbeat\x18\x02 \x01(\x0b\x32).vrooli.vrooli_bridge.v1.shared.HeartbeatH\x00R\theartbeat\x12G\n\trun_event\x18\x03 \x01(\x0b\x32(.vrooli.vrooli_bridge.v1.shared.RunEventH\x00R\x08runEventB\t\n\x07payloadBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel;channel_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,38 +34,24 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'vrooli_bridge.v1.channel.ch
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel;channel_v1'
-  _globals['_HEALTHSNAPSHOT_DETAILSENTRY']._loaded_options = None
-  _globals['_HEALTHSNAPSHOT_DETAILSENTRY']._serialized_options = b'8\001'
-  _globals['_COMPATIBILITYSTATUS']._serialized_start=2760
-  _globals['_COMPATIBILITYSTATUS']._serialized_end=2926
-  _globals['_RUNEVENTKIND']._serialized_start=2929
-  _globals['_RUNEVENTKIND']._serialized_end=3084
-  _globals['_HANDSHAKE']._serialized_start=109
-  _globals['_HANDSHAKE']._serialized_end=303
-  _globals['_HANDSHAKEACK']._serialized_start=306
-  _globals['_HANDSHAKEACK']._serialized_end=564
-  _globals['_HEALTHSNAPSHOT']._serialized_start=567
-  _globals['_HEALTHSNAPSHOT']._serialized_end=935
-  _globals['_HEALTHSNAPSHOT_DETAILSENTRY']._serialized_start=877
-  _globals['_HEALTHSNAPSHOT_DETAILSENTRY']._serialized_end=935
-  _globals['_HEARTBEAT']._serialized_start=938
-  _globals['_HEARTBEAT']._serialized_end=1128
-  _globals['_JOBPUSH']._serialized_start=1131
-  _globals['_JOBPUSH']._serialized_end=1353
-  _globals['_ARTIFACTOUTPUT']._serialized_start=1356
-  _globals['_ARTIFACTOUTPUT']._serialized_end=1485
-  _globals['_PROVISIONCOMMAND']._serialized_start=1488
-  _globals['_PROVISIONCOMMAND']._serialized_end=1619
-  _globals['_CONTROLPING']._serialized_start=1621
-  _globals['_CONTROLPING']._serialized_end=1687
-  _globals['_ABORTJOB']._serialized_start=1689
-  _globals['_ABORTJOB']._serialized_end=1752
-  _globals['_RUNEVENT']._serialized_start=1755
-  _globals['_RUNEVENT']._serialized_end=2059
-  _globals['_SERVERFRAME']._serialized_start=2062
-  _globals['_SERVERFRAME']._serialized_end=2433
-  _globals['_SIGNEDSERVERFRAME']._serialized_start=2435
-  _globals['_SIGNEDSERVERFRAME']._serialized_end=2506
-  _globals['_NODEFRAME']._serialized_start=2509
-  _globals['_NODEFRAME']._serialized_end=2757
+  _globals['_HANDSHAKE']._serialized_start=147
+  _globals['_HANDSHAKE']._serialized_end=341
+  _globals['_HANDSHAKEACK']._serialized_start=344
+  _globals['_HANDSHAKEACK']._serialized_end=601
+  _globals['_JOBPUSH']._serialized_start=604
+  _globals['_JOBPUSH']._serialized_end=826
+  _globals['_ARTIFACTOUTPUT']._serialized_start=829
+  _globals['_ARTIFACTOUTPUT']._serialized_end=958
+  _globals['_PROVISIONCOMMAND']._serialized_start=961
+  _globals['_PROVISIONCOMMAND']._serialized_end=1092
+  _globals['_CONTROLPING']._serialized_start=1094
+  _globals['_CONTROLPING']._serialized_end=1160
+  _globals['_ABORTJOB']._serialized_start=1162
+  _globals['_ABORTJOB']._serialized_end=1225
+  _globals['_SERVERFRAME']._serialized_start=1228
+  _globals['_SERVERFRAME']._serialized_end=1599
+  _globals['_SIGNEDSERVERFRAME']._serialized_start=1601
+  _globals['_SIGNEDSERVERFRAME']._serialized_end=1672
+  _globals['_NODEFRAME']._serialized_start=1675
+  _globals['_NODEFRAME']._serialized_end=1921
 # @@protoc_insertion_point(module_scope)

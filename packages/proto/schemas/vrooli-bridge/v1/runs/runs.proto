@@ -3,7 +3,7 @@ syntax = "proto3";
 package vrooli.vrooli_bridge.v1.runs;
 
 import "google/protobuf/timestamp.proto";
-import "vrooli-bridge/v1/channel/channel.proto";
+import "vrooli-bridge/v1/shared/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs;runs_v1";
 
@@ -138,7 +138,7 @@ message GetRunResponse {
   Run run = 1;
 
   // The full persisted event history for the run, in sequence order.
-  repeated vrooli.vrooli_bridge.v1.channel.RunEvent events = 2;
+  repeated vrooli.vrooli_bridge.v1.shared.RunEvent events = 2;
 }
 
 message ListRunsRequest {
@@ -187,11 +187,11 @@ message StreamRunEventsRequest {
 
 // RunEventMessage wraps a streamed RunEvent for the server-streaming response.
 message RunEventMessage {
-  vrooli.vrooli_bridge.v1.channel.RunEvent event = 1;
+  vrooli.vrooli_bridge.v1.shared.RunEvent event = 1;
 }
 
 message ReportRunEventRequest {
-  vrooli.vrooli_bridge.v1.channel.RunEvent event = 1;
+  vrooli.vrooli_bridge.v1.shared.RunEvent event = 1;
 }
 
 message ReportRunEventResponse {

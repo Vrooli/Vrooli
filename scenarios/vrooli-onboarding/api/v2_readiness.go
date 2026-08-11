@@ -14,20 +14,24 @@ import (
 )
 
 type credentialReadiness struct {
-	Resource  string `json:"resource"`
-	LogicalID string `json:"logical_id"`
-	Field     string `json:"field"`
-	Label     string `json:"label"`
-	Required  bool   `json:"required"`
-	Status    string `json:"status"`
-	Detail    string `json:"detail,omitempty"`
+	Resource    string `json:"resource"`
+	LogicalID   string `json:"logical_id"`
+	Field       string `json:"field"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
+	ObtainURL   string `json:"obtain_url,omitempty"`
+	Required    bool   `json:"required"`
+	Status      string `json:"status"`
+	Detail      string `json:"detail,omitempty"`
 }
 
 type readinessCredentialDescriptor struct {
-	LogicalID string `json:"logical_id"`
-	Field     string `json:"field"`
-	Label     string `json:"label"`
-	Required  bool   `json:"required"`
+	LogicalID   string `json:"logical_id"`
+	Field       string `json:"field"`
+	Label       string `json:"label"`
+	Description string `json:"description"`
+	ObtainURL   string `json:"obtain_url"`
+	Required    bool   `json:"required"`
 }
 
 type readinessResponse struct {
@@ -139,7 +143,7 @@ func credentialReadinessForDescriptors(owner string, descriptors []readinessCred
 		if field == "" {
 			field = "value"
 		}
-		item := credentialReadiness{Resource: owner, LogicalID: descriptor.LogicalID, Field: field, Label: descriptor.Label, Required: descriptor.Required, Status: "unconfigured"}
+		item := credentialReadiness{Resource: owner, LogicalID: descriptor.LogicalID, Field: field, Label: descriptor.Label, Description: descriptor.Description, ObtainURL: descriptor.ObtainURL, Required: descriptor.Required, Status: "unconfigured"}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		output, statusErr := credentialStatusCommand(ctx, descriptor.LogicalID, field)
 		cancel()
@@ -162,9 +166,12 @@ func credentialReadinessForDescriptors(owner string, descriptors []readinessCred
 	return items
 }
 
-func (s *Server) handleV2Readiness(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handleV2Readiness(w http.ResponseWriter, r *http.Request) {
 	models, err := selectedScenarioModels()
 	if err != nil {
+		if writeCatalogDegraded(w, err) {
+			return
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
@@ -198,6 +205,9 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, _ *http.Request) {
 	})
 	root, err := manifestRoot()
 	if err != nil {
+		if writeCatalogDegraded(w, err) {
+			return
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
@@ -208,6 +218,9 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, _ *http.Request) {
 	}
 	hosts, err := deriveV2HostRequirements(root, state, models)
 	if err != nil {
+		if writeCatalogDegraded(w, err) {
+			return
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
@@ -230,7 +243,7 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, _ *http.Request) {
 			response.Status = lessReady(response.Status, "degraded")
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	if output, err := credentialDoctorCommand(ctx); err == nil && json.Valid(output) {
 		response.CredentialDiagnosis = append(response.CredentialDiagnosis[:0], output...)
 		var diagnosis credentialDiagnosisResponse

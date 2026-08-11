@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.vrooli_bridge.v1.channel;
 
 import "google/protobuf/timestamp.proto";
+import "vrooli-bridge/v1/shared/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel;channel_v1";
 
@@ -44,47 +45,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridg
 // edge, keeping these payloads transport-agnostic.
 // =============================================================================
 
-// CompatibilityStatus is the control plane's verdict on a node's negotiated
-// protocol_version, returned in HandshakeAck. It is the mechanism that keeps a
-// version-drifted node from being silently mis-driven.
-enum CompatibilityStatus {
-  // Never set on the wire; a zero value means the ack predates compatibility
-  // negotiation and must be treated as INCOMPATIBLE by a strict node.
-  COMPATIBILITY_STATUS_UNSPECIFIED = 0;
-
-  // The node's protocol_version is fully drivable; it may receive jobs and
-  // provisioning commands.
-  COMPATIBILITY_STATUS_OK = 1;
-
-  // The control plane can still hold the node's presence but will not dispatch
-  // work until the agent is updated. Surfaced to the operator as "needs
-  // update".
-  COMPATIBILITY_STATUS_NEEDS_UPDATE = 2;
-
-  // The node's protocol_version cannot be driven at all; the channel is
-  // refused.
-  COMPATIBILITY_STATUS_INCOMPATIBLE = 3;
-}
-
-// RunEventKind discriminates the payload a RunEvent carries back from a node's
-// durable run. The runs domain (Phase 3) interprets these.
-enum RunEventKind {
-  RUN_EVENT_KIND_UNSPECIFIED = 0;
-
-  // log_chunk carries a slice of combined stdout/stderr.
-  RUN_EVENT_KIND_LOG = 1;
-
-  // status carries a human-readable lifecycle transition (e.g. "running").
-  RUN_EVENT_KIND_STATUS = 2;
-
-  // exit_code is the terminal process exit code; the run is terminal after it.
-  RUN_EVENT_KIND_EXIT = 3;
-
-  // artifact_ref carries a device-sync-hub reference to a produced artifact;
-  // the bytes never transit the control-plane store (DATA.md).
-  RUN_EVENT_KIND_ARTIFACT_REF = 4;
-}
-
 // Handshake is the first frame a node sends when it opens the channel. It
 // establishes durable identity and negotiates the protocol version.
 message Handshake {
@@ -120,7 +80,7 @@ message HandshakeAck {
   bool accepted = 1;
 
   // The control plane's verdict on the node's protocol_version.
-  CompatibilityStatus compatibility = 2;
+  shared.CompatibilityStatus compatibility = 2;
 
   // The control plane's own protocol version, so the node can detect a
   // control plane it is itself too old to drive.
@@ -138,39 +98,9 @@ message HandshakeAck {
 // HealthSnapshot is the node's self-reported readiness, sent on connect and on
 // every Heartbeat. Dispatch only targets nodes whose snapshot shows they can
 // do the work (OT-P0-003).
-message HealthSnapshot {
-  // The Vrooli toolchain (`vrooli` CLI + setup) is present and runnable.
-  bool toolchain_present = 1;
-
-  // Free disk headroom in bytes on the work volume.
-  int64 disk_headroom_bytes = 2;
-
-  // A container runtime (Docker/Podman) the node needs for some jobs is up.
-  bool container_runtime_up = 3;
-
-  // Free-form extra readiness facts (e.g. "go" -> "1.25.0"), kept open so the
-  // agent can report new signals without a proto change.
-  map<string, string> details = 4;
-
-  // When the agent sampled this snapshot.
-  google.protobuf.Timestamp reported_at = 5;
-}
-
 // Heartbeat is the node's periodic liveness + readiness ping (node → control
 // plane). Absence of heartbeats past the liveness window flips the node
 // offline (presence domain).
-message Heartbeat {
-  string node_id = 1;
-
-  // Monotonic per-connection counter; lets the control plane detect dropped or
-  // reordered heartbeats.
-  uint64 sequence = 2;
-
-  HealthSnapshot health = 3;
-
-  google.protobuf.Timestamp sent_at = 4;
-}
-
 // JobPush is the typed job the control plane pushes for the node to run
 // (OT-P0-004). It is NEVER a shell string: {scenario, verb, args} is validated
 // against the scenario-CLI manifest + per-node scopes before it is pushed. The
@@ -251,30 +181,6 @@ message AbortJob {
 // RunEvent streams a durable run's progress back to the control plane (node →
 // control plane, OT-P0-005). The runs domain proxies these to the block-once
 // wait verb so a re-attaching client sees the same stream.
-message RunEvent {
-  string run_id = 1;
-
-  RunEventKind kind = 2;
-
-  // Monotonic per-run sequence so the control plane can order/dedupe events on
-  // reconnect (stale-completion safety).
-  uint64 sequence = 3;
-
-  // Set when kind == RUN_EVENT_KIND_LOG: a chunk of combined output.
-  string log_chunk = 4;
-
-  // Set when kind == RUN_EVENT_KIND_STATUS: a lifecycle transition label.
-  string status = 5;
-
-  // Set when kind == RUN_EVENT_KIND_EXIT: the terminal process exit code.
-  int32 exit_code = 6;
-
-  // Set when kind == RUN_EVENT_KIND_ARTIFACT_REF: a device-sync-hub reference.
-  string artifact_ref = 7;
-
-  google.protobuf.Timestamp emitted_at = 8;
-}
-
 // ServerFrame is the multiplexed envelope every control-plane → node push is
 // wrapped in over the SSE stream. New push kinds extend this oneof; the node
 // parses with DiscardUnknown and ignores kinds it does not understand.
@@ -318,7 +224,7 @@ message SignedServerFrame {
 message NodeFrame {
   oneof payload {
     Handshake handshake = 1;
-    Heartbeat heartbeat = 2;
-    RunEvent run_event = 3;
+    shared.Heartbeat heartbeat = 2;
+    shared.RunEvent run_event = 3;
   }
 }

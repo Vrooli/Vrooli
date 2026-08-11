@@ -46,11 +46,23 @@ export interface V2ScenarioResponse {
   count: number;
 }
 
+export interface ClosureMember {
+  name: string;
+  required: boolean;
+  direct: boolean;
+  provenance: { kind: "selected" | "required" | "try_start"; from?: string }[];
+}
+export interface V2ClosureResponse { scenarios: ClosureMember[]; resources: ClosureMember[]; }
+export interface V2Resource { name: string; display_name?: string; description?: string; category?: string; enabled: boolean; installed: boolean; }
+export interface V2ResourceResponse { resources: V2Resource[]; required: V2Resource[]; optional: V2Resource[]; standalone: V2Resource[]; count: number; }
+
 export interface CredentialReadiness {
   resource: string;
   logical_id: string;
   field: string;
   label: string;
+  description?: string;
+  obtain_url?: string;
   required: boolean;
   status: "configured" | "unconfigured" | "unsupported";
   detail?: string;
@@ -66,6 +78,11 @@ export interface V2ReadinessResponse {
   checked_at: string;
   credential_diagnosis?: CredentialDiagnosis;
   recovery?: { receipt_exists: boolean; exported_at?: string; entry_count: number; uncovered: string[] };
+}
+export interface V2ApplyResponse {
+  run_id: string;
+  status: string;
+  items: Array<{ id: string; kind: string; name: string; outcome: string; error?: string; remediation?: string }>;
 }
 export interface CredentialDiagnosis {
   provider?: { backend?: string; condition?: string; explanation?: string; fix?: string; write_condition?: string; write_fix?: string; native_storage_caveat?: string };
@@ -83,8 +100,25 @@ export interface OperatorState {
   host_safeguards?: Record<string, { opted_in?: boolean }>;
 }
 
+export type OperatorStatePatch = Partial<Pick<OperatorState, "scenarios" | "resources" | "host_tools" | "host_safeguards">> & {
+  trust_posture?: "personal" | "shared" | "hosted";
+  active_profile?: string | null;
+};
+
 /** Labels for each wizard step, in order. */
 export const STEP_LABELS = ["Welcome", "Scenarios", "Resources", "Credentials", "Integrations", "Host", "Operating Mode", "Validation"] as const;
+
+/** Stable deep links for every wizard step. They are also the browser history contract. */
+export const STEP_PATHS = [
+  "/setup/welcome",
+  "/setup/scenarios",
+  "/setup/resources",
+  "/setup/credentials",
+  "/setup/integrations",
+  "/setup/host",
+  "/setup/operating-mode",
+  "/setup/validation",
+] as const;
 
 /** Total number of wizard steps. */
 export const TOTAL_STEPS = STEP_LABELS.length;

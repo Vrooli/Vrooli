@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.shared;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared;shared_v1";
+
+// Cross-domain wire values shared by the channel, presence, and runs services.
+
+enum CompatibilityStatus {
+  COMPATIBILITY_STATUS_UNSPECIFIED = 0;
+  COMPATIBILITY_STATUS_OK = 1;
+  COMPATIBILITY_STATUS_NEEDS_UPDATE = 2;
+  COMPATIBILITY_STATUS_INCOMPATIBLE = 3;
+}
+
+enum RunEventKind {
+  RUN_EVENT_KIND_UNSPECIFIED = 0;
+  RUN_EVENT_KIND_LOG = 1;
+  RUN_EVENT_KIND_STATUS = 2;
+  RUN_EVENT_KIND_EXIT = 3;
+  RUN_EVENT_KIND_ARTIFACT_REF = 4;
+}
+
+message HealthSnapshot {
+  bool toolchain_present = 1;
+  int64 disk_headroom_bytes = 2;
+  bool container_runtime_up = 3;
+  map<string, string> details = 4;
+  google.protobuf.Timestamp reported_at = 5;
+}
+
+message Heartbeat {
+  string node_id = 1;
+  uint64 sequence = 2;
+  HealthSnapshot health = 3;
+  google.protobuf.Timestamp sent_at = 4;
+}
+
+message RunEvent {
+  string run_id = 1;
+  RunEventKind kind = 2;
+  uint64 sequence = 3;
+  string log_chunk = 4;
+  string status = 5;
+  int32 exit_code = 6;
+  string artifact_ref = 7;
+  google.protobuf.Timestamp emitted_at = 8;
+}

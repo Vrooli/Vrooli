@@ -9,11 +9,55 @@ import (
 	"time"
 )
 
+func (s *Server) handleV2Credentials(w http.ResponseWriter, _ *http.Request) {
+	root, err := manifestRoot()
+	if err != nil {
+		if writeCatalogDegraded(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	models, err := loadScenarioReadModels()
+	if err != nil {
+		if writeCatalogDegraded(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	closure, err := resolveClosure(root, models)
+	if err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+		return
+	}
+	credentials := make([]credentialReadiness, 0)
+	for _, member := range closure.Scenarios {
+		items, loadErr := loadScenarioCredentialReadiness(member.Name)
+		if loadErr != nil {
+			if writeCatalogDegraded(w, loadErr) {
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": loadErr.Error()})
+			return
+		}
+		credentials = append(credentials, items...)
+	}
+	for _, member := range closure.Resources {
+		items, loadErr := loadCredentialReadiness(member.Name)
+		if loadErr != nil {
+			if writeCatalogDegraded(w, loadErr) {
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": loadErr.Error()})
+			return
+		}
+		credentials = append(credentials, items...)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"credentials": credentials, "count": len(credentials)})
+}
+
 var credentialDoctorCommand = func(ctx context.Context) ([]byte, error) {
-	// --check-writes is deliberate here: the wizard's next action is a
-	// provisioning write, so "can this host store a credential" is the actual
-	// question. Routine health reads must not pass it — the probe writes to the
-	// operator's real store.
 	return onboardingDoctorJSON(ctx)
 }
 
@@ -34,9 +78,6 @@ var credentialProvisionCommand = func(ctx context.Context, logicalID, field, val
 	return nil
 }
 
-// handleV2CredentialProvision is an ephemeral control-plane relay. The value
-// is accepted only in the request body, forwarded over stdin, and never added
-// to command arguments, responses, logs, or operator state.
 func (s *Server) handleV2CredentialProvision(w http.ResponseWriter, r *http.Request) {
 	var request credentialProvisionRequest
 	if !decodeJSONBody(w, r, &request) {

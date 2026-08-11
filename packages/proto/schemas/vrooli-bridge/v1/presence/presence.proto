@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package vrooli.vrooli_bridge.v1.presence;
 
-import "vrooli-bridge/v1/channel/channel.proto";
+import "vrooli-bridge/v1/shared/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1";
 
@@ -32,11 +32,11 @@ service PresenceService {
 
 message ReportHeartbeatRequest {
   // The node's heartbeat (node_id + sequence + health + sent_at).
-  vrooli.vrooli_bridge.v1.channel.Heartbeat heartbeat = 1;
+  vrooli.vrooli_bridge.v1.shared.Heartbeat heartbeat = 1;
 }
 
 message ReportHeartbeatResponse {
   // The control plane's verdict on the node's protocol version (echoed from the
   // handshake negotiation). OK while the agent is current.
-  vrooli.vrooli_bridge.v1.channel.CompatibilityStatus compatibility = 1;
+  vrooli.vrooli_bridge.v1.shared.CompatibilityStatus compatibility = 1;
 }

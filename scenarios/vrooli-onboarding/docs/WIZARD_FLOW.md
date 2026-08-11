@@ -1,211 +1,310 @@
-# Wizard Flow (V2 Rework)
+# Wizard Flow
 
-This document is the V2 implementation contract. The configuration substrate
-the wizard reads from and writes to is documented in
-[`/docs/configuration/`](../../../docs/configuration/).
+This document is the implementation contract for the onboarding wizard. The
+configuration substrate it reads from and writes to is documented in
+[`/docs/configuration/`](../../../docs/configuration/); the UX contract it must
+satisfy is [`experience/`](../experience/).
 
-## Why the v2 rework
+## Why the flow is shaped this way
 
-The first wizard grouped operator choices around resources. The mental-model mismatch is that operators don't think in resources — they think in capabilities. The v2 inverts: operators select **scenarios** first (the things they want), and resources, secrets, host tools/safeguards, and integrations are derived from that selection.
+Operators do not think in resources. They think in capabilities: "I want the
+swarm running", not "I want Postgres, Redis, and Vault". So scenarios are the
+unit of selection, and every infrastructure consequence is derived and shown
+rather than asked for.
 
-This is also the only way the architecture in [`/docs/configuration/architecture.md`](../../../docs/configuration/architecture.md) reads cleanly: scenarios declare what they need; the wizard surfaces that derivation; the operator sees their use-case as the unit of selection rather than infrastructure components.
+This is also the only reading under which
+[`/docs/configuration/architecture.md`](../../../docs/configuration/architecture.md)
+is coherent: manifests declare what a scenario needs, the wizard surfaces that
+derivation, and the operator's unit of choice is their own use case.
 
 ## Step sequence
 
-Six real steps; one optional pre-step. Re-enterable from any step.
+Eight steps. Re-enterable from any step, resuming at the first unsatisfied one.
 
-1. **(Optional) Goal intake** — "What are you here to do?" Pre-selects a profile. Skippable. Profiles themselves are deferred (see [`profiles.md`](../../../docs/configuration/profiles.md)) so this step is also deferred until the second profile is real. Until then, the wizard starts at step 2.
-2. **Scenarios** — search/filter list; system-required scenarios locked-on; per-scenario "keep running" toggle with default from `runtime.auto_restart_default`; selecting a scenario cascades scenario→scenario and scenario→resource dependencies.
-3. **Resources** — auto-derived required + optional from scenario selection; user toggles only manifest-declared optional resources.
-4. **Credentials** — only descriptors actually needed by the selected stack. Entry is sent directly to the credential control-plane authority; browser state and logs never retain a value.
-5. **Integrations** — for each `integrations[]` requirement on a selected scenario, render a connector card with required scopes + purpose, and let the operator pick an existing connection or create a new one (which kicks off the connector's auth flow per [`/docs/configuration/integrations/external-auth.md`](../../../docs/configuration/integrations/external-auth.md)). Multi-instance scenarios (the persona-actor case) get a binding table with one row per `context`. The connector + connection model itself is owned by the deferred `integration-hub` scenario; this step is empty in the v2 baseline and lights up when integration-hub ships.
-6. **Host (tools + safeguards)** — declared by selected scenarios and resources. Required tools install automatically; non-required tools and safeguards are opt-in. Safeguards display `risk` (low/medium/high).
-7. **Operating mode + final validation** — confirm auto-restart per scenario; commit to operator-state.json; run full probe pass; show green-light or actionable error list.
+```mermaid
+stateDiagram-v2
+  direction LR
+  [*] --> Scenarios: fresh install
+  [*] --> Resume: completion marker present
 
-## Wireframes
+  Resume --> Scenarios
+  Resume --> Credentials: selection satisfied
+  Resume --> Validation: everything satisfied
 
-These were sketched during the design conversation. Use them as guides, not pixel specs.
+  Scenarios --> Resources
+  Resources --> Credentials
+  Credentials --> Integrations
+  Integrations --> Host
+  Host --> OperatingMode
+  OperatingMode --> Apply
+  Apply --> Validation
+  Validation --> [*]: ready
+  Validation --> Validation: recheck
+  Validation --> [*]: continue degraded (recorded)
+  Validation --> Credentials: fix a required gap
 
-### Step 2 — Scenarios
-
-```
-┌─ Scenarios ────────────────────────────────────────────┐
-│  [search: ___]  [filter: all | core | enabled]         │
-│                                                         │
-│  ☑ vrooli-onboarding         CORE   (locked)           │
-│  ☑ secrets-manager           CORE   (locked)           │
-│  ☑ web-console               CORE   (locked)           │
-│  ─────────────────────────────────────────────────     │
-│  ☑ swarm-manager                    [keep running ☑]   │
-│      ↳ pulls in: agent-manager, workspace-sandbox      │
-│  ☑ agent-manager                    [keep running ☑]   │
-│  ☑ workspace-sandbox                [keep running ☐]   │
-│  ☐ landing-page-business-suite      [keep running –]   │
-│  ☐ browser-automation-studio                            │
-│                                                         │
-│  Required resources (derived): postgres, redis, vault  │
-│  Optional resources (next step): ollama, qdrant, ...    │
-└────────────────────────────────────────────────────────┘
+  note right of Integrations
+    Empty until integration-hub ships.
+    Declares deferral, creates nothing.
+  end note
+  note right of Apply
+    The only step that changes host state.
+    Idempotent; partial failure is reported, not fatal.
+  end note
 ```
 
-Notes:
-- "CORE (locked)" entries are scenarios with `service.system_required: true`. They cannot be unchecked.
-- The cascade hint (`↳ pulls in: agent-manager, workspace-sandbox`) reads from `dependencies.scenarios` on the selected scenario's manifest. Required deps say "pulls in"; `try_start` deps say "tries: ..." with degraded-behavior tooltip.
-- "Keep running" toggle defaults to `runtime.auto_restart_default`. Hidden for `runtime.kind: "on_demand"` and `"one_shot"`.
-- The footer rolls up the implied resource selection so the operator sees the consequence before continuing.
+Each step commits its own decisions as it goes, through a field-scoped patch.
+There is no "save at the end" — closing the browser mid-flow loses navigation
+position, never decisions.
 
-### Step 3 — Resources
+### 1 — Scenarios
 
-Same shape as Scenarios, but:
-- Required resources (derived from scenarios) are locked-and-checked.
-- Optional resources (declared via `optional_dependencies`) are toggleable.
-- Standalone resources (not required by any selected scenario) are toggleable separately.
-
-### Step 4 — Secrets
-
-Per-resource list of credentials the selected stack needs. Each entry renders the `secretDescriptor`:
+Search and filter over the full catalog. System-required scenarios render
+locked-on. Selecting a scenario resolves its transitive closure and names what
+came with it.
 
 ```
-┌─ Gemini API Key  (resource: gemini, required)  ────────┐
-│  Google Gemini multimodal LLM. Required for scenarios  │
-│  that call Gemini directly.                            │
-│  Hint: Starts with 'AIza...'                           │
-│  [Get one →]                                           │
-│  [_______________________________________________]      │
-│  [ Save  ]                                              │
-└────────────────────────────────────────────────────────┘
+┌─ Scenarios ─────────────────────────────────────────────┐
+│  [search: ____________]   [ all | core | enabled ]       │
+│                                                          │
+│  ☑ vrooli-onboarding          CORE   (locked)            │
+│  ☑ secrets-manager            CORE   (locked)            │
+│  ☑ web-console                CORE   (locked)            │
+│  ──────────────────────────────────────────────────      │
+│  ☑ swarm-manager                      [keep running ☑]   │
+│      ↳ pulls in: agent-manager, workspace-sandbox        │
+│      ↳ tries: vrooli-events (degrades to local queue)    │
+│  ☑ agent-manager                      [keep running ☑]   │
+│  ☐ landing-page-business-suite                           │
+│                                                          │
+│  Required resources: postgres, redis, vault              │
+│  Optional next step: ollama, qdrant                      │
+└──────────────────────────────────────────────────────────┘
 ```
 
-`[Get one →]` is the descriptor `obtain_url`. Save provisions the
-descriptor's `logical_id` and `field` through the control plane. The local
-native secure store is authority; Vault is only an optional scoped mirror.
-The UI displays metadata-safe configured/unconfigured status and never reads
-or persists the credential value.
+Contract:
 
-### Step 5 — Integrations (deferred until integration-hub ships)
+- `service.system_required: true` renders locked-on and cannot be disabled,
+  including by a hand-edited state file — the manifest wins for this field.
+- The cascade line reads `dependencies.scenarios`. A required edge says
+  "pulls in"; a `try_start` edge says "tries", with the degraded behaviour named.
+- The keep-running toggle defaults to `runtime.auto_restart_default` and is
+  hidden for `runtime.kind` of `on_demand` or `one_shot`.
+- The footer rolls up the implied resource set, so the consequence is visible on
+  the same screen as the choice.
+- A dependency cycle is reported as a manifest defect, not traversed.
 
-The integrations step consumes connector and connection state owned by the `integration-hub` scenario (see [`/docs/configuration/integrations/connectors.md`](../../../docs/configuration/integrations/connectors.md) and [`connections.md`](../../../docs/configuration/integrations/connections.md)). Each connector requirement on a selected scenario gets a card; the operator picks an existing connection or creates a new one.
+### 2 — Resources
 
-Single-instance requirement (e.g. one GitHub account):
+Required resources — everything the closure implies — render locked and checked.
+Optional resources declared through `optional_dependencies` are toggleable.
+Standalone resources that no selected scenario requires get their own group.
 
-```
-┌─ GitHub  (required by swarm-manager) ───────────────────┐
-│  scopes: repo:read                                      │
-│  purpose: fetch issues for initiative tracking          │
-│                                                         │
-│  Existing connections:                                  │
-│    ⦿ github-default       healthy  (last probed 2m ago) │
-│    ○ + Sign in with GitHub                              │
-│                                                         │
-│  [Bind selected]   [Probe again]                        │
-└─────────────────────────────────────────────────────────┘
-```
+Toggling an optional resource writes `resources.<name>.enabled` in operator
+state. That field is the **only** authority for resource enablement; nothing
+else carries the decision.
 
-Multi-instance requirement (the persona-actor case):
+### 3 — Credentials
 
-```
-┌─ TikTok account  (required by marketing-crew, multi) ──┐
-│  scopes: post:write                                    │
-│  purpose: publish AI-UGC videos per persona            │
-│                                                        │
-│  context           connection                          │
-│  persona-amy       [tiktok-amy ▼]      healthy         │
-│  persona-bob       [tiktok-bob ▼]      needs_refresh   │
-│  persona-carol     [+ Sign in… ▼]      —               │
-│                                                        │
-│  [Bind all]                                            │
-└────────────────────────────────────────────────────────┘
-```
-
-Loose / scratch credentials (the operator wants to test fal.ai before any scenario uses it) appear in integration-hub's standalone view, not this wizard step. They show up here only once a scenario declares them.
-
-Auth-flow specifics per pattern (`api_key`, `oauth_web`, `oauth_device`, `external_sign_in_command`, `app_password`) live in [`/docs/configuration/integrations/external-auth.md`](../../../docs/configuration/integrations/external-auth.md). The wizard dispatches by `connector.auth.kind` and renders the right surface (paste-form vs sign-in button vs device-code panel vs sign-in-command instructions).
-
-This step is empty in the v2 baseline and lights up when `integration-hub` ships. Until then, scenarios that need external services either use a resource (for paste-string API keys) or block on integration-hub.
-
-### Step 6 — Host (tools + safeguards)
+One card per credential descriptor on the selected stack. The card renders the
+descriptor in full:
 
 ```
-┌─ Host Tools ──────────────────────────────────────────┐
-│  ☑ git              required by 8 scenarios       LOW │
-│  ☑ docker           required by all                LOW │
-│  ☐ cloudflared      required by deployment-...     LOW │
-├─ Host Safeguards ─────────────────────────────────────┤
-│  ☑ clock            verifies system clock          LOW │
-│  ☐ kernel_config    enables high-perf networking   MED │
-│      writes /etc/sysctl.d/99-vrooli.conf               │
-│  ☐ nat-protection   prevents loopback bypass       MED │
-│  ☐ docker-host-firewall                            MED │
-└────────────────────────────────────────────────────────┘
+┌─ OpenRouter API Key   (resource: openrouter · required) ─┐
+│  Unified API gateway across LLM providers. Required for  │
+│  scenarios that route LLM calls through OpenRouter.      │
+│                                                          │
+│  [ Get one → ]  https://openrouter.ai/keys               │
+│  [••••••••••••••••••••••••••••••••••••••••]  [ Save ]    │
+│                                                          │
+│  Status: unconfigured                                    │
+└──────────────────────────────────────────────────────────┘
 ```
 
-Required tools (per `hostRequirement.required: true`) are locked-and-checked; non-required and all safeguards are opt-in. The `risk` column reads from `safeguard.json#/risk` (`low` / `medium` / `high`). The expanded text under medium/high entries is from the manifest's `description` and `notes`.
+Contract:
 
-### Step 7 — Operating mode + final validation
+- `label`, `description`, and `obtain_url` all come from the descriptor. The
+  descriptor declares `description` and `obtain_url` specifically for this
+  surface; dropping them leaves the operator with an unexplained password box.
+- Save relays the value to the credential authority. The value never appears in
+  a response, a log, a URL, an argument, operator state, or browser storage.
+- The card shows configured/unconfigured status only. It never reads a value.
+- On a host with no graphical session — a VPS, a CI runner, a headless bundle
+  host — no native store exists. The step leads with the encrypted-file-store
+  initialization instead of reporting a failure.
+
+### 4 — Integrations *(deferred)*
+
+Empty until integration-hub ships. Where a selected scenario declares an
+`integrations[]` requirement, the step names it as deferred and creates no
+binding. The connector and connection models are owned by integration-hub; see
+[`connectors.md`](../../../docs/configuration/integrations/connectors.md).
+
+### 5 — Host
+
+Tools and safeguards derived from every selected scenario and resource manifest.
 
 ```
-┌─ Operating Mode ──────────────────────────────────────┐
-│  Auto-heal:        ⦿ on   ○ off   ○ per-scenario only │
-│  On host startup:  ⦿ start enabled scenarios          │
-│                    ○ start nothing (manual)            │
-│  Default profile:  [engineering ▼]   [Save current…]  │
-│                                                        │
-│  [Validate and commit]                                 │
-└────────────────────────────────────────────────────────┘
+┌─ Host Tools ────────────────────────────────────────────┐
+│  ☑ git           required by 8 scenarios      user  LOW │
+│  ☑ docker        required by all              user  LOW │
+│  ☐ cloudflared   required by deployment-…     user  LOW │
+├─ Host Safeguards ───────────────────────────────────────┤
+│  ☑ clock         verifies system clock        none  LOW │
+│  ☐ kernel_config high-performance networking  root  MED │
+│      writes /etc/sysctl.d/99-vrooli.conf                │
+│      ├ tcp_backlog        [ 4096 ]                      │
+│      └ enable_bbr         [ ✓ ]                         │
+│  ☐ nat-protection prevents loopback bypass    root  MED │
+└──────────────────────────────────────────────────────────┘
 ```
 
-Then the final validation report:
+Contract:
+
+- Required entries are locked and checked; everything else is opt-in.
+- Risk, privilege, bundling, and supported platforms come from the manifest and
+  are visible **before** the operator consents, because a safeguard modifies
+  host state.
+- Where a safeguard declares a config schema, its fields render generically from
+  that schema and persist validated values. A newly declared field works with no
+  code change; an invalid value is rejected at the write boundary with the
+  failing path named.
+- A requirement not declared for the running platform renders unsupported, not
+  missing — the two have different operator responses.
+
+### 6 — Operating mode
+
+Per-scenario keep-running confirmation, pre-filled from
+`runtime.auto_restart_default` and stored as an operator override.
+
+Global startup behaviour and profile selection are
+[declared open work](../../../docs/configuration/operating-mode.md) in the
+configuration contract. This step does not invent them.
+
+### 7 — Apply
+
+The only step that changes host state.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Op as Operator
+  participant W as Wizard
+  participant S as operatorstate
+  participant CP as Control plane
+  participant H as Host
+
+  Op->>W: Confirm setup
+  W->>S: read committed selection
+  S-->>W: selection + prior completion marker
+  W->>W: plan items, order by dependency
+  loop each planned item
+    W->>CP: install tool / apply safeguard / enable resource / start scenario
+    CP->>H: perform
+    H-->>CP: outcome
+    CP-->>W: outcome + remediation on failure
+    Note over W: failure skips dependants,<br/>independent items continue
+  end
+  W->>S: patch completion marker (applied selection + time)
+  W-->>Op: per-item report
+```
+
+Contract:
+
+- Apply orders and reports; each action is performed by its owning control-plane
+  handler. Onboarding carries no private host-repair implementation.
+- Idempotent: a second run with unchanged state changes nothing and reports
+  every item as already satisfied.
+- Partial failure is recorded as partially applied, with dependants skipped and
+  the blocking dependency named.
+- The completion marker is what makes "this install has been configured"
+  observable — by re-entry, by autoheal, and by a desktop first-run.
+
+### 8 — Validation
+
+A live probe pass over everything the selection implies.
 
 ```
-┌─ Validation ──────────────────────────────────────────┐
-│  ✓  Postgres reachable                                │
-│  ✓  Vault reachable                                   │
-│  ✓  GEMINI_API_KEY validated                          │
-│  ✗  swarm-manager auto-restart: agent-manager not yet │
-│      started — waiting (10s)...                       │
-│  ✓  Cloudflared tunnel attached                       │
-│                                                        │
-│  Status: 4/5 green; 1 transient                       │
-│  [Recheck] [Continue with degraded]                    │
-└────────────────────────────────────────────────────────┘
+┌─ Validation ────────────────────────────────────────────┐
+│  ✓  postgres reachable                                   │
+│  ✓  vault reachable                                      │
+│  ✓  OPENROUTER_API_KEY configured                        │
+│  ✗  git not found on this host                           │
+│       → Install the declared host tool, then recheck.    │
+│  ⚠  qdrant unreachable (optional)                        │
+│       → Start it, or continue without vector search.     │
+│                                                          │
+│  Status: 3 ready · 1 missing (required) · 1 degraded     │
+│  [ Recheck ]  [ Continue with degraded ]  [ Back ]       │
+└──────────────────────────────────────────────────────────┘
 ```
 
-## What's locked in
+Contract:
 
-These are settled by the design conversation; do not relitigate without strong evidence:
+- Probes cover credentials, host tools, host safeguards, **and resource
+  reachability**. A report that omits whether Postgres is reachable answers a
+  narrower question than the operator asked.
+- Every non-ready item names a remediation specific to its cause.
+- Recheck re-runs the pass without a reload.
+- Continue-with-degraded is offered only when every **required** item is ready,
+  and the acknowledgement is recorded so the degraded state stays visible to
+  later diagnosis.
+- Navigation back to any earlier decision remains available from this step.
 
-- **Source of truth = manifests + operator-state**, not onboarding internals or doc lists.
-- **Scenarios → Resources → Secrets → Integrations → Host → Operating-mode → Validation** order.
-- **System-required scenarios are locked-on**, declared per `service.system_required`.
-- **Per-scenario auto-restart** is the operator's call; manifest provides the *recommendation* via `runtime.auto_restart_default`.
-- **Re-enterable**: not a one-shot. Adding a scenario later re-enters the wizard at the relevant step with prior state pre-loaded.
-- **Risk indicator on safeguards** is a column, not a separate step.
+## Cross-cutting contracts
 
-## What's deferred
+### Surface parity
 
-Captured here so a future implementation conversation has the full picture without re-deriving:
+The same eight steps exist in the UI, the interactive CLI, and the
+non-interactive selection document. Identical choices produce byte-identical
+operator state, because all three write through one service rather than three
+code paths kept in step by review.
 
-- **Goal-intake step** — depends on profiles (deferred).
-- **Profiles** — deferred until second concrete profile exists. Reserved field `active_profile` already in `operator-state.json`.
-- **Integration-hub scenario** — owns connector definitions and connection instances; powers wizard step 5; covers both bound (scenario-attached) and unbound (scratch / testing) credentials. Probably 2–4 weeks of scenario work when scoped. Wizard step 5 is empty until then. See [`/docs/configuration/integrations/connectors.md`](../../../docs/configuration/integrations/connectors.md).
-- **Schema-types unification** (separate plan) — `healthCheck` defined four times across schemas; consolidating into `common.schema.json`. Not blocking the v2 rework but should land before too many new schemas accrete.
+A session is shared state, not browser memory: a flow started in the browser
+resumes from a terminal at the same step.
 
-## Implementation pointers
+### Deployment-tier resolution
 
-When the rework is picked up:
+```mermaid
+flowchart TD
+  R{"Which tier?"}
+  R -->|"repo root set"| A["Repository catalog<br/>state: .vrooli/operator-state.json"]
+  R -->|"bundle root set"| B["Bundle catalog<br/>state: app-data storage root"]
+  R -->|"neither"| C["Typed degraded state<br/>names the missing catalog"]
+  A --> D["Same eight steps"]
+  B --> D
+  C --> E["Step renders an actionable message,<br/>never an unhandled error"]
+```
 
-1. Read [`/docs/configuration/architecture.md`](../../../docs/configuration/architecture.md) — the resolution-order rules are the wizard's evaluator contract.
-2. Read [`operator-state.schema.json`](../../../.vrooli/schemas/operator-state.schema.json) — that's the only file the wizard writes to.
-3. The existing wizard's `StepSelectResources` is the closest analog for the new Scenarios step shape (search/filter/select pattern). Reuse the component skeleton.
-4. The host step is new; no existing equivalent. Use `safeguard.json#/risk` for the risk column.
-5. Validation step is partly built (resources health probe exists); extend to cover scenarios and secrets.
+The bundle catalog must carry every manifest class the wizard reads — scenarios,
+resources, tools, and safeguards. The bundle contract declares those paths and
+packaging verifies them.
+
+### What is locked in
+
+Settled; do not relitigate without new evidence.
+
+- **Source of truth is manifests plus operator state**, never onboarding internals.
+- **Step order**: Scenarios → Resources → Credentials → Integrations → Host →
+  Operating mode → Apply → Validation.
+- **System-required scenarios are locked on**, per `service.system_required`.
+- **Per-scenario auto-restart is the operator's call**; the manifest only recommends.
+- **Re-enterable, not one-shot.**
+- **Safeguard risk is a column, not a step.**
+- **Apply is part of the wizard**, not a follow-up the operator must remember.
+- **One write authority**, field-scoped patches, schema-validated before write.
+
+### What is deferred
+
+- **Goal intake** — depends on profiles.
+- **Profiles** — until a second concrete profile exists. `active_profile` is
+  already reserved in the state schema.
+- **Integration-hub** — owns connectors and connections; step 4 is empty until it ships.
 
 ## See also
 
-- [`/docs/configuration/`](../../../docs/configuration/) — the full configuration substrate this wizard implements
 - [`/docs/configuration/architecture.md`](../../../docs/configuration/architecture.md) — source-of-truth tables and resolution order
-- [`/docs/configuration/scenarios.md`](../../../docs/configuration/scenarios.md) — `system_required`, `runtime.kind`, scenario deps, `integrations[]` (deferred)
-- [`/docs/configuration/host/safeguards.md`](../../../docs/configuration/host/safeguards.md) — `risk` field meaning
-- [`/docs/configuration/integrations/connectors.md`](../../../docs/configuration/integrations/connectors.md) — connector model powering step 5
-- [`/docs/configuration/integrations/connections.md`](../../../docs/configuration/integrations/connections.md) — connection instances and binding
-- [`/.vrooli/schemas/operator-state.schema.json`](../../../.vrooli/schemas/operator-state.schema.json) — wizard's write target
+- [`/docs/configuration/scenarios.md`](../../../docs/configuration/scenarios.md) — `system_required`, `runtime.kind`, scenario dependencies
+- [`/docs/configuration/host/safeguards.md`](../../../docs/configuration/host/safeguards.md) — the `risk` field
+- [`/.vrooli/schemas/operator-state.schema.json`](../../../.vrooli/schemas/operator-state.schema.json) — the write target
+- [`../experience/`](../experience/) — page states, claims, and journeys

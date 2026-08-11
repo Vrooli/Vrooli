@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "name": "onboarding-continue-with-a-degraded-install",
+    "description": "Open validation and capture the actionable readiness surface used for degraded continuation.",
+    "requirement": "ONB-UX-JOURNEY-EVIDENCE",
+    "version": "1",
+    "labels": { "reset": "none", "spec_entry_id": "setup-validation", "journey_id": "continue-with-a-degraded-install", "surface": "experience-onboarding", "requires_confirmation": "true", "routed_isolation": "true" },
+    "execution_mode": "mutating"
+  },
+  "id": "00000000-0000-4000-8000-000000000005",
+  "project_id": "00000000-0000-4000-8000-000000000000",
+  "name": "onboarding-continue-with-a-degraded-install",
+  "folder_path": "/bas/cases/experience",
+  "description": "Open validation and capture the actionable readiness surface used for degraded continuation.",
+  "tags": ["reset:none"],
+  "version": 1,
+  "flow_definition": { "settings": { "viewport_width": 1280, "viewport_height": 800 },
+  "nodes": [
+    { "id": "open-validation", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/validation", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open validation" } } },
+    { "id": "wait-validation", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.readiness", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Readiness and remediation render" } } },
+    { "id": "assert-summary", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/readiness.summary", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Degraded validation must show its status summary" }, "metadata": { "label": "Degraded status is visible" } } },
+    { "id": "assert-item", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/readiness.item", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Degraded validation must name a readiness item" }, "metadata": { "label": "Readiness item is named" } } },
+    { "id": "recheck", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/readiness.recheck" }, "metadata": { "label": "Recheck readiness" } } }
+  ],
+  "edges": [{ "source": "open-validation", "target": "wait-validation" }, { "source": "wait-validation", "target": "assert-summary" }, { "source": "assert-summary", "target": "assert-item" }, { "source": "assert-item", "target": "recheck" }]
+  }
+}

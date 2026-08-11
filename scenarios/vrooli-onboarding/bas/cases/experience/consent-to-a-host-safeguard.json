@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "name": "onboarding-consent-to-a-host-safeguard",
+    "description": "Open host requirements and verify the informed-consent surface renders before any opt-in.",
+    "requirement": "ONB-UX-JOURNEY-EVIDENCE",
+    "version": "1",
+    "labels": { "reset": "none", "spec_entry_id": "setup-host", "journey_id": "consent-to-a-host-safeguard", "surface": "experience-onboarding" },
+    "execution_mode": "observer"
+  },
+  "id": "00000000-0000-4000-8000-000000000004",
+  "project_id": "00000000-0000-4000-8000-000000000000",
+  "name": "onboarding-consent-to-a-host-safeguard",
+  "folder_path": "/bas/cases/experience",
+  "description": "Open host requirements and verify the informed-consent surface renders before any opt-in.",
+  "tags": ["reset:none"],
+  "version": 1,
+  "flow_definition": { "settings": { "viewport_width": 1280, "viewport_height": 800 },
+  "nodes": [
+    { "id": "open-host", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/host", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open host requirements" } } },
+    { "id": "wait-host", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.host", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Host consent surface renders" } } },
+    { "id": "assert-risk", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/host.riskIndicator", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Safeguard risk must be disclosed before consent" }, "metadata": { "label": "Safeguard risk is visible" } } },
+    { "id": "assert-privilege", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/host.privilegeIndicator", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Safeguard privilege must be disclosed before consent" }, "metadata": { "label": "Safeguard privilege is visible" } } },
+    { "id": "assert-change", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/host.changeSummary", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Declared host changes must be summarized" }, "metadata": { "label": "Host change summary is visible" } } },
+    { "id": "open-apply", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/apply", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open apply review" } } },
+    { "id": "wait-apply", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.readiness", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Apply review renders" } } },
+    { "id": "assert-plan", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/apply.plan", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Apply must show the host-change plan" }, "metadata": { "label": "Host-change plan is visible" } } }
+  ],
+  "edges": [{ "source": "open-host", "target": "wait-host" }, { "source": "wait-host", "target": "assert-risk" }, { "source": "assert-risk", "target": "assert-privilege" }, { "source": "assert-privilege", "target": "assert-change" }, { "source": "assert-change", "target": "open-apply" }, { "source": "open-apply", "target": "wait-apply" }, { "source": "wait-apply", "target": "assert-plan" }]
+  }
+}

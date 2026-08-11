@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "name": "onboarding-re-entry-revise-and-reapply",
+    "description": "Deep-link back into validation to prove a configured operator can re-enter the flow.",
+    "requirement": "ONB-UX-JOURNEY-EVIDENCE",
+    "version": "1",
+    "labels": { "reset": "none", "spec_entry_id": "setup-validation", "journey_id": "re-entry-revise-and-reapply", "surface": "experience-onboarding", "requires_confirmation": "true", "routed_isolation": "true" },
+    "execution_mode": "mutating"
+  },
+  "id": "00000000-0000-4000-8000-000000000002",
+  "project_id": "00000000-0000-4000-8000-000000000000",
+  "name": "onboarding-re-entry-revise-and-reapply",
+  "folder_path": "/bas/cases/experience",
+  "description": "Deep-link back into validation to prove a configured operator can re-enter the flow.",
+  "tags": ["reset:none"],
+  "version": 1,
+  "flow_definition": { "settings": { "viewport_width": 1280, "viewport_height": 800 },
+  "nodes": [
+    { "id": "open-validation", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/validation", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Re-enter validation" } } },
+    { "id": "wait-readiness", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.readiness", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Validation step resumes" } } },
+    { "id": "open-scenarios", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/scenarios", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Re-enter scenario selection" } } },
+    { "id": "wait-scenarios", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.scenarios", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Scenario selection is resumable" } } },
+    { "id": "open-host", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/host", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Re-enter host requirements" } } },
+    { "id": "wait-host", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.host", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Host requirements are resumable" } } },
+    { "id": "open-apply", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/apply", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Re-enter apply" } } },
+    { "id": "wait-apply", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.readiness", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Apply is resumable" } } },
+    { "id": "assert-plan", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/apply.plan", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Re-entry must show the current apply plan" }, "metadata": { "label": "Current plan is visible" } } },
+    { "id": "recheck", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/readiness.recheck" }, "metadata": { "label": "Recheck after re-entry" } } }
+  ],
+  "edges": [{ "source": "open-validation", "target": "wait-readiness" }, { "source": "wait-readiness", "target": "open-scenarios" }, { "source": "open-scenarios", "target": "wait-scenarios" }, { "source": "wait-scenarios", "target": "open-host" }, { "source": "open-host", "target": "wait-host" }, { "source": "wait-host", "target": "open-apply" }, { "source": "open-apply", "target": "wait-apply" }, { "source": "wait-apply", "target": "assert-plan" }, { "source": "assert-plan", "target": "recheck" }]
+  }
+}

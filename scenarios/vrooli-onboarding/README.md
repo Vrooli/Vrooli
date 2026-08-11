@@ -1,102 +1,106 @@
 # Vrooli Onboarding
 
-Central configuration hub guiding users through Vrooli resource setup with guided flows, secret validation, and health visualization.
+The operator surface for deciding **what a Vrooli install runs, and under what permissions** — then applying that decision and proving it worked.
 
-> **Configuration substrate is documented at [`/docs/configuration/`](../../docs/configuration/).** That folder is the canonical contract this scenario implements; new configurability lands as a doc page first, then becomes a wizard step. The v2 rework flow and wireframes are in [`docs/WIZARD_FLOW.md`](docs/WIZARD_FLOW.md).
+It is scenario-first: operators pick capabilities, and resources, credentials, host tools, safeguards, and operating mode are derived from manifests. Every decision commits through one control-plane authority, so the browser, the terminal, an agent, and a remote coordinator all reach the same result.
+
+> The configuration substrate this scenario implements is documented at [`/docs/configuration/`](../../docs/configuration/). New configurability lands as a doc page there first, then becomes a wizard step. The step-by-step implementation contract is [`docs/WIZARD_FLOW.md`](docs/WIZARD_FLOW.md); the UX contract is [`experience/`](experience/).
+
+## What it is for
+
+```mermaid
+flowchart LR
+  O(["Operator<br/>or agent"]) --> W["Onboarding<br/>UI · CLI · API"]
+  M[("Manifests<br/>service.json · resource.json<br/>tool.json · safeguard.json")] -- "declare what exists" --> W
+  W -- "field-scoped patch" --> S[("operator-state.json<br/>what this install chose")]
+  W -- "apply" --> H["Host<br/>tools · safeguards<br/>resources · scenarios"]
+  S -- "resolution order" --> C["Control plane<br/>lifecycle · autoheal<br/>hostreq · trust posture"]
+  H -. "probe" .-> W
+
+  classDef store fill:none,stroke-dasharray:4 3
+  class M,S store
+```
+
+Manifests declare **what exists**. Operator state records **what this install chose**. Onboarding is the surface between them, and the only thing that turns a choice into applied host state.
+
+## Surfaces
+
+| Surface | Entry point | Use it when |
+|---|---|---|
+| Web UI | `make start`, then the lifecycle-managed UI port | A human is configuring a machine they can see |
+| Interactive CLI | `vrooli-onboarding wizard` | A human is on a terminal, or there is no desktop session |
+| Non-interactive CLI | `vrooli-onboarding wizard apply --selection "<file>"` | Automation, CI, vrooli-bridge, scenario-to-cloud |
+| REST API | `/api/v2/...` | Another scenario is driving setup |
+| Desktop bundle | The generated app's first-run flow | A tier-2 install configures itself |
+
+All five produce identical operator state for identical choices. That is a tested claim (`ONB-PARITY-IDENTICAL-STATE`), not a convention — it holds because all of them write through one service.
+
+## The eight steps
+
+| # | Step | Operator decides | Derived from |
+|---|---|---|---|
+| 1 | Scenarios | Which capabilities this install runs | Scenario manifests; system-required entries are locked on |
+| 2 | Resources | Which optional resources to add | Transitive closure of the scenario selection |
+| 3 | Credentials | Which declared credentials to provision | Credential descriptors on selected manifests |
+| 4 | Integrations | *(deferred)* | Owned by integration-hub; no placeholder bindings |
+| 5 | Host | Which tools and safeguards to consent to | `hostTools` / `hostSafeguards` on selected manifests |
+| 6 | Operating mode | Which scenarios stay running | `runtime.kind` and `runtime.auto_restart_default` |
+| 7 | Apply | Confirmation to change the host | The committed selection |
+| 8 | Validation | Whether to continue degraded | Live probes over credentials, tools, safeguards, resources |
+
+Steps 1–6 record intent. Step 7 is where intent becomes host state. Step 8 is where the install is proven. Re-entry resumes at the first unsatisfied step.
 
 ## Architecture
 
-- **Go API** (`api/`) - REST endpoints for resource discovery, config generation/validation, and progress persistence
-- **React + TypeScript + Vite UI** (`ui/`) - Onboarding wizard. Current shipped flow: Welcome → Select Resources → Review → Complete (4 steps). V2 rework planned: Scenarios → Resources → Secrets → Integrations → Host → Operating-mode → Validation (see [`docs/WIZARD_FLOW.md`](docs/WIZARD_FLOW.md))
-- **CLI** (`cli/`) - Command-line interface for health checks and configuration
-- **Lifecycle + health wiring** (`.vrooli/service.json`)
-- **Requirements registry + progress log** (`requirements/`, `docs/PROGRESS.md`)
+- **Go API** (`api/`) — manifest read models, the readiness composer, the apply engine, and a thin relay to the credential authority. It holds no inventory of scenarios, resources, tools, or safeguards in code.
+- **React + TypeScript UI** (`ui/`) — the eight-step wizard plus a health dashboard and glossary. Renders through the shared component library and design tokens, in light and dark themes.
+- **Go CLI** (`cli/`) — interactive and non-interactive wizard, credentials, host requirements, readiness with a machine-readable exit code.
+- **Control-plane state service** (`internal/operatorstate/`) — the single writer for `.vrooli/operator-state.json` and the single evaluator for the configuration resolution order. Onboarding is a client of it, not the owner.
 
-## API Endpoints
+There is no scenario-owned database. Credential values live only in the credential authority.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Health check |
-| GET | `/api/v1/resources` | List all available resources with status and category |
-| GET | `/api/v1/resources/{name}` | Get details for a single resource |
-| GET | `/api/v1/progress` | Get onboarding progress |
-| PUT | `/api/v1/progress` | Save/update onboarding progress |
-| POST | `/api/v1/config/generate` | Generate service.json from selected resources |
-| POST | `/api/v1/config/validate` | Validate config against resource dependencies |
+## Documentation map
 
-## What You Get
-- **Clean UI scaffold**: Vite + Tailwind + shadcn-style primitives, pnpm-based scripts, Vitest + Testing Library pre-configured, `.env.example` for API URL.
-- **Go API skeleton**: `go.mod` + `cmd/server` entrypoint ready for feature modules.
-- **CLI installer**: Installs into `~/.vrooli/bin` by default (prints PATH guidance if needed).
-- **Lifecycle-ready service.json**: ports aligned with the platform, only Postgres required by default, lifecycle steps that build API/UI and start dev servers.
-- **Iframe-ready UI**: Automatically initializes `@vrooli/iframe-bridge` so App Monitor and other hosts can embed the scenario without extra work.
-- **Smart API resolution**: UI uses `@vrooli/api-base` to resolve the correct API + WebSocket URLs across localhost/dev/proxy contexts.
-- **Requirements seed**: `requirements/index.json` + `requirements/modules/foundation.json` show how operational targets trace to technical requirements.
-- **Lifecycle metadata seed**: `.vrooli/service.json`, `endpoints.json`, `testing.json`, and `lighthouse.json` so status/health/testing commands work immediately after copy.
-- **Progress log**: `docs/PROGRESS.md` so improvers track deltas outside PRD.md.
-- **Operator configuration**: onboarding choices are stored atomically in operator state; this scenario has no application database.
+| Read this | For |
+|---|---|
+| [`docs/START-HERE.md`](docs/START-HERE.md) | Orientation |
+| [`docs/QUICKSTART.md`](docs/QUICKSTART.md) | First run in five minutes |
+| [`docs/WIZARD_FLOW.md`](docs/WIZARD_FLOW.md) | The step-by-step implementation contract |
+| [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) | Read models, write authority, tier resolution |
+| [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md) | The step machine, the apply sequence, re-entry |
+| [`docs/concepts/DATA.md`](docs/concepts/DATA.md) | What is owned, what is projected, what is never stored |
+| [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) | The HTTP surface |
+| [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) | The command surface |
+| [`docs/reference/configuration.md`](docs/reference/configuration.md) | Every operator-controllable decision and where it lands |
+| [`experience/`](experience/) | Pages, states, claims, and journeys the UI must satisfy |
+| [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) | What is not true yet |
 
-## Setup Workflow
-```bash
-cd scenarios/<your-scenario>
-
-# Install dependencies (Go 1.22+ + pnpm must be available)
-corepack pnpm install --dir ui --ignore-workspace
-
-# Build API + UI + CLI via lifecycle
-vrooli scenario run <your-scenario> --setup
-
-# Start dev servers (API + Vite)
-make dev   # wraps `vrooli scenario run --dev`
-```
-
-Run tests with `make test` or `test-genie execute --scenario <your-scenario>`.
-
-### UI Smoke Harness
-
-- `vrooli scenario ui-smoke <your-scenario>` launches a browser smoke-test session (BAS/Playwright) against the production UI bundle, waits for `@vrooli/iframe-bridge` to signal readiness, captures a screenshot, HTML snapshot, console logs, and network trace.
-- Artifacts live under `coverage/ui-smoke/` (screenshot, console.json, network.json, dom.html, raw.json) and the latest summary is stored at `coverage/ui-smoke/latest.json`.
-- Structure tests invoke the harness automatically. Disable it temporarily by toggling `structure.ui_smoke.enabled` in `.vrooli/testing.json` or extend the default timeouts via `timeout_ms` / `handshake_timeout_ms`.
-- browser-automation-studio must be running (`browser-automation-studio status --format json`). If it is offline the harness fails early so issues surface before release.
-
-## Required Environment Variables
-The lifecycle exports everything automatically when you run `vrooli scenario run`. If you start pieces manually, set these yourself (there are no fallbacks):
-
-| Variable | Purpose |
-|----------|---------|
-| `API_PORT` | Port assigned to the Go API server |
-| `UI_PORT` | Port assigned to the Vite dev server / production UI |
-| `DATABASE_URL` *or* `POSTGRES_HOST/PORT/USER/PASSWORD/DB` | PostgreSQL connection details |
-| `N8N_BASE_URL` | Base URL for workflow automation calls |
-| `UI_BASE_URL` | Base URL for the Vrooli UI shell / iframe bridge |
-| `API_TOKEN` | Shared secret the CLI/API uses for authentication |
-| `VITE_API_BASE_URL` | UI → API bridge (set to `http://localhost:${API_PORT}/api/v1`) |
-
-> Tip: when running outside the lifecycle, fetch ports with `vrooli scenario port <name> API_PORT` (or `UI_PORT`) and then export `VITE_API_BASE_URL` accordingly:
+## Working on it
 
 ```bash
-API_PORT=$(vrooli scenario port <name> API_PORT)
-UI_PORT=$(vrooli scenario port <name> UI_PORT)
-cd ui && VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run dev -- --host --port "$UI_PORT"
+make start                    # lifecycle-managed API + UI
+make test                     # server-owned suite via test-genie
+make logs                     # tail both processes
+make stop
 ```
 
-## Iframe Bridge + API Base
-- `src/main.tsx` initializes `@vrooli/iframe-bridge` automatically whenever the UI is rendered inside App Monitor or another host.
-- All API calls go through `@vrooli/api-base`, which means the UI works no matter where it’s served (localhost dev server, Cloudflare tunnel, proxied iframe, production ingress). Just keep `VITE_API_BASE_URL` pointed at `http://localhost:${API_PORT}/api/v1` during local work.
+Never run the built binaries directly — that bypasses process naming, port assignment, and health checks.
 
-## CLI Auto-Detection
-- The control plane installs the declared Go CLI into `~/.vrooli/bin` when the scenario starts.
-- The shared onboarding lifecycle state is stored in your user config directory at `~/.config/vrooli/config.json`.
-- Run `vrooli-onboarding configure api_base http://localhost:<API_PORT>/api/v1` (and optionally `vrooli-onboarding configure token <token>`) to point at a remote or non-standard API.
+Contract-changing work has an order:
 
-## Customize Safely
-1. **Update PRD.md + requirements/** first. Operational targets drive code + tests.
-2. **Append progress entries** to `docs/PROGRESS.md` whenever you land work.
-3. **Add resources** in `.vrooli/service.json` only when needed; Postgres is the sole default.
-4. **Keep boundaries**: only edit within `scenarios/<your-scenario>/`.
+1. Document the configurability in [`/docs/configuration/`](../../docs/configuration/).
+2. Add or amend the operational target in [`PRD.md`](PRD.md) and its requirement in [`requirements/`](requirements/).
+3. Add the page, state, or journey claim in [`experience/`](experience/).
+4. Implement, and tag the test with its `[REQ:ID]`.
 
-## pnpm Everywhere
-The template assumes pnpm. If you run another package manager, convert lockfiles yourself before committing. Scripts use `pnpm` directly (no `npm` fallbacks) to reduce drift.
+Statuses and PRD checkboxes are earned by requirement sync from passing evidence. Never set one by hand.
 
-## Need Inspiration?
-Open `scenarios/browser-automation-studio/` to see this template taken to completion.
+## Boundaries
+
+Onboarding does **not**:
+
+- author `service.json` or any manifest;
+- own connector, OAuth, or integration lifecycles (integration-hub does);
+- carry a private host-repair implementation — detection and remediation belong to the control plane, and onboarding orders and reports them;
+- replace `secrets-manager` for credential lifecycle, backup, or keyring repair;
+- store a credential value anywhere, at any point, in any form.

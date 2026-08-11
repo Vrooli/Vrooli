@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,53 +31,18 @@ type Resource struct {
 	Installed bool   `json:"installed"`
 }
 
-// categoryMap maps resource names to human-friendly categories.
-var categoryMap = map[string]string{
-	// Databases & storage
-	"postgres": "database", "redis": "database",
-	"qdrant": "database", "sqlite": "database",
-	"minio": "storage",
-	// AI / ML
-	"ollama": "ai", "claude-code": "ai", "autogpt": "ai", "autogen-studio": "ai",
-	"crewai": "ai", "langchain": "ai", "llamaindex": "ai", "haystack": "ai",
-	"openrouter": "ai", "gemini": "ai", "cline": "ai", "codex": "ai",
-	"opencode": "ai", "whisper": "ai", "kokoro": "ai",
-	"segment-anything": "ai", "ultralytics-yolo": "ai", "nsfw-detector": "ai",
-	"unstructured-io": "ai", "agent-s2": "ai",
-	// IoT / hardware
-	"zigbee2mqtt": "iot", "home-assistant": "iot", "esphome": "iot",
-	"eclipse-ditto": "iot", "traccar": "iot",
-	// Engineering / simulation
-	"freecad": "engineering", "blender": "engineering", "kicad": "engineering",
-	"gazebo": "engineering", "elmer-fem": "engineering", "su2": "engineering",
-	"godot": "engineering", "simpy": "engineering",
-	// DevOps / infrastructure
-	"earthly": "devops", "k6": "devops",
-	"n8n": "devops", "kafka": "devops",
-	// Media
-	"ffmpeg": "media",
-	// Security
-	"vault": "security", "step-ca": "security", "keycloak": "security",
-	"virustotal": "security",
-	// Communication
-	"pushover": "communication", "twilio": "communication",
-	// Data / analytics
-	"airbyte": "data", "apache-superset": "data", "geonode": "data",
-	// Business / enterprise
-	"erpnext": "business", "btcpay": "business", "geth": "business",
-	// Content / collaboration
-	"nextcloud": "collaboration", "wikijs": "collaboration",
-	// Search
-	"searxng": "search",
-	// Agriculture
-	"farmos": "agriculture",
-	// Networking
-	"mcrcon": "networking",
-}
-
 func categorize(name string) string {
-	if cat, ok := categoryMap[name]; ok {
-		return cat
+	root, err := manifestRoot()
+	if err == nil {
+		data, readErr := os.ReadFile(filepath.Join(root, "resources", name, "resource.json"))
+		if readErr == nil {
+			var manifest struct {
+				Category string `json:"category"`
+			}
+			if json.Unmarshal(data, &manifest) == nil && strings.TrimSpace(manifest.Category) != "" {
+				return strings.TrimSpace(manifest.Category)
+			}
+		}
 	}
 	return "general"
 }
@@ -138,7 +106,7 @@ func (s *Server) handleListResources(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"resources": resources,
 		"count":     len(resources),
-		"loaded_at": time.Now().UTC().Format(time.RFC3339),
+		"loaded_at": operatorStateNow().UTC().Format(time.RFC3339),
 	})
 }
 

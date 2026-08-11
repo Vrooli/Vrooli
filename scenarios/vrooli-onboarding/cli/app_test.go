@@ -48,3 +48,15 @@ func TestMetadata(t *testing.T) {
 		t.Fatal("appVersion must not be empty")
 	}
 }
+
+func TestRunMain(t *testing.T) {
+	if err := runMain([]string{"--version"}); err != nil {
+		t.Fatalf("runMain() error: %v", err)
+	}
+	if code := runExitCode([]string{"--version"}); code != 0 {
+		t.Fatalf("runExitCode() = %d", code)
+	}
+	if code := runExitCode([]string{"unknown-command"}); code == 0 {
+		t.Fatal("unknown command should return a non-zero exit code")
+	}
+}

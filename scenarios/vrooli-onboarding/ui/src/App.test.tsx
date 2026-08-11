@@ -76,6 +76,13 @@ describe("App - View Navigation", () => {
     expect(screen.getByTestId("wizard-shell")).toBeInTheDocument();
   });
 
+  it("opens the health dashboard on its shareable route", () => {
+    window.history.pushState({}, "", "/health-dashboard");
+    renderApp();
+    expect(screen.getByTestId("health-dashboard")).toBeInTheDocument();
+    window.history.pushState({}, "", "/");
+  });
+
   it("shows keyboard shortcut hints on nav tabs", () => {
     renderApp();
     const nav = screen.getByTestId("app-nav");
