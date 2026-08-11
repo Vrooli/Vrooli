@@ -83,6 +83,34 @@ migration, capability correspondence, maintainability, and consumer evidence.
 Do not infer one from the other. A resource can be M5 for a Linux server-only
 contract while correctly reporting `unsupported` for native Windows desktop.
 
+## Declared Inputs and Derived Verdicts
+
+The manifest boundary is deliberately one-way: owners declare facts, and the
+deployability resolver computes conclusions from those facts. A computed value
+must not be copied back into a manifest as if it were an authored claim.
+
+| Manifest surface | Declared input | Derived verdict/evidence |
+|---|---|---|
+| `resource.json` | `driver`, `platforms`, `bundling`, `privilege`, `requirements`, `deployment.profiles` | Per-resource deployability, supply eligibility, platform gaps, and provenance digest |
+| `tool.json` / `safeguard.json` | `platforms`, `bundling`, capability and capability role, acquisition/handler data | Capability peer resolution and host admission verdict |
+| `service.json` | dependencies, tier requirements, adaptations, secrets, artifacts, overrides | Tier/OS verdict, aggregate requirements, ordered reasons, and stale status |
+| operator state | trusted-base and core-seed grants | Closure validation and trusted-base membership |
+| native gate evidence | observed machine, OS, target, run result | Verified cross-OS evidence; never an input to the manifest |
+
+`portability_tier`, tier `status`, tier `fitness_score`, tier `constraints`,
+`aggregate_requirements`, analyzer identity, and analysis timestamps are
+derived outputs. They are not resource or scenario manifest fields. Persisted
+reports carry analyzer identity, computation time, and an input digest so a
+consumer can distinguish a current prediction from stale evidence.
+
+The capability ledger is a generated readout, never an authored manifest. Run
+`vrooli capability ledger --json` to derive per-OS implementation, mechanism,
+and peerless status from the checked-in tool and safeguard manifests. The
+related `vrooli capability fleet` queries derive scenario blockers, Docker
+requirements, peerless capability use, tier-upgrade candidates, and the
+desktop-bundling verdict from the same resolver inputs. Do not copy those
+results into `service.json`, resource manifests, or a prose table.
+
 ## Native Artifact Principle
 
 Go is a build-time tool, not a required dependency of a deployed resource.

@@ -16,7 +16,6 @@
   ],
   "integration_kind": "desktop-app",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The capability likely depends on Python and UI packaging choices, so future support should be explicit about install and runtime assumptions.",
     "linux": "partial",
     "macos": "partial",

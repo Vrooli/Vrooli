@@ -180,7 +180,6 @@
       "additionalProperties": false,
       "required": [
         "rung",
-        "path",
         "kind"
       ],
       "properties": {
@@ -193,6 +192,8 @@
           ]
         },
         "path": {
+          "deprecated": true,
+          "description": "Legacy explicit location. Prefer class plus subpath so api-core/storage remains the only path authority.",
           "oneOf": [
             {
               "type": "string",
@@ -256,6 +257,11 @@
             "logs",
             "state"
           ]
+        },
+        "subpath": {
+          "type": "string",
+          "pattern": "^(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.)(?:/(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.))*$",
+          "description": "Optional path below the resolver-selected class root. Must be relative and traversal-safe."
         },
         "regenerable": {
           "type": "boolean"
@@ -347,6 +353,12 @@
         }
       },
       "allOf": [
+        {
+          "anyOf": [
+            { "required": ["class"] },
+            { "required": ["path"] }
+          ]
+        },
         {
           "if": {
             "properties": {

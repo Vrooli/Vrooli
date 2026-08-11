@@ -79,21 +79,12 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "portability_tier",
         "notes",
         "linux",
         "macos",
         "windows"
       ],
       "properties": {
-        "portability_tier": {
-          "type": "string",
-          "enum": [
-            "full",
-            "partial",
-            "platform-specific"
-          ]
-        },
         "notes": {
           "type": "string",
           "minLength": 1

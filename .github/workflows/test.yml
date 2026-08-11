@@ -11,6 +11,61 @@ permissions:
   contents: read
 
 jobs:
+  clean-shared-package-provisioning:
+    name: Clean shared-package provisioning
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Setup Node and pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@10.14.0 --activate
+
+      - name: Run setup with no pre-existing package output
+        run: |
+          test ! -e packages/iframe-bridge/dist
+          test ! -e packages/api-base/dist
+          test ! -e packages/audio-capture-browser/dist
+          test ! -e packages/vitest-requirement-reporter/dist
+          make setup SETUP_ARGS="--environment development --resources none --scenarios none --yes"
+
+      - name: Build test-genie from a clean shared-package state
+        run: go run ./cmd/vrooli --no-stale-check scenario setup test-genie
+
+      - name: Prove disabled provisioning fails with an actionable package error
+        shell: bash
+        run: |
+          set +e
+          VROOLI_DISABLE_SHARED_PACKAGE_PROVISIONING=1 \
+            go run ./cmd/vrooli --no-stale-check scenario setup test-genie 2>&1 | tee /tmp/shared-package-provisioning-disabled.log
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -F '@vrooli/iframe-bridge' /tmp/shared-package-provisioning-disabled.log
+          grep -F 'pnpm build' /tmp/shared-package-provisioning-disabled.log
+          if grep -F 'TS2307' /tmp/shared-package-provisioning-disabled.log; then
+            echo 'disabled provisioning reached TypeScript module resolution instead of the control-plane diagnostic' >&2
+            exit 1
+          fi
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20

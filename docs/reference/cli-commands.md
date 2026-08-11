@@ -193,17 +193,17 @@ Common commands:
 vrooli package list
 vrooli package info <name>
 vrooli package dependents <name>
-vrooli package validate
 vrooli package build <name>
 vrooli package generate <name>
 vrooli package refresh <name>
-vrooli package audit
 ```
 
-`vrooli package audit --all --json` includes `audit.scan_stats`, which reports
-bounded docs-drift scan counts, skipped categories, bytes scanned, and whether a
-text-scan budget was exceeded. Runtime data and generated output skips are
-normal for live development trees.
+Structural validation is provided by Structure Health:
+
+```bash
+structure-health rules list --json
+structure-health rules coverage
+```
 
 ## Repo Contract
 

@@ -2,6 +2,8 @@
 
 > **Owner:** `director-swarm` (drift detection via `vision-walk-prep` + `vision-update` decision context). **Author:** operator-directed; the integrating *framing* is concept canon (operator-curated), while the links it threads track living subsystems and may be extended by agents subject to operator review. Agents may always flag drift.
 >
+> **Objectives served:** `I1` (capability compounding), `I2` (coherence), `I3` (enablement) — declared in [`OBJECTIVES.md`](../director-swarm/strategy/OBJECTIVES.md), joined live by `prompt-manager graph objectives`. This doc is the narrative face of the instrumental objectives; the table is the declaration. It uses objective ids rather than a local goal vocabulary, because `goal` is a reserved swarm-manager work type (`goals`, `milestones`, `backlog items`).
+>
 > This doc is the **spine** of Vrooli's self-improvement story. Its siblings: [`VISION.md`](../../VISION.md) is the *why* (the recursive-intelligence thesis); [`ARCHITECTURE.md`](./ARCHITECTURE.md) is the technical *how* (control plane, resources, layers); [`ECOSYSTEM.md`](./ECOSYSTEM.md) is how a single scenario fits the whole. This doc is the *loop that ties them together*: how Vrooli improves its own ability to improve.
 
 ## Why this document exists
@@ -26,17 +28,20 @@ The closing edge is the whole point: every improvement doesn't just raise a numb
 
 This is the same flywheel `ECOSYSTEM.md` draws over *capabilities* (resource → scenario work → capability → raises the multiplier), observed one level up: here the "capability" being compounded is **the engineering process itself**.
 
-## 2. The three projections — the coordinate system
+## 2. The four projections — the coordinate system
 
-Software engineering, done by a (local) agent, is **understand → change → verify**, with know-how guiding the whole way. The project's *readiness* for that work decomposes into three measurable **projections**, each owned by the scenario that holds its ground truth:
+Software engineering, done by a (local) agent, is **understand → change → verify**, with know-how guiding the whole way. The project's *readiness* for that work decomposes into four measurable **projections**, each owned by the scenario that holds its ground truth:
 
 | Projection | The question it answers | Owner | Engineering step |
 |---|---|---|---|
 | **Answer** | Can the project be *understood* — are architectural questions answerable? | [`search-hub`](../../scenarios/search-hub/docs/spaces/answer-space.md) | understand |
 | **Validate** | Can a change be *verified* and auto-fixed? | [`test-genie`](../../scenarios/test-genie/docs/spaces/validate-space.md) | verify |
 | **Guide** | Is there a *skill* to guide each engineering task? | [`prompt-manager`](../../scenarios/prompt-manager/docs/spaces/guide-space.md) | the know-how, throughout |
+| **Act** | Can an agent programmatically *invoke* each operation? | [`program-runtime`](../../scenarios/program-runtime/docs/spaces/act-space.md) | change (the effect surface, not the synthesis) |
 
-**Why exactly these three — and why the set is complete.** Of the four parts of engineering, three are *externalizable into the project itself*: understanding becomes a queryable Answer, verification becomes an automatic Validate, know-how becomes a reusable Guide. The fourth — **the *change* itself, the code synthesis** — is the model's own residual job. It is deliberately *not* a projection ([`COVERAGE-MODEL.md`](../../scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md)). That single omission is the load-bearing insight of the whole framework: the three projections are the **scaffolding that shrinks the irreducible intelligence** the synthesis step demands. Map the project well enough along all three, and "change" becomes a small, well-supported step that even a weak local model can take. (Coverage is a map; actual readiness is proven *empirically* by the manager's `trials` domain, not declared from the map.)
+**Why these four, and where the boundary sits.** Answer, Validate, and Guide externalize the *inputs* to engineering: understanding becomes a queryable Answer, verification becomes an automatic Validate, know-how becomes a reusable Guide. The **synthesis itself — deciding what to change — stays the model's residual job**, and no projection removes it. That boundary is the load-bearing insight of the framework: the input projections are the **scaffolding that shrinks the irreducible intelligence** synthesis demands.
+
+**Act measures the other side of that boundary.** It does not externalize synthesis. It measures whether the conclusion can be *expressed symbolically* — whether each operation the model wants to perform resolves to a governed, typed, programmatically invocable call instead of prose the agent must improvise around. Answer, Validate, and Guide raise the quality of what the model reasons over; Act raises the fidelity of what it can do with the conclusion. Map the project well along all four, and "change" becomes a small, well-supported step that even a weak local model can take — and one it expresses as a checkable program rather than a sequence of guesses. The formal contract is in [`COVERAGE-MODEL.md`](../../scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md). (Coverage is a map; actual readiness is proven *empirically* by the manager's `trials` domain, not declared from the map. A map also says nothing about whether the roads it draws are still open — that is the **Condition** axis, §6.)
 
 Each projection is measured against a **denominator** — the curated *intended* space (the owner's `*-space.md` doc, the "search space" of everything that projection should eventually cover) — joined live against the owner's registry to get the **numerator**. Crucially, the honesty is **recursive**: every coverage number is reported as "X% complete *against a Y-confidence denominator*," so the system can never imply false completeness. The formal denominator/numerator/confidence/attestation contract lives in [`COVERAGE-MODEL.md`](../../scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md); this doc only needs you to hold the intuition.
 
@@ -44,7 +49,7 @@ Each projection is measured against a **denominator** — the curated *intended*
 
 ## 3. The maturation gradient — the engine
 
-The three projections are not parallel, independent dials. They are a **gradient** a capability climbs as it matures, and that climb *is* the engine of self-improvement:
+Answer, Validate, and Guide are not parallel, independent dials. They are a **gradient** a capability climbs as it matures, and that climb *is* the engine of self-improvement. Act does not sit on this gradient — it is the effect surface, not a maturing form of the same knowledge — which is why §2 treats it as the other side of the synthesis boundary rather than a fourth rung:
 
 ```mermaid
 graph LR
@@ -55,22 +60,23 @@ graph LR
 
 A concern is **born as prose** (a Guide skill: "here's how to think about dependency hygiene"). As the workflow stabilizes, the prose compresses into deterministic structure — a `test-genie` phase backed by a scenario and a maturity ladder (Validate). Once a scenario *computes* a fact in order to check it, that same fact becomes derived-answerable: it registers a provider and joins the Answer space. The mature end-state is "present in all three modes, with the Guide collapsed to a thin **pointer** because Validate + Answer now carry it."
 
-This is exactly **Goal 1 — maximize the share of engineering that is programmatic** — in motion: judgment (prose, LLM-required) migrating into deterministic code (CLI, phase, provider). The machinery that drives each step is already canon:
+This is exactly `I1` (**capability compounding**) in motion: judgment (prose, LLM-required) migrating into deterministic code (CLI, phase, provider), so each capability makes later work cheaper. The machinery that drives each step is already canon:
 
 - [`PROMOTION_LADDER.md`](../agent-system/PROMOTION_LADDER.md) — *"stability unlocks compression"*: how a prose skill graduates into a CLI contract, then an Action, then retires. The per-skill version of the gradient.
 - [`TEMPLATE_CONVERGENCE_LOOP.md`](../agent-system/TEMPLATE_CONVERGENCE_LOOP.md) — *"improve the gene, not the organism"*: the same compounding applied to portfolio-wide architecture (improve the template once, mechanize convergence so every scenario climbs without re-deciding).
 
 A graduated pointer-skill is the **success state, not a Guide gap** — measuring readiness per-concern as a *trajectory* up this gradient (rather than three independent buckets) is what keeps the model honest about what's truly mature.
 
-## 4. Why it compounds — the recursion and the two goals
+## 4. Why it compounds — the recursion
 
-Goal 1 (above) makes engineering programmatic. **Goal 2 — minimize the intelligence required to engineer (run local models; cost-optimize)** — is its payoff, and the two are the same motion seen from cost vs. capability:
+`I1` has two readings, and they are the same motion seen from capability and from cost: **more of engineering becomes programmatic**, and therefore **less intelligence is required to engineer it** (run local models; cost-optimize). The second follows from the first:
 
 - When **understanding is pre-derived** (a rich Answer space), the model doesn't have to reason out the architecture from scratch.
 - When **verification is automatic and auto-fixing** (a reliable Validate space), the model doesn't have to be trusted to get it right the first time — the loop catches and repairs regressions.
 - When **the next step is pre-named** (a complete Guide space), the model doesn't have to invent the approach.
+- When **the effect surface is typed and governed** (a broad Act space), the model doesn't have to improvise how to invoke an operation, and a malformed call fails before it runs rather than after.
 
-What's left for the model is the small residual **change** step — and a small, well-scaffolded step is something a *cheap, local* model can do. So every gain along the gradient does two things at once:
+What's left for the model is the small residual **change** step — and where Act coverage is high, it expresses that step as a program over typed calls rather than as improvised prose. A small, well-scaffolded step in a checkable form is something a *cheap, local* model can do. So every gain along the gradient does two things at once:
 
 1. It **raises a projection's coverage** (more of the project is answerable / verifiable / guided).
 2. It **lowers the intelligence and cost of the next gain** — because the system can now answer, verify, and guide more of *its own* development.
@@ -95,7 +101,7 @@ The loop above is the slowest, most reflective of several nested loops — and i
 
 **Fast platform loops.** Beneath the swarms, four platform loops keep individual services alive minute-to-minute: commissioning (`vrooli setup`, host tools), the capacity broker, autoheal, and system-monitor. Each absorbs what it can at its own timescale and escalates only what the inner loops repeatedly fail to catch. The layered map — timescales, ownership, escalation rules — is [`OPERATING_MODEL.md` § Platform Under Control](../infra-health/operating/OPERATING_MODEL.md); this doc does not restate it.
 
-**Two peer slow loops.** Above the fast loops sit two slow loops that do not direct each other:
+**Two peer slow loops.** Above the fast loops sit two slow loops that do not direct each other. Both declare `I2` (coherence):
 
 - **infra-health** keeps the substrate's *aggregate* reliability in band — repeat failures, heal-loops, reliability-target drift, cross-platform debt ([`docs/infra-health/`](../infra-health/README.md)).
 - **meta-optimization** improves the *engineering process* — skills, agents, teams, and the toolchain (§5 above).
@@ -116,6 +122,8 @@ The loop is fed by friction and emits structured improvement:
 
 - **In** — friction enters through a universal inbox (report-friction, audit findings, run lessons), routed by the inbox-router-drain pattern in [`INTAKE_PIPELINE.md`](../agent-system/INTAKE_PIPELINE.md).
 - **Out** — improvements land as operator-approved decisions and as new artifacts that climb the gradient: a new skill (Guide), a new test phase or auto-fix (Validate), a new derived provider (Answer), or a template change that converges the whole portfolio (`TEMPLATE_CONVERGENCE_LOOP.md`).
+
+**Friction is not the only input, because it only reports what hurts.** A capability that is built, passing every gate, and quietly degrading — or that nothing calls at all — generates no friction, and so this loop never hears about it. That is the **Condition** axis: whether the supply the projections count is still working. It is measured per contributor leg along three families — does the leg answer, is what it serves current, and is anyone calling it — and its honesty rule is that an uninstrumented leg is never reported as healthy. The formal model is [`CONDITION-MODEL.md`](../../scenarios/meta-optimization-manager/docs/concepts/CONDITION-MODEL.md); this doc only needs you to hold the intuition that **coverage growth without condition measurement compounds unverified claims rather than capability.**
 
 Where each lives — truth vs. judgment vs. execution vs. raw learning — is governed by [`LAYERS.md`](../agent-system/LAYERS.md).
 

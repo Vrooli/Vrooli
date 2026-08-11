@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"resource-reranker/cli/internal/client"
 	"strings"
 	"testing"
+
+	"resource-reranker/cli/internal/client"
 )
 
 type fakeClient struct {

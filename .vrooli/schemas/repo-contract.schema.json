@@ -93,7 +93,13 @@
         "package_dir": { "$ref": "#/definitions/slashPath" },
         "command_dir": { "$ref": "#/definitions/slashPath" },
         "internal_dir": { "$ref": "#/definitions/slashPath" },
-        "docs_dir": { "$ref": "#/definitions/slashPath" }
+        "docs_dir": { "$ref": "#/definitions/slashPath" },
+        "project_config_allowlist": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/slashPath" },
+          "description": "Explicitly approved entries in the repository .vrooli project-config directory."
+        }
       },
       "additionalProperties": false
     },
@@ -173,7 +179,7 @@
         },
         "well_known_paths": {
           "type": "object",
-          "required": ["service", "docs", "docs_manifest", "requirements", "api", "ui", "cli", "cli_manifest", "initialization"],
+          "required": ["service", "docs", "docs_manifest", "requirements", "api", "ui", "cli", "cli_manifest"],
           "properties": {
             "service": { "$ref": "#/definitions/slashPath" },
             "orientation": { "$ref": "#/definitions/slashPath" },
@@ -183,8 +189,7 @@
             "api": { "$ref": "#/definitions/slashPath" },
             "ui": { "$ref": "#/definitions/slashPath" },
             "cli": { "$ref": "#/definitions/slashPath" },
-            "cli_manifest": { "$ref": "#/definitions/slashPath" },
-            "initialization": { "$ref": "#/definitions/slashPath" }
+            "cli_manifest": { "$ref": "#/definitions/slashPath" }
           },
           "additionalProperties": false
         }
@@ -198,10 +203,9 @@
         "manifest": { "$ref": "#/definitions/slashPath" },
         "well_known_paths": {
           "type": "object",
-          "required": ["docs", "initialization"],
+          "required": ["docs"],
           "properties": {
-            "docs": { "$ref": "#/definitions/slashPath" },
-            "initialization": { "$ref": "#/definitions/slashPath" }
+            "docs": { "$ref": "#/definitions/slashPath" }
           },
           "additionalProperties": false
         }
@@ -289,13 +293,13 @@
     "slashPath": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$",
+      "pattern": "^(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.)(?:/(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.))*$",
       "description": "Slash-normalized repository-relative path"
     },
     "slashGlob": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$",
+      "pattern": "^(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.)(?:/(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.))*$",
       "description": "Slash-normalized repository-relative glob"
     },
     "envVarName": {

@@ -71,20 +71,14 @@ The current shared-package baseline is:
 
 Shared packages should consume only the contract slices that are relevant to their own domain. They should not become generic pass-through wrappers for the full contract surface.
 
-## Canonical Rules
+## Structural Validation
 
-The current contract defines:
-
-- repo root markers: `.vrooli`, `templates`, `scenarios`, `resources`, `packages`, `cmd`, `internal`, and `go.mod`
-- canonical top-level layout under `.vrooli/`, `templates/`, `scenarios/`, `resources/`, `packages/`, `cmd/`, `internal/`, and `docs/`
-- canonical scenario manifest path: `scenarios/<name>/.vrooli/service.json`
-- optional temporary template-manager orientation metadata:
-  `scenarios/<name>/.vrooli/orientation.json`
-- canonical resource manifest path: `resources/<name>/resource.json`
-- repo-aware glob semantics: `doublestar`, root-relative, slash-normalized, case-sensitive, absolute paths rejected
-- structural environment variables: `VROOLI_ROOT`, `VROOLI_SOURCE_ROOT`, `VROOLI_SANDBOX_ID`, `VROOLI_SANDBOX_MERGED`, `VROOLI_SANDBOX_SCOPE`
-- sandbox full-repo scopes: `""`, `"."`, `"/"`
-- named repo-aware profile: `mini_vrooli_bundle`
+The JSON contract remains the machine-readable model. Structure Health is the
+single executable authority for repository findings and publishes the generated
+[rule catalog](../scenarios/structure-health/docs/reference/structure-rules.md)
+and [coverage matrix](../scenarios/structure-health/docs/reference/structure-rule-coverage.md).
+This page is a compatibility pointer for the contract model and migration
+history; it is not a second prose enforcement catalog.
 
 ## Allowed `.vrooli/` Surface
 
@@ -143,7 +137,7 @@ There are **two distinct `.vrooli` directories** and they must never be conflate
 
 **Drift guard.** The `no_runtime_home_literals` check (`vrooli contract validate` / `make hygiene`) fails CI if `cmd/`, `internal/`, or `packages/` code joins a home-derived value with `".vrooli"` (or embeds a `"~/.vrooli/…"` literal) instead of going through the authority. A line that genuinely means the **repo-project** `.vrooli` can opt out with a trailing `// repo-contract:project-config` comment. `packages/repo-contract-go/**` and `internal/repocontractmeta/**` are exempt (they define the authority).
 
-**Structure ownership.** `structure-health` is the structural authority for all nine repository target kinds: scenarios, resources, tools, safeguards, packages, control-plane roots, docs, teams, and the project itself. `vrooli hygiene --contract-only` and `vrooli contract validate` use its shared validation provider, while its fleet endpoint provides typed cross-kind rollups. CI starts the scenario through the lifecycle manager and runs the contract gate with error findings failing the job.
+**Structure ownership.** `structure-health` is the `claim:project.contract` structural authority for all nine repository target kinds: scenarios, resources, tools, safeguards, packages, control-plane roots, docs, teams, and the project itself. `vrooli hygiene --contract-only` and `vrooli contract validate` use its shared validation provider, while its fleet endpoint provides typed cross-kind rollups. CI starts the scenario through the lifecycle manager and runs the contract gate with error findings failing the job.
 
 ## Compatibility Policy
 

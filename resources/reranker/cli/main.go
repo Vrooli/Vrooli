@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"resource-reranker/cli/internal/gateway"
 
 	"github.com/vrooli/cli-core/cliapp"

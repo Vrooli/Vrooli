@@ -20,7 +20,7 @@ For the long-term philosophical thesis (recursive intelligence, evolution timeli
 
 - [QUICKSTART.md](QUICKSTART.md) for the first-touch setup and command flow
 - [concepts/ARCHITECTURE.md](concepts/ARCHITECTURE.md) for the current platform mental model
-- [concepts/RECURSIVE_SELF_IMPROVEMENT.md](concepts/RECURSIVE_SELF_IMPROVEMENT.md) for the self-improvement loop and the three projections (Answer/Validate/Guide)
+- [concepts/RECURSIVE_SELF_IMPROVEMENT.md](concepts/RECURSIVE_SELF_IMPROVEMENT.md) for the self-improvement loop and the four projections (Answer/Validate/Guide/Act)
 - [concepts/GLOSSARY.md](concepts/GLOSSARY.md) for shared vocabulary
 - [reference/cli-commands.md](reference/cli-commands.md) for the current CLI surface
 - [reference/health-maturity-assessments.md](reference/health-maturity-assessments.md) for provider-owned health maturity reports and the human-output-first contract

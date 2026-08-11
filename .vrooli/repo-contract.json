@@ -1,6 +1,6 @@
 {
   "$schema": "schemas/repo-contract.schema.json",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "platform": {
     "mode": "cross_platform_go_native",
     "legacy_project_bash_supported": false
@@ -29,7 +29,18 @@
     "package_dir": "packages",
     "command_dir": "cmd",
     "internal_dir": "internal",
-    "docs_dir": "docs"
+    "docs_dir": "docs",
+    "project_config_allowlist": [
+      "build",
+      "agent-manager",
+      "dependencies",
+      "capability-vocabulary.json",
+      "operator-state.json",
+      "repo-contract.json",
+      "resources",
+      "schemas",
+      "service.json"
+    ]
   },
   "targets": {
     "kinds": {
@@ -40,7 +51,8 @@
       "team": { "roots": ["docs/*"], "marker": "manifest.json" },
       "package": { "roots": ["packages/*"] },
       "control-plane": { "roots": ["cmd", "internal"], "exclude": ["internal/tools/*", "internal/safeguards/*"] },
-      "docs": { "roots": ["docs"], "exclude": ["docs/*/manifest.json"] }
+      "docs": { "roots": ["docs"], "exclude": ["docs/*/manifest.json"] },
+      "project": { "roots": ["."], "marker": ".vrooli/repo-contract.json" }
     }
   },
   "runtime_home": {
@@ -79,15 +91,13 @@
       "api": "api",
       "ui": "ui",
       "cli": "cli",
-      "cli_manifest": "cli/manifest.json",
-      "initialization": "initialization"
+      "cli_manifest": "cli/manifest.json"
     }
   },
   "resource": {
     "manifest": "resource.json",
     "well_known_paths": {
-      "docs": "docs",
-      "initialization": "initialization"
+      "docs": "docs"
     }
   },
   "globs": {
@@ -147,9 +157,7 @@
         "**/data/**",
         ".vrooli/secrets.json",
         "**/.vrooli/secrets.json",
-        "cli/**",
-        "scripts/lib/**",
-        "scripts/manage.sh"
+        "cli/**"
       ]
     }
   }

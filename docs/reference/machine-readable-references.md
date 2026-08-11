@@ -58,6 +58,7 @@ The marker and qualifier are metadata. They are not part of the literal value. F
 | `route` | HTTP, API, or UI route path. |
 | `package` | Package, module, or import path. |
 | `literal` | A string that looks machine-readable but should not be semantically validated. |
+| `claim` | A documentation enforcement claim that must resolve to a Structure Health catalog claim. |
 | `num` | An intentional, owner-backed number in prose that the derived-count lint should not flag. Carries a category (see below): `num[target]:1000`. |
 
 ### CLI references

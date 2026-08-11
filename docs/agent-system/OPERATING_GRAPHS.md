@@ -50,6 +50,51 @@ Belongs elsewhere:
 - detailed technique procedure: paired skills and domain PoR spokes;
 - one-off implementation tasks: Swarm Manager backlog, plans, or work items.
 
+## Heartbeat Prompt Contract
+
+Heartbeat prompts use a strict volatility gradient:
+
+```text
+universal → team → member → volatile → task
+```
+
+The gradient is an ordering contract, not a suggestion. Universal rules,
+team policy, member declarations, and member files form the stable reference
+pack. Inbox state, Source Ledger wakes, continuity fallback, and validation
+findings are run-volatile and therefore come later. If scope and volatility
+conflict, volatility wins: moving a changing value above stable material moves
+the first differing byte upward and reduces provider prefix-cache reuse.
+
+Reference material is wrapped in one `<context>` element. Each prompt section
+is a named child with an optional `source` attribute, including elements such
+as `<standing-rules>`, `<operating-policy-team>`,
+`<operating-policy-member>`, `<storage-map>`, `<topic-contract>`,
+`<responsibilities>`, `<agent-files>`, `<team-context-wake>`, and
+`<contract-findings>`. The generated `<heartbeat-task>` content follows the
+closing `</context>` tag as prose. This boundary makes the material to consult
+distinct from the job to execute and avoids treating headings inside quoted
+content as prompt structure.
+
+Continuity is ledger-primary. A healthy Source Ledger means the prompt emits
+no handoff instruction. The conditional `<continuity-fallback>` element is
+emitted only when no Source Ledger is configured or when the wake read fails;
+it stays bounded and asks for concise final-response continuity so an operator
+can recover the run. Declared-topic writes are confirmed from
+`X-Vrooli-Attribution` receipts rather than from the run's self-report.
+
+These decisions should be revisited when one of the following becomes true:
+
+- measured prompt traffic shows a different volatility boundary produces more
+  reusable prefix bytes without weakening correctness;
+- a new reference section is both large and volatile, or a task instruction
+  must be consulted as reference material rather than executed;
+- XML child elements stop being preserved or distinguishable by a supported
+  provider, or structured prompt consumers require a different identity
+  contract;
+- Source Ledger availability or attribution receipts become reliably worse
+  than the bounded fallback, or a durable continuity surface replaces the
+  ledger.
+
 ## Validate, Diff, and Coverage
 
 Operating model tooling has three related jobs:

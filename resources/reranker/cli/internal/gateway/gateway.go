@@ -13,8 +13,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"resource-reranker/cli/internal/client"
 	"strings"
+
+	"resource-reranker/cli/internal/client"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

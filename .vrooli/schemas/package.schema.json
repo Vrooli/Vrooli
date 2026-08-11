@@ -110,6 +110,16 @@
           },
           "additionalProperties": false
         },
+        "module_boundary": {
+          "type": "object",
+          "description": "Explicit temporary ownership record for a Go package that remains covered by the repository module.",
+          "required": ["status", "reason"],
+          "properties": {
+            "status": { "const": "intentional_exception" },
+            "reason": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
         "refresh": {
           "type": "object",
           "required": ["strategy", "restart_running_consumers"],
@@ -176,6 +186,11 @@
             "type": "array",
             "minItems": 1,
             "items": { "type": "string" }
+          },
+          "outputs": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
           }
         },
         "additionalProperties": false

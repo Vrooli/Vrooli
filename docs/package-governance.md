@@ -1,212 +1,50 @@
 # Package Governance
 
-Vrooli scenarios stay intentionally independent. They do not join the root pnpm workspace, and shared packages are only supported through explicit, manifest-driven adoption rules.
+Structure Health is the `claim:package.manifest` sole authority for package structural validation. Its
+generated catalog and coverage matrix define package manifests, module roots,
+private-import boundaries, and local Go replace requirements:
 
-## Rules
+- [Structure Health rule catalog](../scenarios/structure-health/docs/reference/structure-rules.md)
+- [Structure Health coverage matrix](../scenarios/structure-health/docs/reference/structure-rule-coverage.md)
 
-- Every package root under `packages/` must declare [`packages/<name>/.vrooli/package.json`](../packages/api-base/.vrooli/package.json).
-- `vrooli package ...` is the canonical operator surface for package discovery, validation, build/generate, refresh, and audit.
-- `scenario-dependency-analyzer` exposes scenario-scoped dependency and Go module enforcement through dependency health and the shared scenario-validation provider path.
-- Real scenarios must not use workspace-star dependencies for shared package adoption.
-- Shared package propagation must not rely on scenario-local `postinstall` copy/symlink hacks.
-- Only packages marked `scenario_adoptable` may be consumed by governed external consumers such as scenarios, templates, or resources.
-- Leaf shared Go packages must not take on new local governed package dependencies unless that coupling is explicitly allowed by policy.
+This document owns only package registry and lifecycle operations. The control
+plane keeps these read/build/generate/test/refresh verbs because they operate on
+the package registry; it does not emit a competing structural verdict.
 
-## Supported Adoption Modes
-
-- `file_dependency`
-  - For isolated JS/TS consumers using relative `file:` dependencies.
-- `go_module_replace`
-  - For isolated Go consumers using local `replace` directives.
-- `generated_artifact`
-  - For generated outputs governed by a source package such as `packages/proto`, even when the consumer references the generated artifact through an isolated local dependency path.
-
-## Common Commands
+## Lifecycle
 
 ```bash
 vrooli package list
-vrooli package info api-base
-vrooli package dependents iframe-bridge
-vrooli package validate --all
-vrooli package refresh api-base all
-vrooli package audit --all
+vrooli package info <name>
+vrooli package dependents <name>
+vrooli package build <name>
+vrooli package generate <name>
+vrooli package test <name>
+vrooli package refresh <name> all
 ```
 
-`package audit` is bounded so it can run routinely on a live development tree.
-The docs-drift portion only scans allowlisted text/config/code extensions and
-reports scanner accounting in JSON:
+Dependency changes and local Go-module reconciliation go through Scenario
+Dependency Analyzer:
 
 ```bash
-vrooli package audit --all --json | jq '.audit.scan_stats'
-```
-
-Runtime and generated-output paths are expected skips, not degraded results.
-The audit intentionally ignores scenario `data/` directories, package-manager
-trees, build outputs, Electron `dist-electron/` artifacts, archives, binaries,
-SQLite databases, WAL/SHM files, generated proto outputs, lockfiles, and similar
-non-source artifacts before opening files for content scanning. Eligible text
-files are scanned under per-file and total byte budgets; if a budget is hit,
-`scan_stats.budget_exceeded` is set so automation can distinguish a clean bounded
-scan from an incomplete text scan.
-
-### Package-local JavaScript test lifecycles
-
-Standalone JavaScript/TypeScript packages own their test toolchain. The package
-root must contain its own `package.json`, lockfile, and package-local executable
-used by the governed lifecycle; lifecycle commands must not alias into a
-scenario's `node_modules` tree or contain a developer-specific absolute path.
-
-For a package that needs a standalone pnpm boundary, add a package-local
-`pnpm-workspace.yaml` containing `packages: - .`. Install every third-party
-dependency through SDA, targeting the package's governed surface, and keep
-test-only tools in `devDependencies`:
-
-```bash
-scenario-dependency-analyzer deps install npm/vitest@<reviewed-version> \
-  --scenario <scenario-steward> --surface tools/<package> --apply
-vrooli package test <package>
-```
-
-The `tools/<package>` surface may be a temporary steward-owned routing surface
-when the governed package lives under `packages/`; it must be removed after the
-install and never become a package adoption mechanism. The durable result is
-the package's own lockfile and `node_modules/.bin` entry. Do not use a borrowed
-scenario executable to validate package lifecycle readiness.
-
-## Workflow
-
-### Adding a governed package
-
-1. Create `packages/<name>/.vrooli/package.json`.
-2. Declare the package `kind`, `module_identifiers`, allowed consumers, adoption modes, lifecycle commands, and refresh strategy.
-3. Document the package in its README and link that doc from the manifest `docs` field.
-4. Run `vrooli package validate <name>` and `make validate-package-governance`.
-
-### Adopting a package in a scenario or resource
-
-1. Only adopt packages whose manifest explicitly allows your consumer class.
-2. Use the declared adoption mode only:
-   - JS/TS isolated consumers use `file:`
-   - Go consumers use governed `replace` directives
-   - generated artifacts are adopted through their source package contract
-   - Go consumers must build as the main module under `GOWORK=off`; dependency-module `replace` directives do not count as sufficient
-3. Do not use workspace-star dependencies.
-4. Do not add shared-package copy/symlink logic to `postinstall`.
-
-### Leaf shared Go package policy
-
-Some shared Go packages are governed as leaves. They are intended to be
-directly reusable by consumers without forcing those consumers to adopt a wider
-local package graph.
-
-Current leaf packages:
-
-- `cli-core`
-- `repo-contract-go`
-
-Implications:
-
-- `cli-core` must stay self-contained relative to other governed local Go
-  packages, except for explicitly allowed leaf-safe dependencies such as
-  `repo-contract-go`.
-- If a shared package only needs a wire-format DTO or a tiny contract shape, it
-  should usually define that decode shape locally instead of importing another
-  governed local package just for convenience.
-- Consumer correctness is validated from the consumer module's point of view,
-  not from the dependency package's own module context.
-
-### Refreshing package consumers
-
-1. Run `vrooli package dependents <name>` to inspect the affected consumers.
-2. Run `vrooli package refresh <name> <consumer|all>` to apply the package's governed refresh behavior.
-3. Use `--no-restart` when you want setup/rebuild propagation without restarting running consumers.
-4. Re-run `vrooli package validate --all` after large migrations or manifest changes.
-
-### Reconciling in-repo go.mod replaces
-
-Go does not propagate a dependency's `replace` directives to downstream main
-modules. So whenever a shared Go package takes on a **new in-repo module edge**
-(for example a leaf package importing `packages/proto`), every surface that
-transitively requires that module must independently declare its own local
-`replace` — otherwise `go build` (and therefore `vrooli scenario restart`) fails
-with a `missing go.sum entry` error that only surfaces at restart time.
-
-After editing a shared Go package, reconcile consumers with the single
-SDA-owned command instead of hand-editing each `go.mod`:
-
-```bash
-# dry run: report surfaces missing a local replace (whole fleet)
 scenario-dependency-analyzer deps reconcile --all
-
-# apply the missing replaces + go mod tidy for one scenario
 scenario-dependency-analyzer deps reconcile --scenario <name> --apply
 ```
 
-`deps reconcile` is dry-run by default, idempotent, and safety-scoped: it only
-adds a local `replace` for a module that resolves unambiguously to one in-repo
-module directory; third-party dependencies stay under approved-dependencies
-governance and are never touched. The same detection runs automatically as the
-Test Genie dependencies phase (an ERROR finding,
-`dependency.gomod.replace.missing`), and `dependency.go.build` verifies
-workspace-independent Go builds, so those gaps fail CI before a human hits a
-broken restart.
+Do not hand-edit the approved dependency registry or run a raw package manager.
+Scenario UIs remain isolated projects and shared package adoption remains
+explicit through their package manifests and local dependency declarations.
 
-Shared dependency freshness is also SDA-owned. Root `vrooli hygiene` may
-aggregate the fleet result, but it must not maintain its own shared-package
-trigger list or API-only `go.mod` scan. Per-scenario checks use
-`scenario-dependency-analyzer health <scenario> --json`; fleet/touched hygiene
-uses `scenario-dependency-analyzer freshness --touched --json`, which maps git
-touched files to in-repo Go module roots and impacted scenario surfaces. Safe
-fixes remain preview/apply operations for a specific surface: local replace
-reconciliation and `go mod tidy` are deterministic, while
-ambiguous mappings, optional build failures, unsupported ecosystems, and
-third-party governance edits stay advisory.
+## Shared TypeScript packages
 
-Refresh behavior is consumer-type-aware:
-- real scenario consumers can run setup and optional restart flows
-- Go consumers such as scenario CLIs/APIs or resources rebuild where appropriate
-- template consumers are reported explicitly and never treated as runnable scenarios
+Scenario setup provisions every governed `file:` dependency under `packages/`
+before `install-ui-deps`. Each TypeScript package's build lifecycle first
+installs its frozen lockfile outside the repository root workspace, then
+produces compiled JavaScript and declaration
+files from their declared output directory; consumers must not alias an
+`@vrooli/*` package into `packages/*/src`. The clean-environment proof lives
+in the `Clean shared-package provisioning` job in `.github/workflows/test.yml`.
 
-## Persisted-Data Schema Convention (Greenfield)
-
-Project-level stores (`internal/**`, shared `packages/**`) keep **declarative
-schemas, not migration ladders**: each store owns one schema constant describing
-the full current shape, stamps a version (`PRAGMA user_version` for SQLite, a
-meta sentinel for vector collections), and hard-errors on an unknown or older
-version — naming the remediation, never auto-recreating. While the project is
-greenfield, converting an existing local database is a **one-shot operator-run
-script**, written when needed and discarded after (see
-`docs/plans/project-internal-greenfield-migration-purge-plan.md`); derived
-indexes such as vector stores are instead rebuilt. When real external users
-exist, versioned migrations become legitimate again per the storage-steer
-dividing line — this note is guidance, not a gate, and nothing enforces it.
-
-## CI And Validation
-
-- `make validate-package-governance` is the canonical repo-level validation target for package manifests, package refresh coverage, and governance drift.
-- `make validate-go-cli-consumers` is the canonical isolated-build check for scenario/resource CLI Go modules and must stay green alongside package governance.
-- CI runs that target directly, which means package governance must stay green at the CLI level and through the `scenario-dependency-analyzer` dependency-health provider.
-
-## Why This Exists
-
-This model preserves scenario independence across languages, frameworks, and package managers while still allowing disciplined reuse. The package manifest declares what a package is, who may adopt it, how it is refreshed, and how governance is validated.
-
-## Agent policy mutation boundary
-
-Coding-agent package mutations use Scenario Dependency Analyzer's typed install
-gateway. Adapters return structured argv, a scenario-contained working root,
-the selected manager, lockfile reproduction profile, and governance evidence.
-The `Command` field in response messages is display-only; it is never an
-execution primitive and must not be passed to a shell.
-
-The gateway rejects scenario/path traversal, package specs beginning with
-flags, control characters, shell metacharacters, and ambiguous mutation
-surfaces. JavaScript manager selection requires the manager's lockfile or an
-explicit manager fact. Language evidence alone is not npm, pnpm, Yarn, or Bun
-evidence. C/C++ are visible discovery adapters but do not claim a universal
-mutation command until a manager-specific adapter is governed.
-
-Frozen reproduction is separate from mutation and uses script-safe defaults
-where the manager supports them. Any exception is explicit, owned, reasoned,
-policy-scoped, and auditable. Approved dependency state remains SDA-owned and
-must be changed through its governance commands.
+The build-output digest is part of UI freshness, so rebuilding a shared package
+invalidates the consumer's installed copy on its next setup. Generated outputs
+remain lifecycle-owned artifacts and are not hand-built by scenario operators.
