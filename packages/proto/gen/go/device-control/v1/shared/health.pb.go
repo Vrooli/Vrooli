@@ -21,20 +21,12 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// DependencyStatus mirrors api-core/health.DependencyStatus. Reported
-// per-dependency from the /health endpoint.
 type DependencyStatus struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether the dependency was reachable on the most recent check.
-	Connected bool `protobuf:"varint,1,opt,name=connected,proto3" json:"connected,omitempty"`
-	// Probe latency in milliseconds. Zero when unset on the wire (the
-	// api-core encoder uses `omitempty`; a zero here means "no latency
-	// reported," not "instantaneous").
-	LatencyMs float64 `protobuf:"fixed64,2,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
-	// Human-readable failure message; empty when the dependency is healthy.
-	Error string `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
-	// Backend identifier (e.g., "sqlite") for dependencies that expose it.
-	Database      string `protobuf:"bytes,4,opt,name=database,proto3" json:"database,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Connected     bool                   `protobuf:"varint,1,opt,name=connected,proto3" json:"connected,omitempty"`
+	LatencyMs     float64                `protobuf:"fixed64,2,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	Database      string                 `protobuf:"bytes,4,opt,name=database,proto3" json:"database,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -97,28 +89,14 @@ func (x *DependencyStatus) GetDatabase() string {
 	return ""
 }
 
-// Response is the JSON payload returned by /health and /api/v1/health.
-// Fields appear in the order api-core/health.Response declares them so
-// proto field numbers match the source-of-truth declaration order.
 type Response struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Overall service status. Canonical values: "healthy", "degraded",
-	// "unhealthy". Set to "unhealthy" when any Critical dependency fails.
-	Status string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	// Service identifier (e.g., the scenario's name).
-	Service string `protobuf:"bytes,2,opt,name=service,proto3" json:"service,omitempty"`
-	// Server time at the moment the response was generated, as RFC3339.
-	Timestamp string `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	// True when every Critical dependency is reachable. Used by load
-	// balancers / orchestrators that distinguish liveness from readiness.
-	Readiness bool `protobuf:"varint,4,opt,name=readiness,proto3" json:"readiness,omitempty"`
-	// Service version string; empty when unset.
-	Version string `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
-	// Process uptime in seconds at the moment the response was generated.
-	UptimeSeconds float64 `protobuf:"fixed64,6,opt,name=uptime_seconds,json=uptimeSeconds,proto3" json:"uptime_seconds,omitempty"`
-	// Per-dependency status reports, keyed by dependency name (e.g.,
-	// "database"). Critical dependencies flip readiness to false when
-	// they're not connected.
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Status        string                       `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Service       string                       `protobuf:"bytes,2,opt,name=service,proto3" json:"service,omitempty"`
+	Timestamp     string                       `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Readiness     bool                         `protobuf:"varint,4,opt,name=readiness,proto3" json:"readiness,omitempty"`
+	Version       string                       `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
+	UptimeSeconds float64                      `protobuf:"fixed64,6,opt,name=uptime_seconds,json=uptimeSeconds,proto3" json:"uptime_seconds,omitempty"`
 	Dependencies  map[string]*DependencyStatus `protobuf:"bytes,7,rep,name=dependencies,proto3" json:"dependencies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

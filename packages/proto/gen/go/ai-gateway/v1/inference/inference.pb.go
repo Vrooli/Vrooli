@@ -7,6 +7,7 @@
 package inference_v1
 
 import (
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -207,19 +208,86 @@ func (x *InferenceError) GetConstruct() string {
 	return ""
 }
 
-type RunRequest struct {
+// Turn is an ordered, caller-owned conversation fragment. The gateway never
+// stores turns and there is intentionally no conversation identifier.
+type Turn struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Source        string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
-	SchemaJson    string                 `protobuf:"bytes,2,opt,name=schema_json,json=schemaJson,proto3" json:"schema_json,omitempty"`
-	Instruction   string                 `protobuf:"bytes,3,opt,name=instruction,proto3" json:"instruction,omitempty"`
-	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	Role          string                 `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	Attachments   []*shared.Attachment   `protobuf:"bytes,3,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Turn) Reset() {
+	*x = Turn{}
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Turn) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Turn) ProtoMessage() {}
+
+func (x *Turn) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Turn.ProtoReflect.Descriptor instead.
+func (*Turn) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Turn) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *Turn) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *Turn) GetAttachments() []*shared.Attachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
+type RunRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Source      string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	SchemaJson  string                 `protobuf:"bytes,2,opt,name=schema_json,json=schemaJson,proto3" json:"schema_json,omitempty"`
+	Instruction string                 `protobuf:"bytes,3,opt,name=instruction,proto3" json:"instruction,omitempty"`
+	Role        string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	Turns       []*Turn                `protobuf:"bytes,5,rep,name=turns,proto3" json:"turns,omitempty"`
+	Attachments []*shared.Attachment   `protobuf:"bytes,6,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	// profile carries the caller's locality stance. The gateway still owns
+	// provider selection and never accepts a concrete model or credential.
+	Profile       shared.Profile `protobuf:"varint,7,opt,name=profile,proto3,enum=vrooli.ai_gateway.v1.shared.Profile" json:"profile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunRequest) Reset() {
 	*x = RunRequest{}
-	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[2]
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -231,7 +299,7 @@ func (x *RunRequest) String() string {
 func (*RunRequest) ProtoMessage() {}
 
 func (x *RunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[2]
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -244,7 +312,7 @@ func (x *RunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunRequest.ProtoReflect.Descriptor instead.
 func (*RunRequest) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{2}
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RunRequest) GetSource() string {
@@ -275,6 +343,27 @@ func (x *RunRequest) GetRole() string {
 	return ""
 }
 
+func (x *RunRequest) GetTurns() []*Turn {
+	if x != nil {
+		return x.Turns
+	}
+	return nil
+}
+
+func (x *RunRequest) GetAttachments() []*shared.Attachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
+func (x *RunRequest) GetProfile() shared.Profile {
+	if x != nil {
+		return x.Profile
+	}
+	return shared.Profile(0)
+}
+
 type RunResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ValueJson     string                 `protobuf:"bytes,1,opt,name=value_json,json=valueJson,proto3" json:"value_json,omitempty"`
@@ -289,7 +378,7 @@ type RunResponse struct {
 
 func (x *RunResponse) Reset() {
 	*x = RunResponse{}
-	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[3]
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -301,7 +390,7 @@ func (x *RunResponse) String() string {
 func (*RunResponse) ProtoMessage() {}
 
 func (x *RunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[3]
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -314,7 +403,7 @@ func (x *RunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunResponse.ProtoReflect.Descriptor instead.
 func (*RunResponse) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{3}
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RunResponse) GetValueJson() string {
@@ -368,7 +457,7 @@ type RunBatchItem struct {
 
 func (x *RunBatchItem) Reset() {
 	*x = RunBatchItem{}
-	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[4]
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -380,7 +469,7 @@ func (x *RunBatchItem) String() string {
 func (*RunBatchItem) ProtoMessage() {}
 
 func (x *RunBatchItem) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[4]
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -393,7 +482,7 @@ func (x *RunBatchItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunBatchItem.ProtoReflect.Descriptor instead.
 func (*RunBatchItem) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{4}
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RunBatchItem) GetSource() string {
@@ -415,7 +504,7 @@ type RunBatchRequest struct {
 
 func (x *RunBatchRequest) Reset() {
 	*x = RunBatchRequest{}
-	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[5]
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -427,7 +516,7 @@ func (x *RunBatchRequest) String() string {
 func (*RunBatchRequest) ProtoMessage() {}
 
 func (x *RunBatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[5]
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -440,7 +529,7 @@ func (x *RunBatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunBatchRequest.ProtoReflect.Descriptor instead.
 func (*RunBatchRequest) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{5}
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RunBatchRequest) GetItems() []*RunBatchItem {
@@ -483,7 +572,7 @@ type RunBatchResponse struct {
 
 func (x *RunBatchResponse) Reset() {
 	*x = RunBatchResponse{}
-	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[6]
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -495,7 +584,7 @@ func (x *RunBatchResponse) String() string {
 func (*RunBatchResponse) ProtoMessage() {}
 
 func (x *RunBatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[6]
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -508,7 +597,7 @@ func (x *RunBatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunBatchResponse.ProtoReflect.Descriptor instead.
 func (*RunBatchResponse) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{6}
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RunBatchResponse) GetResults() []*RunResponse {
@@ -529,7 +618,7 @@ var File_ai_gateway_v1_inference_inference_proto protoreflect.FileDescriptor
 
 const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"\n" +
-	"'ai-gateway/v1/inference/inference.proto\x12\x1evrooli.ai_gateway.v1.inference\"p\n" +
+	"'ai-gateway/v1/inference/inference.proto\x12\x1evrooli.ai_gateway.v1.inference\x1a\"ai-gateway/v1/shared/gateway.proto\"p\n" +
 	"\x05Usage\x12!\n" +
 	"\finput_tokens\x18\x01 \x01(\x03R\vinputTokens\x12#\n" +
 	"\routput_tokens\x18\x02 \x01(\x03R\foutputTokens\x12\x1f\n" +
@@ -538,14 +627,21 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"\x0eInferenceError\x12F\n" +
 	"\x04code\x18\x01 \x01(\x0e22.vrooli.ai_gateway.v1.inference.InferenceErrorCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
-	"\tconstruct\x18\x03 \x01(\tR\tconstruct\"{\n" +
+	"\tconstruct\x18\x03 \x01(\tR\tconstruct\"y\n" +
+	"\x04Turn\x12\x12\n" +
+	"\x04role\x18\x01 \x01(\tR\x04role\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\x12I\n" +
+	"\vattachments\x18\x03 \x03(\v2'.vrooli.ai_gateway.v1.shared.AttachmentR\vattachments\"\xc2\x02\n" +
 	"\n" +
 	"RunRequest\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12\x1f\n" +
 	"\vschema_json\x18\x02 \x01(\tR\n" +
 	"schemaJson\x12 \n" +
 	"\vinstruction\x18\x03 \x01(\tR\vinstruction\x12\x12\n" +
-	"\x04role\x18\x04 \x01(\tR\x04role\"\xff\x01\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x12:\n" +
+	"\x05turns\x18\x05 \x03(\v2$.vrooli.ai_gateway.v1.inference.TurnR\x05turns\x12I\n" +
+	"\vattachments\x18\x06 \x03(\v2'.vrooli.ai_gateway.v1.shared.AttachmentR\vattachments\x12>\n" +
+	"\aprofile\x18\a \x01(\x0e2$.vrooli.ai_gateway.v1.shared.ProfileR\aprofile\"\xff\x01\n" +
 	"\vRunResponse\x12\x1d\n" +
 	"\n" +
 	"value_json\x18\x01 \x01(\tR\tvalueJson\x12\x1a\n" +
@@ -589,33 +685,40 @@ func file_ai_gateway_v1_inference_inference_proto_rawDescGZIP() []byte {
 }
 
 var file_ai_gateway_v1_inference_inference_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_ai_gateway_v1_inference_inference_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_ai_gateway_v1_inference_inference_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_ai_gateway_v1_inference_inference_proto_goTypes = []any{
-	(InferenceErrorCode)(0),  // 0: vrooli.ai_gateway.v1.inference.InferenceErrorCode
-	(*Usage)(nil),            // 1: vrooli.ai_gateway.v1.inference.Usage
-	(*InferenceError)(nil),   // 2: vrooli.ai_gateway.v1.inference.InferenceError
-	(*RunRequest)(nil),       // 3: vrooli.ai_gateway.v1.inference.RunRequest
-	(*RunResponse)(nil),      // 4: vrooli.ai_gateway.v1.inference.RunResponse
-	(*RunBatchItem)(nil),     // 5: vrooli.ai_gateway.v1.inference.RunBatchItem
-	(*RunBatchRequest)(nil),  // 6: vrooli.ai_gateway.v1.inference.RunBatchRequest
-	(*RunBatchResponse)(nil), // 7: vrooli.ai_gateway.v1.inference.RunBatchResponse
+	(InferenceErrorCode)(0),   // 0: vrooli.ai_gateway.v1.inference.InferenceErrorCode
+	(*Usage)(nil),             // 1: vrooli.ai_gateway.v1.inference.Usage
+	(*InferenceError)(nil),    // 2: vrooli.ai_gateway.v1.inference.InferenceError
+	(*Turn)(nil),              // 3: vrooli.ai_gateway.v1.inference.Turn
+	(*RunRequest)(nil),        // 4: vrooli.ai_gateway.v1.inference.RunRequest
+	(*RunResponse)(nil),       // 5: vrooli.ai_gateway.v1.inference.RunResponse
+	(*RunBatchItem)(nil),      // 6: vrooli.ai_gateway.v1.inference.RunBatchItem
+	(*RunBatchRequest)(nil),   // 7: vrooli.ai_gateway.v1.inference.RunBatchRequest
+	(*RunBatchResponse)(nil),  // 8: vrooli.ai_gateway.v1.inference.RunBatchResponse
+	(*shared.Attachment)(nil), // 9: vrooli.ai_gateway.v1.shared.Attachment
+	(shared.Profile)(0),       // 10: vrooli.ai_gateway.v1.shared.Profile
 }
 var file_ai_gateway_v1_inference_inference_proto_depIdxs = []int32{
-	0, // 0: vrooli.ai_gateway.v1.inference.InferenceError.code:type_name -> vrooli.ai_gateway.v1.inference.InferenceErrorCode
-	1, // 1: vrooli.ai_gateway.v1.inference.RunResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
-	2, // 2: vrooli.ai_gateway.v1.inference.RunResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
-	5, // 3: vrooli.ai_gateway.v1.inference.RunBatchRequest.items:type_name -> vrooli.ai_gateway.v1.inference.RunBatchItem
-	4, // 4: vrooli.ai_gateway.v1.inference.RunBatchResponse.results:type_name -> vrooli.ai_gateway.v1.inference.RunResponse
-	1, // 5: vrooli.ai_gateway.v1.inference.RunBatchResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
-	3, // 6: vrooli.ai_gateway.v1.inference.InferenceService.Run:input_type -> vrooli.ai_gateway.v1.inference.RunRequest
-	6, // 7: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:input_type -> vrooli.ai_gateway.v1.inference.RunBatchRequest
-	4, // 8: vrooli.ai_gateway.v1.inference.InferenceService.Run:output_type -> vrooli.ai_gateway.v1.inference.RunResponse
-	7, // 9: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:output_type -> vrooli.ai_gateway.v1.inference.RunBatchResponse
-	8, // [8:10] is the sub-list for method output_type
-	6, // [6:8] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	0,  // 0: vrooli.ai_gateway.v1.inference.InferenceError.code:type_name -> vrooli.ai_gateway.v1.inference.InferenceErrorCode
+	9,  // 1: vrooli.ai_gateway.v1.inference.Turn.attachments:type_name -> vrooli.ai_gateway.v1.shared.Attachment
+	3,  // 2: vrooli.ai_gateway.v1.inference.RunRequest.turns:type_name -> vrooli.ai_gateway.v1.inference.Turn
+	9,  // 3: vrooli.ai_gateway.v1.inference.RunRequest.attachments:type_name -> vrooli.ai_gateway.v1.shared.Attachment
+	10, // 4: vrooli.ai_gateway.v1.inference.RunRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
+	1,  // 5: vrooli.ai_gateway.v1.inference.RunResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	2,  // 6: vrooli.ai_gateway.v1.inference.RunResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
+	6,  // 7: vrooli.ai_gateway.v1.inference.RunBatchRequest.items:type_name -> vrooli.ai_gateway.v1.inference.RunBatchItem
+	5,  // 8: vrooli.ai_gateway.v1.inference.RunBatchResponse.results:type_name -> vrooli.ai_gateway.v1.inference.RunResponse
+	1,  // 9: vrooli.ai_gateway.v1.inference.RunBatchResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	4,  // 10: vrooli.ai_gateway.v1.inference.InferenceService.Run:input_type -> vrooli.ai_gateway.v1.inference.RunRequest
+	7,  // 11: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:input_type -> vrooli.ai_gateway.v1.inference.RunBatchRequest
+	5,  // 12: vrooli.ai_gateway.v1.inference.InferenceService.Run:output_type -> vrooli.ai_gateway.v1.inference.RunResponse
+	8,  // 13: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:output_type -> vrooli.ai_gateway.v1.inference.RunBatchResponse
+	12, // [12:14] is the sub-list for method output_type
+	10, // [10:12] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_ai_gateway_v1_inference_inference_proto_init() }
@@ -629,7 +732,7 @@ func file_ai_gateway_v1_inference_inference_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ai_gateway_v1_inference_inference_proto_rawDesc), len(file_ai_gateway_v1_inference_inference_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

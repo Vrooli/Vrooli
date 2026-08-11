@@ -40,6 +40,34 @@ enum Profile {
   PROFILE_PRIVACY_SENSITIVE = 6;
 }
 
+// Modality is the provider-neutral shape of an inference input or output.
+// Video and audio are admitted by the vocabulary now so policy catalogs can
+// describe them without forcing an untested implementation into this plan.
+enum Modality {
+  MODALITY_UNSPECIFIED = 0;
+  MODALITY_TEXT = 1;
+  MODALITY_IMAGE = 2;
+  MODALITY_VECTOR = 3;
+  MODALITY_VIDEO = 4;
+  MODALITY_AUDIO = 5;
+}
+
+// Attachment carries ephemeral caller input across the gateway boundary. The
+// gateway may resolve and forward it during one request, but never persists
+// the payload. References are opaque application-owned identifiers, never
+// provider URLs or credentials.
+message Attachment {
+  Modality modality = 1;
+  string media_type = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+  uint64 bytes = 5;
+  oneof payload {
+    bytes inline_bytes = 6;
+    string reference = 7;
+  }
+}
+
 // GatewayRequest is the caller-owned provider-neutral request envelope.
 // It intentionally contains no provider name, provider URL, credential,
 // concrete model slug, embedding dimensions, or context-window override.
@@ -55,6 +83,7 @@ message GatewayRequest {
   int32 max_output_tokens = 9;
   string request_id = 10;
   map<string, string> metadata = 11;
+  repeated Attachment attachments = 12;
 }
 
 message ValidationIssue {

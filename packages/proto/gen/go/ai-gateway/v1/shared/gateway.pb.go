@@ -204,6 +204,193 @@ func (Profile) EnumDescriptor() ([]byte, []int) {
 	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{2}
 }
 
+// Modality is the provider-neutral shape of an inference input or output.
+// Video and audio are admitted by the vocabulary now so policy catalogs can
+// describe them without forcing an untested implementation into this plan.
+type Modality int32
+
+const (
+	Modality_MODALITY_UNSPECIFIED Modality = 0
+	Modality_MODALITY_TEXT        Modality = 1
+	Modality_MODALITY_IMAGE       Modality = 2
+	Modality_MODALITY_VECTOR      Modality = 3
+	Modality_MODALITY_VIDEO       Modality = 4
+	Modality_MODALITY_AUDIO       Modality = 5
+)
+
+// Enum value maps for Modality.
+var (
+	Modality_name = map[int32]string{
+		0: "MODALITY_UNSPECIFIED",
+		1: "MODALITY_TEXT",
+		2: "MODALITY_IMAGE",
+		3: "MODALITY_VECTOR",
+		4: "MODALITY_VIDEO",
+		5: "MODALITY_AUDIO",
+	}
+	Modality_value = map[string]int32{
+		"MODALITY_UNSPECIFIED": 0,
+		"MODALITY_TEXT":        1,
+		"MODALITY_IMAGE":       2,
+		"MODALITY_VECTOR":      3,
+		"MODALITY_VIDEO":       4,
+		"MODALITY_AUDIO":       5,
+	}
+)
+
+func (x Modality) Enum() *Modality {
+	p := new(Modality)
+	*p = x
+	return p
+}
+
+func (x Modality) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Modality) Descriptor() protoreflect.EnumDescriptor {
+	return file_ai_gateway_v1_shared_gateway_proto_enumTypes[3].Descriptor()
+}
+
+func (Modality) Type() protoreflect.EnumType {
+	return &file_ai_gateway_v1_shared_gateway_proto_enumTypes[3]
+}
+
+func (x Modality) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Modality.Descriptor instead.
+func (Modality) EnumDescriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{3}
+}
+
+// Attachment carries ephemeral caller input across the gateway boundary. The
+// gateway may resolve and forward it during one request, but never persists
+// the payload. References are opaque application-owned identifiers, never
+// provider URLs or credentials.
+type Attachment struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Modality  Modality               `protobuf:"varint,1,opt,name=modality,proto3,enum=vrooli.ai_gateway.v1.shared.Modality" json:"modality,omitempty"`
+	MediaType string                 `protobuf:"bytes,2,opt,name=media_type,json=mediaType,proto3" json:"media_type,omitempty"`
+	Width     uint32                 `protobuf:"varint,3,opt,name=width,proto3" json:"width,omitempty"`
+	Height    uint32                 `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
+	Bytes     uint64                 `protobuf:"varint,5,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	// Types that are valid to be assigned to Payload:
+	//
+	//	*Attachment_InlineBytes
+	//	*Attachment_Reference
+	Payload       isAttachment_Payload `protobuf_oneof:"payload"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Attachment) Reset() {
+	*x = Attachment{}
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Attachment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Attachment) ProtoMessage() {}
+
+func (x *Attachment) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Attachment.ProtoReflect.Descriptor instead.
+func (*Attachment) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Attachment) GetModality() Modality {
+	if x != nil {
+		return x.Modality
+	}
+	return Modality_MODALITY_UNSPECIFIED
+}
+
+func (x *Attachment) GetMediaType() string {
+	if x != nil {
+		return x.MediaType
+	}
+	return ""
+}
+
+func (x *Attachment) GetWidth() uint32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *Attachment) GetHeight() uint32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *Attachment) GetBytes() uint64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+func (x *Attachment) GetPayload() isAttachment_Payload {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *Attachment) GetInlineBytes() []byte {
+	if x != nil {
+		if x, ok := x.Payload.(*Attachment_InlineBytes); ok {
+			return x.InlineBytes
+		}
+	}
+	return nil
+}
+
+func (x *Attachment) GetReference() string {
+	if x != nil {
+		if x, ok := x.Payload.(*Attachment_Reference); ok {
+			return x.Reference
+		}
+	}
+	return ""
+}
+
+type isAttachment_Payload interface {
+	isAttachment_Payload()
+}
+
+type Attachment_InlineBytes struct {
+	InlineBytes []byte `protobuf:"bytes,6,opt,name=inline_bytes,json=inlineBytes,proto3,oneof"`
+}
+
+type Attachment_Reference struct {
+	Reference string `protobuf:"bytes,7,opt,name=reference,proto3,oneof"`
+}
+
+func (*Attachment_InlineBytes) isAttachment_Payload() {}
+
+func (*Attachment_Reference) isAttachment_Payload() {}
+
 // GatewayRequest is the caller-owned provider-neutral request envelope.
 // It intentionally contains no provider name, provider URL, credential,
 // concrete model slug, embedding dimensions, or context-window override.
@@ -220,13 +407,14 @@ type GatewayRequest struct {
 	MaxOutputTokens int32                  `protobuf:"varint,9,opt,name=max_output_tokens,json=maxOutputTokens,proto3" json:"max_output_tokens,omitempty"`
 	RequestId       string                 `protobuf:"bytes,10,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	Metadata        map[string]string      `protobuf:"bytes,11,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Attachments     []*Attachment          `protobuf:"bytes,12,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GatewayRequest) Reset() {
 	*x = GatewayRequest{}
-	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[0]
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -238,7 +426,7 @@ func (x *GatewayRequest) String() string {
 func (*GatewayRequest) ProtoMessage() {}
 
 func (x *GatewayRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[0]
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -251,7 +439,7 @@ func (x *GatewayRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GatewayRequest.ProtoReflect.Descriptor instead.
 func (*GatewayRequest) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{0}
+	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GatewayRequest) GetKind() RequestKind {
@@ -331,6 +519,13 @@ func (x *GatewayRequest) GetMetadata() map[string]string {
 	return nil
 }
 
+func (x *GatewayRequest) GetAttachments() []*Attachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
 type ValidationIssue struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
@@ -342,7 +537,7 @@ type ValidationIssue struct {
 
 func (x *ValidationIssue) Reset() {
 	*x = ValidationIssue{}
-	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[1]
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -354,7 +549,7 @@ func (x *ValidationIssue) String() string {
 func (*ValidationIssue) ProtoMessage() {}
 
 func (x *ValidationIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[1]
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -367,7 +562,7 @@ func (x *ValidationIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationIssue.ProtoReflect.Descriptor instead.
 func (*ValidationIssue) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{1}
+	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ValidationIssue) GetField() string {
@@ -395,7 +590,18 @@ var File_ai_gateway_v1_shared_gateway_proto protoreflect.FileDescriptor
 
 const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\n" +
-	"\"ai-gateway/v1/shared/gateway.proto\x12\x1bvrooli.ai_gateway.v1.shared\"\xcc\x04\n" +
+	"\"ai-gateway/v1/shared/gateway.proto\x12\x1bvrooli.ai_gateway.v1.shared\"\x82\x02\n" +
+	"\n" +
+	"Attachment\x12A\n" +
+	"\bmodality\x18\x01 \x01(\x0e2%.vrooli.ai_gateway.v1.shared.ModalityR\bmodality\x12\x1d\n" +
+	"\n" +
+	"media_type\x18\x02 \x01(\tR\tmediaType\x12\x14\n" +
+	"\x05width\x18\x03 \x01(\rR\x05width\x12\x16\n" +
+	"\x06height\x18\x04 \x01(\rR\x06height\x12\x14\n" +
+	"\x05bytes\x18\x05 \x01(\x04R\x05bytes\x12#\n" +
+	"\finline_bytes\x18\x06 \x01(\fH\x00R\vinlineBytes\x12\x1e\n" +
+	"\treference\x18\a \x01(\tH\x00R\treferenceB\t\n" +
+	"\apayload\"\x97\x05\n" +
 	"\x0eGatewayRequest\x12<\n" +
 	"\x04kind\x18\x01 \x01(\x0e2(.vrooli.ai_gateway.v1.shared.RequestKindR\x04kind\x12\x12\n" +
 	"\x04role\x18\x02 \x01(\tR\x04role\x12>\n" +
@@ -411,7 +617,8 @@ const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\n" +
 	"request_id\x18\n" +
 	" \x01(\tR\trequestId\x12U\n" +
-	"\bmetadata\x18\v \x03(\v29.vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntryR\bmetadata\x1a;\n" +
+	"\bmetadata\x18\v \x03(\v29.vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntryR\bmetadata\x12I\n" +
+	"\vattachments\x18\f \x03(\v2'.vrooli.ai_gateway.v1.shared.AttachmentR\vattachments\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"U\n" +
@@ -439,7 +646,14 @@ const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\x13PROFILE_REMOTE_ONLY\x10\x03\x12\x19\n" +
 	"\x15PROFILE_QUALITY_FIRST\x10\x04\x12\x17\n" +
 	"\x13PROFILE_CHEAP_FIRST\x10\x05\x12\x1d\n" +
-	"\x19PROFILE_PRIVACY_SENSITIVE\x10\x06BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared;shared_v1b\x06proto3"
+	"\x19PROFILE_PRIVACY_SENSITIVE\x10\x06*\x88\x01\n" +
+	"\bModality\x12\x18\n" +
+	"\x14MODALITY_UNSPECIFIED\x10\x00\x12\x11\n" +
+	"\rMODALITY_TEXT\x10\x01\x12\x12\n" +
+	"\x0eMODALITY_IMAGE\x10\x02\x12\x13\n" +
+	"\x0fMODALITY_VECTOR\x10\x03\x12\x12\n" +
+	"\x0eMODALITY_VIDEO\x10\x04\x12\x12\n" +
+	"\x0eMODALITY_AUDIO\x10\x05BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_ai_gateway_v1_shared_gateway_proto_rawDescOnce sync.Once
@@ -453,26 +667,30 @@ func file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP() []byte {
 	return file_ai_gateway_v1_shared_gateway_proto_rawDescData
 }
 
-var file_ai_gateway_v1_shared_gateway_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_ai_gateway_v1_shared_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_ai_gateway_v1_shared_gateway_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_ai_gateway_v1_shared_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_ai_gateway_v1_shared_gateway_proto_goTypes = []any{
 	(RequestKind)(0),        // 0: vrooli.ai_gateway.v1.shared.RequestKind
 	(PrivacyClass)(0),       // 1: vrooli.ai_gateway.v1.shared.PrivacyClass
 	(Profile)(0),            // 2: vrooli.ai_gateway.v1.shared.Profile
-	(*GatewayRequest)(nil),  // 3: vrooli.ai_gateway.v1.shared.GatewayRequest
-	(*ValidationIssue)(nil), // 4: vrooli.ai_gateway.v1.shared.ValidationIssue
-	nil,                     // 5: vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntry
+	(Modality)(0),           // 3: vrooli.ai_gateway.v1.shared.Modality
+	(*Attachment)(nil),      // 4: vrooli.ai_gateway.v1.shared.Attachment
+	(*GatewayRequest)(nil),  // 5: vrooli.ai_gateway.v1.shared.GatewayRequest
+	(*ValidationIssue)(nil), // 6: vrooli.ai_gateway.v1.shared.ValidationIssue
+	nil,                     // 7: vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntry
 }
 var file_ai_gateway_v1_shared_gateway_proto_depIdxs = []int32{
-	0, // 0: vrooli.ai_gateway.v1.shared.GatewayRequest.kind:type_name -> vrooli.ai_gateway.v1.shared.RequestKind
-	2, // 1: vrooli.ai_gateway.v1.shared.GatewayRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
-	1, // 2: vrooli.ai_gateway.v1.shared.GatewayRequest.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
-	5, // 3: vrooli.ai_gateway.v1.shared.GatewayRequest.metadata:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntry
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	3, // 0: vrooli.ai_gateway.v1.shared.Attachment.modality:type_name -> vrooli.ai_gateway.v1.shared.Modality
+	0, // 1: vrooli.ai_gateway.v1.shared.GatewayRequest.kind:type_name -> vrooli.ai_gateway.v1.shared.RequestKind
+	2, // 2: vrooli.ai_gateway.v1.shared.GatewayRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
+	1, // 3: vrooli.ai_gateway.v1.shared.GatewayRequest.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
+	7, // 4: vrooli.ai_gateway.v1.shared.GatewayRequest.metadata:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntry
+	4, // 5: vrooli.ai_gateway.v1.shared.GatewayRequest.attachments:type_name -> vrooli.ai_gateway.v1.shared.Attachment
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_ai_gateway_v1_shared_gateway_proto_init() }
@@ -480,13 +698,17 @@ func file_ai_gateway_v1_shared_gateway_proto_init() {
 	if File_ai_gateway_v1_shared_gateway_proto != nil {
 		return
 	}
+	file_ai_gateway_v1_shared_gateway_proto_msgTypes[0].OneofWrappers = []any{
+		(*Attachment_InlineBytes)(nil),
+		(*Attachment_Reference)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ai_gateway_v1_shared_gateway_proto_rawDesc), len(file_ai_gateway_v1_shared_gateway_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   3,
+			NumEnums:      4,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -80,7 +80,7 @@ class ExecuteRouteRequest(_message.Message):
     def __init__(self, request: _Optional[_Union[_gateway_pb2.GatewayRequest, _Mapping]] = ..., input_text: _Optional[str] = ...) -> None: ...
 
 class RouteEvidence(_message.Message):
-    __slots__ = ("event_id", "request_id", "scenario", "operation", "role", "profile", "privacy_class", "selected_provider", "selected_locality", "status", "policy_reasons", "failure_reasons", "fallback_used", "prompt_redacted", "response_redacted", "latency_ms", "created_at", "breaker_state", "failure_class", "rejection_reason", "capacity_verdict", "capacity_claim_id", "capacity_required_bytes", "capacity_granted_bytes", "capacity_reclaim_required", "input_tokens", "output_tokens", "cost_estimate", "selected_model")
+    __slots__ = ("event_id", "request_id", "scenario", "operation", "role", "profile", "privacy_class", "selected_provider", "selected_locality", "status", "policy_reasons", "failure_reasons", "fallback_used", "prompt_redacted", "response_redacted", "latency_ms", "created_at", "breaker_state", "failure_class", "rejection_reason", "capacity_verdict", "capacity_claim_id", "capacity_required_bytes", "capacity_granted_bytes", "capacity_reclaim_required", "input_tokens", "output_tokens", "cost_estimate", "selected_model", "image_count", "attachment_bytes", "attachment_sha256", "attachments_redacted", "attachment_dimensions")
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
@@ -110,6 +110,11 @@ class RouteEvidence(_message.Message):
     OUTPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     COST_ESTIMATE_FIELD_NUMBER: _ClassVar[int]
     SELECTED_MODEL_FIELD_NUMBER: _ClassVar[int]
+    IMAGE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENT_BYTES_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENT_SHA256_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENTS_REDACTED_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENT_DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
     event_id: str
     request_id: str
     scenario: str
@@ -139,7 +144,26 @@ class RouteEvidence(_message.Message):
     output_tokens: int
     cost_estimate: float
     selected_model: str
-    def __init__(self, event_id: _Optional[str] = ..., request_id: _Optional[str] = ..., scenario: _Optional[str] = ..., operation: _Optional[str] = ..., role: _Optional[str] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ..., privacy_class: _Optional[_Union[_gateway_pb2.PrivacyClass, str]] = ..., selected_provider: _Optional[str] = ..., selected_locality: _Optional[str] = ..., status: _Optional[str] = ..., policy_reasons: _Optional[_Iterable[str]] = ..., failure_reasons: _Optional[_Iterable[str]] = ..., fallback_used: _Optional[bool] = ..., prompt_redacted: _Optional[bool] = ..., response_redacted: _Optional[bool] = ..., latency_ms: _Optional[int] = ..., created_at: _Optional[str] = ..., breaker_state: _Optional[str] = ..., failure_class: _Optional[str] = ..., rejection_reason: _Optional[str] = ..., capacity_verdict: _Optional[str] = ..., capacity_claim_id: _Optional[str] = ..., capacity_required_bytes: _Optional[int] = ..., capacity_granted_bytes: _Optional[int] = ..., capacity_reclaim_required: _Optional[bool] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cost_estimate: _Optional[float] = ..., selected_model: _Optional[str] = ...) -> None: ...
+    image_count: int
+    attachment_bytes: int
+    attachment_sha256: str
+    attachments_redacted: bool
+    attachment_dimensions: _containers.RepeatedCompositeFieldContainer[AttachmentDimension]
+    def __init__(self, event_id: _Optional[str] = ..., request_id: _Optional[str] = ..., scenario: _Optional[str] = ..., operation: _Optional[str] = ..., role: _Optional[str] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ..., privacy_class: _Optional[_Union[_gateway_pb2.PrivacyClass, str]] = ..., selected_provider: _Optional[str] = ..., selected_locality: _Optional[str] = ..., status: _Optional[str] = ..., policy_reasons: _Optional[_Iterable[str]] = ..., failure_reasons: _Optional[_Iterable[str]] = ..., fallback_used: _Optional[bool] = ..., prompt_redacted: _Optional[bool] = ..., response_redacted: _Optional[bool] = ..., latency_ms: _Optional[int] = ..., created_at: _Optional[str] = ..., breaker_state: _Optional[str] = ..., failure_class: _Optional[str] = ..., rejection_reason: _Optional[str] = ..., capacity_verdict: _Optional[str] = ..., capacity_claim_id: _Optional[str] = ..., capacity_required_bytes: _Optional[int] = ..., capacity_granted_bytes: _Optional[int] = ..., capacity_reclaim_required: _Optional[bool] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cost_estimate: _Optional[float] = ..., selected_model: _Optional[str] = ..., image_count: _Optional[int] = ..., attachment_bytes: _Optional[int] = ..., attachment_sha256: _Optional[str] = ..., attachments_redacted: _Optional[bool] = ..., attachment_dimensions: _Optional[_Iterable[_Union[AttachmentDimension, _Mapping]]] = ...) -> None: ...
+
+class AttachmentDimension(_message.Message):
+    __slots__ = ("modality", "media_type", "width", "height", "bytes")
+    MODALITY_FIELD_NUMBER: _ClassVar[int]
+    MEDIA_TYPE_FIELD_NUMBER: _ClassVar[int]
+    WIDTH_FIELD_NUMBER: _ClassVar[int]
+    HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    BYTES_FIELD_NUMBER: _ClassVar[int]
+    modality: _gateway_pb2.Modality
+    media_type: str
+    width: int
+    height: int
+    bytes: int
+    def __init__(self, modality: _Optional[_Union[_gateway_pb2.Modality, str]] = ..., media_type: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., bytes: _Optional[int] = ...) -> None: ...
 
 class ExecuteRouteResponse(_message.Message):
     __slots__ = ("valid", "issues", "evidence", "output_text", "policy_reasons")
@@ -176,18 +200,20 @@ class MediaOutput(_message.Message):
     def __init__(self, reference: _Optional[str] = ..., media_type: _Optional[str] = ..., bytes: _Optional[int] = ..., checksum: _Optional[str] = ...) -> None: ...
 
 class SubmitMediaRequest(_message.Message):
-    __slots__ = ("request", "prompt", "inputs", "output_count", "idempotency_key")
+    __slots__ = ("request", "prompt", "inputs", "output_count", "idempotency_key", "output_reference")
     REQUEST_FIELD_NUMBER: _ClassVar[int]
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     INPUTS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_COUNT_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
     request: _gateway_pb2.GatewayRequest
     prompt: str
     inputs: _containers.RepeatedCompositeFieldContainer[MediaInput]
     output_count: int
     idempotency_key: str
-    def __init__(self, request: _Optional[_Union[_gateway_pb2.GatewayRequest, _Mapping]] = ..., prompt: _Optional[str] = ..., inputs: _Optional[_Iterable[_Union[MediaInput, _Mapping]]] = ..., output_count: _Optional[int] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+    output_reference: str
+    def __init__(self, request: _Optional[_Union[_gateway_pb2.GatewayRequest, _Mapping]] = ..., prompt: _Optional[str] = ..., inputs: _Optional[_Iterable[_Union[MediaInput, _Mapping]]] = ..., output_count: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., output_reference: _Optional[str] = ...) -> None: ...
 
 class MediaExecution(_message.Message):
     __slots__ = ("execution_id", "idempotency_key", "status", "created_at", "started_at", "completed_at", "route_evidence", "outputs", "actual_cost_usd", "resolved_model", "seed", "warnings", "error_code", "error_message")

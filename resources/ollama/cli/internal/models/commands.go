@@ -56,6 +56,12 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 				Run:         h.ProbeTools,
 			},
 			{
+				Name:        "probe-vision",
+				Description: "Run a live image-input smoke against a model or role",
+				Usage:       "resource-ollama models probe-vision (--model <ref> | --role <role>) --image <path> [--json]",
+				Run:         h.ProbeVision,
+			},
+			{
 				Name:        "doctor",
 				Description: "Validate role capabilities + live tool-calling against the daemon",
 				Usage:       "resource-ollama models doctor (--role <role> | --all) [--json]",
@@ -134,6 +140,66 @@ func (h *Handlers) ProbeTools(args []string) error {
 		return err
 	}
 	if !res.SupportsTools {
+		return errQuietFail
+	}
+	return nil
+}
+
+func (h *Handlers) ProbeVision(args []string) error {
+	fs := flag.NewFlagSet("models probe-vision", flag.ContinueOnError)
+	fs.SetOutput(h.Stderr)
+	model := fs.String("model", "", "Model reference to probe")
+	role := fs.String("role", "", "Role to resolve and probe")
+	image := fs.String("image", "", "Path to a PNG/JPEG/WEBP image")
+	asJSON := fs.Bool("json", false, "Emit JSON result")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*model) == "" && strings.TrimSpace(*role) == "" {
+		return errors.New("--model or --role is required")
+	}
+	if strings.TrimSpace(*model) != "" && strings.TrimSpace(*role) != "" {
+		return errors.New("--model and --role are mutually exclusive")
+	}
+	if strings.TrimSpace(*image) == "" {
+		return errors.New("--image is required")
+	}
+	ref := strings.TrimSpace(*model)
+	if ref == "" {
+		p, _, err := h.loadPolicy()
+		if err != nil {
+			return err
+		}
+		resolved, err := p.ResolveRole(*role)
+		if err != nil {
+			return err
+		}
+		ref = resolved.Model
+	}
+	imageBytes, err := os.ReadFile(*image)
+	if err != nil {
+		return fmt.Errorf("read image: %w", err)
+	}
+	res, probeErr := ProbeVision(context.Background(), h.NewDaemon(), ref, imageBytes)
+	if *asJSON {
+		if probeErr != nil && res.Error == "" {
+			res.Error = probeErr.Error()
+		}
+		if err := writeJSON(h.Stdout, res); err != nil {
+			return err
+		}
+		if !res.SupportsVision {
+			return errQuietFail
+		}
+		return nil
+	}
+	if probeErr != nil {
+		return probeErr
+	}
+	if _, err := fmt.Fprintf(h.Stdout, "%s supports_vision=%t — %s\n", res.Model, res.SupportsVision, res.Evidence); err != nil {
+		return err
+	}
+	if !res.SupportsVision {
 		return errQuietFail
 	}
 	return nil

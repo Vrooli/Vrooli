@@ -1,0 +1,12 @@
+syntax = "proto3";
+package vrooli.device_control.v1.devices;
+import "google/protobuf/timestamp.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices;devices_v1";
+service DeviceService { rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse); rpc ConnectDevice(ConnectDeviceRequest) returns (ConnectDeviceResponse); }
+message ListDevicesRequest {}
+message ListDevicesResponse { repeated Device devices = 1; }
+message ConnectDeviceRequest { string kind = 1; }
+message ConnectDeviceResponse { repeated OnboardingRung rungs = 1; string first_next_action = 2; }
+message Device { string id = 1; string name = 2; string kind = 3; string strategy_id = 4; string status = 5; string health_reason = 6; string host_node_id = 7; repeated CapabilitySnapshot capabilities = 8; google.protobuf.Timestamp observed_at = 9; }
+message CapabilitySnapshot { string name = 1; string status = 2; string prerequisite = 3; string next_action = 4; }
+message OnboardingRung { string id = 1; string prerequisite = 2; string owner = 3; string status = 4; string next_action = 5; }

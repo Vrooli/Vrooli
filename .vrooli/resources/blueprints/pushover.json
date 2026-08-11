@@ -17,7 +17,6 @@
   ],
   "integration_kind": "cloud-api",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "The service is externally hosted and broadly accessible, so the portability concerns are mostly about credentials and network access rather than OS support.",
     "linux": "supported",
     "macos": "supported",

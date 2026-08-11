@@ -17,7 +17,6 @@
   ],
   "integration_kind": "desktop-app",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Godot is cross-platform, but export targets, desktop runtime behavior, and editor automation vary by host environment.",
     "linux": "partial",
     "macos": "partial",

@@ -16,7 +16,6 @@
   ],
   "integration_kind": "compose-service",
   "platform_support": {
-    "portability_tier": "platform-specific",
     "notes": "The retired Judge0 CE 1.13.1 implementation was API-healthy but could not execute a sandboxed program on the current Docker host. A future implementation must validate the actual execution path on every supported host; container health alone is insufficient.",
     "linux": "partial",
     "macos": "unsupported",
@@ -53,9 +52,18 @@
     "judge0"
   ],
   "references": [
-    {"kind": "scenario", "value": "scenarios/algorithm-library"},
-    {"kind": "doc", "value": "docs/resources/resource-blueprint-archival.md"},
-    {"kind": "note", "value": "Retired 2026-07-21 after verified Docker-host sandbox failure and no active consumer."}
+    {
+      "kind": "scenario",
+      "value": "scenarios/algorithm-library"
+    },
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-blueprint-archival.md"
+    },
+    {
+      "kind": "note",
+      "value": "Retired 2026-07-21 after verified Docker-host sandbox failure and no active consumer."
+    }
   ],
   "last_reviewed": "2026-07-21"
 }

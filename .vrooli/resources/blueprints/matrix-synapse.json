@@ -17,7 +17,6 @@
   ],
   "integration_kind": "compose-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The service is containerizable, but federation, persistence, and auth create operational complexity beyond basic startup.",
     "linux": "partial",
     "macos": "partial",

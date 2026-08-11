@@ -1,0 +1,12 @@
+syntax = "proto3";
+package vrooli.device_control.v1.sessions;
+import "google/protobuf/timestamp.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/sessions;sessions_v1";
+service SessionService { rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse); rpc AcquireSession(AcquireSessionRequest) returns (SessionResponse); rpc KillSession(KillSessionRequest) returns (SessionResponse); rpc ReleaseSession(ReleaseSessionRequest) returns (SessionResponse); }
+message ListSessionsRequest {}
+message AcquireSessionRequest { string device_id = 1; string actor = 2; int64 ttl_seconds = 3; }
+message ListSessionsResponse { repeated Session sessions = 1; }
+message KillSessionRequest { string id = 1; }
+message ReleaseSessionRequest { string id = 1; }
+message SessionResponse { Session session = 1; }
+message Session { string id = 1; string device_id = 2; string actor = 3; string state = 4; string lease_token = 5; google.protobuf.Timestamp expires_at = 6; google.protobuf.Timestamp created_at = 7; string kill_reason = 8; }

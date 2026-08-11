@@ -4,6 +4,8 @@ package vrooli.ai_gateway.v1.inference;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1";
 
+import "ai-gateway/v1/shared/gateway.proto";
+
 // Usage is the provider-reported accounting for one inference operation.
 // cost_micros is expressed in USD micro-units; local providers report zero
 // when no monetary cost is incurred.
@@ -33,11 +35,24 @@ message InferenceError {
   string construct = 3;
 }
 
+// Turn is an ordered, caller-owned conversation fragment. The gateway never
+// stores turns and there is intentionally no conversation identifier.
+message Turn {
+  string role = 1;
+  string text = 2;
+  repeated vrooli.ai_gateway.v1.shared.Attachment attachments = 3;
+}
+
 message RunRequest {
   string source = 1;
   string schema_json = 2;
   string instruction = 3;
   string role = 4;
+  repeated Turn turns = 5;
+  repeated vrooli.ai_gateway.v1.shared.Attachment attachments = 6;
+  // profile carries the caller's locality stance. The gateway still owns
+  // provider selection and never accepts a concrete model or credential.
+  vrooli.ai_gateway.v1.shared.Profile profile = 7;
 }
 
 message RunResponse {

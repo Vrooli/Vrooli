@@ -17,7 +17,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "platform-specific",
     "notes": "The build tooling is broadly portable, but flashing, serial access, and device support depend heavily on host hardware and drivers.",
     "linux": "partial",
     "macos": "partial",

@@ -17,7 +17,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The Java server is portable, but support quality depends on plugin management, world persistence, and host performance expectations.",
     "linux": "partial",
     "macos": "partial",

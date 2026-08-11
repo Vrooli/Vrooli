@@ -17,7 +17,6 @@
   ],
   "integration_kind": "compose-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Containers are portable, but the surrounding messaging, auth, and policy stack increases operational complexity across platforms.",
     "linux": "partial",
     "macos": "partial",

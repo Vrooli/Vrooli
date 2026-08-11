@@ -17,7 +17,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The Python package is portable, but headless rendering, GPU use, and simulation assumptions vary by host environment.",
     "linux": "partial",
     "macos": "partial",

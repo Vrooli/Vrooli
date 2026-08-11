@@ -17,7 +17,6 @@
   ],
   "integration_kind": "desktop-app",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "KiCad is cross-platform, but GUI automation, plugin behavior, and packaging differ by host environment.",
     "linux": "partial",
     "macos": "partial",

@@ -17,7 +17,6 @@
   ],
   "integration_kind": "external-cli",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "The CLI itself is cross-platform, but support quality depends on how Vrooli wants to manage state, providers, and credentials.",
     "linux": "supported",
     "macos": "supported",

@@ -27,7 +27,8 @@
       "generate": [
         {
           "name": "generate",
-          "run": ["make", "generate"]
+          "run": ["make", "generate"],
+          "outputs": ["gen/**"]
         }
       ]
     },

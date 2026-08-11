@@ -17,7 +17,6 @@
   ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "OpenSCAD itself is portable and can run in containers, but rendering and file workflows still vary by host setup.",
     "linux": "partial",
     "macos": "partial",

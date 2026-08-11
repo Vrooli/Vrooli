@@ -17,7 +17,6 @@
   ],
   "integration_kind": "library",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "The library is portable, and most variability comes from the surrounding Python environment and scenario-specific models.",
     "linux": "supported",
     "macos": "supported",

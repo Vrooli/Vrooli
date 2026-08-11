@@ -17,7 +17,6 @@
   ],
   "integration_kind": "compose-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The stack is containerizable, but its multiple services, storage needs, and GIS-specific operational assumptions make support non-trivial.",
     "linux": "partial",
     "macos": "partial",

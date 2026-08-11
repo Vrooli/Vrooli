@@ -64,6 +64,12 @@ echo "Explain tool routing simply" | resource-openrouter generate --role chat.sm
 resource-openrouter generate --role chat.quality --max-tokens 640 --prompt-file ./prompt.txt
 # --model is an explicit advanced override; prefer --role.
 
+# Multimodal requests use the standard-input JSON envelope; image bytes are
+# kept out of argv and logs.
+resource-openrouter generate --role image.generate.logo --input-json-stdin --json <<'JSON'
+{"prompt":"Describe this image briefly.","images":[{"media_type":"image/png","data_b64":"...base64..."}]}
+JSON
+
 # Store credentials for future commands
 resource-openrouter configure --api-key sk-or-v1-example
 

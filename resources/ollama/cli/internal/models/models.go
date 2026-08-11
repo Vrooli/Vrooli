@@ -17,6 +17,7 @@ package models
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"sort"
 	"strings"
@@ -32,6 +33,7 @@ type Daemon interface {
 	ListModels(ctx context.Context) ([]string, error)
 	ShowModel(ctx context.Context, model string) (ensure.ShowResponse, error)
 	Chat(ctx context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error)
+	Generate(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error)
 }
 
 // ToolCapability is the Ollama capability string that signals native
@@ -50,6 +52,15 @@ type ToolProbeResult struct {
 	ToolCalls     []string `json:"tool_calls,omitempty"`
 	Evidence      string   `json:"evidence"`
 	Error         string   `json:"error,omitempty"`
+}
+
+// VisionProbeResult is behavioral evidence for a model policy declaration
+// that includes image input.
+type VisionProbeResult struct {
+	Model          string `json:"model"`
+	SupportsVision bool   `json:"supports_vision"`
+	Evidence       string `json:"evidence"`
+	Error          string `json:"error,omitempty"`
 }
 
 // CheckStatus is a per-check verdict.
@@ -71,16 +82,17 @@ type DoctorCheck struct {
 
 // DoctorModelResult is the per-(role/model) doctor verdict.
 type DoctorModelResult struct {
-	Role                 string        `json:"role,omitempty"`
-	Model                string        `json:"model"`
-	Pass                 bool          `json:"pass"`
-	Installed            bool          `json:"installed"`
-	RequiresTools        bool          `json:"requires_tools"`
-	StubTemplate         bool          `json:"stub_template"`
-	RequiredCapabilities []string      `json:"required_capabilities,omitempty"`
-	LiveCapabilities     []string      `json:"live_capabilities,omitempty"`
-	Checks               []DoctorCheck `json:"checks"`
-	Reasons              []string      `json:"reasons,omitempty"`
+	Role                 string            `json:"role,omitempty"`
+	Model                string            `json:"model"`
+	Pass                 bool              `json:"pass"`
+	Installed            bool              `json:"installed"`
+	RequiresTools        bool              `json:"requires_tools"`
+	StubTemplate         bool              `json:"stub_template"`
+	RequiredCapabilities []string          `json:"required_capabilities,omitempty"`
+	LiveCapabilities     []string          `json:"live_capabilities,omitempty"`
+	RequiredModalities   policy.Modalities `json:"required_modalities"`
+	Checks               []DoctorCheck     `json:"checks"`
+	Reasons              []string          `json:"reasons,omitempty"`
 }
 
 // DoctorResult is the `models doctor` payload.
@@ -134,6 +146,65 @@ func ProbeTools(ctx context.Context, d Daemon, model string) (ToolProbeResult, e
 		res.Evidence = "model returned a chat response with no structured tool_calls (a tool call narrated as text would fail to execute)"
 	}
 	return res, nil
+}
+
+// ProbeVision sends one base64-encoded image through Ollama's native chat
+// image field. Doctor checks /api/show separately; this verifies the full
+// request path accepts and processes an image.
+func ProbeVision(ctx context.Context, d Daemon, model string, image []byte) (VisionProbeResult, error) {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return VisionProbeResult{}, fmt.Errorf("model is required")
+	}
+	if len(image) == 0 {
+		return VisionProbeResult{}, fmt.Errorf("image is required")
+	}
+	zero := 0.0
+	maxTokens := 64
+	think := false
+	resp, err := d.Chat(ctx, ensure.ChatRequest{
+		Model: model,
+		Messages: []ensure.ChatMessage{{
+			Role:    "user",
+			Content: "Describe the image in one short sentence.",
+			Images:  []string{base64.StdEncoding.EncodeToString(image)},
+		}},
+		NumPredict:  &maxTokens,
+		Temperature: &zero,
+		Think:       &think,
+	})
+	if err != nil {
+		return VisionProbeResult{Model: model, Evidence: "live /api/chat image probe could not be completed", Error: err.Error()}, err
+	}
+	if strings.TrimSpace(resp.Message.Content) != "" {
+		return VisionProbeResult{
+			Model:          model,
+			SupportsVision: true,
+			Evidence:       "model returned a non-empty response to an image-bearing /api/chat request",
+		}, nil
+	}
+
+	// Some quantized vision templates accept images through Ollama's native
+	// /api/generate path while returning no visible message content from
+	// /api/chat. The gateway uses /api/generate for this command surface, so
+	// verify that production path before declaring the model unusable.
+	generateResp, generateErr := d.Generate(ctx, ensure.GenerateRequest{
+		Model:  model,
+		Prompt: "Describe the image in one short sentence.",
+		Images: []string{base64.StdEncoding.EncodeToString(image)},
+		Think:  func() *bool { v := false; return &v }(),
+	})
+	if generateErr != nil {
+		return VisionProbeResult{Model: model, Evidence: "live /api/chat returned no visible content and /api/generate image fallback failed", Error: generateErr.Error()}, generateErr
+	}
+	if strings.TrimSpace(generateResp.Response) == "" {
+		return VisionProbeResult{Model: model, Evidence: "model returned no visible content from either image-capable Ollama path"}, nil
+	}
+	return VisionProbeResult{
+		Model:          model,
+		SupportsVision: true,
+		Evidence:       "chat returned no visible content; model returned a non-empty response through image-bearing /api/generate, the gateway production path",
+	}, nil
 }
 
 // toolSmokeRequest builds the deterministic write-file tool smoke. Temperature
@@ -196,7 +267,11 @@ func Doctor(ctx context.Context, d Daemon, p policy.Policy, opts DoctorOptions) 
 		if !ok {
 			return DoctorResult{}, fmt.Errorf("unknown role %q", roleName)
 		}
-		mr := doctorRole(ctx, d, roleName, role, installedSet)
+		model, ok := p.Models[role.Model]
+		if !ok {
+			return DoctorResult{}, fmt.Errorf("role %q resolves unknown model %q", roleName, role.Model)
+		}
+		mr := doctorRole(ctx, d, roleName, role, model, installedSet)
 		if !mr.Pass {
 			result.Pass = false
 		}
@@ -205,13 +280,17 @@ func Doctor(ctx context.Context, d Daemon, p policy.Policy, opts DoctorOptions) 
 	return result, nil
 }
 
-func doctorRole(ctx context.Context, d Daemon, roleName string, role policy.Role, installed map[string]bool) DoctorModelResult {
+func doctorRole(ctx context.Context, d Daemon, roleName string, role policy.Role, model policy.Model, installed map[string]bool) DoctorModelResult {
 	mr := DoctorModelResult{
 		Role:                 roleName,
 		Model:                role.Model,
 		Pass:                 true,
 		RequiresTools:        roleRequiresTools(role),
 		RequiredCapabilities: append([]string{}, role.RequiredCapabilities...),
+		RequiredModalities: policy.Modalities{
+			Input:  append([]policy.Modality{}, model.Modalities.Input...),
+			Output: append([]policy.Modality{}, model.Modalities.Output...),
+		},
 	}
 
 	// 1. Installed?
@@ -246,6 +325,21 @@ func doctorRole(ctx context.Context, d Daemon, roleName string, role policy.Role
 		mr.Checks = append(mr.Checks, DoctorCheck{Name: "capabilities", Status: StatusPass})
 	}
 
+	// The catalog declaration is the routing authority; live /api/show is the
+	// host admission evidence. Descriptive aliases such as vision/image_input
+	// are not used to infer a policy modality.
+	if containsModality(model.Modalities.Input, policy.ModalityImage) {
+		if hasCapability(show.Capabilities, "vision") {
+			mr.Checks = append(mr.Checks, DoctorCheck{Name: "modalities.image_input", Status: StatusPass, Detail: "policy requires image input and live /api/show advertises vision"})
+		} else {
+			mr.Pass = false
+			mr.Checks = append(mr.Checks, DoctorCheck{Name: "modalities.image_input", Status: StatusFail, Detail: "policy requires image input but live /api/show does not advertise vision"})
+			mr.Reasons = append(mr.Reasons, fmt.Sprintf("model %q declares image input but live capabilities are %v", role.Model, show.Capabilities))
+		}
+	} else {
+		mr.Checks = append(mr.Checks, DoctorCheck{Name: "modalities.image_input", Status: StatusSkip, Detail: "role model does not declare image input"})
+	}
+
 	// 4. Stub-template flag (ADVISORY — never the sole cause of failure).
 	mr.StubTemplate = isStubTemplate(show.Template)
 	if mr.StubTemplate {
@@ -275,6 +369,24 @@ func doctorRole(ctx context.Context, d Daemon, roleName string, role policy.Role
 		mr.Reasons = append(mr.Reasons, fmt.Sprintf("model %q failed the live tool-call smoke for tool role %q: %s", role.Model, roleName, probe.Evidence))
 	}
 	return mr
+}
+
+func containsModality(values []policy.Modality, want policy.Modality) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func hasCapability(values []string, want string) bool {
+	for _, value := range values {
+		if strings.EqualFold(strings.TrimSpace(value), want) {
+			return true
+		}
+	}
+	return false
 }
 
 // ToolRoles returns the policy role names whose required capabilities include

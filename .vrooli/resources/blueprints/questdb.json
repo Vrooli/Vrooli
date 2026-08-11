@@ -11,13 +11,12 @@
     "The owning scenario commits to operating, testing, and declaring QuestDB as an active dependency."
   ],
   "example_scenarios": [
-    "System-monitor historical metrics", 
+    "System-monitor historical metrics",
     "Operational analytics dashboards",
     "High-frequency event-ingestion pipelines"
   ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The prior implementation used Docker. A future implementation should reassess Docker against a managed local-service design and state the desktop-bundling trade-off explicitly.",
     "linux": "partial",
     "macos": "partial",

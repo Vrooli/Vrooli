@@ -105,17 +105,18 @@ func validateEnum(errs *[]error, path, value string, allowed map[string]struct{}
 }
 
 type Model struct {
-	Provider            string                `json:"provider"`
-	Family              string                `json:"family"`
-	Capabilities        []string              `json:"capabilities"`
-	Modalities          Modalities            `json:"modalities"`
-	Endpoints           []string              `json:"endpoints"`
-	ContextWindowTokens int                   `json:"context_window_tokens,omitempty"`
-	DefaultEligible     bool                  `json:"default_eligible"`
-	Pricing             *Pricing              `json:"pricing,omitempty"`
-	UseCaseNotes        string                `json:"use_case_notes,omitempty"`
-	Caveats             []string              `json:"caveats,omitempty"`
-	Provenance          map[string]Provenance `json:"provenance"`
+	Provider             string                `json:"provider"`
+	Family               string                `json:"family"`
+	Capabilities         []string              `json:"capabilities"`
+	Modalities           Modalities            `json:"modalities"`
+	CoordinateConvention string                `json:"coordinate_convention,omitempty"`
+	Endpoints            []string              `json:"endpoints"`
+	ContextWindowTokens  int                   `json:"context_window_tokens,omitempty"`
+	DefaultEligible      bool                  `json:"default_eligible"`
+	Pricing              *Pricing              `json:"pricing,omitempty"`
+	UseCaseNotes         string                `json:"use_case_notes,omitempty"`
+	Caveats              []string              `json:"caveats,omitempty"`
+	Provenance           map[string]Provenance `json:"provenance"`
 }
 
 type Modalities struct {
@@ -144,6 +145,7 @@ type Constraints struct {
 	DirectModelExceptionRequiredFields []string `json:"direct_model_exception_required_fields"`
 	ProvenanceRequired                 bool     `json:"provenance_required"`
 	ProvenanceSourceKinds              []string `json:"provenance_source_kinds"`
+	ModalityVocabulary                 []string `json:"modality_vocabulary"`
 }
 
 type Provenance struct {
@@ -225,6 +227,7 @@ type ResolvedPolicyModel struct {
 	PreferredCapabilities []string              `json:"preferred_capabilities,omitempty"`
 	Capabilities          []string              `json:"capabilities"`
 	Modalities            Modalities            `json:"modalities"`
+	CoordinateConvention  string                `json:"coordinate_convention,omitempty"`
 	Endpoints             []string              `json:"endpoints"`
 	ContextWindowTokens   int                   `json:"context_window_tokens,omitempty"`
 	DefaultEligible       bool                  `json:"default_eligible"`
@@ -383,18 +386,19 @@ func (p Policy) ResolveModel(modelRef string) (ResolvedPolicyModel, error) {
 
 func (p Policy) resolvedPolicyModel(source, modelRef string, model Model) ResolvedPolicyModel {
 	return ResolvedPolicyModel{
-		SchemaVersion:       p.SchemaVersion,
-		Source:              source,
-		Model:               modelRef,
-		Capabilities:        append([]string{}, model.Capabilities...),
-		Modalities:          model.Modalities,
-		Endpoints:           append([]string{}, model.Endpoints...),
-		ContextWindowTokens: model.ContextWindowTokens,
-		DefaultEligible:     model.DefaultEligible,
-		Pricing:             model.Pricing,
-		Provider:            model.Provider,
-		Family:              model.Family,
-		Provenance:          copyProvenanceMap(model.Provenance),
+		SchemaVersion:        p.SchemaVersion,
+		Source:               source,
+		Model:                modelRef,
+		Capabilities:         append([]string{}, model.Capabilities...),
+		Modalities:           model.Modalities,
+		CoordinateConvention: model.CoordinateConvention,
+		Endpoints:            append([]string{}, model.Endpoints...),
+		ContextWindowTokens:  model.ContextWindowTokens,
+		DefaultEligible:      model.DefaultEligible,
+		Pricing:              model.Pricing,
+		Provider:             model.Provider,
+		Family:               model.Family,
+		Provenance:           copyProvenanceMap(model.Provenance),
 	}
 }
 
@@ -423,6 +427,10 @@ func (p Policy) Validate() error {
 	endpoints := set(p.Constraints.Endpoints)
 	if len(endpoints) == 0 {
 		errs = append(errs, errors.New("constraints.endpoints must not be empty"))
+	}
+	modalityVocab := set(p.Constraints.ModalityVocabulary)
+	if len(modalityVocab) == 0 {
+		errs = append(errs, errors.New("constraints.modality_vocabulary must not be empty"))
 	}
 
 	for name, model := range p.Models {
@@ -453,6 +461,16 @@ func (p Policy) Validate() error {
 		}
 		if len(model.Modalities.Output) == 0 {
 			errs = append(errs, fmt.Errorf("models.%s.modalities.output must not be empty", name))
+		}
+		for direction, modalities := range map[string][]string{
+			"input":  model.Modalities.Input,
+			"output": model.Modalities.Output,
+		} {
+			for _, modality := range modalities {
+				if _, ok := modalityVocab[modality]; !ok {
+					errs = append(errs, fmt.Errorf("models.%s.modalities.%s value %q is not in modality_vocabulary", name, direction, modality))
+				}
+			}
 		}
 		if len(model.Provenance) == 0 {
 			errs = append(errs, fmt.Errorf("models.%s.provenance must not be empty", name))

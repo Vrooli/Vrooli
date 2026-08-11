@@ -17,7 +17,6 @@
   ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "platform-specific",
     "notes": "The web app can run in containers across platforms, but useful operation depends on USB or serial access to host-connected CNC hardware.",
     "linux": "partial",
     "macos": "partial",

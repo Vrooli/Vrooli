@@ -16,7 +16,6 @@
   ],
   "integration_kind": "compose-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The former implementation used Docker Compose. A future owner should reassess that choice against a managed local-service design and state its desktop and platform-support trade-offs explicitly.",
     "linux": "partial",
     "macos": "partial",
@@ -52,9 +51,18 @@
     "postgis"
   ],
   "references": [
-    {"kind": "resource", "value": "resources/postgis"},
-    {"kind": "scenario", "value": "scenarios/local-info-scout"},
-    {"kind": "doc", "value": "docs/resources/maturity-migration.md"}
+    {
+      "kind": "resource",
+      "value": "resources/postgis"
+    },
+    {
+      "kind": "scenario",
+      "value": "scenarios/local-info-scout"
+    },
+    {
+      "kind": "doc",
+      "value": "docs/resources/maturity-migration.md"
+    }
   ],
   "last_reviewed": "2026-07-20"
 }

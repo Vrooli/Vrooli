@@ -17,7 +17,6 @@
   ],
   "integration_kind": "cloud-api",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "There is no implementation yet, so portability must remain explicitly uncertain until the real architecture exists.",
     "linux": "unknown",
     "macos": "unknown",

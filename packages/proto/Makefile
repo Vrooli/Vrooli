@@ -6,7 +6,11 @@ DESCRIPTOR_DIR ?= gen/descriptor
 generate: gen-code descriptor gen-manifests
 
 gen-code:
-	go run ./cmd/prune-gen
+	@if [ ! -f vendor/googleapis/google/api/annotations.proto ] || [ ! -f vendor/protovalidate/buf/validate/validate.proto ]; then \
+		echo "==> proto vendor inputs missing; refreshing Buf dependencies"; \
+		$(MAKE) refresh-vendor; \
+	fi
+	GOFLAGS=-mod=mod go run ./cmd/prune-gen
 	buf generate
 	# Mark every generated Python package directory as typed (PEP 561).
 	# Recursive find replaces the previous hardcoded list so adding a new
@@ -26,7 +30,7 @@ descriptor:
 
 gen-manifests:
 	rm -rf gen/manifests
-	go run ./cmd/gen-manifest
+	GOFLAGS=-mod=mod go run ./cmd/gen-manifest
 
 lint:
 	buf lint

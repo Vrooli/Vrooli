@@ -1,3 +1,4 @@
+from ai_gateway.v1.shared import gateway_pb2 as _gateway_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -42,17 +43,33 @@ class InferenceError(_message.Message):
     construct: str
     def __init__(self, code: _Optional[_Union[InferenceErrorCode, str]] = ..., message: _Optional[str] = ..., construct: _Optional[str] = ...) -> None: ...
 
+class Turn(_message.Message):
+    __slots__ = ("role", "text", "attachments")
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
+    role: str
+    text: str
+    attachments: _containers.RepeatedCompositeFieldContainer[_gateway_pb2.Attachment]
+    def __init__(self, role: _Optional[str] = ..., text: _Optional[str] = ..., attachments: _Optional[_Iterable[_Union[_gateway_pb2.Attachment, _Mapping]]] = ...) -> None: ...
+
 class RunRequest(_message.Message):
-    __slots__ = ("source", "schema_json", "instruction", "role")
+    __slots__ = ("source", "schema_json", "instruction", "role", "turns", "attachments", "profile")
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_JSON_FIELD_NUMBER: _ClassVar[int]
     INSTRUCTION_FIELD_NUMBER: _ClassVar[int]
     ROLE_FIELD_NUMBER: _ClassVar[int]
+    TURNS_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_FIELD_NUMBER: _ClassVar[int]
     source: str
     schema_json: str
     instruction: str
     role: str
-    def __init__(self, source: _Optional[str] = ..., schema_json: _Optional[str] = ..., instruction: _Optional[str] = ..., role: _Optional[str] = ...) -> None: ...
+    turns: _containers.RepeatedCompositeFieldContainer[Turn]
+    attachments: _containers.RepeatedCompositeFieldContainer[_gateway_pb2.Attachment]
+    profile: _gateway_pb2.Profile
+    def __init__(self, source: _Optional[str] = ..., schema_json: _Optional[str] = ..., instruction: _Optional[str] = ..., role: _Optional[str] = ..., turns: _Optional[_Iterable[_Union[Turn, _Mapping]]] = ..., attachments: _Optional[_Iterable[_Union[_gateway_pb2.Attachment, _Mapping]]] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ...) -> None: ...
 
 class RunResponse(_message.Message):
     __slots__ = ("value_json", "provider", "model", "validated", "usage", "error")

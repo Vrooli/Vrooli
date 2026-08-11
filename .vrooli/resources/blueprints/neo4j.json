@@ -16,7 +16,6 @@
   ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "The former implementation used Docker. Reassess whether Docker is appropriate for the future owner's deployment and desktop requirements.",
     "linux": "supported",
     "macos": "supported",
@@ -43,10 +42,18 @@
     "An additional database increases operational and data-model complexity."
   ],
   "status": "candidate",
-  "replacement_for": ["neo4j"],
+  "replacement_for": [
+    "neo4j"
+  ],
   "references": [
-    {"kind": "resource", "value": "resources/neo4j"},
-    {"kind": "doc", "value": "docs/resources/maturity-migration.md"}
+    {
+      "kind": "resource",
+      "value": "resources/neo4j"
+    },
+    {
+      "kind": "doc",
+      "value": "docs/resources/maturity-migration.md"
+    }
   ],
   "last_reviewed": "2026-07-19"
 }

@@ -11,12 +11,13 @@ import (
 
 // fakeDaemon is the injected daemon seam for deterministic tests.
 type fakeDaemon struct {
-	models    []string
-	listErr   error
-	shows     map[string]ensure.ShowResponse
-	showErr   map[string]error
-	toolNames map[string][]string // model -> tool_call names to return
-	chatErr   map[string]error
+	models     []string
+	listErr    error
+	shows      map[string]ensure.ShowResponse
+	showErr    map[string]error
+	toolNames  map[string][]string // model -> tool_call names to return
+	chatErr    map[string]error
+	chatImages []string
 }
 
 func (f *fakeDaemon) ListModels(ctx context.Context) ([]string, error) {
@@ -33,6 +34,9 @@ func (f *fakeDaemon) ShowModel(ctx context.Context, model string) (ensure.ShowRe
 }
 
 func (f *fakeDaemon) Chat(ctx context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error) {
+	for _, message := range in.Messages {
+		f.chatImages = append(f.chatImages, message.Images...)
+	}
 	if f.chatErr != nil {
 		if err := f.chatErr[in.Model]; err != nil {
 			return ensure.ChatResponse{}, err
@@ -48,6 +52,13 @@ func (f *fakeDaemon) Chat(ctx context.Context, in ensure.ChatRequest) (ensure.Ch
 		resp.Message.Content = `{"name":"write_file","arguments":{}}` // narrated as text
 	}
 	return resp, nil
+}
+
+func (f *fakeDaemon) Generate(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+	if len(in.Images) > 0 {
+		return ensure.GenerateResponse{Response: "generated vision response"}, nil
+	}
+	return ensure.GenerateResponse{}, nil
 }
 
 func TestList(t *testing.T) {
@@ -97,6 +108,20 @@ func TestProbeTools_InfraErrorPropagates(t *testing.T) {
 	}
 }
 
+func TestProbeVisionSendsImageAndPassesOnResponse(t *testing.T) {
+	d := &fakeDaemon{}
+	res, err := ProbeVision(context.Background(), d, "gemma4:12b", []byte("image-bytes"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.SupportsVision {
+		t.Fatalf("expected supports_vision, got %+v", res)
+	}
+	if len(d.chatImages) != 1 || d.chatImages[0] == "" {
+		t.Fatalf("expected one base64 image, got %v", d.chatImages)
+	}
+}
+
 // testPolicy builds a minimal in-memory policy mirroring the real shape.
 func testPolicy() policy.Policy {
 	return policy.Policy{
@@ -116,9 +141,9 @@ func testPolicy() policy.Policy {
 			},
 		},
 		Models: map[string]policy.Model{
-			"gemma4:12b":              {Capabilities: []string{"completion", "tools"}},
-			"qwen3.5:9b":              {Capabilities: []string{"completion", "tools"}},
-			"nomic-embed-text:latest": {Capabilities: []string{"embedding"}},
+			"gemma4:12b":              {Capabilities: []string{"completion", "tools"}, Modalities: policy.Modalities{Input: []policy.Modality{policy.ModalityText, policy.ModalityImage}, Output: []policy.Modality{policy.ModalityText}}},
+			"qwen3.5:9b":              {Capabilities: []string{"completion", "tools"}, Modalities: policy.Modalities{Input: []policy.Modality{policy.ModalityText}, Output: []policy.Modality{policy.ModalityText}}},
+			"nomic-embed-text:latest": {Capabilities: []string{"embedding"}, Modalities: policy.Modalities{Input: []policy.Modality{policy.ModalityText}, Output: []policy.Modality{policy.ModalityVector}}},
 		},
 	}
 }
@@ -191,6 +216,24 @@ func TestDoctor_MissingCapabilityFails(t *testing.T) {
 	}
 	if !hasCheck(res.Models[0], "capabilities", StatusFail) {
 		t.Error("expected a failing capabilities check")
+	}
+}
+
+func TestDoctor_MissingDeclaredImageInputFails(t *testing.T) {
+	d := &fakeDaemon{
+		models:    []string{"gemma4:12b"},
+		shows:     map[string]ensure.ShowResponse{"gemma4:12b": {Template: "{{ .Messages }}", Capabilities: []string{"completion", "tools"}}},
+		toolNames: map[string][]string{"gemma4:12b": {"write_file"}},
+	}
+	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Pass {
+		t.Fatal("expected fail when declared image input is absent from live capabilities")
+	}
+	if !hasCheck(res.Models[0], "modalities.image_input", StatusFail) {
+		t.Fatal("expected a failing image-input modality check")
 	}
 }
 

@@ -17,7 +17,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "platform-specific",
     "notes": "The underlying technology is cross-platform, but install and routing semantics are highly host-specific and should fail honestly unless a target platform is explicitly supported.",
     "linux": "partial",
     "macos": "partial",

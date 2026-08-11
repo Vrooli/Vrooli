@@ -15,7 +15,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Future support likely depends on model runtime, GPU expectations, and media pipeline decisions.",
     "linux": "partial",
     "macos": "partial",

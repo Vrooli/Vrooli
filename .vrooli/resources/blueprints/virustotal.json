@@ -17,7 +17,6 @@
   ],
   "integration_kind": "cloud-api",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "Portability is mostly about credential handling and network access because the capability is API-backed.",
     "linux": "supported",
     "macos": "supported",

@@ -106,6 +106,21 @@ message RouteEvidence {
   // selected_model is the concrete model the resource resolved for this route
   // when it reports one; "" keeps AI Gateway from inventing provider truth.
   string selected_model = 29;
+  int32 image_count = 30;
+  int64 attachment_bytes = 31;
+  string attachment_sha256 = 32;
+  bool attachments_redacted = 33;
+  repeated AttachmentDimension attachment_dimensions = 34;
+}
+
+// AttachmentDimension is the metadata retained for evidence. It deliberately
+// has no payload field, so persisted route evidence cannot contain image bytes.
+message AttachmentDimension {
+  vrooli.ai_gateway.v1.shared.Modality modality = 1;
+  string media_type = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+  uint64 bytes = 5;
 }
 
 message ExecuteRouteResponse {
@@ -151,6 +166,10 @@ message SubmitMediaRequest {
   repeated MediaInput inputs = 3;
   int32 output_count = 4;
   string idempotency_key = 5;
+  // Caller-owned absolute output path. The media executor writes produced
+  // bytes there and returns the same opaque reference; Gateway never stores
+  // the bytes in its receipt database.
+  string output_reference = 6;
 }
 
 // MediaExecution is the durable receipt and terminal result. It records route

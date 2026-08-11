@@ -17,7 +17,6 @@
   ],
   "integration_kind": "compose-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Cross-platform via containers is plausible, but local developer ergonomics and operational complexity are materially higher than simpler queueing options.",
     "linux": "partial",
     "macos": "partial",

@@ -16,7 +16,6 @@
   ],
   "integration_kind": "cloud-api",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "As a hosted API integration, portability is primarily determined by the Go client, credential management, and network availability.",
     "linux": "supported",
     "macos": "supported",
@@ -43,10 +42,18 @@
     "Hosted-provider lock-in and usage costs require an explicit owner decision."
   ],
   "status": "candidate",
-  "replacement_for": ["cloudflare-ai-gateway"],
+  "replacement_for": [
+    "cloudflare-ai-gateway"
+  ],
   "references": [
-    {"kind": "resource", "value": "resources/cloudflare-ai-gateway"},
-    {"kind": "doc", "value": "docs/resources/maturity-migration.md"}
+    {
+      "kind": "resource",
+      "value": "resources/cloudflare-ai-gateway"
+    },
+    {
+      "kind": "doc",
+      "value": "docs/resources/maturity-migration.md"
+    }
   ],
   "last_reviewed": "2026-07-19"
 }

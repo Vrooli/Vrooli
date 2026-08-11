@@ -17,7 +17,6 @@
   ],
   "integration_kind": "compose-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Containerized deployment is portable, but real support requires clear guidance for realms, persistence, TLS, and identity-provider integration.",
     "linux": "partial",
     "macos": "partial",

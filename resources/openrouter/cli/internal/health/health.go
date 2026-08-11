@@ -31,6 +31,14 @@ type Result struct {
 	Authenticated bool
 }
 
+// ImageInput is the provider-neutral image payload accepted by the resource
+// command surface. DataB64 is converted into a provider content part only at
+// the HTTP boundary and is never included in command output.
+type ImageInput struct {
+	MediaType string
+	DataB64   string
+}
+
 // Probe performs a provider-safe GET against the OpenRouter models endpoint.
 func Probe(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials) (Result, error) {
 	if client == nil {
@@ -76,7 +84,7 @@ func Probe(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, 
 }
 
 // Generate performs a direct OpenRouter chat completion request.
-func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials, model, prompt string, temperature float64, maxTokens int, responseFormat json.RawMessage) ([]byte, error) {
+func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials, model, prompt string, temperature float64, maxTokens int, responseFormat json.RawMessage, images []ImageInput) ([]byte, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
@@ -88,7 +96,7 @@ func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtim
 		Model    string `json:"model"`
 		Messages []struct {
 			Role    string `json:"role"`
-			Content string `json:"content"`
+			Content any    `json:"content"`
 		} `json:"messages"`
 		Temperature    float64         `json:"temperature"`
 		MaxTokens      int             `json:"max_tokens,omitempty"`
@@ -99,10 +107,24 @@ func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtim
 		MaxTokens:      maxTokens,
 		ResponseFormat: responseFormat,
 	}
+	content := any(prompt)
+	if len(images) > 0 {
+		parts := make([]map[string]any, 0, len(images)+1)
+		parts = append(parts, map[string]any{"type": "text", "text": prompt})
+		for _, image := range images {
+			parts = append(parts, map[string]any{
+				"type": "image_url",
+				"image_url": map[string]string{
+					"url": "data:" + image.MediaType + ";base64," + image.DataB64,
+				},
+			})
+		}
+		content = parts
+	}
 	payload.Messages = []struct {
 		Role    string `json:"role"`
-		Content string `json:"content"`
-	}{{Role: "user", Content: prompt}}
+		Content any    `json:"content"`
+	}{{Role: "user", Content: content}}
 
 	body, err := json.Marshal(payload)
 	if err != nil {

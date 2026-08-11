@@ -17,7 +17,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Containerized and host installs are possible, but HPC assumptions and solver complexity make support uneven and Linux-leaning.",
     "linux": "partial",
     "macos": "unsupported",

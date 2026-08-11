@@ -17,7 +17,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Containerization is possible, but HPC assumptions, solver performance, and toolchain complexity still make support uneven across hosts.",
     "linux": "partial",
     "macos": "unsupported",

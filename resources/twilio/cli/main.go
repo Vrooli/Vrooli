@@ -5,8 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"resource-twilio/cli/internal/health"
 	"time"
+
+	"resource-twilio/cli/internal/health"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

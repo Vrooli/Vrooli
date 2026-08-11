@@ -294,6 +294,7 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 	var got struct {
 		Model   string         `json:"model"`
 		Prompt  string         `json:"prompt"`
+		Images  []string       `json:"images"`
 		Stream  bool           `json:"stream"`
 		Think   *bool          `json:"think"`
 		Options map[string]any `json:"options"`
@@ -317,11 +318,14 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 	maxTokens := 123
 	temperature := 0.25
 	think := false
+	numGPU := 0
 	client := &Client{BaseURL: srv.URL, HTTP: http.DefaultClient}
 	resp, err := client.Generate(context.Background(), GenerateRequest{
 		Model:       "llama3.2:1b",
 		Prompt:      "hello",
 		Think:       &think,
+		Images:      []string{"aGVsbG8="},
+		NumGPU:      &numGPU,
 		NumPredict:  &maxTokens,
 		Temperature: &temperature,
 	})
@@ -334,6 +338,9 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 	if got.Model != "llama3.2:1b" || got.Prompt != "hello" || got.Stream {
 		t.Fatalf("request body = %+v", got)
 	}
+	if len(got.Images) != 1 || got.Images[0] != "aGVsbG8=" {
+		t.Fatalf("images = %#v, want one base64 image", got.Images)
+	}
 	if got.Think == nil || *got.Think != false {
 		t.Fatalf("think = %v, want false", got.Think)
 	}
@@ -342,6 +349,9 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 	}
 	if got.Options["temperature"] != 0.25 {
 		t.Fatalf("temperature = %#v, want 0.25", got.Options["temperature"])
+	}
+	if got.Options["num_gpu"] != float64(0) {
+		t.Fatalf("num_gpu = %#v, want 0", got.Options["num_gpu"])
 	}
 }
 

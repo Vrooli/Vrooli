@@ -17,7 +17,6 @@
   ],
   "integration_kind": "external-cli",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "The client itself is portable, but practical support differs sharply between local dev chains and long-running network nodes.",
     "linux": "supported",
     "macos": "supported",

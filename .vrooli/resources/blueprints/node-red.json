@@ -17,7 +17,6 @@
   ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Containerized execution is portable, but plugin lifecycle, persistence, and scenario integration patterns need deliberate design before support is claimed.",
     "linux": "partial",
     "macos": "partial",

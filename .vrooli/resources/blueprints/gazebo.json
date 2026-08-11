@@ -17,7 +17,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Simulator support varies across host OSes, graphics stacks, and ROS integration expectations.",
     "linux": "partial",
     "macos": "unsupported",

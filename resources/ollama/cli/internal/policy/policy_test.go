@@ -47,6 +47,19 @@ func TestValidateRejectsUnknownRoleModel(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsMissingModalities(t *testing.T) {
+	p, err := LoadFile(filepath.Join("..", "..", "..", "model-policy.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := p.Models["qwen3.5:4b"]
+	model.Modalities = Modalities{}
+	p.Models["qwen3.5:4b"] = model
+	if err := p.Validate(); err == nil || !strings.Contains(err.Error(), "models.qwen3.5:4b.modalities.input must not be empty") {
+		t.Fatalf("expected missing modality validation error, got %v", err)
+	}
+}
+
 func TestValidateRejectsUnknownProvenanceKind(t *testing.T) {
 	p := Policy{
 		SchemaVersion: "test",
@@ -152,6 +165,7 @@ func testModel() Model {
 	return Model{
 		Family:             "known",
 		Capabilities:       []string{"generate"},
+		Modalities:         Modalities{Input: []Modality{ModalityText}, Output: []Modality{ModalityText}},
 		DiskSizeGBEstimate: 1,
 		RAMGBEstimate:      1,
 		VRAMGBEstimate:     1,

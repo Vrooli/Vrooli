@@ -17,7 +17,6 @@
   ],
   "integration_kind": "library",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "The framework is broadly portable, but real support depends on Python environment management and the backing model/vector store choices.",
     "linux": "supported",
     "macos": "supported",

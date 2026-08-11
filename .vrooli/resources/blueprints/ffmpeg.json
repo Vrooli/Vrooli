@@ -17,7 +17,6 @@
   ],
   "integration_kind": "external-cli",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "FFmpeg is cross-platform, but codec availability and hardware acceleration support vary by package source and host GPU.",
     "linux": "supported",
     "macos": "supported",

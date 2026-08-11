@@ -17,7 +17,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Containerization is possible, but HPC libraries, MPI, and solver performance expectations vary materially by environment.",
     "linux": "partial",
     "macos": "unsupported",

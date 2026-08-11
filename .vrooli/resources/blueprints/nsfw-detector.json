@@ -17,7 +17,6 @@
   ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The service can be containerized, but GPU acceleration and model quality vary by environment and model choice.",
     "linux": "partial",
     "macos": "partial",

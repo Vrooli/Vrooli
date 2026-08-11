@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"resource-unstructured-io/cli/internal/unstructured"
 	"time"
+
+	"resource-unstructured-io/cli/internal/unstructured"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

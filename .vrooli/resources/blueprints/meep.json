@@ -17,7 +17,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The stack can be containerized or installed natively, but HPC and scientific package expectations vary sharply by host environment.",
     "linux": "partial",
     "macos": "unsupported",

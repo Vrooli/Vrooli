@@ -17,7 +17,6 @@
   ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The service can run in containers, but model size, GPU acceleration, and runtime dependencies make support uneven across environments.",
     "linux": "partial",
     "macos": "partial",

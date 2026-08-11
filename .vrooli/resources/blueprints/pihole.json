@@ -17,7 +17,6 @@
   ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "platform-specific",
     "notes": "The software can run in containers, but practical usefulness depends heavily on host networking control and local DNS topology.",
     "linux": "partial",
     "macos": "unsupported",

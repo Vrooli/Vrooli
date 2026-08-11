@@ -17,7 +17,6 @@
   ],
   "integration_kind": "desktop-app",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "FreeCAD is cross-platform, but Python API behavior, GUI automation, and package quality vary by host environment.",
     "linux": "partial",
     "macos": "partial",

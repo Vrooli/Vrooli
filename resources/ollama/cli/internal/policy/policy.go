@@ -109,18 +109,39 @@ func clampInt(v, lo, hi int) int {
 }
 
 type Model struct {
-	Family              string                `json:"family"`
-	Tags                []string              `json:"tags"`
-	Capabilities        []string              `json:"capabilities"`
-	ContextWindowTokens int                   `json:"context_window_tokens,omitempty"`
-	EmbeddingDimensions int                   `json:"embedding_dimensions,omitempty"`
-	DiskSizeGBEstimate  float64               `json:"disk_size_gb_estimate"`
-	RAMGBEstimate       float64               `json:"ram_gb_estimate"`
-	VRAMGBEstimate      float64               `json:"vram_gb_estimate"`
-	DefaultEligible     bool                  `json:"default_eligible"`
-	UseCaseNotes        string                `json:"use_case_notes"`
-	Caveats             []string              `json:"caveats"`
-	Provenance          map[string]Provenance `json:"provenance"`
+	Family               string                `json:"family"`
+	Tags                 []string              `json:"tags"`
+	Capabilities         []string              `json:"capabilities"`
+	Modalities           Modalities            `json:"modalities"`
+	CoordinateConvention string                `json:"coordinate_convention,omitempty"`
+	ContextWindowTokens  int                   `json:"context_window_tokens,omitempty"`
+	EmbeddingDimensions  int                   `json:"embedding_dimensions,omitempty"`
+	DiskSizeGBEstimate   float64               `json:"disk_size_gb_estimate"`
+	RAMGBEstimate        float64               `json:"ram_gb_estimate"`
+	VRAMGBEstimate       float64               `json:"vram_gb_estimate"`
+	DefaultEligible      bool                  `json:"default_eligible"`
+	UseCaseNotes         string                `json:"use_case_notes"`
+	Caveats              []string              `json:"caveats"`
+	Provenance           map[string]Provenance `json:"provenance"`
+}
+
+// Modality is the provider-neutral inference vocabulary shared by local and
+// hosted model catalogs. Video and audio are deliberately admitted here even
+// though no Ollama role currently consumes them; adding a vocabulary value is
+// not permission to route a role through it.
+type Modality string
+
+const (
+	ModalityText   Modality = "text"
+	ModalityImage  Modality = "image"
+	ModalityVector Modality = "vector"
+	ModalityVideo  Modality = "video"
+	ModalityAudio  Modality = "audio"
+)
+
+type Modalities struct {
+	Input  []Modality `json:"input"`
+	Output []Modality `json:"output"`
 }
 
 type Constraints struct {
@@ -133,6 +154,7 @@ type Constraints struct {
 	DirectModelExceptionRequiredFields []string `json:"direct_model_exception_required_fields"`
 	ProvenanceRequired                 bool     `json:"provenance_required"`
 	ProvenanceSourceKinds              []string `json:"provenance_source_kinds"`
+	ModalityVocabulary                 []string `json:"modality_vocabulary"`
 }
 
 type Provenance struct {
@@ -260,6 +282,8 @@ type ResolvedPolicyModel struct {
 	Fallbacks            []string              `json:"fallbacks,omitempty"`
 	RequiredCapabilities []string              `json:"required_capabilities,omitempty"`
 	Capabilities         []string              `json:"capabilities"`
+	Modalities           Modalities            `json:"modalities"`
+	CoordinateConvention string                `json:"coordinate_convention,omitempty"`
 	ContextWindowTokens  int                   `json:"context_window_tokens,omitempty"`
 	EmbeddingDimensions  int                   `json:"embedding_dimensions,omitempty"`
 	DiskSizeGBEstimate   float64               `json:"disk_size_gb_estimate"`
@@ -463,17 +487,22 @@ func (p Policy) ResolveModel(modelRef string) (ResolvedPolicyModel, error) {
 
 func (p Policy) resolvedPolicyModel(source, modelRef string, model Model) ResolvedPolicyModel {
 	return ResolvedPolicyModel{
-		SchemaVersion:       p.SchemaVersion,
-		Source:              source,
-		Model:               modelRef,
-		Capabilities:        append([]string{}, model.Capabilities...),
-		ContextWindowTokens: model.ContextWindowTokens,
-		EmbeddingDimensions: model.EmbeddingDimensions,
-		DiskSizeGBEstimate:  model.DiskSizeGBEstimate,
-		RAMGBEstimate:       model.RAMGBEstimate,
-		VRAMGBEstimate:      model.VRAMGBEstimate,
-		DefaultEligible:     model.DefaultEligible,
-		Provenance:          copyProvenanceMap(model.Provenance),
+		SchemaVersion: p.SchemaVersion,
+		Source:        source,
+		Model:         modelRef,
+		Capabilities:  append([]string{}, model.Capabilities...),
+		Modalities: Modalities{
+			Input:  append([]Modality{}, model.Modalities.Input...),
+			Output: append([]Modality{}, model.Modalities.Output...),
+		},
+		CoordinateConvention: model.CoordinateConvention,
+		ContextWindowTokens:  model.ContextWindowTokens,
+		EmbeddingDimensions:  model.EmbeddingDimensions,
+		DiskSizeGBEstimate:   model.DiskSizeGBEstimate,
+		RAMGBEstimate:        model.RAMGBEstimate,
+		VRAMGBEstimate:       model.VRAMGBEstimate,
+		DefaultEligible:      model.DefaultEligible,
+		Provenance:           copyProvenanceMap(model.Provenance),
 	}
 }
 
@@ -500,6 +529,10 @@ func (p Policy) Validate() error {
 	if len(sourceKinds) == 0 {
 		errs = append(errs, errors.New("constraints.provenance_source_kinds must not be empty"))
 	}
+	modalityVocab := set(p.Constraints.ModalityVocabulary)
+	if len(modalityVocab) == 0 {
+		errs = append(errs, errors.New("constraints.modality_vocabulary must not be empty"))
+	}
 	for name, role := range p.Roles {
 		if strings.TrimSpace(role.Model) == "" {
 			errs = append(errs, fmt.Errorf("roles.%s.model is required", name))
@@ -525,6 +558,22 @@ func (p Policy) Validate() error {
 		}
 		if len(model.Capabilities) == 0 {
 			errs = append(errs, fmt.Errorf("models.%s.capabilities must not be empty", name))
+		}
+		if len(model.Modalities.Input) == 0 {
+			errs = append(errs, fmt.Errorf("models.%s.modalities.input must not be empty", name))
+		}
+		if len(model.Modalities.Output) == 0 {
+			errs = append(errs, fmt.Errorf("models.%s.modalities.output must not be empty", name))
+		}
+		for direction, modalities := range map[string][]Modality{
+			"input":  model.Modalities.Input,
+			"output": model.Modalities.Output,
+		} {
+			for _, modality := range modalities {
+				if _, ok := modalityVocab[string(modality)]; !ok {
+					errs = append(errs, fmt.Errorf("models.%s.modalities.%s value %q is not in modality_vocabulary", name, direction, modality))
+				}
+			}
 		}
 		if model.DiskSizeGBEstimate <= 0 {
 			errs = append(errs, fmt.Errorf("models.%s.disk_size_gb_estimate must be positive", name))

@@ -17,7 +17,6 @@
   ],
   "integration_kind": "desktop-app",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "OBS is cross-platform, but capture permissions, plugins, and GPU/desktop behavior differ substantially across host environments.",
     "linux": "partial",
     "macos": "partial",

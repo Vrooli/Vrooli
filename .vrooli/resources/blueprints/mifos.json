@@ -17,7 +17,6 @@
   ],
   "integration_kind": "compose-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The platform can be containerized, but real support requires stronger domain validation, persistence, and operational ownership than Vrooli currently provides.",
     "linux": "partial",
     "macos": "partial",

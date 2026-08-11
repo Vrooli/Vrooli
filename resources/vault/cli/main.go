@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"resource-vault/cli/internal/content"
 	"resource-vault/cli/internal/status"
 

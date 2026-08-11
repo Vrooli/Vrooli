@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "scenario-to-android",
+  "input_digest": "sha256:57b86edcb562266165d01176ecdd06d6c3955566d4d1291e50fe947c7d2c964e",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/scenario-to-android/v1/notes/attachments.proto",
+    "schemas/scenario-to-android/v1/notes/notes.proto",
+    "schemas/scenario-to-android/v1/shared/errors.proto",
+    "schemas/scenario-to-android/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/scenario-to-android/v1/notes/attachments.pb.go": "sha256:899671f5a871b756a539b1ed651a7549d5828687cda884aeaf2d593e17fe5423",
+    "gen/go/scenario-to-android/v1/notes/notes.pb.go": "sha256:17e9b3b673b65e3236be49decd35ae370e23561c714c9a5bf68e61d0d4863f7d",
+    "gen/go/scenario-to-android/v1/notes/notes_v1connect/notes.connect.go": "sha256:d85c831ca8b5b431b38bfeba04ff32ce873dc62709a5a4c8788a38b988eab775",
+    "gen/go/scenario-to-android/v1/shared/errors.pb.go": "sha256:3e2f1c82da220f996f74e6f674dd2e785202f6ab87a55819588605009b7cbbcb",
+    "gen/go/scenario-to-android/v1/shared/health.pb.go": "sha256:b67dc59ca388bc2a48f440857b94b481ea24c94ab386d9c2c7b9339b01621b9f",
+    "gen/python/scenario_to_android/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_to_android/v1/notes/attachments_pb2.py": "sha256:6152c9c294ab37734effe75e3fb39593fd99a5146c7820b5ca84a8fa750b05a6",
+    "gen/python/scenario_to_android/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/scenario_to_android/v1/notes/notes_pb2.py": "sha256:b1c10898c207c1037aeb8f39cd8bbe49ce6b9925b9796ebb761a9c595538303c",
+    "gen/python/scenario_to_android/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/scenario_to_android/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_to_android/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_to_android/v1/shared/errors_pb2.py": "sha256:3911fba020d0888155afb4da7c4f7c0b35314b56c24ef860cae989ade0ac6ba7",
+    "gen/python/scenario_to_android/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/scenario_to_android/v1/shared/health_pb2.py": "sha256:605ca010252050121f9d60a3192c1161a4da37aaead43f49df38debd3c9529da",
+    "gen/python/scenario_to_android/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/scenario_to_android/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/scenario-to-android/v1/notes/attachments_pb.js": "sha256:5aaddb121381095b26bdb84e64715830dccc3cb20abe3e660708fae2b1bf184a",
+    "gen/typescript/js/scenario-to-android/v1/notes/notes_pb.js": "sha256:e6aaccc4965132aa0a8f32eaab118e84f13edb50c2751f8c65c844a88c52db76",
+    "gen/typescript/js/scenario-to-android/v1/shared/errors_pb.js": "sha256:4cdf2d1b61fae48eee2301f3646692c479df8118c5eb7afce171dbab472dd7e6",
+    "gen/typescript/js/scenario-to-android/v1/shared/health_pb.js": "sha256:8f39926ac139fe5e1689659b7e5bff2e6061fe545b30921ea90fa02139646b94",
+    "gen/typescript/scenario-to-android/v1/notes/attachments_pb.ts": "sha256:b4c148accc0de239285d5529b7f39e2de7e202cd1a0cbe2337cedb8e3a4ae49a",
+    "gen/typescript/scenario-to-android/v1/notes/notes_pb.ts": "sha256:9a3a4ea22a275b03d098df76d635c5bc83f3f5b7810885dcef18a529004c766e",
+    "gen/typescript/scenario-to-android/v1/shared/errors_pb.ts": "sha256:6d1ed78e71fe19588ad405fcab4d7fb2dda208e9eb5b981dce0fc9b431f537e2",
+    "gen/typescript/scenario-to-android/v1/shared/health_pb.ts": "sha256:afa69c1670ebb7eb9e941963003d980b97e2c797c0aad139174fd84010e035e0"
+  }
+}

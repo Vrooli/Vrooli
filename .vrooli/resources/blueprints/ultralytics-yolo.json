@@ -17,7 +17,6 @@
   ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Inference can run across platforms, but GPU acceleration, model packaging, and throughput differ substantially by environment.",
     "linux": "partial",
     "macos": "partial",

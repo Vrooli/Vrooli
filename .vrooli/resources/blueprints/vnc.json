@@ -17,7 +17,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Remote desktop components exist across platforms, but session management, security, and display-server behavior differ materially by host.",
     "linux": "partial",
     "macos": "partial",

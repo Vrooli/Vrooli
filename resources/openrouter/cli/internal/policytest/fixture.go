@@ -56,7 +56,8 @@ const FixturePolicyJSON = `{
     "role_preference_order": ["chat.default", "image.generate.logo"],
     "direct_model_exception_required_fields": ["reason", "owner", "review_after"],
     "provenance_required": true,
-    "provenance_source_kinds": ["manual_policy", "chatgpt_survey"]
+    "provenance_source_kinds": ["manual_policy", "chatgpt_survey"],
+    "modality_vocabulary": ["text", "image", "vector", "video", "audio"]
   },
   "provenance": {
     "policy": {"source_kind": "manual_policy", "confidence": "high", "source": "fixture", "observed_at": "2026-06-30", "sample_count": 0}

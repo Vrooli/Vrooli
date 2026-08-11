@@ -15,7 +15,6 @@
   ],
   "integration_kind": "library",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "The framework is cross-platform in principle, but support value depends on whether Vrooli wants to own a framework-level contract instead of narrower capabilities.",
     "linux": "supported",
     "macos": "supported",

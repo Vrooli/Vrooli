@@ -17,7 +17,6 @@
   ],
   "integration_kind": "desktop-app",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Blender is cross-platform, but headless rendering, GPU setup, and Python automation vary by host and driver availability.",
     "linux": "partial",
     "macos": "partial",

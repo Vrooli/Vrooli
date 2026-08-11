@@ -96,6 +96,26 @@
         "sample_count": 0
       }
     },
+    "vision.default": {
+      "model": "google/gemini-3.1-flash-lite-preview",
+      "fallbacks": [],
+      "endpoint": "chat",
+      "required_capabilities": ["chat", "vision", "structured_output"],
+      "description": "Hosted visual grounding role for locate.visual when no eligible local vision model exists.",
+      "preference": 65,
+      "request_defaults": {
+        "temperature": 0.0,
+        "max_tokens": 512,
+        "response_format": "json_schema"
+      },
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "multimodal-inference-in-ai-gateway-one-provider-boundary Phase 6 hosted vision fallback",
+        "observed_at": "2026-08-10",
+        "sample_count": 1
+      }
+    },
     "extract.structured": {
       "model": "google/gemini-3.1-flash-lite-preview",
       "fallbacks": ["inception/mercury-2", "minimax/minimax-m3", "qwen/qwen3.7-plus"],
@@ -372,6 +392,7 @@
       "family": "gemini",
       "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "vision", "document"],
       "modalities": {"input": ["text", "image"], "output": ["text"]},
+      "coordinate_convention": "normalized_1000",
       "endpoints": ["chat"],
       "context_window_tokens": 1000000,
       "default_eligible": true,
@@ -391,13 +412,20 @@
       "provider": "minimax",
       "family": "minimax",
       "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "code"],
-      "modalities": {"input": ["text"], "output": ["text"]},
+      "modalities": {"input": ["text", "image", "video"], "output": ["text"]},
       "endpoints": ["chat"],
       "context_window_tokens": 1000000,
       "default_eligible": true,
       "pricing": {"unit": "per_mtok", "input_per_mtok": 0.30, "output_per_mtok": 1.20},
       "use_case_notes": "Best general text value: 1M context, agent/coding/tool-oriented, low output price.",
       "provenance": {
+        "modalities": {
+          "source_kind": "openrouter_models",
+          "confidence": "measured",
+          "source": "live https://openrouter.ai/api/v1/models architecture metadata",
+          "observed_at": "2026-08-10",
+          "sample_count": 1
+        },
         "catalog": {
           "source_kind": "chatgpt_survey",
           "confidence": "medium",
@@ -825,7 +853,8 @@
       "chatgpt_survey",
       "static_estimate",
       "scenario_pin"
-    ]
+    ],
+    "modality_vocabulary": ["text", "image", "vector", "video", "audio"]
   },
   "provenance": {
     "policy": {

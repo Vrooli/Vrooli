@@ -9,6 +9,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -27,15 +28,37 @@ import (
 )
 
 const (
-	defaultParallel  = 4
-	defaultAcquire   = 60 * time.Second
-	charsPerToken    = 4
-	envNumParallel   = "OLLAMA_NUM_PARALLEL"
-	envAcquireTO     = "OLLAMA_GATEWAY_ACQUIRE_TIMEOUT"
-	envLockDir       = "OLLAMA_GATEWAY_LOCK_DIR"
-	envRuntimeDir    = "VROOLI_RUNTIME_DIR"
-	defaultLockChild = "vrooli/resources/ollama/sem"
+	defaultParallel      = 4
+	defaultAcquire       = 60 * time.Second
+	charsPerToken        = 4
+	envNumParallel       = "OLLAMA_NUM_PARALLEL"
+	envAcquireTO         = "OLLAMA_GATEWAY_ACQUIRE_TIMEOUT"
+	envLockDir           = "OLLAMA_GATEWAY_LOCK_DIR"
+	envRuntimeDir        = "VROOLI_RUNTIME_DIR"
+	defaultLockChild     = "vrooli/resources/ollama/sem"
+	defaultMaxImageBytes = 10 * 1024 * 1024
+	defaultMaxImages     = 4
+	envMaxImageBytes     = "OLLAMA_GATEWAY_MAX_IMAGE_BYTES"
+	envMaxImages         = "OLLAMA_GATEWAY_MAX_IMAGES"
 )
+
+// ImageInputError is a typed, caller-actionable image transport error.
+type ImageInputError struct {
+	Code    string
+	Message string
+}
+
+func (e *ImageInputError) Error() string {
+	return "image_input." + e.Code + ": " + e.Message
+}
+
+type imageInputEnvelope struct {
+	Prompt string `json:"prompt"`
+	Images []struct {
+		MediaType string `json:"media_type"`
+		DataB64   string `json:"data_b64"`
+	} `json:"images"`
+}
 
 // Client is the upstream-facing surface used by the gateway handlers. It is
 // satisfied by *ensure.Client in production and by fakes in tests.
@@ -87,7 +110,7 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{
 				Name:        "generate",
 				Description: "Generate a completion for --prompt (or stdin) using --role or --model",
-				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--max-tokens <n>] [--temperature <f>] [--prompt <text> | --prompt-stdin]",
+				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--cpu-only] [--max-tokens <n>] [--temperature <f>] [--prompt <text> | --prompt-stdin | --input-json-stdin]",
 				Run:         h.Generate,
 			},
 			{
@@ -154,6 +177,8 @@ func (h *Handlers) Generate(args []string) error {
 	role := fs.String("role", "", "Ollama model role from model-policy.json (e.g. chat.default)")
 	prompt := fs.String("prompt", "", "Inline prompt text")
 	fromStdin := fs.Bool("prompt-stdin", false, "Read prompt from stdin")
+	inputJSONStdin := fs.Bool("input-json-stdin", false, "Read {prompt,images:[{media_type,data_b64}]} from stdin")
+	cpuOnly := fs.Bool("cpu-only", false, "Force Ollama to run this request without GPU layers")
 	maxTokens := fs.Int("max-tokens", 0, "Maximum tokens to generate; omitted when <= 0")
 	temperature := fs.Float64("temperature", -1, "Sampling temperature; omitted when < 0")
 	format := fs.String("format", "", "Ollama JSON format (json or a JSON Schema object)")
@@ -165,7 +190,16 @@ func (h *Handlers) Generate(args []string) error {
 	if err != nil {
 		return err
 	}
-	text, err := h.resolveInput(*prompt, *fromStdin, "prompt")
+	var text string
+	var images []string
+	if *inputJSONStdin {
+		if *prompt != "" || *fromStdin {
+			return fmt.Errorf("--input-json-stdin cannot be combined with --prompt or --prompt-stdin")
+		}
+		text, images, err = h.resolveImageInput(selected)
+	} else {
+		text, err = h.resolveInput(*prompt, *fromStdin, "prompt")
+	}
 	if err != nil {
 		return err
 	}
@@ -193,7 +227,11 @@ func (h *Handlers) Generate(args []string) error {
 	// model thinking explicitly so thinking-capable models do not spend the
 	// caller's output budget on hidden reasoning and return an empty response.
 	think := false
-	req := ensure.GenerateRequest{Model: selected.Ref, Prompt: text, Think: &think, Format: formatJSON}
+	req := ensure.GenerateRequest{Model: selected.Ref, Prompt: text, Images: images, Think: &think, Format: formatJSON}
+	if *cpuOnly {
+		numGPU := 0
+		req.NumGPU = &numGPU
+	}
 	if *maxTokens > 0 {
 		req.NumPredict = maxTokens
 	}
@@ -283,6 +321,7 @@ type selectedModel struct {
 	Ref                 string
 	Source              string
 	ContextWindowTokens int
+	InputModalities     []policy.Modality
 }
 
 func (h *Handlers) resolveModelSelection(model, role, requiredCapability string) (selectedModel, error) {
@@ -308,6 +347,7 @@ func (h *Handlers) resolveModelSelection(model, role, requiredCapability string)
 			return selectedModel{}, fmt.Errorf("model %q does not declare %s capability", model, requiredCapability)
 		}
 		selected.ContextWindowTokens = resolved.ContextWindowTokens
+		selected.InputModalities = append([]policy.Modality{}, resolved.Modalities.Input...)
 		return selected, nil
 	}
 
@@ -336,7 +376,79 @@ func (h *Handlers) resolveModelSelection(model, role, requiredCapability string)
 		Ref:                 ref,
 		Source:              "role",
 		ContextWindowTokens: modelPolicy.ContextWindowTokens,
+		InputModalities:     append([]policy.Modality{}, modelPolicy.Modalities.Input...),
 	}, nil
+}
+
+func (h *Handlers) resolveImageInput(selected selectedModel) (string, []string, error) {
+	maxBytes := h.maxImageBytes()
+	maxImages := h.maxImages()
+	limit := int64(maxBytes*2 + 64*1024)
+	data, err := io.ReadAll(io.LimitReader(h.Stdin, limit))
+	if err != nil {
+		return "", nil, fmt.Errorf("read input JSON: %w", err)
+	}
+	if int64(len(data)) >= limit {
+		return "", nil, &ImageInputError{Code: "request_too_large", Message: fmt.Sprintf("JSON envelope exceeds %d bytes", limit)}
+	}
+	var envelope imageInputEnvelope
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		return "", nil, &ImageInputError{Code: "invalid_json", Message: err.Error()}
+	}
+	if strings.TrimSpace(envelope.Prompt) == "" {
+		return "", nil, &ImageInputError{Code: "prompt_required", Message: "prompt must not be empty"}
+	}
+	if len(envelope.Images) == 0 {
+		return envelope.Prompt, nil, nil
+	}
+	if len(envelope.Images) > maxImages {
+		return "", nil, &ImageInputError{Code: "too_many_images", Message: fmt.Sprintf("received %d images; maximum is %d", len(envelope.Images), maxImages)}
+	}
+	if len(selected.InputModalities) > 0 && !containsModality(selected.InputModalities, policy.ModalityImage) {
+		return "", nil, &ImageInputError{Code: "capability_mismatch", Message: fmt.Sprintf("model %q does not declare image input modality", selected.Ref)}
+	}
+	images := make([]string, 0, len(envelope.Images))
+	for i, image := range envelope.Images {
+		mediaType := strings.ToLower(strings.TrimSpace(image.MediaType))
+		if mediaType != "image/png" && mediaType != "image/jpeg" && mediaType != "image/webp" {
+			return "", nil, &ImageInputError{Code: "unsupported_media_type", Message: fmt.Sprintf("image %d has unsupported media_type %q", i, image.MediaType)}
+		}
+		decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(image.DataB64))
+		if err != nil {
+			return "", nil, &ImageInputError{Code: "invalid_base64", Message: fmt.Sprintf("image %d: %v", i, err)}
+		}
+		if len(decoded) == 0 {
+			return "", nil, &ImageInputError{Code: "empty_image", Message: fmt.Sprintf("image %d is empty", i)}
+		}
+		if len(decoded) > maxBytes {
+			return "", nil, &ImageInputError{Code: "image_too_large", Message: fmt.Sprintf("image %d is %d bytes; maximum is %d", i, len(decoded), maxBytes)}
+		}
+		images = append(images, base64.StdEncoding.EncodeToString(decoded))
+	}
+	return envelope.Prompt, images, nil
+}
+
+func containsModality(values []policy.Modality, want policy.Modality) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *Handlers) maxImageBytes() int {
+	if n, err := strconv.Atoi(strings.TrimSpace(h.GetEnv(envMaxImageBytes))); err == nil && n > 0 {
+		return n
+	}
+	return defaultMaxImageBytes
+}
+
+func (h *Handlers) maxImages() int {
+	if n, err := strconv.Atoi(strings.TrimSpace(h.GetEnv(envMaxImages))); err == nil && n > 0 {
+		return n
+	}
+	return defaultMaxImages
 }
 
 func validateContextWindow(prompt string, maxTokens int, selected selectedModel) error {

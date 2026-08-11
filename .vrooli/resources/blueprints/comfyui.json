@@ -9,10 +9,13 @@
     "A scenario needs ComfyUI-specific workflow interoperability that its standalone local or cloud image backends cannot provide.",
     "An owning scenario commits to a tested image-generation contract, model-storage plan, and platform-support decision."
   ],
-  "example_scenarios": ["Image-generation workflows", "Creative-content production", "Node-based AI pipelines"],
+  "example_scenarios": [
+    "Image-generation workflows",
+    "Creative-content production",
+    "Node-based AI pipelines"
+  ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The former implementation depended on Docker and GPU-specific shell handling. A future owner should prefer a managed local-service design where feasible and isolate GPU and host-runtime differences behind explicit platform adapters.",
     "linux": "partial",
     "macos": "partial",
@@ -41,12 +44,26 @@
     "A Docker-first runtime may be unsuitable for desktop bundles."
   ],
   "status": "candidate",
-  "replacement_for": ["comfyui"],
+  "replacement_for": [
+    "comfyui"
+  ],
   "references": [
-    {"kind": "resource", "value": "resources/comfyui"},
-    {"kind": "scenario", "value": "scenarios/image-tools"},
-    {"kind": "scenario", "value": "scenarios/campaign-content-studio"},
-    {"kind": "doc", "value": "docs/resources/maturity-migration.md"}
+    {
+      "kind": "resource",
+      "value": "resources/comfyui"
+    },
+    {
+      "kind": "scenario",
+      "value": "scenarios/image-tools"
+    },
+    {
+      "kind": "scenario",
+      "value": "scenarios/campaign-content-studio"
+    },
+    {
+      "kind": "doc",
+      "value": "docs/resources/maturity-migration.md"
+    }
   ],
   "last_reviewed": "2026-07-20"
 }

@@ -17,7 +17,6 @@
   ],
   "integration_kind": "external-cli",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "The client itself is lightweight and portable, but useful operation depends on reachable compatible RCON servers.",
     "linux": "supported",
     "macos": "supported",

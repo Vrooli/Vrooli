@@ -228,6 +228,21 @@ resource-ollama gateway generate --role chat.default      --json --prompt "say h
 resource-ollama gateway chat     --role summarize.default --json --system "Be concise" --prompt "summarize this"
 ```
 
+Vision callers use the same gateway boundary with a JSON envelope on standard
+input; image bytes never travel in argv or logs:
+
+```bash
+resource-ollama gateway generate --role vision.default --input-json-stdin --json <<'JSON'
+{"prompt":"Describe this image briefly.","images":[{"media_type":"image/png","data_b64":"...base64..."}]}
+JSON
+```
+
+The gateway enforces the selected model's declared image capability and
+bounded image count/size. `--cpu-only` is available for an explicit direct
+model fallback or validation run; it sets Ollama's `num_gpu` option to zero.
+The limits can be tuned with `OLLAMA_GATEWAY_MAX_IMAGES` and
+`OLLAMA_GATEWAY_MAX_IMAGE_BYTES`.
+
 `--role` and `--model` are mutually exclusive. Use `--role` for normal
 scenario runtime calls so model changes stay centralized in `model-policy.json`.
 Keep `--model` only for explicit direct-model exceptions and tests.

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"resource-postgres/cli/internal/content"
 
 	"github.com/vrooli/cli-core/cliapp"

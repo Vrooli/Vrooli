@@ -15,7 +15,6 @@
   ],
   "integration_kind": "compose-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "ERPNext usually runs as a multi-service stack and should only be supported if Vrooli wants to own its operational complexity.",
     "linux": "supported",
     "macos": "partial",

@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "scenario-to-ios",
+  "input_digest": "sha256:16efdb3153153854e4054c0e246ca92d227f1b719fbcb15b6e7e7024270b215b",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/scenario-to-ios/v1/notes/attachments.proto",
+    "schemas/scenario-to-ios/v1/notes/notes.proto",
+    "schemas/scenario-to-ios/v1/shared/errors.proto",
+    "schemas/scenario-to-ios/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/scenario-to-ios/v1/notes/attachments.pb.go": "sha256:87ffb28cf404c5d7d1e6caff87163f5cb2642a3f1a02b2c86a12f62bbceb9b68",
+    "gen/go/scenario-to-ios/v1/notes/notes.pb.go": "sha256:e38cb5a230efe6c9976dbafd9632d0b0b7a95ad027d90cc5249100ef266840c3",
+    "gen/go/scenario-to-ios/v1/notes/notes_v1connect/notes.connect.go": "sha256:1406cd3cbc2222a572503580f602c1f331bb702ecfb4a812a336f9dee6b6a39e",
+    "gen/go/scenario-to-ios/v1/shared/errors.pb.go": "sha256:bc3cba043f793ca6bc17e8ffb3d2cf68c98e2bdadabe6710418da1cb6a5bdc36",
+    "gen/go/scenario-to-ios/v1/shared/health.pb.go": "sha256:fdb519617820a0344488987023394662a961fb74b11031ca7e7776a4a847f627",
+    "gen/python/scenario_to_ios/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_to_ios/v1/notes/attachments_pb2.py": "sha256:36ea1ee480aaafbec549ab47d90f4f7ed4fcc465b1baac847f7bde09d846a686",
+    "gen/python/scenario_to_ios/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/scenario_to_ios/v1/notes/notes_pb2.py": "sha256:50f45dd29fffc793c87d24c67ce2e62046159c6979641451d0db220cbb84f342",
+    "gen/python/scenario_to_ios/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/scenario_to_ios/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_to_ios/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_to_ios/v1/shared/errors_pb2.py": "sha256:d2cc7d75af95d376d280cd8e3c1b065392c3f65e12c4ddf83ca0eec6a1053f1e",
+    "gen/python/scenario_to_ios/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/scenario_to_ios/v1/shared/health_pb2.py": "sha256:4ea5d9014847f11f60905c78113e7eae3bcc21cec08de116f73ef7e4be492ce8",
+    "gen/python/scenario_to_ios/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/scenario_to_ios/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/scenario-to-ios/v1/notes/attachments_pb.js": "sha256:80fddba1e6daec4837451d0b1758af4c28186f84166d8f6b5bc9101116963655",
+    "gen/typescript/js/scenario-to-ios/v1/notes/notes_pb.js": "sha256:497c2f3b4c96c585c6706b42f65c17266463d60ca0894c415269fdc6d6d0ac8a",
+    "gen/typescript/js/scenario-to-ios/v1/shared/errors_pb.js": "sha256:25fe399e7d9dfbf5750d15a901e5057d0f1f41ac488eca92c71aaf097079b23e",
+    "gen/typescript/js/scenario-to-ios/v1/shared/health_pb.js": "sha256:db4a792d6ebd77103d650ff037f32e1ffd47a6165d7dc10b1d534c6f3264d412",
+    "gen/typescript/scenario-to-ios/v1/notes/attachments_pb.ts": "sha256:0a86443918b8c37f71190a716376532985d6822989596d463b51a466056e0982",
+    "gen/typescript/scenario-to-ios/v1/notes/notes_pb.ts": "sha256:84d892f63ddf3b5ef94ed3760cd8274e71e200be4820fe5daa14a019fd8df414",
+    "gen/typescript/scenario-to-ios/v1/shared/errors_pb.ts": "sha256:3357abda92e0771fe236a91831a5ca451f896f2b7ae4a2457f9095e600d65653",
+    "gen/typescript/scenario-to-ios/v1/shared/health_pb.ts": "sha256:e3481ca68c068f2c8f0e80268862ade5ce14ac0c4b830883884f9585d6cafc22"
+  }
+}

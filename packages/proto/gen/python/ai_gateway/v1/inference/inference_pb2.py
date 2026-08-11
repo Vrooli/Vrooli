@@ -22,9 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from ai_gateway.v1.shared import gateway_pb2 as ai__gateway_dot_v1_dot_shared_dot_gateway__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'ai-gateway/v1/inference/inference.proto\x12\x1evrooli.ai_gateway.v1.inference\"p\n\x05Usage\x12!\n\x0cinput_tokens\x18\x01 \x01(\x03R\x0binputTokens\x12#\n\routput_tokens\x18\x02 \x01(\x03R\x0coutputTokens\x12\x1f\n\x0b\x63ost_micros\x18\x03 \x01(\x03R\ncostMicros\"\x90\x01\n\x0eInferenceError\x12\x46\n\x04\x63ode\x18\x01 \x01(\x0e\x32\x32.vrooli.ai_gateway.v1.inference.InferenceErrorCodeR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\x1c\n\tconstruct\x18\x03 \x01(\tR\tconstruct\"{\n\nRunRequest\x12\x16\n\x06source\x18\x01 \x01(\tR\x06source\x12\x1f\n\x0bschema_json\x18\x02 \x01(\tR\nschemaJson\x12 \n\x0binstruction\x18\x03 \x01(\tR\x0binstruction\x12\x12\n\x04role\x18\x04 \x01(\tR\x04role\"\xff\x01\n\x0bRunResponse\x12\x1d\n\nvalue_json\x18\x01 \x01(\tR\tvalueJson\x12\x1a\n\x08provider\x18\x02 \x01(\tR\x08provider\x12\x14\n\x05model\x18\x03 \x01(\tR\x05model\x12\x1c\n\tvalidated\x18\x04 \x01(\x08R\tvalidated\x12;\n\x05usage\x18\x05 \x01(\x0b\x32%.vrooli.ai_gateway.v1.inference.UsageR\x05usage\x12\x44\n\x05\x65rror\x18\x06 \x01(\x0b\x32..vrooli.ai_gateway.v1.inference.InferenceErrorR\x05\x65rror\"&\n\x0cRunBatchItem\x12\x16\n\x06source\x18\x01 \x01(\tR\x06source\"\xac\x01\n\x0fRunBatchRequest\x12\x42\n\x05items\x18\x01 \x03(\x0b\x32,.vrooli.ai_gateway.v1.inference.RunBatchItemR\x05items\x12\x1f\n\x0bschema_json\x18\x02 \x01(\tR\nschemaJson\x12 \n\x0binstruction\x18\x03 \x01(\tR\x0binstruction\x12\x12\n\x04role\x18\x04 \x01(\tR\x04role\"\x96\x01\n\x10RunBatchResponse\x12\x45\n\x07results\x18\x01 \x03(\x0b\x32+.vrooli.ai_gateway.v1.inference.RunResponseR\x07results\x12;\n\x05usage\x18\x02 \x01(\x0b\x32%.vrooli.ai_gateway.v1.inference.UsageR\x05usage*\x8d\x02\n\x12InferenceErrorCode\x12$\n INFERENCE_ERROR_CODE_UNSPECIFIED\x10\x00\x12$\n INFERENCE_ERROR_CODE_UNAVAILABLE\x10\x01\x12(\n$INFERENCE_ERROR_CODE_INVALID_REQUEST\x10\x02\x12+\n\'INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA\x10\x03\x12*\n&INFERENCE_ERROR_CODE_VALIDATION_FAILED\x10\x04\x12(\n$INFERENCE_ERROR_CODE_PROVIDER_FAILED\x10\x05\x32\xe1\x01\n\x10InferenceService\x12^\n\x03Run\x12*.vrooli.ai_gateway.v1.inference.RunRequest\x1a+.vrooli.ai_gateway.v1.inference.RunResponse\x12m\n\x08RunBatch\x12/.vrooli.ai_gateway.v1.inference.RunBatchRequest\x1a\x30.vrooli.ai_gateway.v1.inference.RunBatchResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'ai-gateway/v1/inference/inference.proto\x12\x1evrooli.ai_gateway.v1.inference\x1a\"ai-gateway/v1/shared/gateway.proto\"p\n\x05Usage\x12!\n\x0cinput_tokens\x18\x01 \x01(\x03R\x0binputTokens\x12#\n\routput_tokens\x18\x02 \x01(\x03R\x0coutputTokens\x12\x1f\n\x0b\x63ost_micros\x18\x03 \x01(\x03R\ncostMicros\"\x90\x01\n\x0eInferenceError\x12\x46\n\x04\x63ode\x18\x01 \x01(\x0e\x32\x32.vrooli.ai_gateway.v1.inference.InferenceErrorCodeR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\x1c\n\tconstruct\x18\x03 \x01(\tR\tconstruct\"y\n\x04Turn\x12\x12\n\x04role\x18\x01 \x01(\tR\x04role\x12\x12\n\x04text\x18\x02 \x01(\tR\x04text\x12I\n\x0b\x61ttachments\x18\x03 \x03(\x0b\x32\'.vrooli.ai_gateway.v1.shared.AttachmentR\x0b\x61ttachments\"\xc2\x02\n\nRunRequest\x12\x16\n\x06source\x18\x01 \x01(\tR\x06source\x12\x1f\n\x0bschema_json\x18\x02 \x01(\tR\nschemaJson\x12 \n\x0binstruction\x18\x03 \x01(\tR\x0binstruction\x12\x12\n\x04role\x18\x04 \x01(\tR\x04role\x12:\n\x05turns\x18\x05 \x03(\x0b\x32$.vrooli.ai_gateway.v1.inference.TurnR\x05turns\x12I\n\x0b\x61ttachments\x18\x06 \x03(\x0b\x32\'.vrooli.ai_gateway.v1.shared.AttachmentR\x0b\x61ttachments\x12>\n\x07profile\x18\x07 \x01(\x0e\x32$.vrooli.ai_gateway.v1.shared.ProfileR\x07profile\"\xff\x01\n\x0bRunResponse\x12\x1d\n\nvalue_json\x18\x01 \x01(\tR\tvalueJson\x12\x1a\n\x08provider\x18\x02 \x01(\tR\x08provider\x12\x14\n\x05model\x18\x03 \x01(\tR\x05model\x12\x1c\n\tvalidated\x18\x04 \x01(\x08R\tvalidated\x12;\n\x05usage\x18\x05 \x01(\x0b\x32%.vrooli.ai_gateway.v1.inference.UsageR\x05usage\x12\x44\n\x05\x65rror\x18\x06 \x01(\x0b\x32..vrooli.ai_gateway.v1.inference.InferenceErrorR\x05\x65rror\"&\n\x0cRunBatchItem\x12\x16\n\x06source\x18\x01 \x01(\tR\x06source\"\xac\x01\n\x0fRunBatchRequest\x12\x42\n\x05items\x18\x01 \x03(\x0b\x32,.vrooli.ai_gateway.v1.inference.RunBatchItemR\x05items\x12\x1f\n\x0bschema_json\x18\x02 \x01(\tR\nschemaJson\x12 \n\x0binstruction\x18\x03 \x01(\tR\x0binstruction\x12\x12\n\x04role\x18\x04 \x01(\tR\x04role\"\x96\x01\n\x10RunBatchResponse\x12\x45\n\x07results\x18\x01 \x03(\x0b\x32+.vrooli.ai_gateway.v1.inference.RunResponseR\x07results\x12;\n\x05usage\x18\x02 \x01(\x0b\x32%.vrooli.ai_gateway.v1.inference.UsageR\x05usage*\x8d\x02\n\x12InferenceErrorCode\x12$\n INFERENCE_ERROR_CODE_UNSPECIFIED\x10\x00\x12$\n INFERENCE_ERROR_CODE_UNAVAILABLE\x10\x01\x12(\n$INFERENCE_ERROR_CODE_INVALID_REQUEST\x10\x02\x12+\n\'INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA\x10\x03\x12*\n&INFERENCE_ERROR_CODE_VALIDATION_FAILED\x10\x04\x12(\n$INFERENCE_ERROR_CODE_PROVIDER_FAILED\x10\x05\x32\xe1\x01\n\x10InferenceService\x12^\n\x03Run\x12*.vrooli.ai_gateway.v1.inference.RunRequest\x1a+.vrooli.ai_gateway.v1.inference.RunResponse\x12m\n\x08RunBatch\x12/.vrooli.ai_gateway.v1.inference.RunBatchRequest\x1a\x30.vrooli.ai_gateway.v1.inference.RunBatchResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,22 +33,24 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'ai_gateway.v1.inference.inf
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZSgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1'
-  _globals['_INFERENCEERRORCODE']._serialized_start=1088
-  _globals['_INFERENCEERRORCODE']._serialized_end=1357
-  _globals['_USAGE']._serialized_start=75
-  _globals['_USAGE']._serialized_end=187
-  _globals['_INFERENCEERROR']._serialized_start=190
-  _globals['_INFERENCEERROR']._serialized_end=334
-  _globals['_RUNREQUEST']._serialized_start=336
-  _globals['_RUNREQUEST']._serialized_end=459
-  _globals['_RUNRESPONSE']._serialized_start=462
-  _globals['_RUNRESPONSE']._serialized_end=717
-  _globals['_RUNBATCHITEM']._serialized_start=719
-  _globals['_RUNBATCHITEM']._serialized_end=757
-  _globals['_RUNBATCHREQUEST']._serialized_start=760
-  _globals['_RUNBATCHREQUEST']._serialized_end=932
-  _globals['_RUNBATCHRESPONSE']._serialized_start=935
-  _globals['_RUNBATCHRESPONSE']._serialized_end=1085
-  _globals['_INFERENCESERVICE']._serialized_start=1360
-  _globals['_INFERENCESERVICE']._serialized_end=1585
+  _globals['_INFERENCEERRORCODE']._serialized_start=1447
+  _globals['_INFERENCEERRORCODE']._serialized_end=1716
+  _globals['_USAGE']._serialized_start=111
+  _globals['_USAGE']._serialized_end=223
+  _globals['_INFERENCEERROR']._serialized_start=226
+  _globals['_INFERENCEERROR']._serialized_end=370
+  _globals['_TURN']._serialized_start=372
+  _globals['_TURN']._serialized_end=493
+  _globals['_RUNREQUEST']._serialized_start=496
+  _globals['_RUNREQUEST']._serialized_end=818
+  _globals['_RUNRESPONSE']._serialized_start=821
+  _globals['_RUNRESPONSE']._serialized_end=1076
+  _globals['_RUNBATCHITEM']._serialized_start=1078
+  _globals['_RUNBATCHITEM']._serialized_end=1116
+  _globals['_RUNBATCHREQUEST']._serialized_start=1119
+  _globals['_RUNBATCHREQUEST']._serialized_end=1291
+  _globals['_RUNBATCHRESPONSE']._serialized_start=1294
+  _globals['_RUNBATCHRESPONSE']._serialized_end=1444
+  _globals['_INFERENCESERVICE']._serialized_start=1719
+  _globals['_INFERENCESERVICE']._serialized_end=1944
 # @@protoc_insertion_point(module_scope)

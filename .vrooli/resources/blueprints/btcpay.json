@@ -17,7 +17,6 @@
   ],
   "integration_kind": "compose-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Containerized deployment is portable, but payment node setup, networking, and wallet operations add significant operational complexity.",
     "linux": "partial",
     "macos": "partial",

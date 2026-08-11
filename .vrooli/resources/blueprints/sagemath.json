@@ -16,7 +16,6 @@
   ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The former implementation depended on Docker. A future owner should evaluate a native or managed approach before choosing Docker for desktop-oriented use.",
     "linux": "supported",
     "macos": "supported",
@@ -43,10 +42,18 @@
     "A Docker dependency may be unsuitable for desktop bundles."
   ],
   "status": "candidate",
-  "replacement_for": ["sagemath"],
+  "replacement_for": [
+    "sagemath"
+  ],
   "references": [
-    {"kind": "resource", "value": "resources/sagemath"},
-    {"kind": "doc", "value": "docs/resources/maturity-migration.md"}
+    {
+      "kind": "resource",
+      "value": "resources/sagemath"
+    },
+    {
+      "kind": "doc",
+      "value": "docs/resources/maturity-migration.md"
+    }
   ],
   "last_reviewed": "2026-07-19"
 }

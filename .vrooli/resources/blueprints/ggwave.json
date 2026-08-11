@@ -17,7 +17,6 @@
   ],
   "integration_kind": "library",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "The underlying library is portable, but practical support depends on host audio device access and latency characteristics.",
     "linux": "supported",
     "macos": "supported",

@@ -17,7 +17,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "ROS 2 is strongest on Linux and often assumes Linux-first robotics tooling; support quality is not equal across operating systems.",
     "linux": "partial",
     "macos": "unsupported",

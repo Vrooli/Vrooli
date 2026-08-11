@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"resource-redis/cli/internal/backup"
 	"time"
+
+	"resource-redis/cli/internal/backup"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

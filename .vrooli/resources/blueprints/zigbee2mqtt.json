@@ -17,7 +17,6 @@
   ],
   "integration_kind": "hardware",
   "platform_support": {
-    "portability_tier": "platform-specific",
     "notes": "Containerized management is possible, but useful operation depends on USB or serial hardware access and host-specific device passthrough.",
     "linux": "partial",
     "macos": "unsupported",

@@ -17,7 +17,6 @@
   ],
   "integration_kind": "compose-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The stack can be containerized, but realistic support depends on storage, dataset ingestion, and geospatial service validation.",
     "linux": "partial",
     "macos": "partial",

@@ -4,13 +4,15 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Attachment, Profile } from "../shared/gateway_pb";
+import { file_ai_gateway_v1_shared_gateway } from "../shared/gateway_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file ai-gateway/v1/inference/inference.proto.
  */
 export const file_ai_gateway_v1_inference_inference: GenFile = /*@__PURE__*/
-  fileDesc("CidhaS1nYXRld2F5L3YxL2luZmVyZW5jZS9pbmZlcmVuY2UucHJvdG8SHnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZSJJCgVVc2FnZRIUCgxpbnB1dF90b2tlbnMYASABKAMSFQoNb3V0cHV0X3Rva2VucxgCIAEoAxITCgtjb3N0X21pY3JvcxgDIAEoAyJ2Cg5JbmZlcmVuY2VFcnJvchJACgRjb2RlGAEgASgOMjIudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yQ29kZRIPCgdtZXNzYWdlGAIgASgJEhEKCWNvbnN0cnVjdBgDIAEoCSJUCgpSdW5SZXF1ZXN0Eg4KBnNvdXJjZRgBIAEoCRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJIsoBCgtSdW5SZXNwb25zZRISCgp2YWx1ZV9qc29uGAEgASgJEhAKCHByb3ZpZGVyGAIgASgJEg0KBW1vZGVsGAMgASgJEhEKCXZhbGlkYXRlZBgEIAEoCBI0CgV1c2FnZRgFIAEoCzIlLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZRI9CgVlcnJvchgGIAEoCzIuLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5JbmZlcmVuY2VFcnJvciIeCgxSdW5CYXRjaEl0ZW0SDgoGc291cmNlGAEgASgJIoYBCg9SdW5CYXRjaFJlcXVlc3QSOwoFaXRlbXMYASADKAsyLC52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuQmF0Y2hJdGVtEhMKC3NjaGVtYV9qc29uGAIgASgJEhMKC2luc3RydWN0aW9uGAMgASgJEgwKBHJvbGUYBCABKAkihgEKEFJ1bkJhdGNoUmVzcG9uc2USPAoHcmVzdWx0cxgBIAMoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5SZXNwb25zZRI0CgV1c2FnZRgCIAEoCzIlLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZSqNAgoSSW5mZXJlbmNlRXJyb3JDb2RlEiQKIElORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1BFQ0lGSUVEEAASJAogSU5GRVJFTkNFX0VSUk9SX0NPREVfVU5BVkFJTEFCTEUQARIoCiRJTkZFUkVOQ0VfRVJST1JfQ09ERV9JTlZBTElEX1JFUVVFU1QQAhIrCidJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNVUFBPUlRFRF9TQ0hFTUEQAxIqCiZJTkZFUkVOQ0VfRVJST1JfQ09ERV9WQUxJREFUSU9OX0ZBSUxFRBAEEigKJElORkVSRU5DRV9FUlJPUl9DT0RFX1BST1ZJREVSX0ZBSUxFRBAFMuEBChBJbmZlcmVuY2VTZXJ2aWNlEl4KA1J1bhIqLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5SZXF1ZXN0GisudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlc3BvbnNlEm0KCFJ1bkJhdGNoEi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoUmVxdWVzdBowLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaFJlc3BvbnNlQlVaU2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWktZ2F0ZXdheS92MS9pbmZlcmVuY2U7aW5mZXJlbmNlX3YxYgZwcm90bzM");
+  fileDesc("CidhaS1nYXRld2F5L3YxL2luZmVyZW5jZS9pbmZlcmVuY2UucHJvdG8SHnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZSJJCgVVc2FnZRIUCgxpbnB1dF90b2tlbnMYASABKAMSFQoNb3V0cHV0X3Rva2VucxgCIAEoAxITCgtjb3N0X21pY3JvcxgDIAEoAyJ2Cg5JbmZlcmVuY2VFcnJvchJACgRjb2RlGAEgASgOMjIudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yQ29kZRIPCgdtZXNzYWdlGAIgASgJEhEKCWNvbnN0cnVjdBgDIAEoCSJgCgRUdXJuEgwKBHJvbGUYASABKAkSDAoEdGV4dBgCIAEoCRI8CgthdHRhY2htZW50cxgDIAMoCzInLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BdHRhY2htZW50Iv4BCgpSdW5SZXF1ZXN0Eg4KBnNvdXJjZRgBIAEoCRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJEjMKBXR1cm5zGAUgAygLMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlR1cm4SPAoLYXR0YWNobWVudHMYBiADKAsyJy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuQXR0YWNobWVudBI1Cgdwcm9maWxlGAcgASgOMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlByb2ZpbGUiygEKC1J1blJlc3BvbnNlEhIKCnZhbHVlX2pzb24YASABKAkSEAoIcHJvdmlkZXIYAiABKAkSDQoFbW9kZWwYAyABKAkSEQoJdmFsaWRhdGVkGAQgASgIEjQKBXVzYWdlGAUgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlEj0KBWVycm9yGAYgASgLMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yIh4KDFJ1bkJhdGNoSXRlbRIOCgZzb3VyY2UYASABKAkihgEKD1J1bkJhdGNoUmVxdWVzdBI7CgVpdGVtcxgBIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaEl0ZW0SEwoLc2NoZW1hX2pzb24YAiABKAkSEwoLaW5zdHJ1Y3Rpb24YAyABKAkSDAoEcm9sZRgEIAEoCSKGAQoQUnVuQmF0Y2hSZXNwb25zZRI8CgdyZXN1bHRzGAEgAygLMisudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlc3BvbnNlEjQKBXVzYWdlGAIgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlKo0CChJJbmZlcmVuY2VFcnJvckNvZGUSJAogSU5GRVJFTkNFX0VSUk9SX0NPREVfVU5TUEVDSUZJRUQQABIkCiBJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTkFWQUlMQUJMRRABEigKJElORkVSRU5DRV9FUlJPUl9DT0RFX0lOVkFMSURfUkVRVUVTVBACEisKJ0lORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1VQUE9SVEVEX1NDSEVNQRADEioKJklORkVSRU5DRV9FUlJPUl9DT0RFX1ZBTElEQVRJT05fRkFJTEVEEAQSKAokSU5GRVJFTkNFX0VSUk9SX0NPREVfUFJPVklERVJfRkFJTEVEEAUy4QEKEEluZmVyZW5jZVNlcnZpY2USXgoDUnVuEioudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlcXVlc3QaKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuUmVzcG9uc2USbQoIUnVuQmF0Y2gSLy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuQmF0Y2hSZXF1ZXN0GjAudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoUmVzcG9uc2VCVVpTZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9haS1nYXRld2F5L3YxL2luZmVyZW5jZTtpbmZlcmVuY2VfdjFiBnByb3RvMw", [file_ai_gateway_v1_shared_gateway]);
 
 /**
  * Usage is the provider-reported accounting for one inference operation.
@@ -78,6 +80,36 @@ export const InferenceErrorSchema: GenMessage<InferenceError> = /*@__PURE__*/
   messageDesc(file_ai_gateway_v1_inference_inference, 1);
 
 /**
+ * Turn is an ordered, caller-owned conversation fragment. The gateway never
+ * stores turns and there is intentionally no conversation identifier.
+ *
+ * @generated from message vrooli.ai_gateway.v1.inference.Turn
+ */
+export type Turn = Message<"vrooli.ai_gateway.v1.inference.Turn"> & {
+  /**
+   * @generated from field: string role = 1;
+   */
+  role: string;
+
+  /**
+   * @generated from field: string text = 2;
+   */
+  text: string;
+
+  /**
+   * @generated from field: repeated vrooli.ai_gateway.v1.shared.Attachment attachments = 3;
+   */
+  attachments: Attachment[];
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.Turn.
+ * Use `create(TurnSchema)` to create a new message.
+ */
+export const TurnSchema: GenMessage<Turn> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 2);
+
+/**
  * @generated from message vrooli.ai_gateway.v1.inference.RunRequest
  */
 export type RunRequest = Message<"vrooli.ai_gateway.v1.inference.RunRequest"> & {
@@ -100,6 +132,24 @@ export type RunRequest = Message<"vrooli.ai_gateway.v1.inference.RunRequest"> & 
    * @generated from field: string role = 4;
    */
   role: string;
+
+  /**
+   * @generated from field: repeated vrooli.ai_gateway.v1.inference.Turn turns = 5;
+   */
+  turns: Turn[];
+
+  /**
+   * @generated from field: repeated vrooli.ai_gateway.v1.shared.Attachment attachments = 6;
+   */
+  attachments: Attachment[];
+
+  /**
+   * profile carries the caller's locality stance. The gateway still owns
+   * provider selection and never accepts a concrete model or credential.
+   *
+   * @generated from field: vrooli.ai_gateway.v1.shared.Profile profile = 7;
+   */
+  profile: Profile;
 };
 
 /**
@@ -107,7 +157,7 @@ export type RunRequest = Message<"vrooli.ai_gateway.v1.inference.RunRequest"> & 
  * Use `create(RunRequestSchema)` to create a new message.
  */
 export const RunRequestSchema: GenMessage<RunRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 2);
+  messageDesc(file_ai_gateway_v1_inference_inference, 3);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.RunResponse
@@ -149,7 +199,7 @@ export type RunResponse = Message<"vrooli.ai_gateway.v1.inference.RunResponse"> 
  * Use `create(RunResponseSchema)` to create a new message.
  */
 export const RunResponseSchema: GenMessage<RunResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 3);
+  messageDesc(file_ai_gateway_v1_inference_inference, 4);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.RunBatchItem
@@ -166,7 +216,7 @@ export type RunBatchItem = Message<"vrooli.ai_gateway.v1.inference.RunBatchItem"
  * Use `create(RunBatchItemSchema)` to create a new message.
  */
 export const RunBatchItemSchema: GenMessage<RunBatchItem> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 4);
+  messageDesc(file_ai_gateway_v1_inference_inference, 5);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.RunBatchRequest
@@ -198,7 +248,7 @@ export type RunBatchRequest = Message<"vrooli.ai_gateway.v1.inference.RunBatchRe
  * Use `create(RunBatchRequestSchema)` to create a new message.
  */
 export const RunBatchRequestSchema: GenMessage<RunBatchRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 5);
+  messageDesc(file_ai_gateway_v1_inference_inference, 6);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.RunBatchResponse
@@ -223,7 +273,7 @@ export type RunBatchResponse = Message<"vrooli.ai_gateway.v1.inference.RunBatchR
  * Use `create(RunBatchResponseSchema)` to create a new message.
  */
 export const RunBatchResponseSchema: GenMessage<RunBatchResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 6);
+  messageDesc(file_ai_gateway_v1_inference_inference, 7);
 
 /**
  * @generated from enum vrooli.ai_gateway.v1.inference.InferenceErrorCode

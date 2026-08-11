@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 
 	"github.com/vrooli/cli-core/cliutil/hostsem"
 )
@@ -231,6 +232,52 @@ func TestGenerateAllowsUnknownDirectModelWithoutPolicyWindow(t *testing.T) {
 	h, _, _ := newHandlers(t, client, policyEnv(t))
 	if err := h.Generate([]string{"--model", "local-test-model:latest", "--prompt", "hi", "--max-tokens", "40000"}); err != nil {
 		t.Fatalf("Generate: %v", err)
+	}
+}
+
+func TestGenerateInputJSONStdinForwardsImagesWithoutArgvData(t *testing.T) {
+	client := &fakeClient{
+		generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+			if in.Model != "qwen3.5:4b" || in.Prompt != "describe" {
+				t.Errorf("unexpected request: %+v", in)
+			}
+			if len(in.Images) != 1 || in.Images[0] == "" {
+				t.Fatalf("images = %v, want one decoded image", in.Images)
+			}
+			return ensure.GenerateResponse{Response: "seen"}, nil
+		},
+	}
+	h, stdout, _ := newHandlers(t, client, nil)
+	h.Stdin = strings.NewReader(`{"prompt":"describe","images":[{"media_type":"image/png","data_b64":"aGVsbG8="}]}`)
+	if err := h.Generate([]string{"--model", "qwen3.5:4b", "--input-json-stdin", "--json"}); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if !strings.Contains(stdout.String(), `"response":"seen"`) {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestGenerateCPUOnlySetsZeroGPUOption(t *testing.T) {
+	client := &fakeClient{
+		generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+			if in.NumGPU == nil || *in.NumGPU != 0 {
+				t.Fatalf("num_gpu = %v, want pointer to zero", in.NumGPU)
+			}
+			return ensure.GenerateResponse{Response: "cpu"}, nil
+		},
+	}
+	h, _, _ := newHandlers(t, client, nil)
+	if err := h.Generate([]string{"--model", "qwen3-vl:2b", "--prompt", "describe", "--cpu-only"}); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+}
+
+func TestGenerateInputJSONStdinRejectsRoleWithoutImageModality(t *testing.T) {
+	h, _, _ := newHandlers(t, &fakeClient{}, nil)
+	h.Stdin = strings.NewReader(`{"prompt":"describe","images":[{"media_type":"image/png","data_b64":"aGVsbG8="}]}`)
+	_, _, err := h.resolveImageInput(selectedModel{Ref: "text-only", InputModalities: []policy.Modality{policy.ModalityText}})
+	if err == nil || !strings.Contains(err.Error(), "image_input.capability_mismatch") {
+		t.Fatalf("expected typed capability mismatch, got %v", err)
 	}
 }
 

@@ -17,7 +17,6 @@
   ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "The service can run in containers, but useful support depends on device protocols, persistence, and operator workflows around location data.",
     "linux": "partial",
     "macos": "partial",

@@ -17,7 +17,6 @@
   ],
   "integration_kind": "library",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "The toolchain is portable, but practical support depends on editor, CLI, and package-manager conventions.",
     "linux": "supported",
     "macos": "supported",

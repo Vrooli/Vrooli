@@ -17,7 +17,6 @@
   ],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "platform-specific",
     "notes": "The application can run in containers, but useful operation depends on host access to printer hardware and related peripherals.",
     "linux": "partial",
     "macos": "partial",

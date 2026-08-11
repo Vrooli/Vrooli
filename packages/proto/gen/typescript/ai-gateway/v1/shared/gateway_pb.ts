@@ -10,7 +10,66 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ai-gateway/v1/shared/gateway.proto.
  */
 export const file_ai_gateway_v1_shared_gateway: GenFile = /*@__PURE__*/
-  fileDesc("CiJhaS1nYXRld2F5L3YxL3NoYXJlZC9nYXRld2F5LnByb3RvEht2cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQiywMKDkdhdGV3YXlSZXF1ZXN0EjYKBGtpbmQYASABKA4yKC52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUmVxdWVzdEtpbmQSDAoEcm9sZRgCIAEoCRI1Cgdwcm9maWxlGAMgASgOMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlByb2ZpbGUSQAoNcHJpdmFjeV9jbGFzcxgEIAEoDjIpLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5Qcml2YWN5Q2xhc3MSEQoJb3BlcmF0aW9uGAUgASgJEhAKCHNjZW5hcmlvGAYgASgJEhIKCnRpbWVvdXRfbXMYByABKAUSFAoMbWF4X2Nvc3RfdXNkGAggASgBEhkKEW1heF9vdXRwdXRfdG9rZW5zGAkgASgFEhIKCnJlcXVlc3RfaWQYCiABKAkSSwoIbWV0YWRhdGEYCyADKAsyOS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuR2F0ZXdheVJlcXVlc3QuTWV0YWRhdGFFbnRyeRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiPwoPVmFsaWRhdGlvbklzc3VlEg0KBWZpZWxkGAEgASgJEgwKBGNvZGUYAiABKAkSDwoHbWVzc2FnZRgDIAEoCSrcAQoLUmVxdWVzdEtpbmQSHAoYUkVRVUVTVF9LSU5EX1VOU1BFQ0lGSUVEEAASIAocUkVRVUVTVF9LSU5EX1RFWFRfR0VORVJBVElPThABEh8KG1JFUVVFU1RfS0lORF9URVhUX0VNQkVERElORxACEiYKIlJFUVVFU1RfS0lORF9TVFJVQ1RVUkVEX0VYVFJBQ1RJT04QAxIhCh1SRVFVRVNUX0tJTkRfSU1BR0VfR0VORVJBVElPThAEEiEKHVJFUVVFU1RfS0lORF9WSURFT19HRU5FUkFUSU9OEAUqnQEKDFByaXZhY3lDbGFzcxIdChlQUklWQUNZX0NMQVNTX1VOU1BFQ0lGSUVEEAASGAoUUFJJVkFDWV9DTEFTU19QVUJMSUMQARIaChZQUklWQUNZX0NMQVNTX0lOVEVSTkFMEAISHgoaUFJJVkFDWV9DTEFTU19DT05GSURFTlRJQUwQAxIYChRQUklWQUNZX0NMQVNTX1NFQ1JFVBAEKr8BCgdQcm9maWxlEhcKE1BST0ZJTEVfVU5TUEVDSUZJRUQQABIWChJQUk9GSUxFX0xPQ0FMX09OTFkQARIXChNQUk9GSUxFX0xPQ0FMX0ZJUlNUEAISFwoTUFJPRklMRV9SRU1PVEVfT05MWRADEhkKFVBST0ZJTEVfUVVBTElUWV9GSVJTVBAEEhcKE1BST0ZJTEVfQ0hFQVBfRklSU1QQBRIdChlQUk9GSUxFX1BSSVZBQ1lfU0VOU0lUSVZFEAZCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9haS1nYXRld2F5L3YxL3NoYXJlZDtzaGFyZWRfdjFiBnByb3RvMw");
+  fileDesc("CiJhaS1nYXRld2F5L3YxL3NoYXJlZC9nYXRld2F5LnByb3RvEht2cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQivwEKCkF0dGFjaG1lbnQSNwoIbW9kYWxpdHkYASABKA4yJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuTW9kYWxpdHkSEgoKbWVkaWFfdHlwZRgCIAEoCRINCgV3aWR0aBgDIAEoDRIOCgZoZWlnaHQYBCABKA0SDQoFYnl0ZXMYBSABKAQSFgoMaW5saW5lX2J5dGVzGAYgASgMSAASEwoJcmVmZXJlbmNlGAcgASgJSABCCQoHcGF5bG9hZCKJBAoOR2F0ZXdheVJlcXVlc3QSNgoEa2luZBgBIAEoDjIoLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5SZXF1ZXN0S2luZBIMCgRyb2xlGAIgASgJEjUKB3Byb2ZpbGUYAyABKA4yJC52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJvZmlsZRJACg1wcml2YWN5X2NsYXNzGAQgASgOMikudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlByaXZhY3lDbGFzcxIRCglvcGVyYXRpb24YBSABKAkSEAoIc2NlbmFyaW8YBiABKAkSEgoKdGltZW91dF9tcxgHIAEoBRIUCgxtYXhfY29zdF91c2QYCCABKAESGQoRbWF4X291dHB1dF90b2tlbnMYCSABKAUSEgoKcmVxdWVzdF9pZBgKIAEoCRJLCghtZXRhZGF0YRgLIAMoCzI5LnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5HYXRld2F5UmVxdWVzdC5NZXRhZGF0YUVudHJ5EjwKC2F0dGFjaG1lbnRzGAwgAygLMicudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkF0dGFjaG1lbnQaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIj8KD1ZhbGlkYXRpb25Jc3N1ZRINCgVmaWVsZBgBIAEoCRIMCgRjb2RlGAIgASgJEg8KB21lc3NhZ2UYAyABKAkq3AEKC1JlcXVlc3RLaW5kEhwKGFJFUVVFU1RfS0lORF9VTlNQRUNJRklFRBAAEiAKHFJFUVVFU1RfS0lORF9URVhUX0dFTkVSQVRJT04QARIfChtSRVFVRVNUX0tJTkRfVEVYVF9FTUJFRERJTkcQAhImCiJSRVFVRVNUX0tJTkRfU1RSVUNUVVJFRF9FWFRSQUNUSU9OEAMSIQodUkVRVUVTVF9LSU5EX0lNQUdFX0dFTkVSQVRJT04QBBIhCh1SRVFVRVNUX0tJTkRfVklERU9fR0VORVJBVElPThAFKp0BCgxQcml2YWN5Q2xhc3MSHQoZUFJJVkFDWV9DTEFTU19VTlNQRUNJRklFRBAAEhgKFFBSSVZBQ1lfQ0xBU1NfUFVCTElDEAESGgoWUFJJVkFDWV9DTEFTU19JTlRFUk5BTBACEh4KGlBSSVZBQ1lfQ0xBU1NfQ09ORklERU5USUFMEAMSGAoUUFJJVkFDWV9DTEFTU19TRUNSRVQQBCq/AQoHUHJvZmlsZRIXChNQUk9GSUxFX1VOU1BFQ0lGSUVEEAASFgoSUFJPRklMRV9MT0NBTF9PTkxZEAESFwoTUFJPRklMRV9MT0NBTF9GSVJTVBACEhcKE1BST0ZJTEVfUkVNT1RFX09OTFkQAxIZChVQUk9GSUxFX1FVQUxJVFlfRklSU1QQBBIXChNQUk9GSUxFX0NIRUFQX0ZJUlNUEAUSHQoZUFJPRklMRV9QUklWQUNZX1NFTlNJVElWRRAGKogBCghNb2RhbGl0eRIYChRNT0RBTElUWV9VTlNQRUNJRklFRBAAEhEKDU1PREFMSVRZX1RFWFQQARISCg5NT0RBTElUWV9JTUFHRRACEhMKD01PREFMSVRZX1ZFQ1RPUhADEhIKDk1PREFMSVRZX1ZJREVPEAQSEgoOTU9EQUxJVFlfQVVESU8QBUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FpLWdhdGV3YXkvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+
+/**
+ * Attachment carries ephemeral caller input across the gateway boundary. The
+ * gateway may resolve and forward it during one request, but never persists
+ * the payload. References are opaque application-owned identifiers, never
+ * provider URLs or credentials.
+ *
+ * @generated from message vrooli.ai_gateway.v1.shared.Attachment
+ */
+export type Attachment = Message<"vrooli.ai_gateway.v1.shared.Attachment"> & {
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.shared.Modality modality = 1;
+   */
+  modality: Modality;
+
+  /**
+   * @generated from field: string media_type = 2;
+   */
+  mediaType: string;
+
+  /**
+   * @generated from field: uint32 width = 3;
+   */
+  width: number;
+
+  /**
+   * @generated from field: uint32 height = 4;
+   */
+  height: number;
+
+  /**
+   * @generated from field: uint64 bytes = 5;
+   */
+  bytes: bigint;
+
+  /**
+   * @generated from oneof vrooli.ai_gateway.v1.shared.Attachment.payload
+   */
+  payload: {
+    /**
+     * @generated from field: bytes inline_bytes = 6;
+     */
+    value: Uint8Array;
+    case: "inlineBytes";
+  } | {
+    /**
+     * @generated from field: string reference = 7;
+     */
+    value: string;
+    case: "reference";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.shared.Attachment.
+ * Use `create(AttachmentSchema)` to create a new message.
+ */
+export const AttachmentSchema: GenMessage<Attachment> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_shared_gateway, 0);
 
 /**
  * GatewayRequest is the caller-owned provider-neutral request envelope.
@@ -74,6 +133,11 @@ export type GatewayRequest = Message<"vrooli.ai_gateway.v1.shared.GatewayRequest
    * @generated from field: map<string, string> metadata = 11;
    */
   metadata: { [key: string]: string };
+
+  /**
+   * @generated from field: repeated vrooli.ai_gateway.v1.shared.Attachment attachments = 12;
+   */
+  attachments: Attachment[];
 };
 
 /**
@@ -81,7 +145,7 @@ export type GatewayRequest = Message<"vrooli.ai_gateway.v1.shared.GatewayRequest
  * Use `create(GatewayRequestSchema)` to create a new message.
  */
 export const GatewayRequestSchema: GenMessage<GatewayRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_shared_gateway, 0);
+  messageDesc(file_ai_gateway_v1_shared_gateway, 1);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.shared.ValidationIssue
@@ -108,7 +172,7 @@ export type ValidationIssue = Message<"vrooli.ai_gateway.v1.shared.ValidationIss
  * Use `create(ValidationIssueSchema)` to create a new message.
  */
 export const ValidationIssueSchema: GenMessage<ValidationIssue> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_shared_gateway, 1);
+  messageDesc(file_ai_gateway_v1_shared_gateway, 2);
 
 /**
  * RequestKind identifies the provider-neutral AI operation a caller needs.
@@ -246,4 +310,49 @@ export enum Profile {
  */
 export const ProfileSchema: GenEnum<Profile> = /*@__PURE__*/
   enumDesc(file_ai_gateway_v1_shared_gateway, 2);
+
+/**
+ * Modality is the provider-neutral shape of an inference input or output.
+ * Video and audio are admitted by the vocabulary now so policy catalogs can
+ * describe them without forcing an untested implementation into this plan.
+ *
+ * @generated from enum vrooli.ai_gateway.v1.shared.Modality
+ */
+export enum Modality {
+  /**
+   * @generated from enum value: MODALITY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: MODALITY_TEXT = 1;
+   */
+  TEXT = 1,
+
+  /**
+   * @generated from enum value: MODALITY_IMAGE = 2;
+   */
+  IMAGE = 2,
+
+  /**
+   * @generated from enum value: MODALITY_VECTOR = 3;
+   */
+  VECTOR = 3,
+
+  /**
+   * @generated from enum value: MODALITY_VIDEO = 4;
+   */
+  VIDEO = 4,
+
+  /**
+   * @generated from enum value: MODALITY_AUDIO = 5;
+   */
+  AUDIO = 5,
+}
+
+/**
+ * Describes the enum vrooli.ai_gateway.v1.shared.Modality.
+ */
+export const ModalitySchema: GenEnum<Modality> = /*@__PURE__*/
+  enumDesc(file_ai_gateway_v1_shared_gateway, 3);
 

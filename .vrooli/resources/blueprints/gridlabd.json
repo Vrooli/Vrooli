@@ -17,7 +17,6 @@
   ],
   "integration_kind": "manual",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Scientific tooling and packaging vary by OS, and realistic usage depends on validated datasets and models rather than simple lifecycle support.",
     "linux": "partial",
     "macos": "unsupported",

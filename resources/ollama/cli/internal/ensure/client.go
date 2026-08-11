@@ -401,13 +401,15 @@ func (c *Client) Unload(ctx context.Context, model string) error {
 // always false at this layer — callers wanting NDJSON should add a separate
 // streaming entrypoint when needed.
 type GenerateRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Think  *bool  `json:"think,omitempty"`
+	Model  string   `json:"model"`
+	Prompt string   `json:"prompt"`
+	Images []string `json:"images,omitempty"`
+	Think  *bool    `json:"think,omitempty"`
 	// Format accepts Ollama's "json" shorthand or a JSON Schema object.
 	Format      json.RawMessage `json:"format,omitempty"`
 	NumPredict  *int            `json:"num_predict,omitempty"`
 	Temperature *float64        `json:"temperature,omitempty"`
+	NumGPU      *int            `json:"num_gpu,omitempty"`
 }
 
 // GenerateResponse captures the buffered (stream=false) shape.
@@ -426,9 +428,13 @@ func (c *Client) Generate(ctx context.Context, in GenerateRequest) (GenerateResp
 	if in.Temperature != nil {
 		options["temperature"] = *in.Temperature
 	}
+	if in.NumGPU != nil {
+		options["num_gpu"] = *in.NumGPU
+	}
 	requestBody := struct {
 		Model   string          `json:"model"`
 		Prompt  string          `json:"prompt"`
+		Images  []string        `json:"images,omitempty"`
 		Stream  bool            `json:"stream"`
 		Think   *bool           `json:"think,omitempty"`
 		Format  json.RawMessage `json:"format,omitempty"`
@@ -436,6 +442,7 @@ func (c *Client) Generate(ctx context.Context, in GenerateRequest) (GenerateResp
 	}{
 		Model:   in.Model,
 		Prompt:  in.Prompt,
+		Images:  in.Images,
 		Stream:  false,
 		Think:   in.Think,
 		Format:  in.Format,
@@ -471,8 +478,9 @@ func (c *Client) Generate(ctx context.Context, in GenerateRequest) (GenerateResp
 
 // ChatMessage is one Ollama /api/chat message.
 type ChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string   `json:"role"`
+	Content string   `json:"content"`
+	Images  []string `json:"images,omitempty"`
 }
 
 // ChatTool is one tool advertised to the model on a /api/chat request. Only

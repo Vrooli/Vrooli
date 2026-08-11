@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -9,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,11 +29,30 @@ import (
 )
 
 const (
-	appName    = "openrouter"
-	appVersion = "0.1.0"
+	appName              = "openrouter"
+	appVersion           = "0.1.0"
+	defaultMaxImageBytes = 10 * 1024 * 1024
+	defaultMaxImages     = 4
+	envMaxImageBytes     = "OPENROUTER_GATEWAY_MAX_IMAGE_BYTES"
+	envMaxImages         = "OPENROUTER_GATEWAY_MAX_IMAGES"
 )
 
 var errReexeced = errors.New("openrouter cli reexeced after rebuild")
+
+type imageInputError struct {
+	Code    string
+	Message string
+}
+
+func (e *imageInputError) Error() string { return "image_input." + e.Code + ": " + e.Message }
+
+type imageInputEnvelope struct {
+	Prompt string `json:"prompt"`
+	Images []struct {
+		MediaType string `json:"media_type"`
+		DataB64   string `json:"data_b64"`
+	} `json:"images"`
+}
 
 // New builds the OpenRouter resource CLI with explicit native operator commands.
 func New(buildFingerprint, buildTimestamp, buildSourceRoot string) (*cliapp.ResourceApp, error) {
@@ -195,6 +216,86 @@ func resolveRoleModel(role string) (string, error) {
 	return resolved.Model, nil
 }
 
+func resolveRolePolicy(role string) (policy.ResolvedPolicyModel, error) {
+	p, _, err := policy.LoadDefaultFile(os.Getenv)
+	if err != nil {
+		return policy.ResolvedPolicyModel{}, err
+	}
+	return p.ResolveRole(strings.TrimSpace(role))
+}
+
+func resolveModelPolicy(model string) (policy.ResolvedPolicyModel, error) {
+	p, _, err := policy.LoadDefaultFile(os.Getenv)
+	if err != nil {
+		return policy.ResolvedPolicyModel{}, err
+	}
+	return p.ResolveModel(strings.TrimSpace(model))
+}
+
+func resolveImageInput(stdin io.Reader, selected policy.ResolvedPolicyModel) (string, []health.ImageInput, error) {
+	maxBytes := configuredPositiveInt(envMaxImageBytes, defaultMaxImageBytes)
+	maxImages := configuredPositiveInt(envMaxImages, defaultMaxImages)
+	limit := int64(maxBytes*2 + 64*1024)
+	data, err := io.ReadAll(io.LimitReader(stdin, limit))
+	if err != nil {
+		return "", nil, fmt.Errorf("read input JSON: %w", err)
+	}
+	if int64(len(data)) >= limit {
+		return "", nil, &imageInputError{Code: "request_too_large", Message: fmt.Sprintf("JSON envelope exceeds %d bytes", limit)}
+	}
+	var envelope imageInputEnvelope
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		return "", nil, &imageInputError{Code: "invalid_json", Message: err.Error()}
+	}
+	if strings.TrimSpace(envelope.Prompt) == "" {
+		return "", nil, &imageInputError{Code: "prompt_required", Message: "prompt must not be empty"}
+	}
+	if len(envelope.Images) == 0 {
+		return envelope.Prompt, nil, nil
+	}
+	if len(envelope.Images) > maxImages {
+		return "", nil, &imageInputError{Code: "too_many_images", Message: fmt.Sprintf("received %d images; maximum is %d", len(envelope.Images), maxImages)}
+	}
+	if len(selected.Modalities.Input) > 0 && !hasModality(selected.Modalities.Input, "image") {
+		return "", nil, &imageInputError{Code: "capability_mismatch", Message: fmt.Sprintf("model %q does not declare image input modality", selected.Model)}
+	}
+	images := make([]health.ImageInput, 0, len(envelope.Images))
+	for i, image := range envelope.Images {
+		mediaType := strings.ToLower(strings.TrimSpace(image.MediaType))
+		if mediaType != "image/png" && mediaType != "image/jpeg" && mediaType != "image/webp" {
+			return "", nil, &imageInputError{Code: "unsupported_media_type", Message: fmt.Sprintf("image %d has unsupported media_type %q", i, image.MediaType)}
+		}
+		decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(image.DataB64))
+		if err != nil {
+			return "", nil, &imageInputError{Code: "invalid_base64", Message: fmt.Sprintf("image %d: %v", i, err)}
+		}
+		if len(decoded) == 0 {
+			return "", nil, &imageInputError{Code: "empty_image", Message: fmt.Sprintf("image %d is empty", i)}
+		}
+		if len(decoded) > maxBytes {
+			return "", nil, &imageInputError{Code: "image_too_large", Message: fmt.Sprintf("image %d is %d bytes; maximum is %d", i, len(decoded), maxBytes)}
+		}
+		images = append(images, health.ImageInput{MediaType: mediaType, DataB64: base64.StdEncoding.EncodeToString(decoded)})
+	}
+	return envelope.Prompt, images, nil
+}
+
+func configuredPositiveInt(name string, fallback int) int {
+	if value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(name))); err == nil && value > 0 {
+		return value
+	}
+	return fallback
+}
+
+func hasModality(values []string, want string) bool {
+	for _, value := range values {
+		if strings.EqualFold(strings.TrimSpace(value), want) {
+			return true
+		}
+	}
+	return false
+}
+
 func runListModels(app *cliapp.ResourceApp, args []string, stdout io.Writer) error {
 	if err := checkStale(app); err != nil {
 		if errors.Is(err, errReexeced) {
@@ -277,6 +378,7 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 		temperature    float64
 		maxTokens      int
 		responseFormat string
+		inputJSONStdin bool
 	)
 	fs.StringVar(&role, "role", "", "OpenRouter policy role to resolve (e.g. chat.default)")
 	fs.StringVar(&model, "model", "", "Concrete OpenRouter model slug (advanced override; prefer --role)")
@@ -286,6 +388,7 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	fs.Float64Var(&temperature, "temperature", 0.7, "Sampling temperature")
 	fs.IntVar(&maxTokens, "max-tokens", 0, "Maximum completion tokens")
 	fs.StringVar(&responseFormat, "response-format", "", "OpenAI-compatible response_format JSON object")
+	fs.BoolVar(&inputJSONStdin, "input-json-stdin", false, "Read {prompt,images:[{media_type,data_b64}]} from stdin")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			printGenerateUsage(stdout)
@@ -298,17 +401,31 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	// Greenfield: the model is selected by policy role, not a concrete default.
 	// --model is an explicit advanced override; absent it, --role (defaulting to
 	// the resource default role) is resolved through the policy authority.
+	var resolvedPolicy policy.ResolvedPolicyModel
 	if strings.TrimSpace(model) == "" {
 		if strings.TrimSpace(role) == "" {
 			role = runtime.DefaultRole
 		}
-		resolved, err := resolveRoleModel(role)
+		var err error
+		resolvedPolicy, err = resolveRolePolicy(role)
 		if err != nil {
 			return err
 		}
-		model = resolved
+		model = resolvedPolicy.Model
+	} else if resolved, err := resolveModelPolicy(model); err == nil {
+		resolvedPolicy = resolved
 	}
-	prompt, err := resolvePrompt(promptFlag, promptFile, fs.Args(), stdin)
+	var prompt string
+	var images []health.ImageInput
+	var err error
+	if inputJSONStdin {
+		if promptFlag != "" || promptFile != "" || len(fs.Args()) > 0 {
+			return fmt.Errorf("--input-json-stdin cannot be combined with --prompt, --prompt-file, or positional prompt")
+		}
+		prompt, images, err = resolveImageInput(stdin, resolvedPolicy)
+	} else {
+		prompt, err = resolvePrompt(promptFlag, promptFile, fs.Args(), stdin)
+	}
 	if err != nil {
 		return err
 	}
@@ -326,7 +443,7 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 		}
 		responseFormatJSON = json.RawMessage(responseFormat)
 	}
-	body, err := health.Generate(context.Background(), http.DefaultClient, runtime, creds, model, prompt, temperature, maxTokens, responseFormatJSON)
+	body, err := health.Generate(context.Background(), http.DefaultClient, runtime, creds, model, prompt, temperature, maxTokens, responseFormatJSON, images)
 	if err != nil {
 		return err
 	}
