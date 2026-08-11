@@ -54,9 +54,9 @@ export { expectNoA11yViolations } from "./a11y";
 // schema change is one-import-update; consuming the proto package
 // directly in tests fragments that contract.
 //
-// Domain-specific factories (Note, NotesListResponse, etc.) are NOT
+// Domain-specific factories are NOT
 // re-exported here — they live next to the feature they double for
-// (e.g. `features/notes/mocks/factories.ts`) so deleting a feature
+// (e.g. `features/example/mocks/factories.ts`) so deleting a feature
 // folder takes them along.
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";
@@ -109,8 +109,8 @@ export type {
 } from "./mocks/spatial";
 
 // Internal-seam mock builders for cross-domain HTTP wrappers (the
-// generic `api/health` health/error path). Domain-specific mocks
-// (e.g. `makeNotesMocks`) live with their feature.
+// generic `api/health` health/error path). Domain-specific mocks live with
+// their feature.
 // Use `...makeApiMocks()` *inside* the
 // `vi.mock(..., async (importOriginal) => …)` factory closure — never
 // at module top level. See mocks/api.ts for the canonical usage shape.

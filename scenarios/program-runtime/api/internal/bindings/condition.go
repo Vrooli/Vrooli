@@ -77,18 +77,12 @@ func conditionFor(binding interface {
 	condition := &bindingsv1.BindingCondition{BindingId: binding.GetId(), Scenario: binding.GetScenario()}
 	serving := &bindingsv1.ServingCondition{Family: &bindingsv1.ConditionFamily{Status: bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY}}
 	exercise := &bindingsv1.ExerciseCondition{Family: &bindingsv1.ConditionFamily{Status: bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT, Reason: "exercise.invocations=0"}}
-	for _, row := range rows {
-		exercise.Invocations++
-		if row.SessionID != "" {
-			// Count distinct callers below using a stable set; the session is
-			// the caller identity available at this owner boundary today.
-		}
-	}
 	callers := map[string]struct{}{}
 	latencies := make([]int64, 0, len(rows))
 	failed, refused := 0, 0
 	var latest time.Time
 	for _, row := range rows {
+		exercise.Invocations++
 		caller := row.SessionID
 		if caller == "" {
 			caller = row.ProgramID

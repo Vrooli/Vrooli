@@ -6,7 +6,14 @@ CREATE TABLE IF NOT EXISTS sessions (
   last_activity_at TEXT NOT NULL,
   sandbox_workspace TEXT NOT NULL DEFAULT '',
   memory_bytes INTEGER NOT NULL DEFAULT 0,
-  reclaimed_reason TEXT NOT NULL DEFAULT ''
+  reclaimed_reason TEXT NOT NULL DEFAULT '',
+  inference_cost_micros INTEGER NOT NULL DEFAULT 0,
+  inference_tokens INTEGER NOT NULL DEFAULT 0,
+  delegation_cost_micros INTEGER NOT NULL DEFAULT 0,
+  inference_ceiling_micros INTEGER NOT NULL DEFAULT 0,
+  delegation_ceiling_micros INTEGER NOT NULL DEFAULT 0,
+  delegation_spend_measured INTEGER NOT NULL DEFAULT 0,
+  delegation_spend_note TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_last_activity ON sessions(last_activity_at);

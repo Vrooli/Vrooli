@@ -12,7 +12,7 @@ The cross-cutting model these domains share — the attestation contract, the en
 |--------|----------------|---------------------|
 | **coverage** | Read each projection's denominator (via the owner's `space --projection` verb) joined against the live registries; compute per-projection coverage + denominator-confidence; validate base-document integrity; synthesize the readiness scoreboard. | OT-P0-001, OT-P0-004, OT-P2-002 |
 | **convergence** | Measure the upstream generators: per-template fitness counts, gold-star generated-golden health/staleness, and the convergence trend. Surfaces numbers + candidates only. | OT-P1-002 |
-| **focus** | Maintain the gaps registry (qualitative notes/approaches) and rank gaps by impact × importance across all projections + convergence. | OT-P0-002, OT-P0-003 |
+| **focus** | Maintain the gaps registry (qualitative notes/approaches) and rank gaps by impact × importance across all projections, convergence, and named empirical friction sources including program-runtime. | OT-P0-002, OT-P0-003 |
 | **trials** | Run the empirical local-model gate via agent-manager's sandboxed runner, evaluate the diff against a fixture oracle, record success/tokens/time history; track Guide-gate coverage. | OT-P1-001 |
 
 ## Domain Details
@@ -38,7 +38,7 @@ The cross-cutting model these domains share — the attestation contract, the en
 ### focus
 - **Owns**: the gaps registry — every known gap with notes/approaches/context, including cross-cutting/global gaps and explored-but-unbuilt ideas.
 - **Proto operations**: `GetFocus` (ranked next-best gaps, impact × importance), `ListGaps` (filter by projection/cell/status), `GetGap` (one gap with full context), `AddGapNote` (append an explored approach — the one write verb).
-- **API behavior**: aggregate gaps from coverage + convergence + the registry; rank by impact × importance; return each with its qualitative context. Sources are named and multiplexed: each degrades independently, and an unreadable source becomes a visible availability entry rather than silently removing gaps.
+- **API behavior**: aggregate gaps from coverage + convergence + the registry + the named program-runtime friction reader; rank by impact × importance; return each with its qualitative context. Sources are named and multiplexed: each degrades independently, and an unreadable source becomes a visible availability entry rather than silently removing gaps.
 - **Condition source (target state)**: a `condition` source reads the **central measures index** — one read, never a fleet fan-out — and emits findings for sustained degradation, uninstrumented legs backing counted supply, and dormancy. It ranks beside coverage and empirical entries on the same ordered surface. By default a degraded leg does **not** change its cell's coverage status; only sustained degradation promotes to a downgrade, and dormancy never does. The signal families, the closed status vocabulary, the instrumentation-coverage reporting rule, and the ranking intent are specified in [CONDITION-MODEL.md](CONDITION-MODEL.md); this source is not yet registered.
 - **CLI**: `focus [--limit] [--projection] [--json]`, `gaps [--projection] [--cell] [--status] [--json]`, `gaps show <id> [--json]`, `gaps note <id> --add "<approach>"`.
 - **UI**: the focus list + gaps registry panels (P2).
@@ -66,7 +66,7 @@ The cross-cutting model these domains share — the attestation contract, the en
 ## Deferred Domains
 
 - **stewardship** (skill/action lifecycle health, staleness, promotion-readiness) and **intake** (friction / run-lesson / discovery-gap routing) — deliberately *not* domains here. Their cores are judgment, and programmatizing them would weaken them; they stay agentic (see [ARCHITECTURE.md](ARCHITECTURE.md) "Intentional Deviations").
-- The example `notes` domain shipped by the template is deferred for removal via `vrooli scenario detemplate` once the first real domain is green.
+- Program-runtime is an external empirical source, not a meta-optimization-manager bounded context; its typed reader is owned by focus and degrades independently.
 
 ## Non-Domains
 

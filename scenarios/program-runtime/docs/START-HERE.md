@@ -365,10 +365,9 @@ becomes real:
 - [ ] Validate after every meaningful edit:
       `experience-manager spec validate program-runtime --json`.
 
-The notes page spec is part of the removable example domain. When you
-run `template-manager detemplate program-runtime`, the notes page spec
-and its registry entry should disappear with the notes UI/API/CLI
-example.
+The generated experience registry must contain only routes backed by the
+runtime's current modules. When a route is removed, remove its page spec and
+registry entry in the same change.
 
 **Exit criteria:** every real route has at least an L0 page spec, the
 registry has no stale route references, and `experience-manager spec
@@ -516,6 +515,5 @@ For a normal proto-backed CRUD domain:
    tests.
 8. Run string/code generation as needed, then run `make test`.
 
-If the domain needs opaque binary uploads, keep bytes on a REST
-multipart edge and keep metadata proto-typed. The fenced example
-domain's attachments path demonstrates that exception.
+If a future domain needs opaque binary uploads, keep bytes on a REST
+multipart edge and keep metadata proto-typed.

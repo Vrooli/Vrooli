@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -156,6 +157,9 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	if err := programs.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("program schema compatibility failed: %v", err)
+	}
 	retentionDB, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
 		DSN:          dsn,
@@ -196,8 +200,11 @@ func main() {
 		agentBridgeURL = fmt.Sprintf("http://127.0.0.1:%s/internal/program-runtime/agent/execute", port)
 	}
 	runner := programs.NewSubprocessRunnerWithBindings(filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "engine.py"), bindingSpecs, bridgeURL, agentBridgeURL)
+	if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
+		runner.SetDiscoveryURL(fmt.Sprintf("http://127.0.0.1:%s/internal/program-runtime/bindings/resolve-intent", port))
+	}
 	workspaceResolver := sessions.NewDiscoveryWorkspaceResolver(discovery.NewResolver(discovery.ResolverConfig{}), http.DefaultClient)
-	sessionManager := sessions.NewManager(sessions.Options{Store: db.Primary(), WorkspaceResolver: workspaceResolver, OnWorkspaceResolved: runner.SetSessionWorkspace, OnReclaimed: func(id string) { runner.KillSession(id); runner.ClearSessionWorkspace(id) }})
+	sessionManager := sessions.NewManager(sessions.Options{Store: db.Primary(), InferenceCeilingMicros: envInt64("PROGRAM_RUNTIME_INFERENCE_CEILING_MICROS"), DelegationCeilingMicros: envInt64("PROGRAM_RUNTIME_DELEGATION_CEILING_MICROS"), WorkspaceResolver: workspaceResolver, OnWorkspaceResolved: runner.SetSessionWorkspace, OnReclaimed: func(id string) { runner.KillSession(id); runner.ClearSessionWorkspace(id) }})
 	programService := programs.NewService(programs.Options{Store: db.Primary(), Runner: runner, RecordMemory: func(id string, bytes int64) { _ = sessionManager.SetMemoryBytes(context.Background(), id, bytes) }, ValidateSession: func(id string) bool { _, err := sessionManager.Get(context.Background(), id); return err == nil }, Events: telemetryStore})
 	reclamationStop := make(chan struct{})
 	reclamationDone := make(chan struct{})
@@ -231,6 +238,7 @@ func main() {
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 	rootMux.Handle("/internal/program-runtime/bindings/execute", bindingsH.Bridge(bindingRegistry, sessionManager, refusalRepository))
+	rootMux.Handle("/internal/program-runtime/bindings/resolve-intent", bindingsH.IntentBridge(bindingRegistry))
 	rootMux.Handle("/internal/program-runtime/agent/execute", bindingsH.AgentBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 
 	// /measures is the measures-go serve substrate consumed by measures-health.
@@ -275,4 +283,12 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func envInt64(name string) int64 {
+	value, err := strconv.ParseInt(strings.TrimSpace(os.Getenv(name)), 10, 64)
+	if err != nil || value < 0 {
+		return 0
+	}
+	return value
 }

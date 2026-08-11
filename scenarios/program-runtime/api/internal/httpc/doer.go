@@ -7,7 +7,7 @@
 //
 // # Why ship the seam unwired in production
 //
-// The template has no production consumer of Doer (the notes
+// The template has no production consumer of Doer (the example
 // endpoints are internal-only). Defining the seam *before* the first
 // outbound call means the first scenario to need one — a webhook
 // dispatcher, an upstream-API client, an OAuth handshake — copies the

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -115,6 +116,69 @@ func TestNamedSessionSurvivesAcrossAgentRuns(t *testing.T) { // [REQ:PRT-P2-003]
 	got, _ := m.Get(testContext, s.ID)
 	if got.Name != "investigation" || !m.HasGrant(testContext, s.ID, "network:internal") {
 		t.Fatal("named session metadata did not survive lookup")
+	}
+}
+
+func TestInferenceUsageAccumulatesAndCeilingRejects(t *testing.T) { // [REQ:PRT-P1-010]
+	m := NewManager(Options{})
+	s, err := m.CreateWithBudgets(testContext, "metered", "", nil, 100, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.RecordInferenceUsage(testContext, s.ID, 40, 12); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.RecordInferenceUsage(testContext, s.ID, 60, 8); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.EnsureInferenceAvailable(testContext, s.ID); err == nil || !strings.Contains(err.Error(), "inference_spend_exceeded") || !strings.Contains(err.Error(), "ceiling=100") {
+		t.Fatalf("ceiling error=%v", err)
+	}
+	got, err := m.Get(testContext, s.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.InferenceCostMicros != 100 || got.InferenceTokens != 20 {
+		t.Fatalf("usage=%+v", got)
+	}
+}
+
+func TestSessionWithoutInferenceCeilingRemainsUnlimited(t *testing.T) { // [REQ:PRT-P1-010]
+	m := NewManager(Options{})
+	s, err := m.Create(testContext, "unlimited", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		if err := m.RecordInferenceUsage(testContext, s.ID, 100, 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := m.EnsureInferenceAvailable(testContext, s.ID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSQLiteSessionSpendSurvivesManagerRestart(t *testing.T) { // [REQ:PRT-P1-010]
+	db := newSessionTestDB(t)
+	first := NewManager(Options{Store: db})
+	s, err := first.CreateWithBudgets(testContext, "durable-meter", "", nil, 500, 700)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := first.RecordInferenceUsage(testContext, s.ID, 125, 17); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.RecordDelegationUsage(testContext, s.ID, 0, false, "agent-manager charge unavailable"); err != nil {
+		t.Fatal(err)
+	}
+	second := NewManager(Options{Store: db})
+	got, err := second.Get(testContext, s.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.InferenceCostMicros != 125 || got.InferenceTokens != 17 || got.InferenceCeilingMicros != 500 || got.DelegationCeilingMicros != 700 || got.DelegationSpendMeasured || got.DelegationSpendNote == "" {
+		t.Fatalf("durable spend=%+v", got)
 	}
 }
 

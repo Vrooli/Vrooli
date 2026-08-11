@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Cross-domain obligations that no single product domain owns: declared measure coverage, the broader operator console, and future kernel adapters.",
-    "last_validated_at": "2026-08-11T13:41:07-04:00",
+    "last_validated_at": "2026-08-11T17:07:52-04:00",
     "module": "platform",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -59,7 +59,7 @@
           "type": "manual",
           "phase": "acceptance",
           "status": "not_implemented",
-          "notes": "Status correction (2026-08-11): this requirement was marked complete against a validation target that does not exist. Verified state: `ui/src/features/` contains only `bindings`, `health`, and the template `notes` example; `ui/src/pages/` contains only Dashboard, Bindings, and Settings; `ui/src/app/routes.tsx` registers no sessions or program-history route. Only the binding registry surface shipped, and that is separately earned by PRT-P1-007, which was promoted out of this requirement precisely so the rest of the operator UI could stay P2. The `experience/` contract also carries three pages and zero journeys against the six pages and two journeys the PRD describes."
+          "notes": "Status correction (2026-08-11): no operator sessions or program-history route is implemented. The notes example was removed by the official detemplate operation. The binding registry surface is separately earned by PRT-P1-007; this broader operator-console requirement remains planned until a real operator workflow, page, and route are implemented and tested."
         }
       ]
     },

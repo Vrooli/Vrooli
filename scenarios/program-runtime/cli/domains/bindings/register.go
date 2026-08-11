@@ -22,17 +22,46 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	h := &handlers{client: bindingsconnect.NewBindingRegistryServiceClient(httpClient, baseURL), conditionClient: bindingsconnect.NewBindingConditionServiceClient(httpClient, baseURL)}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
-		"BindingRegistryService.ListBindings":         cliapp.ProtoList(h.list, h.listReport),
-		"BindingRegistryService.ListUnbound":          cliapp.ProtoList(h.unbound, h.unboundReport),
-		"BindingRegistryService.ResolveActCells":      cliapp.ProtoList(h.act, h.actReport),
-		"BindingRegistryService.DoctorBindings":       cliapp.ProtoListEmitUnpopulatedJSON(h.doctor, h.doctorReport),
-		"BindingRegistryService.DescribeBinding":      cliapp.ProtoList(h.describe, h.describeReport),
-		"BindingConditionService.GetBindingCondition": cliapp.ProtoList(h.condition, h.conditionReport),
+		"BindingRegistryService.ListBindings":                                            cliapp.ProtoList(h.list, h.listReport),
+		"BindingRegistryService.ListUnbound":                                             cliapp.ProtoList(h.unbound, h.unboundReport),
+		"BindingRegistryService.ResolveActCells":                                         cliapp.ProtoList(h.act, h.actReport),
+		"BindingRegistryService.DoctorBindings":                                          cliapp.ProtoListEmitUnpopulatedJSON(h.doctor, h.doctorReport),
+		"BindingRegistryService.DescribeBinding":                                         cliapp.ProtoList(h.describe, h.describeReport),
+		"BindingRegistryService.ResolveIntent":                                           cliapp.ProtoList(h.resolveIntent, h.resolveIntentReport),
+		"vrooli.program_runtime.v1.bindings.BindingConditionService.GetBindingCondition": cliapp.ProtoList(h.condition, h.conditionReport),
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("bindings: load from manifest: %w", err)
 	}
 	return group, nil
+}
+
+func (h *handlers) resolveIntent(ctx cliapp.OperationContext) (*bindingsv1.ResolveIntentResponse, error) {
+	var limit int32
+	if raw := ctx.Flag("limit"); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("limit must be a signed 32-bit integer: %w", err)
+		}
+		limit = int32(parsed)
+	}
+	r, err := h.client.ResolveIntent(context.Background(), connect.NewRequest(&bindingsv1.ResolveIntentRequest{Intent: ctx.Flag("intent"), Limit: limit}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("resolve binding intent", err, nil)
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) resolveIntentReport(_ cliapp.OperationContext, r *bindingsv1.ResolveIntentResponse) cliapp.ListReport {
+	items := make([]string, 0, len(r.GetBindings()))
+	for _, b := range r.GetBindings() {
+		items = append(items, fmt.Sprintf("%s/%s/%s — %s", b.GetScenario(), b.GetGroup(), b.GetCommand(), b.GetEffect()))
+	}
+	mode := "semantic"
+	if r.GetFallback() {
+		mode = "local fallback"
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d governed candidate(s); %s; %s", len(items), mode, r.GetReason())}, ResultsHeading: "Candidates", Results: items}
 }
 
 func (h *handlers) condition(ctx cliapp.OperationContext) (*bindingsv1.GetBindingConditionResponse, error) {
@@ -114,7 +143,7 @@ func (h *handlers) doctorReport(_ cliapp.OperationContext, r *bindingsv1.DoctorB
 		items = append(items, fmt.Sprintf("%s %s: %s (%s)", issue.GetBindingId(), issue.GetArgument(), issue.GetReason(), issue.GetRequestType()))
 	}
 	return cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Bindings: %d; callable: %d; uncallable: %d; partial: %d; zero-arg: %d; misroutes: %d; semantic collisions: %d; control binds: %d; required fields: %d; redundant binds: %d.", r.GetBindings(), r.GetCallable(), r.GetUncallable(), r.GetPartial(), r.GetZeroArg(), r.GetMisroutes(), r.GetFieldCollisions(), r.GetControlFlagsBound(), r.GetRequiredFieldsUnpopulated(), r.GetBindsWhereRenameSuffices())},
+		Summary:        []string{fmt.Sprintf("Bindings: %d; callable: %d; uncallable: %d; partial: %d; zero-arg: %d; misroutes: %d; semantic collisions: %d; control binds: %d; required fields: %d; redundant binds: %d; manifests: %d/%d; reachable: %d; unreachable: %d.", r.GetBindings(), r.GetCallable(), r.GetUncallable(), r.GetPartial(), r.GetZeroArg(), r.GetMisroutes(), r.GetFieldCollisions(), r.GetControlFlagsBound(), r.GetRequiredFieldsUnpopulated(), r.GetBindsWhereRenameSuffices(), r.GetManifestScenarios(), r.GetTotalScenarios(), len(r.GetReachableScenarios()), len(r.GetUnreachableScenarios()))},
 		ResultsHeading: "Unresolved arguments", Results: items,
 	}
 }

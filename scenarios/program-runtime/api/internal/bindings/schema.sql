@@ -10,6 +10,16 @@ CREATE INDEX IF NOT EXISTS idx_refusals_session ON refusals(session_id);
 CREATE INDEX IF NOT EXISTS idx_refusals_binding ON refusals(binding_id);
 CREATE INDEX IF NOT EXISTS idx_refusals_occurred ON refusals(occurred_at);
 
+CREATE TABLE IF NOT EXISTS unresolved_binding_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id TEXT NOT NULL,
+  attempted_name TEXT NOT NULL,
+  occurred_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_unresolved_binding_attempts_name ON unresolved_binding_attempts(attempted_name);
+CREATE INDEX IF NOT EXISTS idx_unresolved_binding_attempts_occurred ON unresolved_binding_attempts(occurred_at);
+
 CREATE TABLE IF NOT EXISTS binding_invocations (
   invocation_id TEXT PRIMARY KEY,
   binding_id TEXT NOT NULL,

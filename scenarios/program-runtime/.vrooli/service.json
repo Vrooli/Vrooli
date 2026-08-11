@@ -227,6 +227,36 @@
         "startup_policy": "try_start",
         "description": "Optional copy-on-write workspace binding for session kernels.",
         "degraded_behavior": "Sessions without a declared workspace continue with a private scratch directory. Declared workspace identifiers are rejected while workspace-sandbox is unavailable; explicit absolute paths use local validation only and do not provide copy-on-write isolation."
+      },
+      "ai-gateway": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Program Runtime reaches ai-gateway through its governed Connect binding boundary; no source-level package import is expected.",
+        "startup_policy": "try_start",
+        "description": "Optional typed inference provider for governed classify, extract, and judge calls.",
+        "degraded_behavior": "Program execution and non-inference bindings remain available; inference calls fail closed with an explicit provider-unavailable error."
+      },
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Program Runtime reaches agent-manager through its governed delegated-run Connect boundary; no source-level package import is expected.",
+        "startup_policy": "try_start",
+        "description": "Optional delegated-agent workflow provider for bounded program handles.",
+        "degraded_behavior": "Direct governed bindings remain available; delegated runs fail closed with an explicit agent-manager-unavailable error."
+      },
+      "search-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Program Runtime reaches search-hub through service discovery and its intent-search boundary; no source-level package import is expected.",
+        "startup_policy": "try_start",
+        "description": "Optional intent-search provider for discovering governed bindings.",
+        "degraded_behavior": "Intent resolution falls back to the local manifest registry and reports the fallback provenance."
       }
     }
   },

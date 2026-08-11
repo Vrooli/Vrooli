@@ -4,12 +4,11 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-Five product domains are mapped below, plus the scaffold's `health`. None
-are implemented yet — this map is the Gate 3 design artifact that decides
-build order before code exists. The scaffold also ships one clearly fenced
-worked example domain (never product scope) as a copyable reference;
-`template-manager detemplate program-runtime` removes every fenced example
-once the real domains are green.
+Six runtime domains are mapped below, plus `health`. They are implemented
+and lifecycle-validated; this document is now the ownership map for the
+production scenario rather than a pre-implementation scaffold. The
+meta-optimization-manager focus domain consumes the program-runtime friction
+read surface as an external, read-only evidence lane.
 
 **Build order is decided by the read graph, not by surface.** `bindings`
 reads no other domain and is therefore first. `sessions` reads `bindings`
@@ -55,37 +54,15 @@ belong in [`DATA.md`](DATA.md).
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/program-runtime/v1/shared/health.proto` |
 | bindings | Project the callable surface from the proto descriptor and CLI manifests, validate arguments, and refuse ungoverned calls. | An agent can only invoke what is typed and governed; this domain decides what exists to call. | Binding-resolution snapshots and refusal reasons. | registry | query, policy | Binding, Callable, Grant, Effect | `api/internal/bindings/`, `kernel/bindings/` |
 | sessions | Own kernel session lifecycle: creation, grants, persistence of kernel state, reclamation. | Programs need somewhere durable to bind variables between submissions. | Sessions, grants, reclamation reasons. | lifecycle | service | Session, Grant, Reclamation | `api/internal/sessions/`, `kernel/host/` |
-| programs | Accept a program, execute it in its session, and return only what it materializes. | This is the product: one submission replaces many tool calls. | Program submissions, results, failure detail. | execution | service | Program, Handle, Materialization | `api/internal/programs/`, `kernel/host/` |
+| programs | Accept a program, execute it in its session, and return only what it materializes. | This is the product: one submission replaces many tool calls. | Program submissions, results, failure detail, friction projections. | execution | service, evidence source | Program, Handle, Materialization | `api/internal/programs/`, `kernel/host/`, `handlers/programs/` |
 | telemetry | Emit typed platform events for submissions, invocations, and failures. | Program failures are the highest-quality friction evidence in the system; they must leave the scenario. | Nothing durable beyond an outbox. | reporting | integration | ProgramEvent, FailureShape | `api/internal/telemetry/` |
 | actspace | Serve the Act denominator and report the live binding numerator. | meta-optimization-manager cannot measure the acting surface without an owner that answers for it. | Nothing; the denominator is a doc, the numerator is computed live. | reporting | query | ActCell, OperationClass | `api/internal/actspace/`, `docs/spaces/act-space.md` |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships `notes` as a worked CRUD vertical slice with a binary
-upload exception. Copy its shape for your own domains, then remove it.
-
-| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
-|---|---|---|---|---|---|---|---|
-| notes | Provide the worked CRUD reference with attachment upload exception. | Demonstrate the expected vertical slice for a real domain. | Notes and attachment metadata. | crud | service | Note, Attachment | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/program-runtime/v1/notes/` |
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
-<!-- EXAMPLE-DOMAIN:notes END -->
+The program-runtime friction reader is consumed by
+`scenarios/meta-optimization-manager/api/internal/focus/programruntime.go`.
+It reads typed failure, refusal, and unresolved-binding projections through
+Connect with a three-second deadline; an unavailable runtime produces one
+named availability gap and does not suppress other focus sources.
 
 ## Domain Details
 

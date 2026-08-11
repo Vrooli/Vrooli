@@ -29,7 +29,7 @@ import (
 // quiet when callers fan out.
 //
 // Construction: most callers want NewSliceRepo (or a per-domain helper
-// like notes/mocks::NewFakeRepository) which returns a struct with the
+// like a domain's mocks::NewFakeRepository) which returns a struct with the
 // extractors pre-wired. Bare zero-value SliceRepo{} is also valid for
 // tests that override defaults (e.g. injecting a custom NotFound), but
 // callers MUST set GetID, SetID, and NotFound before exercising the

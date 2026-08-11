@@ -28,7 +28,7 @@ func Module(manager *internalsessions.Manager) module.Module {
 }
 
 func (h *handler) CreateSession(ctx context.Context, req *connect.Request[sessionsv1.CreateSessionRequest]) (*connect.Response[sessionsv1.CreateSessionResponse], error) {
-	s, err := h.manager.Create(ctx, req.Msg.Name, req.Msg.SandboxWorkspace, req.Msg.Grants)
+	s, err := h.manager.CreateWithBudgets(ctx, req.Msg.Name, req.Msg.SandboxWorkspace, req.Msg.Grants, req.Msg.GetInferenceCeilingMicros(), req.Msg.GetDelegationCeilingMicros())
 	if err != nil {
 		if errors.Is(err, internalsessions.ErrInvalidWorkspace) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -75,7 +75,7 @@ func (h *handler) GrantSession(ctx context.Context, req *connect.Request[session
 }
 
 func toProto(s *internalsessions.Session) *sessionsv1.Session {
-	out := &sessionsv1.Session{Id: s.ID, Name: s.Name, State: s.State, CreatedAt: s.CreatedAt.Format(time.RFC3339Nano), LastActivityAt: s.LastActivityAt.Format(time.RFC3339Nano), SandboxWorkspace: s.SandboxWorkspace, ReclaimedReason: s.ReclaimedReason}
+	out := &sessionsv1.Session{Id: s.ID, Name: s.Name, State: s.State, CreatedAt: s.CreatedAt.Format(time.RFC3339Nano), LastActivityAt: s.LastActivityAt.Format(time.RFC3339Nano), SandboxWorkspace: s.SandboxWorkspace, ReclaimedReason: s.ReclaimedReason, InferenceCostMicros: s.InferenceCostMicros, InferenceTokens: s.InferenceTokens, DelegationCostMicros: s.DelegationCostMicros, InferenceCeilingMicros: s.InferenceCeilingMicros, DelegationCeilingMicros: s.DelegationCeilingMicros, DelegationSpendMeasured: s.DelegationSpendMeasured, DelegationSpendNote: s.DelegationSpendNote}
 	for grant := range s.Grants {
 		out.Grants = append(out.Grants, grant)
 	}

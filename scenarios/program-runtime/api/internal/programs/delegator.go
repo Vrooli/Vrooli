@@ -13,6 +13,50 @@ import (
 	"github.com/vrooli/api-core/discovery"
 )
 
+// DelegationCharge extracts only an explicitly per-run monetary charge. The
+// agent-manager response currently exposes workflow evidence but not a charge
+// field, so absence is returned as measured=false and is never converted into
+// a misleading zero-cost observation.
+func DelegationCharge(result map[string]any) (costMicros int64, measured bool, note string) {
+	if value, ok := findNumber(result, "total_charge_micro_usd", "totalChargeMicroUsd", "charge_micro_usd", "chargeMicroUsd"); ok {
+		return value, true, "agent-manager returned an explicit per-run charge"
+	}
+	if value, ok := findNumber(result, "cost_micros", "costMicros"); ok {
+		return value, true, "agent-manager returned an explicit per-run cost"
+	}
+	return 0, false, "agent-manager delegation result contained no per-run charge field"
+}
+
+func findNumber(value any, keys ...string) (int64, bool) {
+	if object, ok := value.(map[string]any); ok {
+		for _, key := range keys {
+			if candidate, exists := object[key]; exists {
+				switch number := candidate.(type) {
+				case float64:
+					return int64(number), true
+				case int64:
+					return number, true
+				case int:
+					return int64(number), true
+				}
+			}
+		}
+		for _, child := range object {
+			if number, ok := findNumber(child, keys...); ok {
+				return number, true
+			}
+		}
+	}
+	if list, ok := value.([]any); ok {
+		for _, child := range list {
+			if number, ok := findNumber(child, keys...); ok {
+				return number, true
+			}
+		}
+	}
+	return 0, false
+}
+
 // HTTPDelegator is the only program-runtime client for delegated agent work.
 // It uses agent-manager's typed Connect JSON routes, waits for terminal state,
 // and returns the explicit result projection as bounded handle data.

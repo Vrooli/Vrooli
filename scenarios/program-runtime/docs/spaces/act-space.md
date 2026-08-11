@@ -115,21 +115,27 @@ gap in the acting surface even when the underlying capability plainly exists.
 
 ## Live audit snapshot — 2026-08-07
 
-The post-repair live registry recomputation reports **20 NOW, 7 IN-REACH, and
-1 MISSING** across all 28 Act cells: coverage ratio **0.7142857143**. This is
-unchanged from `repair-baseline/coverage-before.json`, so the semantic repair
-changed the trustworthiness of the binding census without changing the Act
-denominator result. The denominator remains `PARTIAL`: all 28 rows were audited
-against the live registry, but external, unbound, or partly represented owners
-retain conservative statuses with explicit reasons. `focus next --limit 60`
-reports eight Act gaps, exactly matching the seven in-reach cells plus the one
-missing cell. Live explanations confirm A3 and A19 as `NOW`.
+The pre-Phase-9 live audit recorded **20 NOW, 7 IN-REACH, and 1 MISSING** across
+all 28 Act cells (coverage ratio **0.7142857143**). That value is retained as
+the before snapshot for this repair. After the honest join and reachability
+changes, the live recomputation on **2026-08-11** reports **14 NOW, 13
+IN-REACH, and 1 MISSING** (coverage ratio **0.5**). The reduction is
+intentional: authored `NOW`/`COVERED` claims with zero governed bindings are
+now downgraded to `IN-REACH` rather than counted as executable coverage.
+Every cell remains audited with an explicit reason, and the doctor surface
+separately reports reachable versus unreachable bound scenarios.
+
+The measured manifest ceiling is **63 of 117 scenarios**: 63 scenario
+manifests were present in the registry input, while 117 scenario targets were
+enumerated. This is an evidence-backed ceiling for the manifest-bound surface,
+not a claim that every manifest-bearing scenario is currently reachable.
 
 Suggested live-join rule, mirroring the sibling projections: a cell is `NOW` only when **every**
 operation it names resolves to a manifest-bound Connect method whose binding generates cleanly and
 whose declared `effect` is satisfiable under the caller's grant. A cell whose operations are
-partially bound is `IN-REACH`; a cell that cannot be resolved at all keeps its authored status
-rather than being fabricated as `MISSING`.
+partially bound is `IN-REACH`; a cell with no governed binding cannot remain `NOW` or `COVERED` and
+is downgraded to `IN-REACH` with its explicit unbound/unreachable reason. Other unresolvable
+authored statuses remain authored rather than being fabricated as `MISSING`.
 
 ## Known Limitations
 
@@ -141,6 +147,8 @@ rather than being fabricated as `MISSING`.
 - **The taxonomy is a first cut.** 28 operation classes across 7 groups is a starting shape. Expect
   splits and merges once real programs are observed — the strongest future signal is telemetry from
   actual programs, which reveals the operations agents *try* to invoke and cannot.
-- **`cli/manifest.json` coverage bounds everything.** With 58 of 128 scenarios carrying a manifest,
-  a large share of the fleet has no bindable surface at all. Act cannot exceed that ceiling, and
-  raising it is likely the highest-leverage single action this projection will surface.
+- **`cli/manifest.json` coverage bounds everything.** The current doctor census
+  measures 63 of 117 scenario targets with a manifest. A large share of the
+  fleet therefore has no bindable surface at all. Act cannot exceed that
+  ceiling, and raising it is likely the highest-leverage single action this
+  projection will surface.

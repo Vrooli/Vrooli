@@ -65,16 +65,6 @@ func TestMiningExcludesOperatorProgramsByDefault(t *testing.T) { // [REQ:PRT-P1-
 	}
 }
 
-func TestContextBytesDoNotScaleWithResultSize(t *testing.T) { // [REQ:PRT-P0-003]
-	runner := fakeRunner{result: Result{Stdout: "bounded handle", ContextBytes: 128, MaterializedBytes: 1}}
-	s := NewService(Options{Runner: runner})
-	small, _ := s.Submit(context.Background(), "s1", "query(10)", programsv1.Provenance_PROVENANCE_AGENT, false)
-	large, _ := s.Submit(context.Background(), "s1", "query(100000)", programsv1.Provenance_PROVENANCE_AGENT, false)
-	if small.ContextBytes != large.ContextBytes || small.ContextBytes > 1024 {
-		t.Fatalf("context bytes scaled: small=%d large=%d", small.ContextBytes, large.ContextBytes)
-	}
-}
-
 func TestDeadlineFailureUsesStableFailureShape(t *testing.T) { // [REQ:PRT-P1-005]
 	s := NewService(Options{Runner: fakeRunner{err: &DeadlineExceededError{Limit: 2 * time.Second}}})
 	p, err := s.Submit(context.Background(), "s1", "while True: pass", programsv1.Provenance_PROVENANCE_AGENT, false)

@@ -3,6 +3,7 @@ package sessions
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"connectrpc.com/connect"
 
@@ -22,20 +23,39 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	h := &handlers{client: sessionsconnect.NewSessionServiceClient(httpClient, baseURL)}
 	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
-		"SessionService.CreateSession": cliapp.ProtoMutation(h.create, h.createReport),
-		"SessionService.GetSession":    cliapp.ProtoList(h.get, h.getReport),
-		"SessionService.ListSessions":  cliapp.ProtoList(h.list, h.listReport),
-		"SessionService.DeleteSession": cliapp.ProtoMutation(h.delete, h.deleteReport),
-		"SessionService.GrantSession":  cliapp.ProtoMutation(h.grant, h.grantReport),
+		"SessionService.CreateSession":                                   cliapp.ProtoMutation(h.create, h.createReport),
+		"SessionService.GetSession":                                      cliapp.ProtoList(h.get, h.getReport),
+		"vrooli.program_runtime.v1.sessions.SessionService.ListSessions": cliapp.ProtoList(h.list, h.listReport),
+		"SessionService.DeleteSession":                                   cliapp.ProtoMutation(h.delete, h.deleteReport),
+		"SessionService.GrantSession":                                    cliapp.ProtoMutation(h.grant, h.grantReport),
 	})
 }
 
 func (h *handlers) create(ctx cliapp.OperationContext) (*sessionsv1.CreateSessionResponse, error) {
-	r, e := h.client.CreateSession(context.Background(), connect.NewRequest(&sessionsv1.CreateSessionRequest{Name: ctx.Flag("name"), SandboxWorkspace: ctx.Flag("sandbox-workspace"), Grants: cliutil.ParseCSV(ctx.Flag("grants"))}))
+	inferenceCeiling, err := parseCeiling(ctx.Flag("inference-ceiling-micros"))
+	if err != nil {
+		return nil, err
+	}
+	delegationCeiling, err := parseCeiling(ctx.Flag("delegation-ceiling-micros"))
+	if err != nil {
+		return nil, err
+	}
+	r, e := h.client.CreateSession(context.Background(), connect.NewRequest(&sessionsv1.CreateSessionRequest{Name: ctx.Flag("name"), SandboxWorkspace: ctx.Flag("sandbox-workspace"), Grants: cliutil.ParseCSV(ctx.Flag("grants")), InferenceCeilingMicros: inferenceCeiling, DelegationCeilingMicros: delegationCeiling}))
 	if e != nil {
 		return nil, cliapp.WrapAPIError("create session", e, nil)
 	}
 	return r.Msg, nil
+}
+
+func parseCeiling(value string) (int64, error) {
+	if value == "" {
+		return 0, nil
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || parsed < 0 {
+		return 0, fmt.Errorf("spend ceiling must be a non-negative integer in micros")
+	}
+	return parsed, nil
 }
 
 func (h *handlers) get(ctx cliapp.OperationContext) (*sessionsv1.GetSessionResponse, error) {

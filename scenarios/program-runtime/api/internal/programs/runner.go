@@ -57,6 +57,7 @@ type SubprocessRunner struct {
 	bindings           []BindingSpec
 	bridgeURL          string
 	agentBridgeURL     string
+	discoveryURL       string
 	scratchRoot        string
 	workspaces         map[string]string
 	mu                 sync.Mutex
@@ -90,6 +91,14 @@ func NewSubprocessRunnerWithBindings(path string, bindings []BindingSpec, bridge
 		scratchRoot = os.TempDir()
 	}
 	return &SubprocessRunner{path: path, bindings: append([]BindingSpec(nil), bindings...), bridgeURL: strings.TrimSpace(bridgeURL), agentBridgeURL: agentURL, scratchRoot: scratchRoot, processes: make(map[string]*kernelProcess), locks: make(map[string]*sync.Mutex), workspaces: make(map[string]string), SubmissionDeadline: 120 * time.Second}
+}
+
+// SetDiscoveryURL configures the private runtime endpoint used by the Python
+// kernel for semantic intent discovery.
+func (r *SubprocessRunner) SetDiscoveryURL(url string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.discoveryURL = strings.TrimSpace(url)
 }
 
 // SetSessionWorkspace pins future kernels for a session to a validated,
@@ -178,6 +187,9 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 		if r.agentBridgeURL != "" {
 			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_AGENT_BRIDGE_URL="+r.agentBridgeURL)
 		}
+		if r.discoveryURL != "" {
+			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_DISCOVERY_URL="+r.discoveryURL)
+		}
 	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -240,6 +252,7 @@ func (r *SubprocessRunner) execute(ctx context.Context, sessionID, programID, pr
 		Stdout           string       `json:"stdout"`
 		Error            string       `json:"error"`
 		ContextBytes     int64        `json:"context_bytes"`
+		AgentBytes       int64        `json:"agent_bytes"`
 		OutputLimitBytes int64        `json:"output_limit_bytes"`
 		Invocations      []Invocation `json:"invocations"`
 	}
@@ -267,7 +280,7 @@ func (r *SubprocessRunner) execute(ctx context.Context, sessionID, programID, pr
 		r.killProcess(sessionID, p)
 		return Result{}, &DeadlineExceededError{Limit: deadline}
 	}
-	result := Result{Stdout: response.Stdout, ContextBytes: response.ContextBytes, OutputLimitBytes: response.OutputLimitBytes, Invocations: response.Invocations}
+	result := Result{Stdout: response.Stdout, ContextBytes: response.ContextBytes, AgentBytes: response.AgentBytes, OutputLimitBytes: response.OutputLimitBytes, Invocations: response.Invocations}
 	if !response.OK {
 		return result, fmt.Errorf("%s", response.Error)
 	}

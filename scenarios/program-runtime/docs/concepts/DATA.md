@@ -39,10 +39,12 @@ such as BlobStore.
 |---|---|---|---|---|---|
 | Binding-resolution snapshots | bindings | SQLite | `api/internal/bindings/schema.sql` | Superseded on regeneration; keep the newest per descriptor digest. | Cache and provenance, never authority. The descriptor image and manifests are the truth; this records what resolved and what was refused. |
 | Refusal reasons | bindings | SQLite | `api/internal/bindings/schema.sql` | 30 days. | Why a callable was withheld — needed to explain an absence without re-deriving it. |
+| Unresolved binding attempts | bindings | SQLite | `api/internal/bindings/schema.sql` | 30 days. | Names attempted by a program that were not in the governed registry. |
 | Sessions and grants | sessions | SQLite | `api/internal/sessions/schema.sql` | Deleted on reclamation; reason retained per the row below. | Grants are the authorization record for destructive-effect calls and must outlive the kernel process. |
 | Reclamation reasons | sessions | SQLite | `api/internal/sessions/schema.sql` | 30 days. | A session vanishing without a stated reason is indistinguishable from a crash; keep the reason past the session. |
 | Program submissions and source | programs | SQLite | `api/internal/programs/schema.sql` | 90 days, then source-only. | The corpus that makes recurring failure shapes mechanically derivable (`PRT-P1-006`). |
 | Program results and failure detail | programs | SQLite | `api/internal/programs/schema.sql` | 90 days. | Failure detail is the friction evidence; results are bounded at write, never full materialization. |
+| Agent-facing byte measurements | programs | SQLite | `api/internal/programs/schema.sql` | 90 days. | `context_bytes` is pre-truncation program output; `agent_bytes` is the post-truncation payload delivered to the agent. |
 | Kernel variable state | sessions | **process memory — not persisted** | n/a | Dies with the kernel process. | Deliberate. See "Why kernel state is not persisted" below. |
 | Event outbox | telemetry | SQLite | `api/internal/telemetry/schema.sql` | Deleted on successful emit; 7-day dead-letter. | An outbox, not a store. Analysis lives in agent-manager and meta-optimization-manager. |
 
@@ -70,7 +72,7 @@ Each domain's schema file lives beside the code that interprets it. The
 
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
-| `refusals` | bindings | `api/internal/bindings/schema.sql` | binding bridge; retention worker |
+| `refusals`, `unresolved_binding_attempts`, `binding_invocations` | bindings | `api/internal/bindings/schema.sql` | binding bridge; friction reader; retention worker |
 | `sessions`, `session_grants`, `reclamation_reasons` | sessions | `api/internal/sessions/schema.sql` | sessions repository/service; `programs` reads session identity at dispatch |
 | `programs` | programs | `api/internal/programs/schema.sql` | programs repository/service; `telemetry` reads to build failure events |
 | `event_outbox` | telemetry | `api/internal/telemetry/schema.sql` | telemetry emitter only |
@@ -80,39 +82,15 @@ Cross-domain reads above are **read-only and one-directional**, matching
 the acyclic read graph in [`DOMAINS.md`](DOMAINS.md). No domain writes
 another domain's tables.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships the `notes` domain as a worked CRUD slice with a
-binary attachment-upload exception, showing how a real domain owns its
-tables, metadata, and opaque blob bytes. Copy its shape, then remove it.
-
-Its Data Ownership rows:
-
-| Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
-|---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
-
-Its Schema Map row:
-
-| Table/File/Object | Owner | Defined In | Used By |
-|---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
-
-Its Retention And Deletion row:
-
-| Data | Delete Trigger | Retention Rule | Current Gap |
-|---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Migrations And Compatibility
 
 The generated template uses idempotent schema bootstrap. Domain schema
 files should use `CREATE TABLE IF NOT EXISTS` and live beside the code
 that interprets them.
+
+`context_bytes` measures the complete stdout produced inside the kernel;
+`agent_bytes` measures the bounded stdout returned across the supervisor
+boundary. The latter is the agent-facing cost used by the scaling evidence.
 
 For production data migrations that need column drops, renames, or data
 backfills, add a scenario-specific migration plan here and update
@@ -133,6 +111,7 @@ backfills, add a scenario-specific migration plan here and update
 | Reclamation reasons | Age. | 30 days. | None. |
 | Program submissions, source, results, failure detail | Age. | 90 days. | `api/internal/retention/worker.go` prunes old rows on a dedicated SQLite handle; source and bounded results are retained together within the declared window. |
 | Binding refusals | Age. | 30 days. | `api/internal/retention/worker.go` prunes old refusal evidence. |
+| Unresolved binding attempts | Age. | 30 days. | `api/internal/retention/worker.go` prunes old binding-friction evidence. |
 | Event outbox rows | Successful emit. | Deleted on emit; 7-day dead-letter. | None. |
 
 **Program source is user-authored content, not a regenerable artifact.**

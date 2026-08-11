@@ -23,6 +23,18 @@ var (
 	ErrKernelStart   = errors.New("kernel failed to start")
 )
 
+// SpendExceededError identifies the ceiling that prevented a new metered
+// operation from starting.
+type SpendExceededError struct {
+	Kind        string
+	Ceiling     int64
+	Accumulated int64
+}
+
+func (e *SpendExceededError) Error() string {
+	return fmt.Sprintf("%s_spend_exceeded: ceiling=%d micros accumulated=%d micros", e.Kind, e.Ceiling, e.Accumulated)
+}
+
 type (
 	Clock       interface{ Now() time.Time }
 	systemClock struct{}
@@ -31,16 +43,18 @@ type (
 func (systemClock) Now() time.Time { return time.Now().UTC() }
 
 type Options struct {
-	Store               SQLExecutor
-	IdleTimeout         time.Duration
-	WallTimeout         time.Duration
-	MemoryLimit         int64
-	MaxSessions         int
-	Clock               Clock
-	KernelFactory       KernelFactory
-	OnReclaimed         func(string)
-	WorkspaceResolver   WorkspaceResolver
-	OnWorkspaceResolved func(string, string)
+	Store                   SQLExecutor
+	IdleTimeout             time.Duration
+	WallTimeout             time.Duration
+	MemoryLimit             int64
+	MaxSessions             int
+	InferenceCeilingMicros  int64
+	DelegationCeilingMicros int64
+	Clock                   Clock
+	KernelFactory           KernelFactory
+	OnReclaimed             func(string)
+	WorkspaceResolver       WorkspaceResolver
+	OnWorkspaceResolved     func(string, string)
 }
 
 type (
@@ -49,16 +63,23 @@ type (
 )
 
 type Session struct {
-	ID               string
-	Name             string
-	State            string
-	CreatedAt        time.Time
-	LastActivityAt   time.Time
-	Grants           map[string]struct{}
-	SandboxWorkspace string
-	ReclaimedReason  string
-	MemoryBytes      int64
-	Kernel           Kernel
+	ID                      string
+	Name                    string
+	State                   string
+	CreatedAt               time.Time
+	LastActivityAt          time.Time
+	Grants                  map[string]struct{}
+	SandboxWorkspace        string
+	ReclaimedReason         string
+	MemoryBytes             int64
+	InferenceCostMicros     int64
+	InferenceTokens         int64
+	DelegationCostMicros    int64
+	InferenceCeilingMicros  int64
+	DelegationCeilingMicros int64
+	DelegationSpendMeasured bool
+	DelegationSpendNote     string
+	Kernel                  Kernel
 }
 
 type Manager struct {
@@ -89,6 +110,10 @@ func NewManager(options Options) *Manager {
 }
 
 func (m *Manager) Create(ctx context.Context, name, sandbox string, grants []string) (*Session, error) {
+	return m.CreateWithBudgets(ctx, name, sandbox, grants, 0, 0)
+}
+
+func (m *Manager) CreateWithBudgets(ctx context.Context, name, sandbox string, grants []string, inferenceCeilingMicros, delegationCeilingMicros int64) (*Session, error) {
 	if m.options.MaxSessions > 0 {
 		current, err := m.repo.List(ctx)
 		if err != nil {
@@ -108,7 +133,13 @@ func (m *Manager) Create(ctx context.Context, name, sandbox string, grants []str
 		}
 		workspace = resolved
 	}
-	s := &Session{ID: id, Name: strings.TrimSpace(name), State: "running", CreatedAt: now, LastActivityAt: now, Grants: grantSet(grants), SandboxWorkspace: workspace}
+	if inferenceCeilingMicros <= 0 {
+		inferenceCeilingMicros = m.options.InferenceCeilingMicros
+	}
+	if delegationCeilingMicros <= 0 {
+		delegationCeilingMicros = m.options.DelegationCeilingMicros
+	}
+	s := &Session{ID: id, Name: strings.TrimSpace(name), State: "running", CreatedAt: now, LastActivityAt: now, Grants: grantSet(grants), SandboxWorkspace: workspace, InferenceCeilingMicros: inferenceCeilingMicros, DelegationCeilingMicros: delegationCeilingMicros}
 	if m.options.KernelFactory != nil {
 		kernel, err := m.options.KernelFactory(id)
 		if err != nil {
@@ -126,6 +157,25 @@ func (m *Manager) Create(ctx context.Context, name, sandbox string, grants []str
 		m.options.OnWorkspaceResolved(id, workspace)
 	}
 	return clone(s), nil
+}
+
+func (m *Manager) EnsureInferenceAvailable(ctx context.Context, id string) error {
+	s, err := m.repo.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if s.InferenceCeilingMicros > 0 && s.InferenceCostMicros >= s.InferenceCeilingMicros {
+		return &SpendExceededError{Kind: "inference", Ceiling: s.InferenceCeilingMicros, Accumulated: s.InferenceCostMicros}
+	}
+	return nil
+}
+
+func (m *Manager) RecordInferenceUsage(ctx context.Context, id string, costMicros, tokens int64) error {
+	return m.repo.RecordInferenceUsage(ctx, id, costMicros, tokens)
+}
+
+func (m *Manager) RecordDelegationUsage(ctx context.Context, id string, costMicros int64, measured bool, note string) error {
+	return m.repo.RecordDelegationUsage(ctx, id, costMicros, measured, note)
 }
 
 func (m *Manager) Get(ctx context.Context, id string) (*Session, error) {

@@ -53,7 +53,23 @@
       "category": "capabilities",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Operational capability inventory is a plain JSON probe for lifecycle tooling."
+        "note": "Operational capability inventory is a plain JSON probe for lifecycle tooling.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.program_runtime.v1.capabilities.DescribeResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.program_runtime.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
       }
     },
     {
@@ -97,6 +113,14 @@
       "category": "bindings"
     },
     {
+      "id": "bindings_resolve_intent",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/ResolveIntent",
+      "method": "POST",
+      "summary": "Resolve natural-language intent to governed bindings through semantic discovery or a local fallback.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
       "id": "bindings_condition",
       "path": "/vrooli.program_runtime.v1.bindings.BindingConditionService/GetBindingCondition",
       "method": "POST",
@@ -133,6 +157,22 @@
       "path": "/vrooli.program_runtime.v1.programs.ProgramService/MineFailures",
       "method": "POST",
       "summary": "Summarize recurring program failures.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_mine_refusals",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/MineRefusals",
+      "method": "POST",
+      "summary": "Summarize durable binding refusals.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_mine_unresolved",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/MineUnresolvedBindings",
+      "method": "POST",
+      "summary": "Summarize attempted names with no governed binding.",
       "description": "",
       "category": "programs"
     },

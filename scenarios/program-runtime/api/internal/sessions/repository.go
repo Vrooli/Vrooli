@@ -27,6 +27,8 @@ type Repository interface {
 	HasGrant(context.Context, string, string) (bool, error)
 	Touch(context.Context, string, time.Time) error
 	SetMemoryBytes(context.Context, string, int64) error
+	RecordInferenceUsage(context.Context, string, int64, int64) error
+	RecordDelegationUsage(context.Context, string, int64, bool, string) error
 	Reclaim(context.Context, string, string, time.Time) error
 }
 
@@ -36,8 +38,8 @@ func NewRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db}
 
 func (r *sqliteRepository) Create(ctx context.Context, s *Session) error {
 	_, err := r.db.ExecContext(ctx, `INSERT INTO sessions
- (id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason)
- VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, s.ID, s.Name, s.State, formatTime(s.CreatedAt), formatTime(s.LastActivityAt), s.SandboxWorkspace, s.MemoryBytes, s.ReclaimedReason)
+	 (id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason, inference_cost_micros, inference_tokens, delegation_cost_micros, inference_ceiling_micros, delegation_ceiling_micros, delegation_spend_measured, delegation_spend_note)
+	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, s.ID, s.Name, s.State, formatTime(s.CreatedAt), formatTime(s.LastActivityAt), s.SandboxWorkspace, s.MemoryBytes, s.ReclaimedReason, s.InferenceCostMicros, s.InferenceTokens, s.DelegationCostMicros, s.InferenceCeilingMicros, s.DelegationCeilingMicros, boolInt(s.DelegationSpendMeasured), s.DelegationSpendNote)
 	if err != nil {
 		return fmt.Errorf("create session %q: %w", s.ID, err)
 	}
@@ -50,7 +52,7 @@ func (r *sqliteRepository) Create(ctx context.Context, s *Session) error {
 }
 
 func (r *sqliteRepository) Get(ctx context.Context, id string) (*Session, error) {
-	s, err := r.scanSession(r.db.QueryRowContext(ctx, `SELECT id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason FROM sessions WHERE id = ?`, id))
+	s, err := r.scanSession(r.db.QueryRowContext(ctx, `SELECT id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason, inference_cost_micros, inference_tokens, delegation_cost_micros, inference_ceiling_micros, delegation_ceiling_micros, delegation_spend_measured, delegation_spend_note FROM sessions WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -64,7 +66,7 @@ func (r *sqliteRepository) Get(ctx context.Context, id string) (*Session, error)
 }
 
 func (r *sqliteRepository) List(ctx context.Context) ([]*Session, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason FROM sessions ORDER BY created_at, id`)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason, inference_cost_micros, inference_tokens, delegation_cost_micros, inference_ceiling_micros, delegation_ceiling_micros, delegation_spend_measured, delegation_spend_note FROM sessions ORDER BY created_at, id`)
 	if err != nil {
 		return nil, fmt.Errorf("list sessions: %w", err)
 	}
@@ -159,6 +161,36 @@ func (r *sqliteRepository) SetMemoryBytes(ctx context.Context, id string, bytes 
 	return nil
 }
 
+func (r *sqliteRepository) RecordInferenceUsage(ctx context.Context, id string, costMicros, tokens int64) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE sessions SET inference_cost_micros = inference_cost_micros + ?, inference_tokens = inference_tokens + ?, last_activity_at = ? WHERE id = ? AND (inference_ceiling_micros = 0 OR inference_cost_micros < inference_ceiling_micros)`, costMicros, tokens, formatTime(time.Now().UTC()), id)
+	if err != nil {
+		return fmt.Errorf("record inference usage for %q: %w", id, err)
+	}
+	if affected, _ := result.RowsAffected(); affected == 0 {
+		s, getErr := r.Get(ctx, id)
+		if getErr != nil {
+			return getErr
+		}
+		return &SpendExceededError{Kind: "inference", Ceiling: s.InferenceCeilingMicros, Accumulated: s.InferenceCostMicros}
+	}
+	return nil
+}
+
+func (r *sqliteRepository) RecordDelegationUsage(ctx context.Context, id string, costMicros int64, measured bool, note string) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE sessions SET delegation_cost_micros = delegation_cost_micros + ?, delegation_spend_measured = ?, delegation_spend_note = ?, last_activity_at = ? WHERE id = ? AND (? = 0 OR delegation_ceiling_micros = 0 OR delegation_cost_micros < delegation_ceiling_micros)`, costMicros, boolInt(measured), note, formatTime(time.Now().UTC()), id, boolInt(measured))
+	if err != nil {
+		return fmt.Errorf("record delegation usage for %q: %w", id, err)
+	}
+	if affected, _ := result.RowsAffected(); affected == 0 {
+		s, getErr := r.Get(ctx, id)
+		if getErr != nil {
+			return getErr
+		}
+		return &SpendExceededError{Kind: "delegated_run", Ceiling: s.DelegationCeilingMicros, Accumulated: s.DelegationCostMicros}
+	}
+	return nil
+}
+
 func (r *sqliteRepository) Reclaim(ctx context.Context, id, reason string, now time.Time) error {
 	if _, err := r.Get(ctx, id); err != nil {
 		return err
@@ -181,9 +213,11 @@ type rowScanner interface{ Scan(...any) error }
 func (r *sqliteRepository) scanSession(row rowScanner) (*Session, error) {
 	var s Session
 	var created, activity string
-	if err := row.Scan(&s.ID, &s.Name, &s.State, &created, &activity, &s.SandboxWorkspace, &s.MemoryBytes, &s.ReclaimedReason); err != nil {
+	var measured int64
+	if err := row.Scan(&s.ID, &s.Name, &s.State, &created, &activity, &s.SandboxWorkspace, &s.MemoryBytes, &s.ReclaimedReason, &s.InferenceCostMicros, &s.InferenceTokens, &s.DelegationCostMicros, &s.InferenceCeilingMicros, &s.DelegationCeilingMicros, &measured, &s.DelegationSpendNote); err != nil {
 		return nil, err
 	}
+	s.DelegationSpendMeasured = measured != 0
 	var err error
 	if s.CreatedAt, err = time.Parse(time.RFC3339Nano, created); err != nil {
 		return nil, fmt.Errorf("parse session created_at: %w", err)
@@ -213,6 +247,13 @@ func (r *sqliteRepository) loadGrants(ctx context.Context, s *Session) error {
 
 func formatTime(value time.Time) string { return value.UTC().Format(time.RFC3339Nano) }
 
+func boolInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
 // memoryRepository keeps package-level tests independent from an on-disk
 // database. Production always supplies a SQLite executor through Options.
 type memoryRepository struct {
@@ -229,6 +270,39 @@ func (r *memoryRepository) Create(_ context.Context, s *Session) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.sessions[s.ID] = clone(s)
+	return nil
+}
+
+func (r *memoryRepository) RecordInferenceUsage(_ context.Context, id string, costMicros, tokens int64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	s, ok := r.sessions[id]
+	if !ok {
+		return ErrNotFound
+	}
+	if s.InferenceCeilingMicros > 0 && s.InferenceCostMicros >= s.InferenceCeilingMicros {
+		return &SpendExceededError{Kind: "inference", Ceiling: s.InferenceCeilingMicros, Accumulated: s.InferenceCostMicros}
+	}
+	s.InferenceCostMicros += costMicros
+	s.InferenceTokens += tokens
+	s.LastActivityAt = time.Now().UTC()
+	return nil
+}
+
+func (r *memoryRepository) RecordDelegationUsage(_ context.Context, id string, costMicros int64, measured bool, note string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	s, ok := r.sessions[id]
+	if !ok {
+		return ErrNotFound
+	}
+	if measured && s.DelegationCeilingMicros > 0 && s.DelegationCostMicros >= s.DelegationCeilingMicros {
+		return &SpendExceededError{Kind: "delegated_run", Ceiling: s.DelegationCeilingMicros, Accumulated: s.DelegationCostMicros}
+	}
+	s.DelegationCostMicros += costMicros
+	s.DelegationSpendMeasured = measured
+	s.DelegationSpendNote = note
+	s.LastActivityAt = time.Now().UTC()
 	return nil
 }
 

@@ -83,10 +83,11 @@ class Handle:
 
 
 class Namespace:
-    def __init__(self, bindings: dict[str, Any] | None = None, invocations: list[dict[str, str]] | None = None, session_id: str = "", agent_bridge_url: str = "", bridge_url: str = "") -> None:
+    def __init__(self, bindings: dict[str, Any] | None = None, invocations: list[dict[str, str]] | None = None, session_id: str = "", agent_bridge_url: str = "", bridge_url: str = "", discovery_url: str = "") -> None:
         self._bindings = _normalize_bindings(bindings or {})
         self._invocations = invocations if invocations is not None else []
         self._flat: dict[str, dict[str, Any]] = {}
+        self._collisions: dict[str, list[str]] = {}
         owners: dict[str, list[Any]] = {}
         for scenario, groups in self._bindings.items():
             if not _is_scenario_map(groups):
@@ -98,8 +99,11 @@ class Namespace:
             if len(values) == 1:
                 scenario, group, value = values[0]
                 self._flat.setdefault(group, {})[key.rsplit(".", 1)[1]] = value
+            else:
+                self._collisions[key] = sorted({scenario for scenario, _, _ in values})
         self._agent = _DelegationSurface(session_id, agent_bridge_url, self._invocations) if agent_bridge_url else _DeferredSurface("agent-manager delegation")
         self._inference = _InferenceSurface(session_id, bridge_url, self._invocations) if bridge_url else _DeferredSurface("ai-gateway inference")
+        self._discovery_url = discovery_url.strip()
 
     @property
     def ai(self) -> "_DeferredSurface":
@@ -115,11 +119,48 @@ class Namespace:
             if _is_scenario_map(value):
                 return _NamespaceScenario(group, value, self._invocations)
             return _NamespaceGroup(group, value, self._invocations)
+        collision = next((owners for path, owners in self._collisions.items() if path.split(".", 1)[0] == group), None)
+        if collision is not None:
+            command = next(path.split(".", 1)[1] for path in self._collisions if path.split(".", 1)[0] == group)
+            alternatives = ", ".join(f"vrooli.{owner}.{group}.{command}" for owner in collision)
+            raise AttributeError(
+                f"ambiguous governed binding group {group!r}; owning scenarios: {', '.join(collision)}; "
+                f"use qualified alternatives: {alternatives}"
+            )
         if group in self._flat:
             return _NamespaceGroup(group, self._flat[group], self._invocations)
         raise AttributeError(f"no governed binding scenario or group {group!r}")
 
     def discover(self, intent: str) -> Handle:
+        if self._discovery_url:
+            try:
+                request = urllib.request.Request(
+                    self._discovery_url,
+                    data=json.dumps({"intent": intent, "limit": 20}).encode(),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    payload = json.loads(response.read().decode())
+                rows = []
+                for binding in payload.get("bindings", []):
+                    row = {
+                        "id": binding.get("id", ""),
+                        "scenario": _segment(binding.get("scenario", "")),
+                        "group": _segment(binding.get("group", "")),
+                        "command": _segment(binding.get("command", "")),
+                        "effect": binding.get("effect", ""),
+                        "reason": payload.get("reason", ""),
+                    }
+                    rows.append(row)
+                if not rows:
+                    rows.append({"reason": payload.get("reason", "semantic discovery returned no governed bindings")})
+                return Handle(rows, "vrooli.discover")
+            except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+                return self._local_discover(intent, f"local registry fallback: discovery bridge unavailable: {exc}")
+        return self._local_discover(intent, "local registry fallback: semantic discovery bridge unavailable")
+
+    def _local_discover(self, intent: str, reason: str) -> Handle:
         terms = [term.lower().replace("-", "_") for term in intent.split() if term.strip()]
         candidates: list[dict[str, str]] = []
         for scenario, groups in self._bindings.items():
@@ -129,16 +170,22 @@ class Namespace:
                 for command in commands:
                     label = f"{scenario} {group} {command}".lower()
                     if all(term in label for term in terms):
-                        candidates.append({"scenario": scenario, "group": group, "command": command})
+                        candidates.append({"scenario": scenario, "group": group, "command": command, "reason": reason})
         return Handle(candidates, "vrooli.discover")
 
-    def gather(self, *calls: Any) -> list[Handle]:
+    def gather(self, *calls: Any, max_workers: int = 8) -> list[Handle]:
         """Run zero-argument binding callables concurrently and preserve order."""
         if not calls:
             return []
         if any(not callable(call) for call in calls):
             raise TypeError("vrooli.gather accepts zero-argument callables")
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(calls)) as executor:
+        if max_workers <= 0:
+            raise ValueError("vrooli.gather max_workers must be positive")
+        if len(calls) > max_workers:
+            raise ValueError(
+                f"vrooli.gather concurrency ceiling exceeded: requested {len(calls)}, maximum {max_workers}"
+            )
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             return list(executor.map(lambda call: call(), calls))
 
     def callable_namespace(self) -> list[str]:
@@ -208,8 +255,9 @@ class _InferenceSurface:
 
     def __init__(self, session_id: str, bridge_url: str, invocations: list[dict[str, str]]) -> None:
         self._run = BridgeBinding("ai-gateway/inference/run", "read", session_id, bridge_url, invocations)
+        self._run_batch = BridgeBinding("ai-gateway/inference/run-batch", "read", session_id, bridge_url, invocations)
 
-    def _invoke(self, role: str, source: str, schema: Any = None, instruction: str = "") -> Any:
+    def _invoke(self, role: str, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
         if schema is None:
             schema_json = ""
         elif isinstance(schema, str):
@@ -219,16 +267,35 @@ class _InferenceSurface:
         kwargs: dict[str, Any] = {"source": source, "schema_json": schema_json, "role": role}
         if instruction:
             kwargs["instruction"] = instruction
+        if turns is not None:
+            kwargs["turns"] = turns
+        if attachments is not None:
+            kwargs["attachments"] = attachments
+        if profile is not None:
+            kwargs["profile"] = profile
         return self._run(**kwargs)
 
-    def classify(self, source: str, schema: Any = None, instruction: str = "") -> Any:
-        return self._invoke("classify.fast", source, schema, instruction)
+    def classify(self, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
+        return self._invoke("classify.fast", source, schema, instruction, turns=turns, attachments=attachments, profile=profile)
 
-    def extract(self, source: str, schema: Any = None, instruction: str = "") -> Any:
-        return self._invoke("extract.structured", source, schema, instruction)
+    def extract(self, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
+        return self._invoke("extract.structured", source, schema, instruction, turns=turns, attachments=attachments, profile=profile)
 
-    def judge(self, source: str, schema: Any = None, instruction: str = "") -> Any:
-        return self._invoke("judge.default", source, schema, instruction)
+    def judge(self, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
+        return self._invoke("judge.default", source, schema, instruction, turns=turns, attachments=attachments, profile=profile)
+
+    def batch(self, sources: Iterable[Any], schema: Any = None, instruction: str = "", role: str = "classify.fast") -> Any:
+        if schema is None:
+            schema_json = ""
+        elif isinstance(schema, str):
+            schema_json = schema
+        else:
+            schema_json = json.dumps(schema, separators=(",", ":"))
+        items = [source if isinstance(source, dict) else {"source": str(source)} for source in sources]
+        kwargs: dict[str, Any] = {"items": items, "schema_json": schema_json, "role": role}
+        if instruction:
+            kwargs["instruction"] = instruction
+        return self._run_batch(**kwargs)
 
 
 class _DelegationSurface:
@@ -324,7 +391,7 @@ class BridgeBinding:
 
 
 class SessionKernel:
-    def __init__(self, bindings: dict[str, Any] | None = None, session_id: str = "", bridge_url: str = "", agent_bridge_url: str = "") -> None:
+    def __init__(self, bindings: dict[str, Any] | None = None, session_id: str = "", bridge_url: str = "", agent_bridge_url: str = "", discovery_url: str = "") -> None:
         self.invocations: list[dict[str, str]] = []
         self._loop = asyncio.new_event_loop()
         if bindings is None:
@@ -339,7 +406,7 @@ class SessionKernel:
             bindings = mapped
         self.globals: dict[str, Any] = {
             "__name__": "program_runtime_session",
-            "vrooli": Namespace(bindings, self.invocations, session_id, agent_bridge_url, bridge_url),
+            "vrooli": Namespace(bindings, self.invocations, session_id, agent_bridge_url, bridge_url, discovery_url),
         }
 
     def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "") -> dict[str, Any]:
@@ -364,11 +431,13 @@ class SessionKernel:
                         print(repr(value))
             raw_stdout = output.getvalue()
             limit = MATERIALIZED_OUTPUT_LIMIT if include_materialized else DEFAULT_OUTPUT_LIMIT
-            return {"ok": True, "stdout": _bounded_text(raw_stdout, limit), "context_bytes": len(raw_stdout.encode()), "output_limit_bytes": limit, "invocations": list(self.invocations)}
+            agent_stdout = _bounded_text(raw_stdout, limit)
+            return {"ok": True, "stdout": agent_stdout, "context_bytes": len(raw_stdout.encode()), "agent_bytes": len(agent_stdout.encode()), "output_limit_bytes": limit, "invocations": list(self.invocations)}
         except Exception as exc:  # noqa: BLE001 - wire the program failure, never crash the host
             raw_stdout = output.getvalue()
             limit = MATERIALIZED_OUTPUT_LIMIT if include_materialized else DEFAULT_OUTPUT_LIMIT
-            return {"ok": False, "stdout": _bounded_text(raw_stdout, limit), "context_bytes": len(raw_stdout.encode()), "output_limit_bytes": limit, "error": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc(limit=4), "invocations": list(self.invocations)}
+            agent_stdout = _bounded_text(raw_stdout, limit)
+            return {"ok": False, "stdout": agent_stdout, "context_bytes": len(raw_stdout.encode()), "agent_bytes": len(agent_stdout.encode()), "output_limit_bytes": limit, "error": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc(limit=4), "invocations": list(self.invocations)}
         finally:
             _INVOCATION_CONTEXT.reset(context_token)
 
@@ -398,7 +467,7 @@ def serve() -> None:
             bindings = json.loads(os.environ.get("PROGRAM_RUNTIME_BINDINGS", "[]"))
         except json.JSONDecodeError:
             bindings = []
-    kernel = SessionKernel(bindings, os.environ.get("PROGRAM_RUNTIME_SESSION_ID", ""), os.environ.get("PROGRAM_RUNTIME_BRIDGE_URL", ""), os.environ.get("PROGRAM_RUNTIME_AGENT_BRIDGE_URL", ""))
+    kernel = SessionKernel(bindings, os.environ.get("PROGRAM_RUNTIME_SESSION_ID", ""), os.environ.get("PROGRAM_RUNTIME_BRIDGE_URL", ""), os.environ.get("PROGRAM_RUNTIME_AGENT_BRIDGE_URL", ""), os.environ.get("PROGRAM_RUNTIME_DISCOVERY_URL", ""))
     for line in sys.stdin:
         if not line.strip():
             continue

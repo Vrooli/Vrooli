@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,21 +38,29 @@ type methodInfo struct {
 	source  string
 }
 
+// ReachabilityResolver resolves a scenario's advertised API base URL. Keeping
+// this as a narrow function seam makes the doctor census deterministic in
+// tests while production uses api-core/discovery's cross-platform resolver.
+type ReachabilityResolver func(context.Context, string) (string, error)
+
 // Registry is an immutable snapshot of the callable fleet surface. It is
 // loaded once at API boot; callers receive cloned protobuf messages.
 type Registry struct {
-	bindings      []*bindingsv1.Binding
-	unbound       []*bindingsv1.UnboundCapability
-	skipped       []*bindingsv1.SkippedManifest
-	methods       map[string]methodInfo
-	required      map[string]map[string]bool
-	schemas       map[string]cliapp.ArgSchema
-	byID          map[string]*bindingsv1.Binding
-	operation     map[string][]*bindingsv1.Binding
-	shared        []string
-	semantic      map[string]semanticCounts
-	recorder      InvocationRecorder
-	artifactMtime time.Time
+	bindings       []*bindingsv1.Binding
+	unbound        []*bindingsv1.UnboundCapability
+	skipped        []*bindingsv1.SkippedManifest
+	methods        map[string]methodInfo
+	required       map[string]map[string]bool
+	schemas        map[string]cliapp.ArgSchema
+	byID           map[string]*bindingsv1.Binding
+	operation      map[string][]*bindingsv1.Binding
+	shared         []string
+	semantic       map[string]semanticCounts
+	recorder       InvocationRecorder
+	artifactMtime  time.Time
+	resolver       ReachabilityResolver
+	manifestCount  int
+	totalScenarios int
 }
 
 // Load resolves the canonical repository artifacts and builds a registry.
@@ -109,6 +118,7 @@ func LoadFiles(descriptorPath string, manifestPaths []string) (*Registry, error)
 				full := string(svc.FullName()) + "." + string(m.Name())
 				short := string(svc.Name()) + "." + string(m.Name())
 				methods[full] = info
+				serviceMethods[full] = append(serviceMethods[full], info)
 				serviceMethods[short] = append(serviceMethods[short], info)
 			}
 		}
@@ -116,12 +126,19 @@ func LoadFiles(descriptorPath string, manifestPaths []string) (*Registry, error)
 	})
 
 	r := &Registry{
-		methods:   methods,
-		required:  make(map[string]map[string]bool),
-		schemas:   make(map[string]cliapp.ArgSchema),
-		byID:      make(map[string]*bindingsv1.Binding),
-		operation: make(map[string][]*bindingsv1.Binding),
-		semantic:  make(map[string]semanticCounts),
+		methods:        methods,
+		required:       make(map[string]map[string]bool),
+		schemas:        make(map[string]cliapp.ArgSchema),
+		byID:           make(map[string]*bindingsv1.Binding),
+		operation:      make(map[string][]*bindingsv1.Binding),
+		semantic:       make(map[string]semanticCounts),
+		resolver:       discovery.ResolveScenarioURLDefault,
+		totalScenarios: len(manifestPaths),
+	}
+	for _, path := range manifestPaths {
+		if info, statErr := os.Stat(path); statErr == nil && !info.IsDir() {
+			r.manifestCount++
+		}
 	}
 	var newest time.Time
 	for _, artifact := range append([]string{descriptorPath}, manifestPaths...) {
@@ -284,18 +301,25 @@ func invocationUsage(result map[string]any) (input, output, cost int64) {
 	if !ok {
 		return 0, 0, 0
 	}
-	toInt := func(value any) int64 {
-		switch n := value.(type) {
-		case float64:
-			return int64(n)
-		case int64:
-			return n
-		case int:
-			return int64(n)
-		}
-		return 0
+	return numberToInt(usage["input_tokens"]), numberToInt(usage["output_tokens"]), numberToInt(usage["cost_micros"])
+}
+
+func numberToInt(value any) int64 {
+	switch n := value.(type) {
+	case float64:
+		return int64(n)
+	case int64:
+		return n
+	case int:
+		return int64(n)
+	case json.Number:
+		value, _ := n.Int64()
+		return value
+	case string:
+		value, _ := strconv.ParseInt(strings.TrimSpace(n), 10, 64)
+		return value
 	}
-	return toInt(usage["input_tokens"]), toInt(usage["output_tokens"]), toInt(usage["cost_micros"])
+	return 0
 }
 
 func (r *Registry) addManifest(path string, serviceMethods map[string][]methodInfo, sharedPrefixes []string) (*bindingsv1.SkippedManifest, error) {
@@ -478,11 +502,63 @@ func (r *Registry) Binding(id string) (*bindingsv1.Binding, bool) {
 	return proto.Clone(b).(*bindingsv1.Binding), true
 }
 
+func (r *Registry) IsInferenceBinding(id string) bool {
+	binding, ok := r.byID[id]
+	if !ok {
+		return false
+	}
+	return strings.EqualFold(binding.GetScenario(), "ai-gateway") || strings.Contains(strings.ToLower(binding.GetService()), "inference")
+}
+
+// InferenceUsage extracts the canonical ai-gateway Usage projection from a
+// protojson result without coupling the bridge to a provider implementation.
+func InferenceUsage(result map[string]any) (input, output, cost int64, present bool) {
+	usage, ok := result["usage"].(map[string]any)
+	if !ok || usage == nil {
+		return 0, 0, 0, false
+	}
+	input = numberToInt(usage["input_tokens"])
+	if input == 0 {
+		input = numberToInt(usage["inputTokens"])
+	}
+	output = numberToInt(usage["output_tokens"])
+	if output == 0 {
+		output = numberToInt(usage["outputTokens"])
+	}
+	cost = numberToInt(usage["cost_micros"])
+	if cost == 0 {
+		cost = numberToInt(usage["costMicros"])
+	}
+	return input, output, cost, true
+}
+
+// SetReachabilityResolver replaces the discovery seam used by Doctor. It is
+// intended for deterministic tests and controlled embedding; nil restores
+// the production api-core/discovery resolver.
+func (r *Registry) SetReachabilityResolver(resolver ReachabilityResolver) {
+	if resolver == nil {
+		r.resolver = discovery.ResolveScenarioURLDefault
+		return
+	}
+	r.resolver = resolver
+}
+
 // Doctor returns the fleet callability census and every argument that still
 // cannot be projected onto its request descriptor. It intentionally derives
 // its results from the same resolver used by Execute.
 func (r *Registry) Doctor(scenario string) *bindingsv1.DoctorBindingsResponse {
+	return r.DoctorContext(context.Background(), scenario)
+}
+
+// DoctorContext returns the fleet callability census and distinguishes
+// governed scenarios that can currently resolve an API URL from scenarios
+// whose bindings exist but whose target is unreachable. It also reports the
+// manifest-bearing scenario count, which is the measured ceiling for this
+// binding-backed surface.
+func (r *Registry) DoctorContext(ctx context.Context, scenario string) *bindingsv1.DoctorBindingsResponse {
 	response := &bindingsv1.DoctorBindingsResponse{}
+	response.ManifestScenarios = int32(r.manifestCount)
+	response.TotalScenarios = int32(r.totalScenarios)
 	for _, binding := range r.bindings {
 		if scenario != "" && binding.GetScenario() != scenario {
 			continue
@@ -520,7 +596,47 @@ func (r *Registry) Doctor(scenario string) *bindingsv1.DoctorBindingsResponse {
 		}
 	}
 	response.SkippedManifestCount = int32(len(response.SkippedManifests))
+	r.populateReachability(ctx, scenario, response)
 	return response
+}
+
+func (r *Registry) populateReachability(ctx context.Context, scenario string, response *bindingsv1.DoctorBindingsResponse) {
+	if r.resolver == nil {
+		r.resolver = discovery.ResolveScenarioURLDefault
+	}
+	names := make(map[string]struct{})
+	for _, binding := range r.bindings {
+		if scenario == "" || binding.GetScenario() == scenario {
+			names[binding.GetScenario()] = struct{}{}
+		}
+	}
+	if len(names) == 0 {
+		return
+	}
+	type result struct {
+		name      string
+		reachable bool
+	}
+	results := make(chan result, len(names))
+	for name := range names {
+		name := name
+		go func() {
+			probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			defer cancel()
+			_, err := r.resolver(probeCtx, name)
+			results <- result{name: name, reachable: err == nil}
+		}()
+	}
+	for range names {
+		item := <-results
+		if item.reachable {
+			response.ReachableScenarios = append(response.ReachableScenarios, item.name)
+		} else {
+			response.UnreachableScenarios = append(response.UnreachableScenarios, item.name)
+		}
+	}
+	sort.Strings(response.ReachableScenarios)
+	sort.Strings(response.UnreachableScenarios)
 }
 
 // Describe returns the resolved request path for every manifest argument.
@@ -753,6 +869,12 @@ func hasResolvedField(root protoreflect.Message, path []protoreflect.FieldDescri
 		if !current.Has(field) {
 			return false
 		}
+		if field.IsList() {
+			return current.Get(field).List().Len() > 0
+		}
+		if field.IsMap() {
+			return current.Get(field).Map().Len() > 0
+		}
 		if field.Kind() == protoreflect.MessageKind {
 			current = current.Get(field).Message()
 		}
@@ -904,6 +1026,8 @@ func (r *Registry) ResolveActCells(ctx context.Context, cells []*bindingsv1.ActC
 		case len(v.ResolvedOperations) == len(cell.GetOperations()) && len(v.UnresolvedOperations) == 0 && len(v.ResolvedOperations) > 0:
 			v.Verdict = bindingsv1.ActVerdict_ACT_VERDICT_NOW
 		case len(v.ResolvedOperations) > 0:
+			v.Verdict = bindingsv1.ActVerdict_ACT_VERDICT_IN_REACH
+		case strings.EqualFold(v.GetAuthoredStatus(), "NOW"), strings.EqualFold(v.GetAuthoredStatus(), "COVERED"):
 			v.Verdict = bindingsv1.ActVerdict_ACT_VERDICT_IN_REACH
 		default:
 			v.Verdict = bindingsv1.ActVerdict_ACT_VERDICT_AUTHORED

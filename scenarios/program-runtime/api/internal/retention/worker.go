@@ -41,6 +41,7 @@ type Worker struct {
 type Result struct {
 	ProgramsDeleted     int64
 	RefusalsDeleted     int64
+	UnresolvedDeleted   int64
 	ReclamationsDeleted int64
 	TelemetryDeleted    int64
 }
@@ -78,6 +79,7 @@ func (w *Worker) RunOnce(ctx context.Context) (Result, error) {
 	}{
 		{table: "programs", column: "created_at", cutoff: now.Add(-w.programs), target: &out.ProgramsDeleted},
 		{table: "refusals", column: "occurred_at", cutoff: now.Add(-w.refusals), target: &out.RefusalsDeleted},
+		{table: "unresolved_binding_attempts", column: "occurred_at", cutoff: now.Add(-w.refusals), target: &out.UnresolvedDeleted},
 		{table: "reclamation_reasons", column: "reclaimed_at", cutoff: now.Add(-w.reclaims), target: &out.ReclamationsDeleted},
 	} {
 		result, err := w.db.ExecContext(ctx, "DELETE FROM "+item.table+" WHERE "+item.column+" < ?", formatCutoff(item.cutoff))
@@ -92,7 +94,7 @@ func (w *Worker) RunOnce(ctx context.Context) (Result, error) {
 	}
 	out.TelemetryDeleted, _ = result.RowsAffected()
 	if w.logger != nil {
-		w.logger.Printf("retention pass programs_deleted=%d refusals_deleted=%d reclamations_deleted=%d telemetry_deleted=%d", out.ProgramsDeleted, out.RefusalsDeleted, out.ReclamationsDeleted, out.TelemetryDeleted)
+		w.logger.Printf("retention pass programs_deleted=%d refusals_deleted=%d unresolved_deleted=%d reclamations_deleted=%d telemetry_deleted=%d", out.ProgramsDeleted, out.RefusalsDeleted, out.UnresolvedDeleted, out.ReclamationsDeleted, out.TelemetryDeleted)
 	}
 	return out, nil
 }

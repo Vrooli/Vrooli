@@ -86,8 +86,8 @@ table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
   `experience/pages/*.json::bindings` once bindings exist.
 
 Run `experience-manager spec validate program-runtime --json` after route or
-selector changes. The generated notes page spec is example-domain content and
-is removed by `template-manager detemplate program-runtime`.
+ selector changes. Page specifications must describe real routes and are
+removed with their route implementation.
 
 ## Console Shape — An IDE For Programs An Agent Wrote
 

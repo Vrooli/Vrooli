@@ -3,6 +3,8 @@ package programs
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -21,7 +23,7 @@ type handlers struct {
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	h := &handlers{client: programsconnect.NewProgramServiceClient(httpClient, baseURL)}
-	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"ProgramService.SubmitProgram": cliapp.ProtoMutation(h.submit, h.submitReport), "ProgramService.GetProgram": cliapp.ProtoList(h.get, h.programReport), "ProgramService.ListPrograms": cliapp.ProtoList(h.list, h.listReport), "ProgramService.MineFailures": cliapp.ProtoList(h.mine, h.failureReport)})
+	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"ProgramService.SubmitProgram": cliapp.ProtoMutation(h.submit, h.submitReport), "ProgramService.GetProgram": cliapp.ProtoList(h.get, h.programReport), "ProgramService.ListPrograms": cliapp.ProtoList(h.list, h.listReport), "vrooli.program_runtime.v1.programs.ProgramService.MineFailures": cliapp.ProtoList(h.mine, h.failureReport), "vrooli.program_runtime.v1.programs.ProgramService.MineRefusals": cliapp.ProtoList(h.mineRefusals, h.refusalReport), "vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings": cliapp.ProtoList(h.mineUnresolved, h.unresolvedReport)})
 }
 
 func (h *handlers) submit(ctx cliapp.OperationContext) (*programsv1.SubmitProgramResponse, error) {
@@ -29,11 +31,36 @@ func (h *handlers) submit(ctx cliapp.OperationContext) (*programsv1.SubmitProgra
 	if err != nil {
 		return nil, err
 	}
-	r, e := h.client.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{SessionId: ctx.Flag("session-id"), Source: ctx.Flag("source"), Provenance: provenance, IncludeMaterialized: ctx.BoolFlag("include-materialized")}))
+	source, err := programSource(ctx.Flag("source"), ctx.Flag("source-file"))
+	if err != nil {
+		return nil, err
+	}
+	r, e := h.client.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{SessionId: ctx.Flag("session-id"), Source: source, Provenance: provenance, IncludeMaterialized: ctx.BoolFlag("include-materialized")}))
 	if e != nil {
 		return nil, cliapp.WrapAPIError("submit program", e, nil)
 	}
 	return r.Msg, nil
+}
+
+func programSource(source, sourceFile string) (string, error) {
+	if strings.TrimSpace(source) != "" && strings.TrimSpace(sourceFile) != "" {
+		return "", fmt.Errorf("source and source-file are mutually exclusive")
+	}
+	if strings.TrimSpace(sourceFile) == "" {
+		return source, nil
+	}
+	if sourceFile == "-" {
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return "", fmt.Errorf("read program source from stdin: %w", err)
+		}
+		return string(data), nil
+	}
+	data, err := os.ReadFile(sourceFile)
+	if err != nil {
+		return "", fmt.Errorf("read program source file %q: %w", sourceFile, err)
+	}
+	return string(data), nil
 }
 
 func (h *handlers) get(ctx cliapp.OperationContext) (*programsv1.GetProgramResponse, error) {
@@ -60,6 +87,22 @@ func (h *handlers) mine(ctx cliapp.OperationContext) (*programsv1.MineFailuresRe
 	return r.Msg, nil
 }
 
+func (h *handlers) mineRefusals(ctx cliapp.OperationContext) (*programsv1.MineRefusalsResponse, error) {
+	r, e := h.client.MineRefusals(context.Background(), connect.NewRequest(&programsv1.MineRefusalsRequest{IncludeOperator: ctx.BoolFlag("include-operator")}))
+	if e != nil {
+		return nil, cliapp.WrapAPIError("mine refusals", e, nil)
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) mineUnresolved(ctx cliapp.OperationContext) (*programsv1.MineUnresolvedBindingsResponse, error) {
+	r, e := h.client.MineUnresolvedBindings(context.Background(), connect.NewRequest(&programsv1.MineUnresolvedBindingsRequest{}))
+	if e != nil {
+		return nil, cliapp.WrapAPIError("mine unresolved bindings", e, nil)
+	}
+	return r.Msg, nil
+}
+
 func (*handlers) submitReport(cliapp.OperationContext, *programsv1.SubmitProgramResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{"Program submitted."}}
 }
@@ -74,6 +117,14 @@ func (*handlers) listReport(_ cliapp.OperationContext, r *programsv1.ListProgram
 
 func (*handlers) failureReport(_ cliapp.OperationContext, r *programsv1.MineFailuresResponse) cliapp.ListReport {
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d recurring failure shape(s).", len(r.Shapes))}}
+}
+
+func (*handlers) refusalReport(_ cliapp.OperationContext, r *programsv1.MineRefusalsResponse) cliapp.ListReport {
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d recurring refusal shape(s).", len(r.Shapes))}}
+}
+
+func (*handlers) unresolvedReport(_ cliapp.OperationContext, r *programsv1.MineUnresolvedBindingsResponse) cliapp.ListReport {
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d unresolved binding name(s).", len(r.Shapes))}}
 }
 
 func parseProvenance(value string) (programsv1.Provenance, error) {

@@ -81,6 +81,34 @@ workspace-sandbox.
 `docs/concepts/INTEGRATIONS.md`, scenario-qa bug intake
 `workspace-sandbox-lacks-a-typed-workspace-root-resolver`.
 
+### 2026-08-11 — agent-manager delegation has no per-run charge receipt
+
+**Symptom:** A delegated program run can complete successfully, but Program
+Runtime cannot attribute a monetary charge to that session from the response
+it receives.
+
+**Root cause:** The current agent-manager workflow execution and explicit
+result response shape contains execution status, output evidence, and
+observations, but no per-run `total_charge_micro_usd`, `charge_micro_usd`, or
+equivalent receipt. Aggregate `MeasuresService.RunCost` is not a safe substitute
+for attributing one delegated run.
+
+**Workaround:** Phase 10 stores delegation spend as zero only with
+`delegation_spend_measured=false` and a durable explanatory note. A configured
+delegation ceiling is enforced when a future response provides an explicit
+charge; PRT-P1-011 remains planned/waived.
+
+**Real fix:** Agent-manager should publish a stable per-execution charge
+receipt in its delegated-run result contract, including the currency unit and
+whether the amount is metered or estimated.
+
+**Owner:** agent-manager.
+
+**Refs:** `api/internal/programs/delegator.go`,
+`api/handlers/bindings/module.go`,
+`packages/proto/schemas/agent-manager/v1/measures/measures.proto`,
+`requirements/03-sessions/module.json`.
+
 ### 2026-08-07 — CLI renderer received the wrong protobuf type
 
 **Symptom:** Migrated `ai-gateway` commands failed in human mode because a
@@ -140,26 +168,15 @@ uses worker threads for explicit parallel fan-out.
 
 **Refs:** `kernel/host/engine.py`, `kernel/tests/test_execution_contract.py`.
 
-### 2026-08-06 — Template Manager detemplate service unavailable
+### 2026-08-11 — Template example domain removed
 
-**Symptom:** `template-manager detemplate program-runtime` cannot run because
-Template Manager fails lifecycle setup with `go: updates to go.mod needed`.
+The official `template-manager detemplate program-runtime` operation completed
+successfully after generic binding fixtures were renamed. The notes API, CLI,
+UI, schemas, database tables, and marker-bearing documentation were removed.
 
-**Root cause:** The unrelated Template Manager API module is out of sync with
-its dependency graph, so its server-owned detemplate endpoint never starts.
-
-**Workaround:** Real program-runtime API, CLI, routes, and measures no longer
-register the notes example. Isolated generated notes packages remain pending
-the official safety-checked cleanup.
-
-**Real fix:** Repair Template Manager through Scenario Dependency Analyzer,
-start it through lifecycle, run the official detemplate operation, and remove
-remaining example artifacts and marker-bearing docs.
-
-**Owner:** template-manager.
-
-**Refs:** `template-manager detemplate program-runtime`,
-`vrooli scenario logs template-manager`.
+**Evidence:** `template-manager detemplate program-runtime` reported
+`Detemplated program-runtime`; no notes domain directories remain under the
+scenario's API, CLI, UI, or proto schema trees.
 
 ### 2026-08-06 — Optional IPython adapter is not host-available
 

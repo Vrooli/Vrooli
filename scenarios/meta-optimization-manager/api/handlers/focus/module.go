@@ -46,6 +46,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 			{Name: "trials", Source: internalfocus.NewEmpiricalGapSource(trialsRepo)},
 			{Name: "agent-manager", Source: internalfocus.NewAgentManagerGapSource(internalfocus.NewAgentManagerFindingReader())},
 			{Name: "durability", Source: internalfocus.NewDurabilityGapSource(internalfocus.NewAgentManagerDurabilityReader())},
+			{Name: "program-runtime", Source: internalfocus.NewProgramRuntimeGapSource(internalfocus.NewProgramRuntimeFrictionReader())},
 		}),
 		Repo: internalfocus.NewSQLiteRepository(db, clk),
 	})

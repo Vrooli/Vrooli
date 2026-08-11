@@ -12,7 +12,7 @@ func TestDestructiveEffectRequiresGrant(t *testing.T) { // [REQ:PRT-P0-005]
 	if err := os.MkdirAll(filepath.Dir(manifest), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	const content = `{"name":"document-manager","groups":[{"name":"ops","commands":[{"name":"delete","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"destructive","run_eligible":true,"permissions":["notes:delete"]}}]}]}`
+	const content = `{"name":"program-runtime","groups":[{"name":"ops","commands":[{"name":"delete","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"destructive","run_eligible":true,"permissions":["records:delete"]}}]}]}`
 	if err := os.WriteFile(manifest, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -20,10 +20,10 @@ func TestDestructiveEffectRequiresGrant(t *testing.T) { // [REQ:PRT-P0-005]
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := r.Authorize("document-manager/ops/delete", nil, true); err == nil {
+	if err := r.Authorize("program-runtime/ops/delete", nil, true); err == nil {
 		t.Fatal("unguarded destructive call authorized")
 	}
-	if err := r.Authorize("document-manager/ops/delete", []string{"notes:delete"}, true); err != nil {
+	if err := r.Authorize("program-runtime/ops/delete", []string{"records:delete"}, true); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -31,8 +31,8 @@ func TestDestructiveEffectRequiresGrant(t *testing.T) { // [REQ:PRT-P0-005]
 func TestGovernanceIsReadNotRedefined(t *testing.T) { // [REQ:PRT-P0-005]
 	// The public Binding is a projection of manifest values; no second policy
 	// table is consulted by the authorization boundary.
-	r := fixtureRegistry(t, `{"name":"document-manager","groups":[{"name":"ops","commands":[{"name":"delete","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"destructive","run_eligible":true,"permissions":["notes:delete"]}}]}]}`)
-	b, ok := r.Binding("document-manager/ops/delete")
+	r := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"ops","commands":[{"name":"delete","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"destructive","run_eligible":true,"permissions":["records:delete"]}}]}]}`)
+	b, ok := r.Binding("program-runtime/ops/delete")
 	if !ok || b.GetEffect() != "destructive" {
 		t.Fatalf("binding=%v ok=%v", b, ok)
 	}

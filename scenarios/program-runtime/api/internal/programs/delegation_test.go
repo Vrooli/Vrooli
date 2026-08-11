@@ -56,3 +56,17 @@ func TestSpawnsAgentManagerRunAndCollectsEvidence(t *testing.T) { // [REQ:PRT-P1
 		t.Fatalf("evidence=%v", result["evidence"])
 	}
 }
+
+func TestDelegationChargeIsExplicitWhenAbsent(t *testing.T) {
+	cost, measured, note := DelegationCharge(map[string]any{"execution_id": "run-1", "status": "succeeded"})
+	if cost != 0 || measured || !strings.Contains(note, "no per-run charge") {
+		t.Fatalf("charge=%d measured=%t note=%q", cost, measured, note)
+	}
+}
+
+func TestDelegationChargeReadsMicroUsd(t *testing.T) {
+	cost, measured, note := DelegationCharge(map[string]any{"execution": map[string]any{"total_charge_micro_usd": float64(42)}})
+	if cost != 42 || !measured || !strings.Contains(note, "explicit") {
+		t.Fatalf("charge=%d measured=%t note=%q", cost, measured, note)
+	}
+}

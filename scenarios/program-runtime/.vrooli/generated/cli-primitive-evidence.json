@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "a60f1ab4c57446c6cb993d5cbc8754ae38a1e7d2c0efbaee9e1f6be9936f8152",
+  "manifest_hash": "ccc6e50dac266d155bb3e9ab535c1657b5c0f3c7bb51900a5bfe6d30acbd70ef",
   "commands": [
     {
       "path": "bindings act",
@@ -18,7 +18,7 @@
       "path": "bindings condition",
       "group": "bindings",
       "command": "condition",
-      "binding": "BindingConditionService.GetBindingCondition",
+      "binding": "vrooli.program_runtime.v1.bindings.BindingConditionService.GetBindingCondition",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },
@@ -43,6 +43,14 @@
       "group": "bindings",
       "command": "list",
       "binding": "BindingRegistryService.ListBindings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings resolve-intent",
+      "group": "bindings",
+      "command": "resolve-intent",
+      "binding": "BindingRegistryService.ResolveIntent",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },
@@ -74,7 +82,23 @@
       "path": "programs mine",
       "group": "programs",
       "command": "mine",
-      "binding": "ProgramService.MineFailures",
+      "binding": "vrooli.program_runtime.v1.programs.ProgramService.MineFailures",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "programs mine-refusals",
+      "group": "programs",
+      "command": "mine-refusals",
+      "binding": "vrooli.program_runtime.v1.programs.ProgramService.MineRefusals",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "programs mine-unresolved",
+      "group": "programs",
+      "command": "mine-unresolved",
+      "binding": "vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },
@@ -122,7 +146,7 @@
       "path": "sessions list",
       "group": "sessions",
       "command": "list",
-      "binding": "SessionService.ListSessions",
+      "binding": "vrooli.program_runtime.v1.sessions.SessionService.ListSessions",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

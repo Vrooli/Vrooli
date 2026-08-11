@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS programs (
   completed_at TEXT NOT NULL DEFAULT '',
   stdout TEXT NOT NULL DEFAULT '',
   context_bytes INTEGER NOT NULL DEFAULT 0,
+  agent_bytes INTEGER NOT NULL DEFAULT 0,
   output_limit_bytes INTEGER NOT NULL DEFAULT 0,
   failure_detail TEXT NOT NULL DEFAULT '',
   failure_shape TEXT NOT NULL DEFAULT '',

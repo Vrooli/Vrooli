@@ -46,7 +46,7 @@ const (
 //
 // Handlers reach for WriteError on every non-2xx path so the wire
 // vocabulary stays consistent. Translation from typed sentinels (e.g.,
-// notes.ErrNoteNotFound, notes.ErrInvalidNote) to (status, code,
+// domain-specific sentinels (for example, a missing record or invalid input) to (status, code,
 // message) tuples is the handler's responsibility — this writer just
 // emits.
 //

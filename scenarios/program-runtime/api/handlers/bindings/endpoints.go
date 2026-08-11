@@ -8,5 +8,6 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "bindings_act", Path: "/vrooli.program_runtime.v1.bindings.BindingRegistryService/ResolveActCells", Method: "POST", Summary: "Resolve Act operation classes against the live callable registry.", Category: "bindings"},
 	{ID: "bindings_doctor", Path: "/vrooli.program_runtime.v1.bindings.BindingRegistryService/DoctorBindings", Method: "POST", Summary: "Report callable-binding health and unresolved arguments.", Category: "bindings"},
 	{ID: "bindings_describe", Path: "/vrooli.program_runtime.v1.bindings.BindingRegistryService/DescribeBinding", Method: "POST", Summary: "Describe resolved proto paths for one binding.", Category: "bindings"},
+	{ID: "bindings_resolve_intent", Path: "/vrooli.program_runtime.v1.bindings.BindingRegistryService/ResolveIntent", Method: "POST", Summary: "Resolve natural-language intent to governed bindings through semantic discovery or a local fallback.", Category: "bindings"},
 	{ID: "bindings_condition", Path: "/vrooli.program_runtime.v1.bindings.BindingConditionService/GetBindingCondition", Method: "POST", Summary: "Report per-binding serving, freshness, and exercise condition.", Category: "bindings"},
 }

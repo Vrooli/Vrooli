@@ -1,6 +1,8 @@
 package bindings
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,11 +43,11 @@ func TestNewManifestNeedsNoScenarioCode(t *testing.T) {
 	// [REQ:PRT-P0-001]
 	root := repoRoot(t)
 	fixture := filepath.Join(t.TempDir(), "manifest.json")
-	data := []byte(`{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	data := []byte(`{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
 	require.NoError(t, os.WriteFile(fixture, data, 0o644))
 	r, err := LoadFiles(filepath.Join(root, "packages/proto/gen/descriptor/image.binpb"), []string{fixture})
 	require.NoError(t, err)
-	if got := len(r.List("document-manager", "notes")); got != 1 {
+	if got := len(r.List("program-runtime", "records")); got != 1 {
 		t.Fatalf("fixture produced %d bindings, want 1", got)
 	}
 }
@@ -56,12 +58,12 @@ func TestMalformedManifestIsSkippedAndReported(t *testing.T) {
 	malformed := filepath.Join(t.TempDir(), "broken", "manifest.json")
 	require.NoError(t, os.MkdirAll(filepath.Dir(valid), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Dir(malformed), 0o755))
-	require.NoError(t, os.WriteFile(valid, []byte(`{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`), 0o644))
+	require.NoError(t, os.WriteFile(valid, []byte(`{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`), 0o644))
 	require.NoError(t, os.WriteFile(malformed, []byte(`{"name":"broken","groups":[]}`), 0o644))
 
 	r, err := LoadFiles(filepath.Join(root, "packages/proto/gen/descriptor/image.binpb"), []string{valid, malformed})
 	require.NoError(t, err)
-	require.Len(t, r.List("document-manager", "notes"), 1)
+	require.Len(t, r.List("program-runtime", "records"), 1)
 	doctor := r.Doctor("")
 	require.Equal(t, int32(1), doctor.GetSkippedManifestCount())
 	require.Len(t, doctor.GetSkippedManifests(), 1)
@@ -82,21 +84,36 @@ func TestMissingDescriptorImageRemainsFatal(t *testing.T) {
 func TestDoctorReportsSemanticBindingCounts(t *testing.T) {
 	root := repoRoot(t)
 	fixture := filepath.Join(t.TempDir(), "manifest.json")
-	manifest := `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"create","flags":[{"name":"title","bind":{"field":"title"}},{"name":"body","bind":{"field":"title"}},{"name":"json","bind":{"field":"title"}}],"binding":{"kind":"connect-rpc","service":"NotesService","method":"CreateNote"},"governance":{"effect":"write","run_eligible":true}}]}]}`
+	manifest := `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"create","flags":[{"name":"title","bind":{"field":"id"}},{"name":"body","bind":{"field":"id"}},{"name":"json","bind":{"field":"id"}}],"binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"DescribeBinding"},"governance":{"effect":"write","run_eligible":true}}]}]}`
 	require.NoError(t, os.WriteFile(fixture, []byte(manifest), 0o644))
 	r, err := LoadFiles(filepath.Join(root, "packages/proto/gen/descriptor/image.binpb"), []string{fixture})
 	require.NoError(t, err)
-	doctor := r.Doctor("document-manager")
+	doctor := r.Doctor("program-runtime")
 	require.Equal(t, int32(1), doctor.GetFieldCollisions())
 	require.Equal(t, int32(1), doctor.GetControlFlagsBound())
 	require.Equal(t, int32(0), doctor.GetRequiredFieldsUnpopulated())
-	require.Equal(t, int32(2), doctor.GetBindsWhereRenameSuffices())
+	require.Equal(t, int32(0), doctor.GetBindsWhereRenameSuffices())
+}
+
+func TestDoctorReportsManifestCeilingAndReachability(t *testing.T) {
+	registry := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	registry.SetReachabilityResolver(func(_ context.Context, scenario string) (string, error) {
+		if scenario == "program-runtime" {
+			return "http://127.0.0.1:19001", nil
+		}
+		return "", errors.New("not running")
+	})
+	doctor := registry.Doctor("program-runtime")
+	require.Equal(t, int32(1), doctor.GetManifestScenarios())
+	require.Equal(t, int32(1), doctor.GetTotalScenarios())
+	require.Equal(t, []string{"program-runtime"}, doctor.GetReachableScenarios())
+	require.Empty(t, doctor.GetUnreachableScenarios())
 }
 
 func TestRejectsUnknownFieldBeforeDispatch(t *testing.T) {
 	// [REQ:PRT-P0-002]
-	r := fixtureRegistry(t, `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
-	err := r.ValidateArguments("document-manager/notes/list", map[string]any{"not_a_field": "x"})
+	r := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	err := r.ValidateArguments("program-runtime/records/list", map[string]any{"not_a_field": "x"})
 	if err == nil || !strings.Contains(err.Error(), "not_a_field") {
 		t.Fatalf("unknown field error = %v, want offending field", err)
 	}
@@ -104,26 +121,26 @@ func TestRejectsUnknownFieldBeforeDispatch(t *testing.T) {
 
 func TestErrorNamesOffendingField(t *testing.T) {
 	// [REQ:PRT-P0-002]
-	r := fixtureRegistry(t, `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
-	err := r.ValidateArguments("document-manager/notes/list", map[string]any{"limit": "not-an-int"})
+	r := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	err := r.ValidateArguments("program-runtime/records/list", map[string]any{"limit": "not-an-int"})
 	if err == nil || !strings.Contains(err.Error(), "limit") {
 		t.Fatalf("mistyped field error = %v, want offending field", err)
 	}
 }
 
 func TestRejectsMistypedAndMissingRequiredFields(t *testing.T) { // [REQ:PRT-P0-002]
-	r := fixtureRegistry(t, `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"list","flags":[{"name":"limit","required":true}],"binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
-	if err := r.ValidateArguments("document-manager/notes/list", map[string]any{"limit": "not-an-int"}); err == nil || !strings.Contains(err.Error(), "limit") {
+	r := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","flags":[{"name":"limit","required":true}],"binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	if err := r.ValidateArguments("program-runtime/records/list", map[string]any{"limit": "not-an-int"}); err == nil || !strings.Contains(err.Error(), "limit") {
 		t.Fatalf("mistyped field error = %v", err)
 	}
-	if err := r.ValidateArguments("document-manager/notes/list", nil); err == nil || !strings.Contains(err.Error(), "limit") {
+	if err := r.ValidateArguments("program-runtime/records/list", nil); err == nil || !strings.Contains(err.Error(), "limit") {
 		t.Fatalf("missing field error = %v", err)
 	}
 }
 
 func TestEveryUnboundCapabilityCarriesAReason(t *testing.T) { // [REQ:PRT-P1-007]
-	r := fixtureRegistry(t, `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"local","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}]}],"omitted":[{"service":"MissingService","method":"List","reason":"not promoted"}]}`)
-	for _, capability := range r.Unbound("document-manager") {
+	r := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"local","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}]}],"omitted":[{"service":"MissingService","method":"List","reason":"not promoted"}]}`)
+	for _, capability := range r.Unbound("program-runtime") {
 		if capability.GetReason() == bindingsv1.UnboundReason_UNBOUND_REASON_UNSPECIFIED {
 			t.Fatalf("unbound capability lacks reason: %v", capability)
 		}
@@ -132,11 +149,11 @@ func TestEveryUnboundCapabilityCarriesAReason(t *testing.T) { // [REQ:PRT-P1-007
 
 func TestRunIneligibleCommandGeneratesNoBinding(t *testing.T) {
 	// [REQ:PRT-P0-005]
-	r := fixtureRegistry(t, `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"private","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":false}}]}]}`)
-	if got := len(r.List("document-manager", "")); got != 0 {
+	r := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"private","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":false}}]}]}`)
+	if got := len(r.List("program-runtime", "")); got != 0 {
 		t.Fatalf("run-ineligible command produced %d bindings", got)
 	}
-	unbound := r.Unbound("document-manager")
+	unbound := r.Unbound("program-runtime")
 	if len(unbound) != 1 || unbound[0].GetReason().String() == "UNBOUND_REASON_UNSPECIFIED" {
 		t.Fatalf("run-ineligible command unbound record = %+v", unbound)
 	}

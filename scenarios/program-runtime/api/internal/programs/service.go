@@ -28,6 +28,7 @@ type MetadataRunner interface {
 type Result struct {
 	Stdout            string
 	ContextBytes      int64
+	AgentBytes        int64
 	MaterializedBytes int64
 	OutputLimitBytes  int64
 	Invocations       []Invocation
@@ -92,7 +93,7 @@ func (s *Service) Submit(ctx context.Context, sessionID, source string, provenan
 			result, runErr = s.runner.Execute(ctx, sessionID, source, includeMaterialized)
 		}
 		invocations = result.Invocations
-		p.Stdout, p.ContextBytes = result.Stdout, result.ContextBytes
+		p.Stdout, p.ContextBytes, p.AgentBytes = result.Stdout, result.ContextBytes, result.AgentBytes
 		limit := 4096
 		if includeMaterialized {
 			limit = 65536
@@ -164,6 +165,22 @@ func (s *Service) MineFailures(ctx context.Context, includeOperator bool) []*pro
 
 func (s *Service) MineFailuresSince(ctx context.Context, includeOperator bool, since time.Time) []*programsv1.FailureShape {
 	out, err := s.repo.MineFailures(ctx, includeOperator, since)
+	if err != nil {
+		return nil
+	}
+	return out
+}
+
+func (s *Service) MineRefusals(ctx context.Context, includeOperator bool) []*programsv1.RefusalShape {
+	out, err := s.repo.MineRefusals(ctx, includeOperator)
+	if err != nil {
+		return nil
+	}
+	return out
+}
+
+func (s *Service) MineUnresolvedBindings(ctx context.Context) []*programsv1.UnresolvedBindingShape {
+	out, err := s.repo.MineUnresolvedBindings(ctx)
 	if err != nil {
 		return nil
 	}

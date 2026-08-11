@@ -1,7 +1,7 @@
 import asyncio
 import time
 
-from host.engine import Handle, SessionKernel
+from host.engine import Handle, SessionKernel, _InferenceSurface
 
 
 def test_top_level_await_and_final_expression_display():
@@ -65,8 +65,47 @@ def test_gather_runs_binding_callables_in_parallel():
 
     kernel = SessionKernel({"demo": {"work": FakeBinding()}})
     started = time.perf_counter()
-    result = kernel.execute("results = vrooli.gather(*[lambda: vrooli.demo.work(delay=0.05) for _ in range(10)])\nprint(len(results))")
+    result = kernel.execute("results = vrooli.gather(*[lambda: vrooli.demo.work(delay=0.05) for _ in range(10)], max_workers=10)\nprint(len(results))")
     elapsed = time.perf_counter() - started
     assert result["ok"]
     assert "10" in result["stdout"]
     assert elapsed < 0.35
+
+
+def test_gather_enforces_default_concurrency_ceiling():
+    kernel = SessionKernel({"demo": {"work": lambda: Handle([{"ok": True}])}})
+    result = kernel.execute("vrooli.gather(*[lambda: vrooli.demo.work() for _ in range(9)])")
+    assert result["ok"] is False
+    assert "concurrency ceiling exceeded" in result["error"]
+
+
+def test_collision_requires_qualified_scenario_path():
+    kernel = SessionKernel([
+        {"id": "alpha/search/query", "scenario": "alpha", "group": "search", "command": "query"},
+        {"id": "beta/search/query", "scenario": "beta", "group": "search", "command": "query"},
+    ])
+    result = kernel.execute("vrooli.search.query()")
+    assert result["ok"] is False
+    assert "alpha" in result["error"] and "beta" in result["error"]
+    assert "vrooli.alpha.search.query" in result["error"]
+
+
+def test_inference_facade_forwards_optional_profile_and_batch_shape():
+    class FakeBinding:
+        def __init__(self):
+            self.calls = []
+
+        def __call__(self, **kwargs):
+            self.calls.append(kwargs)
+            return Handle([kwargs])
+
+    run = FakeBinding()
+    batch = FakeBinding()
+    surface = _InferenceSurface("session", "configured", [])
+    surface._run = run
+    surface._run_batch = batch
+    surface.classify("hello", profile={"locality": "local"}, turns=[{"role": "user", "text": "hi"}])
+    surface.batch(["a", "b"], {"type": "string"}, "choose", role="classify.fast")
+    assert run.calls[0]["profile"] == {"locality": "local"}
+    assert run.calls[0]["turns"][0]["text"] == "hi"
+    assert batch.calls[0]["items"] == [{"source": "a"}, {"source": "b"}]

@@ -49,3 +49,13 @@ func (h *handler) MineFailures(ctx context.Context, req *connect.Request[program
 	shapes := h.service.MineFailures(ctx, req.Msg.IncludeOperator)
 	return connect.NewResponse(&programsv1.MineFailuresResponse{Shapes: shapes, Count: int64(len(shapes))}), nil
 }
+
+func (h *handler) MineRefusals(ctx context.Context, req *connect.Request[programsv1.MineRefusalsRequest]) (*connect.Response[programsv1.MineRefusalsResponse], error) {
+	shapes := h.service.MineRefusals(ctx, req.Msg.IncludeOperator)
+	return connect.NewResponse(&programsv1.MineRefusalsResponse{Shapes: shapes, Count: int64(len(shapes))}), nil
+}
+
+func (h *handler) MineUnresolvedBindings(ctx context.Context, _ *connect.Request[programsv1.MineUnresolvedBindingsRequest]) (*connect.Response[programsv1.MineUnresolvedBindingsResponse], error) {
+	shapes := h.service.MineUnresolvedBindings(ctx)
+	return connect.NewResponse(&programsv1.MineUnresolvedBindingsResponse{Shapes: shapes, Count: int64(len(shapes))}), nil
+}
