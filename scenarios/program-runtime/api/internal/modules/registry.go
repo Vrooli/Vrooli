@@ -33,7 +33,11 @@ import (
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions"
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 	healthH "program-runtime/handlers/health"
+	internalBindings "program-runtime/internal/bindings"
 	localdb "program-runtime/internal/database"
+	internalPrograms "program-runtime/internal/programs"
+	internalSessions "program-runtime/internal/sessions"
+	internalTelemetry "program-runtime/internal/telemetry"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -92,5 +96,9 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(internalSessions.Schema),
+		apidb.SchemaProviderFunc(internalPrograms.Schema),
+		apidb.SchemaProviderFunc(internalBindings.Schema),
+		apidb.SchemaProviderFunc(internalTelemetry.Schema),
 	}
 }

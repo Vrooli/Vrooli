@@ -38,7 +38,7 @@ such as BlobStore.
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
 | Binding-resolution snapshots | bindings | SQLite | `api/internal/bindings/schema.sql` | Superseded on regeneration; keep the newest per descriptor digest. | Cache and provenance, never authority. The descriptor image and manifests are the truth; this records what resolved and what was refused. |
-| Refusal reasons | bindings | SQLite | `api/internal/bindings/schema.sql` | Bounded ring per session. | Why a callable was withheld — needed to explain an absence without re-deriving it. |
+| Refusal reasons | bindings | SQLite | `api/internal/bindings/schema.sql` | 30 days. | Why a callable was withheld — needed to explain an absence without re-deriving it. |
 | Sessions and grants | sessions | SQLite | `api/internal/sessions/schema.sql` | Deleted on reclamation; reason retained per the row below. | Grants are the authorization record for destructive-effect calls and must outlive the kernel process. |
 | Reclamation reasons | sessions | SQLite | `api/internal/sessions/schema.sql` | 30 days. | A session vanishing without a stated reason is indistinguishable from a crash; keep the reason past the session. |
 | Program submissions and source | programs | SQLite | `api/internal/programs/schema.sql` | 90 days, then source-only. | The corpus that makes recurring failure shapes mechanically derivable (`PRT-P1-006`). |
@@ -70,9 +70,9 @@ Each domain's schema file lives beside the code that interprets it. The
 
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
-| `binding_snapshots`, `binding_refusals` | bindings | `api/internal/bindings/schema.sql` | bindings repository/service; `actspace` reads resolution state for the numerator |
-| `sessions`, `session_grants`, `session_reclamations` | sessions | `api/internal/sessions/schema.sql` | sessions repository/service; `programs` reads session identity at dispatch |
-| `programs`, `program_results`, `program_failures` | programs | `api/internal/programs/schema.sql` | programs repository/service; `telemetry` reads to build failure events |
+| `refusals` | bindings | `api/internal/bindings/schema.sql` | binding bridge; retention worker |
+| `sessions`, `session_grants`, `reclamation_reasons` | sessions | `api/internal/sessions/schema.sql` | sessions repository/service; `programs` reads session identity at dispatch |
+| `programs` | programs | `api/internal/programs/schema.sql` | programs repository/service; `telemetry` reads to build failure events |
 | `event_outbox` | telemetry | `api/internal/telemetry/schema.sql` | telemetry emitter only |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
@@ -131,8 +131,8 @@ backfills, add a scenario-specific migration plan here and update
 | Kernel variable state | Kernel process exit (explicit close, reclamation, or crash). | None — never persisted. | None. This is the designed behavior, not a gap. |
 | Sessions and grants | Session close or idle reclamation. | Deleted with the session. | Reclamation ceilings are `PRT-P1-005`; until it lands, sessions are closed explicitly only. |
 | Reclamation reasons | Age. | 30 days. | None. |
-| Program submissions, source, results, failure detail | Age. | 90 days, then failure detail and source retained without results. | Retention must be declared to storage-manager with `regenerable: false`. The enforcer prunes any budgeted `kind=dir` entry, so an undeclared corpus is at risk of being pruned as regenerable scratch. |
-| Binding snapshots and refusals | Descriptor regeneration; ring eviction. | Newest per descriptor digest; bounded ring for refusals. | None. |
+| Program submissions, source, results, failure detail | Age. | 90 days. | `api/internal/retention/worker.go` prunes old rows on a dedicated SQLite handle; source and bounded results are retained together within the declared window. |
+| Binding refusals | Age. | 30 days. | `api/internal/retention/worker.go` prunes old refusal evidence. |
 | Event outbox rows | Successful emit. | Deleted on emit; 7-day dead-letter. | None. |
 
 **Program source is user-authored content, not a regenerable artifact.**

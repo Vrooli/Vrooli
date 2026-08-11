@@ -3,7 +3,9 @@ package programs
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 )
@@ -23,7 +25,7 @@ func TestRetainsProgramSourceAndFailureDetail(t *testing.T) { // [REQ:PRT-P1-006
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := s.Get(p.Id)
+	got, err := s.Get(context.Background(), p.Id)
 	if err != nil || got.Source != "raise ValueError()" || got.FailureDetail == "" {
 		t.Fatalf("program=%+v err=%v", got, err)
 	}
@@ -36,7 +38,7 @@ func TestRecurringFailureShapesAreDerivable(t *testing.T) { // [REQ:PRT-P1-006]
 			t.Fatal(err)
 		}
 	}
-	shapes := s.MineFailures(false)
+	shapes := s.MineFailures(context.Background(), false)
 	if len(shapes) != 1 || shapes[0].Count != 3 {
 		t.Fatalf("shapes=%v", shapes)
 	}
@@ -57,7 +59,7 @@ func TestMiningExcludesOperatorProgramsByDefault(t *testing.T) { // [REQ:PRT-P1-
 	s := NewService(Options{Runner: fakeRunner{err: errors.New("same")}})
 	_, _ = s.Submit(context.Background(), "s1", "x", programsv1.Provenance_PROVENANCE_OPERATOR, false)
 	_, _ = s.Submit(context.Background(), "s1", "x", programsv1.Provenance_PROVENANCE_AGENT, false)
-	shapes := s.MineFailures(false)
+	shapes := s.MineFailures(context.Background(), false)
 	if len(shapes) != 1 || shapes[0].Count != 1 {
 		t.Fatalf("shapes=%v", shapes)
 	}
@@ -70,5 +72,16 @@ func TestContextBytesDoNotScaleWithResultSize(t *testing.T) { // [REQ:PRT-P0-003
 	large, _ := s.Submit(context.Background(), "s1", "query(100000)", programsv1.Provenance_PROVENANCE_AGENT, false)
 	if small.ContextBytes != large.ContextBytes || small.ContextBytes > 1024 {
 		t.Fatalf("context bytes scaled: small=%d large=%d", small.ContextBytes, large.ContextBytes)
+	}
+}
+
+func TestDeadlineFailureUsesStableFailureShape(t *testing.T) { // [REQ:PRT-P1-005]
+	s := NewService(Options{Runner: fakeRunner{err: &DeadlineExceededError{Limit: 2 * time.Second}}})
+	p, err := s.Submit(context.Background(), "s1", "while True: pass", programsv1.Provenance_PROVENANCE_AGENT, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Status != "failed" || p.FailureShape != "deadline_exceeded" || !strings.Contains(p.FailureDetail, "2s") {
+		t.Fatalf("program=%+v", p)
 	}
 }

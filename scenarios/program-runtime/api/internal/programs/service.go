@@ -5,11 +5,9 @@ package programs
 import (
 	"context"
 	"errors"
-	"fmt"
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,9 +15,16 @@ import (
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 )
 
+var ErrProgramNotFound = errors.New("program not found")
+
 type Runner interface {
 	Execute(context.Context, string, string, bool) (Result, error)
 }
+
+type MetadataRunner interface {
+	ExecuteWithMetadata(context.Context, string, string, string, string, bool) (Result, error)
+}
+
 type Result struct {
 	Stdout            string
 	ContextBytes      int64
@@ -32,20 +37,22 @@ type Options struct {
 	Clock           func() time.Time
 	Runner          Runner
 	ValidateSession func(string) bool
+	Store           SQLExecutor
+	RecordMemory    func(string, int64)
 	Events          interface {
 		Append(*telemetryv1.ProgramEvent)
 	}
 }
 
 type Service struct {
-	mu              sync.RWMutex
 	clock           func() time.Time
 	runner          Runner
 	validateSession func(string) bool
+	recordMemory    func(string, int64)
 	events          interface {
 		Append(*telemetryv1.ProgramEvent)
 	}
-	programs map[string]*programsv1.Program
+	repo Repository
 }
 
 func NewService(options Options) *Service {
@@ -53,7 +60,11 @@ func NewService(options Options) *Service {
 	if clock == nil {
 		clock = func() time.Time { return time.Now().UTC() }
 	}
-	return &Service{clock: clock, runner: options.Runner, validateSession: options.ValidateSession, events: options.Events, programs: make(map[string]*programsv1.Program)}
+	repo := Repository(newMemoryRepository())
+	if options.Store != nil {
+		repo = NewRepository(options.Store)
+	}
+	return &Service{clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, events: options.Events, repo: repo}
 }
 
 func (s *Service) Submit(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool) (*programsv1.Program, error) {
@@ -66,34 +77,55 @@ func (s *Service) Submit(ctx context.Context, sessionID, source string, provenan
 	if strings.TrimSpace(source) == "" {
 		return nil, errors.New("source is required")
 	}
-	p := &programsv1.Program{Id: "prog_" + uuid.NewString(), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: s.clock().Format(time.RFC3339Nano), Status: "succeeded"}
-	if p.Provenance == programsv1.Provenance_PROVENANCE_UNSPECIFIED {
+	if provenance == programsv1.Provenance_PROVENANCE_UNSPECIFIED {
 		return nil, errors.New("provenance is required")
 	}
-	s.appendEvent(&telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: p.CreatedAt, Kind: telemetryv1.EventKind_PROGRAM_SUBMITTED, ProgramId: p.Id, SessionId: p.SessionId, Provenance: p.Provenance.String()})
+
+	p := &programsv1.Program{Id: "prog_" + uuid.NewString(), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: s.clock().UTC().Format(time.RFC3339Nano), Status: "succeeded"}
+	var invocations []Invocation
 	if s.runner != nil {
-		result, err := s.runner.Execute(ctx, sessionID, source, includeMaterialized)
-		p.Stdout, p.ContextBytes = result.Stdout, result.ContextBytes
-		p.OutputLimitBytes = result.OutputLimitBytes
-		for _, invocation := range result.Invocations {
-			s.appendEvent(&telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: p.CreatedAt, Kind: telemetryv1.EventKind_BINDING_INVOKED, ProgramId: p.Id, SessionId: p.SessionId, BindingId: invocation.BindingID, Effect: invocation.Effect, Provenance: p.Provenance.String()})
+		var result Result
+		var runErr error
+		if metadataRunner, ok := s.runner.(MetadataRunner); ok {
+			result, runErr = metadataRunner.ExecuteWithMetadata(ctx, sessionID, p.Id, provenance.String(), source, includeMaterialized)
+		} else {
+			result, runErr = s.runner.Execute(ctx, sessionID, source, includeMaterialized)
 		}
+		invocations = result.Invocations
+		p.Stdout, p.ContextBytes = result.Stdout, result.ContextBytes
 		limit := 4096
 		if includeMaterialized {
 			limit = 65536
 		}
 		p.OutputLimitBytes = int64(limit)
 		p.Stdout = boundedText(p.Stdout, limit)
-		if err != nil {
+		if runErr != nil {
 			p.Status = "failed"
-			p.FailureDetail = err.Error()
-			p.FailureShape = failureShape(err.Error())
+			p.FailureDetail = runErr.Error()
+			var deadlineErr *DeadlineExceededError
+			if errors.As(runErr, &deadlineErr) {
+				p.FailureShape = "deadline_exceeded"
+			} else {
+				p.FailureShape = failureShape(runErr.Error())
+			}
+		}
+		if sampler, ok := s.runner.(MemorySampler); ok && s.recordMemory != nil {
+			if bytes, available := sampler.MemoryBytes(sessionID); available {
+				s.recordMemory(sessionID, bytes)
+			}
 		}
 	}
-	s.mu.Lock()
-	s.programs[p.Id] = clone(p)
-	s.mu.Unlock()
+	if p.OutputLimitBytes == 0 {
+		p.OutputLimitBytes = 4096
+	}
+	if err := s.repo.Save(ctx, p); err != nil {
+		return nil, err
+	}
 	if s.events != nil {
+		for _, invocation := range invocations {
+			s.appendEvent(&telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: p.CreatedAt, Kind: telemetryv1.EventKind_BINDING_INVOKED, ProgramId: p.Id, SessionId: p.SessionId, BindingId: invocation.BindingID, Effect: invocation.Effect, Provenance: p.Provenance.String()})
+		}
+		s.appendEvent(&telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: p.CreatedAt, Kind: telemetryv1.EventKind_PROGRAM_SUBMITTED, ProgramId: p.Id, SessionId: p.SessionId, Provenance: p.Provenance.String()})
 		kind := telemetryv1.EventKind_PROGRAM_SUCCEEDED
 		if p.Status == "failed" {
 			kind = telemetryv1.EventKind_PROGRAM_FAILED
@@ -113,45 +145,28 @@ func (s *Service) appendEvent(event *telemetryv1.ProgramEvent) {
 	}
 }
 
-func (s *Service) Get(id string) (*programsv1.Program, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	p, ok := s.programs[id]
-	if !ok {
-		return nil, errors.New("program not found")
-	}
-	return clone(p), nil
+func (s *Service) Get(ctx context.Context, id string) (*programsv1.Program, error) {
+	return s.repo.Get(ctx, id)
 }
 
-func (s *Service) List(sessionID string, includeOperator bool) []*programsv1.Program {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	out := make([]*programsv1.Program, 0)
-	for _, p := range s.programs {
-		if sessionID != "" && p.SessionId != sessionID {
-			continue
-		}
-		if !includeOperator && p.Provenance == programsv1.Provenance_PROVENANCE_OPERATOR {
-			continue
-		}
-		out = append(out, clone(p))
+func (s *Service) List(ctx context.Context, sessionID string, includeOperator bool) []*programsv1.Program {
+	out, err := s.repo.List(ctx, sessionID, includeOperator)
+	if err != nil {
+		return nil
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt < out[j].CreatedAt })
+	sort.Slice(out, func(i, j int) bool { return out[i].GetCreatedAt() < out[j].GetCreatedAt() })
 	return out
 }
 
-func (s *Service) MineFailures(includeOperator bool) []*programsv1.FailureShape {
-	counts := map[string]int64{}
-	for _, p := range s.List("", includeOperator) {
-		if p.Status == "failed" {
-			counts[p.FailureShape]++
-		}
+func (s *Service) MineFailures(ctx context.Context, includeOperator bool) []*programsv1.FailureShape {
+	return s.MineFailuresSince(ctx, includeOperator, time.Time{})
+}
+
+func (s *Service) MineFailuresSince(ctx context.Context, includeOperator bool, since time.Time) []*programsv1.FailureShape {
+	out, err := s.repo.MineFailures(ctx, includeOperator, since)
+	if err != nil {
+		return nil
 	}
-	out := make([]*programsv1.FailureShape, 0, len(counts))
-	for shape, count := range counts {
-		out = append(out, &programsv1.FailureShape{Shape: shape, Count: count})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Shape < out[j].Shape })
 	return out
 }
 
@@ -180,6 +195,8 @@ func boundedText(s string, max int) string {
 	}
 	return s[:max] + "…"
 }
-func clone(p *programsv1.Program) *programsv1.Program { q := *p; return &q }
 
-var _ = fmt.Sprintf
+func clone(p *programsv1.Program) *programsv1.Program {
+	q := *p
+	return &q
+}

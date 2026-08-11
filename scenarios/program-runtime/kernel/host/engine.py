@@ -10,6 +10,8 @@ from __future__ import annotations
 import contextlib
 import ast
 import asyncio
+import builtins
+import contextvars
 import concurrent.futures
 import io
 import json
@@ -19,6 +21,31 @@ import traceback
 import urllib.error
 import urllib.request
 from typing import Any, Iterable
+
+
+_OPEN = builtins.open
+
+
+def _guarded_open(file: Any, mode: str = "r", *args: Any, **kwargs: Any):
+    """Keep ordinary program writes inside the supervisor-pinned cwd.
+
+    This is a cooperative defense-in-depth layer. The process boundary and
+    resource limits remain authoritative; a hostile local program can still
+    deliberately bypass Python-level helpers through native subprocesses.
+    """
+    if any(flag in mode for flag in ("w", "a", "x", "+")):
+        candidate = os.path.abspath(os.fspath(file))
+        root = os.path.abspath(os.getcwd())
+        if os.path.commonpath((candidate, root)) != root:
+            raise PermissionError(f"program write is outside the pinned workspace: {candidate}")
+    return _OPEN(file, mode, *args, **kwargs)
+
+
+builtins.open = _guarded_open
+
+_INVOCATION_CONTEXT: contextvars.ContextVar[dict[str, str]] = contextvars.ContextVar(
+    "program_runtime_invocation_context", default={}
+)
 
 
 class Handle:
@@ -274,7 +301,8 @@ class BridgeBinding:
         return self._invoke(kwargs, confirmed)
 
     def _invoke(self, kwargs: dict[str, Any], confirmed: bool) -> Handle:
-        request = json.dumps({"session_id": self.session_id, "binding_id": self.binding_id, "args": kwargs, "confirmed": confirmed}).encode()
+        context = _INVOCATION_CONTEXT.get()
+        request = json.dumps({"session_id": self.session_id, "program_id": context.get("program_id", ""), "provenance": context.get("provenance", ""), "binding_id": self.binding_id, "args": kwargs, "confirmed": confirmed}).encode()
         http_request = urllib.request.Request(self.bridge_url, data=request, headers={"Content-Type": "application/json"}, method="POST")
         try:
             with urllib.request.urlopen(http_request, timeout=180) as response:
@@ -314,9 +342,10 @@ class SessionKernel:
             "vrooli": Namespace(bindings, self.invocations, session_id, agent_bridge_url, bridge_url),
         }
 
-    def execute(self, source: str, include_materialized: bool = False) -> dict[str, Any]:
+    def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "") -> dict[str, Any]:
         output = io.StringIO()
         self.invocations.clear()
+        context_token = _INVOCATION_CONTEXT.set({"program_id": program_id, "provenance": provenance})
         try:
             with contextlib.redirect_stdout(output):
                 tree = ast.parse(source, "<program>", "exec")
@@ -340,6 +369,8 @@ class SessionKernel:
             raw_stdout = output.getvalue()
             limit = MATERIALIZED_OUTPUT_LIMIT if include_materialized else DEFAULT_OUTPUT_LIMIT
             return {"ok": False, "stdout": _bounded_text(raw_stdout, limit), "context_bytes": len(raw_stdout.encode()), "output_limit_bytes": limit, "error": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc(limit=4), "invocations": list(self.invocations)}
+        finally:
+            _INVOCATION_CONTEXT.reset(context_token)
 
 
 DEFAULT_OUTPUT_LIMIT = 4096
@@ -373,7 +404,7 @@ def serve() -> None:
             continue
         try:
             request = json.loads(line)
-            response = kernel.execute(str(request.get("source", "")), bool(request.get("include_materialized", False)))
+            response = kernel.execute(str(request.get("source", "")), bool(request.get("include_materialized", False)), str(request.get("program_id", "")), str(request.get("provenance", "")))
         except Exception as exc:  # malformed transport input is a request failure
             response = {"ok": False, "error": f"protocol error: {exc}"}
         sys.stdout.write(json.dumps(response, separators=(",", ":")) + "\n")

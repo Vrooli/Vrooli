@@ -1,64 +1,52 @@
 # Security — Program Runtime
 
-This document records the scenario's security and privacy posture.
-Update it before adding auth, user data, external APIs, payment flows,
-secrets, or sensitive business data.
+Program Runtime is a trusted-local-agent capability. Its callers are local
+agents operating inside the Vrooli installation; the kernel is not a hostile
+multi-tenant sandbox. The API owns authorization and the kernel supervisor
+owns process lifetime, but host isolation remains deliberately bounded.
 
-## Purpose Of This Document
+## Enforced controls
 
-Use this document to answer:
+- Kernel processes receive only `PATH`, `HOME`, `LANG`, `PYTHONPATH`, and the
+  four `PROGRAM_RUNTIME_*` protocol variables. API credentials and unrelated
+  host environment variables are not inherited.
+- Each session receives a mode-0700 working directory beneath the scenario
+  data root. The directory is removed when its kernel is killed or reclaimed.
+- Linux applies address-space, CPU-time, file-size, and open-file limits.
+  Other platforms retain the portable wall-clock and lifecycle controls until
+  native resource-limit adapters are added.
+- Linux kernels run in their own process group. Deadline and reclamation
+  cleanup kills the group, waits for the process, removes the protocol file,
+  and forgets the live handle.
+- Every submission has a 120-second supervisor deadline. A timeout is stored
+  as `deadline_exceeded` and explicitly states that live session variables were
+  lost when the kernel restarted.
+- Destructive bindings require session grants and confirmation. Refusals are
+  retained as durable evidence.
 
-- What sensitive data exists?
-- How is access controlled?
-- Where do secrets come from?
-- Which threats are known and how are they mitigated?
+## Residual risks and revisit triggers
 
-## Data Sensitivity
+### Workspace composition gap
 
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| _(your product data)_ | classify per PRD | owning domain | Replace with real scenario data classification. |
+The session binding is enforced through a discovery-backed REST resolver for
+workspace-sandbox. The dependency does not yet publish a shared typed API for
+resolving an identifier to a root path, so the adapter validates the returned
+absolute directory before pinning it as the kernel cwd. If workspace-sandbox is
+unavailable, a session with no declared workspace continues in its private
+scratch directory; a declared identifier is rejected. An explicit absolute
+path is accepted only after local `EvalSymlinks` and directory validation, and
+does not claim copy-on-write isolation. This reduced guarantee is tracked in
+the workspace-sandbox QA intake. Revisit when workspace-sandbox publishes a
+typed resolver or when execution becomes untrusted or multi-tenant.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `template-manager detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
-## Auth And Authorization
-
-The generated template does not include an auth provider. Add auth only
-when product requirements identify protected data or user-specific
-behavior. UI and CLI must not enforce business authorization locally;
-authorization belongs at the API/service layer.
-
-## Secrets
-
-| Secret | Source | Required? | Details |
-|---|---|---|---|
-| None by default | n/a | no | Add entries when resources or third-party APIs require secrets. |
-
-## Threat Model
-
-| Risk | Impact | Mitigation | Status |
-|---|---|---|---|
-| Unsafe file upload handling | Malicious or oversized upload could affect storage. | Multipart handler validates metadata and BlobStore seam isolates bytes. | template-reference |
-| Missing auth for product data | User/customer data could be exposed if added without access control. | Add API-layer auth before storing protected data. | deferred |
-
-## Security Gaps
-
-| Gap | Severity | Revisit Trigger |
+| Risk | Why accepted now | Revisit trigger |
 |---|---|---|
-| No product-specific data classification | medium | Fill after PRD/domain map defines real data. |
-| No auth model | conditional | Required before protected or multi-user data. |
+| Python can import `subprocess`, open sockets, and reach host resources from the local process. | The posture is trusted-local-agent, and typed binding governance still controls the advertised Vrooli surface. A full container/VM sandbox would add a separate deployment contract. | Any untrusted-user, hosted, or cross-tenant caller enters scope; then require workspace-sandbox plus OS/container isolation before enabling execution. |
+| Non-Linux hosts do not yet have native RLIMIT equivalents. | The wall-clock supervisor, environment allowlist, pinned directory, and process lifecycle still apply cross-platform. | A supported deployment requires stronger memory/CPU/file enforcement on macOS or Windows. |
+| The API database is local SQLite and contains authored source and failure evidence. | Storage is scenario-owned, local, and declared non-regenerable with bounded retention. | External users or regulated data enter the corpus; add authentication, encryption, and a privacy-specific retention review. |
 
-## Cross-References
+## Cross-references
 
-- [`../concepts/DATA.md`](../concepts/DATA.md) — data ownership and retention
-- [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — external services and secrets
-- [`ERROR-HANDLING.md`](ERROR-HANDLING.md) — error response behavior
-- [`PROBLEMS.md`](PROBLEMS.md) — unresolved security debt
+- [`DATA.md`](../concepts/DATA.md) — durable data and retention
+- [`INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — external capability contracts
+- [`Environment management`](../../../../docs/reference/environment-management.md) — runtime profiles

@@ -11,6 +11,7 @@
         {"name":"unbound","description":"List capabilities with a closed-set unbound reason.","flags":[{"name":"scenario","description":"Filter by scenario."}],"binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListUnbound"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
         {"name":"act","description":"Resolve Act operation classes against the live registry.","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ResolveActCells"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
         {"name":"doctor","description":"Report callable-binding health and unresolved arguments.","flags":[{"name":"scenario","description":"Filter by scenario."}],"binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"DoctorBindings"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"condition","description":"Report per-binding serving, freshness, and exercise condition.","flags":[{"name":"binding-id","description":"Filter by canonical binding id."},{"name":"scenario","description":"Filter by scenario."},{"name":"window-seconds","description":"Lookback window in seconds."}],"binding":{"kind":"connect-rpc","service":"BindingConditionService","method":"GetBindingCondition"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
         {"name":"describe","description":"Describe resolved proto paths for one binding.","positionals":[{"name":"id","required":true,"description":"Canonical binding id, such as ai-gateway/routing/preview."}],"binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"DescribeBinding"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}
       ]
     },
@@ -46,7 +47,7 @@
   "measures": {
     "omitted": [],
     "domains": [
-      {"domain":"bindings","stateful":false,"reason":"The binding registry is a boot-time projection, not persisted state."},
+      {"domain":"bindings","stateful":true,"reason":"Binding invocations are persisted in the binding_invocations ledger."},
       {"domain":"sessions","stateful":true,"reason":"Live session leases are measured by sessions.list."},
       {"domain":"programs","stateful":true,"reason":"The submitted program corpus is measured by programs.mine."},
       {"domain":"telemetry","stateful":false,"reason":"Telemetry is a typed event projection owned by the runtime."}

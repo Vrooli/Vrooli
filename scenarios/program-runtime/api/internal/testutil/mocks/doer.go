@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"program-runtime/internal/httpc"
 	"sync"
 	"sync/atomic"
+
+	"program-runtime/internal/httpc"
 )
 
 // FakeDoer satisfies httpc.Doer for tests that don't want real network

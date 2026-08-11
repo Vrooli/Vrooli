@@ -58,10 +58,10 @@ The problem it removes is arity and materialization. An agent that needs to insp
 
 ### 🟢 P2 – Future / expansion
 
-- [x] OT-P2-001 | Operator inspection surface | Beyond the binding registry promoted to OT-P1-007, the Program Runtime MAY provide operator surfaces for sessions, kernel variables, and program history, including replaying a historical program and forking it into a new session.
-- [x] OT-P2-002 | Program corpus mining | The Program Runtime MAY analyze recurring program shapes in the corpus and propose them as skill or action candidates with their call sites as evidence.
+- [ ] OT-P2-001 | Operator inspection surface | Beyond the binding registry promoted to OT-P1-007, the Program Runtime MAY provide operator surfaces for sessions, kernel variables, and program history, including replaying a historical program and forking it into a new session.
+- [ ] OT-P2-002 | Program corpus mining | The Program Runtime MAY analyze recurring program shapes in the corpus and propose them as skill or action candidates with their call sites as evidence.
 - [x] OT-P2-003 | Named durable workspaces | The Program Runtime MAY support named sessions that survive across agent runs so a long investigation reuses accumulated state.
-- [x] OT-P2-004 | Alternate kernel adapters | The Program Runtime MAY support kernel languages beyond Python where a measured capability argument justifies the added surface.
+- [ ] OT-P2-004 | Alternate kernel adapters | The Program Runtime MAY support kernel languages beyond Python where a measured capability argument justifies the added surface.
 
 ## 🧱 Tech Direction Snapshot
 

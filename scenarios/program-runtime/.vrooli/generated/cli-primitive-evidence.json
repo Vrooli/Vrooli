@@ -4,13 +4,21 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "8b1bcfbe1c1894a517c33f6d69ec1aca30a73784e6ecf10d39714012d6bce772",
+  "manifest_hash": "a60f1ab4c57446c6cb993d5cbc8754ae38a1e7d2c0efbaee9e1f6be9936f8152",
   "commands": [
     {
       "path": "bindings act",
       "group": "bindings",
       "command": "act",
       "binding": "BindingRegistryService.ResolveActCells",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings condition",
+      "group": "bindings",
+      "command": "condition",
+      "binding": "BindingConditionService.GetBindingCondition",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

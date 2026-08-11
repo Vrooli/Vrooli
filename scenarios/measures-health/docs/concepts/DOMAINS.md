@@ -182,7 +182,8 @@ are real enough to affect architecture or requirements.
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| None yet. | Generated scaffold. | Add after PRD-specific requirements identify future capability boundaries. |
+| Condition-signal grading | `meta-optimization-manager` names this scenario as the enforcement point for the **Condition axis** — see `path:scenarios/meta-optimization-manager/docs/concepts/CONDITION-MODEL.md` § "Enforcement". The obligation is to grade each of the four *projection owners* (not the fleet) against a required per-leg signal set across the Serving, Freshness, and Exercise families. It fits this scenario's existing charter — the central measures index and per-domain declared-measure grading already live here — so it is likely an extension of the existing validation domain rather than a new one. Deferred because the signal vocabulary is authored and no owner has adopted it yet, so there is nothing to grade. | Any projection owner declares a condition signal, or the condition source is registered on the board. |
+| Condition-signal index read | The same model reads condition through the **central measures index hosted here**, as one read rather than a fleet fan-out. Whether that requires a distinct query surface or is served by the existing index API is unresolved until the first signals exist. | Same trigger as above. |
 
 ## Non-Domains
 

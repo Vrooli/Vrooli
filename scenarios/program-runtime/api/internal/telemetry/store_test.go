@@ -1,8 +1,9 @@
 package telemetry
 
 import (
-	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 	"testing"
+
+	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 )
 
 func TestTypedEventsRoundTrip(t *testing.T) {

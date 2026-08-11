@@ -5,8 +5,9 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
-	"program-runtime/internal/testutil/modeltest"
 	"testing"
+
+	"program-runtime/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"
 )

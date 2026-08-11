@@ -4,7 +4,7 @@
 
 The durable domain map for **meta-optimization-manager**. It names the bounded contexts, what each owns, and how each maps back to a PRD operational target. The scenario is a thin, read-mostly aggregator: every domain *measures and surfaces*, none re-implements another scenario's measurement, makes the improvement, or makes a judgment call.
 
-The cross-cutting model these domains share — the attestation contract, the entity × archetype × aspect question space, the denominator/numerator split, and the status/confidence legend — is defined once in [COVERAGE-MODEL.md](COVERAGE-MODEL.md) and not restated per domain.
+The cross-cutting model these domains share — the attestation contract, the entity × archetype × aspect question space, the denominator/numerator split, and the status/confidence legend — is defined once in [COVERAGE-MODEL.md](COVERAGE-MODEL.md) and not restated per domain. The sibling **Condition** axis — whether the supply `coverage` counts still works — is defined in [CONDITION-MODEL.md](CONDITION-MODEL.md). It is deliberately **not a new domain**: its population is derived from `coverage`'s live numerator, and it surfaces through `focus` as one more named gap source, exactly as the trials and agent-manager empirical lanes do. See the `focus` domain detail below.
 
 ## Domain Inventory
 
@@ -38,7 +38,8 @@ The cross-cutting model these domains share — the attestation contract, the en
 ### focus
 - **Owns**: the gaps registry — every known gap with notes/approaches/context, including cross-cutting/global gaps and explored-but-unbuilt ideas.
 - **Proto operations**: `GetFocus` (ranked next-best gaps, impact × importance), `ListGaps` (filter by projection/cell/status), `GetGap` (one gap with full context), `AddGapNote` (append an explored approach — the one write verb).
-- **API behavior**: aggregate gaps from coverage + convergence + the registry; rank by impact × importance; return each with its qualitative context.
+- **API behavior**: aggregate gaps from coverage + convergence + the registry; rank by impact × importance; return each with its qualitative context. Sources are named and multiplexed: each degrades independently, and an unreadable source becomes a visible availability entry rather than silently removing gaps.
+- **Condition source (target state)**: a `condition` source reads the **central measures index** — one read, never a fleet fan-out — and emits findings for sustained degradation, uninstrumented legs backing counted supply, and dormancy. It ranks beside coverage and empirical entries on the same ordered surface. By default a degraded leg does **not** change its cell's coverage status; only sustained degradation promotes to a downgrade, and dormancy never does. The signal families, the closed status vocabulary, the instrumentation-coverage reporting rule, and the ranking intent are specified in [CONDITION-MODEL.md](CONDITION-MODEL.md); this source is not yet registered.
 - **CLI**: `focus [--limit] [--projection] [--json]`, `gaps [--projection] [--cell] [--status] [--json]`, `gaps show <id> [--json]`, `gaps note <id> --add "<approach>"`.
 - **UI**: the focus list + gaps registry panels (P2).
 - **Storage**: SQLite gaps registry.

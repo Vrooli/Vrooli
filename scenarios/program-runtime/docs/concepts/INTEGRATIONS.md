@@ -47,7 +47,7 @@ through **Scenario Dependency Analyzer**. No raw `pip`, `pnpm add`, or
 | `agent-manager` | required (P1) | Delegated agent runs spawned from a program, and the consumer of this scenario's friction events. | Connect RPC. agent-manager must also **subscribe** to this scenario's events; it is currently the only event subscriber in the fleet. |
 | `vrooli-events` | required (P0) | Typed telemetry for submissions, invocations, and failures. | `packages/api-core/eventbus`. Emission is automatic for every scenario; subscription is opt-in by the reader. |
 | `search-hub` | required (P1) | In-kernel capability discovery so the callable surface is not preloaded into agent context. | Connect RPC; degrades to a stated reason. |
-| `workspace-sandbox` | optional (P1) | Copy-on-write filesystem isolation for a session. | Connect RPC. Safety from accidents, not from adversaries. |
+| `workspace-sandbox` | optional (P1) | Copy-on-write filesystem isolation for a session. | Discovery-resolved `GET /api/v1/sandboxes/{id}/workspace` today; no shared typed resolver exists yet. A resolved root is pinned as the kernel cwd. Safety from accidents, not from adversaries. |
 | `meta-optimization-manager` | consumer, not a dependency | Reads the Act denominator and numerator this scenario owns. The arrow points inward: it pulls, this scenario never pushes. | `space --projection act --json` plus the binding-registry RPC. |
 
 ## Third-Party Services
@@ -103,6 +103,7 @@ treating in-program inference telemetry as evidence.
 | `agent-manager` | unreachable | Delegation callables raise; the rest of the program continues. | `programs` delegation tests |
 | `search-hub` | unreachable | Discovery degrades to a stated reason; direct binding calls are unaffected. | `bindings` discovery tests |
 | `vrooli-events` | unreachable | Emission is fire-and-forget; program execution never blocks on telemetry. | `telemetry` tests |
+| `workspace-sandbox` | unreachable or workspace identifier unknown | Sessions without a workspace use private scratch storage. Declared identifiers are rejected; an explicit absolute path may use local validation only and is not copy-on-write isolated. | `sessions` workspace resolver tests |
 
 ## Cross-References
 

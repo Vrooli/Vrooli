@@ -8,12 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"program-runtime/internal/bindings"
 	"program-runtime/internal/capabilities"
 	"program-runtime/internal/clock"
 	"program-runtime/internal/modules"
 	"program-runtime/internal/programs"
+	"program-runtime/internal/retention"
 	"program-runtime/internal/server"
 	"program-runtime/internal/sessions"
 	"program-runtime/internal/telemetry"
@@ -21,6 +23,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -153,6 +156,17 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	retentionDB, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("retention database connection failed: %v", err)
+	}
+	retentionWorker := retention.New(retention.Options{DB: retentionDB.Primary(), Logger: log.Default()})
+	retentionWorker.Start(context.Background())
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
 		log.Fatalf("file storage configuration failed: %v", err)
@@ -166,8 +180,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("binding registry initialization failed: %v", err)
 	}
-	sessionManager := sessions.NewManager(sessions.Options{})
-	telemetryStore := telemetry.NewStoreWithPublisher(telemetry.NewPublisher(os.Getenv("VROOLI_EVENTS_API_BASE")))
+	bindingRegistry.SetInvocationRecorder(bindings.NewInvocationRepository(db.Primary()))
+	refusalRepository := bindings.NewRefusalRepository(db.Primary())
+	telemetryStore := telemetry.NewStoreWithDB(db.Primary(), telemetry.NewPublisher(os.Getenv("VROOLI_EVENTS_API_BASE")))
+	telemetryStore.Start(context.Background())
 	registryBindings := bindingRegistry.List("", "")
 	bindingSpecs := make([]programs.BindingSpec, 0, len(registryBindings))
 	for _, binding := range registryBindings {
@@ -180,11 +196,28 @@ func main() {
 		agentBridgeURL = fmt.Sprintf("http://127.0.0.1:%s/internal/program-runtime/agent/execute", port)
 	}
 	runner := programs.NewSubprocessRunnerWithBindings(filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "engine.py"), bindingSpecs, bridgeURL, agentBridgeURL)
-	programService := programs.NewService(programs.Options{Runner: runner, ValidateSession: func(id string) bool { _, err := sessionManager.Get(id); return err == nil }, Events: telemetryStore})
+	workspaceResolver := sessions.NewDiscoveryWorkspaceResolver(discovery.NewResolver(discovery.ResolverConfig{}), http.DefaultClient)
+	sessionManager := sessions.NewManager(sessions.Options{Store: db.Primary(), WorkspaceResolver: workspaceResolver, OnWorkspaceResolved: runner.SetSessionWorkspace, OnReclaimed: func(id string) { runner.KillSession(id); runner.ClearSessionWorkspace(id) }})
+	programService := programs.NewService(programs.Options{Store: db.Primary(), Runner: runner, RecordMemory: func(id string, bytes int64) { _ = sessionManager.SetMemoryBytes(context.Background(), id, bytes) }, ValidateSession: func(id string) bool { _, err := sessionManager.Get(context.Background(), id); return err == nil }, Events: telemetryStore})
+	reclamationStop := make(chan struct{})
+	reclamationDone := make(chan struct{})
+	go func() {
+		defer close(reclamationDone)
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case now := <-ticker.C:
+				sessionManager.ReclaimIdle(context.Background(), now.UTC())
+			case <-reclamationStop:
+				return
+			}
+		}
+	}()
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
-		healthH.Module(db, "program-runtime-api", "1.0.0"),
+		healthH.Module(db, "program-runtime-api", "1.0.0", bindingRegistry.SkippedManifestCount),
 		capsH.Module(capabilities.NewRegistry()),
 		bindingsH.Module(bindingRegistry),
 		programsH.Module(programService),
@@ -197,15 +230,24 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-	rootMux.Handle("/internal/program-runtime/bindings/execute", bindingsH.Bridge(bindingRegistry, sessionManager))
+	rootMux.Handle("/internal/program-runtime/bindings/execute", bindingsH.Bridge(bindingRegistry, sessionManager, refusalRepository))
 	rootMux.Handle("/internal/program-runtime/agent/execute", bindingsH.AgentBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 
 	// /measures is the measures-go serve substrate consumed by measures-health.
 	// Declarations and execution stay typed and owned by this scenario.
 	runtimeMeasures, err := measuresH.Handler(clock.System{}, func() int {
-		return len(sessionManager.List())
+		return len(sessionManager.List(context.Background()))
 	}, func() int {
-		return len(programService.MineFailures(false))
+		return len(programService.MineFailures(context.Background(), false))
+	}, func() int {
+		total, _, _ := bindingRegistry.InvocationMeasures(context.Background())
+		return total
+	}, func() int {
+		_, failureRate, _ := bindingRegistry.InvocationMeasures(context.Background())
+		return failureRate
+	}, func() int {
+		_, _, dormant := bindingRegistry.InvocationMeasures(context.Background())
+		return dormant
 	})
 	if err != nil {
 		log.Fatalf("measures registry: %v", err)
@@ -223,6 +265,11 @@ func main() {
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
 			_ = runner.Close()
+			close(reclamationStop)
+			<-reclamationDone
+			telemetryStore.Stop()
+			retentionWorker.Stop()
+			_ = retentionDB.Close()
 			return db.Close()
 		},
 	}); err != nil {

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Accept a program, execute it in its session, return only what it materializes, and retain the corpus. Owns handles, inference and delegation callables, and provenance.",
-    "last_validated_at": "2026-08-06T22:08:55-04:00",
+    "last_validated_at": "2026-08-11T13:41:07-04:00",
     "module": "programs",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -157,7 +157,7 @@
     {
       "id": "PRT-P2-002",
       "title": "Program corpus mining",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P2-002",
       "category": "programs.mining",
       "criticality": "P2",
@@ -173,6 +173,12 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Target `api/internal/programs/mining_test.go::TestProposesRecurringShapeWithCallSites` (tag the test [REQ:PRT-P2-002]). A recurring program shape is proposed as a skill or action candidate with its call sites attached as evidence."
+        },
+        {
+          "type": "manual",
+          "phase": "acceptance",
+          "status": "not_implemented",
+          "notes": "Status correction (2026-08-11): this requirement was marked complete against a validation target that does not exist, and its shipped behavior is narrower than its statement. Verified state: `Service.MineFailures` (`api/internal/programs/service.go`) counts failure shapes and is covered by `service_test.go::TestMiningExcludesOperatorProgramsByDefault`, so the failure-shape half of the corpus surface is earned and stays green under PRT-P1-006/PRT-P1-008. What is absent is this requirement's actual subject: no code proposes a recurring shape as a skill or action candidate, and no code attaches call sites as evidence. `api/internal/programs/mining_test.go` does not exist. Note also that mining is structurally incapable of returning a non-empty result today because the program corpus is an in-memory map with no persistence, so durable retention is a precondition for this requirement rather than an independent concern."
         }
       ]
     }

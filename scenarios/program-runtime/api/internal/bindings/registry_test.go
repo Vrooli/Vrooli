@@ -50,6 +50,35 @@ func TestNewManifestNeedsNoScenarioCode(t *testing.T) {
 	}
 }
 
+func TestMalformedManifestIsSkippedAndReported(t *testing.T) {
+	root := repoRoot(t)
+	valid := filepath.Join(t.TempDir(), "valid", "manifest.json")
+	malformed := filepath.Join(t.TempDir(), "broken", "manifest.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(valid), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(malformed), 0o755))
+	require.NoError(t, os.WriteFile(valid, []byte(`{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`), 0o644))
+	require.NoError(t, os.WriteFile(malformed, []byte(`{"name":"broken","groups":[]}`), 0o644))
+
+	r, err := LoadFiles(filepath.Join(root, "packages/proto/gen/descriptor/image.binpb"), []string{valid, malformed})
+	require.NoError(t, err)
+	require.Len(t, r.List("document-manager", "notes"), 1)
+	doctor := r.Doctor("")
+	require.Equal(t, int32(1), doctor.GetSkippedManifestCount())
+	require.Len(t, doctor.GetSkippedManifests(), 1)
+	require.Equal(t, "broken", doctor.GetSkippedManifests()[0].GetScenario())
+	require.Contains(t, doctor.GetSkippedManifests()[0].GetParseError(), "at least one group")
+
+	malformedUnbound := r.Unbound("broken")
+	require.Len(t, malformedUnbound, 1)
+	require.Equal(t, bindingsv1.UnboundReason_UNBOUND_REASON_MALFORMED_MANIFEST, malformedUnbound[0].GetReason())
+}
+
+func TestMissingDescriptorImageRemainsFatal(t *testing.T) {
+	_, err := LoadFiles(filepath.Join(t.TempDir(), "missing-image.binpb"), nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "read descriptor image")
+}
+
 func TestDoctorReportsSemanticBindingCounts(t *testing.T) {
 	root := repoRoot(t)
 	fixture := filepath.Join(t.TempDir(), "manifest.json")

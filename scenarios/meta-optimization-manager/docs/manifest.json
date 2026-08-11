@@ -246,7 +246,23 @@
           "maturity": "draft",
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "The Three Projections", "Denominator, Numerator, Confidence", "The Generative Question Model (Answer Projection)", "The Attestation Contract — Two Honesty Axes", "Status Legend", "Governing Principles", "Cross-References"],
+            "requiredHeadings": ["Purpose Of This Document", "The Projections", "Denominator, Numerator, Confidence", "The Generative Question Model (Answer Projection)", "The Attestation Contract — Two Honesty Axes", "Status Legend", "Governing Principles", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        },
+        {
+          "path": "concepts/CONDITION-MODEL.md",
+          "docType": "condition-model",
+          "title": "Condition Model",
+          "aliases": ["condition-model", "condition-axis", "supply-condition", "instrumentation-coverage"],
+          "description": "Canonical model for the Condition axis: whether the supply Coverage counts still works. Defines the derived leg population, the owner-measured rule, the Serving/Freshness/Exercise signal families, the closed status vocabulary including DORMANT and UNINSTRUMENTED, instrumentation coverage, and the ideal per-owner signal set.",
+          "audience": ["developers", "agents", "tools"],
+          "canonicalFor": ["condition-model", "condition-axis", "supply-instrumentation"],
+          "requiredBy": ["generated", "oriented", "implemented"],
+          "maturity": "draft",
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Purpose Of This Document", "Why Condition Is A Distinct Axis", "The Population Is Derived, Never Authored", "Signals Are Owner-Measured, Not Contributor-Declared", "The Three Signal Families", "Status Vocabulary", "Relationship To The Coverage Numerator", "The Ideal Signal Set, Per Owner", "How The Board Consumes Condition", "Enforcement", "Current State", "Governing Principles", "Cross-References"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
         }

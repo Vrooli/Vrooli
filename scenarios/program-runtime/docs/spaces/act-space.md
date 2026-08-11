@@ -13,6 +13,15 @@
 > is computed are defined once in `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`.
 > This document is the *Act* denominator only.
 
+> **Condition** — every cell that resolves `NOW` here puts its **bindings** into the Condition
+> population, and `program-runtime` owes each binding's serving, freshness, and exercise signals as
+> declared Measures. A registry that reports a four-digit binding count with no invocation data is
+> a supply claim carrying no condition evidence: only invocation distinguishes a binding that is
+> genuinely callable from one that merely resolves. Per-binding invocation outcome is the
+> highest-leverage unbuilt signal in the model, and it is gated on durable retention of the program
+> corpus. The model and the required signals are in
+> `meta-optimization-manager/docs/concepts/CONDITION-MODEL.md`.
+
 ## Purpose
 
 The **denominator** for the *Act* projection: the space of **operation classes** an agent must be

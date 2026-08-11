@@ -57,6 +57,30 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-08-11 — workspace-sandbox has no typed workspace-root resolver
+
+**Symptom:** Program Runtime cannot consume a shared compile-time contract to
+resolve a workspace identifier to the directory used by a session kernel.
+
+**Root cause:** workspace-sandbox currently exposes the resolution operation as
+an untyped REST endpoint (`GET /api/v1/sandboxes/{id}/workspace`) rather than a
+shared protobuf and generated client.
+
+**Workaround:** Program Runtime uses api-core discovery plus a narrow REST
+adapter, validates the returned path, and pins it as the kernel cwd. When the
+dependency is unavailable, sessions without a workspace use scratch storage;
+explicit absolute paths are locally validated but are not copy-on-write
+isolated.
+
+**Real fix:** Publish and adopt a typed workspace-resolution API from
+workspace-sandbox.
+
+**Owner:** workspace-sandbox.
+
+**Refs:** `internal/sessions/workspace.go`,
+`docs/concepts/INTEGRATIONS.md`, scenario-qa bug intake
+`workspace-sandbox-lacks-a-typed-workspace-root-resolver`.
+
 ### 2026-08-07 — CLI renderer received the wrong protobuf type
 
 **Symptom:** Migrated `ai-gateway` commands failed in human mode because a

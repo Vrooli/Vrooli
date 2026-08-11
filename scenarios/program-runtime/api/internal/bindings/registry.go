@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/cli-core/cliapp"
@@ -39,15 +40,18 @@ type methodInfo struct {
 // Registry is an immutable snapshot of the callable fleet surface. It is
 // loaded once at API boot; callers receive cloned protobuf messages.
 type Registry struct {
-	bindings  []*bindingsv1.Binding
-	unbound   []*bindingsv1.UnboundCapability
-	methods   map[string]methodInfo
-	required  map[string]map[string]bool
-	schemas   map[string]cliapp.ArgSchema
-	byID      map[string]*bindingsv1.Binding
-	operation map[string][]*bindingsv1.Binding
-	shared    []string
-	semantic  map[string]semanticCounts
+	bindings      []*bindingsv1.Binding
+	unbound       []*bindingsv1.UnboundCapability
+	skipped       []*bindingsv1.SkippedManifest
+	methods       map[string]methodInfo
+	required      map[string]map[string]bool
+	schemas       map[string]cliapp.ArgSchema
+	byID          map[string]*bindingsv1.Binding
+	operation     map[string][]*bindingsv1.Binding
+	shared        []string
+	semantic      map[string]semanticCounts
+	recorder      InvocationRecorder
+	artifactMtime time.Time
 }
 
 // Load resolves the canonical repository artifacts and builds a registry.
@@ -119,10 +123,26 @@ func LoadFiles(descriptorPath string, manifestPaths []string) (*Registry, error)
 		operation: make(map[string][]*bindingsv1.Binding),
 		semantic:  make(map[string]semanticCounts),
 	}
+	var newest time.Time
+	for _, artifact := range append([]string{descriptorPath}, manifestPaths...) {
+		if info, statErr := os.Stat(artifact); statErr == nil && info.ModTime().After(newest) {
+			newest = info.ModTime()
+		}
+	}
+	r.artifactMtime = newest
 	r.shared = sharedContractPrefixes(filepath.Clean(filepath.Join(filepath.Dir(descriptorPath), "../../../..")))
 	for _, path := range manifestPaths {
-		if err := r.addManifest(path, serviceMethods, r.shared); err != nil {
+		skipped, err := r.addManifest(path, serviceMethods, r.shared)
+		if err != nil {
 			return nil, err
+		}
+		if skipped != nil {
+			r.skipped = append(r.skipped, skipped)
+			r.addUnbound(&bindingsv1.UnboundCapability{
+				Scenario: skipped.GetScenario(),
+				Reason:   bindingsv1.UnboundReason_UNBOUND_REASON_MALFORMED_MANIFEST,
+				Detail:   skipped.GetParseError(),
+			})
 		}
 	}
 	for _, path := range manifestPaths {
@@ -142,10 +162,53 @@ func LoadFiles(descriptorPath string, manifestPaths []string) (*Registry, error)
 }
 
 // Execute performs one governed outbound Connect JSON call. The bridge is
-// intentionally behind this method so Python never gets a direct network or
-// filesystem capability: it can only ask the Go registry to validate,
-// authorize, and dispatch a manifest-backed method.
-func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, grants []string, confirmed bool, client *http.Client) (map[string]any, error) {
+// intentionally behind this method so Python cannot bypass the manifest-bound
+// descriptor and governance checks. Process isolation is enforced by the
+// kernel supervisor; this registry is the typed network policy boundary.
+type InvocationMetadata struct {
+	SessionID  string
+	ProgramID  string
+	Provenance string
+}
+
+func (r *Registry) SetInvocationRecorder(recorder InvocationRecorder) {
+	r.recorder = recorder
+}
+
+func (r *Registry) RecordInvocation(ctx context.Context, invocation Invocation) {
+	if r.recorder != nil {
+		if invocation.TargetScenario == "" {
+			if binding := r.byID[invocation.BindingID]; binding != nil {
+				invocation.TargetScenario = binding.GetScenario()
+			}
+		}
+		_ = r.recorder.RecordInvocation(ctx, invocation)
+	}
+}
+
+func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, grants []string, confirmed bool, metadata InvocationMetadata, client *http.Client) (result map[string]any, err error) {
+	started := time.Now()
+	defer func() {
+		if r.recorder == nil {
+			return
+		}
+		binding := r.byID[id]
+		target := ""
+		if binding != nil {
+			target = binding.GetScenario()
+		}
+		outcome := "success"
+		reason := ""
+		if err != nil {
+			outcome = "failed"
+			reason = err.Error()
+			if strings.Contains(reason, "requires an explicit grant") || strings.Contains(reason, "requires explicit confirmation") || strings.Contains(reason, "invalid arguments") || strings.Contains(reason, "missing required field") {
+				outcome = "refused"
+			}
+		}
+		usageInput, usageOutput, usageCost := invocationUsage(result)
+		r.RecordInvocation(ctx, Invocation{BindingID: id, TargetScenario: target, SessionID: metadata.SessionID, ProgramID: metadata.ProgramID, Provenance: metadata.Provenance, Outcome: outcome, Reason: reason, LatencyMS: time.Since(started).Milliseconds(), UsageInputTokens: usageInput, UsageOutputTokens: usageOutput, UsageCostMicros: usageCost, OccurredAt: time.Now().UTC()})
+	}()
 	binding, ok := r.byID[id]
 	if !ok {
 		return nil, fmt.Errorf("binding %q is not governed", id)
@@ -209,24 +272,43 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 	if err != nil {
 		return nil, fmt.Errorf("encode %s response: %w", id, err)
 	}
-	var result map[string]any
-	if err := json.Unmarshal(jsonResponse, &result); err != nil {
+	var jsonResult map[string]any
+	if err := json.Unmarshal(jsonResponse, &jsonResult); err != nil {
 		return nil, fmt.Errorf("decode %s response object: %w", id, err)
 	}
-	return result, nil
+	return jsonResult, nil
 }
 
-func (r *Registry) addManifest(path string, serviceMethods map[string][]methodInfo, sharedPrefixes []string) error {
+func invocationUsage(result map[string]any) (input, output, cost int64) {
+	usage, ok := result["usage"].(map[string]any)
+	if !ok {
+		return 0, 0, 0
+	}
+	toInt := func(value any) int64 {
+		switch n := value.(type) {
+		case float64:
+			return int64(n)
+		case int64:
+			return n
+		case int:
+			return int64(n)
+		}
+		return 0
+	}
+	return toInt(usage["input_tokens"]), toInt(usage["output_tokens"]), toInt(usage["cost_micros"])
+}
+
+func (r *Registry) addManifest(path string, serviceMethods map[string][]methodInfo, sharedPrefixes []string) (*bindingsv1.SkippedManifest, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil
+		return nil, nil
 	}
 	if err != nil {
-		return fmt.Errorf("read CLI manifest %s: %w", path, err)
+		return &bindingsv1.SkippedManifest{Path: path, Scenario: manifestScenario(path, nil), ParseError: fmt.Sprintf("read CLI manifest: %v", err)}, nil
 	}
 	m, err := cliapp.ParseManifest(data)
 	if err != nil {
-		return fmt.Errorf("parse CLI manifest %s: %w", path, err)
+		return &bindingsv1.SkippedManifest{Path: path, Scenario: manifestScenario(path, data), ParseError: fmt.Sprintf("parse CLI manifest: %v", err)}, nil
 	}
 	scenario := m.Name
 	for _, group := range m.Groups {
@@ -274,7 +356,7 @@ func (r *Registry) addManifest(path string, serviceMethods map[string][]methodIn
 			r.required[id] = req
 			schema, err := cliapp.ManifestArgs(command)
 			if err != nil {
-				return fmt.Errorf("manifest %s command %s/%s: %w", path, group.Name, command.Name, err)
+				return nil, fmt.Errorf("manifest %s command %s/%s: %w", path, group.Name, command.Name, err)
 			}
 			r.schemas[id] = schema
 			r.addSemanticCounts(scenario, command, info.input, schema)
@@ -289,7 +371,18 @@ func (r *Registry) addManifest(path string, serviceMethods map[string][]methodIn
 	for _, exception := range m.Exceptions {
 		r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Command: exception.Command, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_EXTERNAL_TOOL_ONLY, Detail: exception.Reason})
 	}
-	return nil
+	return nil, nil
+}
+
+func manifestScenario(path string, data []byte) string {
+	var header struct {
+		Name string `json:"name"`
+	}
+	if len(data) > 0 && json.Unmarshal(data, &header) == nil && strings.TrimSpace(header.Name) != "" {
+		return header.Name
+	}
+	clean := filepath.Clean(path)
+	return filepath.Base(filepath.Dir(filepath.Dir(clean)))
 }
 
 type sharedContractDeclaration struct {
@@ -421,6 +514,12 @@ func (r *Registry) Doctor(scenario string) *bindingsv1.DoctorBindingsResponse {
 		response.BindsWhereRenameSuffices += int32(counts.bindsWhereRenameSuffices)
 		response.ScalarBoundToMessage += int32(counts.scalarBoundToMessage)
 	}
+	for _, skipped := range r.skipped {
+		if scenario == "" || skipped.GetScenario() == scenario {
+			response.SkippedManifests = append(response.SkippedManifests, proto.Clone(skipped).(*bindingsv1.SkippedManifest))
+		}
+	}
+	response.SkippedManifestCount = int32(len(response.SkippedManifests))
 	return response
 }
 
@@ -931,6 +1030,12 @@ func ActConfidence(verdicts []*bindingsv1.ActCellVerdict) string {
 
 // Count returns snapshot sizes for health and measures surfaces.
 func (r *Registry) Count() (bound, unbound int) { return len(r.bindings), len(r.unbound) }
+
+// SkippedManifestCount reports manifests that were isolated during the
+// immutable registry load. It is intentionally separate from Unbound so
+// operators can distinguish malformed fleet input from a valid, intentionally
+// unbound command.
+func (r *Registry) SkippedManifestCount() int { return len(r.skipped) }
 
 // Ensure the imported registry package remains used even when a build omits
 // the descriptor path in a platform-specific test.

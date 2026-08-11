@@ -4,9 +4,10 @@
 package mocks
 
 import (
-	"program-runtime/internal/clock"
 	"sync"
 	"time"
+
+	"program-runtime/internal/clock"
 )
 
 // FakeClock is the testutil counterpart to clock.System. It implements

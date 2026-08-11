@@ -1,6 +1,22 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable SQLite session, telemetry, and program provenance data resolved beneath the cross-platform data root.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable program-runtime state is retained for agent provenance and session governance; the ceiling prevents unbounded growth without authorizing automatic deletion."
+        }
+      }
+    },
+    "rationale": "Program Runtime owns its durable data directory; temporary session workspaces and external event resources remain outside this storage declaration."
+  },
   "service": {
     "parent": "vrooli",
     "name": "program-runtime",
@@ -202,7 +218,15 @@
         "required": false,
         "startup_policy": "try_start",
         "description": "Optional typed telemetry bus for program lifecycle events.",
-        "degraded_behavior": "Program execution remains available and local event persistence continues when vrooli-events is unavailable."
+        "degraded_behavior": "Program execution remains available; events persist in the local outbox and are retried until vrooli-events returns, with aged failures dead-lettered."
+      },
+      "workspace-sandbox": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional copy-on-write workspace binding for session kernels.",
+        "degraded_behavior": "Sessions without a declared workspace continue with a private scratch directory. Declared workspace identifiers are rejected while workspace-sandbox is unavailable; explicit absolute paths use local validation only and do not provide copy-on-write isolation."
       }
     }
   },

@@ -7,9 +7,11 @@ This is the **single canonical source** for the model that the coverage-space do
 - `search-hub/docs/spaces/answer-space.md` — the **Answer** denominator
 - `test-genie/docs/spaces/validate-space.md` — the **Validate** denominator
 - `prompt-manager/docs/spaces/guide-space.md` — the **Guide** denominator
-- `program-runtime/docs/spaces/act-space.md` — the **Act** denominator *(relocated to its owner on 2026-08-06 when `program-runtime` was created; no numerator yet, so Act still reports `UNAVAILABLE`)*
+- `program-runtime/docs/spaces/act-space.md` — the **Act** denominator *(relocated to its owner on 2026-08-06 when `program-runtime` was created; live numerator since 2026-08-07)*
 
 It defines the projections, the denominator/numerator split + denominator-confidence, the generative question model, the attestation contract (the two honesty axes), and the status legend. `meta-optimization-manager` reads each space doc against this model to compute coverage.
+
+Coverage is one of three axes. The sibling **Condition** axis — whether the supply counted here still works — is defined in [`CONDITION-MODEL.md`](CONDITION-MODEL.md); the **Empirical** axis is named under [Coverage Is Not The Only Axis](#coverage-is-not-the-only-axis).
 
 ## The Projections
 
@@ -24,18 +26,25 @@ Software engineering by a (local) agent is **understand → change → verify**,
 
 The *change* itself — code synthesis — is the local model's own job; it is not a projection. **Act is not code synthesis**: it measures whether the surrounding system exposes each operation as something an agent can invoke from a program, which is supply the project owns, exactly like a search provider or a test phase. Readiness is ultimately proven **empirically** by the `trials` domain, not declared from coverage.
 
-### Act status: wired, not yet measurable
+### Act status: live
 
-`program-runtime` exists as of 2026-08-06 but is documentation-only — no implementation has shipped. Act is wired end-to-end (enum, board row, gap derivation, focus weight) and degrades to an honest `UNAVAILABLE` with a stated reason until its owner ships — it is never reported as `0%` or silently dropped. Of its three obligations, (a) authoring `docs/spaces/act-space.md` is **done** (relocated to the owner on creation); still outstanding are (b) registering the shared `space --projection act --json` verb via `api-core/spacecli` (`PRT-P0-007`) and (c) exposing a registry RPC for the live numerator (`PRT-P0-008`). The placeholder branch in `api/internal/coverage/numeratorclient.go` names the obligation.
+All three of Act's original obligations are met. `program-runtime/docs/spaces/act-space.md` is authored and owned by `program-runtime`; the shared `space --projection act --json` verb is registered (`PRT-P0-007`); and `BindingRegistryService.ResolveActCells` serves the live numerator (`PRT-P0-008`), joined by `api/internal/coverage/numeratorclient.go`. All 28 Act cells have been audited against the live binding registry, which raised the stated denominator confidence to `PARTIAL`.
+
+Act degrades like every other projection: when `program-runtime` is not running, the join returns `UNAVAILABLE` with a stated reason and the authored cell statuses stand. It is never reported as `0%` or silently dropped.
+
+**Act coverage is bounded by fleet manifest coverage.** The callable surface cannot exceed the set of scenarios that ship a `cli/manifest.json`, and the numerator reports that ceiling honestly rather than concealing it. Raising the ceiling is fleet work with no single owner — it is surfaced by `cli-health` and ranked here, and it is the highest-leverage single lever on this projection.
 
 ## Coverage Is Not The Only Axis
 
-The projections are the **coverage axis**: enumerable supply, measured as `now / total` against a curated denominator. There is a second, independent **empirical axis** — observed outcomes with no denominator, which cannot be a projection because "the frictions that exist" is not an enumerable set.
+The projections are the **coverage axis**: enumerable supply, measured as `now / total` against a curated denominator. There are two further independent axes. The **empirical axis** is observed outcomes with no denominator, which cannot be a projection because "the frictions that exist" is not an enumerable set. The **condition axis** asks whether the supply this file counts is still working — a question neither of the other two can express, because coverage sees only existence and the empirical axis sees only agent outcomes.
 
 | Axis | Shape | Question | Members |
 |---|---|---|---|
 | **Coverage** (projections) | `now / total`, denominator-confidence | Does the capability *exist*? | Answer, Validate, Guide, Act |
+| **Condition** | per-leg verdict + instrumentation coverage | Does the capability that exists still *work*? | the contributor legs backing every `NOW` cell |
 | **Empirical** | trend over observed runs, no denominator | What *happens* when agents work? | `trials` (experimental, causal, expensive) |
+
+**Condition is defined in full by [`CONDITION-MODEL.md`](CONDITION-MODEL.md)** and is not restated here. Two properties of it matter to this file: its population is *derived* from this file's live numerator (the legs behind every `NOW` cell), so it can never drift out of sync with coverage; and by default a degraded leg does **not** change its cell's coverage status, because folding condition into supply makes both numbers unreadable. The one existing exception — `test-genie`'s numerator already gating on provider failure rate and pending autofix, described under [Per-Cell Numerator Semantics](#per-cell-numerator-semantics) — is recorded there as a known asymmetry with a stated target state.
 
 `trials` is experimental: a fixed task suite, a deterministic oracle, everything else held constant — so it answers a *counterfactual* ("**could** a local model do this?") that observational data structurally cannot, since local models are not run on real work. Observational friction evidence (agent-manager investigations, and later program-runtime telemetry) is the complementary half: broad, cheap, real-distribution, but confounded.
 
@@ -90,6 +99,19 @@ stalling the board.
 | **Validate** | test-genie `RunsService.GetSelfHealth` | A provider is `NOW` only when it exists in the catalog, has no ledger `failureRate > 0`, and has no `autofix.pending > 0`; red ledger or pending autofix yields `IN-REACH`. |
 | **Guide** | prompt-manager `GraphService.GetHealthScores` | Resolve the Guide row's skill ids against the graph health scores. `NOW` requires **all** referenced skills to be present and at/above `guideHealthyScore`; any partially resolved or unhealthy row is `IN-REACH`; fully unresolved rows keep authored status. |
 | **Act** | `program-runtime` | `BindingRegistryService.ResolveActCells` returns live callable verdicts. If the owner is unavailable, the join returns `UNAVAILABLE` with an honest reason and preserves authored statuses. |
+
+### Known condition asymmetry in the Validate join
+
+The Validate rule above is the only join that folds a **condition** signal into a
+coverage status: a provider with ledger `failureRate > 0` or `autofix.pending > 0`
+yields `IN-REACH` rather than `NOW`. Every other projection reports existence only.
+
+This predates [`CONDITION-MODEL.md`](CONDITION-MODEL.md) and is retained rather than
+silently changed. Under that model the target state is report-beside plus promotion
+to a coverage downgrade only after sustained degradation, which would make Validate
+consistent with its siblings. Converting it changes a live published number, so it
+is an explicit decision rather than a refactor — recorded here so the inconsistency
+is visible and deliberate.
 
 ### Load-bearing constants
 
@@ -151,6 +173,7 @@ The axes are **orthogonal**: an answer can be `VALIDATED`+`INSUFFICIENT` (accura
 
 ## Cross-References
 
-- The three space docs: `search-hub/docs/spaces/answer-space.md`, `test-genie/docs/spaces/validate-space.md`, `prompt-manager/docs/spaces/guide-space.md`.
+- [`CONDITION-MODEL.md`](CONDITION-MODEL.md) — the Condition axis: whether the supply counted here still works.
+- The four space docs: `search-hub/docs/spaces/answer-space.md`, `test-genie/docs/spaces/validate-space.md`, `prompt-manager/docs/spaces/guide-space.md`, `program-runtime/docs/spaces/act-space.md`.
 - [DOMAINS.md](DOMAINS.md), [ARCHITECTURE.md](ARCHITECTURE.md).
 - Convergence doctrine: `docs/agent-system/TEMPLATE_CONVERGENCE_LOOP.md`, `REFERENCE_PATTERN_FITNESS.md`, `REFERENCE_SCENARIOS.md`.

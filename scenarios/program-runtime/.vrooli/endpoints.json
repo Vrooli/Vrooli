@@ -53,23 +53,7 @@
       "category": "capabilities",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Operational capability inventory is a plain JSON probe for lifecycle tooling.",
-        "proto_payloads": {
-          "request": {
-            "transport": "none",
-            "conformance": "none"
-          },
-          "response": {
-            "proto_full_name": "vrooli.program_runtime.v1.capabilities.DescribeResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "proto_full_name": "vrooli.program_runtime.v1.shared.ErrorEnvelope",
-            "transport": "json",
-            "conformance": "protojson"
-          }
-        }
+        "note": "Operational capability inventory is a plain JSON probe for lifecycle tooling."
       }
     },
     {
@@ -93,6 +77,30 @@
       "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/ResolveActCells",
       "method": "POST",
       "summary": "Resolve Act operation classes against the live callable registry.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
+      "id": "bindings_doctor",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/DoctorBindings",
+      "method": "POST",
+      "summary": "Report callable-binding health and unresolved arguments.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
+      "id": "bindings_describe",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/DescribeBinding",
+      "method": "POST",
+      "summary": "Describe resolved proto paths for one binding.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
+      "id": "bindings_condition",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingConditionService/GetBindingCondition",
+      "method": "POST",
+      "summary": "Report per-binding serving, freshness, and exercise condition.",
       "description": "",
       "category": "bindings"
     },

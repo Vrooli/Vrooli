@@ -3,6 +3,7 @@ package bindings
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -13,23 +14,42 @@ import (
 const GroupName = "bindings"
 
 type handlers struct {
-	client bindingsconnect.BindingRegistryServiceClient
+	client          bindingsconnect.BindingRegistryServiceClient
+	conditionClient bindingsconnect.BindingConditionServiceClient
 }
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	h := &handlers{client: bindingsconnect.NewBindingRegistryServiceClient(httpClient, baseURL)}
+	h := &handlers{client: bindingsconnect.NewBindingRegistryServiceClient(httpClient, baseURL), conditionClient: bindingsconnect.NewBindingConditionServiceClient(httpClient, baseURL)}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
-		"BindingRegistryService.ListBindings":    cliapp.ProtoList(h.list, h.listReport),
-		"BindingRegistryService.ListUnbound":     cliapp.ProtoList(h.unbound, h.unboundReport),
-		"BindingRegistryService.ResolveActCells": cliapp.ProtoList(h.act, h.actReport),
-		"BindingRegistryService.DoctorBindings":  cliapp.ProtoListEmitUnpopulatedJSON(h.doctor, h.doctorReport),
-		"BindingRegistryService.DescribeBinding": cliapp.ProtoList(h.describe, h.describeReport),
+		"BindingRegistryService.ListBindings":         cliapp.ProtoList(h.list, h.listReport),
+		"BindingRegistryService.ListUnbound":          cliapp.ProtoList(h.unbound, h.unboundReport),
+		"BindingRegistryService.ResolveActCells":      cliapp.ProtoList(h.act, h.actReport),
+		"BindingRegistryService.DoctorBindings":       cliapp.ProtoListEmitUnpopulatedJSON(h.doctor, h.doctorReport),
+		"BindingRegistryService.DescribeBinding":      cliapp.ProtoList(h.describe, h.describeReport),
+		"BindingConditionService.GetBindingCondition": cliapp.ProtoList(h.condition, h.conditionReport),
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("bindings: load from manifest: %w", err)
 	}
 	return group, nil
+}
+
+func (h *handlers) condition(ctx cliapp.OperationContext) (*bindingsv1.GetBindingConditionResponse, error) {
+	window, _ := strconv.ParseInt(ctx.Flag("window-seconds"), 10, 64)
+	r, err := h.conditionClient.GetBindingCondition(context.Background(), connect.NewRequest(&bindingsv1.GetBindingConditionRequest{BindingId: ctx.Flag("binding-id"), Scenario: ctx.Flag("scenario"), WindowSeconds: window}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("get binding condition", err, nil)
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) conditionReport(_ cliapp.OperationContext, r *bindingsv1.GetBindingConditionResponse) cliapp.ListReport {
+	items := make([]string, 0, len(r.GetConditions()))
+	for _, c := range r.GetConditions() {
+		items = append(items, fmt.Sprintf("%s — %s (%s; p50=%dms p95=%dms invocations=%d)", c.GetBindingId(), c.GetStatus().String(), c.GetVerdict(), c.GetServing().GetLatencyP50Ms(), c.GetServing().GetLatencyP95Ms(), c.GetExercise().GetInvocations()))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Binding conditions: %d; instrumented: %d; window: %ds.", len(items), r.GetInstrumentedBindings(), r.GetWindowSeconds())}, ResultsHeading: "Conditions", Results: items}
 }
 
 func (h *handlers) list(ctx cliapp.OperationContext) (*bindingsv1.ListBindingsResponse, error) {
