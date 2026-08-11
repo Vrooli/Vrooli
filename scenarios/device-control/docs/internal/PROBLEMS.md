@@ -251,6 +251,13 @@ a migration handoff with a planned retirement path back into
 |---|---|---|---|
 | _None yet._ |  |  |  |
 
+## Resolved during the strategy-floor implementation
+
+The original redaction-policy, iOS-mirror non-promotability, and synthesized
+recording-threshold findings are resolved by `docs/concepts/REDACTION.md`, the
+producer-side `internal/evidence` verifier, the structural `evidence_class`
+and `promotable` strategy fields, and the 5 FPS usefulness threshold.
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)

@@ -1,16 +1,15 @@
 {
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Device Control のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
-    "title": "Device Control",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "title": "Device Control"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "モバイルナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
-      "notes": "ノート",
+      "flows": "フロー",
+      "evidence": "証拠",
       "settings": "設定"
     }
   },
@@ -25,12 +24,10 @@
   "pages": {
     "dashboard": {
       "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+      "description": "デバイスが証明できること、実行中の操作、ライブセッションを確認します。"
     },
-    "notes": {
-      "title": "ノート"
-    },
+    "flows": { "title": "フロー" },
+    "evidence": { "title": "証拠と監査" },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
@@ -43,36 +40,11 @@
     "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
     "refresh": "再読み込み",
     "refreshCount": "{{count}} 回更新しました",
-    "statusLabel": "ステータス:",
     "serviceLabel": "サービス:",
     "timestampLabel": "タイムスタンプ:"
   },
   "notifications": {
     "summary": "{{count}} 件の通知"
-  },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "table": {
-      "title": "タイトル",
-      "created": "作成日",
-      "attachments": "添付",
-      "actions": "操作",
-      "search": "ノートを検索"
-    },
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

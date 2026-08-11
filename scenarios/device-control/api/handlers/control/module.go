@@ -1,0 +1,252 @@
+package control
+
+import (
+	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+
+	internal "device-control/internal/control"
+	internalflows "device-control/internal/flows"
+	"device-control/internal/module"
+	"device-control/strategy"
+	"github.com/gorilla/mux"
+)
+
+type ModuleDeps struct{ Service *internal.Service }
+
+func Module(s *internal.Service) module.Module {
+	h := &handler{service: s, anchors: internalflows.NewAnchorStore()}
+	return module.Module{Name: "device-control", Mount: func(r *mux.Router) {
+		r.HandleFunc("/api/v1/devices", h.listDevices).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/devices/connect", h.connectDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/strategies", h.listStrategies).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/strategies/{id}/verify", h.verifyStrategy).Methods(http.MethodGet, http.MethodPost)
+		r.HandleFunc("/api/v1/sessions", h.listSessions).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/sessions/acquire", h.acquire).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/sessions/{id}/kill", h.kill).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/sessions/{id}/release", h.release).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/flows/validate", h.validateFlow).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/flows/run", h.runFlow).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/evidence/audit", h.audit).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/anchors", h.listAnchors).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/anchors", h.createAnchor).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/anchors/{id}", h.deleteAnchor).Methods(http.MethodDelete)
+		r.HandleFunc("/api/v1/agents", h.listAgents).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/agents/start", h.startAgent).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/agents/{id}/abort", h.abortAgent).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/agents/{id}/promote", h.promoteAgent).Methods(http.MethodPost)
+		registerConnectServices(r, h)
+	}, Endpoints: Endpoints}
+}
+
+type handler struct {
+	service *internal.Service
+	anchors *internalflows.AnchorStore
+}
+
+func (h *handler) listDevices(w http.ResponseWriter, r *http.Request) {
+	write(w, http.StatusOK, map[string]any{"devices": h.service.Devices(r.Context())})
+}
+
+type connectRequest struct {
+	Kind string `json:"kind"`
+}
+
+func (h *handler) connectDevice(w http.ResponseWriter, r *http.Request) {
+	var in connectRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	rungs := h.service.Onboarding(in.Kind)
+	next := ""
+	for _, v := range rungs {
+		if v["status"] != "available" {
+			next = v["next_action"]
+			break
+		}
+	}
+	write(w, http.StatusOK, map[string]any{"kind": strings.ToLower(in.Kind), "rungs": rungs, "first_next_action": next})
+}
+func (h *handler) listStrategies(w http.ResponseWriter, r *http.Request) {
+	decls := h.service.Strategies(r.Context())
+	out := make([]map[string]any, 0, len(decls))
+	for _, d := range decls {
+		out = append(out, map[string]any{"id": d.StrategyID, "description": d.Description, "status": d.Status, "capabilities": d.Capabilities, "tiers": d.Tiers, "executable_step_kinds": strategy.StepKinds(d), "next_actions": d.NextActions, "promotable": d.Promotable, "evidence_class": d.EvidenceClass, "minimum_useful_fps": d.MinimumUsefulFPS})
+	}
+	write(w, http.StatusOK, map[string]any{"strategies": out})
+}
+func (h *handler) verifyStrategy(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	report, err := h.service.Verify(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", err.Error())
+		return
+	}
+	write(w, http.StatusOK, report)
+}
+func (h *handler) listSessions(w http.ResponseWriter, _ *http.Request) {
+	write(w, http.StatusOK, map[string]any{"sessions": h.service.ListSessions()})
+}
+
+type acquireRequest struct {
+	DeviceID, Actor string `json:"device_id"`
+	TTLSeconds      int    `json:"ttl_seconds"`
+}
+
+func (h *handler) acquire(w http.ResponseWriter, r *http.Request) {
+	var in acquireRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	s, err := h.service.Acquire(in.DeviceID, in.Actor, time.Duration(in.TTLSeconds)*time.Second)
+	if err != nil {
+		writeError(w, http.StatusConflict, "lease_refused", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"session": s})
+}
+func (h *handler) kill(w http.ResponseWriter, r *http.Request) {
+	s, err := h.service.Kill(mux.Vars(r)["id"], "operator requested kill")
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"session": s})
+}
+func (h *handler) release(w http.ResponseWriter, r *http.Request) {
+	s, err := h.service.Release(mux.Vars(r)["id"])
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"session": s})
+}
+
+type flowRequest struct {
+	Flow       internal.Flow `json:"flow"`
+	StrategyID string        `json:"strategy_id"`
+	DeviceID   string        `json:"device_id"`
+	Actor      string        `json:"actor"`
+}
+
+func (h *handler) validateFlow(w http.ResponseWriter, r *http.Request) {
+	var in flowRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	write(w, http.StatusOK, h.service.Validate(r.Context(), in.Flow, in.StrategyID))
+}
+func (h *handler) runFlow(w http.ResponseWriter, r *http.Request) {
+	var in flowRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	result, err := h.service.Run(r.Context(), in.Flow, in.DeviceID, in.Actor)
+	if err != nil {
+		writeError(w, http.StatusConflict, "run_failed", err.Error())
+		return
+	}
+	write(w, http.StatusOK, result)
+}
+func (h *handler) audit(w http.ResponseWriter, _ *http.Request) {
+	write(w, http.StatusOK, map[string]any{"records": h.service.Audit()})
+}
+func (h *handler) listAnchors(w http.ResponseWriter, _ *http.Request) {
+	write(w, http.StatusOK, map[string]any{"anchors": h.anchors.List()})
+}
+func (h *handler) createAnchor(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Name       string    `json:"name"`
+		Target     string    `json:"target"`
+		Bounds     []float64 `json:"bounds"`
+		Confidence float64   `json:"confidence"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	a, err := h.anchors.Create(in.Name, in.Target, in.Bounds, in.Confidence)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_anchor", err.Error())
+		return
+	}
+	write(w, http.StatusCreated, map[string]any{"anchor": a})
+}
+func (h *handler) deleteAnchor(w http.ResponseWriter, r *http.Request) {
+	if err := h.anchors.Delete(mux.Vars(r)["id"]); err != nil {
+		writeError(w, http.StatusNotFound, "not_found", err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+func (h *handler) listAgents(w http.ResponseWriter, _ *http.Request) {
+	write(w, http.StatusOK, map[string]any{"agents": h.service.ListAgents()})
+}
+func (h *handler) startAgent(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Goal           string `json:"goal"`
+		DeviceID       string `json:"device_id"`
+		Actor          string `json:"actor"`
+		SkillAvailable bool   `json:"skill_available"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	a, err := h.service.StartAgent(r.Context(), in.Goal, in.DeviceID, in.Actor, in.SkillAvailable)
+	if err != nil {
+		writeError(w, http.StatusPreconditionFailed, "agent_unavailable", err.Error())
+		return
+	}
+	write(w, http.StatusAccepted, map[string]any{"agent": a})
+}
+func (h *handler) abortAgent(w http.ResponseWriter, r *http.Request) {
+	a, err := h.service.AbortAgent(mux.Vars(r)["id"], "operator requested abort")
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"agent": a})
+}
+func (h *handler) promoteAgent(w http.ResponseWriter, r *http.Request) {
+	a, err := h.service.PromoteAgent(mux.Vars(r)["id"])
+	if err != nil {
+		writeError(w, http.StatusConflict, "promotion_refused", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"agent": a})
+}
+func write(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+func writeError(w http.ResponseWriter, status int, code, message string) {
+	write(w, status, map[string]any{"status": "failed", "code": code, "message": message})
+}
+
+var Endpoints = []module.EndpointDescriptor{
+	{ID: "devices_list", Path: "/api/v1/devices", Method: "GET", Summary: "List devices and probed capabilities", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "devices_connect", Path: "/api/v1/devices/connect", Method: "POST", Summary: "Show guided device onboarding", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "strategies_list", Path: "/api/v1/strategies", Method: "GET", Summary: "List strategy dispositions", Category: "strategies", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "strategy_verify", Path: "/api/v1/strategies/{id}/verify", Method: "GET", Summary: "Run fixed strategy conformance", Category: "strategies", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "sessions_list", Path: "/api/v1/sessions", Method: "GET", Summary: "List live leases", Category: "sessions", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "sessions_acquire", Path: "/api/v1/sessions/acquire", Method: "POST", Summary: "Acquire an exclusive lease", Category: "sessions", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "session_kill", Path: "/api/v1/sessions/{id}/kill", Method: "POST", Summary: "Immediately kill a session", Category: "sessions", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "session_release", Path: "/api/v1/sessions/{id}/release", Method: "POST", Summary: "Release a lease", Category: "sessions", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "flow_validate", Path: "/api/v1/flows/validate", Method: "POST", Summary: "Preflight a flow against a strategy", Category: "flows", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "flow_run", Path: "/api/v1/flows/run", Method: "POST", Summary: "Run a bounded flow", Category: "flows", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "audit_list", Path: "/api/v1/evidence/audit", Method: "GET", Summary: "List device verb audit records", Category: "evidence", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "anchors_list", Path: "/api/v1/anchors", Method: "GET", Summary: "List saved visual anchors", Category: "flows", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "anchors_create", Path: "/api/v1/anchors", Method: "POST", Summary: "Create a normalized visual anchor", Category: "flows", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "anchors_delete", Path: "/api/v1/anchors/{id}", Method: "DELETE", Summary: "Delete a visual anchor", Category: "flows", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "agents_list", Path: "/api/v1/agents", Method: "GET", Summary: "List deterministic agent runs", Category: "agents", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "agents_start", Path: "/api/v1/agents/start", Method: "POST", Summary: "Start a skill-gated agent run", Category: "agents", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "agent_abort", Path: "/api/v1/agents/{id}/abort", Method: "POST", Summary: "Abort an agent run", Category: "agents", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "agent_promote", Path: "/api/v1/agents/{id}/promote", Method: "POST", Summary: "Promote a passing agent run", Category: "agents", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+}

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 import { describe, expect, it } from "vitest";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

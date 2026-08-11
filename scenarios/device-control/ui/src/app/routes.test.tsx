@@ -1,5 +1,5 @@
 /**
- * Routing smoke — for each canonical path (`/`, `/notes`, `/settings`) the
+ * Routing smoke — for each canonical path (`/`, `/flows`, `/evidence`, `/settings`) the
  * matching page selector is in the document. Page-internal behaviour is
  * exercised in per-page tests; this file's job is to assert the router config.
  */
@@ -8,6 +8,7 @@ import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
+import { strings } from "../consts/strings";
 import { TestAppRouter } from "./routes";
 
 describe("AppRouter", () => {
@@ -20,9 +21,14 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
   });
 
-  it("renders the notes page at /notes", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/notes"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.notes)).toBeInTheDocument();
+  it("renders the flows page at /flows", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/flows"]} />, { withoutRouter: true });
+    expect(screen.getByText(strings.pages.flows.title)).toBeInTheDocument();
+  });
+
+  it("renders the evidence page at /evidence", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/evidence"]} />, { withoutRouter: true });
+    expect(screen.getByText(strings.pages.evidence.title)).toBeInTheDocument();
   });
 
   it("renders the settings page at /settings", () => {

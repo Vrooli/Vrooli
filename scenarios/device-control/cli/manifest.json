@@ -1,150 +1,156 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "device-control",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Device Control CLI surface. Runtime commands are grouped by device, strategy, session, flow, audit, and agent concerns.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "device",
+      "description": "Inventory and onboard governed devices",
       "commands": [
         {
           "name": "list",
-          "description": "List all notes",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
+          "description": "List devices",
+          "binding": { "kind": "connect-rpc", "service": "DeviceService", "method": "ListDevices" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
-          "name": "create",
-          "description": "Create a note",
+          "name": "connect",
+          "description": "Show device onboarding",
+          "flags": [{ "name": "kind", "description": "Device kind" }],
+          "binding": { "kind": "connect-rpc", "service": "DeviceService", "method": "ConnectDevice" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "strategy",
+      "description": "Inspect and verify control strategies",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List strategies",
+          "binding": { "kind": "connect-rpc", "service": "StrategyService", "method": "ListStrategies" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "verify",
+          "description": "Verify a strategy",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "StrategyService", "method": "VerifyStrategy" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "session",
+      "description": "Manage exclusive device leases",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List sessions",
+          "binding": { "kind": "connect-rpc", "service": "SessionService", "method": "ListSessions" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "acquire",
+          "description": "Acquire a lease",
           "flags": [
-            {
-              "name": "title",
-              "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
-            }
+            { "name": "device", "required": true, "bind": { "field": "device_id" } },
+            { "name": "actor", "required": true },
+            { "name": "ttl-seconds" }
           ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
+          "binding": { "kind": "connect-rpc", "service": "SessionService", "method": "AcquireSession" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
+          "name": "kill",
+          "description": "Kill a session",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "SessionService", "method": "KillSession" },
+          "governance": { "effect": "destructive", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
+          "name": "release",
+          "description": "Release a session",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "SessionService", "method": "ReleaseSession" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "flow",
+      "description": "Validate and run bounded device flows",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate a flow",
           "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
+            { "name": "file", "required": true, "bind": { "field": "flow", "kind": "json_file" } },
+            { "name": "strategy", "required": true, "bind": { "field": "strategy_id" } }
           ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
+          "binding": { "kind": "connect-rpc", "service": "FlowService", "method": "ValidateFlow" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        },
+        {
+          "name": "run",
+          "description": "Run a flow with chaptered evidence",
+          "flags": [
+            { "name": "file", "required": true, "bind": { "field": "flow", "kind": "json_file" } },
+            { "name": "device", "required": true, "bind": { "field": "device_id" } },
+            { "name": "actor", "description": "Audit actor", "default": "cli" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "FlowService", "method": "RunFlow" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "audit",
+      "description": "Review device verb audit records",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List audit records",
+          "binding": { "kind": "connect-rpc", "service": "EvidenceService", "method": "ListAudit" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "agent",
+      "description": "Run deterministic skill-gated device agents",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Start a bounded agent run",
+          "flags": [
+            { "name": "goal", "required": true },
+            { "name": "device", "required": true },
+            { "name": "actor", "default": "cli" },
+            { "name": "skill-available", "bool": true }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "abort",
+          "description": "Abort an agent run",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "promote",
+          "description": "Promote a passing agent run to a deterministic flow",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     }
   ],
-  "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
-  },
-  "exceptions": [
-    {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
-    }
-  ],
+  "measures": { "domains": [] },
+  "exceptions": [],
   "omitted": []
 }

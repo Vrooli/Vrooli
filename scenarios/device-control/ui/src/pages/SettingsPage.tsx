@@ -6,6 +6,14 @@ import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
+function themeLabel(choice: ThemeChoice, t: ReturnType<typeof useTranslation>["t"]) {
+  switch (choice) {
+    case "light": return t(strings.theme.choice.light);
+    case "dark": return t(strings.theme.choice.dark);
+    case "system": return t(strings.theme.choice.system);
+  }
+}
+
 /**
  * Settings page. Surfaces the locale and theme selectors as a real page (in
  * addition to the compact controls in the top bar). Add scenario-specific
@@ -42,7 +50,7 @@ export function SettingsPage() {
               onClick={() => setTheme(c)}
               data-testid={selectors.settingsPage.themeOption({ choice: c })}
             >
-              {t(strings.theme.choice[c])}
+              {themeLabel(c, t)}
             </Button>
           ))}
         </div>

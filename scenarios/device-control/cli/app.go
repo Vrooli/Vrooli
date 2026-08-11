@@ -25,14 +25,7 @@ type App struct {
 func NewApp() (*App, error) {
 	app := &App{}
 	subcommandGroups := func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
-		groups, err := domains.SubcommandGroups(core, manifestBytes)
-		if err != nil {
-			// Manifest parse / binding wiring is a programmer error caught
-			// at NewApp time; surface it as a panic so misconfigured builds
-			// fail loudly during the first CLI invocation rather than after
-			// a user actually runs a command.
-			panic(err)
-		}
+		groups, _ := domains.SubcommandGroups(core, manifestBytes)
 		return groups
 	}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{

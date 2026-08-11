@@ -4,46 +4,91 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "5278b4aa2b6577a6584f081997a965fcd59818810e423fb982e44adfbadcf5d8",
+  "manifest_hash": "48d46eda770871b6e441fc1fcffd6fcfe5f585c1d96e926f9bc57f361ff4cdf1",
   "commands": [
     {
-      "path": "notes attach",
-      "group": "notes",
-      "command": "attach",
-      "declared_exception": "upload",
-      "observed_primitive": "upload"
+      "path": "agent abort",
+      "group": "agent",
+      "command": "abort",
+      "binding": "."
     },
     {
-      "path": "notes count",
-      "group": "notes",
-      "command": "count",
-      "binding": "NotesService.CountNotes",
-      "declared_primitive": "proto_list",
-      "observed_primitive": "proto_list"
+      "path": "agent promote",
+      "group": "agent",
+      "command": "promote",
+      "binding": "."
     },
     {
-      "path": "notes create",
-      "group": "notes",
-      "command": "create",
-      "binding": "NotesService.CreateNote",
-      "declared_primitive": "proto_mutation",
-      "observed_primitive": "proto_mutation"
+      "path": "agent start",
+      "group": "agent",
+      "command": "start",
+      "binding": "."
     },
     {
-      "path": "notes get",
-      "group": "notes",
-      "command": "get",
-      "binding": "NotesService.GetNote",
-      "declared_primitive": "proto_list",
-      "observed_primitive": "proto_list"
-    },
-    {
-      "path": "notes list",
-      "group": "notes",
+      "path": "audit list",
+      "group": "audit",
       "command": "list",
-      "binding": "NotesService.ListNotes",
-      "declared_primitive": "proto_list",
-      "observed_primitive": "proto_list"
+      "binding": "EvidenceService.ListAudit"
+    },
+    {
+      "path": "device connect",
+      "group": "device",
+      "command": "connect",
+      "binding": "DeviceService.ConnectDevice"
+    },
+    {
+      "path": "device list",
+      "group": "device",
+      "command": "list",
+      "binding": "DeviceService.ListDevices"
+    },
+    {
+      "path": "flow run",
+      "group": "flow",
+      "command": "run",
+      "binding": "FlowService.RunFlow"
+    },
+    {
+      "path": "flow validate",
+      "group": "flow",
+      "command": "validate",
+      "binding": "FlowService.ValidateFlow"
+    },
+    {
+      "path": "session acquire",
+      "group": "session",
+      "command": "acquire",
+      "binding": "SessionService.AcquireSession"
+    },
+    {
+      "path": "session kill",
+      "group": "session",
+      "command": "kill",
+      "binding": "SessionService.KillSession"
+    },
+    {
+      "path": "session list",
+      "group": "session",
+      "command": "list",
+      "binding": "SessionService.ListSessions"
+    },
+    {
+      "path": "session release",
+      "group": "session",
+      "command": "release",
+      "binding": "SessionService.ReleaseSession"
+    },
+    {
+      "path": "strategy list",
+      "group": "strategy",
+      "command": "list",
+      "binding": "StrategyService.ListStrategies"
+    },
+    {
+      "path": "strategy verify",
+      "group": "strategy",
+      "command": "verify",
+      "binding": "StrategyService.VerifyStrategy"
     }
   ]
 }

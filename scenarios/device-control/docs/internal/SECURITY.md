@@ -30,16 +30,6 @@ install software. Treat the control capability itself as a credential.
 | Flow definitions | low–medium | flows | Ordinarily benign, but a flow may embed a target string that is itself sensitive (an account name, a search term). Treated as owner data, not shared by default. |
 | Strategy registrations | low | strategies | Adapter metadata only. |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `template-manager detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Threat Model
 
 | Threat | Mitigation | Status |

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
 	"device-control/internal/testutil/repokit"
 
 	"github.com/stretchr/testify/require"

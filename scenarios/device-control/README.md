@@ -2,8 +2,7 @@
 
 Drive owner-trusted physical and virtual devices through pluggable control strategies, with shared vision-based understanding, reusable automation flows, and agent-driven goal completion.
 
-This scenario was generated from the `react-vite` template and packages
-the standard full-stack Vrooli scenario shape:
+This scenario packages the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)
@@ -47,19 +46,11 @@ the standard full-stack Vrooli scenario shape:
   runbooks, observability, security, performance, and durable
   decisions.
 
-## Placeholders vs. Durable Scaffolding
+## Durable Scaffolding
 
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
-
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- Starter page content such as the dashboard metric placeholders.
-- The bare-minimum settings surface once your scenario needs more than
-  theme and locale.
-
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
+The product surfaces are implemented around device inventory, strategy
+conformance, leased sessions, flow validation, and evidence. Treat these as
+durable seams to preserve as the visual layout evolves:
 
 - i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
 - Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
@@ -79,8 +70,8 @@ an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
 tag; the four allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
+`api/internal/module/module.go`. REST exceptions remain reserved for the
+explicitly documented third-party and operational shapes.
 
 [`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
 workflow in full.

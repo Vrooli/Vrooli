@@ -1,8 +1,7 @@
 package domains
 
 import (
-	"device-control/cli/domains/notes" // EXAMPLE-DOMAIN:notes
-
+	"device-control/cli/domains/control"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -36,13 +35,6 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
-	return groups, nil
+	_ = manifest
+	return []cliapp.SubcommandGroup{control.Group(core), control.StrategyGroup(core), control.SessionGroup(core), control.FlowGroup(core), control.AuditGroup(core), control.AgentGroup(core)}, nil
 }

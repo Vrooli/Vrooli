@@ -37,34 +37,6 @@ belong in [`DATA.md`](DATA.md).
 | flows | Answer "what should be done, and can this device do it?" | Own the flow envelope, the step vocabularies, target resolution, the pre-execution capability gap report, execution, and chaptered evidence. | Flow definitions, runs, steps, evidence references, visual anchors. | workflow | crud, service | Flow, Step, ResolutionRung, CapabilityGap, Run, Chapter, Anchor | `api/internal/flows/`, `api/handlers/flows/`, `cli/domains/flows/`, `ui/src/features/flows/` |
 | agent | Answer "can something work this out for me?" | Own goal-directed runs: spawn an agent-manager run driven by the prompt-manager skill, bound it, audit it, and promote a successful run into a deterministic flow. | Agent run records, goal state, promotion provenance. | workflow | integration | AgentRun, Goal, Bound, Promotion | `api/internal/agent/`, `api/handlers/agent/`, `cli/domains/agent/`, `ui/src/features/agent/` |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships `notes` as a worked CRUD vertical slice with a binary
-upload exception. Copy its shape for your own domains, then remove it.
-
-| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
-|---|---|---|---|---|---|---|---|
-| notes | Provide the worked CRUD reference with attachment upload exception. | Demonstrate the expected vertical slice for a real domain. | Notes and attachment metadata. | crud | service | Note, Attachment | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/device-control/v1/notes/` |
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Domain Details
 
 ### health

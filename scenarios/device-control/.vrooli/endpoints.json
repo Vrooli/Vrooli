@@ -57,263 +57,290 @@
       }
     },
     {
-      "id": "flows_resolve_target",
-      "path": "/api/v1/flows/resolve-target",
+      "id": "devices_list",
+      "path": "/api/v1/devices",
+      "method": "GET",
+      "summary": "List devices and probed capabilities",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "devices_connect",
+      "path": "/api/v1/devices/connect",
       "method": "POST",
-      "summary": "Resolve a target through the device-control ladder.",
-      "description": "Downscales a caller-owned frame, resolves locate.visual through ai-gateway, and records provider-neutral rung evidence.",
+      "summary": "Show guided device onboarding",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "strategies_list",
+      "path": "/api/v1/strategies",
+      "method": "GET",
+      "summary": "List strategy dispositions",
+      "description": "",
+      "category": "strategies",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "strategy_verify",
+      "path": "/api/v1/strategies/{id}/verify",
+      "method": "GET",
+      "summary": "Run fixed strategy conformance",
+      "description": "",
+      "category": "strategies",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "sessions_list",
+      "path": "/api/v1/sessions",
+      "method": "GET",
+      "summary": "List live leases",
+      "description": "",
+      "category": "sessions",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "sessions_acquire",
+      "path": "/api/v1/sessions/acquire",
+      "method": "POST",
+      "summary": "Acquire an exclusive lease",
+      "description": "",
+      "category": "sessions",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "session_kill",
+      "path": "/api/v1/sessions/{id}/kill",
+      "method": "POST",
+      "summary": "Immediately kill a session",
+      "description": "",
+      "category": "sessions",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "session_release",
+      "path": "/api/v1/sessions/{id}/release",
+      "method": "POST",
+      "summary": "Release a lease",
+      "description": "",
+      "category": "sessions",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "flow_validate",
+      "path": "/api/v1/flows/validate",
+      "method": "POST",
+      "summary": "Preflight a flow against a strategy",
+      "description": "",
       "category": "flows",
-      "request": {
-        "type": "object",
-        "properties": {
-          "confidence_threshold": "number 0..1",
-          "fallback_bounds": "array<number> (optional normalized anchor)",
-          "frame_base64": "base64 image (required)",
-          "media_type": "image/png or image/jpeg",
-          "target": "string (required)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "confidence": "number 0..1",
-          "evidence": "array<EvidenceEvent>",
-          "rung": "vision | visual-anchor",
-          "status": "resolved | unavailable | unresolved"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Malformed frame, target, or threshold"
-        },
-        {
-          "status": 503,
-          "code": "vision_route_unavailable",
-          "description": "No ai-gateway vision route is available; no provider fallback is attempted"
-        },
-        {
-          "status": 422,
-          "code": "unresolved",
-          "description": "Vision confidence was below the caller threshold and no anchor fallback resolved the target"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Resolve a screenshot target",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/flows/resolve-target -H 'Content-Type: application/json' -d '{\"target\":\"settings\",\"frame_base64\":\"...\",\"media_type\":\"image/png\"}'"
-        }
-      ],
       "rest_exception": {
-        "reason": "ops_probe",
-        "note": "Caller-owned frame execution uses a JSON transport until the device-control flow envelope is proto-typed."
+        "reason": "third_party_shape"
       }
     },
     {
-      "id": "notes_list",
-      "path": "/vrooli.device_control.v1.notes.NotesService/ListNotes",
+      "id": "flow_run",
+      "path": "/api/v1/flows/run",
       "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.device_control.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.device_control.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.device_control.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.device_control.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.device_control.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_count",
-      "path": "/vrooli.device_control.v1.notes.NotesService/CountNotes",
-      "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.device_control.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
-      "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
+      "summary": "Run a bounded flow",
+      "description": "",
+      "category": "flows",
       "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
-        "proto_payloads": {
-          "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
-          },
-          "response": {
-            "proto_full_name": "vrooli.device_control.v1.notes.UploadAttachmentResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "proto_full_name": "vrooli.device_control.v1.shared.ErrorEnvelope",
-            "transport": "json",
-            "conformance": "protojson"
-          }
-        }
+        "reason": "third_party_shape"
       }
+    },
+    {
+      "id": "audit_list",
+      "path": "/api/v1/evidence/audit",
+      "method": "GET",
+      "summary": "List device verb audit records",
+      "description": "",
+      "category": "evidence",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "anchors_list",
+      "path": "/api/v1/anchors",
+      "method": "GET",
+      "summary": "List saved visual anchors",
+      "description": "",
+      "category": "flows",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "anchors_create",
+      "path": "/api/v1/anchors",
+      "method": "POST",
+      "summary": "Create a normalized visual anchor",
+      "description": "",
+      "category": "flows",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "anchors_delete",
+      "path": "/api/v1/anchors/{id}",
+      "method": "DELETE",
+      "summary": "Delete a visual anchor",
+      "description": "",
+      "category": "flows",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "agents_list",
+      "path": "/api/v1/agents",
+      "method": "GET",
+      "summary": "List deterministic agent runs",
+      "description": "",
+      "category": "agents",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "agents_start",
+      "path": "/api/v1/agents/start",
+      "method": "POST",
+      "summary": "Start a skill-gated agent run",
+      "description": "",
+      "category": "agents",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "agent_abort",
+      "path": "/api/v1/agents/{id}/abort",
+      "method": "POST",
+      "summary": "Abort an agent run",
+      "description": "",
+      "category": "agents",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "agent_promote",
+      "path": "/api/v1/agents/{id}/promote",
+      "method": "POST",
+      "summary": "Promote a passing agent run",
+      "description": "",
+      "category": "agents",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "device_rpc_list",
+      "path": "/vrooli.device_control.v1.devices.DeviceService/ListDevices",
+      "method": "POST",
+      "summary": "List devices",
+      "description": "",
+      "category": "devices"
+    },
+    {
+      "id": "device_rpc_connect",
+      "path": "/vrooli.device_control.v1.devices.DeviceService/ConnectDevice",
+      "method": "POST",
+      "summary": "Show device onboarding",
+      "description": "",
+      "category": "devices"
+    },
+    {
+      "id": "strategy_rpc_list",
+      "path": "/vrooli.device_control.v1.strategies.StrategyService/ListStrategies",
+      "method": "POST",
+      "summary": "List strategies",
+      "description": "",
+      "category": "strategies"
+    },
+    {
+      "id": "strategy_rpc_verify",
+      "path": "/vrooli.device_control.v1.strategies.StrategyService/VerifyStrategy",
+      "method": "POST",
+      "summary": "Verify strategy",
+      "description": "",
+      "category": "strategies"
+    },
+    {
+      "id": "session_rpc_list",
+      "path": "/vrooli.device_control.v1.sessions.SessionService/ListSessions",
+      "method": "POST",
+      "summary": "List sessions",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "session_rpc_acquire",
+      "path": "/vrooli.device_control.v1.sessions.SessionService/AcquireSession",
+      "method": "POST",
+      "summary": "Acquire session",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "session_rpc_kill",
+      "path": "/vrooli.device_control.v1.sessions.SessionService/KillSession",
+      "method": "POST",
+      "summary": "Kill session",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "session_rpc_release",
+      "path": "/vrooli.device_control.v1.sessions.SessionService/ReleaseSession",
+      "method": "POST",
+      "summary": "Release session",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "flow_rpc_validate",
+      "path": "/vrooli.device_control.v1.flows.FlowService/ValidateFlow",
+      "method": "POST",
+      "summary": "Validate flow",
+      "description": "",
+      "category": "flows"
+    },
+    {
+      "id": "flow_rpc_run",
+      "path": "/vrooli.device_control.v1.flows.FlowService/RunFlow",
+      "method": "POST",
+      "summary": "Run flow",
+      "description": "",
+      "category": "flows"
+    },
+    {
+      "id": "evidence_rpc_list",
+      "path": "/vrooli.device_control.v1.evidence.EvidenceService/ListAudit",
+      "method": "POST",
+      "summary": "List audit",
+      "description": "",
+      "category": "evidence"
     }
   ]
 }

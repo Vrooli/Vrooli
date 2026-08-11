@@ -20,16 +20,23 @@ import (
 	"device-control/internal/module"
 
 	capsH "device-control/handlers/capabilities"
-	flowsH "device-control/handlers/flows"
+	controlH "device-control/handlers/control"
 
 	apidb "github.com/vrooli/api-core/database"
+	devicesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices"
+	devicesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices/devices_v1connect"
+	evidencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/evidence"
+	evidenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/evidence/evidence_v1connect"
+	flowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows"
+	flowsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows/flows_v1connect"
+	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/sessions"
+	sessionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/sessions/sessions_v1connect"
+	strategiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/strategies"
+	strategiesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/strategies/strategies_v1connect"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "device-control/handlers/health"
-	notesH "device-control/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "device-control/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -40,8 +47,20 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, flowsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, controlH.Endpoints...)
+	out = append(out,
+		module.EndpointDescriptor{ID: "device_rpc_list", Path: devicesconnect.DeviceServiceListDevicesProcedure, Method: "POST", Summary: "List devices", Category: "devices"},
+		module.EndpointDescriptor{ID: "device_rpc_connect", Path: devicesconnect.DeviceServiceConnectDeviceProcedure, Method: "POST", Summary: "Show device onboarding", Category: "devices"},
+		module.EndpointDescriptor{ID: "strategy_rpc_list", Path: strategiesconnect.StrategyServiceListStrategiesProcedure, Method: "POST", Summary: "List strategies", Category: "strategies"},
+		module.EndpointDescriptor{ID: "strategy_rpc_verify", Path: strategiesconnect.StrategyServiceVerifyStrategyProcedure, Method: "POST", Summary: "Verify strategy", Category: "strategies"},
+		module.EndpointDescriptor{ID: "session_rpc_list", Path: sessionsconnect.SessionServiceListSessionsProcedure, Method: "POST", Summary: "List sessions", Category: "sessions"},
+		module.EndpointDescriptor{ID: "session_rpc_acquire", Path: sessionsconnect.SessionServiceAcquireSessionProcedure, Method: "POST", Summary: "Acquire session", Category: "sessions"},
+		module.EndpointDescriptor{ID: "session_rpc_kill", Path: sessionsconnect.SessionServiceKillSessionProcedure, Method: "POST", Summary: "Kill session", Category: "sessions"},
+		module.EndpointDescriptor{ID: "session_rpc_release", Path: sessionsconnect.SessionServiceReleaseSessionProcedure, Method: "POST", Summary: "Release session", Category: "sessions"},
+		module.EndpointDescriptor{ID: "flow_rpc_validate", Path: flowsconnect.FlowServiceValidateFlowProcedure, Method: "POST", Summary: "Validate flow", Category: "flows"},
+		module.EndpointDescriptor{ID: "flow_rpc_run", Path: flowsconnect.FlowServiceRunFlowProcedure, Method: "POST", Summary: "Run flow", Category: "flows"},
+		module.EndpointDescriptor{ID: "evidence_rpc_list", Path: evidenceconnect.EvidenceServiceListAuditProcedure, Method: "POST", Summary: "List audit", Category: "evidence"},
+	)
 	return out
 }
 
@@ -68,7 +87,11 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_device_control_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "devices", File: devicesv1.File_device_control_v1_devices_devices_proto},
+		{Module: "strategies", File: strategiesv1.File_device_control_v1_strategies_strategies_proto},
+		{Module: "sessions", File: sessionsv1.File_device_control_v1_sessions_sessions_proto},
+		{Module: "flows", File: flowsv1.File_device_control_v1_flows_flows_proto},
+		{Module: "evidence", File: evidencev1.File_device_control_v1_evidence_evidence_proto},
 	}
 }
 
@@ -83,6 +106,5 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
 	}
 }

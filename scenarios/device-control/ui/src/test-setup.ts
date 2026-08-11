@@ -26,6 +26,23 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
 
+// jsdom does not implement the browser media-query API. Keep the default
+// system-theme path deterministic while preserving the real API shape used by
+// ThemeProvider in production.
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+if (typeof window !== "undefined" && !window.matchMedia) {
+  window.matchMedia = (query: string): MediaQueryList => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    dispatchEvent: () => false,
+  });
+}
+
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;
 

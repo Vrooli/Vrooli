@@ -6,6 +6,7 @@ package mocks
 import (
 	"sync"
 	"time"
+
 	"device-control/internal/clock"
 )
 

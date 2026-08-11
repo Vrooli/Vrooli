@@ -2,10 +2,6 @@ package main
 
 import (
 	"context"
-	"device-control/internal/capabilities"
-	"device-control/internal/clock"
-	"device-control/internal/modules"
-	"device-control/internal/server"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,22 +10,25 @@ import (
 	"strings"
 	"time"
 
+	"device-control/internal/capabilities"
+	"device-control/internal/clock"
+	"device-control/internal/modules"
+	"device-control/internal/server"
+
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
-	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
-	flowsH "device-control/handlers/flows"
-	internalflows "device-control/internal/flows"
-
 	capsH "device-control/handlers/capabilities"
+	controlH "device-control/handlers/control"
 	healthH "device-control/handlers/health"
-	notesH "device-control/handlers/notes" // EXAMPLE-DOMAIN:notes
+	"device-control/internal/control"
+	strategyregistry "device-control/strategy/registry"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -153,15 +152,16 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
-	gatewayClient := internalflows.NewGateway(http.DefaultClient, discovery.ResolveScenarioURLDefault)
-	flowResolver := internalflows.NewResolver(gatewayClient)
+	controlService, err := control.NewWithDBAndAttached(strategyregistry.Default(), db.Primary(), control.NewBridgeAttachedReader(http.DefaultClient, nil))
+	if err != nil {
+		log.Fatalf("device-control state initialization failed: %v", err)
+	}
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "device-control-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		flowsH.Module(flowResolver),
-		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+		controlH.Module(controlService),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -169,19 +169,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 

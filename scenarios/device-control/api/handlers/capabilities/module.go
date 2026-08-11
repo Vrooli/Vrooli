@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"net/http"
+
 	"device-control/internal/capabilities"
 	"device-control/internal/module"
 
