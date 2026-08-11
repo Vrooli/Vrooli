@@ -1,150 +1,17 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "backdrop-studio",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Backdrop Studio command metadata for surfaces, catalog, scaffold, composition, rendering, legibility, and release.",
   "groups": [
-    {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
-      "commands": [
-        {
-          "name": "list",
-          "description": "List all notes",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            {
-              "name": "title",
-              "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
-        }
-      ]
-    }
+    {"name":"surfaces","description":"Inspect declared output surfaces","commands":[{"name":"list","description":"List pixel geometries and permitted placements","binding":{"kind":"connect-rpc","service":"SurfacesService","method":"ListSurfaces"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}]},
+    {"name":"catalog","description":"Browse classified backdrop styles","commands":[{"name":"list","description":"List styles by axis","flags":[{"name":"axis","local_only":true,"description":"Axis filter such as treatment=halftone"}],"binding":{"kind":"connect-rpc","service":"CatalogService","method":"ListStyles"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}]},
+    {"name":"scaffold","description":"Render deterministic composition scaffolds","commands":[{"name":"list","description":"List seeded scene presets","binding":{"kind":"connect-rpc","service":"ScaffoldService","method":"ListPresets"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},{"name":"render","description":"Render a seeded scaffold PNG","flags":[{"name":"preset","required":true,"description":"Preset id"},{"name":"width","description":"Output width"},{"name":"height","description":"Output height"},{"name":"seed","description":"Deterministic seed"},{"name":"conditioner","description":"depth or edge"},{"name":"params-json","description":"Preset parameter JSON"}],"binding":{"kind":"connect-rpc","service":"ScaffoldService","method":"Render"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}}]},
+    {"name":"compose","description":"Inspect plans and compose supplied screenshots","commands":[{"name":"plan","description":"Resolve a style plan without execution","flags":[{"name":"style","required":true,"description":"Style id","bind_waiver":"CLI handler converts the public style id and adjacent flags into the structured catalog.Style request."},{"name":"strategy","description":"Declared strategy"},{"name":"treatments","description":"Comma-separated treatment chain"},{"name":"placement","description":"Placement id"}],"binding":{"kind":"connect-rpc","service":"ComposeService","method":"ResolvePlan"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"operational"}},{"name":"device-frame","description":"Compose a supplied screenshot into a declared surface","flags":[{"name":"backdrop","required":true,"description":"Backdrop PNG path","bind":{"field":"backdrop_png"}},{"name":"screenshot","required":true,"description":"Application screenshot PNG path","bind":{"field":"screenshot_png"}},{"name":"surface","required":true,"description":"Target surface id","bind":{"field":"surface_id"}},{"name":"arrangement","description":"Device arrangement"},{"name":"caption","description":"Caption preview"},{"name":"width","required":true,"description":"Target width"},{"name":"height","required":true,"description":"Target height"},{"name":"output","required":true,"description":"Output PNG path","local_only":true}],"binding":{"kind":"connect-rpc","service":"ComposeService","method":"ComposeDeviceFrame"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:write"]},"architecture":{"primitive":"proto_mutation"}}]},
+    {"name":"render","description":"Submit, inspect, and select reproducible candidates","commands":[{"name":"submit","description":"Submit a render job","flags":[{"name":"style","required":true,"description":"Style id","bind_waiver":"CLI handler converts the public style id and adjacent flags into the structured catalog.Style request."},{"name":"strategy","description":"Declared strategy"},{"name":"subject","description":"Procedural subject"},{"name":"treatments","description":"Comma-separated treatment chain"},{"name":"placement","description":"Placement id"},{"name":"seed","description":"Deterministic seed"},{"name":"candidate-count","description":"Number of candidates"}],"binding":{"kind":"connect-rpc","service":"RenderService","method":"Submit"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}},{"name":"get","description":"Inspect a render job and its candidates","positionals":[{"name":"job-id","required":true,"description":"Job id"}],"binding":{"kind":"connect-rpc","service":"RenderService","method":"GetJob"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},{"name":"candidates","description":"List render candidates","positionals":[{"name":"job-id","required":true,"description":"Job id"}],"binding":{"kind":"connect-rpc","service":"RenderService","method":"ListCandidates"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},{"name":"select","description":"Record explicit candidate selection","positionals":[{"name":"job-id","required":true,"description":"Job id"},{"name":"candidate-id","required":true,"description":"Candidate id"}],"flags":[{"name":"actor","required":true,"description":"Selecting operator or agent"}],"binding":{"kind":"connect-rpc","service":"RenderService","method":"SelectCandidate"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}}]},
+    {"name":"legibility","description":"Measure minimum overlay contrast","commands":[{"name":"measure","description":"Measure worst-pixel contrast from a PNG","flags":[{"name":"image","required":true,"description":"PNG path","bind":{"field":"image_png"}},{"name":"threshold","description":"Minimum ratio"},{"name":"placement","description":"Placement crop"}],"binding":{"kind":"connect-rpc","service":"LegibilityService","method":"Measure"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"operational"}}]},
+    {"name":"release","description":"Release procedural candidates and fetch references","commands":[{"name":"create","description":"Release a selected candidate","flags":[{"name":"candidate","required":true,"description":"Candidate id","bind":{"field":"candidate_id"}},{"name":"style","required":true,"description":"Style id","bind":{"field":"style_id"}},{"name":"strategy","required":true,"description":"Declared strategy"},{"name":"surface","required":true,"description":"Surface id","bind":{"field":"surface_id"}},{"name":"width","required":true,"description":"Actual width"},{"name":"height","required":true,"description":"Actual height"},{"name":"placement","required":true,"description":"Placement"},{"name":"alt-text","description":"Operator-authored alt text"},{"name":"decorative","description":"Explicitly mark decorative"}],"binding":{"kind":"connect-rpc","service":"ReleaseService","method":"Release"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}},{"name":"get","description":"Fetch released backdrop metadata without image bytes","positionals":[{"name":"id","required":true,"description":"Released backdrop id"}],"binding":{"kind":"connect-rpc","service":"ReleaseService","method":"GetReference"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}]}
   ],
-  "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
-  },
-  "exceptions": [
-    {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
-    }
-  ],
-  "omitted": []
+  "measures":{"domains":[]},
+  "exceptions":[],
+  "omitted":[{"service":"CatalogService","method":"CreateStyle","reason":"Style creation is reserved for the Backdrop Studio workbench API; the CLI exposes read-only catalog discovery."}]
 }

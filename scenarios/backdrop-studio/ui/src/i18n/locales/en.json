@@ -10,7 +10,7 @@
     "bottomNavLabel": "Mobile navigation",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
+      "workbench": "Workbench",
       "settings": "Settings"
     }
   },
@@ -28,8 +28,39 @@
       "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
       "statPlaceholderLabel": "Stat"
     },
-    "notes": {
-      "title": "Notes"
+    "workbench": {
+      "title": "Backdrop workbench",
+      "description": "Browse deterministic styles, inspect safe placement regions, and prepare a release without copying image bytes.",
+      "catalogHeading": "Starter style catalog",
+      "catalogCaption": "Backdrop Studio starter styles",
+      "styleHeading": "Style",
+      "strategyHeading": "Strategy",
+      "lineageHeading": "Lineage",
+      "state": "Ready for operator review",
+      "emptyTitle": "No released backdrops yet",
+      "emptyDescription": "Choose a style and resolve a composition plan to begin a reproducible render.",
+      "reviewAction": "Review a composition plan",
+      "contrastLabel": "Minimum contrast gate",
+      "candidateHeading": "Candidate judgement",
+      "candidateDescription": "Review each candidate alone and in the declared surface context before release.",
+      "standaloneLabel": "Standalone",
+      "contextLabel": "In context",
+      "foregroundLabel": "Scenario headline",
+      "candidateOneAlt": "Ink horizon candidate with a dark blue and warm gold treatment",
+      "candidateTwoAlt": "Terrain riso candidate with a layered paper treatment",
+      "passVerdict": "Pass",
+      "failVerdict": "Fails threshold",
+      "resolvedPlan": "Resolved plan",
+      "copyPlan": "Copy plan",
+      "planCopied": "Plan copied",
+      "altTextLabel": "Release alt text",
+      "altTextPlaceholder": "Describe the backdrop for people who cannot see it",
+      "releaseAction": "Release candidate",
+      "releaseBlocked": "Release unavailable until alt text is provided",
+      "loadingState": "Loading workbench data",
+      "errorState": "The catalog could not be loaded. The API reported an unavailable service.",
+      "emptyState": "No styles or candidates are available yet. Start with the catalog.",
+      "errorRetry": "Retry catalog load"
     },
     "settings": {
       "title": "Settings",
@@ -52,31 +83,6 @@
     "summary": "{{count}} notifications",
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "table": {
-      "title": "Title",
-      "created": "Created",
-      "attachments": "Attachments",
-      "actions": "Actions",
-      "search": "Search notes"
-    },
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

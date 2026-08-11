@@ -17,7 +17,7 @@ the standard full-stack Vrooli scenario shape:
 > domain map, design language, placeholder replacement, and first real
 > vertical slice. Run `make orient` for a machine-readable gate status.
 
-## What's In This Scenario
+## What You Get
 
 - Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
   coordinated through generated proto contracts.
@@ -121,6 +121,13 @@ finer-grained presets.
 | Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
 
 ## Working Rules
+
+## Customize Safely
+
+Keep the generated lifecycle, transport, accessibility, and design-token seams
+intact while replacing placeholder product content. Add new visual behavior
+through the scenario's typed contracts and shared token layer so consumers can
+reuse the result without coupling to implementation details.
 
 1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
 2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.

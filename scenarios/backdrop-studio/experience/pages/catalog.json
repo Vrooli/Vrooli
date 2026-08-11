@@ -34,6 +34,9 @@
     }
   ],
   "states": [
+    { "id": "stale", "description": "The last catalog remains visible with a freshness notice.", "setup": { "route": "/" } },
+    { "id": "request-error", "description": "Catalog failure states the cause and keeps previously loaded styles visible.", "setup": { "route": "/" } },
+    { "id": "partial", "description": "Available styles remain discoverable while some specimens are unavailable.", "setup": { "route": "/" } },
     {
       "id": "empty",
       "description": "No styles exist yet. Offers to seed the starter catalog and explains what a style is, rather than showing a bare grid.",
@@ -60,7 +63,7 @@
       "description": "A filter combination matches nothing. Names the constraining facets and offers to relax the narrowest one, rather than showing an unqualified empty state.",
       "setup": {
         "route": "/",
-        "query": "treatment=typographic_mosaic&lineage=swiss_international"
+        "query": {"treatment": "typographic_mosaic", "lineage": "swiss_international"}
       }
     },
     {

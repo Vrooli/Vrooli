@@ -3,16 +3,18 @@
 Eight bounded contexts. The dependency chain decides the build order: a domain may
 read the domains above it and must not read the domains below it.
 
-| # | Domain | Owns | Reads |
-|---|---|---|---|
-| 1 | `surfaces` | Output surface records, declared pixel geometry, permitted placements, geometry authorities | — |
-| 2 | `catalog` | Style records, five-axis classification, strategy declaration, reserved-region geometry, versioning, remix lineage | `surfaces` |
-| 3 | `scaffold` | Procedural scene generators, composition scaffold presets, conditioning-image rendering | `catalog` |
-| 4 | `compose` | Style + brief → inspectable execution plan; palette-slot resolution; device-frame composition; licensing gate | `catalog`, `scaffold`, `surfaces` |
-| 5 | `render` | Job lifecycle, candidate sets, selection, execution-path recording | `compose` |
-| 6 | `legibility` | Overlay-region measurement, worst-pixel contrast, verdicts, scrim solving | `render`, `catalog` |
-| 7 | `release` | Disclosure derivation, geometry conformance, `asset-studio` handoff, consumer reference surface | `render`, `legibility`, `surfaces` |
-| 8 | `workbench` | Operator surface: axis browsing, dual-view judgement, mockup chrome fidelity, accessibility obligations | all of the above |
+## Domain Inventory
+
+| # | Domain | Source Paths | Owns | Reads |
+|---|---|---|---|---|
+| 1 | `surfaces` | `api/handlers/surfaces`, `api/internal/catalog` | Output surface records, declared pixel geometry, permitted placements, geometry authorities | — |
+| 2 | `catalog` | `api/handlers/catalog`, `api/internal/catalog` | Style records, five-axis classification, strategy declaration, reserved-region geometry, versioning, remix lineage | `surfaces` |
+| 3 | `scaffold` | `api/handlers/scaffold`, `api/internal/scaffold` | Procedural scene generators, composition scaffold presets, conditioning-image rendering | `catalog` |
+| 4 | `compose` | `api/handlers/compose`, `api/internal/compose` | Style + brief → inspectable execution plan; palette-slot resolution; device-frame composition; licensing gate | `catalog`, `scaffold`, `surfaces` |
+| 5 | `render` | `api/handlers/render`, `api/internal/render` | Job lifecycle, candidate sets, selection, execution-path recording | `compose` |
+| 6 | `legibility` | `api/handlers/legibility`, `api/internal/legibility` | Overlay-region measurement, worst-pixel contrast, verdicts, scrim solving | `render`, `catalog` |
+| 7 | `release` | `api/handlers/release`, `api/internal/release` | Disclosure derivation, geometry conformance, `asset-studio` handoff, consumer reference surface | `render`, `legibility`, `surfaces` |
+| 8 | `workbench` | `ui/src/pages`, `ui/src/features` | Operator surface: axis browsing, dual-view judgement, mockup chrome fidelity, accessibility obligations | all of the above |
 
 `surfaces` sits above `catalog` because a style's reserved regions are expressed
 against a surface geometry. A style that declares no surface has nowhere to put a

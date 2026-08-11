@@ -80,4 +80,40 @@ describe("DataTable", () => {
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.queryByText("Beta")).not.toBeInTheDocument();
   });
+
+  it("supports filter buttons, descending sort, and an empty result", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getRowKey={(row) => row.id}
+        caption="Demo rows"
+        filters={[{ id: "alpha", label: "Alpha only", predicate: (row) => row.id === "a" }]}
+        filterGroupLabel="Row filters"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Alpha only" }));
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.queryByText("Beta")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /name/i }));
+    const bodyRows = within(screen.getByRole("table")).getAllByRole("row").slice(1);
+    expect(bodyRows[0]?.textContent).toContain("Alpha");
+    await user.type(screen.getByRole("searchbox"), "missing");
+    expect(screen.getByText("No rows")).toBeInTheDocument();
+  });
+
+  it("renders a non-sortable table without filters", () => {
+    renderWithProviders(
+      <DataTable
+        rows={[{ id: "one" }]}
+        columns={[{ id: "id", header: "ID", accessor: (row) => row.id }]}
+        getRowKey={(row) => row.id}
+        caption="Static rows"
+      />,
+    );
+    expect(screen.getByText("one")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /sort/i })).not.toBeInTheDocument();
+  });
 });

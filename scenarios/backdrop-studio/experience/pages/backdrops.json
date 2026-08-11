@@ -24,6 +24,10 @@
     }
   ],
   "states": [
+    { "id": "loading", "description": "Released backdrops load with stable specimen geometry.", "setup": { "route": "/backdrops" } },
+    { "id": "stale", "description": "Previously loaded releases remain visible with an explicit freshness notice.", "setup": { "route": "/backdrops" } },
+    { "id": "request-error", "description": "The release service explains the failure and offers a retry while preserving known results.", "setup": { "route": "/backdrops" } },
+    { "id": "partial", "description": "Known releases remain usable while one or more references are unavailable.", "setup": { "route": "/backdrops" } },
     {
       "id": "empty",
       "description": "Nothing released yet. Explains what release means and routes to the catalog.",

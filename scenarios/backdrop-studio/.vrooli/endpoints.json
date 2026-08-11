@@ -49,212 +49,138 @@
       "path": "/api/v1/capabilities/describe",
       "method": "GET",
       "summary": "Describe declared scenario dependencies and their current recovery actions.",
-      "category": "capabilities"
-    },
-    {
-      "id": "notes_list",
-      "path": "/vrooli.backdrop_studio.v1.notes.NotesService/ListNotes",
-      "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.backdrop_studio.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.backdrop_studio.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.backdrop_studio.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.backdrop_studio.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.backdrop_studio.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_count",
-      "path": "/vrooli.backdrop_studio.v1.notes.NotesService/CountNotes",
-      "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.backdrop_studio.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
-      "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
+      "description": "",
+      "category": "capabilities",
       "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
+        "reason": "ops_probe",
+        "note": "Plain JSON capability metadata is consumed by lifecycle and operator tooling without a generated client.",
         "proto_payloads": {
           "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
+            "transport": "none",
+            "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.backdrop_studio.v1.notes.UploadAttachmentResponse",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           },
           "error": {
-            "proto_full_name": "vrooli.backdrop_studio.v1.shared.ErrorEnvelope",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           }
         }
       }
+    },
+    {
+      "id": "catalog_styles_list",
+      "path": "/vrooli.backdrop_studio.v1.catalog.CatalogService/ListStyles",
+      "method": "POST",
+      "summary": "List styles with optional axis filters",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_styles_create",
+      "path": "/vrooli.backdrop_studio.v1.catalog.CatalogService/CreateStyle",
+      "method": "POST",
+      "summary": "Create a validated style version",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "compose_plan_resolve",
+      "path": "/vrooli.backdrop_studio.v1.compose.ComposeService/ResolvePlan",
+      "method": "POST",
+      "summary": "Resolve an inspectable composition plan",
+      "description": "",
+      "category": "compose"
+    },
+    {
+      "id": "compose_device_frame",
+      "path": "/vrooli.backdrop_studio.v1.compose.ComposeService/ComposeDeviceFrame",
+      "method": "POST",
+      "summary": "Compose a supplied screenshot into a device frame",
+      "description": "",
+      "category": "compose"
+    },
+    {
+      "id": "render_submit",
+      "path": "/vrooli.backdrop_studio.v1.render.RenderService/Submit",
+      "method": "POST",
+      "summary": "Submit a reproducible render",
+      "description": "",
+      "category": "render"
+    },
+    {
+      "id": "render_job_get",
+      "path": "/vrooli.backdrop_studio.v1.render.RenderService/GetJob",
+      "method": "POST",
+      "summary": "Get render job status",
+      "description": "",
+      "category": "render"
+    },
+    {
+      "id": "render_candidates_list",
+      "path": "/vrooli.backdrop_studio.v1.render.RenderService/ListCandidates",
+      "method": "POST",
+      "summary": "List render candidates",
+      "description": "",
+      "category": "render"
+    },
+    {
+      "id": "render_candidate_select",
+      "path": "/vrooli.backdrop_studio.v1.render.RenderService/SelectCandidate",
+      "method": "POST",
+      "summary": "Select a render candidate",
+      "description": "",
+      "category": "render"
+    },
+    {
+      "id": "legibility_measure",
+      "path": "/vrooli.backdrop_studio.v1.legibility.LegibilityService/Measure",
+      "method": "POST",
+      "summary": "Measure worst-pixel contrast",
+      "description": "",
+      "category": "legibility"
+    },
+    {
+      "id": "release_create",
+      "path": "/vrooli.backdrop_studio.v1.release.ReleaseService/Release",
+      "method": "POST",
+      "summary": "Release a backdrop",
+      "description": "",
+      "category": "release"
+    },
+    {
+      "id": "release_reference_get",
+      "path": "/vrooli.backdrop_studio.v1.release.ReleaseService/GetReference",
+      "method": "POST",
+      "summary": "Get released backdrop metadata",
+      "description": "",
+      "category": "release"
+    },
+    {
+      "id": "scaffold_presets_list",
+      "path": "/vrooli.backdrop_studio.v1.scaffold.ScaffoldService/ListPresets",
+      "method": "POST",
+      "summary": "List procedural scaffold presets",
+      "description": "",
+      "category": "scaffold"
+    },
+    {
+      "id": "scaffold_render",
+      "path": "/vrooli.backdrop_studio.v1.scaffold.ScaffoldService/Render",
+      "method": "POST",
+      "summary": "Render a seeded scaffold image",
+      "description": "",
+      "category": "scaffold"
+    },
+    {
+      "id": "surfaces_list",
+      "path": "/vrooli.backdrop_studio.v1.surfaces.SurfacesService/ListSurfaces",
+      "method": "POST",
+      "summary": "List declared output surfaces",
+      "description": "Returns declared pixel geometries and permitted placements for Backdrop Studio.",
+      "category": "surfaces"
     }
   ]
 }

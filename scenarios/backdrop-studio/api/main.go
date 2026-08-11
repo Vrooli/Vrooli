@@ -8,9 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
 	"backdrop-studio/internal/capabilities"
+	internalcatalog "backdrop-studio/internal/catalog"
 	"backdrop-studio/internal/clock"
+	"backdrop-studio/internal/imageengine"
 	"backdrop-studio/internal/modules"
+	internalrelease "backdrop-studio/internal/release"
+	internalrender "backdrop-studio/internal/render"
 	"backdrop-studio/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -23,8 +28,14 @@ import (
 	_ "modernc.org/sqlite"
 
 	capsH "backdrop-studio/handlers/capabilities"
+	catalogH "backdrop-studio/handlers/catalog"
+	composeH "backdrop-studio/handlers/compose"
 	healthH "backdrop-studio/handlers/health"
-	notesH "backdrop-studio/handlers/notes" // EXAMPLE-DOMAIN:notes
+	legibilityH "backdrop-studio/handlers/legibility"
+	releaseH "backdrop-studio/handlers/release"
+	renderH "backdrop-studio/handlers/render"
+	scaffoldH "backdrop-studio/handlers/scaffold"
+	surfacesH "backdrop-studio/handlers/surfaces"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -143,6 +154,11 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	if err := internalcatalog.NewStore(db.Primary()).Seed(context.Background()); err != nil {
+		log.Fatalf("catalog seed failed: %v", err)
+	}
+	renderStore := internalrender.NewStore(imageengine.NewClient())
+	releaseStore := internalrelease.NewStore()
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
 		log.Fatalf("file storage configuration failed: %v", err)
@@ -153,7 +169,13 @@ func main() {
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "backdrop-studio-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+		catalogH.Module(db.Primary()),
+		composeH.Module(db.Primary()),
+		renderH.Module(db.Primary(), renderStore),
+		legibilityH.Module(),
+		releaseH.Module(releaseStore),
+		scaffoldH.Module(db.Primary()),
+		surfacesH.Module(db.Primary()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -161,19 +183,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 

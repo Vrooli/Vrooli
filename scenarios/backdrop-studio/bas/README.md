@@ -22,7 +22,7 @@ Each workflow JSON must include:
 Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, run from the scenario directory:
 
 ```bash
-test-genie registry build
+test-genie eligibility check backdrop-studio
 ```
 
 This regenerates `bas/registry.json`, which is tracked so other agents can see which files exist, which requirements they validate, and what fixtures they depend on. (Only `bas/cases/**` are executed by the Playbooks phase — `flows/` and `actions/` are reusable building blocks.)
@@ -39,10 +39,10 @@ can span it. The loop:
 #    Use literal [data-testid=...] selectors — @selector tokens do NOT resolve
 #    on the capture path.
 # 2. Drive it inside a profile-mode perf trace:
-performance-health audit run <scenario> --workflow <slug>
+performance-health audit run "backdrop-studio" --workflow "perf-example-scroll"
 # 3. Analyze the returned trace, then optionally set a per-flow budget:
-performance-health analysis analyze --trace <key>
-performance-health budget set --flow <slug> --lcp-max-ms 2500 --ratchet
+performance-health analysis analyze "backdrop-studio" --trace "<key>"
+performance-health budget set "backdrop-studio" --flow "perf-example-scroll" --lcp-max-ms 2500 --ratchet
 ```
 
 Reusable perf interaction helpers live in `actions/`:
@@ -51,6 +51,13 @@ Reusable perf interaction helpers live in `actions/`:
 - `perf-drag-horizontal` — stepped horizontal drag of a resize handle / divider.
 
 See `bas/flows/perf-example-scroll.json` for a starting point.
+
+## Customize Safely
+
+Keep performance flows assertion-free and isolated from the functional
+Playbooks suite. Use literal selectors for capture paths, review the trace
+before setting a budget, and mark any flow that changes application state as
+`mutating` so it cannot be executed as an observer check.
 
 > **Rule:** NEVER bind a perf flow as a requirement `automation` validation —
 > that would run it in the functional Playbooks pass/fail suite. Perf flows are

@@ -30,6 +30,10 @@
     }
   ],
   "states": [
+    { "id": "loading", "description": "Surface geometries load with stable preview frames.", "setup": { "route": "/surfaces" } },
+    { "id": "stale", "description": "Known surface requirements remain visible with a freshness notice.", "setup": { "route": "/surfaces" } },
+    { "id": "request-error", "description": "Surface retrieval names the unavailable authority and offers retry.", "setup": { "route": "/surfaces" } },
+    { "id": "partial", "description": "Known geometries remain usable while an authority confirmation is pending.", "setup": { "route": "/surfaces" } },
     {
       "id": "populated",
       "description": "All surfaces grouped by kind, each with geometry, permitted placements, and — for store surfaces — authority and confirmation date.",
@@ -42,7 +46,7 @@
       "description": "One or more store surfaces carry no confirmation date or a stale one. Marked explicitly, with the authority link available, rather than presented as trustworthy.",
       "setup": {
         "route": "/surfaces",
-        "query": "filter=unconfirmed"
+        "query": {"filter": "unconfirmed"}
       }
     },
     {

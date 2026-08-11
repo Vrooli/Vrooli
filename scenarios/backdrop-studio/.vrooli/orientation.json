@@ -163,8 +163,10 @@
           "path": "experience/index.json"
         },
         {
-          "kind": "file_exists",
-          "path": "experience/pages/dashboard.json"
+          "kind": "json_min_entries",
+          "path": "experience/index.json",
+          "query": "pages",
+          "minCount": 1
         },
         {
           "kind": "json_min_entries",

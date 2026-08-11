@@ -1133,7 +1133,7 @@
         },
         {
           "path": "reference/surfaces.md",
-          "docType": "reference",
+          "docType": "surface-reference",
           "title": "Output surfaces",
           "aliases": [
             "surfaces",
@@ -1170,7 +1170,7 @@
         },
         {
           "path": "reference/starter-catalog.md",
-          "docType": "reference",
+          "docType": "catalog-reference",
           "title": "Starter catalog",
           "aliases": [
             "seed",

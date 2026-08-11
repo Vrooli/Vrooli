@@ -60,7 +60,8 @@ automatically):
 
 ```bash
 backdrop-studio status
-backdrop-studio <domain> <command>   # e.g. list/create commands for your domain
+backdrop-studio catalog list
+backdrop-studio compose plan --style "cyanotype-arcade" --strategy "procedural" --treatments "duotone" --placement "full_bleed"
 ```
 
 Or directly via HTTP:
@@ -70,23 +71,6 @@ API_PORT=$(vrooli scenario port backdrop-studio API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
 # Proto-typed calls hit /vrooli.backdrop_studio.v1.<domain>.<Service>/<Method>
 ```
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain illustrates the full shape —
-copy it, then remove it with `template-manager detemplate`:
-
-```bash
-backdrop-studio notes list
-backdrop-studio notes create --title "First note" --body "Hello"
-```
-
-```bash
-API_PORT=$(vrooli scenario port backdrop-studio API_PORT)
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.backdrop_studio.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## 5 — Run the tests
 

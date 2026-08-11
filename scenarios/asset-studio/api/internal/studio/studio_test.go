@@ -82,6 +82,17 @@ func TestReleaseCausesAndRenderInvariants(t *testing.T) { // [REQ:ASSET-P0-006] 
 	}
 }
 
+func TestAutomatedMeasurementVerdictIsIdentityFree(t *testing.T) {
+	s := New()
+	s.Assets["a"] = &Asset{ID: "a"}
+	if err := s.Judge(Verdict{AssetID: "a", ActorID: "legibility-gate", ActorKind: Agent, Passed: true, Basis: AutomatedMeasurement}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Judge(Verdict{AssetID: "a", IdentityVersionID: "identity-v1", ActorID: "legibility-gate", ActorKind: Agent, Passed: true, Basis: AutomatedMeasurement}); err == nil {
+		t.Fatal("automated verdict accepted an identity version")
+	}
+}
+
 func TestCampaignBudgetRequiresRecordedOperatorConfirmation(t *testing.T) { // [REQ:ASSET-P1-006]
 	s := New()
 	if err := s.SetCampaignBudget("launch", 1); err != nil {

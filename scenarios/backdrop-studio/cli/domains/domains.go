@@ -1,8 +1,13 @@
 package domains
 
 import (
-	"backdrop-studio/cli/domains/notes" // EXAMPLE-DOMAIN:notes
-
+	"backdrop-studio/cli/domains/catalog"
+	"backdrop-studio/cli/domains/compose"
+	"backdrop-studio/cli/domains/legibility"
+	"backdrop-studio/cli/domains/release"
+	"backdrop-studio/cli/domains/render"
+	"backdrop-studio/cli/domains/scaffold"
+	"backdrop-studio/cli/domains/surfaces"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -36,13 +41,33 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	surfacesGroup, err := surfaces.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
-	return groups, nil
+	catalogGroup, err := catalog.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	scaffoldGroup, err := scaffold.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	composeGroup, err := compose.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	renderGroup, err := render.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	legibilityGroup, err := legibility.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	releaseGroup, err := release.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{surfacesGroup, catalogGroup, scaffoldGroup, composeGroup, renderGroup, legibilityGroup, releaseGroup}, nil
 }

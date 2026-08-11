@@ -17,18 +17,30 @@
 package modules
 
 import (
+	"backdrop-studio/internal/catalog"
 	"backdrop-studio/internal/module"
 
 	capsH "backdrop-studio/handlers/capabilities"
+	catalogH "backdrop-studio/handlers/catalog"
+	composeH "backdrop-studio/handlers/compose"
+	legibilityH "backdrop-studio/handlers/legibility"
+	releaseH "backdrop-studio/handlers/release"
+	renderH "backdrop-studio/handlers/render"
+	scaffoldH "backdrop-studio/handlers/scaffold"
+	surfacesH "backdrop-studio/handlers/surfaces"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "backdrop-studio/handlers/health"
-	notesH "backdrop-studio/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "backdrop-studio/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/notes" // EXAMPLE-DOMAIN:notes
+	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/catalog"
+	composev1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/compose"
+	legibilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/legibility"
+	releasev1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/release"
+	renderv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/render"
+	scaffoldv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/scaffold"
+	surfacesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/surfaces"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +51,13 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, catalogH.Endpoints...)
+	out = append(out, composeH.Endpoints...)
+	out = append(out, renderH.Endpoints...)
+	out = append(out, legibilityH.Endpoints...)
+	out = append(out, releaseH.Endpoints...)
+	out = append(out, scaffoldH.Endpoints...)
+	out = append(out, surfacesH.Endpoints...)
 	return out
 }
 
@@ -66,7 +84,13 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_backdrop_studio_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "catalog", File: catalogv1.File_backdrop_studio_v1_catalog_catalog_proto},
+		{Module: "compose", File: composev1.File_backdrop_studio_v1_compose_compose_proto},
+		{Module: "render", File: renderv1.File_backdrop_studio_v1_render_render_proto},
+		{Module: "legibility", File: legibilityv1.File_backdrop_studio_v1_legibility_legibility_proto},
+		{Module: "release", File: releasev1.File_backdrop_studio_v1_release_release_proto},
+		{Module: "scaffold", File: scaffoldv1.File_backdrop_studio_v1_scaffold_scaffold_proto},
+		{Module: "surfaces", File: surfacesv1.File_backdrop_studio_v1_surfaces_surfaces_proto},
 	}
 }
 
@@ -81,6 +105,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(catalog.Schema),
 	}
 }

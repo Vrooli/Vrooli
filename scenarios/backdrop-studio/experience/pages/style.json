@@ -28,6 +28,11 @@
     }
   ],
   "states": [
+    { "id": "loading", "description": "The style record loads with its treatment chain frame held stable.", "setup": { "route": "/styles/style-1" } },
+    { "id": "stale", "description": "The last style record remains visible with a freshness notice.", "setup": { "route": "/styles/style-1" } },
+    { "id": "request-error", "description": "Style retrieval names the failed request and offers retry.", "setup": { "route": "/styles/style-1" } },
+    { "id": "partial", "description": "Known style fields remain visible while optional lineage data loads.", "setup": { "route": "/styles/style-1" } },
+    { "id": "empty", "description": "No style is selected and the surface routes to the catalog.", "setup": { "route": "/styles/style-1" } },
     {
       "id": "viewing",
       "description": "The style with a live specimen, its axes, treatment chain, reserved-region overlay, and gate thresholds.",
@@ -41,7 +46,7 @@
     {
       "id": "locked-by-release",
       "description": "The version is referenced by a released backdrop and cannot be edited. Names the referencing release and offers to fork into a new version.",
-      "setup": { "route": "/styles/cyanotype-arcade", "query": "version=1" }
+      "setup": { "route": "/styles/cyanotype-arcade", "query": {"version": "1"} }
     },
     {
       "id": "validation-failed",

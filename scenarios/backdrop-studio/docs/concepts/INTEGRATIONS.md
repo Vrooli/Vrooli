@@ -45,10 +45,8 @@ role and a profile; the ladder resolves the rest.
 Unavailable ⇒ nothing renders. There is no fallback, because a local
 reimplementation would violate the boundary that keeps treatments reusable.
 
-### Known gap
-
-The treatment operations do not exist yet. See `../internal/PROBLEMS.md`,
-first entry — this is the critical path.
+The tier-one treatment operations are implemented in `image-tools`; this seam
+keeps Backdrop Studio independent of their pixel implementation.
 
 ---
 
@@ -70,10 +68,8 @@ Unavailable ⇒ nothing renders, in either lane. An unresolved slot is refused b
 name and **never defaulted** (`CMP-003`); a silently substituted colour would
 defeat the palette lock the treatment layer exists to provide.
 
-### Known gap
-
-Whether a brand *token read* surface exists is unverified. See
-`../internal/PROBLEMS.md`. The seam ships with a fake so `compose` proceeds.
+`brand-manager` exposes the documented `BrandsService/GetTokens` read surface.
+The seam still ships with a fake so compose tests remain deterministic.
 
 ---
 
@@ -104,12 +100,9 @@ Verified against its PRD and schema:
 - `studio_assets` carries status, alt text, disclosure, `ai_generated`, and
   credential claims with **no identity column** — the release spine is generic
 
-### Known gap
-
-`studio_conformance_verdicts.identity_version_id` is `NOT NULL` and its `basis`
-CHECK admits only identity-flavoured values, so a placement-fitness verdict
-cannot be recorded. See `../internal/PROBLEMS.md`, second entry. This gates the
-model-backed lanes only.
+The generalized conformance verdict accepts an automated measurement without an
+identity version while preserving operator-only identity verdicts. Model-backed
+release paths can therefore record placement fitness through `asset-studio`.
 
 ---
 
@@ -121,11 +114,11 @@ text — **never bytes** (`REL-004`).
 
 | Consumer | Uses it for | Status |
 |---|---|---|
-| `landing-page-business-suite` | Hero and sign-up backdrops | Hero currently hardcoded; see PROBLEMS |
+| `landing-page-business-suite` | Hero and sign-up backdrops | Resolves a released reference and placement with a complete fallback |
 | `content-desk` | Promotional surfaces | Not yet wired |
 | `seo-optimizer` | Open-graph cards | Not yet wired |
-| `scenario-to-android` | Play listing backdrops and device-frame composition | Declares `OT-P1-007`; no producer today |
-| `scenario-to-ios` | App Store listing backdrops and device-frame composition | Declares `OT-P1-007`; no producer today |
+| `scenario-to-android` | Play listing backdrops and device-frame composition | Supplies screenshots and surface ids; receives conforming composed bytes |
+| `scenario-to-ios` | App Store listing backdrops and device-frame composition | Supplies screenshots and surface ids; receives conforming composed bytes |
 | `scenario-to-desktop` | Splash imagery | Candidate future consumer |
 
 Passing the reserved regions as data is what makes the seam worth having: the

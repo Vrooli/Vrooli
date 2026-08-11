@@ -24,6 +24,10 @@
     }
   ],
   "states": [
+    { "id": "loading", "description": "Sweep rows reserve their grid geometry while candidates render.", "setup": { "route": "/sweep" } },
+    { "id": "stale", "description": "The last sweep remains visible with a freshness notice.", "setup": { "route": "/sweep" } },
+    { "id": "request-error", "description": "Sweep failure names the failed operation and offers retry.", "setup": { "route": "/sweep" } },
+    { "id": "empty", "description": "No sweep axes are selected and the operator is prompted to configure them.", "setup": { "route": "/sweep" } },
     {
       "id": "configuring",
       "description": "Two axes chosen, cell count and estimated cost shown, run available.",
@@ -32,22 +36,22 @@
     {
       "id": "running",
       "description": "Cells populate progressively; the grid holds its shape so it does not reflow as results arrive.",
-      "setup": { "route": "/sweep", "query": "job=active" }
+      "setup": { "route": "/sweep", "query": {"job": "active"} }
     },
     {
       "id": "complete",
       "description": "Every cell rendered, each showing its verdict, with any cell promotable to a full candidate review.",
-      "setup": { "route": "/sweep", "query": "job=done" }
+      "setup": { "route": "/sweep", "query": {"job": "done"} }
     },
     {
       "id": "partial",
       "description": "Some cells were skipped. The grid shows which and why, and the summary states the coverage achieved rather than implying completeness.",
-      "setup": { "route": "/sweep", "query": "job=partial" }
+      "setup": { "route": "/sweep", "query": {"job": "partial"} }
     },
     {
       "id": "cost-blocked",
       "description": "The configured sweep exceeds the available metered allowance. States the allowance, the required amount, and offers a procedural-only sweep as an alternative.",
-      "setup": { "route": "/sweep", "query": "job=blocked" }
+      "setup": { "route": "/sweep", "query": {"job": "blocked"} }
     }
   ]
 }

@@ -13,8 +13,8 @@ import (
 func TestRunCommandsCoverReq01(t *testing.T) {
 	h := newHandlers(nil) // runCommands only captures h in closures; not invoked here
 	want := []string{
-		"adjust", "canvas", "compress", "convert", "crop", "deskew",
-		"filter", "flip", "metadata", "overlay", "resize", "rotate", "thumbnail",
+		"aberration", "adjust", "ascii_mosaic", "bloom", "canvas", "compress", "convert", "crop", "curve", "defocus", "deskew", "displacement",
+		"dither_diffusion", "dither_ordered", "duotone", "engraving", "filter", "flip", "grain", "halftone", "line_screen", "metadata", "motion_blur", "overlay", "pixel_sort", "posterize", "resize", "rotate", "scrim", "stipple", "thumbnail",
 	}
 	got := make([]string, 0)
 	for _, c := range h.runCommands() {

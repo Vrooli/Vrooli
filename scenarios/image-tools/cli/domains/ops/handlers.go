@@ -116,6 +116,28 @@ func (h *handlers) filterParams(ctx cliapp.RunContext) *opsv1.OpParams {
 	}}}
 }
 
+func (h *handlers) duotoneParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Duotone{Duotone: &opsv1.DuotoneParams{Dark: ctx.Flag("dark"), Light: ctx.Flag("light"), Mid: ctx.Flag("mid"), MidLow: f64(ctx.Flag("mid-low")), MidHigh: f64(ctx.Flag("mid-high"))}}}
+}
+func (h *handlers) posterizeParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Posterize{Posterize: &opsv1.PosterizeParams{Levels: i32(ctx.Flag("levels")), Dark: ctx.Flag("dark"), Light: ctx.Flag("light")}}}
+}
+func (h *handlers) halftoneParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Halftone{Halftone: &opsv1.HalftoneParams{Lpi: i32(ctx.Flag("lpi")), Angle: f64(ctx.Flag("angle")), Dot: ctx.Flag("dot"), Dark: ctx.Flag("dark"), Light: ctx.Flag("light")}}}
+}
+func (h *handlers) ditherOrderedParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_DitherOrdered{DitherOrdered: &opsv1.DitherParams{Dark: ctx.Flag("dark"), Light: ctx.Flag("light")}}}
+}
+func (h *handlers) ditherDiffusionParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_DitherDiffusion{DitherDiffusion: &opsv1.DitherParams{Dark: ctx.Flag("dark"), Light: ctx.Flag("light")}}}
+}
+func (h *handlers) grainParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Grain{Grain: &opsv1.GrainParams{Seed: i64(ctx.Flag("seed")), Amount: f64(ctx.Flag("amount")), ContrastMultiplier: f64(ctx.Flag("contrast-multiplier"))}}}
+}
+func (h *handlers) scrimParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Scrim{Scrim: &opsv1.ScrimParams{Color: ctx.Flag("color"), Opacity: f64(ctx.Flag("opacity")), Direction: ctx.Flag("direction")}}}
+}
+
 func (h *handlers) convertParams(ctx cliapp.RunContext) *opsv1.OpParams {
 	return &opsv1.OpParams{Op: &opsv1.OpParams_Convert{Convert: &opsv1.ConvertParams{
 		Format: ctx.Flag("format"), Quality: i32(ctx.Flag("quality")), Lossless: ctx.BoolFlag("lossless"),

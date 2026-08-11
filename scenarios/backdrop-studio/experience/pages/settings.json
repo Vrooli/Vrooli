@@ -24,6 +24,11 @@
     }
   ],
   "states": [
+    { "id": "loading", "description": "Settings load without hiding the active theme and locale controls.", "setup": { "route": "/settings" } },
+    { "id": "stale", "description": "Known settings remain visible with a freshness notice.", "setup": { "route": "/settings" } },
+    { "id": "request-error", "description": "Settings failure names the unavailable service and offers retry.", "setup": { "route": "/settings" } },
+    { "id": "partial", "description": "Available preferences remain editable while optional configuration is pending.", "setup": { "route": "/settings" } },
+    { "id": "empty", "description": "No optional configuration is present and the defaults are explained.", "setup": { "route": "/settings" } },
     {
       "id": "default",
       "description": "Brand, locale, theme, execution preference, and a host capability summary.",

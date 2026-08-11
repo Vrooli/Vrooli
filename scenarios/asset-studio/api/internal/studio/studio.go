@@ -214,6 +214,7 @@ const (
 	ReferenceImageSet    VerdictBasis = "reference-image-set"
 	ConditioningArtifact VerdictBasis = "conditioning-artifact"
 	ProseOnly            VerdictBasis = "prose-only"
+	AutomatedMeasurement VerdictBasis = "automated-measurement"
 )
 
 type Verdict struct {
@@ -397,11 +398,18 @@ func (s *Studio) Select(assetID string) error {
 }
 
 func (s *Studio) Judge(verdict Verdict) error {
-	if verdict.ActorKind != Operator {
+	if verdict.Basis == AutomatedMeasurement {
+		if verdict.ActorKind != Agent && verdict.ActorKind != Operator {
+			return errors.New("automated conformance verdict requires agent or operator actor")
+		}
+		if strings.TrimSpace(verdict.IdentityVersionID) != "" {
+			return errors.New("automated conformance verdict must not carry an identity version")
+		}
+	} else if verdict.ActorKind != Operator {
 		return errors.New("conformance verdict requires operator actor")
 	}
 	switch verdict.Basis {
-	case ReferenceSheet, ReferenceImageSet, ConditioningArtifact, ProseOnly:
+	case ReferenceSheet, ReferenceImageSet, ConditioningArtifact, ProseOnly, AutomatedMeasurement:
 	default:
 		return errors.New("conformance verdict requires a recognised basis")
 	}

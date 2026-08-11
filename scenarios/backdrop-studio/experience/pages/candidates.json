@@ -41,6 +41,11 @@
     }
   ],
   "states": [
+    { "id": "loading", "description": "Candidate slots hold their geometry while renders arrive.", "setup": { "route": "/candidates" } },
+    { "id": "stale", "description": "The last candidate set remains visible with its freshness state.", "setup": { "route": "/candidates" } },
+    { "id": "request-error", "description": "Candidate retrieval names the failed request and keeps a retry action available.", "setup": { "route": "/candidates" } },
+    { "id": "partial", "description": "Completed candidates remain judgeable while other slots are pending.", "setup": { "route": "/candidates" } },
+    { "id": "empty", "description": "No candidates exist yet and the surface routes back to compose.", "setup": { "route": "/candidates" } },
     {
       "id": "rendering",
       "description": "Candidates arrive progressively. Each slot holds its aspect and shows the execution path being used.",

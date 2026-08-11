@@ -24,6 +24,11 @@
     }
   ],
   "states": [
+    { "id": "loading", "description": "Style and palette data load without collapsing the plan frame.", "setup": { "route": "/compose" } },
+    { "id": "stale", "description": "The last resolved plan remains visible with an explicit freshness notice.", "setup": { "route": "/compose" } },
+    { "id": "request-error", "description": "Plan resolution names the failed dependency and offers retry.", "setup": { "route": "/compose" } },
+    { "id": "partial", "description": "The resolved portion of a plan remains inspectable while optional metadata is pending.", "setup": { "route": "/compose" } },
+    { "id": "empty", "description": "No style is selected and the operator is routed to the catalog.", "setup": { "route": "/compose" } },
     {
       "id": "no-style-selected",
       "description": "Prompts the operator to pick a style, with a route back to the catalog.",
@@ -32,27 +37,27 @@
     {
       "id": "brief-incomplete",
       "description": "A style is bound but required brief fields are unfilled. Names each missing field rather than disabling the resolve control silently.",
-      "setup": { "route": "/compose", "query": "style=cyanotype-arcade" }
+      "setup": { "route": "/compose", "query": {"style": "cyanotype-arcade"} }
     },
     {
       "id": "plan-resolved",
       "description": "The full plan is shown: strategy, operations in order, merged parameters, resolved palette bindings, conditioning inputs, expected execution path, and whether the run is free or metered. Render is available.",
-      "setup": { "route": "/compose", "query": "style=cyanotype-arcade&brief=draft" }
+      "setup": { "route": "/compose", "query": {"style": "cyanotype-arcade", "brief": "draft"} }
     },
     {
       "id": "unresolved-palette-slot",
       "description": "A slot does not resolve against the active brand. Names the slot and the brand, and offers to switch brand or amend the style. No default colour is substituted.",
-      "setup": { "route": "/compose", "query": "style=cyanotype-arcade&brand=unset" }
+      "setup": { "route": "/compose", "query": {"style": "cyanotype-arcade", "brand": "unset"} }
     },
     {
       "id": "licence-blocked",
       "description": "The plan depends on an adapter whose licensing forbids commercial use. Names the adapter and its restriction, and marks the plan unreleasable before any spend occurs.",
-      "setup": { "route": "/compose", "query": "style=guided-noncommercial" }
+      "setup": { "route": "/compose", "query": {"style": "guided-noncommercial"} }
     },
     {
       "id": "rendering",
       "description": "Work is in flight. Shows which execution path is being used and allows cancellation.",
-      "setup": { "route": "/compose", "query": "style=cyanotype-arcade&job=active" }
+      "setup": { "route": "/compose", "query": {"style": "cyanotype-arcade", "job": "active"} }
     }
   ]
 }

@@ -53,6 +53,20 @@ type Params struct {
 	Filter string  `json:"filter,omitempty"` // grayscale|sepia|invert|blur|sharpen
 	Amount float64 `json:"amount,omitempty"` // sigma for blur/sharpen (and canny smoothing)
 
+	// Deterministic treatment parameters.
+	Dark               string  `json:"dark,omitempty"`
+	Light              string  `json:"light,omitempty"`
+	Mid                string  `json:"mid,omitempty"`
+	MidLow             float64 `json:"mid_low,omitempty"`
+	MidHigh            float64 `json:"mid_high,omitempty"`
+	Levels             int     `json:"levels,omitempty"`
+	LPI                int     `json:"lpi,omitempty"`
+	Dot                string  `json:"dot,omitempty"`
+	Seed               int64   `json:"seed,omitempty"`
+	ContrastMultiplier float64 `json:"contrast_multiplier,omitempty"`
+	ScrimColor         string  `json:"scrim_color,omitempty"`
+	Direction          string  `json:"direction,omitempty"`
+
 	// Canny edge-preprocessor hysteresis bounds on the 0..255 gradient magnitude
 	// (0 = defaults 50 / 150). The ControlNet "canny" preprocessor reads these.
 	LowThreshold  float64 `json:"low_threshold,omitempty"`

@@ -10,7 +10,7 @@
     "bottomNavLabel": "التنقل على الهاتف",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "notes": "الملاحظات",
+      "workbench": "مساحة العمل",
       "settings": "الإعدادات"
     }
   },
@@ -28,8 +28,39 @@
       "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
       "statPlaceholderLabel": "إحصائية"
     },
-    "notes": {
-      "title": "الملاحظات"
+    "workbench": {
+      "title": "مساحة عمل الخلفيات",
+      "description": "تصفح الأنماط الحتمية وافحص مناطق الموضع الآمن وجهز الإصدار دون نسخ بيانات الصورة.",
+      "catalogHeading": "كتالوج الأنماط الأولي",
+      "catalogCaption": "الأنماط الأولية في Backdrop Studio",
+      "styleHeading": "النمط",
+      "strategyHeading": "الاستراتيجية",
+      "lineageHeading": "السلالة",
+      "state": "جاهز لمراجعة المشغل",
+      "emptyTitle": "لا توجد خلفيات منشورة بعد",
+      "emptyDescription": "اختر نمطاً وحل خطة تركيب لبدء عرض قابل لإعادة الإنتاج.",
+      "reviewAction": "مراجعة خطة تركيب",
+      "contrastLabel": "بوابة التباين الأدنى",
+      "candidateHeading": "تقييم المرشحين",
+      "candidateDescription": "راجع كل مرشح منفرداً وضمن سياق السطح المعلن قبل الإصدار.",
+      "standaloneLabel": "منفرد",
+      "contextLabel": "ضمن السياق",
+      "foregroundLabel": "عنوان السيناريو",
+      "candidateOneAlt": "مرشح أفق الحبر بمعالجة زرقاء داكنة وذهبية دافئة",
+      "candidateTwoAlt": "مرشح ريزوغرافي بطبقات ورقية",
+      "passVerdict": "ناجح",
+      "failVerdict": "يفشل في العتبة",
+      "resolvedPlan": "الخطة المحلولة",
+      "copyPlan": "نسخ الخطة",
+      "planCopied": "تم نسخ الخطة",
+      "altTextLabel": "النص البديل للإصدار",
+      "altTextPlaceholder": "صف الخلفية لمن لا يستطيع رؤيتها",
+      "releaseAction": "إصدار المرشح",
+      "releaseBlocked": "الإصدار غير متاح حتى تتم إضافة النص البديل",
+      "loadingState": "جارٍ تحميل بيانات مساحة العمل",
+      "errorState": "تعذر تحميل الكتالوج. أبلغت API عن خدمة غير متاحة.",
+      "emptyState": "لا تتوفر أنماط أو مرشحون بعد. ابدأ من الكتالوج.",
+      "errorRetry": "إعادة محاولة تحميل الكتالوج"
     },
     "settings": {
       "title": "الإعدادات",
@@ -52,31 +83,6 @@
     "summary": "{{count}} إشعارات",
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
-  },
-  "notes": {
-    "title": "الملاحظات",
-    "loading": "جارٍ تحميل الملاحظات…",
-    "empty": "لا توجد ملاحظات بعد.",
-    "create": "إنشاء ملاحظة",
-    "createdAtLabel": "تاريخ الإنشاء:",
-    "attachmentsLabel": "{{count}} مرفقات",
-    "attachmentsLabel_one": "مرفق واحد",
-    "table": {
-      "title": "العنوان",
-      "created": "تاريخ الإنشاء",
-      "attachments": "المرفقات",
-      "actions": "الإجراءات",
-      "search": "البحث في الملاحظات"
-    },
-    "uploadAttachment": "رفع مرفق",
-    "attachmentFileLabel": "ملف المرفق",
-    "uploadSuccess": "تم رفع {{name}}.",
-    "noFileSelected": "اختر ملفًا قبل الرفع.",
-    "measure": {
-      "title": "ملاحظات هذا الأسبوع",
-      "loading": "جارٍ العد…",
-      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

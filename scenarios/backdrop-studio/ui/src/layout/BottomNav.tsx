@@ -1,7 +1,7 @@
 import {
-  BarChart3, // EXAMPLE-DOMAIN:notes
   Home,
   Settings,
+  Palette,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -46,13 +46,11 @@ export function BottomNav() {
 function iconForItem(item: NavItem) {
   const iconClass = "h-5 w-5";
   switch (item.key) {
-    // EXAMPLE-DOMAIN:notes START
-    case "notes":
-      return <BarChart3 aria-hidden className={iconClass} />;
-    // EXAMPLE-DOMAIN:notes END
     case "settings":
       return <Settings aria-hidden className={iconClass} />;
     case "dashboard":
       return <Home aria-hidden className={iconClass} />;
+    case "workbench":
+      return <Palette aria-hidden className={iconClass} />;
   }
 }

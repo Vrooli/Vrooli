@@ -31,7 +31,9 @@ func encodePNG(t *testing.T, img image.Image) []byte {
 func TestRegistryCoversReq01(t *testing.T) {
 	want := []string{
 		"adjust", "canny", "canvas", "compress", "convert", "crop", "deskew",
-		"filter", "flip", "metadata", "overlay", "resize", "rotate", "thumbnail",
+		"dither_diffusion", "dither_ordered", "duotone", "filter", "flip", "grain",
+		"halftone", "metadata", "overlay", "posterize", "resize", "rotate", "scrim", "thumbnail",
+		"line_screen", "stipple", "engraving", "aberration", "bloom", "curve", "defocus", "motion_blur", "ascii_mosaic", "pixel_sort", "displacement",
 	}
 	for _, n := range want {
 		if !Has(n) {

@@ -71,6 +71,37 @@ func translateParams(operation string, pb *opsv1.OpParams) (*internalops.Params,
 		if v := pb.GetMetadata(); v != nil {
 			p.StripAll, p.StripGPS, p.AutoOrient = v.GetStripAll(), v.GetStripGps(), v.GetAutoOrient()
 		}
+	case "duotone":
+		if v := pb.GetDuotone(); v != nil {
+			p.Dark, p.Light, p.Mid, p.MidLow, p.MidHigh = v.GetDark(), v.GetLight(), v.GetMid(), v.GetMidLow(), v.GetMidHigh()
+		}
+	case "posterize":
+		if v := pb.GetPosterize(); v != nil {
+			p.Levels, p.Dark, p.Light = int(v.GetLevels()), v.GetDark(), v.GetLight()
+		}
+	case "halftone":
+		if v := pb.GetHalftone(); v != nil {
+			p.LPI, p.Angle, p.Dot, p.Dark, p.Light = int(v.GetLpi()), v.GetAngle(), v.GetDot(), v.GetDark(), v.GetLight()
+		}
+	case "dither_ordered":
+		if v := pb.GetDitherOrdered(); v != nil {
+			p.Dark, p.Light = v.GetDark(), v.GetLight()
+		}
+	case "dither_diffusion":
+		if v := pb.GetDitherDiffusion(); v != nil {
+			p.Dark, p.Light = v.GetDark(), v.GetLight()
+		}
+	case "grain":
+		if v := pb.GetGrain(); v != nil {
+			p.Seed, p.Amount, p.ContrastMultiplier = v.GetSeed(), v.GetAmount(), v.GetContrastMultiplier()
+		}
+	case "scrim":
+		if v := pb.GetScrim(); v != nil {
+			p.ScrimColor, p.Opacity, p.Direction = v.GetColor(), v.GetOpacity(), v.GetDirection()
+		}
+	case "line_screen", "stipple", "engraving", "aberration", "bloom", "curve", "defocus", "motion_blur", "ascii_mosaic", "pixel_sort", "displacement":
+		// Tier-2 operations use deterministic defaults today; their generic
+		// parameter block is intentionally optional and remains forward-compatible.
 	default:
 		return nil, fmt.Errorf("unknown operation %q", operation)
 	}

@@ -36,6 +36,11 @@
     }
   ],
   "states": [
+    { "id": "loading", "description": "Placement previews reserve their geometry while candidates load.", "setup": { "route": "/placements" } },
+    { "id": "stale", "description": "The last placement verdicts remain visible with a freshness notice.", "setup": { "route": "/placements" } },
+    { "id": "request-error", "description": "Placement failure names the failed render and offers retry.", "setup": { "route": "/placements" } },
+    { "id": "partial", "description": "Completed placement verdicts remain visible while other viewports are pending.", "setup": { "route": "/placements" } },
+    { "id": "empty", "description": "No candidate is selected and the surface routes to candidates.", "setup": { "route": "/placements" } },
     {
       "id": "all-placements-passing",
       "description": "Every declared placement renders at both viewports with a passing verdict.",
@@ -77,7 +82,7 @@
       "description": "A store surface previewed inside a facsimile of its destination listing, with the device frame's footprint shown as an occlusion region rather than a gated one.",
       "setup": {
         "route": "/placements/c-1",
-        "query": "surface=play.phone-screenshot"
+        "query": {"surface": "play.phone-screenshot"}
       }
     },
     {
@@ -85,7 +90,7 @@
       "description": "A product surface previewed in chrome derived from the target scenario's design tokens — type scale, control shapes, radii, neutrals — so the mockup reads as plausibly that product.",
       "setup": {
         "route": "/placements/c-1",
-        "query": "surface=web.hero&target=landing-page-business-suite"
+        "query": {"surface": "web.hero", "target": "landing-page-business-suite"}
       }
     },
     {

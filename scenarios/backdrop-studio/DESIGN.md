@@ -172,7 +172,7 @@ gradient-forward design language would make it impossible to evaluate whether a
 candidate's palette is working — the surrounding interface would contaminate
 every judgement the product exists to support.
 
-Three adaptations follow from the subject matter. They constrain how the tokens
+Several adaptations follow from the subject matter. They constrain how the tokens
 are applied; they do not redefine them.
 
 **1 · Saturation is reserved for artwork.** Status color keeps its declared

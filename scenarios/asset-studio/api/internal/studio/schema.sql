@@ -51,11 +51,11 @@ CREATE TABLE IF NOT EXISTS studio_assets (
 CREATE TABLE IF NOT EXISTS studio_conformance_verdicts (
   id TEXT PRIMARY KEY,
   asset_id TEXT NOT NULL,
-  identity_version_id TEXT NOT NULL,
+  identity_version_id TEXT,
   actor_id TEXT NOT NULL,
-  actor_kind TEXT NOT NULL CHECK (actor_kind = 'operator'),
+  actor_kind TEXT NOT NULL CHECK (actor_kind IN ('operator','agent')),
   passed INTEGER NOT NULL,
-  basis TEXT NOT NULL CHECK (basis IN ('reference-sheet','reference-image-set','conditioning-artifact','prose-only')),
+  basis TEXT NOT NULL CHECK (basis IN ('reference-sheet','reference-image-set','conditioning-artifact','prose-only','automated-measurement')),
   supersedes_id TEXT,
   created_at TEXT NOT NULL
 );

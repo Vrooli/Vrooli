@@ -7,8 +7,8 @@ is positioned to make: *is this image right for this page?*
 ## The layer boundary
 
 ```
-CONSUMERS   landing-page-business-suite · content-desk · seo-optimizer
-            scenario-to-android · scenario-to-ios (store listing assets)
+CONSUMERS   landing pages · content desk · SEO optimization
+            mobile store listing asset consumers
                           ▲ references a backdrop by stable id (never bytes)
             ──────────────┼──────────────────────────────────────────────
 JUDGEMENT   backdrop-studio
@@ -20,7 +20,7 @@ EXECUTION   image-tools        brand-manager      asset-studio
             inference,         contrast           disclosure, release
             host routing
                           ▼ (transitive — never called directly)
-                    ai-gateway
+                    execution gateway
 ```
 
 ### The rule that decides ownership

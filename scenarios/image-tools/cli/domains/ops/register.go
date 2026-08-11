@@ -45,7 +45,7 @@ func (h *handlers) runCommands() []cliapp.Command {
 			RunCtx:      h.run(name, build),
 		}
 	}
-	return []cliapp.Command{
+	commands := []cliapp.Command{
 		cmd("resize", "Resize an image (fit/fill/stretch)", h.resizeParams,
 			cliapp.Flag{Name: "width", Description: "Target width in px"},
 			cliapp.Flag{Name: "height", Description: "Target height in px"},
@@ -90,6 +90,16 @@ func (h *handlers) runCommands() []cliapp.Command {
 			cliapp.Flag{Name: "filter", Description: "grayscale|sepia|invert|blur|sharpen"},
 			cliapp.Flag{Name: "amount", Description: "Sigma for blur/sharpen"},
 		),
+		cmd("duotone", "Map luminance onto a two- or three-ink ramp", h.duotoneParams,
+			cliapp.Flag{Name: "dark", Description: "Dark ink hex color"}, cliapp.Flag{Name: "light", Description: "Light ink hex color"}, cliapp.Flag{Name: "mid", Description: "Optional mid ink hex color"}, cliapp.Flag{Name: "mid-low", Description: "Mid ink lower luminance band"}, cliapp.Flag{Name: "mid-high", Description: "Mid ink upper luminance band"}),
+		cmd("posterize", "Quantize luminance to fixed levels", h.posterizeParams,
+			cliapp.Flag{Name: "levels", Description: "Number of levels (2-256)"}, cliapp.Flag{Name: "dark", Description: "Dark ink hex color"}, cliapp.Flag{Name: "light", Description: "Light ink hex color"}),
+		cmd("halftone", "Render luminance on a rotated dot screen", h.halftoneParams,
+			cliapp.Flag{Name: "lpi", Description: "Screen cell size in pixels"}, cliapp.Flag{Name: "angle", Description: "Screen angle"}, cliapp.Flag{Name: "dot", Description: "circle|square"}, cliapp.Flag{Name: "dark", Description: "Dark ink hex color"}, cliapp.Flag{Name: "light", Description: "Light ink hex color"}),
+		cmd("dither_ordered", "Apply Bayer ordered dither", h.ditherOrderedParams, cliapp.Flag{Name: "dark", Description: "Dark ink hex color"}, cliapp.Flag{Name: "light", Description: "Light ink hex color"}),
+		cmd("dither_diffusion", "Apply Floyd-Steinberg error diffusion", h.ditherDiffusionParams, cliapp.Flag{Name: "dark", Description: "Dark ink hex color"}, cliapp.Flag{Name: "light", Description: "Light ink hex color"}),
+		cmd("grain", "Add seeded film grain", h.grainParams, cliapp.Flag{Name: "seed", Description: "Deterministic seed"}, cliapp.Flag{Name: "amount", Description: "Noise amount 0..1"}, cliapp.Flag{Name: "contrast-multiplier", Description: "Contrast multiplier"}),
+		cmd("scrim", "Apply a directional contrast scrim", h.scrimParams, cliapp.Flag{Name: "color", Description: "Scrim hex color"}, cliapp.Flag{Name: "opacity", Description: "Maximum opacity 0..1"}, cliapp.Flag{Name: "direction", Description: "top|bottom|left|right"}),
 		cmd("convert", "Convert to another image format", h.convertParams,
 			cliapp.Flag{Name: "format", Description: "png|jpeg|gif|webp|tiff|bmp|avif"},
 			cliapp.Flag{Name: "quality", Description: "Quality 1-100 for lossy formats"},
@@ -115,4 +125,8 @@ func (h *handlers) runCommands() []cliapp.Command {
 			cliapp.Flag{Name: "auto-orient", Bool: true, Description: "Apply EXIF orientation to pixels"},
 		),
 	}
+	for _, name := range []string{"line_screen", "stipple", "engraving", "aberration", "bloom", "curve", "defocus", "motion_blur", "ascii_mosaic", "pixel_sort", "displacement"} {
+		commands = append(commands, cmd(name, "Apply deterministic tier-2 treatment", func(cliapp.RunContext) *opsv1.OpParams { return &opsv1.OpParams{} }))
+	}
+	return commands
 }

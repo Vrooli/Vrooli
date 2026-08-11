@@ -308,8 +308,8 @@ governs how they should look and behave, not which ones exist.
 
 ```bash
 react-component-library components list --json
-react-component-library adoptions resolve-path <component-id> backdrop-studio
-react-component-library adoptions apply <component-id> backdrop-studio <adopted-path>
+react-component-library adoptions resolve-path "<component-id>" backdrop-studio
+react-component-library adoptions apply "<component-id>" backdrop-studio "<adopted-path>"
 ```
 
       If no governed primitive exists, build the scenario-local component

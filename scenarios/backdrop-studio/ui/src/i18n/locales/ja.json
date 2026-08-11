@@ -10,7 +10,7 @@
     "bottomNavLabel": "モバイルナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
-      "notes": "ノート",
+      "workbench": "ワークベンチ",
       "settings": "設定"
     }
   },
@@ -28,8 +28,39 @@
       "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
       "statPlaceholderLabel": "指標"
     },
-    "notes": {
-      "title": "ノート"
+    "workbench": {
+      "title": "Backdrop ワークベンチ",
+      "description": "決定論的なスタイルを確認し、安全な配置領域を調べ、画像バイトをコピーせずにリリースを準備します。",
+      "catalogHeading": "スタータースタイルカタログ",
+      "catalogCaption": "Backdrop Studio スタータースタイル",
+      "styleHeading": "スタイル",
+      "strategyHeading": "戦略",
+      "lineageHeading": "系譜",
+      "state": "オペレーターのレビュー準備完了",
+      "emptyTitle": "リリース済みの背景はまだありません",
+      "emptyDescription": "スタイルを選択して構成プランを解決し、再現可能なレンダーを開始します。",
+      "reviewAction": "構成プランを確認",
+      "contrastLabel": "最小コントラストゲート",
+      "candidateHeading": "候補の判定",
+      "candidateDescription": "リリース前に各候補を単体と宣言されたサーフェスの文脈で確認します。",
+      "standaloneLabel": "単体",
+      "contextLabel": "コンテキスト内",
+      "foregroundLabel": "シナリオの見出し",
+      "candidateOneAlt": "濃い青と暖かい金色で処理したインク・ホライズン候補",
+      "candidateTwoAlt": "紙を重ねたテレイン・リソ候補",
+      "passVerdict": "合格",
+      "failVerdict": "閾値未達",
+      "resolvedPlan": "解決済みプラン",
+      "copyPlan": "プランをコピー",
+      "planCopied": "プランをコピーしました",
+      "altTextLabel": "リリース用代替テキスト",
+      "altTextPlaceholder": "見えない人のために背景を説明してください",
+      "releaseAction": "候補をリリース",
+      "releaseBlocked": "代替テキストを入力するまでリリースできません",
+      "loadingState": "ワークベンチデータを読み込み中",
+      "errorState": "カタログを読み込めません。API が利用できないと報告しました。",
+      "emptyState": "スタイルや候補はまだありません。カタログから始めてください。",
+      "errorRetry": "カタログの読み込みを再試行"
     },
     "settings": {
       "title": "設定",
@@ -49,30 +80,6 @@
   },
   "notifications": {
     "summary": "{{count}} 件の通知"
-  },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "table": {
-      "title": "タイトル",
-      "created": "作成日",
-      "attachments": "添付",
-      "actions": "操作",
-      "search": "ノートを検索"
-    },
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",
