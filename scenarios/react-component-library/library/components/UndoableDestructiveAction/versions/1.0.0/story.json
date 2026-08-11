@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "UndoableDestructiveAction",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Reversible removal",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "button", "name": "Remove Project brief" },
+        { "kind": "text", "value": "You can undo this change" }
+      ]
+    },
+    {
+      "id": "submitting",
+      "name": "Removal in progress",
+      "harness": "Submitting",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "status" },
+        { "kind": "text", "value": "Removing Project brief" }
+      ]
+    },
+    {
+      "id": "success",
+      "name": "Removal complete",
+      "harness": "Success",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "status" },
+        { "kind": "text", "value": "Project brief removed" }
+      ]
+    },
+    {
+      "id": "request-error",
+      "name": "Retryable removal error",
+      "harness": "RequestError",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "alert" },
+        { "kind": "role", "role": "button", "name": "Try again" },
+        { "kind": "text", "value": "workspace service is temporarily unavailable" }
+      ]
+    },
+    {
+      "id": "interactive",
+      "name": "Delete and undo",
+      "harness": "Interactive",
+      "args": {},
+      "interactions": [
+        { "kind": "click", "target": { "role": "button", "name": "Remove Project brief" } },
+        { "kind": "settle" },
+        { "kind": "click", "target": { "role": "button", "name": "Undo" } },
+        { "kind": "settle" }
+      ],
+      "expect": [
+        { "kind": "text", "value": "Project brief restored" }
+      ]
+    }
+  ]
+}

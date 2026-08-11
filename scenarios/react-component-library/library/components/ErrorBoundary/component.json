@@ -1,0 +1,23 @@
+{
+  "libraryId": "react-component-library:ErrorBoundary",
+  "catalogId": "feedback.error-boundary",
+  "displayName": "ErrorBoundary",
+  "description": "A recoverable render boundary that preserves product context while exposing honest recovery and safe diagnostics.",
+  "assetKind": "component",
+  "tags": [
+    "feedback",
+    "recovery",
+    "resilience",
+    "accessibility",
+    "token-bound"
+  ],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:ErrorState", "version": "1.0.0" }
+  ]
+}

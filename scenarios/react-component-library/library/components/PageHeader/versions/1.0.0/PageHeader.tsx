@@ -1,6 +1,15 @@
 /** @vrooliComponentSource react-component-library:PageHeader */
 import type { ReactNode } from "react";
-const muted = { color: "var(--color-muted-foreground, #64748b)" };
+
+const pageHeaderStyles = `
+[data-rcl-page-header] { display: flex; align-items: end; justify-content: space-between; gap: var(--space-sm); border-block-end: var(--border-hairline) solid var(--color-border); padding-block: var(--space-xs) var(--space-sm); }
+[data-rcl-page-header-copy] { min-inline-size: 0; }
+[data-rcl-page-header] h1 { margin: 0; color: var(--color-foreground); font: var(--text-heading-lg); letter-spacing: var(--tracking-tight); }
+[data-rcl-page-header] p { max-inline-size: 52ch; margin: var(--space-3xs) 0 0; color: var(--color-muted-foreground); font: var(--text-body-sm); }
+[data-rcl-page-header-actions] { display: flex; flex-wrap: wrap; align-items: center; justify-content: end; gap: var(--space-2xs); }
+@media (max-width: 48rem) { [data-rcl-page-header] { align-items: start; flex-direction: column; } [data-rcl-page-header-actions] { inline-size: 100%; justify-content: start; } }
+`;
+
 export function PageHeader({
   title = "Page",
   description,
@@ -11,25 +20,18 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header
-      style={{
-        display: "flex",
-        alignItems: "end",
-        justifyContent: "space-between",
-        gap: 24,
-        flexWrap: "wrap",
-        paddingBottom: 16,
-      }}
-    >
-      <div>
-        <h1 style={{ margin: 0, fontSize: 24, letterSpacing: "-.025em" }}>
-          {title}
-        </h1>
-        {description && (
-          <p style={{ ...muted, margin: "8px 0 0" }}>{description}</p>
-        )}
-      </div>
-      {actions && <div style={{ display: "flex", gap: 8 }}>{actions}</div>}
-    </header>
+    <>
+      <style
+        data-rcl-page-header-styles
+        dangerouslySetInnerHTML={{ __html: pageHeaderStyles }}
+      />
+      <header data-rcl-page-header>
+        <div data-rcl-page-header-copy>
+          <h1>{title}</h1>
+          {description ? <p>{description}</p> : null}
+        </div>
+        {actions ? <div data-rcl-page-header-actions>{actions}</div> : null}
+      </header>
+    </>
   );
 }

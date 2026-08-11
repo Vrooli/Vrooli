@@ -113,12 +113,17 @@ type StoryInteraction struct {
 }
 
 type StoryExpectation struct {
-	Kind      string `json:"kind"`
-	Role      string `json:"role,omitempty"`
-	Name      string `json:"name,omitempty"`
-	Value     string `json:"value,omitempty"`
-	Selector  string `json:"selector,omitempty"`
-	Attribute string `json:"attribute,omitempty"`
+	Kind       string `json:"kind"`
+	Role       string `json:"role,omitempty"`
+	Name       string `json:"name,omitempty"`
+	Value      string `json:"value,omitempty"`
+	Selector   string `json:"selector,omitempty"`
+	Attribute  string `json:"attribute,omitempty"`
+	MinWidth   *int   `json:"minWidth,omitempty"`
+	MinHeight  *int   `json:"minHeight,omitempty"`
+	MaxWidth   *int   `json:"maxWidth,omitempty"`
+	MaxHeight  *int   `json:"maxHeight,omitempty"`
+	NoOverflow bool   `json:"noOverflow,omitempty"`
 }
 
 type StoryDiagnostic struct {
@@ -632,7 +637,7 @@ func validateStoryInteraction(pointer string, assetKind StoryKind, interaction S
 }
 
 func allowedExpectation(kind string) bool {
-	return map[string]bool{"role": true, "text": true, "attribute": true, "visible": true, "notVisible": true}[kind]
+	return map[string]bool{"role": true, "text": true, "attribute": true, "visible": true, "notVisible": true, "layout": true}[kind]
 }
 
 func isJSONScalar(raw json.RawMessage) bool {

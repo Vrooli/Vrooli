@@ -1,0 +1,1 @@
+{"schemaVersion":2,"kind":"hook","title":"useHover","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Hover intent","harness":"Default","args":{},"expect":[{"kind":"role","role":"button","name":"Hover or focus preview"},{"kind":"text","value":"Touch and pen pointers never open this surface from hover"}]}]}

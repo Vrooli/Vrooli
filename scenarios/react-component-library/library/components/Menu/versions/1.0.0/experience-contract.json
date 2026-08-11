@@ -1,12 +1,40 @@
 {
-  "contract": { "kind": "rcl-component-experience-contract", "schema": "scenario-experience-spec/v1", "provenance": "react-component-library:Menu@1.0.0" },
-  "component": { "id": "overlays.menu", "title": "Menu", "purpose": "Expose contextual commands with dependable keyboard and pointer semantics." },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Menu@1.0.0"
+  },
+  "component": {
+    "id": "overlays.menu",
+    "title": "Menu",
+    "purpose": "Expose contextual commands with dependable keyboard and pointer semantics."
+  },
   "states": [
-    { "id": "default", "example": "default", "description": "Open menu with command, checkbox, radio, separator, disabled, and shortcut items." },
-    { "id": "interactive", "example": "interactive", "description": "The menu opens, moves focus, and dismisses while restoring the trigger." }
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Open menu with command, checkbox, radio, separator, disabled, and shortcut items."
+    },
+    {
+      "id": "interactive",
+      "example": "interactive",
+      "description": "The menu opens, moves focus, and dismisses while restoring the trigger."
+    }
   ],
   "claims": [
-    { "id": "keyboard", "type": "custom", "statement": "Roving focus, Home/End, typeahead, Escape, and semantic item roles are wired through the menu surface.", "tier": "machine", "states": ["default", "interactive"] },
-    { "id": "dark-parity", "type": "visual", "statement": "The anchored surface maintains contrast and focus visibility in dark kits.", "tier": "manual", "states": ["default"] }
+    {
+      "id": "keyboard",
+      "type": "custom",
+      "statement": "Roving focus, Home/End, typeahead, Escape, and semantic item roles are wired through the menu surface.",
+      "tier": "machine",
+      "states": ["default", "interactive"]
+    },
+    {
+      "id": "dark-parity",
+      "type": "visual",
+      "statement": "The anchored surface maintains contrast and focus visibility in dark kits.",
+      "tier": "manual",
+      "states": ["default"]
+    }
   ]
 }

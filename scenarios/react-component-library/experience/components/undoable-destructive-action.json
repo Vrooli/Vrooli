@@ -1,0 +1,50 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:UndoableDestructiveAction@1.0.0"
+  },
+  "component": {
+    "id": "patterns.undoable-destructive-action",
+    "title": "UndoableDestructiveAction",
+    "purpose": "Make destructive work forgiving through immediate completion and a visible recovery path."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Reversible removal is clearly explained and keyboard-operable."
+    },
+    {
+      "id": "submitting",
+      "example": "submitting",
+      "description": "The request is in flight without duplicate submission."
+    },
+    {
+      "id": "success",
+      "example": "success",
+      "description": "Removal completed with clear closure."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "Failure includes a useful retry path."
+    }
+  ],
+  "claims": [
+    {
+      "id": "recovery",
+      "type": "custom",
+      "statement": "Reversible removal exposes an explicit, time-bounded undo path.",
+      "tier": "machine",
+      "states": ["default", "success"]
+    },
+    {
+      "id": "responsive",
+      "type": "responsive",
+      "statement": "Action controls become full-width on narrow viewports without clipping content.",
+      "tier": "manual",
+      "states": ["default", "request-error"]
+    }
+  ]
+}

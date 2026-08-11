@@ -518,6 +518,40 @@ async function assertStoryExpectations(frame, name, expectations) {
         );
       continue;
     }
+    if (expectation.kind === "layout") {
+      const target = frame.locator(expectation.selector).first();
+      await target.waitFor({ state: "visible", timeout: 10_000 });
+      const metrics = await target.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          width: rect.width,
+          height: rect.height,
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+        };
+      });
+      if (expectation.minWidth !== undefined && metrics.width < Number(expectation.minWidth))
+        throw new Error(
+          `story ${name} expected ${expectation.selector} width >= ${expectation.minWidth}, got ${metrics.width}`,
+        );
+      if (expectation.minHeight !== undefined && metrics.height < Number(expectation.minHeight))
+        throw new Error(
+          `story ${name} expected ${expectation.selector} height >= ${expectation.minHeight}, got ${metrics.height}`,
+        );
+      if (expectation.maxWidth !== undefined && metrics.width > Number(expectation.maxWidth))
+        throw new Error(
+          `story ${name} expected ${expectation.selector} width <= ${expectation.maxWidth}, got ${metrics.width}`,
+        );
+      if (expectation.maxHeight !== undefined && metrics.height > Number(expectation.maxHeight))
+        throw new Error(
+          `story ${name} expected ${expectation.selector} height <= ${expectation.maxHeight}, got ${metrics.height}`,
+        );
+      if (expectation.noOverflow && metrics.scrollWidth > metrics.clientWidth + 1)
+        throw new Error(
+          `story ${name} expected ${expectation.selector} not to overflow horizontally: scrollWidth=${metrics.scrollWidth}, clientWidth=${metrics.clientWidth}`,
+        );
+      continue;
+    }
     throw new Error(
       `story ${name} has unsupported browser expectation kind ${String(expectation.kind)}`,
     );
@@ -556,7 +590,12 @@ async function assertAssetPreview(page, componentID, target = {}) {
     // The catalog's persistent asset navigator lives alongside the main
     // workspace, not inside it. Constraining this lookup to app-main made the
     // runtime gate falsely fail for every valid catalog item.
-    const assetLink = page.locator(`a[href="${assetPath}"]`).first();
+    // The responsive shell keeps both desktop and mobile catalog navigators in
+    // the DOM. The first matching link can therefore be intentionally hidden
+    // at the desktop capture width; select the visible route affordance so a
+    // focused component run exercises the same navigation contract as the
+    // catalog-scale sweep.
+    const assetLink = page.locator(`a[href="${assetPath}"]:visible`).first();
     await assetLink.waitFor({ state: "visible", timeout: 15_000 });
     await assetLink.click();
     await page

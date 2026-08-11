@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "componentId": "react-component-library:EmptyState",
+  "version": "1.2.0",
+  "states": ["no-content", "with-action", "compact"],
+  "behaviors": [
+    {
+      "id": "hierarchy",
+      "description": "The empty state presents a clear title, optional explanation, icon cue, and next action without changing the consumer's content contract."
+    },
+    {
+      "id": "native-action-fallback",
+      "description": "Plain native buttons and links receive a token-backed action treatment while governed control primitives keep their own visual contract."
+    },
+    {
+      "id": "responsive-action",
+      "description": "The action becomes a full-width touch target on narrow viewports without changing the surrounding content order."
+    }
+  ],
+  "accessibility": [
+    "section labelling",
+    "text-first status cue",
+    "focus-visible",
+    "forced colors",
+    "reduced motion"
+  ]
+}

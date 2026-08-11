@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "DataTable",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Resource collection",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        { "kind": "text", "value": "Search rows" },
+        { "kind": "text", "value": "6 results" }
+      ],
+      "interactions": [{ "kind": "settle" }]
+    },
+    {
+      "id": "refreshing",
+      "name": "Refreshing",
+      "harness": "Refreshing",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "status" },
+        { "kind": "text", "value": "Checking 6 resources for changes" }
+      ],
+      "interactions": [{ "kind": "settle" }]
+    },
+    {
+      "id": "partial",
+      "name": "Partial degradation",
+      "harness": "Partial",
+      "args": {},
+      "expect": [
+        { "kind": "text", "value": "Two resources could not be refreshed" }
+      ],
+      "interactions": [{ "kind": "settle" }]
+    },
+    {
+      "id": "empty",
+      "name": "Empty collection",
+      "harness": "Empty",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "status" },
+        { "kind": "text", "value": "No resources match" }
+      ],
+      "interactions": [{ "kind": "settle" }]
+    },
+    {
+      "id": "request-error",
+      "name": "Retry recovery",
+      "harness": "RequestError",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "alert" },
+        { "kind": "role", "role": "button", "name": "Try again" },
+        { "kind": "text", "value": "filters are still here" }
+      ],
+      "interactions": [{ "kind": "settle" }]
+    },
+    {
+      "id": "permission-denied",
+      "name": "Permission denied",
+      "harness": "PermissionDenied",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "status" },
+        { "kind": "text", "value": "Ask a workspace administrator" }
+      ],
+      "interactions": [{ "kind": "settle" }]
+    }
+  ]
+}

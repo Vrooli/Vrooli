@@ -189,6 +189,9 @@ func (f *FakeRepository) List(ctx context.Context, q components.SearchQuery) ([]
 		if q.AssetKind.Valid() && c.AssetKind != q.AssetKind {
 			continue
 		}
+		if !q.AssetKind.Valid() && c.AssetKind == components.AssetKindFoundation {
+			continue
+		}
 		if matchL != "" {
 			hay := strings.ToLower(c.LibraryID + " " + c.DisplayName + " " + c.Description + " " + c.Slot + " " + c.SourcePath)
 			if !strings.Contains(hay, matchL) {

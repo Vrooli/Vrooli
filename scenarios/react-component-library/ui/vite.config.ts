@@ -8,10 +8,6 @@ const rootDir = dirname(fileURLToPath(import.meta.url));
 const packageAlias = {
   react: resolve(rootDir, "node_modules/react"),
   "lucide-react": resolve(rootDir, "node_modules/lucide-react"),
-  // Generated proto modules are TypeScript source files. Resolve the local
-  // package directory directly so Vite/Vitest can follow its extensionless
-  // generated subpath imports (for example `.../deps/deps_pb`).
-  "@vrooli/proto-types": resolve(rootDir, "../../../packages/proto/gen/typescript"),
 };
 const protoRuntimeAliases = [
   { find: /^@bufbuild\/protobuf\/codegenv2$/, replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/codegenv2/index.js") },

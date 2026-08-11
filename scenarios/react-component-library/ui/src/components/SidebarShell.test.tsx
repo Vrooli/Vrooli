@@ -48,11 +48,8 @@ describe("SidebarShell", () => {
     expect(shell).toHaveAttribute("role", "dialog");
     expect(shell).toHaveAttribute("aria-modal", "true");
     expect(shell).toHaveAttribute("aria-label", "Navigation drawer");
-    expect(shell.className).toContain("w-full");
-    expect(shell.className).toContain("max-w-none");
-    expect(shell.className).toContain("h-dvh");
-    expect(shell.className).toContain("pt-safe");
-    expect(shell.className).toContain("pb-safe");
+    expect(shell).toHaveAttribute("data-mode", "responsive");
+    expect(shell).toHaveAttribute("data-open", "true");
     expect(screen.getByTestId("mobile-shell-title")).toBeInTheDocument();
   });
 
@@ -117,11 +114,8 @@ describe("SidebarShell", () => {
     const shell = screen.getByTestId("sidebar-shell");
     expect(shell).toHaveAttribute("data-mode", "overlay");
     expect(shell).toHaveAttribute("role", "dialog");
-    expect(shell.className).toContain("fixed");
-    expect(shell.className).toContain("w-full");
-    expect(shell.className).toContain("pt-safe");
-    expect(shell.className).not.toContain("md:relative");
-    expect(screen.getByTestId("sidebar-shell-backdrop").className).not.toContain("md:hidden");
+    expect(shell).toHaveAttribute("data-open", "true");
+    expect(screen.getByTestId("sidebar-shell-backdrop")).toHaveAttribute("data-mode", "overlay");
     expect(screen.getByTestId("mobile-shell-title")).toBeInTheDocument();
   });
 
@@ -149,12 +143,31 @@ describe("SidebarShell", () => {
     expect(shell).toHaveAttribute("aria-label", "Primary navigation");
     expect(shell).not.toHaveAttribute("aria-modal");
     expect(shell).toHaveStyle({ width: "360px" });
-    expect(shell.className).toContain("relative");
     expect(screen.queryByTestId("sidebar-shell-backdrop")).not.toBeInTheDocument();
     expect(screen.queryByTestId("sidebar-shell-close")).not.toBeInTheDocument();
     expect(screen.getByTestId("sidebar-shell-resize-handle").className).not.toContain("md:block");
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onMobileClose).not.toHaveBeenCalled();
+  });
+
+  it("declares the responsive desktop override that keeps a closed drawer visible", () => {
+    renderWithProviders(
+      <SidebarShell
+        mobileOpen={false}
+        onMobileClose={() => {}}
+        mobileLabel="Navigation drawer"
+        desktopLabel="Primary navigation"
+        closeLabel="Close navigation"
+      >
+        <nav />
+      </SidebarShell>,
+    );
+
+    const styles = document.querySelector("[data-rcl-sidebar-shell-styles]");
+    expect(styles?.textContent).toContain(
+      '[data-rcl-sidebar-shell][data-mode="responsive"][data-open="false"]',
+    );
+    expect(styles?.textContent).toContain("visibility: visible");
   });
 });

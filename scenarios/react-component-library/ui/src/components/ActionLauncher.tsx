@@ -80,12 +80,14 @@ export function ActionLauncher({
   action,
   onActionChange,
   onCreate,
+  showTrigger = true,
   initialAssetID = "",
   initialTarget = "",
 }: {
   action: LauncherAction;
   onActionChange: (action: LauncherAction) => void;
   onCreate: () => void;
+  showTrigger?: boolean;
   initialAssetID?: string;
   initialTarget?: string;
 }) {
@@ -171,15 +173,22 @@ export function ActionLauncher({
 
   return (
     <>
-      <Button
-        type="button"
-        data-testid="launcher-open"
-        aria-label={t("launcher.open", { defaultValue: "Open main actions" })}
-        onClick={() => onActionChange("menu")}
-        className="fixed bottom-6 end-6 z-40 h-14 w-14 rounded-full p-0 shadow-lg"
-      >
-        <Plus aria-hidden className="h-6 w-6" />
-      </Button>
+      {showTrigger && (
+        <Button
+          type="button"
+          data-testid="launcher-open"
+          aria-label={t("launcher.open", { defaultValue: "Open main actions" })}
+          onClick={() => onActionChange("menu")}
+          size="icon"
+          shape="pill"
+          className="fixed bottom-6 end-6 z-40 h-14 w-14 rounded-full p-0 shadow-lg"
+          style={{
+            insetBlockEnd: "calc(var(--space-md) + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
+          <Plus aria-hidden className="h-6 w-6" />
+        </Button>
+      )}
       <Dialog
         open={action === "menu"}
         onClose={close}
@@ -250,6 +259,7 @@ export function ActionLauncher({
           <label>
             {t("catalog.sourcePath", { defaultValue: "Source path" })}
             <Input
+              aria-label={t("catalog.sourcePath", { defaultValue: "Source path" })}
               required
               value={sourcePath}
               onChange={(event) => setSourcePath(event.target.value)}

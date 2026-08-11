@@ -2,10 +2,22 @@
   "libraryId": "react-component-library:ResourceDetail",
   "catalogId": "patterns.resource-detail",
   "displayName": "ResourceDetail",
-  "description": "A route-safe resource identity, metadata, and history composition.",
+  "description": "A route-safe resource identity, metadata, history, freshness, permission, and recovery composition.",
   "assetKind": "component",
   "tags": ["pattern", "data-source", "token-bound"],
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:PageHeader", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:DescriptionList",
+      "version": "1.0.0"
+    },
+    { "libraryId": "react-component-library:AuditTrail", "version": "1.0.0" },
+    { "libraryId": "react-component-library:AsyncBoundary", "version": "1.0.0" }
+  ]
 }

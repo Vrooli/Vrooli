@@ -9,6 +9,7 @@
  */
 import type { MouseEvent, ReactNode } from "react";
 import { useCodeCopy } from "./useCodeCopy";
+import { inlineCodeStyles } from "./styles";
 
 export interface InlineTokenResolution {
   href: string;
@@ -40,16 +41,16 @@ export function InlineCode({
   const resolution = resolveInlineToken?.(text);
   const isFile = !resolution && looksLikeFileReference?.(text);
   const { copied, copy } = useCodeCopy();
-  const tokenClass =
-    "rounded bg-[var(--markdown-code-surface)] [padding-inline:var(--space-3xs)] [padding-block:var(--space-3xs)] font-mono text-[var(--markdown-code-text)]";
+  const tokenClass = "rcl-inline__token";
 
   if (resolution)
     return (
       <a
         href={resolution.href}
+        data-rcl-inline
         data-entity-ref={resolution.kind === "entity" ? "true" : undefined}
         onClick={(event) => onLinkClick?.(resolution.href, event)}
-        className={`${tokenClass} text-[var(--markdown-link)] underline`}
+        className={`${tokenClass} rcl-inline__link`}
       >
         {text}
       </a>
@@ -58,20 +59,25 @@ export function InlineCode({
     return (
       <button
         type="button"
+        data-rcl-inline
         onClick={() => onFileReferenceClick?.(text)}
-        className={`${tokenClass} text-[var(--markdown-link)] hover:opacity-80`}
+        className={`${tokenClass} rcl-inline__link`}
       >
         {text}
       </button>
     );
   return (
-    <span className="group relative inline-flex items-center">
+    <span className="rcl-inline" data-rcl-inline>
+      <style
+        data-rcl-inline-styles
+        dangerouslySetInnerHTML={{ __html: inlineCodeStyles }}
+      />
       <code className={tokenClass}>{text}</code>
       <button
         type="button"
         aria-label={copyLabel}
         onClick={() => void copy(text)}
-        className="[margin-inline-start:var(--space-3xs)] hidden rounded [padding-inline:var(--space-3xs)] [font-size:var(--text-caption-size)] text-[var(--markdown-muted)] group-hover:inline hover:opacity-80"
+        className="rcl-inline__copy"
       >
         {copied ? "Copied" : "Copy"}
       </button>

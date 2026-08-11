@@ -10,6 +10,7 @@
 import { useState } from "react";
 import { useCodeCopy } from "./useCodeCopy";
 import { useMermaidSvg } from "./useMermaidSvg";
+import { markdownStyles } from "./markdownStyles";
 
 export interface MermaidDiagramProps {
   code: string;
@@ -32,9 +33,13 @@ export function MermaidDiagram({
   const { svg, error, loading } = useMermaidSvg(code);
   const { copied, copy } = useCodeCopy();
   return (
-    <section className="my-3 overflow-x-auto rounded border border-[var(--markdown-border)] bg-[var(--markdown-code-surface)]">
-      <header className="flex items-center justify-between gap-2 border-b border-[var(--markdown-border)] px-3 py-2 text-xs text-[var(--markdown-muted)]">
-        <div className="flex gap-2">
+    <section className="rcl-md__diagram" data-rcl-markdown>
+      <style
+        data-rcl-markdown-styles
+        dangerouslySetInnerHTML={{ __html: markdownStyles }}
+      />
+      <header className="rcl-md__diagram-header">
+        <div className="rcl-md__diagram-tabs">
           <button
             type="button"
             aria-pressed={!showSource}
@@ -50,7 +55,7 @@ export function MermaidDiagram({
             {sourceLabel}
           </button>
         </div>
-        <div className="flex gap-2">
+        <div className="rcl-md__diagram-actions">
           <button type="button" onClick={() => void copy(code)}>
             {copied ? "Copied" : copyLabel}
           </button>
@@ -58,7 +63,7 @@ export function MermaidDiagram({
             <button
               type="button"
               onClick={() => onMermaidOpen(code)}
-              className="text-[var(--markdown-link)]"
+              className="rcl-md__link"
             >
               {openLabel}
             </button>
@@ -66,25 +71,19 @@ export function MermaidDiagram({
         </div>
       </header>
       {showSource ? (
-        <pre className="p-3 text-xs text-[var(--markdown-code-text)]">
-          {code}
-        </pre>
+        <pre className="rcl-md__diagram-body">{code}</pre>
       ) : error ? (
         <>
-          <p role="alert" className="p-3 text-xs text-[var(--markdown-error)]">
+          <p role="alert" className="rcl-md__error">
             {error}
           </p>
-          <pre className="p-3 text-xs text-[var(--markdown-code-text)]">
-            {code}
-          </pre>
+          <pre className="rcl-md__diagram-body">{code}</pre>
         </>
       ) : loading ? (
-        <p className="p-3 text-xs text-[var(--markdown-muted)]">
-          Rendering diagram…
-        </p>
+        <p className="rcl-md__diagram-body">Rendering diagram…</p>
       ) : (
         <div
-          className="p-3 [&>svg]:max-w-full"
+          className="rcl-md__diagram-body"
           dangerouslySetInnerHTML={{ __html: svg ?? "" }}
         />
       )}

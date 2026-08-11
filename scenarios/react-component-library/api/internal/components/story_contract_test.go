@@ -121,6 +121,23 @@ func TestParseStoryContractValidatesOneAssetLevelSchema(t *testing.T) {
 	}
 }
 
+func TestParseStoryContractSupportsLayoutExpectations(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 3,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id":"layout","name":"Layout","args":{},"expect":[{"kind":"layout","selector":"[data-shell]","minWidth":240,"minHeight":160,"noOverflow":true}]}]
+}`))
+	if len(diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", diagnostics)
+	}
+	expectation := contract.Stories[0].Expect[0]
+	if expectation.Kind != "layout" || expectation.MinWidth == nil || *expectation.MinWidth != 240 || !expectation.NoOverflow {
+		t.Fatalf("layout expectation = %#v", expectation)
+	}
+}
+
 func TestParseStoryContractRejectsUnsafeAndLegacyStyleInput(t *testing.T) {
 	_, diagnostics := ParseStoryContract([]byte(`{
   "schemaVersion": 1,

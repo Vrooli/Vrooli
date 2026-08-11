@@ -77,7 +77,7 @@ describe("AppShell", () => {
     );
     await user.click(screen.getByTestId("sidebar-collapse"));
     expect(screen.getByTestId("workspace-header-open-sidebar")).toBeInTheDocument();
-    expect(screen.getByTestId("sidebar-shell").className).toContain("md:!hidden");
+    expect(screen.getByTestId("sidebar-shell")).toHaveAttribute("data-mode", "overlay");
     await user.click(screen.getByTestId("workspace-header-open-sidebar"));
     expect(screen.queryByTestId("workspace-header-open-sidebar")).not.toBeInTheDocument();
   });
@@ -92,10 +92,26 @@ describe("AppShell", () => {
       { routerEntries: ["/assets/cmp-1"] },
     );
 
-    const main = screen.getByTestId("app-main");
-    expect(main.className).toContain("p-0");
+    const shell = screen.getByTestId("app-shell");
+    const main = screen.getByRole("main");
+    expect(shell).toHaveAttribute("data-main-mode", "flush");
     expect(main.className).toContain("flex-col");
     expect(main.className).toContain("w-full");
+  });
+
+  it("keeps catalog content full-width inside the vertical workspace column", () => {
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>catalog</div>} />
+        </Route>
+      </Routes>,
+      { routerEntries: ["/"] },
+    );
+
+    const main = screen.getByRole("main");
+    expect(main.className).toContain("w-full");
+    expect(main.classList.contains("w-0")).toBe(false);
   });
 
   it("renders the mobile sidebar branch when the media query matches", () => {
@@ -134,9 +150,8 @@ describe("AppShell", () => {
 
     const shell = screen.getByTestId("sidebar-shell");
     expect(shell).toHaveAttribute("role", "dialog");
-    expect(shell.className).toContain("w-full");
-    expect(shell.className).toContain("pt-safe");
-    expect(shell.className).toContain("pb-safe");
+    expect(shell).toHaveAttribute("data-mode", "responsive");
+    expect(shell).toHaveAttribute("data-open", "true");
     expect(screen.getByTestId("sidebar-shell-backdrop")).toBeInTheDocument();
   });
 

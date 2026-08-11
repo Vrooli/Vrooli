@@ -45,6 +45,25 @@ export type ColorPickerProps = {
 
 const fallbackColor = "#4dabf7";
 
+const styles = `
+[data-rcl-color-picker] { display: grid; gap: var(--space-sm); min-inline-size: 0; color: var(--color-foreground); }
+[data-rcl-color-picker-heading] { margin: 0; color: var(--color-muted-foreground); font: var(--text-overline); letter-spacing: .08em; text-transform: uppercase; }
+[data-rcl-color-picker-row] { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-xs); min-inline-size: 0; }
+[data-rcl-color-picker-swatch], [data-rcl-color-picker-slot], [data-rcl-color-picker-custom], [data-rcl-color-picker-transparent], [data-rcl-color-picker-remove] { position: relative; display: inline-grid; place-items: center; flex: 0 0 auto; inline-size: var(--tap-target-min); block-size: var(--tap-target-min); box-sizing: border-box; border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-foreground); cursor: pointer; transition: transform var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard); }
+[data-rcl-color-picker-swatch]:hover, [data-rcl-color-picker-slot]:hover, [data-rcl-color-picker-custom]:hover, [data-rcl-color-picker-transparent]:hover, [data-rcl-color-picker-remove]:hover { transform: translateY(-1px); box-shadow: var(--elev-raised); }
+[data-rcl-color-picker-swatch]:active, [data-rcl-color-picker-slot]:active, [data-rcl-color-picker-custom]:active, [data-rcl-color-picker-transparent]:active, [data-rcl-color-picker-remove]:active { transform: translateY(0) scale(.97); }
+[data-rcl-color-picker-swatch][data-selected="true"], [data-rcl-color-picker-slot][aria-pressed="true"], [data-rcl-color-picker-transparent][aria-pressed="true"], [data-rcl-color-picker-custom][data-selected="true"] { border-color: var(--color-primary); box-shadow: 0 0 0 var(--space-3xs) color-mix(in srgb, var(--color-primary) 30%, transparent); }
+[data-rcl-color-picker] button:focus-visible, [data-rcl-color-picker-custom]:focus-within { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 3px; }
+[data-rcl-color-picker-add] { display: inline-flex; align-items: center; gap: var(--space-3xs); min-block-size: var(--tap-target-min); border: var(--border-hairline) dashed var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-foreground); padding-inline: var(--space-xs); font: var(--text-label); cursor: pointer; }
+[data-rcl-color-picker-mark] { inline-size: var(--space-sm); block-size: var(--space-sm); }
+[data-rcl-color-picker-input] { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; cursor: pointer; opacity: 0; }
+[data-rcl-color-picker-recents] { display: grid; gap: var(--space-2xs); }
+[data-rcl-color-picker-recents] p { margin: 0; color: var(--color-muted-foreground); font: var(--text-caption); }
+[data-rcl-color-picker] [data-rcl-color-picker-swatch][data-selected="false"] { box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { [data-rcl-color-picker] *, [data-rcl-color-picker] *::before, [data-rcl-color-picker] *::after { transition-duration: .01ms; } }
+@media (forced-colors: active) { [data-rcl-color-picker-swatch], [data-rcl-color-picker-slot], [data-rcl-color-picker-custom], [data-rcl-color-picker-transparent], [data-rcl-color-picker-remove], [data-rcl-color-picker-add] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-color-picker-swatch][data-selected="true"], [data-rcl-color-picker-slot][aria-pressed="true"], [data-rcl-color-picker-transparent][aria-pressed="true"] { border-color: Highlight; } }
+`;
+
 export default function ColorPicker({
   palette,
   value,
@@ -77,7 +96,12 @@ export default function ColorPicker({
   const mark = (color?: string) => (
     <CheckIcon
       aria-hidden
-      className={`h-3.5 w-3.5 ${isLightColor(color) ? "text-app-foreground" : "text-app-background"}`}
+      data-rcl-color-picker-mark
+      style={{
+        color: isLightColor(color)
+          ? "var(--color-foreground)"
+          : "var(--color-background)",
+      }}
     />
   );
   const swatch = (color: string, suffix: string) => (
@@ -85,7 +109,8 @@ export default function ColorPicker({
       key={suffix}
       type="button"
       data-testid={`${testIdPrefix}-${suffix}`}
-      className={`flex h-8 w-8 items-center justify-center rounded-full border transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-primary ${selected(color) ? "border-app-primary ring-2 ring-app-primary/50" : "border-app-border hover:ring-1 hover:ring-app-muted-foreground"}`}
+      data-rcl-color-picker-swatch
+      data-selected={selected(color)}
       style={{ backgroundColor: color }}
       onClick={() => choose(color)}
       title={color}
@@ -97,20 +122,22 @@ export default function ColorPicker({
   );
   return (
     <section
-      className="space-y-2"
+      data-rcl-color-picker
       aria-label={labels.heading ?? "Color picker"}
     >
+      <style
+        data-rcl-color-picker-styles
+        dangerouslySetInnerHTML={{ __html: styles }}
+      />
       {labels.heading ? (
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-app-muted-foreground">
-          {labels.heading}
-        </h3>
+        <h3 data-rcl-color-picker-heading>{labels.heading}</h3>
       ) : null}
       {allowGradient ? (
-        <div className="flex items-center gap-1.5">
+        <div data-rcl-color-picker-row>
           <button
             type="button"
             data-testid={`${testIdPrefix}-slot-0`}
-            className="h-8 w-8 rounded-md border border-app-border"
+            data-rcl-color-picker-slot
             style={colors[0] ? { backgroundColor: colors[0] } : undefined}
             onClick={() => setActiveSlot(0)}
             aria-label={labels.primary ?? labels.heading ?? "Color picker"}
@@ -121,7 +148,7 @@ export default function ColorPicker({
               <button
                 type="button"
                 data-testid={`${testIdPrefix}-slot-1`}
-                className="h-8 w-8 rounded-md border border-app-border"
+                data-rcl-color-picker-slot
                 style={colors[1] ? { backgroundColor: colors[1] } : undefined}
                 onClick={() => setActiveSlot(1)}
                 aria-label={
@@ -132,34 +159,35 @@ export default function ColorPicker({
               <button
                 type="button"
                 data-testid={`${testIdPrefix}-remove-gradient`}
-                className="flex h-8 w-8 items-center justify-center rounded border border-app-border"
+                data-rcl-color-picker-remove
                 onClick={() => {
                   setActiveSlot(0);
                   onChange(serializeColorValue(colors.slice(0, 1)));
                 }}
                 aria-label={labels.removeGradient ?? "Remove gradient"}
               >
-                <RemoveIcon aria-hidden className="h-4 w-4" />
+                <RemoveIcon aria-hidden data-rcl-color-picker-mark />
               </button>
             </>
           ) : (
             <button
               type="button"
               data-testid={`${testIdPrefix}-add-gradient`}
-              className="flex h-8 items-center gap-1 rounded border border-dashed border-app-border px-2 text-xs"
+              data-rcl-color-picker-add
               onClick={() => setActiveSlot(1)}
             >
-              <AddIcon aria-hidden className="h-3.5 w-3.5" />
+              <AddIcon aria-hidden data-rcl-color-picker-mark />
               {labels.addGradient ?? "Add gradient"}
             </button>
           )}
         </div>
       ) : null}
-      <div className="flex flex-wrap gap-2">
+      <div data-rcl-color-picker-row>
         <button
           type="button"
           data-testid={`${testIdPrefix}-transparent`}
-          className={`flex h-8 w-8 items-center justify-center rounded-full border ${transparent ? "border-app-primary ring-2 ring-app-primary/50" : "border-app-border"}`}
+          data-rcl-color-picker-transparent
+          data-selected={transparent}
           onClick={() => {
             setActiveSlot(0);
             onChange("transparent");
@@ -172,7 +200,10 @@ export default function ColorPicker({
         {palette.map((color) => swatch(color, `palette-${color}`))}
         <label
           data-testid={`${testIdPrefix}-custom`}
-          className={`relative flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-app-border ${isHexColor(activeColor) && !palette.includes(activeColor) ? "ring-2 ring-app-primary/50" : ""}`}
+          data-rcl-color-picker-custom
+          data-selected={
+            isHexColor(activeColor) && !palette.includes(activeColor)
+          }
           style={
             isHexColor(activeColor) && !palette.includes(activeColor)
               ? { backgroundColor: activeColor }
@@ -185,13 +216,14 @@ export default function ColorPicker({
           ) : (
             <CustomIcon
               aria-hidden
-              className="h-4 w-4 text-app-muted-foreground"
+              data-rcl-color-picker-mark
+              style={{ color: "var(--color-muted-foreground)" }}
             />
           )}
           <input
             type="color"
             data-testid={`${testIdPrefix}-custom-input`}
-            className="absolute inset-0 cursor-pointer opacity-0"
+            data-rcl-color-picker-input
             value={customColor}
             onChange={(event) => {
               choose(event.target.value, false);
@@ -203,11 +235,12 @@ export default function ColorPicker({
         </label>
       </div>
       {recentColors.length ? (
-        <div data-testid={`${testIdPrefix}-recents`}>
-          <p className="mb-1 text-xs font-medium text-app-muted-foreground">
-            {labels.recents ?? "Recent colors"}
-          </p>
-          <div className="flex flex-wrap gap-2">
+        <div
+          data-testid={`${testIdPrefix}-recents`}
+          data-rcl-color-picker-recents
+        >
+          <p>{labels.recents ?? "Recent colors"}</p>
+          <div data-rcl-color-picker-row>
             {recentColors.map((color) => swatch(color, `recent-${color}`))}
           </div>
         </div>

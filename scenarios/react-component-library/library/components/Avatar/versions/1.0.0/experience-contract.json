@@ -1,0 +1,57 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Avatar@1.0.0"
+  },
+  "component": {
+    "id": "primitives.avatar",
+    "title": "Avatar",
+    "purpose": "Make identity recognizable, named, and resilient when imagery is unavailable."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A loaded identity with presence."
+    },
+    {
+      "id": "loading",
+      "example": "loading",
+      "description": "Reserved image space during loading."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "Deterministic initials fallback after image failure."
+    },
+    {
+      "id": "group",
+      "example": "group",
+      "description": "Accessible group overflow treatment."
+    }
+  ],
+  "claims": [
+    {
+      "id": "identity-name",
+      "type": "custom",
+      "statement": "Every avatar exposes a stable accessible identity name independent of image availability.",
+      "tier": "machine",
+      "states": ["default", "loading", "request-error"]
+    },
+    {
+      "id": "presence",
+      "type": "custom",
+      "statement": "Presence is a separately announced status and is not communicated by color alone.",
+      "tier": "machine",
+      "states": ["default"]
+    },
+    {
+      "id": "group-overflow",
+      "type": "custom",
+      "statement": "Avatar groups announce the number of hidden people through the overflow affordance.",
+      "tier": "machine",
+      "states": ["group"]
+    }
+  ]
+}

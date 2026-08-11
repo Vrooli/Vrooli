@@ -113,7 +113,11 @@ export function ComponentEditorStage({
     >
       <Panel id="specimen" minSize={220} className="min-h-0">
         <div className="relative h-full min-h-0">
-          <EmulatorViewport emulator={emulator} filters={filters}>
+          <EmulatorViewport
+            emulator={emulator}
+            filters={filters}
+            mode={stageMode ? "stage" : "gallery"}
+          >
             <div
               data-testid={selectors.components.editor.gallery}
               data-preview-stage-mode={stageMode ? "true" : "false"}
@@ -122,7 +126,11 @@ export function ComponentEditorStage({
                   ? "flex h-full items-center justify-center overflow-auto bg-app-background p-space-xs"
                   : "h-full overflow-auto bg-app-background p-space-xs"
               }
-              style={{ width: emulator.displayWidth, height: emulator.displayHeight }}
+              style={
+                stageMode
+                  ? { width: emulator.displayWidth, height: emulator.displayHeight }
+                  : undefined
+              }
             >
               {comparisonActive && (
                 <div
@@ -255,8 +263,10 @@ export function ComponentEditorStage({
                           }}
                           onError={() => onPreviewError(identity)}
                           style={{
-                            width: emulator.displayWidth,
-                            height: emulator.displayHeight,
+                            width: stageMode ? emulator.displayWidth : "100%",
+                            ...(stageMode
+                              ? { height: emulator.displayHeight }
+                              : { aspectRatio: "16 / 9" }),
                             backgroundColor: "var(--color-background)",
                           }}
                           className={stageMode ? "block border-0" : "block max-w-full border-0"}

@@ -5,6 +5,7 @@
  * @deps {"react":"^18"}
  */
 import type { ReactNode } from "react";
+import { workspaceHeaderStyles } from "./styles";
 
 export interface WorkspaceHeaderProps {
   title: ReactNode;
@@ -14,6 +15,7 @@ export interface WorkspaceHeaderProps {
   actions?: ReactNode;
   children?: ReactNode;
   className?: string;
+  as?: "header" | "div";
 }
 
 /** A structural header: callers own navigation state and action behavior. */
@@ -25,43 +27,38 @@ export function WorkspaceHeader({
   actions,
   children,
   className,
+  as: Element = "header",
 }: WorkspaceHeaderProps) {
   return (
-    <header
+    <Element
       data-testid="workspace-header"
-      className={[
-        "w-full min-w-0 max-w-full shrink-0 overflow-hidden border-b border-app-border bg-app-surface",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      data-rcl-workspace-header
+      className={["rcl-workspace-header", className].filter(Boolean).join(" ")}
     >
-      <div className="flex min-h-14 items-center gap-3 px-3 py-2 sm:px-4">
+      <style
+        data-rcl-workspace-header-styles
+        dangerouslySetInnerHTML={{ __html: workspaceHeaderStyles }}
+      />
+      <div className="rcl-workspace-header__row">
         {leading ? (
-          <div className="flex shrink-0 items-center">{leading}</div>
+          <div className="rcl-workspace-header__leading">{leading}</div>
         ) : null}
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-semibold text-app-foreground">
-            {title}
-          </h1>
+        <div className="rcl-workspace-header__copy">
+          <h1 className="rcl-workspace-header__title">{title}</h1>
           {description ? (
-            <p className="mt-0.5 truncate text-xs text-app-muted-foreground">
-              {description}
-            </p>
+            <p className="rcl-workspace-header__description">{description}</p>
           ) : null}
         </div>
         {primaryAction || actions ? (
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="rcl-workspace-header__actions">
             {primaryAction}
             {actions}
           </div>
         ) : null}
       </div>
       {children ? (
-        <div className="border-t border-app-border px-3 sm:px-4">
-          {children}
-        </div>
+        <div className="rcl-workspace-header__children">{children}</div>
       ) : null}
-    </header>
+    </Element>
   );
 }

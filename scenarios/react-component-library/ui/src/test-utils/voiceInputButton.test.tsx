@@ -1,26 +1,26 @@
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { VoiceInputButton } from "../components/VoiceInputButton";
 import { renderWithProviders } from "./renderWithProviders";
 
 describe("VoiceInputButton", () => {
-  it("exposes stateful labels and a keyboard-operable rejection override", () => {
-    const onTranscribeAnyway = vi.fn();
-    renderWithProviders(
-      <VoiceInputButton
-        state="recording"
-        mode="timeout"
-        timeoutProgress={0.5}
-        rejectionReason="not verified"
-        onTranscribeAnyway={onTranscribeAnyway}
-      />,
-    );
-    expect(screen.getByRole("button", { name: "Stop voice input" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Transcribe anyway" }));
-    expect(onTranscribeAnyway).toHaveBeenCalledOnce();
+  it("renders exactly one control in every state", () => {
+    const { rerender } = renderWithProviders(<VoiceInputButton state="idle" />);
+    for (const state of [
+      "idle",
+      "preparing",
+      "recording",
+      "recovering",
+      "transcribing",
+      "unavailable",
+      "error",
+    ] as const) {
+      rerender(<VoiceInputButton state={state} />);
+      expect(screen.getAllByRole("button")).toHaveLength(1);
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(screen.queryByText("Transcribe anyway")).not.toBeInTheDocument();
+      expect(screen.getByRole("button")).not.toHaveAttribute("title");
+    }
   });
 
   it("does not make unavailable voice input actionable", () => {
@@ -35,7 +35,7 @@ describe("VoiceInputButton", () => {
       <VoiceInputButton state="idle" onStart={onStart} onStop={onStop} />,
     );
     const idle = screen.getByRole("button", { name: "Start voice input" });
-    expect(idle.className).toContain("rounded border px-1.5 py-1");
+    expect(idle).toHaveAttribute("data-testid", "voice-input-control");
     fireEvent.pointerDown(idle);
     fireEvent.pointerUp(idle);
     expect(onStart).toHaveBeenCalledOnce();
@@ -65,25 +65,12 @@ describe("VoiceInputButton", () => {
     const button = screen.getByRole("button", { name: "Stop voice input" });
     expect(button.className).toContain("border-app-info");
     expect(button.className).not.toContain("border-app-danger");
-    expect(container.querySelector(".bg-app-info\\/30")).toHaveStyle({ height: "80%" });
+    expect(container.querySelector(".bg-app-primary\\/60")).toHaveStyle({ height: "80%" });
     expect(button.querySelector("circle")).toBeNull();
   });
 
-  it("dismisses errors and forwards pointer cancellation", () => {
-    const onDismissError = vi.fn();
+  it("forwards pointer cancellation without adding a recovery surface", () => {
     const onPointerCancel = vi.fn();
-    renderWithProviders(
-      <VoiceInputButton
-        state="error"
-        error="Microphone denied"
-        onDismissError={onDismissError}
-        onPointerCancel={onPointerCancel}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss voice input error" }));
-    expect(onDismissError).toHaveBeenCalledOnce();
-
-    cleanup();
     const { rerender } = renderWithProviders(
       <VoiceInputButton state="idle" onPointerCancel={onPointerCancel} />,
     );

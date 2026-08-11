@@ -25,7 +25,7 @@
     {
       "id": "contract-present",
       "type": "custom",
-      "statement": "Pressable exposes bounded tone and pending behavior.",
+      "statement": "Pressable exposes bounded tone and pending behavior without allowing the hidden pending label to resize ready or icon-only controls.",
       "tier": "manual",
       "states": ["default", "pending"]
     }

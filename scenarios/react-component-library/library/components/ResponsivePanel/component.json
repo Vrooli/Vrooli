@@ -5,7 +5,19 @@
   "description": "One responsive layered panel contract that preserves open state while moving between desktop and mobile presentations.",
   "assetKind": "component",
   "tags": ["overlay", "responsive", "token-bound"],
-  "latest": "1.0.0",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:useControllableState",
+      "version": "1.0.0"
+    },
+    { "libraryId": "react-component-library:useFocusTrap", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:useMediaQuery",
+      "version": "1.0.0"
+    },
+    { "libraryId": "react-component-library:useScrollLock", "version": "1.0.0" }
+  ],
+  "latest": "1.1.0",
   "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
   "dependencies": []
 }

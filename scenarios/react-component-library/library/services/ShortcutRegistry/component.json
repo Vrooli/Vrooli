@@ -2,7 +2,7 @@
   "libraryId": "react-component-library:ShortcutRegistry",
   "catalogId": "services.shortcut-registry",
   "displayName": "ShortcutRegistry",
-  "description": "Scoped runtime service for predictable ShortcutRegistry behavior.",
+  "description": "Scoped collision-aware shortcut registry with priority, scope, platform normalization, and conflict inspection.",
   "assetKind": "service",
   "tags": ["runtime", "state"],
   "latest": "1.0.0",

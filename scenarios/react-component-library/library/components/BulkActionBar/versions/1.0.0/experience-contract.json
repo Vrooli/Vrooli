@@ -1,0 +1,81 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:BulkActionBar@1.0.0"
+  },
+  "component": {
+    "id": "data-display.bulk-action-bar",
+    "title": "BulkActionBar",
+    "purpose": "Make multi-record actions scoped, observable, reversible where possible, and recoverable when only part of the request succeeds."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A selected set is ready for an explicit action."
+    },
+    {
+      "id": "submitting",
+      "example": "submitting",
+      "description": "Progress is visible while selection context remains stable."
+    },
+    {
+      "id": "success",
+      "example": "success",
+      "description": "Completion is confirmed with the result count."
+    },
+    {
+      "id": "partial",
+      "example": "partial",
+      "description": "Failed records are named and retry scope is clear."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "Transport failure does not imply that records changed."
+    },
+    {
+      "id": "retry",
+      "example": "retry",
+      "description": "Recovery continues with the original selection preserved."
+    }
+  ],
+  "claims": [
+    {
+      "id": "stable-selection-context",
+      "type": "custom",
+      "statement": "Selection count and scope remain visible through idle, pending, success, partial, and request-error states.",
+      "tier": "machine",
+      "states": [
+        "default",
+        "submitting",
+        "success",
+        "partial",
+        "request-error",
+        "retry"
+      ]
+    },
+    {
+      "id": "partial-recovery",
+      "type": "custom",
+      "statement": "Partial results identify failed items and provide a retry path without hiding successful work.",
+      "tier": "machine",
+      "states": ["partial"]
+    },
+    {
+      "id": "responsive-actions",
+      "type": "custom",
+      "statement": "Actions reflow into full-width touch targets at narrow widths without horizontal overflow.",
+      "tier": "manual",
+      "states": ["default", "request-error"]
+    },
+    {
+      "id": "dark-parity",
+      "type": "visual",
+      "statement": "The contextual action surface remains legible across the declared kits and dark mode.",
+      "tier": "manual",
+      "states": ["default", "partial", "request-error"]
+    }
+  ]
+}

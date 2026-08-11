@@ -1,10 +1,10 @@
 /**
  * @vrooliComponentSource react-component-library:useVoiceInput
  * @vrooliComponentVersion 1.0.0
- * @vrooliComponentAdoption 6f719477-af5b-45ae-a664-9e89f22e00e9
- * @vrooliComponentAppliedAt 2026-08-06T03:51:37Z
- * @vrooliComponentSourceSha256 24246df6c28073209ab015adb8209662c838405b16f4b5dec95eff2c5cc89cf6
- * @vrooliComponentDriftHash 0d66eef1c50427f9bdd6b3234dcac97235856d16b9048822440833d6d237d39a
+ * @vrooliComponentAdoption 915fd511-c2d3-43e3-807f-5ebffec36979
+ * @vrooliComponentAppliedAt 2026-08-10T19:51:39Z
+ * @vrooliComponentSourceSha256 1ca5e2ab4bcdbc853d6a460428b090e05554032d542373d83c70639b67ad5cc8
+ * @vrooliComponentDriftHash 01a8b555953531f307dfd410e397818ff955052b09128637f9f1c4c563dcfdd0
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -103,7 +103,11 @@ export class VoiceInputController {
     private readonly options: VoiceInputOptions,
     private readonly notify: (snapshot: VoiceInputSnapshot) => void = () => undefined,
   ) {
-    this.snapshotValue = { state: "idle", mode: options.mode ?? "always-on", settledSegments: [] };
+    this.snapshotValue = {
+      state: "idle",
+      mode: options.mode ?? "always-on",
+      settledSegments: [],
+    };
   }
 
   get snapshot(): VoiceInputSnapshot {

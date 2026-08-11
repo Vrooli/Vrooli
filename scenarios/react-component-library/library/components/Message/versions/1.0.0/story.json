@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Message",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Evidence-backed answer", "harness": "Default", "args": {}, "expect": [{ "kind": "text", "value": "I found three credible sources" }, { "kind": "role", "role": "button", "name": "Copy response" }, { "kind": "text", "value": "Human-centered AI in practice" }] },
+    { "id": "loading", "name": "Loading", "harness": "Loading", "args": {}, "expect": [{ "kind": "role", "role": "status", "name": "Generating response" }] },
+    { "id": "partial", "name": "Partial", "harness": "Partial", "args": {}, "expect": [{ "kind": "text", "value": "Streaming response" }, { "kind": "text", "value": "The first pattern is clear" }] },
+    { "id": "success", "name": "Success", "harness": "Success", "args": {}, "expect": [{ "kind": "role", "role": "status", "name": "Delivered" }, { "kind": "text", "value": "Verified against 3 sources" }] },
+    { "id": "request-error", "name": "Request error", "harness": "RequestError", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "role", "role": "button", "name": "Retry response" }] },
+    { "id": "retry", "name": "Retry", "harness": "Retry", "args": {}, "expect": [{ "kind": "role", "role": "status", "name": "Ready to retry" }, { "kind": "role", "role": "button", "name": "Retry response" }] },
+    { "id": "interactive", "name": "Interactive recovery", "harness": "Interactive", "args": {}, "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Retry response" } }, { "kind": "settle" }], "expect": [{ "kind": "role", "role": "status", "name": "Delivered" }, { "kind": "text", "value": "Verification completed" }] }
+  ]
+}

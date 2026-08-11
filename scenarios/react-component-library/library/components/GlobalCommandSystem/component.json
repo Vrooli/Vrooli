@@ -1,0 +1,28 @@
+{
+  "libraryId": "react-component-library:GlobalCommandSystem",
+  "catalogId": "patterns.global-command-system",
+  "displayName": "GlobalCommandSystem",
+  "description": "A scoped command system that keeps registration, keyboard invocation, discovery, execution, history, and recovery in one coherent workflow.",
+  "assetKind": "component",
+  "tags": [
+    "pattern",
+    "commands",
+    "keyboard",
+    "recovery",
+    "responsive",
+    "accessibility",
+    "token-bound"
+  ],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:CommandPalette",
+      "version": "1.0.0"
+    }
+  ]
+}

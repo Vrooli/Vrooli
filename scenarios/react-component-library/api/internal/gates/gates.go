@@ -172,34 +172,71 @@ func ValidateTypes(root string) (Result, error) {
 }
 
 func countCatalogSources(root string) int {
-	count := 0
+	sources, _ := activeLibrarySources(root)
+	return len(sources)
+}
+
+// activeLibrarySources returns the files represented by each manifest's
+// latest and draft pointers. Historical versions remain available to callers
+// that pin them explicitly, but corpus-wide quality gates should measure the
+// active catalog surface consistently with indexing, coverage, and the type
+// gate rather than double-counting retired implementations.
+func activeLibrarySources(root string) ([]string, error) {
+	var sources []string
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		manifests, _ := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		manifests, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		if err != nil {
+			return nil, err
+		}
 		for _, manifest := range manifests {
 			data, err := os.ReadFile(manifest)
 			if err != nil {
-				continue
+				return nil, err
 			}
 			var doc struct {
 				Latest string `json:"latest"`
 				Draft  string `json:"draft"`
 			}
-			if json.Unmarshal(data, &doc) != nil {
-				continue
+			if err := json.Unmarshal(data, &doc); err != nil {
+				return nil, err
 			}
 			versions := []string{doc.Latest}
 			if doc.Draft != "" && doc.Draft != doc.Latest {
 				versions = append(versions, doc.Draft)
 			}
 			for _, version := range versions {
-				matches, _ := filepath.Glob(filepath.Join(filepath.Dir(manifest), "versions", version, "*.ts"))
-				count += len(matches)
-				matches, _ = filepath.Glob(filepath.Join(filepath.Dir(manifest), "versions", version, "*.tsx"))
-				count += len(matches)
+				if version == "" {
+					continue
+				}
+				for _, extension := range []string{"*.ts", "*.tsx"} {
+					matches, err := filepath.Glob(filepath.Join(filepath.Dir(manifest), "versions", version, extension))
+					if err != nil {
+						return nil, err
+					}
+					sources = append(sources, matches...)
+				}
 			}
 		}
 	}
-	return count
+	if len(sources) > 0 {
+		sort.Strings(sources)
+		return sources, nil
+	}
+
+	// Keep the unit-level gate contract useful for isolated fixtures that do
+	// not need a full component manifest. Real repositories always take the
+	// manifest-backed path above.
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		for _, extension := range []string{"*.ts", "*.tsx"} {
+			matches, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "versions", "*", extension))
+			if err != nil {
+				return nil, err
+			}
+			sources = append(sources, matches...)
+		}
+	}
+	sort.Strings(sources)
+	return sources, nil
 }
 
 func implementationSource(root, catalogID string) (string, string, bool, error) {
@@ -289,25 +326,18 @@ func ValidateTokens(root string) (Result, error) {
 			}
 		}
 	}
-	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		sources := []string{}
-		for _, extension := range []string{"*.tsx", "*.ts"} {
-			matches, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "versions", "*", extension))
-			if err != nil {
-				return Result{}, err
-			}
-			sources = append(sources, matches...)
+	sources, err := activeLibrarySources(root)
+	if err != nil {
+		return Result{}, err
+	}
+	for _, path := range sources {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return Result{}, err
 		}
-		sort.Strings(sources)
-		for _, path := range sources {
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return Result{}, err
-			}
-			result.Inspected++
-			for _, match := range literalDimension.FindAllString(string(data), -1) {
-				result.Findings = append(result.Findings, Finding{"catalog.tokens_literal", implementationName(path), fmt.Sprintf("implementation contains literal dimension %q; use a declared semantic token", match)})
-			}
+		result.Inspected++
+		for _, match := range literalDimension.FindAllString(string(data), -1) {
+			result.Findings = append(result.Findings, Finding{"catalog.tokens_literal", implementationName(path), fmt.Sprintf("implementation contains literal dimension %q; use a declared semantic token", match)})
 		}
 	}
 	return nonEmpty(result, "tokens"), nil
@@ -318,35 +348,118 @@ func ValidateTokens(root string) (Result, error) {
 // result when cleanup evidence is absent.
 func ValidateLifecycle(root string) (Result, error) {
 	result := Result{}
-	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		paths := []string{}
-		for _, extension := range []string{"*.tsx", "*.ts"} {
-			matches, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "versions", "*", extension))
-			if err != nil {
-				return Result{}, err
-			}
-			paths = append(paths, matches...)
+	paths, err := activeLibrarySources(root)
+	if err != nil {
+		return Result{}, err
+	}
+	for _, path := range paths {
+		// Stories are browser-only specimens, not released runtime. Including
+		// them here makes the lifecycle gate report demo timers and AbortSignal
+		// listeners as component defects.
+		if isStorySource(path) {
+			continue
 		}
-		sort.Strings(paths)
-		for _, path := range paths {
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return Result{}, err
-			}
-			result.Inspected++
-			text := string(data)
-			if strings.Contains(text, "addEventListener") && !strings.Contains(text, "removeEventListener") {
-				result.Findings = append(result.Findings, Finding{"catalog.lifecycle_cleanup", implementationName(path), "adds an event listener without a matching removal"})
-			}
-			if strings.Contains(text, "new MutationObserver") && !strings.Contains(text, ".disconnect(") {
-				result.Findings = append(result.Findings, Finding{"catalog.lifecycle_cleanup", implementationName(path), "creates an observer without disconnect cleanup"})
-			}
-			if strings.Contains(text, "window.") && strings.Contains(text, "export") && !strings.Contains(text, "typeof window") {
-				result.Findings = append(result.Findings, Finding{"catalog.lifecycle_ssr", implementationName(path), "accesses window without an SSR guard"})
-			}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return Result{}, err
+		}
+		result.Inspected++
+		text := string(data)
+		if strings.Contains(text, "addEventListener") && !strings.Contains(text, "removeEventListener") {
+			result.Findings = append(result.Findings, Finding{"catalog.lifecycle_cleanup", implementationName(path), "adds an event listener without a matching removal"})
+		}
+		if strings.Contains(text, "new MutationObserver") && !strings.Contains(text, ".disconnect(") {
+			result.Findings = append(result.Findings, Finding{"catalog.lifecycle_cleanup", implementationName(path), "creates an observer without disconnect cleanup"})
+		}
+		if hasBrowserAccessOutsideEffects(text) {
+			result.Findings = append(result.Findings, Finding{"catalog.lifecycle_ssr", implementationName(path), "accesses a browser global without an SSR guard"})
 		}
 	}
 	return nonEmpty(result, "lifecycle"), nil
+}
+
+func isStorySource(path string) bool {
+	base := filepath.Base(path)
+	return base == "story.ts" || base == "story.tsx"
+}
+
+// hasBrowserAccessOutsideEffects keeps the static SSR check conservative while
+// understanding the one React lifecycle boundary that is guaranteed not to
+// execute during server rendering. Browser access in render, module scope, or
+// an arbitrary exported callback still requires an explicit guard.
+func hasBrowserAccessOutsideEffects(text string) bool {
+	remaining := []byte(text)
+	for _, start := range effectCallbackRanges(text) {
+		for index := start[0]; index < start[1] && index < len(remaining); index++ {
+			remaining[index] = ' '
+		}
+	}
+	textWithoutEffects := string(remaining)
+	return (strings.Contains(textWithoutEffects, "window.") && !strings.Contains(textWithoutEffects, "typeof window")) ||
+		(strings.Contains(textWithoutEffects, "document.") && !strings.Contains(textWithoutEffects, "typeof document"))
+}
+
+func effectCallbackRanges(text string) [][2]int {
+	var ranges [][2]int
+	for offset := 0; offset < len(text); {
+		match := strings.Index(text[offset:], "useEffect")
+		if match < 0 {
+			break
+		}
+		start := offset + match
+		after := start + len("useEffect")
+		if after < len(text) && isIdentifierPart(text[after]) {
+			offset = after
+			continue
+		}
+		for after < len(text) && (text[after] == ' ' || text[after] == '\n' || text[after] == '\r' || text[after] == '\t') {
+			after++
+		}
+		if after >= len(text) || text[after] != '(' {
+			offset = after
+			continue
+		}
+		arrow := strings.Index(text[after:], "=>")
+		if arrow < 0 {
+			break
+		}
+		arrow += after + 2
+		body := arrow
+		for body < len(text) && (text[body] == ' ' || text[body] == '\n' || text[body] == '\r' || text[body] == '\t') {
+			body++
+		}
+		if body >= len(text) || text[body] != '{' {
+			offset = arrow
+			continue
+		}
+		end, ok := matchingBrace(text, body)
+		if !ok {
+			break
+		}
+		ranges = append(ranges, [2]int{body, end + 1})
+		offset = end + 1
+	}
+	return ranges
+}
+
+func matchingBrace(text string, open int) (int, bool) {
+	depth := 0
+	for index := open; index < len(text); index++ {
+		switch text[index] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return index, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func isIdentifierPart(value byte) bool {
+	return value >= 'a' && value <= 'z' || value >= 'A' && value <= 'Z' || value >= '0' && value <= '9' || value == '_'
 }
 
 func implementationName(path string) string {

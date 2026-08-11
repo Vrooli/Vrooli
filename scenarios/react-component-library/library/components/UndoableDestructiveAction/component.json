@@ -1,0 +1,24 @@
+{
+  "libraryId": "react-component-library:UndoableDestructiveAction",
+  "catalogId": "patterns.undoable-destructive-action",
+  "latest": "1.0.0",
+  "displayName": "UndoableDestructiveAction",
+  "description": "A forgiving destructive-action pattern that completes reversible removal immediately and exposes a clear undo path.",
+  "assetKind": "component",
+  "tags": [
+    "patterns",
+    "recovery",
+    "destructive",
+    "undo",
+    "accessibility",
+    "token-bound"
+  ],
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:UndoBanner", "version": "1.0.0" }
+  ]
+}

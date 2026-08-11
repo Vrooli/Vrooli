@@ -1,0 +1,22 @@
+{
+  "libraryId": "react-component-library:Calendar",
+  "catalogId": "forms.calendar",
+  "displayName": "Calendar",
+  "description": "A localized, keyboard-operable calendar for single, multiple, range, week, and month selection.",
+  "assetKind": "component",
+  "tags": ["forms", "calendar", "date", "accessibility", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:useRovingFocus",
+      "version": "1.0.0"
+    },
+    { "libraryId": "react-component-library:useLocale", "version": "1.0.0" },
+    { "libraryId": "react-component-library:useDirection", "version": "1.0.0" }
+  ]
+}

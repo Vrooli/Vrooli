@@ -1,0 +1,26 @@
+{
+  "libraryId": "react-component-library:ConflictResolutionFlow",
+  "catalogId": "patterns.conflict-resolution-flow",
+  "displayName": "ConflictResolutionFlow",
+  "description": "A field-level concurrency recovery surface that compares local and remote values, preserves intent, and retries resolution honestly.",
+  "assetKind": "component",
+  "tags": [
+    "patterns",
+    "conflict",
+    "recovery",
+    "forms",
+    "accessibility",
+    "token-bound"
+  ],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:DiffViewer", "version": "1.0.0" },
+    { "libraryId": "react-component-library:Form", "version": "1.0.0" },
+    { "libraryId": "react-component-library:useAnnounce", "version": "1.0.0" }
+  ]
+}

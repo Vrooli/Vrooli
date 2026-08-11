@@ -1,0 +1,60 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:ConflictResolutionFlow@1.0.0"
+  },
+  "component": {
+    "id": "patterns.conflict-resolution-flow",
+    "title": "ConflictResolutionFlow",
+    "purpose": "ConflictResolutionFlow makes concurrent edits explicit, field-resolvable, and recoverable without discarding local intent."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Local and remote values are visible with an explicit choice."
+    },
+    {
+      "id": "loading",
+      "example": "loading",
+      "description": "The comparison remains stable while the latest version is checked."
+    },
+    {
+      "id": "submitting",
+      "example": "interactive",
+      "description": "Resolution submission is announced and controls remain stable."
+    },
+    {
+      "id": "success",
+      "example": "interactive",
+      "description": "Successful resolution is announced without hiding the saved outcome."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "A failed retry preserves all selected choices."
+    },
+    {
+      "id": "retry",
+      "example": "request-error",
+      "description": "The user can retry without reconstructing the decision."
+    }
+  ],
+  "claims": [
+    {
+      "id": "field-choice",
+      "type": "custom",
+      "statement": "Every conflict field exposes local and remote values with native keyboard-operable choices.",
+      "tier": "manual",
+      "states": ["default"]
+    },
+    {
+      "id": "preserve-on-error",
+      "type": "custom",
+      "statement": "Request failure preserves the user's choices and provides an explicit retry path.",
+      "tier": "manual",
+      "states": ["request-error", "retry"]
+    }
+  ]
+}

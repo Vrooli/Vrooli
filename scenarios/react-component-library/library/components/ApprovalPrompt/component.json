@@ -1,0 +1,23 @@
+{
+  "libraryId": "react-component-library:ApprovalPrompt",
+  "catalogId": "ai.approval-prompt",
+  "displayName": "ApprovalPrompt",
+  "description": "A human-in-the-loop decision surface that makes action scope, consequences, expiry, and recovery explicit.",
+  "assetKind": "component",
+  "tags": ["ai", "approval", "permission", "accessibility", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:Alert", "version": "1.0.0" },
+    { "libraryId": "react-component-library:Button", "version": "2.0.0" },
+    { "libraryId": "react-component-library:ButtonGroup", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:StatusIndicator",
+      "version": "1.0.0"
+    }
+  ]
+}

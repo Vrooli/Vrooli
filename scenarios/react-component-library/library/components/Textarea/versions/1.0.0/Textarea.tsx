@@ -2,28 +2,44 @@
  * @libraryId react-component-library:Textarea
  * @version 1.0.0
  * @status released
- * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
+ * @deps {"react":"^18"}
  * @category controls
  */
-import { clsx, type ClassValue } from "clsx";
 import * as React from "react";
-import { twMerge } from "tailwind-merge";
 
 export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
 
-const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
+const styleSheet = `
+[data-rcl-textarea] { box-sizing: border-box; display: block; inline-size: 100%; min-block-size: calc(var(--space-xl) * 2); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-foreground); padding: var(--space-2xs) var(--space-sm); font: inherit; line-height: var(--text-body-line); resize: vertical; transition: border-color var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard), background-color var(--dur-quick) var(--ease-standard); }
+[data-rcl-textarea]::placeholder { color: var(--color-muted-foreground); opacity: var(--opacity-muted); }
+[data-rcl-textarea]:hover:not(:disabled) { border-color: var(--color-primary); background: var(--color-surface-raised); }
+[data-rcl-textarea]:focus-visible { border-color: var(--color-focus); outline: var(--border-strong) solid color-mix(in srgb, var(--color-focus) 30%, transparent); outline-offset: var(--space-3xs); }
+[data-rcl-textarea][aria-invalid="true"] { border-color: var(--color-danger); }
+[data-rcl-textarea]:disabled { cursor: not-allowed; opacity: var(--opacity-disabled); resize: none; }
+@media (prefers-reduced-motion: reduce) { [data-rcl-textarea] { transition: none; } }
+`;
+
+const joinClasses = (...inputs: Array<string | undefined>) =>
+  inputs.filter(Boolean).join(" ");
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, ...props }, ref) => {
     return (
-      <textarea
-        className={cn(
-          "flex min-h-[80px] w-full rounded-control border border-app-border bg-app-surface px-3 py-2 text-base text-app-foreground placeholder:text-app-muted-foreground focus:outline-none focus:ring-2 focus:ring-app-primary/50 disabled:cursor-not-allowed disabled:opacity-60 md:text-sm",
-          className,
-        )}
-        ref={ref}
-        {...props}
-      />
+      <>
+        <style
+          data-rcl-textarea-styles
+          dangerouslySetInnerHTML={{ __html: styleSheet }}
+        />
+        <textarea
+          data-rcl-textarea="true"
+          className={joinClasses(
+            "rounded-control border border-app-border",
+            className,
+          )}
+          ref={ref}
+          {...props}
+        />
+      </>
     );
   },
 );

@@ -5,14 +5,9 @@
   "description": "Token-bound, self-contained drawer and modal shell.",
   "tags": ["overlay", "drawer", "layout", "reviewed", "accessibility"],
   "slot": "ui-pattern",
-  "fileSlots": {
-    "useFocusTrap.ts": "hook",
-    "useEscapeKey.ts": "hook"
-  },
   "category": "overlays",
   "dependencies": [
-    { "libraryId": "react-component-library:useFocusTrap", "version": "1.0.0" },
-    { "libraryId": "react-component-library:useEscapeKey", "version": "1.0.0" }
+    { "libraryId": "react-component-library:useFocusTrap", "version": "1.0.0" }
   ],
   "designStyles": [
     {
@@ -31,6 +26,6 @@
       "reason": "a full-bleed modal drawer overwhelms marketing and landing layouts"
     }
   ],
-  "latest": "1.0.0",
+  "latest": "1.1.0",
   "deprecatedVersions": []
 }

@@ -4,9 +4,8 @@
  * @status released
  * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
  */
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import type { HTMLAttributes, ReactNode } from "react";
+import { cardStyles } from "./styles";
 export const CARD_PARTS = ["header", "media", "body", "footer"] as const;
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
@@ -30,17 +29,20 @@ export interface CardContentProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 
-const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
+const cn = (...inputs: Array<string | undefined>) =>
+  inputs.filter(Boolean).join(" ");
 
 export function Card({ children, className, ...props }: CardProps) {
   return (
     <div
-      className={cn(
-        "rounded-panel border border-app-border bg-app-surface text-app-foreground",
-        className,
-      )}
+      className={cn("rcl-card rounded-panel", className)}
+      data-rcl-card
       {...props}
     >
+      <style
+        data-rcl-card-styles
+        dangerouslySetInnerHTML={{ __html: cardStyles }}
+      />
       {children}
     </div>
   );
@@ -48,13 +50,7 @@ export function Card({ children, className, ...props }: CardProps) {
 
 export function CardHeader({ children, className, ...props }: CardHeaderProps) {
   return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-col gap-1 border-b border-app-border px-4 py-3",
-        className,
-      )}
-      {...props}
-    >
+    <div className={cn("rcl-card__header", className)} {...props}>
       {children}
     </div>
   );
@@ -62,13 +58,7 @@ export function CardHeader({ children, className, ...props }: CardHeaderProps) {
 
 export function CardTitle({ children, className, ...props }: CardTitleProps) {
   return (
-    <h3
-      className={cn(
-        "text-base font-semibold leading-tight text-app-foreground",
-        className,
-      )}
-      {...props}
-    >
+    <h3 className={cn("rcl-card__title", className)} {...props}>
       {children}
     </h3>
   );
@@ -80,10 +70,7 @@ export function CardDescription({
   ...props
 }: CardDescriptionProps) {
   return (
-    <p
-      className={cn("text-sm text-app-muted-foreground", className)}
-      {...props}
-    >
+    <p className={cn("rcl-card__description", className)} {...props}>
       {children}
     </p>
   );
@@ -95,7 +82,7 @@ export function CardContent({
   ...props
 }: CardContentProps) {
   return (
-    <div className={cn("min-w-0 px-4 py-4", className)} {...props}>
+    <div className={cn("rcl-card__content", className)} {...props}>
       {children}
     </div>
   );

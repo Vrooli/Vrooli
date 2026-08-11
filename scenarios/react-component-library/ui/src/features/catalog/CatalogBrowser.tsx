@@ -1,6 +1,15 @@
 /** @vrooliComponentSource data-display.data-table */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Grid2X2, List, Network, Search } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  FileCode2,
+  FolderOpen,
+  Grid2X2,
+  List,
+  Network,
+  Search,
+} from "lucide-react";
 import { type FormEvent, useDeferredValue, useMemo, useState } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
@@ -57,10 +66,26 @@ function AssetRow({
   const isHook =
     (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
   const counts = adoptionCounts(asset);
+  const isTree = presentation === "tree";
   const content = (
     <>
-      <span className="truncate font-medium">{asset.displayName || asset.libraryId}</span>
-      <span className="flex gap-space-3xs text-[11px] text-app-muted-foreground">
+      <span className="flex min-w-0 flex-1 items-center gap-space-2xs">
+        <span
+          aria-hidden
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-control bg-app-surface-muted text-app-primary"
+        >
+          <FileCode2 className="h-4 w-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate font-medium">{asset.displayName || asset.libraryId}</span>
+          {isTree && (
+            <span className="block truncate text-[11px] text-app-muted-foreground">
+              {asset.libraryId}
+            </span>
+          )}
+        </span>
+      </span>
+      <span className="flex shrink-0 flex-wrap justify-end gap-space-3xs text-[11px] text-app-muted-foreground">
         <span className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs">
           {t("catalog.adoptions", { defaultValue: "{{count}} adoptions", count: counts.direct })}
         </span>
@@ -81,12 +106,17 @@ function AssetRow({
       onClick={onNavigate}
       data-testid={selectors.catalog.asset}
       data-selected={selected || undefined}
+      role={isTree ? "treeitem" : undefined}
+      aria-level={isTree ? 2 : undefined}
+      aria-selected={isTree ? selected : undefined}
       className={[
         presentation === "cards"
           ? "flex min-h-24 flex-col justify-between rounded-panel border p-space-xs"
-          : "touch-target flex items-center justify-between gap-space-2xs rounded-control px-space-2xs py-space-2xs",
+          : isTree
+            ? "touch-target flex items-center justify-between gap-space-xs rounded-control border border-transparent px-space-xs py-space-2xs"
+            : "touch-target flex items-center justify-between gap-space-2xs rounded-control px-space-2xs py-space-2xs",
         selected
-          ? "border-app-primary bg-app-surface-muted text-app-foreground"
+          ? "border-app-primary bg-app-surface-muted text-app-foreground shadow-sm"
           : "border-app-border text-app-foreground hover:bg-app-surface-muted",
       ].join(" ")}
     >
@@ -141,18 +171,22 @@ function CatalogActions() {
                 "Queue a catalog-maintainer run. It will use direct React Component Library APIs for any catalog writes.",
             })}
           </p>
-          <label>
+          <label htmlFor="catalog-source-scenario">
             {t("catalog.sourceScenario", { defaultValue: "Source scenario" })}
             <Input
+              id="catalog-source-scenario"
+              aria-label={t("catalog.sourceScenario", { defaultValue: "Source scenario" })}
               value={sourceScenario}
               onChange={(event) => setSourceScenario(event.target.value)}
               required
               className="mt-space-3xs"
             />
           </label>
-          <label>
+          <label htmlFor="catalog-source-path">
             {t("catalog.sourcePath", { defaultValue: "Source path" })}
             <Input
+              id="catalog-source-path"
+              aria-label={t("catalog.sourcePath", { defaultValue: "Source path" })}
               value={sourcePath}
               onChange={(event) => setSourcePath(event.target.value)}
               required
@@ -189,6 +223,7 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<KindTab>("components");
   const [presentation, setPresentation] = useState<Presentation>("tree");
+  const [closedGroups, setClosedGroups] = useState<Set<string>>(() => new Set());
   const [match, setMatch] = useState(() => searchParams.get("q") ?? "");
   const deferredMatch = useDeferredValue(match);
   const query = useQuery({
@@ -219,7 +254,7 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
       data-testid={selectors.catalog.browser}
       className={
         compact
-          ? "flex min-h-0 flex-1 flex-col gap-space-2xs"
+          ? "flex min-h-0 w-full min-w-0 flex-1 flex-col gap-space-2xs"
           : "flex max-w-5xl flex-col gap-space-sm"
       }
     >
@@ -251,7 +286,7 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
           </button>
         ))}
       </div>
-      <label className="relative block">
+      <label className="relative block w-full min-w-0">
         <span className="sr-only">{t("catalog.search", { defaultValue: "Search catalog" })}</span>
         <Search
           aria-hidden
@@ -261,38 +296,40 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
           data-testid={selectors.catalog.search}
           value={match}
           onChange={(event) => setMatch(event.target.value)}
-          className="ps-space-lg"
+          className="w-full ps-space-lg"
           placeholder={t("catalog.searchPlaceholder", { defaultValue: "Search assets" })}
         />
       </label>
-      <div
-        className="flex items-center gap-space-3xs"
-        aria-label={t("catalog.presentation", { defaultValue: "Catalog presentation" })}
-      >
-        {(
-          [
-            ["tree", Network],
-            ["list", List],
-            ["cards", Grid2X2],
-          ] as const
-        ).map(([mode, Icon]) => (
-          <button
-            key={mode}
-            type="button"
-            data-testid={selectors.catalog.presentation}
-            aria-pressed={presentation === mode}
-            aria-label={t(`catalog.${mode}`, { defaultValue: mode })}
-            onClick={() => setPresentation(mode)}
-            className={
-              presentation === mode
-                ? "touch-target rounded-control bg-app-surface-muted p-space-2xs"
-                : "touch-target rounded-control p-space-2xs text-app-muted-foreground hover:bg-app-surface-muted"
-            }
-          >
-            <Icon aria-hidden className="h-4 w-4" />
-          </button>
-        ))}
-      </div>
+      {!compact && (
+        <div
+          className="flex items-center gap-space-3xs"
+          aria-label={t("catalog.presentation", { defaultValue: "Catalog presentation" })}
+        >
+          {(
+            [
+              ["tree", Network],
+              ["list", List],
+              ["cards", Grid2X2],
+            ] as const
+          ).map(([mode, Icon]) => (
+            <button
+              key={mode}
+              type="button"
+              data-testid={selectors.catalog.presentation}
+              aria-pressed={presentation === mode}
+              aria-label={t(`catalog.${mode}`, { defaultValue: mode })}
+              onClick={() => setPresentation(mode)}
+              className={
+                presentation === mode
+                  ? "touch-target rounded-control bg-app-surface-muted p-space-2xs"
+                  : "touch-target rounded-control p-space-2xs text-app-muted-foreground hover:bg-app-surface-muted"
+              }
+            >
+              <Icon aria-hidden className="h-4 w-4" />
+            </button>
+          ))}
+        </div>
+      )}
       {query.isLoading && (
         <p role="status" className="text-xs text-app-muted-foreground">
           {t("catalog.loading", { defaultValue: "Loading catalog…" })}
@@ -309,29 +346,68 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
         </p>
       )}
       {presentation === "tree" ? (
-        <div className="space-y-space-xs">
+        <div
+          role="tree"
+          aria-label={t("catalog.assetTree", { defaultValue: "Library assets" })}
+          className="space-y-space-2xs"
+        >
           {groups.map(([group, groupedAssets]) => (
-            <section key={group}>
-              <div className="mb-space-3xs flex items-center justify-between px-space-3xs text-xs font-medium uppercase text-app-muted-foreground">
-                <span>{group}</span>
-                <span>
-                  {groupedAssets.reduce((total, asset) => total + adoptionCounts(asset).direct, 0)}
+            <section key={group} role="treeitem" aria-expanded={!closedGroups.has(group)}>
+              <button
+                type="button"
+                className="flex min-h-10 w-full items-center gap-space-2xs rounded-control px-space-xs py-space-2xs text-left text-xs font-semibold uppercase tracking-wide text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
+                aria-label={`${group} folder`}
+                onClick={() =>
+                  setClosedGroups((current) => {
+                    const next = new Set(current);
+                    if (next.has(group)) next.delete(group);
+                    else next.add(group);
+                    return next;
+                  })
+                }
+              >
+                {closedGroups.has(group) ? (
+                  <ChevronRight aria-hidden className="h-4 w-4 shrink-0" />
+                ) : (
+                  <ChevronDown aria-hidden className="h-4 w-4 shrink-0" />
+                )}
+                <FolderOpen aria-hidden className="h-4 w-4 shrink-0 text-app-primary" />
+                <span className="min-w-0 flex-1 truncate">{group}</span>
+                <span className="flex shrink-0 items-center gap-space-3xs text-[10px]">
+                  <span className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs">
+                    {groupedAssets.length} assets
+                  </span>
+                  <span
+                    data-testid="catalog-group-adoptions"
+                    className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs"
+                  >
+                    {groupedAssets.reduce(
+                      (total, asset) => total + adoptionCounts(asset).direct,
+                      0,
+                    )}{" "}
+                    adoptions
+                  </span>
                 </span>
-              </div>
-              <div className="space-y-space-3xs">
-                {groupedAssets.map((asset) => (
-                  <AssetRow
-                    key={asset.id}
-                    asset={asset}
-                    presentation="tree"
-                    selected={selectedID === asset.id}
-                    onNavigate={onNavigate}
-                    currentTab={
-                      selectedID ? assetInfoTab(new URLSearchParams(location.search)) : undefined
-                    }
-                  />
-                ))}
-              </div>
+              </button>
+              {!closedGroups.has(group) && (
+                <div
+                  role="group"
+                  className="ms-space-md space-y-space-3xs border-s border-app-border ps-space-2xs"
+                >
+                  {groupedAssets.map((asset) => (
+                    <AssetRow
+                      key={asset.id}
+                      asset={asset}
+                      presentation="tree"
+                      selected={selectedID === asset.id}
+                      onNavigate={onNavigate}
+                      currentTab={
+                        selectedID ? assetInfoTab(new URLSearchParams(location.search)) : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              )}
             </section>
           ))}
         </div>

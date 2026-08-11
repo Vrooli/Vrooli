@@ -15,6 +15,7 @@ export interface IconButtonProps
   density?: ControlDensity;
   variant?: ControlVariant;
   pending?: boolean;
+  disableTooltip?: boolean;
 }
 
 export function IconButton({
@@ -24,6 +25,7 @@ export function IconButton({
   size = "icon",
   title,
   pending,
+  disableTooltip = false,
   type = "button",
   variant = "ghost",
   ...props
@@ -33,7 +35,7 @@ export function IconButton({
       {...props}
       aria-label={ariaLabel}
       type={type}
-      title={title ?? ariaLabel}
+      title={disableTooltip ? undefined : (title ?? ariaLabel)}
       size={size}
       density={density}
       shape="square"

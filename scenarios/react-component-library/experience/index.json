@@ -113,6 +113,36 @@
       "path": "components/stat-card.json",
       "title": "Stat Card",
       "status": "active"
+    },
+    {
+      "id": "bottom-nav",
+      "path": "components/bottom-nav.json",
+      "title": "Bottom Navigation",
+      "status": "active"
+    },
+    {
+      "id": "data-table",
+      "path": "components/data-table.json",
+      "title": "Data Table",
+      "status": "active"
+    },
+    {
+      "id": "empty-state",
+      "path": "components/empty-state.json",
+      "title": "Empty State",
+      "status": "active"
+    },
+    {
+      "id": "status-badge",
+      "path": "components/status-badge.json",
+      "title": "Status Badge",
+      "status": "active"
+    },
+    {
+      "id": "undoable-destructive-action",
+      "path": "components/undoable-destructive-action.json",
+      "title": "Undoable Destructive Action",
+      "status": "active"
     }
   ]
 }

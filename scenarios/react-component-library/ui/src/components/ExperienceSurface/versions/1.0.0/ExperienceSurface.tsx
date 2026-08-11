@@ -1,10 +1,10 @@
 /**
  * @vrooliComponentSource react-component-library:ExperienceSurface
  * @vrooliComponentVersion 1.0.0
- * @vrooliComponentAdoption 1764068d-c846-4f31-bee2-08a89e048b12
- * @vrooliComponentAppliedAt 2026-08-06T03:51:02Z
- * @vrooliComponentSourceSha256 32faa950b40d6c0351e9c7f409a4965e874492731a5f21eaff28d00a854f0017
- * @vrooliComponentDriftHash 95b27fb9f20eec7721ee1ed402b4d628a7c00403b9951b252608501853299897
+ * @vrooliComponentAdoption 37e0f421-999f-47e7-8af9-1c30944ebafc
+ * @vrooliComponentAppliedAt 2026-08-10T20:01:11Z
+ * @vrooliComponentSourceSha256 7b3d5a41f540687bd3a5b73ff5f9b6b5a10276f0245fe922b2284ff5aafee742
+ * @vrooliComponentDriftHash 99f7a8d2103b27ce527e54ad7f30a6ed848215608b46f5c7cae15991bb867c66
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;

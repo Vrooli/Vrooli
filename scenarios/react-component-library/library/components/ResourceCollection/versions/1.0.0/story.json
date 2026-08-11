@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Resource Collection",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Resource library",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "heading", "name": "Resources" },
+        { "kind": "role", "role": "search", "name": "Search resources" },
+        { "kind": "text", "value": "6 results" }
+      ],
+      "interactions": [{ "kind": "settle" }]
+    },
+    {
+      "id": "refreshing",
+      "name": "Refreshing",
+      "harness": "Refreshing",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "status" },
+        { "kind": "text", "value": "Checking resource health" }
+      ]
+    },
+    {
+      "id": "offline",
+      "name": "Offline",
+      "harness": "Offline",
+      "args": {},
+      "expect": [
+        { "kind": "text", "value": "Showing saved resources" },
+        { "kind": "text", "value": "Saved recently" }
+      ]
+    },
+    {
+      "id": "request-error",
+      "name": "Request error",
+      "harness": "RequestError",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "alert" },
+        { "kind": "text", "value": "Try again" }
+      ]
+    },
+    {
+      "id": "empty",
+      "name": "Empty",
+      "harness": "Empty",
+      "args": {},
+      "expect": [
+        { "kind": "text", "value": "No resources match" },
+        { "kind": "text", "value": "Clear the search" }
+      ]
+    }
+  ]
+}

@@ -1,69 +1,67 @@
-/** @vrooliComponentSource react-component-library:Table */
-const panel = {
-  border: "1px solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-panel, .75rem)",
-  background: "var(--color-surface, #fff)",
-  color: "var(--color-foreground, #0f172a)",
-  padding: "var(--space-md, 24px)",
-  boxShadow: "var(--elev-raised, 0 1px 3px rgb(15 23 42 / .08))",
-};
-const muted = { color: "var(--color-muted-foreground, #64748b)" };
-export function Table({ rows = [] }: { rows?: Array<Record<string, string>> }) {
+/** @vrooliComponentSource data-display.table */
+import type { CSSProperties, ReactNode } from "react";
+
+export interface TableProps {
+  rows?: Array<Record<string, string>>;
+  children?: ReactNode;
+  caption?: string;
+  className?: string;
+  style?: CSSProperties;
+}
+
+const styles = `
+[data-rcl-table] { min-inline-size: 0; overflow: hidden; border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); color: var(--color-foreground); box-shadow: var(--elev-raised); }
+[data-rcl-table-scroll] { max-inline-size: 100%; overflow-x: auto; }
+[data-rcl-table] table { inline-size: 100%; table-layout: auto; border-collapse: separate; border-spacing: 0; text-align: start; }
+[data-rcl-table] caption { padding: var(--space-sm) var(--space-md); color: var(--color-muted-foreground); font: var(--text-caption); text-align: start; }
+[data-rcl-table] th { padding: var(--space-sm) var(--space-md); border-block-end: var(--border-hairline) solid var(--color-border); background: color-mix(in srgb, var(--color-surface-muted) 72%, var(--color-primary)); color: var(--color-muted-foreground); font: var(--text-overline); letter-spacing: .06em; overflow-wrap: anywhere; text-align: start; text-transform: uppercase; }
+[data-rcl-table] td { padding: var(--space-md); border-block-end: var(--border-hairline) solid var(--color-border); color: var(--color-foreground); font: var(--text-body); overflow-wrap: anywhere; vertical-align: middle; }
+[data-rcl-table] tbody tr:last-child td { border-block-end: 0; }
+[data-rcl-table] tbody tr { transition: background-color 160ms ease; }
+[data-rcl-table] tbody tr:hover { background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface)); }
+@media (prefers-reduced-motion: reduce) { [data-rcl-table] tbody tr { transition-duration: .01ms; } }
+@media (forced-colors: active) { [data-rcl-table] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-table] th, [data-rcl-table] td { border-color: CanvasText; background: Canvas; color: CanvasText; } }
+`;
+
+export function Table({
+  rows = [],
+  children,
+  caption,
+  className,
+  style,
+}: TableProps) {
   const columns = Object.keys(rows[0] || {});
   return (
-    <div style={{ ...panel, overflow: "auto", padding: 0 }}>
-      <table
-        role="table"
-        style={{ width: "100%", minWidth: 360, borderCollapse: "collapse" }}
-      >
-        <thead>
-          <tr>
-            {columns.map((column) => (
-              <th
-                key={column}
-                scope="col"
-                style={{
-                  background: "var(--color-surface-muted, #f1f5f9)",
-                  borderBottom: "1px solid var(--color-border, #cbd5e1)",
-                  ...muted,
-                  padding: "13px 16px",
-                  textAlign: "left",
-                  fontSize: 12,
-                  textTransform: "uppercase",
-                }}
-              >
-                {column}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index}>
-              {columns.map((column) => (
-                <td
-                  key={column}
-                  style={{
-                    borderBottom:
-                      index === rows.length - 1
-                        ? undefined
-                        : "1px solid var(--color-border, #cbd5e1)",
-                    padding: "15px 16px",
-                    fontWeight: column === columns[0] ? 600 : 400,
-                  }}
-                >
-                  {row[column]}
-                </td>
+    <div data-rcl-table className={className} style={style}>
+      <style
+        data-rcl-table-styles
+        dangerouslySetInnerHTML={{ __html: styles }}
+      />
+      <div data-rcl-table-scroll>
+        {children ?? (
+          <table>
+            {caption ? <caption>{caption}</caption> : null}
+            <thead>
+              <tr>
+                {columns.map((column) => (
+                  <th key={column} scope="col">
+                    {column}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr key={index}>
+                  {columns.map((column) => (
+                    <td key={column}>{row[column]}</td>
+                  ))}
+                </tr>
               ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {rows.length === 0 && (
-        <p style={{ ...muted, padding: 24, textAlign: "center" }}>
-          No records to display
-        </p>
-      )}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

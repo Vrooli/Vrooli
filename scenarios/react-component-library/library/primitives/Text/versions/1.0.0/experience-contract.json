@@ -11,18 +11,78 @@
   },
   "states": [
     {
-      "id": "default",
+      "id": "display",
       "example": "style-display",
-      "description": "The default primitive state."
+      "description": "Display typography for a single focal statement."
+    },
+    {
+      "id": "title",
+      "example": "style-title",
+      "description": "Title typography for primary surface hierarchy."
+    },
+    {
+      "id": "heading",
+      "example": "style-heading",
+      "description": "Heading typography for section hierarchy."
+    },
+    {
+      "id": "body",
+      "example": "style-body",
+      "description": "Body typography for readable supporting content."
+    },
+    {
+      "id": "label",
+      "example": "style-label",
+      "description": "Label typography for controls and compact identity."
+    },
+    {
+      "id": "caption",
+      "example": "style-caption",
+      "description": "Caption typography for metadata and secondary context."
+    },
+    {
+      "id": "code",
+      "example": "style-code",
+      "description": "Code typography for technical values."
+    },
+    {
+      "id": "overline",
+      "example": "style-overline",
+      "description": "Overline typography for compact section framing."
     }
   ],
   "claims": [
     {
       "id": "contract-present",
       "type": "custom",
-      "statement": "Text exposes a bounded public contract backed by shared tokens.",
+      "statement": "Text exposes eight bounded typography styles backed by shared tokens.",
       "tier": "manual",
-      "states": ["default"]
+      "states": [
+        "display",
+        "title",
+        "heading",
+        "body",
+        "label",
+        "caption",
+        "code",
+        "overline"
+      ]
+    },
+    {
+      "id": "semantic-output",
+      "type": "element-present",
+      "statement": "Each story renders visible text with a data marker identifying the selected style.",
+      "tier": "machine",
+      "states": [
+        "display",
+        "title",
+        "heading",
+        "body",
+        "label",
+        "caption",
+        "code",
+        "overline"
+      ]
     }
   ]
 }

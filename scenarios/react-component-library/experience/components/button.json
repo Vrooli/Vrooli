@@ -1,6 +1,4 @@
 {
-  "kind": "experience-component",
-  "schemaVersion": "1.1.0",
   "contract": {
     "kind": "rcl-component-experience-contract",
     "schema": "scenario-experience-spec/v1",
@@ -9,8 +7,7 @@
   "component": {
     "id": "button",
     "title": "Button",
-    "purpose": "Provide a token-bound action control whose accessible name, spacing, state treatment, and size remain consistent across reuse.",
-    "storyRef": "../../library/components/Button/versions/2.0.0/story.json"
+    "purpose": "Provide a token-bound action control whose accessible name, spacing, state treatment, and size remain consistent across reuse."
   },
   "states": [
     { "id": "primary", "example": "primary", "description": "Primary action." },

@@ -31,6 +31,10 @@ func TestIndexer_DrawerShellDeclaresReusableHookDependencies(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, components.AssetKindHook, hook.AssetKind)
 	}
+
+	tokens, err := repo.GetByLibraryID(context.Background(), "react-component-library:Tokens")
+	require.NoError(t, err)
+	require.Equal(t, components.AssetKindFoundation, tokens.AssetKind)
 }
 
 const buttonTSX = `/**

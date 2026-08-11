@@ -96,7 +96,7 @@ describe("CatalogBrowser", () => {
     renderWithProviders(<CatalogBrowser />);
 
     await screen.findByTestId(selectors.catalog.asset);
-    expect(await screen.findByText("3")).toBeInTheDocument();
+    expect(await screen.findByTestId("catalog-group-adoptions")).toHaveTextContent("3");
     const controls = screen.getAllByTestId(selectors.catalog.presentation);
     await user.click(controls[2]!);
 

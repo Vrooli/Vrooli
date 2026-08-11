@@ -1,1 +1,50 @@
-{"schemaVersion":1,"kind":"component","title":"Icon","args":{"fields":[{"path":"name","label":"Name","kind":"enum","default":"check","options":["check","close","chevronDown","chevronRight","menu","search","plus","arrowStart","arrowEnd"]}]},"environment":{"fixtures":[]},"stories":[{"id":"name-check","name":"name check","args":{"name":"check"}},{"id":"name-close","name":"name close","args":{"name":"close"}},{"id":"name-chevrondown","name":"name chevronDown","args":{"name":"chevronDown"}},{"id":"name-chevronright","name":"name chevronRight","args":{"name":"chevronRight"}},{"id":"name-menu","name":"name menu","args":{"name":"menu"}},{"id":"name-search","name":"name search","args":{"name":"search"}},{"id":"name-plus","name":"name plus","args":{"name":"plus"}},{"id":"name-arrowstart","name":"name arrowStart","args":{"name":"arrowStart"}},{"id":"name-arrowend","name":"name arrowEnd","args":{"name":"arrowEnd"}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Icon",
+  "args": {
+    "fields": [
+      {
+        "path": "name",
+        "label": "Name",
+        "kind": "enum",
+        "default": "check",
+        "options": ["check", "close", "chevronDown", "chevronRight", "menu", "search", "plus", "arrowStart", "arrowEnd"]
+      }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "name-check",
+      "name": "Check",
+      "harness": "IconShowcase",
+      "args": { "name": "check" },
+      "expect": [
+        { "kind": "role", "role": "img", "name": "Check" },
+        { "kind": "text", "value": "Icons with a point of view" },
+        { "kind": "layout", "selector": "[data-rcl-icon-showcase]", "minWidth": 240, "minHeight": 180, "noOverflow": true }
+      ]
+    },
+    {
+      "id": "name-search",
+      "name": "Search",
+      "harness": "IconShowcase",
+      "args": { "name": "search" },
+      "expect": [
+        { "kind": "role", "role": "img", "name": "Search" },
+        { "kind": "attribute", "selector": "[data-icon=search]", "name": "aria-label", "value": "Search" }
+      ]
+    },
+    {
+      "id": "name-arrow-end",
+      "name": "Arrow end",
+      "harness": "IconShowcase",
+      "args": { "name": "arrowEnd" },
+      "expect": [
+        { "kind": "role", "role": "img", "name": "Arrow end" },
+        { "kind": "text", "value": "Arrow end · named for assistive technology" }
+      ]
+    }
+  ]
+}

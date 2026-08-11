@@ -5,6 +5,19 @@
   "description": "A URL-ready search and filter composition that separates no-match emptiness from loading and error states.",
   "assetKind": "component",
   "tags": ["pattern", "data-source", "token-bound"],
+  "slot": "ui-pattern",
+  "category": "patterns",
+  "dependencies": [
+    { "libraryId": "react-component-library:FilterBar", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:SearchResults",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:useAbortableTask",
+      "version": "1.0.0"
+    }
+  ],
   "latest": "1.0.0",
   "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
   "dependencies": []

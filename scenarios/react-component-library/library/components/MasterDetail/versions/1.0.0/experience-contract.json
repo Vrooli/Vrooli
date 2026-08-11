@@ -1,0 +1,55 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:MasterDetail@1.0.0"
+  },
+  "component": {
+    "id": "navigation.master-detail",
+    "title": "MasterDetail",
+    "purpose": "MasterDetail preserves selection, scroll position, and focus order while transforming adjacency into a compact drill-in."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A selected record is available beside the collection."
+    },
+    {
+      "id": "loading",
+      "example": "loading",
+      "description": "The workspace frame remains stable while records load."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "The collection explains its empty state without fabricating detail."
+    },
+    {
+      "id": "partial",
+      "example": "partial",
+      "description": "Partial detail is named without hiding known context."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "Request failure remains visible inside the workspace."
+    }
+  ],
+  "claims": [
+    {
+      "id": "compact-drill-in",
+      "type": "custom",
+      "statement": "Compact selection drills into detail while preserving a return path to the collection.",
+      "tier": "manual",
+      "states": ["default"]
+    },
+    {
+      "id": "states-complete",
+      "type": "custom",
+      "statement": "Loading, empty, partial, and request-error states retain the same workspace hierarchy.",
+      "tier": "manual",
+      "states": ["loading", "empty", "partial", "request-error"]
+    }
+  ]
+}

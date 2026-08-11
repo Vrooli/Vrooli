@@ -12,6 +12,9 @@ export const INPUT_PARTS = ["prefix", "control", "suffix"] as const;
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
+const joinClasses = (...inputs: Array<string | undefined>) =>
+  inputs.filter(Boolean).join(" ");
+
 const styleSheet = `
 [data-rcl-input] {
   box-sizing: border-box;
@@ -46,7 +49,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         ref={ref}
         type={type}
         data-rcl-input="true"
-        className={className}
+        className={joinClasses(
+          "rounded-control border border-app-border",
+          className,
+        )}
         {...props}
       />
     </>

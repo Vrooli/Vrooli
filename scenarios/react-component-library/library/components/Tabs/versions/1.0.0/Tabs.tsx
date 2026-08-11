@@ -7,6 +7,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { motionTransition } from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
 
 export type TabsMode = "controlled" | "uncontrolled";
 
@@ -24,11 +25,11 @@ const styleSheet = `
 [data-rcl-tabs] { position: relative; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 [data-rcl-tabs]::-webkit-scrollbar { display: none; }
 [data-rcl-tablist] { position: relative; display: inline-flex; min-width: 100%; gap: var(--space-3xs); border-bottom: var(--border-hairline) solid var(--color-border); }
-[data-rcl-tab] { position: relative; min-height: var(--tap-target-min); padding-inline: var(--space-sm); border: 0; border-radius: var(--radius-control) var(--radius-control) 0 0; background: transparent; color: var(--color-muted-foreground); cursor: pointer; font: inherit; font-weight: 650; white-space: nowrap; transition: color var(--dur-quick) var(--ease-standard), background var(--dur-quick) var(--ease-standard); }
+[data-rcl-tab] { position: relative; min-height: var(--tap-target-min); padding-inline: var(--space-sm); border: 0; border-radius: var(--radius-control) var(--radius-control) 0 0; background: transparent; color: var(--color-muted-foreground); cursor: pointer; font: inherit; font-weight: 650; white-space: nowrap; transition: ${motionTransition(["color", "background-color"], "interaction")}; }
 [data-rcl-tab]:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
 [data-rcl-tab]:focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: calc(var(--space-3xs) * -1); }
 [data-rcl-tab][aria-selected="true"] { color: var(--color-primary); }
-[data-rcl-tab-indicator] { position: absolute; inset-block-end: 0; block-size: var(--border-strong); border-radius: var(--radius-pill); background: var(--color-primary); pointer-events: none; transition: transform var(--dur-moderate) var(--ease-standard), width var(--dur-moderate) var(--ease-standard); }
+[data-rcl-tab-indicator] { position: absolute; inset-block-end: 0; inline-size: 1px; block-size: var(--border-strong); border-radius: var(--radius-pill); background: var(--color-primary); pointer-events: none; transform-origin: left center; transition: ${motionTransition(["transform", "opacity"], "spring")}; will-change: transform, opacity; }
 @media (prefers-reduced-motion: reduce) { [data-rcl-tab], [data-rcl-tab-indicator] { transition: none; } }
 @media (max-width: 480px) { [data-rcl-tab] { padding-inline: var(--space-xs); } }
 `;
@@ -66,8 +67,7 @@ export function Tabs({
       const tabRect = tab.getBoundingClientRect();
       setIndicator({
         opacity: 1,
-        width: tabRect.width,
-        transform: `translateX(${tabRect.left - listRect.left + list.scrollLeft}px)`,
+        transform: `translateX(${tabRect.left - listRect.left + list.scrollLeft}px) scaleX(${Math.max(tabRect.width, 1)})`,
       });
     };
     updateIndicator();

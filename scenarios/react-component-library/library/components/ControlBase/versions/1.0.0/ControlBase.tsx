@@ -5,6 +5,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { motionTransition } from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
 
 export type ControlVariant =
   | "primary"
@@ -137,8 +138,7 @@ const styleSheet = `
 [data-rcl-control] {
   appearance: none;
   box-sizing: border-box;
-  position: relative;
-  isolation: isolate;
+      isolation: isolate;
   min-height: var(--tap-target-min);
   min-width: var(--tap-target-min);
   border-width: var(--border-hairline);
@@ -154,7 +154,7 @@ const styleSheet = `
   user-select: none;
   white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
-  transition: transform var(--dur-quick) var(--ease-standard), filter var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard), background-color var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard);
+  transition: ${motionTransition(["transform", "filter", "box-shadow", "background-color", "border-color", "color"])};
 }
 [data-rcl-control]:hover:not(:disabled) {
   filter: brightness(1.06) saturate(1.04);

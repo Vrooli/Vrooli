@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "BulkActionBar",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Selection actions", "harness": "Default", "args": {}, "expect": [{ "kind": "text", "value": "8 items selected" }, { "kind": "role", "role": "button", "name": "Archive selected" }] },
+    { "id": "submitting", "name": "Submitting", "harness": "Submitting", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "text", "value": "5 of 8" }] },
+    { "id": "success", "name": "Success", "harness": "Success", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "text", "value": "Eight records were archived" }] },
+    { "id": "partial", "name": "Partial failure", "harness": "Partial", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "text", "value": "Untitled release notes" }, { "kind": "role", "role": "button", "name": "Retry failed items" }] },
+    { "id": "request-error", "name": "Request error", "harness": "RequestError", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "role", "role": "button", "name": "Retry failed items" }] },
+    { "id": "retry", "name": "Retry", "harness": "Retry", "args": {}, "expect": [{ "kind": "text", "value": "Ready to retry" }, { "kind": "role", "role": "button", "name": "Retry failed items" }] },
+    { "id": "interactive", "name": "Interactive lifecycle", "harness": "Interactive", "args": {}, "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Archive selected" } }, { "kind": "settle" }, { "kind": "waitFor", "text": "500" }, { "kind": "settle" }], "expect": [{ "kind": "role", "role": "status" }, { "kind": "text", "value": "Eight records were archived." }] }
+  ]
+}

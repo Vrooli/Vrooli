@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "DrawerShell",
+  "args": {
+    "fields": [
+      { "path": "open", "label": "Open", "kind": "boolean", "default": true },
+      { "path": "title", "label": "Title", "kind": "text", "default": "Component details" },
+      { "path": "size", "label": "Size", "kind": "text", "default": "compact" },
+      { "path": "avoidKeyboard", "label": "Avoid Keyboard", "kind": "boolean", "default": false },
+      { "path": "onClose", "label": "On Close", "kind": "structured", "default": { "$handler": "close" } },
+      { "path": "children", "label": "Children", "kind": "structured", "default": { "$text": "Drawer body content" } }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "full-open",
+      "name": "Full drawer",
+      "args": { "open": true, "title": "Component details", "onClose": { "$handler": "close" }, "children": { "$text": "Full-page drawer body content" } },
+      "expect": [
+        { "kind": "role", "role": "dialog", "name": "Component details" },
+        { "kind": "text", "value": "Full-page drawer body content" }
+      ]
+    },
+    {
+      "id": "compact-open",
+      "name": "Compact centered panel",
+      "args": { "open": true, "size": "compact", "title": "Appearance", "onClose": { "$handler": "close" }, "children": { "$text": "Compact panel content" } },
+      "expect": [
+        { "kind": "role", "role": "dialog", "name": "Appearance" },
+        { "kind": "text", "value": "Compact panel content" }
+      ]
+    },
+    {
+      "id": "with-header-content",
+      "name": "Header content",
+      "args": { "open": true, "title": "Edit prompt", "headerExtra": { "$node": "p", "children": [{ "$text": "Updated just now" }] }, "onClose": { "$handler": "close" }, "children": { "$text": "Body with supporting context" } },
+      "expect": [
+        { "kind": "text", "value": "Updated just now" },
+        { "kind": "text", "value": "Body with supporting context" }
+      ]
+    }
+  ]
+}

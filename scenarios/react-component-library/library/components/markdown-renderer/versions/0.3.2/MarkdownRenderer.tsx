@@ -21,6 +21,7 @@ import { CodeBlock } from "./CodeBlock";
 import { InlineCode, type InlineTokenResolution } from "./InlineCode";
 import { MermaidDiagram } from "./MermaidDiagram";
 import { remarkProsePaths } from "./languageDetection";
+import { markdownStyles } from "./markdownStyles";
 
 export type { InlineTokenResolution } from "./InlineCode";
 export { CodeBlock } from "./CodeBlock";
@@ -56,9 +57,7 @@ class MarkdownErrorBoundary extends Component<
   componentDidCatch(_error: Error, _info: ErrorInfo) {}
   render() {
     return this.state.failed ? (
-      <pre className="whitespace-pre-wrap font-mono text-sm text-[var(--markdown-code-text)]">
-        {this.props.content}
-      </pre>
+      <pre className="rcl-md__error">{this.props.content}</pre>
     ) : (
       this.props.children
     );
@@ -119,31 +118,21 @@ export function MarkdownRenderer({
         <a
           href={href}
           onClick={(event) => onLinkClick?.(href, event)}
-          className="text-[var(--markdown-link)] underline underline-offset-2"
+          className="rcl-md__link"
         >
           {children}
         </a>
       ),
       blockquote: ({ children }: { children?: ReactNode }) => (
-        <blockquote className="my-3 border-l-2 border-[var(--markdown-link)] pl-3 italic text-[var(--markdown-muted)]">
-          {children}
-        </blockquote>
+        <blockquote className="rcl-md__blockquote">{children}</blockquote>
       ),
       table: ({ children }: { children?: ReactNode }) => (
-        <div className="my-3 overflow-x-auto">
-          <table className="border-collapse text-sm">{children}</table>
+        <div className="rcl-md__table-scroll">
+          <table>{children}</table>
         </div>
       ),
-      th: ({ children }: { children?: ReactNode }) => (
-        <th className="border border-[var(--markdown-border)] px-2 py-1 text-left">
-          {children}
-        </th>
-      ),
-      td: ({ children }: { children?: ReactNode }) => (
-        <td className="border border-[var(--markdown-border)] px-2 py-1">
-          {children}
-        </td>
-      ),
+      th: ({ children }: { children?: ReactNode }) => <th>{children}</th>,
+      td: ({ children }: { children?: ReactNode }) => <td>{children}</td>,
     }),
     [
       looksLikeFileReference,
@@ -157,7 +146,15 @@ export function MarkdownRenderer({
   const Wrapper = inline ? "span" : "div";
   return (
     <MarkdownErrorBoundary content={content}>
-      <Wrapper className={className} style={markdownTokens}>
+      <Wrapper
+        className={`rcl-md__root ${className ?? ""}`}
+        style={markdownTokens}
+        data-rcl-markdown
+      >
+        <style
+          data-rcl-markdown-styles
+          dangerouslySetInnerHTML={{ __html: markdownStyles }}
+        />
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkProsePaths]}
           components={components}

@@ -115,6 +115,8 @@ if (typeof ResizeObserver === "undefined") {
 interface ComponentEditorProps {
   id: string;
   libraryId: string;
+  /** Manifest-owned released version used when no historical version is selected. */
+  latestVersion?: string;
   onClose: () => void;
   metadataSlot?: ReactNode;
   /** Asset-level navigation stays visible while Files or Preview replaces Details. */
@@ -148,6 +150,7 @@ interface ComponentEditorProps {
 export function ComponentEditorImpl({
   id,
   libraryId,
+  latestVersion,
   onClose,
   metadataSlot,
   navigationSlot,
@@ -182,7 +185,12 @@ export function ComponentEditorImpl({
     queryKey: ["components", "versions", id],
     queryFn: () => componentsClient.listComponentVersions({ componentId: id, limit: 100 }),
   });
-  const activeVersion = selectedVersion || versionsQuery.data?.versions[0]?.version || "";
+  // Version list order is presentation/history data, not a version-selection
+  // contract. The manifest's latest pointer is the only authoritative default;
+  // falling back to the first row can select an old prerelease draft after an
+  // index refresh.
+  const activeVersion =
+    selectedVersion || latestVersion || versionsQuery.data?.versions[0]?.version || "";
   const activeVersionFiles = ((versionsQuery.data?.versions ?? []).find(
     (version) => version.version === activeVersion,
   )?.files ?? []) as Array<{ path: string; isEntry: boolean }>;
@@ -273,6 +281,19 @@ export function ComponentEditorImpl({
   useEffect(() => {
     onPreviewExperienceStateChange?.(previewExperienceState);
   }, [onPreviewExperienceStateChange, previewExperienceState]);
+
+  useEffect(() => {
+    if (!stageMode) return;
+    // Structural assets are judged as compositions, so the specimen owns the
+    // initial vertical space. The tools remain one intentional toggle away.
+    setPreviewToolsCollapsed(true);
+    const collapseFrame = window.requestAnimationFrame(() => {
+      previewToolsPanelRef.current?.collapse();
+      window.requestAnimationFrame(() => emulator.fitToPane());
+    });
+    return () => window.cancelAnimationFrame(collapseFrame);
+  }, [emulator.fitToPane, stageMode]);
+
   const resolvedPreviewTheme =
     filters.colorScheme === "system" ? appResolvedTheme : filters.colorScheme;
 

@@ -2,10 +2,16 @@
   "libraryId": "react-component-library:CommandPalette",
   "catalogId": "overlays.command-palette",
   "displayName": "CommandPalette",
-  "description": "A layered command surface that uses the shared registry and closes through the shared overlay coordinator.",
+  "description": "A focused, keyboard-first command surface with recent actions, grouped search, async recovery, and responsive layering.",
   "assetKind": "component",
   "tags": ["overlay", "command", "token-bound"],
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:SearchInput", "version": "1.0.0" }
+  ]
 }

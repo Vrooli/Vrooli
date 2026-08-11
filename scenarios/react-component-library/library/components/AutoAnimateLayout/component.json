@@ -1,0 +1,21 @@
+{
+  "libraryId": "react-component-library:AutoAnimateLayout",
+  "catalogId": "motion.auto-animate-layout",
+  "displayName": "AutoAnimateLayout",
+  "description": "A keyed FLIP layout boundary that animates displacement without tweening layout properties.",
+  "assetKind": "component",
+  "tags": ["motion", "layout", "reduced-motion", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:useReducedMotion",
+      "version": "1.0.0"
+    },
+    { "libraryId": "react-component-library:LayoutGroup", "version": "1.0.0" }
+  ]
+}

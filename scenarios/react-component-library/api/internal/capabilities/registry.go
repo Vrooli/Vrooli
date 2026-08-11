@@ -21,6 +21,12 @@ type (
 	Registry       = capabilityregistry.Registry
 )
 
+type RegistryMetadata struct {
+	Platform capabilityregistry.PlatformVerdict `json:"platform"`
+}
+
+var Metadata = RegistryMetadata{Platform: capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformSupported, Reason: "The component catalog and direct library APIs are host-neutral; optional integrations are declared in service.json."}}
+
 const (
 	DependencyScenario      = capabilityregistry.DependencyScenario
 	StatusAvailable         = capabilityregistry.StatusAvailable
@@ -28,18 +34,7 @@ const (
 	ActionKindScenarioStart = capabilityregistry.ActionKindScenarioStart
 )
 
-var Known = []Def{
-	{
-		ID:              "agent-manager",
-		Name:            "Agent Manager",
-		Description:     "Optional workflow execution for attributable assisted extraction and adoption in react-component-library.",
-		DependencyKind:  DependencyScenario,
-		DependencySlug:  "agent-manager",
-		ActionKind:      ActionKindScenarioStart,
-		ActionLabel:     "Start Agent Manager",
-		OperatorCommand: "vrooli scenario start agent-manager --json",
-	},
-}
+var Known = []Def{}
 
 func NewRegistry() *Registry {
 	return capabilityregistry.New(Known, map[string]Checker{

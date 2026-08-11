@@ -15,12 +15,12 @@ import (
 )
 
 // Indexer walks a configured filesystem root for registry-backed manifests under
-// components/*/component.json and hooks/*/component.json and upserts the
-// manifest plus its version folders into the Repository. Catalog foundations,
-// primitives, and services are intentionally owned by catalog coverage rather
-// than this component registry, so they are skipped during indexing. Renderable
-// primitives are part of the registry even though they live in their own
-// authored root; a final DeleteMissing call
+// components/*/component.json, foundations/*/component.json, and
+// hooks/*/component.json and upserts the manifest plus its version folders
+// into the Repository. Catalog services are intentionally owned by catalog
+// coverage rather than this component registry, so they are skipped during
+// indexing. Renderable primitives are part of the registry even though they
+// live in their own authored root; a final DeleteMissing call
 // removes rows whose manifests no longer exist, so deleted components
 // leave the registry without manual intervention.
 //
@@ -162,6 +162,7 @@ func registryAssetPath(path string) bool {
 	clean := filepath.ToSlash(path)
 	return strings.HasPrefix(clean, "components/") ||
 		strings.HasPrefix(clean, "primitives/") ||
+		strings.HasPrefix(clean, "foundations/") ||
 		strings.HasPrefix(clean, "hooks/")
 }
 
@@ -615,10 +616,12 @@ func assetKindForManifestPath(path, declared string) (AssetKind, error) {
 		// contract and wire shape while retaining their authored root so
 		// source files and previews resolve to the real materialized file.
 		inferred = AssetKindComponent
+	case strings.HasPrefix(clean, "foundations/"):
+		inferred = AssetKindFoundation
 	case strings.HasPrefix(clean, "hooks/"):
 		inferred = AssetKindHook
 	default:
-		return "", ErrInvalidHeader{SourcePath: path, Field: "asset root", Reason: "manifest must be under components/, primitives/, or hooks/"}
+		return "", ErrInvalidHeader{SourcePath: path, Field: "asset root", Reason: "manifest must be under components/, primitives/, foundations/, or hooks/"}
 	}
 	if declared == "" {
 		return inferred, nil

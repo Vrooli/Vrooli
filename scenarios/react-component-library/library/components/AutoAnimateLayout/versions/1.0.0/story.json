@@ -1,0 +1,1 @@
+{"schemaVersion":3,"kind":"component","title":"AutoAnimateLayout","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Keyed layout movement","harness":"Default","args":{},"expect":[{"kind":"text","value":"Movement follows the cause"},{"kind":"role","role":"button","name":"Add row"},{"kind":"text","value":"Research"}]}]}

@@ -41,7 +41,7 @@ describe("AppShell accessibility", () => {
       </Routes>,
       { routerEntries: ["/"] },
     );
-    expect(screen.getByTestId("app-main")).toBeInTheDocument();
+    expect(screen.getByRole("main")).toBeInTheDocument();
     await expectNoA11yViolations(container);
   });
 });

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Avatar",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Named identity", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "img", "name": "Maya Chen" }, { "kind": "role", "role": "status", "name": "Maya Chen is online" }] },
+    { "id": "loading", "name": "Loading", "harness": "Loading", "args": {}, "expect": [{ "kind": "role", "role": "img", "name": "Maya Chen" }] },
+    { "id": "request-error", "name": "Request error fallback", "harness": "RequestError", "args": {}, "expect": [{ "kind": "role", "role": "img", "name": "Maya Chen" }] },
+    { "id": "group", "name": "Group overflow", "harness": "Group", "args": {}, "expect": [{ "kind": "role", "role": "group", "name": "Reviewers" }, { "kind": "role", "role": "img", "name": "+1 more people" }] }
+  ]
+}

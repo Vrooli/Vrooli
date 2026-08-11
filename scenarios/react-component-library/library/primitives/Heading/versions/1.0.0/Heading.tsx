@@ -1,15 +1,23 @@
 /** @vrooliComponentSource primitives.heading */
-import type { ElementType, HTMLAttributes } from "react";
-import { TEXT_STYLES } from "../../../../foundations/Tokens/versions/1.0.0/Tokens";
+import type { HTMLAttributes } from "react";
+import { Text, type TextProps } from "../../../Text/versions/1.0.0/Text";
+
+export interface HeadingProps extends Omit<TextProps, "as"> {
+  level?: 1 | 2 | 3 | 4 | 5 | 6;
+}
 
 export function Heading({
   level = 2,
-  style = "heading",
+  textStyle = "heading",
   ...props
-}: HTMLAttributes<HTMLHeadingElement> & {
-  level?: 1 | 2 | 3 | 4 | 5 | 6;
-  style?: keyof typeof TEXT_STYLES;
-}) {
-  const Component: ElementType = `h${level}`;
-  return <Component data-text-style={style} {...props} />;
+}: HeadingProps & Omit<HTMLAttributes<HTMLHeadingElement>, "style">) {
+  const Component = `h${level}` as keyof HTMLElementTagNameMap;
+  return (
+    <Text
+      {...props}
+      as={Component}
+      textStyle={textStyle}
+      data-heading-level={level}
+    />
+  );
 }

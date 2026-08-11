@@ -11,5 +11,8 @@
     { "styleId": "vrooli-command-display", "affinity": "compatible" },
     { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
   ],
-  "dependencies": []
+  "dependencies": [
+    { "libraryId": "react-component-library:IconRegistry", "version": "1.0.0" },
+    { "libraryId": "react-component-library:Tokens", "version": "1.0.0" }
+  ]
 }

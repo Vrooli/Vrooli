@@ -1,0 +1,57 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:GlobalCommandSystem@1.0.0"
+  },
+  "component": {
+    "id": "patterns.global-command-system",
+    "title": "GlobalCommandSystem",
+    "purpose": "GlobalCommandSystem makes one scoped command registration drive keyboard invocation, discovery, execution, history, and recovery."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A launcher exposes the command affordance without stealing focus."
+    },
+    {
+      "id": "loading",
+      "example": "open-recent",
+      "description": "The palette can preserve its surface while command data is prepared."
+    },
+    {
+      "id": "empty",
+      "example": "open-recent",
+      "description": "No-match feedback remains useful and keyboard-operable."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "Command refresh or execution failure remains explicit and retryable."
+    }
+  ],
+  "claims": [
+    {
+      "id": "shared-command-language",
+      "type": "custom",
+      "statement": "Commands registered once are discoverable through the palette and invokable through the scoped shortcut registry.",
+      "tier": "manual",
+      "states": ["default", "loading"]
+    },
+    {
+      "id": "keyboard-first",
+      "type": "custom",
+      "statement": "Opening focuses search, arrow keys move the active command, Enter executes it, and Escape restores the prior focus target.",
+      "tier": "manual",
+      "states": ["default"]
+    },
+    {
+      "id": "recovery",
+      "type": "custom",
+      "statement": "Empty and request-error states preserve the command surface and expose useful recovery copy instead of silently disappearing.",
+      "tier": "manual",
+      "states": ["empty", "request-error"]
+    }
+  ]
+}

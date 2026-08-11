@@ -69,6 +69,12 @@ function versionPaths(manifestPath) {
 
 function validateVersionLocalImports(filePath) {
   const source = readFileSync(filePath, "utf8");
+  if (/runtimePhase\d+|shared\/runtime/.test(source)) {
+    throw new Error(
+      `${filePath} contains a legacy shared runtime reference; `
+      + "published assets must expose their real version-local source",
+    );
+  }
   const relativeImports = /\b(?:from\s*|import\s*\()\s*["'](\.{1,2}\/[^"']+)["']/g;
   for (const match of source.matchAll(relativeImports)) {
     const specifier = match[1];

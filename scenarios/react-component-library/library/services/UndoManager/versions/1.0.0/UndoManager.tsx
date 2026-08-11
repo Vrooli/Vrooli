@@ -25,6 +25,7 @@ export interface UndoInput {
   expiresMs?: number;
   undo: () => void | Promise<void>;
   successMessage?: string;
+  successDetail?: string;
 }
 
 export interface UndoSeed extends UndoInput {

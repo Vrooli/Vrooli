@@ -9,6 +9,7 @@
 
 import type { MouseEvent, ReactNode } from "react";
 import { useCodeCopy } from "./useCodeCopy";
+import { markdownStyles } from "./markdownStyles";
 
 export interface InlineTokenResolution {
   href: string;
@@ -40,16 +41,16 @@ export function InlineCode({
   const resolution = resolveInlineToken?.(text);
   const isFile = !resolution && looksLikeFileReference?.(text);
   const { copied, copy } = useCodeCopy();
-  const tokenClass =
-    "rounded bg-[var(--markdown-code-surface)] px-1 py-0.5 font-mono text-[var(--markdown-code-text)]";
+  const tokenClass = "rcl-md__inline-token";
 
   if (resolution)
     return (
       <a
         href={resolution.href}
+        data-rcl-markdown
         data-entity-ref={resolution.kind === "entity" ? "true" : undefined}
         onClick={(event) => onLinkClick?.(resolution.href, event)}
-        className={`${tokenClass} text-[var(--markdown-link)] underline`}
+        className={`${tokenClass} rcl-md__link`}
       >
         {text}
       </a>
@@ -58,20 +59,25 @@ export function InlineCode({
     return (
       <button
         type="button"
+        data-rcl-markdown
         onClick={() => onFileReferenceClick?.(text)}
-        className={`${tokenClass} text-[var(--markdown-link)] hover:opacity-80`}
+        className={`${tokenClass} rcl-md__link`}
       >
         {text}
       </button>
     );
   return (
-    <span className="group relative inline-flex items-center">
+    <span className="rcl-md__inline" data-rcl-markdown>
+      <style
+        data-rcl-markdown-styles
+        dangerouslySetInnerHTML={{ __html: markdownStyles }}
+      />
       <code className={tokenClass}>{text}</code>
       <button
         type="button"
         aria-label={copyLabel}
         onClick={() => void copy(text)}
-        className="ml-1 hidden rounded px-1 text-[10px] text-[var(--markdown-muted)] group-hover:inline hover:opacity-80"
+        className="rcl-md__inline-copy"
       >
         {copied ? "Copied" : "Copy"}
       </button>

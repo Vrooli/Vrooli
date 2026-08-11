@@ -1,1 +1,27 @@
-{"schemaVersion":1,"kind":"component","title":"Text","args":{"fields":[{"path":"style","label":"Style","kind":"enum","default":"display","options":["display","title","heading","body","label","caption","code","overline"]}]},"environment":{"fixtures":[]},"stories":[{"id":"style-display","name":"style display","args":{"style":"display"}},{"id":"style-title","name":"style title","args":{"style":"title"}},{"id":"style-heading","name":"style heading","args":{"style":"heading"}},{"id":"style-body","name":"style body","args":{"style":"body"}},{"id":"style-label","name":"style label","args":{"style":"label"}},{"id":"style-caption","name":"style caption","args":{"style":"caption"}},{"id":"style-code","name":"style code","args":{"style":"code"}},{"id":"style-overline","name":"style overline","args":{"style":"overline"}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Text",
+  "args": {
+    "fields": [
+      {
+        "path": "style",
+        "label": "Style",
+        "kind": "enum",
+        "default": "body",
+        "options": ["display", "title", "heading", "body", "label", "caption", "code", "overline"]
+      }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "style-display", "name": "Display", "harness": "TypographyShowcase", "args": { "style": "display" }, "expect": [{ "kind": "role", "role": "heading", "name": "Typography as a system" }, { "kind": "text", "value": "Make the important thing unmistakable." }, { "kind": "layout", "selector": "[data-rcl-typography-showcase]", "minWidth": 240, "minHeight": 160, "noOverflow": true }], "interactions": [{ "kind": "settle" }] },
+    { "id": "style-title", "name": "Title", "harness": "TypographyShowcase", "args": { "style": "title" }, "expect": [{ "kind": "role", "role": "heading", "name": "Typography as a system" }, { "kind": "text", "value": "A considered hierarchy makes every decision easier." }], "interactions": [{ "kind": "settle" }] },
+    { "id": "style-heading", "name": "Heading", "harness": "TypographyShowcase", "args": { "style": "heading" }, "expect": [{ "kind": "role", "role": "heading", "name": "Typography as a system" }, { "kind": "text", "value": "Typography that carries the product’s point of view." }], "interactions": [{ "kind": "settle" }] },
+    { "id": "style-body", "name": "Body", "harness": "TypographyShowcase", "args": { "style": "body" }, "expect": [{ "kind": "role", "role": "heading", "name": "Typography as a system" }, { "kind": "text", "value": "Good interface writing gives people enough context" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "style-label", "name": "Label", "harness": "TypographyShowcase", "args": { "style": "label" }, "expect": [{ "kind": "role", "role": "heading", "name": "Typography as a system" }, { "kind": "text", "value": "Workspace identity" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "style-caption", "name": "Caption", "harness": "TypographyShowcase", "args": { "style": "caption" }, "expect": [{ "kind": "role", "role": "heading", "name": "Typography as a system" }, { "kind": "text", "value": "Updated a moment ago" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "style-code", "name": "Code", "harness": "TypographyShowcase", "args": { "style": "code" }, "expect": [{ "kind": "role", "role": "heading", "name": "Typography as a system" }, { "kind": "text", "value": "const result = await workspace.publish();" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "style-overline", "name": "Overline", "harness": "TypographyShowcase", "args": { "style": "overline" }, "expect": [{ "kind": "role", "role": "heading", "name": "Typography as a system" }, { "kind": "text", "value": "TYPE SCALE / 08 STYLES" }], "interactions": [{ "kind": "settle" }] }
+  ]
+}

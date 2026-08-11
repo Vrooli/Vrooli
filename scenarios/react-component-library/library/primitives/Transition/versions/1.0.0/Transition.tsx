@@ -24,6 +24,7 @@ export interface TransitionProps
   keepMounted?: boolean;
   kind?: TransitionKind;
   duration?: MotionDuration | number;
+  exitDuration?: PresenceDuration | number;
   onExitComplete?: () => void;
   motionValues?: Record<string, MotionValue>;
 }
@@ -42,6 +43,7 @@ export function Transition({
   keepMounted = false,
   kind = "fade",
   duration = "quick",
+  exitDuration,
   onExitComplete,
   motionValues,
   ...props
@@ -53,6 +55,7 @@ export function Transition({
       initial={initial}
       keepMounted={keepMounted}
       duration={presenceDuration}
+      exitDuration={exitDuration}
       onExitComplete={onExitComplete}
     >
       <MotionPrimitive

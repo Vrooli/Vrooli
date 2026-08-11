@@ -315,6 +315,12 @@ func (s *sqliteRepository) List(ctx context.Context, q SearchQuery) ([]Component
 	if q.AssetKind.Valid() {
 		clauses = append(clauses, `asset_kind = ?`)
 		args = append(args, string(q.AssetKind))
+	} else {
+		// Foundations are closure inputs, not ordinary component-library
+		// browsing rows. They remain directly addressable by library id and
+		// can be explicitly queried with AssetKindFoundation.
+		clauses = append(clauses, `asset_kind != ?`)
+		args = append(args, string(AssetKindFoundation))
 	}
 	styleID := strings.TrimSpace(q.StyleID)
 	affinity := strings.TrimSpace(q.Affinity)

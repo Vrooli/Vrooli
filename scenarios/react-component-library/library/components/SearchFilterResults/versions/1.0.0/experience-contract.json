@@ -7,27 +7,70 @@
   "component": {
     "id": "patterns.search-filter-results",
     "title": "SearchFilterResults",
-    "purpose": "SearchFilterResults preserves data-source ownership and honest state composition."
+    "purpose": "Keep query intent, asynchronous result state, and the distinction between an empty collection and no matches visible in one responsive surface."
   },
   "states": [
     {
       "id": "default",
       "example": "default",
-      "description": "SearchFilterResults renders its default state."
+      "description": "A query surface and populated result list are available."
+    },
+    {
+      "id": "no-match",
+      "example": "no-match",
+      "description": "The query has no matches and can be relaxed without confusing it with an empty source."
     },
     {
       "id": "empty",
       "example": "empty",
-      "description": "SearchFilterResults renders its empty state."
+      "description": "The source contains no results yet and communicates a different next step."
+    },
+    {
+      "id": "error",
+      "example": "error",
+      "description": "The request fails while the query remains visible and retryable."
+    }
+  ],
+  "elements": [
+    {
+      "id": "query",
+      "role": "search",
+      "description": "The preserved query and filter form."
+    },
+    {
+      "id": "results",
+      "role": "region",
+      "description": "The labelled result surface."
+    },
+    {
+      "id": "retry",
+      "role": "button",
+      "description": "The explicit recovery action."
     }
   ],
   "claims": [
     {
-      "id": "contract-present",
+      "id": "query-preserved",
+      "type": "element-present",
+      "statement": "The search form remains present while result state changes.",
+      "tier": "machine",
+      "elements": ["query"],
+      "states": ["default", "no-match", "empty", "error"]
+    },
+    {
+      "id": "empty-distinct",
       "type": "custom",
-      "statement": "SearchFilterResults preserves data-source ownership and honest state composition.",
+      "statement": "No matches and no indexed results use distinct headings and guidance.",
       "tier": "manual",
-      "states": ["default", "empty"]
+      "states": ["no-match", "empty"]
+    },
+    {
+      "id": "error-retryable",
+      "type": "element-present",
+      "statement": "The request-error state exposes a named retry action.",
+      "tier": "machine",
+      "elements": ["retry"],
+      "states": ["error"]
     }
   ]
 }

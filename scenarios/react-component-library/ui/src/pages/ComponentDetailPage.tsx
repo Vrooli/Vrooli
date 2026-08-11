@@ -81,41 +81,45 @@ function DetailTabs({
   ];
 
   return (
-    <div
-      role="tablist"
-      aria-label={t("componentDetail.info.tabs", { defaultValue: "Asset information" })}
-      className="flex border-b border-app-border"
-    >
-      {tabs.map((tab) => (
-        <Button
-          key={tab.id}
-          data-testid={
-            tab.id === "overview"
-              ? selectors.assets.hookOverviewTab
-              : tab.id === "files"
-                ? selectors.assets.hookFilesTab
-                : tab.id === "preview"
-                  ? selectors.assets.componentPreviewTab
-                  : undefined
-          }
-          type="button"
-          role="tab"
-          variant="secondary"
-          aria-selected={active === tab.id}
-          onClick={() => onChange(tab.id)}
-          className={`min-h-0 rounded-none border-0 px-space-2xs py-space-2xs text-xs font-medium ${active === tab.id ? "border-b-2 border-app-primary text-app-foreground" : "text-app-muted-foreground"}`}
-        >
-          {tab.label}
-          {tab.count !== undefined && (
-            <span
-              aria-hidden="true"
-              className="ml-1.5 inline-flex min-w-4 items-center justify-center rounded-pill bg-app-surface-muted px-space-3xs py-space-3xs text-[10px] leading-none text-app-muted-foreground"
+    <div className="min-w-0 overflow-x-auto" data-testid="component-detail-tabs-scroll">
+      <div
+        role="tablist"
+        aria-label={t("componentDetail.info.tabs", { defaultValue: "Asset information" })}
+        className="flex min-w-max items-stretch gap-space-2xs"
+      >
+        {tabs.map((tab) => {
+          const selected = active === tab.id;
+          return (
+            <button
+              key={tab.id}
+              data-testid={
+                tab.id === "overview"
+                  ? selectors.assets.hookOverviewTab
+                  : tab.id === "files"
+                    ? selectors.assets.hookFilesTab
+                    : tab.id === "preview"
+                      ? selectors.assets.componentPreviewTab
+                      : undefined
+              }
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => onChange(tab.id)}
+              className={`relative flex min-h-11 shrink-0 items-center gap-space-3xs border-b-2 border-transparent px-space-xs py-space-2xs text-xs font-semibold transition-colors ${selected ? "border-app-primary text-app-foreground" : "text-app-muted-foreground hover:border-app-border hover:text-app-foreground"}`}
             >
-              {tab.count}
-            </span>
-          )}
-        </Button>
-      ))}
+              {tab.label}
+              {tab.count !== undefined && (
+                <span
+                  aria-hidden="true"
+                  className={`inline-flex min-w-4 items-center justify-center rounded-pill px-space-3xs py-space-3xs text-[10px] leading-none ${selected ? "bg-app-primary/10 text-app-primary" : "bg-app-surface-muted text-app-muted-foreground"}`}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -178,6 +182,7 @@ function HookWorkspace({
       <ComponentEditor
         id={asset.id}
         libraryId={asset.libraryId || asset.id}
+        latestVersion={asset.latestVersion || asset.version}
         onClose={onClose}
         renderable={false}
         activePane={paneForTab(tab)}
@@ -459,6 +464,7 @@ export function ComponentDetailPage() {
       <ComponentEditor
         id={component.id}
         libraryId={component.libraryId || component.id}
+        latestVersion={component.latestVersion || component.version}
         stageMode={/navigation|pattern|sidebar|shell|pageframe|page-template|bottomnav/i.test(
           component.libraryId || component.id,
         )}

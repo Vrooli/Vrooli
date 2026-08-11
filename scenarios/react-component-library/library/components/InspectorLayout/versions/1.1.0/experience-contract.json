@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "componentId": "react-component-library:InspectorLayout",
+  "version": "1.1.0",
+  "states": [
+    "ready-inspector",
+    "empty-inspector",
+    "loading-inspector",
+    "partial-inspector",
+    "error-inspector"
+  ],
+  "behaviors": [
+    {
+      "id": "canvas-first",
+      "description": "The canvas remains the primary task region while the inspector owns its own lifecycle state."
+    },
+    {
+      "id": "responsive-workbench",
+      "description": "The inspector moves below the canvas on narrow widths while preserving the title, toolbar, and state content order."
+    },
+    {
+      "id": "stable-canvas",
+      "description": "The canvas keeps a bounded working surface and visual grid so state changes do not collapse the work area."
+    }
+  ],
+  "accessibility": [
+    "main landmark",
+    "labelled canvas region",
+    "toolbar heading",
+    "activity announcements",
+    "focus-visible",
+    "forced colors"
+  ]
+}

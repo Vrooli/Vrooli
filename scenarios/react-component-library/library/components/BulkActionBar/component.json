@@ -1,0 +1,18 @@
+{
+  "libraryId": "react-component-library:BulkActionBar",
+  "catalogId": "data-display.bulk-action-bar",
+  "displayName": "BulkActionBar",
+  "description": "A contextual selection surface that makes scope, progress, partial failure, and recovery explicit.",
+  "assetKind": "component",
+  "tags": ["data-display", "selection", "async", "recovery", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:Button", "version": "2.0.0" },
+    { "libraryId": "react-component-library:ButtonGroup", "version": "1.0.0" }
+  ]
+}

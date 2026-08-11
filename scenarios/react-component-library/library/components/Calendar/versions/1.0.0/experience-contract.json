@@ -1,0 +1,64 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Calendar@1.0.0"
+  },
+  "component": {
+    "id": "forms.calendar",
+    "title": "Calendar",
+    "purpose": "Make date selection localized, constrained, keyboard-operable, and visually calm across selection modes."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A single date is selected in a localized month grid."
+    },
+    {
+      "id": "range",
+      "example": "range",
+      "description": "A complete range differentiates its start, interval, and end."
+    },
+    {
+      "id": "multiple",
+      "example": "multiple",
+      "description": "Several independent dates remain scannable and removable."
+    },
+    {
+      "id": "constrained",
+      "example": "constrained",
+      "description": "Unavailable dates remain oriented but cannot be selected."
+    }
+  ],
+  "claims": [
+    {
+      "id": "keyboard",
+      "type": "custom",
+      "statement": "The grid uses a roving tab stop and delegates arrow/Home/End movement to useRovingFocus.",
+      "tier": "machine",
+      "states": ["default", "range"]
+    },
+    {
+      "id": "selection-modes",
+      "type": "custom",
+      "statement": "Single, multiple, range, week, and month modes preserve explicit value semantics through onChange.",
+      "tier": "machine",
+      "states": ["default", "range", "multiple"]
+    },
+    {
+      "id": "constraints",
+      "type": "custom",
+      "statement": "Minimum, maximum, and consumer disabled-date constraints use native disabled semantics and preserve calendar orientation.",
+      "tier": "machine",
+      "states": ["constrained"]
+    },
+    {
+      "id": "responsive-parity",
+      "type": "visual",
+      "statement": "The calendar remains legible and operable on narrow viewports and across declared compatible kits.",
+      "tier": "manual",
+      "states": ["default", "range", "constrained"]
+    }
+  ]
+}

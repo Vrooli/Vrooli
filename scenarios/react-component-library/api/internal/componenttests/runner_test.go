@@ -101,6 +101,19 @@ func TestRunnerFailsWhenStoryIsMissing(t *testing.T) {
 	require.Contains(t, report.Results[2].Message, "exactly one indexed story")
 }
 
+func TestRunnerTreatsFoundationClosureMembersAsSourceOnly(t *testing.T) {
+	foundation := components.Component{ID: "tokens", LibraryID: "rcl:Tokens", Slug: "Tokens", AssetKind: components.AssetKindFoundation}
+	runner := Runner{
+		Assets:  assets{root: foundation, dependency: foundation, versions: map[string]components.ComponentVersion{"tokens@1.0.0": {ComponentID: foundation.ID, Version: "1.0.0", Content: "export const Tokens = {};", ContentSHA256: "tokens"}}},
+		Stories: stories{},
+	}
+	report, err := runner.Run(context.Background(), Request{ComponentID: foundation.ID, Version: "1.0.0"})
+	require.NoError(t, err)
+	require.Equal(t, VerdictPassed, report.Verdict)
+	require.Len(t, report.Results, 3)
+	require.Equal(t, "non-renderable foundation validated as a source-only closure member", report.Results[2].Message)
+}
+
 func TestRunnerRejectsAnEmptyVersionedSourceBeforeBehaviorEvaluation(t *testing.T) {
 	root := components.Component{ID: "root", LibraryID: "rcl:root", Slug: "root", AssetKind: components.AssetKindComponent}
 	runner := Runner{Assets: assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0"}}}, Stories: stories{"root@1.0.0": componentStory("idle")}, Executor: executor{}}

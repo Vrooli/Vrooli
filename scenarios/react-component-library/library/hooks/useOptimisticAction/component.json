@@ -1,0 +1,16 @@
+{
+  "libraryId": "react-component-library:useOptimisticAction",
+  "catalogId": "hooks.use-optimistic-action",
+  "displayName": "useOptimisticAction",
+  "description": "An optimistic state controller that commits successful predictions and deterministically restores the previous value on failure.",
+  "assetKind": "hook",
+  "tags": ["runtime", "async", "optimistic", "recovery"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:useAsyncAction",
+      "version": "1.0.0"
+    }
+  ]
+}

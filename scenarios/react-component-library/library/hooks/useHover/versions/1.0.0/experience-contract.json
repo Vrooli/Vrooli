@@ -1,0 +1,35 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:useHover@1.0.0"
+  },
+  "component": {
+    "id": "hooks.use-hover",
+    "title": "useHover",
+    "purpose": "Provide hover intent without excluding keyboard, touch, or pen users."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The hook exposes a trigger/floating-surface contract with delayed intent."
+    }
+  ],
+  "claims": [
+    {
+      "id": "pointer-independence",
+      "type": "custom",
+      "statement": "Hover opens only for hover-capable mouse/pen pointers while keyboard focus remains an explicit path and touch does not engage hover.",
+      "tier": "machine",
+      "states": ["default"]
+    },
+    {
+      "id": "related-surface",
+      "type": "custom",
+      "statement": "Leaving the trigger for a declared related surface does not schedule closure.",
+      "tier": "machine",
+      "states": ["default"]
+    }
+  ]
+}

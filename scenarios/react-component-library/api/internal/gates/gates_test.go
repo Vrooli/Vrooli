@@ -21,11 +21,11 @@ func TestLiveTokenGate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Inspected == 0 {
-		t.Fatal("live token gate inspected zero implementation files")
+	if result.Inspected < 170 {
+		t.Fatalf("live token gate inspected %d active implementation files; expected the indexed active corpus", result.Inspected)
 	}
-	if len(result.Findings) < 1000 {
-		t.Fatalf("live token gate findings = %d, want at least 1000 literal-dimension findings for the burn-down anchor", len(result.Findings))
+	if len(result.Findings) != 0 {
+		t.Fatalf("live token gate reported findings in the active corpus: %+v", result.Findings)
 	}
 }
 
@@ -132,6 +132,75 @@ func TestLifecycleGateRejectsMissingCleanup(t *testing.T) {
 	}
 	if result.Inspected != 1 || len(result.Findings) != 1 || result.Findings[0].Code != "catalog.lifecycle_cleanup" {
 		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestLifecycleGateIgnoresStoriesAndEffectScopedBrowserAccess(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Watcher", "versions", "1.0.0")
+	if err := os.MkdirAll(source, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	implementation := `import { useEffect } from "react";
+export const Watcher = () => {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {}, 10);
+    return () => window.clearTimeout(timer);
+  }, []);
+  return null;
+};`
+	if err := os.WriteFile(filepath.Join(source, "Watcher.tsx"), []byte(implementation), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "story.tsx"), []byte(`export const Story = () => window.setTimeout(() => {}, 10);`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateLifecycle(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 1 || len(result.Findings) != 0 {
+		t.Fatalf("result = %+v, want only runtime source inspected with no findings", result)
+	}
+}
+
+func TestLifecycleGateRejectsRenderTimeBrowserAccess(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Watcher", "versions", "1.0.0")
+	if err := os.MkdirAll(source, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	implementation := `export const Watcher = () => <output>{window.innerWidth}</output>;`
+	if err := os.WriteFile(filepath.Join(source, "Watcher.tsx"), []byte(implementation), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateLifecycle(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 1 || len(result.Findings) != 1 || result.Findings[0].Code != "catalog.lifecycle_ssr" {
+		t.Fatalf("result = %+v, want render-time SSR finding", result)
+	}
+}
+
+func TestLifecycleGateAcceptsDocumentGuard(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "scenarios", "react-component-library", "library", "hooks", "useLocale", "versions", "1.0.0")
+	if err := os.MkdirAll(source, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	implementation := `export function useLocale() {
+  return typeof document === "undefined" ? "en" : document.documentElement.lang || "en";
+}`
+	if err := os.WriteFile(filepath.Join(source, "useLocale.ts"), []byte(implementation), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateLifecycle(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 1 || len(result.Findings) != 0 {
+		t.Fatalf("result = %+v, want guarded document access to pass", result)
 	}
 }
 

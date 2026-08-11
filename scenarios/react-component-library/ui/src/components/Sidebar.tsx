@@ -1,9 +1,9 @@
 /** @vrooliComponentSource navigation.sidebar */
 import { type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 
 import { useTranslation } from "../i18n";
-import { PanelLeftClose } from "lucide-react";
+import { BarChart3, Blocks, FolderTree, PanelLeftClose, Sparkles } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 
 interface SidebarContentProps {
@@ -20,9 +20,21 @@ export function SidebarContent({
   onCollapse,
 }: SidebarContentProps) {
   const { t } = useTranslation();
+  const location = useLocation();
+  const navClass = ({ isActive }: { isActive: boolean }) =>
+    [
+      "group flex min-h-11 items-center gap-space-2xs rounded-control px-space-xs py-space-2xs text-sm transition-colors",
+      isActive
+        ? "bg-app-surface-muted font-semibold text-app-foreground shadow-sm"
+        : "text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
+    ].join(" ");
+  const isCatalogActive =
+    location.pathname === "/" ||
+    location.pathname === "/catalog" ||
+    location.pathname.startsWith("/assets/");
 
   return (
-    <div data-testid="app-sidebar-content" className="flex min-h-0 flex-1 flex-col">
+    <div data-testid="app-sidebar-content" className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="hidden items-center gap-space-2xs border-b border-app-border px-space-sm py-space-sm md:flex">
         <Link
           to="/"
@@ -52,32 +64,31 @@ export function SidebarContent({
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-space-2xs py-space-xs">
-        <Link
-          to="/catalog"
-          onClick={onNavigate}
-          className="mb-space-2xs flex rounded-control px-space-2xs py-space-2xs text-sm text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
-        >
-          {t("nav.browseAssets", { defaultValue: "Browse assets" })}
-        </Link>
-        <nav
-          aria-label="Operator views"
-          className="mb-space-xs grid gap-space-3xs border-b border-app-border pb-space-xs"
-        >
+        <nav aria-label="Library navigation" className="mb-space-sm grid gap-space-3xs">
           <Link
-            to="/coverage"
+            to="/catalog"
             onClick={onNavigate}
-            className="flex rounded-control px-space-2xs py-space-2xs text-sm text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
+            aria-current={isCatalogActive ? "page" : undefined}
+            className={navClass({ isActive: isCatalogActive })}
           >
-            Catalog coverage
+            <FolderTree aria-hidden className="h-4 w-4 shrink-0 text-app-primary" />
+            <span className="truncate">
+              {t("nav.browseAssets", { defaultValue: "Browse assets" })}
+            </span>
           </Link>
-          <Link
-            to="/capabilities"
-            onClick={onNavigate}
-            className="flex rounded-control px-space-2xs py-space-2xs text-sm text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
-          >
-            Capability readiness
-          </Link>
+          <NavLink to="/coverage" onClick={onNavigate} className={navClass}>
+            <BarChart3 aria-hidden className="h-4 w-4 shrink-0" />
+            <span className="truncate">Catalog coverage</span>
+          </NavLink>
+          <NavLink to="/capabilities" onClick={onNavigate} className={navClass}>
+            <Sparkles aria-hidden className="h-4 w-4 shrink-0" />
+            <span className="truncate">Capability readiness</span>
+          </NavLink>
         </nav>
+        <div className="mb-space-xs flex items-center gap-space-2xs border-b border-app-border px-space-xs pb-space-2xs text-[11px] font-semibold uppercase tracking-wide text-app-muted-foreground">
+          <Blocks aria-hidden className="h-3.5 w-3.5" />
+          <span>Library inventory</span>
+        </div>
         {inventorySlot}
       </div>
     </div>

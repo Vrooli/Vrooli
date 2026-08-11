@@ -248,7 +248,12 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSyste
     border-radius: var(--radius-sheet);
     background: color-mix(in srgb, var(--color-surface) 88%, transparent);
     box-shadow: var(--elev-overlay);
-    backdrop-filter: blur(18px);
+    /*
+      Keep the specimen shell from becoming a containing block. CSS
+      backdrop-filter changes the containing block for fixed descendants,
+      which would trap modal/command-palette previews inside this card rather
+      than showing their real viewport-sized behavior.
+    */
   }
   .rcl-preview-well__meta {
     margin: 0 0 var(--space-md);
@@ -603,6 +608,29 @@ const assertPreviewExpectations = () => {
       }
       continue;
     }
+    if (kind === "layout") {
+      const el = document.querySelector(expectation.selector || "");
+      if (!el) {
+        failures.push("expect[" + index + "] layout selector " + (expectation.selector || "<empty>") + " not found");
+        continue;
+      }
+      const rect = el.getBoundingClientRect();
+      const checks = [
+        ["width", expectation.minWidth, rect.width >= Number(expectation.minWidth)],
+        ["height", expectation.minHeight, rect.height >= Number(expectation.minHeight)],
+        ["width", expectation.maxWidth, rect.width <= Number(expectation.maxWidth)],
+        ["height", expectation.maxHeight, rect.height <= Number(expectation.maxHeight)],
+      ];
+      for (const [dimension, bound, passed] of checks) {
+        if (bound !== undefined && !passed) {
+          failures.push("expect[" + index + "] layout " + dimension + "=" + Math.round(rect[dimension]) + " violates bound " + bound);
+        }
+      }
+      if (expectation.noOverflow && el.scrollWidth > el.clientWidth + 1) {
+        failures.push("expect[" + index + "] layout overflows horizontally: scrollWidth=" + el.scrollWidth + " clientWidth=" + el.clientWidth);
+      }
+      continue;
+    }
     failures.push("expect[" + index + "] unsupported kind " + (kind || "<missing>"));
   }
   if (failures.length > 0) throw new Error(failures.join("; "));
@@ -843,6 +871,16 @@ try {
         if (!node) return "expected attribute value was not found";
         if (expectation.value === undefined) return node.hasAttribute(attribute) ? "" : "expected attribute value was not found";
         return node.getAttribute(attribute) === expectation.value ? "" : "expected attribute value was not found";
+      }
+      if (expectation.kind === "layout") {
+        if (!node) return "expected layout target was not found";
+        const rect = node.getBoundingClientRect();
+        if (expectation.minWidth !== undefined && rect.width < Number(expectation.minWidth)) return "expected layout width minimum was not met";
+        if (expectation.minHeight !== undefined && rect.height < Number(expectation.minHeight)) return "expected layout height minimum was not met";
+        if (expectation.maxWidth !== undefined && rect.width > Number(expectation.maxWidth)) return "expected layout width maximum was not met";
+        if (expectation.maxHeight !== undefined && rect.height > Number(expectation.maxHeight)) return "expected layout height maximum was not met";
+        if (expectation.noOverflow && node.scrollWidth > node.clientWidth + 1) return "expected layout target not to overflow horizontally";
+        return "";
       }
       return "unsupported expectation";
     };

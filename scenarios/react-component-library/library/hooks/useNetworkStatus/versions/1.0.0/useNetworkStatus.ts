@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 export function useNetworkStatus() {
   return useSyncExternalStore(
     (onChange) => {
+      if (typeof window === "undefined") return () => {};
       window.addEventListener("online", onChange);
       window.addEventListener("offline", onChange);
       return () => {

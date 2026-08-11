@@ -168,6 +168,15 @@ func (r Runner) Run(ctx context.Context, request Request) (Report, error) {
 // directStoryResults accepts the same validated story.json contract that
 // drives the preview workbench; no second behavior declaration is required.
 func (r Runner) directStoryResults(ctx context.Context, asset components.Component, version components.ComponentVersion) ([]Result, []Artifact, error) {
+	if asset.AssetKind == components.AssetKindFoundation {
+		return []Result{{
+			Stage:          StageContract,
+			AssetLibraryID: asset.LibraryID,
+			Version:        version.Version,
+			Verdict:        VerdictPassed,
+			Message:        "non-renderable foundation validated as a source-only closure member",
+		}}, nil, nil
+	}
 	projected, err := r.Stories.ListStories(ctx, components.StoryQuery{ComponentID: asset.ID, Version: version.Version, Limit: 20})
 	if err != nil {
 		return nil, nil, fmt.Errorf("list stories for %s@%s: %w", asset.LibraryID, version.Version, err)

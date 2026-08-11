@@ -11,6 +11,10 @@ describe("SidebarContent", () => {
     renderWithProviders(<SidebarContent />);
     expect(screen.getByTestId("app-sidebar-content")).toBeInTheDocument();
     expect(screen.getByTestId("app-brand")).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "nav.browseAssets" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     expect(screen.queryByTestId("nav-dashboard")).not.toBeInTheDocument();
     expect(screen.queryByTestId("nav-components")).not.toBeInTheDocument();
     expect(screen.queryByTestId("nav-adoptions")).not.toBeInTheDocument();

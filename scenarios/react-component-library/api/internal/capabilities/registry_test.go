@@ -7,7 +7,7 @@ func TestKnownRegistryDefinitionsAreValid(t *testing.T) {
 	if err := registry.Validate(); err != nil {
 		t.Fatalf("capability registry should validate: %v", err)
 	}
-	if len(Known) != 1 || Known[0].DependencySlug != "agent-manager" {
+	if len(Known) != 0 {
 		t.Fatalf("unexpected capability definitions: %#v", Known)
 	}
 }

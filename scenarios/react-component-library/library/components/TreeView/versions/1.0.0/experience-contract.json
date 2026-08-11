@@ -7,27 +7,53 @@
   "component": {
     "id": "data-display.tree-view",
     "title": "TreeView",
-    "purpose": "TreeView preserves semantic structure and token ownership."
+    "purpose": "A navigable hierarchical surface for files and structured resources."
   },
   "states": [
     {
       "id": "default",
       "example": "default",
-      "description": "Default content is available."
+      "description": "Expanded folders reveal their children with clear hierarchy and selection affordances."
+    },
+    {
+      "id": "collapsed",
+      "example": "collapsed",
+      "description": "Collapsed folders preserve context and expose an explicit disclosure control."
     },
     {
       "id": "empty",
       "example": "empty",
-      "description": "The quiet state remains understandable."
+      "description": "An empty tree explains that there is nothing to display."
     }
   ],
   "claims": [
     {
-      "id": "contract-present",
+      "id": "semantic-hierarchy",
+      "type": "element-present",
+      "statement": "The surface exposes a named tree with level-aware treeitems and groups for nested content.",
+      "tier": "machine",
+      "states": ["default", "collapsed"]
+    },
+    {
+      "id": "keyboard-navigation",
       "type": "custom",
-      "statement": "TreeView preserves semantic structure and token ownership.",
+      "statement": "Arrow, Home, End, Enter, and Space keys provide predictable navigation, disclosure, and selection behavior.",
       "tier": "manual",
-      "states": ["default", "empty"]
+      "states": ["default", "collapsed"]
+    },
+    {
+      "id": "responsive-legibility",
+      "type": "visual",
+      "statement": "Long labels truncate without collapsing the hierarchy or introducing horizontal overflow.",
+      "tier": "manual",
+      "states": ["default", "collapsed"]
+    },
+    {
+      "id": "empty-communication",
+      "type": "element-present",
+      "statement": "The empty state is announced through a status region.",
+      "tier": "machine",
+      "states": ["empty"]
     }
   ]
 }

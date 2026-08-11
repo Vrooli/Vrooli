@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "componentId": "react-component-library:BottomNav",
+  "version": "1.3.0",
+  "states": ["mobile-primary", "disabled-item", "long-labels"],
+  "behaviors": [
+    {
+      "id": "active-indicator",
+      "description": "The active destination is communicated by semantic current-page state, color, weight, and a motion-safe indicator."
+    },
+    {
+      "id": "safe-area",
+      "description": "The fixed navigation reserves the device bottom safe area without changing item geometry."
+    },
+    {
+      "id": "viewport-stable",
+      "description": "The fixed navigation preserves its item geometry and safe-area treatment across viewport widths; consumers decide when their product should mount or hide it."
+    }
+  ],
+  "accessibility": [
+    "navigation landmark",
+    "current page semantics",
+    "disabled state",
+    "focus-visible",
+    "forced colors",
+    "reduced motion"
+  ]
+}

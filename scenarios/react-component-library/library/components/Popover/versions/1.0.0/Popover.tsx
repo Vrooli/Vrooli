@@ -27,7 +27,11 @@ export type PopoverPlacement =
   | "top-end"
   | "bottom"
   | "bottom-start"
-  | "bottom-end";
+  | "bottom-end"
+  | "right-start"
+  | "right-end"
+  | "left-start"
+  | "left-end";
 export type PopoverMode = "controlled" | "uncontrolled";
 
 interface PopoverContextValue {
@@ -52,6 +56,7 @@ const styles = `
 [data-rcl-popover-content][data-placement^="top"] [data-rcl-popover-arrow] { inset-block-end: calc(var(--space-sm) * -.5); inset-inline-start: var(--rcl-popover-arrow-left); transform: translateX(-50%) rotate(225deg); }
 [data-rcl-popover-content][data-placement$="-start"] { transform-origin: var(--space-lg) top; }
 [data-rcl-popover-content][data-placement$="-end"] { transform-origin: calc(100% - var(--space-lg)) top; }
+[data-rcl-popover-content][data-placement^="right"] [data-rcl-popover-arrow], [data-rcl-popover-content][data-placement^="left"] [data-rcl-popover-arrow] { display: none; }
 [data-rcl-popover-trigger] { min-block-size: var(--tap-target-min, 2.75rem); padding-inline: var(--space-md); border: 1px solid var(--color-border-strong, #94a3b8); border-radius: var(--radius-control, .625rem); background: var(--color-surface, #fff); color: var(--color-foreground, #0f172a); cursor: pointer; font: var(--text-label, 600 .8125rem/1.25rem system-ui, sans-serif); transition: background-color var(--dur-quick, 180ms) var(--ease-standard, ease), border-color var(--dur-quick, 180ms) var(--ease-standard, ease), box-shadow var(--dur-quick, 180ms) var(--ease-standard, ease); }
 [data-rcl-popover-trigger]:hover { background: var(--color-surface-raised, #f8fafc); border-color: var(--color-primary, #2563eb); }
 [data-rcl-popover-trigger]:focus-visible { outline: var(--border-strong, 2px) solid var(--color-focus, #2563eb); outline-offset: var(--space-3xs, 2px); box-shadow: 0 0 0 var(--space-3xs, 2px) color-mix(in srgb, var(--color-focus, #2563eb) 18%, transparent); }
@@ -179,8 +184,17 @@ function PopoverPositioner({
       const arrowInset = readTokenPixels("--space-lg", 24);
       let nextPlacement = placement;
       let top = triggerRect.bottom + margin;
+      let left = triggerRect.left + (triggerRect.width - contentRect.width) / 2;
       if (placement.startsWith("top"))
         top = triggerRect.top - contentRect.height - margin;
+      if (placement.startsWith("right")) {
+        top = triggerRect.top;
+        left = triggerRect.right + margin;
+      }
+      if (placement.startsWith("left")) {
+        top = triggerRect.top;
+        left = triggerRect.left - contentRect.width - margin;
+      }
       if (top < margin && placement.startsWith("top")) {
         top = triggerRect.bottom + margin;
         nextPlacement = placement.replace("top", "bottom") as PopoverPlacement;
@@ -191,9 +205,25 @@ function PopoverPositioner({
         top = triggerRect.top - contentRect.height - margin;
         nextPlacement = placement.replace("bottom", "top") as PopoverPlacement;
       }
-      let left = triggerRect.left + (triggerRect.width - contentRect.width) / 2;
-      if (placement.endsWith("-start")) left = triggerRect.left;
-      if (placement.endsWith("-end"))
+      if (
+        placement.startsWith("right") &&
+        left + contentRect.width > window.innerWidth - margin
+      ) {
+        left = triggerRect.left - contentRect.width - margin;
+        nextPlacement = placement.replace("right", "left") as PopoverPlacement;
+      } else if (placement.startsWith("left") && left < margin) {
+        left = triggerRect.right + margin;
+        nextPlacement = placement.replace("left", "right") as PopoverPlacement;
+      } else if (placement.endsWith("-start"))
+        left =
+          placement.startsWith("right") || placement.startsWith("left")
+            ? left
+            : triggerRect.left;
+      if (
+        placement.endsWith("-end") &&
+        !placement.startsWith("right") &&
+        !placement.startsWith("left")
+      )
         left = triggerRect.right - contentRect.width;
       left = Math.min(
         Math.max(margin, left),

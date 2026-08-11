@@ -1,1 +1,144 @@
-{"schemaVersion":3,"kind":"component","title":"AppShell","args":{"fields":[]},"environment":{"fixtures":[]},"frame":{"asset":"navigation.page","region":"navigation","fixture":"fixtures.user-directory"},"stories":[{"id":"default","name":"Default","args":{"children":{"$node":"main","children":[{"$text":"Workspace"}]}},"expect":[{"kind":"text","value":"Workspace"}]},{"id":"long-content","name":"Long content","args":{"children":{"$node":"main","children":[{"$text":"Workspace"}]}}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "AppShell",
+  "args": {
+    "fields": [
+      {
+        "path": "title",
+        "kind": "text",
+        "default": "Application workspace"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Workspace",
+      "args": {
+        "title": "Application workspace",
+        "navigation": {
+          "$node": "nav",
+          "props": { "aria-label": "Application navigation" },
+          "children": [
+            {
+              "$node": "a",
+              "props": { "href": "#workspace", "aria-current": "page" },
+              "children": [{ "$icon": "LayoutDashboard" }, { "$text": "Workspace" }]
+            },
+            {
+              "$node": "a",
+              "props": { "href": "#components" },
+              "children": [{ "$icon": "Blocks" }, { "$text": "Components" }]
+            },
+            {
+              "$node": "a",
+              "props": { "href": "#templates" },
+              "children": [{ "$icon": "PanelsTopLeft" }, { "$text": "Templates" }]
+            },
+            {
+              "$node": "a",
+              "props": { "href": "#settings" },
+              "children": [{ "$icon": "Settings" }, { "$text": "Settings" }]
+            }
+          ]
+        },
+        "children": {
+          "$node": "section",
+          "children": [{ "$text": "Workspace content" }]
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "complementary",
+          "name": "Application navigation"
+        },
+        { "kind": "role", "role": "main", "name": "Application workspace" },
+        { "kind": "role", "role": "link", "name": "Skip to content" },
+        {
+          "kind": "layout",
+          "selector": "[data-rcl-app-shell]",
+          "minWidth": 240,
+          "minHeight": 160,
+          "noOverflow": true
+        },
+        {
+          "kind": "layout",
+          "selector": "[data-rcl-app-shell-main]",
+          "minWidth": 240,
+          "minHeight": 120,
+          "noOverflow": true
+        },
+        { "kind": "text", "value": "Workspace content" }
+      ]
+    },
+    {
+      "id": "long-content",
+      "name": "Long content",
+      "args": {
+        "title": "Application workspace",
+        "navigation": {
+          "$node": "nav",
+          "props": { "aria-label": "Application navigation" },
+          "children": [
+            {
+              "$node": "a",
+              "props": { "href": "#workspace", "aria-current": "page" },
+              "children": [{ "$icon": "LayoutDashboard" }, { "$text": "Workspace" }]
+            },
+            {
+              "$node": "a",
+              "props": { "href": "#components" },
+              "children": [{ "$icon": "Blocks" }, { "$text": "Components" }]
+            },
+            {
+              "$node": "a",
+              "props": { "href": "#templates" },
+              "children": [{ "$icon": "PanelsTopLeft" }, { "$text": "Templates" }]
+            },
+            {
+              "$node": "a",
+              "props": { "href": "#settings" },
+              "children": [{ "$icon": "Settings" }, { "$text": "Settings" }]
+            }
+          ]
+        },
+        "children": {
+          "$node": "section",
+          "children": [
+            {
+              "$text": "Long content remains inside the scrollable main region."
+            }
+          ]
+        }
+      },
+      "expect": [
+        { "kind": "role", "role": "main", "name": "Application workspace" },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-app-shell-main]",
+          "name": "id",
+          "value": "app-shell-main"
+        },
+        {
+          "kind": "layout",
+          "selector": "[data-rcl-app-shell]",
+          "minWidth": 240,
+          "minHeight": 160,
+          "noOverflow": true
+        },
+        {
+          "kind": "layout",
+          "selector": "[data-rcl-app-shell-main]",
+          "minWidth": 240,
+          "minHeight": 120,
+          "noOverflow": true
+        }
+      ]
+    }
+  ]
+}

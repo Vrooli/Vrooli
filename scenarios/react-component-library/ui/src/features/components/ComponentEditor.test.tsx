@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { create } from "@bufbuild/protobuf";
+import {
+  ComponentVersionSchema,
+  ListComponentVersionsResponseSchema,
+} from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
 
 import { renderWithProviders } from "../../test-utils";
 import {
@@ -397,6 +402,115 @@ describe("ComponentEditor", () => {
     // Each gallery frame posts the resolved theme once it loads.
     if (frames[0]) fireEvent.load(frames[0]);
     expect(screen.queryByTestId(selectors.components.editor.previewError)).not.toBeInTheDocument();
+  });
+
+  it("uses the manifest latest version when history lists a draft first", async () => {
+    const { componentsClient, listComponentStories } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "latest-source", sha256: "sha-latest" }),
+    );
+    vi.mocked(componentsClient.listComponentVersions).mockResolvedValueOnce(
+      create(ListComponentVersionsResponseSchema, {
+        versions: [
+          create(ComponentVersionSchema, { version: "0.3.2-draft.1" }),
+          create(ComponentVersionSchema, { version: "0.3.2" }),
+        ],
+      }),
+    );
+    vi.mocked(listComponentStories).mockResolvedValueOnce({
+      stories: [
+        {
+          id: "latest-story",
+          componentId: "cmp-markdown",
+          libraryId: "react-component-library:markdown-renderer",
+          version: "0.3.2",
+          schemaVersion: 2,
+          kind: "component",
+          title: "",
+          argsJson: "{}",
+          environmentJson: "{}",
+          storiesJson: '[{"id":"default","name":"Default","args":{}}]',
+          contractJson: "{}",
+          sourcePath: "story.json",
+        },
+      ],
+    });
+
+    renderWithProviders(
+      <ComponentEditor
+        id="cmp-markdown"
+        libraryId="react-component-library:markdown-renderer"
+        latestVersion="0.3.2"
+        onClose={() => {}}
+        activePane="preview"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(listComponentStories)).toHaveBeenCalledWith({
+        componentId: "cmp-markdown",
+        version: "0.3.2",
+        limit: 1,
+      });
+    });
+    expect(vi.mocked(listComponentStories)).not.toHaveBeenCalledWith({
+      componentId: "cmp-markdown",
+      version: "0.3.2-draft.1",
+      limit: 1,
+    });
+  });
+
+  it("loads the selected version-local companion file instead of a shared runtime alias", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent)
+      .mockResolvedValueOnce(
+        makeGetComponentContentResponse({
+          content: 'export { FilterBar } from "./FilterBar";\n',
+          sha256: "sha-entry",
+        }),
+      )
+      .mockResolvedValueOnce(
+        makeGetComponentContentResponse({
+          content: "export function InlineCode() { return null; }\n",
+          sha256: "sha-companion",
+        }),
+      );
+    vi.mocked(componentsClient.listComponentVersions).mockResolvedValueOnce(
+      create(ListComponentVersionsResponseSchema, {
+        versions: [
+          create(ComponentVersionSchema, {
+            version: "1.0.0",
+            files: [
+              { path: "FilterBar.tsx", isEntry: true },
+              { path: "InlineCode.tsx", isEntry: false },
+            ],
+          }),
+        ],
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ComponentEditor
+        id="cmp-files"
+        libraryId="react-component-library:FilterBar"
+        latestVersion="1.0.0"
+        onClose={() => {}}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toContain("FilterBar");
+    });
+    await user.click(screen.getByRole("button", { name: "InlineCode.tsx" }));
+
+    await waitFor(() => {
+      expect(componentsClient.getComponentContent).toHaveBeenLastCalledWith({
+        id: "cmp-files",
+        path: "InlineCode.tsx",
+      });
+      expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toContain("InlineCode");
+    });
   });
 
   it("shows preview events newest-first and clears the active story log", async () => {
@@ -1019,6 +1133,32 @@ describe("ComponentEditor", () => {
     expect(frame).not.toHaveClass("h-[20rem]");
     expect(frame.style.width).toBe("1280px");
     expect(frame.style.height).toBe("720px");
+  });
+
+  it("keeps gallery previews fluid instead of sizing the gallery as a device", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "// gallery", sha256: "sha-gallery-fluid" }),
+    );
+
+    renderWithProviders(
+      <ComponentEditor
+        id="cmp-gallery-fluid"
+        libraryId="lib:Gallery"
+        onClose={() => {}}
+        activePane="preview"
+      />,
+    );
+
+    const gallery = await screen.findByTestId(selectors.components.editor.gallery);
+    const frame = await screen.findByTestId<HTMLIFrameElement>(
+      selectors.components.editor.previewFrame,
+    );
+    expect(gallery.style.width).toBe("");
+    expect(gallery.style.height).toBe("");
+    expect(frame.style.width).toBe("100%");
+    expect(frame.style.height).toBe("");
+    expect(frame.style.aspectRatio).toBe("16 / 9");
   });
 
   it("invokes onClose when the Back-to-list button is clicked", async () => {

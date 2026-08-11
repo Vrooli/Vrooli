@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "BottomNav",
+  "args": {
+    "fields": [
+      { "path": "label", "label": "Label", "kind": "text", "default": "Primary navigation" },
+      { "path": "items", "label": "Items", "kind": "structured", "default": [
+        { "id": "home", "label": "Home", "href": "#home", "active": true, "icon": { "$icon": "Home" } },
+        { "id": "tasks", "label": "Tasks", "href": "#tasks", "icon": { "$icon": "ListTodo" } },
+        { "id": "settings", "label": "Settings", "href": "#settings", "icon": { "$icon": "Settings" } }
+      ] }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "frame": { "asset": "navigation.page", "region": "navigation", "fixture": "fixtures.user-directory" },
+  "stories": [
+    {
+      "id": "mobile-primary",
+      "name": "Mobile Primary",
+      "args": { "label": "Primary navigation", "items": [
+        { "id": "home", "label": "Home", "href": "#home", "active": true, "icon": { "$icon": "Home" } },
+        { "id": "tasks", "label": "Tasks", "href": "#tasks", "icon": { "$icon": "ListTodo" } },
+        { "id": "settings", "label": "Settings", "href": "#settings", "icon": { "$icon": "Settings" } }
+      ] },
+      "expect": [
+        { "kind": "role", "role": "link", "name": "Home" },
+        { "kind": "text", "value": "Tasks" },
+        { "kind": "attribute", "selector": "nav", "name": "aria-label", "value": "Primary navigation" }
+      ]
+    },
+    {
+      "id": "disabled-item",
+      "name": "Disabled Item",
+      "args": { "label": "Workspace navigation", "items": [
+        { "id": "overview", "label": "Overview", "active": true, "icon": { "$icon": "LayoutDashboard" } },
+        { "id": "billing", "label": "Billing", "disabled": true, "icon": { "$icon": "CreditCard" } },
+        { "id": "team", "label": "Team", "icon": { "$icon": "Users" } }
+      ] },
+      "expect": [
+        { "kind": "role", "role": "button", "name": "Billing" },
+        { "kind": "text", "value": "Overview" }
+      ]
+    },
+    {
+      "id": "long-labels",
+      "name": "Long Labels",
+      "args": { "label": "Compact navigation", "items": [
+        { "id": "activity", "label": "Activity", "active": true, "icon": { "$icon": "Activity" } },
+        { "id": "automations", "label": "Automations", "icon": { "$icon": "Workflow" } },
+        { "id": "integrations", "label": "Integrations", "icon": { "$icon": "Plug" } }
+      ] },
+      "expect": [
+        { "kind": "text", "value": "Automations" },
+        { "kind": "text", "value": "Integrations" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "libraryId": "react-component-library:MasterDetail",
+  "catalogId": "navigation.master-detail",
+  "displayName": "MasterDetail",
+  "description": "A coordinated collection-and-detail layout that preserves selection and list position while drilling into detail on compact screens.",
+  "assetKind": "component",
+  "tags": [
+    "navigation",
+    "responsive",
+    "collection",
+    "detail",
+    "routing",
+    "accessibility",
+    "token-bound"
+  ],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:SplitView", "version": "1.0.0" },
+    { "libraryId": "react-component-library:useMediaQuery", "version": "1.0.0" }
+  ]
+}

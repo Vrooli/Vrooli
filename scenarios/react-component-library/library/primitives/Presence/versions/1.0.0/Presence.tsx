@@ -25,6 +25,8 @@ export interface PresenceProps {
   keepMounted?: boolean;
   /** A shared motion token or an explicit duration for advanced integrations. */
   duration?: PresenceDuration | number;
+  /** Exit is intentionally shorter than entrance by default. */
+  exitDuration?: PresenceDuration | number;
   className?: string;
   style?: CSSProperties;
   id?: string;
@@ -58,7 +60,7 @@ const styles = `
     animation: rcl-presence-enter var(--rcl-presence-duration) var(--ease-enter, cubic-bezier(0, 0, 0, 1)) both;
   }
   [data-rcl-presence][data-presence-phase="exiting"] {
-    animation: rcl-presence-exit var(--rcl-presence-duration) var(--ease-exit, cubic-bezier(.3, 0, 1, 1)) both;
+    animation: rcl-presence-exit var(--rcl-presence-exit-duration, var(--rcl-presence-duration)) var(--ease-exit, cubic-bezier(.3, 0, 1, 1)) both;
     pointer-events: none;
   }
   [data-rcl-presence][data-presence-hidden="true"] {
@@ -85,6 +87,7 @@ export function Presence({
   initial = true,
   keepMounted = false,
   duration = "moderate",
+  exitDuration,
   className,
   style,
   id,
@@ -100,6 +103,14 @@ export function Presence({
     return initial ? "entering" : "entered";
   });
   const resolvedDuration = resolveDuration(duration);
+  const resolvedExitDuration = resolveDuration(
+    exitDuration ??
+      (duration === "deliberate"
+        ? "moderate"
+        : duration === "moderate"
+          ? "quick"
+          : duration),
+  );
 
   useEffect(() => {
     let frame: number | undefined;
@@ -149,14 +160,22 @@ export function Presence({
       setMounted(false);
       setPhase("exited");
       onExitComplete?.();
-    }, resolvedDuration.ms);
+    }, resolvedExitDuration.ms);
     return () => clearTimeout(timer);
-  }, [initial, onExitComplete, present, reducedMotion, resolvedDuration.ms]);
+  }, [
+    initial,
+    onExitComplete,
+    present,
+    reducedMotion,
+    resolvedDuration.ms,
+    resolvedExitDuration.ms,
+  ]);
 
   if (!mounted && !keepMounted) return null;
 
   const customProperties = {
     "--rcl-presence-duration": resolvedDuration.css,
+    "--rcl-presence-exit-duration": resolvedExitDuration.css,
     ...style,
   } as CSSProperties;
   return createElement(

@@ -63,6 +63,24 @@ func TestResolveDependencyClosureOrdersDependenciesAndDeduplicatesPins(t *testin
 	})
 }
 
+func TestResolveDependencyClosureIncludesVersionedFoundationDependencies(t *testing.T) {
+	foundation := Component{ID: "tokens", LibraryID: "rcl:Tokens", AssetKind: AssetKindFoundation, LatestVersion: "1.0.0"}
+	root := Component{ID: "text", LibraryID: "rcl:Text", AssetKind: AssetKindComponent, LatestVersion: "1.0.0", Dependencies: []AssetDependency{{LibraryID: foundation.LibraryID, Version: "1.0.0"}}}
+	reader := closureReader{
+		byID:      map[string]Component{root.ID: root},
+		byLibrary: map[string]Component{foundation.LibraryID: foundation},
+		versions: map[string]ComponentVersion{
+			"tokens@1.0.0": {ComponentID: foundation.ID, LibraryID: foundation.LibraryID, Version: "1.0.0"},
+			"text@1.0.0":   {ComponentID: root.ID, LibraryID: root.LibraryID, Version: "1.0.0"},
+		},
+	}
+
+	closure, err := ResolveDependencyClosure(context.Background(), reader, root.ID, "")
+	require.NoError(t, err)
+	require.Equal(t, []string{"rcl:Tokens", "rcl:Text"}, []string{closure[0].Asset.LibraryID, closure[1].Asset.LibraryID})
+	require.Equal(t, AssetKindFoundation, closure[0].Asset.AssetKind)
+}
+
 func TestResolveDependencyClosureReportsMissingPinAndCycle(t *testing.T) {
 	root := Component{ID: "root", LibraryID: "rcl:Root", LatestVersion: "1.0.0", Dependencies: []AssetDependency{{LibraryID: "rcl:Missing", Version: "1.0.0"}}}
 	reader := closureReader{byID: map[string]Component{root.ID: root}, byLibrary: map[string]Component{}, versions: map[string]ComponentVersion{}}

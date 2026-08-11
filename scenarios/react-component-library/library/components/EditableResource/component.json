@@ -1,0 +1,38 @@
+{
+  "libraryId": "react-component-library:EditableResource",
+  "catalogId": "patterns.editable-resource",
+  "displayName": "EditableResource",
+  "description": "A read-and-edit resource workflow with draft preservation, guarded navigation, async save recovery, offline disclosure, and conflict handoff.",
+  "assetKind": "component",
+  "tags": [
+    "patterns",
+    "forms",
+    "async",
+    "recovery",
+    "conflict",
+    "responsive",
+    "accessibility",
+    "token-bound"
+  ],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ResourceDetail",
+      "version": "1.0.0"
+    },
+    { "libraryId": "react-component-library:Form", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:UnsavedChangesFlow",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:ConflictResolutionFlow",
+      "version": "1.0.0"
+    }
+  ]
+}

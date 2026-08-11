@@ -3,8 +3,11 @@ import { MorphingIcon, type MorphingIconProps } from "./MorphingIcon";
 
 const panelStyle = {
   display: "grid",
+  width: "100%",
+  minWidth: 0,
+  maxWidth: "36rem",
+  boxSizing: "border-box" as const,
   gap: "var(--space-sm, 12px)",
-  minWidth: "min(100%, 22rem)",
   padding: "var(--space-lg, 24px)",
   border: "1px solid var(--color-border, #d8dee9)",
   borderRadius: "var(--radius-panel, 20px)",
@@ -29,17 +32,18 @@ export function MorphingIconShowcase({
       <div
         style={{
           display: "flex",
+          flexWrap: "wrap" as const,
           alignItems: "center",
           justifyContent: "space-between",
-          gap: "24px",
+          gap: "var(--space-md, 24px)",
         }}
       >
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: "1 1 14rem" }}>
           <span
             style={{
               display: "block",
               color: "var(--color-muted-foreground, #667085)",
-              fontSize: "11px",
+              fontSize: "var(--text-label-size, 12px)",
               fontWeight: 800,
               letterSpacing: "0.12em",
               textTransform: "uppercase",
@@ -50,8 +54,9 @@ export function MorphingIconShowcase({
           <strong
             style={{
               display: "block",
-              marginTop: "6px",
-              fontSize: "20px",
+              marginTop: "var(--space-2xs, 8px)",
+              fontSize: "var(--text-title-size, 24px)",
+              lineHeight: "var(--text-title-line, 30px)",
               letterSpacing: "-0.03em",
             }}
           >
@@ -60,10 +65,10 @@ export function MorphingIconShowcase({
           <span
             style={{
               display: "block",
-              marginTop: "6px",
+              marginTop: "var(--space-2xs, 8px)",
               color: "var(--color-muted-foreground, #667085)",
-              fontSize: "13px",
-              lineHeight: 1.5,
+              fontSize: "var(--text-body-sm-size, 13px)",
+              lineHeight: "var(--text-body-sm-line, 20px)",
             }}
           >
             The icon changes meaning in place without shifting its control.
@@ -73,9 +78,10 @@ export function MorphingIconShowcase({
           style={{
             display: "grid",
             placeItems: "center",
-            minWidth: "72px",
-            minHeight: "72px",
-            borderRadius: "18px",
+            minWidth: "var(--space-xl, 40px)",
+            minHeight: "var(--space-xl, 40px)",
+            padding: "var(--space-xs, 12px)",
+            borderRadius: "var(--radius-panel, 20px)",
             background: "var(--color-accent-subtle, #e8efff)",
             color: "var(--color-accent, #315efb)",
           }}
@@ -94,11 +100,12 @@ export function MorphingIconShowcase({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: "12px",
-          paddingTop: "12px",
-          borderTop: "1px solid var(--color-border, #d8dee9)",
+          gap: "var(--space-xs, 12px)",
+          paddingTop: "var(--space-xs, 12px)",
+          borderTop:
+            "var(--border-hairline, 1px) solid var(--color-border, #d8dee9)",
           color: "var(--color-muted-foreground, #667085)",
-          fontSize: "12px",
+          fontSize: "var(--text-label-size, 12px)",
         }}
       >
         <span>Strategy</span>
@@ -119,16 +126,18 @@ export function ToggleMorphingIcon() {
       <div
         style={{
           display: "flex",
+          flexWrap: "wrap" as const,
           alignItems: "center",
           justifyContent: "space-between",
-          gap: "16px",
+          gap: "var(--space-sm, 16px)",
         }}
       >
         <div>
           <strong
             style={{
               display: "block",
-              fontSize: "16px",
+              fontSize: "var(--text-heading-size, 18px)",
+              lineHeight: "var(--text-heading-line, 24px)",
               letterSpacing: "-0.01em",
             }}
           >
@@ -137,9 +146,10 @@ export function ToggleMorphingIcon() {
           <span
             style={{
               display: "block",
-              marginTop: "4px",
+              marginTop: "var(--space-3xs, 4px)",
               color: "var(--color-muted-foreground, #667085)",
-              fontSize: "13px",
+              fontSize: "var(--text-body-sm-size, 13px)",
+              lineHeight: "var(--text-body-sm-line, 20px)",
             }}
           >
             Meaning changes in place.
@@ -156,13 +166,17 @@ export function ToggleMorphingIcon() {
         type="button"
         onClick={() => setSent((value) => !value)}
         style={{
-          border: 0,
+          minHeight: "var(--tap-target-min, 44px)",
+          paddingInline: "var(--space-sm, 16px)",
+          border: "var(--border-hairline, 1px) solid transparent",
           borderRadius: "var(--radius-control, 10px)",
-          padding: "10px 14px",
-          background: "var(--color-accent, #315efb)",
-          color: "white",
+          background: "var(--color-primary, #2563eb)",
+          color: "var(--color-primary-foreground, #ffffff)",
+          font: "600 var(--text-body-sm-size, 13px)/var(--text-body-sm-line, 20px) var(--font-sans, ui-sans-serif, system-ui, sans-serif)",
           fontWeight: 700,
           cursor: "pointer",
+          transition:
+            "transform var(--dur-quick, 180ms) var(--ease-standard, ease), filter var(--dur-quick, 180ms) var(--ease-standard, ease)",
         }}
       >
         {sent ? "Reset state" : "Send message"}

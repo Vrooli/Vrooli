@@ -7,5 +7,11 @@
   "tags": ["recipes", "variants", "tokens"],
   "latest": "1.0.0",
   "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": [{ "catalogId": "foundations.tokens", "kind": "required" }]
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Tokens",
+      "version": "1.0.0",
+      "kind": "requires"
+    }
+  ]
 }

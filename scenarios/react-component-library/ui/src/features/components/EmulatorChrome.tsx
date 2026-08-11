@@ -27,6 +27,7 @@ interface EmulatorToolbarProps {
 interface EmulatorViewportProps {
   emulator: DeviceEmulationValue;
   filters?: DeviceFiltersValue;
+  mode?: "stage" | "gallery";
   children: ReactNode;
 }
 
@@ -223,7 +224,13 @@ export function EmulatorToolbar({ emulator }: EmulatorToolbarProps) {
   );
 }
 
-export function EmulatorViewport({ emulator, filters, children }: EmulatorViewportProps) {
+export function EmulatorViewport({
+  emulator,
+  filters,
+  mode = "stage",
+  children,
+}: EmulatorViewportProps) {
+  const isStage = mode === "stage";
   return (
     <div
       data-testid={selectors.components.emulator.viewportFrame}
@@ -233,19 +240,23 @@ export function EmulatorViewport({ emulator, filters, children }: EmulatorViewpo
       {filters && <DeviceVisionFilterDefs />}
       <div
         data-testid={selectors.components.emulator.viewportCanvas}
-        style={{ width: emulator.scaledWidth, height: emulator.scaledHeight }}
-        className="relative"
+        style={isStage ? { width: emulator.scaledWidth, height: emulator.scaledHeight } : undefined}
+        className={isStage ? "relative" : "relative h-full w-full"}
       >
         <div
           data-testid={selectors.components.emulator.viewport}
-          style={{
-            width: emulator.displayWidth,
-            height: emulator.displayHeight,
-            transform: `scale(${emulator.zoom})`,
-            transformOrigin: "top left",
-            filter: filters?.filterCSS || undefined,
-          }}
-          className="origin-top-left"
+          style={
+            isStage
+              ? {
+                  width: emulator.displayWidth,
+                  height: emulator.displayHeight,
+                  transform: `scale(${emulator.zoom})`,
+                  transformOrigin: "top left",
+                  filter: filters?.filterCSS || undefined,
+                }
+              : { filter: filters?.filterCSS || undefined }
+          }
+          className={isStage ? "origin-top-left" : "h-full w-full"}
         >
           {children}
         </div>

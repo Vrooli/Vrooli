@@ -7,7 +7,10 @@
   "slot": "ui-pattern",
   "category": "layout",
   "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "latest": "1.0.0",
+  "dependencies": [
+    { "libraryId": "react-component-library:AsyncPanel", "version": "1.0.0" }
+  ],
+  "latest": "1.1.0",
   "draft": "",
   "deprecatedVersions": []
 }

@@ -1,6 +1,7 @@
 /** @vrooliComponentSource forms.generated-form */
 import {
   useId,
+  useState,
   type CSSProperties,
   type ReactElement,
   type ReactNode,
@@ -14,7 +15,10 @@ import { FormField } from "../../../../components/FormField/versions/1.0.0/FormF
 import { FormSection } from "../../../../components/FormSection/versions/1.0.0/FormSection";
 import { ObjectField } from "../../../../components/ObjectField/versions/1.0.0/ObjectField";
 import { ValidationSummary } from "../../../../components/ValidationSummary/versions/1.0.0/ValidationSummary";
-import type { FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
+import {
+  createFormStore,
+  type FormStore,
+} from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
 export type GeneratedFieldType =
   | "text"
@@ -33,6 +37,7 @@ export interface GeneratedField<
   name: keyof TValues & string;
   type: GeneratedFieldType;
   label: ReactNode;
+  defaultValue?: unknown;
   description?: ReactNode;
   section?: string;
   required?: boolean;
@@ -67,7 +72,12 @@ export interface GeneratedFormSection {
 export interface GeneratedFormProps<
   TValues extends Record<string, unknown> = Record<string, unknown>,
 > {
-  store: FormStore<TValues>;
+  /** Supply a store when the host owns values and validation. */
+  store?: FormStore<TValues>;
+  /** Uncontrolled forms create and retain their own scoped store. */
+  mode?: "controlled" | "uncontrolled";
+  /** Initial values used when no external store is supplied. */
+  initialValues?: TValues;
   fields: Array<GeneratedField<TValues>>;
   sections?: GeneratedFormSection[];
   title?: ReactNode;
@@ -76,6 +86,23 @@ export interface GeneratedFormProps<
   onSubmit?: (values: TValues) => void | Promise<void>;
   className?: string;
   style?: CSSProperties;
+}
+
+function initialValuesFor<TValues extends Record<string, unknown>>(
+  fields: Array<GeneratedField<TValues>>,
+): TValues {
+  const values = Object.fromEntries(
+    fields.map((field) => {
+      if (field.defaultValue !== undefined)
+        return [field.name, field.defaultValue];
+      if (field.type === "checkbox") return [field.name, false];
+      if (field.type === "number") return [field.name, 0];
+      if (field.type === "array") return [field.name, []];
+      if (field.type === "object") return [field.name, {}];
+      return [field.name, ""];
+    }),
+  );
+  return values as TValues;
 }
 
 const styles = `
@@ -242,6 +269,8 @@ export function GeneratedForm<
   TValues extends Record<string, unknown> = Record<string, unknown>,
 >({
   store,
+  mode,
+  initialValues,
   fields,
   sections = [],
   title,
@@ -252,7 +281,14 @@ export function GeneratedForm<
   style,
 }: GeneratedFormProps<TValues>) {
   const generatedId = useId().replace(/:/g, "");
-  const values = store.getValues();
+  const [internalStore] = useState(() =>
+    createFormStore<TValues>({
+      initialValues: initialValues ?? initialValuesFor(fields),
+    }),
+  );
+  const resolvedStore = store ?? internalStore;
+  const resolvedMode = mode ?? (store ? "controlled" : "uncontrolled");
+  const values = resolvedStore.getValues();
   const sectionsById = new Map(
     sections.map((section) => [section.id, section]),
   );
@@ -262,15 +298,15 @@ export function GeneratedForm<
       <div key={field.name} data-rcl-generated-form-field>
         {field.when ? (
           <ConditionalField
-            store={store}
+            store={resolvedStore}
             field={field.name}
             when={field.when}
             mode={field.conditionalMode ?? "hide"}
           >
-            <RenderField field={field} store={store} />
+            <RenderField field={field} store={resolvedStore} />
           </ConditionalField>
         ) : (
-          <RenderField field={field} store={store} />
+          <RenderField field={field} store={resolvedStore} />
         )}
       </div>
     );
@@ -291,14 +327,15 @@ export function GeneratedForm<
         dangerouslySetInnerHTML={{ __html: styles }}
       />
       <Form
-        store={store}
+        mode={resolvedMode}
+        store={resolvedStore}
         title={title}
         description={description}
         aria-label={typeof title === "string" ? title : "Generated form"}
         onSubmit={onSubmit}
-        footer={<FormActions store={store} submitLabel={submitLabel} />}
+        footer={<FormActions store={resolvedStore} submitLabel={submitLabel} />}
       >
-        <ValidationSummary store={store} fieldLabels={fieldLabels} />
+        <ValidationSummary store={resolvedStore} fieldLabels={fieldLabels} />
         <div data-rcl-generated-form-sections>
           {unsectioned.map(renderField)}
           {sections.map((section) => (

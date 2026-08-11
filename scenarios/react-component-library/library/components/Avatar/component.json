@@ -1,0 +1,21 @@
+{
+  "libraryId": "react-component-library:Avatar",
+  "catalogId": "primitives.avatar",
+  "displayName": "Avatar",
+  "description": "An identity visual with reserved image loading, deterministic initials fallback, presence, status, and group overflow semantics.",
+  "assetKind": "component",
+  "tags": ["identity", "media", "accessibility", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ProgressiveImage",
+      "version": "1.0.0"
+    },
+    { "libraryId": "react-component-library:Text", "version": "1.0.0" }
+  ]
+}

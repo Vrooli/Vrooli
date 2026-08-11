@@ -6,6 +6,13 @@
   "tags": ["control", "primitive", "accessibility"],
   "slot": "ui-primitive",
   "category": "actions",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:VisualRecipes",
+      "version": "1.0.0",
+      "kind": "requires"
+    }
+  ],
   "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
   "latest": "1.0.0",
   "draft": "",

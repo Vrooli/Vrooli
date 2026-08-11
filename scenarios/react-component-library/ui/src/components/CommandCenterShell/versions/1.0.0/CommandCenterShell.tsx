@@ -1,11 +1,11 @@
 /**
  * @vrooliComponentSource react-component-library:CommandCenterShell
  * @vrooliComponentVersion 1.0.0
- * @vrooliComponentAdoption 2ac65b4b-67c7-404b-a89b-8032ec537fa2
- * @vrooliComponentAppliedAt 2026-08-06T03:51:05Z
- * @vrooliComponentSourceSha256 63c5e36ce041c4698f660233b13665575392fe6734e97bfebd233aa6b0db6e8a
- * @vrooliComponentDriftHash 3e90b839c07dbdd90ba6f01ceb005c33cb234e7139c477fddd6a846fbd2ad962
- * @vrooliComponentTokenTranslation bg-app-surface->bg-app-surface,border-app-border->border-app-border,text-app-foreground->text-app-foreground,text-app-muted-foreground->text-app-muted-foreground
+ * @vrooliComponentAdoption 7d593e9b-1216-4a69-b029-848dc20ab26f
+ * @vrooliComponentAppliedAt 2026-08-10T20:01:09Z
+ * @vrooliComponentSourceSha256 7e0c48c458f6789470d86f2f8f722b704cba4dffcaf3728c6b2bde0fd5b37705
+ * @vrooliComponentDriftHash 45abc42ff375a79fe55bb74785369ccf30782089569241b936dd1cbf939cd28a
+ * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
@@ -13,6 +13,7 @@
 import type { ReactNode } from "react";
 import { AsyncPanel } from "../../../AsyncPanel/versions/1.0.0/AsyncPanel";
 import type { ExperienceSurfaceState } from "../../../ExperienceSurface/versions/1.0.0/ExperienceSurface";
+import { commandCenterShellStyles } from "./styles";
 
 export interface CommandCenterMetric {
   label: string;
@@ -56,35 +57,32 @@ export function CommandCenterShell({
 }: CommandCenterShellProps) {
   return (
     <main
-      className={["grid min-h-full gap-4 p-4 lg:grid-cols-[15rem_minmax(0,1fr)]", className]
-        .filter(Boolean)
-        .join(" ")}
+      data-rcl-command-center
+      className={["rcl-command-center", className].filter(Boolean).join(" ")}
     >
-      <nav
-        aria-label={`${title} navigation`}
-        className="rounded-control border border-app-border bg-app-surface p-3"
-      >
+      <style
+        data-rcl-command-center-styles
+        dangerouslySetInnerHTML={{ __html: commandCenterShellStyles }}
+      />
+      <nav aria-label={`${title} navigation`} className="rcl-command-center__navigation">
         {navigation}
       </nav>
-      <section className="min-w-0 space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold text-app-foreground">{title}</h1>
+      <section className="rcl-command-center__body">
+        <header className="rcl-command-center__header">
+          <h1 className="rcl-command-center__title">{title}</h1>
           {controls ? (
-            <div aria-label={`${title} controls`} className="flex flex-wrap gap-2">
+            <div aria-label={`${title} controls`} className="rcl-command-center__controls">
               {controls}
             </div>
           ) : null}
         </header>
-        <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <dl className="rcl-command-center__metrics">
           {metrics.map((metric) => (
-            <div
-              key={metric.label}
-              className="rounded-control border border-app-border bg-app-surface p-3"
-            >
-              <dt className="text-sm text-app-muted-foreground">{metric.label}</dt>
-              <dd className="mt-1 text-2xl font-semibold text-app-foreground">{metric.value}</dd>
+            <div key={metric.label} className="rcl-command-center__metric">
+              <dt className="rcl-command-center__metric-label">{metric.label}</dt>
+              <dd className="rcl-command-center__metric-value">{metric.value}</dd>
               {metric.detail ? (
-                <p className="mt-1 text-sm text-app-muted-foreground">{metric.detail}</p>
+                <p className="rcl-command-center__metric-detail">{metric.detail}</p>
               ) : null}
             </div>
           ))}
@@ -97,7 +95,7 @@ export function CommandCenterShell({
           partial={partial}
           error={error}
           onRetry={onRetry}
-          className="rounded-control border border-app-border bg-app-surface p-4"
+          className="rcl-command-center__primary"
         >
           {children}
         </AsyncPanel>

@@ -1,0 +1,32 @@
+{
+  "libraryId": "react-component-library:ResourceCollection",
+  "catalogId": "patterns.resource-collection",
+  "displayName": "Resource Collection",
+  "description": "A responsive resource-list pattern that composes collection controls and DataTable with honest recovery states and router seams.",
+  "assetKind": "component",
+  "tags": [
+    "pattern",
+    "collection",
+    "resources",
+    "responsive",
+    "recovery",
+    "keyboard",
+    "token-bound"
+  ],
+  "slot": "ui-pattern",
+  "category": "patterns",
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:DataTable", "version": "1.3.0" },
+    { "libraryId": "react-component-library:DataToolbar", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:SearchFilterResults",
+      "version": "1.0.0"
+    }
+  ]
+}

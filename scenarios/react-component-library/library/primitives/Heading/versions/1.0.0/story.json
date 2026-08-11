@@ -1,1 +1,23 @@
-{"schemaVersion":1,"kind":"component","title":"Heading","args":{"fields":[{"path":"style","label":"Style","kind":"enum","default":"display","options":["display","title","heading","body","label","caption","code","overline"]}]},"environment":{"fixtures":[]},"stories":[{"id":"style-display","name":"style display","args":{"style":"display"}},{"id":"style-title","name":"style title","args":{"style":"title"}},{"id":"style-heading","name":"style heading","args":{"style":"heading"}},{"id":"style-body","name":"style body","args":{"style":"body"}},{"id":"style-label","name":"style label","args":{"style":"label"}},{"id":"style-caption","name":"style caption","args":{"style":"caption"}},{"id":"style-code","name":"style code","args":{"style":"code"}},{"id":"style-overline","name":"style overline","args":{"style":"overline"}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Heading",
+  "args": {
+    "fields": [
+      {
+        "path": "style",
+        "label": "Style",
+        "kind": "enum",
+        "default": "heading",
+        "options": ["display", "title", "heading", "body", "label", "caption", "code", "overline"]
+      },
+      { "path": "level", "label": "Document level", "kind": "number", "default": 2, "minimum": 1, "maximum": 6 }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "semantic-heading", "name": "Semantic heading", "harness": "HeadingShowcase", "args": { "style": "heading", "level": 2 }, "expect": [{ "kind": "role", "role": "heading", "name": "Meaning and visual scale stay independent." }, { "kind": "attribute", "selector": "[data-heading-level]", "attribute": "data-heading-level", "value": "2" }, { "kind": "layout", "selector": "[data-rcl-heading-showcase]", "minWidth": 240, "minHeight": 160, "noOverflow": true }], "interactions": [{ "kind": "settle" }] },
+    { "id": "display-level", "name": "Display style at level one", "harness": "HeadingShowcase", "args": { "style": "display", "level": 1 }, "expect": [{ "kind": "role", "role": "heading", "name": "Meaning and visual scale stay independent." }, { "kind": "attribute", "selector": "[data-heading-level]", "attribute": "data-heading-level", "value": "1" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "compact-heading", "name": "Compact heading", "harness": "HeadingShowcase", "args": { "style": "title", "level": 3 }, "expect": [{ "kind": "role", "role": "heading", "name": "Meaning and visual scale stay independent." }, { "kind": "attribute", "selector": "[data-heading-level]", "attribute": "data-heading-level", "value": "3" }], "interactions": [{ "kind": "settle" }] }
+  ]
+}

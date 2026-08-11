@@ -6,6 +6,26 @@ import {
 
 export const recipe = (...classes: Array<string | false | null | undefined>) =>
   classes.filter(Boolean).join(" ");
+
+export type MotionTransitionPhase = "interaction" | "enter" | "exit" | "spring";
+
+export const MOTION_TRANSITIONS: Record<MotionTransitionPhase, string> = {
+  interaction: "var(--dur-quick) var(--ease-standard)",
+  enter: "var(--dur-moderate) var(--ease-enter)",
+  exit: "var(--dur-quick) var(--ease-exit)",
+  spring: "var(--dur-moderate) var(--spring-subtle)",
+};
+
+/** Build a token-backed transition list without allowing ad hoc timing values. */
+export const motionTransition = (
+  properties: string | readonly string[],
+  phase: MotionTransitionPhase = "interaction",
+) => {
+  const names = Array.isArray(properties) ? properties : [properties];
+  return names
+    .map((property) => `${property} ${MOTION_TRANSITIONS[phase]}`)
+    .join(", ");
+};
 export const CONTROL_VARIANTS = {
   primary: recipe(
     "bg-[var(--app-primary)]",

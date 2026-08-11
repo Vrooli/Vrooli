@@ -14,6 +14,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { ChevronRight } from "lucide-react";
 import {
   Popover,
   PopoverParts,
@@ -31,6 +32,10 @@ const styles = `
   [data-rcl-menu-label] { padding: var(--space-xs) var(--space-sm) var(--space-3xs); color: var(--color-muted-foreground); font: var(--text-overline); letter-spacing: .08em; text-transform: uppercase; }
   [data-rcl-menu-separator] { block-size: 1px; margin-block: var(--space-2xs); background: var(--color-border); }
   [data-rcl-menu-shortcut] { color: var(--color-muted-foreground); font: var(--text-caption); }
+  [data-rcl-menu-submenu] { position: relative; }
+  [data-rcl-menu-submenu-trigger] { inline-size: 100%; }
+  [data-rcl-menu-submenu-trigger] [data-rcl-menu-submenu-arrow] { justify-self: end; color: var(--color-muted-foreground); transition: transform var(--dur-quick) var(--ease-standard); }
+  [data-rcl-menu-submenu-trigger][aria-expanded="true"] [data-rcl-menu-submenu-arrow] { transform: rotate(90deg); color: var(--color-primary); }
   @media (prefers-reduced-motion: reduce) { [data-rcl-menu-item], [data-rcl-menu-checkbox], [data-rcl-menu-radio] { transition: none; } }
 `;
 
@@ -211,6 +216,13 @@ function MenuItemBase({
       data-rcl-menu-item={kind === "item" || undefined}
       data-rcl-menu-checkbox={kind === "checkbox" || undefined}
       data-rcl-menu-radio={kind === "radio" || undefined}
+      data-rcl-menu-part={
+        kind === "checkbox"
+          ? "checkbox-item"
+          : kind === "radio"
+            ? "radio-item"
+            : "item"
+      }
       data-disabled={disabled || undefined}
       disabled={disabled}
       tabIndex={active ? 0 : -1}
@@ -273,6 +285,79 @@ export function MenuRadioItem({
   );
 }
 
+function SubmenuTrigger({
+  label,
+  disabled,
+}: {
+  label: ReactNode;
+  disabled: boolean;
+}) {
+  const menu = useMenuContext();
+  const popover = usePopover();
+  const id = useId();
+  const labelText = typeof label === "string" ? label : "Submenu";
+  const [index, setIndex] = useState(-1);
+  useEffect(
+    () => setIndex(menu.register(id, labelText, popover.triggerRef, disabled)),
+    [disabled, id, labelText, menu, popover.triggerRef],
+  );
+  const active = index === menu.activeIndex;
+
+  return (
+    <PopoverParts.Trigger
+      type="button"
+      role="menuitem"
+      aria-haspopup="menu"
+      aria-label={labelText}
+      aria-disabled={disabled || undefined}
+      data-rcl-menu-item
+      data-rcl-menu-submenu-trigger
+      tabIndex={active ? 0 : -1}
+      disabled={disabled}
+      onFocus={() => menu.setActiveIndex(index)}
+      onKeyDown={(event) => {
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          popover.setOpen(true);
+        }
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          popover.setOpen(false);
+        }
+      }}
+    >
+      <span data-rcl-menu-indicator aria-hidden="true" />
+      <span>{label}</span>
+      <ChevronRight
+        data-rcl-menu-submenu-arrow
+        aria-hidden="true"
+        size="var(--space-sm)"
+      />
+    </PopoverParts.Trigger>
+  );
+}
+
+export function MenuSubmenu({
+  label,
+  children,
+  disabled = false,
+}: {
+  label: ReactNode;
+  children: ReactNode;
+  disabled?: boolean;
+}) {
+  return (
+    <div data-rcl-menu-submenu>
+      <Popover placement="right-start" responsive="none">
+        <SubmenuTrigger label={label} disabled={disabled} />
+        <MenuContent aria-label={typeof label === "string" ? label : "Submenu"}>
+          {children}
+        </MenuContent>
+      </Popover>
+    </div>
+  );
+}
+
 export function MenuLabel({ children }: { children: ReactNode }) {
   return <div data-rcl-menu-label>{children}</div>;
 }
@@ -286,6 +371,7 @@ export const MenuParts = {
   Item: MenuItem,
   CheckboxItem: MenuCheckboxItem,
   RadioItem: MenuRadioItem,
+  Submenu: MenuSubmenu,
   Label: MenuLabel,
   Separator: MenuSeparator,
 };

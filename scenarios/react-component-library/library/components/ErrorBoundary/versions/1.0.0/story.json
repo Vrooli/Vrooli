@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "ErrorBoundary",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "request-error", "name": "Contained render error", "harness": "RequestError", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "text", "value": "Insight module" }, { "kind": "text", "value": "Show technical details" }] },
+    { "id": "retry", "name": "Retry", "harness": "Retry", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "role", "role": "button", "name": "Try again" }] },
+    { "id": "custom-fallback", "name": "Custom fallback", "harness": "CustomFallback", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "text", "value": "Workspace panel unavailable" }] },
+    { "id": "interactive", "name": "Interactive retry", "harness": "Retry", "args": {}, "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Try again" } }, { "kind": "settle" }], "expect": [{ "kind": "role", "role": "status", "name": "Insight module restored" }] }
+  ]
+}

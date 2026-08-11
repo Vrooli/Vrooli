@@ -7,6 +7,7 @@
 import type { ReactNode } from "react";
 import { AsyncPanel } from "../../../AsyncPanel/versions/1.0.0/AsyncPanel";
 import type { ExperienceSurfaceState } from "../../../ExperienceSurface/versions/1.0.0/ExperienceSurface";
+import { commandCenterShellStyles } from "./styles";
 
 export interface CommandCenterMetric {
   label: string;
@@ -50,45 +51,42 @@ export function CommandCenterShell({
 }: CommandCenterShellProps) {
   return (
     <main
-      className={[
-        "grid min-h-full gap-4 p-4 lg:grid-cols-[15rem_minmax(0,1fr)]",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      data-rcl-command-center
+      className={["rcl-command-center", className].filter(Boolean).join(" ")}
     >
+      <style
+        data-rcl-command-center-styles
+        dangerouslySetInnerHTML={{ __html: commandCenterShellStyles }}
+      />
       <nav
         aria-label={`${title} navigation`}
-        className="rounded-control border border-app-border bg-app-surface p-3"
+        className="rcl-command-center__navigation"
       >
         {navigation}
       </nav>
-      <section className="min-w-0 space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold text-app-foreground">{title}</h1>
+      <section className="rcl-command-center__body">
+        <header className="rcl-command-center__header">
+          <h1 className="rcl-command-center__title">{title}</h1>
           {controls ? (
             <div
               aria-label={`${title} controls`}
-              className="flex flex-wrap gap-2"
+              className="rcl-command-center__controls"
             >
               {controls}
             </div>
           ) : null}
         </header>
-        <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <dl className="rcl-command-center__metrics">
           {metrics.map((metric) => (
-            <div
-              key={metric.label}
-              className="rounded-control border border-app-border bg-app-surface p-3"
-            >
-              <dt className="text-sm text-app-muted-foreground">
+            <div key={metric.label} className="rcl-command-center__metric">
+              <dt className="rcl-command-center__metric-label">
                 {metric.label}
               </dt>
-              <dd className="mt-1 text-2xl font-semibold text-app-foreground">
+              <dd className="rcl-command-center__metric-value">
                 {metric.value}
               </dd>
               {metric.detail ? (
-                <p className="mt-1 text-sm text-app-muted-foreground">
+                <p className="rcl-command-center__metric-detail">
                   {metric.detail}
                 </p>
               ) : null}
@@ -103,7 +101,7 @@ export function CommandCenterShell({
           partial={partial}
           error={error}
           onRetry={onRetry}
-          className="rounded-control border border-app-border bg-app-surface p-4"
+          className="rcl-command-center__primary"
         >
           {children}
         </AsyncPanel>

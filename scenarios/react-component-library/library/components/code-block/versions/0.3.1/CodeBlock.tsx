@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { languageLabel, normalizeCodeLanguage } from "./languageDetection";
 import { useCodeCopy } from "./useCodeCopy";
+import { codeBlockStyles } from "./styles";
 
 const HIGHLIGHT_CACHE_LIMIT = 400;
 const highlightCache = new Map<string, string>();
@@ -93,25 +94,30 @@ export function CodeBlock({
   const { copied, copy } = useCodeCopy();
   return (
     <section
-      className={`my-3 overflow-hidden rounded border border-[var(--markdown-border)] bg-[var(--markdown-code-surface)] ${className ?? ""}`}
+      className={`rcl-code-block ${className ?? ""}`}
+      data-rcl-code-block
     >
-      <header className="flex items-center justify-between border-b border-[var(--markdown-border)] px-3 py-2 text-xs text-[var(--markdown-muted)]">
+      <style
+        data-rcl-code-block-styles
+        dangerouslySetInnerHTML={{ __html: codeBlockStyles }}
+      />
+      <header className="rcl-code-block__header">
         <span>{languageLabel(language)}</span>
         <button
           type="button"
           onClick={() => void copy(code)}
-          className="rounded px-1 text-[var(--markdown-link)] hover:opacity-80"
+          className="rcl-code-block__copy"
         >
           {copied ? copiedLabel : copyLabel}
         </button>
       </header>
       {html ? (
         <div
-          className="overflow-x-auto p-3 text-sm [&>pre]:m-0 [&>pre]:bg-transparent [&>pre]:p-0"
+          className="rcl-code-block__body"
           dangerouslySetInnerHTML={{ __html: html }}
         />
       ) : (
-        <pre className="overflow-x-auto p-3 text-sm text-[var(--markdown-code-text)]">
+        <pre className="rcl-code-block__body">
           <code>{code}</code>
         </pre>
       )}

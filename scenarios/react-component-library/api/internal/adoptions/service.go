@@ -508,6 +508,11 @@ func dependencyEntryTarget(rootTarget string, asset components.Component, versio
 			dir = filepath.ToSlash(filepath.Dir(dir))
 		}
 		dir = filepath.ToSlash(filepath.Join(dir, "hooks"))
+	} else if asset.AssetKind == components.AssetKindFoundation {
+		if strings.HasSuffix(dir, "/components") || dir == "components" {
+			dir = filepath.ToSlash(filepath.Dir(dir))
+		}
+		dir = filepath.ToSlash(filepath.Join(dir, "foundations"))
 	} else if strings.HasSuffix(dir, "/components") || dir == "components" {
 		dir = filepath.ToSlash(filepath.Dir(dir))
 		dir = filepath.ToSlash(filepath.Join(dir, "components"))

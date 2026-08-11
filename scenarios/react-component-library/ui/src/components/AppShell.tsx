@@ -1,19 +1,8 @@
-/** @vrooliComponentSource navigation.app-shell
- *
- * AppShell — full-width operational shell.
- *
- * Desktop (≥ md): resizable left sidebar + main content. The sidebar is
- * driven by `useResizablePanel` so widths persist across reloads.
- * Mobile (< md): top header, bottom navigation, and a slide-in drawer
- * that hosts the same nav + component list. The dark/light theme is mirrored
- * on `<html>` by the surrounding `<ThemeProvider>`.
- *
- * Replaces the starter centered-card layout: no `max-w-xl`, no eyebrow,
- * no card wrapping page-level content.
- */
+/** @vrooliComponentSource react-component-library:AppShell */
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
+import { AppShell as LibraryAppShell } from "./AppShell/versions/1.0.0/AppShell";
 import { SidebarShell } from "./SidebarShell";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { useIsMobile } from "../hooks/useMediaQuery";
@@ -113,115 +102,118 @@ export function AppShell({ children }: Props) {
               })
             : t("app.brand", { defaultValue: "Component Library" });
 
+  const navigation = (
+    <SidebarShell
+      ref={sidebarRef}
+      mode={desktopSidebarCollapsed && !isMobile ? "overlay" : "responsive"}
+      mobileOpen={drawerOpen}
+      onMobileClose={closeDrawer}
+      mobileLabel={t("nav.drawerLabel", { defaultValue: "Navigation drawer" })}
+      desktopLabel={t("nav.label", { defaultValue: "Primary navigation" })}
+      closeLabel={t("nav.closeDrawer", { defaultValue: "Close navigation" })}
+      mobileHeader={
+        <span className="truncate text-sm font-semibold text-app-foreground">
+          {t("app.brand", { defaultValue: "Component Library" })}
+        </span>
+      }
+      width={isMobile || desktopSidebarCollapsed ? undefined : sidebarWidth}
+      resizeHandleProps={isMobile ? undefined : resizeHandleProps}
+      contentClassName="flex min-w-0"
+    >
+      <SidebarContent
+        onNavigate={closeDrawer}
+        onCollapse={() => setDesktopSidebarCollapsed(true)}
+        headerSlot={
+          <Link
+            to="/settings"
+            aria-label={t("nav.settings", { defaultValue: "Settings" })}
+            className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
+          >
+            <SettingsIcon aria-hidden className="h-4 w-4" />
+          </Link>
+        }
+        inventorySlot={<CatalogBrowser compact onNavigate={closeDrawer} />}
+      />
+    </SidebarShell>
+  );
+
+  const header = isComponentDetail ? null : (
+    <WorkspaceHeader
+      as="div"
+      title={pageTitle}
+      description={pageDescription}
+      leading={
+        sidebarCollapsed ? (
+          <button
+            type="button"
+            onClick={openSidebar}
+            aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })}
+            data-testid="workspace-header-open-sidebar"
+            className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
+          >
+            <Menu aria-hidden className="h-5 w-5" />
+          </button>
+        ) : undefined
+      }
+      actions={
+        location.pathname !== "/settings" ? (
+          <>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                navigate(
+                  `/catalog${search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ""}`,
+                );
+              }}
+              className="hidden sm:block"
+            >
+              <Input
+                aria-label={t("catalog.search", { defaultValue: "Search catalog" })}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={t("catalog.search", { defaultValue: "Search" })}
+                className="h-9 w-44"
+              />
+            </form>
+            <span className="hidden text-xs text-app-muted-foreground md:inline">
+              {t("dashboard.synced", { defaultValue: "Synced" })}
+            </span>
+            <Button size="sm" onClick={() => setShowCreate(true)}>
+              {t("dashboard.create", { defaultValue: "Create" })}
+            </Button>
+          </>
+        ) : undefined
+      }
+    />
+  );
+
   return (
     <ShellNavigationContext.Provider value={{ sidebarCollapsed, openSidebar }}>
-      <div
-        ref={shellRef}
-        data-testid="app-shell"
-        className="flex h-dvh min-h-0 w-full overflow-hidden bg-app-background text-app-foreground"
+      <LibraryAppShell
+        className="h-dvh min-h-0 w-full overflow-hidden"
+        navigation={navigation}
+        navigationMode="managed"
+        navigationLabel={t("nav.label", { defaultValue: "Primary navigation" })}
+        header={header}
+        headerMode={isComponentDetail ? "hidden" : "visible"}
+        mainMode={isComponentDetail ? "flush" : "padded"}
+        mainClassName={
+          isComponentDetail
+            ? "pb-safe flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-auto pb-20 md:pb-0"
+            : "pb-safe min-h-0 min-w-0 w-full max-w-full flex-1 overflow-auto pb-20 md:pb-0"
+        }
       >
-        <SidebarShell
-          ref={sidebarRef}
-          mobileOpen={drawerOpen}
-          desktopCollapsed={desktopSidebarCollapsed}
-          onMobileClose={closeDrawer}
-          mobileLabel={t("nav.drawerLabel", { defaultValue: "Navigation drawer" })}
-          desktopLabel={t("nav.label", { defaultValue: "Primary navigation" })}
-          closeLabel={t("nav.closeDrawer", { defaultValue: "Close navigation" })}
-          mobileHeader={
-            <span className="truncate text-sm font-semibold text-app-foreground">
-              {t("app.brand", { defaultValue: "Component Library" })}
-            </span>
-          }
-          width={isMobile ? undefined : sidebarWidth}
-          resizeHandleProps={isMobile ? undefined : resizeHandleProps}
-          contentClassName="flex"
-        >
-          <SidebarContent
-            onNavigate={closeDrawer}
-            onCollapse={() => setDesktopSidebarCollapsed(true)}
-            headerSlot={
-              <Link
-                to="/settings"
-                aria-label={t("nav.settings", { defaultValue: "Settings" })}
-                className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
-              >
-                <SettingsIcon aria-hidden className="h-4 w-4" />
-              </Link>
-            }
-            inventorySlot={<CatalogBrowser compact onNavigate={closeDrawer} />}
-          />
-        </SidebarShell>
-
-        <div className="flex min-w-0 w-0 flex-1 flex-col">
-          {!isComponentDetail && (
-            <WorkspaceHeader
-              title={pageTitle}
-              description={pageDescription}
-              leading={
-                sidebarCollapsed ? (
-                  <button
-                    type="button"
-                    onClick={openSidebar}
-                    aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })}
-                    data-testid="workspace-header-open-sidebar"
-                    className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
-                  >
-                    <Menu aria-hidden className="h-5 w-5" />
-                  </button>
-                ) : undefined
-              }
-              actions={
-                location.pathname !== "/settings" ? (
-                  <>
-                    <form
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        navigate(
-                          `/catalog${search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ""}`,
-                        );
-                      }}
-                      className="hidden sm:block"
-                    >
-                      <Input
-                        aria-label={t("catalog.search", { defaultValue: "Search catalog" })}
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        placeholder={t("catalog.search", { defaultValue: "Search" })}
-                        className="h-9 w-44"
-                      />
-                    </form>
-                    <span className="hidden text-xs text-app-muted-foreground md:inline">
-                      {t("dashboard.synced", { defaultValue: "Synced" })}
-                    </span>
-                    <Button size="sm" onClick={() => setShowCreate(true)}>
-                      {t("dashboard.create", { defaultValue: "Create" })}
-                    </Button>
-                  </>
-                ) : undefined
-              }
-            />
-          )}
-          <main
-            data-testid="app-main"
-            className={
-              isComponentDetail
-                ? "pb-safe flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-auto p-0 pb-20 md:pb-0"
-                : "pb-safe min-w-0 w-0 max-w-full flex-1 overflow-auto px-space-sm py-space-sm pb-20 md:px-space-lg md:py-space-md md:pb-space-lg"
-            }
-          >
-            {children ?? <Outlet />}
-          </main>
-        </div>
-        {showCreate && <CreateComponentDialog onClose={() => setShowCreate(false)} />}
-        <ActionLauncher
-          action={launcherAction}
-          onActionChange={setLauncherAction}
-          onCreate={() => setShowCreate(true)}
-          initialAssetID={launcherAssetID}
-          initialTarget={launcherTarget}
-        />
-      </div>
+        {children ?? <Outlet />}
+      </LibraryAppShell>
+      {showCreate && <CreateComponentDialog onClose={() => setShowCreate(false)} />}
+      <ActionLauncher
+        action={launcherAction}
+        onActionChange={setLauncherAction}
+        onCreate={() => setShowCreate(true)}
+        showTrigger={!isComponentDetail}
+        initialAssetID={launcherAssetID}
+        initialTarget={launcherTarget}
+      />
     </ShellNavigationContext.Provider>
   );
 }

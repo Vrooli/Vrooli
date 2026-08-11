@@ -1,1 +1,41 @@
-{"schemaVersion":1,"kind":"component","title":"Pressable","args":{"fields":[{"path":"children","kind":"text","default":"Continue"},{"path":"pending","kind":"boolean","default":false}]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Ready","args":{"children":"Continue","pending":false},"expect":[{"kind":"role","role":"button","name":"Continue"}],"interactions":[{"kind":"settle"}]},{"id":"pending","name":"Pending","args":{"children":"Continue","pending":true},"expect":[{"kind":"role","role":"button"}],"interactions":[{"kind":"settle"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Pressable",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "ready",
+      "name": "Ready",
+      "harness": "Ready",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "button", "name": "Continue" },
+        { "kind": "role", "role": "button", "name": "Save draft" },
+        {
+          "kind": "layout",
+          "selector": "[data-rcl-pressable]",
+          "minWidth": 44,
+          "minHeight": 44
+        }
+      ]
+    },
+    {
+      "id": "pending",
+      "name": "Pending",
+      "harness": "Pending",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "button", "name": "Saving…" },
+        { "kind": "role", "role": "button", "name": "Voice input" },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-pressable][data-rcl-pending=\"true\"]",
+          "name": "aria-busy",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

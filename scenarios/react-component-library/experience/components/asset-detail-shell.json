@@ -1,17 +1,40 @@
 {
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "contract": {"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library/AssetDetailShell@1.0.0"},
-  "component": {"id":"asset-detail-shell","title":"Asset Detail Shell","purpose":"Present an asset preview and metadata while independently reporting supporting activity lifecycle.","storyRef":"../../library/components/AssetDetailShell/versions/1.0.0/story.json"},
+  "componentId": "react-component-library:AssetDetailShell",
+  "version": "1.1.0",
+  "component": {
+    "id": "asset-detail-shell",
+    "title": "Asset Detail Shell",
+    "purpose": "Present a responsive detail surface with distinct preview, metadata, and activity regions.",
+    "storyRef": "../../library/components/AssetDetailShell/versions/1.0.0/story.json"
+  },
   "states": [
-    {"id":"loading","example":"activity-loading","description":"Supporting activity is loading while the asset and metadata remain available."},
-    {"id":"ready","example":"ready-detail","description":"Asset detail and activity are usable."},
-    {"id":"empty","example":"activity-empty","description":"The asset has no supporting activity."},
-    {"id":"partial","example":"activity-partial","description":"Supporting activity is incomplete without blocking the asset task."},
-    {"id":"error","example":"activity-error","description":"Supporting activity failed and can offer retry."}
+    { "id": "ready-detail", "example": "ready-detail", "description": "The detail surface is ready." },
+    { "id": "activity-partial", "example": "activity-partial", "description": "Supporting activity is incomplete while the primary detail remains usable." },
+    { "id": "activity-loading", "example": "activity-loading", "description": "Supporting activity is loading." },
+    { "id": "activity-empty", "example": "activity-empty", "description": "No supporting activity is available." },
+    { "id": "activity-error", "example": "activity-error", "description": "Supporting activity failed without replacing the primary detail." }
   ],
-  "claims": [
-    {"id":"supporting-activity-observable","type":"custom","statement":"Supporting activity is rendered through AsyncPanel and exposes its lifecycle via ExperienceSurface.","tier":"manual","states":["loading","ready","empty","partial","error"]},
-    {"id":"asset-task-resilient","type":"custom","statement":"Preview and metadata remain structurally available when only supporting activity is partial or failed.","tier":"manual","states":["partial","error"]}
+  "behaviors": [
+    {
+      "id": "hierarchical-detail",
+      "description": "The primary preview, title/actions, supporting activity, and metadata remain distinct regions across desktop and mobile layouts."
+    },
+    {
+      "id": "activity-containment",
+      "description": "Activity lifecycle states remain local to the activity region and do not replace the primary preview or metadata."
+    },
+    {
+      "id": "responsive-detail",
+      "description": "The metadata region moves below the primary task at narrow widths without clipping long content."
+    }
+  ],
+  "accessibility": [
+    "main landmark",
+    "labelled preview and metadata regions",
+    "activity announcements",
+    "focus-visible",
+    "forced colors"
   ]
 }

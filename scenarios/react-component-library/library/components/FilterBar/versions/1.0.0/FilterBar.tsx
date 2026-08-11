@@ -25,25 +25,26 @@ export interface FilterBarProps {
   resetLabel?: string;
 }
 
-const panel = {
-  border: "1px solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-panel, .75rem)",
-  background: "var(--color-surface, #fff)",
-  color: "var(--color-foreground, #0f172a)",
-  padding: "var(--space-md, 24px)",
-  boxShadow: "var(--elev-raised, 0 1px 3px rgb(15 23 42 / .08))",
-};
-
-const muted = { color: "var(--color-muted-foreground, #64748b)" };
-
 const filterBarStyles = `
-.rcl-filter-bar__controls { display: flex; align-items: end; flex-wrap: wrap; gap: var(--space-sm, 12px); }
+.rcl-filter-bar { display: grid; gap: var(--space-md); box-sizing: border-box; padding: clamp(var(--space-md), 3vw, var(--space-lg)); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: linear-gradient(145deg, color-mix(in srgb, var(--color-surface-raised) 96%, var(--color-primary)), var(--color-surface)); color: var(--color-foreground); box-shadow: var(--elev-raised); }
+.rcl-filter-bar__controls { display: flex; align-items: end; flex-wrap: wrap; gap: var(--space-sm); }
 .rcl-filter-bar__query { flex: 1 1 280px; min-width: 0; }
-.rcl-filter-bar__actions { display: flex; flex: 0 0 auto; gap: var(--space-2xs, 8px); }
+.rcl-filter-bar__actions { display: flex; flex: 0 0 auto; gap: var(--space-2xs); }
+.rcl-filter-bar__button { min-block-size: var(--tap-target-min); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); padding-inline: var(--space-sm); font: var(--text-label); cursor: pointer; transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease; }
+.rcl-filter-bar__button:hover { transform: translateY(-1px); box-shadow: var(--elev-raised); }
+.rcl-filter-bar__button:active { transform: translateY(0); box-shadow: none; }
+.rcl-filter-bar__button:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 2px; }
+.rcl-filter-bar__button--primary { border-color: var(--color-primary); background: var(--color-primary); color: var(--color-primary-foreground); }
+.rcl-filter-bar__button--quiet { background: var(--color-surface); color: var(--color-foreground); }
+.rcl-filter-bar__legend { margin-block-end: var(--space-2xs); color: var(--color-muted-foreground); font: var(--text-overline); letter-spacing: .06em; text-transform: uppercase; }
+.rcl-filter-bar__summary { margin: 0; color: var(--color-muted-foreground); font: var(--text-caption); }
 @media (max-width: 480px) {
   .rcl-filter-bar__controls { display: grid; grid-template-columns: minmax(0, 1fr); }
   .rcl-filter-bar__actions { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
+  .rcl-filter-bar__button { width: 100%; }
 }
+@media (prefers-reduced-motion: reduce) { .rcl-filter-bar__button { transition-duration: .01ms; } }
+@media (forced-colors: active) { .rcl-filter-bar, .rcl-filter-bar__button { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } .rcl-filter-bar__button--primary { background: Highlight; color: HighlightText; } }
 `;
 
 export function FilterBar({
@@ -107,7 +108,8 @@ export function FilterBar({
         role="search"
         aria-label={queryLabel}
         onSubmit={submit}
-        style={panel}
+        className="rcl-filter-bar"
+        data-rcl-filter-bar
       >
         <div className="rcl-filter-bar__controls">
           <div className="rcl-filter-bar__query">
@@ -120,25 +122,24 @@ export function FilterBar({
             />
           </div>
           <div className="rcl-filter-bar__actions">
-            <button type="submit" style={primaryButton}>
+            <button
+              type="submit"
+              className="rcl-filter-bar__button rcl-filter-bar__button--primary"
+            >
               {applyLabel}
             </button>
-            <button type="button" onClick={reset} style={quietButton}>
+            <button
+              type="button"
+              className="rcl-filter-bar__button rcl-filter-bar__button--quiet"
+              onClick={reset}
+            >
               {resetLabel}
             </button>
           </div>
         </div>
         {options.length > 0 && (
-          <fieldset
-            style={{
-              border: 0,
-              margin: "var(--space-md, 24px) 0 0",
-              padding: 0,
-            }}
-          >
-            <legend style={{ ...muted, fontSize: 12, fontWeight: 700 }}>
-              Filter by status
-            </legend>
+          <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
+            <legend className="rcl-filter-bar__legend">Filter by status</legend>
             <Cluster gap="xs" aria-label="Available filters" role="group">
               {options.map((option) => (
                 <Chip
@@ -158,14 +159,7 @@ export function FilterBar({
             </Cluster>
           </fieldset>
         )}
-        <p
-          aria-live="polite"
-          style={{
-            ...muted,
-            margin: "var(--space-sm, 12px) 0 0",
-            fontSize: 13,
-          }}
-        >
+        <p aria-live="polite" className="rcl-filter-bar__summary">
           {resolvedFilterIds.length === 0
             ? "Showing all results"
             : `${resolvedFilterIds.length} filter${resolvedFilterIds.length === 1 ? "" : "s"} selected`}
@@ -179,23 +173,3 @@ function useLocalState<T>(initialValue: T): [T, (next: T) => void] {
   const [value, setValue] = useState(initialValue);
   return [value, setValue];
 }
-
-const primaryButton = {
-  minHeight: 44,
-  border: 0,
-  borderRadius: "var(--radius-control, .5rem)",
-  background: "var(--color-primary, #2563eb)",
-  color: "var(--color-primary-foreground, #fff)",
-  paddingInline: "var(--space-xs, 8px)",
-  font: "inherit",
-  fontSize: "var(--font-size-sm, 14px)",
-  fontWeight: 700,
-  whiteSpace: "nowrap",
-};
-
-const quietButton = {
-  ...primaryButton,
-  border: "1px solid var(--color-border, #cbd5e1)",
-  background: "transparent",
-  color: "var(--color-foreground, #0f172a)",
-};

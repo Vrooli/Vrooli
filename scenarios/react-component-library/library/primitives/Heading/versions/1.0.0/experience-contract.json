@@ -11,18 +11,35 @@
   },
   "states": [
     {
-      "id": "default",
-      "example": "style-display",
-      "description": "The default primitive state."
+      "id": "semantic-heading",
+      "example": "semantic-heading",
+      "description": "A level-two heading with an independent visual style."
+    },
+    {
+      "id": "display-level",
+      "example": "display-level",
+      "description": "A level-one heading using the display style."
+    },
+    {
+      "id": "compact-heading",
+      "example": "compact-heading",
+      "description": "A level-three heading using the title style."
     }
   ],
   "claims": [
     {
       "id": "contract-present",
       "type": "custom",
-      "statement": "Heading exposes a bounded public contract backed by shared tokens.",
+      "statement": "Heading separates semantic document level from the shared typography style.",
       "tier": "manual",
-      "states": ["default"]
+      "states": ["semantic-heading", "display-level", "compact-heading"]
+    },
+    {
+      "id": "semantic-output",
+      "type": "element-present",
+      "statement": "Each story renders a native heading element with an explicit level marker.",
+      "tier": "machine",
+      "states": ["semantic-heading", "display-level", "compact-heading"]
     }
   ]
 }

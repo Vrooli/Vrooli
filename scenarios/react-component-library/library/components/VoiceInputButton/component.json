@@ -8,14 +8,13 @@
   "category": "inputs",
   "entry": "VoiceInputButton.tsx",
   "dependencies": [
-    { "libraryId": "react-component-library:IconButton", "version": "2.0.0" },
-    { "libraryId": "react-component-library:useVoiceInput", "version": "3.0.0" }
+    { "libraryId": "react-component-library:IconButton", "version": "2.0.0" }
   ],
   "designStyles": [
     { "styleId": "vrooli-default", "affinity": "native" },
     { "styleId": "vrooli-command-display", "affinity": "native" }
   ],
-  "latest": "3.0.0",
+  "latest": "4.1.0",
   "draft": "",
   "deprecatedVersions": []
 }

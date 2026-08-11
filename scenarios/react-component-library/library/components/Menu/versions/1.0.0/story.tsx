@@ -70,6 +70,14 @@ function Items() {
       <MenuParts.RadioItem checked onCheckedChange={() => undefined}>
         Use system theme
       </MenuParts.RadioItem>
+      <MenuParts.Submenu label="More views">
+        <MenuParts.Item onSelect={() => undefined}>
+          Activity timeline
+        </MenuParts.Item>
+        <MenuParts.Item onSelect={() => undefined}>
+          Audit history
+        </MenuParts.Item>
+      </MenuParts.Submenu>
       <MenuParts.Item disabled>Manage billing</MenuParts.Item>
     </>
   );

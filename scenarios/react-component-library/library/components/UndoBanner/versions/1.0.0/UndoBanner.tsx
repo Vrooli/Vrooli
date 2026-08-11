@@ -87,7 +87,9 @@ function UndoItem({
       : record.status === "submitting"
         ? "Restoring your change…"
         : record.status === "success"
-          ? (record.detail ?? "The previous state is back.")
+          ? (record.successDetail ??
+            record.detail ??
+            "The previous state is back.")
           : (record.detail ?? "You can restore this change for a few seconds.");
   const liveRole = record.status === "error" ? "alert" : "status";
   return (

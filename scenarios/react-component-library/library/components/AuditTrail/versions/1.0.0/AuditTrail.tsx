@@ -14,8 +14,9 @@ export function AuditTrail({
   entries?: Array<{ actor: string; action: string }>;
 }) {
   return (
-    <ol
+    <div
       aria-label="Audit trail"
+      role="list"
       style={{
         display: "grid",
         gap: 8,
@@ -25,13 +26,13 @@ export function AuditTrail({
       }}
     >
       {entries.map((entry, index) => (
-        <li key={entry.actor + String(index)} style={panel}>
+        <div key={entry.actor + String(index)} role="listitem" style={panel}>
           <strong>{entry.actor}</strong>
           <span style={{ display: "block", marginTop: 4, ...muted }}>
             {entry.action}
           </span>
-        </li>
+        </div>
       ))}
-    </ol>
+    </div>
   );
 }

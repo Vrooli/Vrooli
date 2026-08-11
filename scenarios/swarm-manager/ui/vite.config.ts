@@ -1,6 +1,5 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { fileURLToPath, URL } from "node:url";
 
 // Mode-aware config so a regular `vite build` ships the lean prod artifact and
 // `vite build --mode profile` produces a perf-build channel. The perf build is
@@ -27,8 +26,6 @@ import { fileURLToPath, URL } from "node:url";
 // See scratch/perf-spike/README.md for the audit workflow.
 export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
-  const audioCaptureBrowser = fileURLToPath(new URL("../../../packages/audio-capture-browser/src/index.ts", import.meta.url));
-
   return {
     // ╔══════════════════════════════════════════════════════════════╗
     // ║  INTEROP-CRITICAL: Relative base for proxy/tunnel contexts  ║
@@ -51,7 +48,6 @@ export default defineConfig(({ mode }): UserConfig => {
     resolve: isProfile
       ? {
           alias: {
-			"@vrooli/audio-capture-browser": audioCaptureBrowser,
             "react-dom/client": "react-dom/profiling",
             // Internal references inside react-dom/client.js do `require('react-dom')`,
             // which would resolve back to the stripped-prod bundle. Force them
@@ -59,7 +55,7 @@ export default defineConfig(({ mode }): UserConfig => {
             "react-dom$": "react-dom/profiling",
           },
         }
-      : { alias: { "@vrooli/audio-capture-browser": audioCaptureBrowser } },
+      : undefined,
     esbuild: isProfile
       ? {
           keepNames: true,

@@ -54,17 +54,22 @@ type Component struct {
 	Metrics       AssetMetrics
 }
 
-// AssetKind distinguishes a renderable catalog component from a reusable,
-// non-renderable hook. The Components domain retains its stable API name while
-// acting as the library-asset projection.
+// AssetKind distinguishes renderable assets, reusable hooks, and the
+// versioned foundations that renderable assets import. The Components domain
+// retains its stable API name while acting as the library-asset projection;
+// foundations participate in dependency closures but are excluded from the
+// ordinary component listing.
 type AssetKind string
 
 const (
-	AssetKindComponent AssetKind = "component"
-	AssetKindHook      AssetKind = "hook"
+	AssetKindComponent  AssetKind = "component"
+	AssetKindHook       AssetKind = "hook"
+	AssetKindFoundation AssetKind = "foundation"
 )
 
-func (k AssetKind) Valid() bool { return k == AssetKindComponent || k == AssetKindHook }
+func (k AssetKind) Valid() bool {
+	return k == AssetKindComponent || k == AssetKindHook || k == AssetKindFoundation
+}
 
 // AssetDependency pins a consuming asset to one immutable version of another
 // library asset. The resolver expands these edges into a deterministic closure.
