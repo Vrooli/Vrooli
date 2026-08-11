@@ -1,0 +1,116 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Delivery matrix",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Answer the operator's first question — which iOS targets can I prove right now, where will the work actually run, and what is blocking me.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-004",
+      "OT-P0-010"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Terminal 'unsupported' rows are visually distinct from actionable 'unavailable' rows.",
+      "notes": "This ramp has rows that will never go green. An operator who reads them as tasks will waste time trying to fix the unfixable."
+    },
+    {
+      "statement": "Every row states which node will execute the work.",
+      "notes": "On a Linux host nothing runs locally. Hiding that makes a remote failure look like a local one."
+    },
+    {
+      "statement": "The build host's identity and toolchain version are visible from the matrix.",
+      "notes": "Whether a build will be submittable depends on the fulfilling node's Xcode version, which is not a property of the artifact."
+    },
+    {
+      "statement": "A host that can validate but not produce submittable builds reads as its own state.",
+      "notes": "Neither a pass nor a failure. Presenting it as either one misleads about a dated, foreseeable constraint."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The matrix as the live system reports it, with a macOS node online.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Target inventory is being probed; no dispositions are asserted yet.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "no-mac-node",
+      "description": "No macOS node is reachable. Native targets are unavailable; the Linux-host rows remain unsupported. The two states appear together and must be distinguishable.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "no-mac-node"
+        }
+      }
+    },
+    {
+      "id": "validate-only-host",
+      "description": "The build host's toolchain is below the App Store Connect floor. Simulator validation is available; producing a submittable build is not.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "validate-only-host"
+        }
+      }
+    },
+    {
+      "id": "gate-failed",
+      "description": "A required cell failed. The gate reads failed and names the contributing cell.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "gate-failed"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "unsupported-is-not-unavailable",
+      "type": "custom",
+      "statement": "Unsupported and unavailable rows differ in shape or label, not only in colour, and unsupported rows offer no remediation affordance.",
+      "tier": "automated",
+      "rationale": "S2I-P0-003. Offering a 'fix this' control on a row that can never pass is an active lie. This is the most important assertion on the page."
+    },
+    {
+      "id": "execution-node-is-explicit",
+      "type": "custom",
+      "statement": "Every non-terminal row names the node that will execute it.",
+      "tier": "automated",
+      "rationale": "Remote execution is the normal path here, so 'where does this run' is part of reading the row, not a detail."
+    },
+    {
+      "id": "validate-only-is-its-own-state",
+      "type": "custom",
+      "statement": "A build host below the SDK floor produces a distinct, explained state rather than a pass or a generic failure.",
+      "tier": "automated",
+      "rationale": "S2I-P0-004. The Intel build host will eventually reach exactly this condition, and it must be legible before an upload fails."
+    },
+    {
+      "id": "matrix-readable-without-video",
+      "type": "custom",
+      "statement": "Every verdict on this page is perceivable without playing a recording.",
+      "tier": "automated",
+      "rationale": "Journey video is evidence, not interface."
+    }
+  ]
+}

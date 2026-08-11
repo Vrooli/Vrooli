@@ -1,0 +1,111 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "target-detail",
+    "title": "Target",
+    "routes": [
+      "/targets/:targetId"
+    ],
+    "purpose": "Explain one target completely: what was probed on which node, what it proved, which device-control strategy would drive it, and precisely what is missing when it is unavailable.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-004",
+      "OT-P0-005"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "A terminal target explains why it is terminal, and offers nothing to click.",
+      "notes": "'No Apple toolchain exists for Linux' is a complete answer. Suggesting a remedy would be false."
+    },
+    {
+      "statement": "Every probed capability is listed with its result and the time it was probed.",
+      "notes": "Xcode version, simulator runtimes, GUI session, and signing identity each fail differently and each needs its own line."
+    },
+    {
+      "statement": "The driving strategy and its capability tier are named before a run, not only after.",
+      "notes": "An operator should know they are about to get pixel-grade evidence before spending a run on it."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A fully available simulator target on a macOS node.",
+      "setup": {
+        "route": "/targets/mac-simulator"
+      }
+    },
+    {
+      "id": "terminal-linux",
+      "description": "A native iOS target on the Linux host. Permanently unsupported, explained, with no remediation affordance.",
+      "setup": {
+        "route": "/targets/local-native",
+        "query": {
+          "fixture": "terminal-linux"
+        }
+      }
+    },
+    {
+      "id": "no-gui-session",
+      "description": "The macOS node is online but has no logged-in GUI session, so the simulator cannot run. Distinct from a missing Xcode.",
+      "setup": {
+        "route": "/targets/mac-simulator",
+        "query": {
+          "fixture": "no-gui-session"
+        }
+      }
+    },
+    {
+      "id": "missing-runtime-variant",
+      "description": "Xcode is present but the x86_64 universal simulator runtime variant is not installed on this Intel host.",
+      "setup": {
+        "route": "/targets/mac-simulator",
+        "query": {
+          "fixture": "missing-runtime-variant"
+        }
+      }
+    },
+    {
+      "id": "physical-no-enrollment",
+      "description": "A physical iPhone reachable through device-control. The xcuitest strategy is unavailable pending enrollment; the mirror strategy is available but pixel-grade.",
+      "setup": {
+        "route": "/targets/iphone-physical",
+        "query": {
+          "fixture": "physical-no-enrollment"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "terminal-offers-no-remedy",
+      "type": "custom",
+      "statement": "A target in the unsupported state presents an explanation and no action control.",
+      "tier": "automated",
+      "rationale": "S2I-P0-003. An affordance implies a path; there is none, and offering one wastes the operator's time on something structurally impossible."
+    },
+    {
+      "id": "each-prerequisite-fails-distinctly",
+      "type": "custom",
+      "statement": "Missing Xcode, missing runtime variant, missing GUI session, and missing signing identity produce four different messages with four different next actions.",
+      "tier": "automated",
+      "rationale": "S2I-P0-003. These fail for unrelated reasons and a single generic 'macOS node not ready' would make all four undiagnosable."
+    },
+    {
+      "id": "strategy-tier-shown-before-running",
+      "type": "custom",
+      "statement": "A physical-device target names which strategy would drive it and whether that strategy is semantic or pixel-grade, before a run is started.",
+      "tier": "automated",
+      "rationale": "S2I-P1-002. Pixel-grade evidence is non-promotable; an operator must know that before spending a run rather than discovering it in review."
+    },
+    {
+      "id": "probe-age-is-visible",
+      "type": "custom",
+      "statement": "Every capability result displays when it was probed.",
+      "tier": "automated",
+      "rationale": "Capability is a measurement, and a measurement without a timestamp cannot be judged current."
+    }
+  ]
+}

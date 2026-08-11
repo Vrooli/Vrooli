@@ -1,0 +1,119 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "readiness",
+    "title": "Release readiness",
+    "routes": [
+      "/readiness"
+    ],
+    "purpose": "Walk the owner through Apple's path — the most opaque part of shipping an iOS app — naming at every rung what is done, what is blocked, and what only a person can do.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-008",
+      "OT-P0-004"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Rungs are ordered, and a later rung never reports ready while an earlier one is not.",
+      "notes": "Certificates cannot be ready while enrollment is not. Order is the information."
+    },
+    {
+      "statement": "Each rung states plainly whether the ramp can complete it or only the owner can.",
+      "notes": "Enrollment, identity verification, 2FA, and payment are irreducibly human. Implying automation that cannot exist wastes the owner's time."
+    },
+    {
+      "statement": "The enrollment rung shows its recurring cost, not just a status.",
+      "notes": "$99/yr is a decision. A rung that reads only 'not started' hides that it is a purchase."
+    },
+    {
+      "statement": "The build-host rung reports both whether it can validate and whether it can produce submittable builds.",
+      "notes": "These diverge on an Intel host, and the divergence is dated and foreseeable rather than a surprise."
+    },
+    {
+      "statement": "Rung state is re-probed, never read from a stored flag.",
+      "notes": "A lapsed membership must not continue to read as satisfied."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Live rung state as probed.",
+      "setup": {
+        "route": "/readiness"
+      }
+    },
+    {
+      "id": "nothing-started",
+      "description": "No Apple Developer Program enrollment. The first rung is the only actionable one; every later rung is explicitly blocked by it. The mirror path is surfaced as the one thing that works without it.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "nothing-started"
+        }
+      }
+    },
+    {
+      "id": "enrollment-pending",
+      "description": "Enrollment submitted but not granted. Distinguishes 'waiting on Apple' from 'waiting on you'.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "enrollment-pending"
+        }
+      }
+    },
+    {
+      "id": "host-expiring",
+      "description": "Every rung satisfied, but the fulfilling build host will stop producing submittable builds when the SDK floor next rises. Shown as a dated warning, not a failure.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "host-expiring"
+        }
+      }
+    },
+    {
+      "id": "ready-to-ship",
+      "description": "Every rung satisfied; TestFlight upload is available.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "ready-to-ship"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "rung-order-is-enforced",
+      "type": "custom",
+      "statement": "No rung reports ready while any rung it depends on is unsatisfied.",
+      "tier": "automated",
+      "rationale": "S2I-P0-009. A ladder that reports a later rung ready out of order is displaying independent flags, not modelling a dependency."
+    },
+    {
+      "id": "human-only-rungs-are-labelled",
+      "type": "custom",
+      "statement": "Every rung indicates whether it can be automated by the ramp or requires an owner action.",
+      "tier": "automated",
+      "rationale": "The purpose of the surface is to tell the owner what to do next; conflating 'blocked on you' with 'blocked on the system' defeats it."
+    },
+    {
+      "id": "mirror-path-surfaced-when-blocked",
+      "type": "custom",
+      "statement": "When enrollment is absent, the surface names the physical-device path that needs no enrollment, and states that its evidence cannot gate a release.",
+      "tier": "manual",
+      "rationale": "S2I-P1-003. Without this the owner concludes that no physical-device work is possible at all, which is false — but presenting it without the non-promotable caveat would be misleading in the other direction."
+    },
+    {
+      "id": "host-expiry-is-dated-not-vague",
+      "type": "custom",
+      "statement": "A build host approaching or past its submittable-build capability shows the specific requirement it will fail, not a generic warning.",
+      "tier": "manual",
+      "rationale": "S2I-P0-004. 'This host may stop working' is not actionable; 'Xcode 27 requires Apple Silicon' is."
+    }
+  ]
+}

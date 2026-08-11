@@ -1,0 +1,103 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "run-review",
+    "title": "Run review",
+    "routes": [
+      "/runs/:runId"
+    ],
+    "purpose": "Let a reviewer judge a conformance run: what each chapter asserted, what it observed, and whether the evidence supports the verdict.",
+    "prd_refs": [
+      "OT-P0-005",
+      "OT-P0-010"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Each chapter shows expected versus observed, not just pass or fail.",
+      "notes": "A reviewer cannot judge a verdict they cannot see the basis for."
+    },
+    {
+      "statement": "A bounded policy that was exceeded reads as a failure with its bound, never as a longer wait.",
+      "notes": "Silently extending a wait converts a real defect into a slow pass."
+    },
+    {
+      "statement": "The recording is offered alongside the chapter timeline, never as the only way to read the result.",
+      "notes": "Video is evidence. The verdict must be legible in text."
+    },
+    {
+      "statement": "A missing video offset is shown as missing.",
+      "notes": "Inventing an offset to make a timeline look complete would falsify the evidence."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A complete passing run with all chapters asserted and a decoded recording.",
+      "setup": {
+        "route": "/runs/complete"
+      }
+    },
+    {
+      "id": "running",
+      "description": "A run in progress; completed chapters are readable and pending ones are explicitly pending, not blank.",
+      "setup": {
+        "route": "/runs/in-progress",
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "chapter-failed",
+      "description": "One chapter failed on an assertion. The failing expectation and observation are both visible.",
+      "setup": {
+        "route": "/runs/chapter-failed"
+      }
+    },
+    {
+      "id": "partial-web-unavailable",
+      "description": "Native shell chapters ran; web-content chapters are unavailable because BAS could not attach. The run reports partial honestly rather than passing.",
+      "setup": {
+        "route": "/runs/partial"
+      }
+    },
+    {
+      "id": "recording-unusable",
+      "description": "The recording exists but decodes without useful frames. The visual claim is not granted.",
+      "setup": {
+        "route": "/runs/recording-unusable"
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "expected-and-observed-both-shown",
+      "type": "custom",
+      "statement": "Every asserted chapter displays both its expected value and its observed value.",
+      "tier": "automated",
+      "rationale": "S2A-P0-005. A verdict without its basis cannot be reviewed, only trusted."
+    },
+    {
+      "id": "exceeded-bound-is-a-failure",
+      "type": "custom",
+      "statement": "A chapter whose readiness or settle bound was exceeded reads as failed and displays the bound it exceeded.",
+      "tier": "automated",
+      "rationale": "Bounded policies exist so that slowness is a signal. Presenting an exceeded bound as anything other than failure destroys that signal."
+    },
+    {
+      "id": "partial-is-not-pass",
+      "type": "custom",
+      "statement": "A run with unavailable chapters never displays an overall pass.",
+      "tier": "automated",
+      "rationale": "S2A-P0-010. Unavailable is terminal for the cell and cannot be promoted."
+    },
+    {
+      "id": "missing-offset-shown-as-missing",
+      "type": "custom",
+      "statement": "A chapter with no recording offset displays that the offset is missing rather than defaulting to zero.",
+      "tier": "automated",
+      "rationale": "An invented offset makes an incomplete timeline look complete."
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "name": "experience-notes-spec-smoke",
+    "description": "Generated observer smoke for active experience page notes.",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "notes",
+      "surface": "experience-notes"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-notes",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "scenario-to-android",
+          "scenario_path": "/notes",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Notes" }
+      }
+    },
+    {
+      "id": "wait-notes-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.notes",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Notes page visible" }
+      }
+    }
+  ]
+}

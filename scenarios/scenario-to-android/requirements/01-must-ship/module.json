@@ -1,0 +1,190 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "Generate a complete, buildable Capacitor Android project that wraps the target scenario's existing web bundle without modifying that scenario's UI source. The shell is a pluggable template family so a second shell technology can be added later without re-architecting the ramp; only the Capacitor template ships at P0. Generation is reproducible: the same scenario at the same revision produces the same project.",
+      "id": "S2A-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Capacitor shell generation from any scenario UI",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P0-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Produce both a debug-signable APK for direct install and an AAB for Play distribution. The build asserts `targetSdk` is at or above the current Play floor (API 36) as a machine assertion recorded in evidence, not as a comment in a Gradle file. A build below the floor fails closed with the required level named.",
+      "id": "S2A-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Gradle build to APK and AAB with asserted target API",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P0-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Implement the spine `Prober` seam so target availability is decided by probing, never by operating-system name. Reports the emulator target on this host (KVM presence and writability, SDK, platform-tools, system image, AVD), emulator targets on bridge nodes, and physical devices surfaced through device-control. A capability that cannot be proven reports `unavailable` with the exact missing prerequisite and a next action.",
+      "id": "S2A-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Prober: probed Android target inventory",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P0-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Implement the spine `Driver` seam by delegating native shell operations (install, launch, permissions, background, rotate, uninstall) to device-control verbs and web-content steps to a browser-automation-studio flow, interleaved on a single chaptered timeline. The ramp implements no device driving of its own and holds a device-control lease for the duration of a run.",
+      "id": "S2A-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Driver: one chaptered timeline composing device-control and BAS",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P0-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "A registered, scenario-agnostic capability plan covering the Android platform contract: install and cold start, permission-denial grace, background and resume, process-death restore, rotation, keyboard avoidance, offline transition, deep link, notification tap, back navigation, update migration, and clean uninstall. Each chapter carries purpose, bounded readiness and settle policies, expected versus observed, and capture references. The runner has no scenario-name branch.",
+      "id": "S2A-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Android conformance journey suite",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P0-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Consume the governed `android-sdk` resource for SDK, platform-tools, emulator, and system images rather than acquiring toolchain bytes in this scenario. Own the AVD lifecycle needed for a validation run — create, boot to a bounded readiness signal, run, and tear down — and report an absent or unusable toolchain as `unavailable` with the acquisition next action.",
+      "id": "S2A-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "title": "android-sdk resource consumption and AVD lifecycle",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P0-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Generate and store the upload key through secrets-manager and sign build outputs by reference. No keystore, password, or key material exists in the repository, in a generated project, or in any evidence artifact. A missing signing identity reports `unavailable` with the ladder rung that would resolve it.",
+      "id": "S2A-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "planned",
+      "title": "Signing with no key material in the repository",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P0-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Implement the spine `Distributor` seam over three distinct channels with different identity and evidence requirements: Play (verified developer, AAB, review), verified sideload (developer verification, direct APK), and ADB internal (no verification, host-tethered). Each channel reports its own availability and reason. A channel is never presented as available because a sibling channel is.",
+      "id": "S2A-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "planned",
+      "title": "Distributor: honest distribution channel model",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P0-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "A probed, ordered rung model from no account to production listing: Play Console registration, developer verification, signing key and Play App Signing, target API compliance, internal testing track, production listing. Each rung reports state, who can complete it, whether the ramp can automate it, and the next action. The same model backs the CLI, the UI walkthrough, and the generated documentation, so documentation cannot drift from code.",
+      "id": "S2A-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "planned",
+      "title": "Release readiness ladder for Google",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P0-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Compute the Android release gate from the spine's immutable matrix and emit `common.v1.TargetVerdict` with `EvidenceRef` entries to deployment-manager. Capture bytes, recordings, keys, and endpoints stay producer-owned. `unavailable` and `unsupported` are terminal states that can never be promoted to a pass, and a missing required cell fails the gate rather than being omitted from it.",
+      "id": "S2A-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "planned",
+      "title": "Fail-closed release gate emitting reference-only verdicts",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P0-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Every capability — generate, build, probe, run a matrix, wait, rerun, compare, inspect readiness, distribute — is reachable from the CLI with report-shaped JSON output. A capability reachable only from the API or UI is treated as incomplete, because the CLI is what agents and CI drive.",
+      "id": "S2A-P0-011",
+      "prd_ref": "OT-P0-011",
+      "status": "planned",
+      "title": "CLI as the complete control surface",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P0-011] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The `hello-mobile` fixture scenario is generated, built, installed, driven, and recorded on the local emulator, producing a complete conformance journey with useful decoded video and verified redaction. This is the proof that the ramp works without depending on any product scenario's correctness.",
+      "id": "S2A-P0-012",
+      "prd_ref": "OT-P0-012",
+      "status": "planned",
+      "title": "hello-mobile fixture proves the ramp end to end",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P0-012] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

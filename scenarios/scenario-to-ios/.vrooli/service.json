@@ -1,132 +1,32 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {
-    "entries": {
-      "data": {
-        "rung": "owned",
-        "kind": "dir",
-        "class": "data",
-        "regenerable": false,
-        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
-        "budget": {
-          "max_bytes": "1TiB",
-          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
-        }
-      }
-    },
-    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
-  },
   "service": {
+    "parent": "vrooli",
     "name": "scenario-to-ios",
     "displayName": "Scenario to iOS",
-    "description": "Scenario to iOS conversion tool",
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
-    "tags": [],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/scenario-to-ios"
-    },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
-    },
-    "version": "1.0.0"
+    "description": "Turn any Vrooli scenario into a distributable iOS application with evidence-backed validation on simulators and physical devices.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
   },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Scenario to iOS API port",
-      "range": "15000-19999"
-    }
-  },
-  "lifecycle": {
-    "version": "2.0.0",
-    "health": {
-      "description": "Scenario to iOS health check configuration",
-      "endpoints": {
-        "api": "/health"
-      },
-      "checks": [
-        {
-          "name": "api_endpoint",
-          "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
-        }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
     },
-    "develop": {
-      "description": "Start scenario-to-ios API server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-to-ios-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/scenario-to-ios-api"
-          }
-        }
-      ]
+    "generated_at": "2026-08-11T02:43:04Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
     },
-    "test": {
-      "description": "Comprehensive phased testing for scenario-to-ios",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute scenario-to-ios --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "setup": {
-      "description": "Build Scenario to iOS API",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-to-ios-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "scenario-to-ios",
-            "targets": [
-              "scenario-to-ios"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go build -o scenario-to-ios-api .",
-          "description": "Build Go API binary"
-        }
-      ]
-    }
-  },
-  "dependencies": {
-    "resources": {}
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "bc3fa68a1c296246e175f9617f42f2f19794b7638c8767eb83c57fc5f0d0eef2"
   },
   "cli": {
     "enabled": true,
@@ -134,6 +34,13 @@
     "adapter": {
       "kind": "go_module",
       "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
     },
     "invoke": {
       "kind": "installed_command",
@@ -144,9 +51,187 @@
         "cli/**",
         ".vrooli/service.json"
       ]
-    },
-    "source_build": {
-      "kind": "go_module"
     }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scenario-to-ios-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "scenario-to-ios"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o scenario-to-ios-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api \u0026\u0026 ./scenario-to-ios-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-to-ios-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui \u0026\u0026 node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "build": {},
+    "deploy": {},
+    "clean": {},
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "check-temporal-models",
+          "run": "flow-verifier verify check --root .",
+          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
+        },
+        {
+          "name": "run-tests",
+          "run": "test-genie execute scenario-to-ios --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        }
+      ]
+    },
+    "backup": {},
+    "restore": {},
+    "production": {},
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'scenario-to-ios-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "resources_rationale": "No resource is declared, and none can be. The Apple toolchain cannot be installed, licensed, or versioned by Vrooli, so Xcode is a host capability that is verified and instructed rather than acquired — modelling it as a resource would place a permanently failing acquisition step in the resource fleet. macOS, Xcode 26 or later, the x86_64 simulator runtime variant on Intel hosts, and a logged-in GUI session are all probed on the fulfilling bridge node. See docs/concepts/INTEGRATIONS.md.",
+    "scenarios": {
+      "vrooli-bridge": {
+        "purpose": "Reach plane for the macOS node that performs every build, simulator run, and physical-device session. No Apple toolchain runs on Linux, so remote execution is this ramp's normal path rather than a fallback.",
+        "required": true,
+        "degraded_behavior": "Every native iOS target reports unavailable carrying the reach reason. Linux-host rows remain unsupported, which is a different and terminal state that must not be collapsed into unavailable."
+      },
+      "device-control": {
+        "purpose": "Every device verb under a held lease, across the ios-simctl, ios-xcuitest, and ios-mirror strategies. This ramp implements no device driving of its own.",
+        "required": true,
+        "degraded_behavior": "Journey cells report unavailable naming device-control as the missing capability. The ramp never drives simctl or a device directly, because that would bypass leases and audit — and the mirroring strategy is physically single-session, so a missing lease guarantees corruption."
+      },
+      "deployment-manager": {
+        "purpose": "Consumes this ramp's reference-only common.v1.TargetVerdict and owns the cross-ramp release gate.",
+        "required": true,
+        "degraded_behavior": "The local gate still computes and evidence is retained; verdict emission retries. Evidence is never discarded because the consumer is down."
+      },
+      "browser-automation-studio": {
+        "purpose": "Executes a scenario's own named web-content flows against the generated app's WKWebView, so an author writes a flow once and it replays on iOS unchanged.",
+        "required": true,
+        "degraded_behavior": "Web-content chapters report unavailable; native shell chapters still execute and the run reports partial honestly rather than passing."
+      },
+      "secrets-manager": {
+        "purpose": "Holds certificates, provisioning profiles, and App Store Connect API keys by reference so no signing material exists in this repository, in a generated project, or in evidence.",
+        "required": true,
+        "degraded_behavior": "Builds requiring a signed artifact report unavailable naming the enrollment or certificate rung. The ramp never generates an ad-hoc signing identity as a fallback."
+      },
+      "hello-mobile": {
+        "purpose": "Conformance fixture. The ramp must be provable end to end without depending on any product scenario's correctness, and it is simultaneously the transport-symmetry proof because it builds on a remote node.",
+        "required": false,
+        "degraded_behavior": "The ramp's own conformance proof cannot run. Product scenario deliveries are unaffected."
+      }
+    }
+  },
+  "credentials": {},
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/scenario-to-ios.db"
   }
 }

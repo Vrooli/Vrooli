@@ -1,0 +1,93 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "target-detail",
+    "title": "Target",
+    "routes": [
+      "/targets/:targetId"
+    ],
+    "purpose": "Explain one target completely: what was probed, what it proved, how it is reached, and precisely what is missing when it is unavailable.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every probed capability is listed with its result and the time it was probed.",
+      "notes": "A stale probe presented as current is worse than no probe. Age is part of the answer."
+    },
+    {
+      "statement": "Transport is explicit — local host or a named bridge node.",
+      "notes": "The operator must be able to tell where work will actually execute, because that changes what can fail."
+    },
+    {
+      "statement": "A remote target whose host node is offline says so, and is never omitted.",
+      "notes": "A vanishing target reads as 'not mine' rather than 'temporarily unreachable'."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A fully available local emulator target.",
+      "setup": {
+        "route": "/targets/local-emulator"
+      }
+    },
+    {
+      "id": "missing-toolchain",
+      "description": "Android SDK absent. Every dependent capability is unavailable and names the acquisition next action.",
+      "setup": {
+        "route": "/targets/local-emulator",
+        "query": {
+          "fixture": "missing-toolchain"
+        }
+      }
+    },
+    {
+      "id": "no-acceleration",
+      "description": "/dev/kvm absent or not writable. The target is unavailable rather than slow, because unaccelerated video evidence is unusable.",
+      "setup": {
+        "route": "/targets/local-emulator",
+        "query": {
+          "fixture": "no-acceleration"
+        }
+      }
+    },
+    {
+      "id": "bridge-offline",
+      "description": "A remote target whose host node is offline, shown with that exact reason.",
+      "setup": {
+        "route": "/targets/bridge-minimouse",
+        "query": {
+          "fixture": "bridge-offline"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "probe-age-is-visible",
+      "type": "custom",
+      "statement": "Every capability result displays when it was probed.",
+      "tier": "automated",
+      "rationale": "S2A-P0-003. Capability is a measurement, and a measurement without a timestamp cannot be judged current."
+    },
+    {
+      "id": "offline-target-is-present-not-absent",
+      "type": "custom",
+      "statement": "A target whose host node is offline remains listed, carrying the offline reason.",
+      "tier": "automated",
+      "rationale": "Omitting it would make a temporary reachability failure look like a configuration change."
+    },
+    {
+      "id": "no-acceleration-is-unavailable-not-degraded",
+      "type": "custom",
+      "statement": "A target without hardware acceleration reports unavailable and offers no option to run anyway.",
+      "tier": "automated",
+      "rationale": "An unaccelerated emulator runs at 3–5 FPS; its video evidence cannot support a release claim, so offering the run would manufacture a worthless pass."
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "readiness",
+    "title": "Release readiness",
+    "routes": [
+      "/readiness"
+    ],
+    "purpose": "Walk the owner from no account to a production listing, naming at every rung what is done, what is blocked, and what only a person can do.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-008"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Rungs are ordered, and a later rung never reports ready while an earlier one is not.",
+      "notes": "Order is the information. A ladder whose rungs can be read independently is just a checklist."
+    },
+    {
+      "statement": "Each rung states plainly whether the ramp can complete it or only the owner can.",
+      "notes": "Registration, identity verification, and payment are irreducibly human. Implying otherwise wastes the owner's time."
+    },
+    {
+      "statement": "Each rung shows its cost where one exists.",
+      "notes": "A $25 registration is a decision, not a task. The surface should not hide that it costs money."
+    },
+    {
+      "statement": "Dated obligations are shown with their dates.",
+      "notes": "Target API 36 by 31 August 2026 and developer verification from 30 September 2026 are deadlines, not preferences."
+    },
+    {
+      "statement": "Rung state is re-probed, never read from a stored flag.",
+      "notes": "A lapsed or revoked account must not continue to read as satisfied."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Live rung state as probed.",
+      "setup": {
+        "route": "/readiness"
+      }
+    },
+    {
+      "id": "nothing-started",
+      "description": "No Play Console account exists. The first rung is the only actionable one and every later rung is explicitly blocked by it.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "nothing-started"
+        }
+      }
+    },
+    {
+      "id": "verification-pending",
+      "description": "Registration is complete and developer verification is submitted but not granted. Distinguishes 'waiting on Google' from 'waiting on you'.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "verification-pending"
+        }
+      }
+    },
+    {
+      "id": "ready-to-ship",
+      "description": "Every rung satisfied; the internal testing track is available.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "ready-to-ship"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "rung-order-is-enforced",
+      "type": "custom",
+      "statement": "No rung reports ready while any rung it depends on is unsatisfied.",
+      "tier": "automated",
+      "rationale": "S2A-P0-009. A ladder that can report a later rung ready out of order is not modelling a dependency, it is displaying independent flags."
+    },
+    {
+      "id": "human-only-rungs-are-labelled",
+      "type": "custom",
+      "statement": "Every rung indicates whether it can be automated by the ramp or requires an owner action.",
+      "tier": "automated",
+      "rationale": "The purpose of the surface is to tell the owner what to do next; conflating 'blocked on you' with 'blocked on the system' defeats it."
+    },
+    {
+      "id": "waiting-on-them-differs-from-waiting-on-you",
+      "type": "custom",
+      "statement": "A rung awaiting a third-party decision is visually and textually distinct from a rung awaiting an owner action.",
+      "tier": "manual",
+      "rationale": "Verification review can take days. An owner who cannot tell these apart will either wait on themselves or act on something already submitted."
+    }
+  ]
+}

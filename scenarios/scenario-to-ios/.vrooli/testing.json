@@ -1,19 +1,41 @@
 {
-  "$schema": "../../test-genie/schemas/testing.schema.json",
+  "$schema": "../../../../scenarios/test-genie/schemas/testing.schema.json",
   "_metadata": {
-    "description": "Testing configuration for scenario-to-ios",
-    "last_updated": "2025-11-06T23:58:55-05:00"
+    "description": "Sample testing configuration for React + Vite template",
+    "last_updated": "2026-05-03T00:00:00Z"
   },
   "version": "1.0.0",
-  "unit": {
-    "options": {
-      "verbose": false
+  "lint": {
+    "handlers": {
+      "go_module": {
+        "enabled": true,
+        "strict": true
+      },
+      "node_package": {
+        "enabled": true,
+        "strict": true
+      }
     },
+    "policy": {
+      "unconfigured_common_components": {
+        "api": "error",
+        "ui": "warning",
+        "cli": "warning"
+      },
+      "unmatched_code_components": "warning"
+    }
+  },
+  "structure": {
+    "additional_dirs": [
+      "ui"
+    ]
+  },
+  "unit": {
     "policy_profile": {
       "version": "1.0.0",
       "template": {
         "id": "react-vite",
-        "scenario_class": "custom"
+        "scenario_class": "react-vite"
       },
       "required_roles": [
         {
@@ -34,6 +56,17 @@
             "kind": "cli",
             "path": "cli",
             "language": "go"
+          }
+        },
+        {
+          "role": "ui",
+          "policy_class": "react_vite_ui",
+          "match": {
+            "surface_id": "ui",
+            "kind": "ui",
+            "path": "ui",
+            "language": "typescript",
+            "framework": "vite"
           }
         }
       ],
@@ -78,11 +111,71 @@
               "cli/internal/testutil/no_prod_import_test.go"
             ]
           }
+        },
+        "react_vite_ui": {
+          "language": "typescript",
+          "framework": "vitest",
+          "package_manager": "pnpm",
+          "coverage": {
+            "minimum_percent": 85,
+            "mode": "both",
+            "provider": "v8",
+            "reporters": [
+              "text",
+              "json-summary",
+              "json"
+            ]
+          },
+          "test_utils": {
+            "required_roots": [
+              "ui/src/test-utils"
+            ],
+            "production_import_ban": true,
+            "canonical_render_helper": "ui/src/test-utils/renderWithProviders.tsx"
+          },
+          "projection": {
+            "required_files": [
+              "ui/vite.config.ts",
+              "ui/src/test-setup.ts",
+              "ui/src/test-utils/renderWithProviders.tsx"
+            ],
+            "required_scripts": [
+              "test",
+              "test:coverage"
+            ],
+            "vitest": {
+              "environment": "jsdom",
+              "setup_files": [
+                "./src/test-setup.ts"
+              ],
+              "coverage_provider": "v8"
+            }
+          }
         }
       },
       "customization": {
         "mode": "monotonic",
         "waivers": []
+      }
+    }
+  },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": true
+      }
+    }
+  },
+  "performance": {
+    "checks": {
+      "lighthouse": {
+        "enabled": true
+      },
+      "bundle_size": {
+        "enabled": true
       }
     }
   }

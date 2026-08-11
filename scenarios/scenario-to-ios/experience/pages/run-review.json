@@ -1,0 +1,103 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "run-review",
+    "title": "Run review",
+    "routes": [
+      "/runs/:runId"
+    ],
+    "purpose": "Let a reviewer judge a conformance run: what each chapter asserted, what it observed, which strategy produced the observation, and whether the evidence can support a release claim at all.",
+    "prd_refs": [
+      "OT-P0-006",
+      "OT-P0-010"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Each chapter shows expected versus observed, not just pass or fail.",
+      "notes": "A reviewer cannot judge a verdict they cannot see the basis for."
+    },
+    {
+      "statement": "Every chapter names the strategy that produced it and whether that strategy is semantic or pixel-grade.",
+      "notes": "The same chapter carries very different weight depending on whether an accessibility tree or OCR produced it."
+    },
+    {
+      "statement": "A run built from non-promotable evidence says so at the top, not in a footnote.",
+      "notes": "A reviewer must not read a green run and assume it can gate a release."
+    },
+    {
+      "statement": "A bounded policy that was exceeded reads as a failure with its bound, never as a longer wait.",
+      "notes": "Silently extending a wait converts a real defect into a slow pass."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A complete passing run on a simulator via ios-simctl, semantic tier, with a decoded recording.",
+      "setup": {
+        "route": "/runs/complete"
+      }
+    },
+    {
+      "id": "running",
+      "description": "A run in progress; completed chapters are readable and pending ones are explicitly pending, not blank.",
+      "setup": {
+        "route": "/runs/in-progress",
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "chapter-failed",
+      "description": "One chapter failed on an assertion. The failing expectation and observation are both visible.",
+      "setup": {
+        "route": "/runs/chapter-failed"
+      }
+    },
+    {
+      "id": "non-promotable",
+      "description": "Every chapter passed, but the run was driven by ios-mirror. The run is green and explicitly cannot contribute to a release gate.",
+      "setup": {
+        "route": "/runs/mirror-run"
+      }
+    },
+    {
+      "id": "partial-web-unavailable",
+      "description": "Native shell chapters ran; web-content chapters are unavailable because BAS could not attach to the WKWebView. The run reports partial honestly rather than passing.",
+      "setup": {
+        "route": "/runs/partial"
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "expected-and-observed-both-shown",
+      "type": "custom",
+      "statement": "Every asserted chapter displays both its expected value and its observed value.",
+      "tier": "automated",
+      "rationale": "S2I-P0-006. A verdict without its basis cannot be reviewed, only trusted."
+    },
+    {
+      "id": "strategy-tier-attributed-per-chapter",
+      "type": "custom",
+      "statement": "Every chapter names its executing strategy and capability tier.",
+      "tier": "automated",
+      "rationale": "S2I-P0-005. A semantic assertion and an OCR match are different kinds of evidence and must never be presented identically."
+    },
+    {
+      "id": "non-promotable-is-prominent",
+      "type": "custom",
+      "statement": "A run whose evidence cannot gate a release states that before any chapter detail, and the statement is legible in text without colour.",
+      "tier": "automated",
+      "rationale": "S2I-P0-010. A green non-promotable run is the most dangerous artifact this scenario can produce, because it looks exactly like a releasable one."
+    },
+    {
+      "id": "exceeded-bound-is-a-failure",
+      "type": "custom",
+      "statement": "A chapter whose readiness or settle bound was exceeded reads as failed and displays the bound it exceeded.",
+      "tier": "automated",
+      "rationale": "Bounded policies exist so slowness is a signal. Presenting an exceeded bound as anything else destroys that signal."
+    }
+  ]
+}

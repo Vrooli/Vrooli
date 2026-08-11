@@ -1,106 +1,93 @@
 # Product Requirements Document (PRD)
 
-> **Template Version**: 2.0.0
-> **Canonical Reference**: scenarios/business-health/docs/reference/canonical-prd-template.md
-> **Last Updated**: 2025-11-27
+> **Template Version**: 2.0
+> **Canonical Reference**: `scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (`validate scenario scenario-to-android`)
+> **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
 
-**Purpose**: This scenario provides universal Android app generation for any Vrooli scenario, enabling instant mobile deployment. It transforms web-based scenarios into native Android applications with full access to device capabilities (camera, GPS, notifications, etc.) while maintaining offline-first architecture and seamless synchronization.
+- **Purpose**: Scenario to Android is the delivery ramp that turns any Vrooli scenario into a distributable Android application and proves — with evidence a reviewer can inspect — that the generated app behaves like a Vrooli app on Android. It owns exactly one layer: build, package, sign, distribute, and gate. It does not drive devices (`device-control` does), does not automate web content (`browser-automation-studio` does), does not own device trust (`vrooli-bridge` does), and does not reimplement validation machinery (`packages/delivery-ramp-go` does). The ramp supplies four adapters to that spine — Prober, Builder, Driver, Distributor — and nothing else.
 
-**Primary Users**: Scenario developers wanting mobile deployment capabilities
+- **Primary users/verticals**: The owner shipping a scenario to a phone; `deployment-manager`, which consumes this ramp's `common.v1.TargetVerdict` to compute a release gate; scenario authors who need their existing BAS flows to replay unchanged inside a generated Android app; and agents that need a reproducible path from scenario source to an installable artifact.
 
-**Deployment Surfaces**: CLI, API, UI
+- **Deployment surfaces**: Go API over Connect-RPC exposing the target inventory, validation matrix, and readiness ladder; Go CLI as the complete control surface; React + Vite operator UI for the target matrix, run review, and the release-readiness walkthrough; and generated Capacitor Android projects as the product output.
 
-Every scenario built for Vrooli can instantly become an Android app through this conversion system, opening mobile-first business models and enabling agents to deploy solutions directly to billions of mobile devices worldwide.
+- **Value promise**: A scenario becomes an installable Android app without its UI being rewritten, because the Capacitor shell wraps the same web bundle the browser and desktop ramps already serve. The same BAS flow an author wrote once replays on Android with no mobile-specific authoring. And the path from "nothing" to "a person can install this" is a probed, walked-through ladder rather than tribal knowledge — including the Play Console registration, developer verification, signing, and target-API obligations that gate real distribution.
 
 ## 🎯 Operational Targets
 
+> Checkboxes auto-update from requirements sync; do not hand-edit them.
+
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | API Health Check | Health endpoint operational at /health and /api/v1/health, schema-compliant with readiness field
-- [x] OT-P0-002 | UI Server | UI server running with schema-compliant health checks including API connectivity monitoring
-- [x] OT-P0-003 | CLI Tool | scenario-to-android CLI installed and functional with help/status commands
-- [x] OT-P0-004 | Android Templates | Base Android project templates in api/internal/<domain>/templates/
-- [x] OT-P0-005 | Build API Endpoint | /api/v1/android/build endpoint for APK generation
-- [x] OT-P0-006 | Build Status Endpoint | /api/v1/android/status/{build_id} for tracking builds
-- [x] OT-P0-007 | JavaScript Bridge | Full VrooliJSInterface with device info, permissions, storage, vibration
-- [x] OT-P0-008 | Offline Mode | WebView with local asset serving and service worker support
-- [x] OT-P0-009 | Convert Scenario UI to Android | Templates and CLI convert any scenario to Android project
-- [ ] OT-P0-010 | Generate Signed APK | Generate signed APK ready for installation (requires Android SDK on host)
-- [ ] OT-P0-011 | Multi-architecture Builds | Include build configuration for multiple architectures (gradle configs exist, needs SDK)
+- [ ] OT-P0-001 | Capacitor shell generation from any scenario UI | Generate a complete, buildable Capacitor Android project that wraps the target scenario's existing web bundle without modifying that scenario's UI source. The shell is a pluggable template family so a second shell technology can be added later without re-architecting the ramp; only the Capacitor template ships at P0. Generation is reproducible: the same scenario at the same revision produces the same project.
+- [ ] OT-P0-002 | Gradle build to APK and AAB with asserted target API | Produce both a debug-signable APK for direct install and an AAB for Play distribution. The build asserts `targetSdk` is at or above the current Play floor (API 36) as a machine assertion recorded in evidence, not as a comment in a Gradle file. A build below the floor fails closed with the required level named.
+- [ ] OT-P0-003 | Prober: probed Android target inventory | Implement the spine `Prober` seam so target availability is decided by probing, never by operating-system name. Reports the emulator target on this host (KVM presence and writability, SDK, platform-tools, system image, AVD), emulator targets on bridge nodes, and physical devices surfaced through device-control. A capability that cannot be proven reports `unavailable` with the exact missing prerequisite and a next action.
+- [ ] OT-P0-004 | Driver: one chaptered timeline composing device-control and BAS | Implement the spine `Driver` seam by delegating native shell operations (install, launch, permissions, background, rotate, uninstall) to device-control verbs and web-content steps to a browser-automation-studio flow, interleaved on a single chaptered timeline. The ramp implements no device driving of its own and holds a device-control lease for the duration of a run.
+- [ ] OT-P0-005 | Android conformance journey suite | A registered, scenario-agnostic capability plan covering the Android platform contract: install and cold start, permission-denial grace, background and resume, process-death restore, rotation, keyboard avoidance, offline transition, deep link, notification tap, back navigation, update migration, and clean uninstall. Each chapter carries purpose, bounded readiness and settle policies, expected versus observed, and capture references. The runner has no scenario-name branch.
+- [ ] OT-P0-006 | android-sdk resource consumption and AVD lifecycle | Consume the governed `android-sdk` resource for SDK, platform-tools, emulator, and system images rather than acquiring toolchain bytes in this scenario. Own the AVD lifecycle needed for a validation run — create, boot to a bounded readiness signal, run, and tear down — and report an absent or unusable toolchain as `unavailable` with the acquisition next action.
+- [ ] OT-P0-007 | Signing with no key material in the repository | Generate and store the upload key through secrets-manager and sign build outputs by reference. No keystore, password, or key material exists in the repository, in a generated project, or in any evidence artifact. A missing signing identity reports `unavailable` with the ladder rung that would resolve it.
+- [ ] OT-P0-008 | Distributor: honest distribution channel model | Implement the spine `Distributor` seam over three distinct channels with different identity and evidence requirements: Play (verified developer, AAB, review), verified sideload (developer verification, direct APK), and ADB internal (no verification, host-tethered). Each channel reports its own availability and reason. A channel is never presented as available because a sibling channel is.
+- [ ] OT-P0-009 | Release readiness ladder for Google | A probed, ordered rung model from no account to production listing: Play Console registration, developer verification, signing key and Play App Signing, target API compliance, internal testing track, production listing. Each rung reports state, who can complete it, whether the ramp can automate it, and the next action. The same model backs the CLI, the UI walkthrough, and the generated documentation, so documentation cannot drift from code.
+- [ ] OT-P0-010 | Fail-closed release gate emitting reference-only verdicts | Compute the Android release gate from the spine's immutable matrix and emit `common.v1.TargetVerdict` with `EvidenceRef` entries to deployment-manager. Capture bytes, recordings, keys, and endpoints stay producer-owned. `unavailable` and `unsupported` are terminal states that can never be promoted to a pass, and a missing required cell fails the gate rather than being omitted from it.
+- [ ] OT-P0-011 | CLI as the complete control surface | Every capability — generate, build, probe, run a matrix, wait, rerun, compare, inspect readiness, distribute — is reachable from the CLI with report-shaped JSON output. A capability reachable only from the API or UI is treated as incomplete, because the CLI is what agents and CI drive.
+- [ ] OT-P0-012 | hello-mobile fixture proves the ramp end to end | The `hello-mobile` fixture scenario is generated, built, installed, driven, and recorded on the local emulator, producing a complete conformance journey with useful decoded video and verified redaction. This is the proof that the ramp works without depending on any product scenario's correctness.
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | Push Notification Support | Enable push notifications in generated Android apps
-- [ ] OT-P1-002 | Camera and Photo Gallery Access | Provide camera and photo gallery integration
-- [ ] OT-P1-003 | GPS/Location Services | Integrate GPS and location services
-- [ ] OT-P1-004 | Local Storage and Database | Provide local storage and database persistence
-- [ ] OT-P1-005 | Play Store Preparation Scripts | Scripts for preparing apps for Google Play Store submission
+- [ ] OT-P1-001 | Physical-device conformance at semantic tier | Run the same conformance journey unchanged against a physical Android phone through the device-control `android-adb` strategy, with the adapter changing and the chapter set staying identical. Supports both USB and wireless transports, defaulting release-relevant runs to USB so evidence cannot fail for network reasons.
+- [ ] OT-P1-002 | Bridge-dispatched validation on a remote node | Dispatch an Android validation cell to a bridge node and receive evidence references back, proving the transport symmetry: the same ramp binary serves a local request here and a dispatched request on `minimouse`, with neither side being the client.
+- [ ] OT-P1-003 | Play internal testing track upload | Automate AAB upload to the Play internal testing track once the ladder rungs it depends on are satisfied, including release notes derived from scenario metadata and an evidence record of the upload identity.
+- [ ] OT-P1-004 | Operator UI for matrix, runs, and readiness | A dense operational surface showing the probed target matrix with honest dispositions, run review with chaptered evidence and video, and the release-readiness ladder as a walkthrough that names the next action at every rung.
+- [ ] OT-P1-005 | Update and data-migration journey across versions | Install version N, exercise state, install version N+1 over it, and assert user data survived — the mobile analog of the desktop updater journey, with the prior version's artifact retained as evidence.
+- [ ] OT-P1-006 | Performance budget chapters | Bounded, evidence-visible budgets for cold start time and artifact size, reported as assertions with observed values so a regression is a failed chapter rather than a subjective judgement.
+- [ ] OT-P1-007 | Play production listing asset generation | Generate store listing assets, screenshots from journey evidence, and a privacy policy from scenario metadata, leaving the data-safety declaration as an explicit owner action.
 
 ### 🟢 P2 – Future / expansion
 
-- [ ] OT-P2-001 | Widget Support | Support for home screen widgets
-- [ ] OT-P2-002 | Share Intent Handling | Handle share intents to receive data from other apps
-- [ ] OT-P2-003 | Background Service Capabilities | Enable background services for apps
-- [ ] OT-P2-004 | Biometric Authentication | Integrate biometric authentication support
-- [ ] OT-P2-005 | In-app Purchases Integration | Support for in-app purchases
+- [ ] OT-P2-001 | Additional Android form factors | Extend to Wear OS, Android TV, and Android XR targets, which carry their own Play target-API floors and their own conformance chapters, using the same Prober and Driver seams rather than new engines.
+- [ ] OT-P2-002 | Play Integrity and attestation evidence | Record device and app integrity verdicts as evidence so a release gate can distinguish a run on an attested device from a run on an unverified one.
+- [ ] OT-P2-003 | Alternative shell template | Add a second shell technology to the template family — a lower-memory native shell — for scenarios whose UX warrants it, without changing the ramp's adapter contract.
+- [ ] OT-P2-004 | Multi-scenario bundle applications | Package several scenarios into one Android application with a shared shell and per-scenario routing, so an owner ships a suite rather than one app per scenario.
 
 ## 🧱 Tech Direction Snapshot
 
-- **Preferred Stack**: Go API, Node.js UI, WebView-based Android apps
-- **Data Storage**: In-memory build state with optional Redis caching, APK artifacts in local filesystem or MinIO
-- **Integration Strategy**: Shared workflows for build automation via n8n, resource CLIs for MinIO and Redis
-- **Non-goals**: iOS support (separate scenario-to-ios), React Native conversion (v2.0 future)
+- **Preferred stacks**: Go API with Connect-RPC and screaming architecture; Go CLI; React + Vite + TypeScript UI on the `vrooli-default` design kit. The generated product is a Capacitor Android project built with Gradle and the Android Gradle Plugin on JDK 17.
 
-Key architectural choices:
-- WebView-based for universal compatibility with existing web UIs
-- Gradle build system for Android standard ecosystem compatibility
-- JavaScript bridge for native feature access from web code
-- Offline-first with service worker support
+- **Shared machinery, not reimplemented**: `packages/delivery-ramp-go` owns the target inventory contract, the immutable validation matrix, local and bridge transports, the journey and evidence schemas, and the closed disposition vocabulary. This scenario implements only the exported `Prober`, `Builder`, `Driver`, and `Distributor` interfaces and never reaches into spine internals to express a platform difference.
+
+- **Data + storage**: SQLite for generated-project records, build records, matrix runs, and readiness state. Build artifacts and captures are producer-owned files referenced by checksum — never inlined into the database or into a consumer payload. Signing material lives only in secrets-manager.
+
+- **Integration strategy**: `device-control` for every device verb, holding a lease for the duration of a run; `browser-automation-studio` for web-content flows inside the app WebView; `vrooli-bridge` for remote target reach and durable dispatch; `deployment-manager` as the evidence consumer and release-gate authority; `android-sdk` as the governed toolchain resource; `secrets-manager` for signing identity.
+
+- **Why Capacitor**: the scenario UI is already React and Vite on every other surface, so a WebView shell wraps the existing bundle with no per-scenario UI rewrite, and the same BAS flow replays unchanged. The known trade is a higher memory floor than a native shell, which is why the shell is a pluggable template family rather than a hard-coded choice.
+
+- **Non-goals / guardrails**: This ramp does not drive devices, does not automate web content, does not own device identity or trust, does not own the release gate's consumer side, does not acquire toolchain bytes, and does not hold key material. It never infers platform support from `runtime.GOOS`, and it never converts a bridge dispatch into a pass without target-owned evidence.
 
 ## 🤝 Dependencies & Launch Plan
 
-**Required Local Resources**:
-- n8n: Orchestrate build pipeline and workflow management (shared workflows in api/internal/<domain>/n8n/)
+**Required resources**: `android-sdk` (governed resource, to be created) for SDK, platform-tools, emulator, and system images. SQLite otherwise. JDK 17 and `ffmpeg` are host prerequisites already present on the development host; `/dev/kvm` is required for usable emulator performance and is probed, not assumed.
 
-**Optional Local Resources**:
-- MinIO: Store APKs and build artifacts (fallback: local filesystem)
-- Redis: Cache build configurations and templates (fallback: rebuild from scratch)
+**Scenario dependencies**: `device-control` (required — every device verb), `vrooli-bridge` (required — remote target reach and trust), `deployment-manager` (required — evidence consumer and gate), `browser-automation-studio` (required for scenario-owned web flows), `secrets-manager` (required for signing identity), `hello-mobile` (required as the conformance fixture).
 
-**Scenario Dependencies**: None (enables ALL scenarios)
+**Operational risks**:
 
-**External Dependencies**:
-- Android SDK: Required for actual APK compilation and signing
-- Java/Kotlin: Required for Android compilation
-- Gradle: Android build system
-- Node.js: For processing scenario UIs
+1. *Emulator performance collapse without KVM.* Hardware acceleration is the difference between a ~30-second boot and an unusable 3–5 FPS. Video evidence captured without acceleration is worthless, so KVM must be a probed capability whose absence yields `unavailable` rather than a slow pass.
+2. *Dated external obligations.* Play requires target API 36 for new apps and updates from 31 August 2026, with an extension path to 1 November 2026. Google developer verification begins enforcement on certified devices in Brazil, Indonesia, Singapore, and Thailand on 30 September 2026 and globally through 2027 — and it gates sideloading, not just Play. Distribution assumptions that ignore these dates expire.
+3. *Wireless ADB flakiness surfacing as evidence failure.* Wireless pairing expires on reboot and the link is less reliable than USB. Without defaulting release-relevant runs to USB, intermittent transport faults present as failed conformance chapters.
+4. *Lease collisions on a shared device.* A deployment journey and a general-automation task targeting the same phone will corrupt each other's evidence silently unless every run holds a device-control lease for its full duration.
 
-**Launch Sequencing**:
-1. Core project generation (templates, CLI, API endpoints) - ✅ Complete
-2. Android SDK environment setup - ⏳ Blocked (external dependency)
-3. APK signing and multi-architecture builds - ⏳ Waiting on SDK
-4. P1 native features (camera, GPS, notifications) - Future
-
-**Risks**:
-- Android SDK installation complexity may reduce adoption
-- Large APK sizes if not optimized with ProGuard/R8
-- Signing key management requires secure backup strategy
+**Launch sequencing**: the four spine adapters against the local emulator first, with the `hello-mobile` fixture as the proof; then the conformance journey suite; then signing and the distribution channel model; then the readiness ladder; then physical-device and bridge-dispatched targets; then Play upload automation and the operator UI.
 
 ## 🎨 UX & Branding
 
-**Visual Palette**: Material Design adherence with Roboto typography and Android standard UI patterns
+- **Look and feel**: Vrooli Operational Console — dense, professional, information-first. The primary surface is the target matrix answering "which Android targets can I prove right now, what did the last run show, and what is standing between me and shipping this." Status is encoded in form as well as text so an `unavailable` cell reads at a glance.
 
-**Accessibility Targets**: Follow Android accessibility guidelines, support TalkBack screen reader, minimum touch target sizes (48dp)
+- **Accessibility**: full keyboard operation, visible focus states, semantic roles and names, and stable `data-testid` selectors. Journey video is evidence, not the interface — every run verdict, chapter assertion, and readiness rung must be perceivable and operable without playing a recording. Colour never carries disposition alone.
 
-**Voice/Personality**: Technical and professional, similar to Android Studio build tooling. Focused on developer productivity with clear progress indicators and informative error messages.
+- **Voice and messaging**: state capability in terms of what has been probed. Never claim a target supports something that was not proven. An `unavailable` disposition always names the missing capability and the next action; an `unsupported` disposition says plainly that it is terminal rather than implying a future fix.
 
-**Brand Consistency**: Integrates seamlessly with Vrooli ecosystem while following Android platform guidelines for generated apps.
+- **Readiness walkthrough**: the release-readiness ladder is a first-class product surface, not documentation. It shows each rung's state, its cost, whether the ramp can complete it, and what the owner must do personally — because several rungs require a government ID or a payment method and no amount of automation removes that.
 
-## 📎 Appendix
-
-**Related Documentation**: README.md (quick start guide), PROBLEMS.md (known issues and standards compliance)
-
-**Related PRDs**: scenario-to-desktop (desktop app generation), scenario-to-extension (browser extension generation), scenario-to-ios (iOS app generation - future)
-
-**External References**: [Android Developer Documentation](https://developer.android.com), [Material Design Guidelines](https://material.io/design), [Google Play Console Help](https://support.google.com/googleplay/android-developer)
+- **Branding hooks**: standard `vrooli-default` kit. Keep the seeded PWA manifest, service worker, maskable icons, and safe-area tokens valid; replace the generic icons when product branding exists. Generated Android applications carry the target scenario's branding, not this ramp's.

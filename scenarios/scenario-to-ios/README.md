@@ -1,407 +1,145 @@
-# scenario-to-ios
+# Scenario to iOS
 
-Transform any Vrooli scenario into a native iOS application with full access to Apple ecosystem features.
+Turn any Vrooli scenario into a distributable iOS application with evidence-backed validation on simulators and physical devices.
 
-## 🎯 What It Does
+This scenario was generated from the `react-vite` template and packages
+the standard full-stack Vrooli scenario shape:
 
-This scenario provides the capability to convert any Vrooli scenario into a premium iOS application that can be distributed through TestFlight and the App Store. It creates native iOS apps with:
+- Go API (`api/`)
+- React + TypeScript + Vite UI (`ui/`)
+- CLI wrapper (`cli/`)
+- Lifecycle + health wiring (`.vrooli/service.json`)
+- Requirements registry, generated L0 experience contract, and progress log
+  (`requirements/`, `experience/`, `docs/internal/PROGRESS.md`)
 
-- **Native iOS wrapper** using SwiftUI/UIKit
-- **JavaScript bridge** for accessing iOS features
-- **Offline capability** with local asset caching
-- **Full Apple ecosystem integration** (Face ID, Apple Pay, iCloud, etc.)
-- **Universal app support** for iPhone and iPad
-- **App Store ready** packaging and metadata
+> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
+> owns the first-session initialization protocol — charter, requirements,
+> domain map, design language, placeholder replacement, and first real
+> vertical slice. Run `make orient` for a machine-readable gate status.
 
-## 🚀 Quick Start
+## What's In This Scenario
 
-### Prerequisites
+- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
+  coordinated through generated proto contracts.
+- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
+  metadata, testing config, and CLI install wiring.
+- Domain-first API shape with per-domain service, repository, schema,
+  handler module, mocks, and tests.
+- SQLite by default. Add external resources to `.vrooli/service.json`
+  only when this scenario actually needs them.
+- UI/CLI guardrails for i18n, accessibility, API base resolution,
+  declarative command args, generated Connect clients, and report-shaped
+  output.
+- Baseline PWA/native-readiness metadata: web app manifest,
+  standalone-mode mobile tags, proxy-safe relative install asset URLs,
+  a minimal app-shell service worker, safe-area CSS tokens, and generic
+  placeholder icons ready for scenario-specific replacement.
+- Canonical responsive shell plus adopted-provenance UI primitives from
+  `react-component-library` for common shared surfaces such as buttons,
+  cards, data tables, empty states, inputs, selects, status badges, sidebar
+  shell, and bottom navigation.
+- Root-level `DESIGN.md` plus generated UI token assets from the
+  selected design kit.
+- Generated `experience/` L0 specs for the starter routes. These are UX
+  intent placeholders, not finished claims; grow them as routes become real.
+- A documentation contract in `docs/manifest.json`, with stubs for
+  domains, flows, data, integrations, monetization, deployment,
+  runbooks, observability, security, performance, and durable
+  decisions.
 
-- **macOS** with Xcode 14+ installed
-- **Apple Developer Account** (for App Store distribution)
-- **Valid code signing certificates** (for device testing)
+## Placeholders vs. Durable Scaffolding
 
-### Installation
+The generated scaffold is intentionally not the product. When you build
+the real UX, treat these as **placeholders** to replace:
 
-```bash
-# Install the CLI tool
-cd scenarios/scenario-to-ios/cli
-./install.sh
+- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
+  slice meant to be copied once and then deleted.
+- Starter page content such as the dashboard metric placeholders.
+- The bare-minimum settings surface once your scenario needs more than
+  theme and locale.
 
-# Verify installation
-scenario-to-ios version
-```
+Treat these as **durable seams** to preserve, even as you rewrite the
+visual layout:
 
-### Basic Usage
+- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
+- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
+- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
+- Adopted shared UI primitives under `ui/src/components/ui/`; prefer
+  `react-component-library adoptions apply` over hand-rolling a new primitive.
+- The responsive shell floors: full viewport height, overflow-contained main
+  content, desktop sidebar, fixed safe-area mobile bottom nav, and Settings
+  ownership of locale switching.
+- The feature-folder pattern under `ui/src/features/<name>/`.
+- The proto → API → CLI → UI vertical-slice shape.
 
-```bash
-# Build iOS app from a scenario
-scenario-to-ios build my-scenario --output ./build/
+**Connect-RPC is the default transport.** Every domain endpoint goes
+through a proto service and generated Connect handlers/clients. If
+you find yourself writing `Path: "/api/v1/..."` as a literal string in
+an `EndpointDescriptor`, stop — use a proto service method instead.
+Codegen rejects literal Paths that lack an explicit `RESTException`
+tag; the four allowed REST reasons (multipart upload, webhook
+receiver, third-party shape, ops probe) are enumerated in
+`api/internal/module/module.go`. The notes attachments endpoint is
+the worked REST example.
 
-# Test in iOS Simulator
-scenario-to-ios simulator my-scenario --device "iPhone 14"
+[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
+workflow in full.
 
-# Validate IPA for App Store
-scenario-to-ios validate ./build/MyApp.ipa
-
-# Submit to TestFlight
-scenario-to-ios testflight ./build/MyApp.ipa --notes "Initial beta release"
-```
-
-## 📱 Features
-
-### Native iOS Capabilities
-
-The generated apps include comprehensive JavaScript bridges for native iOS features:
-
-#### ✅ Fully Implemented (Production-Ready)
-- **Biometric Authentication**: Face ID and Touch ID via LAContext
-- **Secure Storage**: iOS Keychain for credentials and sensitive data
-- **Local Notifications**: Schedule and display notifications with UNUserNotificationCenter
-- **Haptic Feedback**: Tactical feedback with multiple intensity levels (light, medium, heavy, success, warning, error)
-- **Native Sharing**: iOS share sheet for text and URLs
-- **Device Info**: Access device model, iOS version, and identifiers
-
-#### 🔄 Partially Implemented
-- **Push Notifications**: APNs registration implemented, token handling needs completion
-
-#### 🚧 Planned Features
-- **Camera & Photos**: Photo library and camera access
-- **Location Services**: GPS and geofencing
-- **iCloud Sync**: Cross-device data synchronization
-- **Core Data**: Offline database storage
-- **Apple Pay**: In-app purchases and payments
-
-### App Store Features
-
-- **TestFlight** integration for beta testing
-- **App Store Connect** API support
-- **Automatic screenshot** generation
-- **Metadata optimization** for ASO
-- **Privacy label** generation
-
-### Development Features
-
-- **Hot reload** support during development
-- **Safari Web Inspector** for debugging
-- **Xcode integration** for profiling
-- **Simulator testing** for all device sizes
-- **Crash reporting** and analytics ready
-
-## 🏗️ Architecture
-
-### Project Structure
-
-```
-scenario-to-ios/
-├── PRD.md                    # Product requirements
-├── api/                      # Go API (future)
-├── cli/                      # Command-line interface
-│   ├── scenario-to-ios       # Main CLI executable
-│   └── install.sh            # Installation script
-├── api/internal/<domain>/
-│   ├── prompts/              # AI prompts for app generation
-│   │   ├── ios-app-creator.md
-│   │   └── ios-app-debugger.md
-│   └── templates/
-│       └── ios/              # Xcode project template
-│           ├── project.xcodeproj/
-│           └── project/
-│               ├── VrooliScenarioApp.swift
-│               ├── ContentView.swift
-│               ├── WebView.swift
-│               ├── JSBridge.swift
-│               └── www/      # Web assets
-└── test/                     # Test scripts
-```
-
-### How It Works
-
-1. **Template Expansion**: Takes the Xcode project template and replaces placeholders
-2. **Asset Integration**: Copies scenario UI files into the iOS app bundle
-3. **Native Bridging**: Injects JavaScript bridge for iOS feature access
-4. **Code Signing**: Signs the app with developer certificates
-5. **Package Generation**: Creates IPA for distribution
-
-## 📱 JavaScript API Reference
-
-All generated iOS apps expose the `window.vrooliNative` JavaScript API for accessing native iOS features:
-
-### Biometric Authentication
-```javascript
-// Authenticate with Face ID or Touch ID
-window.vrooliNative.authenticateWithBiometrics("Unlock premium features")
-  .then(result => {
-    if (result.success) {
-      console.log("Authentication successful");
-    }
-  });
-```
-
-### Secure Storage (Keychain)
-```javascript
-// Save sensitive data securely
-window.vrooliNative.saveToKeychain("auth_token", "secret_value");
-
-// Retrieve from keychain
-window.vrooliNative.loadFromKeychain("auth_token")
-  .then(result => {
-    console.log("Retrieved:", result.value);
-  });
-```
-
-### Local Notifications
-```javascript
-// Schedule a notification (delay in seconds)
-window.vrooliNative.scheduleNotification(
-  "Reminder",
-  "Don't forget to check your tasks!",
-  60  // Show after 60 seconds
-);
-```
-
-### Haptic Feedback
-```javascript
-// Trigger haptic feedback
-window.vrooliNative.hapticFeedback("success");  // Options: light, medium, heavy, success, warning, error
-```
-
-### Native Sharing
-```javascript
-// Open iOS share sheet
-window.vrooliNative.share("Check this out!", "https://example.com");
-```
-
-### Device Information
-```javascript
-// Get device details
-window.vrooliNative.getDeviceInfo()
-  .then(info => {
-    console.log("Model:", info.model);
-    console.log("iOS Version:", info.systemVersion);
-  });
-```
-
-### Event Listener
-```javascript
-// Wait for native bridge to be ready
-window.addEventListener('vrooliNativeReady', () => {
-  console.log("iOS native features available");
-});
-```
-
-## 🔧 Configuration
-
-### Config File
-
-Edit `~/.vrooli/scenario-to-ios/config.yaml`:
-
-```yaml
-developer_team: "YOUR_TEAM_ID"
-
-build:
-  configuration: Release
-  sdk: iphoneos
-  deployment_target: "15.0"
-
-testflight:
-  apple_id: "your@email.com"
-  app_password: "xxxx-xxxx-xxxx-xxxx"
-
-simulator:
-  device: "iPhone 14"
-  ios_version: "latest"
-```
-
-### Environment Variables
+## Running The Scenario
 
 ```bash
-export DEVELOPER_TEAM="YOUR_TEAM_ID"
-export APPLE_ID="your@email.com"
-export APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-export XCODE_PATH="/Applications/Xcode.app"
+# Build API + UI, install pnpm deps, install scenario CLI
+make setup   # wraps `vrooli scenario setup`
+
+# Start API + UI in the background
+make start   # wraps `vrooli scenario start`
 ```
 
-## 🧪 Testing
+See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
 
-### Unit Tests
+Run tests with `make test` (which runs `vrooli scenario test`) or invoke
+`test-genie execute scenario-to-ios --preset comprehensive` directly for
+finer-grained presets.
 
-```bash
-# Run all tests
-./test/test.sh
+## Documentation Map
 
-# Test specific scenario conversion
-./test/test.sh --scenario hello-world
-```
+| Need | Start Here |
+|---|---|
+| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
+| Establish UI design language | `DESIGN.md` at this scenario's root |
+| Author UX intent | [`experience/README.md`](experience/README.md) |
+| Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
+| Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
+| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
+| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
+| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
+| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
+| Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
+| Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
+| Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
+| Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
+| Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
 
-### Manual Testing
+## Working Rules
 
-1. **Simulator Testing**:
-   ```bash
-   scenario-to-ios simulator my-scenario
-   ```
+1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
+2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
+3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
+4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
+5. **Keep `experience/` aligned with routes.** Start at L0, then add priorities, claims, bindings, states, and journeys before flipping pages active.
+6. **Update `docs/concepts/DOMAINS.md`** before adding product code.
+7. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
+8. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
+9. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
+10. **Keep boundaries**: only edit within this scenario's directory.
 
-2. **Device Testing**:
-   ```bash
-   scenario-to-ios build my-scenario --sign "iPhone Developer"
-   # Install IPA using Xcode or Apple Configurator
-   ```
+## pnpm Everywhere
 
-3. **TestFlight Testing**:
-   ```bash
-   scenario-to-ios testflight ./build/MyApp.ipa
-   # Invite testers through App Store Connect
-   ```
+This scenario assumes pnpm. If you run another package manager, convert
+lockfiles yourself before committing. Scripts use `pnpm` directly (no
+`npm` fallbacks) to reduce drift.
 
-## 📊 Performance
+## Need Inspiration?
 
-### Build Performance
-
-- **Template generation**: < 5 seconds
-- **Xcode build**: 1-3 minutes (depends on scenario size)
-- **IPA packaging**: < 30 seconds
-- **Total time**: < 5 minutes for typical scenario
-
-### App Performance
-
-- **Startup time**: < 1.5 seconds
-- **Memory usage**: 50-80MB baseline
-- **JavaScript bridge latency**: < 10ms
-- **60fps scrolling** maintained
-
-## 🔒 Security
-
-### Best Practices
-
-- **Keychain storage** for sensitive data
-- **App Transport Security** enforced
-- **Certificate pinning** available
-- **Biometric authentication** for sensitive operations
-- **Encrypted local storage** for offline data
-
-### Privacy
-
-- **App Tracking Transparency** compliance
-- **Privacy manifest** generation
-- **Data minimization** by default
-- **User consent** flows built-in
-
-## 🚢 Distribution
-
-### TestFlight
-
-```bash
-# Prepare for TestFlight
-scenario-to-ios build my-scenario --sign "iPhone Distribution"
-
-# Upload to TestFlight
-scenario-to-ios testflight ./build/MyApp.ipa \
-  --notes "Version 1.0.0 - Initial release" \
-  --groups "internal,beta"
-```
-
-### App Store
-
-1. **Validate** the IPA:
-   ```bash
-   scenario-to-ios validate ./build/MyApp.ipa
-   ```
-
-2. **Generate** App Store assets:
-   ```bash
-   scenario-to-ios screenshots my-scenario
-   ```
-
-3. **Submit** through App Store Connect or use fastlane
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Issue**: "No signing certificate found"
-```bash
-# Open Xcode and configure signing
-open /Applications/Xcode.app
-# Go to Preferences → Accounts → Add Apple ID
-```
-
-**Issue**: "Command not found: scenario-to-ios"
-```bash
-# Add to PATH
-echo 'export PATH="$HOME/.vrooli/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
-```
-
-**Issue**: "Build failed with exit code 65"
-```bash
-# Clean build folder
-rm -rf ~/Library/Developer/Xcode/DerivedData
-# Retry build
-scenario-to-ios build my-scenario
-```
-
-## 🤝 Integration with Other Scenarios
-
-### Works Best With
-
-- **scenario-to-android**: Share mobile patterns
-- **secrets-manager**: Secure credential storage
-- **app-store-optimizer**: Metadata optimization
-- **deployment-manager**: Coordinated releases
-
-### API Access
-
-Future API endpoints will enable:
-```javascript
-// Build iOS app programmatically
-POST /api/v1/ios/build
-{
-  "scenario_name": "my-scenario",
-  "config_overrides": {
-    "app_name": "My App",
-    "version": "1.0.0"
-  }
-}
-```
-
-## 📈 Roadmap
-
-### Version 1.0 (Current)
-- ✅ WebView-based iOS apps
-- ✅ Basic JavaScript bridge
-- ✅ TestFlight submission
-- ✅ Universal app support
-
-### Version 2.0 (Planned)
-- [ ] SwiftUI native components
-- [ ] Apple Watch companion apps
-- [ ] Widget extensions
-- [ ] App Clips support
-- [ ] ARKit integration
-
-### Version 3.0 (Future)
-- [ ] visionOS support
-- [ ] Mac Catalyst apps
-- [ ] tvOS applications
-- [ ] Cross-device Handoff
-
-## 📚 Resources
-
-- [Apple Developer Documentation](https://developer.apple.com)
-- [Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/)
-- [App Store Review Guidelines](https://developer.apple.com/app-store/review/guidelines/)
-- [TestFlight Documentation](https://developer.apple.com/testflight/)
-
-## 🆘 Support
-
-- **Documentation**: See [PRD.md](./PRD.md) for detailed requirements
-- **Issues**: Report bugs in the Vrooli issue tracker
-- **Community**: Join the Vrooli Discord for help
-
-## 📄 License
-
-Part of the Vrooli project. See main repository for license details.
-
----
-
-**Remember**: Every scenario you convert to iOS becomes a permanent capability that makes Vrooli exponentially more powerful. You're not just building apps - you're expanding the intelligence of the entire system.
+Open `scenarios/browser-automation-studio/` to see the same template
+shape taken to completion.

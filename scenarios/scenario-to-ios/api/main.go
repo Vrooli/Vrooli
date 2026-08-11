@@ -1,216 +1,191 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
+	"scenario-to-ios/internal/capabilities"
+	"scenario-to-ios/internal/clock"
+	"scenario-to-ios/internal/modules"
+	"scenario-to-ios/internal/server"
 
-	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
-	repocontract "github.com/vrooli/repo-contract-go"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
+
+	capsH "scenario-to-ios/handlers/capabilities"
+	healthH "scenario-to-ios/handlers/health"
+	notesH "scenario-to-ios/handlers/notes" // EXAMPLE-DOMAIN:notes
 )
 
-type Server struct {
-	router *http.ServeMux
-	logger *log.Logger
-}
+// sqliteDSN resolves the SQLite database file path and wraps it in a DSN
+// with the canonical pragma string. Resolution order:
+//
+//  1. SQLITE_PATH env — the canonical override.
+//  2. SQLITE_DB env — alias accepted for symmetry with other scenarios.
+//  3. storage.NewResolver(ProfileAuto) — the storage-steer-mandated
+//     filesystem-safe-by-default location.
+//
+// The path scope is the variant-aware namespace (storage.ScenarioNamespace),
+// not the bare slug: under a Baseline Modes shadow engagement the lifecycle
+// injects VROOLI_STORAGE_NAMESPACE, so the shadow's SQLite file lands beside
+// "<scenario>_shadow" and never shares live's database. Outside the lifecycle
+// (local `go run`, tests) it falls back to the compile-time slug, so live paths
+// are unchanged. This is why a generated scenario is shadow-safe with zero
+// per-scenario work — see packages/api-core/storage/namespace.go.
+//
+// The pragmas mirror agent-inbox; tweak in lockstep with
+// internal/testutil/db.NewSQLite so production and tests open files the
+// same way.
+func sqliteDSN() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
+		return sqliteFileDSN(path)
+	}
+	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
+		return sqliteFileDSN(path)
+	}
 
-type BuildRequest struct {
-	ScenarioName    string                 `json:"scenario_name"`
-	ConfigOverrides map[string]interface{} `json:"config_overrides,omitempty"`
-}
-
-type BuildResponse struct {
-	Success  bool              `json:"success"`
-	IPAPath  string            `json:"ipa_path,omitempty"`
-	BuildID  string            `json:"build_id,omitempty"`
-	Metadata map[string]string `json:"metadata,omitempty"`
-	Error    string            `json:"error,omitempty"`
-}
-
-func (s *Server) respondJSON(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
-}
-
-func (s *Server) respondError(w http.ResponseWriter, statusCode int, errMsg string) {
-	w.WriteHeader(statusCode)
-	s.respondJSON(w, BuildResponse{
-		Success: false,
-		Error:   errMsg,
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
 	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("scenario-to-ios")
+	if err != nil {
+		return "", fmt.Errorf("resolve scenario-to-ios storage namespace: %w", err)
+	}
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: scenarioID},
+		storage.ClassData,
+		"scenario-to-ios.db",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve scenario-to-ios db path: %w", err)
+	}
+	return sqliteFileDSN(path)
 }
 
-// NOTE: handleHealth replaced by api-core/health for standardized responses
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	s.respondJSON(w, map[string]string{
-		"status":    "healthy",
-		"service":   "scenario-to-ios",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+// scenarioStorageRoots resolves all filesystem storage classes once at
+// startup. File writers must select their class through fileRootPath so a
+// test-mode request uses the lease-owned root instead of the live tree.
+func scenarioStorageRoots() (storage.Paths, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
 	})
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("scenario-to-ios")
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("resolve scenario-to-ios storage namespace: %w", err)
+	}
+	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
-func (s *Server) handleBuild(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		s.respondError(w, http.StatusMethodNotAllowed, "Only POST method allowed")
-		return
-	}
-
-	var req BuildRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.respondError(w, http.StatusBadRequest, fmt.Sprintf("Invalid JSON: %v", err))
-		return
-	}
-
-	// Validate scenario name
-	if req.ScenarioName == "" {
-		s.respondError(w, http.StatusBadRequest, "scenario_name is required")
-		return
-	}
-
-	// Sanitize scenario name (prevent path traversal)
-	scenarioName := filepath.Base(req.ScenarioName)
-	if scenarioName != req.ScenarioName || strings.Contains(scenarioName, "..") {
-		s.respondError(w, http.StatusBadRequest, "Invalid scenario_name format")
-		return
-	}
-
-	s.logInfo("Building iOS app for scenario: %s", scenarioName)
-
-	contract, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
+// fileRootPath is the template's mandatory file-store seam. Domain stores
+// compose their relative paths from it rather than retaining startup root
+// strings, so X-Vrooli-Test-Mode is honored independently per request.
+func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
+	root, err := roots.Pick(ctx, class)
 	if err != nil {
-		s.logError("Failed to load repo contract: %v", err)
-		s.respondError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to resolve repository contract: %v", err))
-		return
+		return "", err
 	}
-
-	scenarioPath, err := contract.ScenarioRoot(repoRoot, scenarioName)
-	if err != nil {
-		s.logError("Failed to resolve scenario path: %v", err)
-		s.respondError(w, http.StatusBadRequest, fmt.Sprintf("Failed to resolve scenario path: %v", err))
-		return
-	}
-	exists, err := repocontract.ScenarioExists(repoRoot, scenarioName)
-	if err != nil {
-		s.logError("Failed to check scenario existence: %v", err)
-		s.respondError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to check scenario: %v", err))
-		return
-	}
-	if !exists {
-		s.respondError(w, http.StatusNotFound, fmt.Sprintf("Scenario not found: %s", scenarioName))
-		return
-	}
-
-	// Generate build ID
-	buildID := fmt.Sprintf("ios-%s-%d", scenarioName, time.Now().Unix())
-
-	// Create build output directory
-	buildDir := fmt.Sprintf("/tmp/builds/%s", buildID)
-	if err := os.MkdirAll(buildDir, 0o755); err != nil {
-		s.logError("Failed to create build directory: %v", err)
-		s.respondError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create build directory: %v", err))
-		return
-	}
-
-	// Expand template
-	scenarioToIOSPath, err := contract.ScenarioRoot(repoRoot, "scenario-to-ios")
-	if err != nil {
-		s.logError("Failed to resolve scenario-to-ios path: %v", err)
-		s.respondError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to resolve scenario-to-ios path: %v", err))
-		return
-	}
-	expander := NewTemplateExpanderWithPaths(scenarioName, scenarioPath, scenarioToIOSPath)
-	projectDir := filepath.Join(buildDir, "project")
-	if err := expander.ExpandTemplate(projectDir); err != nil {
-		s.logError("Template expansion failed: %v", err)
-		s.respondError(w, http.StatusInternalServerError, fmt.Sprintf("Template expansion failed: %v", err))
-		return
-	}
-
-	s.logInfo("Template expanded successfully to: %s", projectDir)
-
-	// Build metadata
-	metadata := map[string]string{
-		"scenario_name":        scenarioName,
-		"status":               "template_expanded",
-		"message":              "iOS project generated, IPA build requires Xcode on macOS",
-		"minimum_ios_version":  "15.0",
-		"supported_devices":    "iPhone, iPad",
-		"implementation_stage": "template_expansion_complete",
-		"project_path":         projectDir,
-		"build_directory":      buildDir,
-	}
-
-	// IPA path (would be generated by Xcode build)
-	ipaPath := fmt.Sprintf("%s/%s.ipa", buildDir, scenarioName)
-
-	response := BuildResponse{
-		Success:  true,
-		BuildID:  buildID,
-		IPAPath:  ipaPath,
-		Metadata: metadata,
-	}
-
-	s.logInfo("Build request processed: %s (template expanded)", buildID)
-	s.respondJSON(w, response)
+	return filepath.Join(root, rel), nil
 }
 
-func (s *Server) logInfo(msg string, fields ...interface{}) {
-	s.logger.Printf("[INFO] "+msg, fields...)
-}
-
-func (s *Server) logError(msg string, fields ...interface{}) {
-	s.logger.Printf("[ERROR] "+msg, fields...)
+func sqliteFileDSN(path string) (string, error) {
+	if strings.HasPrefix(path, "file:") {
+		return path, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+	}
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
+		path,
+	), nil
 }
 
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "scenario-to-ios",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "scenario-to-ios"}) {
+		return
 	}
 
-	// Get port from environment variable (fail fast if missing)
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		fmt.Fprintf(os.Stderr, `❌ API_PORT environment variable is required but not set.
-
-🚀 The lifecycle system should set this automatically. If you see this error:
-   - Verify the scenario is started via: vrooli scenario start scenario-to-ios
-   - Check .vrooli/service.json for port configuration
-   - Ensure port registry has allocated a port for this scenario
-
-💡 This variable must be explicitly configured - defaults are not allowed for ports
-   as they may cause conflicts or security issues.
-`)
-		os.Exit(1)
+	dsn, err := sqliteDSN()
+	if err != nil {
+		log.Fatalf("sqlite configuration failed: %v", err)
 	}
 
-	logger := log.New(os.Stdout, "", log.LstdFlags)
-	s := &Server{
-		router: http.NewServeMux(),
-		logger: logger,
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	// Health check - use api-core/health for standardized response
-	healthHandler := health.New().
-		Version("1.0.0").
-		Handler()
-	s.router.HandleFunc("/health", healthHandler)
-	s.router.HandleFunc("/api/v1/health", healthHandler)
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
+	primaryFileRoots, err := scenarioStorageRoots()
+	if err != nil {
+		log.Fatalf("file storage configuration failed: %v", err)
+	}
+	fileRoots := filerouting.New(primaryFileRoots)
 
-	// iOS conversion endpoints
-	s.router.HandleFunc("/api/v1/ios/build", s.handleBuild)
+	srv := server.New(
+		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		healthH.Module(db, "scenario-to-ios-api", "1.0.0"),
+		capsH.Module(capabilities.NewRegistry()),
+		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+	)
 
-	addr := ":" + port
-	s.logInfo("scenario-to-ios API starting on %s", addr)
-	if err := http.ListenAndServe(addr, s.router); err != nil {
-		s.logger.Fatalf("[ERROR] Server failed: %v", err)
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+
+	// EXAMPLE-DOMAIN:notes START
+	// /measures is the measures-go serve substrate: the central measures
+	// index (measures-health) harvests <prefix>/declarations and the
+	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
+	// one reference measure (notes.count); a real multi-domain scenario
+	// registers each domain's measures on one shared registry here.
+	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
+	if err != nil {
+		log.Fatalf("measures registry: %v", err)
+	}
+	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
+	// EXAMPLE-DOMAIN:notes END
+
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

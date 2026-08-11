@@ -1,10 +1,30 @@
 {
-  "$schema": "../../test-genie/schemas/testing.schema.json",
+  "$schema": "../../../../scenarios/test-genie/schemas/testing.schema.json",
   "_metadata": {
-    "description": "Testing configuration for scenario-to-android scenario",
-    "last_updated": "2025-11-08T17:28:43Z"
+    "description": "Sample testing configuration for React + Vite template",
+    "last_updated": "2026-05-03T00:00:00Z"
   },
   "version": "1.0.0",
+  "lint": {
+    "handlers": {
+      "go_module": {
+        "enabled": true,
+        "strict": true
+      },
+      "node_package": {
+        "enabled": true,
+        "strict": true
+      }
+    },
+    "policy": {
+      "unconfigured_common_components": {
+        "api": "error",
+        "ui": "warning",
+        "cli": "warning"
+      },
+      "unmatched_code_components": "warning"
+    }
+  },
   "structure": {
     "additional_dirs": [
       "ui"
@@ -146,9 +166,16 @@
       },
       "cli_commands": {
         "enabled": true
+      }
+    }
+  },
+  "performance": {
+    "checks": {
+      "lighthouse": {
+        "enabled": true
       },
-      "websockets": {
-        "enabled": false
+      "bundle_size": {
+        "enabled": true
       }
     }
   }

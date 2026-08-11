@@ -8,7 +8,7 @@ import (
 
 const (
 	appName        = "scenario-to-ios"
-	appVersion     = "1.0.0"
+	appVersion     = "0.1.0"
 	defaultAPIBase = ""
 )
 
@@ -23,25 +23,36 @@ type App struct {
 }
 
 func NewApp() (*App, error) {
+	app := &App{}
+	subcommandGroups := func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+		groups, err := domains.SubcommandGroups(core, manifestBytes)
+		if err != nil {
+			// Manifest parse / binding wiring is a programmer error caught
+			// at NewApp time; surface it as a panic so misconfigured builds
+			// fail loudly during the first CLI invocation rather than after
+			// a user actually runs a command.
+			panic(err)
+		}
+		return groups
+	}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:             appName,
 		Version:          appVersion,
 		Description:      "Scenario to iOS CLI",
 		DefaultAPIBase:   defaultAPIBase,
-		APIPrefix:        "/api/v1/ios",
-		HealthPath:       "/health",
-		ExtraAPIEnvVars:  []string{"SCENARIO_TO_IOS_API_URL", "API_BASE_URL", "VITE_API_BASE_URL"},
+		ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
 		BuildFingerprint: buildFingerprint,
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
 		CommandGroups:    domains.CommandGroups,
-		SubcommandGroups: domains.SubcommandGroups,
+		SubcommandGroups: subcommandGroups,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &App{core: core}, nil
+	app.core = core
+	return app, nil
 }
 
 func (a *App) Run(args []string) error {

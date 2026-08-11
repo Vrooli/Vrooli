@@ -1,0 +1,108 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Delivery matrix",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Answer the operator's first question — which Android targets can I prove right now, what did the last run show, and what is blocking me.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-010"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every target row shows a probed disposition, never an assumed one.",
+      "notes": "A host being Linux does not imply an emulator works. The row reflects what the last probe proved."
+    },
+    {
+      "statement": "An unavailable target names its missing capability and next action inline.",
+      "notes": "'Unavailable' with no reason forces the operator into the CLI to find out why, which defeats the surface."
+    },
+    {
+      "statement": "The gate verdict is visible without opening a run.",
+      "notes": "The operator's question is 'may this ship', not 'what happened in run 47'."
+    },
+    {
+      "statement": "A blocked release readiness rung is reachable from here in one step.",
+      "notes": "Discovering at the end of a green matrix that no Play account exists is the failure this surface exists to prevent."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The matrix as the live system reports it.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Target inventory is being probed; no dispositions are asserted yet.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No generated project exists yet. Explains how to generate one rather than showing an empty table.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Targets are listed and at least one is unavailable — the normal working state on a host without the Android SDK, not a degraded one.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "gate-failed",
+      "description": "A required cell failed. The gate reads failed and names the contributing cell.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "gate-failed"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "disposition-is-not-colour-alone",
+      "type": "custom",
+      "statement": "Every disposition is distinguishable without relying on hue — each carries a shape or text label as well as a status colour.",
+      "tier": "automated",
+      "rationale": "DESIGN.md accessibility floor. 'unsupported' and 'unavailable' are semantically opposite — terminal versus actionable — and must not depend on colour discrimination to tell apart."
+    },
+    {
+      "id": "unavailable-always-names-a-next-action",
+      "type": "custom",
+      "statement": "No target row shows 'unavailable' without an adjacent missing capability and next action.",
+      "tier": "automated",
+      "rationale": "S2A-P0-003. An unavailable state with no reason is indistinguishable from a bug, and sends the operator to the CLI."
+    },
+    {
+      "id": "matrix-readable-without-video",
+      "type": "custom",
+      "statement": "Every verdict on this page is perceivable without playing a recording.",
+      "tier": "automated",
+      "rationale": "Journey video is evidence, not interface."
+    }
+  ]
+}
