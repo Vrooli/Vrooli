@@ -17,6 +17,7 @@ import (
 	"time"
 
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -40,7 +41,7 @@ const (
 // package wires the production implementation (a signed RunsService
 // ReportRunEvent call); tests substitute a collector.
 type EventReporter interface {
-	Report(ctx context.Context, ev *channelv1.RunEvent) error
+	Report(ctx context.Context, ev *sharedv1.RunEvent) error
 }
 
 // ArtifactUploader is the authenticated node-to-control-plane seam for small
@@ -149,7 +150,7 @@ func BuildArgv(bin string, job *channelv1.JobPush) ([]string, error) {
 // transport failure the caller may log.
 func (r *Runner) Execute(ctx context.Context, job *channelv1.JobPush) error {
 	var seq uint64
-	emit := func(ev *channelv1.RunEvent) error {
+	emit := func(ev *sharedv1.RunEvent) error {
 		seq++
 		ev.RunId = job.GetRunId()
 		ev.Sequence = seq
@@ -202,7 +203,7 @@ func (r *Runner) Execute(ctx context.Context, job *channelv1.JobPush) error {
 				_ = emit(statusEvent("artifact upload failed: " + uploadErr.Error()))
 				return emit(exitEvent(startFailureExitCode))
 			}
-			if err := emit(&channelv1.RunEvent{Kind: channelv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF, ArtifactRef: ref}); err != nil {
+			if err := emit(&sharedv1.RunEvent{Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF, ArtifactRef: ref}); err != nil {
 				return err
 			}
 		}
@@ -244,14 +245,14 @@ func (r *Runner) buildArgvWithOutputs(job *channelv1.JobPush) ([]string, []prepa
 	return argv, outputs, nil
 }
 
-func statusEvent(status string) *channelv1.RunEvent {
-	return &channelv1.RunEvent{Kind: channelv1.RunEventKind_RUN_EVENT_KIND_STATUS, Status: status}
+func statusEvent(status string) *sharedv1.RunEvent {
+	return &sharedv1.RunEvent{Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_STATUS, Status: status}
 }
 
-func logEvent(chunk string) *channelv1.RunEvent {
-	return &channelv1.RunEvent{Kind: channelv1.RunEventKind_RUN_EVENT_KIND_LOG, LogChunk: chunk}
+func logEvent(chunk string) *sharedv1.RunEvent {
+	return &sharedv1.RunEvent{Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_LOG, LogChunk: chunk}
 }
 
-func exitEvent(code int) *channelv1.RunEvent {
-	return &channelv1.RunEvent{Kind: channelv1.RunEventKind_RUN_EVENT_KIND_EXIT, ExitCode: int32(code)}
+func exitEvent(code int) *sharedv1.RunEvent {
+	return &sharedv1.RunEvent{Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT, ExitCode: int32(code)}
 }

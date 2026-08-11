@@ -175,6 +175,9 @@ const (
 	// StepVerifyOnline — the orchestrator's post-run ONLINE confirmation (distinct
 	// from the bootstrap's own verify-online step).
 	StepVerifyOnline = "verify-online-confirm"
+	// StepApplySelection records the declarative onboarding pass after the node
+	// is online and before the operation is reported successful.
+	StepApplySelection = "apply-selection"
 )
 
 // FailureReason is the taxonomy of terminal-failure causes recorded on a FAILED
@@ -218,6 +221,9 @@ const (
 	FailureBootstrap FailureReason = "bootstrap_failed"
 	// FailureVerifyOnline — the node did not come ONLINE within the budget.
 	FailureVerifyOnline FailureReason = "verify_online_failed"
+	// FailureOnboarding means the remote declarative selection could not be
+	// applied after transport and pairing had succeeded.
+	FailureOnboarding FailureReason = "onboarding_apply_failed"
 	// FailureInterrupted — the control plane restarted mid-op; the op is safe to
 	// retry because every step is idempotent.
 	FailureInterrupted FailureReason = "interrupted_by_restart"

@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 	runsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs/runs_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"vrooli-bridge/cli/internal/session"
@@ -170,18 +170,18 @@ func formatRun(r *runsv1.Run) string {
 		r.Id, r.NodeId, cmd, statusLabel(r.Status), r.ExitCode, r.Args, created)
 }
 
-func formatEvent(ev *channelv1.RunEvent) string {
+func formatEvent(ev *sharedv1.RunEvent) string {
 	if ev == nil {
 		return "(nil event)"
 	}
 	switch ev.Kind {
-	case channelv1.RunEventKind_RUN_EVENT_KIND_LOG:
+	case sharedv1.RunEventKind_RUN_EVENT_KIND_LOG:
 		return strings.TrimRight(ev.LogChunk, "\n")
-	case channelv1.RunEventKind_RUN_EVENT_KIND_STATUS:
+	case sharedv1.RunEventKind_RUN_EVENT_KIND_STATUS:
 		return fmt.Sprintf("[status] %s", ev.Status)
-	case channelv1.RunEventKind_RUN_EVENT_KIND_EXIT:
+	case sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT:
 		return fmt.Sprintf("[exit] %d", ev.ExitCode)
-	case channelv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF:
+	case sharedv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF:
 		return fmt.Sprintf("[artifact] %s", ev.ArtifactRef)
 	default:
 		return fmt.Sprintf("[event] seq=%d", ev.Sequence)

@@ -34,6 +34,7 @@ func (f *fakeService) Create(_ context.Context, in internalmachines.CreateInput)
 	f.createInput = in
 	return f.createOut, f.createErr
 }
+
 func (f *fakeService) Get(context.Context, string) (internalmachines.Machine, error) {
 	return f.getOut, f.getErr
 }
@@ -41,12 +42,15 @@ func (f *fakeService) List(context.Context) ([]internalmachines.Machine, error) 
 func (f *fakeService) Archive(context.Context, string, int64) (internalmachines.Machine, error) {
 	return f.archiveOut, f.archiveErr
 }
+
 func (f *fakeService) Remove(context.Context, string, int64) (internalmachines.Machine, error) {
 	return f.removeOut, f.removeErr
 }
+
 func (f *fakeService) GetTrust(context.Context, string) (internalmachines.TrustRecord, error) {
 	return f.trustOut, nil
 }
+
 func (f *fakeService) ReviewHostKey(context.Context, string, string) (internalmachines.TrustRecord, error) {
 	return f.reviewOut, nil
 }
@@ -94,15 +98,19 @@ func (f *fakeHostKeyResetter) ForgetHostKey(host string, port int) error {
 	f.host, f.port = host, port
 	return nil
 }
+
 func (f *fakeService) CreateCleanupTombstone(_ context.Context, cleanup internalmachines.CleanupTombstone) (internalmachines.CleanupTombstone, error) {
 	return cleanup, nil
 }
+
 func (f *fakeService) ListCleanupTombstones(context.Context, string) ([]internalmachines.CleanupTombstone, error) {
 	return f.cleanupOut, nil
 }
+
 func (f *fakeService) UpdateCleanupTombstone(context.Context, string, internalmachines.CleanupStatus, string) (internalmachines.CleanupTombstone, error) {
 	return internalmachines.CleanupTombstone{}, nil
 }
+
 func (f *fakeService) ApplyPolicy(_ context.Context, input internalmachines.PolicyChangeInput) (internalmachines.Machine, internalmachines.PolicySnapshot, error) {
 	f.policyInput = input
 	return internalmachines.Machine{ID: input.MachineID}, internalmachines.PolicySnapshot{ProfileID: input.ProfileID, ProfileVersion: "v1"}, nil

@@ -303,11 +303,11 @@ the terminal hook; a natural EXIT fires the hook WITHOUT a cancel push) and
 **Refs:** `internal/runs/service.go::Abort`, `handlers/queue/adapter.go`,
 `agent/internal/channel/channel.go`, `packages/proto/.../v1/channel/channel.proto`.
 
-### 2026-06-18 — proto `shared_type_misplaced` (the full reuse set is now known)
+### 2026-06-18 — proto `shared_type_misplaced` — RESOLVED 2026-08-11
 
-**Symptom:** The `proto` test-genie phase fails one ERROR:
-`proto.shared_type_misplaced: message channel.Heartbeat is reused across domains
-(channel, presence) but lives in "channel"`.
+**Symptom (resolved):** The `proto` test-genie phase previously failed on
+`channel.Heartbeat` and `channel.RunEvent` being reused across domains while
+living in `channel`.
 
 **Root cause:** The versioned wire types live in `channel.proto`; the presence
 and (Phase 3) runs domains reuse them so the agent speaks one vocabulary. Phase 3
@@ -316,16 +316,18 @@ wait for: `Heartbeat` + `HealthSnapshot` (presence) and `RunEvent` +
 `RunEventKind` (runs/dispatch). proto-health wants shared types in a package that
 signals sharing rather than a feature-named one.
 
-**Workaround:** Functionally harmless — the types ARE the shared wire contract
-and back-compat is preserved (DiscardUnknown). Deferred deliberately to avoid
-churning agent+api imports twice across Phases 3–4.
+**Resolution:** Moved `CompatibilityStatus`, `HealthSnapshot`, `Heartbeat`,
+`RunEventKind`, and `RunEvent` into `vrooli-bridge/v1/shared`, regenerated all
+typed artifacts, and updated channel/presence/runs plus API, CLI, agent, and UI
+consumers. The authoritative run `20260811-101743-3b096c82` passed all 20
+phases, including proto and unit; `proto-health validate scenario vrooli-bridge`
+passes with only non-blocking warnings.
 
-**Real fix:** One proto-layout pass: move the shared wire types into a dedicated
-`vrooli-bridge/v1/wire` (or similar) package, regenerate, and update the
-channel/presence/runs imports across `api/` and `agent/`. Do it once, after
-Phase 4's `ProvisionCommand` reuse is also known.
+**Real fix:** Complete. Keep future cross-domain wire types in `v1/shared`
+and regenerate through `packages/proto/Makefile` rather than reintroducing
+feature-owned duplicates.
 
-**Owner:** unassigned.
+**Owner:** resolved by the onboarding/bridge integration work.
 
 **Refs:** `packages/proto/schemas/vrooli-bridge/v1/channel/channel.proto`,
 `.../presence/presence.proto`, `.../runs/runs.proto`.

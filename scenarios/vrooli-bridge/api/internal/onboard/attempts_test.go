@@ -20,6 +20,7 @@ func (l *recordingMachineLinker) LinkCorrelatedNode(_ context.Context, correlati
 	l.correlation, l.nodeID = correlationID, nodeID
 	return nil
 }
+
 func (l *recordingMachineLinker) RecordCorrelatedTrust(_ context.Context, _ string, _ onboard.Conn) error {
 	return nil
 }

@@ -13,3 +13,15 @@ func TestAllowUsesDerivedScopeBindings(t *testing.T) {
 		t.Fatal("read scope must not authorize a write verb")
 	}
 }
+
+func TestAllowDeviceControlVerbsAreExplicitlyGoverned(t *testing.T) {
+	if err := Allow(Job{Verb: "device-control observe", Scenario: "device-control"}, []string{"vrooli-bridge:read"}, DefaultManifest); err != nil {
+		t.Fatalf("read scope should authorize observation: %v", err)
+	}
+	if err := Allow(Job{Verb: "device-control actuate", Scenario: "device-control"}, []string{"vrooli-bridge:read"}, DefaultManifest); err == nil {
+		t.Fatal("read scope must not authorize device actuation")
+	}
+	if err := Allow(Job{Verb: "device-control actuate", Scenario: "device-control"}, []string{"vrooli-bridge:write"}, DefaultManifest); err != nil {
+		t.Fatalf("write scope should authorize device actuation: %v", err)
+	}
+}

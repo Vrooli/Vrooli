@@ -23,6 +23,7 @@ type correlatedRegistrar struct {
 func (r *correlatedRegistrar) RegisterNode(_ context.Context, _ pairing.NodeFacts) (string, error) {
 	return "legacy-node", nil
 }
+
 func (r *correlatedRegistrar) RegisterNodeWithCorrelation(_ context.Context, _ pairing.NodeFacts, correlation string) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -33,6 +34,7 @@ func (r *correlatedRegistrar) RegisterNodeWithCorrelation(_ context.Context, _ p
 	r.nodes[correlation] = id
 	return id, nil
 }
+
 func (r *correlatedRegistrar) FindNodeByPairingCorrelation(_ context.Context, correlation string) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

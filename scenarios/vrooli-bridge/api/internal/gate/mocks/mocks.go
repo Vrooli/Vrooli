@@ -70,7 +70,7 @@ func (f *FakeRunner) Dispatch(_ context.Context, in gate.DispatchRequest) (strin
 		return "", err
 	}
 	f.seq++
-	return "run-" + in.NodeID, nil
+	return "run-" + in.NodeID + "-" + itoa(f.seq), nil
 }
 
 func (f *FakeRunner) Verdict(_ context.Context, runID string) (gate.RunVerdict, error) {

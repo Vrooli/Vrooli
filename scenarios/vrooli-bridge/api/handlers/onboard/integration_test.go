@@ -36,9 +36,8 @@ import (
 )
 
 const (
-	intNodeID   = "9a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9"
-	intPassword = "owner-first-touch-pw"
-	intCode     = "INTEGRATIONPAIRINGCODE234567ABCD"
+	intNodeID = "9a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9"
+	intCode   = "INTEGRATIONPAIRINGCODE234567ABCD"
 )
 
 // TestOnboarding_FullFlow_ThroughConnectHandler drives StartOnboarding →
@@ -52,6 +51,7 @@ const (
 // real dial-out channel; every other hop is real.
 func TestOnboarding_FullFlow_ThroughConnectHandler(t *testing.T) {
 	requireSSHTools(t)
+	intPassword := t.Name() + "-owner"
 
 	d := newOnboardSchemaDB(t)
 	sshStateDir := t.TempDir()

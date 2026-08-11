@@ -182,7 +182,7 @@ type keyedSudoFixture struct {
 
 func newKeyedSudoFixture(t *testing.T) keyedSudoFixture {
 	t.Helper()
-	const password = "sudo-owner-pw"
+	password := t.Name() + "-owner"
 	server := newTestSSHD(t, password)
 	binDir := installFakeSudoTools(t)
 	sudoersDir := t.TempDir()
@@ -306,7 +306,7 @@ func TestSudoProvisionPasswordUnavailable(t *testing.T) {
 // installed, the drop-in written and verified, the result reflects it, and the
 // owner password is zeroed.
 func TestFirstTouchProvisionsSudoEndToEnd(t *testing.T) {
-	const password = "e2e-owner-pw"
+	password := t.Name() + "-owner"
 	server := newTestSSHD(t, password)
 	binDir := installFakeSudoTools(t)
 	sudoersDir := t.TempDir()

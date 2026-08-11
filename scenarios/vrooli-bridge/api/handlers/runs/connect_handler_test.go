@@ -13,8 +13,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
-	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
 
 func ownerCtx() context.Context {
@@ -29,7 +29,7 @@ func newHarness(t *testing.T) (*connectHandler, internalruns.Service) {
 	return NewConnectHandler(Deps{Service: svc}), svc
 }
 
-func reportEvent(h *connectHandler, ev *channelv1.RunEvent) (bool, error) {
+func reportEvent(h *connectHandler, ev *sharedv1.RunEvent) (bool, error) {
 	resp, err := h.ReportRunEvent(context.Background(), connect.NewRequest(&runsv1.ReportRunEventRequest{Event: ev}))
 	if err != nil {
 		return false, err
@@ -58,12 +58,12 @@ func TestRunsHandler_OperatorVerbsRequireOwner(t *testing.T) {
 // (accepted=false) without error so a confused node stops re-sending.
 func TestRunsHandler_ReportRunEvent_NodeFacing(t *testing.T) {
 	h, _ := newHarness(t)
-	accepted, err := reportEvent(h, &channelv1.RunEvent{RunId: "ghost", Kind: channelv1.RunEventKind_RUN_EVENT_KIND_LOG})
+	accepted, err := reportEvent(h, &sharedv1.RunEvent{RunId: "ghost", Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_LOG})
 	require.NoError(t, err)
 	require.False(t, accepted)
 
 	// A missing run_id is an invalid argument.
-	_, err = h.ReportRunEvent(context.Background(), connect.NewRequest(&runsv1.ReportRunEventRequest{Event: &channelv1.RunEvent{}}))
+	_, err = h.ReportRunEvent(context.Background(), connect.NewRequest(&runsv1.ReportRunEventRequest{Event: &sharedv1.RunEvent{}}))
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
@@ -89,10 +89,10 @@ func TestRunsHandler_DurableRunE2E(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 
 	// The node reports progress (no owner identity — node-facing).
-	for _, ev := range []*channelv1.RunEvent{
-		{RunId: run.ID, Kind: channelv1.RunEventKind_RUN_EVENT_KIND_STATUS, Sequence: 1, Status: "running"},
-		{RunId: run.ID, Kind: channelv1.RunEventKind_RUN_EVENT_KIND_LOG, Sequence: 2, LogChunk: "PASS web-search\n"},
-		{RunId: run.ID, Kind: channelv1.RunEventKind_RUN_EVENT_KIND_EXIT, Sequence: 3, ExitCode: 0},
+	for _, ev := range []*sharedv1.RunEvent{
+		{RunId: run.ID, Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_STATUS, Sequence: 1, Status: "running"},
+		{RunId: run.ID, Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_LOG, Sequence: 2, LogChunk: "PASS web-search\n"},
+		{RunId: run.ID, Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT, Sequence: 3, ExitCode: 0},
 	} {
 		accepted, err := reportEvent(h, ev)
 		require.NoError(t, err)

@@ -14,30 +14,31 @@ import (
 	"github.com/stretchr/testify/require"
 
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
 
 // fakeReporter collects the RunEvents the runner emits.
 type fakeReporter struct {
 	mu     sync.Mutex
-	events []*channelv1.RunEvent
+	events []*sharedv1.RunEvent
 }
 
-func (f *fakeReporter) Report(_ context.Context, ev *channelv1.RunEvent) error {
+func (f *fakeReporter) Report(_ context.Context, ev *sharedv1.RunEvent) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	// Clone the minimal fields we assert on (the runner reuses the pointer
 	// across emits only by constructing new events, but copy to be safe).
-	f.events = append(f.events, &channelv1.RunEvent{
+	f.events = append(f.events, &sharedv1.RunEvent{
 		RunId: ev.RunId, Kind: ev.Kind, Sequence: ev.Sequence,
 		LogChunk: ev.LogChunk, Status: ev.Status, ExitCode: ev.ExitCode, ArtifactRef: ev.ArtifactRef,
 	})
 	return nil
 }
 
-func (f *fakeReporter) kinds() []channelv1.RunEventKind {
+func (f *fakeReporter) kinds() []sharedv1.RunEventKind {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]channelv1.RunEventKind, 0, len(f.events))
+	out := make([]sharedv1.RunEventKind, 0, len(f.events))
 	for _, e := range f.events {
 		out = append(out, e.Kind)
 	}
@@ -126,9 +127,9 @@ func TestExecute_StreamsLifecycle(t *testing.T) {
 	require.Equal(t, "/work", cmd.gotDir)
 
 	kinds := rep.kinds()
-	require.Equal(t, channelv1.RunEventKind_RUN_EVENT_KIND_STATUS, kinds[0], "first event is STATUS running")
-	require.Contains(t, kinds, channelv1.RunEventKind_RUN_EVENT_KIND_LOG)
-	require.Equal(t, channelv1.RunEventKind_RUN_EVENT_KIND_EXIT, kinds[len(kinds)-1], "last event is the terminal EXIT")
+	require.Equal(t, sharedv1.RunEventKind_RUN_EVENT_KIND_STATUS, kinds[0], "first event is STATUS running")
+	require.Contains(t, kinds, sharedv1.RunEventKind_RUN_EVENT_KIND_LOG)
+	require.Equal(t, sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT, kinds[len(kinds)-1], "last event is the terminal EXIT")
 
 	// Sequences are monotonic per run starting at 1.
 	require.Equal(t, uint64(1), rep.events[0].Sequence)
@@ -143,7 +144,7 @@ func TestExecute_NonZeroExitReported(t *testing.T) {
 	require.NoError(t, runner.Execute(context.Background(), &channelv1.JobPush{RunId: "r", Verb: "scenario test"}))
 
 	last := rep.events[len(rep.events)-1]
-	require.Equal(t, channelv1.RunEventKind_RUN_EVENT_KIND_EXIT, last.Kind)
+	require.Equal(t, sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT, last.Kind)
 	require.Equal(t, int32(2), last.ExitCode)
 }
 
@@ -161,7 +162,7 @@ func TestExecute_RejectedJobNeverRuns(t *testing.T) {
 
 	require.Nil(t, cmd.gotArgv, "the command seam is never invoked for a rejected job")
 	kinds := rep.kinds()
-	require.Equal(t, channelv1.RunEventKind_RUN_EVENT_KIND_EXIT, kinds[len(kinds)-1])
+	require.Equal(t, sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT, kinds[len(kinds)-1])
 	last := rep.events[len(rep.events)-1]
 	require.NotEqual(t, int32(0), last.ExitCode, "a rejected job terminates non-zero")
 	// The rejection reason is surfaced as a STATUS event.
@@ -199,7 +200,7 @@ func TestExecute_AppendsTypedOutputFlagAndUploadsProducedArtifact(t *testing.T) 
 	require.Equal(t, "image/png", uploader.mediaType)
 	require.Equal(t, []byte("png-bytes"), uploader.data)
 	lastBeforeExit := rep.events[len(rep.events)-2]
-	require.Equal(t, channelv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF, lastBeforeExit.Kind)
+	require.Equal(t, sharedv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF, lastBeforeExit.Kind)
 	require.Equal(t, "bridge://run/run-1/screenshot.png", lastBeforeExit.ArtifactRef)
 }
 

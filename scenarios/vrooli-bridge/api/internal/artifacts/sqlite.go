@@ -42,8 +42,10 @@ func NewSQLiteProducedRepository(db SQLExecutor, clk clock.Clock) ProducedArtifa
 }
 
 // Compile-time guarantee.
-var _ Repository = (*sqliteRepository)(nil)
-var _ ProducedArtifactRepository = (*sqliteProducedRepository)(nil)
+var (
+	_ Repository                 = (*sqliteRepository)(nil)
+	_ ProducedArtifactRepository = (*sqliteProducedRepository)(nil)
+)
 
 // timeFormat sorts lexicographically in time order for a fixed zone, so a string
 // order comparison is a correct newest-first filter.

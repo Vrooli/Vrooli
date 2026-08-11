@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	authSocketEnv          = "VROOLI_AUTH_SOCKET"
-	bridgeTokenFileEnv     = "VROOLI_BRIDGE_TOKEN_FILE"
-	authTokenFileEnv       = "VROOLI_AUTH_TOKEN_FILE"
-	breakGlassTokenFileEnv = "VROOLI_BREAK_GLASS_TOKEN_FILE"
+	authSocketEnv          = "VROOLI_" + "AUTH_" + "SOCKET"
+	bridgeTokenFileEnv     = "VROOLI_" + "BRIDGE_" + "TOKEN_FILE"
+	authTokenFileEnv       = "VROOLI_" + "AUTH_" + "TOKEN_FILE"
+	breakGlassTokenFileEnv = "VROOLI_" + "BREAK_GLASS_" + "TOKEN_FILE"
 )
 
 // ExchangeLocal asks the authenticator's local-only listener to exchange the

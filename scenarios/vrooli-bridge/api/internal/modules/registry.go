@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	artifactsH "vrooli-bridge/handlers/artifacts"
+	attachedH "vrooli-bridge/handlers/attached"
 	auditH "vrooli-bridge/handlers/audit"
 	channelH "vrooli-bridge/handlers/channel"
 	dispatchH "vrooli-bridge/handlers/dispatch"
@@ -43,6 +44,7 @@ import (
 	internalreadiness "vrooli-bridge/internal/readiness"
 
 	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts"
+	attachedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/attached_devices"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/audit"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 	fleetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/fleet"
@@ -66,6 +68,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, artifactsH.Endpoints...)
+	out = append(out, attachedH.Endpoints...)
 	out = append(out, auditH.Endpoints...)
 	out = append(out, channelH.Endpoints...)
 	out = append(out, dispatchH.Endpoints...)
@@ -107,6 +110,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "artifacts", File: artifactsv1.File_vrooli_bridge_v1_artifacts_artifacts_proto},
+		{Module: "attached-devices", File: attachedv1.File_vrooli_bridge_v1_attached_devices_attached_devices_proto},
 		{Module: "audit", File: auditv1.File_vrooli_bridge_v1_audit_audit_proto},
 		{Module: "channel", File: presencev1.File_vrooli_bridge_v1_presence_presence_proto},
 		{Module: "dispatch", File: dispatchv1.File_vrooli_bridge_v1_dispatch_dispatch_proto},

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/onboard/ssh"
+	"vrooli-bridge/internal/onboarding"
 )
 
 // syncDestMarker prefixes the single stdout line the remote sync command emits to
@@ -326,6 +327,23 @@ func (d *sshDriver) runRemoteCommand(ctx context.Context, cfg ssh.Config, comman
 		return fmt.Errorf("remote command failed (exit %d): %s", res.ExitCode, res.Stderr)
 	}
 	return nil
+}
+
+// Run implements the transport-neutral onboarding bridge contract. It is kept
+// off SSHDriver so existing bootstrap fakes remain valid; production drivers
+// expose it through a narrow type assertion when a setup profile requests the
+// declarative onboarding surface.
+func (d *sshDriver) Run(ctx context.Context, target onboarding.Target, command string) (onboarding.Result, error) {
+	conn := Conn{Host: target.Host, Port: target.Port, User: target.User, KeyPath: target.Key}
+	var stdout strings.Builder
+	result, err := d.svc.RunStreaming(ctx, d.config(conn), command, ssh.StreamOptions{
+		Run: syncRunOptions(),
+		OnStdoutLine: func(line string) {
+			stdout.WriteString(line)
+			stdout.WriteByte('\n')
+		},
+	})
+	return onboarding.Result{ExitCode: result.ExitCode, Stdout: stdout.String(), Stderr: result.Stderr}, err
 }
 
 func remoteArtifactDirName() (string, error) {

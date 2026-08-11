@@ -21,7 +21,7 @@ const (
 	// SudoStateAlreadyPasswordless — the user could already run sudo without a
 	// password (a pre-existing NOPASSWD config, or our own drop-in from a prior
 	// run). Nothing was written and no password was needed.
-	SudoStateAlreadyPasswordless SudoState = "already-passwordless"
+	SudoStateAlreadyPasswordless SudoState = "already-passwordless" //gitleaks:allow // status label, not credential material
 	// SudoStateDeclined — the caller did not request sudo provisioning.
 	SudoStateDeclined SudoState = "declined"
 	// SudoStatePasswordUnavailable — sudo is not yet passwordless and no owner

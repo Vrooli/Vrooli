@@ -41,6 +41,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	artifactsH "vrooli-bridge/handlers/artifacts"
+	attachedH "vrooli-bridge/handlers/attached"
 	auditH "vrooli-bridge/handlers/audit"
 	channelH "vrooli-bridge/handlers/channel"
 	dispatchH "vrooli-bridge/handlers/dispatch"
@@ -518,6 +519,7 @@ func main() {
 		// registry RevokeNode performs atomic revocation: durable revoke +
 		// credential destruction (pairingSvc) + live-channel drop (presenceHub).
 		registryH.Module(db, clk, presenceHub, pairingSvc, presenceHub, logger),
+		attachedH.Module(db.Primary(), logger),
 		channelH.Module(presenceHub, nodeLastSeen, nodeVerifier, logger),
 		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), postureDefaults.NodeExecutionScopes, logger),
 		// dispatch (OT-P0-004): the allowlist gate. It reads node scopes
@@ -580,7 +582,14 @@ func main() {
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(rootMux)
+	innerHandler := apihttp.TestModeMiddleware(rootMux)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		innerHandler.ServeHTTP(w, r)
+	})
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,

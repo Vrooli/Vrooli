@@ -291,16 +291,23 @@ func TestGetGate_NotFound(t *testing.T) {
 // ListGates returns gates newest-first.
 func TestListGates_NewestFirst(t *testing.T) {
 	nodes, presence := threeOSFleet()
-	svc, _ := newService(nodes, presence, mocks.NewFakeRunner())
+	runner := mocks.NewFakeRunner()
+	svc, _ := newService(nodes, presence, runner)
 
 	first, err := svc.Run(context.Background(), runInput())
 	require.NoError(t, err)
 	second, err := svc.Run(context.Background(), runInput())
 	require.NoError(t, err)
+	for _, r := range second.Results {
+		runner.SetVerdict(r.RunID, gate.RunVerdict{Terminal: true, Passed: true})
+	}
 
 	list, err := svc.ListGates(context.Background(), gate.ListFilter{})
 	require.NoError(t, err)
 	require.Len(t, list, 2)
 	require.Equal(t, second.GateID, list[0].ID)
 	require.Equal(t, first.GateID, list[1].ID)
+	require.Equal(t, gate.VerdictPassed, list[0].Verdict, "list must expose the live verdict, not the persisted pending snapshot")
+	require.Equal(t, 3, list[0].Passed)
+	require.Equal(t, gate.VerdictPending, list[1].Verdict)
 }

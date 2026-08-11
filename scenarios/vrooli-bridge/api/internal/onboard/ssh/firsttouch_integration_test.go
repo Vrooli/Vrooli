@@ -13,7 +13,7 @@ import (
 // working passwordless key-based SSH, the password destroyed, and the keypair +
 // known_hosts persisted with the right perms.
 func TestFirstTouchEstablishesPasswordlessSSH(t *testing.T) {
-	const password = "s3cr3t-owner-pw"
+	password := t.Name() + "-owner"
 	server := newTestSSHD(t, password)
 
 	stateDir := t.TempDir()

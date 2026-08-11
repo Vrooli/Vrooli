@@ -8,9 +8,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
-	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 	runsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs/runs_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
@@ -28,7 +28,7 @@ type fakeRuns struct {
 func (f *fakeRuns) GetRun(_ context.Context, req *connect.Request[runsv1.GetRunRequest]) (*connect.Response[runsv1.GetRunResponse], error) {
 	return connect.NewResponse(&runsv1.GetRunResponse{
 		Run:    &runsv1.Run{Id: req.Msg.Id, NodeId: "n1", Verb: "scenario test", Status: runsv1.RunStatus_RUN_STATUS_PASSED},
-		Events: []*channelv1.RunEvent{{RunId: req.Msg.Id, Kind: channelv1.RunEventKind_RUN_EVENT_KIND_LOG, LogChunk: "PASS\n"}},
+		Events: []*sharedv1.RunEvent{{RunId: req.Msg.Id, Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_LOG, LogChunk: "PASS\n"}},
 	}), nil
 }
 
@@ -52,7 +52,7 @@ func (f *fakeRuns) AbortRun(_ context.Context, req *connect.Request[runsv1.Abort
 }
 
 func (f *fakeRuns) StreamRunEvents(_ context.Context, _ *connect.Request[runsv1.StreamRunEventsRequest], stream *connect.ServerStream[runsv1.RunEventMessage]) error {
-	return stream.Send(&runsv1.RunEventMessage{Event: &channelv1.RunEvent{Kind: channelv1.RunEventKind_RUN_EVENT_KIND_LOG, LogChunk: "streamed\n"}})
+	return stream.Send(&runsv1.RunEventMessage{Event: &sharedv1.RunEvent{Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_LOG, LogChunk: "streamed\n"}})
 }
 
 func (f *fakeRuns) ReportRunEvent(context.Context, *connect.Request[runsv1.ReportRunEventRequest]) (*connect.Response[runsv1.ReportRunEventResponse], error) {

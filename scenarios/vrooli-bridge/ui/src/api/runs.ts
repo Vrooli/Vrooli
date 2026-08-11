@@ -7,7 +7,7 @@ import {
 import {
   RunEventKind,
   type RunEvent,
-} from "@vrooli/proto-types/vrooli-bridge/v1/channel/channel_pb";
+} from "@vrooli/proto-types/vrooli-bridge/v1/shared/shared_pb";
 
 import { transport } from "./client";
 

@@ -79,6 +79,7 @@ func TestLegacySSHConnectionSourceDoesNotProduceSelfIPFirewallRule(t *testing.T)
 func (s stubOnboard) ListOps(context.Context, onboard.ListFilter) ([]onboard.Op, error) {
 	return s.ops, nil
 }
+
 func (s stubOnboard) GetOp(context.Context, string) (onboard.Op, []onboard.StepEvent, error) {
 	return s.ops[0], s.events, nil
 }

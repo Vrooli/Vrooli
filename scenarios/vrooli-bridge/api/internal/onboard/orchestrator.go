@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"vrooli-bridge/internal/onboarding"
 )
 
 // runOnboarding is the server-owned orchestration for one op, driven on a
@@ -302,6 +304,29 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	}
 	s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusOK, "node is online with control-plane key pinned")
 	s.recordNodeRevision(ctx, opID, &seq, nodeID, in)
+	if selection, requested := onboarding.FromSetupProfile(in.SetupScenarios, in.SetupResources, in.IncludeOptional); requested {
+		runner, supported := s.driver.(onboarding.Runner)
+		if !supported {
+			detail := "declarative onboarding requested but the connected transport does not support it"
+			s.emit(ctx, opID, &seq, StepApplySelection, StepStatusFailed, detail)
+			s.finishFailed(ctx, opID, &seq, FailureOnboarding, int32(res.ExitCode), detail, res.Diagnostics)
+			return
+		}
+		s.emit(ctx, opID, &seq, StepApplySelection, StepStatusStarted, "applying the committed onboarding selection")
+		remote, applyErr := onboarding.ApplyAndReadiness(ctx, runner, onboarding.Target{Host: conn.Host, Port: conn.Port, User: conn.User, Key: conn.KeyPath}, selection)
+		if applyErr != nil || remote.ExitCode != 0 {
+			detail := fmt.Sprintf("remote onboarding readiness exited %d", remote.ExitCode)
+			if applyErr != nil {
+				detail += ": " + applyErr.Error()
+			} else if strings.TrimSpace(remote.Stderr) != "" {
+				detail += ": " + strings.TrimSpace(remote.Stderr)
+			}
+			s.emit(ctx, opID, &seq, StepApplySelection, StepStatusFailed, detail)
+			s.finishFailed(ctx, opID, &seq, FailureOnboarding, int32(remote.ExitCode), detail, remote.Stderr)
+			return
+		}
+		s.emit(ctx, opID, &seq, StepApplySelection, StepStatusOK, "remote onboarding selection applied and readiness verified")
+	}
 	s.finishSucceeded(ctx, opID, nodeID, int32(res.ExitCode))
 }
 

@@ -5,8 +5,8 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
 
 // domainRunToProto translates a domain Run into its wire shape. The domain
@@ -53,8 +53,8 @@ func statusToProto(s runs.RunStatus) runsv1.RunStatus {
 // domainEventToProto translates a domain RunEvent into the shared channel
 // RunEvent wire type (reused so the agent, SSE edge, and runs service speak one
 // vocabulary).
-func domainEventToProto(ev runs.RunEvent) *channelv1.RunEvent {
-	out := &channelv1.RunEvent{
+func domainEventToProto(ev runs.RunEvent) *sharedv1.RunEvent {
+	out := &sharedv1.RunEvent{
 		RunId:       ev.RunID,
 		Kind:        eventKindToProto(ev.Kind),
 		Sequence:    ev.Sequence,
@@ -69,24 +69,24 @@ func domainEventToProto(ev runs.RunEvent) *channelv1.RunEvent {
 	return out
 }
 
-func eventKindToProto(k runs.EventKind) channelv1.RunEventKind {
+func eventKindToProto(k runs.EventKind) sharedv1.RunEventKind {
 	switch k {
 	case runs.EventLog:
-		return channelv1.RunEventKind_RUN_EVENT_KIND_LOG
+		return sharedv1.RunEventKind_RUN_EVENT_KIND_LOG
 	case runs.EventStatus:
-		return channelv1.RunEventKind_RUN_EVENT_KIND_STATUS
+		return sharedv1.RunEventKind_RUN_EVENT_KIND_STATUS
 	case runs.EventExit:
-		return channelv1.RunEventKind_RUN_EVENT_KIND_EXIT
+		return sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT
 	case runs.EventArtifactRef:
-		return channelv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF
+		return sharedv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF
 	default:
-		return channelv1.RunEventKind_RUN_EVENT_KIND_UNSPECIFIED
+		return sharedv1.RunEventKind_RUN_EVENT_KIND_UNSPECIFIED
 	}
 }
 
 // protoEventToDomain translates an inbound channel RunEvent (from the node-agent
 // via ReportRunEvent) into the domain shape the runs service ingests.
-func protoEventToDomain(ev *channelv1.RunEvent) runs.RunEvent {
+func protoEventToDomain(ev *sharedv1.RunEvent) runs.RunEvent {
 	out := runs.RunEvent{
 		RunID:       ev.GetRunId(),
 		Kind:        eventKindToDomain(ev.GetKind()),
@@ -102,15 +102,15 @@ func protoEventToDomain(ev *channelv1.RunEvent) runs.RunEvent {
 	return out
 }
 
-func eventKindToDomain(k channelv1.RunEventKind) runs.EventKind {
+func eventKindToDomain(k sharedv1.RunEventKind) runs.EventKind {
 	switch k {
-	case channelv1.RunEventKind_RUN_EVENT_KIND_LOG:
+	case sharedv1.RunEventKind_RUN_EVENT_KIND_LOG:
 		return runs.EventLog
-	case channelv1.RunEventKind_RUN_EVENT_KIND_STATUS:
+	case sharedv1.RunEventKind_RUN_EVENT_KIND_STATUS:
 		return runs.EventStatus
-	case channelv1.RunEventKind_RUN_EVENT_KIND_EXIT:
+	case sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT:
 		return runs.EventExit
-	case channelv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF:
+	case sharedv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF:
 		return runs.EventArtifactRef
 	default:
 		return runs.EventUnspecified

@@ -13,8 +13,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
 
 // Deps wires the seams the Connect runs handler needs. Verifier enforces
@@ -48,7 +48,7 @@ func (h *connectHandler) GetRun(ctx context.Context, req *connect.Request[runsv1
 	}
 	resp := &runsv1.GetRunResponse{
 		Run:    domainRunToProto(run),
-		Events: make([]*channelv1.RunEvent, 0, len(events)),
+		Events: make([]*sharedv1.RunEvent, 0, len(events)),
 	}
 	for _, ev := range events {
 		resp.Events = append(resp.Events, domainEventToProto(ev))

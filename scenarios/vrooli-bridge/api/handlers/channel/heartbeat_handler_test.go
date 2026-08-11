@@ -17,8 +17,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
-	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
 
 type fakeLastSeen struct {
@@ -43,13 +43,13 @@ func TestReportHeartbeat_StoresHealthAndTouchesLastSeen(t *testing.T) {
 	h := NewHeartbeatHandler(HeartbeatDeps{Hub: hub, LastSeen: ls})
 
 	resp, err := h.ReportHeartbeat(context.Background(), connect.NewRequest(&presencev1.ReportHeartbeatRequest{
-		Heartbeat: &channelv1.Heartbeat{
+		Heartbeat: &sharedv1.Heartbeat{
 			NodeId: "n1",
-			Health: &channelv1.HealthSnapshot{ToolchainPresent: true, DiskHeadroomBytes: 5 << 30},
+			Health: &sharedv1.HealthSnapshot{ToolchainPresent: true, DiskHeadroomBytes: 5 << 30},
 		},
 	}))
 	require.NoError(t, err)
-	require.Equal(t, channelv1.CompatibilityStatus_COMPATIBILITY_STATUS_OK, resp.Msg.Compatibility)
+	require.Equal(t, sharedv1.CompatibilityStatus_COMPATIBILITY_STATUS_OK, resp.Msg.Compatibility)
 
 	snap, ok := hub.Health("n1")
 	require.True(t, ok)
@@ -61,7 +61,7 @@ func TestReportHeartbeat_StoresHealthAndTouchesLastSeen(t *testing.T) {
 func TestReportHeartbeat_MissingNodeIDRejected(t *testing.T) {
 	h := NewHeartbeatHandler(HeartbeatDeps{Hub: newHub(), LastSeen: &fakeLastSeen{}})
 	_, err := h.ReportHeartbeat(context.Background(), connect.NewRequest(&presencev1.ReportHeartbeatRequest{
-		Heartbeat: &channelv1.Heartbeat{Health: &channelv1.HealthSnapshot{ToolchainPresent: true}},
+		Heartbeat: &sharedv1.Heartbeat{Health: &sharedv1.HealthSnapshot{ToolchainPresent: true}},
 	}))
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
@@ -76,7 +76,7 @@ func (f fakeCredStore) ActivePublicKey(_ context.Context, nodeID string) (ed2551
 
 func signedHeartbeatReq(nodeID string, priv ed25519.PrivateKey, ts time.Time) *connect.Request[presencev1.ReportHeartbeatRequest] {
 	req := connect.NewRequest(&presencev1.ReportHeartbeatRequest{
-		Heartbeat: &channelv1.Heartbeat{NodeId: nodeID, Health: &channelv1.HealthSnapshot{ToolchainPresent: true}},
+		Heartbeat: &sharedv1.Heartbeat{NodeId: nodeID, Health: &sharedv1.HealthSnapshot{ToolchainPresent: true}},
 	})
 	req.Header().Set(nodeauth.HeaderNode, nodeID)
 	req.Header().Set(nodeauth.HeaderTS, strconv.FormatInt(ts.Unix(), 10))
@@ -104,7 +104,7 @@ func TestReportHeartbeat_EnforcesMutualAuth_RejectsUnsigned(t *testing.T) {
 	h := NewHeartbeatHandler(HeartbeatDeps{Hub: newHub(), LastSeen: &fakeLastSeen{}, Verifier: v})
 
 	_, err := h.ReportHeartbeat(context.Background(), connect.NewRequest(&presencev1.ReportHeartbeatRequest{
-		Heartbeat: &channelv1.Heartbeat{NodeId: "n1", Health: &channelv1.HealthSnapshot{ToolchainPresent: true}},
+		Heartbeat: &sharedv1.Heartbeat{NodeId: "n1", Health: &sharedv1.HealthSnapshot{ToolchainPresent: true}},
 	}))
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }
@@ -129,7 +129,7 @@ func TestReportHeartbeat_LastSeenErrorSwallowed(t *testing.T) {
 	hub := newHub()
 	h := NewHeartbeatHandler(HeartbeatDeps{Hub: hub, LastSeen: &fakeLastSeen{err: errors.New("db down")}})
 	_, err := h.ReportHeartbeat(context.Background(), connect.NewRequest(&presencev1.ReportHeartbeatRequest{
-		Heartbeat: &channelv1.Heartbeat{NodeId: "n1", Health: &channelv1.HealthSnapshot{ToolchainPresent: true}},
+		Heartbeat: &sharedv1.Heartbeat{NodeId: "n1", Health: &sharedv1.HealthSnapshot{ToolchainPresent: true}},
 	}))
 	require.NoError(t, err)
 	_, ok := hub.Health("n1")

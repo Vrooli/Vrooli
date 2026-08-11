@@ -1825,6 +1825,69 @@
           }
         }
       ]
+    },
+    {
+      "name": "readiness",
+      "description": "Inspect and configure Bridge host readiness and exact candidate firewall admission",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show canonical endpoint, local health, and latest candidate admission",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "configure",
+          "description": "Persist the default advertised endpoint for future onboarding",
+          "flags": [
+            { "name": "endpoint", "required": true, "description": "Absolute http(s) Bridge base URL" },
+            { "name": "reachability-mode", "required": true, "description": "lan, tunnel, or manual" }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "firewall-inspect",
+          "description": "Inspect exact UFW admission evidence through the setup-managed broker",
+          "flags": [{ "name": "candidate-ip", "required": true, "description": "Exact source IP recorded for the failed candidate admission" }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "firewall-preview",
+          "description": "Preview the exact scoped admission before confirming a mutation",
+          "flags": [{ "name": "candidate-ip", "required": true, "description": "Exact source IP recorded for the failed candidate admission" }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "firewall-verify",
+          "description": "Verify exact UFW admission evidence through the setup-managed broker",
+          "flags": [{ "name": "candidate-ip", "required": true, "description": "Exact source IP recorded for the failed candidate admission" }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "firewall-allow",
+          "description": "Allow one candidate IP to Bridge port 18767 after explicit confirmation",
+          "flags": [
+            { "name": "candidate-ip", "required": true, "description": "Exact source IP recorded for the failed candidate admission" },
+            { "name": "confirm", "required": true, "description": "Required literal confirmation: true" }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal", "admin"] }
+        },
+        {
+          "name": "firewall-revoke",
+          "description": "Remove the exact managed candidate admission rule after explicit confirmation",
+          "flags": [
+            { "name": "candidate-ip", "required": true, "description": "Exact source IP recorded for the failed candidate admission" },
+            { "name": "confirm", "required": true, "description": "Required literal confirmation: true" }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal", "admin"] }
+        }
+      ]
     }
   ],
   "measures": {
@@ -1855,6 +1918,21 @@
       "service": "ArtifactsService",
       "method": "UploadRunArtifact",
       "reason": "Node-facing authenticated upload called by the bridge agent after a typed job produces bounded evidence; there is no operator upload command."
+    },
+    {
+      "service": "AttachedDeviceService",
+      "method": "ListAttachedDevices",
+      "reason": "The attached-device list is currently consumed by the Bridge UI and API integrations; no operator CLI command is exposed yet."
+    },
+    {
+      "service": "AttachedDeviceService",
+      "method": "PairAttachedDevice",
+      "reason": "Attached-device pairing is currently owned by the Bridge UI and API integrations; no operator CLI command is exposed yet."
+    },
+    {
+      "service": "AttachedDeviceService",
+      "method": "RevokeAttachedDevice",
+      "reason": "Attached-device revocation is currently owned by the Bridge UI and API integrations; no operator CLI command is exposed yet."
     }
   ]
 }

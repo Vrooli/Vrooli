@@ -13,7 +13,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 
 import { renderWithProviders } from "../../test-utils";
 import { RunStatus } from "../../api/runs";
-import { RunEventKind } from "@vrooli/proto-types/vrooli-bridge/v1/channel/channel_pb";
+import { RunEventKind } from "@vrooli/proto-types/vrooli-bridge/v1/shared/shared_pb";
 import { strings } from "../../consts/strings";
 import { selectors } from "../../consts/selectors";
 import { makeRun, makeRunEvent } from "./mocks/factories";
@@ -73,6 +73,38 @@ describe("[REQ:BRG-P1-005] Run history", () => {
 
     const output = await screen.findByTestId(selectors.runs.output);
     await waitFor(() => expect(output).toHaveTextContent("building module 42"));
+  });
+
+  it("renders status and artifact events in persisted output", async () => {
+    const user = userEvent.setup();
+    listRuns.mockResolvedValue({ runs: [makeRun({ id: "r1" })] });
+    getRun.mockResolvedValue({
+      run: makeRun({ id: "r1" }),
+      events: [
+        makeRunEvent({
+          runId: "r1",
+          kind: RunEventKind.STATUS,
+          sequence: 1n,
+          status: "running",
+          logChunk: "",
+        }),
+        makeRunEvent({
+          runId: "r1",
+          kind: RunEventKind.ARTIFACT_REF,
+          sequence: 2n,
+          artifactRef: "dsh://bundle/report",
+          logChunk: "",
+        }),
+      ],
+    });
+    renderWithProviders(<RunHistory />);
+
+    await screen.findByTestId(selectors.runs.row({ id: "r1" }));
+    await user.click(screen.getByTestId(selectors.runs.view({ id: "r1" })));
+
+    const output = await screen.findByTestId(selectors.runs.output);
+    expect(output).toHaveTextContent("· running");
+    expect(output).toHaveTextContent("dsh://bundle/report");
   });
 
   it("exposes downloadable artifacts for a run", async () => {

@@ -41,6 +41,7 @@ func pairingTableExists(ctx context.Context, db SQLExecutor, table string) (bool
 	}
 	return false, err
 }
+
 func pairingColumnExists(ctx context.Context, db SQLExecutor, table, column string) (bool, error) {
 	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%q)", table))
 	if err != nil {

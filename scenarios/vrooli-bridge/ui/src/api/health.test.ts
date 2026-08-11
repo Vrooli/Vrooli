@@ -31,4 +31,10 @@ describe("api/health.fetchHealth", () => {
       cache: "no-store",
     });
   });
+
+  it("surfaces an API error response", async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('{"error":"unavailable"}', { status: 503 }));
+
+    await expect(fetchHealth()).rejects.toBeDefined();
+  });
 });

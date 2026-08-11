@@ -55,6 +55,7 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision/provision_v1connect"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs/runs_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
 
 // ProtocolVersion is the agent's implemented wire protocol version. It MUST
@@ -361,7 +362,7 @@ func (c *Client) handleServerFrame(payload string) {
 		return
 	}
 	if ack := frame.GetAck(); ack != nil {
-		if ack.GetCompatibility() == channelv1.CompatibilityStatus_COMPATIBILITY_STATUS_NEEDS_UPDATE {
+		if ack.GetCompatibility() == sharedv1.CompatibilityStatus_COMPATIBILITY_STATUS_NEEDS_UPDATE {
 			c.logger.Printf("channel: control plane flagged this agent NEEDS_UPDATE (%s) — holding presence only", ack.GetReason())
 		}
 		if !ack.GetAccepted() {
@@ -515,7 +516,7 @@ type runEventReporter struct {
 	now    func() time.Time
 }
 
-func (r *runEventReporter) Report(ctx context.Context, ev *channelv1.RunEvent) error {
+func (r *runEventReporter) Report(ctx context.Context, ev *sharedv1.RunEvent) error {
 	req := connect.NewRequest(&runsv1.ReportRunEventRequest{Event: ev})
 	if r.cred != nil {
 		for k, v := range r.cred.Headers(r.nodeID, r.now().UTC()) {
@@ -584,7 +585,7 @@ func (c *Client) sendHeartbeat(ctx context.Context, seq *uint64) {
 		}
 		health.Details["rejected_cp_frames"] = strconv.FormatUint(rejected, 10)
 	}
-	hb := &channelv1.Heartbeat{
+	hb := &sharedv1.Heartbeat{
 		NodeId:   c.cfg.NodeID,
 		Sequence: *seq,
 		Health:   health,
@@ -604,15 +605,15 @@ func (c *Client) sendHeartbeat(ctx context.Context, seq *uint64) {
 		}
 		return
 	}
-	if resp.Msg.GetCompatibility() == channelv1.CompatibilityStatus_COMPATIBILITY_STATUS_NEEDS_UPDATE {
+	if resp.Msg.GetCompatibility() == sharedv1.CompatibilityStatus_COMPATIBILITY_STATUS_NEEDS_UPDATE {
 		c.logger.Printf("channel: heartbeat verdict NEEDS_UPDATE — update the agent to receive jobs")
 	}
 }
 
 // snapshotToProto translates the agent's health.Snapshot into the wire
 // HealthSnapshot.
-func snapshotToProto(s health.Snapshot) *channelv1.HealthSnapshot {
-	out := &channelv1.HealthSnapshot{
+func snapshotToProto(s health.Snapshot) *sharedv1.HealthSnapshot {
+	out := &sharedv1.HealthSnapshot{
 		ToolchainPresent:   s.ToolchainPresent,
 		DiskHeadroomBytes:  s.DiskHeadroomBytes,
 		ContainerRuntimeUp: s.ContainerRuntimeUp,

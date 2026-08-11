@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
 
 // [REQ:BRG-P0-004] End-to-end with the REAL os/exec command runner (no fake
@@ -41,9 +42,9 @@ func TestRunner_RealExecNoShell(t *testing.T) {
 	var exitCode int32 = -1
 	for _, ev := range rep.events {
 		switch ev.Kind {
-		case channelv1.RunEventKind_RUN_EVENT_KIND_LOG:
+		case sharedv1.RunEventKind_RUN_EVENT_KIND_LOG:
 			gotLog += ev.LogChunk
-		case channelv1.RunEventKind_RUN_EVENT_KIND_EXIT:
+		case sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT:
 			exitCode = ev.ExitCode
 		}
 	}

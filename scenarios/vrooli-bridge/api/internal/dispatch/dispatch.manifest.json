@@ -7,6 +7,9 @@
     {"verb": "scenario stop", "effect": "write"},
     {"verb": "scenario status", "effect": "read"},
     {"verb": "scenario logs", "effect": "read"},
-    {"verb": "scenario screenshot", "effect": "write", "outputs": [{"name": "screenshot.png", "media_type": "image/png", "output_flag": "--output", "max_bytes": 33554432}]}
+    {"verb": "scenario screenshot", "effect": "write", "outputs": [{"name": "screenshot.png", "media_type": "image/png", "output_flag": "--output", "max_bytes": 33554432}]},
+    {"verb": "device-control observe", "effect": "read"},
+    {"verb": "device-control actuate", "effect": "write"},
+    {"verb": "device-control flow", "effect": "write"}
   ]
 }

@@ -25,4 +25,9 @@ describe("bridge readiness API", () => {
     await expect(performBridgeFirewallAction("allow", "192.0.2.5", true)).resolves.toMatchObject({ status: "allowed", changed: true });
     expect(authedFetch).toHaveBeenLastCalledWith(expect.stringMatching(/\/readiness\/firewall$/), expect.objectContaining({ method: "POST", body: JSON.stringify({ action: "allow", candidate_ip: "192.0.2.5", confirm: true }) }));
   });
+
+  it("rejects a failed firewall action response", async () => {
+    authedFetch.mockResolvedValue({ ok: false });
+    await expect(performBridgeFirewallAction("inspect", "192.0.2.10")).rejects.toThrow("readiness failed");
+  });
 });

@@ -15,7 +15,7 @@ import {
   RunEventSchema,
   RunEventKind,
   type RunEvent,
-} from "@vrooli/proto-types/vrooli-bridge/v1/channel/channel_pb";
+} from "@vrooli/proto-types/vrooli-bridge/v1/shared/shared_pb";
 
 export const makeRun = (overrides: MessageInitShape<typeof RunSchema> = {}): Run =>
   create(RunSchema, {

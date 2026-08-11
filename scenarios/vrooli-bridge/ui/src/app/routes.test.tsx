@@ -8,7 +8,7 @@ import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
-import { TestAppRouter } from "./routes";
+import { AppRouter, TestAppRouter } from "./routes";
 
 describe("AppRouter", () => {
   afterEach(() => {
@@ -23,5 +23,10 @@ describe("AppRouter", () => {
   it("renders the settings page at /settings", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
+  });
+
+  it("creates the production browser router", () => {
+    renderWithProviders(<AppRouter />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
   });
 });

@@ -206,7 +206,18 @@ func (s *service) WaitGate(ctx context.Context, id string, timeout time.Duration
 }
 
 func (s *service) ListGates(ctx context.Context, filter ListFilter) ([]Gate, error) {
-	return s.repo.List(ctx, filter)
+	gates, err := s.repo.List(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	for i, g := range gates {
+		stored, err := s.repo.Results(ctx, g.ID)
+		if err != nil {
+			return nil, err
+		}
+		gates[i] = applyVerdict(g, s.refresh(ctx, stored))
+	}
+	return gates, nil
 }
 
 // refresh recomputes the still-PENDING results against the live run state

@@ -5,7 +5,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -30,6 +33,12 @@ func (osCommandRunner) Run(ctx context.Context, argv []string, dir string, onLog
 	// allowlisted-verb execution path, not a shell.
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Dir = dir
+	// Native service managers intentionally provide a minimal PATH. The Vrooli
+	// CLI is often an absolute path in that environment, but its typed commands
+	// may invoke the host Go/toolchain binaries. Reconstruct the project-owned
+	// toolchain locations that bootstrap already treats as authoritative so a
+	// background node behaves like the same node in an interactive shell.
+	cmd.Env = commandEnvironment(argv[0])
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -61,6 +70,54 @@ func (osCommandRunner) Run(ctx context.Context, argv []string, dir string, onLog
 	}
 	// ctx cancellation / kill / start failure surfaces here.
 	return startFailureExitCode, err
+}
+
+func commandEnvironment(binary string) []string {
+	env := os.Environ()
+	currentPath := os.Getenv("PATH")
+	paths := make([]string, 0, 8)
+	add := func(path string) {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			return
+		}
+		if _, err := os.Stat(path); err != nil {
+			return
+		}
+		for _, existing := range paths {
+			if existing == path {
+				return
+			}
+		}
+		paths = append(paths, path)
+	}
+
+	if binaryDir := filepath.Dir(binary); binaryDir != "." {
+		add(binaryDir)
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		add(filepath.Join(home, ".vrooli", "bin"))
+		add(filepath.Join(home, ".local", "bin"))
+		add(filepath.Join(home, "go", "bin"))
+	}
+	for _, path := range []string{"/usr/local/go/bin", "/opt/homebrew/bin", "/usr/local/bin"} {
+		add(path)
+	}
+
+	for _, existing := range strings.Split(currentPath, string(os.PathListSeparator)) {
+		add(existing)
+	}
+	if len(paths) == 0 {
+		return env
+	}
+	pathValue := strings.Join(paths, string(os.PathListSeparator))
+	for i, value := range env {
+		if strings.HasPrefix(value, "PATH=") {
+			env[i] = "PATH=" + pathValue
+			return env
+		}
+	}
+	return append(env, "PATH="+pathValue)
 }
 
 // streamLines reads r line-by-line and forwards each line (with its trailing

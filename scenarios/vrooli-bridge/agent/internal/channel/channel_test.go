@@ -25,6 +25,7 @@ import (
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence/presence_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
 
 func TestHandshake_ReflectsConfigAndBuildTarget(t *testing.T) {
@@ -60,7 +61,7 @@ func TestProtocolVersionMatchesProto(t *testing.T) {
 // the live-dial test drives — no real control plane needed.
 type fakeControlPlane struct {
 	mu           sync.Mutex
-	heartbeats   []*channelv1.Heartbeat
+	heartbeats   []*sharedv1.Heartbeat
 	hbAuthSig    string // X-Bridge-Sig of the most recent heartbeat
 	hbAuthNode   string
 	hbAuthTS     string
@@ -85,7 +86,7 @@ func (f *fakeControlPlane) ReportHeartbeat(_ context.Context, req *connect.Reque
 	f.hbAuthTS = req.Header().Get("X-Bridge-Ts")
 	f.mu.Unlock()
 	return connect.NewResponse(&presencev1.ReportHeartbeatResponse{
-		Compatibility: channelv1.CompatibilityStatus_COMPATIBILITY_STATUS_OK,
+		Compatibility: sharedv1.CompatibilityStatus_COMPATIBILITY_STATUS_OK,
 	}), nil
 }
 
