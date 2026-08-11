@@ -45,8 +45,11 @@ export function GraphActionLauncher({
       <BottomSheet
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        title="Quick Capture"
-        description="Choose how to capture, plan, or move Swarm Manager work forward."
+        // The sheet is not itself Quick Capture — that is one of five entries
+        // inside it, and naming the container after its first child made the
+        // other four read as sub-options of a capture.
+        title="Start something"
+        description="Capture a thought, plan new work, move what exists, or improve how you and agents work together."
         contentClassName="px-0 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
         data-testid="graph-action-menu"
       >

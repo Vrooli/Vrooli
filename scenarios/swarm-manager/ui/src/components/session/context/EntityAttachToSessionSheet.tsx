@@ -137,7 +137,7 @@ function EntityAttachToSessionSheetContent({
       stageContextForSession(session.id, option);
       if (selectedSuggestion) {
         // The detail page restores this like any saved composer draft.
-        writeSessionDraft(session.id, selectedSuggestion.text);
+        writeSessionDraft(session.id, selectedSuggestion.prompt);
       } else if (proposalMode) {
         writeSessionDraft(session.id, `Review ${option.title || option.ref} and return a validated mutation_list proposal.`);
       }
@@ -293,7 +293,7 @@ function EntityAttachToSessionSheetContent({
                         <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-cyan-500/20 bg-cyan-500/10 text-cyan-200">
                           <Icon className="h-3.5 w-3.5" />
                         </span>
-                        <span className="min-w-0"><span className="block text-sm leading-5">{suggestion.text}</span>{suggestion.detail && <span className="mt-0.5 block text-xs leading-4 text-slate-400">{suggestion.detail}</span>}</span>
+                        <span className="min-w-0"><span className="block text-sm leading-5">{suggestion.label}</span>{suggestion.detail && <span className="mt-0.5 block text-xs leading-4 text-slate-400">{suggestion.detail}</span>}</span>
                       </button>
                     );
                   })}</div>

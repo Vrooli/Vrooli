@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -260,28 +262,168 @@ func (r *Resolver) portfolioStartupBrief(limits agentsessions.ContextLimits) (ag
 	return startupContextItem(agentsessions.KindMetaOrchestration, "Portfolio startup brief", b.String(), "/goals", metadata, limits)
 }
 
-// workflowAuthoringStartupBrief gives the authoring conversation the durable
-// operating model and the current declared catalog, without asking the agent
-// to infer its authority from a broad project snapshot.
+// workflowAuthoringStartupBrief gives the improve-the-system conversation the
+// state a meta discussion actually starts from: the design records that settled
+// earlier decisions, the live session/prompt architecture, and the goals a
+// system proposal can land under.
+//
+// The brief this replaced carried no state at all — a hardcoded paragraph and
+// two shell commands — so every conversation of this kind began by asking the
+// agent to go read files. Precedent is the scarce resource here: Vrooli has
+// usually solved its own problem once already, somewhere else in the repo.
 func (r *Resolver) workflowAuthoringStartupBrief(limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
 	now := time.Now().UTC()
+	records, recordErr := r.designRecords()
+	systemGoals, goalErr := r.systemGoalCandidates()
+	warnings := warningStrings(recordErr, goalErr)
+
+	var b strings.Builder
+	b.WriteString("This session changes the machine, not the product: skills, prompts, workflows, transitions, briefs, session surfaces, and agent profiles. Product features belong in a Plan Work session.\n\n")
+
+	b.WriteString("Search for precedent before designing. A solved instance elsewhere in the repo outranks a fresh design:\n")
+	b.WriteString("  search-hub query \"<the operator's problem>\" --type record,skill,doc\n\n")
+
+	if len(records) > 0 {
+		fmt.Fprintf(&b, "Design records (%d) — durable decisions from earlier sessions of this kind:\n", len(records))
+		for _, record := range take(records, startupBriefItemLimit) {
+			fmt.Fprintf(&b, "- %s — %s\n", record.Path, record.Title)
+		}
+		b.WriteString("Read the relevant record before proposing. It carries decisions the code does not state.\n\n")
+	}
+
+	b.WriteString("Live session architecture:\n")
+	for _, row := range sessionArchitectureRows() {
+		fmt.Fprintf(&b, "- %s: skill=%s brief-freshness=%ds\n", row.Kind, row.Skill, row.FreshnessSeconds)
+	}
+	b.WriteString("Session prompts are assembled in api/internal/agentsessions/service_prompts.go on a volatility gradient; section kinds are registered in prompt_sections.go.\n\n")
+
+	if len(systemGoals) > 0 {
+		fmt.Fprintf(&b, "Goals a system proposal could land under (name-prefix match on \"swarm-manager-\", not an authoritative classification) — %d:\n", len(systemGoals))
+		for _, goal := range take(systemGoals, startupBriefItemLimit) {
+			fmt.Fprintf(&b, "- goal:%s [%s priority=%d]: %s\n", goal.Name, goal.Status, goal.Priority, goal.Title)
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("Authoritative references:\n- docs/internal/SESSION-ARCHITECTURE-DESIGN-RECORD.md\n- docs/concepts/TARGET-OPERATING-MODEL.md\n- .vrooli/swarm-transitions/registry.json\n- .vrooli/agent-manager/*.json\n")
+
 	metadata := startupBriefMetadata{
 		Kind:             string(agentsessions.KindWorkflowAuthoring),
 		GeneratedAt:      now.Format(time.RFC3339),
 		StaleAfter:       now.Add(startupBriefFreshnessModeSeconds * time.Second).Format(time.RFC3339),
 		FreshnessSeconds: startupBriefFreshnessModeSeconds,
+		SourceCounts: map[string]int{
+			"design_records": len(records),
+			"system_goals":   len(systemGoals),
+		},
 		RecommendedNextActions: []briefAction{
-			{ID: "read-operating-model", Label: "Read the target operating model", Reason: "Establish the session/workflow boundary before proposing a change.", Command: "sed -n '1,220p' docs/concepts/TARGET-OPERATING-MODEL.md"},
+			{ID: "search-precedent", Label: "Search for precedent first", Reason: "Vrooli has usually solved this problem once already in another scenario.", Command: "search-hub query \"<problem>\" --type record,skill,doc"},
+			{ID: "read-design-record", Label: "Read the relevant design record", Reason: "Earlier sessions of this kind settled decisions the code does not state.", Command: "ls docs/internal/*DESIGN-RECORD.md"},
 			{ID: "inspect-transition-catalog", Label: "Inspect registered transitions", Reason: "Prefer improving an existing declared transition over inventing a parallel method.", Command: "cat .vrooli/swarm-transitions/registry.json"},
 		},
 		DrillDownCommands: []briefDrillDownCommand{
+			{Label: "Cross-repo precedent", Command: "search-hub query \"<problem>\" --type record,skill,doc"},
+			{Label: "Design records", Command: "ls docs/internal/*DESIGN-RECORD.md"},
+			{Label: "Session architecture design record", Command: "sed -n '1,120p' docs/internal/SESSION-ARCHITECTURE-DESIGN-RECORD.md"},
 			{Label: "Target operating model", Command: "sed -n '1,220p' docs/concepts/TARGET-OPERATING-MODEL.md"},
 			{Label: "Transition registry", Command: "cat .vrooli/swarm-transitions/registry.json"},
 			{Label: "Workflow declarations", Command: "find .vrooli/agent-manager -maxdepth 1 -name '*.json' -print"},
+			{Label: "Session skills", Command: "prompt-manager skill read swarm-manager-workflow-authoring"},
 		},
+		Warnings: warnings,
 	}
-	summary := "Workflow authoring is a human-led design conversation. Use it to compare a natural agent-working method with Swarm's target operating model and declared transition catalog. Propose an existing-workflow improvement, a new reviewed transition/workflow, or a backlog item when Swarm lacks the required deterministic domain adapter. Do not treat this session as permission to execute or silently mutate workflow declarations.\n\nAuthoritative references:\n- docs/concepts/TARGET-OPERATING-MODEL.md\n- .vrooli/swarm-transitions/registry.json\n- .vrooli/agent-manager/*.json\n"
-	return startupContextItem(agentsessions.KindWorkflowAuthoring, "Workflow authoring startup brief", summary, "/sessions", metadata, limits)
+	return startupContextItem(agentsessions.KindWorkflowAuthoring, "Improve the system startup brief", b.String(), "/sessions", metadata, limits)
+}
+
+// designRecordRef is one discovered design record under docs/internal/.
+type designRecordRef struct {
+	Path  string
+	Title string
+}
+
+// designRecords finds the durable design records this scenario has accumulated.
+// They are the output artifact of previous improve-the-system sessions, so a
+// new session of that kind should start by knowing which ones exist.
+func (r *Resolver) designRecords() ([]designRecordRef, error) {
+	dir := filepath.Join(r.scenariosDir, "swarm-manager", "docs", "internal")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("design records unavailable: %w", err)
+	}
+	var records []designRecordRef
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".md") || !strings.Contains(name, "DESIGN-RECORD") {
+			continue
+		}
+		path := filepath.Join(dir, name)
+		records = append(records, designRecordRef{
+			Path:  filepath.Join("docs", "internal", name),
+			Title: firstMarkdownHeading(path, name),
+		})
+	}
+	sort.Slice(records, func(i, j int) bool { return records[i].Path < records[j].Path })
+	return records, nil
+}
+
+// firstMarkdownHeading reads a file's first level-one heading, falling back to
+// the filename. A record whose title cannot be read is still worth listing.
+func firstMarkdownHeading(path, fallback string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fallback
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "# ") {
+			return strings.TrimSpace(strings.TrimPrefix(trimmed, "# "))
+		}
+	}
+	return fallback
+}
+
+// systemGoalCandidates lists goals whose name marks them as owning work on the
+// system itself. This is a name-prefix heuristic, not an authoritative
+// classification — goals carry no subject field — and the brief says so.
+func (r *Resolver) systemGoalCandidates() ([]goals.Goal, error) {
+	backlogStore := backlog.NewFileStore(r.scenarioRoot)
+	goalService := goals.NewService(goals.NewStore(r.scenarioRoot), backlogStore)
+	goalList, err := goalService.List()
+	if err != nil {
+		return nil, err
+	}
+	var candidates []goals.Goal
+	for _, entry := range goalList {
+		if entry.Goal.Status == "archived" {
+			continue
+		}
+		if strings.HasPrefix(entry.Goal.Name, "swarm-manager-") {
+			candidates = append(candidates, entry.Goal)
+		}
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].Priority == candidates[j].Priority {
+			return candidates[i].Name < candidates[j].Name
+		}
+		return candidates[i].Priority > candidates[j].Priority
+	})
+	return candidates, nil
+}
+
+// sessionArchitectureRow describes one live session kind. It is derived from the
+// same constants the runtime uses, so the brief cannot drift from the code.
+type sessionArchitectureRow struct {
+	Kind             string
+	Skill            string
+	FreshnessSeconds int
+}
+
+func sessionArchitectureRows() []sessionArchitectureRow {
+	return []sessionArchitectureRow{
+		{Kind: string(agentsessions.KindMetaOrchestration), Skill: agentsessions.SkillMetaOrchestrator, FreshnessSeconds: startupBriefFreshnessPortfolioSeconds},
+		{Kind: string(agentsessions.KindSwarmOperations), Skill: agentsessions.SkillSwarmOperations, FreshnessSeconds: startupBriefFreshnessOperationsSeconds},
+		{Kind: string(agentsessions.KindWorkflowAuthoring), Skill: agentsessions.SkillWorkflowAuthoring, FreshnessSeconds: startupBriefFreshnessModeSeconds},
+	}
 }
 
 func startupContextItem(kind agentsessions.Kind, title, summary, nodeID string, metadata startupBriefMetadata, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {

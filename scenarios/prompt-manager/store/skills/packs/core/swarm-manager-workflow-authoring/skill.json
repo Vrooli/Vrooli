@@ -2,8 +2,8 @@
   "kind": "skill",
   "schemaVersion": 1,
   "id": "swarm-manager-workflow-authoring",
-  "name": "Swarm Manager Workflow Authoring Session",
-  "description": "Human-led design and review of Swarm Manager transitions, Agent Manager workflows, governed prompts, and their small deterministic domain adapters.",
+  "name": "Swarm Manager Improve The System Session",
+  "description": "Human-led design of changes to how the operator and agents work together — skills, prompts, workflows, transitions, briefs, and session surfaces — resolved in-session as a reviewed proposal, a design record, or a recorded no-change.",
   "modes": [
     "tools",
     "conversation",
@@ -13,16 +13,19 @@
   "tags": [
     "swarm-manager",
     "session",
+    "meta",
+    "improve-the-system",
     "workflow",
     "agent-manager",
     "transition-catalog",
     "authoring",
-    "proposal"
+    "proposal",
+    "design-record"
   ],
   "icon": "workflow",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 2,
+  "revision": 3,
   "createdAt": "2026-07-18T00:00:00Z",
-  "updatedAt": "2026-07-21T00:00:00Z"
+  "updatedAt": "2026-08-11T00:00:00Z"
 }

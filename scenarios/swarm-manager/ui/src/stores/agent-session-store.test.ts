@@ -48,6 +48,7 @@ describe("agent-session-store", () => {
     window.localStorage.clear();
     service = {
       list: vi.fn().mockResolvedValue([SESSION_A, SESSION_B]),
+      previewPrompt: vi.fn().mockResolvedValue({ prompt: "", initial: true }),
       get: vi.fn().mockResolvedValue(SESSION_A),
       getStartupBrief: vi.fn().mockResolvedValue({
         type: "startup_brief",

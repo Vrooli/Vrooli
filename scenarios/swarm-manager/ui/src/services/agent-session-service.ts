@@ -21,6 +21,7 @@ import {
   deleteAgentSessionResponseSchema,
   getAgentSessionResponseSchema,
   getAgentSessionStartupBriefResponseSchema,
+  previewAgentSessionPromptResponseSchema,
   getArtifactsByEntityResponseSchema,
   listAgentSessionEventsResponseSchema,
   listAgentSessionArtifactsResponseSchema,
@@ -74,10 +75,26 @@ export interface ListAgentSessionEventsResult {
   nextAfterSequence: bigint;
 }
 
+/** Inputs for assembling a prompt preview; mirrors the start/continue payload. */
+export interface PreviewSessionPromptArgs {
+  sessionId: string;
+  message: string;
+  attachmentIds?: string[];
+  contextRefs?: AgentSessionContextRef[];
+  autoContextPolicy?: string;
+}
+
+export interface SessionPromptPreview {
+  prompt: string;
+  /** True when the initial-prompt builder ran (a draft session). */
+  initial: boolean;
+}
+
 export interface IAgentSessionService {
   list(filters?: ListAgentSessionsFilters): Promise<AgentSession[]>;
   get(sessionId: string): Promise<AgentSession>;
   getStartupBrief(sessionId: string, refresh?: boolean): Promise<AgentSessionContextItem>;
+  previewPrompt(args: PreviewSessionPromptArgs): Promise<SessionPromptPreview>;
   create(args: CreateAgentSessionArgs): Promise<AgentSession>;
   start(args: ContinueAgentSessionArgs): Promise<AgentSession>;
   continue(args: ContinueAgentSessionArgs): Promise<AgentSession>;
@@ -117,6 +134,27 @@ export function createAgentSessionService(apiClient: IApiClient = defaultApiClie
         : await apiClient.get<unknown>(API_ENDPOINTS.agentSessionStartupBrief(sessionId));
       const parsed = parseProtoResponse(getAgentSessionStartupBriefResponseSchema, data, "agent session startup brief");
       return mapProtoAgentSessionContextItem(requireProtoField(parsed.brief, "startup brief"));
+    },
+
+    /**
+     * Assemble the prompt this message would produce, without sending it.
+     *
+     * The server owns assembly. Rebuilding the section order or the volatility
+     * gradient here would produce a preview that agrees with nothing.
+     */
+    async previewPrompt(args: PreviewSessionPromptArgs): Promise<SessionPromptPreview> {
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.agentSessionPromptPreview(args.sessionId), {
+        message: args.message,
+        attachment_ids: args.attachmentIds ?? [],
+        context_refs: (args.contextRefs ?? []).map((ref) => ({ type: ref.type, ref: ref.ref })),
+        ...(args.autoContextPolicy ? { auto_context_policy: args.autoContextPolicy } : {}),
+      });
+      const parsed = parseProtoResponse(
+        previewAgentSessionPromptResponseSchema,
+        data,
+        "agent session prompt preview",
+      );
+      return { prompt: parsed.prompt ?? "", initial: Boolean(parsed.initial) };
     },
 
     async create(args: CreateAgentSessionArgs): Promise<AgentSession> {

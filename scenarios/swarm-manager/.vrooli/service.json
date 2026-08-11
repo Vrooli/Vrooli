@@ -213,6 +213,7 @@
             "profileMode": "update_if_unmodified",
             "sources": [
               ".vrooli/agent-manager/default.json",
+              ".vrooli/agent-manager/session.json",
               ".vrooli/agent-manager/deep-work.json",
               ".vrooli/agent-manager/analysis.json",
               ".vrooli/agent-manager/review-evidence.json",

@@ -6,6 +6,7 @@ import type { AgentSession } from "../types";
 import { SessionDetailsPage } from "./SessionDetailsPage";
 import { createTestQueryClient, installMatchMediaMock, renderWithProviders } from "../test-utils";
 import { stageContextForSession } from "../components/session/context/pending-session-context";
+import { starterSuggestionsForKind } from "../components/session/session-starter-suggestions";
 
 const storeMock = vi.hoisted(() => {
   const initialState = {
@@ -327,16 +328,20 @@ describe("SessionDetailsPage", () => {
 
     expect(screen.getByTestId("agent-session-starter-suggestions")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /Turn this idea into goals and backlog items/i }));
+    // The card is chosen by its label but seeds the composer with its prompt.
+    // The prompt is read from the card definition rather than duplicated here:
+    // its wording is owned by session-starter-suggestions.test.ts.
+    const planCard = starterSuggestionsForKind("meta_orchestration").find((card) => card.id === "meta-plan")!;
+    await userEvent.click(screen.getByRole("button", { name: new RegExp(planCard.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") }));
 
-    expect(screen.getByTestId("agent-session-composer")).toHaveValue("Turn this idea into goals and backlog items.");
+    expect(screen.getByTestId("agent-session-composer")).toHaveValue(planCard.prompt);
 
     fireEvent.keyDown(screen.getByTestId("agent-session-composer"), { key: "Enter", ctrlKey: true });
 
     await waitFor(() => {
       expect(startSession).toHaveBeenCalledWith({
         sessionId: "sess_draft",
-        message: "Turn this idea into goals and backlog items.",
+        message: planCard.prompt.trim(),
         contextRefs: [{ type: "startup_brief", ref: "startup_brief/meta_orchestration" }],
         autoContextPolicy: "none",
       });

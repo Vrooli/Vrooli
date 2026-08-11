@@ -179,6 +179,7 @@ func (a *App) dependencies() support.Dependencies {
 		SessionsList:                a.cmdSessionsList,
 		SessionsGet:                 a.cmdSessionsGet,
 		SessionsStartupBrief:        a.cmdSessionsStartupBrief,
+		SessionsPromptPreview:       a.cmdSessionsPromptPreview,
 		SessionsDelete:              a.cmdSessionsDelete,
 		StatsSummary:                a.cmdStatsSummary,
 		StatsThroughput:             a.cmdStatsThroughput,

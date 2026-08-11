@@ -86,19 +86,37 @@ exploratory, high-context, or conversational work. An agent may propose
 changes, but it never mutates the work ledger directly; Swarm validates and
 applies a typed proposal.
 
-The session kinds remain explicit rather than becoming an untyped chat bucket:
+The session kinds remain explicit rather than becoming an untyped chat bucket.
+They divide on **subject**, and the division is a type distinction: two kinds
+operate on the work ledger, and the third operates on the machine that operates
+the ledger.
 
-| Session kind | Human goal |
-| --- | --- |
-| `meta_orchestration` | Explore a broad objective and propose milestones and/or backlog items. |
-| `swarm_operations` | Understand project status, pending decisions, and available operator actions. |
-| `workflow_authoring` | Describe a natural coding-agent method, compare it with the transition catalog, and produce a reviewed workflow or scenario-improvement proposal. |
+| Session kind | Operates on | Human goal |
+| --- | --- | --- |
+| `meta_orchestration` (Plan Work) | The product — **grows** the ledger | Shape raw material into goals, milestones, and backlog items. |
+| `swarm_operations` (Manage Swarm) | The product — **moves** the ledger | Understand true state, decide what matters most next, and start its registered transition. |
+| `workflow_authoring` (Improve the System) | **The machine, not the product** | Change how the operator and agents work together: skills, prompts, workflows, transitions, briefs, session surfaces, agent profiles. |
+
+The boundary test between the first and third: *if the change is about how the
+operator and agents work together, it is meta; if it is about what the tool does
+for its users, it is plan-work.*
+
+All three propose onto one rail. What differs is what the agent reads before it
+thinks — the same resolution reached for the `research` backlog kind: same
+lifecycle, same code, different thinking.
+
+Two invariants govern every session. **Propose, never apply**: an agent may
+recommend any change, and Swarm validates and applies a typed proposal.
+**Resolve in-session**: the outcome must be reached while the operator is
+present, and never routed to an autonomous agent's inbox or a heartbeat queue.
+That second rule is the durable line between Prompt Manager's teams
+(autonomous, deferred) and Swarm Manager's sessions (collaborative, immediate).
 
 Historical `operating_mode_authoring` sessions remain readable for attribution,
-but are not creatable or part of the active session contract. Workflow
-authoring is conversational because a human is still shaping and judging the
-method; it produces a reviewable proposal, never silent workflow mutation. A
-code-owned method becomes a declared Agent Manager workflow only after review.
+but are not creatable or part of the active session contract. Improve-the-system
+work is conversational because a human is still shaping and judging the method;
+it produces a reviewable proposal, never silent mutation. A code-owned method
+becomes a declared Agent Manager workflow only after review.
 
 ### Work shaping and completion
 

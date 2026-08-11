@@ -222,9 +222,12 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 	// Agent Manager owns declared workflow resolution and execution; Swarm only
 	// supplies its profile and required capability keys.
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
-		ProfileName:  getEnvDefault("AGENT_MANAGER_PROFILE_NAME", "swarm-manager"),
-		ProfileKey:   getEnvDefault("AGENT_MANAGER_PROFILE_KEY", "swarm-manager/default"),
-		RequiredKeys: []string{"swarm-manager/analysis", "swarm-manager/deep-work"},
+		ProfileName: getEnvDefault("AGENT_MANAGER_PROFILE_NAME", "swarm-manager"),
+		ProfileKey:  getEnvDefault("AGENT_MANAGER_PROFILE_KEY", "swarm-manager/default"),
+		// swarm-manager/session is required so a missing or unreconciled session
+		// profile fails loudly at startup, rather than at the moment an operator
+		// sends their first message and the spawn is refused.
+		RequiredKeys: []string{"swarm-manager/analysis", "swarm-manager/deep-work", "swarm-manager/session"},
 		Timeout:      30 * time.Second,
 		Enabled:      agentEnabled,
 	})
@@ -957,7 +960,12 @@ func (s *Server) registerAgentSessionRoutes(dataRoot, scenarioRoot string) {
 		Spawner:     s.requireTrackedAgentService(),
 		EventLogger: s.emitter,
 		ProjectRoot: filepath.Dir(filepath.Dir(scenarioRoot)),
-		ProfileKey:  getEnvDefault("AGENT_MANAGER_PROFILE_KEY", "swarm-manager/default"),
+		// Sessions run on their own profile, not the shared execute profile.
+		// A session investigates and proposes: it needs web research, and it
+		// has no reason to hold the file-write tools. The key is session-owned
+		// so that overriding the execute profile does not silently re-grant
+		// write access to every conversation.
+		ProfileKey: getEnvDefault("SWARM_MANAGER_SESSION_PROFILE_KEY", "swarm-manager/session"),
 	})
 	if err != nil {
 		panic(err)

@@ -10,6 +10,12 @@ export interface ComposerContextChip extends AgentSessionContextRef {
   subtitle?: string;
   /** Graph node id or route used to open the item's detail view. */
   nodeId?: string;
+  /**
+   * The resolved context body, when the client holds it. Rendered in the chip's
+   * popover so the operator can read exactly what is being sent to the agent
+   * before sending it.
+   */
+  summary?: string;
 }
 
 interface ContextChipTrayProps {
@@ -84,7 +90,7 @@ export function ContextChipTray({ items, onRemove, onOpen, constrainHeight = tru
           onClose={() => setOpenKey(null)}
           triggerRef={triggerRef}
           placement="top-start"
-          className="w-64 p-3"
+          className={cn("p-3", openItem.summary ? "w-96" : "w-64")}
           testId={testId ? `${testId}-detail` : undefined}
         >
           <p className="text-[11px] font-medium uppercase tracking-wide text-cyan-300">
@@ -95,6 +101,18 @@ export function ContextChipTray({ items, onRemove, onOpen, constrainHeight = tru
             <p className="mt-1 break-words text-xs text-slate-400">{openItem.subtitle}</p>
           )}
           <p className="mt-1 break-all text-[11px] text-slate-600">{openItem.ref}</p>
+
+          {openItem.summary && (
+            // Monospace and pre-wrap: briefs are line-oriented (counts, ranked
+            // rows, commands to copy) and reflowing them as prose destroys the
+            // structure the agent is being handed.
+            <pre
+              className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded border border-slate-800 bg-slate-950/60 p-2 font-mono text-[11px] leading-relaxed text-slate-300"
+              data-testid={testId ? `${testId}-detail-summary` : undefined}
+            >
+              {openItem.summary}
+            </pre>
+          )}
 
           <div className="mt-3 flex flex-col gap-1">
             {openPath && onOpen && (

@@ -113,6 +113,7 @@ type Dependencies struct {
 	SessionsList                CommandFunc
 	SessionsGet                 CommandFunc
 	SessionsStartupBrief        CommandFunc
+	SessionsPromptPreview       CommandFunc
 	SessionsDelete              CommandFunc
 	StatsSummary                CommandFunc
 	StatsThroughput             CommandFunc

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "swarm-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "7a1640eed2fc806f62252aafd24fb1aaa2ebc8470cb308e0f35409aec2a96bdd",
+  "manifest_hash": "ed74c606b672943a5fde630b9498b9b2075e798a93c29e6728bf0083fb4d8ee9",
   "commands": [
     {
       "path": "agent-manager metrics-sandbox-adoption",
@@ -860,6 +860,12 @@
       "path": "sessions list",
       "group": "sessions",
       "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "sessions prompt-preview",
+      "group": "sessions",
+      "command": "prompt-preview",
       "binding": "."
     },
     {

@@ -110,7 +110,12 @@ describe("EntityAttachToSessionSheet", () => {
     await waitFor(() => {
       expect(peekStagedContextForSession("sess-new")).toEqual([BACKLOG_OPTION]);
     });
-    expect(readSessionDraft("sess-new")).toBe('Plan follow-up work for "Fix flaky stats test".');
+    // The card's menu label is not the message. The draft carries the card's
+    // prompt: prose that names the entity and states the answer wanted.
+    const draft = readSessionDraft("sess-new");
+    expect(draft).not.toBe('Plan follow-up work for "Fix flaky stats test".');
+    expect(draft).toContain('"Fix flaky stats test"');
+    expect(draft.length).toBeGreaterThan(120);
   });
 
   it("drafting without a suggestion leaves the composer draft empty", async () => {
@@ -124,17 +129,19 @@ describe("EntityAttachToSessionSheet", () => {
     expect(readSessionDraft("sess-new")).toBe("");
   });
 
-  it("uses the proposal flow's five mutation lenses instead of generic session suggestions", async () => {
+  it("uses the proposal flow's mutation lenses instead of generic session suggestions", async () => {
     renderSheet({ option: GOAL_OPTION, proposalMode: true });
 
     expect(screen.getByRole("heading", { name: "Start proposal" })).toBeInTheDocument();
     expect(screen.queryByTestId(selectors.agentSessions.entityAttachKindSelect)).toBeNull();
-    expect(screen.getAllByTestId(selectors.agentSessions.entityAttachSuggestion)).toHaveLength(5);
+    // Five shaping and discovery lenses, plus the lifecycle staleness card.
+    expect(screen.getAllByTestId(selectors.agentSessions.entityAttachSuggestion)).toHaveLength(6);
     expect(screen.getByText('Split oversized items in "Goal Alpha".')).toBeInTheDocument();
     expect(screen.getByText('Merge tightly coupled items in "Goal Alpha".')).toBeInTheDocument();
     expect(screen.getByText('Identify missing work for "Goal Alpha".')).toBeInTheDocument();
-    expect(screen.getByText('Reconcile this goal with code drift: "Goal Alpha".')).toBeInTheDocument();
+    expect(screen.getByText('Reconcile "Goal Alpha" with code drift.')).toBeInTheDocument();
     expect(screen.getByText('Reframe the scope and outcomes for "Goal Alpha".')).toBeInTheDocument();
+    expect(screen.getByText('Triage "Goal Alpha" for staleness.')).toBeInTheDocument();
   });
 
   it("creates a target-bound proposal session when started from proposal mode", async () => {
@@ -150,6 +157,9 @@ describe("EntityAttachToSessionSheet", () => {
         target: { type: "goal", ref: "goal-alpha", name: "Goal Alpha" },
       });
     });
-    expect(readSessionDraft("sess-new")).toBe('Identify missing work for "Goal Alpha".');
+    const draft = readSessionDraft("sess-new");
+    expect(draft).not.toBe('Identify missing work for "Goal Alpha".');
+    expect(draft).toContain('"Goal Alpha"');
+    expect(draft.length).toBeGreaterThan(120);
   });
 });

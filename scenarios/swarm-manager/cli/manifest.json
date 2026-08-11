@@ -10,23 +10,59 @@
         {
           "name": "list",
           "description": "List declared transition capabilities",
-          "binding": {"kind": "connect-rpc", "service": "TransitionService", "method": "ListTransitions"},
-          "architecture": {"primitive": "proto_list"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TransitionService",
+            "method": "ListTransitions"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "start",
           "description": "Start a declared transition (--transition KEY --subject SUBJECT --subject-ref REF) [--json]",
-          "binding": {"kind": "connect-rpc", "service": "TransitionService", "method": "StartTransition"},
-          "architecture": {"primitive": "proto_mutation"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TransitionService",
+            "method": "StartTransition"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "apply",
           "description": "Apply a completed declared transition (--transition KEY --execution-id ID) [--json]",
-          "binding": {"kind": "connect-rpc", "service": "TransitionService", "method": "ApplyTransition"},
-          "architecture": {"primitive": "proto_mutation"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TransitionService",
+            "method": "ApplyTransition"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -89,9 +125,21 @@
         {
           "name": "criteria-set",
           "description": "Replace typed acceptance criteria (--kind KIND --name NAME --criteria JSON)",
-          "binding": {"kind": "connect-rpc", "service": "BacklogService", "method": "UpdateItem"},
-          "architecture": {"primitive": "proto_mutation"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BacklogService",
+            "method": "UpdateItem"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "create",
@@ -143,12 +191,14 @@
         {
           "name": "dismiss",
           "description": "Dismiss a suggested auto-filer item (--kind KIND --name NAME [--reason MSG])",
-      "binding": {
-        "kind": "connect-rpc",
-        "service": "AutoFilerService",
-        "method": "DismissSuggestion"
-      },
-      "architecture": {"primitive": "proto_mutation"},
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AutoFilerService",
+            "method": "DismissSuggestion"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -333,7 +383,9 @@
             "service": "BacklogService",
             "method": "DecideAttempt"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -344,7 +396,7 @@
         },
         {
           "name": "recover-review",
-          "description": "Recover an item stranded in_review with no live review round → review_pending (default) or backlog (--kind KIND --name NAME [--to review_pending|backlog] [--rationale MSG])",
+          "description": "Recover an item stranded in_review with no live review round \u2192 review_pending (default) or backlog (--kind KIND --name NAME [--to review_pending|backlog] [--rationale MSG])",
           "binding": {
             "kind": "local"
           },
@@ -848,7 +900,9 @@
             "service": "EvidenceService",
             "method": "ListRun"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -865,7 +919,9 @@
             "service": "EvidenceService",
             "method": "ListEntity"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -882,7 +938,9 @@
             "service": "EvidenceService",
             "method": "Reconcile"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -899,7 +957,9 @@
             "service": "EvidenceService",
             "method": "RecordOperatorVerification"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1040,7 +1100,9 @@
             "service": "GoalService",
             "method": "ListGoals"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -1057,7 +1119,9 @@
             "service": "GoalService",
             "method": "GetGoal"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -1074,7 +1138,9 @@
             "service": "GoalService",
             "method": "CreateGoal"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1091,7 +1157,9 @@
             "service": "GoalService",
             "method": "UpdateGoal"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1108,7 +1176,9 @@
             "service": "GoalService",
             "method": "DeleteGoal"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1125,7 +1195,9 @@
             "service": "GoalService",
             "method": "ArchiveGoal"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1142,7 +1214,9 @@
             "service": "GoalService",
             "method": "UnarchiveGoal"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1159,7 +1233,9 @@
             "service": "GoalService",
             "method": "GetScope"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -1176,7 +1252,9 @@
             "service": "GoalService",
             "method": "AddTargets"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1193,7 +1271,9 @@
             "service": "GoalService",
             "method": "RemoveTargets"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1238,7 +1318,9 @@
             "service": "GoalService",
             "method": "ListPendingGoalWorkflows"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -1255,7 +1337,9 @@
             "service": "GoalService",
             "method": "ApplyGoalWorkflow"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1272,7 +1356,9 @@
             "service": "GoalService",
             "method": "CloseOutGoal"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1295,7 +1381,9 @@
             "service": "GoalService",
             "method": "CreateMilestone"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1312,7 +1400,9 @@
             "service": "GoalService",
             "method": "UpdateMilestone"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1329,7 +1419,9 @@
             "service": "GoalService",
             "method": "AssignMilestoneItems"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1346,7 +1438,9 @@
             "service": "GoalService",
             "method": "UnassignMilestoneItems"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1363,7 +1457,9 @@
             "service": "GoalService",
             "method": "ArchiveMilestone"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -1693,8 +1789,16 @@
         {
           "name": "metrics-sandbox-adoption",
           "description": "Show sandbox-default rollout adoption from agent-manager metrics",
-          "binding": {"kind": "local"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -1799,6 +1903,20 @@
           }
         },
         {
+          "name": "prompt-preview",
+          "description": "Show the prompt a message would send, without sending it (--id ID) [--message TEXT] [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "delete",
           "description": "Delete an agent session (--id ID --yes) [--json]",
           "binding": {
@@ -1818,12 +1936,90 @@
       "name": "stats",
       "description": "Event-driven operational analytics backed by the incremental Stats projection",
       "commands": [
-        {"name": "summary", "description": "Full Stats dashboard", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "throughput", "description": "Stats throughput analysis", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "blocking", "description": "Stats blocking analysis", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "milestones", "description": "Stats milestone health", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "agent", "description": "Stats agent efficiency analysis", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "sessions", "description": "Stats native agent-session analysis", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}}
+        {
+          "name": "summary",
+          "description": "Full Stats dashboard",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "throughput",
+          "description": "Stats throughput analysis",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "blocking",
+          "description": "Stats blocking analysis",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "milestones",
+          "description": "Stats milestone health",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "agent",
+          "description": "Stats agent efficiency analysis",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "sessions",
+          "description": "Stats native agent-session analysis",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
       ]
     },
     {
@@ -1838,7 +2034,9 @@
             "service": "MeasuresService",
             "method": "CountBacklogCompleted"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -1876,7 +2074,9 @@
             "service": "MeasuresService",
             "method": "CountBacklogCreated"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -1914,11 +2114,15 @@
             "service": "MeasuresService",
             "method": "CountBacklogNetDelta"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "measure": {
             "domain": "backlog",
@@ -1943,19 +2147,40 @@
           }
         },
         {
-	      "name": "goal-milestone-health",
-	      "description": "What is the current delivery health of each milestone.",
-	      "binding": {"kind": "connect-rpc", "service": "MeasuresService", "method": "GoalMilestoneHealth"},
-	      "architecture": {"primitive": "proto_list"},
-	      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-	      "measure": {
-	        "domain": "goal",
-	        "intent": "What is the current delivery health of each milestone.",
-	        "questions": ["which milestones have blocked work", "current milestone completion health", "how much work remains in each milestone"],
-	        "result": {"kind": "table", "value_field": "milestone", "unit": "milestones", "summary_template": "current health for {count} milestones"}
-	      }
-	    },
-	    {
+          "name": "goal-milestone-health",
+          "description": "What is the current delivery health of each milestone.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "GoalMilestoneHealth"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "goal",
+            "intent": "What is the current delivery health of each milestone.",
+            "questions": [
+              "which milestones have blocked work",
+              "current milestone completion health",
+              "how much work remains in each milestone"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "milestone",
+              "unit": "milestones",
+              "summary_template": "current health for {count} milestones"
+            }
+          }
+        },
+        {
           "name": "backlog-open",
           "description": "How many actionable backlog items are currently open.",
           "binding": {
@@ -1963,11 +2188,15 @@
             "service": "MeasuresService",
             "method": "CountBacklogOpen"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "measure": {
             "domain": "backlog",
@@ -1993,11 +2222,15 @@
             "service": "MeasuresService",
             "method": "CountBacklogBlocked"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "measure": {
             "domain": "backlog",
@@ -2016,20 +2249,46 @@
           }
         },
         {
-	      "name": "backlog-lead-time",
-	      "description": "How long completed backlog items took from creation to completion.",
-	      "binding": {"kind": "connect-rpc", "service": "MeasuresService", "method": "BacklogLeadTime"},
-	      "architecture": {"primitive": "proto_list"},
-	      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-	      "measure": {
-	        "domain": "backlog",
-	        "intent": "How long completed backlog items took from creation to completion.",
-	        "questions": ["what is the average backlog lead time this week", "how long did completed work items take last month", "median time from backlog creation to completion"],
-	        "params": {"window": {"type": "time_window", "default": "this_week"}},
-	        "result": {"kind": "scalar", "value_field": "average", "unit": "hours", "summary_template": "{average} average backlog lead-time hours ({window})"}
-	      }
-	    },
-	    {
+          "name": "backlog-lead-time",
+          "description": "How long completed backlog items took from creation to completion.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "BacklogLeadTime"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "backlog",
+            "intent": "How long completed backlog items took from creation to completion.",
+            "questions": [
+              "what is the average backlog lead time this week",
+              "how long did completed work items take last month",
+              "median time from backlog creation to completion"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "average",
+              "unit": "hours",
+              "summary_template": "{average} average backlog lead-time hours ({window})"
+            }
+          }
+        },
+        {
           "name": "agent-session-proposal-rate",
           "description": "What proportion of agent-session proposals were applied in a time window.",
           "binding": {
@@ -2037,11 +2296,15 @@
             "service": "MeasuresService",
             "method": "AgentSessionProposalRate"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "measure": {
             "domain": "agent_session",
@@ -2073,11 +2336,15 @@
             "service": "MeasuresService",
             "method": "ExecutionSuccessRate"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "measure": {
             "domain": "execution",
@@ -2102,34 +2369,86 @@
           }
         },
         {
-	      "name": "execution-duration",
-	      "description": "How long completed executions ran.",
-	      "binding": {"kind": "connect-rpc", "service": "MeasuresService", "method": "ExecutionDuration"},
-	      "architecture": {"primitive": "proto_list"},
-	      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-	      "measure": {
-	        "domain": "execution",
-	        "intent": "How long completed executions ran.",
-	        "questions": ["what is the average execution duration this week", "how long did agent executions run last month", "median execution duration in the last 30 days"],
-	        "params": {"window": {"type": "time_window", "default": "this_week"}},
-	        "result": {"kind": "scalar", "value_field": "average", "unit": "minutes", "summary_template": "{average} average execution minutes ({window})"}
-	      }
-	    },
-	    {
-	      "name": "execution-review-rate",
-	      "description": "What proportion of terminal executions completed at least one review round.",
-	      "binding": {"kind": "connect-rpc", "service": "MeasuresService", "method": "ExecutionReviewRate"},
-	      "architecture": {"primitive": "proto_list"},
-	      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-	      "measure": {
-	        "domain": "execution",
-	        "intent": "What proportion of terminal executions completed at least one review round.",
-	        "questions": ["what percentage of executions received a completed review this week", "execution review rate last month", "how often do terminal runs reach a review round"],
-	        "params": {"window": {"type": "time_window", "default": "this_week"}},
-	        "result": {"kind": "scalar", "value_field": "rate", "unit": "ratio", "summary_template": "{rate} execution review rate ({window})"}
-	      }
-	    },
-	    {
+          "name": "execution-duration",
+          "description": "How long completed executions ran.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "ExecutionDuration"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "execution",
+            "intent": "How long completed executions ran.",
+            "questions": [
+              "what is the average execution duration this week",
+              "how long did agent executions run last month",
+              "median execution duration in the last 30 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "average",
+              "unit": "minutes",
+              "summary_template": "{average} average execution minutes ({window})"
+            }
+          }
+        },
+        {
+          "name": "execution-review-rate",
+          "description": "What proportion of terminal executions completed at least one review round.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "ExecutionReviewRate"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "execution",
+            "intent": "What proportion of terminal executions completed at least one review round.",
+            "questions": [
+              "what percentage of executions received a completed review this week",
+              "execution review rate last month",
+              "how often do terminal runs reach a review round"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} execution review rate ({window})"
+            }
+          }
+        },
+        {
           "name": "execution-completed",
           "description": "How many executions completed in a time window.",
           "binding": {
@@ -2137,7 +2456,9 @@
             "service": "MeasuresService",
             "method": "CountExecutionsCompleted"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -2175,7 +2496,9 @@
             "service": "MeasuresService",
             "method": "CountGoalsCreated"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -2213,7 +2536,9 @@
             "service": "MeasuresService",
             "method": "CountAgentSessionsCreated"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -2251,11 +2576,15 @@
             "service": "MeasuresService",
             "method": "CountPlanRefs"
           },
-          "architecture": {"primitive": "proto_list"},
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "measure": {
             "domain": "plan_ref",
@@ -2296,12 +2625,14 @@
         {
           "name": "related",
           "description": "Find related work (<backlog|goal> <name> or backlog <kind> <name>)",
-      "binding": {
-        "kind": "connect-rpc",
-        "service": "RelatedService",
-        "method": "GetRelated"
-      },
-      "architecture": {"primitive": "proto_list"},
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RelatedService",
+            "method": "GetRelated"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -2380,7 +2711,9 @@
             "service": "AutoFilerService",
             "method": "GetStatus"
           },
-          "architecture": {"primitive": "operational"},
+          "architecture": {
+            "primitive": "operational"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -2397,7 +2730,9 @@
             "service": "AutoFilerService",
             "method": "RunNow"
           },
-          "architecture": {"primitive": "proto_mutation"},
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,

@@ -229,3 +229,48 @@ func (a *App) cmdSessionsDelete(args []string) error {
 	fmt.Println("  Created backlog items, milestones, captures, files, and agent activity records were preserved.")
 	return nil
 }
+
+type cliPromptPreviewResponse struct {
+	Prompt  string `json:"prompt"`
+	Initial bool   `json:"initial"`
+}
+
+// cmdSessionsPromptPreview prints the prompt a message would produce without
+// sending it. Assembly is server-owned, so this is the authoritative view of
+// what an agent actually receives.
+func (a *App) cmdSessionsPromptPreview(args []string) error {
+	fs := flag.NewFlagSet("sessions prompt-preview", flag.ContinueOnError)
+	idFlag := fs.String("id", "", "Session ID")
+	messageFlag := fs.String("message", "", "Draft message to preview")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("id", *idFlag); err != nil {
+		return fmt.Errorf("usage: sessions prompt-preview --id ID [--message TEXT] [--json]\n\n%s", err)
+	}
+	id := strings.TrimSpace(*idFlag)
+
+	payload := map[string]any{"message": *messageFlag}
+	body, err := a.core.Request("POST", "/agent-sessions/"+id+"/prompt-preview", nil, payload)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	response, err := decodeResponse[cliPromptPreviewResponse](body)
+	if err != nil {
+		return err
+	}
+	printSection("Summary")
+	builder := "continuation"
+	if response.Initial {
+		builder = "initial"
+	}
+	fmt.Printf("  %s prompt, %d characters\n", builder, len(response.Prompt))
+	printSection("Prompt")
+	fmt.Println(response.Prompt)
+	return nil
+}

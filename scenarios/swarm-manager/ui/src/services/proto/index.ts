@@ -78,6 +78,7 @@ export {
   listAgentSessionsResponseSchema,
   getAgentSessionResponseSchema,
   getAgentSessionStartupBriefResponseSchema,
+  previewAgentSessionPromptResponseSchema,
   createAgentSessionResponseSchema,
   startAgentSessionResponseSchema,
   continueAgentSessionResponseSchema,

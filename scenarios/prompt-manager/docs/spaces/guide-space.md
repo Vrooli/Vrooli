@@ -4,6 +4,14 @@
 > is computed are defined once in `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`.
 > This document is the *Guide* denominator only.
 
+> **Condition** — every cell that resolves `NOW` here puts its **skill** into the Condition
+> population, and `prompt-manager` owes that skill's serving, freshness, and exercise signals as
+> declared Measures. Graph health scores measure *authored quality*, not serving behavior, so they
+> do not satisfy the serving family on their own. Per-skill exercise is also the direct input to
+> the skill staleness window in `path:docs/agent-system/DEPRECATION_POLICY.md`, which currently
+> resolves it by reference-grep rather than measured reads. The model and the required signals are
+> in `meta-optimization-manager/docs/concepts/CONDITION-MODEL.md`.
+
 ## Purpose
 
 The **denominator** for the *Guide* projection: the space of software-engineering tasks an agent

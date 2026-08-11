@@ -93,8 +93,49 @@ func TestWorkflowAuthoringStartupBriefStatesBoundaryAndReferences(t *testing.T) 
 	if item.Ref != agentsessions.StartupBriefWorkflowAuthoringRef {
 		t.Fatalf("ref = %q, want %q", item.Ref, agentsessions.StartupBriefWorkflowAuthoringRef)
 	}
-	if !strings.Contains(item.Summary, "human-led design conversation") || !strings.Contains(item.Summary, "Do not treat this session as permission") {
-		t.Fatalf("summary did not state authoring boundary: %s", item.Summary)
+	// The brief must state the object/meta boundary, because choosing the wrong
+	// session kind is the failure this brief exists to prevent.
+	if !strings.Contains(item.Summary, "the machine, not the product") ||
+		!strings.Contains(item.Summary, "Plan Work session") {
+		t.Fatalf("summary did not state the object/meta boundary: %s", item.Summary)
+	}
+	// Precedent search comes before design: the scarce resource in a meta
+	// conversation is knowing the problem was already solved elsewhere.
+	if !strings.Contains(item.Summary, "search-hub query") {
+		t.Fatalf("summary did not direct the agent to search for precedent: %s", item.Summary)
+	}
+	// The live architecture is derived from runtime constants so the brief
+	// cannot drift from the code it describes.
+	if !strings.Contains(item.Summary, agentsessions.SkillWorkflowAuthoring) {
+		t.Fatalf("summary omitted the live session architecture: %s", item.Summary)
+	}
+	if !strings.Contains(item.Summary, "SESSION-ARCHITECTURE-DESIGN-RECORD.md") {
+		t.Fatalf("summary omitted the authoritative references: %s", item.Summary)
+	}
+}
+
+// The resolver is pointed at paths that do not exist. A missing design-record
+// directory or goal store must degrade to a usable brief with a recorded
+// warning, never to a failed session start.
+func TestWorkflowAuthoringStartupBriefDegradesWhenSourcesAreMissing(t *testing.T) {
+	r := NewResolver("/tmp/does-not-exist-scenario", "/tmp/does-not-exist-scenarios", nil)
+	item, err := r.ResolveSessionStartupBrief(context.Background(), agentsessions.KindWorkflowAuthoring, agentsessions.ContextLimits{MaxSummaryRunes: 4000})
+	if err != nil {
+		t.Fatalf("brief must not fail when its optional sources are unreadable: %v", err)
+	}
+	if strings.TrimSpace(item.Summary) == "" {
+		t.Fatal("brief degraded to an empty summary")
+	}
+
+	var meta startupBriefMetadata
+	if err := json.Unmarshal([]byte(item.MetadataJSON), &meta); err != nil {
+		t.Fatalf("metadata: %v", err)
+	}
+	if len(meta.Warnings) == 0 {
+		t.Error("unreadable design-record directory produced no warning; the gap would be invisible")
+	}
+	if len(meta.DrillDownCommands) == 0 {
+		t.Error("brief lost its drill-down commands when optional sources were missing")
 	}
 }
 

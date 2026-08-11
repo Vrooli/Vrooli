@@ -32,6 +32,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/attachments/{attachment_id}", h.GetAttachment).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/start", h.Start).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/continue", h.Continue).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/prompt-preview", h.PreviewPrompt).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/events", h.ListEvents).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/refresh", h.Refresh).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/cancel", h.Cancel).Methods(http.MethodPost)
@@ -237,6 +238,34 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := httputil.ProtoJSON(w, &apipb.StartAgentSessionResponse{Session: SessionToProto(session)}); err != nil {
 		apierr.MapError(w, "[agent-sessions] start", apierr.Internal("failed to encode response"))
+	}
+}
+
+// PreviewPrompt returns the prompt a message would produce without sending it.
+// Read-only: it appends no message, spawns no run, and changes no session state.
+func (h *Handler) PreviewPrompt(w http.ResponseWriter, r *http.Request) {
+	var req apipb.PreviewAgentSessionPromptRequest
+	if err := httputil.DecodeProtoJSONStrict(r, &req); err != nil {
+		apierr.MapError(w, "[agent-sessions] prompt-preview", apierr.BadRequest("invalid request body: %s", err))
+		return
+	}
+	req.SessionId = mux.Vars(r)["session_id"]
+	if !httputil.ValidateProtoRequest(w, "[agent-sessions] prompt-preview", "invalid agent session prompt preview request", &req) {
+		return
+	}
+	preview, err := h.service.PreviewPrompt(r.Context(), ContinueRequest{
+		SessionID:         req.SessionId,
+		Message:           req.Message,
+		AttachmentIDs:     req.AttachmentIds,
+		ContextRefs:       contextRefsFromProto(req.ContextRefs),
+		AutoContextPolicy: AutoContextPolicy(req.GetAutoContextPolicy()),
+	})
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] prompt-preview", err)
+		return
+	}
+	if err := httputil.ProtoJSON(w, &apipb.PreviewAgentSessionPromptResponse{Prompt: preview.Prompt, Initial: preview.Initial}); err != nil {
+		apierr.MapError(w, "[agent-sessions] prompt-preview", apierr.Internal("failed to encode response"))
 	}
 }
 

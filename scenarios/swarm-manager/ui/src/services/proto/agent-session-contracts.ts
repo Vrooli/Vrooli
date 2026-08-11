@@ -17,6 +17,7 @@ import {
   DeleteAgentSessionResponseSchema,
   GetAgentSessionResponseSchema,
   GetAgentSessionStartupBriefResponseSchema,
+  PreviewAgentSessionPromptResponseSchema,
   GetArtifactsByEntityResponseSchema,
   ListAgentSessionEventsResponseSchema,
   ListAgentSessionArtifactsResponseSchema,
@@ -105,6 +106,10 @@ export const getAgentSessionResponseSchema = createProtoSchema(
 export const getAgentSessionStartupBriefResponseSchema = createProtoSchema(
   GetAgentSessionStartupBriefResponseSchema,
   "agent session startup brief"
+);
+export const previewAgentSessionPromptResponseSchema = createProtoSchema(
+  PreviewAgentSessionPromptResponseSchema,
+  "agent session prompt preview"
 );
 export const createAgentSessionResponseSchema = createProtoSchema(
   CreateAgentSessionResponseSchema,

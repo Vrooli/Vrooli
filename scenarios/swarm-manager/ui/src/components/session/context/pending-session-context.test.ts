@@ -45,8 +45,16 @@ describe("pending session context", () => {
   });
 
   it("derives compatible session kinds from the shared kind policy [REQ:REQ-P1-010-SESSION-CONTEXT]", () => {
-    expect(compatibleSessionKindsForContextType("scenario")).toEqual(["meta_orchestration"]);
+    // An improve-the-system session reasons about how agents handle work in a
+    // scenario, and about what an earlier conversation settled, so it accepts
+    // both scenario and session context.
+    expect(compatibleSessionKindsForContextType("scenario")).toEqual(["meta_orchestration", "workflow_authoring"]);
+    expect(compatibleSessionKindsForContextType("session")).toEqual([
+      "meta_orchestration",
+      "swarm_operations",
+      "workflow_authoring",
+    ]);
+    // The retired kind is not creatable, so it is compatible with nothing.
     expect(compatibleSessionKindsForContextType("operating_mode")).toEqual([]);
-    expect(compatibleSessionKindsForContextType("session")).toEqual(["meta_orchestration", "swarm_operations"]);
   });
 });

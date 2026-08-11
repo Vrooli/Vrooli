@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "swarm-manager-operations-session",
   "name": "Swarm Manager Operations Session",
-  "description": "Conversational project-operations guidance that routes human choices to current sessions, declared workflows, and deterministic Swarm actions.",
+  "description": "Conversational operations guidance over work already in the ledger: true state, the one thing that matters most, its next registered transition, and staleness triage by outcome.",
   "modes": [
     "tools",
     "conversation",
@@ -19,7 +19,7 @@
   "icon": "gauge",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 2,
+  "revision": 3,
   "createdAt": "2026-05-15T00:00:00Z",
-  "updatedAt": "2026-07-18T03:12:34Z"
+  "updatedAt": "2026-08-11T00:00:00Z"
 }

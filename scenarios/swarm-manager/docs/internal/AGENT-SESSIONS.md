@@ -2,6 +2,19 @@
 
 Agent Sessions are durable Swarm Manager-owned human conversations backed by Agent Manager runs. Programmatic prompt composition and typed result handling belong to declared Agent Manager workflows, not sessions.
 
+The design conversation behind the current prompting, kind scoping, and starter-prompt model is recorded in [`SESSION-ARCHITECTURE-DESIGN-RECORD.md`](./SESSION-ARCHITECTURE-DESIGN-RECORD.md). Read it before changing any of the three.
+
+## Invariants
+
+Two rules govern every session, and both are stated in the universal band of every session prompt:
+
+| Invariant | Meaning |
+|---|---|
+| **Propose, never apply** | A session agent may recommend any change. Swarm Manager applies it only after the operator accepts a typed proposal. The session profile withholds the file-write tools so the boundary is not instruction alone. |
+| **Resolve in-session** | A session must reach its outcome while the operator is present — a proposal, a started transition, a design record, or a recorded reason to do nothing. A session must not resolve by routing its conclusion to an autonomous agent's inbox, a team heartbeat, or a queue that only a scheduled loop drains. |
+
+In-session resolution is the durable difference between Prompt Manager's teams (autonomous, heartbeat-driven, deferred) and Swarm Manager's sessions (collaborative, operator-present, immediate). A session may *read* any corpus that helps it answer; it may not *hand off* its decision.
+
 ## Lifecycle
 
 A session starts from the graph action launcher or from a session-aware internal flow as a pre-spawn draft. The API creates a `sess_*` record under `agent-sessions/` with no messages and no Agent Manager run. The first real operator message is sent to the explicit start route, appended to `messages.jsonl`, used as the initial prompt, and only then does Swarm Manager spawn Agent Manager and record the returned run and task IDs.
@@ -92,15 +105,96 @@ attachments with the rest of the session-owned storage.
 
 ## Supported Kinds
 
-Initial session kinds are closed at the contract boundary:
+Session kinds are closed at the contract boundary. They divide on **subject**, and the division is a type distinction rather than a menu: two kinds operate on the work ledger, and the third operates on the machine that operates the ledger.
 
-| Kind | Skill | Purpose |
+| Kind | Launcher label | Subject | Skill |
+|---|---|---|---|
+| `meta_orchestration` | Plan Work With Agent | The product — **grows** the ledger. Shapes raw operator material into goals, milestones, and backlog items. | `swarm-manager-meta-orchestrator` |
+| `swarm_operations` | Manage Swarm | The product — **moves** the ledger. True state of existing work, what matters most next, and its registered transition. | `swarm-manager-operations-session` |
+| `workflow_authoring` | Improve the System | **The machine, not the product.** Skills, prompts, workflows, transitions, briefs, session surfaces, and agent profiles. | `swarm-manager-workflow-authoring` |
+
+The boundary test between the first and third: *if the change is about how the operator and agents work together, it is meta; if it is about what the tool does for its users, it is plan-work.* Apply it to the subject, not to the file that changes — a change to the graph workspace is product work, and a change to how a session is prompted is system work even though it ships as a React component.
+
+**Naming.** `workflow_authoring` is the persisted wire value and stays that way; the display label, skill scope, and doctrine are *Improve the System*. The old name described a proper subset — workflow authoring is one disposition inside the kind, alongside skill changes, backlog proposals, and design records. Renaming the stored kind is a migration across proto contracts, stats aggregation, stored `session.json` files, and TypeScript unions; it is deliberately deferred. Precedent: `operating_mode_authoring` was retired by making it non-creatable while remaining readable for attribution.
+
+Adding a kind should mean adding a skill mapping, a startup brief, allowed context types, a prompt subject band, allowed proposal kinds, tests, stats expectations, and docs. Do not add an untyped generic chat mode to bypass those contracts.
+
+## Prompt Construction
+
+The initial prompt is assembled in `api/internal/agentsessions/service_prompts.go` from sections registered in `prompt_sections.go`. Reference material is wrapped in one `<context>` block; the operator message stays outside it, so the model can tell material to consult from the job to do.
+
+Sections are emitted on a strict volatility gradient. Each registered section declares a scope, and the emitter sorts by it:
+
+| Scope | Varies by | Sections |
 |---|---|---|
-| `meta_orchestration` | `swarm-manager-meta-orchestrator` | Conversational planning that can propose multiple milestones and backlog items in one audited apply action. |
-| `swarm_operations` | `swarm-manager-operations-session` | Conversational operations coordination for milestone progress, pending decisions, and run review. It routes decision draining to `workshop-decision-sync` and keeps mutations operator-gated. |
-| `workflow_authoring` | `swarm-manager-workflow-authoring` | Conversational design of reviewed workflow and transition changes. It distinguishes existing transition improvements, new declared workflows, and required Swarm domain backlog work; it never silently applies a declaration. |
+| `universal` | nothing — byte-identical for every session | `session-doctrine` |
+| `kind` | session kind | `session-kind` |
+| `job` | proposal target | `proposal-target` |
+| `volatile` | session and turn | `session-identity`, `startup-brief`, `attached-context`, `attached-images` |
+| `task` | every message; emitted outside `<context>` | `operator-message` |
 
-Adding a kind should mean adding a skill mapping, prompt builder behavior if needed, allowed proposal kinds, tests, stats expectations, and docs. Do not add an untyped generic chat mode to bypass those contracts.
+**Why the order is load-bearing.** A provider caches a prompt prefix up to its first differing byte. If a volatile section moves above a stable one, the prefix collapses to nothing. The defect this replaced emitted `Session ID: sess_…` third, above every instruction, so no two sessions shared more than about forty bytes. Two sessions of one kind now share roughly 94% of the initial prompt. `prompt_structure_test.go` guards the ordering and the shared-prefix floor.
+
+This mirrors `scenarios/prompt-manager/api/heartbeat/prompt_templates.go`, which solved the same problem first. Do not introduce a second prompt architecture; extend the registry. A section kind the registry does not name panics rather than emitting an unnamed block.
+
+**The skill is fetched, not inlined.** The kind band names the authoritative Prompt Manager skill and instructs the agent to read it before answering. Inlining the skill text would make the largest stable block part of the cached prefix and would remove a tool round trip from turn one, but Swarm Manager has no client that reads skill *content* — `promptcatalog` carries metadata only, and session spawns pass a raw prompt string with no `promptRef` seam. Adding that client is a cross-scenario dependency with its own failure mode (Prompt Manager down means no session can start) and is deferred as an explicit decision, not an oversight.
+
+### Prompt Preview
+
+```text
+POST /api/v1/agent-sessions/{session_id}/prompt-preview
+swarm-manager sessions prompt-preview --id ID [--message TEXT] [--json]
+```
+
+Returns the prompt a message would produce, plus `initial` (whether the initial or continuation builder ran). It is read-only: no message is appended, no run is spawned, no session state changes.
+
+Assembly is server-owned and the preview calls the same builders `Start` and `Continue` call. A client that reimplemented the section order or the volatility gradient would produce a preview that agrees with nothing. `TestPreviewPromptMatchesWhatStartWouldSend` asserts the preview is byte-identical to the prompt actually spawned.
+
+For a draft session the preview applies the same auto-context policy as `Start`, so the startup brief and any proposal target appear exactly as they will be sent.
+
+The session composer exposes it as **Preview prompt** (`SessionPromptPreview.tsx`), which renders the assembled text and never rebuilds it client-side.
+
+**When changing the proto, regenerate through package governance, not `make generate` alone.** Scenario UIs sit outside the root pnpm workspace by design (each has a boundary `pnpm-workspace.yaml`; root sets `link-workspace-packages: false`), so they consume `@vrooli/proto-types` through a `file:` spec — which pnpm materialises as a *copy* in `ui/node_modules/.pnpm`, not a symlink. Regenerating alone updates `packages/proto/gen/typescript` and never reaches the consumer, and restarting the scenario does not help because the staleness is on disk rather than in a process. The propagating command is:
+
+```text
+vrooli package refresh proto [<consumer>] [--no-restart]
+```
+
+Its manifest declares `"refresh": {"strategy": "generate_then_setup", "restart_running_consumers": true}` — generate, then run consumer setup, then restart. Pass a consumer name to scope it to one scenario instead of all 61 UI consumers.
+
+## Agent Profile
+
+Sessions run on `swarm-manager/session` (`.vrooli/agent-manager/session.json`), declared in `.vrooli/service.json` and listed in the API's required profile keys so a missing reconciliation fails at startup rather than at first message.
+
+```json
+"allowedTools": ["read", "glob", "grep", "shell", "web_search", "web_fetch"]
+```
+
+Two deliberate differences from the shared `swarm-manager/default` execute profile:
+
+- **Web research is granted.** A conversation whose job is helping decide what to build must be able to look outside the repository.
+- **`write` and `edit` are withheld**, so propose-never-apply is narrowed by capability rather than resting on instruction alone. This is a narrowing, not a hard boundary: `shell` is required for the `swarm-manager`, `prompt-manager`, and `search-hub` CLIs, and a shell can write files. A true propose-only boundary needs shell command restriction, which is a separate design question.
+
+The key is read from `SWARM_MANAGER_SESSION_PROFILE_KEY` rather than the shared `AGENT_MANAGER_PROFILE_KEY`, so overriding the execute profile cannot silently re-grant write access to every conversation.
+
+## Starter Prompts
+
+A starter card carries two strings, defined in `ui/src/components/session/session-starter-suggestions.ts`:
+
+| Field | Job |
+|---|---|
+| `label` | Menu text. Terse and scannable, read while choosing, never sent. |
+| `prompt` | Composer seed. Prose in the operator's voice that states the situation, states the intent, names the shape of answer wanted, and — where the card needs the operator's own material — ends with an invitation and a blank line for it. |
+
+These are incompatible jobs and one string cannot do both. When the label doubled as the prompt, `"Turn this idea into goals and backlog items."` was sent as a complete message with no idea attached and no signal that the operator was expected to supply one.
+
+Rules enforced by `session-starter-suggestions.test.ts`:
+
+- Every card defines both, and never reuses one as the other.
+- Labels stay under 80 characters; prompts exceed 120, because a one-liner cannot state situation, intent, and desired output.
+- A prompt may say "the attached …" only when the card has a non-optional requirement, because a card with only optional requirements seeds its prompt immediately and would be referring to nothing.
+- A prompt ending in an invitation must end with `:\n\n`, so the slot is where the operator types.
+- Send-ready cards must not trail off in a colon.
 
 ## Identity And Attribution
 
@@ -222,3 +316,6 @@ is only safe after backup/restore and API-read verification.
 - Keep `swarm_operations` advisory in v1: use existing UI/API/CLI flows for state changes, and add typed proposal kinds only after review/apply semantics are designed.
 - Update `SEAMS.md`, stats tests, UI contract mappers, and this document when adding a new session kind or artifact type.
 - Prefer extending shared proposal/apply seams over introducing mode-specific UI or handler branches.
+- Register a new prompt section in `prompt_sections.go` with its volatility scope. Never emit a section the registry does not name, and never place a volatile section above a stable one.
+- Keep the skill as the home of methodology and the startup brief as the home of current state. A brief that carries procedure, or a prompt that restates the skill, splits the attention budget and drifts.
+- When adding a starter card, write `label` and `prompt` as two separate strings. The tests reject a prompt that is a label in disguise.

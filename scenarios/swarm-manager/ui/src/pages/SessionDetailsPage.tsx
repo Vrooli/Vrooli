@@ -143,7 +143,10 @@ export function SessionDetailsPage() {
     setPendingContext((current) => {
       const withoutStartupBrief = current.filter((item) => item.type !== "startup_brief");
       return [
-        startupBriefOption(session.kind, brief.title, brief.selectedAt),
+        // The resolved summary rides along so the chip can show what the agent
+        // will actually receive. Dropping it here is what made the brief
+        // unreadable from the UI even though it was already in memory.
+        startupBriefOption(session.kind, brief.title, brief.selectedAt, brief.summary),
         ...withoutStartupBrief,
       ];
     });

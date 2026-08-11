@@ -89,6 +89,7 @@ export const API_ENDPOINTS = {
   agentSessionStart: (sessionId: string) => `/agent-sessions/${sessionId}/start`,
   agentSessionStartupBrief: (sessionId: string) => `/agent-sessions/${sessionId}/startup-brief`,
   agentSessionContinue: (sessionId: string) => `/agent-sessions/${sessionId}/continue`,
+  agentSessionPromptPreview: (sessionId: string) => `/agent-sessions/${sessionId}/prompt-preview`,
   agentSessionEvents: (sessionId: string) => `/agent-sessions/${sessionId}/events`,
   agentSessionRefresh: (sessionId: string) => `/agent-sessions/${sessionId}/refresh`,
   agentSessionCancel: (sessionId: string) => `/agent-sessions/${sessionId}/cancel`,

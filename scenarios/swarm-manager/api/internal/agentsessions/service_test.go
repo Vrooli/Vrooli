@@ -138,10 +138,20 @@ func TestServiceStartStoresResolvedContextAndAddsItToPrompt(t *testing.T) {
 	if session.Messages[0].Context[0].SelectedAt != testTimestamp {
 		t.Fatalf("selected_at = %q, want %q", session.Messages[0].Context[0].SelectedAt, testTimestamp)
 	}
-	if !strings.Contains(spawner.spawnReq.Prompt, "Attached context:") ||
-		!strings.Contains(spawner.spawnReq.Prompt, "[goal] Quality Gates (quality-gates)") ||
-		!strings.Contains(spawner.spawnReq.Prompt, "Operator message:\nPlan this work.") {
-		t.Fatalf("prompt did not include context before operator message:\n%s", spawner.spawnReq.Prompt)
+	prompt := spawner.spawnReq.Prompt
+	contextAt := strings.Index(prompt, `<item type="goal" ref="quality-gates" title="Quality Gates">`)
+	messageAt := strings.Index(prompt, "<operator-message>\nPlan this work.\n</operator-message>")
+	if contextAt < 0 || messageAt < 0 {
+		t.Fatalf("prompt did not carry the resolved context and the operator message:\n%s", prompt)
+	}
+	// Context is reference material and must precede the task. The operator
+	// message is emitted outside the <context> block so the model can tell
+	// material to consult from the job to do.
+	if contextAt > messageAt {
+		t.Fatalf("resolved context appeared after the operator message:\n%s", prompt)
+	}
+	if strings.Index(prompt, "</context>") > messageAt {
+		t.Fatalf("operator message was emitted inside the context block:\n%s", prompt)
 	}
 }
 
@@ -424,7 +434,8 @@ func TestServiceStartInjectsStartupBriefContextByDefault(t *testing.T) {
 			if item.Type != ContextStartupBrief || item.Ref != StartupBriefRefForKind(kind) {
 				t.Fatalf("context item = %+v, want startup brief", item)
 			}
-			if !strings.Contains(spawner.spawnReq.Prompt, "Startup brief context is attached below") {
+			if !strings.Contains(spawner.spawnReq.Prompt, "<startup-brief>") ||
+				!strings.Contains(spawner.spawnReq.Prompt, "Answer broad status, planning, and authoring questions from this brief") {
 				t.Fatalf("prompt missing startup brief instruction:\n%s", spawner.spawnReq.Prompt)
 			}
 		})

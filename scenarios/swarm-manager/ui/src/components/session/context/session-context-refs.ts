@@ -14,6 +14,15 @@ export interface SessionContextOption extends AgentSessionContextRef {
   title: string;
   subtitle?: string;
   nodeId?: string;
+  /**
+   * The resolved context body, when the client already holds it. The composer
+   * chip renders this so the operator can read what is actually being sent.
+   *
+   * This exists because the startup brief — the single largest influence on a
+   * session's first answer — was fetched in full and then reduced to a title,
+   * leaving no way to inspect it from the UI at all.
+   */
+  summary?: string;
 }
 
 export function backlogOption(item: BacklogItem): SessionContextOption {
@@ -98,13 +107,23 @@ export function operationsBriefingOption(): SessionContextOption {
   };
 }
 
-export function startupBriefOption(kind: string, title = "Startup brief", generatedAt?: string): SessionContextOption {
+export function startupBriefOption(
+  kind: string,
+  title = "Startup brief",
+  generatedAt?: string,
+  summary?: string,
+): SessionContextOption {
   return {
     type: "startup_brief",
     ref: `startup_brief/${kind}`,
     title,
     subtitle: generatedAt ? `Generated ${generatedAt}` : "Brief-first context and drill-down commands",
-		nodeId: kind === "swarm_operations" ? "/operations" : kind === "workflow_authoring" ? "/sessions" : "/goals",
+    // Only the two kinds with a matching surface get a drill-down route. The
+    // improve-the-system brief previously pointed at /sessions, which navigates
+    // away from the session the operator is already in — the reported "open
+    // details does nothing". Its content now renders in the chip instead.
+    nodeId: kind === "swarm_operations" ? "/operations" : kind === "meta_orchestration" ? "/goals" : undefined,
+    summary,
   };
 }
 

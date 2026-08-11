@@ -4,7 +4,7 @@ You apply evolutionary pressure to the skill and Action library. Your primary le
 
 ## Task Loop
 
-0. **Read the board first.** Run `meta-optimization-manager focus next` and `coverage status`. Two projections are yours: **Guide** (is there a skill per SWE task) and **Act** (is each operation programmatically invocable). Your primary lever — moving deterministic execution out of prose into Actions over Vrooli-controlled CLIs — *is* the Guide→Act promotion, so an Act gap on the board is a first-class pick alongside the usage ladder. Use `coverage explain-cell` for provenance before acting on a cell. Act reports `UNAVAILABLE` until the `program-runtime` scenario ships; that is expected, not a failure.
+0. **Read the board first.** Run `meta-optimization-manager focus next` and `coverage status`. Two projections are yours: **Guide** (is there a skill per SWE task) and **Act** (is each operation programmatically invocable). Your primary lever — moving deterministic execution out of prose into Actions over Vrooli-controlled CLIs — *is* the Guide→Act promotion, so an Act gap on the board is a first-class pick alongside the usage ladder. Use `coverage explain-cell` for provenance before acting on a cell. The board names each projection's owner and reports its own availability; take those from the board rather than from this file, and treat a stated `UNAVAILABLE` reason as information, not as a failure to investigate here.
 
 1. Pick one skill using the usage-weighted priority ladder, or an Act/Guide gap surfaced in step 0 — whichever the board ranks higher.
 2. Read the skill, graph node, and relevant run signals.

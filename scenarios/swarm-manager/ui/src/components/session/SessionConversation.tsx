@@ -4,6 +4,7 @@ import { ExternalLink, Pencil, RotateCcw } from "lucide-react";
 import { ChatThread } from "../chat/ChatThread";
 import { MessageComposer, type MessageComposerHandle } from "../composer/MessageComposer";
 import { ContextChipTray } from "../composer/ContextChipTray";
+import { SessionPromptPreview } from "./SessionPromptPreview";
 import { formatRelativeTime } from "../../lib/format-utils";
 import { cn } from "../../lib/utils";
 import { selectors } from "../../consts/selectors";
@@ -215,6 +216,16 @@ export function SessionConversation({
           imagePickerRequestKey={imagePickerRequestKey}
           onTranscript={(text) => onDraftChange((draft ? draft.trimEnd() + " " : "") + text)}
         />
+        {/* Sits under the composer so the operator can read exactly what this
+            message would send before sending it. */}
+        <div className="mt-1 flex justify-end">
+          <SessionPromptPreview
+            sessionId={sessionId}
+            message={draft}
+            contextRefs={pendingContext.map((item) => ({ type: item.type, ref: item.ref }))}
+            disabled={isMutating}
+          />
+        </div>
         <SessionContextPicker
           isOpen={contextPickerOpen}
           onClose={() => setContextPickerOpen(false)}
@@ -477,7 +488,7 @@ export function SessionStarterSuggestions({
                   onRequestImage();
                   return;
                 }
-                onChooseText(suggestion.text);
+                onChooseText(suggestion.prompt);
               }}
               className={cn(
                 "group flex w-full items-start gap-3 rounded-md border px-3 py-3 text-left transition-colors",
@@ -491,7 +502,7 @@ export function SessionStarterSuggestions({
                 <Icon className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium leading-5 text-slate-100">{suggestion.text}</span>
+                <span className="block text-sm font-medium leading-5 text-slate-100">{suggestion.label}</span>
                 {suggestion.detail && <span className="mt-0.5 block text-xs leading-5 text-slate-400">{suggestion.detail}</span>}
                 <span className="mt-2 flex flex-wrap items-center gap-1.5">
                   {badge && <StarterCountChip type={badge.type} count={badgeCount} loading={badgeLoading} />}

@@ -973,8 +973,11 @@ func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected variables object, got %T", payload["variables"])
 		}
-		if vars["ITEM_TITLE"] != "My Idea" {
-			t.Fatalf("unexpected ITEM_TITLE: %v", vars["ITEM_TITLE"])
+		// --vars is passed through verbatim, so the key asserted here must be the
+		// key the command was given. This asserted ITEM_TITLE while sending
+		// ITEM_FOLDER, so it could never pass.
+		if vars["ITEM_FOLDER"] != "My Idea" {
+			t.Fatalf("unexpected ITEM_FOLDER: %v", vars["ITEM_FOLDER"])
 		}
 		_, _ = w.Write([]byte(`{"skill_id":"swarm-manager-review","with_scope":true,"variables":{"ITEM_FOLDER":"My Idea"},"prompt":"preview prompt"}`))
 	}))
