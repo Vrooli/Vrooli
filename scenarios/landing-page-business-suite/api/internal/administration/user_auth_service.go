@@ -3,6 +3,7 @@ package administration
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/vrooli/api-core/consumeridentity"
 )
 
 // MagicLinkSender sends a completed magic-link URL without coupling identity
@@ -37,15 +39,17 @@ type UserAuthStore interface {
 
 // UserAuthService handles user authentication (magic links + JWT).
 type UserAuthService struct {
-	db           UserAuthStore
-	emailService MagicLinkSender
-	jwtSecret    []byte
-	jwtIssuer    string
-	accessTTL    time.Duration
-	refreshTTL   time.Duration
-	magicLinkTTL time.Duration
-	baseURL      string // For magic link URLs
-	appName      string // For email subject lines
+	db             UserAuthStore
+	emailService   MagicLinkSender
+	consumerSigner *consumeridentity.Signer
+	consumerKeys   *consumeridentity.KeySet
+	jwtIssuer      string
+	accessTTL      time.Duration
+	consumerLeeway time.Duration
+	refreshTTL     time.Duration
+	magicLinkTTL   time.Duration
+	baseURL        string // For magic link URLs
+	appName        string // For email subject lines
 	// Test hook for capturing generated tokens
 	onMagicLinkGenerated MagicLinkTokenCallback
 	log                  func(string, map[string]interface{})
@@ -101,17 +105,20 @@ var ErrSessionRevoked = errors.New("session has been revoked")
 // composition boundary. Identity policy does not read environment variables or
 // depend on a root-package mail implementation.
 type UserAuthServiceOptions struct {
-	Store        UserAuthStore
-	EmailService MagicLinkSender
-	JWTSecret    string
-	JWTIssuer    string
-	BaseURL      string
-	AppName      string
-	AccessTTL    time.Duration
-	RefreshTTL   time.Duration
-	MagicLinkTTL time.Duration
-	Log          func(string, map[string]interface{})
-	LogError     func(string, map[string]interface{})
+	Store                 UserAuthStore
+	EmailService          MagicLinkSender
+	ConsumerSigningKeyPEM string
+	ConsumerSigningKeyID  string
+	ConsumerPreviousKeys  []consumeridentity.PublicKey
+	JWTIssuer             string
+	BaseURL               string
+	AppName               string
+	AccessTTL             time.Duration
+	ConsumerClockSkew     time.Duration
+	RefreshTTL            time.Duration
+	MagicLinkTTL          time.Duration
+	Log                   func(string, map[string]interface{})
+	LogError              func(string, map[string]interface{})
 }
 
 // NewUserAuthService creates a user-authentication service from explicit
@@ -119,7 +126,6 @@ type UserAuthServiceOptions struct {
 // an unset origin must not result in a magic link for an unrelated localhost
 // application.
 func NewUserAuthService(opts UserAuthServiceOptions) *UserAuthService {
-	jwtSecret := opts.JWTSecret
 	log := opts.Log
 	if log == nil {
 		log = func(string, map[string]interface{}) {}
@@ -128,20 +134,6 @@ func NewUserAuthService(opts UserAuthServiceOptions) *UserAuthService {
 	if logError == nil {
 		logError = func(string, map[string]interface{}) {}
 	}
-	if jwtSecret == "" {
-		log("jwt_secret_missing", map[string]interface{}{
-			"level":   "warn",
-			"message": "JWT_SECRET not set; using random secret for development (sessions will not persist across restarts)",
-		})
-		randomBytes := make([]byte, 32)
-		if _, err := rand.Read(randomBytes); err != nil {
-			logError("jwt_secret_random_failed", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
-		jwtSecret = hex.EncodeToString(randomBytes)
-	}
-
 	jwtIssuer := opts.JWTIssuer
 	if jwtIssuer == "" {
 		jwtIssuer = "landing-page-business-suite"
@@ -167,18 +159,48 @@ func NewUserAuthService(opts UserAuthServiceOptions) *UserAuthService {
 		magicLinkTTL = 15 * time.Minute
 	}
 
+	keyID := strings.TrimSpace(opts.ConsumerSigningKeyID)
+	if keyID == "" {
+		keyID = "local-development"
+	}
+	var signingKey *rsa.PrivateKey
+	var keyErr error
+	if strings.TrimSpace(opts.ConsumerSigningKeyPEM) != "" {
+		signingKey, keyErr = consumeridentity.ParsePrivateKeyPEM(opts.ConsumerSigningKeyPEM)
+	} else {
+		var generated *consumeridentity.Signer
+		generated, keyErr = consumeridentity.GenerateSigner(keyID, jwtIssuer, accessTTL)
+		if generated != nil {
+			signingKey = generated.Private
+		}
+	}
+	if keyErr != nil {
+		logError("consumer_signing_key_invalid", map[string]interface{}{"error": keyErr.Error()})
+		return nil
+	}
+	signer, keyErr := consumeridentity.NewSigner(keyID, signingKey, jwtIssuer, accessTTL)
+	if keyErr != nil {
+		logError("consumer_signing_key_invalid", map[string]interface{}{"error": keyErr.Error()})
+		return nil
+	}
+	keys := consumeridentity.NewKeySet(consumeridentity.PublicKey{ID: keyID, Key: &signingKey.PublicKey})
+	for _, previous := range opts.ConsumerPreviousKeys {
+		keys.Add(previous)
+	}
 	return &UserAuthService{
-		db:           opts.Store,
-		emailService: opts.EmailService,
-		jwtSecret:    []byte(jwtSecret),
-		jwtIssuer:    jwtIssuer,
-		accessTTL:    accessTTL,
-		refreshTTL:   refreshTTL,
-		magicLinkTTL: magicLinkTTL,
-		baseURL:      baseURL,
-		appName:      appName,
-		log:          log,
-		logError:     logError,
+		db:             opts.Store,
+		emailService:   opts.EmailService,
+		consumerSigner: signer,
+		consumerKeys:   keys,
+		jwtIssuer:      jwtIssuer,
+		accessTTL:      accessTTL,
+		consumerLeeway: opts.ConsumerClockSkew,
+		refreshTTL:     refreshTTL,
+		magicLinkTTL:   magicLinkTTL,
+		baseURL:        baseURL,
+		appName:        appName,
+		log:            log,
+		logError:       logError,
 	}
 }
 
@@ -499,29 +521,15 @@ func (s *UserAuthService) CreateSession(ctx context.Context, user *User, ipAddre
 
 // generateAccessToken creates a signed JWT access token.
 func (s *UserAuthService) GenerateAccessToken(userID, email, sessionID string) (string, time.Time, error) {
-	now := time.Now().UTC()
-	expiresAt := now.Add(s.accessTTL)
-
-	claims := &UserClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    s.jwtIssuer,
-			Subject:   userID,
-			ExpiresAt: jwt.NewNumericDate(expiresAt),
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
-		},
+	if s == nil || s.consumerSigner == nil {
+		return "", time.Time{}, errors.New("consumer signing key is unavailable")
+	}
+	return s.consumerSigner.Sign(consumeridentity.Claims{
+		Subject:   userID,
 		UserID:    userID,
 		Email:     email,
 		SessionID: sessionID,
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(s.jwtSecret)
-	if err != nil {
-		return "", time.Time{}, fmt.Errorf("sign access token: %w", err)
-	}
-
-	return tokenString, expiresAt, nil
+	})
 }
 
 // HashToken returns the SHA-256 hash of a token for persistence comparisons.

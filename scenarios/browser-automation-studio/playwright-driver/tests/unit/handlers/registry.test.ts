@@ -147,11 +147,11 @@ describe('HandlerRegistry', () => {
       handlerRegistry.register(new NavigationHandler()); // 1 type
       expect(handlerRegistry.getHandlerCount()).toBe(1);
 
-      handlerRegistry.register(new InteractionHandler()); // 5 types (click, hover, type, focus, blur)
-      expect(handlerRegistry.getHandlerCount()).toBe(6);
+      handlerRegistry.register(new InteractionHandler()); // 6 types (click, hover, type, input, focus, blur)
+      expect(handlerRegistry.getHandlerCount()).toBe(7);
 
       handlerRegistry.register(new WaitHandler()); // 1 type
-      expect(handlerRegistry.getHandlerCount()).toBe(7);
+      expect(handlerRegistry.getHandlerCount()).toBe(8);
     });
   });
 });

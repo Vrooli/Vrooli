@@ -17,28 +17,28 @@ type allowLimiter struct{}
 
 func (allowLimiter) Allow(string) bool { return true }
 
-type gatewayStub struct {
+type meteredInferenceStub struct {
 	response *intelligence.AIResponse
 }
 
-func (g gatewayStub) ExecuteChat(_ context.Context, _ string, _ intelligence.AIRequest) (*intelligence.AIResponse, error) {
+func (g meteredInferenceStub) ExecuteChat(_ context.Context, _ string, _ intelligence.AIRequest) (*intelligence.AIResponse, error) {
 	return g.response, nil
 }
 
-func (gatewayStub) ExecuteChatStream(context.Context, string, intelligence.AIRequest, http.ResponseWriter) error {
+func (meteredInferenceStub) ExecuteChatStream(context.Context, string, intelligence.AIRequest, http.ResponseWriter) error {
 	return nil
 }
-func (gatewayStub) GetAvailableModels() []string      { return nil }
-func (gatewayStub) HealthCheck(context.Context) error { return nil }
+func (meteredInferenceStub) GetAvailableModels() []string      { return nil }
+func (meteredInferenceStub) HealthCheck(context.Context) error { return nil }
 
 var (
-	_ intelligence.Gateway = gatewayStub{}
-	_ Limiter              = allowLimiter{}
+	_ intelligence.MeteredInferenceProvider = meteredInferenceStub{}
+	_ Limiter                               = allowLimiter{}
 )
 
 func TestChatTranslatesAuthenticatedRequest(t *testing.T) {
 	handler := New(Dependencies{
-		Service:         gatewayStub{response: &intelligence.AIResponse{Content: "hello"}},
+		Service:         meteredInferenceStub{response: &intelligence.AIResponse{Content: "hello"}},
 		UserRateLimiter: allowLimiter{},
 		IPRateLimiter:   allowLimiter{},
 		IPKeyFunc:       func(*http.Request) string { return "127.0.0.1" },
@@ -67,7 +67,7 @@ func TestChatTranslatesAuthenticatedRequest(t *testing.T) {
 
 func TestChatRejectsUnauthenticatedRequest(t *testing.T) {
 	handler := New(Dependencies{
-		Service:         gatewayStub{},
+		Service:         meteredInferenceStub{},
 		UserRateLimiter: allowLimiter{},
 		IPRateLimiter:   allowLimiter{},
 		IPKeyFunc:       func(*http.Request) string { return "127.0.0.1" },
@@ -89,12 +89,12 @@ func writeTestError(w http.ResponseWriter, status int, message, errorType string
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message, "type": errorType})
 }
 
-type connectGatewayStub struct {
+type connectMeteredInferenceStub struct {
 	request intelligence.AIRequest
 	err     error
 }
 
-func (g *connectGatewayStub) ExecuteChat(_ context.Context, _ string, request intelligence.AIRequest) (*intelligence.AIResponse, error) {
+func (g *connectMeteredInferenceStub) ExecuteChat(_ context.Context, _ string, request intelligence.AIRequest) (*intelligence.AIResponse, error) {
 	g.request = request
 	if g.err != nil {
 		return nil, g.err
@@ -102,14 +102,14 @@ func (g *connectGatewayStub) ExecuteChat(_ context.Context, _ string, request in
 	return &intelligence.AIResponse{ID: "chat-1", Model: request.Model, Content: "response"}, nil
 }
 
-func (*connectGatewayStub) ExecuteChatStream(context.Context, string, intelligence.AIRequest, http.ResponseWriter) error {
+func (*connectMeteredInferenceStub) ExecuteChatStream(context.Context, string, intelligence.AIRequest, http.ResponseWriter) error {
 	return nil
 }
-func (*connectGatewayStub) GetAvailableModels() []string      { return []string{"provider/model"} }
-func (*connectGatewayStub) HealthCheck(context.Context) error { return nil }
+func (*connectMeteredInferenceStub) GetAvailableModels() []string      { return []string{"provider/model"} }
+func (*connectMeteredInferenceStub) HealthCheck(context.Context) error { return nil }
 
 func TestConnectChatTranslatesTypedRequest(t *testing.T) {
-	gateway := &connectGatewayStub{}
+	gateway := &connectMeteredInferenceStub{}
 	handler := NewConnectHandler(Dependencies{
 		Service:         gateway,
 		UserRateLimiter: allowLimiter{},
@@ -140,7 +140,7 @@ func TestConnectChatTranslatesTypedRequest(t *testing.T) {
 
 func TestConnectChatMapsCreditExhaustion(t *testing.T) {
 	handler := NewConnectHandler(Dependencies{
-		Service:         &connectGatewayStub{err: intelligence.ErrInsufficientCredits},
+		Service:         &connectMeteredInferenceStub{err: intelligence.ErrInsufficientCredits},
 		UserRateLimiter: allowLimiter{},
 		IPRateLimiter:   allowLimiter{},
 		UserIdentity:    func(context.Context) string { return "customer@example.com" },

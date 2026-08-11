@@ -65,6 +65,8 @@ import (
 	importscan "github.com/vrooli/browser-automation-studio/usecases/import/scan"
 	"github.com/vrooli/browser-automation-studio/usecases/import/shared"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 
 	// Unified recording service for timeline persistence
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
@@ -97,6 +99,23 @@ func main() {
 	// Initialize logger
 	log := logrus.New()
 	log.SetFormatter(&logrus.JSONFormatter{})
+	credentialAuthority, credentialAuthorityErr := credentialauthority.Default()
+	if credentialAuthorityErr != nil {
+		log.WithError(credentialAuthorityErr).Warn("credential authority unavailable; credential provisioning disabled")
+	}
+	credentialClient, credentialClientErr := credentialclient.NewClient(credentialclient.ClientOptions{
+		Authority: credentialAuthority,
+		Descriptors: func() ([]credentialclient.CredentialRef, error) {
+			return credentialclient.DiscoverDescriptors(projectRoot)
+		},
+	})
+	if credentialClientErr != nil {
+		log.WithError(credentialClientErr).Warn("credential client unavailable; credential provisioning disabled")
+		credentialClient = nil
+	}
+	var subscriptionResolver interface {
+		ResolveAt(context.Context, string) (credentialclient.ConsumerAccess, error)
+	}
 
 	logLevel := os.Getenv("LOG_LEVEL")
 	switch logLevel {
@@ -162,6 +181,34 @@ func main() {
 
 	// Initialize entitlement service
 	entitlementSvc := entitlement.NewService(cfg.Entitlement, log)
+	// Restore the operator-selected authority source before wiring request
+	// handlers. The source setting is durable so a local LPBS development or
+	// bundled deployment does not silently revert to the hosted authority after
+	// a BAS restart.
+	if source, sourceErr := repo.GetSetting(context.Background(), entitlement.ApiSourceSettingKey); sourceErr == nil {
+		source = strings.TrimSpace(strings.ToLower(source))
+		if source == "local" || source == "production" || source == "disabled" {
+			localPort := 0
+			if rawPort, portErr := repo.GetSetting(context.Background(), entitlement.LocalApiPortSettingKey); portErr == nil {
+				if parsedPort, parseErr := strconv.Atoi(strings.TrimSpace(rawPort)); parseErr == nil && parsedPort > 0 {
+					localPort = parsedPort
+				}
+			}
+			entitlementSvc.SetApiSource(source, localPort)
+		}
+	}
+	if credentialClient != nil {
+		lpbsBaseURL := cfg.Entitlement.ServiceURL
+		if strings.TrimSpace(lpbsBaseURL) == "" {
+			lpbsBaseURL = "http://localhost:15000"
+		}
+		resolver := &credentialclient.ConsumerSessionResolver{
+			Credentials: credentialClient,
+			LPBSBaseURL: lpbsBaseURL,
+		}
+		entitlementSvc.SetSessionResolver(resolver)
+		subscriptionResolver = resolver
+	}
 	entitlementMiddleware := middleware.NewEntitlementMiddleware(entitlementSvc, log, cfg.Entitlement, repo)
 	byokMiddleware := middleware.NewBYOKMiddleware()
 
@@ -195,14 +242,15 @@ func main() {
 
 	// Initialize AI provider chain and factory
 	aiProviderChain := ai.NewAIProviderChain(ai.AIProviderChainOptions{
-		Logger:        log,
-		CreditService: creditService,
-		EnableBYOK:    cfg.AIProvider.EnableBYOK,
-		EnableVrooli:  cfg.AIProvider.EnableVrooliAPI,
-		EnableDevMode: cfg.AIProvider.EnableDevMode,
-		VrooliAPIURL:  cfg.AIProvider.VrooliAPIURL,
-		DefaultModel:  cfg.AIProvider.DefaultModel,
-		Role:          cfg.AIProvider.DefaultRole,
+		Logger:               log,
+		CreditService:        creditService,
+		EnableBYOK:           cfg.AIProvider.EnableBYOK,
+		EnableVrooli:         cfg.AIProvider.EnableVrooliAPI,
+		EnableDevMode:        cfg.AIProvider.EnableDevMode,
+		VrooliAPIURL:         cfg.AIProvider.VrooliAPIURL,
+		SubscriptionResolver: subscriptionResolver,
+		DefaultModel:         cfg.AIProvider.DefaultModel,
+		Role:                 cfg.AIProvider.DefaultRole,
 	})
 	aiClientFactory := ai.NewAIClientFactory(ai.AIClientFactoryOptions{
 		Chain:  aiProviderChain,
@@ -271,6 +319,18 @@ func main() {
 	// This enables automatic restart on crashes, health monitoring, and recording recovery
 	var sidecarDeps *sidecar.Dependencies
 	var stopSessionReconciler context.CancelFunc
+	if strings.TrimSpace(os.Getenv("AI_GATEWAY_URL")) == "" {
+		resolveCtx, resolveCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if gatewayURL, resolveErr := discovery.ResolveScenarioURLDefault(resolveCtx, "ai-gateway"); resolveErr == nil {
+			// The URL is routing metadata, not a credential. Passing it to the
+			// managed driver keeps discovery in the Go control plane while the
+			// driver remains a provider-neutral HTTP client.
+			_ = os.Setenv("AI_GATEWAY_URL", strings.TrimRight(gatewayURL, "/"))
+		} else {
+			log.WithError(resolveErr).Warn("AI Gateway discovery unavailable; managed vision calls will fail closed")
+		}
+		resolveCancel()
+	}
 	driverClient, err := driver.NewClient(driver.WithLogger(log))
 	if err != nil {
 		log.WithError(err).Warn("⚠️  Failed to create driver client - sidecar management disabled")
@@ -458,10 +518,11 @@ func main() {
 			Logger: log,
 		}),
 		visionnavconnect.Module(visionnavconnect.Deps{
-			Logger:   log,
-			Registry: navigatorRegistry,
-			Credits:  creditService,
-			Tracker:  playwrightNav,
+			Logger:              log,
+			Registry:            navigatorRegistry,
+			Credits:             creditService,
+			Tracker:             playwrightNav,
+			CredentialAuthority: credentialAuthority,
 		}),
 	}
 	schemaMount, err := schemaconnect.Module(schemaconnect.Deps{Logger: log})
@@ -555,6 +616,10 @@ func main() {
 	r.Get("/ws/execution/{executionId}/frames", handler.HandleDriverExecutionFrameStream) // WebSocket for playwright-driver binary frame streaming (execution mode)
 
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Post("/credentials/provision", credentialProvisionHandler(credentialClient))
+		r.Post("/auth/subscription/session", subscriptionSessionHandler(credentialClient))
+		r.Get("/auth/subscription/session", subscriptionSessionStatusHandler(credentialClient))
+		r.Delete("/auth/subscription/session", subscriptionSessionDeleteHandler(credentialClient))
 		// Health endpoint under /api/v1 for consistency
 		r.Get("/health", healthHandler)
 

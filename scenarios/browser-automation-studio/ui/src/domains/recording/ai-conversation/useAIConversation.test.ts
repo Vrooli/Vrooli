@@ -20,7 +20,7 @@ const mockNavState = {
   isNavigating: false,
   navigationId: null as string | null,
   prompt: '',
-  model: 'qwen3-vl-30b',
+  model: 'local_first',
   steps: [] as AINavigationStep[],
   status: 'idle' as const,
   totalTokens: 0,
@@ -55,7 +55,7 @@ vi.mock('../ai-navigation/useAINavigation', () => ({
 }));
 
 describe('useAIConversation', () => {
-  const defaultSettings = { model: 'qwen3-vl-30b', maxSteps: 20 };
+  const defaultSettings = { model: 'local_first', maxSteps: 20 };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -115,7 +115,7 @@ describe('useAIConversation', () => {
       const { result } = renderHook(() =>
         useAIConversation({
           sessionId: 'test-session',
-          settings: { model: 'gpt-4o', maxSteps: 30 },
+          settings: { model: 'remote_only', maxSteps: 30 },
         })
       );
 
@@ -123,7 +123,7 @@ describe('useAIConversation', () => {
         await result.current.sendMessage('Click the button');
       });
 
-      expect(mockStartNavigation).toHaveBeenCalledWith('Click the button', 'gpt-4o', 30);
+      expect(mockStartNavigation).toHaveBeenCalledWith('Click the button', 'remote_only', 30);
     });
 
     it('should create assistant message after starting navigation', async () => {

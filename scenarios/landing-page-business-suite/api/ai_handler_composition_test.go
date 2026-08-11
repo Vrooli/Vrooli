@@ -7,7 +7,7 @@ import (
 	"landing-page-business-suite-api/internal/commerce"
 )
 
-func TestNewAIGatewayDependencies_ComposesUsageAndSubscriptionSeams(t *testing.T) {
+func TestNewMeteredInferenceDependencies_ComposesUsageAndSubscriptionSeams(t *testing.T) {
 	db := setupTestDB(t)
 	usage := commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
 		DB:            db,
@@ -16,7 +16,7 @@ func TestNewAIGatewayDependencies_ComposesUsageAndSubscriptionSeams(t *testing.T
 	})
 	account := newAccountServiceWithTestPlanStore(t, db)
 
-	deps := newAIGatewayDependencies(nil, usage, account)
+	deps := newMeteredInferenceDependencies(nil, usage, account)
 	if deps.Service != nil {
 		t.Fatal("expected the supplied nil gateway to remain nil")
 	}

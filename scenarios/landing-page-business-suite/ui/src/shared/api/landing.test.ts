@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { getLandingConfig, getPlans } from './landing';
 import { assertDefined, createFetchMock, installFetchMock, mockResponses } from '../test-utils/api-mocks';
-import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb';
+import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/commerce_pb';
 
 const { pricingClient, landingConfigClient } = vi.hoisted(() => ({
   pricingClient: { getPricing: vi.fn() },

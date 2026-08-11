@@ -3,13 +3,13 @@ import { toJson } from '@bufbuild/protobuf';
 import {
   PricingService,
   type GetPricingResponse,
-} from '@vrooli/proto-types/landing-page-business-suite/pricing_pb';
+} from '@vrooli/proto-types/landing-page-business-suite/v1/pricing_pb';
 import {
   LandingConfigResponseSchema as LandingConfigMessageSchema,
   LandingConfigService,
   type LandingConfigResponse as LandingConfigMessage,
-} from '@vrooli/proto-types/landing-page-business-suite/config_pb';
-import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb';
+} from '@vrooli/proto-types/landing-page-business-suite/v1/config_pb';
+import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/commerce_pb';
 import { CONNECT_API_BASE } from './common';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
 import type { LandingConfigResponse, PlanOption, PricingOverview } from './types';

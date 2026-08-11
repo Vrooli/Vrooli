@@ -658,9 +658,52 @@ describe("createAuthManager", () => {
     });
 
     describe("encryption fallback", () => {
-        it("stores tokens unencrypted when encryption unavailable", async () => {
+        it("recovers from the shared authority when encrypted storage is missing", async () => {
+            deps = createTestDependencies({
+                safeStorage: createMockSafeStorage(true),
+                onGetRefreshToken: async () => "authority-refresh-token",
+            });
+
+            deps.http._responses.set("https://test.vrooli.com/api/v1/auth/refresh", {
+                ok: true,
+                status: 200,
+                body: { access_token: "fresh-access", refresh_token: "fresh-refresh", expires_at: new Date(Date.now() + 60000).toISOString() },
+            });
+
+            const manager = createAuthManager(deps);
+            const token = await manager.getAccessToken();
+
+            expect(token).toBe("fresh-access");
+            expect(deps.http._requests.find((request) => request.url.endsWith("/auth/refresh"))?.options?.body)
+                .toContain("authority-refresh-token");
+        });
+
+        it("recovers from an unreadable encrypted file without parsing it as plaintext", async () => {
+            deps = createTestDependencies({
+                safeStorage: createMockSafeStorage(true),
+                onGetRefreshToken: async () => "authority-refresh-token",
+            });
+            deps.storage._files.set("auth/tokens.enc", "not-an-encrypted-token-file");
+
+            deps.http._responses.set("https://test.vrooli.com/api/v1/auth/refresh", {
+                ok: true,
+                status: 200,
+                body: { access_token: "fresh-access", refresh_token: "fresh-refresh", expires_at: new Date(Date.now() + 60000).toISOString() },
+            });
+
+            const manager = createAuthManager(deps);
+            const token = await manager.getAccessToken();
+
+            expect(token).toBe("fresh-access");
+            expect(deps.http._requests.find((request) => request.url.endsWith("/auth/refresh"))?.options?.body)
+                .toContain("authority-refresh-token");
+        });
+
+        it("stores only the refresh token in the credential authority when encryption is unavailable", async () => {
+            let provisionedRefreshToken: string | null = null;
             deps = createTestDependencies({
                 safeStorage: createMockSafeStorage(false),
+                onRefreshToken: async (refreshToken) => { provisionedRefreshToken = refreshToken; },
             });
             const manager = createAuthManager(deps);
             await manager.signIn();
@@ -670,25 +713,30 @@ describe("createAuthManager", () => {
             await manager.handleCallback(callbackUrl);
 
             const stored = deps.storage._files.get("auth/tokens.enc");
-            expect(stored).toBeDefined();
-            // Should be plain JSON string, not encrypted Buffer
-            expect(typeof stored).toBe("string");
-            const parsed = JSON.parse(stored as string);
-            expect(parsed.accessToken).toBe("at123");
+            expect(stored).toBeUndefined();
+            expect(provisionedRefreshToken).toBe("rt456");
         });
 
-        it("reads tokens as plain text when encryption unavailable", async () => {
+        it("recovers a refresh token from the authority and never reads plaintext", async () => {
             deps = createTestDependencies({
                 safeStorage: createMockSafeStorage(false),
+                onGetRefreshToken: async () => "authority-refresh-token",
+                onRefreshToken: async () => {},
             });
 
-            const tokens = { accessToken: "plain-token", refreshToken: "rt", expiresAt: new Date(Date.now() + 60000).toISOString() };
-            deps.storage._files.set("auth/tokens.enc", JSON.stringify(tokens));
+            deps.storage._files.set("auth/tokens.enc", JSON.stringify({ accessToken: "plaintext-access", refreshToken: "rt" }));
+
+            deps.http._responses.set("https://test.vrooli.com/api/v1/auth/refresh", {
+                ok: true,
+                status: 200,
+                body: { access_token: "fresh-access", refresh_token: "fresh-refresh", expires_at: new Date(Date.now() + 60000).toISOString() },
+            });
 
             const manager = createAuthManager(deps);
             const token = await manager.getAccessToken();
 
-            expect(token).toBe("plain-token");
+            expect(token).toBe("fresh-access");
+            expect(deps.storage._files.has("auth/tokens.enc")).toBe(false);
         });
     });
 });

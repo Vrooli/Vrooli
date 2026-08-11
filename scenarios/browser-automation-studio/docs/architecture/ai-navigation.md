@@ -6,6 +6,28 @@ _Last reviewed: 2026-01-30_
 
 The AI navigation feature (also called "autopilot") enables users to control browser sessions using natural language prompts. A vision-language model observes the browser state via annotated screenshots and decides what actions to take to accomplish the user's goal.
 
+## AI Gateway provider boundary
+
+The Playwright vision client sends the inner multimodal decision request to
+AI Gateway's `InferenceService.Run` contract. BAS supplies the intent role
+(`extract.structured`), a provider-neutral route profile, the ordered
+conversation turns, and inline screenshot attachments. AI Gateway and the
+resource providers own credentials, concrete model selection, retries,
+provider request shape, and reported token usage.
+
+The UI exposes only two route profiles: `local_first` (local multimodal
+preference with reviewed hosted fallback) and `remote_only` (hosted through
+AI Gateway). BAS retains the browser-specific observe/decide/act loop, element
+numbering, action parsing, loop detection, and human-intervention behavior.
+Each prior user frame remains attached to its original turn, and credit
+accounting consumes usage returned by AI Gateway rather than a BAS price table.
+
+The legacy Claude computer-use client is a narrow, temporary exception because
+its provider-specific computer tool contract is not yet represented by the
+gateway action schema. It is isolated to the explicit Claude navigator and has
+an owner, expiry, and replacement trigger in
+[`docs/internal/DECISIONS.md`](../internal/DECISIONS.md).
+
 ## Navigator Abstraction
 
 The AI navigation system uses a pluggable navigator architecture that allows multiple navigation backends with different capabilities, credit policies, and client source restrictions.
@@ -151,15 +173,15 @@ type CreditPolicy struct {
 
 | Navigator | RequiresCredits | CreditsPerStep | Bypass Conditions |
 |-----------|-----------------|----------------|-------------------|
-| Playwright | Yes | 2 | `byok`, `resource_openrouter` |
+| Playwright | Yes | 2 | AI Gateway usage and entitlement policy |
 | ClaudeCode | No | 0 | `local_execution` |
 
 ### Bypass Conditions
 
 | Condition | Description |
 |-----------|-------------|
-| `byok` | User provided their own API key (Bring Your Own Key) |
-| `resource_openrouter` | Using resource openrouter (server-provided key) |
+| `ai_gateway` | AI Gateway reports provider-neutral usage and route evidence |
+| `entitlement` | An approved entitlement or credit policy permits execution |
 | `local_execution` | Running locally without external API calls |
 
 ## Client Source Restriction

@@ -17,7 +17,7 @@ func TestGatewayErrorsSurviveErrorWrapping(t *testing.T) {
 	for _, domainErr := range []error{
 		ErrNoAPIKeyConfigured,
 		ErrModelNotAllowed,
-		ErrAIGatewayUnavailable,
+		ErrMeteredInferenceUnavailable,
 		ErrStreamingNotSupported,
 	} {
 		wrapped := fmt.Errorf("gateway failure: %w", domainErr)

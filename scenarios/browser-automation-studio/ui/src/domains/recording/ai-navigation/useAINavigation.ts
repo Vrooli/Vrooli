@@ -281,7 +281,7 @@ const initialState: AINavigationState = {
   isNavigating: false,
   navigationId: null,
   prompt: '',
-  model: 'qwen3-vl-30b',
+  model: 'local_first',
   steps: [],
   status: 'idle',
   totalTokens: 0,

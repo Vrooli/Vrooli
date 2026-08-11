@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/sirupsen/logrus"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai"
@@ -81,14 +82,20 @@ func (s *service) StartNavigation(
 		return nil, s.mapSelectError(err, preferredType, source)
 	}
 
-	hasBYOK := strings.TrimSpace(msg.GetApiKey()) != ""
+	provenance := vision.CredentialProvenanceNone
+	if s.deps.CredentialAuthority != nil {
+		identity, parseErr := credentialauthority.ParseIdentity("vrooli/openrouter")
+		if parseErr == nil && s.deps.CredentialAuthority.Status(identity, "api-key").Configured {
+			provenance = vision.CredentialProvenanceAuthority
+		}
+	}
 	policy := navigator.CreditPolicy()
-	if s.deps.Credits != nil && policy.ShouldChargeCredits(hasBYOK, false, false) {
+	if s.deps.Credits != nil && policy.ShouldChargeCredits(provenance, false, false) {
 		userID := entitlement.UserIdentityFromContext(ctx)
 		if userID == "" {
 			userID = "anonymous"
 		}
-		canProceed, errCode, errMsg, remaining, cerr := s.deps.Credits.CanPerformAIOperation(ctx, userID, policy.OperationType, hasBYOK)
+		canProceed, errCode, errMsg, remaining, cerr := s.deps.Credits.CanPerformAIOperation(ctx, userID, policy.OperationType, provenance == vision.CredentialProvenanceAuthority)
 		if cerr != nil {
 			s.logger().WithError(cerr).Warn("vision_navigation: credit check failed; continuing")
 		} else if !canProceed {
@@ -111,7 +118,6 @@ func (s *service) StartNavigation(
 		Prompt:        prompt,
 		Model:         model,
 		MaxSteps:      maxSteps,
-		APIKey:        msg.GetApiKey(),
 		NavigatorType: navigator.Type(),
 		UserID:        userID,
 		CallbackURL:   s.resolveCallbackURL(req),

@@ -1,7 +1,7 @@
 import { createClient } from '@connectrpc/connect';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
-import { DownloadService } from '@vrooli/proto-types/landing-page-business-suite/download_pb';
-import type { DownloadApp as GeneratedDownloadApp, DownloadAsset as GeneratedDownloadAsset } from '@vrooli/proto-types/landing-page-business-suite/shared/downloads_pb';
+import { DownloadService } from '@vrooli/proto-types/landing-page-business-suite/v1/download_pb';
+import type { DownloadApp as GeneratedDownloadApp, DownloadAsset as GeneratedDownloadAsset } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/downloads_pb';
 import { apiCall } from './common';
 import { CONNECT_API_BASE } from './common';
 import { parseOrNull } from './safeParse';

@@ -10,10 +10,10 @@ import (
 	"landing-page-business-suite-api/internal/intelligence"
 )
 
-// newAIGatewayHandler is the API composition point for the AI HTTP boundary.
+// newMeteredInferenceHandler is the API composition point for the AI HTTP boundary.
 // Rate-limit lifecycle, authentication context, response envelopes, and logging
 // are application concerns; handlers/intelligence only translates the request.
-func newAIGatewayDependencies(service intelligence.Gateway, usage *commerce.UsageService, account *commerce.Service) aihandler.Dependencies {
+func newMeteredInferenceDependencies(service intelligence.MeteredInferenceProvider, usage *commerce.UsageService, account *commerce.Service) aihandler.Dependencies {
 	userLimiter := NewRateLimiter(60, time.Minute)
 	userLimiter.StartCleanup(5*time.Minute, 10*time.Minute)
 	ipLimiter := NewRateLimiter(120, time.Minute)

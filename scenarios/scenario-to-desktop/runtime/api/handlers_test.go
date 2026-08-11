@@ -590,7 +590,9 @@ func TestCredentialRoutesRequireAuthAndNeverReturnValues(t *testing.T) {
 		"/credentials/list",
 		"/credentials/doctor",
 		"/credentials/status?identity=provider%2Fopenrouter&field=api-key",
+		"/credentials/resolve?identity=provider%2Fopenrouter&field=api-key",
 		"/credentials/provision",
+		"/credentials/delete",
 		"/credentials/recovery/export",
 		"/credentials/recovery/restore",
 	} {
@@ -616,6 +618,20 @@ func TestCredentialRoutesRequireAuthAndNeverReturnValues(t *testing.T) {
 	status := call(http.MethodGet, "/credentials/status?identity=provider%2Fopenrouter&field=api-key", "", "test-token")
 	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"configured":true`) || strings.Contains(status.Body.String(), "new-secret") {
 		t.Fatalf("credential status unexpected or leaked value: status=%d body=%s", status.Code, status.Body.String())
+	}
+
+	resolved := call(http.MethodGet, "/credentials/resolve?identity=provider%2Fopenrouter&field=api-key", "", "test-token")
+	if resolved.Code != http.StatusOK || !strings.Contains(resolved.Body.String(), `"value":"new-secret"`) {
+		t.Fatalf("credential resolve status/body unexpected: status=%d body=%s", resolved.Code, resolved.Body.String())
+	}
+
+	deleted := call(http.MethodPost, "/credentials/delete", `{"identity":"provider/openrouter","field":"api-key"}`, "test-token")
+	if deleted.Code != http.StatusNoContent {
+		t.Fatalf("credential delete status = %d, body=%s", deleted.Code, deleted.Body.String())
+	}
+	missing := call(http.MethodGet, "/credentials/resolve?identity=provider%2Fopenrouter&field=api-key", "", "test-token")
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("resolved deleted credential status = %d, want %d", missing.Code, http.StatusNotFound)
 	}
 
 	doctor := call(http.MethodGet, "/credentials/doctor", "", "test-token")

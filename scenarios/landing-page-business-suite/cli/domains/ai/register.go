@@ -25,7 +25,7 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 		Description: "Stream AI chat completion",
 		Run:         func(args []string) error { return runStream(deps, args) },
 	})
-	return cliapp.CommandGroup{Title: "AI Gateway", Commands: commands}
+	return cliapp.CommandGroup{Title: "Metered Inference", Commands: commands}
 }
 
 func intelligenceClient(deps support.Dependencies) (lpbsconnect.IntelligenceServiceClient, error) {
@@ -68,7 +68,7 @@ func modelsCommand(deps support.Dependencies) cliapp.Command {
 }
 
 func healthCommand(deps support.Dependencies) cliapp.Command {
-	command := intelligenceAction(deps, "Get AI gateway health through the generated Connect contract.", func(ctx context.Context, client lpbsconnect.IntelligenceServiceClient) (proto.Message, error) {
+	command := intelligenceAction(deps, "Get metered inference health through the generated Connect contract.", func(ctx context.Context, client lpbsconnect.IntelligenceServiceClient) (proto.Message, error) {
 		response, err := client.Health(ctx, connect.NewRequest(&lpbsv1.HealthRequest{}))
 		return response.Msg, err
 	})

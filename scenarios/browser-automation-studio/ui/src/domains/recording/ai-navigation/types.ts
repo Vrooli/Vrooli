@@ -11,10 +11,9 @@
 export interface VisionModelSpec {
   id: string;
   displayName: string;
-  provider: 'openrouter' | 'anthropic' | 'ollama';
-  inputCostPer1MTokens: number;
-  outputCostPer1MTokens: number;
-  tier: 'budget' | 'standard' | 'premium';
+  /** Provider-neutral AI Gateway routing profile. */
+  profile: 'local_first' | 'remote_only';
+  tier: 'local' | 'remote';
   recommended: boolean;
 }
 
@@ -23,40 +22,18 @@ export interface VisionModelSpec {
  */
 export const VISION_MODELS: VisionModelSpec[] = [
   {
-    id: 'qwen3-vl-30b',
-    displayName: 'Qwen3-VL-30B',
-    provider: 'openrouter',
-    inputCostPer1MTokens: 0.15,
-    outputCostPer1MTokens: 0.60,
-    tier: 'budget',
+    id: 'local_first',
+    displayName: 'Local-first vision',
+    profile: 'local_first',
+    tier: 'local',
     recommended: true,
   },
   {
-    id: 'gpt-4o',
-    displayName: 'GPT-4o',
-    provider: 'openrouter',
-    inputCostPer1MTokens: 2.50,
-    outputCostPer1MTokens: 10.00,
-    tier: 'standard',
-    recommended: true,
-  },
-  {
-    id: 'gpt-4o-mini',
-    displayName: 'GPT-4o Mini',
-    provider: 'openrouter',
-    inputCostPer1MTokens: 0.15,
-    outputCostPer1MTokens: 0.60,
-    tier: 'budget',
+    id: 'remote_only',
+    displayName: 'Hosted vision',
+    profile: 'remote_only',
+    tier: 'remote',
     recommended: false,
-  },
-  {
-    id: 'claude-sonnet-4',
-    displayName: 'Claude Sonnet 4',
-    provider: 'anthropic',
-    inputCostPer1MTokens: 3.00,
-    outputCostPer1MTokens: 15.00,
-    tier: 'premium',
-    recommended: true,
   },
 ];
 
@@ -68,7 +45,6 @@ export interface AINavigateRequest {
   prompt: string;
   model: string;
   maxSteps?: number;
-  apiKey?: string;
 }
 
 /**

@@ -1,11 +1,13 @@
-// Package intelligence owns the HTTP transport edge for the credit-accounted AI gateway.
+// Package intelligence owns the HTTP transport edge for the credit-accounted metered inference provider.
 package intelligence
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"landing-page-business-suite-api/internal/intelligence"
@@ -20,7 +22,7 @@ type Limiter interface {
 // Dependencies are supplied by API composition. The handler package never
 // reads authentication context, creates rate limiters, or reaches root helpers.
 type Dependencies struct {
-	Service          intelligence.Gateway
+	Service          intelligence.MeteredInferenceProvider
 	Usage            func(context.Context, string, string) (UsageSummary, error)
 	SubscriptionTier func(context.Context, string) (string, error)
 	UserRateLimiter  Limiter
@@ -54,7 +56,7 @@ func New(deps Dependencies) *Handler { return &Handler{deps: deps} }
 //   - Authentication (via middleware that sets user in context)
 //   - Rate limiting
 //   - Request validation (format, bounds)
-//   - Delegating to the intelligence gateway service
+//   - Delegating to the intelligence metered inference service
 //   - Mapping errors to HTTP responses
 //
 // The handler does NOT handle credit checking - that's the service's responsibility.
@@ -113,6 +115,73 @@ func (h *Handler) Chat() http.HandlerFunc {
 			deps.LogError("encode_response_failed", map[string]interface{}{"error": err.Error()})
 		}
 	}
+}
+
+// Inference accepts the role-based metered contract. It intentionally has no
+// model field: provider selection and pricing are server-owned policy.
+func (h *Handler) Inference() http.HandlerFunc {
+	deps := h.deps
+	return func(w http.ResponseWriter, r *http.Request) {
+		identity := deps.UserIdentity(r.Context())
+		if identity == "" {
+			deps.WriteJSONError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
+			return
+		}
+		if !deps.UserRateLimiter.Allow(identity) || !deps.IPRateLimiter.Allow(deps.IPKeyFunc(r)) {
+			deps.WriteJSONError(w, http.StatusTooManyRequests, "Rate limit exceeded. Please try again later.", "rate_limited")
+			return
+		}
+		var req intelligence.InferenceRequest
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&req); err != nil {
+			deps.WriteJSONError(w, http.StatusBadRequest, "Invalid request body", "validation")
+			return
+		}
+		if err := ValidateInferenceRequest(&req); err != nil {
+			deps.WriteJSONError(w, http.StatusBadRequest, err.Error(), "validation")
+			return
+		}
+		service, ok := deps.Service.(*intelligence.MeteredInferenceService)
+		if !ok {
+			deps.WriteJSONError(w, http.StatusServiceUnavailable, "metered inference provider is unavailable", "unavailable")
+			return
+		}
+		response, err := service.ExecuteInference(r.Context(), identity, req)
+		if err != nil {
+			WriteError(deps, w, err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		// Do not expose the policy-resolved provider model to consumers.
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id": response.ID, "role": req.Role, "content": response.Content,
+			"prompt_tokens": response.PromptTokens, "completion_tokens": response.CompletionTokens,
+			"total_tokens": response.TotalTokens, "credits_charged": response.CreditsCharged,
+			"finish_reason": response.FinishReason,
+		})
+	}
+}
+
+func ValidateInferenceRequest(req *intelligence.InferenceRequest) error {
+	if strings.TrimSpace(req.Role) == "" {
+		return errors.New("role is required")
+	}
+	if len(req.Messages) == 0 {
+		return errors.New("at least one message is required")
+	}
+	for _, message := range req.Messages {
+		if strings.TrimSpace(message.Role) == "" || strings.TrimSpace(message.Content) == "" {
+			return errors.New("message role and content are required")
+		}
+	}
+	if req.MaxTokens < 0 || req.MaxTokens > maxMaxTokens {
+		return fmt.Errorf("max_tokens must be between 0 and %d", maxMaxTokens)
+	}
+	if strings.TrimSpace(req.ConstraintsJSON) != "" && !json.Valid([]byte(req.ConstraintsJSON)) {
+		return errors.New("constraints_json must be valid JSON")
+	}
+	return nil
 }
 
 // handleAIStream handles streaming AI chat completion requests via Server-Sent Events.
@@ -289,7 +358,7 @@ func resolveTier(ctx context.Context, identity string, lookup func(context.Conte
 	return tier
 }
 
-// handleAIHealth checks if the AI gateway is healthy.
+// handleAIHealth checks if the metered inference provider is healthy.
 // GET /api/v1/ai/health
 // Public endpoint - no authentication required.
 func (h *Handler) Health() http.HandlerFunc {
@@ -383,7 +452,7 @@ func WriteError(deps Dependencies, w http.ResponseWriter, err error) {
 	case errors.Is(err, intelligence.ErrStreamingNotSupported):
 		deps.WriteJSONError(w, http.StatusNotImplemented, "Streaming not supported", "server_error")
 	default:
-		deps.LogError("ai_gateway_error", map[string]interface{}{
+		deps.LogError("metered_inference_error", map[string]interface{}{
 			"error": err.Error(),
 		})
 		deps.WriteJSONError(w, http.StatusInternalServerError, "AI request failed", "server_error")

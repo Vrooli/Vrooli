@@ -194,21 +194,20 @@ func ParseTier(value string) (Tier, bool) {
 
 // entitlementResponse matches the response from landing-page-business-suite /api/v1/entitlements.
 type entitlementResponse struct {
-	Status            string        `json:"status"`
-	PlanTier          string        `json:"plan_tier"`
-	PriceID           string        `json:"price_id"`
-	Features          []string      `json:"features"`
-	BillingCycleStart int           `json:"billing_cycle_start"`
-	Credits           *credits      `json:"credits"`
-	Subscription      *subscription `json:"subscription"`
+	Status            string                `json:"status"`
+	PlanTier          string                `json:"plan_tier"`
+	PriceID           string                `json:"price_id"`
+	Features          []string              `json:"features"`
+	BillingCycleStart int                   `json:"billing_cycle_start"`
+	Credits           *credits              `json:"credits"`
+	Subscription      *subscriptionIdentity `json:"subscription"`
 }
 
 type credits struct {
-	BalanceCredits int64 `json:"balance_credits"`
+	CustomerEmail  string `json:"customer_email"`
+	BalanceCredits int64  `json:"balance_credits"`
 }
 
-type subscription struct {
-	State         string `json:"state"`
-	PlanTier      string `json:"plan_tier"`
-	StripePriceID string `json:"stripe_price_id"`
+type subscriptionIdentity struct {
+	UserIdentity string `json:"user_identity"`
 }

@@ -7,7 +7,7 @@ import (
 
 // getOpenRouterClient returns the injected client or builds one from the
 // currently configured provider credential.
-func (s *AIGatewayService) getOpenRouterClient(ctx context.Context) (OpenRouterClient, error) {
+func (s *MeteredInferenceService) getOpenRouterClient(ctx context.Context) (OpenRouterClient, error) {
 	if s.openRouterClient != nil {
 		return s.openRouterClient, nil
 	}
@@ -26,8 +26,8 @@ func (s *AIGatewayService) getOpenRouterClient(ctx context.Context) (OpenRouterC
 	return s.clientFactory(apiKey, s.log), nil
 }
 
-// HealthCheck verifies the AI gateway can authenticate with its provider.
-func (s *AIGatewayService) HealthCheck(ctx context.Context) error {
+// HealthCheck verifies the metered inference provider can authenticate with its provider.
+func (s *MeteredInferenceService) HealthCheck(ctx context.Context) error {
 	client, err := s.getOpenRouterClient(ctx)
 	if err != nil {
 		return err
@@ -36,6 +36,6 @@ func (s *AIGatewayService) HealthCheck(ctx context.Context) error {
 }
 
 // UseOpenRouterClient installs a test or alternate provider client.
-func (s *AIGatewayService) UseOpenRouterClient(client OpenRouterClient) {
+func (s *MeteredInferenceService) UseOpenRouterClient(client OpenRouterClient) {
 	s.openRouterClient = client
 }

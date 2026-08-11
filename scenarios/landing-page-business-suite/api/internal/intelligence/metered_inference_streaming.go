@@ -12,7 +12,7 @@ import (
 // ExecuteChatStream executes a streaming chat completion via Server-Sent Events.
 // Uses credit reservations to prevent TOCTOU race conditions where concurrent
 // streaming requests could exceed the credit limit.
-func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error {
+func (s *MeteredInferenceService) ExecuteChatStream(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error {
 	if !allowedModels[req.Model] {
 		return fmt.Errorf("%w: %s", ErrModelNotAllowed, req.Model)
 	}
@@ -97,7 +97,7 @@ func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity s
 	fmt.Fprintf(w, "data: %s\n\n", eventData)
 	flusher.Flush()
 
-	s.log("ai_gateway_stream_completed", map[string]interface{}{
+	s.log("metered_inference_stream_completed", map[string]interface{}{
 		"level": "info", "user_identity": userIdentity, "model": req.Model,
 		"prompt_tokens": promptTokens, "completion_tokens": usage.CompletionTokens,
 		"credits_charged": actualCost, "reservation_id": reservationID,
@@ -105,7 +105,7 @@ func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity s
 	return nil
 }
 
-func (s *AIGatewayService) releaseStreamingReservation(ctx context.Context, userIdentity, reservationID string) {
+func (s *MeteredInferenceService) releaseStreamingReservation(ctx context.Context, userIdentity, reservationID string) {
 	if err := s.usageService.ReleaseReservation(ctx, reservationID); err != nil {
 		s.log("reservation_release_failed", map[string]interface{}{
 			"level": "warn", "user_identity": userIdentity, "reservation_id": reservationID, "error": err.Error(),

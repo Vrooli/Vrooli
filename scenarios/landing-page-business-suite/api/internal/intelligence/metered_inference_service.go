@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// AIGatewayService handles AI requests through the LPBS gateway.
+// MeteredInferenceService handles AI requests through the LPBS gateway.
 // It provides centralized AI access with credit management for all Vrooli applications.
 //
 // # Architecture
@@ -67,7 +67,7 @@ import (
 //
 // The reservation system prevents the more serious issue: concurrent requests
 // from multiple sessions exceeding the credit limit.
-type AIGatewayService struct {
+type MeteredInferenceService struct {
 	apiKeyService  APIKeyServicer  // Interface for testing
 	usageService   UsageServicer   // Interface for testing
 	accountService AccountServicer // Interface for testing
@@ -80,10 +80,11 @@ type AIGatewayService struct {
 	// Model pricing in internal units per 1K tokens.
 	// Internal unit = 1/1,000,000 of a cent.
 	modelPricing map[string]ModelPricing
+	rolePolicies map[string]RolePolicy
 }
 
-// AIGatewayServiceOptions configures the AI gateway service.
-type AIGatewayServiceOptions struct {
+// MeteredInferenceServiceOptions configures the metered inference provider service.
+type MeteredInferenceServiceOptions struct {
 	// These contracts deliberately use the narrow interfaces above rather than
 	// root concrete services. The gateway orchestrates provider calls and credit
 	// policy; it does not own their persistence implementations.
@@ -103,14 +104,14 @@ type AIGatewayServiceOptions struct {
 // allowedModels is the whitelist of models users can request.
 var allowedModels = AllowedModels()
 
-// NewAIGatewayService creates a new AI gateway service.
-func NewAIGatewayService(opts AIGatewayServiceOptions) *AIGatewayService {
+// NewMeteredInferenceService creates a new metered inference provider service.
+func NewMeteredInferenceService(opts MeteredInferenceServiceOptions) *MeteredInferenceService {
 	logger := opts.Logger
 	if logger == nil {
 		logger = func(string, map[string]interface{}) {}
 	}
 
-	return &AIGatewayService{
+	return &MeteredInferenceService{
 		apiKeyService:    opts.APIKeyService,
 		usageService:     opts.UsageService,
 		accountService:   opts.AccountService,
@@ -118,7 +119,25 @@ func NewAIGatewayService(opts AIGatewayServiceOptions) *AIGatewayService {
 		clientFactory:    opts.ClientFactory,
 		openRouterClient: opts.OpenRouterClient,
 		modelPricing:     defaultModelPricing(),
+		rolePolicies:     DefaultRolePolicies(),
 	}
+}
+
+// ExecuteInference applies the stable role contract and delegates to the
+// atomic reservation/provider pipeline. Concrete model selection is internal.
+func (s *MeteredInferenceService) ExecuteInference(ctx context.Context, userIdentity string, req InferenceRequest) (*AIResponse, error) {
+	role := strings.TrimSpace(req.Role)
+	policy, ok := s.rolePolicies[role]
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", ErrRoleNotAllowed, role)
+	}
+	messages := append([]AIMessage(nil), req.Messages...)
+	if strings.TrimSpace(req.ConstraintsJSON) != "" {
+		messages = append([]AIMessage{{Role: "system", Content: "Apply these caller constraints exactly:\n" + strings.TrimSpace(req.ConstraintsJSON)}}, messages...)
+	}
+	return s.ExecuteChat(ctx, userIdentity, AIRequest{
+		Model: policy.Model, Messages: messages, MaxTokens: req.MaxTokens, Metadata: req.Metadata,
+	})
 }
 
 // defaultModelPricing returns default pricing for common models.
@@ -130,7 +149,7 @@ func defaultModelPricing() map[string]ModelPricing {
 
 // ExecuteChat executes a non-streaming chat completion.
 // Credits are checked and charged atomically to prevent TOCTOU race conditions.
-func (s *AIGatewayService) ExecuteChat(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error) {
+func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error) {
 	// Validate model
 	if !allowedModels[req.Model] {
 		return nil, fmt.Errorf("%w: %s", ErrModelNotAllowed, req.Model)
@@ -139,7 +158,7 @@ func (s *AIGatewayService) ExecuteChat(ctx context.Context, userIdentity string,
 	// Get user's subscription tier
 	tier, err := s.getUserTier(ctx, userIdentity)
 	if err != nil {
-		s.log("ai_gateway_get_tier_failed", map[string]interface{}{
+		s.log("metered_inference_get_tier_failed", map[string]interface{}{
 			"level":         "error",
 			"user_identity": userIdentity,
 			"error":         err.Error(),
@@ -240,7 +259,7 @@ func (s *AIGatewayService) ExecuteChat(ctx context.Context, userIdentity string,
 		}
 	}
 
-	s.log("ai_gateway_request_completed", map[string]interface{}{
+	s.log("metered_inference_request_completed", map[string]interface{}{
 		"level":             "info",
 		"user_identity":     userIdentity,
 		"model":             req.Model,
@@ -264,7 +283,7 @@ func (s *AIGatewayService) ExecuteChat(ctx context.Context, userIdentity string,
 // getUserTier retrieves the user's subscription tier.
 // Returns "free" if the tier cannot be determined.
 // Logs security events when defaulting to free tier unexpectedly.
-func (s *AIGatewayService) getUserTier(ctx context.Context, userIdentity string) (string, error) {
+func (s *MeteredInferenceService) getUserTier(ctx context.Context, userIdentity string) (string, error) {
 	if s.accountService == nil {
 		// Log this as it might indicate misconfiguration
 		s.log("tier_lookup_no_account_service", map[string]interface{}{
@@ -305,19 +324,19 @@ type tokenEstimate struct {
 // This is a rough approximation used for pre-authorization.
 // Includes a safety margin to reduce the frequency of underestimation,
 // which leads to smoother UX with fewer post-request adjustments.
-func (s *AIGatewayService) estimateTokens(messages []AIMessage, maxTokens int) tokenEstimate {
+func (s *MeteredInferenceService) estimateTokens(messages []AIMessage, maxTokens int) tokenEstimate {
 	estimate := EstimateTokens(messages, maxTokens)
 	return tokenEstimate{prompt: estimate.Prompt, completion: estimate.Completion}
 }
 
 // calculateCost calculates the cost in internal units for a request.
 // Internal unit = 1/1,000,000 of a cent.
-func (s *AIGatewayService) calculateCost(model string, promptTokens, completionTokens int) int64 {
+func (s *MeteredInferenceService) calculateCost(model string, promptTokens, completionTokens int) int64 {
 	return CalculateCost(s.modelPricing, model, promptTokens, completionTokens)
 }
 
 // GetAvailableModels returns the list of models available through the gateway.
-func (s *AIGatewayService) GetAvailableModels() []string {
+func (s *MeteredInferenceService) GetAvailableModels() []string {
 	models := make([]string, 0, len(allowedModels))
 	for model := range allowedModels {
 		models = append(models, model)
@@ -326,4 +345,4 @@ func (s *AIGatewayService) GetAvailableModels() []string {
 }
 
 // Compile-time interface check
-var _ Gateway = (*AIGatewayService)(nil)
+var _ MeteredInferenceProvider = (*MeteredInferenceService)(nil)

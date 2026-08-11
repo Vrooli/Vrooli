@@ -506,7 +506,6 @@ func newUserAuthServiceForTestWithOptions(db *sql.DB, emailService *EmailService
 	return administration.NewUserAuthService(administration.UserAuthServiceOptions{
 		Store:        db,
 		EmailService: emailService,
-		JWTSecret:    "test-secret-key",
 		JWTIssuer:    "test",
 		BaseURL:      "http://localhost:3000/auth/verify",
 		AppName:      "Test App",

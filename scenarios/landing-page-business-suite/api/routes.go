@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/health"
@@ -34,6 +35,7 @@ func (s *Server) setupRoutes() {
 	registerHealthRoutes(s)
 	registerLandingRoutes(s)
 	registerAuthRoutes(s)
+	registerFixtureRoutes(s)
 	registerAccountRoutes(s)
 	registerBillingRoutes(s)
 	registerAdminCoreRoutes(s)
@@ -103,6 +105,20 @@ func registerLandingRoutes(s *Server) {
 }
 
 func registerAuthRoutes(s *Server) {
+	// Consumer access-token verification is intentionally public: bundled
+	// scenarios need the public keys, while the private signing key stays in
+	// this authority and is never distributed to a relying party.
+	s.router.HandleFunc("/.well-known/jwks.json", func(w http.ResponseWriter, _ *http.Request) {
+		body, err := s.userAuthService.PublicKeySet()
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "consumer key set unavailable", ApiErrorTypeServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "public, max-age=300")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(body)
+	}).Methods("GET")
 	// User Authentication endpoints (magic link + JWT)
 	// Public auth endpoints (no auth required)
 	deps := userAuthHandlerDependencies(s.userAuthService, s.magicLinkLimiter)
@@ -116,8 +132,25 @@ func registerAuthRoutes(s *Server) {
 
 func registerAccountRoutes(s *Server) {
 	accounthttp.RegisterRoutes(s.router, accounthttp.NewCommerceReader(s.accountService), getUserEmail, s.requireUserAuth)
+	registerEntitlementRoute(s)
 	downloadhttp.RegisterConnectAuthorizationRoute(s.router, s.planService.BundleKey, s.downloadService, downloadConnectAuthorizationDependencies(s.downloadAuthorizer, s.downloadHosting, s.planService), s.requireUserAuth)
 	s.router.HandleFunc("/api/v1/downloads", s.requireUserAuth(downloadhttp.Authorize(downloadAuthorizationDependencies(s.downloadAuthorizer, s.downloadHosting, s.planService)))).Methods("GET")
+}
+
+func registerEntitlementRoute(s *Server) {
+	s.router.HandleFunc("/api/v1/entitlements", s.requireUserAuth(func(w http.ResponseWriter, r *http.Request) {
+		identity := getUserEmail(r.Context())
+		if requested := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("user"))); requested != "" && requested != strings.ToLower(identity) {
+			writeJSONError(w, http.StatusForbidden, "entitlement identity does not match token", ApiErrorTypeForbidden)
+			return
+		}
+		payload, err := s.accountService.GetEntitlementsContext(r.Context(), identity)
+		if err != nil {
+			writeJSONError(w, http.StatusServiceUnavailable, "entitlement service unavailable", ApiErrorTypeServerError)
+			return
+		}
+		writeJSON(w, payload)
+	})).Methods(http.MethodGet)
 }
 
 func registerBillingRoutes(s *Server) {
@@ -274,17 +307,18 @@ func usageHTTPDependencies() billinghttp.UsageDependencies {
 }
 
 func registerAIRoutes(s *Server) {
-	intelligencehandler.RegisterConnectRoutes(s.router, s.aiGatewayDeps, s.requireUserAuth)
+	intelligencehandler.RegisterConnectRoutes(s.router, s.meteredInferenceDeps, s.requireUserAuth)
 
-	// AI Gateway endpoints
+	// AI MeteredInferenceProvider endpoints
 	// Public endpoint for listing available models
-	s.router.HandleFunc("/api/v1/ai/models", s.aiGatewayHandler.Models()).Methods("GET")
+	s.router.HandleFunc("/api/v1/ai/models", s.meteredInferenceHandler.Models()).Methods("GET")
 	// Health check (public for monitoring)
-	s.router.HandleFunc("/api/v1/ai/health", s.aiGatewayHandler.Health()).Methods("GET")
+	s.router.HandleFunc("/api/v1/ai/health", s.meteredInferenceHandler.Health()).Methods("GET")
 	// User auth required for AI operations
-	s.router.HandleFunc("/api/v1/ai/chat", s.requireUserAuth(s.aiGatewayHandler.Chat())).Methods("POST")
-	s.router.HandleFunc("/api/v1/ai/stream", s.requireUserAuth(s.aiGatewayHandler.Stream())).Methods("POST")
-	s.router.HandleFunc("/api/v1/ai/usage", s.requireUserAuth(s.aiGatewayHandler.Usage())).Methods("GET")
+	s.router.HandleFunc("/api/v1/ai/chat", s.requireUserAuth(s.meteredInferenceHandler.Chat())).Methods("POST")
+	s.router.HandleFunc("/api/v1/ai/inference", s.requireUserAuth(s.meteredInferenceHandler.Inference())).Methods("POST")
+	s.router.HandleFunc("/api/v1/ai/stream", s.requireUserAuth(s.meteredInferenceHandler.Stream())).Methods("POST")
+	s.router.HandleFunc("/api/v1/ai/usage", s.requireUserAuth(s.meteredInferenceHandler.Usage())).Methods("GET")
 }
 
 func registerDocsRoutes(s *Server) {

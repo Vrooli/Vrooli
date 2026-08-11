@@ -509,6 +509,31 @@ func TestSetApiSource_RejectsUnknown(t *testing.T) {
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
+func TestControlPlaneGuardRecognizesOnlyLoopbackControlRequests(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		peer string
+		want bool
+	}{
+		{name: "ipv4 loopback", peer: "127.0.0.1:8080", want: true},
+		{name: "ipv6 loopback", peer: "[::1]:8080", want: true},
+		{name: "remote", peer: "198.51.100.10:8080", want: false},
+		{name: "spoofed host is irrelevant", peer: "198.51.100.10:8080", want: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := isLoopbackPeer(test.peer); got != test.want {
+				t.Fatalf("isLoopbackPeer(%q) = %v, want %v", test.peer, got, test.want)
+			}
+		})
+	}
+	if !isProtectedControlPath("/browser-automation-studio.v1.EntitlementService/SetOverride") {
+		t.Fatal("SetOverride must be protected")
+	}
+	if isProtectedControlPath("/browser-automation-studio.v1.EntitlementService/GetStatus") {
+		t.Fatal("GetStatus must remain available to authenticated remote clients")
+	}
+}
+
 func TestClearApiSource_ResetsToProduction(t *testing.T) {
 	prov := newDefaultProvider()
 	settings := newFakeSettings()

@@ -519,3 +519,39 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 - [Deployment Guide](../guides/DEPLOYMENT.md) - Production deployment steps
 - [API Reference](api/OVERVIEW.md) - Endpoint documentation
 - [Troubleshooting](../guides/TROUBLESHOOTING.md) - Common issues
+# Consumer subscription identity
+
+Consumer access tokens are signed by landing-page-business-suite with RSA-2048
+or stronger `RS256` keys. The private key is authority-only and is supplied by
+the `CONSUMER_AUTH_PRIVATE_KEY` credential. Relying scenarios receive only the
+public key set at `/.well-known/jwks.json`; each token carries a `kid`, and the
+authority may publish the current and previous key during rotation.
+
+Production verification allows a bounded 30-second clock skew. Relying
+scenarios may cache the public key set for at most five minutes and must deny
+requests when it cannot establish a valid token. The former symmetric HS256
+consumer-session path is deliberately invalidated: HS256 tokens are rejected
+as an unsupported algorithm and are not upgraded or accepted during rotation.
+
+Production must set `CONSUMER_AUTH_KEY_ID` to a deployment-specific key ID and
+may set `CONSUMER_AUTH_PREVIOUS_JWKS` to a JSON JWKS containing public overlap
+keys during rotation. LPBS signs only with the current private key; previous
+keys are verification-only and can be removed after the longest access-token
+TTL plus clock-skew window.
+
+## Local fixture commands
+
+The following commands operate only against a loopback API base and a
+non-production local authority. They seed the normal users, subscriptions,
+wallets, and tier-limit tables; they never call Stripe or another payment
+provider. The seed operation is idempotent by normalized email.
+
+```text
+landing-page-business-suite fixture-seed --email user@example.test --tier solo --credits 1000 --bundle-key business_suite
+landing-page-business-suite fixture-token --email user@example.test
+landing-page-business-suite fixture-balance --email user@example.test
+landing-page-business-suite fixture-zero --email user@example.test
+```
+
+The server also requires a loopback request host and refuses these routes in
+production. The CLI rejects non-loopback API bases before making a request.

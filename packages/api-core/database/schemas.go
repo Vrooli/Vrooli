@@ -67,20 +67,16 @@ var (
 // error. Provider type names are not included because providers are
 // often SchemaProviderFunc-wrapped functions whose type is uninformative.
 //
-// Drift check (SQLite only). After applying, if db also implements
-// SchemaQuerier, EnsureSchemas compares each declared table's columns
-// against the live table (via PRAGMA table_info) and returns an error if a
-// pre-existing table is missing a declared column. This catches the silent
-// trap where a new column is added to a CREATE TABLE IF NOT EXISTS block:
-// the statement is a no-op on a DB that already has the table, so the column
-// never lands and queries fail later at runtime instead of loudly at boot.
-// The fix is a one-shot migration (storage-steer §5), not recreating the DB.
-// The check is dialect-scoped by construction: PRAGMA table_info errors on
-// non-SQLite engines (e.g. Postgres, where ADD COLUMN IF NOT EXISTS works and
-// this trap does not exist), and that error is treated as "cannot verify" and
-// skipped rather than surfaced. The parser is deliberately conservative —
-// anything it cannot confidently read is skipped, so the check never blocks
-// boot on a false positive.
+// Drift check (SQLite and Postgres). After applying, if db also implements
+// SchemaQuerier, EnsureSchemas compares each declared table's columns against
+// the live table and repairs additive missing columns. This catches the silent
+// trap where a new column is added to a CREATE TABLE IF NOT EXISTS block: the
+// statement is a no-op on a DB that already has the table, so the column never
+// lands and queries fail later at runtime instead of loudly at boot. Unknown
+// SQL dialects remain best-effort and are skipped when their metadata query is
+// unavailable. The parser is deliberately conservative — anything it cannot
+// confidently read is skipped, so the check never blocks boot on a false
+// positive.
 func EnsureSchemas(ctx context.Context, db SchemaExecer, providers ...SchemaProvider) error {
 	if err := ApplySchemas(ctx, db, providers...); err != nil {
 		return err
@@ -168,7 +164,7 @@ func checkDeclaredColumns(ctx context.Context, db SchemaExecer, providers []Sche
 
 	var drifts []string
 	for _, tbl := range tables {
-		actual, err := sqliteTableColumns(ctx, q, tbl)
+		actual, err := tableColumns(ctx, q, tbl)
 		if err != nil {
 			// PRAGMA table_xinfo unsupported (non-SQLite) or unreadable —
 			// the silent-no-op trap is SQLite-specific, so we cannot and
@@ -274,6 +270,18 @@ func blankStringLiterals(s string) string {
 	return string(out)
 }
 
+// tableColumns returns the set of column names on table. SQLite is queried
+// first because PRAGMA table_xinfo includes generated columns; Postgres uses
+// information_schema as its portable metadata surface. A non-SQLite driver
+// rejects PRAGMA, so the Postgres query is attempted as the fallback.
+func tableColumns(ctx context.Context, q SchemaQuerier, table string) (map[string]bool, error) {
+	cols, err := sqliteTableColumns(ctx, q, table)
+	if err == nil {
+		return cols, nil
+	}
+	return postgresTableColumns(ctx, q, table)
+}
+
 // sqliteTableColumns returns the set of column names on table via PRAGMA
 // table_xinfo. A query error (e.g. PRAGMA unsupported on a non-SQLite engine)
 // is propagated so the caller can skip verification; a missing table yields an
@@ -306,6 +314,31 @@ func sqliteTableColumns(ctx context.Context, q SchemaQuerier, table string) (map
 			hidden int
 		)
 		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk, &hidden); err != nil {
+			return nil, err
+		}
+		cols[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return cols, nil
+}
+
+func postgresTableColumns(ctx context.Context, q SchemaQuerier, table string) (map[string]bool, error) {
+	rows, err := q.QueryContext(ctx, `
+		SELECT column_name
+		FROM information_schema.columns
+		WHERE table_schema = current_schema() AND table_name = $1
+	`, table)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	cols := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
 			return nil, err
 		}
 		cols[name] = true

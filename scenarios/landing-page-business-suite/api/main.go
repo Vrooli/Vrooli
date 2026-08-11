@@ -5,8 +5,12 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -19,6 +23,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/consumeridentity"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
@@ -80,10 +85,10 @@ type Server struct {
 	userAuthService       *administration.UserAuthService
 	userManagementService *administration.UserManagementService
 	magicLinkLimiter      *RateLimiter
-	// AI Gateway service
-	aiGatewayService *intelligence.AIGatewayService
-	aiGatewayHandler *aihandler.Handler
-	aiGatewayDeps    aihandler.Dependencies
+	// AI MeteredInferenceProvider service
+	meteredInferenceService *intelligence.MeteredInferenceService
+	meteredInferenceHandler *aihandler.Handler
+	meteredInferenceDeps    aihandler.Dependencies
 	// Session management for admin auth
 	sessionManager SessionManager
 }
@@ -224,22 +229,46 @@ func NewServer() (*Server, error) {
 	usageService := newRuntimeUsageService(routedDB, limitsService, "postgres")
 
 	// Initialize user authentication services
+	consumerSigningKeyPEM, keyErr := resolveConsumerSigningKey()
+	if keyErr != nil {
+		return nil, fmt.Errorf("resolve consumer signing key: %w", keyErr)
+	}
+	if isProductionEnvironment() && strings.TrimSpace(consumerSigningKeyPEM) == "" {
+		return nil, fmt.Errorf("CONSUMER_AUTH_PRIVATE_KEY is required in production")
+	}
+	consumerKeyID := strings.TrimSpace(resolveConfig("CONSUMER_AUTH_KEY_ID"))
+	if isProductionEnvironment() && consumerKeyID == "" {
+		return nil, fmt.Errorf("CONSUMER_AUTH_KEY_ID is required in production")
+	}
+	previousConsumerKeys, keyErr := resolvePreviousConsumerKeys()
+	if keyErr != nil {
+		return nil, fmt.Errorf("resolve previous consumer signing keys: %w", keyErr)
+	}
 	userAuthService := administration.NewUserAuthService(administration.UserAuthServiceOptions{
-		Store:        routedDB,
-		EmailService: emailService,
-		JWTSecret:    resolveSecret("JWT_SECRET"),
-		JWTIssuer:    resolveSecret("JWT_ISSUER"),
-		BaseURL:      resolveConfig("AUTH_MAGIC_LINK_BASE_URL"),
-		AppName:      resolveConfig("EMAIL_FROM_NAME"),
-		Log:          logStructured,
-		LogError:     logStructuredError,
+		Store:                 routedDB,
+		EmailService:          emailService,
+		JWTIssuer:             resolveSecret("JWT_ISSUER"),
+		ConsumerSigningKeyPEM: consumerSigningKeyPEM,
+		ConsumerSigningKeyID:  consumerKeyID,
+		ConsumerPreviousKeys:  previousConsumerKeys,
+		ConsumerClockSkew:     30 * time.Second,
+		BaseURL:               resolveConfig("AUTH_MAGIC_LINK_BASE_URL"),
+		AppName:               resolveConfig("EMAIL_FROM_NAME"),
+		Log:                   logStructured,
+		LogError:              logStructuredError,
 	})
+	if userAuthService == nil {
+		return nil, fmt.Errorf("failed to initialize consumer signing key")
+	}
+	if _, err := userAuthService.PublicKeySet(); err != nil {
+		return nil, fmt.Errorf("failed to publish consumer key set: %w", err)
+	}
 	userManagementService := administration.NewUserManagementService(routedDB)
 	// Rate limiter: 5 requests per 15 minutes per email for magic link
 	magicLinkLimiter := NewRateLimiter(5, 15*time.Minute)
 
-	// Initialize AI gateway service
-	aiGatewayService := intelligence.NewAIGatewayService(intelligence.AIGatewayServiceOptions{
+	// Initialize metered inference provider service
+	meteredInferenceService := intelligence.NewMeteredInferenceService(intelligence.MeteredInferenceServiceOptions{
 		APIKeyService:  apiKeyService,
 		UsageService:   newCommerceUsageServicer(usageService),
 		AccountService: accountService,
@@ -255,9 +284,9 @@ func NewServer() (*Server, error) {
 		},
 	})
 
-	// Create AI gateway dependencies with rate limiters
-	aiGatewayDeps := newAIGatewayDependencies(aiGatewayService, usageService, accountService)
-	aiGatewayHandler := aihandler.New(aiGatewayDeps)
+	// Create metered inference provider dependencies with rate limiters
+	meteredInferenceDeps := newMeteredInferenceDependencies(meteredInferenceService, usageService, accountService)
+	meteredInferenceHandler := aihandler.New(meteredInferenceDeps)
 
 	srv := &Server{
 		config:               &Config{},
@@ -293,10 +322,10 @@ func NewServer() (*Server, error) {
 		userAuthService:       userAuthService,
 		userManagementService: userManagementService,
 		magicLinkLimiter:      magicLinkLimiter,
-		// AI Gateway service
-		aiGatewayService: aiGatewayService,
-		aiGatewayHandler: aiGatewayHandler,
-		aiGatewayDeps:    aiGatewayDeps,
+		// AI MeteredInferenceProvider service
+		meteredInferenceService: meteredInferenceService,
+		meteredInferenceHandler: meteredInferenceHandler,
+		meteredInferenceDeps:    meteredInferenceDeps,
 		// Session management
 		sessionManager: initSessionManager(),
 	}
@@ -308,6 +337,71 @@ func NewServer() (*Server, error) {
 	}
 	logStructured("server_initialization_completed", nil)
 	return srv, nil
+}
+
+// resolvePreviousConsumerKeys loads the public overlap set used during key
+// rotation. It is deliberately configuration, not a credential: only public
+// keys are accepted and no private material is ever read here.
+func resolvePreviousConsumerKeys() ([]consumeridentity.PublicKey, error) {
+	raw := strings.TrimSpace(resolveConfig("CONSUMER_AUTH_PREVIOUS_JWKS"))
+	if raw == "" {
+		return nil, nil
+	}
+	set, err := consumeridentity.ParseJWKS([]byte(raw))
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]consumeridentity.PublicKey, 0, len(set.Keys))
+	for id, key := range set.Keys {
+		keys = append(keys, consumeridentity.PublicKey{ID: id, Key: key})
+	}
+	return keys, nil
+}
+
+// resolveConsumerSigningKey keeps local development tokens valid across API
+// restarts without ever making a generated private key part of the repository.
+// Production deployments must inject CONSUMER_AUTH_PRIVATE_KEY through their
+// secret manager; the persisted local path is intentionally not used there.
+func resolveConsumerSigningKey() (string, error) {
+	if key := strings.TrimSpace(resolveSecret("CONSUMER_AUTH_PRIVATE_KEY")); key != "" {
+		return key, nil
+	}
+	if isProductionEnvironment() {
+		return "", nil
+	}
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+	if err != nil {
+		return "", err
+	}
+	scenarioID, err := corestorage.ScenarioNamespace("landing-page-business-suite")
+	if err != nil {
+		return "", err
+	}
+	path, err := resolver.Path(corestorage.Options{ScenarioID: scenarioID}, corestorage.ClassConfig, "consumer-auth-private.pem")
+	if err != nil {
+		return "", err
+	}
+	if data, readErr := os.ReadFile(path); readErr == nil {
+		return string(data), nil
+	} else if !os.IsNotExist(readErr) {
+		return "", readErr
+	}
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", err
+	}
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return "", err
+	}
+	data := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 // newRuntimeUsageService supplies process configuration at the composition

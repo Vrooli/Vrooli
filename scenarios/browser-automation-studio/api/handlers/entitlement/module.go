@@ -7,6 +7,9 @@ package entitlement
 
 import (
 	"context"
+	"net"
+	"net/http"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
@@ -71,5 +74,39 @@ func Module(d Deps) connectx.ServiceMount {
 		panic("entitlement.Module requires Deps.Provider")
 	}
 	path, handler := entitlementconnect.NewEntitlementServiceHandler(&service{deps: d})
-	return connectx.ServiceMount{Path: path, Handler: handler}
+	return connectx.ServiceMount{Path: path, Handler: controlPlaneGuard(handler)}
+}
+
+// controlPlaneGuard keeps development-only entitlement controls local to the
+// machine. The BAS API normally listens on loopback, but a reverse proxy may
+// expose that listener for a VPS deployment; without this guard a remote
+// caller could select the disabled source or grant a local tier override.
+func controlPlaneGuard(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isProtectedControlPath(r.URL.Path) && !isLoopbackPeer(r.RemoteAddr) {
+			http.Error(w, "entitlement control requires a local request", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func isProtectedControlPath(path string) bool {
+	for _, procedure := range []string{"/SetOverride", "/ClearOverride", "/SetApiSource", "/ClearApiSource"} {
+		if strings.HasSuffix(path, procedure) {
+			return true
+		}
+	}
+	return false
+}
+
+func isLoopbackPeer(remoteAddr string) bool {
+	peer := strings.TrimSpace(remoteAddr)
+	if host, _, err := net.SplitHostPort(peer); err == nil {
+		peer = host
+	} else {
+		peer = strings.Trim(peer, "[]")
+	}
+	ip := net.ParseIP(peer)
+	return ip != nil && ip.IsLoopback()
 }

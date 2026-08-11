@@ -51,6 +51,14 @@ func (c *inProcessClient) Status(_ context.Context, identity, field string) (Cre
 	return CredentialStatus{Identity: string(status.Identity), Field: status.Field, Configured: status.Configured, Provider: status.Provider, ProviderState: string(status.ProviderState), ProviderDetail: status.ProviderDetail}, nil
 }
 
+func (c *inProcessClient) Resolve(_ context.Context, identity, field string) (string, error) {
+	parsed, err := credentialauthority.ParseIdentity(identity)
+	if err != nil {
+		return "", err
+	}
+	return c.authority.Resolve(parsed, field)
+}
+
 func (c *inProcessClient) Delete(_ context.Context, identity, field string) error {
 	parsed, err := credentialauthority.ParseIdentity(identity)
 	if err != nil {

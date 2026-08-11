@@ -403,13 +403,13 @@
           "completion": "optional"
         },
         {
-          "path": "reference/AI_GATEWAY.md",
-          "title": "AI Gateway",
-          "description": "AI gateway integration documentation",
+          "path": "reference/METERED_INFERENCE.md",
+          "title": "Metered Inference",
+          "description": "metered inference integration documentation",
           "audience": [
             "developers"
           ],
-          "docType": "reference-ai-gateway",
+          "docType": "reference-metered-inference",
           "maturity": "active",
           "requiredBy": [
             "validated"
@@ -428,7 +428,7 @@
         {
           "path": "integrations/subscription-entitlements-system.md",
           "title": "Subscription Entitlements",
-          "description": "How subscription entitlements integrate with downloads + AI gateway",
+          "description": "How subscription entitlements integrate with downloads + metered inference",
           "audience": [
             "developers"
           ],

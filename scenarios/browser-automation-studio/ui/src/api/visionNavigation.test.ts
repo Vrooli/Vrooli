@@ -40,7 +40,7 @@ describe('visionNavigationClient (Connect-RPC)', () => {
     startNavigation.mockResolvedValue({
       navigationId: 'nav-1',
       status: 'started',
-      model: 'gpt-4o',
+      model: 'local_first',
       maxSteps: 10,
       navigatorType: 'playwright',
     });
@@ -49,7 +49,7 @@ describe('visionNavigationClient (Connect-RPC)', () => {
     const resp = await client.startNavigation({
       sessionId: 's-1',
       prompt: 'click login',
-      model: 'gpt-4o',
+      model: 'local_first',
       maxSteps: 10,
     });
 

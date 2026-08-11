@@ -5,7 +5,7 @@ import {
   MetricsService,
   type AnalyticsSummary as GeneratedAnalyticsSummary,
   type VariantStats as GeneratedVariantStats,
-} from '@vrooli/proto-types/landing-page-business-suite/metrics_pb';
+} from '@vrooli/proto-types/landing-page-business-suite/v1/metrics_pb';
 import { CONNECT_API_BASE } from './common';
 import type { AnalyticsSummary, MetricEvent, VariantStats } from './types';
 

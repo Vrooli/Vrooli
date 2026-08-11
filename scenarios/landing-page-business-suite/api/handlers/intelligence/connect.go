@@ -98,7 +98,7 @@ func (h *ConnectHandler) GetUsage(ctx context.Context, _ *connect.Request[lpbsv1
 
 func (h *ConnectHandler) Health(ctx context.Context, _ *connect.Request[lpbsv1.HealthRequest]) (*connect.Response[lpbsv1.HealthResponse], error) {
 	if err := h.deps.Service.HealthCheck(ctx); err != nil {
-		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("AI gateway health: %w", err))
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("metered inference provider health: %w", err))
 	}
 	return connect.NewResponse(&lpbsv1.HealthResponse{Status: "healthy"}), nil
 }

@@ -333,13 +333,31 @@ Planned metrics include:
 
 ## 🔒 Security
 
-> Security features are design targets. Current implementation uses development settings without auth or encryption. Harden after executor MVP.
+Subscription identity is anchored at Landing Page Business Suite (LPBS). BAS and
+bundled scenarios use the shared `vrooli/lpbs-account:refresh-token` credential
+authority; only short-lived RS256 access tokens are held in process memory or
+browser session storage. Refresh tokens are never returned by BAS APIs and are
+never written to browser storage, workflow definitions, logs, or command-line
+arguments.
 
-Planned controls:
-- Screenshots encrypted at rest in MinIO
-- Role-based access to workflows
-- Audit trail for all executions
-- No secrets in workflow definitions
+The web flow validates a state/CSRF value, strips callback fragments from the
+history immediately, and provisions the refresh token only through the same
+origin BAS API. The desktop flow uses Electron safeStorage plus the native
+credential authority and recovers after an encrypted profile reset without
+accepting plaintext token files. Entitlement and AI metering requests use the
+verified consumer identity from the LPBS token; caller-supplied identity values
+cannot select another account.
+
+LPBS signing keys are private server-side and exposed to consumers only through
+the public JWKS endpoint. Production requires an explicitly configured key ID;
+local development uses a persistent local key only when production mode is not
+enabled. Control-plane tier/source overrides are loopback-only.
+
+The remaining deployment boundary is intentional: AI Gateway APIs are
+operator-local unless a deployment adds an authenticated edge. Remote exposure
+must use TLS and an authenticated reverse proxy or equivalent API identity
+layer; the local subscription credential is not a substitute for multi-user
+edge authentication.
 
 ## 🚧 Known Limitations
 

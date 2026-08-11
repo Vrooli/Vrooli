@@ -5,11 +5,11 @@ import {
   StripeSettingsService,
   type StripeConfigSnapshot,
   type StripeSettings,
-} from '@vrooli/proto-types/landing-page-business-suite/settings_pb';
-import { LandingPagePaymentsService, SessionKind, type CreateCheckoutSessionResponse } from '@vrooli/proto-types/landing-page-business-suite/billing_pb';
-import { BundleAdminService, type ListBundleCatalogResponse, type UpdateBundlePriceResponse } from '@vrooli/proto-types/landing-page-business-suite/bundles_pb';
-import { CouponAdminService, CouponDuration, type Coupon, type CouponImportPreviewItem as GeneratedCouponImportPreviewItem } from '@vrooli/proto-types/landing-page-business-suite/coupons_pb';
-import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb';
+} from '@vrooli/proto-types/landing-page-business-suite/v1/settings_pb';
+import { LandingPagePaymentsService, SessionKind, type CreateCheckoutSessionResponse } from '@vrooli/proto-types/landing-page-business-suite/v1/billing_pb';
+import { BundleAdminService, type ListBundleCatalogResponse, type UpdateBundlePriceResponse } from '@vrooli/proto-types/landing-page-business-suite/v1/bundles_pb';
+import { CouponAdminService, CouponDuration, type Coupon, type CouponImportPreviewItem as GeneratedCouponImportPreviewItem } from '@vrooli/proto-types/landing-page-business-suite/v1/coupons_pb';
+import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/commerce_pb';
 import { apiCall, CONNECT_API_BASE } from './common';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
 import type { BundleCatalogEntry, CheckoutSession, PlanOption } from './types';

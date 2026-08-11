@@ -141,7 +141,7 @@ export interface AISettings {
  * Default AI settings.
  */
 export const DEFAULT_AI_SETTINGS: AISettings = {
-  model: 'qwen3-vl-30b',
+  model: 'local_first',
   maxSteps: 20,
 };
 

@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
-import { AccountService, type GetEntitlementsResponse, type GetMyCreditsResponse, type GetMySubscriptionResponse } from '@vrooli/proto-types/landing-page-business-suite/account_pb';
-import { SubscriptionState } from '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb';
+import { AccountService, type GetEntitlementsResponse, type GetMyCreditsResponse, type GetMySubscriptionResponse } from '@vrooli/proto-types/landing-page-business-suite/v1/account_pb';
+import { SubscriptionState } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/commerce_pb';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
 import { CONNECT_API_BASE } from './common';
 import { parseOrNull } from './safeParse';

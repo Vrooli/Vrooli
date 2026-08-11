@@ -7,7 +7,7 @@ func TestAllowedModelsReturnsIndependentPolicyCopies(t *testing.T) {
 	first["unapproved/model"] = true
 
 	if AllowedModels()["unapproved/model"] {
-		t.Fatal("gateway callers must not be able to mutate the allowed-model policy")
+		t.Fatal("metered inference callers must not be able to mutate the allowed-model policy")
 	}
 }
 

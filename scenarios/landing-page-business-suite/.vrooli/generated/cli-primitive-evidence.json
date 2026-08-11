@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "landing-page-business-suite",
   "generator": "v1.0.0",
-  "manifest_hash": "e918e2c2f2888faff253f3243372cd8903f4ee8f82ad9999fbe8e0c6fbda975f",
+  "manifest_hash": "044d0479c283b3e832d1b582da8ee64371f12301fbdae5fb688ac0168b835ee2",
   "commands": [
     {
       "path": "legacy admin-bundle-price-update",

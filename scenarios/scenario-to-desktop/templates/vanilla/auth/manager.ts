@@ -30,10 +30,28 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
         onAuthChange,
         onWindowFocus,
         onProtocolUrl,
+        onRefreshToken,
+        onGetRefreshToken,
+        onClearRefreshToken,
     } = deps;
 
     let tokenRefreshTimer: NodeJS.Timeout | null = null;
     let pendingAuthState: string | null = null;
+    let memoryTokens: StoredTokens | null = null;
+
+    // The credential authority is the recovery source when encrypted local
+    // storage is unavailable, has been removed, or can no longer be opened
+    // after a platform keychain reset. It intentionally returns an expired
+    // access-token placeholder so callers must perform a normal refresh.
+    async function getAuthorityTokens(): Promise<StoredTokens | null> {
+        const refreshToken = await onGetRefreshToken?.();
+        if (!refreshToken) return null;
+        return {
+            accessToken: "",
+            refreshToken,
+            expiresAt: new Date(0).toISOString(),
+        };
+    }
 
     /**
      * Store tokens securely using Electron's safeStorage.
@@ -56,35 +74,65 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
             const encrypted = safeStorage.encryptString(tokenJson);
             await storage.writeFile(config.tokensFile, encrypted);
         } else {
-            // Fallback: store without encryption (development mode)
-            console.warn("[Auth] safeStorage encryption not available, storing tokens unencrypted");
-            await storage.writeFile(config.tokensFile, tokenJson);
+            // The platform credential authority is the secure fallback. Never
+            // place an access or refresh token in an unencrypted file.
+            if (!onRefreshToken) {
+                throw new Error("secure token storage is unavailable on this platform");
+            }
+            await onRefreshToken(tokens.refreshToken);
+            try {
+                await storage.deleteFile(config.tokensFile);
+            } catch (error: unknown) {
+                const code = error instanceof Error && "code" in error ? error.code : undefined;
+                if (code !== "ENOENT") throw error;
+            }
         }
+
+        // Keep the durable shared credential current on every rotation. The
+        // access token remains process memory only for the scenario runtime.
+        if (onRefreshToken && safeStorage.isEncryptionAvailable()) {
+            await onRefreshToken(tokens.refreshToken);
+        }
+        memoryTokens = tokens;
     }
 
     /**
      * Retrieve stored tokens.
      */
     async function getStoredTokens(): Promise<StoredTokens | null> {
+        if (memoryTokens) return memoryTokens;
         try {
             const fileContent = await storage.readFile(config.tokensFile);
-            if (!fileContent) {
-                return null;
+            if (!safeStorage.isEncryptionAvailable()) {
+                // Plaintext token files are not accepted. Recover the refresh
+                // token from the platform authority when available.
+                if (fileContent) {
+                    try {
+                        await storage.deleteFile(config.tokensFile);
+                    } catch {
+                        // The authority remains the source of truth even if
+                        // stale local cleanup cannot be completed.
+                    }
+                }
+                return getAuthorityTokens();
             }
 
-            if (safeStorage.isEncryptionAvailable()) {
-                const decrypted = safeStorage.decryptString(fileContent);
-                return JSON.parse(decrypted) as StoredTokens;
-            } else {
-                // Fallback: read as plain text
-                return JSON.parse(fileContent.toString("utf-8")) as StoredTokens;
-            }
+            if (!fileContent) return getAuthorityTokens();
+
+            const decrypted = safeStorage.decryptString(fileContent);
+            return JSON.parse(decrypted) as StoredTokens;
         } catch (error: unknown) {
             if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-                return null;
+                return getAuthorityTokens();
             }
-            console.error("[Auth] Failed to read tokens:", error);
-            return null;
+            // Do not log the parse/decryption error: runtimes may include a
+            // prefix of the unreadable file contents in the exception text.
+            // The shared credential authority is the only recovery source.
+            console.error("[Auth] Failed to read encrypted tokens; recovering from the shared authority");
+            // A keychain/profile reset can make an otherwise valid encrypted
+            // file unreadable. Recover only the refresh token from the
+            // platform authority; never fall back to plaintext parsing.
+            return getAuthorityTokens();
         }
     }
 
@@ -124,6 +172,7 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
      * Clear all auth data.
      */
     async function clearAuthData(): Promise<void> {
+        memoryTokens = null;
         if (tokenRefreshTimer) {
             timer.clearTimeout(tokenRefreshTimer);
             tokenRefreshTimer = null;
@@ -144,6 +193,14 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
             const code = error instanceof Error && "code" in error ? error.code : undefined;
             if (code !== "ENOENT") {
                 console.error("[Auth] Failed to delete user info:", error);
+            }
+        }
+
+        if (onClearRefreshToken) {
+            try {
+                await onClearRefreshToken();
+            } catch (error) {
+                console.warn("[Auth] Failed to clear shared subscription session:", error);
             }
         }
     }
@@ -202,7 +259,6 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
                 refreshToken: newTokens.refresh_token,
                 expiresAt: newTokens.expires_at,
             });
-
             scheduleTokenRefresh(newTokens.expires_at);
             onAuthChange("tokens-refreshed");
             console.log("[Auth] Tokens refreshed successfully");
@@ -337,7 +393,6 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
                     refreshToken,
                     expiresAt,
                 });
-
                 // Schedule token refresh
                 scheduleTokenRefresh(expiresAt);
 

@@ -54,9 +54,9 @@ func testWriteJSONError(w http.ResponseWriter, status int, message, errorType st
 
 func testIPKey(*http.Request) string { return "test-client-ip" }
 
-// newTestAIGatewayDeps creates handler dependencies with explicit test seams.
-func newTestAIGatewayDeps(mockSvc *MockAIGateway) *AIGatewayDeps {
-	return &AIGatewayDeps{
+// newTestMeteredInferenceDeps creates handler dependencies with explicit test seams.
+func newTestMeteredInferenceDeps(mockSvc *MockMeteredInference) *MeteredInferenceDeps {
+	return &MeteredInferenceDeps{
 		Service:          mockSvc,
 		Usage:            nil, // Will be set in tests that need it
 		SubscriptionTier: nil,
@@ -72,9 +72,9 @@ func newTestAIGatewayDeps(mockSvc *MockAIGateway) *AIGatewayDeps {
 
 // These helpers keep the behavioral test names focused on endpoint behavior
 // while exercising the owned Handler directly.
-type AIGatewayDeps = Dependencies
+type MeteredInferenceDeps = Dependencies
 
-func testAIHandler(deps *AIGatewayDeps) *Handler {
+func testAIHandler(deps *MeteredInferenceDeps) *Handler {
 	configured := *deps
 	if configured.UserIdentity == nil {
 		configured.UserIdentity = testUserIdentity
@@ -93,32 +93,32 @@ func testAIHandler(deps *AIGatewayDeps) *Handler {
 	}
 	return New(configured)
 }
-func handleAIChat(deps *AIGatewayDeps) http.HandlerFunc       { return testAIHandler(deps).Chat() }
-func handleAIStream(deps *AIGatewayDeps) http.HandlerFunc     { return testAIHandler(deps).Stream() }
-func handleAIModels(deps *AIGatewayDeps) http.HandlerFunc     { return testAIHandler(deps).Models() }
-func handleAIUsage(deps *AIGatewayDeps) http.HandlerFunc      { return testAIHandler(deps).Usage() }
-func handleAIHealth(deps *AIGatewayDeps) http.HandlerFunc     { return testAIHandler(deps).Health() }
-func validateAIRequest(request *intelligence.AIRequest) error { return ValidateRequest(request) }
+func handleAIChat(deps *MeteredInferenceDeps) http.HandlerFunc   { return testAIHandler(deps).Chat() }
+func handleAIStream(deps *MeteredInferenceDeps) http.HandlerFunc { return testAIHandler(deps).Stream() }
+func handleAIModels(deps *MeteredInferenceDeps) http.HandlerFunc { return testAIHandler(deps).Models() }
+func handleAIUsage(deps *MeteredInferenceDeps) http.HandlerFunc  { return testAIHandler(deps).Usage() }
+func handleAIHealth(deps *MeteredInferenceDeps) http.HandlerFunc { return testAIHandler(deps).Health() }
+func validateAIRequest(request *intelligence.AIRequest) error    { return ValidateRequest(request) }
 func handleAIError(w http.ResponseWriter, err error) {
 	WriteError(Dependencies{WriteJSONError: testWriteJSONError, LogError: func(string, map[string]interface{}) {}}, w, err)
 }
 
-// MockAIGateway is a test-only implementation of the handler's gateway seam.
-type MockAIGateway struct {
+// MockMeteredInference is a test-only implementation of the handler's metered inference seam.
+type MockMeteredInference struct {
 	ExecuteChatFn        func(ctx context.Context, userIdentity string, req intelligence.AIRequest) (*intelligence.AIResponse, error)
 	ExecuteChatStreamFn  func(ctx context.Context, userIdentity string, req intelligence.AIRequest, w http.ResponseWriter) error
 	GetAvailableModelsFn func() []string
 	HealthCheckFn        func(ctx context.Context) error
 }
 
-func (m *MockAIGateway) ExecuteChat(ctx context.Context, userIdentity string, req intelligence.AIRequest) (*intelligence.AIResponse, error) {
+func (m *MockMeteredInference) ExecuteChat(ctx context.Context, userIdentity string, req intelligence.AIRequest) (*intelligence.AIResponse, error) {
 	if m.ExecuteChatFn != nil {
 		return m.ExecuteChatFn(ctx, userIdentity, req)
 	}
 	return &intelligence.AIResponse{ID: "mock-chat-id", Model: req.Model, Content: "Mock response content", PromptTokens: 10, CompletionTokens: 5, TotalTokens: 15, CreditsCharged: 1000, FinishReason: "stop"}, nil
 }
 
-func (m *MockAIGateway) ExecuteChatStream(ctx context.Context, userIdentity string, req intelligence.AIRequest, w http.ResponseWriter) error {
+func (m *MockMeteredInference) ExecuteChatStream(ctx context.Context, userIdentity string, req intelligence.AIRequest, w http.ResponseWriter) error {
 	if m.ExecuteChatStreamFn != nil {
 		return m.ExecuteChatStreamFn(ctx, userIdentity, req, w)
 	}
@@ -128,27 +128,27 @@ func (m *MockAIGateway) ExecuteChatStream(ctx context.Context, userIdentity stri
 	return nil
 }
 
-func (m *MockAIGateway) GetAvailableModels() []string {
+func (m *MockMeteredInference) GetAvailableModels() []string {
 	if m.GetAvailableModelsFn != nil {
 		return m.GetAvailableModelsFn()
 	}
 	return []string{"mock/model-1", "mock/model-2"}
 }
 
-func (m *MockAIGateway) HealthCheck(ctx context.Context) error {
+func (m *MockMeteredInference) HealthCheck(ctx context.Context) error {
 	if m.HealthCheckFn != nil {
 		return m.HealthCheckFn(ctx)
 	}
 	return nil
 }
 
-var _ intelligence.Gateway = (*MockAIGateway)(nil)
+var _ intelligence.MeteredInferenceProvider = (*MockMeteredInference)(nil)
 
 // --- handleAIChat Tests ---
 
 func TestHandleAIChat_Success(t *testing.T) {
-	mockSvc := &MockAIGateway{}
-	deps := newTestAIGatewayDeps(mockSvc)
+	mockSvc := &MockMeteredInference{}
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIChat(deps)
 
@@ -181,8 +181,8 @@ func TestHandleAIChat_Success(t *testing.T) {
 }
 
 func TestHandleAIChat_RequiresAuth(t *testing.T) {
-	mockSvc := &MockAIGateway{}
-	deps := newTestAIGatewayDeps(mockSvc)
+	mockSvc := &MockMeteredInference{}
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIChat(deps)
 
@@ -203,8 +203,8 @@ func TestHandleAIChat_RequiresAuth(t *testing.T) {
 }
 
 func TestHandleAIChat_InvalidBody(t *testing.T) {
-	mockSvc := &MockAIGateway{}
-	deps := newTestAIGatewayDeps(mockSvc)
+	mockSvc := &MockMeteredInference{}
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIChat(deps)
 
@@ -221,8 +221,8 @@ func TestHandleAIChat_InvalidBody(t *testing.T) {
 }
 
 func TestHandleAIChat_ValidationError(t *testing.T) {
-	mockSvc := &MockAIGateway{}
-	deps := newTestAIGatewayDeps(mockSvc)
+	mockSvc := &MockMeteredInference{}
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIChat(deps)
 
@@ -249,9 +249,9 @@ func TestHandleAIChat_ValidationError(t *testing.T) {
 }
 
 func TestHandleAIChat_UserRateLimitEnforced(t *testing.T) {
-	mockSvc := &MockAIGateway{}
+	mockSvc := &MockMeteredInference{}
 	// Create deps with a very low rate limit
-	deps := &AIGatewayDeps{
+	deps := &MeteredInferenceDeps{
 		Service:         mockSvc,
 		UserRateLimiter: newTestLimiter(2), // Only 2 requests allowed
 		IPRateLimiter:   newTestLimiter(1000),
@@ -292,9 +292,9 @@ func TestHandleAIChat_UserRateLimitEnforced(t *testing.T) {
 }
 
 func TestHandleAIChat_IPRateLimitEnforced(t *testing.T) {
-	mockSvc := &MockAIGateway{}
+	mockSvc := &MockMeteredInference{}
 	// Create deps with very low IP rate limit
-	deps := &AIGatewayDeps{
+	deps := &MeteredInferenceDeps{
 		Service:         mockSvc,
 		UserRateLimiter: newTestLimiter(1000),
 		IPRateLimiter:   newTestLimiter(2), // Only 2 requests per IP
@@ -335,12 +335,12 @@ func TestHandleAIChat_IPRateLimitEnforced(t *testing.T) {
 }
 
 func TestHandleAIChat_ServiceError(t *testing.T) {
-	mockSvc := &MockAIGateway{
+	mockSvc := &MockMeteredInference{
 		ExecuteChatFn: func(ctx context.Context, userIdentity string, req intelligence.AIRequest) (*intelligence.AIResponse, error) {
 			return nil, intelligence.ErrInsufficientCredits
 		},
 	}
-	deps := newTestAIGatewayDeps(mockSvc)
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIChat(deps)
 
@@ -364,8 +364,8 @@ func TestHandleAIChat_ServiceError(t *testing.T) {
 // --- handleAIStream Tests ---
 
 func TestHandleAIStream_Success(t *testing.T) {
-	mockSvc := &MockAIGateway{}
-	deps := newTestAIGatewayDeps(mockSvc)
+	mockSvc := &MockMeteredInference{}
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIStream(deps)
 
@@ -399,8 +399,8 @@ func TestHandleAIStream_Success(t *testing.T) {
 }
 
 func TestHandleAIStream_RequiresAuth(t *testing.T) {
-	mockSvc := &MockAIGateway{}
-	deps := newTestAIGatewayDeps(mockSvc)
+	mockSvc := &MockMeteredInference{}
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIStream(deps)
 
@@ -423,12 +423,12 @@ func TestHandleAIStream_RequiresAuth(t *testing.T) {
 // --- handleAIModels Tests ---
 
 func TestHandleAIModels_Success(t *testing.T) {
-	mockSvc := &MockAIGateway{
+	mockSvc := &MockMeteredInference{
 		GetAvailableModelsFn: func() []string {
 			return []string{"model-a", "model-b", "model-c"}
 		},
 	}
-	deps := newTestAIGatewayDeps(mockSvc)
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIModels(deps)
 
@@ -459,8 +459,8 @@ func TestHandleAIModels_Success(t *testing.T) {
 // --- handleAIUsage Tests ---
 
 func TestHandleAIUsage_RequiresAuth(t *testing.T) {
-	mockSvc := &MockAIGateway{}
-	deps := newTestAIGatewayDeps(mockSvc)
+	mockSvc := &MockMeteredInference{}
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIUsage(deps)
 
@@ -478,12 +478,12 @@ func TestHandleAIUsage_RequiresAuth(t *testing.T) {
 // --- handleAIHealth Tests ---
 
 func TestHandleAIHealth_Success(t *testing.T) {
-	mockSvc := &MockAIGateway{
+	mockSvc := &MockMeteredInference{
 		HealthCheckFn: func(ctx context.Context) error {
 			return nil
 		},
 	}
-	deps := newTestAIGatewayDeps(mockSvc)
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIHealth(deps)
 
@@ -508,12 +508,12 @@ func TestHandleAIHealth_Success(t *testing.T) {
 }
 
 func TestHandleAIHealth_ServiceDown(t *testing.T) {
-	mockSvc := &MockAIGateway{
+	mockSvc := &MockMeteredInference{
 		HealthCheckFn: func(ctx context.Context) error {
 			return errors.New("OpenRouter API unreachable")
 		},
 	}
-	deps := newTestAIGatewayDeps(mockSvc)
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIHealth(deps)
 
@@ -633,12 +633,12 @@ func TestValidateAIRequest_MaxTokensExceedsLimit(t *testing.T) {
 // ============================================================================
 
 func TestHandleAIChat_ErrNoAPIKeyConfigured_Returns503(t *testing.T) {
-	mockSvc := &MockAIGateway{
+	mockSvc := &MockMeteredInference{
 		ExecuteChatFn: func(ctx context.Context, userIdentity string, req intelligence.AIRequest) (*intelligence.AIResponse, error) {
 			return nil, intelligence.ErrNoAPIKeyConfigured
 		},
 	}
-	deps := newTestAIGatewayDeps(mockSvc)
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIChat(deps)
 
@@ -660,12 +660,12 @@ func TestHandleAIChat_ErrNoAPIKeyConfigured_Returns503(t *testing.T) {
 }
 
 func TestHandleAIChat_ErrModelNotAllowed_Returns400(t *testing.T) {
-	mockSvc := &MockAIGateway{
+	mockSvc := &MockMeteredInference{
 		ExecuteChatFn: func(ctx context.Context, userIdentity string, req intelligence.AIRequest) (*intelligence.AIResponse, error) {
 			return nil, intelligence.ErrModelNotAllowed
 		},
 	}
-	deps := newTestAIGatewayDeps(mockSvc)
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIChat(deps)
 
@@ -687,12 +687,12 @@ func TestHandleAIChat_ErrModelNotAllowed_Returns400(t *testing.T) {
 }
 
 func TestHandleAIChat_ProviderError_Returns502(t *testing.T) {
-	mockSvc := &MockAIGateway{
+	mockSvc := &MockMeteredInference{
 		ExecuteChatFn: func(ctx context.Context, userIdentity string, req intelligence.AIRequest) (*intelligence.AIResponse, error) {
 			return nil, intelligence.ErrProvider
 		},
 	}
-	deps := newTestAIGatewayDeps(mockSvc)
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIChat(deps)
 
@@ -714,12 +714,12 @@ func TestHandleAIChat_ProviderError_Returns502(t *testing.T) {
 }
 
 func TestHandleAIChat_UnknownError_Returns500(t *testing.T) {
-	mockSvc := &MockAIGateway{
+	mockSvc := &MockMeteredInference{
 		ExecuteChatFn: func(ctx context.Context, userIdentity string, req intelligence.AIRequest) (*intelligence.AIResponse, error) {
 			return nil, errors.New("unexpected internal error")
 		},
 	}
-	deps := newTestAIGatewayDeps(mockSvc)
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIChat(deps)
 
@@ -745,12 +745,12 @@ func TestHandleAIChat_UnknownError_Returns500(t *testing.T) {
 // ============================================================================
 
 func TestHandleAIStream_ErrNoAPIKeyConfigured_Returns503(t *testing.T) {
-	mockSvc := &MockAIGateway{
+	mockSvc := &MockMeteredInference{
 		ExecuteChatStreamFn: func(ctx context.Context, userIdentity string, req intelligence.AIRequest, w http.ResponseWriter) error {
 			return intelligence.ErrNoAPIKeyConfigured
 		},
 	}
-	deps := newTestAIGatewayDeps(mockSvc)
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIStream(deps)
 
@@ -772,12 +772,12 @@ func TestHandleAIStream_ErrNoAPIKeyConfigured_Returns503(t *testing.T) {
 }
 
 func TestHandleAIStream_ErrModelNotAllowed_Returns400(t *testing.T) {
-	mockSvc := &MockAIGateway{
+	mockSvc := &MockMeteredInference{
 		ExecuteChatStreamFn: func(ctx context.Context, userIdentity string, req intelligence.AIRequest, w http.ResponseWriter) error {
 			return intelligence.ErrModelNotAllowed
 		},
 	}
-	deps := newTestAIGatewayDeps(mockSvc)
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIStream(deps)
 
@@ -799,12 +799,12 @@ func TestHandleAIStream_ErrModelNotAllowed_Returns400(t *testing.T) {
 }
 
 func TestHandleAIStream_ErrStreamingNotSupported_Returns501(t *testing.T) {
-	mockSvc := &MockAIGateway{
+	mockSvc := &MockMeteredInference{
 		ExecuteChatStreamFn: func(ctx context.Context, userIdentity string, req intelligence.AIRequest, w http.ResponseWriter) error {
 			return intelligence.ErrStreamingNotSupported
 		},
 	}
-	deps := newTestAIGatewayDeps(mockSvc)
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIStream(deps)
 
@@ -826,12 +826,12 @@ func TestHandleAIStream_ErrStreamingNotSupported_Returns501(t *testing.T) {
 }
 
 func TestHandleAIStream_ProviderError_Returns502(t *testing.T) {
-	mockSvc := &MockAIGateway{
+	mockSvc := &MockMeteredInference{
 		ExecuteChatStreamFn: func(ctx context.Context, userIdentity string, req intelligence.AIRequest, w http.ResponseWriter) error {
 			return intelligence.ErrProvider
 		},
 	}
-	deps := newTestAIGatewayDeps(mockSvc)
+	deps := newTestMeteredInferenceDeps(mockSvc)
 
 	handler := handleAIStream(deps)
 

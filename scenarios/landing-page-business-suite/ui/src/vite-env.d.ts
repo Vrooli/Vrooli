@@ -8,7 +8,7 @@ declare global {
 
 type ProtoSchema<_T> = unknown;
 
-declare module '@vrooli/proto-types/landing-page-business-suite/shared/downloads_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/shared/downloads_pb' {
   import type { Message } from '@bufbuild/protobuf';
   export interface DownloadStorefront { store: string; label: string; url: string; badge: string; }
   export interface DownloadAsset extends Message<'vrooli.landing_page_business_suite.v1.shared.DownloadAsset'> {
@@ -24,10 +24,10 @@ declare module '@vrooli/proto-types/landing-page-business-suite/shared/downloads
   }
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/download_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/download_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
-  import type { DownloadApp, DownloadAsset } from '@vrooli/proto-types/landing-page-business-suite/shared/downloads_pb';
+  import type { DownloadApp, DownloadAsset } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/downloads_pb';
   export interface AuthorizeDownloadRequest extends Message<'landing_page_business_suite.v1.AuthorizeDownloadRequest'> { app: string; platform: string; }
   export interface AuthorizeDownloadResponse extends Message<'landing_page_business_suite.v1.AuthorizeDownloadResponse'> { asset?: DownloadAsset; }
   export type ListDownloadAppsRequest = Message<'landing_page_business_suite.v1.ListDownloadAppsRequest'>;
@@ -55,7 +55,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/download_pb' {
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/billing_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/billing_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
   export enum SubscriptionState {
@@ -103,7 +103,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/billing_pb' {
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/branding_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/branding_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
   export type GetBrandingRequest = Message<'landing_page_business_suite.v1.GetBrandingRequest'>;
@@ -126,7 +126,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/branding_pb' {
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/assets_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/assets_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
 
@@ -167,7 +167,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/assets_pb' {
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/docs_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/docs_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
 
@@ -197,10 +197,10 @@ declare module '@vrooli/proto-types/landing-page-business-suite/docs_pb' {
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/bundles_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/bundles_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
-  import type { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb';
+  import type { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/commerce_pb';
   type ProtoValue = { toJson?: () => unknown };
   export interface Bundle { bundleKey?: string; name?: string; stripeProductId?: string; creditsPerUsd?: bigint | number; displayCreditsMultiplier?: number; displayCreditsLabel?: string; environment?: string; metadata?: Record<string, ProtoValue>; }
   export interface PlanOption { planName?: string; planTier?: string; billingInterval?: BillingInterval; amountCents?: bigint | number; currency?: string; introEnabled?: boolean; introType?: IntroPricingType; introAmountCents?: bigint | number; introPeriods?: number; introPriceLookupKey?: string; stripePriceId?: string; monthlyIncludedCredits?: bigint | number; oneTimeBonusCredits?: bigint | number; planRank?: number; bonusType?: string; kind?: PlanKind; isVariableAmount?: boolean; displayEnabled?: boolean; bundleKey?: string; displayWeight?: number; metadata?: Record<string, ProtoValue>; }
@@ -219,7 +219,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/bundles_pb' {
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/coupons_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/coupons_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
   export enum CouponDuration { UNSPECIFIED = 0, ONCE = 1, REPEATING = 2, FOREVER = 3 }
@@ -250,7 +250,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/coupons_pb' {
   export const CouponAdminService: GenService<{ listCoupons: { methodKind: 'unary'; input: typeof ListCouponsRequestSchema; output: typeof ListCouponsResponseSchema }; createCoupon: { methodKind: 'unary'; input: typeof CreateCouponRequestSchema; output: typeof CreateCouponResponseSchema }; getCoupon: { methodKind: 'unary'; input: typeof GetCouponRequestSchema; output: typeof GetCouponResponseSchema }; updateCoupon: { methodKind: 'unary'; input: typeof UpdateCouponRequestSchema; output: typeof UpdateCouponResponseSchema }; deleteCoupon: { methodKind: 'unary'; input: typeof DeleteCouponRequestSchema; output: typeof DeleteCouponResponseSchema }; listCouponUsage: { methodKind: 'unary'; input: typeof ListCouponUsageRequestSchema; output: typeof ListCouponUsageResponseSchema }; getCouponMappings: { methodKind: 'unary'; input: typeof GetCouponMappingsRequestSchema; output: typeof GetCouponMappingsResponseSchema }; setCouponForPlan: { methodKind: 'unary'; input: typeof SetCouponForPlanRequestSchema; output: typeof SetCouponForPlanResponseSchema }; removeCouponFromPlan: { methodKind: 'unary'; input: typeof RemoveCouponFromPlanRequestSchema; output: typeof RemoveCouponFromPlanResponseSchema }; getCouponImportPreview: { methodKind: 'unary'; input: typeof GetCouponImportPreviewRequestSchema; output: typeof GetCouponImportPreviewResponseSchema } }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/shared/commerce_pb' {
   export enum SubscriptionState {
     UNSPECIFIED = 0,
     ACTIVE = 1,
@@ -297,7 +297,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/shared/commerce_
   export const VerifySubscriptionResponseSchema: ProtoSchema<VerifySubscriptionResponse>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/settings_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/settings_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
   export enum ConfigSource {
@@ -355,7 +355,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/settings_pb' {
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/pricing_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/pricing_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
 
@@ -442,7 +442,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/pricing_pb' {
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/variant_space_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/variant_space_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
 
@@ -461,7 +461,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/variant_space_pb
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/variant_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/variant_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
 
@@ -507,7 +507,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/variant_pb' {
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/seo_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/seo_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
   export interface VariantSEOConfig { title?: string; description?: string; ogTitle?: string; ogDescription?: string; ogImageUrl?: string; twitterCard?: string; canonicalPath?: string; noindex?: boolean; structuredData?: Record<string, unknown>; }
@@ -530,7 +530,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/seo_pb' {
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/config_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/config_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
   export interface GetLandingConfigRequest extends Message<'landing_page_business_suite.v1.GetLandingConfigRequest'> { variantSlug: string; }
@@ -542,7 +542,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/config_pb' {
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/account_pb' {
+declare module '@vrooli/proto-types/landing-page-business-suite/v1/account_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
 

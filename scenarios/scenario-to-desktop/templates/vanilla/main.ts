@@ -1346,6 +1346,33 @@ app.whenReady().then(async () => {
             onAuthChange: (event) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("auth:changed", { event }); },
             onWindowFocus: () => { if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.focus(); } },
             onProtocolUrl: (url) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("protocol-url", url); },
+            onRefreshToken: async (refreshToken) => {
+                if (!runtimeControlClient) {
+                    throw new Error("shared credential authority is unavailable");
+                }
+                await runtimeControlClient.request("/credentials/provision", {
+                    method: "POST",
+                    body: { identity: "vrooli/lpbs-account", field: "refresh-token", value: refreshToken },
+                });
+            },
+            onGetRefreshToken: async () => {
+                if (!runtimeControlClient) return null;
+                try {
+                    const result = await runtimeControlClient.request<{ value?: string }>(
+                        "/credentials/resolve?identity=vrooli%2Flpbs-account&field=refresh-token",
+                    );
+                    return result.value ?? null;
+                } catch {
+                    return null;
+                }
+            },
+            onClearRefreshToken: async () => {
+                if (!runtimeControlClient) return;
+                await runtimeControlClient.request("/credentials/delete", {
+                    method: "POST",
+                    body: { identity: "vrooli/lpbs-account", field: "refresh-token" },
+                });
+            },
         });
         await authManager.initialize();
         installDesktopValidationPropagation();

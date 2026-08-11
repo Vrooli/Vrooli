@@ -13,6 +13,7 @@ import (
 	"landing-page-business-suite/cli/domains/docs"
 	"landing-page-business-suite/cli/domains/downloads"
 	"landing-page-business-suite/cli/domains/feedback"
+	"landing-page-business-suite/cli/domains/fixtures"
 	"landing-page-business-suite/cli/domains/health"
 	"landing-page-business-suite/cli/domains/landing"
 	"landing-page-business-suite/cli/domains/measures"
@@ -38,6 +39,7 @@ func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
 		content.Register(deps),
 		metrics.Register(deps),
 		feedback.Register(deps),
+		fixtures.Register(deps),
 		waitlist.Register(deps),
 		credits.Register(deps),
 		ai.Register(deps),

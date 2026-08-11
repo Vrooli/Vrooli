@@ -7,10 +7,11 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/credits"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 )
 
 // AIProviderChain implements the AI provider fallback chain:
-// BYOK → Vrooli API → Dev mode → Block
+// Vrooli API → Dev mode → Block.
 //
 // The chain tries providers in order until one succeeds or all fail.
 // Credits are only charged when using the Vrooli API provider.
@@ -32,6 +33,12 @@ type AIProviderChain struct {
 	// role is the OpenRouter policy role used to resolve the default model when no
 	// explicit override is supplied.
 	role string
+
+	// subscriptionResolver returns only a short-lived access token. Refresh
+	// credentials remain in the shared credential authority.
+	subscriptionResolver interface {
+		ResolveAt(context.Context, string) (credentialclient.ConsumerAccess, error)
+	}
 
 	// Pre-initialized dev provider (always available if resource-openrouter exists)
 	devProvider *DevProvider
@@ -57,19 +64,26 @@ type AIProviderChainOptions struct {
 	// Role is the OpenRouter policy role used to resolve the default model. When
 	// empty it falls back to the package default role (chat.default).
 	Role string
+
+	// SubscriptionResolver supplies the shared LPBS access token when a caller
+	// did not provide one explicitly.
+	SubscriptionResolver interface {
+		ResolveAt(context.Context, string) (credentialclient.ConsumerAccess, error)
+	}
 }
 
 // NewAIProviderChain creates a new provider chain.
 func NewAIProviderChain(opts AIProviderChainOptions) *AIProviderChain {
 	chain := &AIProviderChain{
-		log:           opts.Logger,
-		creditService: opts.CreditService,
-		enableBYOK:    opts.EnableBYOK,
-		enableVrooli:  opts.EnableVrooli,
-		enableDevMode: opts.EnableDevMode,
-		vrooliAPIURL:  opts.VrooliAPIURL,
-		defaultModel:  opts.DefaultModel,
-		role:          opts.Role,
+		log:                  opts.Logger,
+		creditService:        opts.CreditService,
+		enableBYOK:           opts.EnableBYOK,
+		enableVrooli:         opts.EnableVrooli,
+		enableDevMode:        opts.EnableDevMode,
+		vrooliAPIURL:         opts.VrooliAPIURL,
+		defaultModel:         opts.DefaultModel,
+		role:                 opts.Role,
+		subscriptionResolver: opts.SubscriptionResolver,
 	}
 
 	// Pre-initialize dev provider since it doesn't require per-request config
@@ -93,45 +107,28 @@ func (c *AIProviderChain) Execute(ctx context.Context, req ProviderRequest) (*Pr
 
 	var lastErr error
 
-	// Try BYOK first
-	if c.enableBYOK && req.BYOKKey != "" {
-		provider := NewBYOKProvider(BYOKProviderOptions{
-			Logger: c.log,
-			APIKey: req.BYOKKey,
-			Model:  model,
-		})
-
-		if provider.IsAvailable(ctx) {
-			c.log.WithFields(logrus.Fields{
-				"provider": "byok",
-				"model":    model,
-			}).Debug("Trying BYOK provider")
-
-			response, err := provider.ExecutePrompt(ctx, req.Prompt)
-			if err == nil {
-				return &ProviderResult{
-					Response:       response,
-					Provider:       ProviderTypeBYOK,
-					Model:          model,
-					ChargedCredits: false, // BYOK doesn't charge credits
-				}, nil
-			}
-
-			lastErr = err
-			c.log.WithError(err).Debug("BYOK provider failed, trying next")
-		}
-	}
-
 	// Try Vrooli API (charges credits through LPBS gateway)
 	// NOTE: Credit checking and charging is handled atomically by LPBS.
 	// BAS no longer needs to pre-check or charge credits for Vrooli provider requests.
 	// LPBS returns ErrInsufficientCredits if the user doesn't have enough credits.
-	if c.enableVrooli && req.LPBSAuthToken != "" {
+	authToken := strings.TrimSpace(req.LPBSAuthToken)
+	if c.enableVrooli && authToken == "" && c.subscriptionResolver != nil && strings.TrimSpace(c.vrooliAPIURL) != "" {
+		access, resolveErr := c.subscriptionResolver.ResolveAt(ctx, c.vrooliAPIURL)
+		if resolveErr != nil {
+			lastErr = fmt.Errorf("resolve LPBS subscription session: %w", resolveErr)
+			if c.log != nil {
+				c.log.WithError(resolveErr).Debug("Vrooli subscription session unavailable")
+			}
+		} else {
+			authToken = strings.TrimSpace(access.AccessToken)
+		}
+	}
+	if c.enableVrooli && authToken != "" {
 		provider := NewVrooliProvider(VrooliProviderOptions{
 			Logger:    c.log,
 			APIURL:    c.vrooliAPIURL,
 			Model:     model,
-			AuthToken: req.LPBSAuthToken,
+			AuthToken: authToken,
 		})
 
 		if provider.IsAvailable(ctx) {

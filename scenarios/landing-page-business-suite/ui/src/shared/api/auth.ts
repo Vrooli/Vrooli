@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
-import { AdminAuthService, AdminProfileService } from '@vrooli/proto-types/landing-page-business-suite/admin_pb';
+import { AdminAuthService, AdminProfileService } from '@vrooli/proto-types/landing-page-business-suite/v1/admin_pb';
 import { apiPost, apiGet, CONNECT_API_BASE } from './common';
 import { parseOrNull } from './safeParse';
 import {

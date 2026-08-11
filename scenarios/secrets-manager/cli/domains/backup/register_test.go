@@ -18,27 +18,35 @@ func (c backupClient) Delete(context.Context, string, string) error { return nil
 func (c backupClient) Status(_ context.Context, identity, field string) (credentialclient.CredentialStatus, error) {
 	return credentialclient.CredentialStatus{Identity: identity, Field: field, Configured: c.statuses[identity+"\x00"+field]}, nil
 }
+
 func (c backupClient) List(context.Context) ([]credentialclient.CredentialRef, error) {
 	return nil, nil
 }
+
 func (c backupClient) Doctor(context.Context) (credentialclient.DoctorResponse, error) {
 	return credentialclient.DoctorResponse{}, nil
 }
+
 func (c backupClient) KeyringInspect(context.Context, string) (credentialclient.KeyringReport, error) {
 	return credentialclient.KeyringReport{}, nil
 }
+
 func (c backupClient) KeyringRepair(context.Context, string) (credentialclient.KeyringReport, error) {
 	return credentialclient.KeyringReport{}, nil
 }
+
 func (c backupClient) RecoveryExport(context.Context, credentialclient.RecoveryExportRequest) (credentialclient.RecoveryExportResponse, error) {
 	return credentialclient.RecoveryExportResponse{}, nil
 }
+
 func (c backupClient) RecoveryVerify(context.Context, credentialclient.RecoveryVerifyRequest) (credentialclient.RecoveryVerifyResponse, error) {
 	return credentialclient.RecoveryVerifyResponse{}, nil
 }
+
 func (c backupClient) RecoveryRestore(context.Context, credentialclient.RecoveryRestoreRequest) error {
 	return nil
 }
+
 func (c backupClient) StoreStatus(context.Context) (credentialclient.StoreStatus, error) {
 	return credentialclient.StoreStatus{}, nil
 }

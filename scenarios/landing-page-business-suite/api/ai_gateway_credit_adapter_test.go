@@ -9,8 +9,8 @@ import (
 	"landing-page-business-suite-api/internal/intelligence"
 )
 
-func TestAIGatewayCreditAdapterMapsAndDelegatesUsage(t *testing.T) {
-	source := &fakeAIGatewayUsageSource{reservationID: "reservation-1"}
+func TestMeteredInferenceCreditAdapterMapsAndDelegatesUsage(t *testing.T) {
+	source := &fakeMeteredInferenceUsageSource{reservationID: "reservation-1"}
 	adapter := newCommerceUsageServicer(source)
 	report := intelligence.UsageReport{UserIdentity: "customer@example.test", LimitKey: "ai_credits", Amount: 99, AppBundleKey: "suite", Operation: "chat", Metadata: map[string]string{"request": "1"}}
 
@@ -41,15 +41,15 @@ func TestAIGatewayCreditAdapterMapsAndDelegatesUsage(t *testing.T) {
 	}
 }
 
-func TestAIGatewayCreditAdapterPropagatesErrors(t *testing.T) {
+func TestMeteredInferenceCreditAdapterPropagatesErrors(t *testing.T) {
 	want := errors.New("usage store unavailable")
-	adapter := newCommerceUsageServicer(&fakeAIGatewayUsageSource{err: want})
+	adapter := newCommerceUsageServicer(&fakeMeteredInferenceUsageSource{err: want})
 	if err := adapter.RecordUsage(context.Background(), intelligence.UsageReport{}); !errors.Is(err, want) {
 		t.Fatalf("record error=%v, want %v", err, want)
 	}
 }
 
-type fakeAIGatewayUsageSource struct {
+type fakeMeteredInferenceUsageSource struct {
 	err             error
 	reservationID   string
 	reserveReport   commerce.UsageReportRequest
@@ -58,26 +58,28 @@ type fakeAIGatewayUsageSource struct {
 	adjustment      int64
 }
 
-func (f *fakeAIGatewayUsageSource) ReserveAndCharge(_ context.Context, _ string, _ string, _ string, _ int64, report commerce.UsageReportRequest) error {
+func (f *fakeMeteredInferenceUsageSource) ReserveAndCharge(_ context.Context, _ string, _ string, _ string, _ int64, report commerce.UsageReportRequest) error {
 	f.reserveReport = report
 	return f.err
 }
 
-func (f *fakeAIGatewayUsageSource) ReserveCredits(context.Context, string, string, string, int64) (string, error) {
+func (f *fakeMeteredInferenceUsageSource) ReserveCredits(context.Context, string, string, string, int64) (string, error) {
 	return f.reservationID, f.err
 }
 
-func (f *fakeAIGatewayUsageSource) FinalizeReservation(_ context.Context, _ string, amount int64) error {
+func (f *fakeMeteredInferenceUsageSource) FinalizeReservation(_ context.Context, _ string, amount int64) error {
 	f.finalizedAmount = amount
 	return f.err
 }
-func (f *fakeAIGatewayUsageSource) ReleaseReservation(context.Context, string) error { return f.err }
-func (f *fakeAIGatewayUsageSource) AdjustUsage(_ context.Context, _ string, _ string, adjustment int64, _ string) error {
+func (f *fakeMeteredInferenceUsageSource) ReleaseReservation(context.Context, string) error {
+	return f.err
+}
+func (f *fakeMeteredInferenceUsageSource) AdjustUsage(_ context.Context, _ string, _ string, adjustment int64, _ string) error {
 	f.adjustment = adjustment
 	return f.err
 }
 
-func (f *fakeAIGatewayUsageSource) RecordUsage(_ context.Context, report commerce.UsageReportRequest) error {
+func (f *fakeMeteredInferenceUsageSource) RecordUsage(_ context.Context, report commerce.UsageReportRequest) error {
 	f.recordReport = report
 	return f.err
 }

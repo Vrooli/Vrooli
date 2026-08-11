@@ -11,7 +11,6 @@ export default defineConfig(({ mode }) => {
     base: './',
     resolve: {
       alias: {
-        "@vrooli/proto-types/landing-page-business-suite": path.resolve(__dirname, "../../../packages/proto/gen/typescript/landing-page-business-suite/v1"),
         ...(isProfile
           ? {
               "react-dom/client": "react-dom/profiling",

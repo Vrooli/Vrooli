@@ -31,7 +31,10 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
-require github.com/vrooli/cli-core v0.0.0 // indirect
+require (
+	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/platform-go v0.0.0 // indirect
+)
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
@@ -85,6 +88,7 @@ require (
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/vrooli/vrooli v0.0.0
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.45.0 // indirect

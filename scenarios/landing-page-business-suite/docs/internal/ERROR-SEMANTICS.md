@@ -26,11 +26,11 @@ How the HTTP API signals failure to clients, and how those signals translate to 
 | `422 Unprocessable Entity` | **Not used.** Validation failures use `400`. |
 | `429 Too Many Requests` | Rate limiter (`api/rate_limit.go`) tripped — magic-link flow uses 5 / 15 min per email |
 | `500 Internal Server Error` | Unexpected panic, DB error, or Stripe API error that we cannot map to a 4xx |
-| `502 / 503` | Reserved for upstream LLM provider failures from the AI gateway |
+| `502 / 503` | Reserved for upstream LLM provider failures from the metered inference |
 
 ## Body shape
 
-All error responses currently use `http.Error(w, msg, code)`, which produces a `text/plain` body. UI clients should not parse the body — they read the status code. Some newer endpoints (AI gateway, deploy-readiness) return structured JSON `{"error": "...", "code": "..."}`; these are documented per-endpoint.
+All error responses currently use `http.Error(w, msg, code)`, which produces a `text/plain` body. UI clients should not parse the body — they read the status code. Some newer endpoints (metered inference, deploy-readiness) return structured JSON `{"error": "...", "code": "..."}`; these are documented per-endpoint.
 
 ## Logging contract
 

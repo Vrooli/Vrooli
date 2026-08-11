@@ -1252,7 +1252,7 @@
         },
         {
           "name": "ai-health",
-          "description": "Get AI gateway health through the generated Connect contract.",
+          "description": "Get metered inference health through the generated Connect contract.",
           "binding": {
             "kind": "connect-rpc",
             "service": "IntelligenceService",

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { create } from '@bufbuild/protobuf';
-import { VariantSchema as VariantMessageSchema, VariantSnapshotSchema as VariantSnapshotMessageSchema } from '@vrooli/proto-types/landing-page-business-suite/variant_pb';
+import { VariantSchema as VariantMessageSchema, VariantSnapshotSchema as VariantSnapshotMessageSchema } from '@vrooli/proto-types/landing-page-business-suite/v1/variant_pb';
 import * as variants from './variants';
 
 const { variantClient, variantSectionClient, variantSpaceClient, seoClient } = vi.hoisted(() => ({

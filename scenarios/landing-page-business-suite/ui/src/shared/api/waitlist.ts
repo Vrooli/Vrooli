@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
-import { WaitlistService, type WaitlistEntry } from '@vrooli/proto-types/landing-page-business-suite/waitlist_pb';
+import { WaitlistService, type WaitlistEntry } from '@vrooli/proto-types/landing-page-business-suite/v1/waitlist_pb';
 import { CONNECT_API_BASE } from './common';
 import type { WaitlistEmail } from './types';
 

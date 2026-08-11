@@ -35,6 +35,23 @@ func DefaultModelPricing() map[string]ModelPricing {
 
 type TokenEstimate struct{ Prompt, Completion int }
 
+// RolePolicy is the server-owned mapping from a stable capability role to a
+// provider implementation. The model slug never crosses the consumer API.
+type RolePolicy struct {
+	Model   string
+	Pricing ModelPricing
+}
+
+func DefaultRolePolicies() map[string]RolePolicy {
+	pricing := DefaultModelPricing()
+	return map[string]RolePolicy{
+		"chat.default":       {Model: "openai/gpt-4o-mini", Pricing: pricing["openai/gpt-4o-mini"]},
+		"classify.fast":      {Model: "openai/gpt-4o-mini", Pricing: pricing["openai/gpt-4o-mini"]},
+		"vision.default":     {Model: "google/gemini-flash-1.5", Pricing: pricing["google/gemini-flash-1.5"]},
+		"extract.structured": {Model: "openai/gpt-4o-mini", Pricing: pricing["openai/gpt-4o-mini"]},
+	}
+}
+
 func EstimateTokens(messages []AIMessage, maxTokens int) TokenEstimate {
 	promptChars := 0
 	for _, message := range messages {

@@ -112,6 +112,24 @@ func (s *Server) handleCredentialStatus(w http.ResponseWriter, r *http.Request) 
 	http.Error(w, "credential_not_declared", http.StatusForbidden)
 }
 
+// handleCredentialResolve is an authenticated, one-shot read for scenario
+// consumers. The runtime never persists a second copy; the caller owns the
+// short-lived in-memory lifetime of the returned value.
+func (s *Server) handleCredentialResolve(w http.ResponseWriter, r *http.Request) {
+	request, ok := decodeCredentialRequest(w, r)
+	if !ok || !s.requireDeclaredCredential(w, request) {
+		return
+	}
+	values := s.runtime.SecretStore().Get()
+	secret, _ := s.declaredCredential(request.Identity, request.Field)
+	value := strings.TrimSpace(values[secret.ID])
+	if value == "" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "credential_unconfigured"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"value": value})
+}
+
 func (s *Server) handleCredentialList(w http.ResponseWriter, r *http.Request) {
 	views, err := s.credentialViews()
 	if err != nil {
@@ -274,4 +292,20 @@ func (s *Server) handleCredentialProvision(w http.ResponseWriter, r *http.Reques
 	}
 	s.runtime.RecordTelemetry("secrets_updated", map[string]interface{}{"count": 1})
 	writeJSON(w, http.StatusCreated, map[string]string{"status": "provisioned", "identity": request.Identity, "field": request.Field})
+}
+
+func (s *Server) handleCredentialDelete(w http.ResponseWriter, r *http.Request) {
+	request, ok := decodeCredentialRequest(w, r)
+	if !ok || !s.requireDeclaredCredential(w, request) {
+		return
+	}
+	values := s.runtime.SecretStore().Get()
+	secret, _ := s.declaredCredential(request.Identity, request.Field)
+	delete(values, secret.ID)
+	if err := s.runtime.SecretStore().Persist(values); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "credential provider rejected deletion"})
+		return
+	}
+	s.runtime.RecordTelemetry("secrets_updated", map[string]interface{}{"count": 1})
+	w.WriteHeader(http.StatusNoContent)
 }

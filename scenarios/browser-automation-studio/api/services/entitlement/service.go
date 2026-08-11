@@ -3,6 +3,7 @@ package entitlement
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -12,7 +13,27 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/config"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 )
+
+const accessTokenContextKey contextKey = "subscription_access_token"
+
+var (
+	ErrAccessTokenRequired     = errors.New("subscription access token is required")
+	ErrEntitlementUnavailable  = errors.New("subscription entitlement service is unavailable")
+	ErrEntitlementUnauthorized = errors.New("subscription access token was rejected")
+)
+
+// WithAccessToken attaches the short-lived consumer access token to a
+// request-scoped entitlement lookup. It is never persisted or cached.
+func WithAccessToken(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, accessTokenContextKey, strings.TrimSpace(token))
+}
+
+func accessTokenFromContext(ctx context.Context) string {
+	token, _ := ctx.Value(accessTokenContextKey).(string)
+	return strings.TrimSpace(token)
+}
 
 // Service provides entitlement checking and feature gating.
 type Service struct {
@@ -29,9 +50,10 @@ type Service struct {
 	offlineMu           sync.RWMutex
 
 	// API source override (for dev mode)
-	apiSourceMu sync.RWMutex
-	apiSource   string // "production", "local", or "disabled"
-	localPort   int    // Port for local LPBS API
+	apiSourceMu     sync.RWMutex
+	apiSource       string // "production", "local", or "disabled"
+	localPort       int    // Port for local LPBS API
+	sessionResolver *credentialclient.ConsumerSessionResolver
 }
 
 // NewService creates a new entitlement service.
@@ -47,6 +69,12 @@ func NewService(cfg config.EntitlementConfig, log *logrus.Logger) *Service {
 		apiSource:           "production",
 		localPort:           15000, // Default LPBS API port range start
 	}
+}
+
+// SetSessionResolver wires the platform-owned shared subscription session.
+// The resolver keeps only the short-lived access token in memory.
+func (s *Service) SetSessionResolver(resolver *credentialclient.ConsumerSessionResolver) {
+	s.sessionResolver = resolver
 }
 
 // SetApiSource sets the API source for entitlement verification.
@@ -65,6 +93,9 @@ func (s *Service) SetApiSource(source string, localPort int) {
 	s.cacheMu.Lock()
 	s.cache = make(map[string]*Entitlement)
 	s.cacheMu.Unlock()
+	if s.sessionResolver != nil {
+		s.sessionResolver.Clear()
+	}
 }
 
 // GetApiSource returns the current API source configuration.
@@ -78,9 +109,10 @@ func (s *Service) GetApiSource() (source string, localPort int) {
 func (s *Service) GetEntitlement(ctx context.Context, userIdentity string) (*Entitlement, error) {
 	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
 
-	// Empty user identity gets default tier
+	// Empty identity is never a valid paid lookup. The token's verified claims
+	// are the only identity accepted by LPBS.
 	if userIdentity == "" {
-		return s.defaultEntitlement(""), nil
+		return nil, ErrAccessTokenRequired
 	}
 
 	// Check cache first
@@ -91,18 +123,8 @@ func (s *Service) GetEntitlement(ctx context.Context, userIdentity string) (*Ent
 	// Fetch from service
 	ent, err := s.fetchEntitlement(ctx, userIdentity)
 	if err != nil {
-		s.log.WithError(err).WithField("user", userIdentity).Warn("Failed to fetch entitlement, using cached or default")
-
-		// Try to use stale cache if within offline grace period
-		if cached := s.getCached(userIdentity); cached != nil {
-			if s.withinOfflineGrace() {
-				s.log.WithField("user", userIdentity).Debug("Using stale cache within offline grace period")
-				return cached, nil
-			}
-		}
-
-		// Fall back to default tier
-		return s.defaultEntitlement(userIdentity), nil
+		s.log.WithError(err).WithField("user", userIdentity).Warn("Failed to fetch entitlement; denying until subscription is verified")
+		return nil, err
 	}
 
 	// Cache the result
@@ -117,14 +139,8 @@ func (s *Service) GetEntitlement(ctx context.Context, userIdentity string) (*Ent
 func (s *Service) CanExecuteWorkflow(ctx context.Context, userIdentity string, currentMonthCount int) bool {
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
-		// Fail open for edge cases (network errors, service unavailable).
-		// This allows workflows to continue running when the entitlement service is temporarily
-		// unreachable. This is acceptable because:
-		// 1. Execution limits are soft limits primarily for fair use
-		// 2. Paid AI operations go through LPBS which has its own atomic credit checks
-		// 3. Brief connectivity issues shouldn't block user workflows
-		s.log.WithError(err).Warn("Failed to check entitlement, allowing execution (fail-open)")
-		return true
+		s.log.WithError(err).Warn("Failed to check entitlement; denying workflow until subscription is verified")
+		return false
 	}
 
 	limit := s.getTierLimit(ent.Tier)
@@ -141,7 +157,7 @@ func (s *Service) CanExecuteWorkflow(ctx context.Context, userIdentity string, c
 func (s *Service) GetRemainingExecutions(ctx context.Context, userIdentity string, currentMonthCount int) int {
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
-		return -1
+		return 0
 	}
 
 	limit := s.getTierLimit(ent.Tier)
@@ -221,7 +237,7 @@ func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*E
 
 	// If disabled, return nil to use default tier
 	if apiSource == "disabled" {
-		return nil, fmt.Errorf("API source is disabled")
+		return nil, fmt.Errorf("%w: API source is disabled", ErrEntitlementUnavailable)
 	}
 
 	// Determine the service URL based on api source
@@ -232,9 +248,18 @@ func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*E
 		// Production: use configured service URL
 		serviceURL = s.cfg.ServiceURL
 		if serviceURL == "" {
-			// Default to vrooli.com for production
-			serviceURL = "https://vrooli.com"
+			return nil, fmt.Errorf("%w: service URL is not configured", ErrEntitlementUnavailable)
 		}
+	}
+	if accessTokenFromContext(ctx) == "" {
+		if s.sessionResolver == nil {
+			return nil, ErrAccessTokenRequired
+		}
+		access, err := s.sessionResolver.ResolveAt(ctx, serviceURL)
+		if err != nil {
+			return nil, err
+		}
+		ctx = WithAccessToken(ctx, access.AccessToken)
 	}
 
 	// Build request URL
@@ -243,17 +268,19 @@ func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*E
 		return nil, fmt.Errorf("invalid service URL: %w", err)
 	}
 	reqURL.Path = strings.TrimSuffix(reqURL.Path, "/") + "/api/v1/entitlements"
-	q := reqURL.Query()
-	q.Set("user", userIdentity)
-	reqURL.RawQuery = q.Encode()
-
+	query := reqURL.Query()
+	// LPBS binds this query identity to the verified bearer-token identity.
+	// Sending it prevents BAS from turning a caller-controlled requested user
+	// into an entitlement lookup for the cached shared session.
+	query.Set("user", userIdentity)
+	reqURL.RawQuery = query.Encode()
 	// Create request
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-User-Email", userIdentity)
+	req.Header.Set("Authorization", "Bearer "+accessTokenFromContext(ctx))
 
 	// Execute request
 	resp, err := s.httpClient.Do(req)
@@ -263,6 +290,12 @@ func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*E
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			return nil, fmt.Errorf("%w: status %d", ErrEntitlementUnauthorized, resp.StatusCode)
+		}
+		if resp.StatusCode >= http.StatusInternalServerError {
+			return nil, fmt.Errorf("%w: status %d", ErrEntitlementUnavailable, resp.StatusCode)
+		}
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
@@ -270,6 +303,18 @@ func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*E
 	var entResp entitlementResponse
 	if err := json.NewDecoder(resp.Body).Decode(&entResp); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
+	}
+	if entResp.Credits != nil && strings.TrimSpace(entResp.Credits.CustomerEmail) != "" &&
+		!strings.EqualFold(strings.TrimSpace(entResp.Credits.CustomerEmail), userIdentity) {
+		return nil, fmt.Errorf("%w: authority identity does not match requested identity", ErrEntitlementUnauthorized)
+	}
+	if entResp.Subscription != nil && strings.TrimSpace(entResp.Subscription.UserIdentity) != "" &&
+		!strings.EqualFold(strings.TrimSpace(entResp.Subscription.UserIdentity), userIdentity) {
+		return nil, fmt.Errorf("%w: authority subscription identity does not match requested identity", ErrEntitlementUnauthorized)
+	}
+	if (entResp.Credits == nil || strings.TrimSpace(entResp.Credits.CustomerEmail) == "") &&
+		(entResp.Subscription == nil || strings.TrimSpace(entResp.Subscription.UserIdentity) == "") {
+		return nil, fmt.Errorf("%w: authority response did not establish identity", ErrEntitlementUnauthorized)
 	}
 
 	// Convert to our entitlement type

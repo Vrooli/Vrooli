@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
-import { AssetsService, type Asset as GeneratedAsset } from '@vrooli/proto-types/landing-page-business-suite/assets_pb';
+import { AssetsService, type Asset as GeneratedAsset } from '@vrooli/proto-types/landing-page-business-suite/v1/assets_pb';
 import { API_BASE, CONNECT_API_BASE } from './common';
 import { AssetSchema } from './schemas/common.schema';
 import { safeParseJson } from '../lib/utils';

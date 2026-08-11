@@ -1,6 +1,10 @@
 package entitlement
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,6 +45,63 @@ func createTestService(t *testing.T) *Service {
 	}
 
 	return NewService(cfg, log)
+}
+
+func TestGetEntitlementBindsAuthorityQueryAndResponseIdentity(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("user"); got != "alice@example.com" {
+			t.Fatalf("authority query user = %q", got)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer opaque-access" {
+			t.Fatalf("authorization = %q", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"active","plan_tier":"pro","credits":{"customer_email":"alice@example.com","balance_credits":41},"subscription":{"user_identity":"alice@example.com"}}`))
+	}))
+	defer server.Close()
+	svc := createTestService(t)
+	svc.cfg.ServiceURL = server.URL
+	svc.httpClient = server.Client()
+
+	ent, err := svc.GetEntitlement(WithAccessToken(context.Background(), "opaque-access"), " Alice@Example.com ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ent.UserIdentity != "alice@example.com" || ent.Tier != TierPro || ent.Credits != 41 {
+		t.Fatalf("entitlement = %#v", ent)
+	}
+}
+
+func TestGetEntitlementRejectsAuthorityIdentityMismatchWithoutCredits(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"active","plan_tier":"business","subscription":{"user_identity":"bob@example.com"}}`))
+	}))
+	defer server.Close()
+	svc := createTestService(t)
+	svc.cfg.ServiceURL = server.URL
+	svc.httpClient = server.Client()
+
+	_, err := svc.GetEntitlement(WithAccessToken(context.Background(), "opaque-access"), "alice@example.com")
+	if err == nil || !strings.Contains(err.Error(), "authority subscription identity does not match") {
+		t.Fatalf("mismatch error = %v", err)
+	}
+}
+
+func TestGetEntitlementRejectsAuthorityResponseWithoutIdentity(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"active","plan_tier":"business"}`))
+	}))
+	defer server.Close()
+	svc := createTestService(t)
+	svc.cfg.ServiceURL = server.URL
+	svc.httpClient = server.Client()
+
+	_, err := svc.GetEntitlement(WithAccessToken(context.Background(), "opaque-access"), "alice@example.com")
+	if err == nil || !strings.Contains(err.Error(), "authority response did not establish identity") {
+		t.Fatalf("missing identity error = %v", err)
+	}
 }
 
 // ============================================================================

@@ -82,6 +82,19 @@ func (c *ipcClient) Provision(ctx context.Context, request ProvisionRequest) (Pr
 	}
 	return response, nil
 }
+func (c *ipcClient) Resolve(ctx context.Context, identity, field string) (string, error) {
+	var response struct {
+		Value string `json:"value"`
+	}
+	path := "/credentials/resolve?identity=" + queryEscape(identity) + "&field=" + queryEscape(field)
+	if err := c.request(ctx, http.MethodGet, path, nil, &response); err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(response.Value) == "" {
+		return "", credentialauthority.ErrUnconfigured
+	}
+	return response.Value, nil
+}
 func (c *ipcClient) Delete(context.Context, string, string) error { return ipcUnavailable() }
 func (c *ipcClient) Status(ctx context.Context, identity, field string) (CredentialStatus, error) {
 	var view desktopCredentialView
@@ -262,6 +275,13 @@ func (c *sshClient) Provision(ctx context.Context, request ProvisionRequest) (Pr
 		return ProvisionResponse{}, err
 	}
 	return ProvisionResponse{Identity: request.Identity, Field: request.Field, Provider: "ssh", Status: "provisioned"}, nil
+}
+func (c *sshClient) Resolve(ctx context.Context, identity, field string) (string, error) {
+	output, err := c.run(ctx, []string{"vrooli", "credentials", "resolve", "--identity", identity, "--field", field}, nil)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
 }
 func (c *sshClient) Delete(ctx context.Context, identity, field string) error {
 	_, err := c.run(ctx, []string{"secrets-manager", "credentials", "delete", "--identity", identity, "--field", field, "--yes"}, nil)

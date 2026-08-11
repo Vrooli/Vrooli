@@ -104,6 +104,9 @@ type KeyringReport struct {
 
 type Client interface {
 	Provision(context.Context, ProvisionRequest) (ProvisionResponse, error)
+	// Resolve returns a credential only to the requesting in-process consumer;
+	// callers must keep the value in memory and never persist or log it.
+	Resolve(context.Context, string, string) (string, error)
 	Delete(context.Context, string, string) error
 	Status(context.Context, string, string) (CredentialStatus, error)
 	List(context.Context) ([]CredentialRef, error)

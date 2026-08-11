@@ -19,7 +19,7 @@ subscription, credit, customer, download, and admin-operations service.
 - [CODE: ui/src/app/routes/adminRoutes.tsx] - Admin-portal route table
 - [CODE: ui/src/app/routes/userAuthRoutes.tsx] - User-auth surface route table
 - [CODE: api/internal/landing/landing_config_service.go] - Landing page configuration orchestration service
-- [CODE: api/internal/intelligence/gateway_service.go] - AI gateway request routing + credit accounting
+- [CODE: api/internal/intelligence/metered_inference_service.go] - metered inference request routing + credit accounting
 - [CODE: api/internal/administration/user_auth_service.go] - End-user magic-link / JWT auth
 - [CODE: api/internal/administration/remote_profile_service.go] - Remote profile storage + proxy service
 - [CODE: api/internal/commerce/plan_store.go] - File-based plan catalog (pricing source of truth)
@@ -138,9 +138,9 @@ The scenario ships **num[sot]:three runtime surfaces** that share the same datab
 
 | Surface | Path | Purpose |
 |---------|------|---------|
-| **HTTP API** | `api/` | Public landing endpoints, admin portal APIs, billing/Stripe webhooks, AI gateway |
+| **HTTP API** | `api/` | Public landing endpoints, admin portal APIs, billing/Stripe webhooks, metered inference |
 | **Operator CLI** | `cli/` | Out-of-band admin operations (remote-profile management, service auth, scripted setup) |
-| **AI Gateway** | `api/internal/intelligence/` with `api/handlers/intelligence/` | First-class subdomain inside the API: routes credit-accounted LLM traffic on behalf of authenticated end users |
+| **Metered Inference** | `api/internal/intelligence/` with `api/handlers/intelligence/` | First-class subdomain inside the API: routes credit-accounted LLM traffic on behalf of authenticated end users |
 
 ```
 api/
@@ -149,7 +149,7 @@ api/
 ├── auth.go                  # Admin session middleware (requireAdmin, requireAdminOrService)
 ├── user_auth_*.go           # End-user magic-link + JWT auth (handlers, middleware, service)
 ├── account_*.go             # Subscription / credits / entitlements for end users
-├── handlers/intelligence/   # AI Gateway transport plus commerce-usage adapter
+├── handlers/intelligence/   # Metered Inference transport plus commerce-usage adapter
 ├── billing_*.go             # Stripe checkout + portal + webhook
 ├── stripe_service.go        # Stripe client + plan/coupon import
 ├── plan_catalog.go          # Commerce catalog composition adapter
@@ -179,7 +179,7 @@ api/internal/
 ├── commerce/                # Plans/catalog, Stripe, subscriptions, credits, usage/reservations + schema
 ├── delivery/                # Entitled download catalog/storage + schema
 ├── experimentation/         # Variant-selection policy, independent of config decoding
-├── intelligence/            # AI-provider orchestration, model policy, streaming, and credit-accounted gateway
+├── intelligence/            # AI-provider orchestration, role policy, streaming, and credit-accounted inference
 ├── metrics/                 # Analytics event persistence + schema
 ├── content/                 # Landing configuration/fallback, assets, feedback, waitlist, SEO + schema
 ├── schema/                  # Thin ordered schema registry (no business rules)
@@ -231,7 +231,7 @@ The HTTP API exposes ~8 logical domains, registered from `api/routes.go`:
 | Landing configuration aggregation | Orchestration | `landing` aggregation over experimentation, commerce, and delivery | public landing / `cli/domains/variants` |
 | Metrics, feedback, waitlist | Reporting + CRUD | `metrics` and `content` | analytics/admin portal |
 | End-user authentication | Temporal security workflow | `administration` and `commerce` | user-auth surface / `cli/domains/auth` |
-| AI gateway | Integration + credit orchestration | `intelligence` with commerce credit policy | API surface / `cli/domains/ai` |
+| metered inference | Integration + credit orchestration | `intelligence` with commerce credit policy | API surface / `cli/domains/ai` |
 
 ### Responsibility Layers
 

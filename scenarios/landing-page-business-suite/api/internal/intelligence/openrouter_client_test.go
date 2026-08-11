@@ -469,8 +469,8 @@ func TestNewOpenRouterClient_CustomHTTPClient(t *testing.T) {
 }
 
 func TestNewOpenRouterClient_CustomAttribution(t *testing.T) {
-	client := NewOpenRouterClient(OpenRouterClientOptions{APIKey: "test-key", BaseURL: "https://proxy.example.test/", Referer: "https://app.example.test", Title: "Example Gateway"}).(*httpOpenRouterClient)
-	if client.baseURL != "https://proxy.example.test" || client.referer != "https://app.example.test" || client.title != "Example Gateway" {
+	client := NewOpenRouterClient(OpenRouterClientOptions{APIKey: "test-key", BaseURL: "https://proxy.example.test/", Referer: "https://app.example.test", Title: "Example Metered Inference"}).(*httpOpenRouterClient)
+	if client.baseURL != "https://proxy.example.test" || client.referer != "https://app.example.test" || client.title != "Example Metered Inference" {
 		t.Fatalf("client = %#v", client)
 	}
 }
@@ -512,7 +512,7 @@ func TestOpenRouterClient_SetHeaders_AllHeadersSet(t *testing.T) {
 	if capturedReq.Header.Get("HTTP-Referer") != "https://vrooli.com" {
 		t.Error("expected HTTP-Referer header")
 	}
-	if capturedReq.Header.Get("X-Title") != "Vrooli AI Gateway" {
+	if capturedReq.Header.Get("X-Title") != "Vrooli AI Metered Inference" {
 		t.Error("expected X-Title header")
 	}
 }

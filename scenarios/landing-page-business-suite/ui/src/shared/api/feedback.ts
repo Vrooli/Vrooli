@@ -5,7 +5,7 @@ import {
   FeedbackStatus,
   FeedbackType,
   type FeedbackRecord as GeneratedFeedbackRecord,
-} from '@vrooli/proto-types/landing-page-business-suite/feedback_pb';
+} from '@vrooli/proto-types/landing-page-business-suite/v1/feedback_pb';
 import { CONNECT_API_BASE } from './common';
 
 const feedbackClient = createClient(FeedbackService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));

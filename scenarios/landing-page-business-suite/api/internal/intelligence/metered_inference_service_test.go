@@ -11,9 +11,9 @@ import (
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
-// TestAIGatewayService_CalculateCost tests cost calculation.
-func TestAIGatewayService_CalculateCost(t *testing.T) {
-	svc := &AIGatewayService{
+// TestMeteredInferenceService_CalculateCost tests cost calculation.
+func TestMeteredInferenceService_CalculateCost(t *testing.T) {
+	svc := &MeteredInferenceService{
 		modelPricing: defaultModelPricing(),
 	}
 
@@ -86,10 +86,10 @@ func TestAIGatewayService_CalculateCost(t *testing.T) {
 	}
 }
 
-// TestAIGatewayService_EstimateTokens tests token estimation.
+// TestMeteredInferenceService_EstimateTokens tests token estimation.
 // The estimation includes a 1.5x safety margin to reduce underestimation.
-func TestAIGatewayService_EstimateTokens(t *testing.T) {
-	svc := &AIGatewayService{}
+func TestMeteredInferenceService_EstimateTokens(t *testing.T) {
+	svc := &MeteredInferenceService{}
 
 	tests := []struct {
 		name             string
@@ -151,9 +151,9 @@ func TestAIGatewayService_EstimateTokens(t *testing.T) {
 	}
 }
 
-// TestAIGatewayService_EstimateTokens_SafetyMargin tests that the safety margin is applied correctly.
-func TestAIGatewayService_EstimateTokens_SafetyMargin(t *testing.T) {
-	svc := &AIGatewayService{}
+// TestMeteredInferenceService_EstimateTokens_SafetyMargin tests that the safety margin is applied correctly.
+func TestMeteredInferenceService_EstimateTokens_SafetyMargin(t *testing.T) {
+	svc := &MeteredInferenceService{}
 
 	// Test that without max_tokens, we get 1.5x the base estimate
 	messages := []AIMessage{
@@ -187,9 +187,9 @@ func TestAIGatewayService_EstimateTokens_SafetyMargin(t *testing.T) {
 	}
 }
 
-// TestAIGatewayService_GetAvailableModels tests model listing.
-func TestAIGatewayService_GetAvailableModels(t *testing.T) {
-	svc := &AIGatewayService{}
+// TestMeteredInferenceService_GetAvailableModels tests model listing.
+func TestMeteredInferenceService_GetAvailableModels(t *testing.T) {
+	svc := &MeteredInferenceService{}
 	models := svc.GetAvailableModels()
 
 	if len(models) == 0 {
@@ -225,8 +225,8 @@ func TestAIGatewayService_GetAvailableModels(t *testing.T) {
 	}
 }
 
-// TestAIGatewayService_HealthCheck tests health check with mocked client.
-func TestAIGatewayService_HealthCheck(t *testing.T) {
+// TestMeteredInferenceService_HealthCheck tests health check with mocked client.
+func TestMeteredInferenceService_HealthCheck(t *testing.T) {
 	tests := []struct {
 		name        string
 		mockClient  *MockOpenRouterClient
@@ -254,7 +254,7 @@ func TestAIGatewayService_HealthCheck(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := &AIGatewayService{
+			svc := &MeteredInferenceService{
 				openRouterClient: tt.mockClient,
 				log:              func(event string, fields map[string]interface{}) {},
 			}
@@ -271,8 +271,8 @@ func TestAIGatewayService_HealthCheck(t *testing.T) {
 	}
 }
 
-// TestAIGatewayService_ModelValidation tests that invalid models are rejected.
-func TestAIGatewayService_ModelValidation(t *testing.T) {
+// TestMeteredInferenceService_ModelValidation tests that invalid models are rejected.
+func TestMeteredInferenceService_ModelValidation(t *testing.T) {
 	// Test the allowedModels map directly since ExecuteChat requires full service setup
 	tests := []struct {
 		name    string
@@ -604,7 +604,7 @@ func TestExecuteChat_Success(t *testing.T) {
 		},
 	}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		usageService:     mockUsage,
 		accountService:   mockAccount,
 		openRouterClient: mockOpenRouter,
@@ -634,7 +634,7 @@ func TestExecuteChat_InsufficientCredits(t *testing.T) {
 		return ErrInsufficientCredits
 	}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		usageService:   mockUsage,
 		accountService: &MockAccountService{},
 		modelPricing:   defaultModelPricing(),
@@ -653,7 +653,7 @@ func TestExecuteChat_InsufficientCredits(t *testing.T) {
 
 // TestExecuteChat_ModelNotAllowed tests rejection of invalid models.
 func TestExecuteChat_ModelNotAllowed(t *testing.T) {
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		log: func(event string, fields map[string]interface{}) {},
 	}
 
@@ -686,7 +686,7 @@ func TestExecuteChat_CostUnderEstimate_Refunds(t *testing.T) {
 		},
 	}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		usageService:     mockUsage,
 		accountService:   &MockAccountService{},
 		openRouterClient: mockOpenRouter,
@@ -733,7 +733,7 @@ func TestExecuteChat_CostOverEstimate_Charges(t *testing.T) {
 		},
 	}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		usageService:     mockUsage,
 		accountService:   &MockAccountService{},
 		openRouterClient: mockOpenRouter,
@@ -765,7 +765,7 @@ func TestExecuteChat_TierLookupFails_DefaultsFree(t *testing.T) {
 	}
 	mockOpenRouter := &MockOpenRouterClient{}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		usageService:     mockUsage,
 		accountService:   mockAccount,
 		openRouterClient: mockOpenRouter,
@@ -801,7 +801,7 @@ func TestExecuteChat_OpenRouterFails(t *testing.T) {
 		},
 	}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		usageService:     mockUsage,
 		accountService:   &MockAccountService{},
 		openRouterClient: mockOpenRouter,
@@ -827,7 +827,7 @@ func TestExecuteChatStream_Success(t *testing.T) {
 	mockUsage := NewMockUsageService()
 	mockOpenRouter := &MockOpenRouterClient{}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		usageService:     mockUsage,
 		accountService:   &MockAccountService{},
 		openRouterClient: mockOpenRouter,
@@ -865,7 +865,7 @@ func TestExecuteChatStream_InsufficientCredits(t *testing.T) {
 		return "", ErrInsufficientCredits
 	}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		usageService:   mockUsage,
 		accountService: &MockAccountService{},
 		modelPricing:   defaultModelPricing(),
@@ -893,7 +893,7 @@ func TestExecuteChatStream_StreamFails_ReleasesReservation(t *testing.T) {
 		},
 	}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		usageService:     mockUsage,
 		accountService:   &MockAccountService{},
 		openRouterClient: mockOpenRouter,
@@ -926,7 +926,7 @@ func TestExecuteChatStream_FinalizeFails_FallbackRecords(t *testing.T) {
 	}
 	mockOpenRouter := &MockOpenRouterClient{}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		usageService:     mockUsage,
 		accountService:   &MockAccountService{},
 		openRouterClient: mockOpenRouter,
@@ -980,7 +980,7 @@ func (w *nonFlusherWriter) WriteHeader(statusCode int) {
 func TestExecuteChatStream_NotFlusher_ReturnsError(t *testing.T) {
 	mockUsage := NewMockUsageService()
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		usageService:   mockUsage,
 		accountService: &MockAccountService{},
 		modelPricing:   defaultModelPricing(),
@@ -1014,7 +1014,7 @@ func TestGetUserTier_ValidSubscription(t *testing.T) {
 		},
 	}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		accountService: mockAccount,
 		log:            func(event string, fields map[string]interface{}) {},
 	}
@@ -1036,7 +1036,7 @@ func TestGetUserTier_NilSubscription_DefaultsFree(t *testing.T) {
 		},
 	}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		accountService: mockAccount,
 		log:            func(event string, fields map[string]interface{}) {},
 	}
@@ -1059,7 +1059,7 @@ func TestGetUserTier_ErrorLogsWarning(t *testing.T) {
 		},
 	}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		accountService: mockAccount,
 		log: func(event string, fields map[string]interface{}) {
 			loggedEvents = append(loggedEvents, event)
@@ -1090,7 +1090,7 @@ func TestGetUserTier_ErrorLogsWarning(t *testing.T) {
 // TestGetUserTier_NoAccountService tests behavior when account service is nil.
 func TestGetUserTier_NoAccountService(t *testing.T) {
 	var loggedEvents []string
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		accountService: nil,
 		log: func(event string, fields map[string]interface{}) {
 			loggedEvents = append(loggedEvents, event)
@@ -1110,7 +1110,7 @@ func TestGetUserTier_NoAccountService(t *testing.T) {
 func TestGetOpenRouterClient_Injected(t *testing.T) {
 	injectedClient := &MockOpenRouterClient{}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		openRouterClient: injectedClient,
 		log:              func(event string, fields map[string]interface{}) {},
 	}
@@ -1132,7 +1132,7 @@ func TestGetOpenRouterClient_CreatesNew(t *testing.T) {
 		},
 	}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		apiKeyService:    mockAPIKey,
 		openRouterClient: nil, // No injected client
 		log:              func(event string, fields map[string]interface{}) {},
@@ -1158,7 +1158,7 @@ func TestGetOpenRouterClient_NoKey(t *testing.T) {
 		},
 	}
 
-	svc := &AIGatewayService{
+	svc := &MeteredInferenceService{
 		apiKeyService:    mockAPIKey,
 		openRouterClient: nil,
 		log:              func(event string, fields map[string]interface{}) {},

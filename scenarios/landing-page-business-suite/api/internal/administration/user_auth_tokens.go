@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/vrooli/api-core/consumeridentity"
 )
 
 // RefreshTokens validates a refresh token and returns a new token pair.
@@ -23,17 +24,22 @@ func (s *UserAuthService) RefreshTokens(ctx context.Context, refreshToken string
 	tokenHash := HashToken(refreshToken)
 
 	// Find session by refresh token hash
-	var sessionID, userID string
+	var sessionID, userID, familyID string
 	var expiresAt time.Time
 	var revoked bool
 
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, user_id, expires_at, revoked
+		SELECT id, user_id, refresh_token_family_id, expires_at, revoked
 		FROM user_sessions
 		WHERE refresh_token_hash = $1
-	`, tokenHash).Scan(&sessionID, &userID, &expiresAt, &revoked)
+	`, tokenHash).Scan(&sessionID, &userID, &familyID, &expiresAt, &revoked)
 
 	if err == sql.ErrNoRows {
+		var historyFamily string
+		if historyErr := s.db.QueryRowContext(ctx, `SELECT family_id FROM refresh_token_history WHERE refresh_token_hash = $1`, tokenHash).Scan(&historyFamily); historyErr == nil {
+			_, _ = s.db.ExecContext(ctx, `UPDATE user_sessions SET revoked = TRUE WHERE refresh_token_family_id = $1`, historyFamily)
+			return nil, ErrSessionRevoked
+		}
 		return nil, ErrTokenInvalid
 	}
 	if err != nil {
@@ -61,16 +67,28 @@ func (s *UserAuthService) RefreshTokens(ctx context.Context, refreshToken string
 	}
 	newRefreshToken := hex.EncodeToString(newRefreshBytes)
 	newRefreshHash := HashToken(newRefreshToken)
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO refresh_token_history (refresh_token_hash, session_id, family_id) VALUES ($1, $2, $3) ON CONFLICT (refresh_token_hash) DO NOTHING`, tokenHash, sessionID, familyID); err != nil {
+		return nil, fmt.Errorf("retire refresh token: %w", err)
+	}
 
 	// Update session with new refresh token and extend expiry (use UTC for consistent timezone handling)
 	newExpiresAt := time.Now().UTC().Add(s.refreshTTL)
-	_, err = s.db.ExecContext(ctx, `
+	result, err := s.db.ExecContext(ctx, `
 		UPDATE user_sessions
 		SET refresh_token_hash = $1, expires_at = $2, last_used_at = NOW()
-		WHERE id = $3
-	`, newRefreshHash, newExpiresAt, sessionID)
+		WHERE id = $3 AND refresh_token_hash = $4 AND revoked = FALSE
+	`, newRefreshHash, newExpiresAt, sessionID, tokenHash)
 	if err != nil {
 		return nil, fmt.Errorf("update session: %w", err)
+	}
+	if rows, rowsErr := result.RowsAffected(); rowsErr != nil {
+		return nil, fmt.Errorf("inspect rotated session: %w", rowsErr)
+	} else if rows != 1 {
+		// Another request won the single-use rotation race. Treat the old
+		// credential as a replay and revoke the whole family, including the
+		// winner's newly-issued credential.
+		_, _ = s.db.ExecContext(ctx, `UPDATE user_sessions SET revoked = TRUE WHERE refresh_token_family_id = $1`, familyID)
+		return nil, ErrSessionRevoked
 	}
 
 	// Generate new access token
@@ -93,28 +111,29 @@ func (s *UserAuthService) ValidateAccessToken(tokenString string) (*UserClaims, 
 	if tokenString == "" {
 		return nil, ErrTokenInvalid
 	}
-
-	token, err := jwt.ParseWithClaims(tokenString, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// Validate signing method
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return s.jwtSecret, nil
-	})
+	claims, err := consumeridentity.NewVerifier(s.consumerKeys, s.jwtIssuer, s.consumerLeeway).Verify(tokenString)
 	if err != nil {
-		if errors.Is(err, jwt.ErrTokenExpired) {
+		if errors.Is(err, consumeridentity.ErrExpired) {
 			return nil, ErrTokenExpired
 		}
 		return nil, ErrTokenInvalid
 	}
-
-	claims, ok := token.Claims.(*UserClaims)
-	if !ok || !token.Valid {
-		return nil, ErrTokenInvalid
-	}
-
-	return claims, nil
+	return &UserClaims{UserID: claims.UserID, Email: claims.Email, SessionID: claims.SessionID, RegisteredClaims: registeredClaims(claims)}, nil
 }
+
+func registeredClaims(claims consumeridentity.Claims) jwt.RegisteredClaims {
+	return jwt.RegisteredClaims{
+		Issuer:    claims.Issuer,
+		Subject:   claims.Subject,
+		ExpiresAt: jwt.NewNumericDate(time.Unix(claims.ExpiresAt, 0)),
+		IssuedAt:  jwt.NewNumericDate(time.Unix(claims.IssuedAt, 0)),
+		NotBefore: jwt.NewNumericDate(time.Unix(claims.NotBefore, 0)),
+	}
+}
+
+// PublicKeySet returns the currently active public keys. It is safe to serve
+// this value publicly; no private signing material is included.
+func (s *UserAuthService) PublicKeySet() ([]byte, error) { return s.consumerKeys.JWKS() }
 
 // Logout revokes the session associated with the given session ID.
 func (s *UserAuthService) Logout(ctx context.Context, sessionID string) error {

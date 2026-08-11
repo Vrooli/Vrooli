@@ -12,6 +12,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai/aiconnect"
 
 	"github.com/vrooli/browser-automation-studio/services/credits"
@@ -37,11 +38,12 @@ type SessionTracker interface {
 // the callback URL sent to playwright-driver (e.g. "http://127.0.0.1:8110").
 // When empty the handler falls back to the request Host header at call time.
 type Deps struct {
-	Logger       *logrus.Logger
-	Registry     *vision.NavigatorRegistry
-	Credits      credits.CreditService
-	Tracker      SessionTracker
-	CallbackBase string
+	Logger              *logrus.Logger
+	Registry            *vision.NavigatorRegistry
+	Credits             credits.CreditService
+	Tracker             SessionTracker
+	CallbackBase        string
+	CredentialAuthority *credentialauthority.Authority
 }
 
 // Module builds the VisionNavigationService Connect handler and returns it

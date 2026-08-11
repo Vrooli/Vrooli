@@ -220,15 +220,6 @@ export interface ApiKeySettings {
   openrouterApiKey: string;
 }
 
-// Legacy interface for migration from old settings format
-interface LegacyApiKeySettings {
-  browserlessApiKey?: string;
-  openaiApiKey?: string;
-  anthropicApiKey?: string;
-  customApiEndpoint?: string;
-  openrouterApiKey?: string;
-}
-
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type FontSize = 'small' | 'medium' | 'large';
 export type FontFamily = 'mono' | 'sans' | 'system';
@@ -557,33 +548,14 @@ const saveWorkflowDefaults = (settings: WorkflowDefaultSettings): void => {
 };
 
 const loadApiKeySettings = (): ApiKeySettings => {
-  try {
-    const stored = safeGetItem(API_KEYS_KEY);
-    if (!stored) return getDefaultApiKeySettings();
-    const parsedRecord = parseStoredRecord(stored);
-    if (!parsedRecord) {
-      return getDefaultApiKeySettings();
-    }
-    const parsed = parsedRecord as LegacyApiKeySettings;
-
-    // Migrate from old format: if old keys exist, extract openrouterApiKey only
-    if ('browserlessApiKey' in parsed || 'openaiApiKey' in parsed || 'anthropicApiKey' in parsed || 'customApiEndpoint' in parsed) {
-      const migrated: ApiKeySettings = {
-        openrouterApiKey: parsed.openrouterApiKey || '',
-      };
-      // Save the migrated format
-      saveApiKeySettings(migrated);
-      return migrated;
-    }
-
-    return { ...getDefaultApiKeySettings(), ...parsed };
-  } catch {
-    return getDefaultApiKeySettings();
-  }
+	// Provider secrets are authority-owned. Remove any legacy browser-local
+	// copy rather than reading it during store initialization.
+	safeRemoveItem(API_KEYS_KEY);
+	return getDefaultApiKeySettings();
 };
 
-const saveApiKeySettings = (settings: ApiKeySettings): void => {
-  safeSetItem(API_KEYS_KEY, JSON.stringify(settings));
+const saveApiKeySettings = (_settings: ApiKeySettings): void => {
+	safeRemoveItem(API_KEYS_KEY);
 };
 
 const loadDisplaySettings = (): DisplaySettings => {
@@ -852,6 +824,13 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   setApiKey: (key, value) => {
     const updated = { ...get().apiKeys, [key]: value };
+    if (key === 'openrouterApiKey' && value.trim()) {
+      void fetch('/api/v1/credentials/provision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identity: 'vrooli/openrouter', field: 'api-key', value }),
+      }).catch(() => undefined);
+    }
     saveApiKeySettings(updated);
     set({ apiKeys: updated });
   },

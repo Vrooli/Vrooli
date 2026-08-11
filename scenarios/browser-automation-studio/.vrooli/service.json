@@ -40,6 +40,33 @@
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
   },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "label": "OpenRouter API key",
+        "description": "User-provisioned OpenRouter credential used by the gateway-backed vision navigator. The value is never returned or stored in browser local storage.",
+        "required": false,
+        "obtain_url": "https://openrouter.ai/keys"
+      },
+      {
+        "logical_id": "vrooli/claude-code",
+        "field": "anthropic-api-key",
+        "label": "Claude Code Anthropic API key",
+        "description": "Credential used by the Claude Code navigator through resource-claude-code. The value is never returned or stored in browser local storage.",
+        "required": false,
+        "obtain_url": "https://console.anthropic.com/settings/keys"
+      },
+      {
+        "logical_id": "vrooli/lpbs-account",
+        "field": "refresh-token",
+        "label": "Vrooli subscription session",
+        "description": "Device-scoped refresh credential shared by bundled scenarios. Access tokens remain in memory only.",
+        "required": false
+      }
+    ]
+  },
   "service": {
     "name": "browser-automation-studio",
     "displayName": "Vrooli Ascension",

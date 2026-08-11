@@ -215,4 +215,10 @@ export interface AuthManagerDependencies {
     onAuthChange: AuthChangeCallback;
     onWindowFocus?: WindowFocusCallback;
     onProtocolUrl?: ProtocolUrlCallback;
+    /** Store the rotating LPBS refresh token in the platform credential authority. */
+    onRefreshToken?: (refreshToken: string) => Promise<void>;
+    /** Resolve the shared LPBS refresh token after an app restart. */
+    onGetRefreshToken?: () => Promise<string | null>;
+    /** Remove the shared LPBS refresh token during sign-out. */
+    onClearRefreshToken?: () => Promise<void>;
 }

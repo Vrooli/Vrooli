@@ -13,6 +13,11 @@ linters:
     - unused
 
 linters-settings:
+  gofumpt:
+    # Must match this module's go.mod path. gofumpt treats a first path segment
+    # with no dot as standard library, so without this a module-local import is
+    # sorted into the stdlib group and the three-group convention inverts.
+    module-path: resource-k6/cli
   revive:
     rules:
       - name: blank-imports

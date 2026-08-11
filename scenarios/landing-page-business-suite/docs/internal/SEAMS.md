@@ -35,12 +35,12 @@ This document reflects the current code; claims here have been verified against 
 | administration.UserManagementStore | `api/internal/administration/user_management_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in user-management service tests | Keep admin user and session operations transport-free and routed to Test Genie’s lease-owned pool. |
 | administration.APIKeyStore | `api/internal/administration/apikeys_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in API-key service tests | Route encrypted provider-key reads and writes through the request-scoped database seam. |
 | commerce.UsageStore | `api/internal/commerce/usage_contracts.go` | `*database.RoutedDB` in API composition | `*sql.DB` in usage service tests | Route credit usage and reservations through the request-scoped database seam. |
-| intelligence.UsageServicer | `api/internal/intelligence/gateway_contracts.go` | `newCommerceUsageServicer(*commerce.UsageService)` in API composition | `MockUsageService` in AI gateway tests | Keep AI-provider orchestration independent of credit persistence and reservation implementation. |
-| intelligence.AccountServicer | `api/internal/intelligence/gateway_contracts.go` | `*commerce.Service` wired in `api/main.go` | account-service stubs in AI gateway tests | Keep subscription-tier lookup outside the AI provider domain. |
-| intelligence.APIKeyServicer | `api/internal/intelligence/gateway_contracts.go` | `*administration.APIKeyService` wired in `api/main.go` | API-key stubs in AI gateway tests | Keep encrypted provider-key storage outside AI provider orchestration. |
-| intelligence.Gateway | `api/internal/intelligence/gateway_contracts.go` | `*intelligence.AIGatewayService` wired in `api/main.go` | `MockAIGateway` in `api/ai_gateway_handlers_test.go` | Exercise HTTP request and error translation without provider, account, or credit persistence. |
+| intelligence.UsageServicer | `api/internal/intelligence/metered_inference_contracts.go` | `newCommerceUsageServicer(*commerce.UsageService)` in API composition | `MockUsageService` in metered inference tests | Keep AI-provider orchestration independent of credit persistence and reservation implementation. |
+| intelligence.AccountServicer | `api/internal/intelligence/metered_inference_contracts.go` | `*commerce.Service` wired in `api/main.go` | account-service stubs in metered inference tests | Keep subscription-tier lookup outside the AI provider domain. |
+| intelligence.APIKeyServicer | `api/internal/intelligence/metered_inference_contracts.go` | `*administration.APIKeyService` wired in `api/main.go` | API-key stubs in metered inference tests | Keep encrypted provider-key storage outside AI provider orchestration. |
+| intelligence.MeteredInferenceProvider | `api/internal/intelligence/metered_inference_contracts.go` | `*intelligence.MeteredInferenceService` wired in `api/main.go` | `MockMeteredInference` in `api/metered_inference_handlers_test.go` | Exercise HTTP request and error translation without provider, account, or credit persistence. |
 | intelligence.Limiter | `api/handlers/intelligence/handler.go` | rate-limiter implementation wired by the intelligence HTTP composition | deterministic limiter stub in handler tests | Keep request throttling independent from typed AI request handling. |
-| intelligence.OpenRouterClient | `api/internal/intelligence/openrouter_contracts.go` | `httpOpenRouterClient` created through `AIGatewayServiceOptions.ClientFactory` | `MockOpenRouterClient` in intelligence gateway tests | Keep provider HTTP/SSE transport replaceable while AI orchestration retains credit and account policy. |
+| intelligence.OpenRouterClient | `api/internal/intelligence/openrouter_contracts.go` | `httpOpenRouterClient` created through `MeteredInferenceServiceOptions.ClientFactory` | `MockOpenRouterClient` in metered inference tests | Keep provider HTTP/SSE transport replaceable while AI orchestration retains credit and account policy. |
 | account.Reader | `api/handlers/account/reads.go` | `handlers/account.NewCommerceReader(*commerce.Service)` in API composition | `fakeReader` in account transport tests | Keep generated Connect account transport independent of commerce-domain DTOs. |
 | administration.RemoteProfileStore | `api/internal/administration/remote_profiles_store.go` | `*database.RoutedDB` in API composition | `*sql.DB` in remote-profile service tests | Route encrypted remote-profile configuration and session operations through the request-scoped database seam. |
 | administration.HTTPDoer | `api/internal/administration/remote_profile_http.go` | `*http.Client` in remote-profile service composition | Test HTTP client in remote-profile service tests | Keep remote-profile login, session, and proxy traffic deterministic in tests without coupling administration logic to a concrete client. |
@@ -318,9 +318,9 @@ paths testable without a database.
 
 ---
 
-## AI Gateway Seams (NEW)
+## Metered Inference Seams (NEW)
 
-The AI Gateway provides centralized AI access with credit management for all Vrooli applications.
+The Metered Inference provides centralized AI access with credit management for all Vrooli applications.
 
 ### OpenRouterClient Seam (Strong)
 
@@ -340,7 +340,7 @@ type OpenRouterClient interface {
 
 **Status:** Strong
 - Clean interface separating HTTP concerns from business logic
-- Mock enables testing AI gateway service without network calls
+- Mock enables testing metered inference service without network calls
 - Compile-time interface enforcement
 
 **Testing Pattern:**
@@ -353,19 +353,19 @@ mockClient := &MockOpenRouterClient{
         }, nil
     },
 }
-svc := NewAIGatewayService(AIGatewayServiceOptions{
+svc := NewMeteredInferenceService(MeteredInferenceServiceOptions{
     OpenRouterClient: mockClient,
     // ...
 })
 ```
 
-### AIGateway Seam (Strong)
+### MeteredInference Seam (Strong)
 
-**Location:** `api/internal/intelligence/gateway_contracts.go`
+**Location:** `api/internal/intelligence/metered_inference_contracts.go`
 
 **Interface:**
 ```go
-type Gateway interface {
+type MeteredInferenceProvider interface {
     ExecuteChat(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error)
     ExecuteChatStream(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error
     GetAvailableModels() []string
@@ -374,7 +374,7 @@ type Gateway interface {
 ```
 
 **Test Double:**
-- `MockAIGateway` in `api/ai_gateway_handlers_test.go` implements the handler seam.
+- `MockMeteredInference` in `api/metered_inference_handlers_test.go` implements the handler seam.
 
 **Status:** Strong
 - Handlers accept the `intelligence.Gateway` interface, not a concrete service
@@ -383,7 +383,7 @@ type Gateway interface {
 
 **Testing Pattern:**
 ```go
-mock := &MockAIGateway{
+mock := &MockMeteredInference{
     ExecuteChatFn: func(ctx context.Context, userIdentity string, req intelligence.AIRequest) (*intelligence.AIResponse, error) {
         return &intelligence.AIResponse{Content: "Mock response"}, nil
     },
@@ -391,41 +391,41 @@ mock := &MockAIGateway{
 handler := handleAIChat(mock)
 ```
 
-### AI Gateway Service Injection Seams
+### Metered Inference Service Injection Seams
 
-**Location:** `api/internal/intelligence/gateway_service.go`
+**Location:** `api/internal/intelligence/metered_inference_service.go`
 
 The service has multiple injection points:
 
-1. **OpenRouter client factory** - `AIGatewayServiceOptions.ClientFactory`
+1. **OpenRouter client factory** - `MeteredInferenceServiceOptions.ClientFactory`
    - Primary seam for testing AI provider communication without root-package wiring
 
-2. **Logger** - Via `AIGatewayServiceOptions.Logger`
+2. **Logger** - Via `MeteredInferenceServiceOptions.Logger`
    - Enables capturing logs in tests
 
 **Status:** Strong
 
-### AI Gateway Rate Limiter Seam
+### Metered Inference Rate Limiter Seam
 
-**Location:** `api/ai_gateway_handlers.go`
+**Location:** `api/metered_inference_handlers.go`
 
 **Design:**
-- Package-level `aiGatewayRateLimiter` with `UseTimeProvider()` injection
+- Package-level `meteredInferenceRateLimiter` with `UseTimeProvider()` injection
 - Enables controlling time progression in tests
 
 **Testing Pattern:**
 ```go
 // Control time for rate limit testing
 fixedTime := time.Now()
-aiGatewayRateLimiter.UseTimeProvider(func() time.Time { return fixedTime })
-defer aiGatewayRateLimiter.UseTimeProvider(nil)
+meteredInferenceRateLimiter.UseTimeProvider(func() time.Time { return fixedTime })
+defer meteredInferenceRateLimiter.UseTimeProvider(nil)
 ```
 
-### AI Gateway Architecture
+### Metered Inference Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                      AI Gateway Service                          │
+│                      Metered Inference Service                          │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────────┐    ┌─────────────────────────────────┐   │
@@ -486,4 +486,4 @@ routed database seam while unit tests retain simple database-backed fixtures.
 - `docs/STRIPE_RESTRICTED_KEYS.md`
 - `docs/STRIPE_WEBHOOKS.md`
 - `docs/api/payments.md`
-- `docs/AI_GATEWAY.md`
+- `docs/METERED_INFERENCE.md`

@@ -7,7 +7,7 @@ import (
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
-// UsageServicer is the narrow credit-policy contract the AI gateway needs.
+// UsageServicer is the narrow credit-policy contract the metered inference provider needs.
 //
 // seam: UsageServicer keeps AI-provider orchestration independent of commerce
 // persistence. API composition supplies commerce.UsageService; gateway tests
@@ -57,6 +57,17 @@ type AIRequest struct {
 	Metadata  AIMetadata  `json:"metadata,omitempty"`
 }
 
+// InferenceRequest is the public, provider-neutral metered contract. Callers
+// select a capability role and constraints; concrete provider model slugs are
+// resolved only by the metered service policy.
+type InferenceRequest struct {
+	Role            string      `json:"role"`
+	Messages        []AIMessage `json:"messages"`
+	ConstraintsJSON string      `json:"constraints_json,omitempty"`
+	MaxTokens       int         `json:"max_tokens,omitempty"`
+	Metadata        AIMetadata  `json:"metadata,omitempty"`
+}
+
 type AIMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
@@ -96,11 +107,11 @@ type ModelPricing struct {
 	CompletionCostPer1K int64 `json:"completion_cost_per_1k"`
 }
 
-// Gateway is the transport-facing AI capability contract.
+// MeteredInferenceProvider is the transport-facing AI capability contract.
 //
-// seam: Gateway lets HTTP tests verify request handling without a provider,
+// seam: MeteredInferenceProvider lets HTTP tests verify request handling without a provider,
 // credit store, or account database.
-type Gateway interface {
+type MeteredInferenceProvider interface {
 	ExecuteChat(context.Context, string, AIRequest) (*AIResponse, error)
 	ExecuteChatStream(context.Context, string, AIRequest, http.ResponseWriter) error
 	GetAvailableModels() []string

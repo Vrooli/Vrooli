@@ -85,18 +85,18 @@ const (
 // NavigationSession tracks the state of an active navigation.
 // This is used internally by navigators to track progress.
 type NavigationSession struct {
-	NavigationID      string
-	SessionID         string
-	UserID            string
-	Model             string
-	StartedAt         time.Time
-	StepCount         int
-	TotalTokens       int
-	Status            NavigationStatus
-	AwaitingHuman     bool
-	HumanIntervention *HumanInterventionInfo
-	IsBYOK            bool
-	NavigatorType     NavigatorType
+	NavigationID         string
+	SessionID            string
+	UserID               string
+	Model                string
+	StartedAt            time.Time
+	StepCount            int
+	TotalTokens          int
+	Status               NavigationStatus
+	AwaitingHuman        bool
+	HumanIntervention    *HumanInterventionInfo
+	CredentialProvenance CredentialProvenance
+	NavigatorType        NavigatorType
 }
 
 // HumanInterventionInfo contains details about human intervention.

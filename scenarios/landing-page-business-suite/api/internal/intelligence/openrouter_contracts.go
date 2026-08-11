@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-// OpenRouterClient is the provider seam used by the AI gateway.
+// OpenRouterClient is the provider seam used by the metered inference provider.
 //
-// seam: OpenRouterClient makes provider transport substitutable in gateway
+// seam: OpenRouterClient makes provider transport substitutable in metered inference
 // tests and keeps HTTP implementation details out of credit orchestration.
 type OpenRouterClient interface {
 	Chat(context.Context, OpenRouterChatRequest) (*OpenRouterChatResponse, error)

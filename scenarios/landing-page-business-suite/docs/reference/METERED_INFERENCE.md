@@ -1,6 +1,6 @@
-# LPBS AI Gateway
+# LPBS Metered Inference
 
-The LPBS AI Gateway provides centralized AI access with credit management for all Vrooli applications. It receives AI requests, atomically checks and charges credits, calls AI providers (OpenRouter), and returns responses.
+The LPBS Metered Inference provides centralized AI access with credit management for all Vrooli applications. It receives AI requests, atomically checks and charges credits, calls AI providers (OpenRouter), and returns responses.
 
 ## Architecture
 
@@ -14,7 +14,7 @@ The LPBS AI Gateway provides centralized AI access with credit management for al
 │       ├─► User provides API key? ─► YES ─► BYOK Provider ─► OpenRouter      │
 │       │                                    (no credits)       directly       │
 │       │                                                                      │
-│       └─► NO ─► VrooliProvider ─► LPBS AI Gateway                           │
+│       └─► NO ─► VrooliProvider ─► LPBS Metered Inference                           │
 │                                        │                                     │
 │                                        ├─► Check user auth (JWT)            │
 │                                        ├─► Check credits (atomic)           │

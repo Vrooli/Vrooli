@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
-import { AdminResetService } from '@vrooli/proto-types/landing-page-business-suite/admin_pb';
+import { AdminResetService } from '@vrooli/proto-types/landing-page-business-suite/v1/admin_pb';
 import { CONNECT_API_BASE } from './common';
 
 export interface ResetDemoDataResponse {

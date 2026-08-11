@@ -25,7 +25,7 @@ NewServer
   │   ├─ seedDownloadDefaults
   │   └─ seedTierLimitsDefaults
   ├─ ConfigStore.LoadAll               (reads config/variants/*.json + branding.json)
-  ├─ construct services (PlanService, DownloadService, …, AIGatewayService)
+  ├─ construct services (PlanService, DownloadService, …, MeteredInferenceService)
   └─ setupRoutes
 server.Run
   └─ blocks; on shutdown calls srv.Cleanup → db.Close
@@ -79,7 +79,7 @@ T4  Stripe → may re-deliver the same event (network/retry) — idempotent
 ```
 POST /api/v1/ai/stream  (requireUserAuth)
   ├─ usageService.Reserve(user, est_credits)        → credit_reservations row, status=pending
-  ├─ aiGatewayService.OpenStream(provider)
+  ├─ meteredInferenceService.OpenStream(provider)
   ├─ stream chunks back to client (SSE)
   ├─ on stream end:
   │     usageService.Finalize(reservation, actual_credits)

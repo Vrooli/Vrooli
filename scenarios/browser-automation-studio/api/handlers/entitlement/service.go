@@ -27,6 +27,7 @@ func (s *service) GetStatus(
 	ctx context.Context,
 	req *connect.Request[entitlementv1.GetStatusRequest],
 ) (*connect.Response[entitlementv1.GetStatusResponse], error) {
+	ctx = withConsumerAccessToken(ctx, req.Header().Get("Authorization"))
 	user := s.resolveUserIdentity(ctx, req.Msg.GetUser())
 	status, err := s.buildStatus(ctx, user)
 	if err != nil {
@@ -52,6 +53,7 @@ func (s *service) SetIdentity(
 	ctx context.Context,
 	req *connect.Request[entitlementv1.SetIdentityRequest],
 ) (*connect.Response[entitlementv1.GetStatusResponse], error) {
+	ctx = withConsumerAccessToken(ctx, req.Header().Get("Authorization"))
 	email := strings.TrimSpace(strings.ToLower(req.Msg.GetEmail()))
 	if email != "" && !strings.Contains(email, "@") {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidEmail)
@@ -89,6 +91,7 @@ func (s *service) RefreshStatus(
 	ctx context.Context,
 	req *connect.Request[entitlementv1.RefreshStatusRequest],
 ) (*connect.Response[entitlementv1.GetStatusResponse], error) {
+	ctx = withConsumerAccessToken(ctx, req.Header().Get("Authorization"))
 	user := strings.TrimSpace(req.Msg.GetUser())
 	if user == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errUserRequired)
@@ -99,6 +102,14 @@ func (s *service) RefreshStatus(
 		return nil, err
 	}
 	return connect.NewResponse(&entitlementv1.GetStatusResponse{Status: status}), nil
+}
+
+func withConsumerAccessToken(ctx context.Context, authorization string) context.Context {
+	const prefix = "Bearer "
+	if strings.HasPrefix(authorization, prefix) {
+		return entsvc.WithAccessToken(ctx, strings.TrimSpace(strings.TrimPrefix(authorization, prefix)))
+	}
+	return ctx
 }
 
 // ---------------------------------------------------------------------------

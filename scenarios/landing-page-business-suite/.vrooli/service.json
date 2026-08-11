@@ -283,6 +283,17 @@
             "description": "Shared secret used for LPBS service-to-service authentication (for example scenario-to-desktop deploy target auth).",
             "required": false,
             "default_hint": "Set with scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain>"
+          },
+          {
+            "secret_id": "CONSUMER_AUTH_PRIVATE_KEY",
+            "logical_id": "vrooli/landing-page-business-suite",
+            "field": "consumer-auth-private-key",
+            "env": "CONSUMER_AUTH_PRIVATE_KEY",
+            "classification": "service",
+            "label": "Consumer token signing key",
+            "description": "Private RSA key used only by the subscription authority to sign consumer access tokens. Never distribute to bundled scenarios.",
+            "required": true,
+            "default_hint": "Generate an RSA PKCS#8 PEM key and store it only in the deployment credential authority"
           }
         ]
       }
@@ -370,11 +381,11 @@
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "jwt-secret",
-        "env": "JWT_SECRET",
-        "label": "JWT signing secret",
-        "description": "Signs authentication tokens issued by the application.",
-        "required": false
+        "field": "consumer-auth-private-key",
+        "env": "CONSUMER_AUTH_PRIVATE_KEY",
+        "label": "Consumer token signing key",
+        "description": "Private RSA key used only by LPBS to sign consumer access tokens. Never distribute to bundled scenarios.",
+        "required": true
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",

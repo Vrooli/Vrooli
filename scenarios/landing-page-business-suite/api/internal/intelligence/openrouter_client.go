@@ -50,7 +50,7 @@ func NewOpenRouterClient(opts OpenRouterClientOptions) OpenRouterClient {
 		httpClient: httpClient,
 		log:        logger,
 		referer:    defaultString(opts.Referer, "https://vrooli.com"),
-		title:      defaultString(opts.Title, "Vrooli AI Gateway"),
+		title:      defaultString(opts.Title, "Vrooli AI Metered Inference"),
 	}
 }
 

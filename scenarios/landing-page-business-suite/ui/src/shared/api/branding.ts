@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { z } from 'zod';
-import { BrandingService, type BrandingResponse, type PublicBrandingResponse } from '@vrooli/proto-types/landing-page-business-suite/branding_pb';
+import { BrandingService, type BrandingResponse, type PublicBrandingResponse } from '@vrooli/proto-types/landing-page-business-suite/v1/branding_pb';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
 import { CONNECT_API_BASE } from './common';
 import type { SiteBranding, SiteBrandingUpdate, PublicBranding } from './types';

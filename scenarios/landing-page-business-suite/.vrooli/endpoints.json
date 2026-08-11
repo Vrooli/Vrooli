@@ -3,6 +3,14 @@
   "version": "1.0.0",
   "endpoints": [
     {
+      "id": "get-well-known-jwks-json",
+      "path": "/.well-known/jwks.json",
+      "method": "GET",
+      "summary": "GET /.well-known/jwks.json",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
       "id": "get-api-v1-admin-apps-app-limits",
       "path": "/api/v1/admin/apps/{app}/limits",
       "method": "GET",
@@ -391,6 +399,14 @@
       "path": "/api/v1/ai/health",
       "method": "GET",
       "summary": "GET /api/v1/ai/health",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "ai"
+    },
+    {
+      "id": "post-api-v1-ai-inference",
+      "path": "/api/v1/ai/inference",
+      "method": "POST",
+      "summary": "POST /api/v1/ai/inference",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "ai"
     },

@@ -1,17 +1,17 @@
 import { createClient } from '@connectrpc/connect';
 import { create, toJson, type JsonObject, type JsonValue } from '@bufbuild/protobuf';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
-import { SeoService, type SEOResponse, type UpdateVariantSEOResponse } from '@vrooli/proto-types/landing-page-business-suite/seo_pb';
+import { SeoService, type SEOResponse, type UpdateVariantSEOResponse } from '@vrooli/proto-types/landing-page-business-suite/v1/seo_pb';
 import {
   VariantService,
   VariantSchema as VariantMessageSchema,
   VariantSnapshotSchema as VariantSnapshotMessageSchema,
   type Variant as VariantMessage,
   type VariantSnapshot as VariantSnapshotMessage,
-} from '@vrooli/proto-types/landing-page-business-suite/variant_pb';
-import { VariantSectionService } from '@vrooli/proto-types/landing-page-business-suite/variant_section_pb';
-import type { ContentSection as VariantSectionMessage } from '@vrooli/proto-types/landing-page-business-suite/shared/content_pb';
-import { VariantSpaceService } from '@vrooli/proto-types/landing-page-business-suite/variant_space_pb';
+} from '@vrooli/proto-types/landing-page-business-suite/v1/variant_pb';
+import { VariantSectionService } from '@vrooli/proto-types/landing-page-business-suite/v1/variant_section_pb';
+import type { ContentSection as VariantSectionMessage } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/content_pb';
+import { VariantSpaceService } from '@vrooli/proto-types/landing-page-business-suite/v1/variant_space_pb';
 import { CONNECT_API_BASE } from './common';
 import { parseOrNull } from './safeParse';
 import { isRecord } from '../lib/utils';
