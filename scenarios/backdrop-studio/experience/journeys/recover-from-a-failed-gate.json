@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-journey.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "recover-from-a-failed-gate",
+    "title": "Recover from a backdrop the headline cannot survive",
+    "purpose": "The most common path, and the one the product exists for. Most ambient imagery fails a worst-pixel contrast test on first render — that is why the gate is worth building. This journey exercises the refusal and the route forward, so that 'refused' is never where the operator stops.",
+    "prd_refs": [
+      "OT-P0-011",
+      "OT-P0-012",
+      "OT-P0-018",
+      "OT-P1-004"
+    ]
+  },
+  "steps": [
+    {
+      "page": "candidates",
+      "state": "mixed-verdicts",
+      "intent": "See that two of four candidates fail, each stating its measured ratio, its threshold, and the region measured — not a bare red mark.",
+      "via": "render completes"
+    },
+    {
+      "page": "candidates",
+      "state": "in-context",
+      "intent": "Confirm the failure is real by seeing the headline sitting on the image, rather than trusting a number about a region that looks fine empty.",
+      "via": "toggle in-context"
+    },
+    {
+      "page": "candidates",
+      "state": "all-failing",
+      "intent": "Select the strongest candidate anyway and read the amendments offered: adjust the overlay region, change placement, or re-roll the seed (LEG-006).",
+      "via": "select candidate"
+    },
+    {
+      "page": "placements",
+      "state": "scrim-proposed",
+      "intent": "Accept the computed minimum scrim and see the before-and-after with the recomputed verdict, rather than a silently darkened image.",
+      "via": "apply proposed scrim"
+    },
+    {
+      "page": "style",
+      "state": "editing",
+      "intent": "Persist the scrim as an amendment to the style so the next render of this style starts from a passing configuration, and observe that the style forks rather than mutating because a released backdrop already references it.",
+      "via": "save amendment"
+    },
+    {
+      "page": "backdrops",
+      "state": "detail",
+      "intent": "Release the amended candidate and confirm the verdict recorded against it is the passing one, with the amendment visible in its provenance.",
+      "via": "release"
+    }
+  ]
+}

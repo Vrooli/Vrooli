@@ -131,8 +131,8 @@ attributable.
 
 **Date:** 2026-08-11 · **Status:** accepted
 
-**Decision.** The legibility gate reports the minimum contrast ratio across the
-copy-safe region (`LEG-001`), computed from linearised sRGB luminance
+**Decision.** The legibility gate reports the minimum contrast ratio across each
+overlay region (`LEG-001`), computed from linearised sRGB luminance
 (`LEG-002`), per placement crop (`LEG-004`).
 
 **Why.** A single bright area behind one word makes a headline unreadable while
@@ -153,10 +153,129 @@ optimisation-by-sampling; a sampled minimum is not a minimum.
 to a Look or step list when submitting to `image-tools`.
 
 **Why.** A Look is a rendering recipe with no opinion about layout. A Style adds
-classification, placement, copy-safe geometry, gates, and lineage — the layout
+classification, placement, reserved-region geometry, gates, and lineage — the layout
 judgement that is this scenario's reason to exist. Collapsing them would push
 landing-page concerns into a general-purpose image toolbox.
 
 **Watch condition.** If a third consumer needs classified recipes, the
 classification layer may deserve promotion out of Backdrop Studio. One consumer
 does not justify a shared abstraction. Tracked in `PROBLEMS.md`.
+
+---
+
+## D-009 — `copy_safe` generalises to reserved regions with a declared kind
+
+**Date:** 2026-08-11 · **Status:** accepted · **Supersedes** the original `copy_safe` rectangle
+
+**Decision.** A style carries `reserved_regions[]` rather than a single
+`copy_safe` rectangle. Each region declares whether foreground content
+**overlays** it (text, gated on contrast) or **occludes** it (a device frame or
+card, behind which contrast is meaningless).
+
+**Why.** Extending beyond page surfaces to store listings introduced a foreground
+element that is not text. A device frame does not need contrast beneath it — it
+needs the focal point *not* to be under it. Those are different gates, and a
+single untyped rectangle cannot express which one applies. Without the kind, the
+system would either measure contrast under an opaque frame (a meaningless number
+that blocks release) or skip measurement on a caption band (a real failure that
+ships).
+
+**Cost of not doing it now.** Regions are written into every style record and
+every released backdrop's reference payload. Adding a discriminator later means
+migrating rows whose original intent is no longer recoverable — the same
+reasoning `asset-studio` applies to its own P0 schema-shape targets.
+
+**Consequence.** `OT-P0-010` is stated in terms of reserved regions, `OT-P0-011`
+measures per overlay region, and the scaffold draws every reserved region as a
+flat void rather than just the copy area.
+
+---
+
+## D-010 — Mockup chrome fidelity is chosen by surface kind, not by preference
+
+**Date:** 2026-08-11 · **Status:** accepted
+
+**Decision.** A `product` surface previews inside chrome derived from the target
+scenario's design tokens. A `store` surface previews inside a facsimile of the
+destination store listing. The `kind` field on the surface record decides;
+nothing else may.
+
+**Why.** The two previews answer different questions. For a landing page hero the
+question is *does this belong to our product*, which only brand-derived furniture
+can answer. For a store screenshot the question is *does this hold up against
+that store's furniture and the listings beside it*, which brand chrome actively
+obscures — an App Store screenshot previewed in our own design language looks
+right and then loses to its neighbours.
+
+**Boundary.** A product mockup draws an impression, never real components.
+Importing the target's actual components would make this scenario depend on every
+scenario it can preview, which inverts the dependency direction the whole design
+rests on. A store facsimile is recognisable as a mockup and reproduces no more
+trade dress than the layout judgement needs.
+
+---
+
+## D-011 — Backdrop Studio composes store assets but never captures or submits them
+
+**Date:** 2026-08-11 · **Status:** accepted
+
+**Decision.** For store listing assets, this scenario supplies the backdrop, the
+placement composition, and the surface geometry. The application screenshot is an
+**input it receives**. Submission to a store is not its concern.
+
+**Why.** `scenario-to-android` and `scenario-to-ios` already declare screenshot
+capture from journey evidence (`OT-P1-007` in each) and already own the store
+relationship. Capturing screenshots here would re-implement a capability that
+exists, against a device matrix this scenario has no business knowing about — the
+same rule that keeps raster operations in `image-tools`.
+
+**Consequence.** The store lane is a genuine composition: they produce
+screenshots, we produce backdrops and geometry, and the composed asset is handed
+back. It also means their `OT-P1-007` targets acquire a producer, which is the
+main reason the store surfaces are worth building at all.
+
+---
+
+## D-012 — Surface records may be seeded freely; surface *targets* are admitted on demand
+
+**Date:** 2026-08-11 · **Status:** accepted
+
+**Decision.** A **PRD target or requirement** committing to a surface is added
+only when a consumer asks for it and the admission test in
+`../reference/surfaces.md` passes. **Seeding a surface record is a separate act
+and is not governed by this decision** — records are data, cost nothing, and the
+seed catalogue deliberately covers more ground than any consumer has requested,
+so that an implementing agent can see the intended shape of the space.
+
+The line: *a seeded record says "this would work here." A target says "we will
+build this."* Only the second needs a consumer.
+
+**Why.** A survey of every scenario PRD found exactly two declared, unmet imagery
+needs — `scenario-to-android` and `scenario-to-ios` `OT-P1-007` — and both are
+now claimed. Everything else that *would* work here (extension store tiles,
+desktop splash, email headers, deck backgrounds, repository social previews,
+in-product empty states) is real but unrequested.
+
+Enumerating them as targets would trade a genuine property for a false one. The
+genuine property is that **adding a surface is a data row**, because the
+`surfaces` domain was built to generalise exactly this. A speculative target list
+would not make any of them arrive sooner; it would inflate a P1 set that is
+already twelve items deep and turn "unbuilt" into "committed but unbuilt".
+
+**What the seed catalogue is for.** It shows the intended shape of the space without committing to it, alongside an admission test, so a future agent adds a surface
+in one step without reopening the scope question, and a table of worked examples
+recording which candidates were considered and why each was accepted, deferred,
+or refused.
+
+**Two boundaries recorded because they are non-obvious:**
+
+- **Print collateral is the best conceptual fit and the least free.** Halftone
+  and risograph *are* print processes, so the treatment layer looks native to
+  paper. But this pipeline is sRGB and the legibility gate is WCAG, which is a
+  screen standard. CMYK separation, bleed, DPI, and a contrast measure that means
+  something under ink are all real work. Nobody should assume it follows.
+- **In-product imagery is the largest latent use and the easiest to get wrong.**
+  Every scenario has empty, error and onboarding states. But an empty-state
+  illustration is usually *focal* — a drawing that explains something — and only
+  the ambient wash behind one is in scope. That line needs drawing before the
+  work starts.

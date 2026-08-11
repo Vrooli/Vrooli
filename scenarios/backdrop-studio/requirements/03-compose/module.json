@@ -15,7 +15,11 @@
       "category": "compose",
       "criticality": "P0",
       "description": "When asked to explain a composition, the system shall resolve a style and a brief into a plan naming the strategy, the ordered operations, the fully merged parameters, the conditioning inputs, and the expected execution path, and shall return that plan without performing any raster work or model inference.",
-      "tags": ["dry-run", "inspectability", "seam"],
+      "tags": [
+        "dry-run",
+        "inspectability",
+        "seam"
+      ],
       "validation": [
         {
           "type": "unit",
@@ -32,7 +36,11 @@
       "category": "compose",
       "criticality": "P0",
       "description": "The system shall resolve treatment parameters written as `$brand.*` slots by querying `brand-manager` for the active brand at render time. The system shall not persist a resolved color into the style record, so that one style yields a correct image per brand.",
-      "tags": ["brand", "palette-lock", "integration"],
+      "tags": [
+        "brand",
+        "palette-lock",
+        "integration"
+      ],
       "validation": [
         {
           "type": "integration",
@@ -49,7 +57,11 @@
       "category": "compose",
       "criticality": "P0",
       "description": "If a style holds a palette slot that the active brand does not define, then the system shall refuse to render and shall name the unresolved slot. The system shall not substitute a default color, because a silently substituted color defeats the palette-lock property the treatment layer exists to provide.",
-      "tags": ["brand", "refusal", "error-handling"],
+      "tags": [
+        "brand",
+        "refusal",
+        "error-handling"
+      ],
       "validation": [
         {
           "type": "unit",
@@ -66,7 +78,11 @@
       "category": "compose",
       "criticality": "P0",
       "description": "The system shall route every raster operation and every model inference through the `image-tools` seam. The system shall contain no pixel-manipulation implementation, no model-provider URL, and no inference credential. A treatment absent from `image-tools` is an upstream change request, not a local implementation.",
-      "tags": ["boundary", "delegation", "invariant"],
+      "tags": [
+        "boundary",
+        "delegation",
+        "invariant"
+      ],
       "validation": [
         {
           "type": "manual",
@@ -83,7 +99,11 @@
       "category": "compose",
       "criticality": "P0",
       "description": "The system shall express a model-backed style's inference need as an `ai-gateway` role identifier and a routing profile. The system shall refuse a style that names a concrete model, so that model selection stays owned by the layer that probes the host and holds the routing policy.",
-      "tags": ["ai-gateway", "boundary", "validation"],
+      "tags": [
+        "ai-gateway",
+        "boundary",
+        "validation"
+      ],
       "validation": [
         {
           "type": "unit",
@@ -100,12 +120,59 @@
       "category": "compose",
       "criticality": "P0",
       "description": "If a resolved plan depends on a conditioning adapter whose licensing metadata forbids commercial use, then the system shall mark the plan as unreleasable and shall name the adapter and its restriction. The system shall evaluate this at composition time so that spend is not incurred against work that cannot ship.",
-      "tags": ["licensing", "compliance", "refusal"],
+      "tags": [
+        "licensing",
+        "compliance",
+        "refusal"
+      ],
       "validation": [
         {
           "type": "integration",
           "status": "planned",
           "notes": "Compose against a faked adapter registry entry carrying a non-commercial licence; assert the plan is marked unreleasable before any render call occurs."
+        }
+      ]
+    },
+    {
+      "id": "CMP-007",
+      "title": "The system should resolve a target scenario's design tokens into palette bindings",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "compose",
+      "criticality": "P1",
+      "description": "When given a target scenario, the system should read its design tokens through `brand-manager` and should bind them to the style's `$brand.*` slots, so that a backdrop composed for that scenario inherits its palette without hand-entry. Where a token the style requires has no counterpart in the target, the system should name the missing token rather than substituting a default.",
+      "tags": [
+        "brand",
+        "tokens",
+        "integration"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Resolve against a target scenario with a complete token set and against one missing a required token; assert bindings in the first and a named-token refusal in the second."
+        }
+      ]
+    },
+    {
+      "id": "CMP-008",
+      "title": "The system should compose a supplied screenshot into a device frame over a backdrop",
+      "status": "planned",
+      "prd_ref": "OT-P1-011",
+      "category": "compose",
+      "criticality": "P1",
+      "description": "The system should accept an application screenshot as an input and should compose it into a device frame positioned over a rendered backdrop, in the arrangements a store listing uses: device alone, caption above device, caption below device, and caption only. The system should reserve the frame's footprint as an occlusion region so that focal detail is not placed where the frame will cover it. The system shall not capture the screenshot itself; that is the consuming deployment scenario's work.",
+      "tags": [
+        "composition",
+        "store",
+        "device-frame",
+        "boundary"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "For each arrangement, assert the frame footprint is registered as an occlusion region and that the composed output matches the surface geometry."
         }
       ]
     }

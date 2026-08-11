@@ -15,7 +15,10 @@
       "category": "ui",
       "criticality": "P0",
       "description": "The system shall provide a UI to browse the catalog by axis, compose a brief against a style, watch a render, judge candidates against the legibility gate, and release a backdrop. Every route shall render an explicit loading, error, and empty state rather than an indefinite blank.",
-      "tags": ["workbench", "ui-states"],
+      "tags": [
+        "workbench",
+        "ui-states"
+      ],
       "validation": [
         {
           "type": "e2e",
@@ -32,7 +35,10 @@
       "category": "ui",
       "criticality": "P0",
       "description": "While release is unavailable, the system shall name the specific unmet condition — the failing contrast measurement, the unresolved palette slot, the restrictive adapter licence, the missing alt text, or the absent selection — and shall not present a disabled control without a stated reason.",
-      "tags": ["error-handling", "operator-legibility"],
+      "tags": [
+        "error-handling",
+        "operator-legibility"
+      ],
       "validation": [
         {
           "type": "e2e",
@@ -49,7 +55,11 @@
       "category": "ui",
       "criticality": "P0",
       "description": "The system shall present every legibility verdict with its measured ratio and a text label alongside any color encoding. A contrast tool that communicates its own verdicts by hue would fail the users it exists to protect.",
-      "tags": ["accessibility", "wcag", "integrity"],
+      "tags": [
+        "accessibility",
+        "wcag",
+        "integrity"
+      ],
       "validation": [
         {
           "type": "e2e",
@@ -66,7 +76,11 @@
       "category": "ui",
       "criticality": "P0",
       "description": "The system shall display the strategy, seed, ordered operations, and resolved parameters that produced each candidate, so that a result reads as a recipe rather than an accident. The workbench shall offer that plan for copying.",
-      "tags": ["provenance", "reproducibility", "workbench"],
+      "tags": [
+        "provenance",
+        "reproducibility",
+        "workbench"
+      ],
       "validation": [
         {
           "type": "e2e",
@@ -82,8 +96,12 @@
       "prd_ref": "OT-P1-003",
       "category": "ui",
       "criticality": "P1",
-      "description": "The system should preview a selected candidate in each declared placement at both a desktop and a mobile viewport, with representative copy in the copy-safe region, so that layout fitness is judged before release rather than after integration.",
-      "tags": ["placement", "preview", "workbench"],
+      "description": "The system should preview a selected candidate in each declared placement at both a desktop and a mobile viewport, with representative copy in the overlay regions, so that layout fitness is judged before release rather than after integration.",
+      "tags": [
+        "placement",
+        "preview",
+        "workbench"
+      ],
       "validation": [
         {
           "type": "e2e",
@@ -100,12 +118,78 @@
       "category": "ui",
       "criticality": "P0",
       "description": "The system shall render the workbench chrome achromatically so that the specimens under judgement are the only saturated elements on screen. A specimen frame shall paint an explicit declared ground rather than inheriting the page background, so that a backdrop is judged against a known surface in both themes.",
-      "tags": ["design-language", "judgement-integrity"],
+      "tags": [
+        "design-language",
+        "judgement-integrity"
+      ],
       "validation": [
         {
           "type": "manual",
           "status": "planned",
           "notes": "Design review against DESIGN.md in light and dark themes; assert specimen frames declare their own ground."
+        }
+      ]
+    },
+    {
+      "id": "UIX-007",
+      "title": "The system shall present every candidate both standalone and composed in context",
+      "status": "planned",
+      "prd_ref": "OT-P0-024",
+      "category": "workbench",
+      "criticality": "P0",
+      "description": "The system shall show each candidate as the bare rendered image and, alongside it, composed into at least one mockup of its target surface with representative foreground content in place. An ambient backdrop judged alone is judged against the wrong question, because its job is to sit behind something. The in-context view shall show the reserved regions occupied, not empty.",
+      "tags": [
+        "preview",
+        "judgement",
+        "core-loop"
+      ],
+      "validation": [
+        {
+          "type": "e2e",
+          "status": "planned",
+          "notes": "Assert both views render for a selected candidate and that the in-context view draws foreground content inside every declared reserved region."
+        }
+      ]
+    },
+    {
+      "id": "UIX-008",
+      "title": "The system should draw product mockup chrome from the target scenario's design tokens",
+      "status": "planned",
+      "prd_ref": "OT-P1-009",
+      "category": "workbench",
+      "criticality": "P1",
+      "description": "For a product surface, the system should derive the mockup's foreground furniture — type scale, control shapes, corner radii, spacing, and neutrals — from the target scenario's design tokens, so the preview reads as plausibly belonging to that product. The system should not import the target's actual components; a faithful impression is the goal, not a live embed.",
+      "tags": [
+        "preview",
+        "brand",
+        "fidelity"
+      ],
+      "validation": [
+        {
+          "type": "e2e",
+          "status": "planned",
+          "notes": "Render the same candidate against two targets with materially different tokens; assert the mockup furniture differs in type scale and control shape while the backdrop is unchanged."
+        }
+      ]
+    },
+    {
+      "id": "UIX-009",
+      "title": "The system should preview a store asset inside a facsimile of its destination store",
+      "status": "planned",
+      "prd_ref": "OT-P1-012",
+      "category": "workbench",
+      "criticality": "P1",
+      "description": "For a store surface, the system should compose the preview inside a facsimile of the destination store listing rather than inside brand-themed chrome, because the judgement is how the asset reads against that store's own furniture and against neighbouring listings. The facsimile shall be recognisable as a mockup and shall not reproduce store trade dress beyond what the layout judgement requires.",
+      "tags": [
+        "preview",
+        "store",
+        "fidelity"
+      ],
+      "validation": [
+        {
+          "type": "e2e",
+          "status": "planned",
+          "notes": "Assert a store-surface candidate previews in store chrome and a product-surface candidate previews in brand chrome, driven by the surface record alone."
         }
       ]
     }

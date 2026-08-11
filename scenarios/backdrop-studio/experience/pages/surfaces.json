@@ -1,0 +1,70 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "surfaces",
+    "title": "Surfaces",
+    "routes": [
+      "/surfaces"
+    ],
+    "purpose": "Let the operator see every output target, its exact geometry, which placements it permits, and — for store surfaces — where that geometry came from and when it was last confirmed. This is where externally mandated numbers are inspected rather than trusted.",
+    "prd_refs": [
+      "OT-P0-022",
+      "OT-P0-023",
+      "OT-P1-010"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "A store geometry always shows its authority and its confirmation date.",
+      "notes": "These numbers are set by Google and Apple and change without notice. A geometry with no citation, or one confirmed long ago, is a submission rejection waiting to happen, so staleness is shown rather than hidden."
+    },
+    {
+      "statement": "Product and store surfaces are visibly different kinds.",
+      "notes": "One set is ours to choose and the other is not. The distinction drives mockup fidelity as well, so it should be apparent at a glance rather than buried in a field."
+    },
+    {
+      "statement": "Permitted placements are shown as the constraint they are.",
+      "notes": "A caption-above-device arrangement is meaningful on a phone screenshot and meaningless on a feature graphic. Showing the permitted set explains a refusal before it happens."
+    }
+  ],
+  "states": [
+    {
+      "id": "populated",
+      "description": "All surfaces grouped by kind, each with geometry, permitted placements, and — for store surfaces — authority and confirmation date.",
+      "setup": {
+        "route": "/surfaces"
+      }
+    },
+    {
+      "id": "unconfirmed-geometry",
+      "description": "One or more store surfaces carry no confirmation date or a stale one. Marked explicitly, with the authority link available, rather than presented as trustworthy.",
+      "setup": {
+        "route": "/surfaces",
+        "query": "filter=unconfirmed"
+      }
+    },
+    {
+      "id": "detail",
+      "description": "One surface with its geometry, permitted placements, the styles declaring it, and the authority its geometry derives from.",
+      "setup": {
+        "route": "/surfaces/play.feature-graphic"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No surfaces registered. Offers to seed the standard product and store surface set.",
+      "setup": {
+        "route": "/surfaces"
+      }
+    },
+    {
+      "id": "error",
+      "description": "The registry cannot be read. States the cause; composition is blocked because geometry is unknown.",
+      "setup": {
+        "route": "/surfaces"
+      }
+    }
+  ]
+}

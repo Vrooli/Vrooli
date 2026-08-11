@@ -15,7 +15,11 @@
       "category": "release",
       "criticality": "P0",
       "description": "The system shall set an asset's AI-generated flag from its style's declared strategy: true for `guided` and `synthesized`, false for `procedural` and `procedural-treated`. The system shall reject any request that sets the flag directly. Marking procedurally drawn output as AI-generated is a false claim, so over-disclosure is refused on the same footing as under-disclosure.",
-      "tags": ["disclosure", "integrity", "invariant"],
+      "tags": [
+        "disclosure",
+        "integrity",
+        "invariant"
+      ],
       "validation": [
         {
           "type": "unit",
@@ -32,7 +36,11 @@
       "category": "release",
       "criticality": "P0",
       "description": "While a candidate was produced by a strategy that invoked a model, the system shall release it through `asset-studio` so that provenance, cost, and disclosure are recorded once. The system shall not persist a second provenance record for that asset.",
-      "tags": ["asset-studio", "provenance", "integration"],
+      "tags": [
+        "asset-studio",
+        "provenance",
+        "integration"
+      ],
       "validation": [
         {
           "type": "integration",
@@ -49,7 +57,11 @@
       "category": "release",
       "criticality": "P0",
       "description": "While a candidate was produced without any model invocation, the system shall release it locally and shall not require `asset-studio`. A procedural render incurs no spend, carries no disclosure obligation, and reproduces from its seed, so routing it through a cost-and-disclosure ledger would add a dependency that buys nothing. This keeps the product usable when `asset-studio` is unavailable.",
-      "tags": ["asset-studio", "degradation", "boundary"],
+      "tags": [
+        "asset-studio",
+        "degradation",
+        "boundary"
+      ],
       "validation": [
         {
           "type": "integration",
@@ -65,8 +77,12 @@
       "prd_ref": "OT-P0-015",
       "category": "release",
       "criticality": "P0",
-      "description": "The system shall expose a released backdrop by stable identifier carrying its placement, copy-safe region, measured contrast, disclosure state, and alt text. The consumer reference response shall not contain image bytes, so that a consuming scenario references a backdrop rather than copying it.",
-      "tags": ["consumer-surface", "compound-value", "seam"],
+      "description": "The system shall expose a released backdrop by stable identifier carrying its placement, reserved regions, measured contrast, disclosure state, and alt text. The consumer reference response shall not contain image bytes, so that a consuming scenario references a backdrop rather than copying it.",
+      "tags": [
+        "consumer-surface",
+        "compound-value",
+        "seam"
+      ],
       "validation": [
         {
           "type": "integration",
@@ -79,11 +95,14 @@
       "id": "REL-005",
       "title": "The system shall require operator-authored alt text before release",
       "status": "planned",
-      "prd_ref": "OT-P0-018",
+      "prd_ref": "OT-P0-021",
       "category": "release",
       "criticality": "P0",
       "description": "The system shall refuse to release a backdrop carrying empty alt text. Because an ambient image is decorative in most placements, the system shall accept an explicit decorative marking as a valid answer, but shall require that the choice be made rather than defaulted.",
-      "tags": ["accessibility", "gate"],
+      "tags": [
+        "accessibility",
+        "gate"
+      ],
       "validation": [
         {
           "type": "integration",
@@ -94,13 +113,17 @@
     },
     {
       "id": "REL-006",
-      "title": "The system should derive sized variants preserving the copy-safe region",
+      "title": "The system should derive sized variants preserving the reserved regions",
       "status": "planned",
       "prd_ref": "OT-P1-006",
       "category": "release",
       "criticality": "P1",
-      "description": "The system should derive variants of a released backdrop for the surfaces a page needs — hero, split panel, open-graph card, and mobile crop — and should recompute the copy-safe region and its contrast verdict for each variant rather than inheriting the parent's.",
-      "tags": ["variants", "placement", "responsive"],
+      "description": "The system should derive variants of a released backdrop for the surfaces a page needs — hero, split panel, open-graph card, and mobile crop — and should recompute the reserved regions and its contrast verdict for each variant rather than inheriting the parent's.",
+      "tags": [
+        "variants",
+        "placement",
+        "responsive"
+      ],
       "validation": [
         {
           "type": "integration",

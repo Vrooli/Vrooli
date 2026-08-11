@@ -18,7 +18,7 @@
     {
       "page": "style",
       "state": "viewing",
-      "intent": "Confirm the style's treatment chain, copy-safe region, and contrast threshold before committing to it.",
+      "intent": "Confirm the style's treatment chain, reserved regions, and contrast threshold before committing to it.",
       "via": "specimen tile"
     },
     {
@@ -48,7 +48,7 @@
     {
       "page": "backdrops",
       "state": "detail",
-      "intent": "Copy the stable identifier the landing page will reference, with the copy-safe region and measured contrast attached to it.",
+      "intent": "Copy the stable identifier the landing page will reference, with the reserved regions and measured contrast attached to it.",
       "via": "release"
     }
   ]

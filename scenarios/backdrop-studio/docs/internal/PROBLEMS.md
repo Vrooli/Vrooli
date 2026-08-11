@@ -77,21 +77,48 @@ capability inside one product.
 **Real fix:** Add the treatment operations to `image-tools` as pure-Go
 deterministic ops, registered in the operations catalog alongside the existing
 `grayscale`/`sepia` family. They are model-free, resolution-independent, and
-golden-image testable. Suggested first set, in dependency order:
+golden-image testable.
+
+Only **filters** belong upstream — anything that transforms an input image. The
+generators (`voronoi`, `reaction_diffusion`, `flow_field`, and the rest) are
+content and stay in this scenario's `scaffold` domain (D-003). The full split is
+in `../reference/taxonomy.md`.
+
+**Tier 1 — unblocks the procedural lanes.** Nothing ships without these:
 
 | Op | Parameters | Notes |
 |---|---|---|
-| `duotone` | ink, paper, ramp | Simplest; unlocks palette lock on its own |
+| `duotone` | ink, paper, ramp stops | Simplest; unlocks palette lock on its own |
 | `posterize` | levels, inks | Duotone with a quantized ramp |
 | `halftone` | lpi, angle, dot shape | Rotated grid, dot radius from luminance |
-| `line_screen` | pitch, angle | Same, modulating stroke weight |
 | `dither_ordered` | matrix, depth | Bayer threshold matrix |
 | `dither_diffusion` | algorithm, depth | Floyd–Steinberg error propagation |
 | `grain` | sigma, contrast, distribution | Keeps colour; lightest-touch treatment |
-| `riso` | plates, offset, tooth, blend | Two spot plates, deliberate misregistration |
-| `aberration` | dispersion, bloom threshold | Radial channel separation plus highlight bleed |
-| `ascii_mosaic` | cell, ramp, font | Luminance to glyph density |
 | `scrim` | direction, stops, opacity | Required by the legibility gate (`LEG-005`) |
+
+**Tier 2 — the breadth that makes the catalog a showcase:**
+
+| Op | Parameters | Notes |
+|---|---|---|
+| `line_screen` | pitch, angle | Same as halftone, modulating stroke weight |
+| `stipple` | density, jitter, dot size | Irregular positions; reads hand-drawn where halftone reads mechanical |
+| `engraving` | line weight, spacing, follow | Tonal value as hatching |
+| `aberration` | dispersion, bloom threshold | Radial channel separation plus highlight bleed |
+| `bloom` | threshold, radius, intensity | Also serves `godray` |
+| `curve` | per-channel control points | Serves `solarization` and `cross_process` |
+| `defocus` | radius, aperture blades | Serves `bokeh` |
+| `motion_blur` | angle, distance | Serves `long_exposure` |
+| `ascii_mosaic` | cell, ramp, font | Luminance to glyph density |
+| `pixel_sort` | axis, key, threshold band | Kim Asendorf's technique; streaked and unmistakably digital |
+| `displacement` | source, amplitude | Also composes `letterpress` and `fluted_glass` |
+
+**Tier 3 — completes the declared axis:**
+
+`glitch`, `kaleidoscope`, `slit_scan`, `fluted_glass`, `photomosaic`, `resample`.
+
+The taxonomy declares 44 treatments deliberately — it is an open list, and a
+value with no operation behind it is simply unbuilt rather than wrong. Tier 1 is
+the critical path; tiers 2 and 3 are additive and can land in any order.
 
 **Value beyond this scenario:** this is a permanent capability deposit. Once
 landed, every scenario in the portfolio can screen, quantize, and palette-lock an
@@ -110,7 +137,7 @@ deterministic step split that already anticipates these)
 
 **Symptom:** Backdrop Studio must release model-backed candidates through
 `asset-studio` (`REL-002`) and record a verdict against them. Its verdict is a
-*placement fitness* judgement — measured contrast under a copy-safe region. The
+*placement fitness* judgement — measured contrast under an overlay region. The
 `asset-studio` verdict table cannot represent that.
 
 **Root cause:** Verified in `scenarios/asset-studio/api/internal/studio/schema.sql`:
@@ -236,7 +263,7 @@ Backdrop Studio's **Style** is a superset of that shape. Two catalogs of
 
 **Root cause:** The abstractions genuinely differ in scope. A Look is a
 *rendering recipe* with no opinion about layout. A Style adds classification,
-placement, copy-safe geometry, gates, and lineage — the layout judgement that is
+placement, reserved-region geometry, gates, and lineage — the layout judgement that is
 this scenario's whole reason to exist. Collapsing them would push landing-page
 concerns into a general-purpose image toolbox.
 
@@ -308,6 +335,69 @@ generated placeholder purpose text. That tests what the gate is actually for.
 
 **Refs:** `scenarios/backdrop-studio/.vrooli/orientation.json` step
 `experience-contract`; `templates/scenarios/react-vite`
+
+---
+
+### 2026-08-11 — the react-vite `notes` example domain is still present
+
+**Symptom:** The orientation gate `example-domain-removed` cannot pass. The
+generated `notes` example domain is still fully present under
+`api/internal/notes/` — service, repository, SQLite store, attachments, mocks,
+and tests.
+
+**Root cause:** Expected at this stage. The scenario is documentation-only; no
+product code has been written, so the template scaffolding has not yet been
+displaced. Recorded here so it is not rediscovered as a defect, and so it is not
+forgotten once code begins.
+
+**Workaround:** None needed. The gate is honestly red.
+
+**Real fix:** Delete `api/internal/notes/` when the first real domain lands —
+`surfaces` or `catalog`, per the build order. Its BAS experience-spec cases were
+already removed as orphans referencing pages this scenario does not have.
+
+**Owner:** unassigned — this scenario, at first-code
+
+**Refs:** `api/internal/notes/`, `.vrooli/orientation.json` step `example-domain-removed`
+
+---
+
+### 2026-08-11 — scenario-to-android and scenario-to-ios declare listing-asset targets with no producer
+
+**Symptom:** Not a defect — an unclaimed integration, recorded before it is
+forgotten. Both mobile deployment scenarios already declare store listing asset
+generation:
+
+- `scenario-to-android` `OT-P1-007` — "Generate store listing assets, screenshots
+  from journey evidence, and a privacy policy from scenario metadata"
+- `scenario-to-ios` `OT-P1-007` — "Generate listing assets and screenshots from
+  journey evidence at the required device sizes"
+
+Neither has a producer for the *imagery* half. Screenshot capture from journey
+evidence is theirs and already scoped; the backdrop behind a device frame, the
+feature graphic, and the surface geometry are not.
+
+**Root cause:** No scenario owned ambient imagery when those targets were written.
+
+**Workaround:** None required. The store lane is P1 here (`SUR-004`, `CMP-008`,
+`UIX-009`) and sequenced after the procedural lanes prove the architecture.
+
+**Real fix:** When the store surfaces land, wire the seam in both directions:
+they supply a captured screenshot and a target surface id; Backdrop Studio
+returns a composed asset conforming to that surface's geometry (`SUR-003`).
+Neither side should acquire the other's responsibility — see D-011.
+
+**Open question for the owners:** whether the composed asset is released through
+this scenario's backdrop reference surface (`REL-004`) or handed back as bytes
+for their existing submission pipeline. Backdrop Studio prefers the reference,
+but the store submission path is theirs and may need the bytes.
+
+**Owner:** unassigned — `scenario-to-android`, `scenario-to-ios`
+
+**Refs:** `scenarios/scenario-to-android/PRD.md` OT-P1-007,
+`scenarios/scenario-to-ios/PRD.md` OT-P1-007,
+`docs/reference/surfaces.md`, `docs/internal/DECISIONS.md` D-011
+
 
 ## Architecture Drift
 

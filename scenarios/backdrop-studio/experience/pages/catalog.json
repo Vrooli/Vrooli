@@ -5,9 +5,15 @@
   "page": {
     "id": "catalog",
     "title": "Catalog",
-    "routes": ["/"],
+    "routes": [
+      "/"
+    ],
     "purpose": "Let the operator find a style by what it looks like rather than by remembering its name, using the five axes as facets. This is the entry point and the discovery surface, so it is never gated.",
-    "prd_refs": ["OT-P0-001", "OT-P0-003", "OT-P0-018"]
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-003",
+      "OT-P0-018"
+    ]
   },
   "priorities": [
     {
@@ -21,33 +27,55 @@
     {
       "statement": "Cost is legible before anything is opened.",
       "notes": "A tile shows whether its strategy is free (procedural) or metered (model-backed), so the operator understands the consequence of a choice before making it."
+    },
+    {
+      "statement": "Availability is legible alongside cost.",
+      "notes": "A tile already shows whether a strategy is free or metered. On a machine with no capable backend and no configured route, a metered style is not merely costly — it cannot run at all. Cost legibility is not availability legibility, and on a local-first product the unavailable case is common rather than exceptional."
     }
   ],
   "states": [
     {
       "id": "empty",
       "description": "No styles exist yet. Offers to seed the starter catalog and explains what a style is, rather than showing a bare grid.",
-      "setup": { "route": "/" }
+      "setup": {
+        "route": "/"
+      }
     },
     {
       "id": "loading",
       "description": "Specimens render progressively; tiles hold their aspect so the grid does not reflow as images arrive.",
-      "setup": { "route": "/" }
+      "setup": {
+        "route": "/"
+      }
     },
     {
       "id": "populated",
       "description": "The full catalog with axis facets available and result count shown.",
-      "setup": { "route": "/" }
+      "setup": {
+        "route": "/"
+      }
     },
     {
       "id": "filtered-empty",
       "description": "A filter combination matches nothing. Names the constraining facets and offers to relax the narrowest one, rather than showing an unqualified empty state.",
-      "setup": { "route": "/", "query": "treatment=ascii_mosaic&lineage=swiss_international" }
+      "setup": {
+        "route": "/",
+        "query": "treatment=typographic_mosaic&lineage=swiss_international"
+      }
     },
     {
       "id": "error",
       "description": "The catalog cannot be read. States the cause and keeps any previously loaded results visible.",
-      "setup": { "route": "/" }
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "no-model-host",
+      "description": "Viewed on a host with no capable local backend and no configured route. Model-backed styles are marked unavailable with the reason; procedural styles are unaffected and the catalog stays useful.",
+      "setup": {
+        "route": "/"
+      }
     }
   ]
 }

@@ -17,12 +17,13 @@ enough that a style catalog is cheap to export, diff, and ship as a product.
 | Record | Durable | Notes |
 |---|---|---|
 | `style` | yes | The unit of the catalog. Versioned; immutable once released against. |
-| `style_version` | yes | Full axis, strategy, treatment chain, gates, copy-safe region. |
+| `style_version` | yes | Full axis, strategy, treatment chain, gates, reserved regions, permitted surfaces. |
 | `scaffold_preset` | yes | Named parameterised composition presets. |
+| `surface` | yes | Output target: pixel geometry, permitted placements, geometry authority, confirmation date. |
 | `brief` | yes | The operator's intent for one composition: subject text, brand, placement, seed. |
 | `render_job` | yes | Lifecycle status, resolved plan, execution path, timing. |
 | `candidate` | yes | One produced image *reference*, its seed, and its resolved plan. |
-| `legibility_verdict` | yes | Measured worst-pixel ratio, threshold, region, placement, pass/fail. |
+| `legibility_verdict` | yes | Measured worst-pixel ratio, threshold, overlay region, placement, pass/fail. |
 | `release` | yes | The released backdrop reference and its consumer-facing metadata. |
 | rendered bytes | **no** | Held by `image-tools` / `asset-studio`. |
 
@@ -38,10 +39,10 @@ The heart of the model. Illustrative shape — the proto contract is authoritati
   // ── the five-axis taxonomy — validated against declared enums (CAT-001)
   "axes": {
     "role":      "ambient",
-    "subject":   "statuary-architecture",
+    "subject":   "statuary_architecture",
     "treatment": ["halftone", "duotone"],
     "lineage":   "cyanotype",
-    "placement": ["full-bleed", "split-panel", "framed-inset"]
+    "placement": ["full_bleed", "split_panel", "framed_inset"]
   },
 
   // ── exactly one, and it governs which blocks below are permitted (CAT-002)
@@ -73,7 +74,13 @@ The heart of the model. Illustrative shape — the proto contract is authoritati
     } }
   ],
 
-  "copy_safe": { "x": 0.05, "y": 0.19, "w": 0.56, "h": 0.55 },
+  // ── reserved regions: each declares how foreground content meets it (CAT-004, D-009)
+  "reserved_regions": [
+    { "kind": "overlay",   "role": "headline", "x": 0.05, "y": 0.19, "w": 0.56, "h": 0.55 }
+    // an "occlusion" region — a device frame or card — is gated on focal
+    // placement instead of contrast; nothing is measured beneath it
+  ],
+  "surfaces":  ["web.hero", "web.hero-mobile"],   // geometry comes from the surface registry (SUR-001)
   "gates":     { "min_contrast": 4.5, "scrim": "auto" },
 
   "lineage_ref": "riso-arcade@3"              // the version this was forked from

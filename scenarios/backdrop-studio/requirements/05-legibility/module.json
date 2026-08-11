@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "legibility",
-    "description": "The gate that separates a pretty picture from a usable backdrop: worst-pixel contrast measurement under the copy-safe region, the release block, and scrim solving.",
+    "description": "The gate that separates a pretty picture from a usable backdrop: worst-pixel contrast measurement under each overlay region, the release block, and scrim solving.",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -9,18 +9,22 @@
   "requirements": [
     {
       "id": "LEG-001",
-      "title": "The system shall report the contrast ratio of the least legible pixel in the copy-safe region",
+      "title": "The system shall report the contrast ratio of the least legible pixel in each overlay region",
       "status": "planned",
       "prd_ref": "OT-P0-011",
       "category": "legibility",
       "criticality": "P0",
-      "description": "The system shall compute the WCAG contrast ratio between the intended text color and every pixel inside the candidate's copy-safe region, and shall report the minimum. The system shall not substitute a mean, median, or sampled approximation for that minimum, because a single bright area behind one word is sufficient to make a headline unreadable while an average stays comfortable.",
-      "tags": ["accessibility", "measurement", "gate"],
+      "description": "The system shall compute the WCAG contrast ratio between the intended text color and every pixel inside the candidate's overlay regions, and shall report the minimum. The system shall not substitute a mean, median, or sampled approximation for that minimum, because a single bright area behind one word is sufficient to make a headline unreadable while an average stays comfortable.",
+      "tags": [
+        "accessibility",
+        "measurement",
+        "gate"
+      ],
       "validation": [
         {
           "type": "unit",
           "status": "planned",
-          "notes": "Synthetic fixture: a dark field carrying one small bright patch inside the copy-safe region. Assert the reported ratio matches the patch, not the field."
+          "notes": "Synthetic fixture: a dark field carrying one small bright patch inside the overlay region. Assert the reported ratio matches the patch, not the field."
         }
       ]
     },
@@ -32,7 +36,11 @@
       "category": "legibility",
       "criticality": "P0",
       "description": "The system shall derive relative luminance by applying the sRGB transfer function before the luminance weighting, per WCAG 2.2. A ratio computed from raw channel values is wrong in a way that passes casual inspection, so this is stated as its own requirement rather than left implicit.",
-      "tags": ["accessibility", "correctness", "wcag"],
+      "tags": [
+        "accessibility",
+        "correctness",
+        "wcag"
+      ],
       "validation": [
         {
           "type": "unit",
@@ -49,7 +57,11 @@
       "category": "legibility",
       "criticality": "P0",
       "description": "If a candidate's worst-pixel contrast is below the threshold its style declares, then the system shall refuse release and shall state the measured value, the threshold, and the region measured. The system shall record the verdict against the candidate so that a later reader sees why it was blocked.",
-      "tags": ["gate", "refusal", "release"],
+      "tags": [
+        "gate",
+        "refusal",
+        "release"
+      ],
       "validation": [
         {
           "type": "integration",
@@ -65,8 +77,12 @@
       "prd_ref": "OT-P0-012",
       "category": "legibility",
       "criticality": "P0",
-      "description": "The system shall measure contrast against the copy-safe region as it lands in the placement being released for, including any crop that placement applies. A backdrop that passes as a full-bleed hero and fails as a mobile crop shall be reported as failing for the mobile crop.",
-      "tags": ["placement", "responsive", "gate"],
+      "description": "The system shall measure contrast against the overlay region as it lands in the placement being released for, including any crop that placement applies. A backdrop that passes as a full-bleed hero and fails as a mobile crop shall be reported as failing for the mobile crop.",
+      "tags": [
+        "placement",
+        "responsive",
+        "gate"
+      ],
       "validation": [
         {
           "type": "integration",
@@ -83,12 +99,36 @@
       "category": "legibility",
       "criticality": "P1",
       "description": "Where a candidate fails the gate, the system should compute the least scrim opacity that would bring the worst pixel to the declared threshold, and should offer that value as an amendment to the style rather than applying it silently.",
-      "tags": ["scrim", "remediation"],
+      "tags": [
+        "scrim",
+        "remediation"
+      ],
       "validation": [
         {
           "type": "unit",
           "status": "planned",
           "notes": "Assert the returned opacity passes the gate and that one increment less fails it."
+        }
+      ]
+    },
+    {
+      "id": "LEG-006",
+      "title": "The system shall offer at least one available amendment whenever it refuses on contrast",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "legibility",
+      "criticality": "P0",
+      "description": "Whenever the system refuses release on contrast, it shall present at least one amendment that is available in the current build, together with the measured value and the threshold. Computed scrim solving (`LEG-005`) is P1, so at P0 the available amendments are manual: adjust the overlay region, select a different placement, or re-render with a different seed. A refusal that states only a number is a dead end, and the product's own voice contract requires the amendment that would pass.",
+      "tags": [
+        "refusal",
+        "operator-legibility",
+        "gate"
+      ],
+      "validation": [
+        {
+          "type": "e2e",
+          "status": "planned",
+          "notes": "Given a candidate failing the gate, when release is attempted, then the refusal names measured value, threshold, and at least one amendment reachable in the current build."
         }
       ]
     }

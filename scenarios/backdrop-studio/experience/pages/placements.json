@@ -5,9 +5,17 @@
   "page": {
     "id": "placements",
     "title": "Placement Preview",
-    "routes": ["/renders/:renderId/placements"],
+    "routes": [
+      "/renders/:renderId/placements"
+    ],
     "purpose": "Show a selected candidate in every placement its style declares, at desktop and mobile, so layout fitness is judged before release rather than discovered after integration.",
-    "prd_refs": ["OT-P1-003", "OT-P0-012", "OT-P1-006"]
+    "prd_refs": [
+      "OT-P1-003",
+      "OT-P0-012",
+      "OT-P1-006",
+      "OT-P1-009",
+      "OT-P1-012"
+    ]
   },
   "priorities": [
     {
@@ -16,38 +24,76 @@
     },
     {
       "statement": "Previews use representative copy, not placeholder text.",
-      "notes": "Headline length and weight determine whether the copy-safe region is adequate. Lorem would make the preview a lie."
+      "notes": "Headline length and weight determine whether the overlay region is adequate. Lorem would make the preview a lie."
     },
     {
       "statement": "A failing placement is visibly failing, not quietly omitted.",
       "notes": "The value of this surface is catching the case that would otherwise ship."
+    },
+    {
+      "statement": "Mockup chrome fidelity is chosen by the surface, never by the operator.",
+      "notes": "A product surface previews in chrome derived from the target scenario's tokens; a store surface previews inside a facsimile of the destination store. The judgements differ — 'does this belong to our product' versus 'does this hold up beside competing listings' — so the mockups must (D-010)."
     }
   ],
   "states": [
     {
       "id": "all-placements-passing",
       "description": "Every declared placement renders at both viewports with a passing verdict.",
-      "setup": { "route": "/renders/r-1/placements" }
+      "setup": {
+        "route": "/renders/r-1/placements"
+      }
     },
     {
       "id": "viewport-specific-failure",
       "description": "A placement passes at desktop and fails at mobile. Both verdicts are shown and the failing combination is named explicitly.",
-      "setup": { "route": "/renders/r-2/placements" }
+      "setup": {
+        "route": "/renders/r-2/placements"
+      }
     },
     {
       "id": "scrim-proposed",
       "description": "A failing preview shows the computed minimum scrim alongside a before-and-after comparison, offered as an amendment rather than applied silently.",
-      "setup": { "route": "/renders/r-2/placements", "hash": "scrim" }
+      "setup": {
+        "route": "/renders/r-2/placements",
+        "hash": "scrim"
+      }
     },
     {
       "id": "single-placement",
       "description": "The style declares one placement. The surface renders that one without implying others were skipped.",
-      "setup": { "route": "/renders/r-6/placements" }
+      "setup": {
+        "route": "/renders/r-6/placements"
+      }
     },
     {
       "id": "no-selection",
       "description": "No candidate has been selected yet. Routes back to the candidate set.",
-      "setup": { "route": "/renders/r-3/placements" }
+      "setup": {
+        "route": "/renders/r-3/placements"
+      }
+    },
+    {
+      "id": "store-listing",
+      "description": "A store surface previewed inside a facsimile of its destination listing, with the device frame's footprint shown as an occlusion region rather than a gated one.",
+      "setup": {
+        "route": "/placements/c-1",
+        "query": "surface=play.phone-screenshot"
+      }
+    },
+    {
+      "id": "brand-themed",
+      "description": "A product surface previewed in chrome derived from the target scenario's design tokens — type scale, control shapes, radii, neutrals — so the mockup reads as plausibly that product.",
+      "setup": {
+        "route": "/placements/c-1",
+        "query": "surface=web.hero&target=landing-page-business-suite"
+      }
+    },
+    {
+      "id": "geometry-mismatch",
+      "description": "The candidate's produced dimensions do not match its declared surface. States expected and actual geometry and blocks release (SUR-003).",
+      "setup": {
+        "route": "/placements/c-9"
+      }
     }
   ]
 }

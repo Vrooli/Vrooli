@@ -116,7 +116,7 @@ model-backed lanes only.
 ## `BackdropConsumer` — the inbound surface
 
 The compound-value seam. A consumer resolves a backdrop by stable identifier and
-receives its URI, copy-safe region, measured contrast, disclosure state, and alt
+receives its URI, surface, reserved regions, measured contrast, disclosure state, and alt
 text — **never bytes** (`REL-004`).
 
 | Consumer | Uses it for | Status |
@@ -124,9 +124,11 @@ text — **never bytes** (`REL-004`).
 | `landing-page-business-suite` | Hero and sign-up backdrops | Hero currently hardcoded; see PROBLEMS |
 | `content-desk` | Promotional surfaces | Not yet wired |
 | `seo-optimizer` | Open-graph cards | Not yet wired |
-| `scenario-to-desktop` / `-android` / `-ios` | Splash and store imagery | Candidate future consumer |
+| `scenario-to-android` | Play listing backdrops and device-frame composition | Declares `OT-P1-007`; no producer today |
+| `scenario-to-ios` | App Store listing backdrops and device-frame composition | Declares `OT-P1-007`; no producer today |
+| `scenario-to-desktop` | Splash imagery | Candidate future consumer |
 
-Passing the copy-safe region as data is what makes the seam worth having: the
+Passing the reserved regions as data is what makes the seam worth having: the
 consumer positions its own copy correctly without re-deriving a layout judgement
 that was already made and measured here.
 

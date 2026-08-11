@@ -19,7 +19,7 @@
       "notes": "A procedural style shows no generation block; a guided style shows the scaffold. Displaying inapplicable fields would invite the contradictions the catalog refuses at write."
     },
     {
-      "statement": "The copy-safe region is drawn on the specimen, not typed as four numbers.",
+      "statement": "Reserved regions are drawn on the specimen, not typed as four numbers.",
       "notes": "It is a spatial decision and should be made spatially, with the numeric values shown alongside for precision."
     },
     {
@@ -30,7 +30,7 @@
   "states": [
     {
       "id": "viewing",
-      "description": "The style with a live specimen, its axes, treatment chain, copy-safe overlay, and gate thresholds.",
+      "description": "The style with a live specimen, its axes, treatment chain, reserved-region overlay, and gate thresholds.",
       "setup": { "route": "/styles/cyanotype-arcade" }
     },
     {

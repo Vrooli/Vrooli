@@ -11,6 +11,7 @@
     "04-render/module.json",
     "05-legibility/module.json",
     "06-release/module.json",
-    "07-workbench/module.json"
+    "07-workbench/module.json",
+    "08-surfaces/module.json"
   ]
 }

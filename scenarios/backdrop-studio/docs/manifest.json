@@ -1123,7 +1123,80 @@
               "Axis 2 · `treatment` — how the surface is rendered",
               "Axis 3 · `subject` — what is depicted",
               "Axis 4 · `lineage` — the visual tradition being quoted",
-              "Axis 5 · `placement` — how the image meets the page"
+              "Axis 5 · `placement` — how the image meets the foreground",
+              "Axis values are not operation names"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "reference/surfaces.md",
+          "docType": "reference",
+          "title": "Output surfaces",
+          "aliases": [
+            "surfaces",
+            "geometry",
+            "store-assets"
+          ],
+          "description": "The output surface registry: declared pixel geometry, permitted placements, and the external authority each geometry derives from",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "surface-registry",
+            "output-geometry",
+            "store-surfaces"
+          ],
+          "maturity": "draft",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Record shape",
+              "The `kind` field decides the mockup",
+              "Seed set",
+              "What this scenario does not do"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "reference/starter-catalog.md",
+          "docType": "reference",
+          "title": "Starter catalog",
+          "aliases": [
+            "seed",
+            "starter",
+            "first-run"
+          ],
+          "description": "What the seeded style set contains and the coverage rule it must satisfy",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "starter-catalog",
+            "seed-coverage"
+          ],
+          "maturity": "draft",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Coverage rule",
+              "Shape of the set",
+              "Open decisions for the operator"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"

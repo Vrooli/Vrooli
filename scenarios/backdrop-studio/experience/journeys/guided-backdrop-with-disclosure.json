@@ -18,7 +18,7 @@
     {
       "page": "style",
       "state": "viewing",
-      "intent": "See the composition scaffold that will steer generation, including the copy-safe void drawn into it as flat geometry.",
+      "intent": "See the composition scaffold that will steer generation, including the reserved-region voids drawn into it as flat geometry.",
       "via": "scaffold preview"
     },
     {

@@ -36,7 +36,7 @@
     },
     {
       "id": "detail",
-      "description": "One backdrop with its variants, per-variant verdicts, alt text, full provenance, and the copy-safe region a consumer will receive.",
+      "description": "One backdrop with its variants, per-variant verdicts, alt text, full provenance, and the reserved regions a consumer will receive.",
       "setup": { "route": "/backdrops/bd-1" }
     },
     {

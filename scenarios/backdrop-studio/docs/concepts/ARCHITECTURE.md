@@ -7,11 +7,12 @@ is positioned to make: *is this image right for this page?*
 ## The layer boundary
 
 ```
-CONSUMERS   landing-page-business-suite · content-desk · seo-optimizer · future surfaces
+CONSUMERS   landing-page-business-suite · content-desk · seo-optimizer
+            scenario-to-android · scenario-to-ios (store listing assets)
                           ▲ references a backdrop by stable id (never bytes)
             ──────────────┼──────────────────────────────────────────────
 JUDGEMENT   backdrop-studio
-            style catalog · composition scaffold · placement · legibility gate
+            style catalog · surfaces · scaffold · placement · legibility gate
             ──────────────┼──────────────────────────────────────────────
                           ▼ delegates every execution
 EXECUTION   image-tools        brand-manager      asset-studio
@@ -33,7 +34,7 @@ EXECUTION   image-tools        brand-manager      asset-studio
 | Which model serves this request? | `ai-gateway` | Typed inference. A role and a profile, never a model name. |
 | What is *our* blue, and does it clear contrast? | `brand-manager` | Already the palette authority and already carries a contrast domain. |
 | What did this cost, is it AI, may it be released? | `asset-studio` | Already owns provenance, cost, candidate sets, disclosure-at-birth. |
-| **Is this image right for this page?** | **backdrop-studio** | Nothing above answers it. Needs the taxonomy, the placement model, and the legibility gate. |
+| **Is this image right for this surface?** | **backdrop-studio** | Nothing above answers it. Needs the taxonomy, the surface registry, the placement model, and the legibility gate. |
 
 ## Why `ai-gateway` is not a direct dependency
 
@@ -85,8 +86,8 @@ anyone art-directing each one.
 ### Why `guided` matters most
 
 The scaffold is not a sketch of the picture. It is a diagram of its *structure*
-— horizon, focal mass, framing geometry, depth ramp, and the copy-safe void
-drawn as a flat featureless region — rendered as a depth field or an edge
+— horizon, focal mass, framing geometry, depth ramp, and the reserved-region voids
+drawn as flat featureless areas — rendered as a depth field or an edge
 drawing and submitted as conditioning.
 
 Three properties follow, none available from prompting alone:
@@ -123,7 +124,7 @@ references. Rendered blobs stay behind `image-tools`; released assets stay behin
 
 ## Related
 
-- `DOMAINS.md` — the six bounded contexts and their build order
+- `DOMAINS.md` — the eight bounded contexts and their build order
 - `DATA.md` — what is durable here and what is a reference
 - `INTEGRATIONS.md` — the four outbound seams and their failure behaviour
 - `../internal/DECISIONS.md` — durable decisions and their rationale

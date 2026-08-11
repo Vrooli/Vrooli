@@ -46,7 +46,7 @@ sequenceDiagram
     Op->>BS: compose(style[guided], brief)
     BS->>BS: check adapter licence (CMP-006)
     BS->>BS: render scaffold → conditioning image (SCAF-002)
-    Note over BS: copy-safe region drawn flat (SCAF-003)
+    Note over BS: reserved regions drawn flat (SCAF-003)
     BS->>IT: generate(role, profile, prompt, conditioning)
     IT->>IT: probe host capability
     alt local backend can serve
@@ -98,12 +98,12 @@ sequenceDiagram
     participant BS as backdrop-studio
 
     LP->>BS: getBackdrop(id, placement)
-    BS-->>LP: uri + copy_safe + measured contrast + disclosure + alt text
+    BS-->>LP: uri + surface + reserved_regions + measured contrast + disclosure + alt text
     Note over LP: no image bytes cross this boundary (REL-004)
-    LP->>LP: render placement, position copy in copy_safe
+    LP->>LP: render placement, position copy in overlay region
 ```
 
-The consumer receives the copy-safe region as data, so it positions its own copy
+The consumer receives the reserved regions as data, so it positions its own copy
 correctly without re-deriving a layout judgement that was already made and
 measured.
 
