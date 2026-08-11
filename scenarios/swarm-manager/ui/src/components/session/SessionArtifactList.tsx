@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ExternalLink, FileText, GitPullRequestArrow, Layers3 } from "lucide-react";
 import { formatDisplayText } from "../../lib/format-utils";
 import { cn } from "../../lib/utils";
@@ -13,7 +14,7 @@ interface SessionArtifactListProps {
   variant?: "panel" | "plain";
 }
 
-export function SessionArtifactList({
+function SessionArtifactListImpl({
   artifacts,
   proposals = [],
   proposalTarget,
@@ -94,3 +95,9 @@ export function SessionArtifactList({
     </section>
   );
 }
+
+/**
+ * Memoized: The artifact list is inspector content: nothing about it depends on the composer draft, yet it sat on the same render path as every keystroke.
+ * Its props are stabilised at the call site in SessionDetailsPage.
+ */
+export const SessionArtifactList = memo(SessionArtifactListImpl);

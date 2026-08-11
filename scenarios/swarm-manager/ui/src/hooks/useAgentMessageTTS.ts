@@ -9,6 +9,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTextToSpeechCore, useAudioToolsUnavailableReason } from "../audio-integration";
 import * as ttsRuntime from "../audio-integration/api/tts";
 
+/** The slice of useTextToSpeechCore's result this adapter actually consumes. */
+interface TTSCoreSlice {
+  speak: (text: string) => void;
+  stop: () => void;
+  isSpeaking: boolean;
+  error: string | null;
+}
+
 interface UseAgentMessageTTSResult {
   speak: (messageId: string, text: string) => void;
   stop: () => void;
@@ -55,7 +63,10 @@ export function useAgentMessageTTS(): UseAgentMessageTTSResult {
   // callbacks — and everything memoized downstream of them — continuously. The
   // individual functions are useCallback'd inside the core and are the actual
   // dependencies.
-  const { speak: coreSpeak, stop: coreStop, isSpeaking: coreIsSpeaking, error: coreError } = tts;
+  //
+  // Narrowed through an explicit type because the shared audio package resolves
+  // as `any` here; without it every use below is an unchecked call.
+  const { speak: coreSpeak, stop: coreStop, isSpeaking: coreIsSpeaking, error: coreError } = tts as TTSCoreSlice;
 
   const speak = useCallback(
     (messageId: string, text: string) => {

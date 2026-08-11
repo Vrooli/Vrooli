@@ -66,6 +66,13 @@ export default defineConfig(({ mode }): UserConfig => {
       globals: true,
       environment: "jsdom",
       setupFiles: ["./src/setupTests.ts"],
+      // The shared audio package is a workspace file: link, so Vitest treats it
+      // as an external dependency and lets Node resolve it — which lands on its
+      // published dist/, whose emitted ESM uses extensionless relative imports
+      // Node cannot resolve. Inlining it routes the import back through Vite,
+      // where the resolve.alias above maps it to the package's TypeScript
+      // source (the same source the app bundle compiles).
+      server: { deps: { inline: [/@vrooli\/audio-capture-browser/] } },
       testTimeout: 30_000,
       hookTimeout: 30_000,
       coverage: {

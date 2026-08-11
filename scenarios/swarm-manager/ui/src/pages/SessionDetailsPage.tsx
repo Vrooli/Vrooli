@@ -312,6 +312,25 @@ export function SessionDetailsPage() {
     [session],
   );
 
+  // The inspector's three panes have nothing to do with the composer draft, but
+  // they were rebuilt from inline arrows on every render — so every keystroke
+  // re-rendered the events timeline, the artifact list, and the details pane.
+  // Stabilising these lets the memoized panes below actually skip.
+  const proposalTarget = session?.proposalTarget;
+  const handleOpenProposal = useCallback(() => {
+    if (!proposalTarget) return;
+    if (proposalTarget.type === "goal") {
+      navigate(goalDetailPath(proposalTarget.ref, { tab: "proposals" }));
+      return;
+    }
+    const slashIndex = proposalTarget.ref.indexOf("/");
+    if (slashIndex > 0 && slashIndex < proposalTarget.ref.length - 1) {
+      navigate(backlogDetailPath(proposalTarget.ref.slice(0, slashIndex), proposalTarget.ref.slice(slashIndex + 1), { tab: "proposals" }));
+    }
+  }, [navigate, proposalTarget]);
+
+  const handleRefreshEvents = useCallback(() => { void refreshEvents(); }, [refreshEvents]);
+
   if (!sessionId) {
     return (
       <DetailPageLayout header={<DetailPageHeader entityType="Session" title="Not found" nodeId={null} lenses={[]} />}>
@@ -383,18 +402,7 @@ export function SessionDetailsPage() {
       proposals={session.proposals}
       proposalTarget={session.proposalTarget}
       onOpenArtifact={handleOpenArtifact}
-      onOpenProposal={() => {
-        const target = session.proposalTarget;
-        if (!target) return;
-        if (target.type === "goal") {
-          navigate(goalDetailPath(target.ref, { tab: "proposals" }));
-          return;
-        }
-        const slashIndex = target.ref.indexOf("/");
-        if (slashIndex > 0 && slashIndex < target.ref.length - 1) {
-          navigate(backlogDetailPath(target.ref.slice(0, slashIndex), target.ref.slice(slashIndex + 1), { tab: "proposals" }));
-        }
-      }}
+      onOpenProposal={handleOpenProposal}
       variant={variant}
     />
   );
@@ -404,7 +412,7 @@ export function SessionDetailsPage() {
       events={events}
       isLoading={eventsLoading}
       error={eventsError}
-      onRefresh={() => void refreshEvents()}
+      onRefresh={handleRefreshEvents}
       variant={variant}
     />
   );

@@ -23,7 +23,11 @@ export function useAgentSessionEvents(session: AgentSession | undefined) {
 
   const loadEvents = useCallback(async () => {
     if (!sessionID || sessionStatus === "draft" || !sessionRunID) {
-      setEvents([]);
+      // Keep the existing empty array rather than allocating a fresh one: this
+      // branch runs on every effect pass for a session with no run, and a new
+      // array identity re-renders the whole inspector pane to display the same
+      // nothing.
+      setEvents((current) => (current.length === 0 ? current : []));
       setError(null);
       afterSequenceRef.current = 0n;
       return;
@@ -66,6 +70,10 @@ export function useAgentSessionEvents(session: AgentSession | undefined) {
 }
 
 function mergeEvents(current: AgentSessionRunEvent[], incoming: AgentSessionRunEvent[]): AgentSessionRunEvent[] {
+  // A poll that returns nothing new is the common case for a settled run.
+  // Returning `current` unchanged keeps the array identity stable so the
+  // inspector pane can skip re-rendering.
+  if (incoming.length === 0) return current;
   const byKey = new Map<string, AgentSessionRunEvent>();
   for (const event of current) {
     byKey.set(event.id || event.sequence.toString(), event);

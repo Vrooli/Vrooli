@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ExternalLink } from "lucide-react";
 import { formatRelativeTime } from "../../lib/format-utils";
 import { cn } from "../../lib/utils";
@@ -14,7 +15,7 @@ interface SessionMetadataProps {
   variant?: "panel" | "plain";
 }
 
-export function SessionMetadata({ session, variant = "panel" }: SessionMetadataProps) {
+function SessionMetadataImpl({ session, variant = "panel" }: SessionMetadataProps) {
   const skillUrl = useSkillUrl(session.skillId);
   const runUrl = useAgentRunUrl(session.runId);
   const taskUrl = useAgentTaskUrl(session.taskId);
@@ -73,3 +74,9 @@ function RunDetail({
     </div>
   );
 }
+
+/**
+ * Memoized: Session details are static for the life of a session object, so they should re-render only when that object actually changes.
+ * Its props are stabilised at the call site in SessionDetailsPage.
+ */
+export const SessionMetadata = memo(SessionMetadataImpl);

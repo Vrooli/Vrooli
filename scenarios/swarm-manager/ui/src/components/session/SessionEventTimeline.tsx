@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { AlertCircle, CheckCircle2, Clock3, MessageSquare, RefreshCw, Terminal, Wrench } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
@@ -12,7 +13,7 @@ interface SessionEventTimelineProps {
   variant?: "panel" | "plain";
 }
 
-export function SessionEventTimeline({
+function SessionEventTimelineImpl({
   events,
   isLoading,
   error,
@@ -125,3 +126,9 @@ function eventSummary(event: AgentSessionRunEvent): string {
 function eventDetail(event: AgentSessionRunEvent): string {
   return event.input || event.rawJson || "";
 }
+
+/**
+ * Memoized: The events timeline redraws every row; typing in the composer is no reason to pay for that.
+ * Its props are stabilised at the call site in SessionDetailsPage.
+ */
+export const SessionEventTimeline = memo(SessionEventTimelineImpl);
