@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Tabs@1.0.0"
+  },
+  "component": {
+    "id": "tabs",
+    "title": "Tabs",
+    "purpose": "Tabs preserves responsive navigation semantics and token ownership.",
+    "storyRef": "../../library/components/Tabs/versions/1.0.0/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The navigation surface is available."
+    },
+    {
+      "id": "long-content",
+      "example": "long-content",
+      "description": "Long labels remain operable."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "Tabs preserves responsive navigation semantics and token ownership.",
+      "tier": "manual",
+      "states": ["default", "long-content"]
+    }
+  ],
+  "floorOptOuts": [
+    {
+      "floor": "no-document-horizontal-overflow",
+      "reason": "Long tab labels are intentionally scrollable inside the bounded tablist viewport; the surrounding document remains viewport-contained."
+    }
+  ]
+}

@@ -1,17 +1,14 @@
 /** @vrooliComponentSource data-display.data-table */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronDown,
-  ChevronRight,
   FileCode2,
-  FolderOpen,
   Grid2X2,
   List,
   Network,
   Search,
 } from "lucide-react";
 import { type FormEvent, useDeferredValue, useMemo, useState } from "react";
-import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { listCatalogAssets, type CatalogAsset } from "../../api/components";
 import { selectors } from "../../consts/selectors";
@@ -19,6 +16,8 @@ import { strings } from "../../consts/strings.generated";
 import { useTranslation } from "../../i18n";
 import { Input } from "../../components/Input";
 import { Button } from "../../components/Button";
+import { Tabs } from "../../components/Tabs";
+import { TreeView, type TreeNode } from "../../components/TreeView";
 import {
   ExperienceSurface,
   type ExperienceSurfaceState,
@@ -223,8 +222,8 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<KindTab>("components");
   const [presentation, setPresentation] = useState<Presentation>("tree");
-  const [closedGroups, setClosedGroups] = useState<Set<string>>(() => new Set());
   const [match, setMatch] = useState(() => searchParams.get("q") ?? "");
+  const navigate = useNavigate();
   const deferredMatch = useDeferredValue(match);
   const query = useQuery({
     queryKey: ["catalog", tab, deferredMatch],
@@ -241,6 +240,76 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
     }
     return [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [assets, t]);
+  const treeNodes = useMemo<TreeNode[]>(
+    () =>
+      groups.map(([group, groupedAssets]) => {
+        const adoptionTotal = groupedAssets.reduce(
+          (total, asset) => total + adoptionCounts(asset).direct,
+          0,
+        );
+        return {
+          id: `catalog-group:${group}`,
+          label: (
+            <span className="flex min-w-0 items-center gap-space-2xs">
+              <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wide">
+                {group}
+              </span>
+              <span data-testid="catalog-group-adoptions" className="rcl-tree-label-meta shrink-0">
+                {groupedAssets.length} assets · {adoptionTotal} adoptions
+              </span>
+            </span>
+          ),
+          ariaLabel: `${group}, ${groupedAssets.length} assets, ${adoptionTotal} adoptions`,
+          defaultExpanded: true,
+          children: groupedAssets.map((asset) => {
+            const counts = adoptionCounts(asset);
+            const isHook =
+              (asset.assetKind as unknown) === 2 ||
+              (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
+            return {
+              id: asset.id,
+              label: (
+                <span className="flex min-w-0 items-center gap-space-2xs">
+                  <span
+                    data-testid={selectors.catalog.asset}
+                    className="rcl-tree-label-main min-w-0 flex-1 truncate"
+                  >
+                    {asset.displayName || asset.libraryId}
+                  </span>
+                  <span className="rcl-tree-label-meta shrink-0">
+                    <span>
+                      {t("catalog.adoptions", {
+                        defaultValue: "{{count}} adoptions",
+                        count: counts.direct,
+                      })}
+                    </span>
+                    {isHook && (
+                      <span>
+                        {t("catalog.effectiveAdoptions", {
+                          defaultValue: "{{count}} effective",
+                          count: counts.effective,
+                        })}
+                      </span>
+                    )}
+                  </span>
+                </span>
+              ),
+              ariaLabel: `${asset.displayName || asset.libraryId}, ${asset.libraryId}, ${counts.direct} direct adoptions${isHook ? `, ${counts.effective} effective adoptions` : ""}`,
+              icon: <FileCode2 aria-hidden className="h-4 w-4" />,
+            };
+          }),
+        };
+      }),
+    [groups, t],
+  );
+  const assetsByID = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
+  const currentTab = selectedID ? assetInfoTab(new URLSearchParams(location.search)) : undefined;
+  const handleTreeSelect = (node: TreeNode) => {
+    const asset = assetsByID.get(node.id);
+    if (!asset) return;
+    onNavigate?.();
+    navigate(assetPath(asset.id, currentTab ? { tab: currentTab } : {}));
+  };
 
   const readinessState: ExperienceSurfaceState = query.isLoading
     ? "loading"
@@ -259,33 +328,21 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
       }
     >
       {!compact && <CatalogActions />}
-      <div
-        className="flex items-center gap-space-3xs"
-        role="tablist"
-        aria-label={t("catalog.kindTabs", { defaultValue: "Asset kind" })}
-      >
-        {(["components", "hooks"] as const).map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            role="tab"
-            aria-selected={tab === kind}
-            data-testid={
-              kind === "components" ? selectors.catalog.componentsTab : selectors.catalog.hooksTab
-            }
-            onClick={() => setTab(kind)}
-            className={
-              tab === kind
-                ? "touch-target rounded-control bg-app-surface-muted px-space-xs py-space-2xs text-sm font-medium"
-                : "touch-target rounded-control px-space-xs py-space-2xs text-sm text-app-muted-foreground hover:bg-app-surface-muted"
-            }
-          >
-            {kind === "components"
-              ? t("catalog.components", { defaultValue: "Components" })
-              : t("catalog.hooks", { defaultValue: "Hooks" })}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={[
+          {
+            id: "components",
+            label: t("catalog.components", { defaultValue: "Components" }),
+          },
+          { id: "hooks", label: t("catalog.hooks", { defaultValue: "Hooks" }) },
+        ]}
+        active={tab}
+        onChange={(next) => setTab(next as KindTab)}
+        ariaLabel={t("catalog.kindTabs", { defaultValue: "Asset kind" })}
+        itemTestId={(item) =>
+          item === "components" ? selectors.catalog.componentsTab : selectors.catalog.hooksTab
+        }
+      />
       <label className="relative block w-full min-w-0">
         <span className="sr-only">{t("catalog.search", { defaultValue: "Search catalog" })}</span>
         <Search
@@ -346,71 +403,12 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
         </p>
       )}
       {presentation === "tree" ? (
-        <div
-          role="tree"
-          aria-label={t("catalog.assetTree", { defaultValue: "Library assets" })}
-          className="space-y-space-2xs"
-        >
-          {groups.map(([group, groupedAssets]) => (
-            <section key={group} role="treeitem" aria-expanded={!closedGroups.has(group)}>
-              <button
-                type="button"
-                className="flex min-h-10 w-full items-center gap-space-2xs rounded-control px-space-xs py-space-2xs text-left text-xs font-semibold uppercase tracking-wide text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
-                aria-label={`${group} folder`}
-                onClick={() =>
-                  setClosedGroups((current) => {
-                    const next = new Set(current);
-                    if (next.has(group)) next.delete(group);
-                    else next.add(group);
-                    return next;
-                  })
-                }
-              >
-                {closedGroups.has(group) ? (
-                  <ChevronRight aria-hidden className="h-4 w-4 shrink-0" />
-                ) : (
-                  <ChevronDown aria-hidden className="h-4 w-4 shrink-0" />
-                )}
-                <FolderOpen aria-hidden className="h-4 w-4 shrink-0 text-app-primary" />
-                <span className="min-w-0 flex-1 truncate">{group}</span>
-                <span className="flex shrink-0 items-center gap-space-3xs text-[10px]">
-                  <span className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs">
-                    {groupedAssets.length} assets
-                  </span>
-                  <span
-                    data-testid="catalog-group-adoptions"
-                    className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs"
-                  >
-                    {groupedAssets.reduce(
-                      (total, asset) => total + adoptionCounts(asset).direct,
-                      0,
-                    )}{" "}
-                    adoptions
-                  </span>
-                </span>
-              </button>
-              {!closedGroups.has(group) && (
-                <div
-                  role="group"
-                  className="ms-space-md space-y-space-3xs border-s border-app-border ps-space-2xs"
-                >
-                  {groupedAssets.map((asset) => (
-                    <AssetRow
-                      key={asset.id}
-                      asset={asset}
-                      presentation="tree"
-                      selected={selectedID === asset.id}
-                      onNavigate={onNavigate}
-                      currentTab={
-                        selectedID ? assetInfoTab(new URLSearchParams(location.search)) : undefined
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          ))}
-        </div>
+        <TreeView
+          items={treeNodes}
+          label={t("catalog.assetTree", { defaultValue: "Library assets" })}
+          selectedId={selectedID}
+          onSelect={handleTreeSelect}
+        />
       ) : (
         <div
           className={

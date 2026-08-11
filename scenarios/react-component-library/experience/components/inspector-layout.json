@@ -1,41 +1,46 @@
 {
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "componentId": "react-component-library:InspectorLayout",
-  "version": "1.1.0",
   "component": {
     "id": "inspector-layout",
-    "title": "Inspector Layout",
-    "purpose": "Keep inspector controls and content legible across desktop and compact layouts.",
+    "title": "InspectorLayout",
+    "purpose": "Keep a canvas-first workbench with a responsive inspector whose lifecycle does not displace the primary task.",
     "storyRef": "../../library/components/InspectorLayout/versions/1.1.0/story.json"
   },
   "states": [
-    { "id": "ready-inspector", "example": "ready-inspector", "description": "The inspector and canvas are ready." },
-    { "id": "empty-inspector", "example": "empty-inspector", "description": "The inspector has no applicable content." },
+    { "id": "ready-inspector", "example": "ready-inspector", "description": "The inspector is usable." },
+    { "id": "empty-inspector", "example": "empty-inspector", "description": "The inspector has no selection." },
     { "id": "loading-inspector", "example": "loading-inspector", "description": "The inspector is loading." },
-    { "id": "partial-inspector", "example": "partial-inspector", "description": "The canvas remains usable while inspector data is incomplete." },
-    { "id": "error-inspector", "example": "error-inspector", "description": "The inspector exposes a recoverable error." }
+    { "id": "partial-inspector", "example": "partial-inspector", "description": "The inspector is partially available." },
+    { "id": "error-inspector", "example": "error-inspector", "description": "The inspector reports an error." }
   ],
-  "behaviors": [
+  "elements": [
+    { "id": "canvas", "role": "region", "description": "The primary work canvas." },
+    { "id": "toolbar", "role": "toolbar", "description": "Canvas controls and heading." }
+  ],
+  "claims": [
     {
       "id": "canvas-first",
-      "description": "The canvas remains the primary task region while the inspector owns its own lifecycle state."
+      "type": "custom",
+      "statement": "The canvas remains the primary task region while the inspector owns its own lifecycle state.",
+      "tier": "manual",
+      "elements": ["canvas"],
+      "states": ["ready-inspector", "empty-inspector", "loading-inspector", "partial-inspector", "error-inspector"]
     },
     {
       "id": "responsive-workbench",
-      "description": "The inspector moves below the canvas on narrow widths while preserving the title, toolbar, and state content order."
-    },
-    {
-      "id": "stable-canvas",
-      "description": "The canvas keeps a bounded working surface and visual grid so state changes do not collapse the work area."
+      "type": "custom",
+      "statement": "The inspector moves below the canvas on narrow widths while preserving the content order.",
+      "tier": "manual",
+      "elements": ["canvas", "toolbar"],
+      "states": ["ready-inspector"]
     }
   ],
-  "accessibility": [
-    "main landmark",
-    "labelled canvas region",
-    "toolbar heading",
-    "activity announcements",
-    "focus-visible",
-    "forced colors"
-  ]
+  "bindings": {
+    "elements": {
+      "canvas": { "selector": "[data-rcl-inspector-canvas]" },
+      "toolbar": { "selector": "[data-rcl-inspector-toolbar]" }
+    }
+  }
 }

@@ -83,3 +83,47 @@ func TestRecomputeEvidenceDoesNotFabricateTypesPass(t *testing.T) {
 	require.Equal(t, "types", evidence[0].Gate)
 	require.Equal(t, "fail", evidence[0].Result)
 }
+
+func TestDeriveExperienceEvidenceRequiresDeclaredCaptureQuality(t *testing.T) {
+	root := t.TempDir()
+	assetDir := filepath.Join(root, "catalog", "assets", "controls")
+	componentDir := filepath.Join(root, "library", "components", "Button")
+	versionDir := filepath.Join(componentDir, "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(assetDir, 0o755))
+	require.NoError(t, os.MkdirAll(versionDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(assetDir, "button.json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.button"}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(`{"catalogId":"controls.button","latest":"1.0.0"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "Button.tsx"), []byte("export const Button = () => null;"), 0o644))
+	definitions := []GateDefinition{
+		{ID: "accessibility", ExperienceClaimTypes: []string{"element-present"}},
+		{ID: "responsive", ExperienceClaimTypes: []string{"visible-without-scroll"}, ExperienceMinimumViewports: 2},
+		{ID: "visual", ExperienceClaimTypes: []string{"spacing"}, ExperienceRequiresCapture: true},
+	}
+	evidence, err := deriveExperienceEvidence(root, []ExperienceCapture{
+		{AssetID: "controls.button", Target: "react-vite", ClaimType: "element-present", Verdict: "passed"},
+		{AssetID: "controls.button", Target: "react-vite", ClaimType: "visible-without-scroll", Verdict: "passed", Viewport: "desktop"},
+		{AssetID: "controls.button", Target: "react-vite", ClaimType: "spacing", Verdict: "passed"},
+	}, definitions)
+	require.NoError(t, err)
+	require.Len(t, evidence, 3)
+	results := map[string]string{}
+	for _, item := range evidence {
+		results[item.Gate] = item.Result
+	}
+	require.Equal(t, "pass", results["accessibility"])
+	require.Equal(t, "skipped", results["responsive"])
+	require.Equal(t, "skipped", results["visual"])
+
+	evidence, err = deriveExperienceEvidence(root, []ExperienceCapture{
+		{AssetID: "controls.button", Target: "react-vite", ClaimType: "visible-without-scroll", Verdict: "passed", Viewport: "desktop"},
+		{AssetID: "controls.button", Target: "react-vite", ClaimType: "visible-without-scroll", Verdict: "passed", Viewport: "mobile"},
+		{AssetID: "controls.button", Target: "react-vite", ClaimType: "spacing", Verdict: "passed", CaptureRef: "capture-1"},
+	}, definitions)
+	require.NoError(t, err)
+	results = map[string]string{}
+	for _, item := range evidence {
+		results[item.Gate] = item.Result
+	}
+	require.Equal(t, "pass", results["responsive"])
+	require.Equal(t, "pass", results["visual"])
+}

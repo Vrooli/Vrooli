@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:WorkspaceHeader
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption a4ba3a93-b98a-411e-b945-cf4ff726f2de
- * @vrooliComponentAppliedAt 2026-08-10T22:14:50Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:47:44Z
  * @vrooliComponentSourceSha256 78e917f74d84fcdb855f8819291e366c96edc5b03e8db69fc0c0e971d0fe2342
  * @vrooliComponentDriftHash bb0472eaeace9ce4aa55146c776331544f66373b625e2b960517c6a50b8d8628
  * @vrooliComponentTokenTranslation none

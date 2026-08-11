@@ -1,28 +1,44 @@
 {
-  "schemaVersion": 1,
-  "componentId": "react-component-library:BottomNav",
-  "version": "1.3.0",
-  "states": ["mobile-primary", "disabled-item", "long-labels"],
-  "behaviors": [
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "bottom-nav",
+    "title": "BottomNav",
+    "purpose": "Present compact primary navigation with current-page semantics, stable item geometry, and safe-area support.",
+    "storyRef": "../../library/components/BottomNav/versions/1.3.0/story.json"
+  },
+  "states": [
+    { "id": "mobile-primary", "example": "mobile-primary", "description": "Primary compact navigation." },
+    { "id": "disabled-item", "example": "disabled-item", "description": "Navigation with an unavailable item." },
+    { "id": "long-labels", "example": "long-labels", "description": "Navigation with labels that need careful fitting." }
+  ],
+  "elements": [
+    { "id": "navigation", "role": "navigation", "description": "The compact navigation landmark." },
+    { "id": "item", "role": "link", "description": "A navigation destination." }
+  ],
+  "claims": [
     {
       "id": "active-indicator",
-      "description": "The active destination is communicated by semantic current-page state, color, weight, and a motion-safe indicator."
-    },
-    {
-      "id": "safe-area",
-      "description": "The fixed navigation reserves the device bottom safe area without changing item geometry."
+      "type": "custom",
+      "statement": "The active destination is communicated through semantic current-page state and a motion-safe indicator.",
+      "tier": "manual",
+      "elements": ["navigation", "item"],
+      "states": ["mobile-primary"]
     },
     {
       "id": "viewport-stable",
-      "description": "The fixed navigation preserves its item geometry and safe-area treatment across viewport widths; consumers decide when their product should mount or hide it."
+      "type": "custom",
+      "statement": "Item geometry and safe-area treatment remain stable across compact viewport widths.",
+      "tier": "manual",
+      "elements": ["navigation"],
+      "states": ["mobile-primary", "long-labels"]
     }
   ],
-  "accessibility": [
-    "navigation landmark",
-    "current page semantics",
-    "disabled state",
-    "focus-visible",
-    "forced colors",
-    "reduced motion"
-  ]
+  "bindings": {
+    "elements": {
+      "navigation": { "selector": "[data-rcl-bottom-nav]" },
+      "item": { "selector": "[data-rcl-bottom-nav-item]" }
+    }
+  }
 }

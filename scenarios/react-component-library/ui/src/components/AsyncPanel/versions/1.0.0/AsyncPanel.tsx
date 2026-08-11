@@ -1,8 +1,8 @@
 /**
  * @vrooliComponentSource react-component-library:AsyncPanel
  * @vrooliComponentVersion 1.0.0
- * @vrooliComponentAdoption 282a9ebf-3338-4870-8ec8-5567f6149d41
- * @vrooliComponentAppliedAt 2026-08-10T20:01:10Z
+ * @vrooliComponentAdoption 9d661d93-a6b0-4799-b219-db17db3f6102
+ * @vrooliComponentAppliedAt 2026-08-11T00:47:58Z
  * @vrooliComponentSourceSha256 d64611b7fa7f5514f7cf60b86785800dc08e7906c966f37b2faab72477916dd5
  * @vrooliComponentDriftHash 70524f0f3412c500bbcc862ee8e59f02cd264a681009a64acc377e4e91e8d37a
  * @vrooliComponentTokenTranslation none

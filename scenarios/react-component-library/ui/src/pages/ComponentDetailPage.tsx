@@ -13,6 +13,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 
 import { adoptionsClient } from "../api/adoptions";
 import { Button } from "../components/Button";
+import { Tabs } from "../components/Tabs";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
 import {
@@ -82,44 +83,25 @@ function DetailTabs({
 
   return (
     <div className="min-w-0 overflow-x-auto" data-testid="component-detail-tabs-scroll">
-      <div
-        role="tablist"
-        aria-label={t("componentDetail.info.tabs", { defaultValue: "Asset information" })}
-        className="flex min-w-max items-stretch gap-space-2xs"
-      >
-        {tabs.map((tab) => {
-          const selected = active === tab.id;
-          return (
-            <button
-              key={tab.id}
-              data-testid={
-                tab.id === "overview"
-                  ? selectors.assets.hookOverviewTab
-                  : tab.id === "files"
-                    ? selectors.assets.hookFilesTab
-                    : tab.id === "preview"
-                      ? selectors.assets.componentPreviewTab
-                      : undefined
-              }
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => onChange(tab.id)}
-              className={`relative flex min-h-11 shrink-0 items-center gap-space-3xs border-b-2 border-transparent px-space-xs py-space-2xs text-xs font-semibold transition-colors ${selected ? "border-app-primary text-app-foreground" : "text-app-muted-foreground hover:border-app-border hover:text-app-foreground"}`}
-            >
-              {tab.label}
-              {tab.count !== undefined && (
-                <span
-                  aria-hidden="true"
-                  className={`inline-flex min-w-4 items-center justify-center rounded-pill px-space-3xs py-space-3xs text-[10px] leading-none ${selected ? "bg-app-primary/10 text-app-primary" : "bg-app-surface-muted text-app-muted-foreground"}`}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <Tabs
+        items={tabs.map(({ id, label, count }) => ({
+          id,
+          label,
+          ...(count !== undefined ? { badge: count } : {}),
+        }))}
+        active={active}
+        onChange={(next) => onChange(next as InfoTab)}
+        ariaLabel={t("componentDetail.info.tabs", { defaultValue: "Asset information" })}
+        itemTestId={(item) =>
+          item === "overview"
+            ? selectors.assets.hookOverviewTab
+            : item === "files"
+              ? selectors.assets.hookFilesTab
+              : item === "preview"
+                ? selectors.assets.componentPreviewTab
+                : undefined
+        }
+      />
     </div>
   );
 }

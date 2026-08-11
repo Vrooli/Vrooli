@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "contract": {
@@ -15,7 +16,7 @@
   "states": [
     {
       "id": "loading",
-      "example": "loading",
+      "example": "loading-workspace",
       "description": "The primary operational region is loading while navigation and context remain available."
     },
     {
@@ -25,17 +26,17 @@
     },
     {
       "id": "empty",
-      "example": "empty",
+      "example": "empty-workspace",
       "description": "The primary query completed with no matching work."
     },
     {
       "id": "partial",
-      "example": "partial",
+      "example": "partial-workspace",
       "description": "The primary work remains usable with supporting information unavailable."
     },
     {
       "id": "error",
-      "example": "error",
+      "example": "error-workspace",
       "description": "The primary region exposes a terminal failure and optional retry."
     }
   ],

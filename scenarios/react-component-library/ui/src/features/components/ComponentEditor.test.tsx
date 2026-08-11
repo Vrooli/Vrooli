@@ -222,7 +222,7 @@ describe("ComponentEditor", () => {
         />,
       );
 
-      await screen.findByRole("button", { name: "Diff: 1.0.0 → 1.0.1" });
+      await screen.findByRole("tab", { name: "Diff: 1.0.0 → 1.0.1" });
       expect(screen.getByTestId(selectors.components.editor.workspacePane)).toHaveAttribute(
         "data-pane",
         "files",
@@ -502,7 +502,7 @@ describe("ComponentEditor", () => {
     await waitFor(() => {
       expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toContain("FilterBar");
     });
-    await user.click(screen.getByRole("button", { name: "InlineCode.tsx" }));
+    await user.click(screen.getByRole("tab", { name: "InlineCode.tsx" }));
 
     await waitFor(() => {
       expect(componentsClient.getComponentContent).toHaveBeenLastCalledWith({

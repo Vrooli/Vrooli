@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FileCode2, Folder } from "lucide-react";
 
 import { adoptionsClient, type ResolvedVersionFile } from "../../api/adoptions";
-import { Button } from "../../components/Button";
+import { Tabs } from "../../components/Tabs";
 import { selectors } from "../../consts/selectors";
 import { useTranslation } from "../../i18n";
 import type { TemplateOption } from "./adoptionTemplates";
@@ -212,26 +212,20 @@ export function AdoptionFileTree({
   // Fallback: no manifest placement (or the RPC hasn't resolved). Render the
   // flat file-tab row so switching files still works.
   if (!manifestResolved) {
+    const activeFile =
+      selectedFile || files.find((file) => file.isEntry)?.path || files[0]?.path || "";
     return (
       <div className="flex min-w-0 flex-col gap-space-3xs">
-        <div
-          className="flex min-w-0 gap-space-3xs overflow-x-auto"
-          data-testid={selectors.components.editor.fileTabs}
-        >
-          {files.map((file) => (
-            <Button
-              key={file.path}
-              variant={
-                selectedFile === file.path || (!selectedFile && file.isEntry)
-                  ? "primary"
-                  : "secondary"
-              }
-              className="h-7 shrink-0 px-space-2xs text-xs"
-              onClick={() => onSelectFile(file.isEntry ? "" : file.path)}
-            >
-              {file.path}
-            </Button>
-          ))}
+        <div data-testid={selectors.components.editor.fileTabs}>
+          <Tabs
+            items={files.map((file) => ({ id: file.path, label: file.path }))}
+            active={activeFile}
+            onChange={(path) => {
+              const file = files.find((candidate) => candidate.path === path);
+              if (file) onSelectFile(file.isEntry ? "" : file.path);
+            }}
+            ariaLabel={t("components.editor.fileTabsLabel", { defaultValue: "Component files" })}
+          />
         </div>
         {templateSeam}
       </div>

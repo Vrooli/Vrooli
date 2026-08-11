@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:InspectorLayout
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption 6323c8e4-8bee-4081-9279-97931a8c27a3
- * @vrooliComponentAppliedAt 2026-08-10T19:46:54Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:47:54Z
  * @vrooliComponentSourceSha256 2353703ab90d21b2c023c1111dbfc0d42079f1a9b6cc5c1c017a7fc62ee2469a
  * @vrooliComponentDriftHash d4bc9077fe7d83740a0637e2a763d8bec5d77353874f4345d1e208bc07c247ff
  * @vrooliComponentTokenTranslation none

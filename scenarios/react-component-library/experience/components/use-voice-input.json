@@ -9,16 +9,28 @@
     "storyRef": "../../library/hooks/useVoiceInput/versions/1.0.0/story.json",
     "prd_refs": ["OT-P0-008"]
   },
-  "priorities": [{ "statement": "A hook fixture can prove capture start, timeout cleanup, and terminal failure without a microphone." }],
-  "states": [{ "id": "recording", "example": "start-recording", "description": "Fixture enters recording." }],
+  "priorities": [
+    {
+      "statement": "A hook fixture can prove capture start, timeout cleanup, and terminal failure without a microphone."
+    }
+  ],
+  "states": [
+    {
+      "id": "recording",
+      "example": "start-recording",
+      "description": "Fixture enters recording."
+    }
+  ],
   "elements": [],
-  "claims": [{
-    "id": "voice-lifecycle",
-    "type": "custom",
-    "statement": "The deterministic hook fixture proves the voice lifecycle starts and cleans up safely.",
-    "tier": "manual",
-    "elements": [],
-    "states": ["recording"]
-  }],
+  "claims": [
+    {
+      "id": "voice-lifecycle",
+      "type": "custom",
+      "statement": "The deterministic hook fixture proves the voice lifecycle starts and cleans up safely.",
+      "tier": "manual",
+      "elements": [],
+      "states": ["recording"]
+    }
+  ],
   "bindings": { "elements": {} }
 }

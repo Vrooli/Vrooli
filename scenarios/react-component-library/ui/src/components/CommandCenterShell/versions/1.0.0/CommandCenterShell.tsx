@@ -1,8 +1,8 @@
 /**
  * @vrooliComponentSource react-component-library:CommandCenterShell
  * @vrooliComponentVersion 1.0.0
- * @vrooliComponentAdoption 7d593e9b-1216-4a69-b029-848dc20ab26f
- * @vrooliComponentAppliedAt 2026-08-10T20:01:09Z
+ * @vrooliComponentAdoption 84c3cc79-aa23-4837-9062-63b1430c03da
+ * @vrooliComponentAppliedAt 2026-08-11T00:47:54Z
  * @vrooliComponentSourceSha256 7e0c48c458f6789470d86f2f8f722b704cba4dffcaf3728c6b2bde0fd5b37705
  * @vrooliComponentDriftHash 45abc42ff375a79fe55bb74785369ccf30782089569241b936dd1cbf939cd28a
  * @vrooliComponentTokenTranslation none

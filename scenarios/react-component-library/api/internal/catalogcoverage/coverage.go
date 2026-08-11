@@ -46,10 +46,13 @@ type GateEvidence struct {
 
 // GateDefinition is the config projection needed by the coverage engine.
 type GateDefinition struct {
-	ID        string
-	Rung      AchievedRung
-	Blocking  bool
-	AppliesTo []string
+	ID                         string
+	Rung                       AchievedRung
+	Blocking                   bool
+	AppliesTo                  []string
+	ExperienceClaimTypes       []string `json:"x-experience-claim-types"`
+	ExperienceMinimumViewports int      `json:"x-experience-min-viewports"`
+	ExperienceRequiresCapture  bool     `json:"x-experience-requires-capture"`
 }
 
 // Row is one joined entry.

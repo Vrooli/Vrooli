@@ -4,6 +4,7 @@ import type { editor } from "monaco-editor";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
+import { Tabs } from "../../components/Tabs";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -105,48 +106,52 @@ export function ComponentEditorSource({
         >
           <FileCode2 aria-hidden className="h-3.5 w-3.5" />
         </IconButton>
-        {activeVersionFiles.map((file) => (
-          <Button
-            key={file.path}
-            data-testid={selectors.components.editor.filesSourceTab}
-            data-file={file.path}
-            type="button"
-            variant={
-              filesView === "source" &&
-              (selectedFile === file.path || (!selectedFile && file.isEntry))
-                ? "primary"
-                : "secondary"
+        <div className="min-w-0 flex-1">
+          <Tabs
+            items={[
+              ...activeVersionFiles.map((file) => ({ id: file.path, label: file.path })),
+              ...(comparison
+                ? [
+                    {
+                      id: "__comparison__",
+                      label: `${t("components.editor.diffTab", { defaultValue: "Diff" })}: ${comparison.fromLabel} → ${comparison.toLabel}`,
+                    },
+                  ]
+                : []),
+            ]}
+            active={
+              filesView === "diff"
+                ? "__comparison__"
+                : selectedFile || activeVersionFiles.find((file) => file.isEntry)?.path
             }
-            className="h-7 shrink-0 px-space-2xs text-xs"
-            onClick={() => onSelectFile(file.isEntry ? "" : file.path)}
-          >
-            {file.path}
-          </Button>
-        ))}
+            onChange={(next) => {
+              if (next === "__comparison__") {
+                onFilesViewChange("diff");
+                return;
+              }
+              const file = activeVersionFiles.find((candidate) => candidate.path === next);
+              if (file) {
+                onFilesViewChange("source");
+                onSelectFile(file.isEntry ? "" : file.path);
+              }
+            }}
+            ariaLabel={t("components.editor.fileTabsLabel", { defaultValue: "Component files" })}
+            itemTestId={(item) =>
+              item === "__comparison__" ? undefined : selectors.components.editor.filesSourceTab
+            }
+          />
+        </div>
         {comparison && (
-          <div className="flex shrink-0">
-            <Button
-              type="button"
-              variant={filesView === "diff" ? "primary" : "secondary"}
-              className="h-7 rounded-r-none px-space-2xs text-xs"
-              onClick={() => onFilesViewChange("diff")}
-            >
-              {t("components.editor.diffTab", { defaultValue: "Diff" })}: {comparison.fromLabel} →{" "}
-              {comparison.toLabel}
-            </Button>
-            <Button
-              data-testid={selectors.components.editor.filesDiffClose}
-              type="button"
-              variant={filesView === "diff" ? "primary" : "secondary"}
-              aria-label={t("components.editor.closeComparison", {
-                defaultValue: "Close comparison",
-              })}
-              className="h-7 w-7 rounded-l-none border-l border-app-border p-0"
-              onClick={onCloseComparison}
-            >
-              <X aria-hidden className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+          <IconButton
+            data-testid={selectors.components.editor.filesDiffClose}
+            aria-label={t("components.editor.closeComparison", {
+              defaultValue: "Close comparison",
+            })}
+            className="shrink-0"
+            onClick={onCloseComparison}
+          >
+            <X aria-hidden className="h-3.5 w-3.5" />
+          </IconButton>
         )}
       </div>
       {filesView === "tree" ? (

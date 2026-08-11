@@ -10,6 +10,7 @@ describe("ExperienceSurface", () => {
     );
     const surface = screen.getByText("Ready results").closest("section");
     expect(surface).toHaveAttribute("data-experience-surface", "results");
+    expect(surface).toHaveAttribute("data-testid", "experience-surface-results");
     expect(surface).toHaveAttribute("data-experience-state", "ready");
     expect(surface).toHaveClass("custom-layout");
   });

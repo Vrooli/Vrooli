@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:Table
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 7c90f0e8-28c5-4e9a-8bde-6aac847eb275
- * @vrooliComponentAppliedAt 2026-08-11T00:24:46Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:35:31Z
  * @vrooliComponentSourceSha256 968ab00560adb0885ab617b16418b38bf83291a5b534eda2a07310a1cd23a6ea
  * @vrooliComponentDriftHash b93bdf94cbba6d89935aa953e2d5b8f97a8afd22d7cff30d9e562dc9850eb95e
  * @vrooliComponentTokenTranslation none

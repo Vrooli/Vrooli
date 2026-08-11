@@ -37,9 +37,21 @@
       "status": "active"
     },
     {
+      "id": "app-shell",
+      "path": "components/app-shell.json",
+      "title": "AppShell",
+      "status": "active"
+    },
+    {
       "id": "control-base",
       "path": "components/control-base.json",
       "title": "ControlBase",
+      "status": "active"
+    },
+    {
+      "id": "tabs",
+      "path": "components/tabs.json",
+      "title": "Tabs",
       "status": "active"
     },
     {
@@ -127,6 +139,18 @@
       "status": "active"
     },
     {
+      "id": "tree-view",
+      "path": "components/tree-view.json",
+      "title": "Tree View",
+      "status": "active"
+    },
+    {
+      "id": "undoable-destructive-action",
+      "path": "components/undoable-destructive-action.json",
+      "title": "Undoable Destructive Action",
+      "status": "active"
+    },
+    {
       "id": "empty-state",
       "path": "components/empty-state.json",
       "title": "Empty State",
@@ -136,12 +160,6 @@
       "id": "status-badge",
       "path": "components/status-badge.json",
       "title": "Status Badge",
-      "status": "active"
-    },
-    {
-      "id": "undoable-destructive-action",
-      "path": "components/undoable-destructive-action.json",
-      "title": "Undoable Destructive Action",
       "status": "active"
     }
   ]

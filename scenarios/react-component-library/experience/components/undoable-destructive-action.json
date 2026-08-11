@@ -1,13 +1,17 @@
 {
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
   "contract": {
     "kind": "rcl-component-experience-contract",
     "schema": "scenario-experience-spec/v1",
     "provenance": "react-component-library:UndoableDestructiveAction@1.0.0"
   },
   "component": {
-    "id": "patterns.undoable-destructive-action",
+    "id": "undoable-destructive-action",
     "title": "UndoableDestructiveAction",
-    "purpose": "Make destructive work forgiving through immediate completion and a visible recovery path."
+    "purpose": "Make destructive work forgiving through immediate completion and a visible recovery path.",
+    "storyRef": "../../library/components/UndoableDestructiveAction/versions/1.0.0/story.json"
   },
   "states": [
     {
@@ -36,12 +40,12 @@
       "id": "recovery",
       "type": "custom",
       "statement": "Reversible removal exposes an explicit, time-bounded undo path.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "success"]
     },
     {
       "id": "responsive",
-      "type": "responsive",
+      "type": "custom",
       "statement": "Action controls become full-width on narrow viewports without clipping content.",
       "tier": "manual",
       "states": ["default", "request-error"]

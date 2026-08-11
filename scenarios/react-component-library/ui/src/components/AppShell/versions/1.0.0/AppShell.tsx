@@ -2,9 +2,9 @@
  * @vrooliComponentSource react-component-library:AppShell
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 78d164a3-c51a-4b0d-9973-59f06b4c9636
- * @vrooliComponentAppliedAt 2026-08-10T22:31:17Z
- * @vrooliComponentSourceSha256 a1cc98037476df80bcec835a4421ede6784c372ade3000df893b118153403e3e
- * @vrooliComponentDriftHash 6ac83d818ca0a3104861fb34d40f063b64e59f2baba832ee7352403d063362f4
+ * @vrooliComponentAppliedAt 2026-08-11T01:17:47Z
+ * @vrooliComponentSourceSha256 09f3c0b8736c77146e2b7775927a5a53295f7310f7fb973c858a658dc1096cb8
+ * @vrooliComponentDriftHash 46449c95d5a2e192412ad5136345eacfe25cfb5dfe496c54bd7f9250be2079b0
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -43,9 +43,9 @@ const appShellStyles = `
 [data-rcl-app-shell] [data-rcl-app-shell-nav] a { display: flex; min-block-size: var(--tap-target-min); align-items: center; border-radius: var(--radius-control); color: var(--color-muted-foreground); padding-inline: var(--space-xs); font: var(--text-body-sm); text-decoration: none; transition: background-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard); }
 [data-rcl-app-shell] [data-rcl-app-shell-nav] a:hover, [data-rcl-app-shell] [data-rcl-app-shell-nav] a[aria-current="page"] { background: var(--color-surface-muted); color: var(--color-foreground); }
 [data-rcl-app-shell] [data-rcl-app-shell-nav] a[aria-current="page"] { font-weight: 650; box-shadow: inset var(--space-3xs) 0 var(--color-primary); }
-[data-rcl-app-shell] .rcl-app-shell-skip { position: fixed; inset-block-start: var(--space-sm); inset-inline-start: var(--space-sm); z-index: var(--layer-toast); transform: translateY(-180%); border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-primary-foreground); padding: var(--space-xs) var(--space-sm); font: var(--text-label); text-decoration: none; transition: transform var(--dur-quick) var(--ease-standard); }
-[data-rcl-app-shell] .rcl-app-shell-skip:focus-visible { transform: translateY(0); }
-@media (max-width: 48rem) { [data-rcl-app-shell] { grid-template-columns: 1fr; } [data-rcl-app-shell] [data-rcl-app-shell-nav] { max-block-size: none; border-block-end: var(--border-hairline) solid var(--color-border); border-inline-end: 0; padding: var(--space-xs); } [data-rcl-app-shell] [data-rcl-app-shell-nav] nav { display: flex; overflow-x: auto; scrollbar-width: none; } [data-rcl-app-shell] [data-rcl-app-shell-nav] a { flex: 0 0 auto; white-space: nowrap; } [data-rcl-app-shell] [data-rcl-app-shell-header] { padding-inline: var(--space-sm); } [data-rcl-app-shell] [data-rcl-app-shell-main] { padding: var(--space-sm); } }
+[data-rcl-app-shell] .rcl-app-shell-skip { position: fixed; inset-block-start: var(--space-sm); inset-inline-start: var(--space-sm); z-index: var(--layer-toast); inline-size: var(--tap-target-min); block-size: var(--tap-target-min); overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; padding: 0; border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-primary-foreground); font: var(--text-label); text-decoration: none; }
+[data-rcl-app-shell] .rcl-app-shell-skip:focus-visible { inline-size: auto; block-size: auto; overflow: visible; clip-path: none; white-space: normal; padding: var(--space-xs) var(--space-sm); outline: var(--focus-ring-width) solid var(--color-focus-ring); outline-offset: var(--focus-ring-offset); }
+@media (max-width: 48rem) { [data-rcl-app-shell] { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } [data-rcl-app-shell] [data-rcl-app-shell-nav] { border-block-end: var(--border-hairline) solid var(--color-border); border-inline-end: 0; padding: var(--space-xs); } [data-rcl-app-shell] [data-rcl-app-shell-nav] nav { display: flex; overflow-x: auto; scrollbar-width: none; } [data-rcl-app-shell] [data-rcl-app-shell-nav] a { flex: 0 0 auto; white-space: nowrap; } [data-rcl-app-shell] [data-rcl-app-shell-header] { padding-inline: var(--space-sm); } [data-rcl-app-shell] [data-rcl-app-shell-main] { padding: var(--space-sm); } }
 [data-rcl-app-shell][data-navigation-mode="managed"] { grid-template-columns: minmax(0, auto) minmax(0, 1fr); }
 [data-rcl-app-shell][data-navigation-mode="managed"] [data-rcl-app-shell-nav] { overflow: visible; padding: 0; border: 0; background: transparent; }
 [data-rcl-app-shell][data-navigation-mode="managed"] [data-rcl-app-shell-content] { min-inline-size: 0; }

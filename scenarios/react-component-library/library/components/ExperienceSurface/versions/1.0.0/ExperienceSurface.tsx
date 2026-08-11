@@ -22,6 +22,8 @@ export interface ExperienceSurfaceProps extends HTMLAttributes<HTMLElement> {
   /** Human-readable state announcement for loading, partial, and error states. */
   statusMessage?: string;
   as?: "section" | "div" | "main" | "aside";
+  /** Optional stable accessibility-test hook; defaults from surfaceId. */
+  "data-testid"?: string;
 }
 
 // ExperienceSurface intentionally owns only machine-readable lifecycle and
@@ -38,10 +40,11 @@ export function ExperienceSurface({
   const live = state === "loading" || state === "partial" || state === "error";
   return (
     <Tag
+      {...props}
+      data-testid={props["data-testid"] ?? `experience-surface-${surfaceId}`}
       data-experience-surface={surfaceId}
       data-experience-state={state}
       aria-busy={state === "loading" || undefined}
-      {...props}
     >
       {live && statusMessage ? (
         <p

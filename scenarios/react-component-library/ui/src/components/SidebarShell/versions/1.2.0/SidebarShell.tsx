@@ -2,22 +2,17 @@
  * @vrooliComponentSource react-component-library:SidebarShell
  * @vrooliComponentVersion 1.2.0
  * @vrooliComponentAdoption 94350b22-8e6c-4662-a33c-b97dfaf4486c
- * @vrooliComponentAppliedAt 2026-08-10T19:46:53Z
- * @vrooliComponentSourceSha256 a063e1f049002d11f161334c9984a72b72b6f7ed5d72f6b217d1305d0eeafa2c
- * @vrooliComponentDriftHash a7689704acaa8344fd608c61b9ce1b8291024ec9216e10d206794fe449c8ce96
+ * @vrooliComponentAppliedAt 2026-08-11T01:04:36Z
+ * @vrooliComponentSourceSha256 e911576710b48907a8b5bc87fcdc96a41dfb6af5875c606f0a7d66d94db16278
+ * @vrooliComponentDriftHash c789f980eab887028c955eaf6073f53915bd0444947c0758c7038e41455d5c4c
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
-import {
-  type CSSProperties,
-  type HTMLAttributes,
-  type ReactNode,
-  forwardRef,
-  useEffect,
-} from "react";
+import { type CSSProperties, type HTMLAttributes, type ReactNode, forwardRef } from "react";
 import { X } from "lucide-react";
+import { useEscapeKey } from "../../../../hooks/useEscapeKey/versions/1.0.0/useEscapeKey";
 import { sidebarShellStyles } from "./styles";
 
 export interface SidebarShellProps {
@@ -61,16 +56,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(functi
   const isPersistent = mode === "persistent";
   const isDialogOpen = !isPersistent && mobileOpen;
 
-  useEffect(() => {
-    if (!isDialogOpen) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onMobileClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isDialogOpen, onMobileClose]);
+  useEscapeKey(isDialogOpen, onMobileClose);
 
   const style: CSSProperties = width ? { width } : {};
   return (

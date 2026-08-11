@@ -31,13 +31,17 @@
       "id": "component-harness",
       "required": true,
       "purpose": "Expose the rendered specimen only after the harness story has committed and completed its declared checks.",
-      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
-      "lifecycle": {"kind": "async", "states": ["loading", "ready", "error"]}
+      "component": {
+        "library": { "component": "experience-surface", "version": "1.0.0" }
+      },
+      "lifecycle": { "kind": "async", "states": ["loading", "ready", "error"] }
     }
   ],
   "bindings": {
     "regions": {
-      "component-harness": {"selector": "[data-experience-surface=\"component-harness\"]"}
+      "component-harness": {
+        "selector": "[data-experience-surface=\"component-harness\"]"
+      }
     }
   }
 }

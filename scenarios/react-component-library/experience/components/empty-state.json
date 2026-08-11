@@ -1,38 +1,44 @@
 {
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "componentId": "react-component-library:EmptyState",
-  "version": "1.2.0",
   "component": {
     "id": "empty-state",
-    "title": "Empty State",
-    "purpose": "Explain an empty result and offer a clear next action without visual noise.",
+    "title": "EmptyState",
+    "purpose": "Explain the absence of content with a clear hierarchy, optional next action, and responsive touch target.",
     "storyRef": "../../library/components/EmptyState/versions/1.2.0/story.json"
   },
   "states": [
-    { "id": "no-content", "example": "no-content", "description": "No content is available." },
-    { "id": "with-action", "example": "with-action", "description": "A clear next action is available." },
-    { "id": "compact", "example": "compact", "description": "The compact form preserves hierarchy." }
+    { "id": "no-components", "example": "no-components", "description": "No content is available." },
+    { "id": "with-action", "example": "with-action", "description": "The empty state offers a next action." },
+    { "id": "compact", "example": "compact", "description": "The compact presentation preserves the same hierarchy." }
   ],
-  "behaviors": [
+  "elements": [
+    { "id": "state", "role": "region", "description": "The labelled empty-state region." },
+    { "id": "action", "role": "button", "description": "The optional recovery or next action." }
+  ],
+  "claims": [
     {
       "id": "hierarchy",
-      "description": "The empty state presents a clear title, optional explanation, icon cue, and next action without changing the consumer's content contract."
-    },
-    {
-      "id": "native-action-fallback",
-      "description": "Plain native buttons and links receive a token-backed action treatment while governed control primitives keep their own visual contract."
+      "type": "custom",
+      "statement": "Title, explanation, icon cue, and next action form a clear content hierarchy.",
+      "tier": "manual",
+      "elements": ["state"],
+      "states": ["no-components", "with-action", "compact"]
     },
     {
       "id": "responsive-action",
-      "description": "The action becomes a full-width touch target on narrow viewports without changing the surrounding content order."
+      "type": "custom",
+      "statement": "The action becomes a full-width touch target on narrow viewports without changing content order.",
+      "tier": "manual",
+      "elements": ["action"],
+      "states": ["with-action"]
     }
   ],
-  "accessibility": [
-    "section labelling",
-    "text-first status cue",
-    "focus-visible",
-    "forced colors",
-    "reduced motion"
-  ]
+  "bindings": {
+    "elements": {
+      "state": { "selector": "[data-rcl-empty-state]" },
+      "action": { "selector": "[data-rcl-empty-state-action]" }
+    }
+  }
 }

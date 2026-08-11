@@ -10,29 +10,87 @@
     "prd_refs": ["OT-P0-001", "OT-P0-003"]
   },
   "priorities": [
-    { "statement": "An open drawer communicates its title and dialog boundary before its body content." },
-    { "statement": "People can identify a close action without relying on an icon alone." },
-    { "statement": "Keyboard containment is a deliberate accessibility promise, not inferred from a screenshot." }
+    {
+      "statement": "An open drawer communicates its title and dialog boundary before its body content."
+    },
+    {
+      "statement": "People can identify a close action without relying on an icon alone."
+    },
+    {
+      "statement": "Keyboard containment is a deliberate accessibility promise, not inferred from a screenshot."
+    }
   ],
   "states": [
-    { "id": "full-open", "example": "full-open", "description": "Full-width drawer with a named dialog and close control." },
-    { "id": "compact-open", "example": "compact-open", "description": "Compact modal drawer with a named dialog." },
-    { "id": "header-actions", "example": "with-header-actions", "description": "Open drawer with an additional header action." }
+    {
+      "id": "full-open",
+      "example": "full-open",
+      "description": "Full-width drawer with a named dialog and close control."
+    },
+    {
+      "id": "compact-open",
+      "example": "compact-open",
+      "description": "Compact modal drawer with a named dialog."
+    },
+    {
+      "id": "header-actions",
+      "example": "with-header-actions",
+      "description": "Open drawer with an additional header action."
+    }
   ],
   "elements": [
-    { "id": "dialog", "role": "dialog", "description": "The named open drawer dialog." },
-    { "id": "close-action", "role": "button", "description": "The action that closes the drawer." },
-    { "id": "header-action", "role": "button", "description": "An optional action supplied in the drawer header." }
+    {
+      "id": "dialog",
+      "role": "dialog",
+      "description": "The named open drawer dialog."
+    },
+    {
+      "id": "close-action",
+      "role": "button",
+      "description": "The action that closes the drawer."
+    },
+    {
+      "id": "header-action",
+      "role": "button",
+      "description": "An optional action supplied in the drawer header."
+    }
   ],
   "claims": [
-    { "id": "full-dialog-present", "type": "element-present", "statement": "The full drawer example renders a dialog for its content.", "tier": "machine", "elements": ["dialog"], "states": ["full-open"] },
-    { "id": "compact-dialog-present", "type": "element-present", "statement": "The compact drawer example renders a dialog for its content.", "tier": "machine", "elements": ["dialog"], "states": ["compact-open"] },
-    { "id": "header-action-present", "type": "element-present", "statement": "The header-actions example renders its supplied header action.", "tier": "machine", "elements": ["header-action"], "states": ["header-actions"] },
-    { "id": "focus-contained-while-open", "type": "custom", "statement": "Keyboard focus remains contained in an open drawer until it is closed.", "tier": "manual", "elements": ["dialog"], "states": ["full-open", "compact-open"] }
+    {
+      "id": "full-dialog-present",
+      "type": "element-present",
+      "statement": "The full drawer example renders a dialog for its content.",
+      "tier": "machine",
+      "elements": ["dialog"],
+      "states": ["full-open"]
+    },
+    {
+      "id": "compact-dialog-present",
+      "type": "element-present",
+      "statement": "The compact drawer example renders a dialog for its content.",
+      "tier": "machine",
+      "elements": ["dialog"],
+      "states": ["compact-open"]
+    },
+    {
+      "id": "header-action-present",
+      "type": "element-present",
+      "statement": "The header-actions example renders its supplied header action.",
+      "tier": "machine",
+      "elements": ["header-action"],
+      "states": ["header-actions"]
+    },
+    {
+      "id": "focus-contained-while-open",
+      "type": "custom",
+      "statement": "Keyboard focus remains contained in an open drawer until it is closed.",
+      "tier": "manual",
+      "elements": ["dialog"],
+      "states": ["full-open", "compact-open"]
+    }
   ],
   "bindings": {
     "elements": {
-      "dialog": { "selector": "[role=dialog]" },
+      "dialog": { "selector": "[role='dialog']" },
       "close-action": { "selector": "button" },
       "header-action": { "selector": "button" }
     }

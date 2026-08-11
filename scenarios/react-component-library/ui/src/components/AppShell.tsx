@@ -18,7 +18,7 @@ import { Button } from "./Button";
 import { Input } from "./Input";
 import { ActionLauncher, type LauncherAction } from "./ActionLauncher";
 
-const SIDEBAR_STORAGE = "react-component-library.sidebar.width.v1";
+const SIDEBAR_STORAGE = "react-component-library.sidebar.width.v2";
 
 interface Props {
   children?: ReactNode;
@@ -57,10 +57,10 @@ export function AppShell({ children }: Props) {
   const { size: sidebarWidth, resizeHandleProps } = useResizablePanel({
     containerRef: shellRef,
     targetRef: sidebarRef,
-    minSize: 260,
+    minSize: 280,
     maxSize: 480,
-    defaultSize: 300,
-    adjacentMinSize: 420,
+    defaultSize: 340,
+    adjacentMinSize: 440,
     handleWidth: 6,
     storageKey: SIDEBAR_STORAGE,
   });

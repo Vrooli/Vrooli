@@ -11,14 +11,21 @@ import { motionTransition } from "../../../../foundations/VisualRecipes/versions
 
 export type TabsMode = "controlled" | "uncontrolled";
 
+export interface TabsItem {
+  id: string;
+  label: ReactNode;
+  badge?: ReactNode;
+}
+
 export interface TabsProps {
-  items?: string[];
+  items?: Array<string | TabsItem>;
   active?: string;
   defaultActive?: string;
   onChange?: (item: string) => void;
   panels?: Record<string, ReactNode>;
   mode?: TabsMode;
   ariaLabel?: string;
+  itemTestId?: (item: string) => string | undefined;
 }
 
 const styleSheet = `
@@ -29,6 +36,7 @@ const styleSheet = `
 [data-rcl-tab]:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
 [data-rcl-tab]:focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: calc(var(--space-3xs) * -1); }
 [data-rcl-tab][aria-selected="true"] { color: var(--color-primary); }
+[data-rcl-tab-badge] { display: inline-flex; min-inline-size: 1rem; align-items: center; justify-content: center; border-radius: var(--radius-pill); padding-inline: var(--space-3xs); padding-block: var(--space-3xs); background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); font-size: 0.6875rem; line-height: 1; }
 [data-rcl-tab-indicator] { position: absolute; inset-block-end: 0; inline-size: 1px; block-size: var(--border-strong); border-radius: var(--radius-pill); background: var(--color-primary); pointer-events: none; transform-origin: left center; transition: ${motionTransition(["transform", "opacity"], "spring")}; will-change: transform, opacity; }
 @media (prefers-reduced-motion: reduce) { [data-rcl-tab], [data-rcl-tab-indicator] { transition: none; } }
 @media (max-width: 480px) { [data-rcl-tab] { padding-inline: var(--space-xs); } }
@@ -42,18 +50,23 @@ export function Tabs({
   panels,
   mode,
   ariaLabel = "Tabs",
+  itemTestId,
 }: TabsProps) {
+  const normalizedItems = items.map((item) =>
+    typeof item === "string" ? { id: item, label: item } : item,
+  );
+  const itemIDs = normalizedItems.map((item) => item.id);
   const [uncontrolledActive, setUncontrolledActive] = useState(
-    defaultActive ?? items[0] ?? "",
+    defaultActive ?? itemIDs[0] ?? "",
   );
   const resolvedMode: TabsMode =
     mode ?? (active === undefined ? "uncontrolled" : "controlled");
   const selectedItem =
     resolvedMode === "controlled"
-      ? (active ?? items[0] ?? "")
+      ? (active ?? itemIDs[0] ?? "")
       : uncontrolledActive;
-  const selectedIndex = Math.max(0, items.indexOf(selectedItem));
-  const resolvedItem = items[selectedIndex] ?? "";
+  const selectedIndex = Math.max(0, itemIDs.indexOf(selectedItem));
+  const resolvedItem = normalizedItems[selectedIndex]?.id ?? "";
   const tablistRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [indicator, setIndicator] = useState<CSSProperties>({ opacity: 0 });
@@ -77,11 +90,11 @@ export function Tabs({
         : new ResizeObserver(updateIndicator);
     if (observer && tablistRef.current) observer.observe(tablistRef.current);
     return () => observer?.disconnect();
-  }, [selectedIndex, items.length]);
+  }, [selectedIndex, normalizedItems.length]);
 
   const moveSelection = (index: number) => {
-    const nextIndex = (index + items.length) % items.length;
-    const next = items[nextIndex];
+    const nextIndex = (index + normalizedItems.length) % normalizedItems.length;
+    const next = normalizedItems[nextIndex]?.id;
     if (!next) return;
     if (resolvedMode === "uncontrolled") setUncontrolledActive(next);
     onChange?.(next);
@@ -111,19 +124,13 @@ export function Tabs({
         data-rcl-tabs-styles
         dangerouslySetInnerHTML={{ __html: styleSheet }}
       />
-      <div data-rcl-tabs>
-        <div
-          ref={tablistRef}
-          role="tablist"
-          aria-label={ariaLabel}
-          data-rcl-tab-list
-          data-rcl-tablist
-        >
-          {items.map((item, index) => {
-            const selected = item === resolvedItem;
+      <div data-rcl-tabs role="tablist" aria-label={ariaLabel}>
+        <div ref={tablistRef} data-rcl-tab-list data-rcl-tablist>
+          {normalizedItems.map((item, index) => {
+            const selected = item.id === resolvedItem;
             return (
               <button
-                key={item}
+                key={item.id}
                 ref={(node) => {
                   tabRefs.current[index] = node;
                 }}
@@ -131,19 +138,25 @@ export function Tabs({
                 type="button"
                 role="tab"
                 aria-selected={selected}
-                aria-controls={`rcl-tab-panel-${index}`}
+                aria-controls={panels ? `rcl-tab-panel-${index}` : undefined}
                 tabIndex={selected ? 0 : -1}
                 data-index={index}
+                data-testid={itemTestId?.(item.id)}
                 data-rcl-tab-trigger
                 data-rcl-tab
                 onClick={() => {
                   if (resolvedMode === "uncontrolled")
-                    setUncontrolledActive(item);
-                  onChange?.(item);
+                    setUncontrolledActive(item.id);
+                  onChange?.(item.id);
                 }}
                 onKeyDown={handleKeyDown}
               >
-                {item}
+                {item.label}
+                {item.badge !== undefined && (
+                  <span aria-hidden="true" data-rcl-tab-badge>
+                    {item.badge}
+                  </span>
+                )}
               </button>
             );
           })}

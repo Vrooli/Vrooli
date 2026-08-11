@@ -1,36 +1,48 @@
 {
-  "schemaVersion": 1,
-  "componentId": "react-component-library:VoiceInputButton",
-  "version": "4.1.0",
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "voice-input-button",
+    "title": "VoiceInputButton",
+    "purpose": "Provide a stable, state-labeled voice action with recording feedback and motion-safe lifecycle transitions.",
+    "storyRef": "../../library/components/VoiceInputButton/versions/4.1.0/story.json"
+  },
   "states": [
-    "idle",
-    "preparing",
-    "recording",
-    "recovering",
-    "transcribing",
-    "unavailable",
-    "error"
+    { "id": "idle", "example": "idle", "description": "Idle voice action." },
+    { "id": "preparing", "example": "preparing", "description": "Microphone is preparing." },
+    { "id": "recording", "example": "recording", "description": "Recording is active." },
+    { "id": "recovering", "example": "recovering", "description": "The action is recovering." },
+    { "id": "transcribing", "example": "transcribing", "description": "Audio is being transcribed." },
+    { "id": "unavailable", "example": "unavailable", "description": "Voice input is unavailable." },
+    { "id": "error", "example": "error", "description": "Voice input reports an error." }
   ],
-  "behaviors": [
+  "elements": [
+    { "id": "control", "role": "button", "description": "The named voice action." },
+    { "id": "level", "role": "img", "description": "Non-color recording level feedback." }
+  ],
+  "claims": [
     {
       "id": "fixed-footprint",
-      "description": "Every lifecycle state uses the same IconButton geometry so surrounding composer layouts do not jump."
+      "type": "custom",
+      "statement": "Every lifecycle state uses the same control geometry so surrounding composer layouts do not jump.",
+      "tier": "manual",
+      "elements": ["control"],
+      "states": ["idle", "preparing", "recording", "recovering", "transcribing", "unavailable", "error"]
     },
     {
       "id": "input-feedback",
-      "description": "Recording level fills the control and timeout mode adds a progress ring without replacing the microphone action."
-    },
-    {
-      "id": "press-intent",
-      "description": "Pointer press, release, cancel, click, and long-press preserve the existing start/stop/passive-exit intent contract."
+      "type": "custom",
+      "statement": "Recording feedback communicates level and timeout progress without replacing the microphone action.",
+      "tier": "manual",
+      "elements": ["control", "level"],
+      "states": ["recording"]
     }
   ],
-  "accessibility": [
-    "named button",
-    "pressed state",
-    "state-specific labels",
-    "reduced motion",
-    "forced colors",
-    "non-color recording feedback"
-  ]
+  "bindings": {
+    "elements": {
+      "control": { "selector": "[data-rcl-voice-input]" },
+      "level": { "selector": "[data-rcl-voice-level]" }
+    }
+  }
 }

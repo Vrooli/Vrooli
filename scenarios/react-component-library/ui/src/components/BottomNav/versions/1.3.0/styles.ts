@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:BottomNav
  * @vrooliComponentVersion 1.3.0
  * @vrooliComponentAdoption f8ff9216-a8af-44bb-a4b1-c443315e2ad6
- * @vrooliComponentAppliedAt 2026-08-11T00:11:48Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:47:51Z
  * @vrooliComponentSourceSha256 c47b0abd7c03c3f56213d73e1154ad7615741105590f775315719b91571a3951
  * @vrooliComponentDriftHash c47b0abd7c03c3f56213d73e1154ad7615741105590f775315719b91571a3951
  * @vrooliComponentTokenTranslation none

@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:EmptyState
  * @vrooliComponentVersion 1.2.0
  * @vrooliComponentAdoption 08245e9a-4333-4e0a-ae3c-f6178d1d06e1
- * @vrooliComponentAppliedAt 2026-08-10T19:46:57Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:47:52Z
  * @vrooliComponentSourceSha256 3675e77e7bba30d5ee41b13e71592a38a3d563fb9d5bfaf07391c1a7c9e6ef1d
  * @vrooliComponentDriftHash 3675e77e7bba30d5ee41b13e71592a38a3d563fb9d5bfaf07391c1a7c9e6ef1d
  * @vrooliComponentTokenTranslation none

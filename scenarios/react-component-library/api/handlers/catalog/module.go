@@ -13,6 +13,7 @@ import (
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog/catalog_v1connect"
 	"react-component-library/internal/catalogcoverage"
+	"react-component-library/internal/catalogexperience"
 	"react-component-library/internal/gates"
 	"react-component-library/internal/module"
 )
@@ -54,7 +55,7 @@ func (h *handler) report(ctx context.Context) (*catalogcoverage.Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	evidence, err := catalogcoverage.MergedEvidence(ctx, h.repoRoot, h.evidence)
+	evidence, err := catalogcoverage.MergeExperienceEvidence(ctx, h.repoRoot, h.evidence, catalogexperience.Fetcher(h.repoRoot))
 	if err != nil {
 		return nil, err
 	}

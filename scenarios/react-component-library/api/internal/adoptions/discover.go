@@ -187,10 +187,11 @@ func (s *service) ConfirmDiscovery(ctx context.Context, in ConfirmDiscoveryInput
 	fv.Version = version
 	fv.ContentSHA256 = libFile.ContentSHA256
 	body := formatProvenance(fv, adoptionID, now, hashBytes([]byte(stripSourceHeader(string(current)))), "none") + stripSourceHeader(string(current))
-	writtenPath, err := s.files.Write(ctx, scenario, adoptedPath, []byte(body))
+	writtenPath, formattedBody, err := s.writeAdoptedSource(ctx, scenario, adoptedPath, []byte(body))
 	if err != nil {
 		return ConfirmDiscoveryResult{}, err
 	}
+	body = formattedBody
 	snapshot := adoptedSnapshotHash(body)
 	adoptionFile := AdoptionFile{LibraryPath: libFile.Path, AdoptedPath: adoptedPath, SourceSHA256: libFile.ContentSHA256, AdoptedSnapshotSHA256: snapshot}
 	created, err := s.repo.Create(ctx, CreateInput{

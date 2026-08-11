@@ -8,20 +8,44 @@
     "purpose": "Own the shared control geometry, focus treatment, hover treatment, disabled treatment, size scale, and density contract.",
     "storyRef": "../../library/components/ControlBase/versions/1.0.0/story.json"
   },
-  "priorities": [{ "statement": "Every adopting control inherits one coherent interaction and sizing vocabulary." }],
-  "states": [
-    { "id": "variant-primary", "example": "variant-primary", "description": "Primary control." },
-    { "id": "variant-secondary", "example": "variant-secondary", "description": "Secondary control." }
+  "priorities": [
+    {
+      "statement": "Every adopting control inherits one coherent interaction and sizing vocabulary."
+    }
   ],
-  "elements": [{ "id": "control", "role": "button", "description": "The shared native control." }],
-  "claims": [{
-    "id": "hover-state-contrast",
-    "type": "state-contrast",
-    "statement": "The hover treatment retains readable foreground contrast against the control background.",
-    "tier": "machine",
-    "elements": ["control"],
-    "states": ["variant-primary"],
-    "params": { "state": "hover", "background": "#020617", "minContrastRatio": 3 }
-  }],
+  "states": [
+    {
+      "id": "variant-primary",
+      "example": "variant-primary",
+      "description": "Primary control."
+    },
+    {
+      "id": "variant-secondary",
+      "example": "variant-secondary",
+      "description": "Secondary control."
+    }
+  ],
+  "elements": [
+    {
+      "id": "control",
+      "role": "button",
+      "description": "The shared native control."
+    }
+  ],
+  "claims": [
+    {
+      "id": "hover-state-contrast",
+      "type": "state-contrast",
+      "statement": "The hover treatment retains readable foreground contrast against the control background.",
+      "tier": "machine",
+      "elements": ["control"],
+      "states": ["variant-primary"],
+      "params": {
+        "state": "hover",
+        "background": "#020617",
+        "minContrastRatio": 3
+      }
+    }
+  ],
   "bindings": { "elements": { "control": { "testid": "control-base-root" } } }
 }

@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:Tokens
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 1636c81c-83d8-4a90-854d-990050b400b0
- * @vrooliComponentAppliedAt 2026-08-11T00:24:46Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:35:31Z
  * @vrooliComponentSourceSha256 00f634de4489f6d8b01d18f688b4b665da39125beabcfebb6a16e00259fb4a29
  * @vrooliComponentDriftHash ba44f2db85cc9f763fb597ff2735ee7b2c955b49a565c4672809f22358690cd8
  * @vrooliComponentTokenTranslation none

@@ -131,7 +131,12 @@ const styles = `
 [data-rcl-data-table-sort] { display: inline-flex; align-items: center; gap: var(--space-3xs); min-block-size: var(--tap-target-min); margin: calc(var(--space-2xs) * -1); border: 0; border-radius: var(--radius-control); background: transparent; color: inherit; padding: var(--space-2xs); font: inherit; cursor: pointer; }
 [data-rcl-data-table-sort]:hover { background: color-mix(in srgb, var(--color-primary) 9%, transparent); color: var(--color-foreground); }
 [data-rcl-data-table-sort-indicator] { color: var(--color-primary); font: var(--text-label); }
-[data-rcl-data-table-checkbox] { inline-size: 1.1rem; block-size: 1.1rem; accent-color: var(--color-primary); }
+[data-rcl-data-table-checkbox-hit] { position: relative; display: inline-grid; inline-size: var(--tap-target-min); block-size: var(--tap-target-min); flex: 0 0 auto; place-items: center; }
+[data-rcl-data-table-checkbox-hit]::before { inline-size: 1.1rem; block-size: 1.1rem; border: var(--border-hairline) solid var(--color-border-strong); border-radius: var(--radius-control); background: var(--color-surface); content: ""; }
+[data-rcl-data-table-checkbox-hit]:has(input:checked)::before { border-color: var(--color-primary); background: var(--color-primary); }
+[data-rcl-data-table-checkbox-hit]:has(input:checked)::after { position: absolute; inline-size: .34rem; block-size: .64rem; border-block-end: var(--border-strong) solid var(--color-primary-foreground); border-inline-end: var(--border-strong) solid var(--color-primary-foreground); content: ""; transform: translateY(-.08rem) rotate(45deg); }
+[data-rcl-data-table-checkbox] { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; margin: 0; cursor: pointer; opacity: 0; }
+[data-rcl-data-table-checkbox]:focus-visible { outline: var(--border-focus) solid var(--color-focus); outline-offset: var(--focus-ring-offset); }
 [data-rcl-data-table-row-selected] { background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface)); }
 [data-rcl-data-table-actions] { display: flex; flex-wrap: wrap; justify-content: end; gap: var(--space-2xs); }
 [data-rcl-data-table-actions] button { min-block-size: var(--tap-target-min); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-foreground); padding-inline: var(--space-xs); font: var(--text-label); cursor: pointer; transition: transform 160ms ease, border-color 160ms ease, color 160ms ease; }
@@ -533,14 +538,16 @@ export function DataTable<Row>({
                     <tr>
                       {enableSelection ? (
                         <th scope="col">
-                          <input
-                            className="rcl-data-table__checkbox"
-                            data-rcl-data-table-checkbox
-                            type="checkbox"
-                            aria-label={`Select all ${selectionLabel.toLowerCase()}`}
-                            checked={allVisibleSelected}
-                            onChange={toggleVisible}
-                          />
+                          <span data-rcl-data-table-checkbox-hit>
+                            <input
+                              className="rcl-data-table__checkbox"
+                              data-rcl-data-table-checkbox
+                              type="checkbox"
+                              aria-label={`Select all ${selectionLabel.toLowerCase()}`}
+                              checked={allVisibleSelected}
+                              onChange={toggleVisible}
+                            />
+                          </span>
                         </th>
                       ) : null}
                       {columns.map((column) => (
@@ -594,13 +601,15 @@ export function DataTable<Row>({
                         >
                           {enableSelection ? (
                             <td>
-                              <input
-                                data-rcl-data-table-checkbox
-                                type="checkbox"
-                                aria-label={`Select ${key}`}
-                                checked={rowSelected}
-                                onChange={() => toggleRow(key)}
-                              />
+                              <span data-rcl-data-table-checkbox-hit>
+                                <input
+                                  data-rcl-data-table-checkbox
+                                  type="checkbox"
+                                  aria-label={`Select ${key}`}
+                                  checked={rowSelected}
+                                  onChange={() => toggleRow(key)}
+                                />
+                              </span>
                             </td>
                           ) : null}
                           {columns.map((column) => (
@@ -638,13 +647,15 @@ export function DataTable<Row>({
                       <div data-rcl-data-table-card-title>
                         {enableSelection ? (
                           <label>
-                            <input
-                              data-rcl-data-table-checkbox
-                              type="checkbox"
-                              aria-label={`Select ${key}`}
-                              checked={rowSelected}
-                              onChange={() => toggleRow(key)}
-                            />{" "}
+                            <span data-rcl-data-table-checkbox-hit>
+                              <input
+                                data-rcl-data-table-checkbox
+                                type="checkbox"
+                                aria-label={`Select ${key}`}
+                                checked={rowSelected}
+                                onChange={() => toggleRow(key)}
+                              />
+                            </span>{" "}
                             <span>{titleColumn?.accessor(row)}</span>
                           </label>
                         ) : (

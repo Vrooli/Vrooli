@@ -1,8 +1,8 @@
 /**
  * @vrooliComponentSource react-component-library:StatusBadge
  * @vrooliComponentVersion 1.2.0
- * @vrooliComponentAdoption bf6f0ee0-c331-4c85-85eb-3107221d2f45
- * @vrooliComponentAppliedAt 2026-08-10T19:46:56Z
+ * @vrooliComponentAdoption 4cd805e8-3c46-4750-b4eb-8df2b86e4028
+ * @vrooliComponentAppliedAt 2026-08-11T00:48:00Z
  * @vrooliComponentSourceSha256 a760758680c90def11bec2f3c1380309c9139459610fcfff68b4f15c5eb032c8
  * @vrooliComponentDriftHash a760758680c90def11bec2f3c1380309c9139459610fcfff68b4f15c5eb032c8
  * @vrooliComponentTokenTranslation none

@@ -2,16 +2,16 @@
  * @libraryId react-component-library:SidebarShell
  * @version 1.2.0
  * @status released
- * @deps {"react":"^18","lucide-react":"^0.424.0"}
+ * @deps {"react":"^18","lucide-react":"^0.424.0","react-component-library:useEscapeKey":"^1.0.0"}
  */
 import {
   type CSSProperties,
   type HTMLAttributes,
   type ReactNode,
   forwardRef,
-  useEffect,
 } from "react";
 import { X } from "lucide-react";
+import { useEscapeKey } from "../../../../hooks/useEscapeKey/versions/1.0.0/useEscapeKey";
 import { sidebarShellStyles } from "./styles";
 
 export interface SidebarShellProps {
@@ -57,16 +57,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
     const isPersistent = mode === "persistent";
     const isDialogOpen = !isPersistent && mobileOpen;
 
-    useEffect(() => {
-      if (!isDialogOpen) return;
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.key === "Escape") {
-          onMobileClose();
-        }
-      };
-      window.addEventListener("keydown", handleKeyDown);
-      return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [isDialogOpen, onMobileClose]);
+    useEscapeKey(isDialogOpen, onMobileClose);
 
     const style: CSSProperties = width ? { width } : {};
     return (

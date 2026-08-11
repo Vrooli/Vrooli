@@ -4,9 +4,9 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { useCallback, useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { useFocusTrap } from "../../../../hooks/useFocusTrap/versions/1.0.0/useFocusTrap";
-import { layerManager } from "../../../../services/LayerManager/versions/1.0.0/LayerManager";
+import { useEscapeKey } from "../../../../hooks/useEscapeKey/versions/1.0.0/useEscapeKey";
 import { drawerShellStyles } from "./styles";
 
 export interface DrawerShellProps {
@@ -37,37 +37,17 @@ export function DrawerShell({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  const layerId = useRef(`drawer-shell-${titleId.replace(/:/g, "")}`);
-  const close = useCallback(() => onClose(), [onClose]);
-
   useFocusTrap(open, panelRef);
+  useEscapeKey(open, onClose);
 
   useEffect(() => {
     if (!open) return;
-    if (typeof window === "undefined") return;
     const previousFocus = document.activeElement as HTMLElement | null;
-    const removeLayer = layerManager.push({
-      id: layerId.current,
-      kind: "drawer",
-      dismiss: close,
-    });
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.key === "Escape" &&
-        layerManager.top()?.id === layerId.current
-      ) {
-        event.preventDefault();
-        close();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
     closeButtonRef.current?.focus();
     return () => {
-      removeLayer();
-      window.removeEventListener("keydown", onKeyDown);
       previousFocus?.focus();
     };
-  }, [close, open]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -82,7 +62,7 @@ export function DrawerShell({
           type="button"
           data-rcl-drawer-shell-backdrop
           aria-label="Dismiss drawer backdrop"
-          onClick={close}
+          onClick={onClose}
         />
         <section
           ref={panelRef}
@@ -106,7 +86,7 @@ export function DrawerShell({
                 ref={closeButtonRef}
                 type="button"
                 data-rcl-drawer-shell-close
-                onClick={close}
+                onClick={onClose}
                 aria-label={closeAriaLabel}
               >
                 <span aria-hidden="true">×</span>

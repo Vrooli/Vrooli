@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:IconButton
  * @vrooliComponentVersion 2.0.0
  * @vrooliComponentAdoption 1636c81c-83d8-4a90-854d-990050b400b0
- * @vrooliComponentAppliedAt 2026-08-11T00:24:46Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:35:31Z
  * @vrooliComponentSourceSha256 f73de8840bf838fe9eca29ab657587bd667443b2658ba4296632916b5d72d5a2
  * @vrooliComponentDriftHash 03f7660b3628cb98830a46305fb34366af8d98c31c1d8e17336ceeb747e513cb
  * @vrooliComponentTokenTranslation none

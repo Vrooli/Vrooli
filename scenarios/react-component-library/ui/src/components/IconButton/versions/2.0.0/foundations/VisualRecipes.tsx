@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:VisualRecipes
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 59f07a82-a0b1-4dd2-987d-4d497a059ba5
- * @vrooliComponentAppliedAt 2026-08-11T00:24:46Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:35:31Z
  * @vrooliComponentSourceSha256 002adc8d4ef7854cbd4fb08eb2156e2b0deb04eff5a91ece409fa3431a255fdd
  * @vrooliComponentDriftHash b65df4be4778bcc33701c60ca4ca6105d2db5a7ff26f8f7e9aa5542610c192df
  * @vrooliComponentTokenTranslation none

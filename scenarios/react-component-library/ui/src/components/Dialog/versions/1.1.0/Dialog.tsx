@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:Dialog
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption 08c09296-b3da-4860-9b64-edd801000ae1
- * @vrooliComponentAppliedAt 2026-08-10T19:47:00Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:47:48Z
  * @vrooliComponentSourceSha256 5ac74dc8e5e06aab4cec656f8b02c3bf4899e42bdc6a7d38993f0339af975c82
  * @vrooliComponentDriftHash 98e3ab91a17675ef62c83064184d2fca2cdf57fd5b0d379b9ef6ad429f6a01d9
  * @vrooliComponentTokenTranslation none

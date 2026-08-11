@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:BottomNav
  * @vrooliComponentVersion 1.3.0
  * @vrooliComponentAdoption f8ff9216-a8af-44bb-a4b1-c443315e2ad6
- * @vrooliComponentAppliedAt 2026-08-11T00:11:48Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:47:51Z
  * @vrooliComponentSourceSha256 4a7627933ff5c73c1aaa1587549d66a9ce0172243f08ae13171c1d7ef43c9f0a
  * @vrooliComponentDriftHash c8bae4939d08dab3d21db664349cfe5ff25eeb1822e03b0a8b4c961cab7c53be
  * @vrooliComponentTokenTranslation text-app-foreground->text-app-foreground,text-app-muted-foreground->text-app-muted-foreground,text-app-primary->text-app-primary

@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:useVoiceInput
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 915fd511-c2d3-43e3-807f-5ebffec36979
- * @vrooliComponentAppliedAt 2026-08-10T19:51:39Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:49:44Z
  * @vrooliComponentSourceSha256 1ca5e2ab4bcdbc853d6a460428b090e05554032d542373d83c70639b67ad5cc8
  * @vrooliComponentDriftHash 01a8b555953531f307dfd410e397818ff955052b09128637f9f1c4c563dcfdd0
  * @vrooliComponentTokenTranslation none

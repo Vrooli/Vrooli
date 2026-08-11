@@ -143,8 +143,8 @@ describe("AdoptionFileTree", () => {
     expect(tabs).toBeInTheDocument();
     expect(screen.queryByTestId(selectors.components.editor.fileTree)).not.toBeInTheDocument();
     // Every version file is reachable as a tab.
-    expect(screen.getByRole("button", { name: "DrawerShell.tsx" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "useFocusTrap.ts" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "DrawerShell.tsx" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "useFocusTrap.ts" })).toBeInTheDocument();
   });
 
   it("shows the template as a static label when only one template is available", async () => {
@@ -186,10 +186,10 @@ describe("AdoptionFileTree", () => {
 
     await screen.findByTestId(selectors.components.editor.fileTabs);
     // The entry tab maps to the empty current-buffer selection.
-    await userEvent.click(screen.getByRole("button", { name: "DrawerShell.tsx" }));
+    await userEvent.click(screen.getByRole("tab", { name: "DrawerShell.tsx" }));
     expect(onSelectFile).toHaveBeenLastCalledWith("");
     // A companion tab maps to its own path.
-    await userEvent.click(screen.getByRole("button", { name: "useEscapeKey.ts" }));
+    await userEvent.click(screen.getByRole("tab", { name: "useEscapeKey.ts" }));
     expect(onSelectFile).toHaveBeenLastCalledWith("useEscapeKey.ts");
   });
 });

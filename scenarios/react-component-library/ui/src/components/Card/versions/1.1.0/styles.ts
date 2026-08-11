@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:Card
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption 5c10e008-e3b8-4f5e-a99c-c4d3b022ce19
- * @vrooliComponentAppliedAt 2026-08-11T00:08:35Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:47:49Z
  * @vrooliComponentSourceSha256 e2426b66525ede3828ce2f028926e6b2576f7e014d380fc6a7a02728615ec4a5
  * @vrooliComponentDriftHash e2426b66525ede3828ce2f028926e6b2576f7e014d380fc6a7a02728615ec4a5
  * @vrooliComponentTokenTranslation none

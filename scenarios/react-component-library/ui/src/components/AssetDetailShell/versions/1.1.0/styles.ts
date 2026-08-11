@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:AssetDetailShell
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption a1876380-85df-4ed9-a8b1-ce6008e168a0
- * @vrooliComponentAppliedAt 2026-08-10T19:46:50Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:47:57Z
  * @vrooliComponentSourceSha256 8ae7dfd06f5739cb5d943ed24e5d864346aef272b3e8a873287109ad51fa6e56
  * @vrooliComponentDriftHash 8ae7dfd06f5739cb5d943ed24e5d864346aef272b3e8a873287109ad51fa6e56
  * @vrooliComponentTokenTranslation none

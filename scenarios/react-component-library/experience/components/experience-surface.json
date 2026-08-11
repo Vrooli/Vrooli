@@ -1,6 +1,4 @@
 {
-  "kind": "experience-component",
-  "schemaVersion": "1.1.0",
   "contract": {
     "kind": "rcl-component-experience-contract",
     "schema": "scenario-experience-spec/v1",
@@ -9,8 +7,7 @@
   "component": {
     "id": "experience-surface",
     "title": "Experience Surface",
-    "purpose": "Expose the lifecycle of an independently meaningful rendered region without imposing layout or visual presentation.",
-    "storyRef": "../../library/components/ExperienceSurface/versions/1.0.0/story.json"
+    "purpose": "Expose the lifecycle of an independently meaningful rendered region without imposing layout or visual presentation."
   },
   "states": [
     {
@@ -49,21 +46,21 @@
       "id": "stable-surface-identity",
       "type": "custom",
       "statement": "Every example exposes its stable surface identity and lifecycle state through data-experience-surface and data-experience-state.",
-      "tier": "manual",
+      "tier": "machine",
       "states": ["loading", "ready", "empty", "partial", "error", "static"]
     },
     {
       "id": "loading-busy-state",
       "type": "custom",
       "statement": "Loading examples expose aria-busy=true on the semantic surface.",
-      "tier": "manual",
+      "tier": "machine",
       "states": ["loading"]
     },
     {
       "id": "live-terminal-status",
       "type": "custom",
       "statement": "Loading, partial, and error examples expose a polite status announcement when a status message is supplied.",
-      "tier": "manual",
+      "tier": "machine",
       "states": ["loading", "partial", "error"]
     }
   ]

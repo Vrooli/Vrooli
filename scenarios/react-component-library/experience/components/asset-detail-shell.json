@@ -1,40 +1,48 @@
 {
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "componentId": "react-component-library:AssetDetailShell",
-  "version": "1.1.0",
   "component": {
     "id": "asset-detail-shell",
-    "title": "Asset Detail Shell",
-    "purpose": "Present a responsive detail surface with distinct preview, metadata, and activity regions.",
-    "storyRef": "../../library/components/AssetDetailShell/versions/1.0.0/story.json"
+    "title": "AssetDetailShell",
+    "purpose": "Keep the primary asset task, supporting activity, actions, and metadata in a clear responsive hierarchy.",
+    "storyRef": "../../library/components/AssetDetailShell/versions/1.1.0/story.json"
   },
   "states": [
-    { "id": "ready-detail", "example": "ready-detail", "description": "The detail surface is ready." },
-    { "id": "activity-partial", "example": "activity-partial", "description": "Supporting activity is incomplete while the primary detail remains usable." },
-    { "id": "activity-loading", "example": "activity-loading", "description": "Supporting activity is loading." },
-    { "id": "activity-empty", "example": "activity-empty", "description": "No supporting activity is available." },
-    { "id": "activity-error", "example": "activity-error", "description": "Supporting activity failed without replacing the primary detail." }
+    { "id": "ready-detail", "example": "ready-detail", "description": "The primary detail is usable." },
+    { "id": "activity-partial", "example": "activity-partial", "description": "Supporting activity is incomplete without replacing the primary task." },
+    { "id": "activity-loading", "example": "activity-loading", "description": "Activity is loading in its own region." },
+    { "id": "activity-empty", "example": "activity-empty", "description": "Activity is empty while detail remains available." },
+    { "id": "activity-error", "example": "activity-error", "description": "Activity reports an error without hiding the detail." }
   ],
-  "behaviors": [
+  "elements": [
+    { "id": "preview", "role": "region", "description": "The primary asset preview." },
+    { "id": "metadata", "role": "complementary", "description": "Supporting asset metadata." },
+    { "id": "activity", "role": "region", "description": "Supporting activity lifecycle region." }
+  ],
+  "claims": [
     {
       "id": "hierarchical-detail",
-      "description": "The primary preview, title/actions, supporting activity, and metadata remain distinct regions across desktop and mobile layouts."
-    },
-    {
-      "id": "activity-containment",
-      "description": "Activity lifecycle states remain local to the activity region and do not replace the primary preview or metadata."
+      "type": "custom",
+      "statement": "Preview, actions, activity, and metadata remain distinct regions across desktop and mobile layouts.",
+      "tier": "manual",
+      "elements": ["preview", "metadata", "activity"],
+      "states": ["ready-detail", "activity-partial", "activity-loading", "activity-empty", "activity-error"]
     },
     {
       "id": "responsive-detail",
-      "description": "The metadata region moves below the primary task at narrow widths without clipping long content."
+      "type": "custom",
+      "statement": "Metadata moves below the primary task at narrow widths without clipping long content.",
+      "tier": "manual",
+      "elements": ["metadata"],
+      "states": ["ready-detail"]
     }
   ],
-  "accessibility": [
-    "main landmark",
-    "labelled preview and metadata regions",
-    "activity announcements",
-    "focus-visible",
-    "forced colors"
-  ]
+  "bindings": {
+    "elements": {
+      "preview": { "selector": "[data-rcl-asset-detail-preview]" },
+      "metadata": { "selector": "[data-rcl-asset-detail-metadata]" },
+      "activity": { "selector": ".rcl-asset-detail-activity" }
+    }
+  }
 }

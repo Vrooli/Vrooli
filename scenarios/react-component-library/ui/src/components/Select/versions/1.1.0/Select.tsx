@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:Select
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption 0644f753-16ab-4fa7-b831-dd99d549f010
- * @vrooliComponentAppliedAt 2026-08-10T19:46:53Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:47:56Z
  * @vrooliComponentSourceSha256 17023d6a4832c82a2802e3a44be340bcef9a35f5a7c0d32b57cc378b0d4f2b23
  * @vrooliComponentDriftHash b189a67ad38e8602560626a44a1f4a403b5bc391c5525248e859b76f93327cb6
  * @vrooliComponentTokenTranslation none

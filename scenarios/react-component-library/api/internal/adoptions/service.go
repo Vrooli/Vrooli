@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -391,10 +392,11 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 			}
 			translationNote := formatTokenTranslations(translations)
 			body := formatProvenance(fv, adoptionID, now, hashBytes([]byte(translated)), translationNote) + translated
-			path, err := s.files.Write(ctx, in.Scenario, file.AdoptedPath, []byte(body))
+			path, formattedBody, err := s.writeAdoptedSource(ctx, in.Scenario, file.AdoptedPath, []byte(body))
 			if err != nil {
 				return ApplyResult{}, err
 			}
+			body = formattedBody
 			if file.IsEntry && plan.Asset.ID == cmp.ID {
 				entrySnapshot = adoptedSnapshotHash(body)
 				if plan.Asset.ID == cmp.ID {
@@ -660,10 +662,11 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 				return Adoption{}, "", err
 			}
 			body := formatProvenance(fv, row.ID, now, hashBytes([]byte(translated)), formatTokenTranslations(translations)) + translated
-			path, err := s.files.Write(ctx, row.Scenario, file.AdoptedPath, []byte(body))
+			path, formattedBody, err := s.writeAdoptedSource(ctx, row.Scenario, file.AdoptedPath, []byte(body))
 			if err != nil {
 				return Adoption{}, "", err
 			}
+			body = formattedBody
 			snapshot := adoptedSnapshotHash(body)
 			if file.IsEntry && plan.Asset.ID == row.ComponentID {
 				written, entrySnapshot = path, snapshot
@@ -710,6 +713,22 @@ func (s *service) resolveTokenNamespace(ctx context.Context, scenario string) (s
 		return "app", nil
 	}
 	return strings.TrimSpace(namespace), nil
+}
+
+// writeAdoptedSource returns the exact bytes that the target scenario now
+// owns. The production filesystem writer formats through the target UI's
+// local toolchain, so snapshots must be derived from the post-format bytes;
+// otherwise a successful reapply immediately reports itself as modified.
+func (s *service) writeAdoptedSource(ctx context.Context, scenario, adoptedPath string, content []byte) (string, string, error) {
+	path, err := s.files.Write(ctx, scenario, adoptedPath, content)
+	if err != nil {
+		return "", "", err
+	}
+	actual, err := s.files.Read(ctx, scenario, adoptedPath)
+	if err != nil {
+		return "", "", fmt.Errorf("read formatted adopted file %q: %w", adoptedPath, err)
+	}
+	return path, string(actual), nil
 }
 
 func (s *service) resolveTokenMapping(ctx context.Context, scenario string) (TokenMapping, error) {
@@ -1143,7 +1162,7 @@ func (r *FSScenarioFileReader) Exists(_ context.Context, scenario, adoptedPath s
 	return false, err
 }
 
-func (r *FSScenarioFileReader) Write(_ context.Context, scenario, adoptedPath string, content []byte) (string, error) {
+func (r *FSScenarioFileReader) Write(ctx context.Context, scenario, adoptedPath string, content []byte) (string, error) {
 	cleaned, err := r.resolve(scenario, adoptedPath)
 	if err != nil {
 		return "", err
@@ -1154,7 +1173,49 @@ func (r *FSScenarioFileReader) Write(_ context.Context, scenario, adoptedPath st
 	if err := os.WriteFile(cleaned, content, 0o600); err != nil {
 		return "", fmt.Errorf("write adopted file %q: %w", adoptedPath, err)
 	}
+	if err := r.formatWrittenSource(ctx, scenario, adoptedPath, cleaned); err != nil {
+		return "", err
+	}
 	return cleaned, nil
+}
+
+// formatWrittenSource keeps copied source readable without imposing a
+// library-global formatter on consumers. Each adopting scenario owns its UI
+// toolchain; when that toolchain includes Prettier, use that exact binary and
+// its config. Scenarios without a formatter remain adoptable, while the
+// component-library scenario (and the standard UI template) get formatting
+// automatically at the write boundary.
+func (r *FSScenarioFileReader) formatWrittenSource(ctx context.Context, scenario, adoptedPath, absolutePath string) error {
+	ext := strings.ToLower(filepath.Ext(adoptedPath))
+	if ext != ".ts" && ext != ".tsx" && ext != ".js" && ext != ".jsx" && ext != ".css" && ext != ".json" {
+		return nil
+	}
+	uiRoot := filepath.Join(r.root, scenario, "ui")
+	candidates := []string{
+		filepath.Join(uiRoot, "node_modules", ".bin", "prettier"),
+		filepath.Join(uiRoot, "node_modules", ".bin", "prettier.cmd"),
+		filepath.Join(uiRoot, "node_modules", "prettier", "bin", "prettier.cjs"),
+	}
+	formatter := ""
+	for _, candidate := range candidates {
+		if info, statErr := os.Stat(candidate); statErr == nil && !info.IsDir() {
+			formatter = candidate
+			break
+		}
+	}
+	if formatter == "" {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cmd := exec.CommandContext(ctx, formatter, "--write", absolutePath)
+	cmd.Dir = uiRoot
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("format adopted file %q with target Prettier: %w: %s", adoptedPath, err, strings.TrimSpace(string(output)))
+	}
+	return nil
 }
 
 // FindImportSites performs a narrow, deterministic import-specifier scan. It

@@ -68,7 +68,8 @@
       "description": "Semantics, naming, focus order, announcement, keyboard operation, and contrast, reconciled against captured evidence.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
-      "runner": { "react-vite": "vrooli scenario test react-component-library --phase experience" }
+      "runner": { "react-vite": "vrooli scenario test react-component-library --phase experience" },
+      "x-experience-claim-types": ["element-present", "element-absent", "keyboard-reachable", "affordance-present", "reading-order", "state-covered"]
     },
     {
       "id": "responsive",
@@ -76,7 +77,9 @@
       "description": "Behavior across the kit's baseline viewport matrix, including the declared responsive transformations.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
-      "runner": { "react-vite": "vrooli scenario test react-component-library --phase experience" }
+      "runner": { "react-vite": "vrooli scenario test react-component-library --phase experience" },
+      "x-experience-claim-types": ["visible-without-scroll", "reading-order", "size-parity"],
+      "x-experience-min-viewports": 2
     },
     {
       "id": "visual",
@@ -84,7 +87,9 @@
       "description": "Approved fixture matrix and screenshot regression coverage in light and dark.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
-      "runner": { "react-vite": "node ui/scripts/preview-e2e.mjs" }
+      "runner": { "react-vite": "node ui/scripts/preview-e2e.mjs" },
+      "x-experience-claim-types": ["single-dominant-action", "visible-without-scroll", "spacing", "state-contrast", "size-parity"],
+      "x-experience-requires-capture": true
     },
     {
       "id": "rtl",

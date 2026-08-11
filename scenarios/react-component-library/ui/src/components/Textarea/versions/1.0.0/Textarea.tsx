@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:Textarea
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 92d58798-3a73-4ac5-9bfe-6eef7c233d59
- * @vrooliComponentAppliedAt 2026-08-11T00:08:37Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:47:59Z
  * @vrooliComponentSourceSha256 d6bfb596a63f62d8ef6ec5daf84512cc633a48ecd0c9f21dd137ef8f3601e3ac
  * @vrooliComponentDriftHash 41be79d56b028bed02939be48ea6ca6d61eef8561f9281ca37e0e0fb4dfe65e5
  * @vrooliComponentTokenTranslation border-app-border->border-app-border

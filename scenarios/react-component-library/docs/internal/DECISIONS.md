@@ -317,3 +317,11 @@ pending text while icon-only controls preserve their authored accessible name
 and expose only the spinner visually. Pressable stories explicitly cover both
 cases, and closure validation must include the shared dependency chain before
 adoption propagation.
+
+# 2026-08-10 — Accessible geometry must satisfy both hidden-state and tap-target contracts
+
+The AppShell skip link uses a tokenized 44px in-viewport hit area with clipped idle content, then expands on `:focus-visible`. Translating an interactive element offscreen avoided visual noise but failed experience geometry; a 1px clipped link avoided the offscreen warning but failed the tap-target floor. The 44px clipped geometry satisfies keyboard access, pointer-target sizing, and the visual design simultaneously.
+
+# 2026-08-10 — Semantic scroll containers own the navigation role
+
+Tabs keeps the horizontal overflow on the bounded viewport that carries `role="tablist"` and its accessible name. The inner strip is only a layout surface. This prevents the intrinsic width of long tab labels from being reported as document chrome or horizontal page overflow while preserving roving focus and the tab/tabpanel relationship.

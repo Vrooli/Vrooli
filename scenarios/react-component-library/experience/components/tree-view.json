@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:TreeView@1.0.0"
+  },
+  "component": {
+    "id": "tree-view",
+    "title": "TreeView",
+    "purpose": "A navigable hierarchical surface for files and structured resources.",
+    "storyRef": "../../library/components/TreeView/versions/1.0.0/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Expanded folders reveal their children with clear hierarchy and selection affordances."
+    },
+    {
+      "id": "collapsed",
+      "example": "collapsed",
+      "description": "Collapsed folders preserve context and expose an explicit disclosure control."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "An empty tree explains that there is nothing to display."
+    }
+  ],
+  "elements": [
+    { "id": "tree", "role": "tree", "name": "Project files", "description": "The named hierarchical surface." },
+    { "id": "item", "role": "treeitem", "description": "A navigable tree item." },
+    { "id": "empty", "role": "status", "description": "The empty tree message." }
+  ],
+  "claims": [
+    {
+      "id": "semantic-hierarchy",
+      "type": "element-present",
+      "statement": "The surface exposes a named tree with level-aware treeitems and groups for nested content.",
+      "tier": "machine",
+      "elements": ["tree", "item"],
+      "states": ["default", "collapsed"]
+    },
+    {
+      "id": "keyboard-navigation",
+      "type": "custom",
+      "statement": "Arrow, Home, End, Enter, and Space keys provide predictable navigation, disclosure, and selection behavior.",
+      "tier": "manual",
+      "states": ["default", "collapsed"]
+    },
+    {
+      "id": "responsive-legibility",
+      "type": "custom",
+      "statement": "Long labels truncate without collapsing the hierarchy or introducing horizontal overflow.",
+      "tier": "manual",
+      "states": ["default", "collapsed"]
+    },
+    {
+      "id": "empty-communication",
+      "type": "element-present",
+      "statement": "The empty state is announced through a status region.",
+      "tier": "machine",
+      "elements": ["tree", "empty"],
+      "states": ["empty"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "tree": { "selector": "tree" },
+      "item": { "selector": "[role='treeitem']" },
+      "empty": { "selector": "[role='status']" }
+    }
+  }
+}

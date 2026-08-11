@@ -51,6 +51,25 @@ describe("AppShell", () => {
     expect(screen.queryByTestId("active-work-menu")).not.toBeInTheDocument();
   });
 
+  it("keeps the skip link in the viewport geometry and targets the main region", () => {
+    const { container } = renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>page</div>} />
+        </Route>
+      </Routes>,
+      { routerEntries: ["/"] },
+    );
+
+    const skipLink = container.querySelector<HTMLAnchorElement>(".rcl-app-shell-skip");
+    expect(skipLink).toHaveAttribute("href", "#app-shell-main");
+    expect(screen.getByRole("main")).toHaveAttribute("id", "app-shell-main");
+    expect(container.querySelector("[data-rcl-app-shell-styles]")?.textContent).toContain(
+      "clip-path: inset(50%)",
+    );
+    expect(skipLink?.className).toContain("rcl-app-shell-skip");
+  });
+
   it("does not wrap content in a centered card or eyebrow text", () => {
     const { container } = renderWithProviders(
       <Routes>

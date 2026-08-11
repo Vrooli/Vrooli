@@ -3,8 +3,11 @@
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
 import {
+  Children,
+  isValidElement,
   type KeyboardEvent,
   type ReactNode,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -14,6 +17,8 @@ import { ChevronDown, ChevronRight, File, FolderOpen } from "lucide-react";
 export interface TreeNode {
   id: string;
   label: ReactNode;
+  /** Optional accessible name when the visible label contains badges or icons. */
+  ariaLabel?: string;
   children?: TreeNode[];
   disabled?: boolean;
   icon?: ReactNode;
@@ -37,6 +42,8 @@ interface VisibleNode {
   parentId?: string;
 }
 
+const EMPTY_DEFAULT_EXPANDED_IDS: string[] = [];
+
 const treeStyles = `
 [data-rcl-tree] { min-inline-size: 0; color: var(--color-foreground); }
 [data-rcl-tree] .rcl-tree-item { display: flex; min-block-size: var(--tap-target-min); min-inline-size: 0; align-items: center; gap: var(--space-2xs); border: var(--border-hairline) solid transparent; border-radius: var(--radius-control); color: var(--color-foreground); padding: var(--space-3xs) var(--space-xs); cursor: pointer; outline: none; transition: background-color var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard); }
@@ -48,7 +55,9 @@ const treeStyles = `
 [data-rcl-tree] .rcl-tree-disclosure { display: inline-grid; min-block-size: var(--touch-target); min-inline-size: var(--touch-target); flex: 0 0 auto; place-items: center; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--color-muted-foreground); cursor: pointer; }
 [data-rcl-tree] .rcl-tree-disclosure:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
 [data-rcl-tree] .rcl-tree-icon { display: inline-grid; min-inline-size: var(--space-sm); flex: 0 0 auto; place-items: center; color: var(--color-primary); }
-[data-rcl-tree] .rcl-tree-label { min-inline-size: 0; overflow: hidden; flex: 1; text-overflow: ellipsis; white-space: nowrap; }
+[data-rcl-tree] .rcl-tree-label { display: flex; min-inline-size: 0; overflow: hidden; flex: 1; align-items: center; gap: var(--space-2xs); text-overflow: ellipsis; white-space: nowrap; }
+[data-rcl-tree] .rcl-tree-label-main { min-inline-size: 0; overflow: hidden; flex: 1; text-overflow: ellipsis; white-space: nowrap; }
+[data-rcl-tree] .rcl-tree-label-meta { color: var(--color-muted-foreground); font: var(--text-caption); white-space: nowrap; }
 [data-rcl-tree] .rcl-tree-empty { border: var(--border-hairline) dashed var(--color-border); border-radius: var(--radius-control); color: var(--color-muted-foreground); padding: var(--space-sm); font: var(--text-body-sm); }
 @media (prefers-reduced-motion: reduce) { [data-rcl-tree] *, [data-rcl-tree] *::before, [data-rcl-tree] *::after { transition: none !important; } }
 @media (forced-colors: active) { [data-rcl-tree] .rcl-tree-item[aria-selected="true"] { border-color: Highlight; background: Highlight; color: HighlightText; } [data-rcl-tree] .rcl-tree-item { border-color: CanvasText; } }
@@ -63,10 +72,19 @@ function defaultId(label: string, index: number) {
   );
 }
 
-function labelText(label: ReactNode) {
-  return typeof label === "string" || typeof label === "number"
-    ? String(label)
-    : "item";
+function labelText(label: ReactNode): string {
+  if (typeof label === "string" || typeof label === "number") return String(label);
+  const text = Children.toArray(label)
+    .map((child) => {
+      if (typeof child === "string" || typeof child === "number") return String(child);
+      if (isValidElement<{ children?: ReactNode }>(child)) {
+        return labelText(child.props.children);
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .join(" ");
+  return text || "item";
 }
 
 function collectVisible(
@@ -97,9 +115,10 @@ export function TreeView({
   label = "Tree",
   selectedId: controlledSelectedId,
   defaultSelectedId,
-  defaultExpandedIds = [],
+  defaultExpandedIds: defaultExpandedIdsProp,
   onSelect,
 }: TreeViewProps) {
+  const defaultExpandedIds = defaultExpandedIdsProp ?? EMPTY_DEFAULT_EXPANDED_IDS;
   const resolvedNodes = useMemo<TreeNode[]>(
     () =>
       items ??
@@ -112,6 +131,19 @@ export function TreeView({
   const [expanded, setExpanded] = useState(
     () => new Set([...collectAllIds(resolvedNodes), ...defaultExpandedIds]),
   );
+  const defaultExpansionKey = defaultExpandedIds.join("\u0000");
+  useEffect(() => {
+    const defaults = new Set([
+      ...collectAllIds(resolvedNodes),
+      ...defaultExpandedIds,
+    ]);
+    if (!defaults.size) return;
+    setExpanded((current) => {
+      const next = new Set(current);
+      defaults.forEach((id) => next.add(id));
+      return next.size === current.size ? current : next;
+    });
+  }, [defaultExpandedIds, defaultExpansionKey, resolvedNodes]);
   const [internalSelectedId, setInternalSelectedId] =
     useState(defaultSelectedId);
   const selectedId = controlledSelectedId ?? internalSelectedId;
@@ -191,7 +223,7 @@ export function TreeView({
     const { node, level } = visible;
     const hasChildren = Boolean(node.children?.length);
     const isExpanded = expanded.has(node.id);
-    const accessibleLabel = labelText(node.label);
+    const accessibleLabel = node.ariaLabel || labelText(node.label);
     return (
       <div key={node.id}>
         <div

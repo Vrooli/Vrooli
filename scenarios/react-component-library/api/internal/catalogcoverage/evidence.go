@@ -41,6 +41,30 @@ type EvidenceStore struct {
 	now func() time.Time
 }
 
+// ExperienceCapture is the small, durable portion of an Experience Manager
+// reconciliation record needed by catalog coverage. It deliberately keeps
+// the claim type and capture metadata: a passing accessibility claim must not
+// be mistaken for a visual capture, and one viewport must not be mistaken for
+// responsive coverage.
+type ExperienceCapture struct {
+	AssetID        string
+	Target         string
+	ClaimID        string
+	ClaimType      string
+	Verdict        string
+	StateID        string
+	ExampleName    string
+	Viewport       string
+	CaptureRef     string
+	CheckedAt      string
+	SourceRevision string
+}
+
+// ExperienceCaptureFetcher is implemented by the Experience Manager adapter.
+// Keeping the network boundary as a callback lets catalog coverage remain
+// deterministic and unit-testable when the manager is unavailable.
+type ExperienceCaptureFetcher func(context.Context, string, string) ([]ExperienceCapture, error)
+
 func NewEvidenceStore(db *sql.DB) *EvidenceStore {
 	return &EvidenceStore{db: db, now: time.Now}
 }
@@ -214,6 +238,147 @@ func MergedEvidence(ctx context.Context, root string, store *EvidenceStore) ([]G
 		computed = append(computed, item)
 	}
 	return computed, nil
+}
+
+// MergeExperienceEvidence adds only evidence that is both declared by a
+// catalog gate and observed by Experience Manager. A manager outage is
+// intentionally non-fatal: it leaves the gate absent (and therefore below
+// target) instead of converting an unavailable capture into a pass.
+func MergeExperienceEvidence(ctx context.Context, root string, store *EvidenceStore, fetch ExperienceCaptureFetcher) ([]GateEvidence, error) {
+	evidence, err := MergedEvidence(ctx, root, store)
+	if err != nil || fetch == nil {
+		return evidence, err
+	}
+	assets, err := LoadCatalog(filepath.Join(resolveScenarioRoot(root), "catalog"))
+	if err != nil {
+		return nil, err
+	}
+	impls, err := LoadImplementations(filepath.Join(resolveScenarioRoot(root), "library"))
+	if err != nil {
+		return nil, err
+	}
+	gates, err := LoadGateDefinitions(filepath.Join(resolveScenarioRoot(root), "catalog", "config.json"))
+	if err != nil {
+		return nil, err
+	}
+	targets := map[string]string{}
+	for _, asset := range assets {
+		target := "react-vite"
+		if len(asset.Targets) > 0 && strings.TrimSpace(asset.Targets[0]) != "" {
+			target = asset.Targets[0]
+		}
+		targets[asset.ID] = target
+	}
+	var captures []ExperienceCapture
+	for _, impl := range impls {
+		if impl.CatalogID == "" || impl.Latest == "" || targets[impl.CatalogID] == "" {
+			continue
+		}
+		fetched, fetchErr := fetch(ctx, "react-component-library:"+impl.Name, impl.Latest)
+		if fetchErr != nil {
+			continue
+		}
+		for _, capture := range fetched {
+			capture.AssetID = impl.CatalogID
+			capture.Target = targets[impl.CatalogID]
+			captures = append(captures, capture)
+		}
+	}
+	fresh, err := deriveExperienceEvidence(root, captures, gates)
+	if err != nil {
+		return nil, err
+	}
+	if len(fresh) == 0 {
+		return evidence, nil
+	}
+	if store != nil {
+		if err := store.Save(ctx, fresh); err != nil {
+			return nil, err
+		}
+	}
+	return append(evidence, fresh...), nil
+}
+
+func deriveExperienceEvidence(root string, captures []ExperienceCapture, definitions []GateDefinition) ([]GateEvidence, error) {
+	// Experience Manager retains an audit history. Reduce it to the newest
+	// observation for each declared claim/state/example/viewport before a gate
+	// is evaluated; otherwise one old skipped capture can poison a current pass.
+	latest := map[string]ExperienceCapture{}
+	for _, capture := range captures {
+		claim := capture.ClaimID
+		if claim == "" {
+			claim = capture.ClaimType
+		}
+		key := strings.Join([]string{capture.AssetID, capture.Target, claim, capture.StateID, capture.ExampleName, capture.Viewport}, "\x00")
+		current, exists := latest[key]
+		if !exists || capture.CheckedAt > current.CheckedAt {
+			latest[key] = capture
+		}
+	}
+	type aggregate struct {
+		captures []ExperienceCapture
+	}
+	groups := map[string]*aggregate{}
+	for _, capture := range latest {
+		for _, definition := range definitions {
+			if !contains(definition.ExperienceClaimTypes, capture.ClaimType) {
+				continue
+			}
+			key := capture.AssetID + "\x00" + capture.Target + "\x00" + definition.ID
+			if groups[key] == nil {
+				groups[key] = &aggregate{}
+			}
+			groups[key].captures = append(groups[key].captures, capture)
+		}
+	}
+	var out []GateEvidence
+	for key, group := range groups {
+		parts := strings.Split(key, "\x00")
+		if len(parts) != 3 || len(group.captures) == 0 {
+			continue
+		}
+		assetID, target, gateID := parts[0], parts[1], parts[2]
+		var definition GateDefinition
+		for _, candidate := range definitions {
+			if candidate.ID == gateID {
+				definition = candidate
+				break
+			}
+		}
+		result := "pass"
+		viewports := map[string]struct{}{}
+		for _, capture := range group.captures {
+			if capture.Viewport != "" {
+				viewports[capture.Viewport] = struct{}{}
+			}
+			switch strings.ToLower(strings.TrimSpace(capture.Verdict)) {
+			case "failed", "fail", "error":
+				result = "fail"
+			case "blocked", "skipped", "not-run":
+				if result == "pass" {
+					result = "skipped"
+				}
+			}
+			if definition.ExperienceRequiresCapture && strings.TrimSpace(capture.CaptureRef) == "" && result == "pass" {
+				result = "skipped"
+			}
+		}
+		if definition.ExperienceMinimumViewports > 0 && len(viewports) < definition.ExperienceMinimumViewports && result == "pass" {
+			result = "skipped"
+		}
+		revision, err := CurrentRevision(root, assetID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, GateEvidence{AssetID: assetID, Target: target, Gate: gateID, Result: result, SourceRevision: revision})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].AssetID != out[j].AssetID {
+			return out[i].AssetID < out[j].AssetID
+		}
+		return out[i].Gate < out[j].Gate
+	})
+	return out, nil
 }
 
 func RecomputeEvidence(root string) ([]GateEvidence, error) {

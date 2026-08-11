@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:Input
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption cbda07b5-f3f4-48cb-b391-b70d59a6df1d
- * @vrooliComponentAppliedAt 2026-08-11T00:08:38Z
+ * @vrooliComponentAppliedAt 2026-08-11T00:48:00Z
  * @vrooliComponentSourceSha256 621237a37c368405f4b337fbc007749dcb257ced432df6f633551347083e20d6
  * @vrooliComponentDriftHash c76f888d2ef93c307b35797ef148d2d1eafc4944f277522cc9409a96e02e9dde
  * @vrooliComponentTokenTranslation border-app-border->border-app-border

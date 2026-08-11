@@ -1,13 +1,12 @@
 {
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library:AppShell@1.0.0"
-  },
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
   "component": {
-    "id": "navigation.app-shell",
+    "id": "app-shell",
     "title": "AppShell",
-    "purpose": "A responsive application frame with named navigation, header, skip-link, and scroll-safe main content."
+    "purpose": "A responsive application frame with named navigation, a skip link, and scroll-safe main content.",
+    "storyRef": "../../library/components/AppShell/versions/1.0.0/story.json"
   },
   "states": [
     {
@@ -21,12 +20,30 @@
       "description": "Long content stays inside the main region without forcing the shell wider than its viewport."
     }
   ],
+  "elements": [
+    {
+      "id": "navigation",
+      "role": "complementary",
+      "description": "The named application navigation region."
+    },
+    {
+      "id": "main",
+      "role": "main",
+      "description": "The scroll-safe routed content region."
+    },
+    {
+      "id": "skip-link",
+      "role": "link",
+      "description": "The keyboard skip-navigation control."
+    }
+  ],
   "claims": [
     {
       "id": "landmarks",
       "type": "element-present",
       "statement": "The shell exposes complementary navigation and a named main region.",
       "tier": "machine",
+      "elements": ["navigation", "main"],
       "states": ["default", "long-content"]
     },
     {
@@ -34,21 +51,28 @@
       "type": "element-present",
       "statement": "Keyboard users can skip directly to the main region.",
       "tier": "machine",
+      "elements": ["skip-link", "main"],
       "states": ["default", "long-content"]
     },
     {
       "id": "responsive-frame",
-      "type": "visual",
-      "statement": "Navigation transforms into a horizontally scrollable compact rail below the responsive breakpoint while main content remains min-width-safe.",
-      "tier": "manual",
-      "states": ["default", "long-content"]
-    },
-    {
-      "id": "reduced-motion",
       "type": "custom",
-      "statement": "Shell transitions are disabled when the user requests reduced motion.",
+      "statement": "Navigation transforms into a compact rail below the responsive breakpoint while main content remains min-width-safe.",
       "tier": "manual",
       "states": ["default", "long-content"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "navigation": { "selector": "[role='complementary']" },
+      "main": { "selector": "[role='main']" },
+      "skip-link": { "selector": "[role='link']" }
+    }
+  },
+  "floorOptOuts": [
+    {
+      "floor": "no-document-horizontal-overflow",
+      "reason": "Compact navigation is intentionally horizontally scrollable inside the bounded navigation region; the document itself remains viewport-contained."
     }
   ]
 }

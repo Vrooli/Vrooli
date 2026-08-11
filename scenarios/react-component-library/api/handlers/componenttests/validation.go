@@ -17,6 +17,7 @@ import (
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"react-component-library/internal/catalogcoverage"
+	"react-component-library/internal/catalogexperience"
 	"react-component-library/internal/catalogvalidate"
 	"react-component-library/internal/components"
 	domain "react-component-library/internal/componenttests"
@@ -169,7 +170,7 @@ func (h *sharedHandler) coverageReport(ctx context.Context) (*catalogcoverage.Re
 			if err != nil {
 				return nil, fmt.Errorf("load catalog coverage gates: %w", err)
 			}
-			evidence, err := catalogcoverage.MergedEvidence(ctx, root, h.evidence)
+			evidence, err := catalogcoverage.MergeExperienceEvidence(ctx, root, h.evidence, catalogexperience.Fetcher(root))
 			if err != nil {
 				return nil, fmt.Errorf("load catalog gate evidence: %w", err)
 			}
