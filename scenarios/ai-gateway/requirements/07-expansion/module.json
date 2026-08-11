@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Post-viability role alignment, migration, policy, SDK, and expansion work.",
-    "last_validated_at": "2026-08-07T03:02:46-04:00",
+    "last_validated_at": "2026-08-10T18:46:19-04:00",
     "module": "expansion",
     "prd_ref": "OT-P1-001",
     "priority": "P1",
@@ -11,7 +11,7 @@
     {
       "id": "AIGW-EMBEDDING-GOVERNANCE",
       "title": "Embedding governance reports dimension and retarget risks",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "embedding.governance",
       "criticality": "P1",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "api/internal/conformance/scanner_test.go::TestScannerFindsMaturityTaxonomyRules",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates vector-store and embedding metadata advisory findings; full retarget workflow remains in progress."
         }
       ]
@@ -80,7 +80,7 @@
     {
       "id": "AIGW-POLICY-CONSTRAINTS",
       "title": "Routing policies enforce privacy, locality, cost, and quality constraints",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "routing.policy",
       "criticality": "P1",
@@ -96,14 +96,14 @@
           "type": "test",
           "ref": "api/internal/routing/service_test.go::TestPreviewSelectsLocalFirstAndExplainsFallback",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates local-first profile semantics and fallback behavior."
         },
         {
           "type": "test",
           "ref": "api/internal/routing/service_test.go::TestPreviewBlocksRemoteFallbackForSecretPrivacy",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates privacy-sensitive routing blocks remote fallback for secret requests."
         }
       ]
@@ -111,7 +111,7 @@
     {
       "id": "AIGW-SDK-CALLERS",
       "title": "Typed caller helpers preserve the provider-neutral contract",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "category": "caller.sdk",
       "criticality": "P1",
@@ -126,7 +126,7 @@
           "type": "test",
           "ref": "api/handlers/gateway/connect_handler_test.go::TestValidateGatewayRequestAcceptsProviderNeutralShape",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates generated Connect callers can send provider-neutral gateway requests; dedicated SDK helpers remain future work."
         }
       ]
@@ -178,7 +178,7 @@
     {
       "id": "AIGW-CAPACITY-ROUTING",
       "title": "Local route eligibility consults the platform capacity broker",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-008",
       "category": "routing.capacity",
       "criticality": "P1",
@@ -193,7 +193,7 @@
           "type": "test",
           "ref": "api/internal/routing/capacity_service_test.go::TestCapacityInsufficientLocalOnlyFailsClosed",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Fake capacity adapter proves fit selection + claim release, insufficient local-first remote fallback, local-only and privacy-sensitive fail-closed, advisory-reclaim-unavailable treated as unavailable, broker-error degrade-to-unknown, and no-footprint no-op."
         }
       ]

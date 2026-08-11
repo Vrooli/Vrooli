@@ -41,6 +41,10 @@ func (r *SQLRepository) Create(ctx context.Context, ev *routingv1.RouteEvidence)
 	if err != nil {
 		return err
 	}
+	dimensions, err := json.Marshal(ev.GetAttachmentDimensions())
+	if err != nil {
+		return err
+	}
 	_, err = r.db.ExecContext(ctx, `INSERT INTO route_events (
 event_id, request_id, scenario, operation, role, profile, privacy_class,
 selected_provider, selected_locality, status, policy_reasons_json,
@@ -49,8 +53,9 @@ latency_ms, created_at,
 breaker_state, failure_class, rejection_reason, capacity_verdict,
 capacity_claim_id, capacity_required_bytes, capacity_granted_bytes,
 capacity_reclaim_required, input_tokens, output_tokens, cost_estimate,
-selected_model
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+selected_model, image_count, attachment_bytes, attachment_sha256,
+attachments_redacted, attachment_dimensions_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		ev.GetEventId(),
 		ev.GetRequestId(),
 		ev.GetScenario(),
@@ -80,6 +85,11 @@ selected_model
 		ev.GetOutputTokens(),
 		ev.GetCostEstimate(),
 		ev.GetSelectedModel(),
+		ev.GetImageCount(),
+		ev.GetAttachmentBytes(),
+		ev.GetAttachmentSha256(),
+		boolInt(ev.GetAttachmentsRedacted()),
+		string(dimensions),
 	)
 	return err
 }
@@ -128,7 +138,9 @@ selected_provider, selected_locality, status, policy_reasons_json, failure_reaso
 fallback_used, prompt_redacted, response_redacted, latency_ms, created_at,
 breaker_state, failure_class, rejection_reason, capacity_verdict, capacity_claim_id,
 capacity_required_bytes, capacity_granted_bytes, capacity_reclaim_required,
-input_tokens, output_tokens, cost_estimate, selected_model
+input_tokens, output_tokens, cost_estimate, selected_model, image_count,
+attachment_bytes, attachment_sha256, attachments_redacted,
+attachment_dimensions_json
 FROM route_events`
 
 type scanner interface {
@@ -139,7 +151,8 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 	var ev routingv1.RouteEvidence
 	var policyJSON, failureJSON string
 	var profile, privacy int32
-	var fallbackUsed, promptRedacted, responseRedacted, capacityReclaimRequired int
+	var fallbackUsed, promptRedacted, responseRedacted, capacityReclaimRequired, attachmentsRedacted int
+	var dimensionsJSON string
 	err := s.Scan(
 		&ev.EventId,
 		&ev.RequestId,
@@ -170,6 +183,11 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 		&ev.OutputTokens,
 		&ev.CostEstimate,
 		&ev.SelectedModel,
+		&ev.ImageCount,
+		&ev.AttachmentBytes,
+		&ev.AttachmentSha256,
+		&attachmentsRedacted,
+		&dimensionsJSON,
 	)
 	if err != nil {
 		return nil, err
@@ -180,8 +198,10 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 	ev.PromptRedacted = promptRedacted != 0
 	ev.ResponseRedacted = responseRedacted != 0
 	ev.CapacityReclaimRequired = capacityReclaimRequired != 0
+	ev.AttachmentsRedacted = attachmentsRedacted != 0
 	_ = json.Unmarshal([]byte(policyJSON), &ev.PolicyReasons)
 	_ = json.Unmarshal([]byte(failureJSON), &ev.FailureReasons)
+	_ = json.Unmarshal([]byte(dimensionsJSON), &ev.AttachmentDimensions)
 	return &ev, nil
 }
 

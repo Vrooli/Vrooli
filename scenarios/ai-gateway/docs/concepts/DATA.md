@@ -54,7 +54,7 @@ role/model metadata and validated by a retarget plan.
 
 | Table/Object | Owner | Planned Source | Used By |
 |---|---|---|---|
-| `route_events` | routing | `api/internal/routing/schema.sql` | route history, UI traces, conformance evidence; implemented in Phase 4 with metadata-only retention and prompt/response redaction flags. |
+| `route_events` | routing | `api/internal/routing/schema.sql` | route history, UI traces, conformance evidence; metadata-only retention with prompt/response/attachment redaction. |
 | `provider_snapshots` | inventory | `api/internal/inventory/schema.sql` | role inventory, drift checks |
 | `smoke_results` | inventory | `api/internal/inventory/schema.sql` | provider health UI and CLI |
 | `profiles` | routing | `api/internal/routing/schema.sql` or policy artifact | route preview/execution |
@@ -63,10 +63,12 @@ role/model metadata and validated by a retarget plan.
 
 Inventory, smoke, profile, and conformance tables are planned data
 shapes and should be implemented only when the owning domain is built
-and tested. `route_events` is implemented and intentionally stores
-metadata only: request/operation identifiers, role/profile/privacy,
-selected resource path, policy/failure reasons, fallback state,
-redaction flags, latency, and timestamp.
+and tested. `route_events` is implemented and intentionally stores metadata
+only: request/operation identifiers, role/profile/privacy, selected resource
+path, policy/failure reasons, fallback state, redaction flags, latency,
+timestamp, and—when attachments are routed—image count, byte count, SHA-256
+content hash, and declared dimensions. It never stores inline bytes,
+references, base64, prompt text, or response text.
 
 `route_events` additionally carries stable machine-readable outcome codes
 so route history is analytics-ready without log parsing: `breaker_state`,

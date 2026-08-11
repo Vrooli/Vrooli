@@ -3,6 +3,7 @@ package routing
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -26,12 +27,23 @@ type Service struct {
 	health    HealthRepository
 	breaker   Breaker
 	capacity  CapacityAdapter
+	resolver  AttachmentResolver
 	clock     func() time.Time
 }
 
 // Option configures optional Service collaborators without breaking callers
 // that only need routing/evidence.
 type Option func(*Service)
+
+// AttachmentResolver resolves opaque application-owned references into
+// ephemeral inline bytes. It must never accept provider URLs or credentials.
+type AttachmentResolver interface {
+	Resolve(context.Context, *sharedv1.Attachment) (*sharedv1.Attachment, error)
+}
+
+func WithAttachmentResolver(resolver AttachmentResolver) Option {
+	return func(s *Service) { s.resolver = resolver }
+}
 
 // WithHealth enables provider-health/circuit-breaker tracking. A nil repository
 // leaves breaker tracking disabled.
@@ -224,6 +236,14 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 	if len(issues) > 0 {
 		return &routingv1.ExecuteRouteResponse{Valid: false, Issues: issues}, nil
 	}
+	resolvedReq, resolveErr := s.resolveAttachments(ctx, req)
+	if resolveErr != nil {
+		return &routingv1.ExecuteRouteResponse{Valid: false, Issues: []*sharedv1.ValidationIssue{{Field: "attachments", Code: "unresolved", Message: resolveErr.Error()}}}, nil
+	}
+	if resolvedIssues := s.validator.Validate(resolvedReq); len(resolvedIssues) > 0 {
+		return &routingv1.ExecuteRouteResponse{Valid: false, Issues: resolvedIssues}, nil
+	}
+	req = resolvedReq
 
 	plan := s.plan(ctx, req)
 	if plan.selectedProvider == "" {
@@ -251,6 +271,22 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		if req.GetTimeoutMs() > 0 {
 			ctxExec, cancel = context.WithTimeout(ctx, time.Duration(req.GetTimeoutMs())*time.Millisecond)
 		}
+		// Resolve the concrete model from the provider resource before execution.
+		// The resource remains authoritative for model policy; recording this
+		// resolved value makes route evidence auditable without moving catalog
+		// ownership into AI Gateway.
+		resolvedRole, resolveErr := adapter.ResolveRole(ctxExec, candidate.GetRole())
+		if resolveErr != nil {
+			cancel()
+			class := ClassifyProviderError(resolveErr)
+			lastFailureClass = class
+			s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), class, false)
+			failures = append(failures, fmt.Sprintf("%s: resolve role: %v", candidate.GetProvider(), resolveErr))
+			if i == 0 && !plan.fallbackAllowed {
+				break
+			}
+			continue
+		}
 		// Hold an op-scoped capacity claim around a local execution attempt so the
 		// broker ledger shows the reservation as CLAIMED. Release is best-effort in
 		// all paths; a crash falls back to the claim's bounded TTL.
@@ -261,6 +297,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			InputText:       input,
 			MaxOutputTokens: req.GetMaxOutputTokens(),
 			Timeout:         timeoutDuration(req.GetTimeoutMs()),
+			Attachments:     req.GetAttachments(),
 		})
 		s.releaseCapacity(ctxExec, capEval)
 		cancel()
@@ -279,6 +316,12 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		ev := s.evidence(req, plan, "succeeded", time.Since(started), fallbackUsed, failures)
 		ev.SelectedProvider = candidate.GetProvider()
 		ev.SelectedLocality = candidate.GetLocality()
+		ev.SelectedModel = resolvedRole.Model
+		if fallbackUsed {
+			// Preserve the failed first-attempt class on a successful fallback so
+			// operators can distinguish healthy primary selection from recovery.
+			ev.FailureClass = string(lastFailureClass)
+		}
 		ev.BreakerState = candidate.GetBreakerState()
 		applyCapacityEvidence(ev, candidate, capEval)
 		if err := s.repo.Create(ctx, ev); err != nil {
@@ -405,9 +448,9 @@ func policyCandidate(ctx context.Context, req *sharedv1.GatewayRequest, provider
 		return providers.Role{}, rejectedCandidate(providerName, req.GetRole(), adapter.Locality,
 			"role is not exposed by provider policy", "role_not_exposed")
 	}
-	if !roleSupportsKind(role, req.GetKind()) {
+	if !roleSupportsRequest(role, req) {
 		return providers.Role{}, rejectedCandidate(providerName, role.Role, role.Locality,
-			"role capabilities do not satisfy request kind", "capability_mismatch")
+			"role capabilities or input modalities do not satisfy request", "capability_mismatch")
 	}
 	if reason := localityRejection(req, role.Locality); reason != "" {
 		return providers.Role{}, rejectedCandidate(providerName, role.Role, role.Locality, reason, "locality_forbidden")
@@ -551,7 +594,7 @@ func (s *Service) executionAttempts(plan routePlan) []*routingv1.RouteCandidate 
 }
 
 func (s *Service) evidence(req *sharedv1.GatewayRequest, plan routePlan, status string, latency time.Duration, fallback bool, failures []string) *routingv1.RouteEvidence {
-	return &routingv1.RouteEvidence{
+	ev := &routingv1.RouteEvidence{
 		EventId:          newID("rt"),
 		RequestId:        firstNonEmpty(req.GetRequestId(), newID("req")),
 		Scenario:         strings.TrimSpace(req.GetScenario()),
@@ -570,6 +613,65 @@ func (s *Service) evidence(req *sharedv1.GatewayRequest, plan routePlan, status 
 		LatencyMs:        latency.Milliseconds(),
 		CreatedAt:        nowUTC(),
 	}
+	populateAttachmentEvidence(ev, req.GetAttachments())
+	return ev
+}
+
+func (s *Service) resolveAttachments(ctx context.Context, req *sharedv1.GatewayRequest) (*sharedv1.GatewayRequest, error) {
+	if len(req.GetAttachments()) == 0 {
+		return req, nil
+	}
+	var resolved []*sharedv1.Attachment
+	for _, attachment := range req.GetAttachments() {
+		if attachment == nil || strings.TrimSpace(attachment.GetReference()) == "" {
+			resolved = append(resolved, attachment)
+			continue
+		}
+		if s.resolver == nil {
+			return nil, fmt.Errorf("attachment reference %q cannot be resolved without an AttachmentResolver", attachment.GetReference())
+		}
+		item, err := s.resolver.Resolve(ctx, attachment)
+		if err != nil {
+			return nil, fmt.Errorf("resolve attachment reference: %w", err)
+		}
+		resolved = append(resolved, item)
+	}
+	copyReq := *req
+	copyReq.Attachments = resolved
+	return &copyReq, nil
+}
+
+func populateAttachmentEvidence(ev *routingv1.RouteEvidence, attachments []*sharedv1.Attachment) {
+	if len(attachments) == 0 {
+		return
+	}
+	hash := sha256.New()
+	for _, attachment := range attachments {
+		if attachment == nil {
+			continue
+		}
+		data := attachment.GetInlineBytes()
+		if len(data) > 0 {
+			_, _ = hash.Write(data)
+		}
+		bytes := attachment.GetBytes()
+		if bytes == 0 {
+			bytes = uint64(len(data))
+		}
+		ev.AttachmentBytes += int64(bytes)
+		if attachment.GetModality() == sharedv1.Modality_MODALITY_IMAGE {
+			ev.ImageCount++
+		}
+		ev.AttachmentDimensions = append(ev.AttachmentDimensions, &routingv1.AttachmentDimension{
+			Modality:  attachment.GetModality(),
+			MediaType: attachment.GetMediaType(),
+			Width:     attachment.GetWidth(),
+			Height:    attachment.GetHeight(),
+			Bytes:     bytes,
+		})
+	}
+	ev.AttachmentSha256 = hex.EncodeToString(hash.Sum(nil))
+	ev.AttachmentsRedacted = true
 }
 
 func findRole(roles []providers.Role, role string) (providers.Role, bool) {
@@ -579,6 +681,53 @@ func findRole(roles []providers.Role, role string) (providers.Role, bool) {
 		}
 	}
 	return providers.Role{}, false
+}
+
+func roleSupportsRequest(role providers.Role, req *sharedv1.GatewayRequest) bool {
+	if !roleSupportsKind(role, req.GetKind()) {
+		return false
+	}
+	declared := map[sharedv1.Modality]struct{}{}
+	for _, modality := range role.InputModalities {
+		declared[modality] = struct{}{}
+	}
+	// Older fixtures omitted modalities. Treat them as text-only so existing
+	// text callers remain compatible while image requests fail closed.
+	if len(declared) == 0 {
+		declared[sharedv1.Modality_MODALITY_TEXT] = struct{}{}
+	}
+	for _, required := range requiredInputModalities(req) {
+		if _, ok := declared[required]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func requiredInputModalities(req *sharedv1.GatewayRequest) []sharedv1.Modality {
+	seen := map[sharedv1.Modality]struct{}{}
+	add := func(modality sharedv1.Modality) {
+		if modality != sharedv1.Modality_MODALITY_UNSPECIFIED {
+			seen[modality] = struct{}{}
+		}
+	}
+	switch req.GetKind() {
+	case sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING,
+		sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+		sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION:
+		add(sharedv1.Modality_MODALITY_TEXT)
+	}
+	for _, attachment := range req.GetAttachments() {
+		if attachment != nil {
+			add(attachment.GetModality())
+		}
+	}
+	out := make([]sharedv1.Modality, 0, len(seen))
+	for modality := range seen {
+		out = append(out, modality)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
 }
 
 func roleSupportsKind(role providers.Role, kind sharedv1.RequestKind) bool {

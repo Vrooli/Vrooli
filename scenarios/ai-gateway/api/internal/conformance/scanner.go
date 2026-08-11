@@ -44,6 +44,7 @@ type rule struct {
 var (
 	modelSlugPattern     = regexp.MustCompile(`(?i)\b(gpt-[a-z0-9.-]+|claude-[a-z0-9.-]+|qwen[0-9a-z:.-]+|llama[0-9a-z:.-]+|mistral[0-9a-z:.-]+|nomic-embed-text[:a-z0-9.-]*)\b`)
 	contextWindowPattern = regexp.MustCompile(`\b(4096|8192|16384|32768|65536|128000|200000)\b`)
+	openRouterAPIURL     = regexp.MustCompile(`(?i)https?://(?:api\.)?openrouter\.ai/(?:api/)?v1(?:/|\b)`)
 )
 
 var rules = []rule{
@@ -63,7 +64,23 @@ var rules = []rule{
 		message:     "Direct OpenRouter HTTP usage bypasses resource-owned credential and model policy.",
 		remediation: "Route hosted text inference through AI Gateway or resource-openrouter with role policy.",
 		match: func(line string) bool {
-			return strings.Contains(strings.ToLower(line), "api.openrouter.ai")
+			return openRouterAPIURL.MatchString(line)
+		},
+	},
+	{
+		id:          "ai.non_gateway_provider_client_import",
+		severity:    "high",
+		message:     "Scenario code imports a resource provider client outside AI Gateway.",
+		remediation: "Expose the provider through AI Gateway and import only the gateway contract in caller scenarios.",
+		match: func(line string) bool {
+			l := strings.ToLower(strings.TrimSpace(line))
+			if !strings.Contains(l, "import") && !strings.Contains(l, "require(") {
+				return false
+			}
+			return strings.Contains(l, "resource-openrouter") ||
+				strings.Contains(l, "resource-ollama") ||
+				strings.Contains(l, "/resources/openrouter") ||
+				strings.Contains(l, "/resources/ollama")
 		},
 	},
 	{
@@ -223,6 +240,7 @@ func scanOneFile(root, path string) ([]*conformancev1.ConformanceFinding, bool, 
 	usesGateway := false
 	aiSignal := false
 	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
 	lineNo := 0
 	for scanner.Scan() {
 		lineNo++
@@ -278,12 +296,18 @@ func lineFindings(rel string, lineNo int, line string) []*conformancev1.Conforma
 			"Persist embedding role, resolved model evidence, dimensions, content version, and retarget strategy beside stored vectors.",
 		))
 	}
-	return append(findings, ruleFindings(location, line)...)
+	return append(findings, ruleFindings(rel, location, line)...)
 }
 
-func ruleFindings(location, line string) []*conformancev1.ConformanceFinding {
+func ruleFindings(rel, location, line string) []*conformancev1.ConformanceFinding {
 	findings := make([]*conformancev1.ConformanceFinding, 0, len(rules))
 	for _, r := range rules {
+		// Documentation may name a provider secret while describing migration
+		// history or an unsafe pattern. Only runtime/configuration surfaces can
+		// actually read or declare that secret.
+		if r.id == "ai.invalid_provider_secret_env" && strings.EqualFold(filepath.Ext(rel), ".md") {
+			continue
+		}
 		if r.match(line) {
 			findings = append(findings, conformanceFinding(r.id, r.severity, location, r.message, r.remediation))
 		}
@@ -358,7 +382,7 @@ func resolveTargetPath(scenario, explicit string) (string, error) {
 
 func skipDir(name string) bool {
 	switch name {
-	case ".git", "node_modules", "dist", "build", "coverage", "data", ".vrooli":
+	case ".git", "node_modules", "dist", "dist-electron", "build", "coverage", "data", ".vrooli", "assets", "bundle":
 		return true
 	default:
 		return strings.HasSuffix(name, ".egg-info")
@@ -405,6 +429,8 @@ func titleForRule(ruleID string) string {
 		return "Direct Ollama HTTP usage"
 	case "ai.direct_openrouter_http":
 		return "Direct OpenRouter HTTP usage"
+	case "ai.non_gateway_provider_client_import":
+		return "Provider client imported outside AI Gateway"
 	case "ai.invalid_provider_secret_env":
 		return "Provider secret owned by scenario"
 	case "ai.invalid_provider_url_env":

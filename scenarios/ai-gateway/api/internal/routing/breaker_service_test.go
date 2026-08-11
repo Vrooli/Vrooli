@@ -46,6 +46,7 @@ func TestExecuteOpensBreakerAfterFailureAndFallsBackToHealthyProvider(t *testing
 	require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
 	require.Equal(t, "openrouter", resp.GetEvidence().GetSelectedProvider(), "healthy remote fallback is selected when local fails")
 	require.True(t, resp.GetEvidence().GetFallbackUsed())
+	require.Equal(t, "timeout", resp.GetEvidence().GetFailureClass(), "successful fallback preserves the primary failure class")
 
 	// The failed local provider now has an open breaker; the healthy remote
 	// provider is unaffected (provider isolation).

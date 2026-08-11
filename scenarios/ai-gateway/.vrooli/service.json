@@ -211,7 +211,50 @@
     }
   },
   "dependencies": {
-    "resources": {}
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "description": "Local inference provider for local-first gateway profiles",
+        "model_roles": [
+          "chat.default",
+          "extract.structured",
+          "locate.visual"
+        ]
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": false,
+        "description": "Hosted inference provider for remote-only and reviewed fallback profiles",
+        "model_roles": [
+          "chat.default",
+          "extract.structured",
+          "locate.visual"
+        ]
+      }
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "env": "OPENROUTER_API_KEY",
+        "label": "OpenRouter API key for hosted gateway fallback",
+        "description": "Process-scoped credential consumed only by the resource-openrouter command invoked behind AI Gateway.",
+        "required": false,
+        "obtain_url": "https://openrouter.ai/keys"
+      },
+      {
+        "logical_id": "vrooli/lpbs-account",
+        "field": "refresh-token",
+        "label": "Vrooli subscription session",
+        "description": "Device-scoped refresh credential shared by bundled scenarios. AI Gateway keeps only a short-lived access token in memory.",
+        "required": false
+      }
+    ]
   },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/ai-gateway.db"

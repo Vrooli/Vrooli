@@ -3,6 +3,8 @@ package routing_test
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -112,8 +114,9 @@ func mediaRequest(key string) *routingv1.SubmitMediaRequest {
 			Scenario:     "fixture",
 			Operation:    "generate",
 		},
-		Prompt:         "a red square",
-		OutputCount:    1,
-		IdempotencyKey: key,
+		Prompt:          "a red square",
+		OutputCount:     1,
+		IdempotencyKey:  key,
+		OutputReference: filepath.Join(os.TempDir(), "ai-gateway-media-test-output.png"),
 	}
 }

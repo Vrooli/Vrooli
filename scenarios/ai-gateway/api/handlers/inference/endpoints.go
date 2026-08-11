@@ -14,7 +14,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Run schema-constrained typed inference",
 		Description: "Executes one provider-neutral inference request and locally validates the returned JSON before marking it successful.",
 		Category:    "inference",
-		Request:     &module.Schema{Type: "RunRequest", Properties: map[string]string{"source": "string", "schema_json": "string", "instruction": "string", "role": "string"}},
+		Request:     &module.Schema{Type: "RunRequest", Properties: map[string]string{"source": "string", "schema_json": "string", "instruction": "string", "role": "string", "turns": "Turn[]", "attachments": "Attachment[]"}},
 		Response:    &module.Schema{Type: "RunResponse", Properties: map[string]string{"value_json": "string", "provider": "string", "model": "string", "validated": "bool", "usage": "Usage", "error": "InferenceError"}},
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "The source, role, or schema is invalid"}},
 	},

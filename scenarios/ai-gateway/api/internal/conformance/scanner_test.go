@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -37,6 +38,90 @@ const dims = 768 // embedding vector size
 	for _, finding := range report.Findings {
 		require.NotContains(t, finding.GetMessage(), "qwen3:4b")
 		require.NotContains(t, finding.GetMessage(), "OPENROUTER_API_KEY")
+	}
+}
+
+func TestScannerFindsOpenRouterAPIHostWithoutAPISubdomain(t *testing.T) { // [REQ:AIGW-CONFORMANCE-INVENTORY]
+	root := t.TempDir()
+	writeFile(t, root, "api/client.ts", `
+const endpoint = "https://openrouter.ai/api/v1/chat/completions";
+`)
+
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "fixture",
+		Path:     root,
+	})
+	require.NoError(t, err)
+	requireRule(t, report.Findings, "ai.direct_openrouter_http")
+}
+
+func TestScannerFindsProviderClientImports(t *testing.T) { // [REQ:AIGW-CONFORMANCE-BOUNDARY]
+	root := t.TempDir()
+	writeFile(t, root, "api/client.go", `
+package api
+
+import resourceollama "github.com/vrooli/resource-ollama/client"
+`)
+
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "fixture",
+		Path:     root,
+	})
+	require.NoError(t, err)
+	requireRule(t, report.Findings, "ai.non_gateway_provider_client_import")
+}
+
+func TestBrowserAutomationStudioHasNoHighConformanceFindings(t *testing.T) { // [REQ:AIGW-CONFORMANCE-BAS]
+	_, sourceFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", "..", "..", "browser-automation-studio"))
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "browser-automation-studio",
+		Path:     root,
+	})
+	require.NoError(t, err)
+	for _, finding := range report.Findings {
+		require.NotEqual(t, "high", finding.GetSeverity(), "%s: %s", finding.GetPath(), finding.GetMessage())
+	}
+}
+
+func TestBrowserAutomationStudioDoesNotRetainProviderRegistryOrMediaExecutor(t *testing.T) { // [REQ:AIGW-CONFORMANCE-BAS]
+	_, sourceFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", "..", "..", "browser-automation-studio"))
+	registry := filepath.Join(root, "playwright-driver", "src", "ai", "vision-client", "model-registry.ts")
+	_, err := os.Stat(registry)
+	require.ErrorIs(t, err, os.ErrNotExist, "concrete provider model registry must not return to the BAS driver")
+
+	err = filepath.WalkDir(filepath.Join(root, "playwright-driver", "src"), func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || filepath.Ext(path) != ".ts" {
+			return nil
+		}
+		contents, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		require.NotContains(t, string(contents), "MediaExecutor", path)
+		require.NotContains(t, string(contents), "calculateCost", path)
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestBrowserAutomationStudioDoesNotReadProviderSecrets(t *testing.T) { // [REQ:AIGW-CONFORMANCE-BAS]
+	_, sourceFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", "..", "..", "browser-automation-studio"))
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "browser-automation-studio",
+		Path:     root,
+	})
+	require.NoError(t, err)
+	for _, finding := range report.Findings {
+		require.NotEqual(t, "ai.invalid_provider_secret_env", finding.GetRuleId(), "%s: %s", finding.GetPath(), finding.GetMessage())
 	}
 }
 

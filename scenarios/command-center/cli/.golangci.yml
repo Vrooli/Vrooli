@@ -14,7 +14,7 @@ linters:
 
 linters-settings:
   gofumpt:
-    module-path: {{SCENARIO_ID}}/cli
+    module-path: command-center/cli
   revive:
     rules:
       - name: blank-imports

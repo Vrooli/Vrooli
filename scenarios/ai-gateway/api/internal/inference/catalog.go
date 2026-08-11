@@ -90,7 +90,7 @@ func (c RoleCatalog) Validate() error {
 				}
 			}
 			provider := strings.ToLower(strings.TrimSpace(candidate.Provider))
-			if provider != "ollama" && provider != "openrouter" {
+			if provider != "ollama" && provider != "openrouter" && provider != "lpbs" {
 				return fmt.Errorf("inference role %q candidate provider %q is unsupported", role, candidate.Provider)
 			}
 			key := provider + ":" + candidate.ResourceRole

@@ -49,7 +49,7 @@ func (s *Service) Run(ctx context.Context, request ProviderRequest) *inferencev1
 }
 
 func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, schema map[string]any, response *inferencev1.RunResponse) *inferencev1.RunResponse {
-	if strings.TrimSpace(request.Source) == "" {
+	if strings.TrimSpace(request.Source) == "" && len(request.Turns) == 0 && len(request.Attachments) == 0 {
 		return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "source is required", "source")
 	}
 	if strings.TrimSpace(request.Role) == "" {
@@ -76,7 +76,14 @@ func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, sc
 			return withError(response, code, err.Error(), "")
 		}
 		response.ValueJson = result.ValueJSON
-		if err := ValidateJSON(schema, []byte(result.ValueJSON)); err != nil {
+		if strings.TrimSpace(request.Role) == "locate.visual" {
+			value, err := NormalizeLocateVisualJSON(result.ValueJSON, result.CoordinateConvention, requestAttachments(request))
+			if err != nil {
+				return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_VALIDATION_FAILED, err.Error(), "bounds")
+			}
+			response.ValueJson = value
+		}
+		if err := ValidateJSON(schema, []byte(response.ValueJson)); err != nil {
 			validationErr = err
 			continue
 		}

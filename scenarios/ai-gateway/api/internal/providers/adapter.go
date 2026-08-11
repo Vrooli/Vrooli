@@ -2,6 +2,7 @@ package providers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 const (
 	ProviderOllama     = "ollama"
 	ProviderOpenRouter = "openrouter"
+	ProviderMetered    = "lpbs"
 )
 
 type Adapter struct {
@@ -23,12 +25,14 @@ type Adapter struct {
 	CommandName string
 	Locality    string
 	Runner      CommandRunner
+	Metered     *MeteredClient
 }
 
 type Role struct {
 	Provider            string
 	Role                string
 	Capabilities        []string
+	InputModalities     []sharedv1.Modality
 	Locality            string
 	Status              string
 	PolicySchemaVersion string
@@ -51,6 +55,7 @@ type Inventory struct {
 type ExecutionRequest struct {
 	Kind            sharedv1.RequestKind
 	Role            string
+	Profile         sharedv1.Profile
 	InputText       string
 	MaxOutputTokens int32
 	Timeout         time.Duration
@@ -61,7 +66,8 @@ type ExecutionRequest struct {
 	Temperature *float64
 	// SchemaJSON is passed through the provider's native structured-output
 	// request field. The gateway still validates the returned value locally.
-	SchemaJSON string
+	SchemaJSON  string
+	Attachments []*sharedv1.Attachment
 }
 
 type ExecutionResult struct {
@@ -70,11 +76,12 @@ type ExecutionResult struct {
 }
 
 type ResolvedRole struct {
-	Provider       string
-	Role           string
-	Model          string
-	CanonicalModel string
-	Capabilities   []string
+	Provider             string
+	Role                 string
+	Model                string
+	CanonicalModel       string
+	Capabilities         []string
+	CoordinateConvention string
 }
 
 type rolePolicyReport struct {
@@ -86,6 +93,9 @@ type rolePolicyEntry struct {
 	Role                 string   `json:"role"`
 	RequiredCapabilities []string `json:"required_capabilities"`
 	Capabilities         []string `json:"capabilities"`
+	Modalities           struct {
+		Input []string `json:"input"`
+	} `json:"modalities"`
 }
 
 func NewDefaultAdapters(runner CommandRunner) []Adapter {
@@ -99,6 +109,12 @@ func NewDefaultAdapters(runner CommandRunner) []Adapter {
 }
 
 func (a Adapter) ListRoles(ctx context.Context) (Inventory, error) {
+	if a.Provider == ProviderMetered {
+		if a.Metered == nil {
+			return Inventory{}, &CommandError{Code: "unavailable", Command: a.Provider, ExitCode: -1, Err: errors.New("metered inference client is not configured")}
+		}
+		return Inventory{Roles: []Role{{Provider: a.Provider, Role: "metered", Locality: "remote", Status: "available"}}}, nil
+	}
 	result, err := a.runPolicyRoles(ctx)
 	if err != nil {
 		return Inventory{}, mapCommandError(a.Provider, err)
@@ -133,6 +149,7 @@ func (a Adapter) ListRoles(ctx context.Context) (Inventory, error) {
 			Provider:            a.Provider,
 			Role:                roleName,
 			Capabilities:        sortedUnique(capabilities),
+			InputModalities:     parseModalities(entry.Modalities.Input),
 			Locality:            a.Locality,
 			Status:              "available",
 			PolicySchemaVersion: strings.TrimSpace(entry.SchemaVersion),
@@ -151,15 +168,22 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 	if role == "" {
 		return ResolvedRole{}, &CommandError{Code: "invalid_request", Command: a.Provider, ExitCode: -1, Err: errors.New("role is required")}
 	}
+	if a.Provider == ProviderMetered {
+		if a.Metered == nil {
+			return ResolvedRole{}, &CommandError{Code: "unavailable", Command: a.Provider, ExitCode: -1, Err: errors.New("metered inference client is not configured")}
+		}
+		return ResolvedRole{Provider: a.Provider, Role: role, Model: "policy-resolved", CanonicalModel: "policy-resolved"}, nil
+	}
 	result, err := a.runner().Run(ctx, Command{Name: a.CommandName, Args: []string{"policy", "resolve", "--role", role, "--json"}, Timeout: DefaultCommandTimeout})
 	if err != nil {
 		return ResolvedRole{}, mapCommandError(a.Provider, err)
 	}
 	var response struct {
-		Role         string   `json:"role"`
-		Model        string   `json:"model"`
-		Canonical    string   `json:"canonical_model"`
-		Capabilities []string `json:"capabilities"`
+		Role                 string   `json:"role"`
+		Model                string   `json:"model"`
+		Canonical            string   `json:"canonical_model"`
+		Capabilities         []string `json:"capabilities"`
+		CoordinateConvention string   `json:"coordinate_convention"`
 	}
 	if err := json.Unmarshal([]byte(result.Stdout), &response); err != nil {
 		return ResolvedRole{}, &CommandError{Code: "malformed_json", Command: a.command().String(), ExitCode: result.ExitCode, Stderr: result.Stderr, Err: err}
@@ -167,7 +191,14 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 	if strings.TrimSpace(response.Role) != role || strings.TrimSpace(response.Model) == "" {
 		return ResolvedRole{}, &CommandError{Code: "invalid_role_resolution", Command: a.command().String(), ExitCode: result.ExitCode, Err: fmt.Errorf("resource returned role %q and model %q for requested role %q", response.Role, response.Model, role)}
 	}
-	return ResolvedRole{Provider: a.Provider, Role: role, Model: response.Model, CanonicalModel: response.Canonical, Capabilities: sortedUnique(response.Capabilities)}, nil
+	return ResolvedRole{
+		Provider:             a.Provider,
+		Role:                 role,
+		Model:                response.Model,
+		CanonicalModel:       response.Canonical,
+		Capabilities:         sortedUnique(response.Capabilities),
+		CoordinateConvention: strings.TrimSpace(response.CoordinateConvention),
+	}, nil
 }
 
 func (a Adapter) Smoke(ctx context.Context) SmokeResult {
@@ -194,6 +225,24 @@ func (a Adapter) Smoke(ctx context.Context) SmokeResult {
 }
 
 func (a Adapter) Execute(ctx context.Context, req ExecutionRequest) (ExecutionResult, error) {
+	if a.Provider == ProviderMetered {
+		if a.Metered == nil {
+			return ExecutionResult{}, &CommandError{Code: "unavailable", Command: a.Provider, ExitCode: -1, Err: errors.New("metered inference client is not configured")}
+		}
+		result, err := a.Metered.Run(ctx, MeteredRequest{
+			Role: req.Role, Messages: []MeteredMessage{{Role: "user", Content: req.InputText}},
+			ConstraintsJSON: req.SchemaJSON, MaxTokens: int(req.MaxOutputTokens),
+			Profile: req.Profile,
+		})
+		if err != nil {
+			return ExecutionResult{}, &CommandError{Code: "provider_failed", Command: a.Provider, ExitCode: -1, Err: err}
+		}
+		encoded, marshalErr := json.Marshal(result)
+		if marshalErr != nil {
+			return ExecutionResult{}, fmt.Errorf("encode metered inference result: %w", marshalErr)
+		}
+		return ExecutionResult{OutputText: string(encoded)}, nil
+	}
 	command, err := a.executionCommand(req)
 	if err != nil {
 		return ExecutionResult{}, err
@@ -257,20 +306,32 @@ func (a Adapter) ollamaExecutionCommand(req ExecutionRequest, role string, input
 		}, nil
 	case sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
 		sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION:
+		stdin, jsonEnvelope, err := multimodalStdin(input, req.Attachments)
+		if err != nil {
+			return Command{}, err
+		}
 		args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
+		if jsonEnvelope {
+			args = []string{"gateway", "generate", "--role", role, "--json", "--input-json-stdin"}
+		}
 		if req.MaxOutputTokens > 0 {
 			args = append(args, "--max-tokens", fmt.Sprintf("%d", req.MaxOutputTokens))
 		}
 		if req.Temperature != nil {
 			args = append(args, "--temperature", strconv.FormatFloat(*req.Temperature, 'g', -1, 64))
 		}
-		if strings.TrimSpace(req.SchemaJSON) != "" {
+		// Ollama's qwen3-vl template returns an empty visible response when
+		// /api/generate receives a structured-output format alongside images.
+		// locate.visual still carries its provider schema in the prompt and the
+		// gateway remains the authoritative validator, so omit the native format
+		// only for this image role. Text structured inference keeps native format.
+		if strings.TrimSpace(req.SchemaJSON) != "" && strings.TrimSpace(req.Role) != "vision.default" {
 			if !json.Valid([]byte(req.SchemaJSON)) {
 				return Command{}, &CommandError{Code: "invalid_request", Command: a.Provider, ExitCode: -1, Err: errors.New("schema_json must be valid JSON")}
 			}
 			args = append(args, "--format", req.SchemaJSON)
 		}
-		return Command{Name: a.CommandName, Args: args, Stdin: input, Timeout: timeout}, nil
+		return Command{Name: a.CommandName, Args: args, Stdin: stdin, Timeout: timeout}, nil
 	default:
 		return Command{}, &CommandError{Code: "unsupported_kind", Command: a.Provider, ExitCode: -1, Err: fmt.Errorf("request kind %s is not executable", req.Kind.String())}
 	}
@@ -282,6 +343,15 @@ func (a Adapter) openRouterExecutionCommand(req ExecutionRequest, role string, i
 		return Command{}, &CommandError{Code: "unsupported_kind", Command: a.Provider, ExitCode: -1, Err: fmt.Errorf("request kind %s is not executable by openrouter", req.Kind.String())}
 	}
 	args := []string{"generate", "--role", role, "--json"}
+	stdin, jsonEnvelope, err := multimodalStdin(input, req.Attachments)
+	if err != nil {
+		return Command{}, err
+	}
+	if jsonEnvelope {
+		args = append(args, "--input-json-stdin")
+	} else {
+		stdin = input
+	}
 	if req.MaxOutputTokens > 0 {
 		args = append(args, "--max-tokens", fmt.Sprintf("%d", req.MaxOutputTokens))
 	}
@@ -292,7 +362,59 @@ func (a Adapter) openRouterExecutionCommand(req ExecutionRequest, role string, i
 		format := fmt.Sprintf(`{"type":"json_schema","json_schema":{"name":"vrooli_typed_value","strict":true,"schema":%s}}`, req.SchemaJSON)
 		args = append(args, "--response-format", format)
 	}
-	return Command{Name: a.CommandName, Args: args, Stdin: input, Timeout: timeout}, nil
+	return Command{Name: a.CommandName, Args: args, Stdin: stdin, Timeout: timeout}, nil
+}
+
+type multimodalEnvelope struct {
+	Prompt string `json:"prompt"`
+	Images []struct {
+		MediaType string `json:"media_type"`
+		DataB64   string `json:"data_b64"`
+	} `json:"images"`
+}
+
+func multimodalStdin(prompt string, attachments []*sharedv1.Attachment) (string, bool, error) {
+	if len(attachments) == 0 {
+		return prompt, false, nil
+	}
+	envelope := multimodalEnvelope{Prompt: prompt}
+	for _, attachment := range attachments {
+		if attachment == nil || len(attachment.GetInlineBytes()) == 0 {
+			return "", false, &CommandError{Code: "attachment_unresolved", Command: "provider execution", ExitCode: -1, Err: errors.New("provider execution requires resolved inline attachment bytes")}
+		}
+		mediaType := strings.TrimSpace(attachment.GetMediaType())
+		if mediaType == "" {
+			mediaType = "application/octet-stream"
+		}
+		envelope.Images = append(envelope.Images, struct {
+			MediaType string `json:"media_type"`
+			DataB64   string `json:"data_b64"`
+		}{MediaType: mediaType, DataB64: base64.StdEncoding.EncodeToString(attachment.GetInlineBytes())})
+	}
+	raw, err := json.Marshal(envelope)
+	if err != nil {
+		return "", false, fmt.Errorf("marshal multimodal request: %w", err)
+	}
+	return string(raw), true, nil
+}
+
+func parseModalities(values []string) []sharedv1.Modality {
+	out := make([]sharedv1.Modality, 0, len(values))
+	for _, value := range values {
+		switch strings.ToLower(strings.TrimSpace(value)) {
+		case "text":
+			out = append(out, sharedv1.Modality_MODALITY_TEXT)
+		case "image":
+			out = append(out, sharedv1.Modality_MODALITY_IMAGE)
+		case "vector":
+			out = append(out, sharedv1.Modality_MODALITY_VECTOR)
+		case "video":
+			out = append(out, sharedv1.Modality_MODALITY_VIDEO)
+		case "audio":
+			out = append(out, sharedv1.Modality_MODALITY_AUDIO)
+		}
+	}
+	return out
 }
 
 func mapCommandError(provider string, err error) error {

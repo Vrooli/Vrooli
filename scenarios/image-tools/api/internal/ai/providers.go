@@ -817,10 +817,10 @@ func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run comman
 			return fmt.Errorf("ai: register builtin provider %q: %w", p.Name(), err)
 		}
 	}
-	// BYOK cloud provider (last tier). Registered unconditionally; it reports
-	// unavailable until an OpenRouter key is configured, so it never affects the
-	// local-first path and only runs when allow_byok is set.
-	if err := reg.Register(newOpenRouterProvider()); err != nil {
+	// BYOK cloud provider (last tier). The provider is registered unconditionally
+	// so selection and readiness remain explicit, but all remote transport,
+	// credentials, model policy, receipts, and retries belong to AI Gateway.
+	if err := reg.Register(newAIGatewayProvider(newAIGatewayMediaClient())); err != nil {
 		return fmt.Errorf("ai: register provider %q: %w", models.BackendOpenRouter, err)
 	}
 	return nil

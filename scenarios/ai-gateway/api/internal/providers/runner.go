@@ -21,9 +21,12 @@ type CommandRunner interface {
 }
 
 type Command struct {
-	Name    string
-	Args    []string
-	Stdin   string
+	Name  string
+	Args  []string
+	Stdin string
+	// Env contains ephemeral values for the child resource process. It is never
+	// included in Command.String or error messages.
+	Env     map[string]string
 	Timeout time.Duration
 }
 
@@ -74,6 +77,9 @@ func (ExecRunner) Run(ctx context.Context, command Command) (Result, error) {
 
 	cmd := exec.CommandContext(ctx, command.Name, command.Args...) // #nosec G204 -- command.Name is restricted by allowedResourceCommand; args are fixed by adapters, prompt data is passed via stdin.
 	cmd.Env = os.Environ()
+	for key, value := range command.Env {
+		cmd.Env = append(cmd.Env, key+"="+value)
+	}
 	if command.Stdin != "" {
 		cmd.Stdin = strings.NewReader(command.Stdin)
 	}

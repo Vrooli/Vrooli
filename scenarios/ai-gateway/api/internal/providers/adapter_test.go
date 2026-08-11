@@ -2,9 +2,14 @@ package providers
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
+	"time"
+
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 func TestAdapter_ListRoles_ParsesResourcePolicyOutput(t *testing.T) { // [REQ:AIGW-PROVIDER-CLI-ONLY] [REQ:AIGW-INVENTORY-ROLES]
@@ -90,6 +95,38 @@ func TestAdapter_Smoke_MapsMissingBinary(t *testing.T) { // [REQ:AIGW-INVENTORY-
 	}).Smoke(context.Background())
 	if smoke.Status != "unavailable" || smoke.Code != "missing_binary" {
 		t.Fatalf("smoke = %+v", smoke)
+	}
+}
+
+func TestAdapterMultimodalUsesJSONStdinAndNeverArgv(t *testing.T) { // [REQ:AIGW-MULTIMODAL-CONTRACT]
+	runner := &fakeRunner{results: map[string]Result{
+		"resource-ollama gateway generate --role vision.default --json --input-json-stdin": {Stdout: `{"response":"ok"}`},
+	}}
+	image := []byte{1, 2, 3}
+	command, err := (Adapter{Provider: ProviderOllama, CommandName: "resource-ollama", Locality: "local", Runner: runner}).executionCommand(ExecutionRequest{
+		Kind:        sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+		Role:        "vision.default",
+		InputText:   "describe",
+		Timeout:     time.Second,
+		Attachments: []*sharedv1.Attachment{{MediaType: "image/png", Payload: &sharedv1.Attachment_InlineBytes{InlineBytes: image}}},
+	})
+	if err != nil {
+		t.Fatalf("executionCommand: %v", err)
+	}
+	if command.String() != "resource-ollama gateway generate --role vision.default --json --input-json-stdin" {
+		t.Fatalf("command = %q", command.String())
+	}
+	var envelope struct {
+		Prompt string `json:"prompt"`
+		Images []struct {
+			DataB64 string `json:"data_b64"`
+		} `json:"images"`
+	}
+	if err := json.Unmarshal([]byte(command.Stdin), &envelope); err != nil {
+		t.Fatalf("decode stdin: %v", err)
+	}
+	if envelope.Prompt != "describe" || len(envelope.Images) != 1 || envelope.Images[0].DataB64 != base64.StdEncoding.EncodeToString(image) {
+		t.Fatalf("envelope = %+v", envelope)
 	}
 }
 

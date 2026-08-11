@@ -3,6 +3,8 @@ package routing_test
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -57,6 +59,7 @@ func TestExecutePersistsRedactedEvidenceAndKeepsInputOutOfCommandString(t *testi
 	require.True(t, resp.GetValid())
 	require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
 	require.Equal(t, "ollama", resp.GetEvidence().GetSelectedProvider())
+	require.Equal(t, "qwen3.5:9b", resp.GetEvidence().GetSelectedModel())
 	require.True(t, resp.GetEvidence().GetPromptRedacted())
 	require.True(t, resp.GetEvidence().GetResponseRedacted())
 	require.NotContains(t, strings.Join(resp.GetEvidence().GetPolicyReasons(), " "), "sensitive prompt")
@@ -83,6 +86,66 @@ func TestExecuteFailsClosedWhenEvidenceCannotBePersisted(t *testing.T) { // [REQ
 	require.Contains(t, err.Error(), "persist successful route evidence")
 }
 
+func TestMultimodalRouteUsesDeclaredModalityAndRedactsAttachmentEvidence(t *testing.T) { // [REQ:AIGW-MULTIMODAL-CONTRACT]
+	runner := multimodalRoleRunner()
+	runner.Results["resource-ollama gateway generate --role chat.default --json --input-json-stdin"] = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
+	db := newSchemaDB(t)
+	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db))
+	image := []byte{137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 'I', 'H', 'D', 'R', 0, 0, 0, 1, 0, 0, 0, 1}
+	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
+	req.Attachments = []*sharedv1.Attachment{{
+		Modality:  sharedv1.Modality_MODALITY_IMAGE,
+		MediaType: "image/png",
+		Width:     1,
+		Height:    1,
+		Bytes:     uint64(len(image)),
+		Payload:   &sharedv1.Attachment_InlineBytes{InlineBytes: image},
+	}}
+	resp, err := svc.Execute(context.Background(), req, "describe")
+	require.NoError(t, err)
+	require.True(t, resp.GetValid())
+	require.Equal(t, int32(1), resp.GetEvidence().GetImageCount())
+	require.Equal(t, int64(len(image)), resp.GetEvidence().GetAttachmentBytes())
+	require.True(t, resp.GetEvidence().GetAttachmentsRedacted())
+	require.NotContains(t, resp.GetEvidence().String(), base64.StdEncoding.EncodeToString(image))
+	require.Len(t, resp.GetEvidence().GetAttachmentDimensions(), 1)
+	require.Contains(t, runner.Commands[len(runner.Commands)-1].Stdin, base64.StdEncoding.EncodeToString(image))
+
+	var stored string
+	require.NoError(t, db.QueryRow("SELECT attachment_dimensions_json FROM route_events LIMIT 1").Scan(&stored))
+	require.NotContains(t, stored, base64.StdEncoding.EncodeToString(image))
+	require.NotContains(t, routing.Schema(), "data_b64")
+	rows, err := db.Query("SELECT * FROM route_events")
+	require.NoError(t, err)
+	defer rows.Close()
+	columns, err := rows.Columns()
+	require.NoError(t, err)
+	require.True(t, rows.Next())
+	values := make([]any, len(columns))
+	destinations := make([]any, len(values))
+	for index := range values {
+		destinations[index] = &values[index]
+	}
+	require.NoError(t, rows.Scan(destinations...))
+	for _, value := range values {
+		require.NotContains(t, fmt.Sprint(value), base64.StdEncoding.EncodeToString(image))
+	}
+}
+
+func TestMultimodalRouteRejectsTextOnlyRoleBeforeProviderCall(t *testing.T) { // [REQ:AIGW-MULTIMODAL-CONTRACT]
+	runner := roleRunner()
+	svc := routing.NewService(testAdapters(runner), nil)
+	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
+	req.Attachments = []*sharedv1.Attachment{{Modality: sharedv1.Modality_MODALITY_IMAGE, MediaType: "image/png", Width: 1, Height: 1, Payload: &sharedv1.Attachment_InlineBytes{InlineBytes: []byte{137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 'I', 'H', 'D', 'R', 0, 0, 0, 1, 0, 0, 0, 1}}}}
+	resp, err := svc.Preview(context.Background(), req)
+	require.NoError(t, err)
+	require.True(t, resp.GetValid())
+	require.Len(t, resp.GetCandidates(), 2)
+	for _, candidate := range resp.GetCandidates() {
+		require.Equal(t, "capability_mismatch", candidate.GetRejectionReason())
+	}
+}
+
 func roleRunner() *mocks.FakeRunner {
 	return &mocks.FakeRunner{
 		Results: map[string]providers.Result{
@@ -92,6 +155,24 @@ func roleRunner() *mocks.FakeRunner {
 			"resource-openrouter policy roles --json": {
 				Stdout: `{"roles":[{"schema_version":"1","role":"chat.default","required_capabilities":["generate","chat"]}]}`,
 			},
+			"resource-ollama policy resolve --role chat.default --json": {
+				Stdout: `{"role":"chat.default","model":"qwen3.5:9b"}`,
+			},
+			"resource-openrouter policy resolve --role chat.default --json": {
+				Stdout: `{"role":"chat.default","model":"google/gemini-3.1-flash-lite-preview"}`,
+			},
+		},
+		Errors: map[string]error{},
+	}
+}
+
+func multimodalRoleRunner() *mocks.FakeRunner {
+	return &mocks.FakeRunner{
+		Results: map[string]providers.Result{
+			"resource-ollama policy roles --json":                           {Stdout: `{"roles":[{"schema_version":"1","role":"chat.default","required_capabilities":["generate","chat"],"modalities":{"input":["text","image"],"output":["text"]}}]}`},
+			"resource-openrouter policy roles --json":                       {Stdout: `{"roles":[{"schema_version":"1","role":"chat.default","required_capabilities":["generate","chat"],"modalities":{"input":["text","image"],"output":["text"]}}]}`},
+			"resource-ollama policy resolve --role chat.default --json":     {Stdout: `{"role":"chat.default","model":"qwen3.5:9b"}`},
+			"resource-openrouter policy resolve --role chat.default --json": {Stdout: `{"role":"chat.default","model":"google/gemini-3.1-flash-lite-preview"}`},
 		},
 		Errors: map[string]error{},
 	}

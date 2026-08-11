@@ -27,7 +27,12 @@ CREATE TABLE IF NOT EXISTS route_events (
   input_tokens INTEGER NOT NULL DEFAULT 0,
   output_tokens INTEGER NOT NULL DEFAULT 0,
   cost_estimate REAL NOT NULL DEFAULT 0,
-  selected_model TEXT NOT NULL DEFAULT ''
+  selected_model TEXT NOT NULL DEFAULT '',
+  image_count INTEGER NOT NULL DEFAULT 0,
+  attachment_bytes INTEGER NOT NULL DEFAULT 0,
+  attachment_sha256 TEXT NOT NULL DEFAULT '',
+  attachments_redacted INTEGER NOT NULL DEFAULT 1,
+  attachment_dimensions_json TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE INDEX IF NOT EXISTS idx_route_events_created_at ON route_events(created_at DESC);

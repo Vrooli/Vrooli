@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Route preview, execution reasoning, and audit evidence.",
-    "last_validated_at": "2026-08-07T03:02:46-04:00",
+    "last_validated_at": "2026-08-10T18:46:19-04:00",
     "module": "route-evidence",
     "prd_ref": "OT-P0-004",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "AIGW-ROUTE-PREVIEW",
       "title": "Route preview explains provider selection before execution",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "routing.preview",
       "criticality": "P0",
@@ -26,14 +26,14 @@
           "type": "test",
           "ref": "api/internal/routing/service_test.go::TestPreviewSelectsLocalFirstAndExplainsFallback",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates route preview candidate ordering, policy reasons, and fallback eligibility."
         },
         {
           "type": "test",
           "ref": "api/handlers/routing/connect_handler_test.go::TestPreviewRouteUsesGatewayValidationBeforeRouting",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates preview RPC applies gateway request validation before routing."
         }
       ]
@@ -41,7 +41,7 @@
     {
       "id": "AIGW-ROUTE-EVIDENCE",
       "title": "Executed requests produce auditable route evidence",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "routing.evidence",
       "criticality": "P0",
@@ -56,14 +56,14 @@
           "type": "test",
           "ref": "api/internal/routing/service_test.go::TestExecutePersistsRedactedEvidenceAndKeepsInputOutOfCommandString",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates persistence and prompt/response redaction behavior for route evidence."
         },
         {
           "type": "test",
           "ref": "api/internal/routing/service_test.go::TestExecuteFailsClosedWhenEvidenceCannotBePersisted",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates execution fails closed when successful route evidence cannot be persisted."
         }
       ]
@@ -71,7 +71,7 @@
     {
       "id": "AIGW-ROUTE-EVIDENCE-CODES",
       "title": "Route evidence carries stable machine-readable outcome codes",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "category": "routing.evidence",
       "criticality": "P0",
@@ -86,14 +86,14 @@
           "type": "test",
           "ref": "api/internal/routing/evidence_codes_test.go::TestEvidenceRoundTripPersistsStructuredCodes",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Repository round-trip persists every structured code column; backward-compatible fields still round-trip and no prompt/response text is stored."
         },
         {
           "type": "test",
           "ref": "api/internal/routing/evidence_codes_test.go::TestExecuteRecordsFailureClassAndRedactsOnFailure",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Service populates failure_class/rejection_reason/breaker_state per outcome (failed, blocked, half-open success) with redaction preserved."
         }
       ]
@@ -101,7 +101,7 @@
     {
       "id": "AIGW-ROUTE-MEASURES",
       "title": "Route evidence feeds descriptor-backed analytics measures",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "category": "routing.measures",
       "criticality": "P1",
@@ -116,14 +116,14 @@
           "type": "test",
           "ref": "api/handlers/measures/measures_test.go::TestMeasuresAggregateMathOverWindow",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "SQL-aggregate math over route_events (counts, rates, p95, empty window) and shared Connect/registry compute path."
         },
         {
           "type": "test",
           "ref": "api/handlers/measures/measures_test.go::TestConnectRPCsShareComputePath",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Connect MeasuresService RPCs and the /measures registry share one compute path. `measures-health validate scenario ai-gateway --probe` passes with the route_events waiver removed (Domain Coverage L3, Declaration Assembly L3, Behavioral Indexing L2, 0 errors)."
         }
       ]

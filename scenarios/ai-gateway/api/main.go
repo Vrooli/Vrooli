@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"ai-gateway/internal/clock"
 	inference "ai-gateway/internal/inference"
@@ -21,6 +22,8 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	_ "modernc.org/sqlite"
 
 	conformanceH "ai-gateway/handlers/conformance"
@@ -156,12 +159,40 @@ func main() {
 		log.Printf("typed inference disabled: %v", err)
 		inferenceRepository = inference.UnavailableRepository{Reason: err.Error()}
 		roleCatalog = inference.RoleCatalog{}
-	} else if resourceRepository, repositoryErr := inference.NewResourceRepository(roleCatalog, providers.NewDefaultAdapters(nil)); repositoryErr != nil {
-		log.Printf("typed inference disabled: %v", repositoryErr)
-		inferenceRepository = inference.UnavailableRepository{Reason: repositoryErr.Error()}
-		roleCatalog = inference.RoleCatalog{}
 	} else {
-		inferenceRepository = resourceRepository
+		adapters := providers.NewDefaultAdapters(nil)
+		if endpoint := strings.TrimSpace(os.Getenv("LPBS_METERED_INFERENCE_URL")); endpoint != "" {
+			var resolveAccessToken func(context.Context, string) (string, error)
+			if authority, authorityErr := credentialauthority.Default(); authorityErr != nil {
+				log.Printf("subscription-backed inference shared credential unavailable: %v", authorityErr)
+			} else if client, clientErr := credentialclient.NewClient(credentialclient.ClientOptions{
+				Authority: authority,
+				Descriptors: func() ([]credentialclient.CredentialRef, error) {
+					return credentialclient.DiscoverDescriptors(repoRoot())
+				},
+			}); clientErr != nil {
+				log.Printf("subscription-backed inference credential client unavailable: %v", clientErr)
+			} else {
+				resolver := &credentialclient.ConsumerSessionResolver{Credentials: client}
+				resolveAccessToken = func(ctx context.Context, baseURL string) (string, error) {
+					access, err := resolver.ResolveAt(ctx, baseURL)
+					if err != nil {
+						return "", err
+					}
+					return "Bearer " + access.AccessToken, nil
+				}
+			}
+			adapters = append(adapters, providers.Adapter{Provider: providers.ProviderMetered, Locality: "remote", Metered: providers.NewMeteredClient(providers.MeteredClientOptions{
+				BaseURL: endpoint, ResolveAccessToken: resolveAccessToken,
+			})})
+		}
+		if resourceRepository, repositoryErr := inference.NewResourceRepository(roleCatalog, adapters); repositoryErr != nil {
+			log.Printf("typed inference disabled: %v", repositoryErr)
+			inferenceRepository = inference.UnavailableRepository{Reason: repositoryErr.Error()}
+			roleCatalog = inference.RoleCatalog{}
+		} else {
+			inferenceRepository = resourceRepository
+		}
 	}
 
 	srv := server.New(
@@ -172,7 +203,10 @@ func main() {
 		inferenceH.Module(inferenceH.Deps{Service: inference.NewService(inferenceRepository)}),
 		inventoryH.Module(inventoryH.Deps{InferenceRoles: roleCatalog.RoleNames()}),
 		measuresModule,
-		routingH.Module(routingH.Deps{DB: db.Primary()}),
+		routingH.Module(routingH.Deps{
+			DB:            db.Primary(),
+			MediaExecutor: internalrouting.NewResourceOpenRouterMediaExecutor(nil),
+		}),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -189,8 +223,10 @@ func main() {
 	handler := apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Handler:      handler,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 2 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

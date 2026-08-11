@@ -7,6 +7,7 @@ import (
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 
 	internalinference "ai-gateway/internal/inference"
+	"ai-gateway/internal/providers"
 )
 
 type connectHandler struct {
@@ -21,8 +22,10 @@ func (h *connectHandler) Run(ctx context.Context, req *connect.Request[inference
 	if req == nil || req.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
 	}
+	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
 	response := h.service.Run(ctx, internalinference.ProviderRequest{
-		Source: req.Msg.GetSource(), SchemaJSON: req.Msg.GetSchemaJson(), Instruction: req.Msg.GetInstruction(), Role: req.Msg.GetRole(),
+		Source: req.Msg.GetSource(), SchemaJSON: req.Msg.GetSchemaJson(), Instruction: req.Msg.GetInstruction(), Role: req.Msg.GetRole(), Profile: req.Msg.GetProfile(),
+		Turns: req.Msg.GetTurns(), Attachments: req.Msg.GetAttachments(),
 	})
 	return connect.NewResponse(response), nil
 }
@@ -31,6 +34,7 @@ func (h *connectHandler) RunBatch(ctx context.Context, req *connect.Request[infe
 	if req == nil || req.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
 	}
+	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
 	requests := make([]internalinference.ProviderRequest, 0, len(req.Msg.GetItems()))
 	for _, item := range req.Msg.GetItems() {
 		requests = append(requests, internalinference.ProviderRequest{

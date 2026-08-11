@@ -21,13 +21,7 @@
       "types": "./dist/shared/types.d.ts"
     }
   },
-  "files": [
-    "dist",
-    "src",
-    "docs",
-    "README.md",
-    "IMPLEMENTATION_PLAN.md"
-  ],
+  "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist coverage",

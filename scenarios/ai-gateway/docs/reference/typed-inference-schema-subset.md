@@ -31,3 +31,25 @@ Provider output is advisory. ai-gateway parses the returned JSON and validates
 it locally against the submitted schema. Only a locally valid value is marked
 `validated: true`; malformed or schema-violating output returns a typed
 validation failure with usage and provider provenance preserved.
+
+## `locate.visual`
+
+The gateway-owned `locate.visual` role uses the following request schema shape:
+
+```json
+{
+  "type": "object",
+  "required": ["found", "bounds", "confidence"],
+  "properties": {
+    "found": {"type": "boolean"},
+    "bounds": {"type": "array", "items": {"type": "number"}},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+  }
+}
+```
+
+The gateway additionally requires exactly four bounds and normalizes the
+provider response to `[left, top, right, bottom]` floats in `[0,1]` using the
+resolved model's declared `coordinate_convention`. A caller supplies image
+width and height on the attachment; coordinate conversion is rejected when
+dimensions are missing or the converted bounds leave the image.

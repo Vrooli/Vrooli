@@ -101,6 +101,13 @@ documents the reason:
 | ai-chatbot-manager | adjacent, not replacement | Product/chat interface management. | It should call AI Gateway for AI work once the gateway contract exists. |
 | image-tools | adjacent | Owns local/remote image model orchestration. | Coordinate cross-modal requests; do not absorb image provider logic. |
 | audio-tools | adjacent | Owns local/remote audio model orchestration. | Coordinate cross-modal requests; do not absorb audio provider logic. |
+| browser-automation-studio | adopted | Multimodal browser navigation. | Call `InferenceService.Run` with `extract.structured`, ordered turns, screenshot attachments, and `local_first`/`remote_only` profiles. BAS retains browser action execution; provider credentials, model selection, and usage remain gateway/resource-owned. |
+
+Browser Automation Studio is the reference caller for multimodal inference.
+It must not import resource provider clients, read provider secret environment
+variables, select concrete model slugs, or maintain price tables. Its isolated
+Claude computer-use exception has a dated replacement trigger in the BAS
+decision log.
 
 ## Failure Modes
 

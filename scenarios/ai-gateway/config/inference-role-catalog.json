@@ -17,6 +17,12 @@
           "resource_role": "classify.routing",
           "model": "policy-resolved",
           "reason": "Hosted classification fallback when the local resource is unavailable."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "classify.fast",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered fallback when local and operator BYOK routes are unavailable."
         }
       ]
     },
@@ -36,6 +42,12 @@
           "resource_role": "extract.structured",
           "model": "policy-resolved",
           "reason": "Hosted structured-output fallback for schemas the local resource cannot reliably produce."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered structured-output fallback."
       }
     ]
   },
@@ -55,6 +67,36 @@
         "resource_role": "extract.structured",
         "model": "policy-resolved",
         "reason": "Hosted structured-output fallback when the local judge is unavailable."
+      },
+      {
+        "provider": "lpbs",
+        "resource_role": "judge.default",
+        "model": "policy-resolved",
+        "reason": "Subscription-backed metered judge fallback."
+      }
+    ]
+  }
+  ,"locate.visual": {
+    "description": "Visual grounding that returns canonical target bounds and confidence without exposing provider coordinates.",
+    "timeout_ms": 90000,
+    "candidates": [
+      {
+        "provider": "ollama",
+        "resource_role": "vision.default",
+        "model": "policy-resolved",
+        "reason": "Local-first grounding keeps captured frames on the device and uses the measured vision model ladder."
+      },
+      {
+        "provider": "openrouter",
+        "resource_role": "vision.default",
+        "model": "policy-resolved",
+        "reason": "Hosted multimodal grounding fallback for hosts without an available local vision rung."
+      },
+      {
+        "provider": "lpbs",
+        "resource_role": "vision.default",
+        "model": "policy-resolved",
+        "reason": "Subscription-backed metered visual grounding fallback."
       }
     ]
   }

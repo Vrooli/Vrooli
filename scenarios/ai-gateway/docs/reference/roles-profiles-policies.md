@@ -21,6 +21,17 @@ AI Gateway should display resource role policies and route through them,
 but should not edit them as its primary storage path. Resource policy
 changes belong in resource scenario work.
 
+### Multimodal input
+
+`GatewayRequest.attachments` adds input modalities to the existing request
+kind; it does not create a parallel vision operation. The gateway requires
+the selected resource role to declare every required input modality (for
+example, text plus image) and rejects a mismatch with `capability_mismatch`
+before invoking a provider. `RunRequest` additionally accepts ordered
+`turns`; turns are request-scoped and the gateway stores no conversation
+identifier or history. Route evidence retains only a hash, byte count, image
+count, dimensions, and redaction flags.
+
 ## Baseline Roles
 
 The gateway should understand these logical roles even when a specific
@@ -34,6 +45,7 @@ provider does not support every role yet:
 | `summarize.default` | Summarization. | existing | existing | Common scenario utility. |
 | `classify.routing` | Classification/routing decisions. | existing | existing | Should be cheap and reliable. |
 | `extract.structured` | JSON/structured extraction. | should be added | existing | User explicitly wants this added for Ollama. |
+| `locate.visual` | Visual grounding. | local-first | hosted fallback | Returns canonical bounds and caller-owned confidence. |
 | `embedding.default` | General embeddings. | existing | investigate/add if supported | OpenRouter support must be verified in resource-openrouter first. |
 | `rerank.llm_fallback` | LLM fallback reranking. | existing | existing | Not the same as a dedicated reranker. |
 | `code.default` / `code.local` | Code assistance. | local/hosted split | existing hosted | Gateway may normalize caller intent later. |
@@ -43,13 +55,38 @@ Status should be read from resource policies at runtime. This table is
 a planning baseline, not an executable model catalog.
 
 Typed inference is the narrower execution contract layered on top of those
-provider roles. Its gateway-owned catalog selects `classify.fast` and
-`extract.structured`, orders local and hosted candidates, and records the
-resolved provider/model in every response. The catalog does not edit resource
-policy or treat schema descriptions as caller instructions. The current local
-structured-extraction candidate deliberately uses Ollama's existing
-`chat.default` policy role until the resource exposes a dedicated extraction
-role; the gateway still enforces the JSON Schema subset locally.
+provider roles. Its gateway-owned catalog selects `classify.fast`,
+`extract.structured`, and `locate.visual`, orders local and hosted candidates,
+and records the resolved provider/model in every response. The catalog does not
+edit resource policy or treat schema descriptions as caller instructions. The
+current local structured-extraction candidate deliberately uses Ollama's
+existing `chat.default` policy role until the resource exposes a dedicated
+extraction role; the gateway still enforces the JSON Schema subset locally.
+
+### `locate.visual` coordinate contract
+
+The role returns this provider-neutral value shape:
+
+```json
+{
+  "found": true,
+  "bounds": [0.10, 0.20, 0.40, 0.80],
+  "confidence": 0.73
+}
+```
+
+`bounds` is always four finite floats in canonical `[0,1]` space, ordered as
+`[left, top, right, bottom]` relative to the submitted image. `confidence` is
+returned unchanged in `[0,1]`; the gateway does not apply a threshold because
+the caller owns the consequence of accepting a weak grounding result.
+
+Resources declare the model response convention in `policy resolve` output
+through `coordinate_convention`. The gateway currently accepts
+`normalized_1000` (coordinates relative to a 0-to-1000 square) and
+`absolute_pixels` (pixels in the submitted image). Conversion is selected from
+that declaration, never guessed from numeric range. The gateway requires
+positive attachment dimensions and rejects unknown conventions or converted
+bounds outside the image, so callers never need provider-specific coordinates.
 
 ## Recommended Gateway Profiles
 

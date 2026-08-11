@@ -162,7 +162,7 @@ func (s *MediaService) Retry(ctx context.Context, id, key string) (*routingv1.Me
 }
 
 func (s *MediaService) run(id string, req *routingv1.SubmitMediaRequest) {
-	ctx := context.Background()
+	ctx := context.WithValue(context.Background(), mediaExecutionIDKey{}, id)
 	started := s.now().Format(time.RFC3339Nano)
 	res, err := s.db.ExecContext(ctx, `UPDATE media_executions SET status = ?, started_at = ? WHERE execution_id = ? AND status = ?`,
 		int32(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_RUNNING), started, id,
@@ -292,6 +292,9 @@ func validateMediaSubmission(req *routingv1.SubmitMediaRequest) error {
 	}
 	if strings.TrimSpace(req.GetIdempotencyKey()) == "" {
 		return errors.New("idempotency_key is required")
+	}
+	if strings.TrimSpace(req.GetOutputReference()) == "" {
+		return errors.New("output_reference is required")
 	}
 	return nil
 }

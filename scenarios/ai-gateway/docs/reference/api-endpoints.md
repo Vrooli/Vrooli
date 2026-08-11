@@ -87,6 +87,9 @@ The validator rejects provider-specific caller authority such as
 provider names, provider URLs, concrete model slugs, credentials,
 embedding dimensions, and context-window metadata. It also rejects
 secret requests paired with profiles that may require remote providers.
+Attachments are ephemeral: inline image bytes are checked with a header-only
+dimension parser, references are opaque application identifiers, public
+privacy is rejected, and count/size ceilings are named in field-level issues.
 
 ### Inventory
 
@@ -145,7 +148,7 @@ returning provider output to the caller.
 |---|---|
 | **Request** | `ExecuteRouteRequest { request: GatewayRequest, input_text: string }` |
 | **Response** | `ExecuteRouteResponse { valid: bool, issues: repeated ValidationIssue, evidence: RouteEvidence, output_text: string, policy_reasons: repeated string }` |
-| **Persistence** | Fails closed if route evidence cannot be recorded. Evidence stores redaction flags and metadata, not raw prompt/response content. |
+| **Persistence** | Fails closed if route evidence cannot be recorded. Evidence stores redaction flags and attachment metadata (count, bytes, hash, dimensions), never raw prompt/response content or image bytes. |
 | **CLI** | `ai-gateway routing execute --role <role> --input <text> [--profile local-first]` |
 
 #### `POST /vrooli.ai_gateway.v1.routing.RoutingService/ListRouteEvidence`

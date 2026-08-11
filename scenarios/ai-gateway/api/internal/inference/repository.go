@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 // ProviderRequest is the provider-neutral payload sent to a repository. The
@@ -14,15 +17,19 @@ type ProviderRequest struct {
 	SchemaJSON  string
 	Instruction string
 	Role        string
+	Profile     sharedv1.Profile
+	Turns       []*inferencev1.Turn
+	Attachments []*sharedv1.Attachment
 }
 
 type ProviderResult struct {
-	ValueJSON    string
-	Provider     string
-	Model        string
-	InputTokens  int64
-	OutputTokens int64
-	CostMicros   int64
+	ValueJSON            string
+	Provider             string
+	Model                string
+	CoordinateConvention string
+	InputTokens          int64
+	OutputTokens         int64
+	CostMicros           int64
 }
 
 type Repository interface {
