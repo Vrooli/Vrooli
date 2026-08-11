@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "backdrop-studio",
+  "description": "L0 experience contract for Backdrop Studio. The workbench is a specimen sheet, not a gallery: chrome stays achromatic so the only saturated colour on screen is inside the artwork under judgement. Every route states its purpose, its priorities, and the states it must render. Claims and bindings are added as each route becomes real.",
+  "pages": [
+    { "id": "catalog", "path": "pages/catalog.json", "title": "Catalog", "status": "active" },
+    { "id": "style", "path": "pages/style.json", "title": "Style", "status": "active" },
+    { "id": "compose", "path": "pages/compose.json", "title": "Composer", "status": "active" },
+    { "id": "candidates", "path": "pages/candidates.json", "title": "Candidates", "status": "active" },
+    { "id": "placements", "path": "pages/placements.json", "title": "Placement Preview", "status": "active" },
+    { "id": "sweep", "path": "pages/sweep.json", "title": "Contact Sheet", "status": "active" },
+    { "id": "backdrops", "path": "pages/backdrops.json", "title": "Released Backdrops", "status": "active" },
+    { "id": "settings", "path": "pages/settings.json", "title": "Settings", "status": "active" }
+  ],
+  "journeys": [
+    {
+      "id": "produce-a-hero-backdrop",
+      "path": "journeys/produce-a-hero-backdrop.json",
+      "title": "Produce a hero backdrop with no model and no spend",
+      "status": "active"
+    },
+    {
+      "id": "guided-backdrop-with-disclosure",
+      "path": "journeys/guided-backdrop-with-disclosure.json",
+      "title": "Produce a guided backdrop, and understand what it cost and what it discloses",
+      "status": "active"
+    }
+  ]
+}

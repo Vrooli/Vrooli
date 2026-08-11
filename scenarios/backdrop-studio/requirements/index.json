@@ -1,0 +1,16 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-catalog/module.json",
+    "02-scaffold/module.json",
+    "03-compose/module.json",
+    "04-render/module.json",
+    "05-legibility/module.json",
+    "06-release/module.json",
+    "07-workbench/module.json"
+  ]
+}

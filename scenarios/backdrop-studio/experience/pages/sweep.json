@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "sweep",
+    "title": "Contact Sheet",
+    "routes": ["/sweep"],
+    "purpose": "Render a grid across two chosen axes so a style family is evaluated as a set. This is the surface that makes the taxonomy tangible — the axes stop being a schema and become a space you can look at.",
+    "prd_refs": ["OT-P1-002", "OT-P0-016"]
+  },
+  "priorities": [
+    {
+      "statement": "The cost of a sweep is stated before it runs.",
+      "notes": "A sweep is N renders. A procedural sweep is free; a model-backed sweep is N times the unit cost. The operator sees which, and the cell count, before starting."
+    },
+    {
+      "statement": "Skipped cells are reported, never silently dropped.",
+      "notes": "A partial grid presented as complete is a lie about coverage. Each skipped cell names why — an unsatisfiable axis combination, a licence block, or a failed render."
+    },
+    {
+      "statement": "The grid is readable as a comparison, with axes labelled on both edges.",
+      "notes": "The point is seeing what changes along each axis, which requires the axis to be legible without counting tiles."
+    }
+  ],
+  "states": [
+    {
+      "id": "configuring",
+      "description": "Two axes chosen, cell count and estimated cost shown, run available.",
+      "setup": { "route": "/sweep" }
+    },
+    {
+      "id": "running",
+      "description": "Cells populate progressively; the grid holds its shape so it does not reflow as results arrive.",
+      "setup": { "route": "/sweep", "query": "job=active" }
+    },
+    {
+      "id": "complete",
+      "description": "Every cell rendered, each showing its verdict, with any cell promotable to a full candidate review.",
+      "setup": { "route": "/sweep", "query": "job=done" }
+    },
+    {
+      "id": "partial",
+      "description": "Some cells were skipped. The grid shows which and why, and the summary states the coverage achieved rather than implying completeness.",
+      "setup": { "route": "/sweep", "query": "job=partial" }
+    },
+    {
+      "id": "cost-blocked",
+      "description": "The configured sweep exceeds the available metered allowance. States the allowance, the required amount, and offers a procedural-only sweep as an alternative.",
+      "setup": { "route": "/sweep", "query": "job=blocked" }
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "_metadata": {
+    "module": "compose",
+    "description": "Resolution of a style plus a brief into an explicit, inspectable execution plan. Owns palette-slot binding, delegation boundaries, and the pre-execution licensing gate.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CMP-001",
+      "title": "The system shall return a resolved plan without executing it",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "compose",
+      "criticality": "P0",
+      "description": "When asked to explain a composition, the system shall resolve a style and a brief into a plan naming the strategy, the ordered operations, the fully merged parameters, the conditioning inputs, and the expected execution path, and shall return that plan without performing any raster work or model inference.",
+      "tags": ["dry-run", "inspectability", "seam"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Compose is a pure function over its inputs. Assert the explain path performs no call against the image-tools seam using a fake that fails on invocation."
+        }
+      ]
+    },
+    {
+      "id": "CMP-002",
+      "title": "The system shall resolve brand palette slots through brand-manager at render time",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "compose",
+      "criticality": "P0",
+      "description": "The system shall resolve treatment parameters written as `$brand.*` slots by querying `brand-manager` for the active brand at render time. The system shall not persist a resolved color into the style record, so that one style yields a correct image per brand.",
+      "tags": ["brand", "palette-lock", "integration"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Compose the same style against two brands through a faked brand-manager seam; assert the resolved parameters differ and the stored style is unchanged."
+        }
+      ]
+    },
+    {
+      "id": "CMP-003",
+      "title": "The system shall refuse to render when a palette slot does not resolve",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "compose",
+      "criticality": "P0",
+      "description": "If a style holds a palette slot that the active brand does not define, then the system shall refuse to render and shall name the unresolved slot. The system shall not substitute a default color, because a silently substituted color defeats the palette-lock property the treatment layer exists to provide.",
+      "tags": ["brand", "refusal", "error-handling"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Compose a style holding an undefined slot; assert refusal and that the slot name appears in the error."
+        }
+      ]
+    },
+    {
+      "id": "CMP-004",
+      "title": "The system shall perform every raster operation and model inference through image-tools",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "compose",
+      "criticality": "P0",
+      "description": "The system shall route every raster operation and every model inference through the `image-tools` seam. The system shall contain no pixel-manipulation implementation, no model-provider URL, and no inference credential. A treatment absent from `image-tools` is an upstream change request, not a local implementation.",
+      "tags": ["boundary", "delegation", "invariant"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Structural check: assert no image-decoding or pixel-buffer dependency appears in this scenario's module graph outside the image-tools client, mirroring the AST-check pattern storage-manager applies to routed test isolation."
+        }
+      ]
+    },
+    {
+      "id": "CMP-005",
+      "title": "The system shall name the ai-gateway role and profile rather than a model",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "compose",
+      "criticality": "P0",
+      "description": "The system shall express a model-backed style's inference need as an `ai-gateway` role identifier and a routing profile. The system shall refuse a style that names a concrete model, so that model selection stays owned by the layer that probes the host and holds the routing policy.",
+      "tags": ["ai-gateway", "boundary", "validation"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Assert a style declaring a model identifier is rejected, and that a style declaring a role and profile composes into a plan carrying both."
+        }
+      ]
+    },
+    {
+      "id": "CMP-006",
+      "title": "The system shall refuse a plan whose adapter licensing forbids commercial use",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "compose",
+      "criticality": "P0",
+      "description": "If a resolved plan depends on a conditioning adapter whose licensing metadata forbids commercial use, then the system shall mark the plan as unreleasable and shall name the adapter and its restriction. The system shall evaluate this at composition time so that spend is not incurred against work that cannot ship.",
+      "tags": ["licensing", "compliance", "refusal"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Compose against a faked adapter registry entry carrying a non-commercial licence; assert the plan is marked unreleasable before any render call occurs."
+        }
+      ]
+    }
+  ]
+}

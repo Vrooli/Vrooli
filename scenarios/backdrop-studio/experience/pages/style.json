@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "style",
+    "title": "Style",
+    "routes": ["/styles/:styleId"],
+    "purpose": "Inspect, edit, and fork one style. This is where the taxonomy is authored, so it must teach the vocabulary through use rather than assume it.",
+    "prd_refs": ["OT-P0-001", "OT-P0-002", "OT-P0-010", "OT-P1-001"]
+  },
+  "priorities": [
+    {
+      "statement": "Editing an axis re-renders the specimen immediately.",
+      "notes": "The connection between a parameter and its visual consequence is the thing being taught. A form that requires a save to see the effect breaks that loop."
+    },
+    {
+      "statement": "The strategy governs which fields are shown.",
+      "notes": "A procedural style shows no generation block; a guided style shows the scaffold. Displaying inapplicable fields would invite the contradictions the catalog refuses at write."
+    },
+    {
+      "statement": "The copy-safe region is drawn on the specimen, not typed as four numbers.",
+      "notes": "It is a spatial decision and should be made spatially, with the numeric values shown alongside for precision."
+    },
+    {
+      "statement": "Forking is offered wherever an edit is refused.",
+      "notes": "A style referenced by a released backdrop is immutable. The refusal should present forking as the path forward rather than as a dead end."
+    }
+  ],
+  "states": [
+    {
+      "id": "viewing",
+      "description": "The style with a live specimen, its axes, treatment chain, copy-safe overlay, and gate thresholds.",
+      "setup": { "route": "/styles/cyanotype-arcade" }
+    },
+    {
+      "id": "editing",
+      "description": "Fields are live; the specimen re-renders as parameters change. Unsaved changes are indicated.",
+      "setup": { "route": "/styles/cyanotype-arcade", "hash": "edit" }
+    },
+    {
+      "id": "locked-by-release",
+      "description": "The version is referenced by a released backdrop and cannot be edited. Names the referencing release and offers to fork into a new version.",
+      "setup": { "route": "/styles/cyanotype-arcade", "query": "version=1" }
+    },
+    {
+      "id": "validation-failed",
+      "description": "A write was refused. Names the offending axis, value, or strategy contradiction — for example a guided style with no scaffold.",
+      "setup": { "route": "/styles/cyanotype-arcade", "hash": "edit" }
+    },
+    {
+      "id": "forked",
+      "description": "A new style derived from this one, showing its parent reference and which axes were changed.",
+      "setup": { "route": "/styles/cyanotype-arcade-2" }
+    },
+    {
+      "id": "not-found",
+      "description": "The style does not exist. Offers the catalog and any close identifier match.",
+      "setup": { "route": "/styles/missing" }
+    }
+  ]
+}

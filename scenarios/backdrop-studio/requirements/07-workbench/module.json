@@ -1,0 +1,113 @@
+{
+  "_metadata": {
+    "module": "workbench",
+    "description": "The operator-facing studio surface: catalog browsing by axis, composition, candidate judgement, placement preview, and the accessibility obligations a contrast tool cannot itself violate.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "UIX-001",
+      "title": "The system shall provide a workbench covering browse, compose, render, judge, and release",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The system shall provide a UI to browse the catalog by axis, compose a brief against a style, watch a render, judge candidates against the legibility gate, and release a backdrop. Every route shall render an explicit loading, error, and empty state rather than an indefinite blank.",
+      "tags": ["workbench", "ui-states"],
+      "validation": [
+        {
+          "type": "e2e",
+          "status": "planned",
+          "notes": "Given a seeded catalog, when the operator composes and renders a procedural style, then a candidate appears with its verdict and can be released."
+        }
+      ]
+    },
+    {
+      "id": "UIX-002",
+      "title": "The system shall state the specific cause whenever release is unavailable",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "While release is unavailable, the system shall name the specific unmet condition — the failing contrast measurement, the unresolved palette slot, the restrictive adapter licence, the missing alt text, or the absent selection — and shall not present a disabled control without a stated reason.",
+      "tags": ["error-handling", "operator-legibility"],
+      "validation": [
+        {
+          "type": "e2e",
+          "status": "planned",
+          "notes": "Given each blocking condition in turn, when the operator opens release, then the specific cause is displayed."
+        }
+      ]
+    },
+    {
+      "id": "UIX-003",
+      "title": "The system shall convey a legibility verdict by numeric ratio and text label, not by color alone",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The system shall present every legibility verdict with its measured ratio and a text label alongside any color encoding. A contrast tool that communicates its own verdicts by hue would fail the users it exists to protect.",
+      "tags": ["accessibility", "wcag", "integrity"],
+      "validation": [
+        {
+          "type": "e2e",
+          "status": "planned",
+          "notes": "Assert the verdict element exposes both the numeric ratio and an accessible text label independent of its color."
+        }
+      ]
+    },
+    {
+      "id": "UIX-004",
+      "title": "The system shall display the resolved plan alongside every candidate",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The system shall display the strategy, seed, ordered operations, and resolved parameters that produced each candidate, so that a result reads as a recipe rather than an accident. The workbench shall offer that plan for copying.",
+      "tags": ["provenance", "reproducibility", "workbench"],
+      "validation": [
+        {
+          "type": "e2e",
+          "status": "planned",
+          "notes": "Assert every rendered candidate exposes its full resolved plan and that the copied payload round-trips into a reproducing render."
+        }
+      ]
+    },
+    {
+      "id": "UIX-005",
+      "title": "The system should render a selected candidate into each placement its style declares",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The system should preview a selected candidate in each declared placement at both a desktop and a mobile viewport, with representative copy in the copy-safe region, so that layout fitness is judged before release rather than after integration.",
+      "tags": ["placement", "preview", "workbench"],
+      "validation": [
+        {
+          "type": "e2e",
+          "status": "planned",
+          "notes": "Assert one preview per declared placement per viewport, each carrying its own contrast verdict."
+        }
+      ]
+    },
+    {
+      "id": "UIX-006",
+      "title": "The system shall keep imagery the only saturated color on the workbench surface",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The system shall render the workbench chrome achromatically so that the specimens under judgement are the only saturated elements on screen. A specimen frame shall paint an explicit declared ground rather than inheriting the page background, so that a backdrop is judged against a known surface in both themes.",
+      "tags": ["design-language", "judgement-integrity"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Design review against DESIGN.md in light and dark themes; assert specimen frames declare their own ground."
+        }
+      ]
+    }
+  ]
+}

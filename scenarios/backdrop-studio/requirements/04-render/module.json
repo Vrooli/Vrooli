@@ -1,0 +1,113 @@
+{
+  "_metadata": {
+    "module": "render",
+    "description": "Render job lifecycle, candidate sets, selection, and the invariant that every generation strategy terminates in a deterministic treatment pass.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "RND-001",
+      "title": "The system shall terminate every generation strategy in a deterministic treatment pass",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "render",
+      "criticality": "P0",
+      "description": "The system shall apply the style's declared treatment chain as the final stage of every render, regardless of which strategy produced the base image. The system shall not emit a candidate whose bytes came directly from a model without a treatment pass, because the treatment pass is what binds output to the brand palette and to a consistent screen.",
+      "tags": ["invariant", "anti-slop", "palette-lock"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "For each of the four strategies, assert the executed operation sequence ends with the style's treatment chain, and that a style with an empty treatment chain is refused at catalog write."
+        }
+      ]
+    },
+    {
+      "id": "RND-002",
+      "title": "The system shall allow one render request to produce several candidates",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "render",
+      "criticality": "P0",
+      "description": "The system shall allow one render request to produce a set of candidates and shall persist each candidate with the seed and resolved plan that produced it, so that any candidate in the set is independently reproducible.",
+      "tags": ["candidates", "provenance"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Request a candidate set of N; assert N candidates persist, each carrying a distinct seed and a complete resolved plan."
+        }
+      ]
+    },
+    {
+      "id": "RND-003",
+      "title": "The system shall require an explicit selection before a candidate proceeds to release",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "render",
+      "criticality": "P0",
+      "description": "The system shall require an explicit selection of one candidate from a set before that candidate enters the release path. The system shall not auto-select on a single-candidate set, so that the selection record always names who chose.",
+      "tags": ["selection", "lifecycle", "attribution"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Assert release is refused for an unselected candidate, including when the set contains exactly one."
+        }
+      ]
+    },
+    {
+      "id": "RND-004",
+      "title": "The system shall record whether a render ran locally or was routed onward",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "render",
+      "criticality": "P0",
+      "description": "The system shall record, for every render, the execution path `image-tools` took — local backend or onward routing — together with the model tier that served it, and shall report that path on the candidate. A result degraded by host capability shall be attributable rather than mysterious.",
+      "tags": ["observability", "degradation", "transparency"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Drive both paths through a faked image-tools seam; assert the recorded path and tier match what the seam reported."
+        }
+      ]
+    },
+    {
+      "id": "RND-005",
+      "title": "The system shall reject a lifecycle transition that the render contract does not declare",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "render",
+      "criticality": "P0",
+      "description": "The system shall persist each render as a job with an explicit status and shall reject any transition not declared in the lifecycle contract, naming the attempted transition.",
+      "tags": ["lifecycle", "state-machine"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Table test over the full transition matrix; every undeclared transition is refused with the attempted pair named."
+        }
+      ]
+    },
+    {
+      "id": "RND-006",
+      "title": "The system should render a grid across a chosen pair of axes in one request",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "render",
+      "criticality": "P1",
+      "description": "The system should accept a sweep request naming two axes and should produce one candidate per cell, so that a style family is evaluated as a set. The system should report the cells it skipped and why, rather than silently returning a partial grid.",
+      "tags": ["contact-sheet", "exploration"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Sweep two axes; assert cell count matches the cross product and that a deliberately unsatisfiable cell appears in the skipped report."
+        }
+      ]
+    }
+  ]
+}

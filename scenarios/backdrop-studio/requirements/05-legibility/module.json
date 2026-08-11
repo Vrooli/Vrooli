@@ -1,0 +1,96 @@
+{
+  "_metadata": {
+    "module": "legibility",
+    "description": "The gate that separates a pretty picture from a usable backdrop: worst-pixel contrast measurement under the copy-safe region, the release block, and scrim solving.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "LEG-001",
+      "title": "The system shall report the contrast ratio of the least legible pixel in the copy-safe region",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "legibility",
+      "criticality": "P0",
+      "description": "The system shall compute the WCAG contrast ratio between the intended text color and every pixel inside the candidate's copy-safe region, and shall report the minimum. The system shall not substitute a mean, median, or sampled approximation for that minimum, because a single bright area behind one word is sufficient to make a headline unreadable while an average stays comfortable.",
+      "tags": ["accessibility", "measurement", "gate"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Synthetic fixture: a dark field carrying one small bright patch inside the copy-safe region. Assert the reported ratio matches the patch, not the field."
+        }
+      ]
+    },
+    {
+      "id": "LEG-002",
+      "title": "The system shall compute contrast from correctly linearised sRGB luminance",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "legibility",
+      "criticality": "P0",
+      "description": "The system shall derive relative luminance by applying the sRGB transfer function before the luminance weighting, per WCAG 2.2. A ratio computed from raw channel values is wrong in a way that passes casual inspection, so this is stated as its own requirement rather than left implicit.",
+      "tags": ["accessibility", "correctness", "wcag"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Assert known reference pairs — black on white is 21:1, mid-grey #767676 on white is at least 4.5:1 — within a declared tolerance."
+        }
+      ]
+    },
+    {
+      "id": "LEG-003",
+      "title": "The system shall refuse to release a candidate that fails its declared contrast threshold",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "legibility",
+      "criticality": "P0",
+      "description": "If a candidate's worst-pixel contrast is below the threshold its style declares, then the system shall refuse release and shall state the measured value, the threshold, and the region measured. The system shall record the verdict against the candidate so that a later reader sees why it was blocked.",
+      "tags": ["gate", "refusal", "release"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Release a failing candidate; assert refusal, that measured value and threshold both appear, and that the verdict persists."
+        }
+      ]
+    },
+    {
+      "id": "LEG-004",
+      "title": "The system shall measure the region a placement actually occupies",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "legibility",
+      "criticality": "P0",
+      "description": "The system shall measure contrast against the copy-safe region as it lands in the placement being released for, including any crop that placement applies. A backdrop that passes as a full-bleed hero and fails as a mobile crop shall be reported as failing for the mobile crop.",
+      "tags": ["placement", "responsive", "gate"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "One candidate, two placements with different crops; assert independent verdicts and that the failing placement is named."
+        }
+      ]
+    },
+    {
+      "id": "LEG-005",
+      "title": "The system should compute the minimum scrim that would pass the gate",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "legibility",
+      "criticality": "P1",
+      "description": "Where a candidate fails the gate, the system should compute the least scrim opacity that would bring the worst pixel to the declared threshold, and should offer that value as an amendment to the style rather than applying it silently.",
+      "tags": ["scrim", "remediation"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Assert the returned opacity passes the gate and that one increment less fails it."
+        }
+      ]
+    }
+  ]
+}

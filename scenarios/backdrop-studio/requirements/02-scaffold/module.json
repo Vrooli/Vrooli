@@ -1,0 +1,79 @@
+{
+  "_metadata": {
+    "module": "scaffold",
+    "description": "Procedural scene generation and composition scaffolds. Owns the code that draws base imagery and the conditioning images that steer model-backed generation.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SCAF-001",
+      "title": "The system shall produce byte-identical procedural output for identical inputs",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "scaffold",
+      "criticality": "P0",
+      "description": "While a style declares a strategy of `procedural` or `procedural-treated`, the system shall produce byte-identical output for the same style version, seed, and resolved palette. The system shall draw from a seeded pseudo-random source and shall not read wall-clock time or an unseeded random source during scene generation.",
+      "tags": ["determinism", "reproducibility"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Render each seeded scene generator twice and compare checksums. A static check asserts no unseeded random or clock read inside the scaffold package."
+        }
+      ]
+    },
+    {
+      "id": "SCAF-002",
+      "title": "The system shall render a scaffold preset into a conditioning image",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "scaffold",
+      "criticality": "P0",
+      "description": "Where a style declares the `guided` strategy, the system shall render its scaffold preset into a conditioning image in the form its declared conditioner requires — a depth field for a depth conditioner, an edge drawing for an edge conditioner — and shall submit that image as the conditioning input on the generation request.",
+      "tags": ["controlnet", "conditioning", "guided"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "For each preset, assert both conditioner forms render, and that the composed plan carries the conditioning image reference."
+        }
+      ]
+    },
+    {
+      "id": "SCAF-003",
+      "title": "The system shall draw the copy-safe region into the scaffold as a featureless area",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "scaffold",
+      "criticality": "P0",
+      "description": "The system shall render the style's copy-safe region into the conditioning image as a flat, featureless area, so that the quiet zone is expressed to the model as structure rather than left to chance. This is the mechanism by which a guided render arrives already close to passing the legibility gate.",
+      "tags": ["legibility", "conditioning", "guided"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Assert the conditioning image's variance inside the copy-safe rectangle is below a declared flatness threshold for every preset."
+        }
+      ]
+    },
+    {
+      "id": "SCAF-004",
+      "title": "The system shall expose scaffold presets as parameterised records rather than fixed drawings",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "scaffold",
+      "criticality": "P0",
+      "description": "The system shall express each scaffold preset as a named record with declared parameters — at minimum horizon height, focal position, and focal scale — so that one preset serves many compositions and a style records which parameter values it used.",
+      "tags": ["composition", "parameterisation"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Assert each preset declares its parameter set and that two distinct parameter values yield distinct conditioning images."
+        }
+      ]
+    }
+  ]
+}

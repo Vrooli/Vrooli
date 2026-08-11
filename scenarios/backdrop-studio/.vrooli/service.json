@@ -1,0 +1,230 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "backdrop-studio",
+    "displayName": "Backdrop Studio",
+    "description": "Design-system-aware generation of ambient hero imagery for landing pages and promotional surfaces",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-11T17:11:34Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "4d9a287d9778aecf84874bd3da42179ca7cbca141f1732e49f8f2b20dfaf838d",
+    "content_sha": "8cac1fd2589bf7aaf3062463eadcd5f7c7920f5af941f1dd70ebc00017da9f16"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "backdrop-studio",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "backdrop-studio"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/backdrop-studio-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "backdrop-studio"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o backdrop-studio-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./backdrop-studio-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/backdrop-studio-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "build": {},
+    "deploy": {},
+    "clean": {},
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "check-temporal-models",
+          "run": "flow-verifier verify check --root .",
+          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
+        },
+        {
+          "name": "run-tests",
+          "run": "test-genie execute backdrop-studio --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        }
+      ]
+    },
+    "backup": {},
+    "restore": {},
+    "production": {},
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'backdrop-studio-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "image-tools": {
+        "enabled": true,
+        "name": "image-tools",
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Every raster treatment and every model inference runs here. Backdrop Studio ships no raster or provider code. ai-gateway is reached transitively through this dependency, never directly.",
+        "degraded_behavior": "The catalog, style authoring and released-backdrop surfaces stay available, but nothing renders: every treatment and every inference runs in image-tools and no local substitute is permitted. Compose still resolves and returns a plan, so the operator sees exactly what would run once the dependency returns."
+      },
+      "brand-manager": {
+        "enabled": true,
+        "name": "brand-manager",
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Resolves $brand.* palette slots at render time. An unresolved slot is refused by name and never defaulted.",
+        "degraded_behavior": "Browsing and released backdrops stay available, but no render proceeds: a $brand.* slot that cannot be resolved is refused by name and never defaulted, because a substituted colour would silently break the palette lock the treatment layer exists to provide."
+      },
+      "asset-studio": {
+        "enabled": true,
+        "name": "asset-studio",
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Provenance, cost and disclosure for model-backed releases only. Procedural releases deliberately do not depend on it, so the free lanes keep working when it is unavailable.",
+        "degraded_behavior": "Procedural and procedural-treated releases are unaffected and continue to work in full, since they incur no spend and carry no disclosure obligation. Only guided and synthesized releases are blocked, and they refuse with the dependency named."
+      }
+    }
+  },
+  "credentials": {},
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/backdrop-studio.db"
+  }
+}
