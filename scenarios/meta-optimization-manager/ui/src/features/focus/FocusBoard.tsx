@@ -15,15 +15,16 @@ export function FocusBoard() {
   const { t } = useTranslation();
   const focus = useQuery({ queryKey: ["focus", "next"], queryFn: () => focusClient.getFocus({}) });
   const gaps = useQuery({ queryKey: ["focus", "gaps"], queryFn: () => focusClient.listGaps({}) });
+  const condition = useQuery({ queryKey: ["focus", "condition"], queryFn: () => focusClient.listCondition({}) });
 
-  if (focus.isLoading || gaps.isLoading) {
+  if (focus.isLoading || gaps.isLoading || condition.isLoading) {
     return (
       <p data-testid={selectors.focus.loading} className="text-app-muted-foreground">
         {t(strings.common.loading)}
       </p>
     );
   }
-  if (focus.error || gaps.error) {
+  if (focus.error || gaps.error || condition.error) {
     return (
       <p data-testid={selectors.focus.error} className="text-red-400">
         {t(strings.common.error)}
@@ -33,7 +34,8 @@ export function FocusBoard() {
 
   const items = focus.data?.items ?? [];
   const registry = gaps.data?.gaps ?? [];
-  if (items.length === 0 && registry.length === 0) {
+  const conditionFindings = condition.data?.gaps ?? [];
+  if (items.length === 0 && registry.length === 0 && conditionFindings.length === 0) {
     return (
       <p data-testid={selectors.focus.empty} className="text-app-muted-foreground">
         {t(strings.pages.focus.empty)}
@@ -113,6 +115,35 @@ export function FocusBoard() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section aria-labelledby="condition-heading" className="flex flex-col gap-3">
+        <h3 id="condition-heading" className="text-lg font-semibold">
+          {t(strings.pages.focus.conditionHeading)}
+        </h3>
+        {conditionFindings.length === 0 ? (
+          <p className="text-xs text-app-muted-foreground">{t(strings.pages.focus.conditionEmpty)}</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {conditionFindings.map((gap) => (
+              <li
+                key={gap.id}
+                data-testid="condition-finding"
+                className="rounded-panel border border-app-border bg-app-surface p-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded bg-app-border px-2 py-0.5 text-xs font-mono">
+                    {gapAxisLabel(gap.axis)}
+                  </span>
+                  <span className="text-sm font-medium">{gap.title}</span>
+                </div>
+                {gap.notes.length > 0 && (
+                  <p className="mt-1 text-xs text-app-muted-foreground">{gap.notes.join(" · ")}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );

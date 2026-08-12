@@ -8,6 +8,10 @@ work lands, not while work is still speculative.
 
 ## Progress Log
 
+| 2026-08-12 | codex | done | **Condition axis surfaced end-to-end.** Focus now reads Search Hub's owner-measured condition source derived from live `NOW` Answer cells, ranks condition findings beside coverage gaps, exposes `condition status` / `condition explain-leg`, and the operator console renders condition findings beside the existing focus and gaps views. Focused API, ranking, CLI, UI, strings, and type checks pass; full API validation retains one workspace-artifact trial failure documented in `PROBLEMS.md`/the plan ledger. |
+
+| 2026-08-11 | codex | done | **Trustworthy retrieval and honest readiness plan completed.** Coverage numerator joins now consume typed Search Hub registry, routing reachability, and fresh eval evidence; Answer NOW is emitted only when all three signals hold, with per-cell evidence and method-versioned snapshots. Unavailable owners and unresolved capability gaps remain honest. Focus/list/status agree live; coverage and race tests pass. Comprehensive validation retains only documented pre-existing scenario debt. |
+
 | Date | Author | Status | Summary |
 |---|---|---|---|
 | 2026-06-24 | claude | done | Documentation-first charter. PRD authored to the canonical template (validates clean, 0 violations) with 4 domains + 8 OTs (P0: readiness/focus/gaps/base-doc; P1: trials/convergence; P2: UI/attested-search). Requirements registry generated (8 target modules, schema + linkage valid). Concept docs written: DOMAINS, ARCHITECTURE, COVERAGE-MODEL (keystone — the 3 space docs reference it), DATA, FLOWS, INTEGRATIONS. DECISIONS + PROBLEMS filled. No domain code yet; first slice = `coverage`. |

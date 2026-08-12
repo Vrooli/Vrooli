@@ -9,6 +9,37 @@ import (
 	pkg "github.com/vrooli/ai-go/search"
 )
 
+func TestCollectionForTuningVersionsHybridSchema(t *testing.T) {
+	if got := collectionForTuning(DefaultCollection, pkg.TuningConfig{Engine: pkg.EngineDense}); got != DefaultCollection {
+		t.Fatalf("dense collection = %q, want %q", got, DefaultCollection)
+	}
+	want := DefaultCollection + HybridCollectionSuffix
+	if got := collectionForTuning(DefaultCollection, pkg.TuningConfig{Engine: pkg.EngineHybrid}); got != want {
+		t.Fatalf("hybrid collection = %q, want %q", got, want)
+	}
+	if got := collectionForTuning(want, pkg.TuningConfig{Engine: pkg.EngineHybrid}); got != want {
+		t.Fatalf("already-versioned hybrid collection = %q, want %q", got, want)
+	}
+}
+
+func TestNewTunedServiceUsesVersionedHybridCollection(t *testing.T) {
+	base := TunedOptions{
+		Discovery:  sampleCorpus(),
+		Collection: DefaultCollection,
+		EngineDeps: pkg.EngineDeps{EmbedDimensions: 3},
+	}
+	dense := NewTunedService(pkg.TuningConfig{Engine: pkg.EngineDense}, base)
+	hybrid := NewTunedService(pkg.TuningConfig{Engine: pkg.EngineHybrid}, base)
+
+	if got := dense.current().spec.Name; got != DefaultCollection {
+		t.Fatalf("dense service collection = %q, want %q", got, DefaultCollection)
+	}
+	wantHybrid := DefaultCollection + HybridCollectionSuffix
+	if got := hybrid.current().spec.Name; got != wantHybrid {
+		t.Fatalf("hybrid service collection = %q, want %q", got, wantHybrid)
+	}
+}
+
 // errEnsureStore wraps a fake store but fails EnsureCollection — modelling the
 // schema-guard rejection of a structural index-time change (e.g. dense↔hybrid).
 type errEnsureStore struct {

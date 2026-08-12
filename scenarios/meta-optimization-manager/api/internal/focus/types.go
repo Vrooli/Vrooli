@@ -17,6 +17,8 @@
 package focus
 
 import (
+	"context"
+
 	"github.com/vrooli/api-core/spacedoc"
 )
 
@@ -70,6 +72,7 @@ type Gap struct {
 	Title              string
 	Status             spacedoc.CellStatus
 	SourceCellID       string
+	ProviderIDs        []string
 	Global             bool
 	EvidenceSource     string
 	EvidenceLocator    string
@@ -88,6 +91,46 @@ type FocusItem struct {
 	Importance float64
 	Priority   float64 // impact × importance
 	Rationale  string
+}
+
+// ProviderInsight is the small, provider-agnostic slice of Search Hub
+// telemetry needed to prioritize coverage gaps. The focus domain deliberately
+// does not import Search Hub's transport or storage types.
+type ProviderInsight struct {
+	ProviderID      string
+	ProviderGroup   string
+	TimesRouted     int64
+	DegradationRate float64
+}
+
+// ProviderInsights is the read seam for the optional third ranking factor.
+// Implementations may be remote; a failure must degrade the focus response,
+// never prevent the board from returning its structural ranking.
+type ProviderInsights interface {
+	Insights(ctx context.Context) ([]ProviderInsight, error)
+}
+
+// MaturityObservation is the small, read-only slice of Search Hub's
+// validation result needed by the condition axis. Findings remain owned by
+// Search Hub; focus only turns blocking evidence into a rankable item.
+type MaturityObservation struct {
+	Scenario      string
+	BlockingCodes []string
+}
+
+// MaturityReader reads Search Hub's per-scenario maturity evidence. It is
+// optional and independently degradable, like ProviderInsights.
+type MaturityReader interface {
+	Maturity(ctx context.Context) ([]MaturityObservation, error)
+}
+
+// FocusResult is the honest focus read model. Items remain useful when a live
+// join or telemetry read fails, but callers can distinguish that fallback from
+// a fully live computation.
+type FocusResult struct {
+	Items          []FocusItem
+	Degraded       bool
+	DegradedReason string
 }
 
 // GapFilter narrows ListGaps. A zero value matches everything.

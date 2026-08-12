@@ -165,10 +165,6 @@ func (r *execTrialRunner) RunTask(ctx context.Context, task TrialTask, fixture F
 // json.Decode ignores unknown fields, so extra response fields never break us.
 // =============================================================================
 
-type amProfile struct {
-	ID string `json:"id"`
-}
-
 type amTask struct {
 	ID string `json:"id"`
 }

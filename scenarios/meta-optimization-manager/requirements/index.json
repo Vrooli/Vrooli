@@ -12,6 +12,7 @@
     "05-trials/module.json",
     "06-convergence/module.json",
     "07-ui-dashboard/module.json",
-    "08-attested-search/module.json"
+    "08-attested-search/module.json",
+    "09-condition-axis/module.json"
   ]
 }

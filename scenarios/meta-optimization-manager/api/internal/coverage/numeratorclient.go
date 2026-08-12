@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -16,8 +17,12 @@ import (
 	bindingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings/bindings_v1connect"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph"
 	graphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph/graph_v1connect"
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
+	evalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval/eval_v1connect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry/registry_v1connect"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	runsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
@@ -30,6 +35,17 @@ import (
 // turns a slow/unreachable owner into a fast, honest per-projection UNAVAILABLE
 // instead of a board-wide hang.
 const numeratorDeadline = 3 * time.Second
+
+// answerEvalFreshnessWindow is deliberately explicit and shared by every
+// Answer join. A run older than this is historical evidence, not current
+// readiness evidence. Keep this separate from the Search Hub index-age signal:
+// the index can be fresh while the quality corpus has not been exercised.
+const answerEvalFreshnessWindow = 30 * 24 * time.Hour
+
+// answerEvalMinimumPassRate is the minimum graded pass fraction that can
+// substantiate a current Answer cell. A recent run with zero indexed documents
+// or zero graded cases is evidence of a broken measurement path, not freshness.
+const answerEvalMinimumPassRate = 0.8
 
 // scenarioResolver resolves an owner scenario slug to its API base URL. It seams
 // over discovery.Resolver so tests can point reads at an httptest server (or
@@ -88,20 +104,16 @@ func (j *apiNumeratorJoiner) Join(ctx context.Context, p Projection, cells []spa
 
 	switch p {
 	case ProjectionAnswer:
-		client := registryconnect.NewRegistryServiceClient(j.http, base)
-		resp, err := client.ListProviders(ctx, connect.NewRequest(&registryv1.ListProvidersRequest{}))
-		if err != nil {
-			return JoinResult{Available: false, Reason: rpcReason(owner, "ListProviders", err)}
-		}
-		return JoinResult{Available: true, Statuses: recomputeAnswer(cells, providersToLive(resp.Msg))}
+		return j.joinAnswer(ctx, base, cells)
 
 	case ProjectionValidate:
 		client := runsconnect.NewRunsServiceClient(j.http, base)
-		resp, err := client.GetSelfHealth(ctx, connect.NewRequest(&runsv1.GetSelfHealthRequest{}))
+		resp, err := client.GetSelfHealth(ctx, connect.NewRequest(&runsv1.GetSelfHealthRequest{SkipConformance: true}))
 		if err != nil {
 			return JoinResult{Available: false, Reason: rpcReason(owner, "GetSelfHealth", err)}
 		}
-		return JoinResult{Available: true, Statuses: recomputeValidate(cells, selfHealthToValidateIndex(resp.Msg.GetSelfHealth()))}
+		statuses, conditions := recomputeValidateWithConditions(cells, selfHealthToValidateIndex(resp.Msg.GetSelfHealth()))
+		return JoinResult{Available: true, Statuses: statuses, Conditions: conditions}
 
 	case ProjectionGuide:
 		client := graphconnect.NewGraphServiceClient(j.http, base)
@@ -131,6 +143,240 @@ func (j *apiNumeratorJoiner) Join(ctx context.Context, p Projection, cells []spa
 	default:
 		return JoinResult{Available: false, Reason: "unknown coverage projection: " + string(p)}
 	}
+}
+
+func (j *apiNumeratorJoiner) joinAnswer(ctx context.Context, base string, cells []spacedoc.Cell) JoinResult {
+	registryClient := registryconnect.NewRegistryServiceClient(j.http, base)
+	routingClient := routingconnect.NewRoutingServiceClient(j.http, base)
+	evalClient := evalconnect.NewEvalServiceClient(j.http, base)
+
+	// These reads are independent. Keep the caller's single short deadline so a
+	// slow owner degrades the whole Answer projection honestly instead of
+	// allowing one signal to outlive the others.
+	type result struct {
+		providers *registryv1.ListProvidersResponse
+		status    *routingv1.StatusResponse
+		suites    []*evalv1.EvalSuite
+		err       error
+		method    string
+	}
+	results := make(chan result, 3)
+	var wg sync.WaitGroup
+	call := func(method string, fn func() (any, error)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			value, err := fn()
+			item := result{err: err, method: method}
+			switch v := value.(type) {
+			case *registryv1.ListProvidersResponse:
+				item.providers = v
+			case *routingv1.StatusResponse:
+				item.status = v
+			case []*evalv1.EvalSuite:
+				item.suites = v
+			}
+			results <- item
+		}()
+	}
+	call("ListProviders", func() (any, error) {
+		// Fetch the complete registry for the authoring join. Capability-gap
+		// descriptors are registered owners and must therefore resolve for the
+		// base-doc integrity check, but they remain non-active evidence and can
+		// never promote a cell to NOW. Filtering ACTIVE here conflates those two
+		// questions and misreports every intentional gap stub as an unknown owner.
+		resp, err := registryClient.ListProviders(ctx, connect.NewRequest(&registryv1.ListProvidersRequest{}))
+		if err != nil {
+			return nil, err
+		}
+		return resp.Msg, nil
+	})
+	call("Status", func() (any, error) {
+		resp, err := routingClient.Status(ctx, connect.NewRequest(&routingv1.StatusRequest{}))
+		if err != nil {
+			return nil, err
+		}
+		return resp.Msg, nil
+	})
+	call("ListSuites", func() (any, error) {
+		resp, err := evalClient.ListSuites(ctx, connect.NewRequest(&evalv1.ListSuitesRequest{}))
+		if err != nil {
+			return nil, err
+		}
+		return resp.Msg.GetSuites(), nil
+	})
+	wg.Wait()
+	close(results)
+
+	var providers *registryv1.ListProvidersResponse
+	var status *routingv1.StatusResponse
+	var suites []*evalv1.EvalSuite
+	for item := range results {
+		if item.err != nil {
+			return JoinResult{Available: false, Reason: rpcReason(ownerForAnswer(), item.method, item.err)}
+		}
+		switch item.method {
+		case "ListProviders":
+			providers = item.providers
+		case "Status":
+			status = item.status
+		case "ListSuites":
+			suites = item.suites
+		}
+	}
+
+	fresh, err := j.freshEvalByProvider(ctx, evalClient, suites)
+	if err != nil {
+		return JoinResult{Available: false, Reason: rpcReason(ownerForAnswer(), "ListRuns", err)}
+	}
+	providerEvidence := answerEvidence(providers, status, fresh)
+	statuses, evidence := recomputeAnswer(cells, providerEvidence)
+	known := make(map[string]bool, len(providers.GetProviders()))
+	for _, provider := range providers.GetProviders() {
+		if provider == nil {
+			continue
+		}
+		known[strings.ToLower(strings.TrimSpace(provider.GetProviderId()))] = true
+	}
+	resolved := make(map[string]bool, len(cells))
+	for _, cell := range cells {
+		resolved[cell.ID] = true
+		for _, token := range providerTokens(cell.Owner) {
+			if !known[token] {
+				resolved[cell.ID] = false
+				break
+			}
+		}
+	}
+	return JoinResult{Available: true, Statuses: statuses, Evidence: evidence, OwnerResolved: resolved}
+}
+
+func ownerForAnswer() string { return "search-hub" }
+
+type evalFreshness struct {
+	Fresh    bool
+	Evidence string
+}
+
+func (j *apiNumeratorJoiner) freshEvalByProvider(ctx context.Context, client evalconnect.EvalServiceClient, suites []*evalv1.EvalSuite) (map[string]evalFreshness, error) {
+	out := make(map[string]evalFreshness, len(suites))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	var firstErr error
+	for _, suite := range suites {
+		if suite == nil || strings.TrimSpace(suite.GetProviderId()) == "" {
+			continue
+		}
+		suite := suite
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			resp, err := client.ListRuns(ctx, connect.NewRequest(&evalv1.ListRunsRequest{SuiteId: suite.GetSuiteId(), Limit: 20}))
+			if err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = err
+				}
+				mu.Unlock()
+				return
+			}
+			freshRun := ""
+			evidence := ""
+			current := evalFreshness{}
+			for _, run := range resp.Msg.GetRuns() {
+				if run == nil {
+					continue
+				}
+				at, parseErr := time.Parse(time.RFC3339Nano, run.GetCreatedAt())
+				if parseErr != nil {
+					continue
+				}
+				age := time.Since(at)
+				if age >= 0 && age <= answerEvalFreshnessWindow {
+					freshRun = run.GetRunId()
+					if run.GetDegraded() {
+						evidence = fmt.Sprintf("latest eval run %s degraded: %s", freshRun, run.GetDegradedReason())
+						break
+					}
+					graded := run.GetAggregate().GetGradedCases()
+					indexed := run.GetConfig().GetIndexedCount()
+					passRate := 0.0
+					if graded > 0 {
+						passRate = float64(run.GetAggregate().GetMet()) / float64(graded)
+					}
+					evidence = fmt.Sprintf("latest eval run %s pass_rate=%.2f graded_cases=%d indexed_count=%d", freshRun, passRate, graded, indexed)
+					if graded > 0 && indexed > 0 && passRate >= answerEvalMinimumPassRate {
+						current.Fresh = true
+					}
+					break
+				}
+			}
+			mu.Lock()
+			if prior := out[suite.GetProviderId()]; prior.Evidence != "" {
+				current = prior
+			}
+			if freshRun != "" {
+				current.Evidence = evidence
+			} else if current.Evidence == "" {
+				current.Evidence = "no non-degraded eval run in the last 30d"
+			}
+			out[suite.GetProviderId()] = current
+			mu.Unlock()
+		}()
+	}
+	wg.Wait()
+	return out, firstErr
+}
+
+func answerEvidence(resp *registryv1.ListProvidersResponse, status *routingv1.StatusResponse, fresh map[string]evalFreshness) []answerProviderEvidence {
+	reachable := make(map[string]*routingv1.ProviderHealth)
+	if status != nil {
+		for _, health := range status.GetProviders() {
+			if health != nil {
+				reachable[strings.ToLower(health.GetProviderId())] = health
+			}
+		}
+	}
+	out := make([]answerProviderEvidence, 0)
+	if resp == nil {
+		return out
+	}
+	for _, provider := range resp.GetProviders() {
+		if provider == nil {
+			continue
+		}
+		id := strings.ToLower(strings.TrimSpace(provider.GetProviderId()))
+		health, ok := reachable[id]
+		reachEvidence := "provider health not reported"
+		reach := false
+		if ok {
+			reach = providerReachable(health)
+			reachEvidence = fmt.Sprintf("%s reachability=%q reachable=%t degraded=%t", id, health.GetReachability(), health.GetReachable(), health.GetDegraded())
+		}
+		eval := fresh[id]
+		if eval.Evidence == "" {
+			eval.Evidence = "no non-degraded eval run in the last 30d"
+		}
+		active := provider.GetState() != registryv1.ProviderState_PROVIDER_STATE_CAPABILITY_GAP
+		out = append(out, answerProviderEvidence{ProviderID: id, Active: active, Reachable: reach, FreshEval: eval.Fresh, ReachabilityEvidence: reachEvidence, EvalEvidence: eval.Evidence})
+	}
+	return out
+}
+
+func providerReachable(health *routingv1.ProviderHealth) bool {
+	if !health.GetReachable() || health.GetDegraded() {
+		return false
+	}
+	// The status contract deliberately carries a human-readable reason, not a
+	// closed enum. `endpoint resolved` is the current healthy value; accept
+	// other positive prose while rejecting explicit failure/not-reported text.
+	reason := strings.ToLower(strings.TrimSpace(health.GetReachability()))
+	for _, negative := range []string{"unreachable", "failed", "not_reported", "unavailable", "no http endpoint"} {
+		if strings.Contains(reason, negative) {
+			return false
+		}
+	}
+	return true
 }
 
 func actConfidence(value string) spacedoc.DenominatorConfidence {
@@ -192,10 +438,10 @@ func isDeadline(err error) bool {
 	return strings.Contains(err.Error(), context.DeadlineExceeded.Error())
 }
 
-// providersToLive distills a search-hub ListProviders response into the live
-// provider key set the Answer join matches against. Each provider contributes
-// its id, group, and type (lower-cased, non-empty), mirroring the keys the
-// previous JSON-walking joiner collected.
+// providersToLive distills an ACTIVE search-hub ListProviders response into
+// the provider key set the Answer join matches against. Only provider identity
+// and grouping are valid denominator owners; the descriptor type is a routing
+// classification and must never satisfy an Answer cell by itself.
 func providersToLive(resp *registryv1.ListProvidersResponse) map[string]bool {
 	out := map[string]bool{}
 	if resp == nil {
@@ -209,7 +455,6 @@ func providersToLive(resp *registryv1.ListProvidersResponse) map[string]bool {
 	for _, p := range resp.GetProviders() {
 		add(p.GetProviderId())
 		add(p.GetProviderGroup())
-		add(p.GetType())
 	}
 	return out
 }
@@ -242,8 +487,20 @@ func selfHealthToValidateIndex(h *runsv1.SelfHealth) map[string]validateProvider
 			st := out[prov]
 			if ph.GetFailureRate() > 0 {
 				st.failing = true
+				st.condition = ConditionDegraded
+				if since, err := time.Parse(time.RFC3339Nano, ph.GetFailureStreakSince()); err == nil {
+					st.sustained = time.Since(since) >= sustainedDegradationWindow
+				}
+			} else if st.condition == "" {
+				st.condition = ConditionOK
 			}
 			out[prov] = st
+		}
+	}
+	for provider, status := range out {
+		if status.condition == "" {
+			status.condition = ConditionUninstrumented
+			out[provider] = status
 		}
 	}
 	for _, cf := range h.GetConformance() {
@@ -254,6 +511,7 @@ func selfHealthToValidateIndex(h *runsv1.SelfHealth) map[string]validateProvider
 		st := out[prov]
 		if af := cf.GetAutofix(); af != nil && af.GetPending() > 0 {
 			st.autofixPending = true
+			st.condition = ConditionDegraded
 		}
 		out[prov] = st
 	}

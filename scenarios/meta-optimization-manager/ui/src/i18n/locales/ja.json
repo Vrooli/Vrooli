@@ -47,6 +47,8 @@
       "description": "The ranked next-best gaps (impact × importance) and the full gaps registry with qualitative context.",
       "focusHeading": "Ranked next-best gaps",
       "gapsHeading": "Gaps registry",
+      "conditionHeading": "Condition findings",
+      "conditionEmpty": "No condition findings reported.",
       "priorityLabel": "priority",
       "globalBadge": "cross-cutting",
       "empty": "No gaps surfaced — every cell is covered, or the owners are unreachable."

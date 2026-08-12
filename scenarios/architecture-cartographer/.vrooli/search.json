@@ -85,7 +85,8 @@
         "mrr_at": 3,
         "deep_k": 50
       },
-      "tests": {
+    "tests": {
+      "minimum": {"reviewed_positive": 1, "negative": 1},
         "name": "architecture-cartographer domain-map — primary golden corpus",
         "description": "RANK-CENTRIC golden corpus for the cross-fleet domain-map index. Positive cases assert expect_ids (the '<scenario>/<domain>' leaf, e.g. 'plan-manager/authoring') landing within expect_within_top_k. The corpus is deliberately TERM-AGNOSTIC: queries describe what a domain DOES (its responsibility/purpose prose) without naming the domain, since the headline value of this provider is answering natural-language intent from a caller who does not know Vrooli's vocabulary. NO absolute expect_min_score is set on positives by design (the sweep compares arms across dense-cosine / cross-encoder / RRF-blend regimes). Difficulty: strong (intended leaf at rank 1-3), weak-real (contested by sibling domains or generic inventory intent). Gibberish negatives feed the junk-rejection constraint, never the recall objective.",
         "cases": [

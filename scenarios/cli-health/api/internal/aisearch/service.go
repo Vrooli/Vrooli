@@ -172,6 +172,12 @@ func buildEngineFromBase(base pkg.ServiceOptions, opts Options) *engine {
 	base.Reconciler = rec
 	base.RerankText = func(r pkg.SearchResult) string { return candidateText(r.Payload) }
 	base.TextFallback = commandTextFallback(opts.Discovery)
+	if hybrid {
+		// The sparse leg supplies exact-token candidates, while this bounded
+		// owner-side seam lets an exact command leaf survive the cross-encoder's
+		// absolute floor. Search Hub remains agnostic about command vocabulary.
+		base.PreFloorDecorate = commandLexicalRescue
+	}
 	// Allow the engine to honor per-request query-time overrides. This is the
 	// INNER layer only (it still clamps every factor to its taxonomy range); the
 	// OUTER token + experiment-flag gate lives in the search handler, so a public,
@@ -221,10 +227,15 @@ func NewTunedService(tuning pkg.TuningConfig, opts TunedOptions) *Service {
 		opts.Collection = DefaultCollection
 	}
 	// The store collection name lives in EngineDeps (NewServiceForTuning builds the
-	// vector store) and must agree with the spec buildEngine records.
-	opts.EngineDeps.Collection = opts.Collection
+	// vector store) and must agree with the spec buildEngine records. Keep the
+	// caller's deployment wiring immutable: structural engine changes select a
+	// versioned sibling collection below.
+	baseDeps := opts.EngineDeps
 	build := func(t pkg.TuningConfig) *engine {
-		te := pkg.NewServiceForTuning(t, opts.EngineDeps)
+		collection := collectionForTuning(opts.Collection, t)
+		deps := baseDeps
+		deps.Collection = collection
+		te := pkg.NewServiceForTuning(t, deps)
 		// te.ServiceOptions() carries the engine components AND every query-time
 		// tuning factor (RerankEnabled/RerankBlend/Shortlist/Floor) derived from the
 		// resolved tuning — no factor is forwarded by hand here. opts supplies only
@@ -234,7 +245,7 @@ func NewTunedService(tuning pkg.TuningConfig, opts TunedOptions) *Service {
 			Parallelism:      opts.Parallelism,
 			MaxEmbedsPerTick: opts.MaxEmbedsPerTick,
 			Compose:          opts.Compose,
-			Collection:       opts.Collection,
+			Collection:       collection,
 		})
 		eng.spec = te.Spec
 		return eng
@@ -271,13 +282,12 @@ func (s *Service) JobExport(job *pkg.ReindexJob) map[string]any {
 // planned drift counts (the same shape Reindex returns) so the caller can poll
 // ReindexStatus to terminal.
 //
-// Ordering is swap-safe: the new engine's collection is ensured BEFORE the swap,
-// so a structural change the schema guard rejects (e.g. dense↔hybrid flips the
-// sparse-vector layout) returns an error and leaves the live engine untouched.
-// aisearch-go never auto-drops a collection (data loss is operator-initiated), so
-// such an arm needs a manual collection rebuild / restart. Recipe changes
-// (embed_task_prefix, an in-dimension embed_model swap) keep the collection layout
-// and re-embed live — the case the boot-recipe reindex could not apply.
+// Ordering is swap-safe: the new engine's collection is ensured BEFORE the swap.
+// Structural dense↔hybrid changes use a versioned sibling collection, so the
+// schema guard never needs to mutate or delete the incumbent collection.
+// Recipe changes (embed_task_prefix, an in-dimension embed_model swap) keep the
+// collection layout and re-embed live — the case the boot-recipe reindex could
+// not apply.
 func (s *Service) ApplyTuning(ctx context.Context, tuning pkg.TuningConfig) (jobID string, plannedUpserts, plannedDeletes int, err error) {
 	s.mu.RLock()
 	build := s.rebuild
@@ -393,6 +403,55 @@ func candidateText(payload map[string]any) string {
 	full, _ := payload["full_path"].(string)
 	desc, _ := payload["description"].(string)
 	return strings.TrimSpace(full + " " + desc)
+}
+
+// commandLexicalRescue is the command-owner's second lexical leg. Hybrid
+// retrieval can surface an exact leaf in the reranker shortlist while the
+// cross-encoder gives it a low absolute score because the query is phrased as
+// an operation rather than a command title. A leading query term matching the
+// command leaf is strong lexical evidence; a joined leading phrase handles
+// natural wording such as "set up" -> "setup". The bounded boost is scaled to
+// the score regime: RRF/DBSF scores are roughly 0.03, while cross-encoder scores
+// are 0..1 and need enough lift to clear the shared 0.35 garbage floor.
+func commandLexicalRescue(hits []pkg.SearchResult, q pkg.SearchQuery) {
+	terms := tokenize(q.Query)
+	if len(terms) == 0 {
+		return
+	}
+	first := terms[0]
+	joinedLeading := first
+	if len(terms) > 1 {
+		joinedLeading += terms[1]
+	}
+	maxScore := 0.0
+	for _, hit := range hits {
+		if hit.Score > maxScore {
+			maxScore = hit.Score
+		}
+	}
+	for i := range hits {
+		name, _ := hits[i].Payload["name"].(string)
+		nameTokens := tokenize(name)
+		// Match the complete leaf, not an arbitrary token inside a compound
+		// command such as api-source-set. The latter would turn the phrase
+		// "set up" into a boost for unrelated *-set commands.
+		matchesLeading := commandLeafMatches(nameTokens, first)
+		if !matchesLeading && len(terms) > 1 {
+			matchesLeading = commandLeafMatches(nameTokens, joinedLeading)
+		}
+		if !matchesLeading {
+			continue
+		}
+		if maxScore <= 0.2 {
+			hits[i].Score += 0.36
+		} else {
+			hits[i].Score += 0.01
+		}
+	}
+}
+
+func commandLeafMatches(tokens []string, want string) bool {
+	return len(tokens) == 1 && tokens[0] == want
 }
 
 // commandTextFallback is the offline-safe keyword leg over freshly discovered

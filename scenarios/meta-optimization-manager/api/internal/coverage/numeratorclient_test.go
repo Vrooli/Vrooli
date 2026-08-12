@@ -2,9 +2,12 @@ package coverage
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,8 +19,12 @@ import (
 
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph"
 	graphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph/graph_v1connect"
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
+	evalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval/eval_v1connect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry/registry_v1connect"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	runsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
@@ -27,22 +34,62 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestRecomputeAnswer(t *testing.T) {
-	// ui-health is live; cartographer is not.
-	live := map[string]bool{"ui-health.surfaces": true, "code-facts": true}
-	out := recomputeAnswer(answerDef().Cells, live)
+	out, evidence := recomputeAnswer(answerDef().Cells, []answerProviderEvidence{
+		{ProviderID: "ui-health.surfaces", Active: true, Reachable: true, FreshEval: true, ReachabilityEvidence: "reachable", EvalEvidence: "run-1"},
+		{ProviderID: "code-facts", Active: true, Reachable: true, FreshEval: true, ReachabilityEvidence: "reachable", EvalEvidence: "run-2"},
+	})
 	if out["1"] != spacedoc.StatusNow {
 		t.Errorf("cell1 (live provider) = %v, want now", out["1"])
 	}
 	if st, ok := out["2"]; ok && st == spacedoc.StatusNow {
 		t.Errorf("cell2 (provider not live) must not be promoted to now: %v", st)
 	}
+	if len(evidence["1"]) != 3 {
+		t.Fatalf("answer evidence = %+v, want all three signals", evidence["1"])
+	}
 }
 
 func TestRecomputeAnswerDriftDowngrade(t *testing.T) {
-	// Authored-NOW cell 1, but its provider is not live -> honest downgrade.
-	out := recomputeAnswer(answerDef().Cells, map[string]bool{"code-facts": true})
+	// Authored-NOW cell 1, but its provider is not reachable -> honest downgrade.
+	out, _ := recomputeAnswer(answerDef().Cells, []answerProviderEvidence{{
+		ProviderID: "ui-health.surfaces", Active: true, Reachable: false, FreshEval: true,
+		ReachabilityEvidence: "ui-health.surfaces reachability=\"unreachable\"", EvalEvidence: "run-1",
+	}})
 	if out["1"] != spacedoc.StatusInReach {
-		t.Errorf("authored-NOW with dead provider should downgrade to in_reach, got %v", out["1"])
+		t.Errorf("authored-NOW with unreachable provider should downgrade to in_reach, got %v", out["1"])
+	}
+}
+
+func TestRecomputeAnswerThreeSignalTable(t *testing.T) {
+	cells := []spacedoc.Cell{{ID: "now", Owner: "provider.one", Status: spacedoc.StatusMissing}, {ID: "stale", Owner: "provider.two", Status: spacedoc.StatusNow}, {ID: "down", Owner: "provider.three", Status: spacedoc.StatusNow}, {ID: "gap", Owner: "provider.four", Status: spacedoc.StatusMissing}, {ID: "authored", Owner: "missing.provider", Status: spacedoc.StatusInReach}, {ID: "authored-now", Owner: "missing.provider-now", Status: spacedoc.StatusNow}}
+	providers := []answerProviderEvidence{
+		{ProviderID: "provider.one", Active: true, Reachable: true, FreshEval: true, ReachabilityEvidence: "reachable", EvalEvidence: "fresh run"},
+		{ProviderID: "provider.two", Active: true, Reachable: true, FreshEval: false, ReachabilityEvidence: "reachable", EvalEvidence: "no non-degraded eval run in the last 30d"},
+		{ProviderID: "provider.three", Active: true, Reachable: false, FreshEval: true, ReachabilityEvidence: "unreachable", EvalEvidence: "fresh run"},
+	}
+	out, evidence := recomputeAnswer(cells, providers)
+	if out["now"] != spacedoc.StatusNow {
+		t.Errorf("all signals should produce NOW, got %v", out["now"])
+	}
+	if out["stale"] != spacedoc.StatusInReach {
+		t.Errorf("stale eval should produce IN_REACH, got %v", out["stale"])
+	}
+	if out["down"] != spacedoc.StatusInReach {
+		t.Errorf("unreachable provider should produce IN_REACH, got %v", out["down"])
+	}
+	if _, ok := out["gap"]; ok {
+		t.Error("capability gap must not promote a cell")
+	}
+	if _, ok := out["authored"]; ok {
+		t.Error("unresolved provider must preserve authored status")
+	}
+	if out["authored-now"] != spacedoc.StatusInReach {
+		t.Errorf("unresolved authored NOW must not remain NOW, got %v", out["authored-now"])
+	}
+	for _, id := range []string{"now", "stale", "down", "gap", "authored", "authored-now"} {
+		if len(evidence[id]) != 3 {
+			t.Errorf("cell %s evidence = %+v, want all three signals", id, evidence[id])
+		}
 	}
 }
 
@@ -62,14 +109,27 @@ func TestRecomputeValidate(t *testing.T) {
 	if out["V1"] != spacedoc.StatusNow {
 		t.Errorf("green phase = %v, want now", out["V1"])
 	}
-	if out["V2"] != spacedoc.StatusInReach {
-		t.Errorf("failing phase = %v, want in_reach", out["V2"])
+	if out["V2"] != spacedoc.StatusNow {
+		t.Errorf("failing phase = %v, want now (condition is separate)", out["V2"])
 	}
-	if out["V3"] != spacedoc.StatusInReach {
-		t.Errorf("autofix-pending phase = %v, want in_reach", out["V3"])
+	if out["V3"] != spacedoc.StatusNow {
+		t.Errorf("autofix-pending phase = %v, want now (condition is separate)", out["V3"])
+	}
+	_, conditions := recomputeValidateWithConditions(cells, index)
+	if conditions["V2"] != ConditionDegraded || conditions["V1"] != ConditionOK {
+		t.Fatalf("conditions = %v, want V2 degraded and V1 ok", conditions)
 	}
 	if _, ok := out["V4"]; ok {
 		t.Errorf("unknown phase should keep authored status, got overlay %v", out["V4"])
+	}
+}
+
+func TestRecomputeValidateOnlySustainedDegradationDowngradesCoverage(t *testing.T) {
+	cells := []spacedoc.Cell{{ID: "V1", Owner: "`red-health`", Status: spacedoc.StatusNow}}
+	index := map[string]validateProviderStatus{"red-health": {failing: true, condition: ConditionDegraded, sustained: true}}
+	statuses, conditions := recomputeValidateWithConditions(cells, index)
+	if statuses["V1"] != spacedoc.StatusInReach || conditions["V1"] != ConditionDegraded {
+		t.Fatalf("statuses=%v conditions=%v, want sustained downgrade with degraded condition", statuses, conditions)
 	}
 }
 
@@ -115,13 +175,75 @@ func TestProvidersToLive(t *testing.T) {
 		{ProviderId: "code-facts"},
 	}}
 	live := providersToLive(resp)
-	for _, want := range []string{"ui-health.surfaces", "ui-health", "code-facts", "structured"} {
+	for _, want := range []string{"ui-health.surfaces", "ui-health", "code-facts"} {
 		if !live[want] {
 			t.Errorf("expected live key %q in %v", want, live)
 		}
 	}
+	if live["structured"] {
+		t.Error("descriptor type must not be treated as a live provider")
+	}
 	if providersToLive(nil) == nil {
 		t.Error("nil response should yield an empty (non-nil) set")
+	}
+}
+
+func TestAnswerEvidenceKeepsCapabilityGapRegisteredButNotActive(t *testing.T) {
+	resp := &registryv1.ListProvidersResponse{Providers: []*registryv1.ProviderDescriptor{
+		{ProviderId: "code-reference.code", State: registryv1.ProviderState_PROVIDER_STATE_CAPABILITY_GAP},
+	}}
+	evidence := answerEvidence(resp, nil, nil)
+	if len(evidence) != 1 {
+		t.Fatalf("evidence = %+v, want one registered provider", evidence)
+	}
+	if evidence[0].ProviderID != "code-reference.code" {
+		t.Fatalf("provider id = %q", evidence[0].ProviderID)
+	}
+	if evidence[0].Active {
+		t.Fatal("capability-gap provider must remain non-active evidence")
+	}
+}
+
+func TestProviderReachableUsesTypedBoolAndReason(t *testing.T) {
+	cases := []struct {
+		name   string
+		health *routingv1.ProviderHealth
+		want   bool
+	}{
+		{name: "endpoint resolved", health: &routingv1.ProviderHealth{Reachable: true, Reachability: "endpoint resolved"}, want: true},
+		{name: "explicit reachable", health: &routingv1.ProviderHealth{Reachable: true, Reachability: "reachable"}, want: true},
+		{name: "degraded", health: &routingv1.ProviderHealth{Reachable: true, Degraded: true, Reachability: "endpoint resolved"}, want: false},
+		{name: "unreachable reason", health: &routingv1.ProviderHealth{Reachable: true, Reachability: "provider unreachable"}, want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := providerReachable(tc.health); got != tc.want {
+				t.Errorf("providerReachable(%+v) = %v, want %v", tc.health, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestMatchesLiveDoesNotPromoteSiblingLeaves(t *testing.T) {
+	live := map[string]bool{
+		"architecture-cartographer.domain-map": true,
+		"architecture-cartographer.zones":      true,
+	}
+	cases := []struct {
+		name  string
+		token string
+		want  bool
+	}{
+		{name: "exact leaf", token: "architecture-cartographer.domain-map", want: true},
+		{name: "sibling leaf", token: "architecture-cartographer.coupling", want: false},
+		{name: "scenario head is not a leaf", token: "architecture-cartographer", want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := matchesLive(tc.token, live); got != tc.want {
+				t.Errorf("matchesLive(%q) = %v, want %v", tc.token, got, tc.want)
+			}
+		})
 	}
 }
 
@@ -218,9 +340,13 @@ func (f fakeResolver) ResolveScenarioURLDefault(context.Context, string) (string
 type fakeRegistry struct {
 	registryconnect.UnimplementedRegistryServiceHandler
 	resp *registryv1.ListProvidersResponse
+	err  error
 }
 
 func (f fakeRegistry) ListProviders(context.Context, *connect.Request[registryv1.ListProvidersRequest]) (*connect.Response[registryv1.ListProvidersResponse], error) {
+	if f.err != nil {
+		return nil, f.err
+	}
 	return connect.NewResponse(f.resp), nil
 }
 
@@ -246,6 +372,40 @@ type fakeGraph struct {
 	resp *graphv1.GetHealthScoresResponse
 }
 
+type fakeRouting struct {
+	routingconnect.UnimplementedRoutingServiceHandler
+	resp *routingv1.StatusResponse
+	err  error
+}
+
+func (f fakeRouting) Status(context.Context, *connect.Request[routingv1.StatusRequest]) (*connect.Response[routingv1.StatusResponse], error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return connect.NewResponse(f.resp), nil
+}
+
+type fakeEval struct {
+	evalconnect.UnimplementedEvalServiceHandler
+	suites []*evalv1.EvalSuite
+	runs   map[string][]*evalv1.EvalRun
+	err    error
+}
+
+func (f fakeEval) ListSuites(context.Context, *connect.Request[evalv1.ListSuitesRequest]) (*connect.Response[evalv1.ListSuitesResponse], error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return connect.NewResponse(&evalv1.ListSuitesResponse{Suites: f.suites}), nil
+}
+
+func (f fakeEval) ListRuns(_ context.Context, req *connect.Request[evalv1.ListRunsRequest]) (*connect.Response[evalv1.ListRunsResponse], error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return connect.NewResponse(&evalv1.ListRunsResponse{Runs: f.runs[req.Msg.GetSuiteId()]}), nil
+}
+
 func (f fakeGraph) GetHealthScores(context.Context, *connect.Request[graphv1.GetHealthScoresRequest]) (*connect.Response[graphv1.GetHealthScoresResponse], error) {
 	return connect.NewResponse(f.resp), nil
 }
@@ -260,6 +420,18 @@ func TestJoinAnswerEndToEnd(t *testing.T) {
 		Providers: []*registryv1.ProviderDescriptor{{ProviderId: "ui-health.surfaces"}},
 	}})
 	mux.Handle(path, h)
+	path, h = routingconnect.NewRoutingServiceHandler(fakeRouting{resp: &routingv1.StatusResponse{Providers: []*routingv1.ProviderHealth{{ProviderId: "ui-health.surfaces", Reachable: true, Reachability: "reachable"}}}})
+	mux.Handle(path, h)
+	created := time.Now().UTC().Format(time.RFC3339Nano)
+	path, h = evalconnect.NewEvalServiceHandler(fakeEval{
+		suites: []*evalv1.EvalSuite{{SuiteId: "ui-suite", ProviderId: "ui-health.surfaces"}},
+		runs: map[string][]*evalv1.EvalRun{"ui-suite": {{
+			RunId: "run-1", CreatedAt: created, Tier: "provider_direct",
+			Config:    &evalv1.ConfigSnapshot{IndexedCount: 1},
+			Aggregate: &evalv1.EvalAggregate{Cases: 1, Met: 1, GradedCases: 1},
+		}}},
+	})
+	mux.Handle(path, h)
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
@@ -269,6 +441,68 @@ func TestJoinAnswerEndToEnd(t *testing.T) {
 	}
 	if res.Statuses["1"] != spacedoc.StatusNow {
 		t.Errorf("cell1 (live provider) = %v, want now", res.Statuses["1"])
+	}
+}
+
+func TestJoinAnswerEvalFreshDoesNotHoldForUngradedEmptyRun(t *testing.T) {
+	mux := http.NewServeMux()
+	path, h := registryconnect.NewRegistryServiceHandler(fakeRegistry{resp: &registryv1.ListProvidersResponse{
+		Providers: []*registryv1.ProviderDescriptor{{ProviderId: "ui-health.surfaces"}},
+	}})
+	mux.Handle(path, h)
+	path, h = routingconnect.NewRoutingServiceHandler(fakeRouting{resp: &routingv1.StatusResponse{Providers: []*routingv1.ProviderHealth{{ProviderId: "ui-health.surfaces", Reachable: true, Reachability: "reachable"}}}})
+	mux.Handle(path, h)
+	path, h = evalconnect.NewEvalServiceHandler(fakeEval{
+		suites: []*evalv1.EvalSuite{{SuiteId: "ui-suite", ProviderId: "ui-health.surfaces"}},
+		runs: map[string][]*evalv1.EvalRun{"ui-suite": {{
+			RunId: "empty-run", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+			Config: &evalv1.ConfigSnapshot{}, Aggregate: &evalv1.EvalAggregate{Cases: 1, Met: 0, GradedCases: 0},
+		}}},
+	})
+	mux.Handle(path, h)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	res := newJoinerFor(srv.URL, numeratorDeadline).Join(context.Background(), ProjectionAnswer, answerDef().Cells)
+	if !res.Available {
+		t.Fatalf("expected available: %s", res.Reason)
+	}
+	if res.Statuses["1"] == spacedoc.StatusNow {
+		t.Fatalf("cell1 promoted by ungraded empty eval: statuses=%v evidence=%v", res.Statuses, res.Evidence)
+	}
+	if !strings.Contains(fmt.Sprint(res.Evidence), "graded_cases=0") {
+		t.Fatalf("evidence = %v, want graded_cases=0", res.Evidence)
+	}
+}
+
+func TestAnswerSignalsIndividuallyUnavailable(t *testing.T) {
+	cases := []struct {
+		name        string
+		registryErr error
+		routingErr  error
+		evalErr     error
+		want        string
+	}{
+		{name: "registry", registryErr: connect.NewError(connect.CodeUnavailable, errors.New("registry down")), want: "ListProviders"},
+		{name: "reachability", routingErr: connect.NewError(connect.CodeUnavailable, errors.New("routing down")), want: "Status"},
+		{name: "eval", evalErr: connect.NewError(connect.CodeUnavailable, errors.New("eval down")), want: "ListSuites"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mux := http.NewServeMux()
+			path, h := registryconnect.NewRegistryServiceHandler(fakeRegistry{resp: &registryv1.ListProvidersResponse{Providers: []*registryv1.ProviderDescriptor{{ProviderId: "ui-health.surfaces"}}}, err: tc.registryErr})
+			mux.Handle(path, h)
+			path, h = routingconnect.NewRoutingServiceHandler(fakeRouting{resp: &routingv1.StatusResponse{Providers: []*routingv1.ProviderHealth{{ProviderId: "ui-health.surfaces", Reachable: true, Reachability: "reachable"}}}, err: tc.routingErr})
+			mux.Handle(path, h)
+			path, h = evalconnect.NewEvalServiceHandler(fakeEval{suites: []*evalv1.EvalSuite{{SuiteId: "ui-suite", ProviderId: "ui-health.surfaces"}}, runs: map[string][]*evalv1.EvalRun{"ui-suite": {{RunId: "run-1", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}}}, err: tc.evalErr})
+			mux.Handle(path, h)
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+			res := newJoinerFor(srv.URL, time.Second).Join(context.Background(), ProjectionAnswer, answerDef().Cells)
+			if res.Available || !strings.Contains(res.Reason, tc.want) {
+				t.Fatalf("result = %+v, want unavailable reason containing %q", res, tc.want)
+			}
+		})
 	}
 }
 
@@ -289,8 +523,8 @@ func TestJoinValidateEndToEnd(t *testing.T) {
 	if !res.Available {
 		t.Fatalf("expected available: %s", res.Reason)
 	}
-	if res.Statuses["V1"] != spacedoc.StatusInReach {
-		t.Errorf("failing phase = %v, want in_reach", res.Statuses["V1"])
+	if res.Statuses["V1"] != spacedoc.StatusNow {
+		t.Errorf("failing phase = %v, want now (condition is separate)", res.Statuses["V1"])
 	}
 }
 

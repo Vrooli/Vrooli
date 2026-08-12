@@ -237,11 +237,11 @@ process — no restart**:
 - `NewTunedService` retains the factor builder (`pkg.NewServiceForTuning`) so the
   rebuild re-derives embedder recipe / engine shape from the tuning data.
 - **Boundary kept:** a STRUCTURAL change (dense↔hybrid) flips the collection's
-  sparse-vector layout; `ApplyTuning` ensures the new collection BEFORE swapping,
-  so the schema guard's mismatch surfaces as an error **without** swapping or
-  dropping data (aisearch-go never auto-drops — data loss is operator-initiated).
-  That arm still needs a manual collection rebuild / restart. Recipe changes
-  (`embed_task_prefix`, an in-dimension `embed_model` swap) apply fully live.
+  sparse-vector layout. `NewTunedService` selects a versioned `-hybrid` sibling
+  before swapping, so the incumbent dense collection remains intact and the
+  new arm can reconcile independently; aisearch-go never auto-drops data.
+  Recipe changes (`embed_task_prefix`, an in-dimension `embed_model` swap) apply
+  fully live.
 - Tests: `internal/aisearch/apply_tuning_test.go` (swap + re-embed into the new
   store; structural mismatch does not swap; not-rebuildable guard) +
   `handlers/searchcontrol` (WriteConfig routes an index-time change through

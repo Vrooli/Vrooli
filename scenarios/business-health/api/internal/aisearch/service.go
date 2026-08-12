@@ -158,15 +158,18 @@ func NewTunedService(tuning pkg.TuningConfig, opts TunedOptions) *Service {
 	if opts.Collection == "" {
 		opts.Collection = DefaultCollection
 	}
-	opts.EngineDeps.Collection = opts.Collection
+	baseDeps := opts.EngineDeps
 	build := func(t pkg.TuningConfig) *engine {
-		te := pkg.NewServiceForTuning(t, opts.EngineDeps)
+		collection := collectionForTuning(opts.Collection, t)
+		deps := baseDeps
+		deps.Collection = collection
+		te := pkg.NewServiceForTuning(t, deps)
 		eng := buildEngineFromBase(te.ServiceOptions(), Options{
 			Source:           opts.Source,
 			Parallelism:      opts.Parallelism,
 			MaxEmbedsPerTick: opts.MaxEmbedsPerTick,
 			Compose:          opts.Compose,
-			Collection:       opts.Collection,
+			Collection:       collection,
 		})
 		eng.spec = te.Spec
 		return eng

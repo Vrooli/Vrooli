@@ -6,7 +6,7 @@ require (
 	connectrpc.com/connect v1.19.2
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/cli-core v0.0.0
-	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
+	github.com/vrooli/vrooli/packages/proto v0.0.0
 )
 
 require (

@@ -8,9 +8,31 @@
 // github.com/vrooli/ai-go/search.
 package aisearch
 
+import (
+	"strings"
+
+	pkg "github.com/vrooli/ai-go/search"
+)
+
 // DefaultCollection is the Qdrant collection business-health indexes the
 // intent corpus into (single named-dense vector layout).
 const DefaultCollection = "business-health-intent"
+
+// HybridCollectionSuffix keeps the sparse-vector schema separate from the
+// incumbent dense collection. A tuning change must never delete the existing
+// index merely to make a new engine shape fit.
+const HybridCollectionSuffix = "-hybrid"
+
+func collectionForTuning(base string, tuning pkg.TuningConfig) string {
+	base = strings.TrimSpace(base)
+	if base == "" {
+		base = DefaultCollection
+	}
+	if tuning.WithDefaults().Engine != pkg.EngineHybrid || strings.HasSuffix(base, HybridCollectionSuffix) {
+		return base
+	}
+	return base + HybridCollectionSuffix
+}
 
 // Facet values for IntentRecord.Type (the D5 type facet).
 const (

@@ -152,17 +152,20 @@ The ideal separation:
 
 Following the discipline in `COVERAGE-MODEL.md` § "Load-bearing constants" — judgment constants are named, documented, and auditable rather than buried:
 
-- **`conditionSustainedWindow`** — how long a leg must stay `DEGRADED` before it downgrades its coverage cell. Must be long enough to survive an ordinary vendor incident and short enough that chronic breakage cannot hide indefinitely. Revisit once there is a real distribution of degradation durations to read.
-- **`conditionExerciseWindow`** — the lookback over which zero invocations yields `DORMANT`. Must exceed the natural cadence of the slowest legitimate caller; a capability exercised only by a monthly audit is not dormant at a weekly window.
-- **`conditionBands`** — the per-signal thresholds separating `HEALTHY` from `DEGRADED`. These are per-projection, because a 5% failure rate means something different for a search provider than for a governed destructive binding.
+- **`conditionSustainedWindow = 7d`** — longer than an ordinary restart or rollout recovery opportunity; the current operator sweep is too recent to qualify, so the promotion flag remains false.
+- **`conditionExerciseWindow = 24h`** — the observed sweep and normal reads run at a daily-or-faster cadence; revisit if a slower legitimate caller is reported dormant.
+- **`conditionBands.failure_rate = 0.50` and `conditionBands.degradation_rate = 0.50`** — calibrated from 639 instrumented bindings on 2026-08-12: failure-rate p50 0.50, p95 1.00, max 1.00; degradation-rate p95 0.00, max 1.00. A value must exceed the band to become degraded.
 
-Every constant above is deliberately unset in this document. They are owner-calibrated against real distributions, and authoring a number here before that data exists would be exactly the fabricated precision this model rejects elsewhere.
+These constants are live owner calibration, not universal SLOs. Revisit them when the ledger contains a sustained distribution rather than a single operator exercise sweep.
 
 ### Current known asymmetry
 
-`test-genie`'s numerator **already** gates on serving signals: a provider with ledger `failureRate > 0` or `autofix.pending > 0` yields `IN-REACH` rather than `NOW` (`COVERAGE-MODEL.md` § "Per-Cell Numerator Semantics"). That is Condition-as-implemented, predating this model, and it gates immediately rather than after a sustained window.
-
-Under the ideal above, that behavior converges to report-beside plus sustained-promotion. This is a **behavior change to a live number** and therefore a decision, not a refactor: it would raise the reported Validate coverage while introducing a Validate condition line. It is recorded here as the target state so the inconsistency is visible and deliberate rather than discovered later.
+`test-genie`'s numerator now reports serving failures and pending autofix beside
+coverage. A transient red observation leaves the capability counted as `NOW`; a
+provider is promoted to a coverage downgrade only after the current contiguous
+failure streak reaches the named seven-day `sustainedDegradationWindow`. The live
+condition verdict remains visible in the same response, so the higher supply
+number cannot be mistaken for a healthy fleet.
 
 ## The Ideal Signal Set, Per Owner
 
@@ -188,8 +191,8 @@ Legend: **●** declared and live · **◐** partially present · **○** not de
 
 | Family | Required signal | State |
 |---|---|---|
-| Serving | per-provider failure rate | ● in `SelfHealth`; currently gates the numerator |
-| Serving | per-provider pending autofix | ● in `SelfHealth`; currently gates the numerator |
+| Serving | per-provider failure rate | ● in `SelfHealth`; reported beside the numerator and promoted only after the sustained threshold |
+| Serving | per-provider pending autofix | ● in `SelfHealth`; reported beside the numerator |
 | Serving | per-phase duration trend | ○ — the pass-but-slower blind spot |
 | Serving | per-phase flake rate, distinct from failure rate | ○ — a phase that fails intermittently and a phase that fails consistently need different responses |
 | Freshness | phase catalog freshness | ○ |
@@ -210,12 +213,12 @@ Guide currently has the **least** condition visibility of the four and the most 
 
 | Family | Required signal | State |
 |---|---|---|
-| Serving | per-binding invocation outcome (success / refused / failed) | ○ |
-| Serving | per-binding latency p50/p95 | ○ |
+| Serving | per-binding invocation outcome (success / refused / failed) | ● `program-runtime` binding invocation ledger |
+| Serving | per-binding latency p50/p95 | ● `program-runtime` binding invocation ledger |
 | Freshness | binding registry regeneration age vs. descriptor and manifest mtimes | ○ |
-| Exercise | per-binding call count, distinct callers, last-invoked | ○ |
+| Exercise | per-binding call count, distinct callers, last-invoked | ● `program-runtime` binding invocation ledger |
 
-**Per-binding invocation outcome is the highest-leverage unbuilt measure in this document.** It is simultaneously the Act condition signal and the friction evidence the improvement loop wants, and it is the only instrument that can distinguish the bindings that are genuinely callable from the ones that merely resolve. A registry reporting a four-digit binding count with no invocation data is a supply claim with no condition evidence behind it whatsoever.
+**Per-binding invocation outcome is the highest-leverage Act condition measure.** It is simultaneously the Act condition signal and the friction evidence the improvement loop wants, and it is the only instrument that can distinguish the bindings that are genuinely callable from the ones that merely resolve.
 
 Note the dependency: `program-runtime`'s existing `programs.mine` measure is structurally incapable of returning a non-empty result while its corpus is process memory. **Durable retention of the program corpus is a precondition for Act condition measurement**, not an independent durability preference.
 
@@ -260,18 +263,20 @@ The surface being four scenarios rather than the whole fleet is what makes this 
 
 ## Current State
 
-Recorded as of 2026-08-11, as data. This section is the measured distance from the model above and is expected to change; the model is not expected to change with it.
+Recorded as of 2026-08-12, as data. This section is the measured distance from the model above and is expected to change; the model is not expected to change with it.
 
 | Fact | Value |
 |---|---|
 | Scenarios declaring any measure | 14 of 118 |
 | Total declared measures, fleet-wide | 97 |
-| Projection owners with a per-leg serving signal | 1 of 4 (`search-hub`) |
-| Projection owners whose numerator already gates on condition | 1 of 4 (`test-genie`) |
+| Projection owners with a per-leg serving signal | 2 of 4 (`search-hub`, `program-runtime`) |
+| Projection owners whose numerator publishes condition beside coverage | 1 of 4 (`test-genie`) |
 | Projection owners with any freshness signal | 0 of 4 |
-| Projection owners with any exercise signal | 0 of 4 |
-| Condition source registered on the board | none |
-| Overall instrumentation coverage | effectively `0%` — reported as `UNINSTRUMENTED`, never as healthy |
+| Projection owners with any exercise signal | 1 of 4 (`program-runtime`) |
+| `program-runtime` condition snapshot | 639 of 1,168 bindings instrumented; 302 degraded; 0 sustained promotions |
+| Condition source registered on the board | Search Hub insight source is live for Answer focus; its population is filtered to provider legs backing live `NOW` cells; maturity blockers are a separate Search Hub evidence source |
+| Condition read surface | `FocusService.ListCondition` and `FocusService.ExplainCondition` plus CLI `focus condition status` / `focus condition explain-leg` |
+| Overall instrumentation coverage | not yet a fleet percentage; missing owner signals remain `UNINSTRUMENTED`, never healthy |
 
 Two scenarios outside the projection owners already demonstrate the target shape and are worth copying rather than reinventing:
 
@@ -285,7 +290,7 @@ These are known blockers on the model above. They are recorded so the gap is sch
 1. **Fleet-wide Exercise needs a counting surface.** `vrooli-events` exposes `events query` by type, source, and correlation id, but no aggregate or count operation. It also ships no `cli/manifest.json` and declares no measures of its own, so it is neither bindable nor measurable today. The single cheapest signal in this model is blocked on its owner growing a counting surface.
 2. **Exercise attribution is bounded by agent identity.** Only verified `agent-manager` identity claims may set a receipt's subject and agent correlation. `exercise.invocations` and `exercise.last_invoked_at` are unaffected, but `exercise.distinct_callers` degrades to a count of *attributable* callers and must report the unattributed remainder rather than silently undercounting.
 3. **Act condition needs a durable program corpus.** Stated above under the Act table.
-4. **The Validate gating asymmetry is an open decision**, not an implementation gap. Stated above under [§ Relationship To The Coverage Numerator](#relationship-to-the-coverage-numerator).
+4. **Owner-wide condition measure federation remains open.** Test-genie now publishes its phase condition and the focus source publishes fleet evidence; freshness and exercise measures for every owner remain future work.
 
 ## Governing Principles
 

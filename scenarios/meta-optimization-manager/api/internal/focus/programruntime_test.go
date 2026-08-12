@@ -39,8 +39,8 @@ func TestProgramRuntimeGapSourceDegradesIndependently(t *testing.T) {
 	programs := NewProgramRuntimeGapSource(fakeProgramFrictionReader{err: errors.New("connection refused")})
 	healthy := &fakeSource{gaps: []Gap{{ID: "trials/healthy", Axis: AxisEmpirical, Title: "trial evidence"}}}
 	gaps, err := NewMultiGapSource([]NamedGapSource{{Name: "trials", Source: healthy}, {Name: "program-runtime", Source: programs}}).DerivedGaps(context.Background())
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatal("program-runtime source failure should propagate for an honest degraded focus response")
 	}
 	if len(gaps) != 2 || gaps[0].ID != "trials/healthy" || gaps[1].ID != "source/program-runtime/availability" {
 		t.Fatalf("gaps=%+v", gaps)

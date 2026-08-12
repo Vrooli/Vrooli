@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "providers": [
     {
-      "provider_id": "content-desk.editorial-history",
+    "provider_id": "content-desk.editorial-history",
+    "lifecycle": "fixture",
       "provider_group": "content-desk",
       "bucket": "BUCKET_KNOW",
       "type": "editorial-history",

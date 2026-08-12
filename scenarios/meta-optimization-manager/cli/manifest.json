@@ -103,6 +103,25 @@
       ]
     },
     {
+      "name": "condition",
+      "description": "Observed serving condition for capability legs already counted as supply",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show observed condition findings sourced from Search Hub telemetry",
+          "binding": {"kind": "connect-rpc", "service": "FocusService", "method": "ListCondition"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "explain-leg",
+          "description": "Explain one provider leg's observed condition and evidence",
+          "positionals": [{"name": "provider-id", "required": true, "description": "Registered provider leaf id"}],
+          "binding": {"kind": "connect-rpc", "service": "FocusService", "method": "ExplainCondition"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
       "name": "focus",
       "description": "Ranked next-best gaps \u2014 impact \u00d7 importance across all projections + convergence",
       "commands": [

@@ -6,6 +6,7 @@
   "displayName": "Agent Conformance",
   "description": "Validates that coding-agent consumers use Agent Manager through declared, portable role-based profiles.",
   "source": "validation-provider",
+  "runtimeClass": "execution",
   "orderHint": 24,
   "timeout": "45s",
   "validation": {"contract": "scenario-validation/v1"},

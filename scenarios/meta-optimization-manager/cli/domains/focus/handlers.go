@@ -48,8 +48,12 @@ func (h *handlers) next(ctx cliapp.RunContext) error {
 	for _, it := range resp.Msg.Items {
 		results = append(results, formatFocusItem(it))
 	}
+	summary := []string{fmt.Sprintf("%d ranked next-best gap(s).", len(resp.Msg.Items))}
+	if resp.Msg.GetDegraded() {
+		summary = append(summary, "DEGRADED: "+resp.Msg.GetDegradedReason())
+	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%d ranked next-best gap(s).", len(resp.Msg.Items))},
+		Summary:        summary,
 		ResultsHeading: "Focus",
 		Results:        results,
 		RetrievalHints: []string{
@@ -125,6 +129,33 @@ func (h *handlers) gapsNote(ctx cliapp.RunContext) error {
 		ResultsHeading: "Gap",
 		Results:        gapDetail(resp.Msg.Gap),
 	})
+}
+
+func (h *handlers) conditionStatus(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListCondition(context.Background(), connect.NewRequest(&focusv1.ListConditionRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("condition status", err, nil)
+	}
+	results := make([]string, 0)
+	for _, gap := range resp.Msg.GetGaps() {
+		results = append(results, fmt.Sprintf("%s provider=%s recurrence=%d %s", gap.GetId(), strings.Join(gap.GetProviderIds(), ","), gap.GetRecurrence(), gap.GetTitle()))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("%d observed condition finding(s).", len(results))}, ResultsHeading: "Condition", Results: results, RetrievalHints: []string{"`condition explain-leg <provider-id>` — trace one leg"}})
+}
+
+func (h *handlers) conditionExplain(ctx cliapp.RunContext) error {
+	provider := strings.TrimSpace(ctx.Positional("provider-id"))
+	resp, err := h.client.ExplainCondition(context.Background(), connect.NewRequest(&focusv1.ExplainConditionRequest{ProviderId: provider}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("condition explain-leg %q", provider), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Gap == nil {
+		return fmt.Errorf("server returned no condition finding")
+	}
+	gap := resp.Msg.Gap
+	results := []string{fmt.Sprintf("%s provider=%s recurrence=%d %s", gap.GetId(), strings.Join(gap.GetProviderIds(), ","), gap.GetRecurrence(), gap.GetTitle())}
+	results = append(results, gap.GetNotes()...)
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{"Condition evidence for " + provider + "."}, ResultsHeading: "Condition leg", Results: results})
 }
 
 func formatFocusItem(it *focusv1.FocusItem) string {
@@ -240,6 +271,8 @@ func projectionLabel(p sharedv1.Projection) string {
 		return "validate"
 	case sharedv1.Projection_PROJECTION_GUIDE:
 		return "guide"
+	case sharedv1.Projection_PROJECTION_ACT:
+		return "act"
 	default:
 		return "cross-cutting"
 	}

@@ -68,13 +68,13 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `api/internal/coverage/spacereader.go`; `../concepts/ARCHITECTURE.md` (Contracts And Data Flow); the three `*/docs/spaces/*-space.md` docs.
 
-### 2026-06-26 — trials unproven end-to-end on a live local model
+### 2026-06-26 — trials live-model path still returns an error verdict
 
-**Symptom:** `trials run` is verb/flag-correct with real fixtures + deterministic oracles, but has never completed a full live pass (opencode + local model) producing a scored verdict.
+**Symptom:** The first live operator run (`trial/G1`, 2026-08-12) completed with `TRIAL_VERDICT_ERROR` rather than a scored pass/fail. Run ID: `5afd2d5d-d3b3-48fc-8b9d-1f18fbca247b`.
 
 **Root cause:** The diff-apply path is an untested assumption: the runner scopes the agent to `fixture.TargetDir` (`--scope-path`), captures the diff via `agent-manager run diff`, and the evaluator applies it with `git apply -p1` inside a copy of `target/`. This only lands cleanly if agent-manager emits diff paths rooted at the scope-path with `a/…  b/…` prefixes; if rooted elsewhere, every trial silently becomes `VerdictError`. Separately, `agentJudge` is `nil` in prod — correct today (all 5 fixtures carry an oracle → oracle-less degrades to honest `VerdictError`), but a future oracle-less family would silently yield `VerdictError` with only a log line.
 
-**Workaround:** Keep OT-P1-001 unaccepted until the live pass; trust the oracle-backed verdicts only.
+**Workaround:** Keep OT-P1-001 unaccepted until a live pass; treat the recorded error as a real empirical data point, not as a passing score. The API currently omits the detailed runner error, so inspect the agent-manager/trials logs when reproducing.
 
 **Real fix:** (1) One operator live-e2e (the `bugfix` family is smallest); capture the raw `run diff` output, confirm/repair the `-p1` rooting, and lock the captured diff as a golden fixture. (2) Add a corpus-load-time guard asserting every fixture has an oracle or a configured judge, so future oracle-less families fail loudly instead of degrading silently.
 
@@ -111,6 +111,20 @@ Use this shape so entries are scannable. Append newest at the bottom.
 **Refs:** `DECISIONS.md` (2026-06-24 documentation-first row).
 
 ## Architecture Drift
+
+### 2026-08-11 — comprehensive maturity suite still has pre-existing debt
+
+**Symptom:** The comprehensive Meta-Optimization Manager validation suite remains partially red across architecture, UI, logging, dependencies, quality, docs, storage, and workflow checks.
+
+**Root cause:** The findings were present independently of the three-signal Answer numerator and are not regressions in this plan's coverage behavior. Focused coverage, snapshot, client, and race tests pass; live Answer cells agree across status, list, explain, and focus.
+
+**Workaround:** Keep plan acceptance evidence scoped to the changed coverage contract and record the comprehensive findings as deferred maturity debt.
+
+**Real fix:** Resolve each existing finding in its owning domain, then refresh the scenario baseline and comprehensive run.
+
+**Owner:** scenario-qa / owning domains.
+
+**Refs:** Plan `search-hub-trustworthy-retrieval-and-honest-readiness`; fresh comprehensive validation was recorded during Phase 10.
 
 Use this section for deferred findings from `screaming-architecture-audit`.
 Do not create a standalone architecture-audit report unless the work is

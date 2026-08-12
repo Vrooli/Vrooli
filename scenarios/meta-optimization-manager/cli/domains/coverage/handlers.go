@@ -200,6 +200,8 @@ func projectionLabel(p sharedv1.Projection) string {
 		return "validate"
 	case sharedv1.Projection_PROJECTION_GUIDE:
 		return "guide"
+	case sharedv1.Projection_PROJECTION_ACT:
+		return "act"
 	default:
 		return "unspecified"
 	}

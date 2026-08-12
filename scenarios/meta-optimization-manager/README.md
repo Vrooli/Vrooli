@@ -92,9 +92,14 @@ See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flo
 These are honest, current gaps — tracked in
 [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md):
 
-- **Trials are not yet proven end-to-end on a live local model.** The runner,
-  evaluator, and fixtures are real and tested; a single operator live-e2e pass
-  (opencode + a local model) is needed to confirm the diff-apply path.
+- **Trials have a first live data point but are not yet green end-to-end.** On
+  2026-08-12, `trial/G1` recorded `TRIAL_VERDICT_ERROR` (run
+  `5afd2d5d-d3b3-48fc-8b9d-1f18fbca247b`, 122,628 tokens, 15.9s). The current
+  API does not persist the runner's detailed error text, so the owner of the
+  follow-up is the trials/agent-manager integration; inspect raw runner logs
+  when reproducing it. The runner, evaluator, and fixtures remain real and
+  unit-tested, but a successful live local-model pass is still required before
+  treating the trial gate as green.
 
 ## Documentation Map
 

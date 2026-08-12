@@ -30,13 +30,17 @@ func NewConnectHandler(d Deps) *connectHandler {
 }
 
 func (h *connectHandler) GetFocus(ctx context.Context, req *connect.Request[focusv1.GetFocusRequest]) (*connect.Response[focusv1.GetFocusResponse], error) {
-	items, err := h.deps.Service.GetFocus(ctx, int(req.Msg.GetLimit()), projFromProto(req.Msg.GetProjection()))
+	result, err := h.deps.Service.GetFocus(ctx, int(req.Msg.GetLimit()), projFromProto(req.Msg.GetProjection()))
 	if err != nil {
 		h.deps.Logger.Printf("focus.GetFocus: %v", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	resp := &focusv1.GetFocusResponse{Items: make([]*focusv1.FocusItem, 0, len(items))}
-	for _, it := range items {
+	resp := &focusv1.GetFocusResponse{
+		Items:          make([]*focusv1.FocusItem, 0, len(result.Items)),
+		Degraded:       result.Degraded,
+		DegradedReason: result.DegradedReason,
+	}
+	for _, it := range result.Items {
 		resp.Items = append(resp.Items, &focusv1.FocusItem{
 			Gap:           gapToProto(it.Gap),
 			Impact:        it.Impact,
@@ -82,6 +86,26 @@ func (h *connectHandler) AddGapNote(ctx context.Context, req *connect.Request[fo
 	return connect.NewResponse(&focusv1.AddGapNoteResponse{Gap: gapToProto(gap)}), nil
 }
 
+func (h *connectHandler) ListCondition(ctx context.Context, _ *connect.Request[focusv1.ListConditionRequest]) (*connect.Response[focusv1.ListConditionResponse], error) {
+	gaps, err := h.deps.Service.ListCondition(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("focus.ListCondition: %v", err)
+	}
+	resp := &focusv1.ListConditionResponse{Gaps: make([]*focusv1.Gap, 0, len(gaps))}
+	for _, gap := range gaps {
+		resp.Gaps = append(resp.Gaps, gapToProto(gap))
+	}
+	return connect.NewResponse(resp), err
+}
+
+func (h *connectHandler) ExplainCondition(ctx context.Context, req *connect.Request[focusv1.ExplainConditionRequest]) (*connect.Response[focusv1.ExplainConditionResponse], error) {
+	gap, err := h.deps.Service.ExplainCondition(ctx, req.Msg.GetProviderId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(&focusv1.ExplainConditionResponse{Gap: gapToProto(gap)}), nil
+}
+
 // gapToProto translates a domain Gap to its proto wire form.
 func gapToProto(g internalfocus.Gap) *focusv1.Gap {
 	return &focusv1.Gap{
@@ -99,5 +123,6 @@ func gapToProto(g internalfocus.Gap) *focusv1.Gap {
 		EvidenceSource:     g.EvidenceSource,
 		EvidenceLocator:    g.EvidenceLocator,
 		AvailabilityReason: g.AvailabilityReason,
+		ProviderIds:        g.ProviderIDs,
 	}
 }

@@ -387,6 +387,20 @@ The CI drift check (`make endpoints && git diff --exit-code
 .vrooli/endpoints.json`) fails the build if step 4 was skipped, with
 an actionable diff showing exactly which entries diverged.
 
+### `coverage.NumeratorJoiner` three-signal Answer contract
+
+The typed numerator client joins Search Hub registry activity, routing
+reachability, and fresh non-degraded eval evidence. The joiner owns the
+policy that Answer `NOW` requires all three; each cell retains signal-level
+evidence for explainability, and unavailable RPCs degrade only the affected
+projection.
+
+### `coverage.SnapshotRepository` method-version boundary
+
+Coverage snapshots persist the method version alongside computed status. Reads
+ignore snapshots produced by an older numerator method, preventing a stale
+headline from being presented as current after a contract change.
+
 ## Cross-references
 
 - Test fakes lifecycle and naming convention: [`docs/internal/TESTING.md`](TESTING.md).

@@ -15,7 +15,7 @@ import (
 
 // fakeService is a hand fake of internalfocus.Service for handler tests.
 type fakeService struct {
-	items       []internalfocus.FocusItem
+	result      internalfocus.FocusResult
 	gaps        []internalfocus.Gap
 	gap         internalfocus.Gap
 	gapErr      error
@@ -25,8 +25,8 @@ type fakeService struct {
 	lastFilter  internalfocus.GapFilter
 }
 
-func (f *fakeService) GetFocus(_ context.Context, _ int, _ internalfocus.Projection) ([]internalfocus.FocusItem, error) {
-	return f.items, nil
+func (f *fakeService) GetFocus(_ context.Context, _ int, _ internalfocus.Projection) (internalfocus.FocusResult, error) {
+	return f.result, nil
 }
 
 func (f *fakeService) ListGaps(_ context.Context, filter internalfocus.GapFilter) ([]internalfocus.Gap, error) {
@@ -45,8 +45,17 @@ func (f *fakeService) AddGapNote(_ context.Context, id, approach string) (intern
 	return f.gap, f.noteErr
 }
 
+func (f *fakeService) ListCondition(_ context.Context) ([]internalfocus.Gap, error) {
+	return f.gaps, nil
+}
+
+func (f *fakeService) ExplainCondition(_ context.Context, providerID string) (internalfocus.Gap, error) {
+	f.lastID = providerID
+	return f.gap, f.gapErr
+}
+
 func TestHandlerGetFocus(t *testing.T) {
-	svc := &fakeService{items: []internalfocus.FocusItem{{
+	svc := &fakeService{result: internalfocus.FocusResult{Items: []internalfocus.FocusItem{{
 		Gap: internalfocus.Gap{
 			ID:              "answer/1",
 			Axis:            internalfocus.AxisCoverage,
@@ -61,7 +70,7 @@ func TestHandlerGetFocus(t *testing.T) {
 		Importance: 1.0,
 		Priority:   1.0,
 		Rationale:  "top",
-	}}}
+	}}}}
 	h := NewConnectHandler(Deps{Service: svc})
 	resp, err := h.GetFocus(context.Background(), connect.NewRequest(&focusv1.GetFocusRequest{Limit: 5}))
 	if err != nil {
@@ -76,6 +85,20 @@ func TestHandlerGetFocus(t *testing.T) {
 	}
 	if its[0].GetGap().GetAxis() != sharedv1.GapAxis_GAP_AXIS_COVERAGE || its[0].GetGap().GetRecurrence() != 3 || its[0].GetGap().GetEvidenceLocator() == "" {
 		t.Fatalf("provenance not mapped: %v", its[0].GetGap())
+	}
+}
+
+func TestHandlerGetFocusCarriesDegradedMetadata(t *testing.T) {
+	h := NewConnectHandler(Deps{Service: &fakeService{result: internalfocus.FocusResult{
+		Degraded:       true,
+		DegradedReason: "search-hub insights unavailable",
+	}}})
+	resp, err := h.GetFocus(context.Background(), connect.NewRequest(&focusv1.GetFocusRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resp.Msg.GetDegraded() || resp.Msg.GetDegradedReason() == "" {
+		t.Fatalf("degraded metadata lost: %+v", resp.Msg)
 	}
 }
 

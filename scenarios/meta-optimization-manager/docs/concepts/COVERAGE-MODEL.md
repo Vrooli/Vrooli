@@ -44,7 +44,7 @@ The projections are the **coverage axis**: enumerable supply, measured as `now /
 | **Condition** | per-leg verdict + instrumentation coverage | Does the capability that exists still *work*? | the contributor legs backing every `NOW` cell |
 | **Empirical** | trend over observed runs, no denominator | What *happens* when agents work? | `trials` (experimental, causal, expensive) |
 
-**Condition is defined in full by [`CONDITION-MODEL.md`](CONDITION-MODEL.md)** and is not restated here. Two properties of it matter to this file: its population is *derived* from this file's live numerator (the legs behind every `NOW` cell), so it can never drift out of sync with coverage; and by default a degraded leg does **not** change its cell's coverage status, because folding condition into supply makes both numbers unreadable. The one existing exception — `test-genie`'s numerator already gating on provider failure rate and pending autofix, described under [Per-Cell Numerator Semantics](#per-cell-numerator-semantics) — is recorded there as a known asymmetry with a stated target state.
+**Condition is defined in full by [`CONDITION-MODEL.md`](CONDITION-MODEL.md)** and is not restated here. Two properties of it matter to this file: its population is *derived* from this file's live numerator (the legs behind every `NOW` cell), so it can never drift out of sync with coverage; and by default a degraded leg does **not** change its cell's coverage status, because folding condition into supply makes both numbers unreadable. `test-genie` reports provider failure rate and pending autofix beside coverage; only a sustained failure streak promotes a coverage downgrade.
 
 `trials` is experimental: a fixed task suite, a deterministic oracle, everything else held constant — so it answers a *counterfactual* ("**could** a local model do this?") that observational data structurally cannot, since local models are not run on real work. Observational friction evidence (agent-manager investigations, and later program-runtime telemetry) is the complementary half: broad, cheap, real-distribution, but confounded.
 
@@ -96,22 +96,42 @@ stalling the board.
 | Projection | Owner RPC | Live join rule |
 |---|---|---|
 | **Answer** | search-hub `RegistryService.ListProviders` | A declared provider match yields `NOW`. An authored-`NOW` cell whose provider is absent downgrades to `IN-REACH`; other unresolved cells keep authored status. |
-| **Validate** | test-genie `RunsService.GetSelfHealth` | A provider is `NOW` only when it exists in the catalog, has no ledger `failureRate > 0`, and has no `autofix.pending > 0`; red ledger or pending autofix yields `IN-REACH`. |
+| **Validate** | test-genie `RunsService.GetSelfHealth` (`skip_conformance=true`) | A provider is `NOW` when it exists in the catalog. Ledger failures and pending autofix are reported beside coverage as a condition verdict; only the named sustained-failure threshold crosses the promotion boundary. Authored concerns are accompanied by a generated provider/capability tier from descriptor declarations. |
 | **Guide** | prompt-manager `GraphService.GetHealthScores` | Resolve the Guide row's skill ids against the graph health scores. `NOW` requires **all** referenced skills to be present and at/above `guideHealthyScore`; any partially resolved or unhealthy row is `IN-REACH`; fully unresolved rows keep authored status. |
 | **Act** | `program-runtime` | `BindingRegistryService.ResolveActCells` returns live callable verdicts. If the owner is unavailable, the join returns `UNAVAILABLE` with an honest reason and preserves authored statuses. |
 
-### Known condition asymmetry in the Validate join
+### Validate condition is reported beside coverage
 
-The Validate rule above is the only join that folds a **condition** signal into a
-coverage status: a provider with ledger `failureRate > 0` or `autofix.pending > 0`
-yields `IN-REACH` rather than `NOW`. Every other projection reports existence only.
+Validate now follows the sibling projections: a non-zero failure rate does not
+erase measured capability supply. The live join publishes `ok`, `degraded`, or
+`uninstrumented` condition counts beside the coverage ratio. A provider is
+downgraded only after the current contiguous failure streak reaches the named
+seven-day `sustainedDegradationWindow`; this damping prevents one transient outage from changing a supply
+number. `GetSelfHealth` is read with `skip_conformance=true`, because the
+numerator needs the catalog and ledger and must never put a fleet conformance
+fan-out on the board deadline.
 
-This predates [`CONDITION-MODEL.md`](CONDITION-MODEL.md) and is retained rather than
-silently changed. Under that model the target state is report-beside plus promotion
-to a coverage downgrade only after sustained degradation, which would make Validate
-consistent with its siblings. Converting it changes a live published number, so it
-is an explicit decision rather than a refactor — recorded here so the inconsistency
-is visible and deliberate.
+### Answer readiness is a three-signal join
+
+Answer coverage is intentionally stricter than descriptor existence. A cell is
+`NOW` only when its provider has all three independent runtime signals:
+
+1. **Active:** the provider is declared and active in Search Hub's registry.
+2. **Reachable:** Search Hub's status probe reports a resolved, non-degraded
+   endpoint for that provider.
+3. **Fresh evaluation:** the provider has a recent non-degraded eval run within
+   the 30-day freshness window.
+
+An authored `NOW` cell missing one signal is downgraded to `IN-REACH`; an
+authored non-`NOW` capability-gap status is preserved while its evidence remains
+visible. If the typed owner RPC is unavailable, the projection is `UNAVAILABLE`
+and its ratio/confidence are omitted. Every Answer cell exposes the three
+verdicts in `explain-cell`, so a headline can be audited to evidence rather than
+inferred from a boolean provider match.
+
+The method is versioned as `answer-active-reachable-fresh-eval-v1`. Changing the
+signals or freshness window requires a new method version, snapshot invalidation,
+focused join tests, and a live evidence record.
 
 ### Load-bearing constants
 

@@ -207,6 +207,36 @@ func TestService_TextSearch_RanksManifestHits(t *testing.T) {
 	}
 }
 
+func TestCommandLexicalRescueBoostsExactLeadingLeaf(t *testing.T) {
+	hits := []pkg.SearchResult{
+		{ID: "preview", Score: 0.20, Payload: map[string]any{"name": "preview"}},
+		{ID: "generate", Score: 0.05, Payload: map[string]any{"name": "generate"}},
+	}
+	commandLexicalRescue(hits, pkg.SearchQuery{Query: "generate a new scenario scaffold"})
+	if hits[1].Score <= hits[0].Score {
+		t.Fatalf("exact leading leaf was not rescued: %+v", hits)
+	}
+
+	joined := []pkg.SearchResult{{ID: "setup", Score: 0.05, Payload: map[string]any{"name": "setup"}}}
+	commandLexicalRescue(joined, pkg.SearchQuery{Query: "set up the project"})
+	if joined[0].Score <= 0.05 {
+		t.Fatalf("joined leading phrase did not match setup: %+v", joined)
+	}
+	compound := []pkg.SearchResult{{ID: "set-suffix", Score: 0.05, Payload: map[string]any{"name": "api-source-set"}}}
+	commandLexicalRescue(compound, pkg.SearchQuery{Query: "set up the project"})
+	if compound[0].Score != 0.05 {
+		t.Fatalf("compound leaf suffix received a false lexical boost: %+v", compound[0])
+	}
+}
+
+func TestCommandLexicalRescueIgnoresGibberish(t *testing.T) {
+	hits := []pkg.SearchResult{{ID: "generate", Score: 0.05, Payload: map[string]any{"name": "generate"}}}
+	commandLexicalRescue(hits, pkg.SearchQuery{Query: "zzqxr florpnax"})
+	if hits[0].Score != 0.05 {
+		t.Fatalf("gibberish unexpectedly received lexical boost: %+v", hits[0])
+	}
+}
+
 func TestService_AutoFallsBackToText_WhenEmbedderFails(t *testing.T) {
 	emb := &fakeEmbedder{embedErr: errors.New("ollama down")}
 	svc := newTestService(sampleCorpus(), emb, newFakeStore())

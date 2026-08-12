@@ -199,6 +199,13 @@ func main() {
 	syncCtx, cancelSync := context.WithCancel(context.Background())
 	syncLoop := aisearchpkg.NewSyncLoopFunc("business-health", aiService.Reconciler, searchCfg)
 	go syncLoop.Start(syncCtx)
+	// Populate a newly selected collection layout immediately at boot; the
+	// periodic loop remains the repair path for later drift.
+	go func() {
+		if _, _, err := syncLoop.RunOnce(syncCtx); err != nil {
+			logger.Printf("[business-health] initial search reconcile failed (continuing degraded): %v", err)
+		}
+	}()
 
 	// The minted control token gates the shared reindex/config-write plane;
 	// memory-only, re-acquired on every boot's re-registration.

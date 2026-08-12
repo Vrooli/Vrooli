@@ -22,7 +22,8 @@ func TestSnapshotSaveAndLatestTTL(t *testing.T) {
 	ctx := context.Background()
 
 	status := internalcoverage.Status{
-		ComputedAt: clk.Now(),
+		ComputedAt:            clk.Now(),
+		CoverageMethodVersion: "answer-active-reachable-fresh-eval-v1",
 		Projections: []internalcoverage.ProjectionCoverage{
 			{Projection: spacedoc.ProjectionAnswer, NowCount: 3, TotalCells: 36, CoverageRatio: 0.0833, Available: true, DenominatorConfidence: spacedoc.ConfidencePartial},
 		},
@@ -38,6 +39,9 @@ func TestSnapshotSaveAndLatestTTL(t *testing.T) {
 	}
 	if len(got.Projections) != 1 || got.Projections[0].NowCount != 3 {
 		t.Errorf("round-trip mismatch: %+v", got.Projections)
+	}
+	if got.CoverageMethodVersion != "answer-active-reachable-fresh-eval-v1" {
+		t.Errorf("coverage method version = %q", got.CoverageMethodVersion)
 	}
 
 	// Past TTL -> miss.

@@ -59,6 +59,8 @@ export const strings = {
       description: "pages.focus.description",
       focusHeading: "pages.focus.focusHeading",
       gapsHeading: "pages.focus.gapsHeading",
+      conditionHeading: "pages.focus.conditionHeading",
+      conditionEmpty: "pages.focus.conditionEmpty",
       priorityLabel: "pages.focus.priorityLabel",
       globalBadge: "pages.focus.globalBadge",
       empty: "pages.focus.empty",

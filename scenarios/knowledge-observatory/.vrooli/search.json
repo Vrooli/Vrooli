@@ -71,6 +71,7 @@
         "deep_k": 50
       },
       "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
         "suite_id": "knowledge-observatory.docs.starter",
         "name": "Knowledge-observatory docs — primary golden corpus",
         "description": "Hand-labeled documentation search corpus migrated from the old standalone testdata/search_queries.json into the provider search.json SSOT. Cases assert stable document paths (the provider id_field is relative_path) within recall_at; scoped cases preserve their scenario:path query scope through the shared GradeSuite harness.",

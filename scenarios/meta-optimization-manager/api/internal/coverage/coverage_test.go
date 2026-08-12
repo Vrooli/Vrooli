@@ -3,6 +3,7 @@ package coverage
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -102,6 +103,31 @@ func TestGetStatusDegradesWhenOwnerDown(t *testing.T) {
 	if pc.UnavailableReason == "" {
 		t.Error("expected an honest reason")
 	}
+	if pc.CoverageRatio != 0 || pc.DenominatorConfidence != "" {
+		t.Errorf("unavailable projection must omit ratio and confidence: %+v", pc)
+	}
+}
+
+func TestGetStatusOmitsRatioAndConfidenceWhenJoinUnavailable(t *testing.T) {
+	svc := NewService(Deps{
+		Reader: fakeReader{defs: map[Projection]*spacedoc.SpaceDefinition{ProjectionAnswer: answerDef()}},
+		Joiner: staticJoiner{JoinResult{Available: false, Reason: "search-hub registry unreachable"}},
+		Clock:  fixedClock{},
+	})
+	st, err := svc.GetStatus(context.Background(), ProjectionAnswer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pc := st.Projections[0]
+	if pc.Available {
+		t.Fatalf("expected unavailable projection, got %+v", pc)
+	}
+	if pc.UnavailableReason != "search-hub registry unreachable" {
+		t.Errorf("reason = %q", pc.UnavailableReason)
+	}
+	if pc.CoverageRatio != 0 || pc.DenominatorConfidence != "" {
+		t.Errorf("unavailable projection must omit ratio and confidence: %+v", pc)
+	}
 }
 
 func TestListCellsFilters(t *testing.T) {
@@ -120,9 +146,16 @@ func TestListCellsFilters(t *testing.T) {
 }
 
 func TestExplainCell(t *testing.T) {
+	join := JoinResult{Available: true, Evidence: map[string][]SignalEvidence{
+		"1": {
+			{Signal: "active", Verdict: "held", Evidence: "ui-health.surfaces is ACTIVE"},
+			{Signal: "reachable", Verdict: "held", Evidence: "reachable"},
+			{Signal: "eval_fresh", Verdict: "held", Evidence: "fresh non-degraded eval run run-1"},
+		},
+	}}
 	svc := NewService(Deps{
 		Reader: fakeReader{defs: map[Projection]*spacedoc.SpaceDefinition{ProjectionAnswer: answerDef()}},
-		Joiner: staticJoiner{JoinResult{Available: true}},
+		Joiner: staticJoiner{join},
 		Clock:  fixedClock{},
 	})
 	cell, err := svc.ExplainCell(context.Background(), "answer/1")
@@ -131,6 +164,21 @@ func TestExplainCell(t *testing.T) {
 	}
 	if cell.Question != "Surfaces" || len(cell.Citations) == 0 {
 		t.Errorf("cell = %+v", cell)
+	}
+	if len(cell.SignalEvidence) != 3 {
+		t.Fatalf("signal evidence = %+v", cell.SignalEvidence)
+	}
+	for _, signal := range []string{"active", "reachable", "eval_fresh"} {
+		found := false
+		for _, note := range cell.Notes {
+			if strings.Contains(note, "answer signal "+signal) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("explanation omitted %s: %v", signal, cell.Notes)
+		}
 	}
 	if _, err := svc.ExplainCell(context.Background(), "answer/999"); err == nil {
 		t.Error("expected not-found")

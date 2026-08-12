@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 
@@ -48,6 +50,7 @@ func (r *execSpaceReader) Read(ctx context.Context, p Projection) (*spacedoc.Spa
 		if out, err := r.run(ctx, owner, "space", "--projection", string(p), "--json"); err == nil {
 			def, perr := decodeSpaceDefinition(out, p)
 			if perr == nil {
+				augmentGeneratedValidateCapabilities(def)
 				return def, nil
 			}
 		}
@@ -94,5 +97,82 @@ func readSpaceDocFromFile(p Projection, owner string) (*spacedoc.SpaceDefinition
 	if rerr == nil {
 		def.Source = rel
 	}
+	augmentGeneratedValidateCapabilities(def)
 	return def, nil
+}
+
+// augmentGeneratedValidateCapabilities adds the descriptor-derived tier to
+// Validate's authored concern denominator. The descriptor is the source of
+// truth for capability declarations; the space document remains the stable
+// authored tier. Keeping this expansion in the denominator reader means a
+// provider can add a capability without a meta-optimization-manager source
+// edit, while the moving denominator is still visible in the emitted space.
+func augmentGeneratedValidateCapabilities(def *spacedoc.SpaceDefinition) {
+	if def == nil || def.Projection != spacedoc.ProjectionValidate {
+		return
+	}
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		return
+	}
+	type capability struct {
+		ID string `json:"id"`
+	}
+	type maturity struct {
+		Capabilities []capability `json:"capabilities"`
+	}
+	type descriptor struct {
+		Scenario string   `json:"scenario"`
+		Maturity maturity `json:"maturity"`
+	}
+	type generated struct {
+		Cell spacedoc.Cell
+		Key  string
+	}
+	var generatedCells []generated
+	paths, _ := filepath.Glob(filepath.Join(root, "scenarios", "*", ".vrooli", "test-genie.json"))
+	for _, path := range paths {
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			continue
+		}
+		var d descriptor
+		if json.Unmarshal(raw, &d) != nil {
+			continue
+		}
+		scenario := strings.TrimSpace(d.Scenario)
+		if scenario == "" {
+			scenario = filepath.Base(filepath.Dir(filepath.Dir(path)))
+		}
+		for _, cap := range d.Maturity.Capabilities {
+			id := strings.TrimSpace(cap.ID)
+			if id == "" {
+				continue
+			}
+			key := strings.ToLower(scenario + "/" + id)
+			generatedCells = append(generatedCells, generated{
+				Key: key,
+				Cell: spacedoc.Cell{
+					ID:       "cap/" + scenario + "/" + id,
+					Group:    "Generated capability tier",
+					Question: id,
+					Owner:    scenario,
+					Status:   spacedoc.StatusMissing,
+					Notes:    []string{"generated from " + filepath.ToSlash(filepath.Join("scenarios", scenario, ".vrooli", "test-genie.json")) + ":maturity.capabilities"},
+				},
+			})
+		}
+	}
+	sort.Slice(generatedCells, func(i, j int) bool { return generatedCells[i].Key < generatedCells[j].Key })
+	seen := make(map[string]struct{}, len(def.Cells)+len(generatedCells))
+	for _, c := range def.Cells {
+		seen[strings.ToLower(c.ID)] = struct{}{}
+	}
+	for _, item := range generatedCells {
+		if _, exists := seen[strings.ToLower(item.Cell.ID)]; exists {
+			continue
+		}
+		seen[strings.ToLower(item.Cell.ID)] = struct{}{}
+		def.Cells = append(def.Cells, item.Cell)
+	}
 }

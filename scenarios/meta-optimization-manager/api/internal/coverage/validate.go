@@ -3,6 +3,7 @@ package coverage
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/vrooli/api-core/spacedoc"
 )
@@ -41,12 +42,18 @@ func (s *service) ValidateBaseDocs(ctx context.Context, projection Projection) (
 	for _, p := range targets {
 		def, err := s.reader.Read(ctx, p)
 		if err != nil {
+			severity := SeverityWarn
+			code := "denominator_unavailable"
+			if strings.Contains(strings.ToLower(err.Error()), "unrecognized status token") {
+				severity = SeverityError
+				code = "denominator_parse_error"
+			}
 			report.add(BaseDocIssue{
 				Projection: p,
-				Code:       "denominator_unavailable",
+				Code:       code,
 				Message:    fmt.Sprintf("%s space verb unreachable: %v", OwnerFor(p), err),
 				Location:   OwnerFor(p),
-				Severity:   SeverityWarn,
+				Severity:   severity,
 			})
 			continue
 		}
@@ -209,6 +216,20 @@ func validateLiveDrift(ctx context.Context, s *service, p Projection, def *space
 		return
 	}
 	join := s.joiner.Join(ctx, p, def.Cells)
+	if p == ProjectionAnswer && join.Available {
+		for _, cell := range def.Cells {
+			if len(providerTokens(cell.Owner)) == 0 || join.OwnerResolved[cell.ID] {
+				continue
+			}
+			report.add(BaseDocIssue{
+				Projection: p,
+				Code:       "owner_leaf_unresolved",
+				Message:    fmt.Sprintf("cell %s owner %q does not resolve to a registered provider leaf id", cell.ID, cell.Owner),
+				Location:   fmt.Sprintf("%s#%s", def.Source, cell.ID),
+				Severity:   SeverityError,
+			})
+		}
+	}
 	if !join.Available || join.Statuses == nil {
 		return
 	}

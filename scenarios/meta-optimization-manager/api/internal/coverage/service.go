@@ -18,6 +18,8 @@ import (
 // gap for long.
 const snapshotTTL = 30 * time.Second
 
+const coverageMethodVersion = "answer-active-reachable-fresh-eval-v1"
+
 // TrendProvider supplies the latest empirical trials trend for the scoreboard.
 // The trials domain (Phase 4) implements it; until then GetStatus surfaces no
 // trend. Optional — a nil provider simply omits the trend.
@@ -75,7 +77,9 @@ func (s *service) GetStatus(ctx context.Context, projection Projection) (Status,
 	all := projection == "" || projection == spacedoc.Projection("")
 	if all && s.snaps != nil {
 		if snap, ok := s.snaps.Latest(ctx, snapshotTTL, s.clock.Now()); ok {
-			return snap, nil
+			if snap.CoverageMethodVersion == coverageMethodVersion {
+				return snap, nil
+			}
 		}
 	}
 
@@ -93,7 +97,7 @@ func (s *service) GetStatus(ctx context.Context, projection Projection) (Status,
 	// Total board latency is the slowest single projection, capped by the
 	// per-owner read deadlines — not the serial sum that let one ~30s hang stall
 	// the whole scoreboard.
-	out := Status{ComputedAt: s.clock.Now().UTC()}
+	out := Status{ComputedAt: s.clock.Now().UTC(), CoverageMethodVersion: coverageMethodVersion}
 	out.Projections = make([]ProjectionCoverage, len(targets))
 	var wg sync.WaitGroup
 	for i, p := range targets {
@@ -123,19 +127,21 @@ func (s *service) coverageFor(ctx context.Context, p Projection) ProjectionCover
 	if err != nil {
 		pc.Available = false
 		pc.UnavailableReason = fmt.Sprintf("%s denominator unavailable: %v", OwnerFor(p), err)
-		pc.DenominatorConfidence = spacedoc.ConfidenceSketch
 		return pc
 	}
-	pc.DenominatorConfidence = def.DenominatorConfidence
-	pc.ConfidenceRationale = def.ConfidenceRationale
 	pc.TotalCells = len(def.Cells)
 
 	join := s.joiner.Join(ctx, p, def.Cells)
-	if join.DenominatorConfidence != "" {
-		pc.DenominatorConfidence = join.DenominatorConfidence
-	}
 	pc.Available = join.Available
 	pc.UnavailableReason = join.Reason
+	conditionCounts := map[ConditionVerdict]int{}
+	if pc.Available {
+		pc.DenominatorConfidence = def.DenominatorConfidence
+		pc.ConfidenceRationale = def.ConfidenceRationale
+		if join.DenominatorConfidence != "" {
+			pc.DenominatorConfidence = join.DenominatorConfidence
+		}
+	}
 	for _, c := range def.Cells {
 		switch effectiveStatus(c, join) {
 		case spacedoc.StatusNow:
@@ -145,8 +151,16 @@ func (s *service) coverageFor(ctx context.Context, p Projection) ProjectionCover
 		default:
 			pc.MissingCount++
 		}
+		if condition, ok := join.Conditions[c.ID]; ok {
+			conditionCounts[condition]++
+		}
 	}
-	if pc.TotalCells > 0 {
+	for _, condition := range []ConditionVerdict{ConditionOK, ConditionDegraded, ConditionUninstrumented, ConditionDormant} {
+		if count := conditionCounts[condition]; count > 0 {
+			pc.ConditionCounts = append(pc.ConditionCounts, ConditionCount{Condition: condition, Count: count})
+		}
+	}
+	if pc.Available && pc.TotalCells > 0 {
 		pc.CoverageRatio = float64(pc.NowCount) / float64(pc.TotalCells)
 	}
 	return pc
@@ -186,7 +200,7 @@ func (s *service) ListCells(ctx context.Context, projection Projection, status s
 			if status != "" && eff != status {
 				continue
 			}
-			out = append(out, s.toCell(ctx, p, c, eff))
+			out = append(out, s.toCellWithJoin(ctx, p, c, eff, join))
 		}
 	}
 	return out, nil
@@ -208,7 +222,7 @@ func (s *service) ExplainCell(ctx context.Context, cellID string) (Cell, error) 
 		if c.ID != rawID {
 			continue
 		}
-		cell := s.toCell(ctx, p, c, effectiveStatus(c, join))
+		cell := s.toCellWithJoin(ctx, p, c, effectiveStatus(c, join), join)
 		cell.Citations = citationsFor(def, c)
 		return cell, nil
 	}
@@ -254,6 +268,27 @@ func (s *service) toCell(ctx context.Context, p Projection, c spacedoc.Cell, eff
 		cell.ObservedAdherence = observed
 	}
 	cell.Notes = append(cell.Notes, observedAdherenceNote(cell.ObservedAdherence))
+	return cell
+}
+
+func (s *service) toCellWithJoin(ctx context.Context, p Projection, c spacedoc.Cell, eff spacedoc.CellStatus, join JoinResult) Cell {
+	cell := s.toCell(ctx, p, c, eff)
+	cell.SignalEvidence = append(cell.SignalEvidence, join.Evidence[c.ID]...)
+	cell.Condition = join.Conditions[c.ID]
+	if p == ProjectionAnswer {
+		if !join.Available {
+			reason := join.Reason
+			if reason == "" {
+				reason = "search-hub signal read unavailable"
+			}
+			for _, signal := range []string{"active", "reachable", "eval_fresh"} {
+				cell.SignalEvidence = append(cell.SignalEvidence, SignalEvidence{Signal: signal, Verdict: "unavailable", Evidence: reason})
+			}
+		}
+		for _, signal := range cell.SignalEvidence {
+			cell.Notes = append(cell.Notes, fmt.Sprintf("answer signal %s: %s (%s)", signal.Signal, signal.Verdict, signal.Evidence))
+		}
+	}
 	return cell
 }
 

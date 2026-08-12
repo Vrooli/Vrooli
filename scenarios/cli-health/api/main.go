@@ -177,6 +177,14 @@ func main() {
 	// reconciling with the old recipe and the drift hash would undo the apply.
 	syncLoop := aisearchpkg.NewSyncLoopFunc("cli-health", aiService.Reconciler, searchCfg)
 	go syncLoop.Start(syncCtx)
+	// Reconcile once at boot so a newly selected collection layout (for example
+	// the non-destructive dense→hybrid sibling) is usable immediately. The
+	// periodic loop remains the repair path for later drift.
+	go func() {
+		if _, _, err := syncLoop.RunOnce(syncCtx); err != nil {
+			logger.Printf("[cli-health] initial search reconcile failed (continuing degraded): %v", err)
+		}
+	}()
 
 	// The override gate is the OUTER security layer of the query-time override
 	// channel: search-hub's sweep/A-B can vary rerank/floor/shortlist per request,

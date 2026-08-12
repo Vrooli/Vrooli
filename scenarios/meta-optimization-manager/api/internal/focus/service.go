@@ -2,6 +2,7 @@ package focus
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -12,27 +13,31 @@ const defaultFocusLimit = 5
 
 // Service is the focus application surface.
 type Service interface {
-	GetFocus(ctx context.Context, limit int, projection Projection) ([]FocusItem, error)
+	GetFocus(ctx context.Context, limit int, projection Projection) (FocusResult, error)
 	ListGaps(ctx context.Context, filter GapFilter) ([]Gap, error)
 	GetGap(ctx context.Context, id string) (Gap, error)
 	AddGapNote(ctx context.Context, id, approach string) (Gap, error)
+	ListCondition(ctx context.Context) ([]Gap, error)
+	ExplainCondition(ctx context.Context, providerID string) (Gap, error)
 }
 
 type service struct {
-	source GapSource
-	repo   Repository
+	source   GapSource
+	repo     Repository
+	insights ProviderInsights
 }
 
 // Deps wires the focus Service. Repo is optional (nil disables persistence; the
 // service still surfaces live-derived gaps but AddGapNote then errors).
 type Deps struct {
-	Source GapSource
-	Repo   Repository
+	Source   GapSource
+	Repo     Repository
+	Insights ProviderInsights
 }
 
 // NewService constructs the focus Service.
 func NewService(d Deps) Service {
-	return &service{source: d.Source, repo: d.Repo}
+	return &service{source: d.Source, repo: d.Repo, insights: d.Insights}
 }
 
 var _ Service = (*service)(nil)
@@ -43,37 +48,57 @@ var _ Service = (*service)(nil)
 // nothing rather than failing the read.
 func (s *service) allGaps(ctx context.Context) ([]Gap, error) {
 	var derived, registry []Gap
+	var errs []error
 	if s.source != nil {
 		d, err := s.source.DerivedGaps(ctx)
-		if err == nil {
-			derived = d
+		derived = d
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
 	if s.repo != nil {
 		r, err := s.repo.List(ctx)
 		if err == nil {
 			registry = r
+		} else {
+			errs = append(errs, fmt.Errorf("focus registry unavailable: %w", err))
 		}
 	}
-	return mergeGaps(derived, registry), nil
+	return mergeGaps(derived, registry), errors.Join(errs...)
 }
 
 // GetFocus returns the ranked next-best gaps (impact × importance), optionally
 // filtered by projection, capped at limit (default when limit<=0).
-func (s *service) GetFocus(ctx context.Context, limit int, projection Projection) ([]FocusItem, error) {
+func (s *service) GetFocus(ctx context.Context, limit int, projection Projection) (FocusResult, error) {
 	if projection != "" && OwnerFor(projection) == "" {
-		return nil, fmt.Errorf("focus: unknown projection %q", projection)
+		return FocusResult{}, fmt.Errorf("focus: unknown projection %q", projection)
 	}
-	gaps, err := s.allGaps(ctx)
-	if err != nil {
-		return nil, err
+	gaps, liveErr := s.allGaps(ctx)
+	var degraded []error
+	if liveErr != nil {
+		degraded = append(degraded, fmt.Errorf("live focus data unavailable: %w", liveErr))
+	}
+	providerSignals := map[string]ProviderInsight{}
+	if s.insights == nil {
+		degraded = append(degraded, errors.New("search-hub insights unavailable: provider insights reader is not configured"))
+	} else if signals, err := s.insights.Insights(ctx); err != nil {
+		degraded = append(degraded, fmt.Errorf("search-hub insights unavailable: %w", err))
+	} else {
+		for _, signal := range signals {
+			for _, key := range []string{signal.ProviderID, signal.ProviderGroup} {
+				key = strings.ToLower(strings.TrimSpace(key))
+				if key != "" {
+					providerSignals[key] = signal
+				}
+			}
+		}
 	}
 	items := make([]FocusItem, 0, len(gaps))
 	for _, g := range gaps {
 		if projection != "" && g.Projection != projection {
 			continue
 		}
-		imp, impo, pri, why := score(g)
+		imp, impo, pri, why := scoreWithInsights(g, providerSignals)
 		items = append(items, FocusItem{Gap: g, Impact: imp, Importance: impo, Priority: pri, Rationale: why})
 	}
 	sort.SliceStable(items, func(i, j int) bool {
@@ -88,15 +113,17 @@ func (s *service) GetFocus(ctx context.Context, limit int, projection Projection
 	if len(items) > limit {
 		items = items[:limit]
 	}
-	return items, nil
+	result := FocusResult{Items: items}
+	if len(degraded) > 0 {
+		result.Degraded = true
+		result.DegradedReason = errors.Join(degraded...).Error()
+	}
+	return result, nil
 }
 
 // ListGaps returns the merged registry, filtered.
 func (s *service) ListGaps(ctx context.Context, filter GapFilter) ([]Gap, error) {
-	gaps, err := s.allGaps(ctx)
-	if err != nil {
-		return nil, err
-	}
+	gaps, _ := s.allGaps(ctx) // source failures are represented by availability gaps
 	out := make([]Gap, 0, len(gaps))
 	for _, g := range gaps {
 		if filter.Projection != "" && g.Projection != filter.Projection {
@@ -113,16 +140,43 @@ func (s *service) ListGaps(ctx context.Context, filter GapFilter) ([]Gap, error)
 	return out, nil
 }
 
+func (s *service) ListCondition(ctx context.Context) ([]Gap, error) {
+	gaps, _ := s.allGaps(ctx)
+	var out []Gap
+	for _, gap := range gaps {
+		if gap.Axis == AxisEmpirical && (strings.HasPrefix(gap.ID, "condition/") || strings.HasPrefix(gap.ID, "source/condition/") || strings.HasPrefix(gap.ID, "source/maturity/")) {
+			out = append(out, gap)
+		}
+	}
+	// Condition is an observational surface. Sibling focus sources may be
+	// unavailable while Search Hub condition evidence is still usable; do not
+	// turn that partial result into a transport error. A condition/maturity
+	// source failure is retained as its own source/<name>/availability gap above.
+	return out, nil
+}
+
+func (s *service) ExplainCondition(ctx context.Context, providerID string) (Gap, error) {
+	providerID = strings.TrimSpace(providerID)
+	if providerID == "" {
+		return Gap{}, fmt.Errorf("condition: provider id required")
+	}
+	gap, err := s.GetGap(ctx, "condition/"+providerID)
+	if err != nil {
+		return Gap{}, err
+	}
+	if gap.Axis != AxisEmpirical {
+		return Gap{}, fmt.Errorf("condition: %q is not an observed condition leg", providerID)
+	}
+	return gap, nil
+}
+
 // GetGap returns one merged gap by id.
 func (s *service) GetGap(ctx context.Context, id string) (Gap, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return Gap{}, fmt.Errorf("focus: empty gap id")
 	}
-	gaps, err := s.allGaps(ctx)
-	if err != nil {
-		return Gap{}, err
-	}
+	gaps, _ := s.allGaps(ctx) // source failures are represented by availability gaps
 	for _, g := range gaps {
 		if g.ID == id {
 			return g, nil

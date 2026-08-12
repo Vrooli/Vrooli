@@ -53,6 +53,9 @@ func (h *connectHandler) GetStatus(ctx context.Context, req *connect.Request[cov
 			Available:             pc.Available,
 			UnavailableReason:     pc.UnavailableReason,
 		})
+		for _, condition := range pc.ConditionCounts {
+			resp.Projections[len(resp.Projections)-1].ConditionCounts = append(resp.Projections[len(resp.Projections)-1].ConditionCounts, &coveragev1.ConditionCount{Condition: string(condition.Condition), Count: int32(condition.Count)})
+		}
 	}
 	if t := status.LatestTrialTrend; t != nil {
 		resp.LatestTrialTrend = &coveragev1.EmpiricalTrendPoint{
@@ -116,6 +119,7 @@ func cellToProto(c internalcoverage.Cell) *coveragev1.Cell {
 		Question:    c.Question,
 		Owner:       c.Owner,
 		Status:      statusToProto(c.Status),
+		Condition:   string(c.Condition),
 		Basis:       basisToProto(c.Basis),
 		Sufficiency: sufficiencyToProto(c.Sufficiency),
 		Notes:       c.Notes,

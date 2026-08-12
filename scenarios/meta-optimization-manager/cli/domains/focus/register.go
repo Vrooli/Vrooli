@@ -13,8 +13,9 @@ import (
 
 // FocusGroup and GapsGroup are the manifest group names this package owns.
 const (
-	FocusGroup = "focus"
-	GapsGroup  = "gaps"
+	FocusGroup     = "focus"
+	GapsGroup      = "gaps"
+	ConditionGroup = "condition"
 )
 
 // Register builds the focus + gaps subcommand groups from the embedded manifest
@@ -35,5 +36,12 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGro
 	if err != nil {
 		return nil, fmt.Errorf("focus: load gaps group: %w", err)
 	}
-	return []cliapp.SubcommandGroup{focusGroup, gapsGroup}, nil
+	conditionGroup, err := cliapp.LoadFromManifest(manifest, ConditionGroup, map[string]func(cliapp.RunContext) error{
+		"FocusService.ListCondition":    h.conditionStatus,
+		"FocusService.ExplainCondition": h.conditionExplain,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("focus: load condition group: %w", err)
+	}
+	return []cliapp.SubcommandGroup{focusGroup, gapsGroup, conditionGroup}, nil
 }

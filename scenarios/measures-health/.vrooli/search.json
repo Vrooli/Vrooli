@@ -58,6 +58,7 @@
         }
       },
       "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
         "name": "measures-health measures — primary golden corpus",
         "description": "Reviewed corpus for the central measures provider. It exercises both stable fleet-validation measures through count and coverage phrasings, while preserving a candidate for the unsupported adoption-rate intent rather than pretending that measure exists.",
         "coverage": {

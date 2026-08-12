@@ -12,6 +12,7 @@ Requirement modules for **meta-optimization-manager**, organized one folder per 
 | OT-P0-004 Base-document integrity | P0 | `04-base-doc-integrity/` |
 | OT-P1-001 Empirical readiness trials | P1 | `05-trials/` |
 | OT-P1-002 Template & reference convergence | P1 | `06-convergence/` |
+| OT-P1-003 Condition axis | P1 | `09-condition-axis/` |
 | OT-P2-001 Operator UI dashboard | P2 | `07-ui-dashboard/` |
 | OT-P2-002 Readiness answerable via search (cli-health federation; dedicated provider descoped) | P2 | `08-attested-search/` |
 

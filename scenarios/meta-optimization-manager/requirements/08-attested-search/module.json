@@ -10,13 +10,13 @@
     {
       "id": "MOM-SEARCH-001",
       "title": "readiness answers discoverable via search-hub (cli-health command federation)",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-002",
       "category": "coverage",
       "description": "The user need — 'how ready are we / where should I work' answerable through search — is already satisfied by cli-health's command federation: a federated search-hub query surfaces meta-optimization-manager's coverage/focus commands (e.g. `status`, `validate-docs`, `list-cells`) with their descriptions, routing the agent to the right command. A dedicated MoM search provider that emits the AttestedAnswer envelope (confidence + citations inline in the search result) is DESCOPED as redundant for this need — see docs/internal/DECISIONS.md (2026-06-24). The additive `AttestedAnswer` carrier on search-hub `SearchHit` stays available for any future provider that wants inline attestation, but MoM does not self-register one.",
       "tags": ["search-hub", "cli-health", "descoped"],
       "validation": [
-        { "type": "manual", "phase": "integration", "status": "implemented", "notes": "Verified live 2026-06-24: `search-hub query \"how ready are we to self-optimize\"` returns MoM's coverage commands (status/validate-docs/list-cells) via the cli-health.commands provider." }
+        { "type": "manual", "phase": "integration", "status": "pending", "notes": "Previously verified live, but current revalidation returns a provider HTTP 500 while the shared vector substrate is stopped/degraded; re-attest after healthy-substrate restoration." }
       ]
     }
   ]

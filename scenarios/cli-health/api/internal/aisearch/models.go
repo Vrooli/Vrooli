@@ -7,11 +7,33 @@
 // env config — lives in github.com/vrooli/ai-go/search.
 package aisearch
 
-import "github.com/vrooli/cli-core/cliapp"
+import (
+	"strings"
+
+	pkg "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/cli-core/cliapp"
+)
 
 // DefaultCollection is the Qdrant collection cli-health indexes its commands
 // into. Single named-dense vector layout (the shared engine's CollectionSpec).
 const DefaultCollection = "cli-health-commands"
+
+// HybridCollectionSuffix identifies the sparse-vector collection layout. A
+// dense↔hybrid switch changes Qdrant's schema, so the hybrid arm gets a
+// versioned sibling collection instead of attempting to mutate or delete the
+// incumbent dense collection.
+const HybridCollectionSuffix = "-hybrid"
+
+func collectionForTuning(base string, tuning pkg.TuningConfig) string {
+	base = strings.TrimSpace(base)
+	if base == "" {
+		base = DefaultCollection
+	}
+	if tuning.WithDefaults().Engine != pkg.EngineHybrid || strings.HasSuffix(base, HybridCollectionSuffix) {
+		return base
+	}
+	return base + HybridCollectionSuffix
+}
 
 // CommandRecord is the canonical view of a single CLI command, regardless of
 // source (manifest or --help fallback). It is the unit that gets embedded,

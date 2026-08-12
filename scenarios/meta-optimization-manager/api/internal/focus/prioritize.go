@@ -21,13 +21,56 @@ import (
 //
 // priority = impact × importance. The weights are coefficients, not truth; they
 // rank, they do not score correctness.
-func score(g Gap) (impact, importance, priority float64, rationale string) {
+func scoreWithInsights(g Gap, insights map[string]ProviderInsight) (impact, importance, priority float64, rationale string) {
 	impact = impactWeight(g.Status)
 	importance = importanceWeight(g)
-	priority = impact * importance
-	rationale = fmt.Sprintf("impact=%.2f (%s) × importance=%.2f (%s) ⇒ %.2f",
-		impact, impactReason(g.Status), importance, importanceReason(g), priority)
+	operational, operationalReason := providerWeight(g, insights)
+	priority = impact*importance + operational
+	rationale = fmt.Sprintf("impact=%.2f (%s) × importance=%.2f (%s) + provider=%.2f (%s) ⇒ %.2f",
+		impact, impactReason(g.Status), importance, importanceReason(g), operational, operationalReason, priority)
 	return impact, importance, priority, rationale
+}
+
+// providerWeight is intentionally bounded and additive: provider telemetry
+// can break structural ties without allowing a noisy provider to outrank the
+// coverage model's projection leverage. Volume represents how often a leaf is
+// actually exercised; degradation represents how much attention its failures
+// warrant. A never-routed provider contributes zero.
+func providerWeight(g Gap, insights map[string]ProviderInsight) (float64, string) {
+	if len(insights) == 0 || len(g.ProviderIDs) == 0 {
+		return 0, "provider telemetry unavailable"
+	}
+	best := 0.0
+	bestID := ""
+	var bestSignal ProviderInsight
+	for _, provider := range g.ProviderIDs {
+		signal, ok := insights[strings.ToLower(strings.TrimSpace(provider))]
+		if !ok {
+			continue
+		}
+		volume := float64(signal.TimesRouted) / 10.0
+		if volume > 1 {
+			volume = 1
+		}
+		if volume < 0 {
+			volume = 0
+		}
+		degradation := signal.DegradationRate
+		if degradation < 0 {
+			degradation = 0
+		}
+		if degradation > 1 {
+			degradation = 1
+		}
+		weight := 0.15*volume + 0.35*degradation
+		if weight > best {
+			best, bestID, bestSignal = weight, provider, signal
+		}
+	}
+	if bestID == "" {
+		return 0, "provider has no telemetry in the window"
+	}
+	return best, fmt.Sprintf("%s routed=%d degradation=%.2f", bestID, bestSignal.TimesRouted, bestSignal.DegradationRate)
 }
 
 func impactWeight(s spacedoc.CellStatus) float64 {

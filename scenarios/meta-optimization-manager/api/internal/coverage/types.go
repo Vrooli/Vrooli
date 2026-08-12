@@ -71,11 +71,38 @@ type Cell struct {
 	Question          string
 	Owner             string
 	Status            spacedoc.CellStatus
+	Condition         ConditionVerdict
 	Basis             spacedoc.Basis
 	Sufficiency       string
 	Notes             []string
 	Citations         []Citation
 	ObservedAdherence ObservedAdherence
+	SignalEvidence    []SignalEvidence
+}
+
+// ConditionVerdict is the health axis beside capability coverage.
+type ConditionVerdict string
+
+const (
+	ConditionOK             ConditionVerdict = "ok"
+	ConditionDegraded       ConditionVerdict = "degraded"
+	ConditionUninstrumented ConditionVerdict = "uninstrumented"
+	ConditionDormant        ConditionVerdict = "dormant"
+)
+
+type ConditionCount struct {
+	Condition ConditionVerdict
+	Count     int
+}
+
+// SignalEvidence is the evidence used to derive an Answer cell's live status.
+// It is intentionally an internal/domain type: the public Cell wire contract
+// carries the human-readable form in Notes, while tests and future consumers
+// can still inspect the typed join result without parsing prose.
+type SignalEvidence struct {
+	Signal   string
+	Verdict  string
+	Evidence string
 }
 
 // ObservedAdherence stays separate from declared capability. An absent event
@@ -104,6 +131,7 @@ type ProjectionCoverage struct {
 	ConfidenceRationale   string
 	Available             bool   // false when the owner's space verb / registry was unreachable
 	UnavailableReason     string // honest reason when Available is false
+	ConditionCounts       []ConditionCount
 }
 
 // EmpiricalTrendPoint is the latest trials trend surfaced on the scoreboard.
@@ -119,6 +147,9 @@ type Status struct {
 	Projections      []ProjectionCoverage
 	LatestTrialTrend *EmpiricalTrendPoint
 	ComputedAt       time.Time
+	// CoverageMethodVersion prevents a cached pre-join snapshot from being
+	// presented as comparable with the stricter three-signal Answer numerator.
+	CoverageMethodVersion string
 }
 
 // Severity grades a base-document-integrity issue.

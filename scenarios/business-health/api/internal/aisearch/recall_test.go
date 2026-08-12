@@ -25,6 +25,19 @@ import (
 // never depends on (or disturbs) the live business-health-intent index.
 const recallGateCollection = "business-health-intent-recall-gate"
 
+func TestCollectionForTuningVersionsHybridSchema(t *testing.T) {
+	if got := collectionForTuning(DefaultCollection, pkg.TuningConfig{Engine: pkg.EngineDense}); got != DefaultCollection {
+		t.Fatalf("dense collection = %q, want %q", got, DefaultCollection)
+	}
+	want := DefaultCollection + HybridCollectionSuffix
+	if got := collectionForTuning(DefaultCollection, pkg.TuningConfig{Engine: pkg.EngineHybrid}); got != want {
+		t.Fatalf("hybrid collection = %q, want %q", got, want)
+	}
+	if got := collectionForTuning(want, pkg.TuningConfig{Engine: pkg.EngineHybrid}); got != want {
+		t.Fatalf("already-versioned hybrid collection = %q, want %q", got, want)
+	}
+}
+
 func searchProvider(t *testing.T) pkg.ProviderConfig {
 	t.Helper()
 	path := os.Getenv("BUSINESS_HEALTH_SEARCH_FILE")

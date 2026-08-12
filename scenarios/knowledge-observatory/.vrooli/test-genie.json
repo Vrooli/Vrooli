@@ -7,7 +7,7 @@
   "description": "Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory.",
   "source": "validation-provider",
   "orderHint": 8,
-  "timeout": "60s",
+  "timeout": "90s",
   "findingSource": "docs",
   "validation": {
     "contract": "scenario-validation/v1"
@@ -1176,8 +1176,8 @@
     "mode": "provider-serial"
   },
   "determinism": {
-    "default": "observational",
-    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+    "default": "file-determined",
+    "inputs": ["**"]
   },
   "dimensions": [
     "docs"

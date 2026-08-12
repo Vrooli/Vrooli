@@ -56,7 +56,7 @@ func searchProvider(t *testing.T) pkg.ProviderConfig {
 func TestSearchSSOTWellFormed(t *testing.T) {
 	provider := searchProvider(t)
 	tuning := provider.ResolvedTuning()
-	if tuning.Engine != pkg.EngineDense || !tuning.EmbedTaskPrefix || !tuning.RerankEnabled || !tuning.RerankBlend {
+	if tuning.Engine != pkg.EngineHybrid || !tuning.EmbedTaskPrefix || !tuning.RerankEnabled || tuning.RerankBlend || tuning.HybridFusion != pkg.HybridFusionDBSF {
 		t.Errorf("command tuning is not the measured-best config: %+v", tuning)
 	}
 	if err := provider.Scoring.Validate(); err != nil {

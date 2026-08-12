@@ -3,6 +3,7 @@ package coverage
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/spacedoc"
 )
@@ -28,8 +29,9 @@ type JoinResult struct {
 	// Statuses is the effective live status per cell id. A cell absent from the
 	// map keeps its authored denominator status (the join could not speak to it).
 	Statuses map[string]spacedoc.CellStatus
-	// Available is false when the owner registry was unreachable; the projection
-	// degrades (counts fall back to authored status) but never false-fails.
+	// Available is false when any required owner signal was unreachable. The
+	// projection may retain authored cell statuses for explanation, but callers
+	// must treat its ratio as unavailable.
 	Available bool
 	// Reason is the honest explanation when Available is false.
 	Reason string
@@ -37,6 +39,14 @@ type JoinResult struct {
 	// denominator (currently Act/program-runtime). Empty means the owner did
 	// not provide a confidence signal and the space document remains the source.
 	DenominatorConfidence spacedoc.DenominatorConfidence
+	// Evidence is keyed by denominator cell id. It is populated for Answer
+	// cells even when a signal is unavailable, so ExplainCell can distinguish
+	// missing evidence from a negative verdict.
+	Evidence   map[string][]SignalEvidence
+	Conditions map[string]ConditionVerdict
+	// OwnerResolved records whether denominator owner tokens resolved to exact
+	// registered leaf IDs. It separates an authoring error from reachability.
+	OwnerResolved map[string]bool
 }
 
 // guideHealthyScore is the prompt-manager graph health-score threshold at or
@@ -51,60 +61,141 @@ const guideHealthyScore = 0.5
 type validateProviderStatus struct {
 	failing        bool
 	autofixPending bool
+	condition      ConditionVerdict
+	sustained      bool
 }
 
-// recomputeAnswer re-derives each Answer cell's status from the live provider
-// set. A cell is NOW iff its declared provider matches a live provider; a cell
-// whose authored status is NOW but whose provider is not live degrades to
-// IN_REACH (the substrate is declared but not serving); a cell with no
-// resolvable provider keeps its authored status (the join cannot speak to it).
-func recomputeAnswer(cells []spacedoc.Cell, live map[string]bool) map[string]spacedoc.CellStatus {
+type answerProviderEvidence struct {
+	ProviderID           string
+	Active               bool
+	Reachable            bool
+	FreshEval            bool
+	ReachabilityEvidence string
+	EvalEvidence         string
+}
+
+// recomputeAnswer re-derives each Answer cell from the three independent
+// runtime signals required by the readiness contract: an ACTIVE declaration,
+// current federation reachability, and a non-degraded eval run inside the
+// freshness window. Registration alone can never promote a cell to NOW.
+func recomputeAnswer(cells []spacedoc.Cell, providers []answerProviderEvidence) (map[string]spacedoc.CellStatus, map[string][]SignalEvidence) {
 	out := make(map[string]spacedoc.CellStatus, len(cells))
+	evidence := make(map[string][]SignalEvidence, len(cells))
 	for _, c := range cells {
 		toks := providerTokens(c.Owner)
 		if len(toks) == 0 {
 			continue // no provider to join against — keep authored status
 		}
-		matched := false
+		var matched *answerProviderEvidence
 		for _, t := range toks {
-			if matchesLive(t, live) {
-				matched = true
-				break
+			for i := range providers {
+				candidate := &providers[i]
+				if matchesProviderToken(t, candidate.ProviderID) {
+					if matched == nil || (candidate.Active && candidate.Reachable && candidate.FreshEval) {
+						matched = candidate
+					}
+				}
 			}
 		}
-		if matched {
+		if matched == nil {
+			// The declared provider did not resolve to an ACTIVE descriptor. A
+			// capability gap or unresolved owner must never be promoted and an
+			// authored status remains the only honest answer.
+			evidence[c.ID] = []SignalEvidence{
+				{Signal: "active", Verdict: "did_not_hold", Evidence: "declared provider is not in the ACTIVE registry (unresolved or capability gap)"},
+				{Signal: "reachable", Verdict: "not_evaluated", Evidence: "provider is not ACTIVE"},
+				{Signal: "eval_fresh", Verdict: "not_evaluated", Evidence: "provider is not ACTIVE"},
+			}
+			if c.Status == spacedoc.StatusNow {
+				// NOW is a runtime claim. Even though unresolved non-NOW cells
+				// retain their authored status, an authored NOW with no declared
+				// active owner must be downgraded so NOW remains a three-signal
+				// verdict everywhere.
+				out[c.ID] = spacedoc.StatusInReach
+			}
+			continue
+		}
+		evidence[c.ID] = []SignalEvidence{
+			{Signal: "active", Verdict: verdict(matched.Active), Evidence: matched.ProviderID + " is " + boolWord(matched.Active, "ACTIVE", "not ACTIVE")},
+			{Signal: "reachable", Verdict: verdict(matched.Reachable), Evidence: matched.ReachabilityEvidence},
+			{Signal: "eval_fresh", Verdict: verdict(matched.FreshEval), Evidence: matched.EvalEvidence},
+		}
+		if matched.Active && matched.Reachable && matched.FreshEval {
 			out[c.ID] = spacedoc.StatusNow
 		} else if c.Status == spacedoc.StatusNow {
-			// Authored NOW but no live provider: honest downgrade.
+			// Authored NOW but one or more runtime signals is absent: honest
+			// downgrade while preserving the distinction in ExplainCell notes.
 			out[c.ID] = spacedoc.StatusInReach
 		}
-		// else: authored IN_REACH/MISSING with an unmatched declared provider —
-		// keep authored status (no map entry).
+		// Authored IN_REACH/MISSING with an unresolved or incomplete provider
+		// keeps its authored status (no overlay entry).
 	}
+	return out, evidence
+}
+
+func matchesProviderToken(token, providerID string) bool {
+	token = strings.ToLower(strings.TrimSpace(token))
+	providerID = strings.ToLower(strings.TrimSpace(providerID))
+	if token == "" || providerID == "" {
+		return false
+	}
+	return token == providerID
+}
+
+func verdict(ok bool) string {
+	if ok {
+		return "held"
+	}
+	return "did_not_hold"
+}
+
+func boolWord(ok bool, yes, no string) string {
+	if ok {
+		return yes
+	}
+	return no
+}
+
+// sustainedDegradationWindow is intentionally longer than a restart or
+// rollout recovery opportunity. Revisit when the fleet has enough timestamped
+// phase history to calibrate a distribution rather than a single operator
+// sweep; only the age of the current contiguous failure streak promotes a
+// coverage downgrade.
+const sustainedDegradationWindow = 7 * 24 * time.Hour
+
+// recomputeValidate keeps existence coverage separate from provider condition.
+// A failed or autofix-pending provider remains covered and is reported on the
+// condition axis instead of being silently converted to IN_REACH.
+func recomputeValidate(cells []spacedoc.Cell, index map[string]validateProviderStatus) map[string]spacedoc.CellStatus {
+	out, _ := recomputeValidateWithConditions(cells, index)
 	return out
 }
 
-// recomputeValidate re-derives each Validate cell's status from the live
-// test-genie provider index: a matched provider that is failing or has pending
-// autofix work degrades to IN_REACH; a matched healthy provider is NOW; an
-// unmatched cell keeps its authored status (no map entry).
-func recomputeValidate(cells []spacedoc.Cell, index map[string]validateProviderStatus) map[string]spacedoc.CellStatus {
+func recomputeValidateWithConditions(cells []spacedoc.Cell, index map[string]validateProviderStatus) (map[string]spacedoc.CellStatus, map[string]ConditionVerdict) {
 	out := make(map[string]spacedoc.CellStatus, len(cells))
+	conditions := make(map[string]ConditionVerdict, len(cells))
 	for _, c := range cells {
 		for _, tok := range providerTokens(c.Owner) {
 			status, ok := index[tok]
 			if !ok {
 				continue
 			}
-			if status.failing || status.autofixPending {
+			out[c.ID] = spacedoc.StatusNow
+			if status.sustained {
 				out[c.ID] = spacedoc.StatusInReach
-			} else {
-				out[c.ID] = spacedoc.StatusNow
 			}
+			condition := status.condition
+			if condition == "" {
+				condition = ConditionOK
+				if status.failing || status.autofixPending {
+					condition = ConditionDegraded
+				}
+			}
+			conditions[c.ID] = condition
 			break
 		}
 	}
-	return out
+	return out, conditions
 }
 
 // recomputeGuide re-derives each Guide cell's status from the live
@@ -228,32 +319,15 @@ func normalizeSkillToken(s string) string {
 	return strings.Trim(words[0], ".,;:")
 }
 
-// matchesLive reports whether a denominator provider token corresponds to a live
-// registry key. Match is on the leaf-or-scenario head: "ui-health.surfaces"
-// matches a live "ui-health" or "ui-health.surfaces"; exact and head-prefix both
-// count so a scenario that registers granular leaves still matches a coarse
-// denominator entry and vice versa.
+// matchesLive reports whether a denominator provider token corresponds to a
+// live registry key. Only exact leaf IDs match; scenario heads and RPC names
+// are not provider identities and cannot satisfy a cell by prefix.
 func matchesLive(token string, live map[string]bool) bool {
-	if live[token] {
-		return true
+	token = strings.ToLower(strings.TrimSpace(token))
+	if token == "" {
+		return false
 	}
-	head := token
-	if i := strings.IndexByte(token, '.'); i > 0 {
-		head = token[:i]
-	}
-	if live[head] {
-		return true
-	}
-	for k := range live {
-		kHead := k
-		if i := strings.IndexByte(k, '.'); i > 0 {
-			kHead = k[:i]
-		}
-		if kHead == head {
-			return true
-		}
-	}
-	return false
+	return live[token]
 }
 
 func resolveGuideScore(token string, scores map[string]float64) (float64, bool) {

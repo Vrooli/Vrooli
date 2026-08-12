@@ -48,6 +48,24 @@ func (r *fakeRepo) Upsert(_ context.Context, g Gap) error {
 	return nil
 }
 
+type fakeProviderInsights struct {
+	signals []ProviderInsight
+	err     error
+}
+
+type fakeMaturityReader struct {
+	observations []MaturityObservation
+	err          error
+}
+
+func (f fakeMaturityReader) Maturity(context.Context) ([]MaturityObservation, error) {
+	return f.observations, f.err
+}
+
+func (f fakeProviderInsights) Insights(context.Context) ([]ProviderInsight, error) {
+	return f.signals, f.err
+}
+
 func derivedFixture() []Gap {
 	return []Gap{
 		{ID: "answer/1", Projection: ProjectionAnswer, Title: "explain domain map", Status: spacedoc.StatusMissing, SourceCellID: "1"},
@@ -62,41 +80,41 @@ func newSvc(src GapSource, repo Repository) Service {
 
 func TestGetFocusRanksMissingAnswerHighest(t *testing.T) {
 	svc := newSvc(&fakeSource{gaps: derivedFixture()}, newFakeRepo())
-	items, err := svc.GetFocus(context.Background(), 0, "")
+	result, err := svc.GetFocus(context.Background(), 0, "")
 	if err != nil {
 		t.Fatalf("GetFocus: %v", err)
 	}
-	if len(items) != 3 {
-		t.Fatalf("want 3 items, got %d", len(items))
+	if len(result.Items) != 3 {
+		t.Fatalf("want 3 items, got %d", len(result.Items))
 	}
 	// answer/1 is MISSING (impact 1.0) × answer (importance 1.0) = 1.0 — top.
-	if items[0].Gap.ID != "answer/1" {
-		t.Fatalf("want answer/1 ranked first, got %s (priority=%.3f)", items[0].Gap.ID, items[0].Priority)
+	if result.Items[0].Gap.ID != "answer/1" {
+		t.Fatalf("want answer/1 ranked first, got %s (priority=%.3f)", result.Items[0].Gap.ID, result.Items[0].Priority)
 	}
-	if items[0].Priority <= items[1].Priority {
-		t.Fatalf("expected descending priority, got %.3f then %.3f", items[0].Priority, items[1].Priority)
+	if result.Items[0].Priority <= result.Items[1].Priority {
+		t.Fatalf("expected descending priority, got %.3f then %.3f", result.Items[0].Priority, result.Items[1].Priority)
 	}
-	if items[0].Rationale == "" {
+	if result.Items[0].Rationale == "" {
 		t.Fatalf("expected a rationale on the top item")
 	}
 }
 
 func TestGetFocusLimitAndProjectionFilter(t *testing.T) {
 	svc := newSvc(&fakeSource{gaps: derivedFixture()}, newFakeRepo())
-	items, err := svc.GetFocus(context.Background(), 1, "")
+	result, err := svc.GetFocus(context.Background(), 1, "")
 	if err != nil {
 		t.Fatalf("GetFocus: %v", err)
 	}
-	if len(items) != 1 {
-		t.Fatalf("limit=1 should cap to 1, got %d", len(items))
+	if len(result.Items) != 1 {
+		t.Fatalf("limit=1 should cap to 1, got %d", len(result.Items))
 	}
 
-	only, err := svc.GetFocus(context.Background(), 0, ProjectionGuide)
+	guideResult, err := svc.GetFocus(context.Background(), 0, ProjectionGuide)
 	if err != nil {
 		t.Fatalf("GetFocus(guide): %v", err)
 	}
-	if len(only) != 1 || only[0].Gap.Projection != ProjectionGuide {
-		t.Fatalf("projection filter failed: %+v", only)
+	if len(guideResult.Items) != 1 || guideResult.Items[0].Gap.Projection != ProjectionGuide {
+		t.Fatalf("projection filter failed: %+v", guideResult.Items)
 	}
 }
 
@@ -214,14 +232,29 @@ func TestMultiGapSourceKeepsHealthySourceWhenOneFails(t *testing.T) {
 		{Name: "coverage", Source: healthy},
 	})
 	gaps, err := source.DerivedGaps(context.Background())
-	if err != nil {
-		t.Fatalf("multi source should report degradation as data, got error: %v", err)
+	if err == nil {
+		t.Fatal("multi source should propagate degradation so focus can mark the response")
 	}
 	if len(gaps) != 2 || gaps[0].ID != "source/trials/availability" || gaps[1].ID != "healthy" {
 		t.Fatalf("expected failure status plus healthy gap, got %+v", gaps)
 	}
 	if gaps[0].AvailabilityReason == "" {
 		t.Fatal("expected a stated source availability reason")
+	}
+}
+
+func TestListConditionReturnsConditionEvidenceWhenSiblingSourceFails(t *testing.T) {
+	condition := &fakeSource{gaps: []Gap{{ID: "condition/provider-a", Axis: AxisEmpirical, Title: "degraded"}}}
+	svc := newSvc(NewMultiGapSource([]NamedGapSource{
+		{Name: "agent-manager", Source: &fakeSource{err: errors.New("owner unavailable")}},
+		{Name: "condition", Source: condition},
+	}), newFakeRepo())
+	gaps, err := svc.ListCondition(context.Background())
+	if err != nil {
+		t.Fatalf("ListCondition should preserve condition evidence: %v", err)
+	}
+	if len(gaps) != 1 || gaps[0].ID != "condition/provider-a" {
+		t.Fatalf("condition gaps = %+v", gaps)
 	}
 }
 
@@ -270,12 +303,12 @@ func TestEmpiricalRankingUsesRecurrenceAndTraceability(t *testing.T) {
 	high := Gap{ID: "empirical-high", Axis: AxisEmpirical, Recurrence: 5, EvidenceSource: "trials", EvidenceLocator: "trial-task:x/run:5"}
 	untraceable := Gap{ID: "empirical-untraceable", Axis: AxisEmpirical, Recurrence: 5, EvidenceSource: "trials"}
 
-	items, err := newSvc(&fakeSource{gaps: []Gap{coverageMissing, coverageInReach, single, high, untraceable}}, newFakeRepo()).GetFocus(context.Background(), 10, "")
+	result, err := newSvc(&fakeSource{gaps: []Gap{coverageMissing, coverageInReach, single, high, untraceable}}, newFakeRepo()).GetFocus(context.Background(), 10, "")
 	if err != nil {
 		t.Fatalf("GetFocus: %v", err)
 	}
-	position := make(map[string]int, len(items))
-	for i, item := range items {
+	position := make(map[string]int, len(result.Items))
+	for i, item := range result.Items {
 		position[item.Gap.ID] = i
 	}
 	if position["empirical-single"] <= position["coverage-missing"] {
@@ -287,6 +320,132 @@ func TestEmpiricalRankingUsesRecurrenceAndTraceability(t *testing.T) {
 	if position["empirical-untraceable"] <= position["empirical-single"] {
 		t.Fatalf("untraceable empirical signal outranked traceable signal: %+v", position)
 	}
+}
+
+func TestSpaceGapSourceLiveJoinDrivesStatuses(t *testing.T) {
+	reader := fakeSpaceReader{defs: map[Projection]*spacedoc.SpaceDefinition{
+		ProjectionAnswer: {Projection: ProjectionAnswer, Cells: []spacedoc.Cell{
+			{ID: "1", Question: "covered", Owner: "hot", Status: spacedoc.StatusMissing},
+			{ID: "2", Question: "still missing", Owner: "cold", Status: spacedoc.StatusMissing},
+		}},
+		ProjectionValidate: {Projection: ProjectionValidate},
+		ProjectionGuide:    {Projection: ProjectionGuide},
+		ProjectionAct:      {Projection: ProjectionAct},
+	}}
+	source := NewSpaceGapSourceWithLiveJoin(reader, func(context.Context, Projection, *spacedoc.SpaceDefinition) (map[string]spacedoc.CellStatus, error) {
+		return map[string]spacedoc.CellStatus{"1": spacedoc.StatusNow}, nil
+	})
+	gaps, err := source.DerivedGaps(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(gaps) != 1 || gaps[0].SourceCellID != "2" || len(gaps[0].ProviderIDs) != 1 || gaps[0].ProviderIDs[0] != "cold" {
+		t.Fatalf("live statuses/providers not applied: %+v", gaps)
+	}
+}
+
+func TestFocusDegradedLiveJoinNeverLooksComputed(t *testing.T) {
+	source := &fakeSource{gaps: []Gap{{ID: "answer/9", Projection: ProjectionAnswer, Status: spacedoc.StatusInReach, ProviderIDs: []string{"hot"}}}, err: errors.New("search-hub timeout")}
+	result, err := NewService(Deps{Source: source, Repo: newFakeRepo(), Insights: fakeProviderInsights{signals: []ProviderInsight{{ProviderID: "hot", TimesRouted: 5}}}}).GetFocus(context.Background(), 10, ProjectionAnswer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Degraded || !strings.Contains(result.DegradedReason, "search-hub timeout") {
+		t.Fatalf("missing honest degradation: %+v", result)
+	}
+	if len(result.Items) != 1 || result.Items[0].Gap.Status != spacedoc.StatusInReach {
+		t.Fatalf("authored fallback was not retained as explicitly degraded data: %+v", result.Items)
+	}
+}
+
+func TestFocusRankingUsesProviderTelemetry(t *testing.T) {
+	source := &fakeSource{gaps: []Gap{
+		{ID: "answer/cold", Projection: ProjectionAnswer, Status: spacedoc.StatusMissing, ProviderIDs: []string{"cold"}},
+		{ID: "answer/hot", Projection: ProjectionAnswer, Status: spacedoc.StatusMissing, ProviderIDs: []string{"hot"}},
+	}}
+	result, err := NewService(Deps{Source: source, Repo: newFakeRepo(), Insights: fakeProviderInsights{signals: []ProviderInsight{
+		{ProviderID: "cold"}, {ProviderID: "hot", TimesRouted: 10, DegradationRate: 0.5},
+	}}}).GetFocus(context.Background(), 10, ProjectionAnswer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Degraded || result.Items[0].Gap.ID != "answer/hot" || result.Items[0].Priority <= result.Items[1].Priority {
+		t.Fatalf("provider telemetry did not affect ranking: %+v", result)
+	}
+}
+
+func TestFocusRanksConditionDegradationAlongsideCoverage(t *testing.T) {
+	condition := fakeProviderInsights{signals: []ProviderInsight{{
+		ProviderID: "answer.provider", TimesRouted: 100, DegradationRate: 1,
+	}}}
+	coverage := &fakeSource{gaps: []Gap{{ID: "answer/missing", Axis: AxisCoverage, Projection: ProjectionAnswer, Status: spacedoc.StatusMissing, Title: "one missing cell"}}}
+	svc := NewService(Deps{
+		Source: NewMultiGapSource([]NamedGapSource{
+			{Name: "coverage", Source: coverage},
+			{Name: "condition", Source: NewConditionGapSource(condition)},
+		}),
+		Insights: condition,
+	})
+	result, err := svc.GetFocus(context.Background(), 10, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Items) < 2 {
+		t.Fatalf("items = %+v, want coverage and condition findings", result.Items)
+	}
+	if result.Items[0].Gap.Axis != AxisEmpirical {
+		t.Fatalf("top item axis = %q, want condition empirical finding", result.Items[0].Gap.Axis)
+	}
+}
+
+func TestMaturityGapSourceSurfacesBlockingEvidence(t *testing.T) {
+	gaps, err := NewMaturityGapSource(fakeMaturityReader{observations: []MaturityObservation{
+		{Scenario: "search-provider", BlockingCodes: []string{"SEARCH_EVAL_CORPUS_MISSING", "SEARCH_CONFIG_INVALID"}},
+		{Scenario: "clean-provider"},
+	}}).DerivedGaps(context.Background())
+	if err != nil {
+		t.Fatalf("DerivedGaps: %v", err)
+	}
+	if len(gaps) != 1 || gaps[0].ID != "condition/maturity/search-provider" {
+		t.Fatalf("gaps = %#v, want one maturity condition gap", gaps)
+	}
+	if got := gaps[0].Notes; len(got) != 1 || got[0] != "blocking=SEARCH_CONFIG_INVALID,SEARCH_EVAL_CORPUS_MISSING" {
+		t.Fatalf("notes = %#v, want sorted blocking evidence", got)
+	}
+}
+
+func TestFocusRankingFallsBackToDeterministicIDsWhenTelemetryUnavailable(t *testing.T) {
+	source := &fakeSource{gaps: []Gap{
+		{ID: "answer/b", Projection: ProjectionAnswer, Status: spacedoc.StatusMissing},
+		{ID: "answer/a", Projection: ProjectionAnswer, Status: spacedoc.StatusMissing},
+	}}
+	deps := Deps{Source: source, Repo: newFakeRepo(), Insights: fakeProviderInsights{err: errors.New("search-hub down")}}
+	first, err := NewService(deps).GetFocus(context.Background(), 10, ProjectionAnswer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := NewService(deps).GetFocus(context.Background(), 10, ProjectionAnswer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !first.Degraded || first.DegradedReason == "" || len(first.Items) != 2 || first.Items[0].Gap.ID != "answer/a" || first.Items[1].Gap.ID != "answer/b" {
+		t.Fatalf("unexpected deterministic fallback: %+v", first)
+	}
+	if first.Items[0].Gap.ID != second.Items[0].Gap.ID || first.Items[1].Gap.ID != second.Items[1].Gap.ID {
+		t.Fatalf("identical calls changed order: first=%+v second=%+v", first.Items, second.Items)
+	}
+}
+
+type fakeSpaceReader struct {
+	defs map[Projection]*spacedoc.SpaceDefinition
+}
+
+func (f fakeSpaceReader) Read(_ context.Context, p Projection) (*spacedoc.SpaceDefinition, error) {
+	def, ok := f.defs[p]
+	if !ok {
+		return nil, errors.New("projection unavailable")
+	}
+	return def, nil
 }
 
 type fakeAgentFindingReader struct {
