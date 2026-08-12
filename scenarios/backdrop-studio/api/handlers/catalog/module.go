@@ -16,8 +16,10 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared"
 )
 
-type Deps struct{ DB *sql.DB }
-type handler struct{ store *catalog.Store }
+type (
+	Deps    struct{ DB *sql.DB }
+	handler struct{ store *catalog.Store }
+)
 
 func Module(db *sql.DB) module.Module {
 	h := &handler{store: catalog.NewStore(db)}
@@ -39,6 +41,7 @@ func (h *handler) ListStyles(ctx context.Context, req *connect.Request[catalogv1
 	}
 	return connect.NewResponse(resp), nil
 }
+
 func (h *handler) CreateStyle(ctx context.Context, req *connect.Request[catalogv1.CreateStyleRequest]) (*connect.Response[sharedv1.Style], error) {
 	if req.Msg.GetStyle() == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("catalog: style is required"))
@@ -56,20 +59,21 @@ func toProto(v catalog.Style) *sharedv1.Style {
 		out.Scaffold = &sharedv1.ScaffoldBinding{Preset: v.Scaffold.Preset, Conditioner: v.Scaffold.Conditioner, ParamsJson: v.Scaffold.ParamsJSON}
 	}
 	if v.Generation != nil {
-		out.Generation = &sharedv1.GenerationBlock{Role: v.Generation.Role, Profile: v.Generation.Profile, PromptTemplate: v.Generation.PromptTemplate, Negative: v.Generation.Negative, Model: v.Generation.Model, ProviderUrl: v.Generation.ProviderURL, Credential: v.Generation.Credential}
+		out.Generation = &sharedv1.GenerationBlock{PromptTemplate: v.Generation.PromptTemplate, Negative: v.Generation.Negative, Model: v.Generation.Model, ProviderUrl: v.Generation.ProviderURL, Credential: v.Generation.Credential}
 	}
 	for _, r := range v.Regions {
 		out.Regions = append(out.Regions, &sharedv1.ReservedRegion{X: r.X, Y: r.Y, Width: r.Width, Height: r.Height, Kind: r.Kind, TextColor: r.TextColor})
 	}
 	return out
 }
+
 func fromProto(v *sharedv1.Style) catalog.Style {
 	out := catalog.Style{ID: v.GetId(), Name: v.GetName(), Version: int(v.GetVersion()), Role: v.GetRole(), Subject: v.GetSubject(), Lineage: v.GetLineage(), Treatments: v.GetTreatments(), Placements: v.GetPlacements(), Strategy: v.GetStrategy(), ContrastThreshold: v.GetContrastThreshold()}
 	if v.GetScaffold() != nil {
 		out.Scaffold = &catalog.ScaffoldBinding{Preset: v.GetScaffold().GetPreset(), Conditioner: v.GetScaffold().GetConditioner(), ParamsJSON: v.GetScaffold().GetParamsJson()}
 	}
 	if v.GetGeneration() != nil {
-		out.Generation = &catalog.GenerationBlock{Role: v.GetGeneration().GetRole(), Profile: v.GetGeneration().GetProfile(), PromptTemplate: v.GetGeneration().GetPromptTemplate(), Negative: v.GetGeneration().GetNegative(), Model: v.GetGeneration().GetModel(), ProviderURL: v.GetGeneration().GetProviderUrl(), Credential: v.GetGeneration().GetCredential()}
+		out.Generation = &catalog.GenerationBlock{PromptTemplate: v.GetGeneration().GetPromptTemplate(), Negative: v.GetGeneration().GetNegative(), Model: v.GetGeneration().GetModel(), ProviderURL: v.GetGeneration().GetProviderUrl(), Credential: v.GetGeneration().GetCredential()}
 	}
 	for _, r := range v.GetRegions() {
 		out.Regions = append(out.Regions, catalog.Region{X: r.GetX(), Y: r.GetY(), Width: r.GetWidth(), Height: r.GetHeight(), Kind: r.GetKind(), TextColor: r.GetTextColor()})

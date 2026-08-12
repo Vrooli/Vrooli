@@ -13,6 +13,33 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared"
 )
 
+// brandTokens reads the repeatable --brand-token flag. It exists so a caller
+// with no brand-manager can still bind ink slots directly, which is what makes
+// the fail-closed slot contract usable from a bare shell.
+func brandTokens(ctx cliapp.OperationContext) (map[string]string, error) {
+	raw := ctx.FlagValues("brand-token")
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	out := make(map[string]string, len(raw))
+	for _, entry := range raw {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		name, value, ok := strings.Cut(entry, "=")
+		name, value = strings.TrimSpace(name), strings.TrimSpace(value)
+		if !ok || name == "" || value == "" {
+			return nil, fmt.Errorf("render: --brand-token expects <slot>=<value>, got %q", entry)
+		}
+		if !strings.HasPrefix(name, "$brand.") {
+			name = "$brand." + strings.TrimPrefix(name, "brand.")
+		}
+		out[name] = value
+	}
+	return out, nil
+}
+
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	client := connectv1.NewRenderServiceClient(httpClient, baseURL)
@@ -32,13 +59,23 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			}
 			count = int32(n)
 		}
-		resp, err := client.Submit(context.Background(), connect.NewRequest(&v1.SubmitRequest{Style: &sharedv1.Style{Id: ctx.Flag("style"), Strategy: ctx.Flag("strategy"), Subject: ctx.Flag("subject"), Placements: []string{ctx.Flag("placement")}, Treatments: strings.Split(ctx.Flag("treatments"), ",")}, Placement: ctx.Flag("placement"), Seed: seed, CandidateCount: count}))
+		tokens, err := brandTokens(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := client.Submit(context.Background(), connect.NewRequest(&v1.SubmitRequest{Style: &sharedv1.Style{Id: ctx.Flag("style"), Strategy: ctx.Flag("strategy"), Subject: ctx.Flag("subject"), Placements: []string{ctx.Flag("placement")}, Treatments: strings.Split(ctx.Flag("treatments"), ",")}, Placement: ctx.Flag("placement"), Seed: seed, CandidateCount: count, BrandId: strings.TrimSpace(ctx.Flag("brand")), BrandTokens: tokens, SurfaceId: strings.TrimSpace(ctx.Flag("surface"))}))
 		if err != nil {
 			return nil, cliapp.WrapAPIError("submit render", err, nil)
 		}
 		return resp.Msg, nil
 	}, func(_ cliapp.OperationContext, msg *v1.RenderJob) cliapp.MutationReport {
-		return cliapp.MutationReport{Result: []string{fmt.Sprintf("Render %s completed with %d candidate(s); path=%s.", msg.GetId(), len(msg.GetCandidates()), msg.GetExecutionPath())}}
+		geometry := ""
+		if len(msg.GetCandidates()) > 0 {
+			geometry = fmt.Sprintf(" at %dx%d", msg.GetCandidates()[0].GetWidth(), msg.GetCandidates()[0].GetHeight())
+		}
+		return cliapp.MutationReport{Result: []string{fmt.Sprintf(
+			"Render %s completed with %d candidate(s) on surface %s%s; path=%s.",
+			msg.GetId(), len(msg.GetCandidates()), msg.GetSurfaceId(), geometry, msg.GetExecutionPath())}}
 	})
 	get := cliapp.ProtoList(func(ctx cliapp.OperationContext) (*v1.RenderJob, error) {
 		resp, err := client.GetJob(context.Background(), connect.NewRequest(&v1.GetJobRequest{JobId: ctx.Positional("job-id")}))

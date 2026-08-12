@@ -200,11 +200,50 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
+### imageengine.Executor (every pixel operation)
+
+| | |
+|---|---|
+| **Seam** | The image-tools treatment boundary — the only raster seam this scenario has |
+| **Interface** | `internal/imageengine/client.go::Executor` (`Apply(ctx, input, treatments, params, palette) ([]byte, error)`) |
+| **Production wiring** | `main.go` constructs `imageengine.NewClient()` and passes it to `render.NewStoreWithGenerator`. The client posts multipart to image-tools' REST run edge. |
+| **Test fake** | `internal/render/render_test.go`'s in-package stub executor records the chain and returns canned bytes. |
+| **Real run** | `integration/render_lane_test.go::TestEverySeededStyleRendersThroughRunningImageTools` — every seeded style, both palette states. |
+| **Why it exists** | Backdrop Studio owns no pixel implementation by charter; `image-tools` owns every pixel operation. The seam keeps that boundary enforceable rather than aspirational. **It is also the seam that failed:** the fake accepts any parameters, so twelve styles whose parameters image-tools rejects passed every unit test. A fake below the wire can only prove the caller's logic, never the contract — which is why the real run above is mandatory, not optional. |
+
+### imageengine.Generator (model-backed source)
+
+| | |
+|---|---|
+| **Seam** | Model-backed image generation |
+| **Interface** | `internal/imageengine/client.go::Generator` (`Generate(ctx, GenerationRequest) ([]byte, error)`) |
+| **Production wiring** | The same `imageengine.Client`; it submits to image-tools' async AI edge and blocks once on `JobsService.WaitJob`. |
+| **Test fake** | `internal/render/render_test.go`'s stub generator returns a fixed PNG. |
+| **Real run** | The integration lane renders `guided-botanical` and `constructivist-figure` when an image model is installed, and skips with a named reason when none is. |
+| **Why it exists** | Generation is slow, GPU-bound and non-deterministic across model versions; unit tests cannot depend on it. **The cost of having only a fake:** the fake answered with the field name `jobId` while the real edge emits `job_id`, so every real generation silently lost its job id and the 2026-08-12 audit recorded a working capability as missing. The fake now mirrors the real wire names, and the lane proves it. |
+
+### release.Publisher (asset hand-off)
+
+| | |
+|---|---|
+| **Seam** | Releasing a selected candidate to Asset Studio |
+| **Interface** | `internal/release/release.go` publisher seam |
+| **Production wiring** | Injected at construction; refuses model-backed release while Asset Studio exposes no external byte ingress. |
+| **Test fake** | `internal/release/release_test.go` substitutes a recording publisher. |
+| **Real run** | Covered once Phase 9 lands the ingress RPC. |
+| **Why it exists** | Provenance and disclosure belong to one authority. The seam lets this scenario refuse rather than fabricate a disclosure record it does not own. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching
 past `*sql.DB`, `http.Get`, or `os.OpenFile` from a handler/service. The
 process is mechanical.
+
+**A seam is not finished when it has a fake.** Every seam above states both a
+test fake and a real run, because the two failures this scenario has actually
+shipped — unrenderable styles and a lost job id — were both cases where a fake
+agreed with the caller and disagreed with reality. A seam with no real run is an
+untested assumption wearing an interface.
 
 ## Architecture Alignment Notes
 

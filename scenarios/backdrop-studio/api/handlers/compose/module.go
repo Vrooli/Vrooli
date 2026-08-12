@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"image"
 	"net/http"
-	"net/url"
-	"os"
 
 	"backdrop-studio/internal/brandpalette"
 	"backdrop-studio/internal/catalog"
@@ -47,18 +45,15 @@ func (*handler) ResolvePlan(ctx context.Context, req *connect.Request[composev1.
 	}
 	tokens := req.Msg.GetBrandTokens()
 	if len(tokens) == 0 && brief.BrandID != "" {
-		baseURL := os.Getenv("BRAND_MANAGER_URL")
-		if baseURL != "" {
-			parsed, parseErr := url.Parse(baseURL)
-			if parseErr != nil || parsed.Scheme == "" {
-				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("compose: invalid BRAND_MANAGER_URL"))
-			}
-			fetched, fetchErr := brandpalette.Fetch(ctx, http.DefaultClient, baseURL, brief.BrandID)
-			if fetchErr != nil {
-				return nil, connect.NewError(connect.CodeFailedPrecondition, fetchErr)
-			}
-			tokens = fetched
+		baseURL, resolveErr := brandpalette.ResolveBaseURL(ctx)
+		if resolveErr != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("compose: brand %q was requested but %w", brief.BrandID, resolveErr))
 		}
+		fetched, fetchErr := brandpalette.Fetch(ctx, http.DefaultClient, baseURL, brief.BrandID)
+		if fetchErr != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fetchErr)
+		}
+		tokens = fetched
 	}
 	plan, err := compose.Resolve(style, brief, compose.MapPalette(tokens), req.Msg.GetAdapter(), req.Msg.GetAdapterCommercialUse())
 	if err != nil {

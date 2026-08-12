@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "backdrop-studio",
   "generator": "v1.0.0",
-  "manifest_hash": "badb28a70738d71fc28bb4a560284c244360d08777bb22001d83148f70c9247a",
+  "manifest_hash": "8e4ec9e9bd188de2cf0dfb964e5ec70c0a8f9dfa17a7d691e2045a622bdd1a8b",
   "commands": [
     {
       "path": "catalog list",

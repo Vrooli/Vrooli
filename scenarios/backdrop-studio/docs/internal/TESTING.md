@@ -37,6 +37,60 @@ These files are the source of truth. When in doubt, copy their shape:
 If your test doesn't look like one of those three, ask why before
 shipping.
 
+## The integration lane — and why unit tests are not enough here
+
+**Run it:**
+
+```bash
+cd scenarios/backdrop-studio
+make integration          # every seeded style through a really running image-tools
+make integration-evidence # the same run, writing docs/evidence/render-matrix.md
+```
+
+**Read this before trusting a green unit suite.** On 2026-08-12 twelve of
+sixteen seeded styles were unrenderable while every Go unit test passed. The
+cause was structural, not careless:
+
+- `backdrop-studio` tests against a fake executor that never reaches
+  image-tools' REST edge.
+- `image-tools` tests its treatments below the wire.
+- Neither side could see the boundary between them.
+
+The one test that did cross the boundary resolved parameters **against a bound
+brand** — the single path a CLI caller never takes — so it watched ten styles
+ship broken with a literal `$brand.primary` on the wire.
+
+The lane exists to make that class of defect impossible to miss. It has already
+caught three things no unit test could:
+
+| Found by the lane | What it was |
+|---|---|
+| Candidate bytes were JPEG | A field named `image_png` carried JPEG, because a model backend answers in whatever format it likes. |
+| Recorded geometry was fiction | A candidate reported 1600x1000 for a 2048x2048 image. |
+| Every model render was billable | Hardcoded `allowByok` routed to a paid cloud provider while an installed local GPU sat idle. |
+
+### What it needs
+
+| Requirement | Why |
+|---|---|
+| `backdrop-studio` running and built from the working tree | The lane compares `/api/v1/build` against a fingerprint it computes from `api/`, and refuses to render on a mismatch. Two audits in two days drew false conclusions from a stale binary. |
+| `image-tools` running | Unreachable is reported as a named dependency failure, never as "no styles render". |
+| `asset-studio` running | Only for the release assertions. |
+| An installed image model | Optional. Model-backed styles skip with `SKIP(no-image-model)` when none is available. |
+
+Set `BACKDROP_STUDIO_LANE_BRAND=<brand-id>` to run the bound pass against a real
+Brand Manager brand; without it the bound pass binds tokens directly, which
+exercises the same code path.
+
+### Why it is not a Test Genie phase
+
+Test Genie's phase registry is provider-backed and closed — there is no
+`integration` phase for a scenario to register a Go lane against, and
+`playbooks` is a deprecated alias for the BAS workflow phase. So the lane is a
+first-class `make` target documented here and in
+[`EVIDENCE.md`](EVIDENCE.md) rather than a registered phase. Run it before
+closing any change that touches a contract.
+
 ## API testing
 
 ### Layout

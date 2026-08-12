@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "providers": [{
     "provider_id": "asset-studio.metadata",
+    "lifecycle": "fixture",
     "provider_group": "asset-studio",
     "bucket": "BUCKET_KNOW",
     "type": "asset-metadata",

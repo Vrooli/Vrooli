@@ -136,7 +136,8 @@
             {
               "name": "window",
               "default": "this_week",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)",
+              "bind_waiver": "CLI resolves the canonical time-window token into the structured TimeWindow RPC message."
             }
           ],
           "binding": {
@@ -180,7 +181,8 @@
             {
               "name": "window",
               "default": "this_week",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)",
+              "bind_waiver": "CLI resolves the canonical time-window token into the structured TimeWindow RPC message."
             }
           ],
           "binding": {
@@ -224,7 +226,8 @@
             {
               "name": "window",
               "default": "this_week",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)",
+              "bind_waiver": "CLI resolves the canonical time-window token into the structured TimeWindow RPC message."
             }
           ],
           "binding": {
@@ -268,7 +271,8 @@
             {
               "name": "window",
               "default": "this_week",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)",
+              "bind_waiver": "CLI resolves the canonical time-window token into the structured TimeWindow RPC message."
             }
           ],
           "binding": {
@@ -312,7 +316,8 @@
             {
               "name": "window",
               "default": "this_week",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)",
+              "bind_waiver": "CLI resolves the canonical time-window token into the structured TimeWindow RPC message."
             }
           ],
           "binding": {
@@ -356,7 +361,8 @@
             {
               "name": "window",
               "default": "this_week",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)",
+              "bind_waiver": "CLI resolves the canonical time-window token into the structured TimeWindow RPC message."
             }
           ],
           "binding": {
@@ -400,7 +406,8 @@
             {
               "name": "window",
               "default": "this_week",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)",
+              "bind_waiver": "CLI resolves the canonical time-window token into the structured TimeWindow RPC message."
             }
           ],
           "binding": {

@@ -274,6 +274,63 @@ names differ where each namespace has its own convention.
 | `pixel` | `posterize` + `resample` (nearest) |
 | `photomosaic` | `photomosaic` |
 
+### Treatment parameters are relative, not pixels
+
+A spatial parameter expressed in pixels ties a style to exactly one output size.
+The catalog renders the same style at short edges from 390px (`web.hero-mobile`)
+to 2732px (`app-store-12.9-screenshot`) — a 7× span — so a pixel value that
+looks right on one surface is wrong on every other. Proof, with images:
+[`docs/evidence/treatments/resolution-proof/`](../evidence/treatments/resolution-proof/).
+
+**The rule.** Every spatial parameter a seeded style sends uses the `_rel` form,
+which is *a fraction of the delivered image's short edge*:
+
+```
+px = round(rel × min(width, height))
+```
+
+clamped up to the operation's minimum. `image-tools` still accepts the pixel
+form and always will — a caller that means pixels keeps meaning pixels — but no
+seeded style may use it, and `TestSeededStylesSendNoAbsoluteSpatialParameter`
+fails the build if one does. The resolved pixel value comes back on
+`OpResult.resolved_params`, so what actually ran is always visible.
+
+| Operation | Relative parameter | Seed default | Resolves to at `web.hero` |
+|---|---|---|---|
+| `line_screen` | `spacing_rel` | 0.0125 | ~9px pitch |
+| `stipple` | `spacing_rel` | 0.0097 | ~7px cell |
+| `engraving` | `spacing_rel` | 0.0125 | ~9px period |
+| `ascii_mosaic` | `block_size_rel` | 0.02 | 14px = 2 glyph advances |
+| `displacement` | `spacing_rel` · `amplitude_rel` | 0.072 · 0.007 | ~52px wave, ~5px throw |
+| `aberration` | `distance_rel` | 0.0056 | ~4px separation |
+| `bloom` | `radius_rel` | 0.008 | ~6px lift |
+| `defocus` | `radius_rel` | 0.0056 | ~4px blur |
+| `motion_blur` | `distance_rel` | 0.014 | ~10px smear |
+
+**Two parameters are exceptions, for stated reasons.**
+
+`halftone`'s `lpi` has no relative form because it never needed one: it is a
+count of screen lines across the image *width*, so the same value gives the same
+coarseness at any size. Measured drift between a 768px and a 2304px frame is
+below 0.5% at every ruling — the plan's finding B3 listed it as absolute and was
+wrong. What it *does* have is a floor: a screen cell drawn from fewer than 8
+pixels cannot carry tone, and at `lpi=130` on a 768px frame (5.9px cell) the
+rendered density falls 29.6% short of the identical ruling on a larger frame.
+`image-tools` clamps any ruling finer than the grid supports and reports the
+clamp in `resolved_params`, so a style tuned for a hero degrades legibly on a
+phone instead of rendering mud.
+
+`ascii_mosaic`'s cell snaps to a whole multiple of the 7px bitmap glyph advance
+(nearest, floor of one advance), because a cell that is not a whole multiple
+resamples the glyph and smears the characters the operation exists to draw. The
+advance is a coarse quantum at small cells, so this treatment holds density
+across resolutions less tightly than the screens do — hence its wider test
+tolerance.
+
+**Tuning rule.** Retunes are a seed version, not an edit. Each new
+`api/internal/catalog/seed/vN.json` carries a `retune_reasons` entry naming the
+value chosen and why; an operator-authored style is never overwritten by one.
+
 ### Generators → `scaffold` presets
 
 `mesh_gradient` · `caustics` · `noise_field` · `metaball` · `flow_field` ·

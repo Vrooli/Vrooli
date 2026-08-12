@@ -105,17 +105,6 @@ func scenarioStorageRoots() (storage.Paths, error) {
 	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
-// fileRootPath is the template's mandatory file-store seam. Domain stores
-// compose their relative paths from it rather than retaining startup root
-// strings, so X-Vrooli-Test-Mode is honored independently per request.
-func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
-	root, err := roots.Pick(ctx, class)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(root, rel), nil
-}
-
 func sqliteFileDSN(path string) (string, error) {
 	if strings.HasPrefix(path, "file:") {
 		return path, nil
@@ -168,7 +157,7 @@ func main() {
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
-		healthH.Module(db, "backdrop-studio-api", "1.0.0"),
+		healthH.Module(db, "backdrop-studio-api", "1.0.0", internalcatalog.NewStore(db.Primary()).AppliedSeedVersion),
 		capsH.Module(capabilities.NewRegistry()),
 		catalogH.Module(db.Primary()),
 		composeH.Module(db.Primary()),

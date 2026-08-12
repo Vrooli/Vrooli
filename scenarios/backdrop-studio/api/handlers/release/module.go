@@ -25,6 +25,7 @@ func Module(store *internal.Store) module.Module {
 		r.PathPrefix(path).Handler(svc)
 	}, Endpoints: Endpoints}
 }
+
 func (h *handler) Release(_ context.Context, req *connect.Request[v1.ReleaseRequest]) (*connect.Response[v1.ReleasedBackdrop], error) {
 	r := req.Msg
 	regions := make([]catalog.Region, 0, len(r.GetReservedRegions()))
@@ -37,6 +38,7 @@ func (h *handler) Release(_ context.Context, req *connect.Request[v1.ReleaseRequ
 	}
 	return connect.NewResponse(toProto(b)), nil
 }
+
 func (h *handler) asset(w http.ResponseWriter, req *http.Request) {
 	b, err := h.store.Get(mux.Vars(req)["id"])
 	if err != nil || len(b.ImagePNG) == 0 {
@@ -47,6 +49,7 @@ func (h *handler) asset(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	_, _ = w.Write(b.ImagePNG)
 }
+
 func (h *handler) GetReference(_ context.Context, req *connect.Request[v1.GetReferenceRequest]) (*connect.Response[v1.ReleasedBackdrop], error) {
 	b, err := h.store.Get(req.Msg.GetId())
 	if err != nil {
@@ -54,6 +57,7 @@ func (h *handler) GetReference(_ context.Context, req *connect.Request[v1.GetRef
 	}
 	return connect.NewResponse(toProto(b)), nil
 }
+
 func toProto(b internal.Backdrop) *v1.ReleasedBackdrop {
 	out := &v1.ReleasedBackdrop{Id: b.ID, CandidateId: b.CandidateID, StyleId: b.StyleID, SurfaceId: b.SurfaceID, Placement: b.Placement, Width: int32(b.Width), Height: int32(b.Height), AltText: b.AltText, Decorative: b.Decorative, AiGenerated: b.AIGenerated, ContrastRatio: b.ContrastRatio, ContrastThreshold: b.ContrastThreshold, Uri: fmt.Sprintf("/api/v1/backdrops/%s/asset", b.ID), AssetStudioRef: b.AssetStudioRef}
 	for _, r := range b.Regions {

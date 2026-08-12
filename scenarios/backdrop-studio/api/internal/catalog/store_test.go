@@ -132,7 +132,7 @@ func TestCreateStyleRejectsUnknownClosedAxesAndEmptyOpenAxes(t *testing.T) {
 	require.ErrorContains(t, store.CreateStyle(context.Background(), badLineage), "invalid lineage")
 
 	badGeneration := base
-	badGeneration.Generation = &GenerationBlock{Role: "image.generate.default", Profile: "PROFILE_QUALITY_FIRST", PromptTemplate: "bad shape"}
+	badGeneration.Generation = &GenerationBlock{PromptTemplate: "bad shape"}
 	require.ErrorContains(t, store.CreateStyle(context.Background(), badGeneration), "cannot carry generation")
 
 	badRegion := base
@@ -207,14 +207,33 @@ func TestCreateStyleRejectsParametersTheEngineWillNotAccept(t *testing.T) {
 		require.ErrorContains(t, store.CreateStyle(ctx, v), "does not run")
 	})
 
+	t.Run("a brand slot with no declared default is refused", func(t *testing.T) {
+		v := base
+		v.ID = "probe-unbound"
+		v.TreatmentParams = map[string]string{"duotone": `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`}
+		// No Inks: this style could not render on a cold install, which is the
+		// exact shape that made ten seeded styles unrenderable.
+		require.ErrorContains(t, store.CreateStyle(ctx, v), "no declared ink default")
+	})
+
+	t.Run("an unknown brand slot is refused", func(t *testing.T) {
+		v := base
+		v.ID = "probe-typo"
+		v.TreatmentParams = map[string]string{"duotone": `{"dark":"$brand.primry","light":"#ffffff"}`}
+		v.Inks = map[string]string{"$brand.primary": "#111827"}
+		require.ErrorContains(t, store.CreateStyle(ctx, v), "unknown brand slot")
+	})
+
 	t.Run("valid parameters are accepted", func(t *testing.T) {
 		v := base
 		v.ID = "probe-ok"
 		v.TreatmentParams = map[string]string{"duotone": `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`}
+		v.Inks = map[string]string{"$brand.primary": "#111827", "$brand.background": "#f5efdc"}
 		require.NoError(t, store.CreateStyle(ctx, v))
 		got, err := store.GetStyle(ctx, "probe-ok")
 		require.NoError(t, err)
 		require.Equal(t, v.TreatmentParams, got.TreatmentParams, "parameters must round-trip through storage")
+		require.Equal(t, v.Inks, got.Inks, "ink defaults must round-trip through storage")
 	})
 }
 
@@ -223,10 +242,10 @@ func TestCreateStyleRejectsParametersTheEngineWillNotAccept(t *testing.T) {
 // the one most likely to carry parameters authored against a different engine.
 func TestImportStylePackRejectsBadParameters(t *testing.T) {
 	pack := []byte(`{"version":1,"styles":[{
-		"ID":"imported","Name":"Imported","Version":1,"Role":"ambient","Subject":"horizon",
-		"Lineage":"wpa_poster","Strategy":"procedural-treated","Treatments":["halftone"],
-		"Placements":["full_bleed"],"ContrastThreshold":4.5,
-		"TreatmentParams":{"halftone":"{\"lpi\":72,\"screen_angle\":15}"}
+		"id":"imported","name":"Imported","version":1,"role":"ambient","subject":"horizon",
+		"lineage":"wpa_poster","strategy":"procedural-treated","treatments":["halftone"],
+		"placements":["full_bleed"],"contrast_threshold":4.5,
+		"treatment_params":{"halftone":"{\"lpi\":72,\"screen_angle\":15}"}
 	}]}`)
 	_, err := ImportStylePack(pack)
 	require.ErrorContains(t, err, "not accepted by image-tools")

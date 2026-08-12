@@ -1,10 +1,19 @@
 package render
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"image"
+	"math"
+	// Registering the JPEG decoder is what lets pngGeometry say "candidate is
+	// jpeg, but the contract is PNG" instead of "unknown format". A model
+	// backend really did return JPEG, and the precise message is the finding.
+	_ "image/jpeg"
+	_ "image/png"
 	"sync"
 
 	"backdrop-studio/internal/catalog"
@@ -21,26 +30,36 @@ type Candidate struct {
 	TreatmentApplied                          bool
 	ConditioningSubmitted, DisclosureRequired bool
 	Prompt, ProvenanceJSON                    string
+	// QualityJSON is the perceptual verdict this candidate passed, carried so an
+	// operator can see the margin rather than only the pass.
+	QualityJSON string
 }
 
 type Job struct {
 	ID, StyleID, Status, ExecutionPath string
+	SurfaceID                          string
 	Seed                               int64
 	Candidates                         []Candidate
 	SelectedCandidateID, SelectedBy    string
 }
 
-// Render sizes. Scenes are the deliverable, so they render at a size a landing
-// page can actually use; scaffolds are conditioning input for a preprocessor
-// and gain nothing from extra pixels. The previous code rendered everything —
-// procedural output included — at 320x180, which is why no shipped evidence
-// could be judged.
+// Scaffold size. A scaffold is conditioning input for a preprocessor and gains
+// nothing from extra pixels; the delivery geometry, by contrast, is never a
+// constant here — it comes from the target surface record.
 const (
-	deliveryWidth  = 1600
-	deliveryHeight = 1000
 	scaffoldWidth  = 512
 	scaffoldHeight = 320
 )
+
+// Surface is the delivery target a render is sized from. It is passed in rather
+// than looked up so this package keeps one job — orchestration — and the
+// catalog stays the single authority on what a surface is.
+type Surface struct {
+	ID            string
+	Width, Height int
+}
+
+func (s Surface) valid() bool { return s.ID != "" && s.Width > 0 && s.Height > 0 }
 
 type Store struct {
 	mu        sync.RWMutex
@@ -61,14 +80,34 @@ func NewStoreWithGenerator(engine imageengine.Executor, generator imageengine.Ge
 	return &Store{jobs: map[string]*Job{}, engine: engine, generator: generator}
 }
 
-func (s *Store) Submit(style catalog.Style, placement string, seed int64, count int) (Job, error) {
-	return s.SubmitWithContext(context.Background(), style, placement, seed, count, nil)
+// Request is one render submission. It is a struct rather than a parameter list
+// because the list had reached six positional arguments, and the next reader
+// could not tell placement from surface id at the call site.
+type Request struct {
+	Style       catalog.Style
+	Surface     Surface
+	Placement   string
+	Seed        int64
+	Count       int
+	BrandTokens map[string]string
 }
 
-func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, placement string, seed int64, count int, palette map[string]string) (Job, error) {
+func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error) {
+	style, placement, seed, count := req.Style, req.Placement, req.Seed, req.Count
 	if style.ID == "" || style.Strategy == "" {
 		return Job{}, fmt.Errorf("render: style is required")
 	}
+	// Delivery geometry has one authority: the surface record. A missing
+	// surface is an error rather than a fallback constant, because a silent
+	// default is how every store asset came out as a 1.6:1 landscape.
+	if !req.Surface.valid() {
+		return Job{}, fmt.Errorf("render: style %q needs a target surface with positive geometry", style.ID)
+	}
+	// One authority for what a "$brand.*" slot means during this render: the
+	// style's declared ink defaults, overlaid by whatever the bound brand
+	// supplies. A cold install renders from the defaults; a bound brand
+	// changes the art without a catalog edit.
+	palette := style.EffectivePalette(req.BrandTokens)
 	if placement != "" && !contains(style.Placements, placement) {
 		return Job{}, fmt.Errorf("render: placement %q is not permitted by style %q", placement, style.ID)
 	}
@@ -78,8 +117,8 @@ func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, plac
 	if count > 16 {
 		return Job{}, fmt.Errorf("render: candidate_count must be between 1 and 16")
 	}
-	jobID := id(style.ID, seed, count)
-	job := &Job{ID: jobID, StyleID: style.ID, Status: "completed", Seed: seed, ExecutionPath: expectedPath(style.Strategy)}
+	jobID := id(style.ID, req.Surface.ID, seed, count)
+	job := &Job{ID: jobID, StyleID: style.ID, SurfaceID: req.Surface.ID, Status: "completed", Seed: seed, ExecutionPath: expectedPath(style.Strategy)}
 	for i := 0; i < count; i++ {
 		candidateSeed := seed + int64(i)
 		preset, ok := scenePreset(style.Subject)
@@ -116,7 +155,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, plac
 		// generators is what made the procedural lane emit blocked-out shapes.
 		var input []byte
 		var conditioning []byte
-		outW, outH := deliveryWidth, deliveryHeight
+		outW, outH := req.Surface.Width, req.Surface.Height
 
 		if style.Strategy == "guided" || style.Strategy == "synthesized" {
 			sc, scErr := scaffold.Render(scaffold.Request{Preset: preset, Conditioner: conditioner, ParamsJSON: scaffoldParams(style), Width: scaffoldWidth, Height: scaffoldHeight, Seed: candidateSeed, Regions: regions})
@@ -126,7 +165,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, plac
 			conditioning = sc.PNG
 			input = sc.PNG
 		} else {
-			sn, snErr := scenes.Render(scenes.Request{Preset: preset, ParamsJSON: scaffoldParams(style), Width: deliveryWidth, Height: deliveryHeight, Seed: candidateSeed})
+			sn, snErr := scenes.Render(scenes.Request{Preset: preset, ParamsJSON: scaffoldParams(style), Width: req.Surface.Width, Height: req.Surface.Height, Seed: candidateSeed})
 			if snErr != nil {
 				return Job{}, fmt.Errorf("render: scene: %w", snErr)
 			}
@@ -134,6 +173,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, plac
 			outW, outH = sn.Width, sn.Height
 		}
 		conditioningSubmitted := false
+		generationNative := ""
 		prompt := ""
 		if style.Generation != nil {
 			prompt = style.Generation.PromptTemplate
@@ -142,31 +182,209 @@ func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, plac
 			if s.generator == nil {
 				return Job{}, fmt.Errorf("render: %s requires image-tools inference capability", style.Strategy)
 			}
-			generated, genErr := s.generator.Generate(ctx, imageengine.GenerationRequest{Prompt: prompt, Negative: generationNegative(style), Role: style.Generation.Role, Profile: style.Generation.Profile, Seed: candidateSeed, Conditioner: conditioner, Conditioning: func() []byte {
-				if style.Strategy == "guided" {
-					conditioningSubmitted = true
-					return conditioning
-				}
-				return nil
-			}()})
+			nativeW, nativeH := generationGeometry(outW, outH)
+			generated, genErr := s.generator.Generate(ctx, imageengine.GenerationRequest{
+				Prompt:      prompt,
+				Negative:    generationNegative(style),
+				Seed:        candidateSeed,
+				Conditioner: conditioner,
+				Width:       nativeW,
+				Height:      nativeH,
+				Steps:       generationSteps,
+				CFGScale:    generationCFGScale,
+				Strength:    generationStrength,
+				// Local-first by default. Routing is a declared policy, never
+				// an accident: the previous hardcoded ("quality", "any", true)
+				// sent every render to a paid cloud provider while an installed
+				// local GPU served the same request in about fifteen seconds.
+				QualityPolicy:  generationQualityPolicy,
+				FallbackPolicy: generationFallbackPolicy,
+				AllowBYOK:      false,
+				Priority:       "batch",
+				AllowReclaim:   true,
+				Conditioning: func() []byte {
+					if style.Strategy == "guided" {
+						conditioningSubmitted = true
+						return conditioning
+					}
+					return nil
+				}(),
+			})
 			if genErr != nil {
 				return Job{}, fmt.Errorf("render: %s inference capability: %w", style.Strategy, genErr)
 			}
 			if len(generated) == 0 {
 				return Job{}, fmt.Errorf("render: %s inference returned an empty image", style.Strategy)
 			}
-			input = generated
+			// A model answers in whatever format it likes; the candidate field
+			// is named image_png and every consumer decodes it as one.
+			normalized, convErr := s.normalizePNG(ctx, generated)
+			if convErr != nil {
+				return Job{}, fmt.Errorf("render: normalize generated source: %w", convErr)
+			}
+			// Proven decodable here so a bad generation is reported at its
+			// source rather than as a confusing treatment-chain failure.
+			nativeGenW, nativeGenH, dimErr := pngGeometry(normalized)
+			if dimErr != nil {
+				return Job{}, fmt.Errorf("render: measure generated source: %w", dimErr)
+			}
+			// The model draws near its native resolution; the surface decides
+			// what ships. Without this step a model-backed style silently
+			// delivered the model's geometry — 768x512 for a 1440x720 hero —
+			// and nothing in the system said so.
+			delivered, resizeErr := s.resizeTo(ctx, normalized, req.Surface.Width, req.Surface.Height)
+			if resizeErr != nil {
+				return Job{}, fmt.Errorf("render: scale generated source to surface %q: %w", req.Surface.ID, resizeErr)
+			}
+			generationNative = fmt.Sprintf("%dx%d", nativeGenW, nativeGenH)
+			input = delivered
 		}
 		treated, err := s.engine.Apply(ctx, input, style.Treatments, style.TreatmentParams, palette)
 		if err != nil {
 			return Job{}, fmt.Errorf("render: treatment chain: %w", err)
 		}
-		job.Candidates = append(job.Candidates, Candidate{ID: id(jobID, candidateSeed, i), JobID: jobID, Strategy: style.Strategy, ExecutionPath: job.ExecutionPath, PNG: treated, Width: outW, Height: outH, Seed: candidateSeed, TreatmentApplied: true, ConditioningSubmitted: conditioningSubmitted, DisclosureRequired: style.Strategy == "guided" || style.Strategy == "synthesized", Prompt: prompt, ProvenanceJSON: fmt.Sprintf(`{"style_id":%q,"strategy":%q,"seed":%d,"treatments":%q,"execution_path":%q}`, style.ID, style.Strategy, candidateSeed, style.Treatments, job.ExecutionPath)})
+		// Treatments are same-size transforms, but asserting rather than
+		// assuming is what makes the recorded geometry trustworthy on every
+		// branch instead of on the branches someone remembered.
+		treatedW, treatedH, treatedErr := pngGeometry(treated)
+		if treatedErr != nil {
+			return Job{}, fmt.Errorf("render: measure treated candidate: %w", treatedErr)
+		}
+		outW, outH = treatedW, treatedH
+
+		// The perceptual gate runs here — after the chain, before the candidate
+		// is recorded — because a candidate that reached the record is a
+		// candidate someone can release. `engraved-colonnade` shipped illegible
+		// moire past a fully green suite; nothing in the system could observe
+		// that an image was unusable, and a contrast check cannot, since
+		// high-contrast noise has excellent contrast.
+		verdict, scoreErr := scoreCandidate(input, treated, style)
+		if scoreErr != nil {
+			return Job{}, fmt.Errorf("render: score candidate: %w", scoreErr)
+		}
+		if !verdict.Passed {
+			return Job{}, &QualityRejectedError{StyleID: style.ID, Seed: candidateSeed, Verdict: verdict}
+		}
+		job.Candidates = append(job.Candidates, Candidate{ID: id(jobID, candidateSeed, i), JobID: jobID, Strategy: style.Strategy, ExecutionPath: job.ExecutionPath, PNG: treated, Width: outW, Height: outH, Seed: candidateSeed, TreatmentApplied: true, ConditioningSubmitted: conditioningSubmitted, DisclosureRequired: style.Strategy == "guided" || style.Strategy == "synthesized", Prompt: prompt, ProvenanceJSON: provenance(style, req.Surface, candidateSeed, job.ExecutionPath, generationNative, outW, outH), QualityJSON: qualityJSON(verdict)})
 	}
 	s.mu.Lock()
 	s.jobs[jobID] = job
 	s.mu.Unlock()
 	return copyJob(job), nil
+}
+
+// Generation sampler defaults. They are constants here and become per-style
+// declared values in the quality-tier work; naming them is already better than
+// the anonymous literals they replace.
+const (
+	generationSteps    = 30
+	generationCFGScale = 7.5
+	// generationStrength is how far img2img may travel from the conditioning
+	// image. Low enough that the scaffold's composition survives.
+	generationStrength = 0.72
+	// Routing is declared, never accidental. Hardcoding these to
+	// ("quality", "any", BYOK on) sent every model-backed render to a paid
+	// cloud provider while an installed local GPU sat idle.
+	generationQualityPolicy  = "balanced"
+	generationFallbackPolicy = "local_only"
+	// sdNativeEdge is SD-1.5's training resolution. Generating far above it
+	// produces duplicated subjects — two horizons, two suns — so the model
+	// generates near native and the result is scaled to the delivery size.
+	sdNativeEdge = 512
+	// sdSizeQuantum is the latent-space stride every SD-architecture model
+	// requires its canvas to be a multiple of.
+	sdSizeQuantum = 64
+	// sdMaxEdge caps the long axis at 1.5x native. Past roughly this ratio an
+	// SD-1.5 model repeats the composition rather than extending it.
+	sdMaxEdge = 768
+)
+
+// generationGeometry maps a delivery size onto a canvas the model can actually
+// draw well: the delivery aspect preserved where the model can hold it, the
+// short edge at native resolution, both axes quantised to the latent stride.
+//
+// The long edge is capped because aspect is not free. An SD-architecture model
+// pushed far past its training resolution on one axis starts repeating the
+// composition — two horizons, two suns, a second colonnade — and no treatment
+// downstream can repair that. A 9:19.5 store portrait is therefore drawn at a
+// moderate aspect and cover-cropped to the surface, which loses some framing
+// but never produces a duplicated subject.
+func generationGeometry(deliveryW, deliveryH int) (int, int) {
+	if deliveryW <= 0 || deliveryH <= 0 {
+		return sdNativeEdge, sdNativeEdge
+	}
+	aspect := float64(deliveryW) / float64(deliveryH)
+	width, height := sdNativeEdge, sdNativeEdge
+	if aspect >= 1 {
+		width = int(math.Min(float64(sdNativeEdge)*aspect, sdMaxEdge))
+	} else {
+		height = int(math.Min(float64(sdNativeEdge)/aspect, sdMaxEdge))
+	}
+	return quantise(width), quantise(height)
+}
+
+func quantise(v int) int {
+	if v < sdSizeQuantum {
+		return sdSizeQuantum
+	}
+	return (v / sdSizeQuantum) * sdSizeQuantum
+}
+
+// provenance records what actually produced this candidate, so a released
+// backdrop can be reproduced and audited rather than merely trusted. For a
+// model-backed candidate it names both sizes: the geometry the model drew and
+// the geometry that shipped.
+func provenance(style catalog.Style, surface Surface, seed int64, executionPath, generationNative string, width, height int) string {
+	record := map[string]any{
+		"style_id":       style.ID,
+		"strategy":       style.Strategy,
+		"seed":           seed,
+		"treatments":     style.Treatments,
+		"execution_path": executionPath,
+		"surface_id":     surface.ID,
+		"delivered_size": fmt.Sprintf("%dx%d", width, height),
+	}
+	if generationNative != "" {
+		record["generation_native_size"] = generationNative
+		record["generation_steps"] = generationSteps
+		record["generation_cfg_scale"] = generationCFGScale
+		record["generation_quality_policy"] = generationQualityPolicy
+		record["generation_fallback_policy"] = generationFallbackPolicy
+		if style.Strategy == "guided" {
+			record["generation_strength"] = generationStrength
+		}
+	}
+	encoded, err := json.Marshal(record)
+	if err != nil {
+		// Unreachable: every value above is a plain string, number or slice.
+		return fmt.Sprintf(`{"style_id":%q,"provenance_error":%q}`, style.ID, err.Error())
+	}
+	return string(encoded)
+}
+
+// resizeTo scales through image-tools when the engine offers it. The capability
+// is optional on the Executor interface so a unit fake stays a small stub.
+func (s *Store) resizeTo(ctx context.Context, in []byte, width, height int) ([]byte, error) {
+	resizer, ok := s.engine.(interface {
+		Resize(context.Context, []byte, int, int) ([]byte, error)
+	})
+	if !ok {
+		return in, nil
+	}
+	return resizer.Resize(ctx, in, width, height)
+}
+
+// normalizePNG re-encodes through image-tools when the engine can do it, and
+// otherwise passes the bytes through. The capability is optional on the
+// Executor interface so a unit fake stays a two-line stub.
+func (s *Store) normalizePNG(ctx context.Context, in []byte) ([]byte, error) {
+	converter, ok := s.engine.(interface {
+		ToPNG(context.Context, []byte) ([]byte, error)
+	})
+	if !ok {
+		return in, nil
+	}
+	return converter.ToPNG(ctx, in)
 }
 
 // scenePreset maps a catalog subject onto a scene generator. Only these
@@ -252,6 +470,20 @@ func expectedPath(strategy string) string {
 	default:
 		return "procedural → treatment"
 	}
+}
+
+// pngGeometry reads a candidate's real pixel dimensions. Decoding only the
+// header is metadata inspection, not a pixel operation, so it stays inside this
+// scenario's charter of owning no raster implementation.
+func pngGeometry(encoded []byte) (int, int, error) {
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(encoded))
+	if err != nil {
+		return 0, 0, fmt.Errorf("decode candidate header: %w", err)
+	}
+	if format != "png" {
+		return 0, 0, fmt.Errorf("candidate is %s, but the contract is PNG", format)
+	}
+	return cfg.Width, cfg.Height, nil
 }
 
 func contains(xs []string, want string) bool {

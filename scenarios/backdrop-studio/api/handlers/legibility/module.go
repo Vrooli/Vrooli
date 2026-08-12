@@ -21,6 +21,7 @@ func Module() module.Module {
 		r.PathPrefix(path).Handler(svc)
 	}, Endpoints: Endpoints}
 }
+
 func (*handler) Measure(_ context.Context, req *connect.Request[v1.MeasureRequest]) (*connect.Response[v1.Verdict], error) {
 	regions := make([]internal.Region, 0, len(req.Msg.GetRegions()))
 	for _, r := range req.Msg.GetRegions() {

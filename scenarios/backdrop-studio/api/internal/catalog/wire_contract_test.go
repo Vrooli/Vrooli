@@ -2,6 +2,9 @@ package catalog_test
 
 import (
 	"database/sql"
+	"encoding/json"
+	"math"
+	"strings"
 	"testing"
 
 	"backdrop-studio/internal/catalog"
@@ -13,6 +16,18 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+func seededStore(t *testing.T) *catalog.Store {
+	t.Helper()
+	db, err := sql.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = db.Exec(catalog.Schema())
+	require.NoError(t, err)
+	store := catalog.NewStore(db)
+	require.NoError(t, store.Seed(t.Context()))
+	return store
+}
+
 // TestSeededCatalogParamsParseAsImageToolsOpParams is the cross-scenario
 // contract gate.
 //
@@ -23,44 +38,206 @@ import (
 // because backdrop-studio tests against a fake executor that never touches the
 // REST edge and image-tools tests its treatments below the wire.
 //
-// This asserts what neither side could see alone: the exact bytes backdrop-studio
-// would send are bytes image-tools will accept.
+// It is resolved BOTH ways on purpose. The earlier version of this test bound a
+// real brand, which is the one path a CLI caller never takes — so it watched
+// ten styles ship broken. The unbound case is the one that matters most.
 func TestSeededCatalogParamsParseAsImageToolsOpParams(t *testing.T) {
-	db, err := sql.Open("sqlite", ":memory:")
-	require.NoError(t, err)
-	defer db.Close()
-	_, err = db.Exec(catalog.Schema())
-	require.NoError(t, err)
-	store := catalog.NewStore(db)
-	require.NoError(t, store.Seed(t.Context()))
+	store := seededStore(t)
 	styles, err := store.ListStyles(t.Context(), "", "", "", "", "")
 	require.NoError(t, err)
 	require.NotEmpty(t, styles)
 
-	// A representative brand, so $brand.* slots resolve exactly as they would
-	// at render time.
-	palette := map[string]string{
-		"$brand.primary":    "#1B3FD8",
-		"$brand.background": "#EDE6D2",
+	cases := []struct {
+		name  string
+		brand map[string]string
+	}{
+		{name: "no brand bound", brand: nil},
+		{name: "brand bound", brand: map[string]string{
+			"$brand.primary":    "#1B3FD8",
+			"$brand.secondary":  "#0F2A6B",
+			"$brand.accent":     "#F5A623",
+			"$brand.background": "#EDE6D2",
+			"$brand.surface":    "#FFFFFF",
+			"$brand.text":       "#102A43",
+			"$brand.error":      "#B00020",
+		}},
 	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			checked := 0
+			for _, style := range styles {
+				for _, op := range style.Treatments {
+					// The effective palette is what the render path actually
+					// sends: the style's declared ink defaults, overlaid by the
+					// bound brand.
+					raw, resolveErr := imageengine.ResolveParams(op, style.TreatmentParams[op], style.EffectivePalette(tc.brand))
+					require.NoErrorf(t, resolveErr, "style %q op %q failed to resolve", style.ID, op)
+
+					pb := &opsv1.OpParams{}
+					require.NoErrorf(t, protojson.Unmarshal([]byte(raw), pb),
+						"style %q op %q emits params image-tools will reject:\n%s", style.ID, op, raw)
+
+					// An unresolved slot means the ink never bound and the
+					// render would carry a literal "$brand.primary" onto the
+					// wire, which image-tools answers with 422.
+					require.NotContainsf(t, raw, "$brand.",
+						"style %q op %q left an unresolved brand slot: %s", style.ID, op, raw)
+					checked++
+				}
+			}
+			require.Greater(t, checked, 20, "expected the seeded catalog to exercise a real spread of operations")
+		})
+	}
+}
+
+// absoluteSpatialFields are the pixel-denominated parameters image-tools still
+// accepts for compatibility. A seeded style must not send one: a value in
+// pixels ties the style to a single delivery surface, and this catalog renders
+// the same style at geometries from 390px to 2732px on the short edge.
+var absoluteSpatialFields = map[string][]string{
+	"line_screen":  {"spacing"},
+	"stipple":      {"spacing"},
+	"engraving":    {"spacing"},
+	"ascii_mosaic": {"block_size"},
+	"displacement": {"spacing", "amplitude"},
+	"aberration":   {"distance", "amplitude"},
+	"bloom":        {"radius"},
+	"defocus":      {"radius"},
+	"motion_blur":  {"distance"},
+}
+
+// TestSeededStylesSendNoAbsoluteSpatialParameter enforces the Phase 4 rule at
+// the catalog boundary, where it is cheap to hold.
+//
+// Every value here reaches image-tools, which happily accepts both forms — so
+// nothing downstream can tell an intentional pixel value from an un-migrated
+// one. The catalog is the only place that knows a seeded style is meant to work
+// at every surface, so the catalog is where the rule lives.
+func TestSeededStylesSendNoAbsoluteSpatialParameter(t *testing.T) {
+	store := seededStore(t)
+	styles, err := store.ListStyles(t.Context(), "", "", "", "", "")
+	require.NoError(t, err)
+	require.NotEmpty(t, styles)
 
 	checked := 0
 	for _, style := range styles {
-		style := style
-		t.Run(style.ID, func(t *testing.T) {
-			for _, op := range style.Treatments {
-				raw := imageengine.ResolveParams(op, style.TreatmentParams[op], palette)
-				pb := &opsv1.OpParams{}
-				require.NoErrorf(t, protojson.Unmarshal([]byte(raw), pb),
-					"style %q op %q emits params image-tools will reject:\n%s", style.ID, op, raw)
+		for _, op := range style.Treatments {
+			fields, spatial := absoluteSpatialFields[op]
+			if !spatial {
+				continue
+			}
+			raw, resolveErr := imageengine.ResolveParams(op, style.TreatmentParams[op], style.EffectivePalette(nil))
+			require.NoError(t, resolveErr)
 
-				// An unresolved slot means the ink never bound and the render
-				// would carry a literal "$brand.primary" downstream.
-				require.NotContains(t, raw, "$brand.",
-					"style %q op %q left an unresolved brand slot: %s", style.ID, op, raw)
+			var params map[string]map[string]any
+			require.NoError(t, json.Unmarshal([]byte(raw), &params))
+			for _, field := range fields {
+				require.NotContainsf(t, params[op], field,
+					"style %q op %q sends %q in pixels; use the relative form so the style holds its look at every surface\n%s",
+					style.ID, op, field, raw)
+			}
+			require.NotEmptyf(t, params[op], "style %q op %q resolved to no parameters at all", style.ID, op)
+			checked++
+		}
+	}
+	require.Positive(t, checked, "no seeded style exercises a spatial treatment; this test would pass vacuously")
+}
+
+// TestSeededSpatialParametersResolveProportionally is the end of the wire: it
+// takes each seeded style's declared relative value through the same conversion
+// image-tools performs, at the smallest and largest surfaces this catalog
+// delivers, and asserts the pixel result tracks the frame.
+func TestSeededSpatialParametersResolveProportionally(t *testing.T) {
+	store := seededStore(t)
+	styles, err := store.ListStyles(t.Context(), "", "", "", "", "")
+	require.NoError(t, err)
+	surfaces, err := store.ListSurfaces(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, surfaces)
+
+	shortest, longest := math.MaxInt, 0
+	for _, s := range surfaces {
+		shortest = min(shortest, min(s.Width, s.Height))
+		longest = max(longest, min(s.Width, s.Height))
+	}
+	require.Greater(t, longest, shortest*2, "the catalog must span a real range of geometries for this to mean anything")
+
+	checked := 0
+	for _, style := range styles {
+		for _, op := range style.Treatments {
+			if _, spatial := absoluteSpatialFields[op]; !spatial {
+				continue
+			}
+			raw, resolveErr := imageengine.ResolveParams(op, style.TreatmentParams[op], style.EffectivePalette(nil))
+			require.NoError(t, resolveErr)
+			var params map[string]map[string]any
+			require.NoError(t, json.Unmarshal([]byte(raw), &params))
+
+			for field, value := range params[op] {
+				if !strings.HasSuffix(field, "_rel") {
+					continue
+				}
+				rel, ok := value.(float64)
+				require.Truef(t, ok, "style %q op %q: %s is not a number", style.ID, op, field)
+				require.Positivef(t, rel, "style %q op %q: %s must be a positive fraction", style.ID, op, field)
+				small, large := rel*float64(shortest), rel*float64(longest)
+				require.GreaterOrEqualf(t, small, 3.0,
+					"style %q op %q: %s resolves to %.1fpx at the %dpx short edge, under the floor where the treatment discards it",
+					style.ID, op, field, small, shortest)
+				require.InDeltaf(t, float64(longest)/float64(shortest), large/small, 1e-9,
+					"style %q op %q: %s must scale with the frame", style.ID, op, field)
 				checked++
 			}
-		})
+		}
 	}
-	require.Greater(t, checked, 20, "expected the seeded catalog to exercise a real spread of operations")
+	require.Positive(t, checked)
+}
+
+// TestBrandBindingChangesRenderedInks proves the palette is load-bearing rather
+// than decorative: a style must render differently for two brands, or the
+// "$brand.*" indirection is costing complexity and buying nothing.
+func TestBrandBindingChangesRenderedInks(t *testing.T) {
+	store := seededStore(t)
+	style, err := store.GetStyle(t.Context(), "cyanotype-arcade")
+	require.NoError(t, err)
+
+	unbound, err := imageengine.ResolveParams("duotone", style.TreatmentParams["duotone"], style.EffectivePalette(nil))
+	require.NoError(t, err)
+	acme, err := imageengine.ResolveParams("duotone", style.TreatmentParams["duotone"], style.EffectivePalette(map[string]string{"$brand.primary": "#B00020", "$brand.background": "#FFF8E7"}))
+	require.NoError(t, err)
+
+	require.NotEqual(t, unbound, acme, "a bound brand must change the inks that reach the wire")
+	require.Contains(t, acme, "#B00020")
+	require.Contains(t, unbound, style.Inks["$brand.primary"])
+}
+
+// TestEverySeededSlotHasADeclaredDefault is the write-side half of the
+// fail-closed contract. Phase 1 step 8 asks for the slot-to-token mapping to be
+// written down and enforced; this is the enforcement. A style that references a
+// slot it declares no default for cannot render on a cold install, which is
+// exactly the failure that made ten styles unrenderable.
+func TestEverySeededSlotHasADeclaredDefault(t *testing.T) {
+	store := seededStore(t)
+	styles, err := store.ListStyles(t.Context(), "", "", "", "", "")
+	require.NoError(t, err)
+
+	known := map[string]bool{}
+	for _, slot := range catalog.BrandSlots {
+		known[slot] = true
+	}
+	for _, style := range styles {
+		for slot := range style.Inks {
+			require.Truef(t, known[slot], "style %q declares ink for slot %q, which brand-manager does not emit", style.ID, slot)
+		}
+		for op, params := range style.TreatmentParams {
+			for _, slot := range catalog.BrandSlots {
+				if !strings.Contains(params, slot) {
+					continue
+				}
+				require.NotEmptyf(t, style.Inks[slot],
+					"style %q op %q references %s with no declared default; it could not render without a brand", style.ID, op, slot)
+			}
+		}
+	}
 }

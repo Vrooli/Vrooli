@@ -6,6 +6,7 @@
   "displayName": "AI Conformance",
   "description": "Validates AI-using scenarios for provider-neutral routing, resource boundary hygiene, embedding metadata safety, and AI Gateway adoption readiness.",
   "source": "validation-provider",
+  "runtimeClass": "execution",
   "orderHint": 18,
   "timeout": "90s",
   "findingSource": null,

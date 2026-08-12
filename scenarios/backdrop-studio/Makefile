@@ -56,6 +56,15 @@ logs: ## Show scenario logs
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
 
+integration: ## Render every seeded style through the really running image-tools
+	@printf 'The lane needs backdrop-studio, image-tools and asset-studio running,\n'
+	@printf 'and refuses to judge anything if the API is not built from this tree.\n\n'
+	@cd api && GOWORK=off go test -tags integration -count=1 -timeout 40m ./integration/...
+
+integration-evidence: ## Regenerate docs/evidence/{render-matrix.md,treatments/} from a real run
+	@cd api && BACKDROP_STUDIO_WRITE_EVIDENCE=1 GOWORK=off go test -tags integration \
+		-count=1 -timeout 40m -run 'TestRenderMatrixEvidence|TestTreatmentGalleryEvidence' ./integration/...
+
 clean: ## Clean build artifacts
 	@rm -rf ui/dist 2>/dev/null || true
 	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true

@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	// Registers the JPEG decoder. Candidates arrive as PNG, but an operator
+	// measuring a supplied comparison image should not get "unknown format"
+	// for a JPEG.
 	_ "image/jpeg"
 	"math"
 	"strconv"

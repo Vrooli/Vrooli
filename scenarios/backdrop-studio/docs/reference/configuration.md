@@ -31,6 +31,102 @@ ports as outbound source ports. See the project-level port allocation reference
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/backdrop-studio.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+| `BRAND_MANAGER_URL` | (service discovery) | Pin the Brand Manager address. Normally unset — `--brand` resolves brand-manager through the same discovery every other cross-scenario call uses. |
+| `BACKDROP_STUDIO_API_SOURCE` | (walk up from the working directory) | Pin the `api/` source tree the build fingerprint is computed from. |
+
+## Ink slots and the brand palette
+
+A style's treatment parameters name inks by **slot**, not by hex. Slot names are
+exactly the token names Brand Manager's `BrandsService.GetTokens` emits, so
+there is no mapping table between the two vocabularies and nothing that can
+drift out of sync.
+
+| Slot | Brand Manager token | Typical use in a treatment |
+|---|---|---|
+| `$brand.primary` | `colors.primary` | the dark ink of a two-ink ramp; a scrim colour |
+| `$brand.secondary` | `colors.secondary` | a third ink in a tritone ramp |
+| `$brand.accent` | `colors.accent` | a spot ink, usually one small high-chroma area |
+| `$brand.background` | `colors.background` | the light ink — the "paper" a screen prints on |
+| `$brand.surface` | `colors.surface` | a raised panel behind a framed inset |
+| `$brand.text` | `colors.text` | overlay copy colour the legibility gate measures |
+| `$brand.error` | `colors.error` | reserved; no seeded style uses it |
+
+The enforcement is in code, not in this table: `catalog.BrandSlots` is the one
+list, `validateStyle` refuses a style naming a slot outside it, and
+`TestEverySeededSlotHasADeclaredDefault` fails the build if a seeded style
+references a slot it cannot bind.
+
+### Resolution order
+
+A slot resolves against the **effective palette**, which is built once per
+render:
+
+1. the style's own declared `inks` — its art-directed defaults;
+2. overlaid by the bound brand's tokens, when a brand is bound.
+
+This is what lets the same style render on a cold install with nothing
+configured *and* render differently per brand. It also means the two are not
+alternatives: a brand that defines only `primary` overrides only that slot and
+leaves the style's other inks intact.
+
+### Unresolved slots fail closed
+
+A slot that neither the style nor the brand defines is a
+`FailedPrecondition` naming the slot, the operation and the field. It is never
+written onto the wire as a literal.
+
+That fall-through is not hypothetical: it is what shipped, and image-tools
+answered `422 invalid color "$brand.primary"` for ten of sixteen seeded styles
+while every unit test passed — because the tests all bound a brand, which is the
+one thing a CLI caller never did.
+
+### Binding a brand from the CLI
+
+```bash
+# Render from the style's own ink defaults — no brand needed.
+backdrop-studio render submit --style cyanotype-arcade --seed 7
+
+# Bind a Brand Manager brand; its tokens override the style's defaults.
+backdrop-studio render submit --style cyanotype-arcade --seed 7 --brand <brand-id>
+
+# Bind slots directly, for a caller with no Brand Manager.
+backdrop-studio render submit --style cyanotype-arcade --seed 7 \
+  --brand-token primary=#1B3FBF --brand-token background=#F5EFDC
+```
+
+`--brand-token` accepts the slot with or without the `$brand.` prefix. Explicit
+tokens win over `--brand`, because a caller who states an ink means it.
+
+## Catalog seed versions and upgrades
+
+Seed content is versioned data under `api/internal/catalog/seed/`, embedded into
+the binary with `go:embed`. On every start the store applies each version it has
+not applied yet, upserting rows by id.
+
+- A row whose `origin` is `operator` is **never** overwritten and never deleted.
+- A row whose `origin` is `seed` is upgraded in place.
+- A style dropped from a later seed version stays on installs that already have
+  it, because a released backdrop may reference it.
+
+Check what an install is running:
+
+```bash
+curl -s "http://localhost:${API_PORT}/api/v1/build" | jq
+```
+
+`seed_version` is what the binary ships; `applied_seed_version` is what the
+database has. They differ only between an upgrade and the next restart.
+
+## Build fingerprint
+
+The same endpoint reports `fingerprint`, a content hash over the API's Go
+sources, embedded seed data and SQL schema. `/health` carries the first twelve
+characters as semver build metadata (`1.0.0+82eb6be45d76`).
+
+It exists because two audits in two days drew false conclusions from a stale
+binary — one recorded a working feature as missing. The integration lane
+computes the same hash from the working tree and refuses to render anything on a
+mismatch.
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

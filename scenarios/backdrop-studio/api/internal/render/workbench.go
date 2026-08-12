@@ -140,7 +140,7 @@ func composePlacement(src image.Image, placement string, w, h int) *image.RGBA {
 	if scrim != "none" {
 		applyScrim(page, imageRect, scrim)
 	}
-	drawCopyBlock(page, copyRect)
+	drawCopyBlock(page, copyRect, DefaultCopy(), "")
 	return page
 }
 
@@ -183,16 +183,89 @@ func applyScrim(dst *image.RGBA, r image.Rectangle, direction string) {
 	}
 }
 
-// drawCopyBlock lays in a kicker, a two-line headline, two subhead lines and a
-// call to action as solid bars. Real glyphs are unnecessary — the preview is
-// judged on whether the copy mass is readable against the image behind it, and
-// bars carry that mass honestly while staying locale-free.
-func drawCopyBlock(dst *image.RGBA, r image.Rectangle) {
-	if r.Dx() < 8 || r.Dy() < 8 {
+// CopyDeck is the text a placement preview renders. It is real copy rather than
+// placeholder bars because the preview exists to answer exactly one question —
+// can someone read this headline against this image — and a black rectangle
+// cannot answer it. An operator judging a backdrop from bars is judging the
+// bars.
+type CopyDeck struct {
+	Kicker, Headline, Subhead, CTA string
+}
+
+// DefaultCopy is representative landing-page copy: a real headline length, a
+// real subhead length, a real call to action. The lengths matter more than the
+// words, because they are what decides whether the copy mass collides with the
+// focal subject.
+func DefaultCopy() CopyDeck {
+	return CopyDeck{
+		Kicker:   "AMBIENT IMAGERY",
+		Headline: "Ship what others are still planning",
+		Subhead:  "Art-directed backdrops that carry mood and craft signal while your copy stays legible on top.",
+		CTA:      "START BUILDING",
+	}
+}
+
+// drawCopyBlock lays in a kicker, a headline, a subhead and a call to action as
+// rendered type at the style's declared text colour.
+//
+// It used to draw solid bars. Bars carry copy *mass* honestly, which is why the
+// choice was defensible, but they cannot show a stroke disappearing into a busy
+// midtone or a serif dissolving into a halftone dot — and those are the failures
+// a backdrop actually has.
+func drawCopyBlock(dst *image.RGBA, r image.Rectangle, deck CopyDeck, declared string) {
+	if r.Dx() < 40 || r.Dy() < 40 {
 		return
 	}
-	// Choose ink from what is actually behind the copy, so the preview shows a
-	// legible pairing rather than assuming one.
+	// Choose ink from what is actually behind the copy, unless the style
+	// declared one — a declared text colour is an art-direction decision and
+	// the preview must show it, including when it is a bad decision.
+	ink := inkForRegion(dst, r, declared)
+	dark := color.RGBA{18, 20, 26, 255}
+	lightInk := color.RGBA{252, 252, 250, 255}
+	ctaInk := dark
+	if luminanceOf(ink) < 0.5 {
+		ctaInk = lightInk
+	}
+
+	unit := r.Dy() / 26
+	if unit < 2 {
+		unit = 2
+	}
+	y := r.Min.Y
+
+	// Scales are relative to the copy column so the deck fits at every viewport.
+	// The first version set the headline to a full unit, which on a desktop hero
+	// rendered ~90px glyphs and truncated the headline after two words — the
+	// preview then answered a question nobody asked.
+	kickerScale := maxInt(1, unit/4)
+	headlineScale := maxInt(2, unit*2/3)
+	bodyScale := maxInt(1, unit/3)
+
+	y = drawWrappedText(dst, image.Rect(r.Min.X, y, r.Max.X, r.Max.Y), deck.Kicker, kickerScale, ink)
+	y += unit
+	y = drawWrappedText(dst, image.Rect(r.Min.X, y, r.Max.X, r.Max.Y), deck.Headline, headlineScale, ink)
+	y += unit
+	y = drawWrappedText(dst, image.Rect(r.Min.X, y, r.Max.X, r.Max.Y), deck.Subhead, bodyScale, ink)
+	y += unit * 2
+
+	// Call to action: a filled button with knocked-out type.
+	btnH := glyphHeight*bodyScale + bodyScale*6
+	btnW := textWidth(deck.CTA, bodyScale) + bodyScale*12
+	if btnW > r.Dx() {
+		btnW = r.Dx()
+	}
+	if y+btnH <= r.Max.Y {
+		fill(dst, image.Rect(r.Min.X, y, r.Min.X+btnW, y+btnH), ink)
+		drawTextScaled(dst, r.Min.X+bodyScale*6, y+bodyScale*3, deck.CTA, bodyScale, ctaInk)
+	}
+}
+
+// inkForRegion picks readable type colour. A declared colour wins; otherwise the
+// preview measures what is behind the copy and picks the readable pole.
+func inkForRegion(dst *image.RGBA, r image.Rectangle, declared string) color.RGBA {
+	if parsed, ok := parseHexColor(declared); ok {
+		return parsed
+	}
 	var sum float64
 	n := 0
 	for y := r.Min.Y; y < r.Max.Y; y += 2 {
@@ -202,50 +275,49 @@ func drawCopyBlock(dst *image.RGBA, r image.Rectangle) {
 			n++
 		}
 	}
-	dark := color.RGBA{18, 20, 26, 255}
-	lightInk := color.RGBA{252, 252, 250, 255}
-	ink, cta, ctaInk := lightInk, lightInk, dark
 	if n > 0 && sum/float64(n) > 0.55 {
-		ink, cta, ctaInk = dark, dark, lightInk
+		return color.RGBA{18, 20, 26, 255}
 	}
+	return color.RGBA{252, 252, 250, 255}
+}
 
-	unit := r.Dy() / 22
-	if unit < 2 {
-		unit = 2
+func parseHexColor(value string) (color.RGBA, bool) {
+	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
+	if len(value) != 6 {
+		return color.RGBA{}, false
 	}
-	y := r.Min.Y
-	bar := func(wFrac float64, height int, c color.RGBA) {
-		bw := int(float64(r.Dx()) * wFrac)
-		if bw > r.Dx() {
-			bw = r.Dx()
+	var rgb [3]uint8
+	for i := 0; i < 3; i++ {
+		var v int
+		for j := 0; j < 2; j++ {
+			c := value[i*2+j]
+			var d int
+			switch {
+			case c >= '0' && c <= '9':
+				d = int(c - '0')
+			case c >= 'a' && c <= 'f':
+				d = int(c-'a') + 10
+			case c >= 'A' && c <= 'F':
+				d = int(c-'A') + 10
+			default:
+				return color.RGBA{}, false
+			}
+			v = v*16 + d
 		}
-		if y+height > r.Max.Y {
-			return
-		}
-		fill(dst, image.Rect(r.Min.X, y, r.Min.X+bw, y+height), c)
-		y += height
+		rgb[i] = uint8(v)
 	}
-	gap := func(nUnits int) { y += unit * nUnits }
+	return color.RGBA{R: rgb[0], G: rgb[1], B: rgb[2], A: 255}, true
+}
 
-	bar(0.24, unit, ink) // kicker
-	gap(2)
-	bar(0.92, unit*3, ink) // headline line 1
-	gap(1)
-	bar(0.68, unit*3, ink) // headline line 2
-	gap(2)
-	bar(0.80, unit, ink) // subhead line 1
-	gap(1)
-	bar(0.62, unit, ink) // subhead line 2
-	gap(2)
-	// call to action
-	btnW, btnH := int(float64(r.Dx())*0.30), unit*4
-	if y+btnH <= r.Max.Y {
-		fill(dst, image.Rect(r.Min.X, y, r.Min.X+btnW, y+btnH), cta)
-		inset := btnH / 3
-		if btnW > inset*4 {
-			fill(dst, image.Rect(r.Min.X+inset, y+inset, r.Min.X+btnW-inset*3, y+btnH-inset), ctaInk)
-		}
+func luminanceOf(c color.RGBA) float64 {
+	return (0.299*float64(c.R) + 0.587*float64(c.G) + 0.114*float64(c.B)) / 255
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
 	}
+	return b
 }
 
 func drawScaled(dst draw.Image, target image.Rectangle, src image.Image) {
@@ -260,47 +332,123 @@ func drawScaled(dst draw.Image, target image.Rectangle, src image.Image) {
 	offX := (float64(sb.Dx()) - srcW) / 2
 	offY := (float64(sb.Dy()) - srcH) / 2
 
+	// The filter radius follows the scale: when several source pixels collapse
+	// into one destination pixel, the kernel has to be wide enough to see all
+	// of them, or the ones it skips are the aliasing.
+	radius := 1.0
+	if scale < 1 {
+		radius = 1 / scale
+	}
+
 	for y := target.Min.Y; y < target.Max.Y; y++ {
-		fy := offY + float64(y-target.Min.Y)/scale
-		sy := sb.Min.Y + int(fy)
-		if sy < sb.Min.Y {
-			sy = sb.Min.Y
-		}
-		if sy >= sb.Max.Y {
-			sy = sb.Max.Y - 1
-		}
+		fy := offY + (float64(y-target.Min.Y)+0.5)/scale
 		for x := target.Min.X; x < target.Max.X; x++ {
-			fx := offX + float64(x-target.Min.X)/scale
-			sx := sb.Min.X + int(fx)
-			if sx < sb.Min.X {
-				sx = sb.Min.X
-			}
-			if sx >= sb.Max.X {
-				sx = sb.Max.X - 1
-			}
-			dst.Set(x, y, src.At(sx, sy))
+			fx := offX + (float64(x-target.Min.X)+0.5)/scale
+			dst.Set(x, y, sampleFiltered(src, fx, fy, radius, scale < 1))
 		}
 	}
 }
 
-var glyphs = map[rune][7]string{
-	'A': {"01110", "10001", "10001", "11111", "10001", "10001", "10001"}, 'B': {"11110", "10001", "10001", "11110", "10001", "10001", "11110"}, 'C': {"01111", "10000", "10000", "10000", "10000", "10000", "01111"}, 'D': {"11110", "10001", "10001", "10001", "10001", "10001", "11110"}, 'E': {"11111", "10000", "10000", "11110", "10000", "10000", "11111"}, 'F': {"11111", "10000", "10000", "11110", "10000", "10000", "10000"}, 'G': {"01111", "10000", "10000", "10111", "10001", "10001", "01111"}, 'H': {"10001", "10001", "10001", "11111", "10001", "10001", "10001"}, 'I': {"11111", "00100", "00100", "00100", "00100", "00100", "11111"}, 'J': {"00111", "00010", "00010", "00010", "00010", "10010", "01100"}, 'K': {"10001", "10010", "10100", "11000", "10100", "10010", "10001"}, 'L': {"10000", "10000", "10000", "10000", "10000", "10000", "11111"}, 'M': {"10001", "11011", "10101", "10101", "10001", "10001", "10001"}, 'N': {"10001", "11001", "10101", "10011", "10001", "10001", "10001"}, 'O': {"01110", "10001", "10001", "10001", "10001", "10001", "01110"}, 'P': {"11110", "10001", "10001", "11110", "10000", "10000", "10000"}, 'Q': {"01110", "10001", "10001", "10001", "10101", "10010", "01101"}, 'R': {"11110", "10001", "10001", "11110", "10100", "10010", "10001"}, 'S': {"01111", "10000", "10000", "01110", "00001", "00001", "11110"}, 'T': {"11111", "00100", "00100", "00100", "00100", "00100", "00100"}, 'U': {"10001", "10001", "10001", "10001", "10001", "10001", "01110"}, 'V': {"10001", "10001", "10001", "10001", "10001", "01010", "00100"}, 'W': {"10001", "10001", "10001", "10101", "10101", "11011", "10001"}, 'X': {"10001", "10001", "01010", "00100", "01010", "10001", "10001"}, 'Y': {"10001", "10001", "01010", "00100", "00100", "00100", "00100"}, 'Z': {"11111", "00001", "00010", "00100", "01000", "10000", "11111"}, '0': {"01110", "10001", "10011", "10101", "11001", "10001", "01110"}, '1': {"00100", "01100", "00100", "00100", "00100", "00100", "01110"}, '2': {"01110", "10001", "00001", "00010", "00100", "01000", "11111"}, '3': {"11110", "00001", "00001", "01110", "00001", "00001", "11110"}, '4': {"00010", "00110", "01010", "10010", "11111", "00010", "00010"}, '5': {"11111", "10000", "10000", "11110", "00001", "00001", "11110"}, '6': {"01110", "10000", "10000", "11110", "10001", "10001", "01110"}, '7': {"11111", "00001", "00010", "00100", "01000", "01000", "01000"}, '8': {"01110", "10001", "10001", "01110", "10001", "10001", "01110"}, '9': {"01110", "10001", "10001", "01111", "00001", "00001", "01110"}, '-': {"00000", "00000", "00000", "11111", "00000", "00000", "00000"}, ' ': {"00000", "00000", "00000", "00000", "00000", "00000", "00000"},
-}
+// sampleFiltered evaluates one destination pixel. Weights are accumulated in
+// premultiplied-alpha space so a transparent neighbour cannot bleed its colour
+// into an opaque result.
+func sampleFiltered(src image.Image, fx, fy, radius float64, downscale bool) color.NRGBA {
+	sb := src.Bounds()
+	minX := int(math.Floor(fx - radius))
+	maxX := int(math.Ceil(fx + radius))
+	minY := int(math.Floor(fy - radius))
+	maxY := int(math.Ceil(fy + radius))
 
-func drawText(dst draw.Image, x, y int, text string, c color.Color) {
-	for _, r := range strings.ToUpper(text) {
-		g, ok := glyphs[r]
-		if !ok {
-			x += 6
+	var sumR, sumG, sumB, sumA, sumW float64
+	for sy := minY; sy <= maxY; sy++ {
+		wy := filterWeight((float64(sy)+0.5-fy)/radius, downscale)
+		if wy == 0 {
 			continue
 		}
-		for yy, row := range g {
-			for xx, v := range row {
-				if v == '1' {
-					dst.Set(x+xx, y+yy, c)
+		cy := clampInt(sb.Min.Y+sy, sb.Min.Y, sb.Max.Y-1)
+		for sx := minX; sx <= maxX; sx++ {
+			wx := filterWeight((float64(sx)+0.5-fx)/radius, downscale)
+			if wx == 0 {
+				continue
+			}
+			cx := clampInt(sb.Min.X+sx, sb.Min.X, sb.Max.X-1)
+			r, g, b, a := src.At(cx, cy).RGBA()
+			w := wx * wy
+			sumR += float64(r>>8) * w
+			sumG += float64(g>>8) * w
+			sumB += float64(b>>8) * w
+			sumA += float64(a>>8) * w
+			sumW += w
+		}
+	}
+	if sumW == 0 {
+		return color.NRGBA{}
+	}
+	return color.NRGBA{
+		R: clampByte(sumR / sumW),
+		G: clampByte(sumG / sumW),
+		B: clampByte(sumB / sumW),
+		A: clampByte(sumA / sumW),
+	}
+}
+
+// filterWeight is Catmull-Rom for downscale and a triangle (bilinear) for
+// upscale, both evaluated on a normalised distance.
+func filterWeight(t float64, catmullRom bool) float64 {
+	t = math.Abs(t)
+	if !catmullRom {
+		if t >= 1 {
+			return 0
+		}
+		return 1 - t
+	}
+	// Catmull-Rom: B = 0, C = 0.5 in the Mitchell-Netravali family.
+	switch {
+	case t < 1:
+		return 1.5*t*t*t - 2.5*t*t + 1
+	case t < 2:
+		return -0.5*t*t*t + 2.5*t*t - 4*t + 2
+	default:
+		return 0
+	}
+}
+
+func clampInt(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
+}
+
+func clampByte(v float64) uint8 {
+	if v <= 0 {
+		return 0
+	}
+	if v >= 255 {
+		return 255
+	}
+	return uint8(v + 0.5)
+}
+
+// drawText labels a contact sheet at 1x from the same face the previews use, so
+// there is one glyph table in this package rather than two that can drift.
+func drawText(dst draw.Image, x, y int, text string, c color.Color) {
+	for _, r := range text {
+		rows, ok := face[foldRune(r)]
+		if !ok {
+			x += advance(1)
+			continue
+		}
+		for gy, row := range rows {
+			for gx, bit := range row {
+				if bit == '1' {
+					dst.Set(x+gx, y+gy, c)
 				}
 			}
 		}
-		x += 6
+		x += advance(1)
 	}
 }

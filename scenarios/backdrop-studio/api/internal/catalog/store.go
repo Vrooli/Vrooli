@@ -6,49 +6,111 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"backdrop-studio/internal/imageengine"
 )
 
 type Surface struct {
-	ID, Name, Kind         string
-	Width, Height          int
-	Placements             []string
-	Authority, ConfirmedOn string
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Kind        string   `json:"kind"`
+	Width       int      `json:"width"`
+	Height      int      `json:"height"`
+	Placements  []string `json:"placements"`
+	Authority   string   `json:"authority"`
+	ConfirmedOn string   `json:"confirmed_on"`
 }
 
 type Region struct {
-	X, Y, Width, Height float64
-	Kind, TextColor     string
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+	Width     float64 `json:"width"`
+	Height    float64 `json:"height"`
+	Kind      string  `json:"kind"`
+	TextColor string  `json:"text_color"`
 }
 
 type ScaffoldBinding struct {
-	Preset, Conditioner, ParamsJSON string
+	Preset      string `json:"preset"`
+	Conditioner string `json:"conditioner"`
+	ParamsJSON  string `json:"params_json"`
 }
 
+// GenerationBlock declares a style's model-backed source. It names no concrete
+// model, provider or credential: image-tools owns selection, and a catalog that
+// pinned a model would freeze every install at whatever existed when the style
+// was written.
 type GenerationBlock struct {
-	Role, Profile, PromptTemplate, Negative string
-	Model, ProviderURL, Credential          string
+	PromptTemplate string `json:"prompt_template"`
+	Negative       string `json:"negative"`
+	Model          string `json:"model,omitempty"`
+	ProviderURL    string `json:"provider_url,omitempty"`
+	Credential     string `json:"credential,omitempty"`
 }
 
 type Style struct {
-	ID, Name                         string
-	Version                          int
-	Role, Subject, Lineage, Strategy string
-	ParentID                         string
-	Treatments, Placements           []string
-	Regions                          []Region
-	ContrastThreshold                float64
-	Scaffold                         *ScaffoldBinding
-	Generation                       *GenerationBlock
+	ID         string   `json:"id"`
+	Name       string   `json:"name"`
+	Version    int      `json:"version"`
+	Role       string   `json:"role"`
+	Subject    string   `json:"subject"`
+	Lineage    string   `json:"lineage"`
+	Strategy   string   `json:"strategy"`
+	ParentID   string   `json:"parent_id,omitempty"`
+	Treatments []string `json:"treatments"`
+	Placements []string `json:"placements"`
+	Regions    []Region `json:"regions"`
+
+	ContrastThreshold float64          `json:"contrast_threshold"`
+	Scaffold          *ScaffoldBinding `json:"scaffold,omitempty"`
+	Generation        *GenerationBlock `json:"generation,omitempty"`
+
+	// Quality is this style's own perceptual bar, overriding the per-family
+	// default resolved by EffectiveQuality. Nil means "the family default is
+	// right for me", which is true of most styles; a deliberately extreme
+	// style states its numbers here so the gate does not have to be loosened
+	// for everyone to accommodate one.
+	Quality *Quality `json:"quality,omitempty"`
+
 	// TreatmentParams carries per-style parameters for the ops named in
 	// Treatments, keyed by op name, each value a JSON object merged over the
 	// palette-derived defaults at render time. Without it every style using
 	// "halftone" produced the same screen at the same line frequency, so the
 	// catalog could name an art direction but never actually express one.
-	// Values may reference "$brand.*" slots, which resolve against the active
-	// brand rather than being baked in.
-	TreatmentParams map[string]string
+	// Values may reference "$brand.*" slots, which resolve against the
+	// effective palette rather than being baked in.
+	TreatmentParams map[string]string `json:"treatment_params,omitempty"`
+
+	// Inks are this style's own defaults for the "$brand.*" slots its
+	// parameters reference, keyed by the same slot names brand-manager emits.
+	// They are what lets a style render on a cold install with no brand bound
+	// while still rendering differently once one is: the effective palette is
+	// these defaults overlaid by the bound brand's tokens. A slot named by a
+	// parameter and covered by neither is a hard error, never a literal on the
+	// wire.
+	Inks map[string]string `json:"inks,omitempty"`
+
+	// Origin distinguishes rows this binary ships from rows an operator
+	// authored. Seed upgrades rewrite the former and never touch the latter.
+	Origin string `json:"-"`
+}
+
+// EffectivePalette resolves the ink slots this style renders with. Brand tokens
+// win over the style's declared defaults, which is the whole point: one style,
+// several brands, no catalog edit.
+func (v Style) EffectivePalette(brand map[string]string) map[string]string {
+	out := make(map[string]string, len(v.Inks)+len(brand))
+	for slot, ink := range v.Inks {
+		out[slot] = ink
+	}
+	for slot, ink := range brand {
+		if strings.TrimSpace(ink) == "" {
+			continue
+		}
+		out[slot] = ink
+	}
+	return out
 }
 
 type Store struct{ db *sql.DB }
@@ -60,245 +122,25 @@ var schemaFile []byte
 
 func Schema() string { return string(schemaFile) }
 
-func (s *Store) Seed(ctx context.Context) error {
-	// Keep databases created before lineage was introduced readable while the
-	// canonical schema remains the source for fresh installs.
-	_, _ = s.db.ExecContext(ctx, `ALTER TABLE backdrop_styles ADD COLUMN parent_id TEXT NOT NULL DEFAULT ''`)
-	_, _ = s.db.ExecContext(ctx, `ALTER TABLE backdrop_styles ADD COLUMN treatment_params TEXT NOT NULL DEFAULT '{}'`)
-	var count int
-	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM backdrop_surfaces").Scan(&count); err != nil {
-		return err
-	}
-	if count == 0 {
-		seeds := []Surface{
-			{ID: "web.hero", Name: "Landing page hero", Kind: "product", Width: 1440, Height: 720, Placements: []string{"full_bleed", "split_panel", "framed_inset", "corner_bleed"}, Authority: "Backdrop Studio product geometry", ConfirmedOn: "2026-08-11"},
-			{ID: "web.hero-mobile", Name: "Mobile landing page hero", Kind: "product", Width: 390, Height: 844, Placements: []string{"full_bleed", "framed_inset"}, Authority: "Backdrop Studio product geometry", ConfirmedOn: "2026-08-11"},
-			{ID: "web.auth-panel", Name: "Authentication panel", Kind: "product", Width: 640, Height: 900, Placements: []string{"split_panel", "full_bleed"}, Authority: "Backdrop Studio product geometry", ConfirmedOn: "2026-08-11"},
-			{ID: "play.feature-graphic", Name: "Google Play feature graphic", Kind: "store", Width: 1024, Height: 500, Placements: []string{"feature_graphic"}, Authority: "Google Play Console Help — Graphic assets", ConfirmedOn: "2026-08-11"},
-			{ID: "play.phone-screenshot", Name: "Google Play phone screenshot", Kind: "store", Width: 1080, Height: 1920, Placements: []string{"device_center", "caption_above_device", "caption_below_device", "caption_only"}, Authority: "Google Play Console Help — Graphic assets", ConfirmedOn: "2026-08-11"},
-			{ID: "play.tablet-screenshot", Name: "Google Play tablet screenshot", Kind: "store", Width: 1920, Height: 1080, Placements: []string{"device_center", "caption_above_device", "caption_below_device", "caption_only"}, Authority: "Google Play Console Help — Graphic assets", ConfirmedOn: "2026-08-11"},
-			{ID: "app-store-6.7-screenshot", Name: "App Store 6.7-inch screenshot", Kind: "store", Width: 1290, Height: 2796, Placements: []string{"device_center", "caption_above_device", "caption_below_device", "caption_only"}, Authority: "Apple App Store Connect Help — screenshot specifications", ConfirmedOn: "2026-08-11"},
-			{ID: "app-store-6.5-screenshot", Name: "App Store 6.5-inch screenshot", Kind: "store", Width: 1284, Height: 2778, Placements: []string{"device_center", "caption_above_device", "caption_below_device", "caption_only"}, Authority: "Apple App Store Connect Help — screenshot specifications", ConfirmedOn: "2026-08-11"},
-			{ID: "app-store-12.9-screenshot", Name: "App Store 12.9-inch screenshot", Kind: "store", Width: 2048, Height: 2732, Placements: []string{"device_center", "caption_above_device", "caption_below_device", "caption_only"}, Authority: "Apple App Store Connect Help — screenshot specifications", ConfirmedOn: "2026-08-11"},
-		}
-		for _, v := range seeds {
-			if err := s.PutSurface(ctx, v); err != nil {
-				return err
-			}
-		}
-	}
-	var styles int
-	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM backdrop_styles").Scan(&styles); err != nil {
-		return err
-	}
-	if styles == 0 {
-		// The seeded catalog. Every entry names a subject that maps to a real
-		// scene (or is model-backed), only ops image-tools implements, and —
-		// critically — its own parameters. Without TreatmentParams every style
-		// naming "halftone" produced an identical screen, so the catalog
-		// described fifteen art directions while rendering about four.
-		//
-		// Ink slots stay as $brand.* so one style renders correctly per brand
-		// rather than baking a palette into the catalog.
-		overlay := func(text string) []Region {
-			return []Region{{X: .06, Y: .18, Width: .48, Height: .40, Kind: "overlay", TextColor: text}}
-		}
-		const onDark, onLight = "#ffffff", "#111827"
-		for _, v := range []Style{
-			// ── architecture: screens over the arcade scene ───────────────
-			{
-				ID: "cyanotype-arcade", Name: "Cyanotype Arcade", Version: 1, Role: "ambient",
-				Subject: "statuary_architecture", Lineage: "cyanotype", Strategy: "procedural-treated",
-				Treatments: []string{"duotone", "halftone"}, Placements: []string{"full_bleed", "split_panel", "framed_inset"},
-				TreatmentParams: map[string]string{
-					"duotone":  `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
-					"halftone": `{"lpi":72,"angle":15,"dot":"circle"}`,
-				},
-				Regions: overlay(onDark), ContrastThreshold: 4.5,
-			},
-			{
-				ID: "engraved-colonnade", Name: "Engraved Colonnade", Version: 1, Role: "ambient",
-				Subject: "statuary_architecture", Lineage: "scientific_plate", Strategy: "procedural-treated",
-				Treatments: []string{"engraving"}, Placements: []string{"framed_inset", "split_panel"},
-				TreatmentParams: map[string]string{
-					"engraving": `{"spacing":7,"dark":"$brand.primary","light":"$brand.background"}`,
-				},
-				Regions: overlay(onLight), ContrastThreshold: 4.5,
-			},
-			{
-				ID: "op-art-interior", Name: "Op Art Interior", Version: 1, Role: "ambient",
-				Subject: "interior", Lineage: "op_art", Strategy: "procedural-treated",
-				Treatments: []string{"line_screen"}, Placements: []string{"full_bleed", "corner_bleed"},
-				TreatmentParams: map[string]string{
-					"line_screen": `{"spacing":6,"angle":45,"dark":"$brand.primary","light":"$brand.background"}`,
-				},
-				Regions: overlay(onDark), ContrastThreshold: 4.5,
-			},
-
-			// ── horizon family ───────────────────────────────────────────
-			{
-				ID: "riso-horizon", Name: "Riso Horizon", Version: 1, Role: "ambient",
-				Subject: "horizon", Lineage: "riso_zine", Strategy: "procedural-treated",
-				Treatments: []string{"dither_diffusion", "grain"}, Placements: []string{"full_bleed", "split_panel"},
-				TreatmentParams: map[string]string{
-					"dither_diffusion": `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
-					"grain":            `{"amount":0.05,"contrast_multiplier":1.0,"seed":11}`,
-				},
-				Regions: overlay(onDark), ContrastThreshold: 4.5,
-			},
-			{
-				ID: "city-pop-horizon", Name: "City Pop Horizon", Version: 1, Role: "ambient",
-				Subject: "horizon", Lineage: "city_pop", Strategy: "procedural-treated",
-				Treatments: []string{"posterize", "grain"}, Placements: []string{"full_bleed", "corner_bleed"},
-				TreatmentParams: map[string]string{
-					"posterize": `{"levels":7,"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
-					"grain":     `{"amount":0.09,"contrast_multiplier":1.10,"seed":4}`,
-				},
-				Regions: overlay(onDark), ContrastThreshold: 4.5,
-			},
-			{
-				ID: "solar-bloom-horizon", Name: "Solar Bloom Horizon", Version: 1, Role: "ambient",
-				Subject: "horizon", Lineage: "solarpunk", Strategy: "procedural-treated",
-				Treatments: []string{"bloom", "grain", "scrim"}, Placements: []string{"full_bleed"},
-				TreatmentParams: map[string]string{
-					"bloom": `{"threshold":0.62,"radius":18}`,
-					"grain": `{"amount":0.06,"contrast_multiplier":1.04,"seed":9}`,
-					"scrim": `{"color":"$brand.primary","opacity":0.55,"direction":"left"}`,
-				},
-				Regions: overlay(onDark), ContrastThreshold: 4.5,
-			},
-			{
-				ID: "ukiyo-tide", Name: "Ukiyo Tide", Version: 1, Role: "ambient",
-				Subject: "aquatic", Lineage: "ukiyo_e", Strategy: "procedural-treated",
-				Treatments: []string{"posterize", "halftone"}, Placements: []string{"full_bleed", "framed_inset"},
-				TreatmentParams: map[string]string{
-					"posterize": `{"levels":4,"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
-					"halftone":  `{"lpi":110,"angle":30,"dot":"circle"}`,
-				},
-				Regions: overlay(onLight), ContrastThreshold: 4.5,
-			},
-
-			// ── terrain family ───────────────────────────────────────────
-			{
-				ID: "demoscene-terrain", Name: "Demoscene Terrain", Version: 1, Role: "ambient",
-				Subject: "geological", Lineage: "demoscene", Strategy: "procedural-treated",
-				Treatments: []string{"dither_ordered"}, Placements: []string{"full_bleed", "split_panel"},
-				TreatmentParams: map[string]string{
-					"dither_ordered": `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
-				},
-				Regions: overlay(onDark), ContrastThreshold: 4.5,
-			},
-			{
-				ID: "stipple-massif", Name: "Stipple Massif", Version: 1, Role: "ambient",
-				Subject: "geological", Lineage: "wpa_poster", Strategy: "procedural-treated",
-				Treatments: []string{"stipple"}, Placements: []string{"framed_inset", "corner_bleed"},
-				TreatmentParams: map[string]string{
-					"stipple": `{"spacing":7,"seed":19,"dark":"$brand.primary","light":"$brand.background"}`,
-				},
-				Regions: overlay(onLight), ContrastThreshold: 4.5,
-			},
-			{
-				ID: "swiss-contour", Name: "Swiss Contour", Version: 1, Role: "ambient",
-				Subject: "cartographic", Lineage: "swiss_international", Strategy: "procedural-treated",
-				Treatments: []string{"posterize", "line_screen"}, Placements: []string{"framed_inset", "split_panel"},
-				TreatmentParams: map[string]string{
-					"posterize":   `{"levels":5,"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
-					"line_screen": `{"spacing":11,"angle":0,"dark":"$brand.primary","light":"$brand.background"}`,
-				},
-				Regions: overlay(onLight), ContrastThreshold: 4.5,
-			},
-
-			// ── field family ─────────────────────────────────────────────
-			{
-				ID: "technical-field", Name: "Technical Field", Version: 1, Role: "ambient",
-				Subject: "non_representational", Lineage: "technical_minimalism", Strategy: "procedural-treated",
-				Treatments: []string{"duotone", "grain"}, Placements: []string{"full_bleed", "split_panel", "corner_bleed"},
-				TreatmentParams: map[string]string{
-					"duotone": `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
-					"grain":   `{"amount":0.04,"contrast_multiplier":1.02,"seed":2}`,
-				},
-				Regions: overlay(onDark), ContrastThreshold: 4.5,
-			},
-			{
-				ID: "ascii-field", Name: "ASCII Field", Version: 1, Role: "ambient",
-				Subject: "non_representational", Lineage: "demoscene", Strategy: "procedural-treated",
-				Treatments: []string{"ascii_mosaic"}, Placements: []string{"full_bleed", "split_panel"},
-				TreatmentParams: map[string]string{
-					"ascii_mosaic": `{"block_size":7,"dark":"$brand.primary","light":"$brand.background"}`,
-				},
-				Regions: overlay(onLight), ContrastThreshold: 4.5,
-			},
-			{
-				ID: "memphis-weave", Name: "Memphis Weave", Version: 1, Role: "ambient",
-				Subject: "textile_material", Lineage: "memphis", Strategy: "procedural-treated",
-				Treatments: []string{"displacement", "posterize"}, Placements: []string{"full_bleed", "corner_bleed"},
-				TreatmentParams: map[string]string{
-					"displacement": `{"amplitude":18,"spacing":26,"seed":5}`,
-					"posterize":    `{"levels":6,"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
-				},
-				Regions: overlay(onDark), ContrastThreshold: 4.5,
-			},
-			{
-				ID: "vaporwave-drift", Name: "Vaporwave Drift", Version: 1, Role: "ambient",
-				Subject: "object_metaphor", Lineage: "vaporwave", Strategy: "procedural-treated",
-				Treatments: []string{"aberration", "bloom", "scrim"}, Placements: []string{"full_bleed"},
-				TreatmentParams: map[string]string{
-					"aberration": `{"distance":9}`,
-					"bloom":      `{"threshold":0.58,"radius":22}`,
-					"scrim":      `{"color":"$brand.primary","opacity":0.42,"direction":"bottom"}`,
-				},
-				Regions: overlay(onDark), ContrastThreshold: 4.5,
-			},
-
-			// ── model-backed lanes ───────────────────────────────────────
-			// These name subjects with no procedural scene, which is exactly
-			// why they are model-backed. Both stay unreleasable until
-			// asset-studio exposes byte ingress (knw-1786507241786326657).
-			{
-				ID: "guided-botanical", Name: "Guided Botanical", Version: 1, Role: "ambient",
-				Subject: "botanical", Lineage: "art_nouveau", Strategy: "guided",
-				Treatments: []string{"duotone", "grain"}, Placements: []string{"full_bleed", "split_panel"},
-				Scaffold: &ScaffoldBinding{Preset: "field", Conditioner: "depth", ParamsJSON: `{"focal_x":0.68,"depth_ramp":0.8}`},
-				Generation: &GenerationBlock{
-					Role: "image.generate.default", Profile: "PROFILE_QUALITY_FIRST",
-					PromptTemplate: "dense botanical forms pressed flat against the picture plane, hard-edged leaves, no visible brushwork, generous empty ground at left",
-					Negative:       "text, watermark, signature, photorealistic skin, lens flare",
-				},
-				TreatmentParams: map[string]string{
-					"duotone": `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
-					"grain":   `{"amount":0.07,"contrast_multiplier":1.05,"seed":3}`,
-				},
-				Regions: overlay(onDark), ContrastThreshold: 4.5,
-			},
-			{
-				ID: "constructivist-figure", Name: "Constructivist Figure", Version: 1, Role: "ambient",
-				Subject: "figure", Lineage: "constructivist", Strategy: "synthesized",
-				Treatments: []string{"posterize"}, Placements: []string{"framed_inset", "split_panel"},
-				Generation: &GenerationBlock{
-					Role: "image.generate.default", Profile: "PROFILE_QUALITY_FIRST",
-					PromptTemplate: "a non-identifiable silhouetted figure in flat geometric planes, steep diagonal composition, large areas of unbroken ground",
-					Negative:       "recognisable face, portrait likeness, text, watermark",
-				},
-				TreatmentParams: map[string]string{
-					"posterize": `{"levels":4,"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
-				},
-				Regions: overlay(onDark), ContrastThreshold: 4.5,
-			},
-		} {
-			if err := s.CreateStyle(ctx, v); err != nil {
-				return err
-			}
-		}
+func validateSurface(v Surface) error {
+	if v.ID == "" || v.Kind == "" || v.Width <= 0 || v.Height <= 0 || len(v.Placements) == 0 || v.Authority == "" || v.ConfirmedOn == "" {
+		return fmt.Errorf("surface %q must declare kind, positive pixel geometry, placements, authority, and confirmation date", v.ID)
 	}
 	return nil
 }
 
+// PutSurface records an operator-authored surface. Seed upgrades never
+// overwrite it.
 func (s *Store) PutSurface(ctx context.Context, v Surface) error {
-	if v.ID == "" || v.Kind == "" || v.Width <= 0 || v.Height <= 0 || len(v.Placements) == 0 || v.Authority == "" || v.ConfirmedOn == "" {
-		return fmt.Errorf("surface %q must declare kind, positive pixel geometry, placements, authority, and confirmation date", v.ID)
+	if err := validateSurface(v); err != nil {
+		return err
 	}
-	p, _ := json.Marshal(v.Placements)
-	_, err := s.db.ExecContext(ctx, `INSERT INTO backdrop_surfaces(id,name,kind,width,height,placements,authority,confirmed_on) VALUES(?,?,?,?,?,?,?,?)`, v.ID, v.Name, v.Kind, v.Width, v.Height, string(p), v.Authority, v.ConfirmedOn)
+	return s.insertSurface(ctx, v, OriginOperator, 0)
+}
+
+func (s *Store) insertSurface(ctx context.Context, v Surface, origin string, seedVersion int) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO backdrop_surfaces(id,name,kind,width,height,placements,authority,confirmed_on,origin,seed_version) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+		v.ID, v.Name, v.Kind, v.Width, v.Height, mustJSON(v.Placements), v.Authority, v.ConfirmedOn, origin, seedVersion)
 	return err
 }
 
@@ -307,7 +149,7 @@ func (s *Store) ListSurfaces(ctx context.Context) ([]Surface, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Surface
 	for rows.Next() {
 		var v Surface
@@ -321,7 +163,45 @@ func (s *Store) ListSurfaces(ctx context.Context) ([]Surface, error) {
 	return out, rows.Err()
 }
 
-func validateStyle(v Style) error {
+// GetSurface resolves one surface record. Delivery geometry comes from here, so
+// a missing surface must be an error rather than a silent default.
+func (s *Store) GetSurface(ctx context.Context, id string) (Surface, error) {
+	surfaces, err := s.ListSurfaces(ctx)
+	if err != nil {
+		return Surface{}, err
+	}
+	for _, surface := range surfaces {
+		if surface.ID == id {
+			return surface, nil
+		}
+	}
+	return Surface{}, fmt.Errorf("catalog: surface %q not found", id)
+}
+
+// BrandSlots are the ink slots a style may reference. They are exactly the
+// token names brand-manager's GetTokens emits, so the catalog and the palette
+// authority share one vocabulary and no mapping table can drift between them.
+// See docs/reference/configuration.md.
+var BrandSlots = []string{
+	"$brand.primary",
+	"$brand.secondary",
+	"$brand.accent",
+	"$brand.background",
+	"$brand.surface",
+	"$brand.text",
+	"$brand.error",
+}
+
+func knownBrandSlot(slot string) bool {
+	for _, known := range BrandSlots {
+		if known == slot {
+			return true
+		}
+	}
+	return false
+}
+
+func validateStyle(v *Style) error {
 	valid := func(axis, value string, allowed map[string]bool) error {
 		if !allowed[value] {
 			return fmt.Errorf("catalog: invalid %s value %q", axis, value)
@@ -353,7 +233,7 @@ func validateStyle(v Style) error {
 	// accepts a look nothing can produce is worse than a smaller catalog.
 	validTreatments := map[string]bool{
 		// tonal / ink mapping
-		"duotone": true, "posterize": true,
+		"duotone": true, "posterize": true, "adjust": true,
 		// screens
 		"halftone": true, "line_screen": true, "stipple": true, "engraving": true,
 		// quantization
@@ -381,6 +261,9 @@ func validateStyle(v Style) error {
 	if err := imageengine.ValidateChain(v.Treatments, v.TreatmentParams); err != nil {
 		return fmt.Errorf("catalog: style %q: %w", v.ID, err)
 	}
+	if err := validateInks(*v); err != nil {
+		return err
+	}
 	for i, r := range v.Regions {
 		if r.X < 0 || r.Y < 0 || r.Width <= 0 || r.Height <= 0 || r.X+r.Width > 1 || r.Y+r.Height > 1 {
 			return fmt.Errorf("catalog: invalid region %d geometry", i)
@@ -406,8 +289,8 @@ func validateStyle(v Style) error {
 		return fmt.Errorf("catalog: synthesized strategy requires a generation block")
 	}
 	if v.Generation != nil {
-		if v.Generation.Role == "" || v.Generation.Profile == "" || v.Generation.PromptTemplate == "" {
-			return fmt.Errorf("catalog: generation block requires role, profile, and prompt_template")
+		if v.Generation.PromptTemplate == "" {
+			return fmt.Errorf("catalog: generation block requires a prompt_template")
 		}
 		if v.Generation.Model != "" || v.Generation.ProviderURL != "" || v.Generation.Credential != "" {
 			return fmt.Errorf("catalog: generation block may not name a concrete model, provider URL, or credential")
@@ -422,35 +305,96 @@ func validateStyle(v Style) error {
 	return nil
 }
 
+// validateInks proves, at write time, that every "$brand.*" slot the style's
+// parameters reference can actually be resolved on a cold install. This is the
+// write-side half of the fail-closed contract: without it, a style with a typo
+// in a slot name would store cleanly and then fail its first render with a
+// colour error from image-tools — which is exactly the defect that shipped
+// twelve unrenderable styles.
+func validateInks(v Style) error {
+	for slot := range v.Inks {
+		if !knownBrandSlot(slot) {
+			return fmt.Errorf("catalog: style %q declares ink for unknown slot %q (known: %s)", v.ID, slot, strings.Join(BrandSlots, ", "))
+		}
+	}
+	for _, op := range sortedKeys(v.TreatmentParams) {
+		var fields map[string]any
+		if err := json.Unmarshal([]byte(v.TreatmentParams[op]), &fields); err != nil {
+			continue // ValidateChain already reported the shape
+		}
+		for _, field := range sortedKeys(fields) {
+			text, ok := fields[field].(string)
+			if !ok || !strings.HasPrefix(text, "$brand.") {
+				continue
+			}
+			if !knownBrandSlot(text) {
+				return fmt.Errorf("catalog: style %q operation %q references unknown brand slot %q (known: %s)", v.ID, op, text, strings.Join(BrandSlots, ", "))
+			}
+			if strings.TrimSpace(v.Inks[text]) == "" {
+				return fmt.Errorf("catalog: style %q operation %q references %q with no declared ink default; a style must render without a brand bound", v.ID, op, text)
+			}
+		}
+	}
+	return nil
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	for i := 1; i < len(out); i++ {
+		for j := i; j > 0 && out[j] < out[j-1]; j-- {
+			out[j], out[j-1] = out[j-1], out[j]
+		}
+	}
+	return out
+}
+
+// CreateStyle records an operator-authored style. Seed upgrades never overwrite
+// it, which is what makes upgrading the catalog safe for someone who has built
+// their own art direction on top of it.
 func (s *Store) CreateStyle(ctx context.Context, v Style) error {
-	if err := validateStyle(v); err != nil {
+	if err := validateStyle(&v); err != nil {
 		return err
 	}
+	return s.insertStyle(ctx, v, OriginOperator, 0)
+}
+
+func styleVersion(v Style) int {
 	if v.Version == 0 {
-		v.Version = 1
+		return 1
 	}
-	raw, _ := json.Marshal(v)
-	_, err := s.db.ExecContext(ctx, `INSERT INTO backdrop_styles(id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,treatment_params,released,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)`, v.ID, v.Name, v.Version, v.Role, v.Subject, v.Lineage, v.Strategy, mustJSON(v.Treatments), mustJSON(v.Placements), mustJSON(v.Regions), v.ContrastThreshold, mustJSON(v.Scaffold), mustJSON(v.Generation), v.ParentID, mustJSON(v.TreatmentParams), string(raw))
+	return v.Version
+}
+
+func (s *Store) insertStyle(ctx context.Context, v Style, origin string, seedVersion int) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO backdrop_styles(id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,treatment_params,inks,quality,origin,seed_version,released) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`,
+		v.ID, v.Name, styleVersion(v), v.Role, v.Subject, v.Lineage, v.Strategy, mustJSON(v.Treatments), mustJSON(v.Placements), mustJSON(v.Regions), v.ContrastThreshold, mustJSON(v.Scaffold), mustJSON(v.Generation), v.ParentID, mustJSON(v.TreatmentParams), mustJSON(v.Inks), mustJSON(v.Quality), origin, seedVersion)
 	return err
 }
+
 func mustJSON(v any) string { b, _ := json.Marshal(v); return string(b) }
 
 func (s *Store) ListStyles(ctx context.Context, role, subject, treatment, lineage, placement string) ([]Style, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,treatment_params FROM backdrop_styles ORDER BY id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,treatment_params,inks,quality,origin FROM backdrop_styles ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Style
 	for rows.Next() {
 		var v Style
-		var ts, ps, rs, scaffold, generation, tparams string
-		if err := rows.Scan(&v.ID, &v.Name, &v.Version, &v.Role, &v.Subject, &v.Lineage, &v.Strategy, &ts, &ps, &rs, &v.ContrastThreshold, &scaffold, &generation, &v.ParentID, &tparams); err != nil {
+		var ts, ps, rs, scaffold, generation, tparams, inks, quality string
+		if err := rows.Scan(&v.ID, &v.Name, &v.Version, &v.Role, &v.Subject, &v.Lineage, &v.Strategy, &ts, &ps, &rs, &v.ContrastThreshold, &scaffold, &generation, &v.ParentID, &tparams, &inks, &quality, &v.Origin); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal([]byte(ts), &v.Treatments)
 		if tparams != "" && tparams != "null" {
 			_ = json.Unmarshal([]byte(tparams), &v.TreatmentParams)
+		}
+		if inks != "" && inks != "null" {
+			_ = json.Unmarshal([]byte(inks), &v.Inks)
 		}
 		_ = json.Unmarshal([]byte(ps), &v.Placements)
 		_ = json.Unmarshal([]byte(rs), &v.Regions)
@@ -461,6 +405,10 @@ func (s *Store) ListStyles(ctx context.Context, role, subject, treatment, lineag
 		if generation != "null" && generation != "" {
 			v.Generation = &GenerationBlock{}
 			_ = json.Unmarshal([]byte(generation), v.Generation)
+		}
+		if quality != "null" && quality != "" {
+			v.Quality = &Quality{}
+			_ = json.Unmarshal([]byte(quality), v.Quality)
 		}
 		if role != "" && v.Role != role || subject != "" && v.Subject != subject || lineage != "" && v.Lineage != lineage || treatment != "" && !contains(v.Treatments, treatment) || placement != "" && !contains(v.Placements, placement) {
 			continue
@@ -532,6 +480,10 @@ func (s *Store) ForkStyle(ctx context.Context, parentID, childID string, changes
 			child.Strategy = value
 		case "treatment":
 			child.Treatments = []string{value}
+			// A fork that keeps parameters for operations the child no longer
+			// runs would fail ValidateChain, so the chain change carries its
+			// own parameter set.
+			child.TreatmentParams = map[string]string{}
 		default:
 			return Style{}, fmt.Errorf("catalog: %q is not a forkable axis", axis)
 		}
@@ -559,24 +511,10 @@ func ImportStylePack(data []byte) ([]Style, error) {
 	if pack.Version != 1 {
 		return nil, fmt.Errorf("catalog: unsupported style pack version %d", pack.Version)
 	}
-	for _, style := range pack.Styles {
-		if err := validateStyle(style); err != nil {
+	for i := range pack.Styles {
+		if err := validateStyle(&pack.Styles[i]); err != nil {
 			return nil, err
 		}
 	}
 	return pack.Styles, nil
 }
-
-const schemaSQL = `
-CREATE TABLE IF NOT EXISTS backdrop_surfaces (
-  id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL,
-  width INTEGER NOT NULL, height INTEGER NOT NULL, placements TEXT NOT NULL,
-  authority TEXT NOT NULL, confirmed_on TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS backdrop_styles (
-  id TEXT PRIMARY KEY, name TEXT NOT NULL, version INTEGER NOT NULL,
-  role TEXT NOT NULL, subject TEXT NOT NULL, lineage TEXT NOT NULL,
-  strategy TEXT NOT NULL, treatments TEXT NOT NULL, placements TEXT NOT NULL,
-	regions TEXT NOT NULL, contrast_threshold REAL NOT NULL, scaffold TEXT NOT NULL DEFAULT 'null', generation TEXT NOT NULL DEFAULT 'null', parent_id TEXT NOT NULL DEFAULT '', released INTEGER NOT NULL,
-  payload TEXT NOT NULL
-);`

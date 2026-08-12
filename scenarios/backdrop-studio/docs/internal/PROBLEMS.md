@@ -4,7 +4,11 @@
 
 - `REL-006` remains unbuilt: sized-variant derivation with reserved-region
   preservation is a separate geometry capability and is not silently implied by
-  the store/device-frame implementation.
+  the store/device-frame implementation. **Narrowed 2026-08-12:** delivery
+  geometry now comes from the surface record and every style renders correctly
+  at every surface it declares, so the *sizing* half is done. What remains is
+  deriving several sizes from one rendered master and rejecting a crop that
+  pushes the focal mass into the reserved region.
 - Asset Studio currently exposes metadata/render/release RPCs but no external
   backdrop byte-ingress RPC. Backdrop Studio therefore owns an injectable
   publisher seam and refuses model-backed release without it. This keeps
@@ -41,6 +45,105 @@
   the glyph. Legible, but not crisp at extremes.
 
 ## Open after the 2026-08-12 catalog seeding
+
+### Closed 2026-08-12 by the wire-truth plan
+
+- ~~Ten of sixteen styles fail with `422 invalid color "$brand.primary"`.~~
+  `mergedParams` now fails closed with a typed `UnresolvedSlotError`, every
+  style declares its own ink defaults, and the render path resolves an effective
+  palette. All 16 render with and without a brand bound.
+- ~~The catalog can never upgrade.~~ Seed content is versioned data under
+  `api/internal/catalog/seed/`, applied by version with `origin` protection for
+  operator rows. Proven against the real pre-plan database in
+  `docs/evidence/baseline/catalog-upgrade-proof.md`.
+- ~~Stale binaries are indistinguishable from missing features.~~ `/api/v1/build`
+  reports a content fingerprint over the API sources, `/health` carries it as
+  semver build metadata, and the integration lane refuses to render on a
+  mismatch.
+- ~~One delivery geometry for every surface.~~ `deliveryWidth`/`deliveryHeight`
+  are gone; geometry comes from the seeded surface record and the job echoes
+  which surface it resolved.
+- ~~Generated candidates report a false size.~~ Every candidate's recorded
+  geometry is measured from the bytes it carries, on every strategy branch.
+- ~~Downscaling uses nearest-neighbour.~~ Replaced with a windowed filter
+  (Catmull-Rom down, triangle up). `internal/render/resample_test.go` proves the
+  old implementation fails the same golden.
+- ~~The placement mockup draws black bars where copy goes.~~ It renders real
+  headline, subhead and call-to-action type at the style's declared text colour.
+
+### Found and fixed while executing the resolution-relative phase (2026-08-12)
+
+- **`displacement` declared a `spacing` parameter and threw it away.** It was on
+  `ops.proto`, mapped through `handlers/ops/params.go`, and carried into
+  `treatments.Params` — and the implementation then used two hardcoded
+  wavelengths (`.12` and `.09`) and never read it. Every caller that set spacing
+  got the same picture. The wavelength is now honoured, with defaults derived
+  from those exact constants so an unparameterised call is byte-identical to
+  what it always produced. This is the same defect class the plan's own rule
+  names: *a parameter is not shipped until it round-trips*, and a parameter that
+  round-trips but is ignored at the far end is worse, because the wire proves
+  nothing.
+- **Halftone rulings have a pixel floor nobody had measured.** `lpi` is a count
+  of lines across the image width, so it is resolution-independent by
+  construction — confirmed to within 0.5% at every ruling from 16 to 96. But a
+  screen cell drawn from fewer than 8 pixels cannot carry tone: at `lpi=130` on
+  a 768px frame (5.9px cell) the rendered density falls 29.6% short of the same
+  ruling on a 2304px frame. The scenario's own default of `lpi: 120` would have
+  resolved to a 3.25px cell on `web.hero-mobile` (390px wide). image-tools now
+  clamps a ruling finer than the grid supports and reports the clamp in
+  `OpResult.resolved_params`. `MinHalftoneCellPx` and the two tests around it
+  are the durable record.
+- **`image-tools ops halftone --help` documented `--lpi` as "Screen cell size in
+  pixels".** Wrong unit and inverted direction — raising it makes the cell
+  smaller, and it is not a pixel measurement at all. A caller reading only the
+  help text would tune it backwards.
+- **Rounding an ASCII cell down to the glyph advance was a 48% error.** The 7px
+  bitmap advance is a coarse quantum: a 13.4px request floored to 7px, and the
+  same relative value collapsed to the floor on a small frame while resolving
+  proportionally on a large one — defeating the point of a relative unit.
+  Snapping to *nearest* halves the worst-case error and keeps it symmetric.
+
+**Still open upstream.** Two spatial parameters keep a pixel-only form because
+nothing seeded uses them and no relative twin was added: `overlay`'s `font_size`
+and `canny`'s hysteresis thresholds (the latter is a gradient magnitude, not a
+distance, so it is not resolution-dependent at all). Neither is reachable from a
+seeded style; `TestSeededStylesSendNoAbsoluteSpatialParameter` would catch it if
+one became so.
+
+### Found and fixed while executing that plan
+
+- **image-tools serialises its REST and Connect edges with two different JSON
+  name conventions.** `POST /api/v1/ai/{op}` returns `job_id` (proto names)
+  while `JobsService.WaitJob` returns `resultRef` (camelCase). Backdrop Studio
+  decoded `jobId` and therefore discarded every generation job id, reporting
+  "inference capability unavailable" — so the 2026-08-12 audit recorded a
+  *working* local GPU lane as missing. Fixed on this side; the upstream
+  inconsistency is still there and should be made uniform or documented.
+- **Hardcoded routing sent every model-backed render to a paid cloud provider.**
+  `qualityPolicy:"quality"` + `allowByok:true` resolved to
+  `openrouter-image/byok-cloud` while an installed `sd-1.5` on local GPU served
+  the same request in ~15s. Now local-first (`balanced`, `local_only`, BYOK off,
+  batch priority with reclaim).
+- **A field named `image_png` could carry JPEG.** The cloud provider returned
+  2048x2048 JPEG; generated sources are now normalised to PNG through
+  image-tools' `convert` op before the treatment chain.
+- **The GPU is shared and diffusion loses the allocation race.** This host
+  routinely holds ~10 GB of idle language models against a 16 GB card, so a
+  model-backed render can fail with `ErrorOutOfDeviceMemory` through no fault of
+  the catalog. The integration lane classifies that as `SKIP(gpu-capacity)` —
+  never a pass, never a style failure.
+
+  **Measured 2026-08-12** with ~5.9 GB reported free: `512x512` generates fine,
+  `768x448` and `768x512` both fail on a single 1.81 GB Vulkan allocation. The
+  ceiling is a per-allocation limit under fragmentation, not raw free memory, so
+  "free VRAM looks sufficient" is not evidence that a render will succeed.
+
+  Deliberately **not** worked around by generating smaller. The plan's own
+  instruction is to record the contention rather than lower resolution to make a
+  run finish: 768x512 is the correct canvas for a 16:9 hero on an SD-1.5-class
+  model, and shrinking it to force a green light would trade a visible failure
+  for an invisible quality loss. Re-run when the card is free, or raise
+  generation priority against the other residents.
 
 - **The catalog is 16 styles across 4 scenes.** Adding a genuinely new *subject*
   (botanical, celestial, figure, industrial) needs a new scene generator, not a
