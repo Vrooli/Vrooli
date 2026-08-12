@@ -89,3 +89,24 @@ func TestReleasedStyleCannotBeTouched(t *testing.T) {
 	require.NoError(t, err)
 	require.ErrorContains(t, store.TouchStyle(ctx, v.ID), "immutable")
 }
+
+func TestForkMutatesExactlyOneAxisAndPreservesLineage(t *testing.T) {
+	store := testStore(t)
+	parent := Style{ID: "parent", Name: "Parent", Version: 1, Role: "ambient", Subject: "horizon", Lineage: "wpa_poster", Strategy: "procedural", Treatments: []string{"posterize"}, Placements: []string{"full_bleed"}, Regions: []Region{{X: .1, Y: .1, Width: .4, Height: .2, Kind: "overlay"}}, ContrastThreshold: 4.5}
+	require.NoError(t, store.CreateStyle(context.Background(), parent))
+	child, err := store.ForkStyle(context.Background(), "parent", "child", map[string]string{"lineage": "bauhaus"})
+	require.NoError(t, err)
+	require.Equal(t, "parent", child.ParentID)
+	require.Equal(t, "bauhaus", child.Lineage)
+	_, err = store.ForkStyle(context.Background(), "parent", "bad", map[string]string{})
+	require.ErrorContains(t, err, "exactly one axis")
+}
+
+func TestStylePackRoundTrips(t *testing.T) {
+	style := Style{ID: "pack-style", Name: "Pack", Version: 1, Role: "ambient", Subject: "horizon", Lineage: "wpa_poster", Strategy: "procedural", Treatments: []string{"posterize"}, Placements: []string{"full_bleed"}, Regions: []Region{{X: .1, Y: .1, Width: .4, Height: .2, Kind: "overlay"}}, ContrastThreshold: 4.5}
+	raw, err := ExportStylePack([]Style{style})
+	require.NoError(t, err)
+	styles, err := ImportStylePack(raw)
+	require.NoError(t, err)
+	require.Equal(t, []Style{style}, styles)
+}

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"image"
 	"image/png"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"backdrop-studio/internal/catalog"
@@ -40,6 +42,10 @@ func TestComposeDeviceFrameSupportsEveryArrangementAndReservesFootprint(t *testi
 		require.Greater(t, region.Width, 0.0)
 		require.Greater(t, region.Height, 0.0)
 		require.Contains(t, []string{"occlusion", "overlay"}, region.Kind)
+		if dir := os.Getenv("EVIDENCE_DIR"); dir != "" && arrangement == DeviceCenter {
+			require.NoError(t, os.MkdirAll(dir, 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "store-device-center.png"), out, 0o644))
+		}
 	}
 }
 

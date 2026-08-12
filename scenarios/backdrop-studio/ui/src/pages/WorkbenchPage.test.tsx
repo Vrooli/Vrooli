@@ -14,7 +14,9 @@ describe("WorkbenchPage", () => {
     expect(screen.getByTestId("backdrop-style-catalog")).toBeInTheDocument();
     expect(screen.getByRole("status")).toBeInTheDocument();
     expect(screen.getByRole("link")).toBeInTheDocument();
-    expect(screen.getAllByRole("img")).toHaveLength(4);
+    expect(screen.getAllByRole("img")).toHaveLength(8);
+    expect(screen.getByTestId("backdrop-contact-sheet")).toBeInTheDocument();
+    expect(screen.getByTestId("backdrop-placement-matrix")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /pages\.workbench\.releaseAction/i })).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: /pages\.workbench\.releaseAction/i }).every((button) => button instanceof HTMLButtonElement && button.disabled)).toBe(true);
     const copyButton = screen.getAllByRole("button", { name: /pages\.workbench\.copyPlan/i })[0];

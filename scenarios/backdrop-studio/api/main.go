@@ -157,7 +157,8 @@ func main() {
 	if err := internalcatalog.NewStore(db.Primary()).Seed(context.Background()); err != nil {
 		log.Fatalf("catalog seed failed: %v", err)
 	}
-	renderStore := internalrender.NewStore(imageengine.NewClient())
+	imageClient := imageengine.NewClient()
+	renderStore := internalrender.NewStoreWithGenerator(imageClient, imageClient)
 	releaseStore := internalrelease.NewStore()
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {

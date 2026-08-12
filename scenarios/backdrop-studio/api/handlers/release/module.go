@@ -55,7 +55,7 @@ func (h *handler) GetReference(_ context.Context, req *connect.Request[v1.GetRef
 	return connect.NewResponse(toProto(b)), nil
 }
 func toProto(b internal.Backdrop) *v1.ReleasedBackdrop {
-	out := &v1.ReleasedBackdrop{Id: b.ID, CandidateId: b.CandidateID, StyleId: b.StyleID, SurfaceId: b.SurfaceID, Placement: b.Placement, Width: int32(b.Width), Height: int32(b.Height), AltText: b.AltText, Decorative: b.Decorative, AiGenerated: b.AIGenerated, ContrastRatio: b.ContrastRatio, ContrastThreshold: b.ContrastThreshold, Uri: fmt.Sprintf("/api/v1/backdrops/%s/asset", b.ID)}
+	out := &v1.ReleasedBackdrop{Id: b.ID, CandidateId: b.CandidateID, StyleId: b.StyleID, SurfaceId: b.SurfaceID, Placement: b.Placement, Width: int32(b.Width), Height: int32(b.Height), AltText: b.AltText, Decorative: b.Decorative, AiGenerated: b.AIGenerated, ContrastRatio: b.ContrastRatio, ContrastThreshold: b.ContrastThreshold, Uri: fmt.Sprintf("/api/v1/backdrops/%s/asset", b.ID), AssetStudioRef: b.AssetStudioRef}
 	for _, r := range b.Regions {
 		out.ReservedRegions = append(out.ReservedRegions, &sharedv1.ReservedRegion{X: r.X, Y: r.Y, Width: r.Width, Height: r.Height, Kind: r.Kind, TextColor: r.TextColor})
 	}

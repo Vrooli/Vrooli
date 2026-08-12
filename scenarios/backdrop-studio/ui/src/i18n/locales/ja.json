@@ -60,7 +60,25 @@
       "loadingState": "ワークベンチデータを読み込み中",
       "errorState": "カタログを読み込めません。API が利用できないと報告しました。",
       "emptyState": "スタイルや候補はまだありません。カタログから始めてください。",
-      "errorRetry": "カタログの読み込みを再試行"
+      "errorRetry": "カタログの読み込みを再試行",
+      "contactSheetHeading": "スタイルファミリーのコンタクトシート",
+      "contactSheetDescription": "候補を選ぶ前に、1つの主題を処理軸ごとに比較します。",
+      "placementHeading": "配置プレビューマトリクス",
+      "placementDescription": "宣言された各配置をデスクトップとモバイルで個別に判定します。",
+      "forkHeading": "リミックスの系譜",
+      "forkDescription": "関係を追跡できるよう、一度に1つの軸だけを分岐します。",
+      "forkAction": "1軸を分岐",
+      "packAction": "スタイルパックをエクスポート",
+      "productChrome": "プロダクトのクローム",
+      "storeChrome": "ストアのクローム"
+      ,"desktopLabel": "デスクトップ"
+      ,"mobileLabel": "モバイル"
+      ,"fullBleedLabel": "全面配置"
+      ,"splitPanelLabel": "分割パネル"
+      ,"axisLineage": "系譜軸"
+      ,"axisSubject": "主題軸"
+      ,"axisTreatment": "処理軸"
+      ,"forkedLabel": "分岐したスタイル"
     },
     "settings": {
       "title": "設定",

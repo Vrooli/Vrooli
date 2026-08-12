@@ -1,5 +1,17 @@
 # Problems — Backdrop Studio
 
+## Remaining after the treatment-layer plan
+
+- `REL-006` remains unbuilt: sized-variant derivation with reserved-region
+  preservation is a separate geometry capability and is not silently implied by
+  the store/device-frame implementation.
+- Asset Studio currently exposes metadata/render/release RPCs but no external
+  backdrop byte-ingress RPC. Backdrop Studio therefore owns an injectable
+  publisher seam and refuses model-backed release without it. This keeps
+  provenance and disclosure from being duplicated or fabricated.
+- Tier-3 image treatments remain unbuilt by explicit plan decision: `glitch`,
+  `kaleidoscope`, `slit_scan`, `fluted_glass`, `photomosaic`, and `resample`.
+
 Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.

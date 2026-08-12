@@ -20,6 +20,11 @@ read the domains above it and must not read the domains below it.
 against a surface geometry. A style that declares no surface has nowhere to put a
 reserved region, and a reserved region with no geometry cannot be measured.
 
+As of 2026-08-11 all eight domains have an implementation and local unit/API
+coverage. Model-backed release remains deliberately capability-gated at the
+`asset-studio` publisher seam; it is not represented as complete when the
+upstream byte-ingress operation is unavailable.
+
 ---
 
 ## 1 · `surfaces`

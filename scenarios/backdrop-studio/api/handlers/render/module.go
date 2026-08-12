@@ -36,6 +36,12 @@ func (h *handler) Submit(ctx context.Context, req *connect.Request[render_v1.Sub
 	}
 	s := req.Msg.GetStyle()
 	style := catalog.Style{ID: s.GetId(), Strategy: s.GetStrategy(), Subject: s.GetSubject(), Placements: s.GetPlacements(), Regions: regions(s.GetRegions()), Treatments: s.GetTreatments()}
+	if s.GetScaffold() != nil {
+		style.Scaffold = &catalog.ScaffoldBinding{Preset: s.GetScaffold().GetPreset(), Conditioner: s.GetScaffold().GetConditioner(), ParamsJSON: s.GetScaffold().GetParamsJson()}
+	}
+	if s.GetGeneration() != nil {
+		style.Generation = &catalog.GenerationBlock{Role: s.GetGeneration().GetRole(), Profile: s.GetGeneration().GetProfile(), PromptTemplate: s.GetGeneration().GetPromptTemplate(), Negative: s.GetGeneration().GetNegative(), Model: s.GetGeneration().GetModel(), ProviderURL: s.GetGeneration().GetProviderUrl(), Credential: s.GetGeneration().GetCredential()}
+	}
 	if style.Subject == "" {
 		stored, err := h.catalog.GetStyle(ctx, style.ID)
 		if err != nil {
@@ -91,7 +97,7 @@ func toProto(job internalrender.Job) *render_v1.RenderJob {
 	return out
 }
 func candidateProto(c internalrender.Candidate) *render_v1.Candidate {
-	return &render_v1.Candidate{Id: c.ID, JobId: c.JobID, ImagePng: c.PNG, Width: int32(c.Width), Height: int32(c.Height), Strategy: c.Strategy, ExecutionPath: c.ExecutionPath, TreatmentApplied: c.TreatmentApplied, Seed: c.Seed}
+	return &render_v1.Candidate{Id: c.ID, JobId: c.JobID, ImagePng: c.PNG, Width: int32(c.Width), Height: int32(c.Height), Strategy: c.Strategy, ExecutionPath: c.ExecutionPath, TreatmentApplied: c.TreatmentApplied, Seed: c.Seed, ConditioningSubmitted: c.ConditioningSubmitted, DisclosureRequired: c.DisclosureRequired, Prompt: c.Prompt, ProvenanceJson: c.ProvenanceJSON}
 }
 
 var Endpoints = []module.EndpointDescriptor{

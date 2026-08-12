@@ -13,11 +13,13 @@ import (
 )
 
 type Candidate struct {
-	ID, JobID, Strategy, ExecutionPath string
-	PNG                                []byte
-	Width, Height                      int
-	Seed                               int64
-	TreatmentApplied                   bool
+	ID, JobID, Strategy, ExecutionPath        string
+	PNG                                       []byte
+	Width, Height                             int
+	Seed                                      int64
+	TreatmentApplied                          bool
+	ConditioningSubmitted, DisclosureRequired bool
+	Prompt, ProvenanceJSON                    string
 }
 
 type Job struct {
@@ -28,9 +30,10 @@ type Job struct {
 }
 
 type Store struct {
-	mu     sync.RWMutex
-	jobs   map[string]*Job
-	engine imageengine.Executor
+	mu        sync.RWMutex
+	jobs      map[string]*Job
+	engine    imageengine.Executor
+	generator imageengine.Generator
 }
 
 func NewStore(engine ...imageengine.Executor) *Store {
@@ -39,6 +42,10 @@ func NewStore(engine ...imageengine.Executor) *Store {
 		executor = engine[0]
 	}
 	return &Store{jobs: map[string]*Job{}, engine: executor}
+}
+
+func NewStoreWithGenerator(engine imageengine.Executor, generator imageengine.Generator) *Store {
+	return &Store{jobs: map[string]*Job{}, engine: engine, generator: generator}
 }
 
 func (s *Store) Submit(style catalog.Style, placement string, seed int64, count int) (Job, error) {
@@ -78,23 +85,68 @@ func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, plac
 		for _, region := range style.Regions {
 			regions = append(regions, scaffold.Region{X: region.X, Y: region.Y, Width: region.Width, Height: region.Height})
 		}
-		result, err := scaffold.Render(scaffold.Request{Preset: preset, Width: 320, Height: 180, Seed: candidateSeed, Regions: regions})
+		if style.Strategy == "guided" && style.Scaffold == nil {
+			return Job{}, fmt.Errorf("render: guided style %q is missing its scaffold capability", style.ID)
+		}
+		conditioner := ""
+		if style.Scaffold != nil {
+			conditioner = style.Scaffold.Conditioner
+		}
+		result, err := scaffold.Render(scaffold.Request{Preset: preset, Conditioner: conditioner, ParamsJSON: scaffoldParams(style), Width: 320, Height: 180, Seed: candidateSeed, Regions: regions})
 		if err != nil {
 			return Job{}, err
 		}
 		if s.engine == nil {
 			return Job{}, fmt.Errorf("render: image-tools executor is not configured")
 		}
-		treated, err := s.engine.Apply(ctx, result.PNG, style.Treatments, palette)
+		input := result.PNG
+		conditioningSubmitted := false
+		prompt := ""
+		if style.Generation != nil {
+			prompt = style.Generation.PromptTemplate
+		}
+		if style.Strategy == "guided" || style.Strategy == "synthesized" {
+			if s.generator == nil {
+				return Job{}, fmt.Errorf("render: %s requires image-tools inference capability", style.Strategy)
+			}
+			generated, genErr := s.generator.Generate(ctx, imageengine.GenerationRequest{Prompt: prompt, Negative: generationNegative(style), Role: style.Generation.Role, Profile: style.Generation.Profile, Seed: candidateSeed, Conditioner: conditioner, Conditioning: func() []byte {
+				if style.Strategy == "guided" {
+					conditioningSubmitted = true
+					return result.PNG
+				}
+				return nil
+			}()})
+			if genErr != nil {
+				return Job{}, fmt.Errorf("render: %s inference capability: %w", style.Strategy, genErr)
+			}
+			if len(generated) == 0 {
+				return Job{}, fmt.Errorf("render: %s inference returned an empty image", style.Strategy)
+			}
+			input = generated
+		}
+		treated, err := s.engine.Apply(ctx, input, style.Treatments, palette)
 		if err != nil {
 			return Job{}, fmt.Errorf("render: treatment chain: %w", err)
 		}
-		job.Candidates = append(job.Candidates, Candidate{ID: id(jobID, candidateSeed, i), JobID: jobID, Strategy: style.Strategy, ExecutionPath: job.ExecutionPath, PNG: treated, Width: result.Width, Height: result.Height, Seed: candidateSeed, TreatmentApplied: true})
+		job.Candidates = append(job.Candidates, Candidate{ID: id(jobID, candidateSeed, i), JobID: jobID, Strategy: style.Strategy, ExecutionPath: job.ExecutionPath, PNG: treated, Width: result.Width, Height: result.Height, Seed: candidateSeed, TreatmentApplied: true, ConditioningSubmitted: conditioningSubmitted, DisclosureRequired: style.Strategy == "guided" || style.Strategy == "synthesized", Prompt: prompt, ProvenanceJSON: fmt.Sprintf(`{"style_id":%q,"strategy":%q,"seed":%d,"treatments":%q,"execution_path":%q}`, style.ID, style.Strategy, candidateSeed, style.Treatments, job.ExecutionPath)})
 	}
 	s.mu.Lock()
 	s.jobs[jobID] = job
 	s.mu.Unlock()
 	return copyJob(job), nil
+}
+
+func scaffoldParams(style catalog.Style) string {
+	if style.Scaffold == nil {
+		return ""
+	}
+	return style.Scaffold.ParamsJSON
+}
+func generationNegative(style catalog.Style) string {
+	if style.Generation == nil {
+		return ""
+	}
+	return style.Generation.Negative
 }
 
 func (s *Store) Get(id string) (Job, error) {

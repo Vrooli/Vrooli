@@ -33,6 +33,7 @@ type Style struct {
 	ID, Name                         string
 	Version                          int
 	Role, Subject, Lineage, Strategy string
+	ParentID                         string
 	Treatments, Placements           []string
 	Regions                          []Region
 	ContrastThreshold                float64
@@ -50,6 +51,9 @@ var schemaFile []byte
 func Schema() string { return string(schemaFile) }
 
 func (s *Store) Seed(ctx context.Context) error {
+	// Keep databases created before lineage was introduced readable while the
+	// canonical schema remains the source for fresh installs.
+	_, _ = s.db.ExecContext(ctx, `ALTER TABLE backdrop_styles ADD COLUMN parent_id TEXT NOT NULL DEFAULT ''`)
 	var count int
 	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM backdrop_surfaces").Scan(&count); err != nil {
 		return err
@@ -216,13 +220,13 @@ func (s *Store) CreateStyle(ctx context.Context, v Style) error {
 		v.Version = 1
 	}
 	raw, _ := json.Marshal(v)
-	_, err := s.db.ExecContext(ctx, `INSERT INTO backdrop_styles(id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,released,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)`, v.ID, v.Name, v.Version, v.Role, v.Subject, v.Lineage, v.Strategy, mustJSON(v.Treatments), mustJSON(v.Placements), mustJSON(v.Regions), v.ContrastThreshold, mustJSON(v.Scaffold), mustJSON(v.Generation), string(raw))
+	_, err := s.db.ExecContext(ctx, `INSERT INTO backdrop_styles(id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,released,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)`, v.ID, v.Name, v.Version, v.Role, v.Subject, v.Lineage, v.Strategy, mustJSON(v.Treatments), mustJSON(v.Placements), mustJSON(v.Regions), v.ContrastThreshold, mustJSON(v.Scaffold), mustJSON(v.Generation), v.ParentID, string(raw))
 	return err
 }
 func mustJSON(v any) string { b, _ := json.Marshal(v); return string(b) }
 
 func (s *Store) ListStyles(ctx context.Context, role, subject, treatment, lineage, placement string) ([]Style, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation FROM backdrop_styles ORDER BY id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id FROM backdrop_styles ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +235,7 @@ func (s *Store) ListStyles(ctx context.Context, role, subject, treatment, lineag
 	for rows.Next() {
 		var v Style
 		var ts, ps, rs, scaffold, generation string
-		if err := rows.Scan(&v.ID, &v.Name, &v.Version, &v.Role, &v.Subject, &v.Lineage, &v.Strategy, &ts, &ps, &rs, &v.ContrastThreshold, &scaffold, &generation); err != nil {
+		if err := rows.Scan(&v.ID, &v.Name, &v.Version, &v.Role, &v.Subject, &v.Lineage, &v.Strategy, &ts, &ps, &rs, &v.ContrastThreshold, &scaffold, &generation, &v.ParentID); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal([]byte(ts), &v.Treatments)
@@ -285,6 +289,68 @@ func (s *Store) TouchStyle(ctx context.Context, id string) error {
 	return err
 }
 
+// ForkStyle creates a new style by changing exactly one declared axis. A fork
+// is intentionally narrow: changing several axes destroys the lineage signal
+// that makes catalog families useful to an operator.
+func (s *Store) ForkStyle(ctx context.Context, parentID, childID string, changes map[string]string) (Style, error) {
+	parent, err := s.GetStyle(ctx, parentID)
+	if err != nil {
+		return Style{}, err
+	}
+	if childID == "" {
+		return Style{}, fmt.Errorf("catalog: fork child id is required")
+	}
+	if len(changes) != 1 {
+		return Style{}, fmt.Errorf("catalog: a fork must mutate exactly one axis")
+	}
+	child := parent
+	child.ID, child.ParentID, child.Version = childID, parent.ID, 1
+	for axis, value := range changes {
+		switch axis {
+		case "role":
+			child.Role = value
+		case "subject":
+			child.Subject = value
+		case "lineage":
+			child.Lineage = value
+		case "strategy":
+			child.Strategy = value
+		case "treatment":
+			child.Treatments = []string{value}
+		default:
+			return Style{}, fmt.Errorf("catalog: %q is not a forkable axis", axis)
+		}
+	}
+	if err := s.CreateStyle(ctx, child); err != nil {
+		return Style{}, err
+	}
+	return child, nil
+}
+
+type StylePack struct {
+	Version int     `json:"version"`
+	Styles  []Style `json:"styles"`
+}
+
+func ExportStylePack(styles []Style) ([]byte, error) {
+	return json.MarshalIndent(StylePack{Version: 1, Styles: styles}, "", "  ")
+}
+func ImportStylePack(data []byte) ([]Style, error) {
+	var pack StylePack
+	if err := json.Unmarshal(data, &pack); err != nil {
+		return nil, fmt.Errorf("catalog: invalid style pack: %w", err)
+	}
+	if pack.Version != 1 {
+		return nil, fmt.Errorf("catalog: unsupported style pack version %d", pack.Version)
+	}
+	for _, style := range pack.Styles {
+		if err := validateStyle(style); err != nil {
+			return nil, err
+		}
+	}
+	return pack.Styles, nil
+}
+
 const schemaSQL = `
 CREATE TABLE IF NOT EXISTS backdrop_surfaces (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL,
@@ -295,6 +361,6 @@ CREATE TABLE IF NOT EXISTS backdrop_styles (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, version INTEGER NOT NULL,
   role TEXT NOT NULL, subject TEXT NOT NULL, lineage TEXT NOT NULL,
   strategy TEXT NOT NULL, treatments TEXT NOT NULL, placements TEXT NOT NULL,
-	regions TEXT NOT NULL, contrast_threshold REAL NOT NULL, scaffold TEXT NOT NULL DEFAULT 'null', generation TEXT NOT NULL DEFAULT 'null', released INTEGER NOT NULL,
+	regions TEXT NOT NULL, contrast_threshold REAL NOT NULL, scaffold TEXT NOT NULL DEFAULT 'null', generation TEXT NOT NULL DEFAULT 'null', parent_id TEXT NOT NULL DEFAULT '', released INTEGER NOT NULL,
   payload TEXT NOT NULL
 );`

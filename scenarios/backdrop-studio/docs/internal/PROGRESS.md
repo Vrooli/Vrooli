@@ -176,6 +176,38 @@ geometries remain `UNVERIFIED`, and `chrome.*` rows are seeded ahead of any
 consumer — `scenario-to-extension` still declares no listing-asset target.
 
 
+## 2026-08-11 — end-to-end treatment and workbench implementation
+
+Completed the plan's implementation phases across the bounded contexts. Phase 1
+now has byte-stable Tier-1 and Tier-2 image-tools goldens; phases 2–11 retain
+the catalog, scaffold, compose, render, legibility, release, consumer, and
+store seams; phase 12 adds role/profile inference through image-tools with a
+conditioning image for guided styles and prompt-only synthesized styles; phase
+13 adds eleven typed deterministic treatment operations; phase 14 covers
+device-frame composition; phase 15 adds contact sheets, per-placement desktop
+and mobile verdicts, lineage-safe forks, and portable style packs.
+
+Local evidence:
+
+- Backdrop API: `GOWORK=off go test ./...` passed after generating the affected
+  protobuf packages in the same validation run.
+- Image Tools API and CLI suites passed; the CLI exposes all 31 deterministic
+  image operations and the treatment package has 18 byte-stable goldens.
+- Backdrop UI: 36 Vitest files / 146 tests passed and type-check passed. The
+  repository-wide UI lint still reports pre-existing shared-component and
+  unused-catalog-key errors; the touched workbench files lint clean.
+- Test Genie consumer matrix completed: backdrop-studio 19/21 on the last
+  pre-final docs run, image-tools 13/20, asset-studio 16/21, brand-manager
+  17/21, landing-page-business-suite 16/21, scenario-to-android 14/21,
+  scenario-to-ios 14/21, template-manager 17/22. The remaining failures are
+  documented baseline/contract debt in those scenarios; no direct consumer
+  seam failure was observed.
+
+The committed evidence pack is under `docs/evidence/`. Model-backed release is
+capability-gated by an explicit Asset Studio publisher seam; the host refuses
+the release when that upstream capability is absent instead of mislabelling a
+procedural fallback.
+
 ## Cross-references
 
 - [`PROBLEMS.md`](PROBLEMS.md) — known issues and upstream dependencies

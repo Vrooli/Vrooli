@@ -1,6 +1,7 @@
 package release
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -22,13 +23,21 @@ type Backdrop struct {
 	ContrastRatio, ContrastThreshold                        float64
 	Regions                                                 []catalog.Region
 	ImagePNG                                                []byte
+	AssetStudioRef                                          string
+}
+type AssetPublisher interface {
+	Publish(context.Context, Request, bool) (string, error)
 }
 type Store struct {
-	mu    sync.RWMutex
-	items map[string]Backdrop
+	mu        sync.RWMutex
+	items     map[string]Backdrop
+	publisher AssetPublisher
 }
 
 func NewStore() *Store { return &Store{items: map[string]Backdrop{}} }
+func NewStoreWithPublisher(publisher AssetPublisher) *Store {
+	return &Store{items: map[string]Backdrop{}, publisher: publisher}
+}
 func (s *Store) Release(r Request) (Backdrop, error) {
 	if r.CandidateID == "" || r.StyleID == "" {
 		return Backdrop{}, fmt.Errorf("release: candidate_id and style_id are required")
@@ -46,8 +55,19 @@ func (s *Store) Release(r Request) (Backdrop, error) {
 		return Backdrop{}, fmt.Errorf("release: legibility verdict is absent or failing (ratio %.3f, threshold %.3f)", r.ContrastRatio, r.ContrastThreshold)
 	}
 	aig := r.Strategy == "guided" || r.Strategy == "synthesized"
+	assetRef := ""
+	if aig {
+		if s.publisher == nil {
+			return Backdrop{}, fmt.Errorf("release: model-backed candidate requires asset-studio publisher capability")
+		}
+		var err error
+		assetRef, err = s.publisher.Publish(context.Background(), r, true)
+		if err != nil {
+			return Backdrop{}, fmt.Errorf("release: asset-studio handoff: %w", err)
+		}
+	}
 	id := fmt.Sprintf("backdrop-%s", r.CandidateID)
-	b := Backdrop{ID: id, CandidateID: r.CandidateID, StyleID: r.StyleID, SurfaceID: r.SurfaceID, Placement: r.Placement, AltText: r.AltText, Width: r.Width, Height: r.Height, Decorative: r.Decorative, AIGenerated: aig, ContrastRatio: r.ContrastRatio, ContrastThreshold: r.ContrastThreshold, Regions: append([]catalog.Region(nil), r.Regions...), ImagePNG: append([]byte(nil), r.ImagePNG...)}
+	b := Backdrop{ID: id, CandidateID: r.CandidateID, StyleID: r.StyleID, SurfaceID: r.SurfaceID, Placement: r.Placement, AltText: r.AltText, Width: r.Width, Height: r.Height, Decorative: r.Decorative, AIGenerated: aig, ContrastRatio: r.ContrastRatio, ContrastThreshold: r.ContrastThreshold, Regions: append([]catalog.Region(nil), r.Regions...), ImagePNG: append([]byte(nil), r.ImagePNG...), AssetStudioRef: assetRef}
 	s.mu.Lock()
 	s.items[id] = b
 	s.mu.Unlock()

@@ -60,7 +60,25 @@
       "loadingState": "جارٍ تحميل بيانات مساحة العمل",
       "errorState": "تعذر تحميل الكتالوج. أبلغت API عن خدمة غير متاحة.",
       "emptyState": "لا تتوفر أنماط أو مرشحون بعد. ابدأ من الكتالوج.",
-      "errorRetry": "إعادة محاولة تحميل الكتالوج"
+      "errorRetry": "إعادة محاولة تحميل الكتالوج",
+      "contactSheetHeading": "ورقة مقارنة عائلة الأنماط",
+      "contactSheetDescription": "قارن موضوعاً واحداً عبر محاور المعالجة قبل اختيار المرشح.",
+      "placementHeading": "مصفوفة معاينة المواضع",
+      "placementDescription": "يُحكم على كل موضع معلن بشكل مستقل على سطح المكتب والهاتف.",
+      "forkHeading": "سلالة إعادة المزج",
+      "forkDescription": "فرّع محوراً واحداً في كل مرة للحفاظ على إمكانية تتبع العلاقة.",
+      "forkAction": "تفريع محور واحد",
+      "packAction": "تصدير حزمة الأنماط",
+      "productChrome": "إطار المنتج",
+      "storeChrome": "إطار المتجر"
+      ,"desktopLabel": "سطح المكتب"
+      ,"mobileLabel": "الهاتف"
+      ,"fullBleedLabel": "ملء كامل"
+      ,"splitPanelLabel": "لوحة مقسمة"
+      ,"axisLineage": "محور السلالة"
+      ,"axisSubject": "محور الموضوع"
+      ,"axisTreatment": "محور المعالجة"
+      ,"forkedLabel": "نمط متفرع"
     },
     "settings": {
       "title": "الإعدادات",

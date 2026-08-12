@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	composev1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/compose"
 	composeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/compose/compose_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared"
 )
 
 func Module(_ *sql.DB) module.Module {
@@ -88,7 +89,7 @@ func (*handler) ComposeDeviceFrame(_ context.Context, req *connect.Request[compo
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	return connect.NewResponse(&composev1.ComposeDeviceFrameResponse{ImagePng: png, Width: req.Msg.GetWidth(), Height: req.Msg.GetHeight(), OcclusionRegion: &composev1.ReservedRegion{X: region.X, Y: region.Y, Width: region.Width, Height: region.Height, Kind: region.Kind}}), nil
+	return connect.NewResponse(&composev1.ComposeDeviceFrameResponse{ImagePng: png, Width: req.Msg.GetWidth(), Height: req.Msg.GetHeight(), OcclusionRegion: &sharedv1.ReservedRegion{X: region.X, Y: region.Y, Width: region.Width, Height: region.Height, Kind: region.Kind}}), nil
 }
 
 var errStyleRequired = &styleRequiredError{}

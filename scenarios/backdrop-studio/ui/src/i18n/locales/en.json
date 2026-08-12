@@ -60,7 +60,25 @@
       "loadingState": "Loading workbench data",
       "errorState": "The catalog could not be loaded. The API reported an unavailable service.",
       "emptyState": "No styles or candidates are available yet. Start with the catalog.",
-      "errorRetry": "Retry catalog load"
+      "errorRetry": "Retry catalog load",
+      "contactSheetHeading": "Style family contact sheet",
+      "contactSheetDescription": "Compare one subject across treatment axes before choosing a candidate.",
+      "placementHeading": "Placement preview matrix",
+      "placementDescription": "Every declared placement is judged independently at desktop and mobile sizes.",
+      "forkHeading": "Remix lineage",
+      "forkDescription": "Fork one axis at a time so the relationship remains traceable.",
+      "forkAction": "Fork one axis",
+      "packAction": "Export style pack",
+      "productChrome": "Product chrome",
+      "storeChrome": "Store chrome"
+      ,"desktopLabel": "Desktop"
+      ,"mobileLabel": "Mobile"
+      ,"fullBleedLabel": "Full bleed"
+      ,"splitPanelLabel": "Split panel"
+      ,"axisLineage": "Lineage axis"
+      ,"axisSubject": "Subject axis"
+      ,"axisTreatment": "Treatment axis"
+      ,"forkedLabel": "Forked style"
     },
     "settings": {
       "title": "Settings",

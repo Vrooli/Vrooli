@@ -49,3 +49,31 @@ func TestClientApplyRefusesMissingInputsAndUnresolvedTreatmentNames(t *testing.T
 	_, err = client.Apply(context.Background(), []byte{1}, []string{"$brand.primary"}, nil)
 	require.ErrorContains(t, err, "invalid treatment")
 }
+
+func TestClientGenerateUsesImageToolsInferenceAndBlocksOnceForResult(t *testing.T) {
+	var sawConditioning bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/ai/image_to_image":
+			require.NoError(t, r.ParseMultipartForm(1<<20))
+			_, _, err := r.FormFile("file")
+			require.NoError(t, err)
+			sawConditioning = true
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"jobId":"job-1"}`))
+		case "/vrooli.image_tools.v1.jobs.JobsService/WaitJob":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"job":{"state":"JOB_STATE_SUCCEEDED","resultRef":"out/result.png"}}`))
+		case "/api/v1/blobs/out/result.png":
+			_, _ = w.Write([]byte{9, 8, 7})
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	client := &Client{HTTPClient: server.Client(), Resolve: func(context.Context) (string, error) { return server.URL, nil }}
+	out, err := client.Generate(context.Background(), GenerationRequest{Prompt: "quiet field", Role: "image.generate.default", Profile: "PROFILE_QUALITY_FIRST", Conditioning: []byte{1, 2}})
+	require.NoError(t, err)
+	require.Equal(t, []byte{9, 8, 7}, out)
+	require.True(t, sawConditioning)
+}

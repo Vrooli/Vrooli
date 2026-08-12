@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/compose"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/compose/compose_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared"
 )
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
@@ -22,7 +23,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			if styleID == "" {
 				return nil, fmt.Errorf("compose: --style is required")
 			}
-			resp, err := client.ResolvePlan(context.Background(), connect.NewRequest(&v1.ResolvePlanRequest{Style: &v1.Style{Id: styleID, Strategy: ctx.Flag("strategy"), Treatments: strings.Split(ctx.Flag("treatments"), ","), Placements: []string{ctx.Flag("placement")}}, Brief: &v1.Brief{Placement: ctx.Flag("placement")}, AdapterCommercialUse: true}))
+			resp, err := client.ResolvePlan(context.Background(), connect.NewRequest(&v1.ResolvePlanRequest{Style: &sharedv1.Style{Id: styleID, Strategy: ctx.Flag("strategy"), Treatments: strings.Split(ctx.Flag("treatments"), ","), Placements: []string{ctx.Flag("placement")}}, Brief: &v1.Brief{Placement: ctx.Flag("placement")}, AdapterCommercialUse: true}))
 			if err != nil {
 				return nil, cliapp.WrapAPIError("resolve compose plan", err, nil)
 			}

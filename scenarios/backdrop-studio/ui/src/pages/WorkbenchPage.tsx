@@ -84,6 +84,8 @@ export function WorkbenchPage() {
   const requestedState = searchParams.get("state");
   const state = requestedState === "loading" || requestedState === "error" || requestedState === "empty" ? requestedState : "partial";
   const [copied, setCopied] = useState(false);
+  const [forkAxis, setForkAxis] = useState("lineage");
+  const [forked, setForked] = useState(false);
   const columns: Array<DataTableColumn<StyleRow>> = [
     { id: "id", header: t(strings.pages.workbench.styleHeading), accessor: (row) => <span className="font-mono text-sm">{row.id}</span>, sortValue: (row) => row.id },
     { id: "strategy", header: t(strings.pages.workbench.strategyHeading), accessor: (row) => <StatusBadge>{row.strategy}</StatusBadge>, sortValue: (row) => row.strategy },
@@ -130,8 +132,42 @@ export function WorkbenchPage() {
         <h3 id="candidate-heading" className="text-lg font-semibold">{t(strings.pages.workbench.candidateHeading)}</h3>
         <p className="max-w-3xl text-sm text-app-muted-foreground">{t(strings.pages.workbench.candidateDescription)}</p>
         <div className="grid gap-4 xl:grid-cols-2">
-          {candidates.map((candidate) => <CandidateCard key={candidate.id} candidate={candidate} imageAltText={t(strings.pages.workbench[candidate.altKey])} altText="" plan={resolvedPlan} copied={copied} onCopy={() => { setCopied(true); void navigator.clipboard?.writeText(resolvedPlan); }} />)}
+          {candidates.map((candidate) => <CandidateCard key={candidate.id} candidate={candidate} imageAltText={t(strings.pages.workbench[candidate.altKey])} altText="" plan={resolvedPlan} copied={copied} onCopy={() => { setCopied(true); if (navigator.clipboard) void navigator.clipboard.writeText(resolvedPlan); }} />)}
         </div>
+      </section>
+
+      <section aria-labelledby="contact-sheet-heading" className="flex flex-col gap-3">
+        <h3 id="contact-sheet-heading" className="text-lg font-semibold">{t(strings.pages.workbench.contactSheetHeading)}</h3>
+        <p className="max-w-3xl text-sm text-app-muted-foreground">{t(strings.pages.workbench.contactSheetDescription)}</p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="backdrop-contact-sheet">
+          {starterStyles.map((style, index) => <figure key={style.id} className="overflow-hidden rounded-panel border border-app-border bg-app-surface">
+            <div role="img" aria-label={`${style.id} contact sheet preview`} className="aspect-[4/3]" style={{ background: `linear-gradient(${110 + index * 18}deg, #172033, ${index % 2 ? "#bb6b58" : "#557b83"}, #e5cf9b)` }} />
+            <figcaption className="p-3 text-xs font-medium"><span className="block text-app-muted-foreground">{style.lineage}</span>{style.strategy}</figcaption>
+          </figure>)}
+        </div>
+      </section>
+
+      <section aria-labelledby="placement-heading" className="flex flex-col gap-3">
+        <h3 id="placement-heading" className="text-lg font-semibold">{t(strings.pages.workbench.placementHeading)}</h3>
+        <p className="max-w-3xl text-sm text-app-muted-foreground">{t(strings.pages.workbench.placementDescription)}</p>
+        <div className="overflow-x-auto rounded-panel border border-app-border">
+          <table className="w-full min-w-[38rem] text-left text-sm" data-testid="backdrop-placement-matrix">
+            <caption className="sr-only">{t(strings.pages.workbench.placementHeading)}</caption>
+            <thead><tr className="border-b border-app-border text-app-muted-foreground"><th className="p-3">{t(strings.pages.workbench.styleHeading)}</th><th className="p-3">{t(strings.pages.workbench.fullBleedLabel)} / {t(strings.pages.workbench.desktopLabel)}</th><th className="p-3">{t(strings.pages.workbench.fullBleedLabel)} / {t(strings.pages.workbench.mobileLabel)}</th><th className="p-3">{t(strings.pages.workbench.splitPanelLabel)} / {t(strings.pages.workbench.mobileLabel)}</th></tr></thead>
+            <tbody>{candidates.map((candidate) => <tr key={`${candidate.id}-placement`} className="border-b border-app-border last:border-0"><th className="p-3 font-medium">{candidate.id}</th><td className="p-3"><StatusBadge>{t(strings.pages.workbench.passVerdict)}</StatusBadge><span className="ml-2 text-xs">{candidate.ratio.toFixed(1)}:1</span></td><td className="p-3"><StatusBadge>{candidate.passes ? t(strings.pages.workbench.passVerdict) : t(strings.pages.workbench.failVerdict)}</StatusBadge></td><td className="p-3"><StatusBadge>{t(strings.pages.workbench.failVerdict)}</StatusBadge></td></tr>)}</tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="fork-heading" className="flex flex-col gap-3 rounded-panel border border-app-border bg-app-surface p-4">
+        <h3 id="fork-heading" className="text-lg font-semibold">{t(strings.pages.workbench.forkHeading)}</h3>
+        <p className="max-w-3xl text-sm text-app-muted-foreground">{t(strings.pages.workbench.forkDescription)}</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-sm font-medium" htmlFor="fork-axis">{t(strings.pages.workbench.lineageHeading)}<select id="fork-axis" className="min-h-11 rounded-control border border-app-border bg-app-surface px-3" value={forkAxis} onChange={(event) => setForkAxis(event.target.value)}><option value="lineage">{t(strings.pages.workbench.axisLineage)}</option><option value="subject">{t(strings.pages.workbench.axisSubject)}</option><option value="treatment">{t(strings.pages.workbench.axisTreatment)}</option></select></label>
+          <Button variant="secondary" onClick={() => setForked(true)}>{t(strings.pages.workbench.forkAction)}</Button>
+          {forked ? <StatusBadge>{t(strings.pages.workbench.forkedLabel)} / {forkAxis}</StatusBadge> : null}
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs text-app-muted-foreground"><span>{t(strings.pages.workbench.productChrome)}</span><span>{t(strings.pages.workbench.storeChrome)}</span><Button variant="secondary" size="sm">{t(strings.pages.workbench.packAction)}</Button></div>
       </section>
 
       <EmptyState
