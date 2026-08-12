@@ -25,6 +25,7 @@ type service interface {
 	List(context.Context) ([]internalmachines.Machine, error)
 	Archive(context.Context, string, int64) (internalmachines.Machine, error)
 	Remove(context.Context, string, int64) (internalmachines.Machine, error)
+	Merge(context.Context, internalmachines.MergeInput) (internalmachines.Machine, error)
 	GetTrust(context.Context, string) (internalmachines.TrustRecord, error)
 	ReviewHostKey(context.Context, string, string) (internalmachines.TrustRecord, error)
 	CreateCleanupTombstone(context.Context, internalmachines.CleanupTombstone) (internalmachines.CleanupTombstone, error)
@@ -40,6 +41,7 @@ type Deps struct {
 	Audit           auditAppender
 	HostKeyResetter HostKeyResetter
 	NodeRevoker     NodeRevoker
+	Repairer        Repairer
 	Logger          *log.Logger
 }
 
@@ -71,6 +73,13 @@ type HostKeyResetter interface {
 // a separately recorded remote action.
 type NodeRevoker interface {
 	RevokeMachineNode(ctx context.Context, nodeID string) error
+}
+
+// Repairer starts the normal Machine enrollment flow with the existing
+// Machine identity. The handler owns the API seam; the onboarding domain owns
+// SSH, key reuse, and reconnect semantics.
+type Repairer interface {
+	Repair(context.Context, internalmachines.Machine) (opID, attemptID string, err error)
 }
 
 type connectHandler struct{ deps Deps }
@@ -327,6 +336,42 @@ func (h *connectHandler) RevokeMachineNode(ctx context.Context, req *connect.Req
 	return connect.NewResponse(&machinesv1.RevokeMachineNodeResponse{Machine: domainToProto(machine), RevokedNodeId: nodeID}), nil
 }
 
+func (h *connectHandler) RepairMachine(ctx context.Context, req *connect.Request[machinesv1.RepairMachineRequest]) (*connect.Response[machinesv1.RepairMachineResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	if h.deps.Repairer == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("machine repair is unavailable"))
+	}
+	machine, err := h.deps.Service.Get(ctx, req.Msg.GetMachineId())
+	if err != nil {
+		return nil, h.error("RepairMachine", err)
+	}
+	opID, attemptID, err := h.deps.Repairer.Repair(ctx, machine)
+	if err != nil {
+		return nil, h.error("RepairMachine", err)
+	}
+	h.record(ctx, machine.ID, "repair", opID)
+	return connect.NewResponse(&machinesv1.RepairMachineResponse{Machine: domainToProto(machine), OnboardingOpId: opID, EnrollmentAttemptId: attemptID}), nil
+}
+
+func (h *connectHandler) MergeMachines(ctx context.Context, req *connect.Request[machinesv1.MergeMachinesRequest]) (*connect.Response[machinesv1.MergeMachinesResponse], error) {
+	owner, err := auth.RequireOwner(ctx)
+	if err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	actor := owner.OwnerID
+	if actor == "" {
+		actor = owner.Email
+	}
+	machine, err := h.deps.Service.Merge(ctx, internalmachines.MergeInput{FromMachineID: req.Msg.GetFromMachineId(), IntoMachineID: req.Msg.GetIntoMachineId(), Actor: actor})
+	if err != nil {
+		return nil, h.error("MergeMachines", err)
+	}
+	h.record(ctx, machine.ID, "merge", req.Msg.GetFromMachineId())
+	return connect.NewResponse(&machinesv1.MergeMachinesResponse{Machine: domainToProto(machine), ArchivedMachineId: req.Msg.GetFromMachineId()}), nil
+}
+
 func (h *connectHandler) record(ctx context.Context, machineID, action, detail string) {
 	if h.deps.Audit == nil {
 		return
@@ -356,6 +401,10 @@ func (h *connectHandler) error(operation string, err error) error {
 	var conflict internalmachines.ErrConflict
 	if errors.As(err, &conflict) {
 		return connect.NewError(connect.CodeAborted, conflict)
+	}
+	var ambiguous internalmachines.ErrAmbiguous
+	if errors.As(err, &ambiguous) {
+		return connect.NewError(connect.CodeFailedPrecondition, ambiguous)
 	}
 	h.deps.Logger.Printf("machines.%s: %v", operation, err)
 	return connect.NewError(connect.CodeInternal, err)

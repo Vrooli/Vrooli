@@ -48,6 +48,7 @@ func (j Job) trimmed() Job {
 // revoked. The handler adapter projects a registry node down to this.
 type TargetNode struct {
 	ID      string
+	Kind    string
 	OS      string
 	Arch    string
 	Scopes  []string
@@ -59,7 +60,14 @@ type TargetNode struct {
 type Decision struct {
 	RunID  string
 	DryRun bool
+	Queued bool
 	Job    Job
+}
+
+type ErrUnsupportedNodeKind struct{ ID, Kind string }
+
+func (e ErrUnsupportedNodeKind) Error() string {
+	return fmt.Sprintf("node %q of kind %q cannot receive agent jobs", e.ID, e.Kind)
 }
 
 // DispatchInput is what Service.Dispatch accepts: the owner actor (for audit),

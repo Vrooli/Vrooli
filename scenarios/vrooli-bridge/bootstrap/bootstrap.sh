@@ -35,6 +35,7 @@ set -euo pipefail
 
 readonly MARKER_VERSION=1
 readonly UNIT_NAME="vrooli-bridge-agent.service"
+readonly PROVISIONER_UNIT_NAME="vrooli-bridge-provisioner.service"
 readonly PIN_FILE="control_plane.pub"
 readonly DEFAULT_REPO_URL="https://github.com/Vrooli/Vrooli.git"
 # The exact line the agent logs when the control plane accepts its dial-out
@@ -112,6 +113,8 @@ SOURCE_DIGEST="${BRIDGE_SOURCE_DIGEST:-}"
 STATE_DIR="${BRIDGE_AGENT_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/vrooli-bridge-agent}"
 WORK_DIR="${BRIDGE_WORK_DIR:-}"
 SERVICE_USER="${BRIDGE_SERVICE_USER:-}"
+PROVISION_SERVICE_USER="${BRIDGE_PROVISION_SERVICE_USER:-}"
+PROVISION_SOCKET="${BRIDGE_PROVISION_SOCKET:-/run/vrooli-bridge/provision.sock}"
 CAPABILITIES="${BRIDGE_CAPABILITIES:-}"
 PRESENCE_ONLY="${BRIDGE_PRESENCE_ONLY:-true}"
 VERIFY_TIMEOUT="${BRIDGE_VERIFY_TIMEOUT:-120}"
@@ -156,6 +159,11 @@ Options (flag overrides env in parentheses):
   --state-dir DIR           Agent credential/state dir.       (BRIDGE_AGENT_STATE_DIR; default: XDG state)
   --work-dir DIR            Dir the agent runs jobs in.       (BRIDGE_WORK_DIR; default: checkout dir)
   --service-user USER       OS principal the service runs as. (BRIDGE_SERVICE_USER; default: current user)
+  --provision-service-user USER
+                            Separate OS principal for privileged provisioning.
+                            (BRIDGE_PROVISION_SERVICE_USER; optional)
+  --provision-socket PATH   Root-owned local IPC socket for provisioning.
+                            (BRIDGE_PROVISION_SOCKET; default: /run/vrooli-bridge/provision.sock)
   --capabilities LIST       Comma-separated verb namespaces.  (BRIDGE_CAPABILITIES)
   --presence-only BOOL      Hold presence only; reject jobs/provisioning. (BRIDGE_PRESENCE_ONLY; default: true)
   --verify-timeout SECONDS  Dial-out verification budget.     (BRIDGE_VERIFY_TIMEOUT; default: 120)
@@ -197,6 +205,8 @@ while [ $# -gt 0 ]; do
     --state-dir)         STATE_DIR="$2"; shift 2 ;;
     --work-dir)          WORK_DIR="$2"; shift 2 ;;
     --service-user)      SERVICE_USER="$2"; shift 2 ;;
+    --provision-service-user) PROVISION_SERVICE_USER="$2"; shift 2 ;;
+    --provision-socket)  PROVISION_SOCKET="$2"; shift 2 ;;
     --capabilities)      CAPABILITIES="$2"; shift 2 ;;
     --presence-only)     PRESENCE_ONLY="$2"; shift 2 ;;
     --verify-timeout)    VERIFY_TIMEOUT="$2"; shift 2 ;;
@@ -275,6 +285,9 @@ agent_service_args() {
   [ -n "$WORK_DIR" ] && args+=(--work-dir "$WORK_DIR")
   [ -n "$SERVICE_USER" ] && args+=(--service-user "$SERVICE_USER")
   [ -n "$RUNTIME_VROOLI_BIN" ] && args+=(--vrooli-bin "$RUNTIME_VROOLI_BIN")
+  if [ -n "$PROVISION_SERVICE_USER" ]; then
+    args+=(--provision-socket "$PROVISION_SOCKET" --provision-helper-uid "$(id -u "$PROVISION_SERVICE_USER")")
+  fi
   # Go's flag package treats a bare boolean flag as true; keep the value in the
   # same argv token so `false` cannot be mistaken for a positional argument by
   # the service-install subcommand.
@@ -852,6 +865,40 @@ step_pin_verify() {
   step_ok "pinned key present, node ${NODE_ID}"
 }
 
+step_provisioner_install() {
+  step_start provisioner-install "install privileged provisioning helper"
+  if [ -z "$PROVISION_SERVICE_USER" ]; then
+    step_skip "BRIDGE_PROVISION_SERVICE_USER is unset; provisioning remains unavailable until a separate principal is configured"
+    return
+  fi
+  id -u "$PROVISION_SERVICE_USER" >/dev/null 2>&1 || fail 1 "provisioning service user ${PROVISION_SERVICE_USER} does not exist; create a dedicated non-login OS principal before onboarding"
+  have_passwordless_sudo || fail 1 "installing the machine-wide provisioning helper requires non-interactive sudo (or root); no privileged fallback is attempted"
+  local runner_user="${SERVICE_USER:-$(id -un)}"
+  local runner_uid helper_uid
+  runner_uid="$(id -u "$runner_user")" || fail 1 "could not resolve runner service user ${runner_user}"
+  helper_uid="$(id -u "$PROVISION_SERVICE_USER")" || fail 1 "could not resolve provisioning service user ${PROVISION_SERVICE_USER}"
+  case "$PROVISION_SOCKET" in
+    /*) ;;
+    *) fail 2 "--provision-socket must be an absolute path" ;;
+  esac
+  # The helper enforces the caller UID with Unix peer credentials. The shared
+  # directory is searchable by the runner, while the socket itself is removed
+  # and recreated by the helper on each supervised start.
+  local socket_dir
+  socket_dir="${PROVISION_SOCKET%/*}"
+  [ -n "$socket_dir" ] || socket_dir=/
+  as_root install -d -m 0755 "$socket_dir"
+  local cfg=(--state-dir "$STATE_DIR" --provision-helper --provision-socket "$PROVISION_SOCKET"
+    --provision-client-uid "$runner_uid" --service-user "$PROVISION_SERVICE_USER"
+    --system-service --work-dir "$WORK_DIR" --vrooli-bin "$RUNTIME_VROOLI_BIN")
+  local result
+  result="$(as_root "$AGENT_BIN" service install "${cfg[@]}" --json)" || fail 1 "privileged provisioning helper install failed"
+  local running
+  running="$(printf '%s' "$result" | jq -r '.running // false')"
+  [ "$running" = true ] || fail 1 "provisioning helper installed but is not running — inspect the ${PROVISIONER_UNIT_NAME} service"
+  step_ok "helper running as ${PROVISION_SERVICE_USER} (uid ${helper_uid}); runner uid ${runner_uid}; socket ${PROVISION_SOCKET}"
+}
+
 step_service_install() {
   step_start service-install "install + start node-agent service"
   local cfg=() line
@@ -995,6 +1042,7 @@ main() {
   step_pair_redeem
   marker_node_id
   step_pin_verify
+  step_provisioner_install
   step_service_install
   step_autostart
   step_verify_online

@@ -128,6 +128,73 @@ func ContainsExampleDomainMarker(content []byte, marker string) bool {
 	return lineMarkerRegexp(marker).Match(content)
 }
 
+// commentOnlyLineRegexp matches a line whose first non-space characters open a
+// comment (`//`, `#`, `<!--`) or continue a block comment (`*`). Prose is the
+// one place the example domain's name legitimately survives detemplate — a doc
+// comment may describe the worked example that used to exist — so the symbol
+// residue scan skips these lines rather than reporting every mention.
+var commentOnlyLineRegexp = regexp.MustCompile(`^[ \t]*(?://|#|\*|<!--)`)
+
+// symbolResidueRegexp matches the example domain's name used as live code: a
+// member access (`selectors.pages.notes`), a quoted literal (`case "notes":`,
+// `["dashboard", "notes"]`), or a bare identifier. The name is bounded on both
+// sides so a longer identifier that merely contains it — `notesArchive`,
+// `NotesService`, `denotes` — never matches. Matching is case-sensitive
+// because the marker is the domain's canonical lowercase slug.
+func symbolResidueRegexp(marker string) *regexp.Regexp {
+	tok := regexp.QuoteMeta(marker)
+	return regexp.MustCompile(`(?:^|[^A-Za-z0-9_])` + tok + `(?:[^A-Za-z0-9_]|$)`)
+}
+
+// ExampleDomainSymbolResidue reports lines of a kept code file that still use
+// the example domain's name as live code after the marker strip has run.
+//
+// This is the counterpart to the import-path dangling check. That check finds
+// a kept file importing a *deleted path*; this one finds a kept file reading a
+// *symbol or value the strip removed* — a nav key whose entry was deleted, a
+// selector whose definition line was stripped, a switch arm for a route that
+// no longer exists. Those references are invisible to a path scan because they
+// name no path, and they are exactly what leaves a detemplated scenario
+// unable to compile.
+//
+// Returns the trimmed offending lines, capped so an error stays readable.
+func ExampleDomainSymbolResidue(content []byte, marker string) []string {
+	if strings.TrimSpace(marker) == "" {
+		return nil
+	}
+	re := symbolResidueRegexp(marker)
+	if !re.Match(content) {
+		return nil
+	}
+	const maxReported = 5
+	var hits []string
+	inBlockComment := false
+	for _, line := range strings.Split(string(content), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if inBlockComment {
+			if strings.Contains(trimmed, "*/") {
+				inBlockComment = false
+			}
+			continue
+		}
+		if strings.HasPrefix(trimmed, "/*") && !strings.Contains(trimmed, "*/") {
+			inBlockComment = true
+			continue
+		}
+		if commentOnlyLineRegexp.MatchString(line) {
+			continue
+		}
+		if !re.MatchString(line) {
+			continue
+		}
+		hits = append(hits, trimmed)
+		if len(hits) == maxReported {
+			break
+		}
+	}
+	return hits
+}
+
 // DetemplateFinalizer records one post-strip finalizer command and its
 // outcome.
 type DetemplateFinalizer struct {
@@ -168,18 +235,33 @@ type DetemplateDanglingRefError struct {
 	References []DetemplateDanglingRef
 }
 
+// Dangling-reference kinds. ImportPath is a kept file importing a path the
+// pass deletes; Symbol is a kept file using the example domain's name as live
+// code after the strip removed whatever defined it.
+const (
+	DanglingKindImportPath = "import-path"
+	DanglingKindSymbol     = "symbol"
+)
+
 // DetemplateDanglingRef is one kept-file reference to to-be-deleted example
 // code.
 type DetemplateDanglingRef struct {
 	File      string `json:"file"`
 	Reference string `json:"reference"`
+	Kind      string `json:"kind,omitempty"`
 }
 
 func (e *DetemplateDanglingRefError) Error() string {
 	refs := make([]string, 0, len(e.References))
 	for _, r := range e.References {
-		refs = append(refs, fmt.Sprintf("%s -> %s", r.File, r.Reference))
+		kind := r.Kind
+		if kind == "" {
+			kind = DanglingKindImportPath
+		}
+		refs = append(refs, fmt.Sprintf("%s (%s) -> %s", r.File, kind, r.Reference))
 	}
-	return fmt.Sprintf("refusing to detemplate: %d non-example file(s) still reference the %q example domain after marker removal:\n  %s",
-		len(e.References), e.Marker, strings.Join(refs, "\n  "))
+	return fmt.Sprintf("refusing to detemplate: %d non-example file(s) still reference the %q example domain after marker removal:\n  %s\n\n"+
+		"Fence each reference in the template with `EXAMPLE-DOMAIN:%s START/END`, mark the single line with a trailing "+
+		"`EXAMPLE-DOMAIN:%s` comment, or add the file to the template's exampleDomain.paths so it is deleted whole.",
+		len(e.References), e.Marker, strings.Join(refs, "\n  "), e.Marker, e.Marker)
 }

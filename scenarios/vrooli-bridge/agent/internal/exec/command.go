@@ -81,7 +81,7 @@ func commandEnvironment(binary string) []string {
 		if path == "" {
 			return
 		}
-		if _, err := os.Stat(path); err != nil {
+		if _, err := os.Stat(path); err != nil { // #nosec G703 -- PATH entries are local operator environment, used only for executable discovery.
 			return
 		}
 		for _, existing := range paths {

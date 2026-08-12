@@ -269,5 +269,5 @@ func versionEvent(rev string) *provisionv1.ProvisionEvent {
 }
 
 func exitEvent(code int) *provisionv1.ProvisionEvent {
-	return &provisionv1.ProvisionEvent{Kind: provisionv1.ProvisionEventKind_PROVISION_EVENT_KIND_EXIT, ExitCode: int32(code)}
+	return &provisionv1.ProvisionEvent{Kind: provisionv1.ProvisionEventKind_PROVISION_EVENT_KIND_EXIT, ExitCode: int32(code)} // #nosec G115 -- all production exit codes are bounded OS/helper statuses.
 }

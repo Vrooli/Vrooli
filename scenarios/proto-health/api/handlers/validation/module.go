@@ -10,6 +10,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/maturity-go/assessment"
 	vroolicli "github.com/vrooli/vrooli-cli-go"
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 
 	"proto-health/internal/codefacts"
 	"proto-health/internal/module"
@@ -27,14 +28,16 @@ var (
 	ScenarioValidationProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_proto
 )
 
-func Module(logger *log.Logger, repoRoot string) module.Module {
-	loader, err := protosurface.NewDescriptorLoaderFromFile(
-		repoRoot,
-		filepath.Join(repoRoot, "packages", "proto", "gen", "descriptor", "image.binpb"),
-	)
-	if err != nil {
-		logger.Fatalf("proto descriptor loader: %v", err)
+func Module(logger *log.Logger, repoRoot string, sources ...*descriptorimage.Source) module.Module {
+	source := firstSource(sources)
+	if source == nil {
+		var err error
+		source, err = descriptorimage.NewForRepo(repoRoot)
+		if err != nil {
+			logger.Printf("validation: descriptor source unavailable: %v", err)
+		}
 	}
+	loader := protosurface.NewDescriptorLoaderFromSource(repoRoot, source)
 	// DescribeProvider answers readiness from this provider's own descriptor,
 	// so a readiness probe no longer costs a full target analysis. A load
 	// failure yields the zero Describer, which reports Unimplemented and makes
@@ -82,6 +85,13 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+func firstSource(sources []*descriptorimage.Source) *descriptorimage.Source {
+	if len(sources) == 0 {
+		return nil
+	}
+	return sources[0]
 }
 
 func Schema() string { return "" }

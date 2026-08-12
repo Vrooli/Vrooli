@@ -5,7 +5,6 @@ package system
 import (
 	"context"
 	"fmt"
-	"runtime"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
@@ -78,10 +77,10 @@ func (c *SwapCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	if runtime.GOOS == "windows" {
-		result.Status = checks.StatusWarning
-		result.Message = "Swap check not yet implemented for Windows"
-		result.Details["platform"] = "windows"
+	if checkOS != "linux" {
+		result.Status = checks.StatusNotApplicable
+		result.Message = "Swap check is not implemented on this platform"
+		result.Details["platform"] = checkOS
 		return result
 	}
 

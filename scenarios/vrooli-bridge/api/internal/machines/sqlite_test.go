@@ -68,6 +68,71 @@ func TestMachineCreateAndNodeLineage(t *testing.T) {
 	require.Equal(t, "corr-2", current.CorrelationID)
 }
 
+func TestMachineCreateIsIdempotentForRepeatedEnrollmentLocator(t *testing.T) {
+	d, clk := newDB(t)
+	repo := machines.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	var first machines.Machine
+	for i := 0; i < 10; i++ {
+		machine, err := repo.Create(ctx, machines.CreateInput{Locators: []machines.Locator{{Kind: "hostname", Value: "minimouse.local."}}})
+		require.NoError(t, err)
+		if i == 0 {
+			first = machine
+		} else {
+			require.Equal(t, first.ID, machine.ID, "retry must reuse the durable Machine")
+		}
+	}
+	items, err := repo.List(ctx)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+}
+
+func TestIdentityResolutionPrefersStrongEvidenceAndStoresHostKeyLocator(t *testing.T) {
+	d, clk := newDB(t)
+	repo := machines.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	machine, err := repo.Create(ctx, machines.CreateInput{Locators: []machines.Locator{{Kind: "hostname", Value: "old-name.local"}}})
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, "INSERT INTO machine_node_lineage (id,machine_id,node_id,is_current,linked_at,source_correlation_id) VALUES ('lineage-1',?,'node-1',1,?,'corr-1')", machine.ID, "2026-07-17T12:00:00Z")
+	require.NoError(t, err)
+	_, err = repo.UpsertTrust(ctx, machines.TrustRecord{MachineID: machine.ID, ClientKeyRef: "ssh-key://machine/1", HostKeyFingerprint: "SHA256:host", HostKeyState: machines.HostKeyVerified})
+	require.NoError(t, err)
+	resolved, err := repo.Resolve(ctx, machines.IdentityQuery{Hostname: "new-name.local", NodeID: "node-1", SSHHostKeyFingerprint: "SHA256:host"})
+	require.NoError(t, err)
+	require.Equal(t, machine.ID, resolved.ID)
+	resolved, err = repo.Resolve(ctx, machines.IdentityQuery{SSHHostKeyFingerprint: "SHA256:host"})
+	require.NoError(t, err)
+	require.Equal(t, machine.ID, resolved.ID)
+	var locatorCount int
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machine_locators WHERE machine_id=? AND kind='ssh-host-key'", machine.ID).Scan(&locatorCount))
+	require.Equal(t, 1, locatorCount)
+}
+
+func TestMergePreservesHistoryAndArchivesSource(t *testing.T) {
+	d, clk := newDB(t)
+	repo := machines.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	target, err := repo.Create(ctx, machines.CreateInput{ID: "machine-target", Locators: []machines.Locator{{Kind: "hostname", Value: "minimouse.local"}}})
+	require.NoError(t, err)
+	source, err := repo.Create(ctx, machines.CreateInput{ID: "machine-source", Locators: []machines.Locator{{Kind: "ip", Value: "192.0.2.44"}}})
+	require.NoError(t, err)
+	_, err = repo.LinkNode(ctx, source.ID, "node-source", "corr-source")
+	require.NoError(t, err)
+	merged, err := repo.Merge(ctx, machines.MergeInput{FromMachineID: source.ID, IntoMachineID: target.ID, Actor: "owner-1"})
+	require.NoError(t, err)
+	require.Equal(t, target.ID, merged.ID)
+	require.Len(t, merged.Locators, 2)
+	var sourceLifecycle string
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT lifecycle FROM machines WHERE id=?", source.ID).Scan(&sourceLifecycle))
+	require.Equal(t, string(machines.LifecycleArchived), sourceLifecycle)
+	var currentCount int
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machine_node_lineage WHERE machine_id=? AND node_id='node-source' AND is_current=1", target.ID).Scan(&currentCount))
+	require.Equal(t, 1, currentCount)
+	var audits int
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machine_audit_events WHERE machine_id=? AND action='merge'", target.ID).Scan(&audits))
+	require.Equal(t, 1, audits)
+}
+
 func TestListClosesIDRowsBeforeLoadingAggregates(t *testing.T) {
 	d, clk := newDB(t)
 	repo := machines.NewSQLiteRepository(d, clk)
@@ -224,4 +289,24 @@ func TestMigrateAddsReviewConfidenceWithoutDroppingEvidence(t *testing.T) {
 	var confidence string
 	require.NoError(t, d.QueryRowContext(ctx, "SELECT confidence FROM machine_migration_reviews WHERE id='review-1'").Scan(&confidence))
 	require.Equal(t, "ambiguous", confidence)
+}
+
+func TestMigrateReconcilesDuplicateCurrentNodesBeforeUniqueIndex(t *testing.T) {
+	d := db.NewSQLite(t)
+	ctx := context.Background()
+	_, err := d.ExecContext(ctx, `CREATE TABLE machines (id TEXT PRIMARY KEY, lifecycle TEXT NOT NULL, version INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `CREATE TABLE machine_node_lineage (id TEXT PRIMARY KEY, machine_id TEXT NOT NULL, node_id TEXT NOT NULL, is_current INTEGER NOT NULL, linked_at TEXT NOT NULL, superseded_at TEXT NOT NULL DEFAULT '', source_correlation_id TEXT NOT NULL DEFAULT '')`)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `INSERT INTO machine_node_lineage (id,machine_id,node_id,is_current,linked_at) VALUES ('old','m-old','node-1',1,'2026-07-17T11:00:00Z'),('new','m-new','node-1',1,'2026-07-17T12:00:00Z')`)
+	require.NoError(t, err)
+	require.NoError(t, machines.Migrate(ctx, d))
+	var current, audits int
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machine_node_lineage WHERE node_id='node-1' AND is_current=1").Scan(&current))
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machine_audit_events WHERE action='migration_supersede_duplicate_node'").Scan(&audits))
+	require.Equal(t, 1, current)
+	require.Equal(t, 1, audits)
+	_, err = d.ExecContext(ctx, "CREATE UNIQUE INDEX idx_test_global_current ON machine_node_lineage(node_id) WHERE is_current=1")
+	require.NoError(t, err)
+	require.NoError(t, machines.Migrate(ctx, d), "migration is idempotent")
 }

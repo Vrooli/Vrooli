@@ -104,6 +104,23 @@ type CreateInput struct {
 	TrustRef              string
 }
 
+// IdentityQuery is the ordered evidence used to reconnect an enrollment to
+// an existing Machine. Callers should provide every fact they have; Resolve
+// applies the documented strength order and never guesses across conflicting
+// evidence.
+type IdentityQuery struct {
+	MachineID             string
+	NodeID                string
+	SSHHostKeyFingerprint string
+	Hostname              string
+}
+
+type MergeInput struct {
+	FromMachineID string
+	IntoMachineID string
+	Actor         string
+}
+
 // PolicyChangeInput is an explicit, optimistic-concurrency policy decision.
 // Profiles can suggest setup/scopes but cannot grant Registry authorization.
 type PolicyChangeInput struct {
@@ -130,6 +147,13 @@ func (e ErrConflict) Error() string { return fmt.Sprintf("machine %q version con
 type ErrInvalid struct{ Field, Reason string }
 
 func (e ErrInvalid) Error() string { return fmt.Sprintf("%s: %s", e.Field, e.Reason) }
+
+type ErrAmbiguous struct{ Evidence string }
+
+func (e ErrAmbiguous) Error() string {
+	return fmt.Sprintf("machine identity is ambiguous for %s; use an explicit machine id or machines merge", e.Evidence)
+}
+
 func normalizeLocator(kind, value string) (string, error) {
 	kind = strings.ToLower(strings.TrimSpace(kind))
 	v := strings.TrimSpace(value)
@@ -146,7 +170,9 @@ func normalizeLocator(kind, value string) (string, error) {
 		return strings.ToLower(v), nil
 	case "ssh":
 		return strings.ToLower(v), nil
+	case "ssh-host-key":
+		return v, nil
 	default:
-		return "", ErrInvalid{"locator.kind", "must be hostname, ip, or ssh"}
+		return "", ErrInvalid{"locator.kind", "must be hostname, ip, ssh, or ssh-host-key"}
 	}
 }

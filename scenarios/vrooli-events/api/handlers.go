@@ -488,6 +488,18 @@ func writeSSEMessage(w http.ResponseWriter, msg broker.SSEMessage) {
 // the store is unreachable lets load balancers route traffic away from this instance.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC().Format(time.RFC3339)
+	if s.descriptorSource != nil {
+		if snapshot, err := s.descriptorSource.Snapshot(); snapshot != nil {
+			w.Header().Set("X-Proto-Descriptor-Digest", snapshot.Digest)
+			w.Header().Set("X-Proto-Descriptor-Generation", strconv.FormatUint(snapshot.Generation, 10))
+			w.Header().Set("X-Proto-Descriptor-Loaded-At", snapshot.LoadedAt.Format(time.RFC3339Nano))
+			if reloadErr := s.descriptorSource.LastReloadError(); reloadErr != nil {
+				w.Header().Set("X-Proto-Descriptor-Reload-Error", reloadErr.Error())
+			}
+		} else if err != nil {
+			w.Header().Set("X-Proto-Descriptor-Reload-Error", err.Error())
+		}
+	}
 
 	stats, err := s.store.Stats(r.Context())
 	if err != nil {

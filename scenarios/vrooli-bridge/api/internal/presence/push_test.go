@@ -64,3 +64,31 @@ func TestHub_PushNonBlockingWhenBufferFull(t *testing.T) {
 	require.Greater(t, delivered, 0, "some pushes land in the buffer")
 	require.Less(t, delivered, 1000, "a full buffer reports non-delivery rather than blocking")
 }
+
+func TestHub_DeliveryAckIsNodeBoundAndIdempotent(t *testing.T) {
+	hub := presence.NewHub(mocks.NewFakeClock(fixedNow()))
+	conn := hub.Connect("n1")
+	defer conn.Close()
+
+	require.Equal(t, 1, hub.PushFrame("n1", "frame-1", []byte("payload")))
+	require.ErrorIs(t, hub.RecordDeliveryAck(presence.DeliveryAck{NodeID: "n2", FrameID: "frame-1"}), presence.ErrUnknownDeliveryFrame)
+
+	ack := presence.DeliveryAck{NodeID: "n1", FrameID: "frame-1", RunID: "run-1", ReceivedAt: fixedNow()}
+	require.NoError(t, hub.RecordDeliveryAck(ack))
+	require.NoError(t, hub.RecordDeliveryAck(ack), "retries of the same receipt are harmless")
+	require.Len(t, hub.DeliveryAcks(), 1)
+}
+
+func TestHub_OfflineHookRunsOnlyAfterLastConnectionCloses(t *testing.T) {
+	hub := presence.NewHub(mocks.NewFakeClock(fixedNow()))
+	var offline []string
+	hub.SetOfflineHook(func(nodeID string) { offline = append(offline, nodeID) })
+	first := hub.Connect("n1")
+	second := hub.Connect("n1")
+	first.Close()
+	require.Empty(t, offline)
+	second.Close()
+	require.Equal(t, []string{"n1"}, offline)
+	second.Close()
+	require.Equal(t, []string{"n1"}, offline)
+}

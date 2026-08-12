@@ -277,6 +277,42 @@ See the canonical [platform support matrix](../../../../docs/reference/platform-
 for the current evidence tier. Do not assume `vrooli setup` succeeds on a mini
 until the target hardware has completed the recorded qualification ladder.
 
+## Machine identity repair and merge
+
+Machine enrollment is idempotent for active locator evidence. Re-running an
+enrollment against the same host converges on the existing Machine UUID and
+creates a new immutable `EnrollmentAttempt`; it does not create a replacement
+Machine. Resolution order is explicit Machine ID, current Node ID, SSH
+host-key fingerprint, then normalized hostname. A conflicting match is
+reported for operator action rather than guessed.
+
+To repair a host in place, reuse the durable identity and let Bridge drive the
+normal SSH/key/bootstrap flow:
+
+```bash
+vrooli-bridge machines repair <machine-id>
+vrooli-bridge onboard watch <onboarding-op-id>
+vrooli-bridge machines get <machine-id>
+```
+
+Repair is safe to retry. Each invocation creates a distinct attempt linked to
+the same Machine; terminal attempts are never reopened or overwritten.
+
+When historical duplicates exist, choose the surviving target explicitly and
+merge the source. The source is archived, locators and Node lineage are folded
+into the target, attempts remain attached to the target, and one audit record is
+written:
+
+```bash
+vrooli-bridge machines merge <duplicate-machine-id> <surviving-machine-id>
+vrooli-bridge machines get <surviving-machine-id>
+```
+
+The startup migration reconciles legacy rows before installing the global
+partial unique index on current `node_id`; the newest lineage wins and each
+superseded row gets a migration audit event. Do not add a manual duplicate
+Machine to bypass this invariant.
+
 ## Common Incidents
 
 | Symptom | Checks | Fix | Escalation |

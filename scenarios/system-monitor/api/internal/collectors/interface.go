@@ -5,6 +5,7 @@ package collectors
 import (
 	"context"
 	"os/exec"
+	"runtime"
 	"sync/atomic"
 	"time"
 )
@@ -142,6 +143,23 @@ const defaultCommandTimeout = 2 * time.Second
 var commandOutput = execCommandOutput
 
 var commandForkCount atomic.Uint64
+
+// collectorOS is injectable so platform behavior can be tested on a host
+// whose native OS differs from the branch under test.
+var collectorOS = runtime.GOOS
+
+func unsupportedMetricData(collector, metricType string) *MetricData {
+	return &MetricData{
+		CollectorName: collector,
+		Timestamp:     time.Now(),
+		Type:          metricType,
+		Values: map[string]interface{}{
+			"status": "unsupported",
+			"reason": "this collector currently has a Linux implementation only",
+		},
+		Tags: map[string]string{"os": collectorOS},
+	}
+}
 
 // CommandForkCount returns the number of production collector subprocesses
 // started since process boot.

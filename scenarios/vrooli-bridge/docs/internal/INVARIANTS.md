@@ -18,12 +18,19 @@ contract is the review checklist for their implementation.
 
 ## Identity and Lineage Invariants
 
-- Machine UUID is stable and is never inferred from host, IP, username, display
-  name, or Node name.
+- Machine UUID is stable. Identity resolution uses explicit Machine UUID first,
+  current Node UUID second, SSH host-key fingerprint third, and normalized
+  hostname last; it never uses username, display name, or Node name as identity.
 - A Machine can exist before any contact and may have multiple prioritized
-  locators. Locator equality is advisory and cannot auto-adopt historic data.
-- A Machine has at most one current Node. Re-pair creates immutable lineage and
-  explicitly supersedes or revokes the prior Node.
+  locators. Repeated active locator evidence converges on the existing Machine;
+  conflicting matches are an explicit repair/merge decision, never a guess.
+- A Machine has at most one current Node, and a Node can be current in at most
+  one Machine. Re-pair creates immutable lineage and explicitly supersedes the
+  prior Node. The global partial unique index is installed only after migration
+  reconciles legacy duplicates.
+- `machines repair` reuses the Machine UUID and Bridge-managed key; `machines
+  merge` is explicit, audited, archives the source, and preserves attempts,
+  locators, and lineage history.
 
 ## Replay and Idempotency Invariants
 

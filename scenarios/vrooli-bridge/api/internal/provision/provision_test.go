@@ -111,6 +111,17 @@ func TestSync_RevokedNodeRejectedAndAudited(t *testing.T) {
 	require.False(t, recorded[0].Accepted)
 }
 
+func TestSync_NonAgentNodeRejected(t *testing.T) {
+	svc, _, nodes, _, audit, pusher := newService(t)
+	nodes.Nodes["n1"] = provision.TargetNode{ID: "n1", Kind: "attached"}
+	_, err := svc.Sync(context.Background(), provision.SyncInput{Actor: "owner", NodeID: "n1", TargetRevision: "rev-B"})
+	var kind provision.ErrUnsupportedNodeKind
+	require.ErrorAs(t, err, &kind)
+	require.Empty(t, pusher.PushedCommands())
+	require.Len(t, audit.Recorded(), 1)
+	require.False(t, audit.Recorded()[0].Accepted)
+}
+
 // [REQ:BRG-P0-006] An offline node cannot receive the privileged push; the
 // request is rejected (and audited) and no command is pushed.
 func TestSync_OfflineNodeRejected(t *testing.T) {

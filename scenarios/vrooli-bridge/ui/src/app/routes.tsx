@@ -9,6 +9,7 @@ import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
 import { RunsPage } from "../pages/RunsPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { ControlSurfacePage } from "../pages/ControlSurfacePage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -24,6 +25,10 @@ export const routes: RouteObject[] = [
       { index: true, element: <DashboardPage /> },
       { path: "runs", element: <RunsPage /> },
       { path: "settings", element: <SettingsPage /> },
+      { path: "sessions", element: <ControlSurfacePage area="Sessions" description="Live and completed remote sessions, with explicit termination controls." /> },
+      { path: "rollouts", element: <ControlSurfacePage area="Rollouts" description="Provisioning operations, fleet rolls, and cross-platform gates." /> },
+      { path: "trust", element: <ControlSurfacePage area="Trust" description="Pairing, credentials, revocation, and the append-only audit trail." /> },
+      { path: "setup", element: <ControlSurfacePage area="Setup" description="Resumable onboarding operations with classified failures and repair actions." /> },
     ],
   },
 ];

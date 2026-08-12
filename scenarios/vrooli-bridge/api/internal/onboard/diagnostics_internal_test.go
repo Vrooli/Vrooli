@@ -72,4 +72,27 @@ func TestMigrate(t *testing.T) {
 		// Idempotent: a second run over the now-current DB is a clean no-op.
 		require.NoError(t, Migrate(ctx, d))
 	})
+
+	t.Run("classifies blank historical failures", func(t *testing.T) {
+		d := newDB(t)
+		_, err := d.ExecContext(ctx, `CREATE TABLE onboarding_ops (
+			id TEXT PRIMARY KEY, failure_reason TEXT NOT NULL DEFAULT '', failure_detail TEXT NOT NULL DEFAULT '',
+			state INTEGER NOT NULL, exit_code INTEGER NOT NULL, control_plane_url TEXT NOT NULL DEFAULT '',
+			reachability_mode TEXT NOT NULL DEFAULT '', correlation_id TEXT NOT NULL DEFAULT '', source_mode TEXT NOT NULL DEFAULT 'pinned')`)
+		require.NoError(t, err)
+		_, err = d.ExecContext(ctx, `INSERT INTO onboarding_ops (id,state,exit_code,failure_detail) VALUES
+			('ssh',7,1,'ssh key rejected'),('pairing',7,4,'redeem failed'),('other',7,99,'unexpected')`)
+		require.NoError(t, err)
+		require.NoError(t, Migrate(ctx, d))
+		rows, err := d.QueryContext(ctx, "SELECT failure_reason FROM onboarding_ops ORDER BY id")
+		require.NoError(t, err)
+		defer rows.Close()
+		var reasons []string
+		for rows.Next() {
+			var reason string
+			require.NoError(t, rows.Scan(&reason))
+			reasons = append(reasons, reason)
+		}
+		require.Equal(t, []string{"internal_error", "pairing_failed", "ssh_setup_failed"}, reasons)
+	})
 }

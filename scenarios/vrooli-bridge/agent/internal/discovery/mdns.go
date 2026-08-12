@@ -181,7 +181,7 @@ func encodeName(name string) ([]byte, error) {
 		if len(label) > 63 {
 			return nil, fmt.Errorf("label %q exceeds 63 bytes", label)
 		}
-		out = append(out, byte(len(label)))
+		out = append(out, byte(len(label))) // #nosec G115 -- the preceding 63-byte label bound is the DNS wire maximum.
 		out = append(out, label...)
 	}
 	return append(out, 0), nil

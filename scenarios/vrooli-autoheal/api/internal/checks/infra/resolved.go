@@ -20,6 +20,8 @@ type ResolvedCheck struct {
 	executor checks.CommandExecutor
 }
 
+var resolvedOS = runtime.GOOS
+
 // ResolvedCheckOption configures a ResolvedCheck.
 type ResolvedCheckOption func(*ResolvedCheck)
 
@@ -64,10 +66,10 @@ func (c *ResolvedCheck) Run(ctx context.Context) checks.Result {
 	}
 
 	// Only supported on Linux
-	if runtime.GOOS != "linux" {
-		result.Status = checks.StatusOK
+	if resolvedOS != "linux" {
+		result.Status = checks.StatusNotApplicable
 		result.Message = "systemd-resolved check not applicable on this platform"
-		result.Details["platform"] = runtime.GOOS
+		result.Details["platform"] = resolvedOS
 		return result
 	}
 

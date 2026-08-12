@@ -49,6 +49,9 @@ func (c *CPUCollector) SetSnapshotProvider(p SnapshotProvider) {
 
 // Collect gathers CPU metrics
 func (c *CPUCollector) Collect(ctx context.Context) (*MetricData, error) {
+	if collectorOS != "linux" {
+		return unsupportedMetricData(c.GetName(), "cpu"), nil
+	}
 	snapshot, _ := c.snapshots.Snapshot(ctx)
 	usage := c.getCPUUsage()
 	loadAvg := c.getLoadAverage(snapshot)
@@ -60,7 +63,7 @@ func (c *CPUCollector) Collect(ctx context.Context) (*MetricData, error) {
 	}
 	goos := snapshot.OS
 	if goos == "" {
-		goos = runtime.GOOS
+		goos = collectorOS
 	}
 
 	return &MetricData{
@@ -83,9 +86,8 @@ func (c *CPUCollector) Collect(ctx context.Context) (*MetricData, error) {
 
 // getCPUUsage returns current CPU usage percentage using delta calculation
 func (c *CPUCollector) getCPUUsage() float64 {
-	if runtime.GOOS != "linux" {
-		// Fallback for non-Linux systems
-		return float64(15 + (time.Now().Second() % 30))
+	if collectorOS != "linux" {
+		return 0
 	}
 
 	// Read current CPU stats
@@ -171,15 +173,12 @@ func (c *CPUCollector) getLoadAverage(snapshot hostinventory.Snapshot) []float64
 	if snapshot.Load.Load1 != 0 || snapshot.Load.Load5 != 0 || snapshot.Load.Load15 != 0 {
 		return []float64{snapshot.Load.Load1, snapshot.Load.Load5, snapshot.Load.Load15}
 	}
-	if snapshot.OS != "linux" && runtime.GOOS != "linux" {
-		return []float64{0.5, 0.5, 0.5}
-	}
 	return []float64{0.0, 0.0, 0.0}
 }
 
 // getContextSwitches returns the number of context switches
 func (c *CPUCollector) getContextSwitches() int64 {
-	if runtime.GOOS != "linux" {
+	if collectorOS != "linux" {
 		return 0
 	}
 
@@ -202,7 +201,7 @@ func (c *CPUCollector) getContextSwitches() int64 {
 
 // getTopProcessesByCPU returns top processes by CPU usage
 func GetTopProcessesByCPU(limit int) ([]map[string]interface{}, error) {
-	if runtime.GOOS != "linux" {
+	if collectorOS != "linux" {
 		return []map[string]interface{}{}, nil
 	}
 

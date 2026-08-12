@@ -91,6 +91,10 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 		s.auditReject(ctx, in, "node revoked")
 		return Decision{}, ErrNodeRevoked{ID: job.NodeID}
 	}
+	if node.Kind != "" && node.Kind != "agent" {
+		s.auditReject(ctx, in, "node kind does not support agent dispatch")
+		return Decision{}, ErrUnsupportedNodeKind{ID: job.NodeID, Kind: node.Kind}
+	}
 
 	// 3. The allowlist gate — the heart of OT-P0-004. A rejection here is
 	//    audited and surfaced before any run is created or anything is pushed.
@@ -105,17 +109,11 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 		return Decision{DryRun: true, Job: job}, nil
 	}
 
-	// 5. The node must currently hold a channel to receive the push.
-	if !s.presence.IsOnline(job.NodeID) {
-		s.auditReject(ctx, in, "node offline")
-		return Decision{}, ErrNodeOffline{ID: job.NodeID}
-	}
-
-	// 5b. Protocol-compatibility gate (OT-P1-001): an online node whose agent
+	// 5. Protocol-compatibility gate (OT-P1-001): an online node whose agent
 	//     protocol version is flagged (needs-update / incompatible) is excluded
 	//     from work rather than mis-driven. Provisioning is exempt — bringing
 	//     the node to a new revision is how the agent is updated.
-	if !s.presence.Dispatchable(job.NodeID) {
+	if s.presence.IsOnline(job.NodeID) && !s.presence.Dispatchable(job.NodeID) {
 		s.auditReject(ctx, in, "node needs update (protocol incompatible)")
 		return Decision{}, ErrNodeNeedsUpdate{ID: job.NodeID}
 	}
@@ -150,10 +148,17 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 	// 8. Push the typed job to the node. If it does not land (the node dropped
 	//    between the online check and the push), abort the run and fail; Phase 5
 	//    adds a durable per-node queue that redelivers instead.
-	delivered, err := s.pusher.PushJob(ctx, job.NodeID, PushedJob{
+	pushed := PushedJob{
 		RunID: runID, Scenario: job.Scenario, Verb: job.Verb, Args: job.Args, TimeoutSeconds: timeout,
 		Outputs: append([]ArtifactOutput(nil), s.outputs[job.Verb]...),
-	})
+	}
+	queued := false
+	var delivered int
+	if aware, ok := s.pusher.(QueueAwarePusher); ok {
+		delivered, queued, err = aware.PushJobOutcome(ctx, job.NodeID, pushed)
+	} else {
+		delivered, err = s.pusher.PushJob(ctx, job.NodeID, pushed)
+	}
 	if err != nil || delivered == 0 {
 		_ = s.runs.AbortRun(ctx, runID, "job delivery failed")
 		if err != nil {
@@ -162,7 +167,7 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 		return Decision{}, ErrDeliveryFailed{NodeID: job.NodeID}
 	}
 
-	return Decision{RunID: runID, Job: job}, nil
+	return Decision{RunID: runID, Job: job, Queued: queued}, nil
 }
 
 // auditReject records a denied dispatch. It is best-effort: a rejection stands

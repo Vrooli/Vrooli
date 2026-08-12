@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -53,10 +52,13 @@ func NewProcessCollector() *ProcessCollector {
 // once here and reused for the health summary — previously getProcessHealth
 // re-shelled both queries, doubling the forks per cycle.
 func (c *ProcessCollector) Collect(ctx context.Context) (*MetricData, error) {
-	totalProcesses := 250
+	if collectorOS != "linux" {
+		return unsupportedMetricData(c.GetName(), "process"), nil
+	}
+	totalProcesses := 0
 	var zombieProcesses []map[string]interface{}
 	var highThreadProcesses []map[string]interface{}
-	if runtime.GOOS == "linux" {
+	if collectorOS == "linux" {
 		stats, _ := readProcessStats(ctx)
 		totalProcesses = len(stats)
 		zombieProcesses = zombieProcessesFromStats(stats)
@@ -164,8 +166,8 @@ func (c *ProcessCollector) checkCriticalProcesses(ctx context.Context) []map[str
 // single /proc scan. On non-Linux platforms it returns nil and callers treat
 // every critical process as present (the prior behavior).
 func (c *ProcessCollector) runningCommandSet(ctx context.Context) map[string]struct{} {
-	if runtime.GOOS != "linux" {
-		return nil
+	if collectorOS != "linux" {
+		return map[string]struct{}{}
 	}
 	stats, err := readProcessStats(ctx)
 	if err != nil {
@@ -182,11 +184,8 @@ func (c *ProcessCollector) runningCommandSet(ctx context.Context) map[string]str
 
 // runningContains reports whether any running command name contains the target
 // substring (matching pgrep -f's loose semantics for names like "redis-server"
-// that ps may truncate). A nil set (non-Linux) is treated as "present".
+// that ps may truncate).
 func runningContains(set map[string]struct{}, target string) bool {
-	if set == nil {
-		return true
-	}
 	for name := range set {
 		if name == target || strings.Contains(name, target) || strings.Contains(target, name) {
 			return true
@@ -197,10 +196,6 @@ func runningContains(set map[string]struct{}, target string) bool {
 
 // GetProcessFileDescriptors returns file descriptor count for a process
 func GetProcessFileDescriptors(pid int) int {
-	if runtime.GOOS != "linux" {
-		return 10
-	}
-
 	fdDir := fmt.Sprintf("/proc/%d/fd", pid)
 	entries, err := os.ReadDir(fdDir)
 	if err != nil {
@@ -212,18 +207,9 @@ func GetProcessFileDescriptors(pid int) int {
 
 // GetResourceLeakCandidates identifies processes that might have resource leaks
 func GetResourceLeakCandidates() []map[string]interface{} {
-	// This would require historical tracking
-	// For now, return mock data
-	return []map[string]interface{}{
-		{
-			"pid":         1234,
-			"name":        "scenario-api-1",
-			"status":      "fd_leak_risk",
-			"fd_count":    512,
-			"memory_mb":   1024,
-			"description": "High file descriptor count",
-		},
-	}
+	// Leak candidates require historical process observations. Do not invent
+	// candidates when that evidence has not been collected.
+	return nil
 }
 
 func readProcessStats(ctx context.Context) ([]processStat, error) {

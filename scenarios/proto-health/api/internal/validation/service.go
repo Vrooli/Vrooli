@@ -409,7 +409,7 @@ func (s *Service) checkGeneratedArtifacts(ctx context.Context, scenario string) 
 			Code:       CodeGenOutOfSync,
 			Location:   "packages/proto/gen",
 			Message:    "generated proto artifact sync check failed: " + err.Error(),
-			Suggestion: "run cd packages/proto && make generate, then rerun proto-health validation",
+			Suggestion: fmt.Sprintf("run cd packages/proto && GOFLAGS=-mod=mod go run ./cmd/protogen generate --scenario %s, then rerun proto-health validation", scenario),
 		}}
 	}
 	if status.Skipped {
@@ -423,7 +423,7 @@ func (s *Service) checkGeneratedArtifacts(ctx context.Context, scenario string) 
 			Code:       CodeGenManifestMissing,
 			Location:   location,
 			Message:    "generated proto manifest is missing",
-			Suggestion: "run cd packages/proto && make generate and commit the generated manifest",
+			Suggestion: fmt.Sprintf("run cd packages/proto && GOFLAGS=-mod=mod go run ./cmd/protogen generate --scenario %s and commit the generated manifest", scenario),
 		}}
 	}
 	if status.InSync && !status.ToolchainDrift {
@@ -445,7 +445,7 @@ func (s *Service) checkGeneratedArtifacts(ctx context.Context, scenario string) 
 			Code:       CodeGenOutOfSync,
 			Location:   location,
 			Message:    message,
-			Suggestion: "run cd packages/proto && make generate and commit the generated artifacts",
+			Suggestion: fmt.Sprintf("run cd packages/proto && GOFLAGS=-mod=mod go run ./cmd/protogen generate --scenario %s and commit the generated artifacts", scenario),
 		})
 	}
 	if status.ToolchainDrift {
@@ -454,7 +454,7 @@ func (s *Service) checkGeneratedArtifacts(ctx context.Context, scenario string) 
 			Code:       CodeGenToolchainDrift,
 			Location:   "packages/proto/gen/manifests",
 			Message:    "proto codegen toolchain pins changed since the generation manifest was written",
-			Suggestion: "run cd packages/proto && make generate and commit the refreshed manifests",
+			Suggestion: fmt.Sprintf("run cd packages/proto && GOFLAGS=-mod=mod go run ./cmd/protogen generate --scenario %s and commit the refreshed manifests", scenario),
 		})
 	}
 	return findings

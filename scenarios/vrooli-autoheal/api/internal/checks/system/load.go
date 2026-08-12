@@ -128,6 +128,12 @@ func (c *LoadCheck) Run(ctx context.Context) checks.Result {
 		CheckID: c.ID(),
 		Details: make(map[string]interface{}),
 	}
+	if checkOS != "linux" {
+		result.Status = checks.StatusNotApplicable
+		result.Message = "System load check is not implemented on this platform"
+		result.Details["platform"] = checkOS
+		return result
+	}
 
 	// Read load average
 	loadInfo, err := c.loadReader.ReadLoadAvg()

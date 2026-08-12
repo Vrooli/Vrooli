@@ -93,7 +93,11 @@ func (h *handlers) lifecycle(ctx cliapp.RunContext, action string) error {
 	if machine == nil {
 		return fmt.Errorf("server returned no machine")
 	}
-	return cliapp.RenderProtoMutation(ctx, machine, cliapp.MutationReport{Result: []string{fmt.Sprintf("%sd machine %s.", strings.Title(action), id)}, Changes: []string{formatMachine(machine)}, NextCommand: []string{"`machines list` — inspect remaining machine intent"}})
+	actionLabel := action
+	if actionLabel != "" {
+		actionLabel = strings.ToUpper(actionLabel[:1]) + actionLabel[1:]
+	}
+	return cliapp.RenderProtoMutation(ctx, machine, cliapp.MutationReport{Result: []string{fmt.Sprintf("%sd machine %s.", actionLabel, id)}, Changes: []string{formatMachine(machine)}, NextCommand: []string{"`machines list` — inspect remaining machine intent"}})
 }
 
 func (h *handlers) getTrust(ctx cliapp.RunContext) error {
@@ -175,6 +179,38 @@ func (h *handlers) revokeNode(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no node revocation")
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Revoked Node %s for Machine %s.", resp.Msg.RevokedNodeId, id)}, Changes: []string{"Durable Node identity, credential, and live channel were revoked locally. SSH cleanup remains a separate explicit effect."}})
+}
+
+func (h *handlers) repair(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.RepairMachine(context.Background(), connect.NewRequest(&machinesv1.RepairMachineRequest{MachineId: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("repair machine %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Machine == nil {
+		return fmt.Errorf("server returned no repaired machine")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Repair started for Machine %s.", id)},
+		Changes:     []string{formatMachine(resp.Msg.Machine), "reused the durable Machine identity and Bridge-managed SSH key", fmt.Sprintf("onboarding op=%s enrollment attempt=%s", resp.Msg.OnboardingOpId, resp.Msg.EnrollmentAttemptId)},
+		NextCommand: []string{fmt.Sprintf("`onboard watch %s` — follow repair to ONLINE", resp.Msg.OnboardingOpId)},
+	})
+}
+
+func (h *handlers) merge(ctx cliapp.RunContext) error {
+	fromID := ctx.Positional("from")
+	intoID := ctx.Positional("into")
+	resp, err := h.client.MergeMachines(context.Background(), connect.NewRequest(&machinesv1.MergeMachinesRequest{FromMachineId: fromID, IntoMachineId: intoID}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("merge machine %q into %q", fromID, intoID), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Machine == nil {
+		return fmt.Errorf("server returned no merged machine")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Merged Machine %s into %s.", fromID, intoID)},
+		Changes: []string{formatMachine(resp.Msg.Machine), fmt.Sprintf("archived source machine=%s; lineage, locators, attempts, and audit history remain durable", resp.Msg.ArchivedMachineId)},
+	})
 }
 
 func parseLocators(raw string) ([]*machinesv1.ConnectionLocator, error) {

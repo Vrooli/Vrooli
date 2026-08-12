@@ -93,10 +93,10 @@ func (c *MemoryCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	if runtime.GOOS == "windows" {
-		result.Status = checks.StatusWarning
-		result.Message = "Memory check not yet implemented for Windows"
-		result.Details["platform"] = "windows"
+	if checkOS != "linux" {
+		result.Status = checks.StatusNotApplicable
+		result.Message = "Memory check is not implemented on this platform"
+		result.Details["platform"] = checkOS
 		return result
 	}
 

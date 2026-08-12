@@ -108,7 +108,7 @@ func TestBuildMaturityAssessmentMapsProtoFindings(t *testing.T) {
 			Severity:   internal.SeverityError,
 			Location:   "packages/proto/gen",
 			Message:    "generated proto artifacts are out of sync",
-			Suggestion: "run cd packages/proto && make generate",
+			Suggestion: "run cd packages/proto && GOFLAGS=-mod=mod go run ./cmd/protogen generate --scenario demo",
 		}},
 	}, spec)
 

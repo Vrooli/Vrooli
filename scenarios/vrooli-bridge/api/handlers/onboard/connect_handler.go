@@ -95,6 +95,7 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 
 	input := onboard.StartInput{
 		Actor:                actor,
+		MachineID:            req.Msg.GetMachineId(),
 		Host:                 req.Msg.GetHost(),
 		Port:                 int(req.Msg.GetPort()),
 		User:                 req.Msg.GetUser(),

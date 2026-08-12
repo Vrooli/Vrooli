@@ -11,6 +11,17 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
+func TestCheckNonLinuxIsNotApplicable(t *testing.T) {
+	originalOS := checkOS
+	checkOS = "darwin"
+	t.Cleanup(func() { checkOS = originalOS })
+
+	got := New().Run(context.Background())
+	if got.Status != checks.StatusNotApplicable {
+		t.Fatalf("status=%q, want not-applicable", got.Status)
+	}
+}
+
 func TestCheckMapsContainerGPUStates(t *testing.T) {
 	cases := []struct {
 		name   string

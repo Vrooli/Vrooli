@@ -14,6 +14,17 @@ import (
 // ResolvedCheck Unit Tests with Mock Interfaces
 // =============================================================================
 
+func TestResolvedCheckNonLinuxIsNotApplicable(t *testing.T) {
+	originalOS := resolvedOS
+	resolvedOS = "darwin"
+	t.Cleanup(func() { resolvedOS = originalOS })
+
+	result := NewResolvedCheck(&platform.Capabilities{}).Run(context.Background())
+	if result.Status != checks.StatusNotApplicable {
+		t.Fatalf("status = %v, want %v", result.Status, checks.StatusNotApplicable)
+	}
+}
+
 // TestResolvedCheckRunWithMock_Active tests when systemd-resolved is active
 // [REQ:INFRA-RESOLVED-001] [REQ:TEST-SEAM-001]
 func TestResolvedCheckRunWithMock_Active(t *testing.T) {

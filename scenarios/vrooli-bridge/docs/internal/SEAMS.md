@@ -264,6 +264,15 @@ These decisions have table or boundary tests and are wired once at `main.go`.
 | **Seam** | Persisting a node's last-seen timestamp on heartbeat |
 | **Interface** | `handlers/channel/heartbeat_handler.go::LastSeenRecorder` (`TouchLastSeen(ctx, nodeID, t) error`) |
 | **Production wiring** | `main.go` passes the registry SqliteRepository (it satisfies `TouchLastSeen`) into `channelH.Module`. A persistence failure is logged and swallowed — the in-memory presence update is authoritative for liveness, so a DB hiccup never drops a heartbeat. |
+
+### Interactive session transport
+
+| Seam | Contract |
+|---|---|
+| **Wire** | `packages/proto/schemas/vrooli-bridge/v1/session/session.proto`; binary `Frame` messages over `/api/v1/channel/session`. |
+| **Policy** | `api/internal/session.Manager` requires `vrooli-bridge:session`, owner re-authentication, sequence continuity, bounded receive window, idle timeout and hard lifetime. |
+| **Security** | The ambient owner identity is insufficient. `X-Bridge-Owner-Reauth` is independently validated, WebSocket origins are same-origin checked, and denied opens are audited. |
+| **Backend seam** | The WebSocket handler relays opaque bytes. PTY, agent and SSH backends are selected by the next session phase without changing this wire contract. |
 | **Test fake** | A `fakeLastSeen` recorder in `handlers/channel/heartbeat_handler_test.go` (records ids; an injectable error proves the swallow path). |
 | **Why it exists** | Keeps the channel handler decoupled from the registry's storage internals while still persisting "last seen 2h ago" across a control-plane restart. The presence hub itself stays pure in-memory. |
 
@@ -325,7 +334,7 @@ Note: `internal/presence.Hub` is a concrete shared component (constructed once i
 |---|---|
 | **Seam** | The PRIVILEGED provisioning helper's three effects: running a step's argv, reading the current git revision, and reporting ProvisionEvents back. Declared in `agent/internal/privsep/privsep.go`. **Structurally separate from the runner's exec seams — the two packages never import each other** (proven by `privsep_test.go::TestPrivilegeSeparation_NoCrossImport`). |
 | **Interface** | `privsep.StepRunner` (`Run(ctx, argv, dir, onLog)`), `privsep.RevisionResolver` (`Current(ctx, dir)`), `privsep.Reporter` (`Report(ctx, *ProvisionEvent)`). |
-| **Production wiring** | `agent/internal/channel/channel.go::runProvision` wires `provisionEventReporter` (a signed `ProvisionService.ReportProvisionEvent` call) and the defaults `osStepRunner` (`os/exec` over a typed argv — the privileged execution path) + `osRevisionResolver` (`git rev-parse HEAD`). Only a `ProvisionCommand` frame reaches this path. |
+| **Production wiring** | The ordinary `agent/internal/channel/channel.go::runProvision` sends a protojson `ProvisionCommand` over the local IPC socket and forwards typed events from the separate `vrooli-bridge-provisioner` service. Only the helper constructs `osStepRunner` (`os/exec` over a typed argv — the privileged execution path) and `osRevisionResolver` (`git rev-parse HEAD`), then reports through the signed `ProvisionService.ReportProvisionEvent` call. Linux and Darwin validate peer UIDs at the socket boundary. |
 | **Test fake** | `privsep_test.go` substitutes a recording step runner + scripted revision resolver + collecting reporter; covers idempotent re-provision, rollback-on-failed-setup, degraded-failure, and the no-shell typed `Steps()` plan. |
 | **Why it exists** | Lets the provisioning sequence (fetch → checkout → setup → version/exit, with rollback) and the privilege-separation guarantee be tested without a real git/`vrooli setup` or a live control plane. |
 
@@ -335,7 +344,7 @@ Note: `internal/presence.Hub` is a concrete shared component (constructed once i
 |---|---|
 | **Seam** | The platform-native background-service install surface: one `Definition` rendered onto systemd / launchd / Windows SCM AND installed (write unit → enable → start) behind the same Manager abstraction. Renderers in `agent/internal/service/service.go`; real install layer in `agent/internal/service/service_install.go`. |
 | **Interface** | `service.Manager` (`Kind()`, `Render(Definition)`, `Install/Status/Uninstall(ctx, Definition)`) selected by `service.NewManager()`/`ManagerForKind(kind)`; pure renderers `SystemdUnit` / `LaunchdPlist` (XML-escaped) / `WindowsServiceCreateArgs`. The native tool (systemctl/launchctl) is driven through an injected `commandRunner` seam (`execRunner` in prod, a fake in tests); the filesystem is real. |
-| **Production wiring** | `agent/main.go`: `--print-service-unit` renders via `service.NewManager().Render(def)`; the `service install\|status\|uninstall` verbs build the SAME `Definition` (`serviceDefinition`) and call `Install/Status/Uninstall`. Linux = systemd `--user` unit under `~/.config/systemd/user` (daemon-reload → enable → **restart** = idempotent converge); macOS = LaunchAgent under `~/Library/LaunchAgents` (bootout → enable → bootstrap → kickstart -k). Windows stays render-only (Install returns a render-only error). `NewManager` mirrors `platform.NativeServiceManager()`. The `Definition.User` field carries the OS principal, making the two trust tiers distinct principals at install time. |
+| **Production wiring** | `agent/main.go`: `--print-service-unit` renders via `service.NewManager().Render(def)`; the `service install\|status\|uninstall` verbs build the SAME `Definition` (`serviceDefinition`) and call `Install/Status/Uninstall`. Ordinary Linux = systemd `--user` under `~/.config/systemd/user`; the privileged helper = machine-wide systemd under `/etc/systemd/system`. Ordinary macOS = LaunchAgent under `~/Library/LaunchAgents`; the privileged helper = LaunchDaemon under `/Library/LaunchDaemons`. Both paths converge idempotently through their native managers; Windows stays render-only (Install returns a render-only error). `NewManager` mirrors `platform.NativeServiceManager()`. The `Definition.User` field carries the OS principal, making the two trust tiers distinct principals at install time. |
 | **Test fake** | `service_test.go` asserts kind selection + render invariants; `service_install_test.go` fakes the `commandRunner` and uses a temp unit dir to assert exact systemctl/launchctl argv, on-disk unit path+content, and the idempotent re-install / re-uninstall paths per OS. The real systemd install→status→kill-9→restart→uninstall lifecycle is exercised on the Linux dev host; the darwin path is argv-covered and awaits the phase-8 mac run. |
 | **Why it exists** | One agent codebase installs itself natively on Linux/macOS/Windows (OT-P0-007) with no scattered GOOS checks and no Linux-only assumptions; the pure renderers + faked-exec install layer make both the unit content AND the install sequence testable without touching the host's real service manager. This is the capability the phase-4 bootstrap script drives. |
 
@@ -348,6 +357,16 @@ Note: `internal/presence.Hub` is a concrete shared component (constructed once i
 | **Production wiring** | The SSE dial-out (`handlers/channel/sse_handler.go`) reads `?pv=`, calls `compat.Evaluate`, and stores it on the hub; the heartbeat returns the stored verdict; `dispatch.service` excludes non-dispatchable nodes with `ErrNodeNeedsUpdate` (provisioning exempt). |
 | **Test fake** | `dispatch/mocks.FakePresence.Flagged`, `fleet/mocks.FakePresence.Flagged`; `compat_test.go`, `dialout_test.go`. |
 | **Why it exists** | A version-drifted node holds presence but is FLAGGED and excluded from work rather than silently mis-driven — the mechanism that keeps a fleet coherent. |
+
+### registry readiness facts (OT-P1-002)
+
+| | |
+|---|---|
+| **Seam** | Five independent operator facts: registry record, heartbeat freshness, channel held, protocol compatibility, and dispatchable. |
+| **Interface** | `presence.Hub.Readiness(nodeID)` → `ReadinessFacts`; `NodeRegistryService.GetNodeReadiness` exposes the translated facts to CLI/UI. |
+| **Production wiring** | The registry handler overlays the live hub facts without replacing the legacy status enum; `nodes doctor <id>` walks the facts in order and returns a non-zero error at the first failed rung. Fleet rows render each fact with a text/shape marker, never colour alone. |
+| **Test fake** | Existing registry presence fakes remain valid through the optional `ReadinessPresence` extension; Hub tests assert heartbeat staleness independently of channel and dispatchability. |
+| **Why it exists** | “Online” is a transport observation, not a promise that work can be received. Keeping the facts separate makes half-open, stale, incompatible, revoked, and dispatchable states diagnosable and automatable. |
 
 ### fleet seams (NodeLister / Presence / Provisioner / Repository, OT-P1-001)
 

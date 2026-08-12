@@ -62,7 +62,7 @@ import (
 // match CHANNEL_PROTOCOL_VERSION documented in channel.proto; the control
 // plane negotiates against it in the handshake and flags a mismatch
 // NEEDS_UPDATE rather than silently mis-driving the node.
-const ProtocolVersion uint32 = 1
+const ProtocolVersion uint32 = 2
 
 // channelEventsPath is the dial-out SSE route the node opens and holds. It
 // mirrors handlers/channel/endpoints.go::channel_events.
@@ -114,6 +114,7 @@ type Client struct {
 	// completion.
 	mu          sync.Mutex
 	runningJobs map[string]context.CancelFunc
+	sessions    map[string]*nodeSession
 }
 
 // Option customises a Client (transport, sampler, clock, backoff) for tests and
@@ -183,12 +184,13 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 // target; the agent version is the build fingerprint.
 func (c *Client) Handshake() *channelv1.Handshake {
 	return &channelv1.Handshake{
-		ProtocolVersion: ProtocolVersion,
-		NodeId:          c.cfg.NodeID,
-		AgentVersion:    buildinfo.Fingerprint(),
-		Os:              runtime.GOOS,
-		Arch:            runtime.GOARCH,
-		Capabilities:    append([]string(nil), c.cfg.Capabilities...),
+		ProtocolVersion:   ProtocolVersion,
+		NodeId:            c.cfg.NodeID,
+		AgentVersion:      buildinfo.Fingerprint(),
+		Os:                runtime.GOOS,
+		Arch:              runtime.GOARCH,
+		Capabilities:      append([]string(nil), c.cfg.Capabilities...),
+		SupportsWebsocket: true,
 	}
 }
 
@@ -294,7 +296,7 @@ func (c *Client) openChannel(ctx context.Context) (io.ReadCloser, error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
+		_ = resp.Body.Close() // #nosec G104 -- the response is being discarded after a non-200 status; there is no recovery action for Close failure.
 		return nil, fmt.Errorf("control plane returned status %d", resp.StatusCode)
 	}
 	return resp.Body, nil
@@ -361,6 +363,12 @@ func (c *Client) handleServerFrame(payload string) {
 		c.logger.Printf("channel: rejected unverified server frame (%v); total rejected=%d", err, n)
 		return
 	}
+	if frame.GetJob() != nil || frame.GetProvision() != nil || frame.GetAbort() != nil {
+		c.sendDeliveryAck(frame)
+	}
+	if session := frame.GetSession(); session != nil {
+		c.handleSessionFrame(session)
+	}
 	if ack := frame.GetAck(); ack != nil {
 		if ack.GetCompatibility() == sharedv1.CompatibilityStatus_COMPATIBILITY_STATUS_NEEDS_UPDATE {
 			c.logger.Printf("channel: control plane flagged this agent NEEDS_UPDATE (%s) — holding presence only", ack.GetReason())
@@ -401,6 +409,50 @@ func (c *Client) handleServerFrame(payload string) {
 			c.logger.Printf("channel: abort for unknown or already-finished run %q (ignored)", abort.GetRunId())
 		}
 	}
+}
+
+// sendDeliveryAck reports receipt immediately after signature verification and
+// before dispatching any work. It uses the same node credential and RPC as
+// heartbeats, so acknowledgements cannot introduce a weaker authentication
+// path. A nil RPC is allowed only in isolated frame-handler unit tests.
+func (c *Client) sendDeliveryAck(frame *channelv1.ServerFrame) {
+	if c.rpc == nil {
+		return
+	}
+	ack := &sharedv1.DeliveryAck{
+		FrameId:    frame.GetFrameId(),
+		ReceivedAt: timestamppb.New(c.now().UTC()),
+	}
+	if job := frame.GetJob(); job != nil {
+		ack.RunId = job.GetRunId()
+	}
+	if prov := frame.GetProvision(); prov != nil {
+		ack.OpId = prov.GetOpId()
+	}
+	if abort := frame.GetAbort(); abort != nil {
+		ack.RunId = abort.GetRunId()
+	}
+	if ack.GetFrameId() == "" {
+		c.logger.Printf("channel: refusing to ack server frame without frame_id")
+		return
+	}
+	req := connect.NewRequest(&presencev1.ReportDeliveryAckRequest{Ack: ack})
+	req.Header().Set("X-Bridge-Node", c.cfg.NodeID)
+	if c.cred != nil {
+		for k, v := range c.cred.Headers(c.cfg.NodeID, c.now().UTC()) {
+			req.Header().Set(k, v)
+		}
+	}
+	if _, err := c.rpc.ReportDeliveryAck(c.baseCtxOrBackground(), req); err != nil {
+		c.logger.Printf("channel: delivery ack frame_id=%q failed: %v", ack.GetFrameId(), err)
+	}
+}
+
+func (c *Client) baseCtxOrBackground() context.Context {
+	if c.baseCtx != nil {
+		return c.baseCtx
+	}
+	return context.Background()
 }
 
 // registerJob records the cancel func for a running job so an AbortJob can stop
@@ -499,10 +551,22 @@ func (c *Client) runProvision(cmd *channelv1.ProvisionCommand) {
 		ctx = context.Background()
 	}
 	reporter := &provisionEventReporter{rpc: c.provisionRPC, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
-	helper := privsep.NewHelper(c.cfg.VrooliBin, c.cfg.WorkDir, reporter, privsep.WithClock(c.now))
-	if err := helper.Provision(ctx, cmd); err != nil && ctx.Err() == nil {
-		c.logger.Printf("channel: provision %q: reporting events failed: %v", cmd.GetOpId(), err)
+	if strings.TrimSpace(c.cfg.ProvisionSocket) == "" {
+		c.reportProvisionUnavailable(ctx, reporter, cmd, "provisioning helper is not installed")
+		return
 	}
+	err := privsep.Run(ctx, c.cfg.ProvisionSocket, c.cfg.ProvisionHelperUID, cmd, func(event *provisionv1.ProvisionEvent) error {
+		return reporter.Report(ctx, event)
+	})
+	if err != nil && ctx.Err() == nil {
+		c.logger.Printf("channel: provision %q: helper IPC failed: %v", cmd.GetOpId(), err)
+		c.reportProvisionUnavailable(ctx, reporter, cmd, err.Error())
+	}
+}
+
+func (c *Client) reportProvisionUnavailable(ctx context.Context, reporter *provisionEventReporter, cmd *channelv1.ProvisionCommand, reason string) {
+	_ = reporter.Report(ctx, &provisionv1.ProvisionEvent{OpId: cmd.GetOpId(), Kind: provisionv1.ProvisionEventKind_PROVISION_EVENT_KIND_STATUS, Status: "failed: " + reason})
+	_ = reporter.Report(ctx, &provisionv1.ProvisionEvent{OpId: cmd.GetOpId(), Kind: provisionv1.ProvisionEventKind_PROVISION_EVENT_KIND_EXIT, ExitCode: 127})
 }
 
 // runEventReporter implements exec.EventReporter by calling the control plane's

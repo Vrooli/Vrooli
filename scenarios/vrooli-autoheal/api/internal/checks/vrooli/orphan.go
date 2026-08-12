@@ -76,6 +76,12 @@ func (c *OrphanCheck) Run(ctx context.Context) checks.Result {
 		CheckID: c.ID(),
 		Details: make(map[string]interface{}),
 	}
+	if checkOS != "linux" {
+		result.Status = checks.StatusNotApplicable
+		result.Message = "Orphan process check is not implemented on this platform"
+		result.Details["platform"] = checkOS
+		return result
+	}
 
 	orphans, output, err := c.client.ListOrphans(ctx)
 	result.Details["output"] = string(output)

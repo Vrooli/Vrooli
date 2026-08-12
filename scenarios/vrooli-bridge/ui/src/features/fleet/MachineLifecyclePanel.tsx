@@ -36,7 +36,7 @@ export function MachineLifecyclePanel() {
     <h3 id="machine-lifecycle-heading" className="text-sm font-semibold text-app-foreground">{t(strings.fleet.machines.heading)}</h3>
     <p className="mt-1 text-xs text-app-muted-foreground">{t(strings.fleet.machines.description)}</p>
     {machines.isLoading && <p className="mt-3 text-xs text-app-muted-foreground">{t(strings.fleet.machines.loading)}</p>}
-    {(machines.error || error) && <p role="alert" className="mt-3 text-xs text-app-danger">{errorMessage(machines.error ?? error!, t)}</p>}
+    {(machines.error || error) && <p role="alert" className="mt-3 text-xs text-app-danger">{errorMessage(machines.error ?? error, t)}</p>}
     {machines.data?.length === 0 && <p className="mt-3 text-xs text-app-muted-foreground">{t(strings.fleet.machines.empty)}</p>}
     <ul className="mt-3 flex flex-col gap-2">
       {machines.data?.map((machine) => <li key={machine.id} data-testid={selectors.fleet.machineLifecycleRow({ id: machine.id })} className="rounded-control border border-app-border bg-app-background p-3">

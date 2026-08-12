@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -23,15 +24,31 @@ type Loader interface {
 
 type DescriptorLoader struct {
 	files    *protoregistry.Files
+	source   *descriptorimage.Source
 	repoRoot string
 }
 
 func NewDescriptorLoaderFromFile(repoRoot, descriptorPath string) (*DescriptorLoader, error) {
-	b, err := os.ReadFile(descriptorPath)
+	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: descriptorPath})
 	if err != nil {
-		return nil, fmt.Errorf("read descriptor image %q: %w", descriptorPath, err)
+		return nil, err
 	}
-	return NewDescriptorLoaderFromBytes(repoRoot, b)
+	snapshot, err := source.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	return NewDescriptorLoaderFromSource(repoRoot, source, snapshot), nil
+}
+
+// NewDescriptorLoaderFromSource constructs a loader over the shared
+// restart-free descriptor source. The supplied snapshot is the optional
+// startup pin; every public read revalidates through the source.
+func NewDescriptorLoaderFromSource(repoRoot string, source *descriptorimage.Source, initial ...*descriptorimage.Snapshot) *DescriptorLoader {
+	loader := &DescriptorLoader{source: source, repoRoot: repoRoot}
+	if len(initial) > 0 && initial[0] != nil {
+		loader.files = initial[0].Files
+	}
+	return loader
 }
 
 func NewDescriptorLoaderFromBytes(repoRoot string, b []byte) (*DescriptorLoader, error) {
@@ -46,14 +63,32 @@ func NewDescriptorLoaderFromBytes(repoRoot string, b []byte) (*DescriptorLoader,
 	return &DescriptorLoader{files: files, repoRoot: repoRoot}, nil
 }
 
+func (l *DescriptorLoader) currentFiles() (*protoregistry.Files, error) {
+	if l.source == nil {
+		if l.files == nil {
+			return nil, fmt.Errorf("descriptor registry is not configured")
+		}
+		return l.files, nil
+	}
+	snapshot, err := l.source.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	return snapshot.Files, nil
+}
+
 func (l *DescriptorLoader) LoadScenario(scenario string) (Surface, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
 		return Surface{}, fmt.Errorf("scenario name is required")
 	}
+	files, err := l.currentFiles()
+	if err != nil {
+		return Surface{}, err
+	}
 	prefix := scenario + "/"
 	s := Surface{Scenario: scenario, TransportWorld: TransportWorldNone}
-	l.files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
+	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
 		path := fd.Path()
 		if !strings.HasPrefix(path, prefix) {
 			return true
@@ -84,8 +119,12 @@ func (l *DescriptorLoader) LoadScenario(scenario string) (Surface, error) {
 }
 
 func (l *DescriptorLoader) ListScenarios() ([]string, error) {
+	files, err := l.currentFiles()
+	if err != nil {
+		return nil, err
+	}
 	seen := map[string]bool{}
-	l.files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
+	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
 		m := fileMeta(fd.Path())
 		if m.scenario != "" {
 			seen[m.scenario] = true

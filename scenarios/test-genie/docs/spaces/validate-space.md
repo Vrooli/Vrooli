@@ -4,6 +4,13 @@
 > is computed are defined once in `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`.
 > This document is the *Validate* denominator only.
 
+> **Condition** — every cell that resolves `NOW` here puts its **phase/provider** into the
+> Condition population, and `test-genie` owes that leg's serving, freshness, and exercise signals
+> as declared Measures. Note the known asymmetry: this projection's numerator already folds a
+> serving signal into cell status (red ledger or pending autofix yields `IN-REACH`), which no
+> sibling does. The model, the required signals, and the target state for that asymmetry are in
+> `meta-optimization-manager/docs/concepts/CONDITION-MODEL.md`.
+
 ## Purpose
 
 The **denominator** for the *Validate* projection: the validation concerns the project should

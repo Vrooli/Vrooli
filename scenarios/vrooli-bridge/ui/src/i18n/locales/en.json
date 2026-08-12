@@ -10,7 +10,11 @@
     "nav": {
       "dashboard": "Dashboard",
       "runs": "Runs",
-      "settings": "Settings"
+      "settings": "Settings",
+      "sessions": "Sessions",
+      "rollouts": "Rollouts",
+      "trust": "Trust",
+      "setup": "Setup"
     }
   },
   "theme": {
@@ -62,6 +66,23 @@
     "versionLabel": "Version",
     "healthLabel": "Health",
     "unknownValue": "unknown",
+    "readiness": {
+      "registry": "Registry",
+      "heartbeat": "Heartbeat",
+      "channel": "Channel",
+      "protocol": "Protocol",
+      "dispatch": "Dispatch",
+      "present": "✓ present",
+      "missing": "! missing",
+      "fresh": "✓ fresh ({{age}}s)",
+      "stale": "! stale ({{age}}s)",
+      "held": "✓ held",
+      "absent": "! absent",
+      "compatible": "✓ compatible",
+      "updateRequired": "! update required",
+      "ready": "✓ ready",
+      "blocked": "! blocked"
+    },
     "machines": {
       "heading": "Machine lifecycle",
       "description": "Manage durable machine intent separately from its current paired node and SSH access.",
@@ -155,6 +176,9 @@
       "reachabilityModeLabel": "Reachability mode",
       "reachabilityModeHelp": "The candidate proves this endpoint from its own network before source transfer or pairing.",
       "endpointEvidence": "Endpoint: {{endpoint}} ({{mode}})",
+      "reachabilityLan": "LAN — trusted local network",
+      "reachabilityTunnel": "Tunnel — off-LAN or segmented network",
+      "reachabilityManual": "Manual — managed DNS or VPN",
       "capabilitiesLabel": "Capabilities",
       "capabilitiesPlaceholder": "scenario, deploy",
       "capabilitiesHelp": "Comma-separated verb namespaces the node self-reports.",
@@ -260,7 +284,6 @@
       "removeDescription": "Permanently remove this revoked node from the visible fleet. Its separate audit history is retained.",
       "removeAction": "Remove revoked node",
       "removeBlocked": "Revoke this node's access before removing it from the fleet.",
-      "removeUnavailable": "This node has no linked Machine record to remove.",
       "removeConfirm": "Remove this revoked node from the fleet? This cannot be undone.",
       "close": "Close"
     }

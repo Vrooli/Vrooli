@@ -14,5 +14,5 @@ func diskFreeBytes(path string) (uint64, error) {
 	if err := syscall.Statfs(path, &st); err != nil {
 		return 0, err
 	}
-	return uint64(st.Bavail) * uint64(st.Bsize), nil
+	return uint64(st.Bavail) * uint64(st.Bsize), nil // #nosec G115 -- statfs exposes non-negative filesystem counts; widening preserves the byte calculation.
 }

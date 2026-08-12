@@ -20,17 +20,43 @@ import (
 	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines/machines_v1connect"
 )
 
-func Module(db *database.RoutedDB, clk clock.Clock, sshSvc *ssh.Service, registrySvc registry.Service, pairingSvc *pairing.Service, presenceHub *presence.Hub, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk clock.Clock, sshSvc *ssh.Service, registrySvc registry.Service, pairingSvc *pairing.Service, presenceHub *presence.Hub, onboardSvc internalonboard.Service, logger *log.Logger) module.Module {
 	repo := internalmachines.NewSQLiteRepository(db, clk)
 	svc := internalmachines.NewService(repo)
 	audit, _ := repo.(auditAppender)
 	attempts, _ := internalonboard.NewSQLiteRepository(db, clk).(attemptReader)
-	path, handler := machinesconnect.NewMachineServiceHandler(NewConnectHandler(Deps{Service: svc, Attempts: attempts, Projection: composedProjection{registry: registrySvc, presence: presenceHub}, Audit: audit, HostKeyResetter: sshSvc, NodeRevoker: nodeRevoker{registry: registrySvc, pairing: pairingSvc, presence: presenceHub}, Logger: logger}))
+	path, handler := machinesconnect.NewMachineServiceHandler(NewConnectHandler(Deps{Service: svc, Attempts: attempts, Projection: composedProjection{registry: registrySvc, presence: presenceHub}, Audit: audit, HostKeyResetter: sshSvc, NodeRevoker: nodeRevoker{registry: registrySvc, pairing: pairingSvc, presence: presenceHub}, Repairer: machineRepairer{service: onboardSvc}, Logger: logger}))
 	return module.Module{
 		Name:      "machines",
 		Mount:     func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) },
 		Endpoints: Endpoints,
 	}
+}
+
+type machineRepairer struct{ service internalonboard.Service }
+
+func (r machineRepairer) Repair(ctx context.Context, machine internalmachines.Machine) (string, string, error) {
+	if r.service == nil {
+		return "", "", internalmachines.ErrInvalid{Field: "repair", Reason: "onboarding service unavailable"}
+	}
+	host := ""
+	for _, locator := range machine.Locators {
+		if locator.Kind == "hostname" || locator.Kind == "ip" || locator.Kind == "ssh" {
+			host = locator.Value
+			break
+		}
+	}
+	if host == "" {
+		return "", "", internalmachines.ErrInvalid{Field: "repair", Reason: "machine has no hostname, IP, or SSH locator"}
+	}
+	decision, err := r.service.StartMachineEnrollment(ctx, machine.ID, internalonboard.StartInput{
+		MachineID: machine.ID, Host: host, Port: 22, User: "root", NodeName: machine.ID,
+		TargetRevision: "@cp", ProvisionSudo: true,
+	})
+	if err != nil {
+		return "", "", err
+	}
+	return decision.Decision.OpID, decision.Attempt.ID, nil
 }
 
 type composedProjection struct {

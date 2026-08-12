@@ -8,6 +8,8 @@ import (
 	"vrooli-bridge/internal/channelsign"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/provision"
+
+	"github.com/google/uuid"
 	"vrooli-bridge/internal/registry"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -152,7 +154,7 @@ func (a nodeReaderAdapter) GetTarget(ctx context.Context, id string) (provision.
 		}
 		return provision.TargetNode{}, err
 	}
-	return provision.TargetNode{ID: n.ID, Revoked: n.Revoked()}, nil
+	return provision.TargetNode{ID: n.ID, Kind: n.Kind, Revoked: n.Revoked()}, nil
 }
 
 // auditSinkAdapter wraps the audit Sink for the provision AuditSink seam,
@@ -202,6 +204,7 @@ var _ provision.CommandPusher = commandPusherAdapter{}
 
 func (a commandPusherAdapter) PushProvision(_ context.Context, nodeID string, cmd provision.PushedCommand) (int, error) {
 	frame := &channelv1.ServerFrame{
+		FrameId: uuid.NewString(),
 		Payload: &channelv1.ServerFrame_Provision{
 			Provision: &channelv1.ProvisionCommand{
 				OpId:             cmd.OpID,
@@ -214,5 +217,5 @@ func (a commandPusherAdapter) PushProvision(_ context.Context, nodeID string, cm
 	if err != nil {
 		return 0, err
 	}
-	return a.hub.Push(nodeID, payload), nil
+	return a.hub.PushFrame(nodeID, frame.GetFrameId(), payload), nil
 }

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "React dashboard: nodes with OS/arch/version/health, pairing/revocation, live job status, run history with log/artifact drill-in.",
-    "last_validated_at": "2026-08-11T06:19:16-04:00",
+    "last_validated_at": "2026-08-11T16:50:02-04:00",
     "module": "fleet-ui",
     "prd_ref": "OT-P1-005",
     "priority": "P1",

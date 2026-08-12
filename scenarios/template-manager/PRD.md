@@ -21,7 +21,7 @@
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | Factory documentation service | Own, serve, and index factory docs for template maintenance, generation contracts, validation, drift, cleanup, and migration protocol.
-- [x] OT-P1-002 | Template standing dashboard and measures | Render fleet standing, validation history, debt trends, template registry state, and typed measures from one compute path.
+- [ ] OT-P1-002 | Template standing dashboard and measures | Render fleet standing, validation history, debt trends, template registry state, and typed measures from one compute path.
 - [x] OT-P1-003 | Recurring deep-validate monitor | Run scheduled deep validation for active scenario templates with serialized capacity-aware execution and persist scheduler-attributed results.
 - [ ] OT-P1-004 | Scenario-template and design-kit cutover | Move scenario-template and design-kit lifecycle handling behind Template Manager API/CLI and delete the old vrooli CLI owners.
 

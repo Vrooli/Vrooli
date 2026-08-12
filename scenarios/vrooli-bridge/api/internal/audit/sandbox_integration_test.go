@@ -2,6 +2,9 @@ package audit_test
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -11,6 +14,29 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
+
+func TestHTTPStoreWritesAndReadsWorkspaceSandboxShape(t *testing.T) {
+	var records []audit.Record
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			var record audit.Record
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&record))
+			record.ID = "sandbox-1"
+			records = append(records, record)
+			require.NoError(t, json.NewEncoder(w).Encode(record))
+			return
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(records))
+	}))
+	defer server.Close()
+
+	store := &audit.HTTPStore{Endpoint: server.URL}
+	_, err := store.Append(context.Background(), audit.Record{Actor: "owner", NodeID: "node-1"})
+	require.NoError(t, err)
+	got, err := store.List(context.Background(), audit.ListFilter{NodeID: "node-1"})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+}
 
 // sandboxSubstrate is a stand-in for the workspace-sandbox accountability
 // substrate. The point of the audit domain's Sink seam is that the operations

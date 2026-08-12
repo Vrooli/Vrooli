@@ -29,4 +29,8 @@ type Repository interface {
 
 	// ListEvents returns a run's full event history in Sequence order.
 	ListEvents(ctx context.Context, runID string) ([]RunEvent, error)
+
+	// RecordDeliveryAck durably records an idempotent node receipt for a pushed
+	// server frame.
+	RecordDeliveryAck(ctx context.Context, ack DeliveryAck) error
 }

@@ -104,6 +104,12 @@ func (c *GPUCheck) Run(ctx context.Context) checks.Result {
 		CheckID: c.ID(),
 		Details: make(map[string]interface{}),
 	}
+	if checkOS != "linux" {
+		result.Status = checks.StatusNotApplicable
+		result.Message = "NVIDIA GPU check is not implemented on this platform"
+		result.Details["platform"] = checkOS
+		return result
+	}
 
 	collector := c.hostCollector
 	if collector == nil {

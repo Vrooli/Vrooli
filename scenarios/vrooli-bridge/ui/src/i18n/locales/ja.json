@@ -10,7 +10,11 @@
     "nav": {
       "dashboard": "ダッシュボード",
       "runs": "実行",
-      "settings": "設定"
+      "settings": "設定",
+      "sessions": "セッション",
+      "rollouts": "ロールアウト",
+      "trust": "信頼",
+      "setup": "セットアップ"
     }
   },
   "theme": {
@@ -60,6 +64,7 @@
     "archLabel": "アーキテクチャ",
     "versionLabel": "バージョン",
     "healthLabel": "ヘルス",
+    "readiness": { "registry": "レジストリ", "heartbeat": "ハートビート", "channel": "チャネル", "protocol": "プロトコル", "dispatch": "ディスパッチ", "present": "✓ あり", "missing": "! なし", "fresh": "✓ 新鮮 ({{age}}秒)", "stale": "! 古い ({{age}}秒)", "held": "✓ 保持", "absent": "! なし", "compatible": "✓ 互換", "updateRequired": "! 更新が必要", "ready": "✓ 準備完了", "blocked": "! ブロック" },
     "unknownValue": "不明",
     "machines": {
       "heading": "マシンのライフサイクル",
@@ -153,6 +158,9 @@
       "controlPlaneUrlHelp": "ノードがこのコントロールプレーンに接続し直すためのアドレスです。空欄の場合はコントロールプレーン自身のアドレスを使用します。ノードから到達可能である必要があります。",
       "reachabilityModeLabel": "到達モード",
       "reachabilityModeHelp": "ソース転送やペアリングの前に、候補ノード自身のネットワークからこのエンドポイントを確認します。",
+      "reachabilityLan": "LAN — 信頼できるローカルネットワーク",
+      "reachabilityTunnel": "トンネル — LAN外または分離ネットワーク",
+      "reachabilityManual": "手動 — 管理DNSまたはVPN",
       "endpointEvidence": "エンドポイント: {{endpoint}} ({{mode}})",
       "capabilitiesLabel": "ケイパビリティ",
       "capabilitiesPlaceholder": "scenario, deploy",
@@ -244,7 +252,7 @@
       "reviewSummary": "{{target}} に接続し、安全なキーをインストールし、マシンをセットアップしてオンラインにします。数分かかる場合があります。すべてのステップを確認できます。"
     },
     "emptyHeading": "フリートにはまだマシンがありません",
-    "management": { "details": "管理", "heading": "{{name}} を管理", "overview": "このマシンのライブ状態と信頼済み設定。", "endpoint": "エンドポイント", "scopes": "許可されたコマンド", "save": "変更を保存", "saving": "保存中…", "revokeHeading": "アクセスを削除", "revokeDescription": "取り消すと直ちにノードが切断され、作業を実行できなくなります。監査履歴は残ります。", "revoke": "ノードを取り消す", "removeHeading": "フリートから削除", "removeDescription": "アクセスを取り消した後に、永続的な Machine レコードを削除します。監査と登録履歴は保持されます。", "removeAction": "Machine レコードを削除", "removeBlocked": "Machine レコードを削除する前に、このノードのアクセスを取り消してください。", "removeUnavailable": "このノードには削除できるリンク済み Machine レコードがありません。", "removeConfirm": "この Machine レコードをフリートから削除しますか？監査と登録履歴は保持されます。", "close": "閉じる" }
+    "management": { "details": "管理", "heading": "{{name}} を管理", "overview": "このマシンのライブ状態と信頼済み設定。", "endpoint": "エンドポイント", "scopes": "許可されたコマンド", "save": "変更を保存", "saving": "保存中…", "revokeHeading": "アクセスを削除", "revokeDescription": "取り消すと直ちにノードが切断され、作業を実行できなくなります。監査履歴は残ります。", "revoke": "ノードを取り消す", "removeHeading": "フリートから削除", "removeDescription": "アクセスを取り消した後に、永続的な Machine レコードを削除します。監査と登録履歴は保持されます。", "removeAction": "Machine レコードを削除", "removeBlocked": "Machine レコードを削除する前に、このノードのアクセスを取り消してください。", "removeConfirm": "この Machine レコードをフリートから削除しますか？監査と登録履歴は保持されます。", "close": "閉じる" }
   },
   "runs": {
     "title": "実行履歴",

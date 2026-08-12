@@ -54,6 +54,10 @@ type Definition struct {
 	StandardOutPath   string
 	StandardErrorPath string
 
+	// System requests the machine-wide native service namespace. It is used for
+	// the privileged helper, whose User field must be honored by the supervisor.
+	System bool
+
 	// RestartSeconds is the auto-restart backoff. 0 uses a sane default.
 	RestartSeconds int
 }

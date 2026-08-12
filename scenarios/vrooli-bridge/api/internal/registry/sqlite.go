@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	"vrooli-bridge/internal/clock"
@@ -25,8 +27,10 @@ type SQLExecutor interface {
 }
 
 type sqliteRepository struct {
-	db    SQLExecutor
-	clock clock.Clock
+	db          SQLExecutor
+	clock       clock.Clock
+	migrateOnce sync.Once
+	migrateErr  error
 }
 
 // NewSQLiteRepository constructs the production Repository.
@@ -44,12 +48,12 @@ const (
 	nodeTimeFormat = time.RFC3339Nano
 
 	insertNodeSQL = `
-INSERT INTO nodes (id, name, os, arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO nodes (id, name, kind, os, arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	selectNodeColumns = `
-SELECT id, name, os, arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at
+SELECT id, name, kind, os, arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at
 FROM nodes
 `
 
@@ -78,6 +82,9 @@ WHERE id = ?
 )
 
 func (s *sqliteRepository) Create(ctx context.Context, n Node) (Node, error) {
+	if err := s.ensureKindColumn(ctx); err != nil {
+		return Node{}, err
+	}
 	if n.ID == "" {
 		n.ID = uuid.NewString()
 	}
@@ -97,8 +104,11 @@ func (s *sqliteRepository) Create(ctx context.Context, n Node) (Node, error) {
 		return Node{}, fmt.Errorf("encode scopes: %w", err)
 	}
 
+	if n.Kind == "" {
+		n.Kind = KindAgent
+	}
 	_, err = s.db.ExecContext(ctx, insertNodeSQL,
-		n.ID, n.Name, n.OS, n.Arch, n.Revision, n.Endpoint, caps, scopes,
+		n.ID, n.Name, n.Kind, n.OS, n.Arch, n.Revision, n.Endpoint, caps, scopes,
 		n.PairingCorrelationID,
 		n.CreatedAt.Format(nodeTimeFormat), n.UpdatedAt.Format(nodeTimeFormat),
 		formatNullableTime(n.LastSeenAt), formatNullableTime(n.RevokedAt),
@@ -110,6 +120,9 @@ func (s *sqliteRepository) Create(ctx context.Context, n Node) (Node, error) {
 }
 
 func (s *sqliteRepository) GetByPairingCorrelation(ctx context.Context, correlationID string) (Node, error) {
+	if err := s.ensureKindColumn(ctx); err != nil {
+		return Node{}, err
+	}
 	row := s.db.QueryRowContext(ctx, selectNodeColumns+"WHERE pairing_correlation_id = ?", correlationID)
 	n, err := scanNode(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -122,6 +135,9 @@ func (s *sqliteRepository) GetByPairingCorrelation(ctx context.Context, correlat
 }
 
 func (s *sqliteRepository) Get(ctx context.Context, id string) (Node, error) {
+	if err := s.ensureKindColumn(ctx); err != nil {
+		return Node{}, err
+	}
 	row := s.db.QueryRowContext(ctx, selectNodeByIDSQL, id)
 	n, err := scanNode(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -134,6 +150,9 @@ func (s *sqliteRepository) Get(ctx context.Context, id string) (Node, error) {
 }
 
 func (s *sqliteRepository) List(ctx context.Context) ([]Node, error) {
+	if err := s.ensureKindColumn(ctx); err != nil {
+		return nil, err
+	}
 	rows, err := s.db.QueryContext(ctx, listNodesSQL)
 	if err != nil {
 		return nil, fmt.Errorf("list nodes: %w", err)
@@ -155,6 +174,9 @@ func (s *sqliteRepository) List(ctx context.Context) ([]Node, error) {
 }
 
 func (s *sqliteRepository) Update(ctx context.Context, n Node) (Node, error) {
+	if err := s.ensureKindColumn(ctx); err != nil {
+		return Node{}, err
+	}
 	// Read-modify-write so the returned node carries the immutable fields
 	// (os/arch/created_at) and so we return ErrNodeNotFound consistently.
 	existing, err := s.Get(ctx, n.ID)
@@ -188,6 +210,9 @@ func (s *sqliteRepository) Update(ctx context.Context, n Node) (Node, error) {
 }
 
 func (s *sqliteRepository) Revoke(ctx context.Context, id string) (Node, error) {
+	if err := s.ensureKindColumn(ctx); err != nil {
+		return Node{}, err
+	}
 	existing, err := s.Get(ctx, id)
 	if err != nil {
 		return Node{}, err
@@ -208,6 +233,9 @@ func (s *sqliteRepository) Revoke(ctx context.Context, id string) (Node, error) 
 }
 
 func (s *sqliteRepository) Remove(ctx context.Context, id string) error {
+	if err := s.ensureKindColumn(ctx); err != nil {
+		return err
+	}
 	existing, err := s.Get(ctx, id)
 	if err != nil {
 		return err
@@ -222,6 +250,9 @@ func (s *sqliteRepository) Remove(ctx context.Context, id string) error {
 }
 
 func (s *sqliteRepository) TouchLastSeen(ctx context.Context, id string, t time.Time) error {
+	if err := s.ensureKindColumn(ctx); err != nil {
+		return err
+	}
 	if _, err := s.db.ExecContext(ctx, touchLastSeenSQL, t.UTC().Format(nodeTimeFormat), id); err != nil {
 		return fmt.Errorf("touch last_seen for node %q: %w", id, err)
 	}
@@ -243,7 +274,7 @@ func scanNode(s rowScanner) (Node, error) {
 		lastSeenRaw string
 		revokedRaw  string
 	)
-	if err := s.Scan(&n.ID, &n.Name, &n.OS, &n.Arch, &n.Revision, &n.Endpoint,
+	if err := s.Scan(&n.ID, &n.Name, &n.Kind, &n.OS, &n.Arch, &n.Revision, &n.Endpoint,
 		&capsRaw, &scopesRaw, &n.PairingCorrelationID, &createdRaw, &updatedRaw, &lastSeenRaw, &revokedRaw); err != nil {
 		return Node{}, err
 	}
@@ -272,6 +303,17 @@ func scanNode(s rowScanner) (Node, error) {
 		return Node{}, fmt.Errorf("parse revoked_at %q: %w", revokedRaw, err)
 	}
 	return n, nil
+}
+
+func (s *sqliteRepository) ensureKindColumn(ctx context.Context) error {
+	s.migrateOnce.Do(func() {
+		_, s.migrateErr = s.db.ExecContext(ctx, `ALTER TABLE nodes ADD COLUMN kind TEXT NOT NULL DEFAULT 'agent'`)
+		if s.migrateErr != nil && !strings.Contains(s.migrateErr.Error(), "duplicate column") {
+			return
+		}
+		s.migrateErr = nil
+	})
+	return s.migrateErr
 }
 
 // marshalStrings encodes a string slice as a JSON array, normalising nil to

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/clock"
+	"vrooli-bridge/internal/onboarding"
 )
 
 // DefaultVerifyTimeout bounds the orchestrator's post-bootstrap ONLINE
@@ -91,6 +92,7 @@ type service struct {
 	worktree               WorkingTreeSource
 	artifacts              ArtifactBuilder
 	nodeRev                NodeRevisionRecorder
+	handoff                onboarding.HandoffClient
 	firewallAdmitter       FirewallAdmitter
 
 	wg sync.WaitGroup // tracks in-flight orchestration goroutines (for tests)
@@ -166,6 +168,12 @@ func WithArtifactBuilder(b ArtifactBuilder) Option {
 // record keeps whatever revision pairing left).
 func WithNodeRevisionRecorder(r NodeRevisionRecorder) Option {
 	return func(s *service) { s.nodeRev = r }
+}
+
+// WithOnboardingHandoff enables the optional cross-scenario selection
+// handoff. When omitted, onboarding remains fully Bridge-local and unchanged.
+func WithOnboardingHandoff(client onboarding.HandoffClient) Option {
+	return func(s *service) { s.handoff = client }
 }
 
 // WithFirewallAdmitter enables automatic, scoped UFW admission recovery for a

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -103,4 +104,41 @@ func TestLoad_InvalidEnvDurationFallsBackToDefault(t *testing.T) {
 	cfg, err := Load(nil)
 	require.NoError(t, err)
 	require.Equal(t, defaultHeartbeatInterval, cfg.HeartbeatInterval)
+}
+
+func TestLoad_ProvisionHelperDoesNotRequireRunnerStatePermissions(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "runner-owned-state")
+	cfg, err := Load([]string{
+		"--state-dir", dir,
+		"--provision-helper",
+		"--provision-socket", "/run/vrooli-bridge/provision.sock",
+		"--provision-client-uid", "1000",
+		"--provision-helper-uid", "1001",
+		"--system-service",
+	})
+	require.NoError(t, err)
+	require.True(t, cfg.ProvisionHelper)
+	require.Equal(t, "/run/vrooli-bridge/provision.sock", cfg.ProvisionSocket)
+	require.Equal(t, 1000, cfg.ProvisionClientUID)
+	require.Equal(t, 1001, cfg.ProvisionHelperUID)
+	require.True(t, cfg.SystemService)
+	_, err = os.Stat(dir)
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestLoad_ProvisionHelperRequiresRunnerUID(t *testing.T) {
+	_, err := Load([]string{
+		"--state-dir", filepath.Join(t.TempDir(), "state"),
+		"--provision-helper",
+		"--provision-socket", filepath.Join(t.TempDir(), "provision.sock"),
+	})
+	require.EqualError(t, err, "provision helper requires --provision-client-uid")
+}
+
+func TestLoad_OrdinaryAgentCannotRequestSystemService(t *testing.T) {
+	_, err := Load([]string{
+		"--state-dir", filepath.Join(t.TempDir(), "state"),
+		"--system-service",
+	})
+	require.EqualError(t, err, "--system-service is reserved for --provision-helper")
 }

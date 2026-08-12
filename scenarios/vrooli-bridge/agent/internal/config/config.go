@@ -23,7 +23,7 @@ const (
 	defaultHeartbeatInterval = 15 * time.Second
 	// credentialFileName is the on-disk *file name* the Ed25519 private key is
 	// written to — not a secret value itself.
-	credentialFileName      = "node_credential.key" //nolint:gosec // G101: filename, not an embedded credential
+	credentialFileName      = "node_credential.key" // #nosec G101 -- this is a filename constant, not an embedded credential.
 	controlPlaneKeyFileName = "control_plane.pub"   // the pinned control-plane public key
 )
 
@@ -94,6 +94,30 @@ type Config struct {
 	// remote execution authority. An explicit policy-approved upgrade must opt
 	// in to control actions.
 	PresenceOnly bool
+
+	// ProvisionHelper makes the binary run only the privileged provisioning IPC
+	// server. It never dials the control plane and is installed as a distinct
+	// service under the provisioning principal.
+	ProvisionHelper bool
+
+	// ProvisionSocket is the local IPC endpoint shared by the runner and the
+	// provisioning helper. An installer can place it in a root-owned,
+	// group-readable runtime directory.
+	ProvisionSocket string
+
+	// ProvisionClientUID restricts the Unix IPC server to the runner's OS uid.
+	// A negative value disables the optional peer check on platforms without a
+	// portable peer-credential API.
+	ProvisionClientUID int
+
+	// ProvisionHelperUID lets the runner verify that it connected to the
+	// provisioner principal rather than an arbitrary process that replaced the
+	// socket. A negative value leaves that check to the socket's native ACL.
+	ProvisionHelperUID int
+
+	// SystemService asks the native manager for a machine-wide service unit. It
+	// is reserved for the privileged helper; ordinary agents remain user-scoped.
+	SystemService bool
 }
 
 // Paired reports whether the agent has the minimum configuration to hold a
@@ -123,6 +147,11 @@ func Load(args []string) (Config, error) {
 		serviceUser      = fs.String("service-user", envOr("BRIDGE_SERVICE_USER", ""), "OS principal the rendered service runs as (with --print-service-unit)")
 		discover         = fs.Bool("discover", envBoolOr("BRIDGE_DISCOVER", false), "Try mDNS LAN auto-discovery of the control plane when no --control-plane-url is set (manual URL stays the cross-network default)")
 		presenceOnly     = fs.Bool("presence-only", envBoolOr("BRIDGE_PRESENCE_ONLY", true), "Hold presence only; reject pushed jobs and provisioning commands (default true)")
+		provisionHelper  = fs.Bool("provision-helper", envBoolOr("BRIDGE_PROVISION_HELPER", false), "Run the privileged provisioning IPC helper instead of the node agent")
+		provisionSocket  = fs.String("provision-socket", envOr("BRIDGE_PROVISION_SOCKET", ""), "Local IPC socket shared by the runner and provisioning helper")
+		clientUID        = fs.Int("provision-client-uid", envIntOr("BRIDGE_PROVISION_CLIENT_UID", -1), "Unix uid permitted to call the provisioning helper")
+		helperUID        = fs.Int("provision-helper-uid", envIntOr("BRIDGE_PROVISION_HELPER_UID", -1), "Unix uid expected for the provisioning helper")
+		systemService    = fs.Bool("system-service", envBoolOr("BRIDGE_SYSTEM_SERVICE", false), "Install a machine-wide native service (privileged helper only)")
 	)
 
 	if err := fs.Parse(args); err != nil {
@@ -136,7 +165,7 @@ func Load(args []string) (Config, error) {
 			return Config{}, fmt.Errorf("resolve agent state dir: %w", err)
 		}
 		stateDir = resolved
-	} else {
+	} else if !*provisionHelper {
 		if err := os.MkdirAll(stateDir, 0o700); err != nil {
 			return Config{}, fmt.Errorf("create agent state dir %q: %w", stateDir, err)
 		}
@@ -144,6 +173,12 @@ func Load(args []string) (Config, error) {
 
 	if *heartbeat <= 0 {
 		return Config{}, errors.New("heartbeat-interval must be positive")
+	}
+	if *provisionHelper && *clientUID < 0 {
+		return Config{}, errors.New("provision helper requires --provision-client-uid")
+	}
+	if *systemService && !*provisionHelper {
+		return Config{}, errors.New("--system-service is reserved for --provision-helper")
 	}
 
 	return Config{
@@ -161,6 +196,11 @@ func Load(args []string) (Config, error) {
 		ServiceUser:         strings.TrimSpace(*serviceUser),
 		Discover:            *discover,
 		PresenceOnly:        *presenceOnly,
+		ProvisionHelper:     *provisionHelper,
+		ProvisionSocket:     strings.TrimSpace(*provisionSocket),
+		ProvisionClientUID:  *clientUID,
+		ProvisionHelperUID:  *helperUID,
+		SystemService:       *systemService,
 	}, nil
 }
 
@@ -213,4 +253,16 @@ func envDurationOr(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return d
+}
+
+func envIntOr(key string, fallback int) int {
+	v, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(v) == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil {
+		return fallback
+	}
+	return n
 }

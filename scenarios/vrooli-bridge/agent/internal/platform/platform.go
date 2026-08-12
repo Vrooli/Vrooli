@@ -71,7 +71,7 @@ func StateDir() (string, error) {
 }
 
 func ensureDir(path string) (string, error) {
-	if err := os.MkdirAll(path, 0o700); err != nil {
+	if err := os.MkdirAll(path, 0o700); err != nil { // #nosec G703 -- path is composed from the OS config directory and a fixed agent directory.
 		return "", fmt.Errorf("create agent state dir %q: %w", path, err)
 	}
 	return path, nil

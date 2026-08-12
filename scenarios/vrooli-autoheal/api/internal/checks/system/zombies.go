@@ -5,7 +5,6 @@ package system
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -83,10 +82,10 @@ func (c *ZombieCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	if runtime.GOOS == "windows" {
-		result.Status = checks.StatusOK
-		result.Message = "Zombie check not applicable on Windows"
-		result.Details["platform"] = "windows"
+	if checkOS != "linux" {
+		result.Status = checks.StatusNotApplicable
+		result.Message = "Zombie check not applicable on this platform"
+		result.Details["platform"] = checkOS
 		return result
 	}
 

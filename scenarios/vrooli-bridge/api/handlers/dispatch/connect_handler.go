@@ -82,5 +82,6 @@ func (h *connectHandler) DispatchJob(ctx context.Context, req *connect.Request[d
 		Scenario: decision.Job.Scenario,
 		Verb:     decision.Job.Verb,
 		Args:     decision.Job.Args,
+		Queued:   decision.Queued,
 	}), nil
 }

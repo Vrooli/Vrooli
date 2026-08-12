@@ -32,6 +32,17 @@ type HealthSnapshot struct {
 	ReportedAt time.Time
 }
 
+// ReadinessFacts are independent live facts used by operator diagnostics. A
+// channel can be held while its heartbeat is stale, and a compatible protocol
+// can still be unavailable; callers must not infer one fact from another.
+type ReadinessFacts struct {
+	HeartbeatFresh     bool
+	HeartbeatAge       time.Duration
+	ChannelHeld        bool
+	ProtocolCompatible bool
+	Dispatchable       bool
+}
+
 // Ready reports whether the node is in a state dispatch can target: the
 // toolchain must be present. Disk/container checks are job-specific and left to
 // the dispatch policy (Phase 3); this is the baseline gate.

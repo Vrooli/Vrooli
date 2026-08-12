@@ -8,7 +8,6 @@ package system
 
 import (
 	"context"
-	"runtime"
 	"strings"
 	"time"
 
@@ -77,8 +76,8 @@ func (c *BootHistoryCheck) Platforms() []platform.Type { return []platform.Type{
 
 func (c *BootHistoryCheck) Run(ctx context.Context) checks.Result {
 	r := checks.Result{CheckID: c.ID(), Details: map[string]interface{}{}}
-	if runtime.GOOS != "linux" {
-		r.Status = checks.StatusOK
+	if checkOS != "linux" {
+		r.Status = checks.StatusNotApplicable
 		r.Message = "Boot history is Linux-only"
 		return r
 	}

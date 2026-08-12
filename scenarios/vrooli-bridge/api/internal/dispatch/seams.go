@@ -67,6 +67,13 @@ type JobPusher interface {
 	PushJob(ctx context.Context, nodeID string, job PushedJob) (delivered int, err error)
 }
 
+// QueueAwarePusher optionally reports that a valid job was accepted into a
+// durable queue rather than pushed immediately. The legacy JobPusher contract
+// remains usable by focused tests and non-queued implementations.
+type QueueAwarePusher interface {
+	PushJobOutcome(ctx context.Context, nodeID string, job PushedJob) (delivered int, queued bool, err error)
+}
+
 // PushedJob is the dispatch-local DTO for the pushed job (proto-free).
 type PushedJob struct {
 	RunID          string

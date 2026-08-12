@@ -17,16 +17,18 @@ import (
 // Used by service tests to drive the service against a controllable persistence
 // layer without sqlite.
 type FakeRepository struct {
-	mu     sync.Mutex
-	runs   map[string]runs.Run
-	events map[string][]runs.RunEvent
+	mu           sync.Mutex
+	runs         map[string]runs.Run
+	events       map[string][]runs.RunEvent
+	deliveryAcks []runs.DeliveryAck
 
-	CreateErr      error
-	GetErr         error
-	ListErr        error
-	UpdateErr      error
-	AppendEventErr error
-	ListEventsErr  error
+	CreateErr            error
+	GetErr               error
+	ListErr              error
+	UpdateErr            error
+	AppendEventErr       error
+	ListEventsErr        error
+	RecordDeliveryAckErr error
 
 	// Now is the timestamp Create stamps; tests may set it for determinism.
 	Now time.Time
@@ -79,6 +81,21 @@ func (f *FakeRepository) Get(_ context.Context, id string) (runs.Run, error) {
 		return runs.Run{}, runs.ErrRunNotFound{ID: id}
 	}
 	return r, nil
+}
+
+func (f *FakeRepository) RecordDeliveryAck(_ context.Context, ack runs.DeliveryAck) error {
+	if f.RecordDeliveryAckErr != nil {
+		return f.RecordDeliveryAckErr
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, prior := range f.deliveryAcks {
+		if prior.FrameID == ack.FrameID {
+			return nil
+		}
+	}
+	f.deliveryAcks = append(f.deliveryAcks, ack)
+	return nil
 }
 
 func (f *FakeRepository) List(_ context.Context, filter runs.ListFilter) ([]runs.Run, error) {

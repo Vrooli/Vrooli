@@ -10,6 +10,17 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
+func TestOrphanCheckNonLinuxIsNotApplicable(t *testing.T) {
+	originalOS := checkOS
+	checkOS = "darwin"
+	t.Cleanup(func() { checkOS = originalOS })
+
+	result := NewOrphanCheck().Run(context.Background())
+	if result.Status != checks.StatusNotApplicable {
+		t.Fatalf("status = %v, want %v", result.Status, checks.StatusNotApplicable)
+	}
+}
+
 func TestOrphanCheckInterface(t *testing.T) {
 	var _ checks.Check = (*OrphanCheck)(nil)
 

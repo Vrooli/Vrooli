@@ -15,7 +15,6 @@ import (
 	"errors"
 	"io/fs"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -107,10 +106,10 @@ func (c *PstoreEvidenceCheck) Run(ctx context.Context) (r checks.Result) {
 			r.Timestamp = time.Now()
 		}
 	}()
-	if runtime.GOOS != "linux" {
-		r.Status = checks.StatusOK
+	if checkOS != "linux" {
+		r.Status = checks.StatusNotApplicable
 		r.Message = "pstore is Linux-only"
-		r.Details["platform"] = runtime.GOOS
+		r.Details["platform"] = checkOS
 		return r
 	}
 

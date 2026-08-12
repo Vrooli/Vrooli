@@ -330,9 +330,24 @@ func planDetemplateEdits(scenarioRoot, marker string, deletions []detemplateDele
 			edits = append(edits, detemplateEdit{Abs: path, Content: out, Mode: mode, Summary: summary})
 		}
 		// Dangling-ref scan on the post-strip content of kept code files.
-		if _, isCode := detemplateCodeExtensions[ext]; isCode && len(tokens) > 0 {
-			for _, ref := range danglingReferences(out, tokens) {
-				dangling = append(dangling, templatecontracts.DetemplateDanglingRef{File: rel, Reference: ref})
+		if _, isCode := detemplateCodeExtensions[ext]; isCode {
+			if len(tokens) > 0 {
+				for _, ref := range danglingReferences(out, tokens) {
+					dangling = append(dangling, templatecontracts.DetemplateDanglingRef{
+						File: rel, Reference: ref, Kind: templatecontracts.DanglingKindImportPath,
+					})
+				}
+			}
+			// Symbol residue: a kept file still using the example domain's
+			// name as live code. Generated files are excluded because a
+			// finalizer rewrites them after this scan runs, so flagging them
+			// would refuse a pass that is about to clean itself up.
+			if !isGeneratedArtifact(rel) {
+				for _, ref := range templatecontracts.ExampleDomainSymbolResidue(out, marker) {
+					dangling = append(dangling, templatecontracts.DetemplateDanglingRef{
+						File: rel, Reference: ref, Kind: templatecontracts.DanglingKindSymbol,
+					})
+				}
 			}
 		}
 		return nil
@@ -420,6 +435,29 @@ func danglingTokens(scenarioRoot string, deletions []detemplateDeletion) []*rege
 	return tokens
 }
 
+// generatedArtifactPatterns name files whose contents are rewritten by a
+// detemplate finalizer. The symbol-residue scan skips them: they legitimately
+// still carry example-domain names at scan time, and the finalizer that
+// regenerates them from the already-pruned sources removes those names.
+var generatedArtifactPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(^|/)[^/]*\.generated\.[^/]+$`),
+	regexp.MustCompile(`(^|/)[^/]*\.manifest\.json$`),
+	regexp.MustCompile(`(^|/)[^/]*_gen\.go$`),
+	regexp.MustCompile(`(^|/)[^/]*\.pb\.go$`),
+	regexp.MustCompile(`(^|/)generated/`),
+}
+
+// isGeneratedArtifact reports whether a scenario-relative path is regenerated
+// by a finalizer rather than hand-maintained.
+func isGeneratedArtifact(rel string) bool {
+	for _, re := range generatedArtifactPatterns {
+		if re.MatchString(rel) {
+			return true
+		}
+	}
+	return false
+}
+
 func danglingReferences(content []byte, tokens []*regexp.Regexp) []string {
 	var refs []string
 	for _, re := range tokens {
@@ -452,6 +490,28 @@ func planDetemplateFinalizers(root string, item scenariomodel.Scenario, protoTou
 			Description: "Regenerate UI strings (pnpm strings:gen)",
 			Name:        "corepack", Args: []string{"pnpm", "run", "strings:gen"},
 			Dir: filepath.Join(item.Path, "ui"),
+		})
+		// The selector manifest is derived from consts/selectors.ts. The strip
+		// deletes the example domain's selector entries from that source, so
+		// without this the manifest keeps advertising selectors that no longer
+		// exist and every `@selector/<example>.*` reference resolves to
+		// nothing.
+		if exists(item.Path, "ui", "scripts", "generate-selector-manifest.mjs") {
+			plans = append(plans, detemplateFinalizerPlan{
+				Description: "Regenerate UI selector manifest (pnpm selector:manifest)",
+				Name:        "corepack", Args: []string{"pnpm", "run", "selector:manifest"},
+				Dir: filepath.Join(item.Path, "ui"),
+			})
+		}
+	}
+	// The BAS playbook registry indexes bas/cases/**. Deleting an example case
+	// leaves a stale entry pointing at a file that no longer exists, so the
+	// registry is rebuilt from what actually survived.
+	if exists(item.Path, "bas", "cases") {
+		plans = append(plans, detemplateFinalizerPlan{
+			Description: "Rebuild BAS playbook registry (test-genie registry build)",
+			Name:        "test-genie", Args: []string{"registry", "build"},
+			Dir: item.Path,
 		})
 	}
 	if exists(item.Path, "api", "go.mod") {

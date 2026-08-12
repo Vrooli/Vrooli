@@ -28,6 +28,19 @@ OT-P2-008 specifies event replay (re-emit historical events to a subscription). 
 ### Metrics export format
 OT-P2-009 specifies Prometheus-compatible /metrics endpoint. Deferred until there's a concrete Grafana/monitoring integration need.
 
+### Aggregate/count surface over receipts (external obligation)
+`meta-optimization-manager`'s Condition axis names this scenario as the **single fleet-wide source for the Exercise signal family** — how often each capability is actually invoked. See `path:scenarios/meta-optimization-manager/docs/concepts/CONDITION-MODEL.md` § "Fleet-wide exercise". The design is deliberate: `vrooli.events.receipt.v1` is emitted target-side by every scenario served by `api-core/server.Run`, caller-agnostic, so one aggregate here serves all four projections at once and no projection owner has to implement exercise counting independently.
+
+Three gaps stand between that design and this scenario:
+
+- **No aggregate or count operation.** `events query` searches by type, source, and correlation id. Exercise needs counts grouped by target scenario and operation over a time window, plus distinct-caller counts and a last-invoked timestamp.
+- **No `cli/manifest.json`.** Without one this scenario has no governed bindings and is not programmatically callable, so the aggregate would be unreachable from a program even once it exists.
+- **No declared measures.** The Condition model reads signals through the Measures layer and the central measures index; a raw RPC would be a second, unindexed path.
+
+Distinct-caller counts are additionally bounded by attribution: only verified Agent Manager identity claims may set a receipt's subject and agent correlation, so that signal must report the unattributed remainder rather than silently undercounting. Invocation counts and last-invoked timestamps are unaffected.
+
+Deferred rather than scheduled — no consumer exists yet, since the condition source is not registered on the board. Revisit when it is, or when any projection owner adopts the Exercise family.
+
 ### SQLite single-writer scaling
 At very high throughput, SQLite's single-writer model could become a bottleneck. Current mitigations (WAL mode, async ingestion) should handle the current scale. If this becomes a real problem, options include:
 - Write-ahead buffer with batch commits

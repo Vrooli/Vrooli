@@ -39,6 +39,25 @@ func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Machine,
 	if len(in.Locators) == 0 {
 		return Machine{}, ErrInvalid{"locators", "at least one required"}
 	}
+	// Creation is intentionally idempotent for active locator evidence. This is
+	// the enrollment safety valve: a retry after a network drop must reconnect to
+	// the durable Machine instead of minting a sibling record.
+	matched := make(map[string]Machine)
+	for _, locator := range in.Locators {
+		if existing, found, err := s.findActiveByLocator(ctx, locator.Kind, locator.Value); err != nil {
+			return Machine{}, err
+		} else if found {
+			matched[existing.ID] = existing
+		}
+	}
+	if len(matched) == 1 {
+		for _, existing := range matched {
+			return existing, nil
+		}
+	}
+	if len(matched) > 1 {
+		return Machine{}, ErrAmbiguous{Evidence: "submitted locators"}
+	}
 	// Every Machine starts from an explicit, least-privilege policy rather than
 	// carrying an empty implicit default into readiness evaluation.
 	if in.DesiredProfileID == "" {
@@ -75,7 +94,7 @@ func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Machine,
 	if e != nil {
 		return Machine{}, fmt.Errorf("begin machine creation transaction: %w", e)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, e := tx.ExecContext(ctx, "INSERT INTO machines (id,lifecycle,version,desired_profile_id,desired_profile_version,trust_ref,created_at,updated_at) VALUES (?, 'active',1,?,?,?,?,?)", id, in.DesiredProfileID, in.DesiredProfileVersion, in.TrustRef, now.Format(machineTimeFormat), now.Format(machineTimeFormat)); e != nil {
 		return Machine{}, fmt.Errorf("insert machine: %w", e)
 	}
@@ -88,6 +107,83 @@ func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Machine,
 		return Machine{}, fmt.Errorf("commit machine creation: %w", e)
 	}
 	return s.Get(ctx, id)
+}
+
+func (s *sqliteRepository) Resolve(ctx context.Context, query IdentityQuery) (Machine, error) {
+	if strings.TrimSpace(query.MachineID) != "" {
+		return s.Get(ctx, strings.TrimSpace(query.MachineID))
+	}
+	if nodeID := strings.TrimSpace(query.NodeID); nodeID != "" {
+		return s.machineForEvidence(ctx, "node_id", nodeID, `SELECT machine_id FROM machine_node_lineage WHERE node_id=? AND is_current=1`)
+	}
+	if fingerprint := strings.TrimSpace(query.SSHHostKeyFingerprint); fingerprint != "" {
+		return s.machineForEvidence(ctx, "ssh host-key fingerprint", fingerprint, `SELECT machine_id FROM machine_locators WHERE kind='ssh-host-key' AND normalized_value=?`)
+	}
+	if hostname := strings.TrimSpace(query.Hostname); hostname != "" {
+		normalized, err := normalizeLocator("hostname", hostname)
+		if err != nil {
+			return Machine{}, err
+		}
+		return s.machineForEvidence(ctx, "hostname "+normalized, normalized, `SELECT machine_id FROM machine_locators WHERE kind='hostname' AND normalized_value=?`)
+	}
+	return Machine{}, ErrInvalid{"identity", "at least one identity fact is required"}
+}
+
+func (s *sqliteRepository) findActiveByLocator(ctx context.Context, kind, value string) (Machine, bool, error) {
+	normalized, err := normalizeLocator(kind, value)
+	if err != nil {
+		return Machine{}, false, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT m.id FROM machines m JOIN machine_locators l ON l.machine_id=m.id WHERE m.lifecycle='active' AND l.kind=? AND l.normalized_value=? ORDER BY m.updated_at DESC,m.id`, strings.ToLower(strings.TrimSpace(kind)), normalized)
+	if err != nil {
+		return Machine{}, false, fmt.Errorf("resolve active machine locator: %w", err)
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return Machine{}, false, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return Machine{}, false, err
+	}
+	if len(ids) == 0 {
+		return Machine{}, false, nil
+	}
+	if len(ids) > 1 {
+		return Machine{}, false, ErrAmbiguous{Evidence: kind + "=" + normalized}
+	}
+	machine, err := s.Get(ctx, ids[0])
+	return machine, err == nil, err
+}
+
+func (s *sqliteRepository) machineForEvidence(ctx context.Context, evidence, value, query string) (Machine, error) {
+	rows, err := s.db.QueryContext(ctx, query, value)
+	if err != nil {
+		return Machine{}, fmt.Errorf("resolve machine by %s: %w", evidence, err)
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return Machine{}, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return Machine{}, err
+	}
+	if len(ids) == 0 {
+		return Machine{}, ErrNotFound{ID: value}
+	}
+	if len(ids) > 1 {
+		return Machine{}, ErrAmbiguous{Evidence: evidence + "=" + value}
+	}
+	return s.Get(ctx, ids[0])
 }
 
 func (s *sqliteRepository) Get(ctx context.Context, id string) (Machine, error) {
@@ -249,7 +345,7 @@ func (s *sqliteRepository) LinkNode(ctx context.Context, id, node, correlation s
 	if e != nil {
 		return Machine{}, fmt.Errorf("begin machine lineage transaction: %w", e)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, e = tx.ExecContext(ctx, "UPDATE machine_node_lineage SET is_current=0,superseded_at=? WHERE machine_id=? AND is_current=1", now.Format(machineTimeFormat), id); e != nil {
 		return Machine{}, fmt.Errorf("supersede current node: %w", e)
 	}
@@ -260,6 +356,148 @@ func (s *sqliteRepository) LinkNode(ctx context.Context, id, node, correlation s
 		return Machine{}, fmt.Errorf("commit machine lineage: %w", e)
 	}
 	return s.Get(ctx, id)
+}
+
+// Merge folds duplicate durable identities into the explicitly selected
+// target. It keeps all historical attempts/lineage on the target, archives the
+// source, and writes exactly one audit record for the operator-visible effect.
+func (s *sqliteRepository) Merge(ctx context.Context, input MergeInput) (Machine, error) {
+	fromID, intoID := strings.TrimSpace(input.FromMachineID), strings.TrimSpace(input.IntoMachineID)
+	if fromID == "" || intoID == "" {
+		return Machine{}, ErrInvalid{"merge", "from and into machine ids are required"}
+	}
+	if fromID == intoID {
+		return Machine{}, ErrInvalid{"merge", "source and target must differ"}
+	}
+	from, err := s.Get(ctx, fromID)
+	if err != nil {
+		return Machine{}, err
+	}
+	into, err := s.Get(ctx, intoID)
+	if err != nil {
+		return Machine{}, err
+	}
+	if from.Lifecycle == LifecycleRemoved {
+		return Machine{}, ErrInvalid{"from_machine_id", "removed machines cannot be merged"}
+	}
+	if into.Lifecycle != LifecycleActive {
+		return Machine{}, ErrInvalid{"into_machine_id", "target machine must be active"}
+	}
+	starter, ok := s.db.(transactionStarter)
+	if !ok {
+		return Machine{}, fmt.Errorf("machine merge requires transactional database")
+	}
+	tx, err := starter.BeginTx(ctx, nil)
+	if err != nil {
+		return Machine{}, fmt.Errorf("begin machine merge: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	now := s.clock.Now().UTC().Format(machineTimeFormat)
+	// Fold locators while preserving the target's stable ordinals and avoiding
+	// a duplicate locator on replay.
+	var nextOrdinal int
+	if err := tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(ordinal)+1,0) FROM machine_locators WHERE machine_id=?", intoID).Scan(&nextOrdinal); err != nil {
+		return Machine{}, err
+	}
+	locRows, err := tx.QueryContext(ctx, "SELECT kind,value,normalized_value FROM machine_locators WHERE machine_id=? ORDER BY ordinal", fromID)
+	if err != nil {
+		return Machine{}, err
+	}
+	defer locRows.Close()
+	for locRows.Next() {
+		var kind, value, normalized string
+		if err := locRows.Scan(&kind, &value, &normalized); err != nil {
+			locRows.Close()
+			return Machine{}, err
+		}
+		var exists int
+		if err := tx.QueryRowContext(ctx, "SELECT 1 FROM machine_locators WHERE machine_id=? AND kind=? AND normalized_value=?", intoID, kind, normalized).Scan(&exists); errors.Is(err, sql.ErrNoRows) {
+			if _, err := tx.ExecContext(ctx, "INSERT INTO machine_locators (machine_id,ordinal,kind,value,normalized_value,created_at) VALUES (?,?,?,?,?,?)", intoID, nextOrdinal, kind, value, normalized, now); err != nil {
+				locRows.Close()
+				return Machine{}, err
+			}
+			nextOrdinal++
+		} else if err != nil {
+			locRows.Close()
+			return Machine{}, err
+		}
+	}
+	if err := locRows.Close(); err != nil {
+		return Machine{}, err
+	}
+	// A current source lineage wins only when the target has no current node.
+	var targetCurrent string
+	_ = tx.QueryRowContext(ctx, "SELECT node_id FROM machine_node_lineage WHERE machine_id=? AND is_current=1 LIMIT 1", intoID).Scan(&targetCurrent)
+	lineRows, err := tx.QueryContext(ctx, "SELECT node_id,is_current,linked_at,superseded_at,source_correlation_id FROM machine_node_lineage WHERE machine_id=? ORDER BY linked_at", fromID)
+	if err != nil {
+		return Machine{}, err
+	}
+	defer lineRows.Close()
+	type lineageCopy struct {
+		nodeID, linked, superseded, correlation string
+		current                                 int
+	}
+	var sourceLineage []lineageCopy
+	for lineRows.Next() {
+		var nodeID, linked, superseded, correlation string
+		var current int
+		if err := lineRows.Scan(&nodeID, &current, &linked, &superseded, &correlation); err != nil {
+			lineRows.Close()
+			return Machine{}, err
+		}
+		sourceLineage = append(sourceLineage, lineageCopy{nodeID: nodeID, current: current, linked: linked, superseded: superseded, correlation: correlation})
+	}
+	if err := lineRows.Close(); err != nil {
+		return Machine{}, err
+	}
+	// Release source current flags before inserting target copies; the global
+	// partial index otherwise (correctly) rejects the transient duplicate.
+	if _, err := tx.ExecContext(ctx, "UPDATE machine_node_lineage SET is_current=0,superseded_at=? WHERE machine_id=? AND is_current=1", now, fromID); err != nil {
+		return Machine{}, err
+	}
+	for _, lineage := range sourceLineage {
+		nodeID, current, linked, superseded, correlation := lineage.nodeID, lineage.current, lineage.linked, lineage.superseded, lineage.correlation
+		var existingCurrent int
+		existingErr := tx.QueryRowContext(ctx, "SELECT is_current FROM machine_node_lineage WHERE machine_id=? AND node_id=?", intoID, nodeID).Scan(&existingCurrent)
+		if errors.Is(existingErr, sql.ErrNoRows) {
+			useCurrent := current == 1 && targetCurrent == ""
+			if useCurrent {
+				targetCurrent = nodeID
+			}
+			if _, err := tx.ExecContext(ctx, "INSERT INTO machine_node_lineage (id,machine_id,node_id,is_current,linked_at,superseded_at,source_correlation_id) VALUES (?,?,?,?,?,?,?)", uuid.NewString(), intoID, nodeID, boolInt(useCurrent), linked, superseded, correlation); err != nil {
+				lineRows.Close()
+				return Machine{}, err
+			}
+		} else if existingErr != nil {
+			lineRows.Close()
+			return Machine{}, existingErr
+		}
+	}
+	if _, err := tx.ExecContext(ctx, "UPDATE machines SET lifecycle='archived',version=version+1,archived_at=?,updated_at=? WHERE id=?", now, now, fromID); err != nil {
+		return Machine{}, err
+	}
+	if attemptsTable, err := migrationTableExists(ctx, tx, "enrollment_attempts"); err != nil {
+		return Machine{}, err
+	} else if attemptsTable {
+		if _, err := tx.ExecContext(ctx, "UPDATE enrollment_attempts SET machine_id=? WHERE machine_id=?", intoID, fromID); err != nil {
+			return Machine{}, fmt.Errorf("move enrollment attempt lineage: %w", err)
+		}
+	}
+	detail := fmt.Sprintf("source=%s target=%s", fromID, intoID)
+	if _, err := tx.ExecContext(ctx, "INSERT INTO machine_audit_events (id,machine_id,action,actor,detail,created_at) VALUES (?,?,?,?,?,?)", uuid.NewString(), intoID, "merge", input.Actor, detail, now); err != nil {
+		return Machine{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Machine{}, fmt.Errorf("commit machine merge: %w", err)
+	}
+	return s.Get(ctx, intoID)
+}
+
+func boolInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
 }
 
 func (s *sqliteRepository) ListMigrationReviews(ctx context.Context) ([]MigrationReview, error) {
@@ -522,6 +760,22 @@ func (s *sqliteRepository) UpsertTrust(ctx context.Context, trust TrustRecord) (
 	if err != nil {
 		return TrustRecord{}, fmt.Errorf("upsert machine trust: %w", err)
 	}
+	// Host-key evidence is a durable machine locator, not merely trust display
+	// data. It lets a re-pair after hostname/DHCP changes resolve the original
+	// Machine before any new record can be created.
+	if trust.HostKeyFingerprint != "" {
+		normalized, normalizeErr := normalizeLocator("ssh-host-key", trust.HostKeyFingerprint)
+		if normalizeErr != nil {
+			return TrustRecord{}, normalizeErr
+		}
+		var ordinal int
+		if err := s.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(ordinal)+1,0) FROM machine_locators WHERE machine_id=?", trust.MachineID).Scan(&ordinal); err != nil {
+			return TrustRecord{}, err
+		}
+		if _, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO machine_locators (machine_id,ordinal,kind,value,normalized_value,created_at) VALUES (?,?,?,?,?,?)", trust.MachineID, ordinal, "ssh-host-key", trust.HostKeyFingerprint, normalized, trust.UpdatedAt.Format(machineTimeFormat)); err != nil {
+			return TrustRecord{}, fmt.Errorf("store machine host-key locator: %w", err)
+		}
+	}
 	return trust, nil
 }
 
@@ -606,7 +860,7 @@ func (s *sqliteRepository) ApplyPolicy(ctx context.Context, input PolicyChangeIn
 	if err != nil {
 		return Machine{}, PolicySnapshot{}, fmt.Errorf("begin policy change: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var current int64
 	if err = tx.QueryRowContext(ctx, "SELECT version FROM machines WHERE id=?", input.MachineID).Scan(&current); errors.Is(err, sql.ErrNoRows) {
 		return Machine{}, PolicySnapshot{}, ErrNotFound{input.MachineID}

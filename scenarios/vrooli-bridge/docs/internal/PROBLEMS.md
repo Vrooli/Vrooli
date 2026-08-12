@@ -49,6 +49,46 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-08-11 — Remote terminal evidence and native PTY remain open
+
+**Symptom:** Web-console can now create a server-side Bridge target session and
+translate browser terminal frames to the Bridge binary session wire. Native PTY
+allocation and resize are implemented, but the deployed `minimouse` agent has
+not been refreshed with that handler, so a live session records open/input/close
+without proving output, resize, or remote process termination. The final Plan
+Manager cross-scenario validation also reports `scenario-to-cloud` and
+`web-console` as not-comparable against the captured baseline.
+
+**Root cause:** The session wire and backend seams are implemented in Bridge and
+the web-console federation adapter is present. The connected Mac predates the
+session-frame handler. The supported working-tree re-onboarding attempt
+(`f6fc959b-8fca-4816-987c-f2a94dbf01df`) stopped at SSH first touch because the
+Bridge machine key is not authorized and no password credential was supplied.
+The cross-scenario anchor has inherited failures outside the Bridge run's proof
+surface, and shared-package changes are not part of Test Genie's default
+scenario freshness digest.
+
+**Workaround:** Use Bridge's owner-authenticated session API and the focused
+web-console proxy tests for transport-contract evidence. Treat a target as
+operational only when its server-side readiness facts are complete. Supply a
+credential or install the Bridge machine key on `minimouse`, then repeat the
+working-tree onboarding before using the Mac as live-session evidence.
+
+**Real fix:** Re-onboard the Mac with the current working tree, then prove
+output/resize/process termination, reconnect/scrollback, network-drop behavior,
+real VPS/device evidence, and BAS video artifacts. Add a reviewed Windows
+ConPTY backend when Windows interactive terminal support is required, and repair
+or explicitly re-baseline the affected scenario anchors through Plan Manager.
+Refresh the cached proto phase after shared-package edits before interpreting
+its findings.
+
+**Owner:** next implementation pass for plan phases 10–11.
+
+**Refs:** `packages/session-core/`, `scenarios/vrooli-bridge/api/internal/session/`,
+`scenarios/web-console/ui/src/hooks/useSessionManager.ts`,
+Plan Manager validation `df0bd1a5-5a9e-4ccc-8e36-8557e9a0add2`, onboarding
+operation `f6fc959b-8fca-4816-987c-f2a94dbf01df`.
+
 ### 2026-06-18 — Phase 6 COMPLETE (cross-OS deployment gate + consumer/P2 seams). PRODUCT SURFACE DONE.
 
 The `gate` domain (OT-P1-002) is built end-to-end: `gate.proto`
@@ -188,7 +228,7 @@ phases build the remaining domains. Triage:**
 
 **Workaround:** The API spine is exercisable today via the CLI (`nodes register/list/get/revoke`) and `curl`; the dial-out flip is proven by `api/internal/presence/dialout_test.go`. The Phase-1 stub is clearly marked in `agent/internal/channel/channel.go::Dial`.
 
-**Real fix:** (1) Replace `agent/internal/channel/channel.go::Dial` with the live SSE hold + heartbeat loop (still stub-credential auth until Phase 2 mutual auth). (2) Build `ui/src/features/fleet/` + `ui/src/api/nodes.ts` over the generated Connect-Web client. (3) Run the full suite green and `requirements sync` to flip BRG-P0-001/003 → passing.
+**Real fix:** **RESOLVED.** The live SSE hold + heartbeat loop, mutual-auth enforcement, fleet UI, and requirement evidence now exist. The remaining Mac refresh and cross-scenario evidence are tracked by the newer remote-terminal entry above rather than this superseded Phase-1 diagnosis.
 
 **Owner:** unassigned (next Phase 1 increment).
 
@@ -228,10 +268,11 @@ schema.sql + pairing.proto comments record this; treat the older "hashed" wordin
 pre-dating the 2026-06-18 Ed25519 decision.
 
 **Deferred (not a bug):**
-- **Per-OS service install** (systemd/launchd/Windows Service) for the one-touch
-  installer is folded into Phase 4 cross-platform hardening (OT-P0-007), per the
-  plan. The agent runs as a foreground process today; `platform.ServiceManagerKind`
-  is the seam.
+- **Windows machine-wide helper validation** remains deferred to the real Windows
+  host gate. Linux now has a machine-wide `vrooli-bridge-provisioner` unit and
+  typed local IPC; macOS has the system LaunchDaemon renderer, but the current
+  environment has no second principal for live owner/process proof. The ordinary
+  agent remains a user-scoped service by design.
 - **Benign double-redeem race** (single-owner v1): `Redeem` validates → registers →
   stores credential → atomic `BurnCode`. The atomic burn is the single-use gate
   (sequential reuse is rejected at validation + burn). A truly *concurrent* double
@@ -239,24 +280,24 @@ pre-dating the 2026-06-18 Ed25519 decision.
   single-owner/one-installer-per-code model, documented in service.go. Tighten to
   burn-before-register if multi-tenant ever lands.
 
-### 2026-06-18 — Phase 3 deferred: live workspace-sandbox audit wiring
+### 2026-06-18 — Phase 3 deferred: live workspace-sandbox audit wiring (implementation RESOLVED; host evidence open)
 
-**Symptom:** The audit trail (OT-P0-008) persists to the local append-only
-SQLite store, not yet to the workspace-sandbox accountability substrate
-SECURITY.md names as the target.
+**Symptom:** The audit trail (OT-P0-008) has a workspace-sandbox HTTP sink, but
+the current environment has not completed a live write/read round trip against
+that external substrate; SQLite remains the fallback.
 
-**Root cause:** workspace-sandbox is a separate scenario; wiring a live
-cross-scenario client now would risk inheriting its environmental blockers
-(cf. the device-sync-hub authenticator note), and the plan lands cross-scenario
-deps only once the dependency is green.
+**Root cause:** workspace-sandbox is a separate scenario and live availability
+is an environment concern. The sink is now wired behind the existing audit
+interface, with bounded HTTP writes and SQLite fallback.
 
 **Workaround:** The audit domain is built around the narrow `audit.Sink` seam.
-The SQLite store is the default substrate; a workspace-sandbox-backed `Sink` is
-a drop-in behind the same seam with zero caller changes
-(`internal/audit/sandbox_integration_test.go` proves the substrate is swappable).
+The SQLite store remains the safe fallback; `internal/audit/sandbox_integration_test.go`
+proves the workspace-sandbox sink is swappable and the focused HTTP-store test
+proves its workspace shape.
 
-**Real fix:** Implement an `audit.Sink` that routes to workspace-sandbox and
-wire it in `main.go` once workspace-sandbox is green; flip this entry to RESOLVED.
+**Real fix:** **IMPLEMENTED.** Run one live write/read probe when
+workspace-sandbox is available and record its durable evidence in the plan
+ledger; do not treat the local fallback or a unit fake as external readback.
 
 **Owner:** unassigned.
 
@@ -365,5 +406,7 @@ Current identity/delegation work remains on the typed Mode-A ladder:
 4. Treat macOS screenshot proof as hardware evidence only when a real GUI
    login/window-server session exists. An SSH-only launchd domain is a recorded
    environment finding, not a reason to fabricate an artifact or broaden Mode A.
-5. Keep `vrooli-bridge:session` reserved for a later Mode-B protocol; PTY,
-   stdin, and interactive-session lifecycle remain outside this ladder.
+5. The `vrooli-bridge:session` seam is now implemented as an authenticated,
+   bounded binary WebSocket transport. PTY/backend selection remains a later
+   domain concern; this transport deliberately relays bytes without parsing
+   them.

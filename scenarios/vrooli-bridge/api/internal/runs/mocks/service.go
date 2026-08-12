@@ -17,6 +17,7 @@ type FakeService struct {
 
 	CreateInputs []runs.CreateInput
 	AppendEvents []runs.RunEvent
+	DeliveryAcks []runs.DeliveryAck
 	WaitIDs      []string
 	AbortIDs     []string
 
@@ -30,8 +31,10 @@ type FakeService struct {
 	ListOut []runs.Run
 	ListErr error
 
-	AppendAccepted bool
-	AppendErr      error
+	AppendAccepted       bool
+	AppendErr            error
+	RecordDeliveryAckErr error
+	MarkDeliveryStateErr error
 
 	WaitOut     runs.Run
 	WaitTimedM  bool
@@ -77,6 +80,17 @@ func (f *FakeService) AppendEvent(_ context.Context, ev runs.RunEvent) (bool, er
 	f.AppendEvents = append(f.AppendEvents, ev)
 	f.mu.Unlock()
 	return f.AppendAccepted, f.AppendErr
+}
+
+func (f *FakeService) RecordDeliveryAck(_ context.Context, ack runs.DeliveryAck) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.DeliveryAcks = append(f.DeliveryAcks, ack)
+	return f.RecordDeliveryAckErr
+}
+
+func (f *FakeService) MarkDeliveryState(_ context.Context, _ string, _ runs.RunStatus, _ string, _ time.Time, _ ...time.Time) error {
+	return f.MarkDeliveryStateErr
 }
 
 func (f *FakeService) Wait(ctx context.Context, id string, _ time.Duration) (runs.Run, bool, error) {

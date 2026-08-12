@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { useMetrics } from '../../../shared/hooks/useMetricsHook';
+import { resolveBackdropReference, type BackdropReference } from '../services/backdrop.service';
 
 interface HeroSectionProps {
   content: {
@@ -29,6 +30,8 @@ interface HeroSectionProps {
     cta_text?: string;
     cta_url?: string;
     image_url?: string;
+    /** Stable Backdrop Studio release reference resolved for this placement. */
+    backdrop_reference?: BackdropReference;
     background_style?: 'gradient' | 'solid' | 'image';
     secondary_cta_text?: string;
     secondary_cta_url?: string;
@@ -41,6 +44,20 @@ export function HeroSection({ content }: HeroSectionProps) {
   const primaryCtaUrl = content.cta_url ?? '#pricing';
   const secondaryCtaText = content.secondary_cta_text ?? 'Watch video';
   const secondaryCtaUrl = content.secondary_cta_url ?? '#video';
+  const [resolvedBackdrop, setResolvedBackdrop] = useState<BackdropReference | undefined>(content.backdrop_reference);
+  useEffect(() => {
+    let active = true;
+    if (!content.backdrop_reference?.id || content.backdrop_reference.url) {
+      setResolvedBackdrop(content.backdrop_reference);
+      return () => { active = false; };
+    }
+    void resolveBackdropReference(content.backdrop_reference).then((reference) => {
+      if (active && reference) setResolvedBackdrop(reference);
+    });
+    return () => { active = false; };
+  }, [content.backdrop_reference]);
+  const backdropURL = resolvedBackdrop?.url ?? content.image_url;
+  const backdropReferenceID = resolvedBackdrop?.id ?? content.backdrop_reference?.id;
 
   const handleCTAClick = () => {
     trackCTAClick('hero-cta', {
@@ -51,7 +68,14 @@ export function HeroSection({ content }: HeroSectionProps) {
   };
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-bg-base via-surface-deep to-surface-primary text-white">
+    <section
+      className="relative overflow-hidden bg-gradient-to-br from-bg-base via-surface-deep to-surface-primary text-white"
+      data-testid="hero-section"
+      data-backdrop-reference={backdropReferenceID}
+      data-backdrop-placement={resolvedBackdrop?.placement ?? content.backdrop_reference?.placement}
+      data-backdrop-reserved-region={resolvedBackdrop?.reserved_regions?.[0] ? JSON.stringify(resolvedBackdrop.reserved_regions[0]) : undefined}
+      style={backdropURL ? { backgroundImage: `url(${JSON.stringify(backdropURL).slice(1, -1)})` } : undefined}
+    >
       <div className="pointer-events-none absolute inset-0 opacity-30 mix-blend-plus-lighter">
         <div className="noise-overlay absolute inset-0" />
       </div>

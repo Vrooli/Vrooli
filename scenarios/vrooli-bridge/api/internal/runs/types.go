@@ -43,6 +43,12 @@ const (
 	StatusFailed RunStatus = 4
 	// StatusAborted — terminal: aborted (operator, timeout, or node loss).
 	StatusAborted RunStatus = 5
+	// StatusPushed — the server enqueued the frame on a live node channel.
+	StatusPushed RunStatus = 6
+	// StatusAcked — the node acknowledged receipt before starting work.
+	StatusAcked RunStatus = 7
+	// StatusFailedDelivery — terminal: delivery could not be established.
+	StatusFailedDelivery RunStatus = 8
 )
 
 // Terminal reports whether the status is a terminal one. WaitRun returns once a
@@ -50,7 +56,7 @@ const (
 // (stale-completion safety).
 func (s RunStatus) Terminal() bool {
 	switch s {
-	case StatusPassed, StatusFailed, StatusAborted:
+	case StatusPassed, StatusFailed, StatusAborted, StatusFailedDelivery:
 		return true
 	default:
 		return false
@@ -70,6 +76,12 @@ func (s RunStatus) String() string {
 		return "failed"
 	case StatusAborted:
 		return "aborted"
+	case StatusPushed:
+		return "pushed"
+	case StatusAcked:
+		return "acked"
+	case StatusFailedDelivery:
+		return "failed_delivery"
 	default:
 		return "unspecified"
 	}
@@ -106,9 +118,15 @@ type Run struct {
 	TimeoutSeconds int64
 	CreatedAt      time.Time
 	// StartedAt/FinishedAt are zero until the corresponding transition.
-	StartedAt    time.Time
-	FinishedAt   time.Time
-	ArtifactRefs []string
+	StartedAt              time.Time
+	FinishedAt             time.Time
+	ArtifactRefs           []string
+	QueuedSince            time.Time
+	PushedAt               time.Time
+	AckedAt                time.Time
+	DeliveryAttempts       int
+	LastDeliveryError      string
+	DeliveryLeaseExpiresAt time.Time
 }
 
 // RunEvent is one entry in a run's append-only event history.
@@ -121,6 +139,17 @@ type RunEvent struct {
 	ExitCode    int32
 	ArtifactRef string
 	EmittedAt   time.Time
+}
+
+// DeliveryAck is the durable transport receipt for a frame sent to a node.
+// It is intentionally separate from RunEvent because provisioning frames may
+// carry an op_id without a run_id.
+type DeliveryAck struct {
+	NodeID     string
+	FrameID    string
+	RunID      string
+	OpID       string
+	ReceivedAt time.Time
 }
 
 // CreateInput is the explicit DTO Service.Create accepts. The dispatch domain

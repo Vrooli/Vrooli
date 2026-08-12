@@ -83,6 +83,23 @@ func TestSystemdInstall_WritesUnitAndConvergesState(t *testing.T) {
 	}, runner.argvStrings())
 }
 
+func TestSystemdSystemScopeUsesMachineUnitAndManager(t *testing.T) {
+	d := installDef()
+	d.Name = "vrooli-bridge-provisioner"
+	d.User = "vrooli-provisioner"
+	d.System = true
+	m := systemdManager{unitDir: func() (string, error) { return t.TempDir(), nil }, runner: &fakeRunner{}}
+	require.Equal(t, "/etc/systemd/system/vrooli-bridge-provisioner.service", func() string {
+		path, err := m.unitPath(d)
+		require.NoError(t, err)
+		return path
+	}())
+	require.Equal(t, []string{"systemctl", "enable", "vrooli-bridge-provisioner.service"}, systemdArgs(d, "enable", "vrooli-bridge-provisioner.service"))
+	unit, err := SystemdUnit(d)
+	require.NoError(t, err)
+	require.Contains(t, unit, "User=vrooli-provisioner")
+}
+
 // [REQ:BRG-P0-007] Re-running systemd Install is idempotent: it rewrites the same
 // unit and restarts again rather than erroring, converging on identical state.
 func TestSystemdInstall_Idempotent(t *testing.T) {

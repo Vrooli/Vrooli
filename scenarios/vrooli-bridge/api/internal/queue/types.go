@@ -82,7 +82,12 @@ type Entry struct {
 	EnqueuedAt time.Time
 	// StartedAt is when the job was pushed to the node (set once State ==
 	// StateRunning).
-	StartedAt time.Time
+	StartedAt        time.Time
+	PushedAt         time.Time
+	AckedAt          time.Time
+	LeaseExpiresAt   time.Time
+	DeliveryAttempts int
+	Acked            bool
 }
 
 // NodeQueue is one node's slice of the live queue: its running + queued jobs and

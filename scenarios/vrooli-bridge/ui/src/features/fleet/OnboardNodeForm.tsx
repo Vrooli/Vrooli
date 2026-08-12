@@ -705,6 +705,7 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
                       placeholder={t(strings.fleet.onboard.controlPlaneUrlPlaceholder)}
                       help={t(strings.fleet.onboard.controlPlaneUrlHelp)}
                     />
+                    {controlPlaneUrl.trim() && <p className="text-xs text-app-muted-foreground">{t(strings.fleet.onboard.endpointEvidence, { endpoint: controlPlaneUrl.trim(), mode: reachabilityMode })}</p>}
                     <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
                       <span className="font-medium text-app-foreground">{t(strings.fleet.onboard.reachabilityModeLabel)}</span>
                       <select
@@ -712,9 +713,9 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
                         onChange={(event) => setReachabilityMode(event.target.value)}
                         className="h-9 rounded-control border border-app-border bg-app-background px-2 text-sm text-app-foreground"
                       >
-                        <option value="lan">LAN — trusted local network</option>
-                        <option value="tunnel">Tunnel — off-LAN or segmented network</option>
-                        <option value="manual">Manual — managed DNS or VPN</option>
+                        <option value="lan">{t(strings.fleet.onboard.reachabilityLan)}</option>
+                        <option value="tunnel">{t(strings.fleet.onboard.reachabilityTunnel)}</option>
+                        <option value="manual">{t(strings.fleet.onboard.reachabilityManual)}</option>
                       </select>
                       <span>{t(strings.fleet.onboard.reachabilityModeHelp)}</span>
                     </label>

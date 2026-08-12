@@ -275,6 +275,30 @@
       ]
     },
     {
+      "id": "attached_pair",
+      "path": "/vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService/PairAttachedDevice",
+      "method": "POST",
+      "summary": "Pair an attached device through a trusted host",
+      "description": "",
+      "category": "attached-devices"
+    },
+    {
+      "id": "attached_list",
+      "path": "/vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService/ListAttachedDevices",
+      "method": "POST",
+      "summary": "List attached devices without hiding offline hosts",
+      "description": "",
+      "category": "attached-devices"
+    },
+    {
+      "id": "attached_revoke",
+      "path": "/vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService/RevokeAttachedDevice",
+      "method": "POST",
+      "summary": "Revoke an attached device",
+      "description": "",
+      "category": "attached-devices"
+    },
+    {
       "id": "audit_list_records",
       "path": "/vrooli.vrooli_bridge.v1.audit.AuditService/ListAuditRecords",
       "method": "POST",
@@ -392,6 +416,125 @@
           }
         }
       }
+    },
+    {
+      "id": "channel_session",
+      "path": "/api/v1/channel/session",
+      "method": "GET",
+      "summary": "Open an authenticated interactive session",
+      "description": "Opens a binary WebSocket session with explicit owner re-authentication, the vrooli-bridge:session node scope, bounded flow-control window, idle timeout and hard lifetime. SSE job delivery remains available separately.",
+      "category": "channel",
+      "response": {
+        "type": "application/octet-stream",
+        "properties": {
+          "frame": "vrooli.vrooli_bridge.v1.session.Frame"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token and re-authentication required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Node lacks vrooli-bridge:session scope"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Bidirectional binary WebSocket; each message carries the proto-encoded v1/session Frame contract.",
+        "proto_payloads": {
+          "request": {
+            "transport": "binary",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "transport": "binary",
+            "conformance": "transport_only"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "channel_session_kill",
+      "path": "/api/v1/channel/session/{id}",
+      "method": "DELETE",
+      "summary": "Terminate an interactive session",
+      "description": "Owner-gated kill switch. Closes the live transport and records the terminal reason.",
+      "category": "channel",
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner authentication required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session not found"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-gated operational control that closes the live binary WebSocket session.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "presence_report_delivery_ack",
+      "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportDeliveryAck",
+      "method": "POST",
+      "summary": "Report a delivered server frame",
+      "description": "Node-facing: confirms a signed server frame reached the node before the represented operation began.",
+      "category": "channel",
+      "request": {
+        "type": "object",
+        "properties": {
+          "ack": "DeliveryAck (frame_id, run_id or op_id, received_at)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing frame id"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid node proof"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Frame was not sent to this node"
+        }
+      ]
     },
     {
       "id": "dispatch_dispatch_job",
@@ -924,6 +1067,84 @@
           "status": 401,
           "code": "unauthenticated",
           "description": "Owner token required"
+        }
+      ]
+    },
+    {
+      "id": "machines_repair",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/RepairMachine",
+      "method": "POST",
+      "summary": "Repair a Machine in place",
+      "description": "Reuses the durable Machine identity and starts a normal Bridge-managed enrollment attempt; it never creates a replacement Machine. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "enrollment_attempt_id": "string",
+          "machine": "Machine",
+          "onboarding_op_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown machine"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Repair unavailable or ambiguous identity"
+        }
+      ]
+    },
+    {
+      "id": "machines_merge",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/MergeMachines",
+      "method": "POST",
+      "summary": "Merge duplicate machines",
+      "description": "Folds locators and Node lineage into the selected target, archives the source, and writes an audit event. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "from_machine_id": "string (required)",
+          "into_machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "archived_machine_id": "string",
+          "machine": "Machine"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid source or target"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown machine"
         }
       ]
     },
@@ -2270,6 +2491,38 @@
           "status": 412,
           "code": "failed_precondition",
           "description": "Node must be revoked first"
+        }
+      ]
+    },
+    {
+      "id": "registry_get_node_readiness",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/GetNodeReadiness",
+      "method": "POST",
+      "summary": "Diagnose node readiness",
+      "description": "Returns independent registry, heartbeat, channel, protocol, and dispatchability facts. Owner-gated.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "node": "Node"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No node with that id"
         }
       ]
     },

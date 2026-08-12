@@ -1,6 +1,14 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "environment": {
+    "BRIDGE_DELIVERY_LEASE_SECONDS": "10",
+    "BRIDGE_WATCHDOG_INTERVAL_SECONDS": "2",
+    "BRIDGE_MAX_DELIVERY_ATTEMPTS": "3",
+    "BRIDGE_START_DEADLINE_SECONDS": "30",
+    "BRIDGE_PRESENCE_STALE_SECONDS": "45",
+    "BRIDGE_DEADLINE_GRACE_SECONDS": "5"
+  },
   "storage": {
     "entries": {
       "data": {

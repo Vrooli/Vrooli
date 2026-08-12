@@ -82,6 +82,16 @@ func actionToProto(a audit.Action) auditv1.AuditAction {
 		return auditv1.AuditAction_AUDIT_ACTION_PROVISION
 	case audit.ActionBreakGlass:
 		return auditv1.AuditAction_AUDIT_ACTION_BREAK_GLASS
+	case audit.ActionSessionOpen:
+		return auditv1.AuditAction_AUDIT_ACTION_SESSION_OPEN
+	case audit.ActionSessionClose:
+		return auditv1.AuditAction_AUDIT_ACTION_SESSION_CLOSE
+	case audit.ActionSessionResize:
+		return auditv1.AuditAction_AUDIT_ACTION_SESSION_RESIZE
+	case audit.ActionSessionDataIn:
+		return auditv1.AuditAction_AUDIT_ACTION_SESSION_DATA_IN
+	case audit.ActionSessionDataOut:
+		return auditv1.AuditAction_AUDIT_ACTION_SESSION_DATA_OUT
 	default:
 		return auditv1.AuditAction_AUDIT_ACTION_UNSPECIFIED
 	}

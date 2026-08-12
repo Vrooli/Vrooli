@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"proto-health/internal/clock"
 	"proto-health/internal/modules"
@@ -20,6 +21,7 @@ import (
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	_ "modernc.org/sqlite"
 
 	healthH "proto-health/handlers/health"
@@ -118,12 +120,19 @@ func main() {
 	if err != nil {
 		log.Fatalf("repo root discovery failed: %v", err)
 	}
+	descriptorSource, err := descriptorimage.NewForRepo(repoRoot)
+	if err != nil {
+		log.Fatalf("proto descriptor source: %v", err)
+	}
+	if _, err := descriptorSource.LoadWithRetry(5, 100*time.Millisecond); err != nil {
+		log.Fatalf("proto descriptor initial load: %v", err)
+	}
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
-		healthH.Module(db, "proto-health-api", "1.0.0"),
-		impactH.Module(log.Default(), repoRoot),
-		validationH.Module(log.Default(), repoRoot),
+		healthH.Module(db, "proto-health-api", "1.0.0", descriptorSource),
+		impactH.Module(log.Default(), repoRoot, descriptorSource),
+		validationH.Module(log.Default(), repoRoot, descriptorSource),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

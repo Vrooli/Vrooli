@@ -2,12 +2,14 @@ package queue
 
 import (
 	"context"
+	"time"
 
 	"vrooli-bridge/internal/channelsign"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/queue"
 	"vrooli-bridge/internal/runs"
 
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
@@ -38,6 +40,7 @@ var _ queue.Pusher = channelPusher{}
 
 func (p channelPusher) Push(_ context.Context, job queue.Job) (int, error) {
 	frame := &channelv1.ServerFrame{
+		FrameId: uuid.NewString(),
 		Payload: &channelv1.ServerFrame_Job{
 			Job: &channelv1.JobPush{
 				RunId:          job.RunID,
@@ -53,8 +56,10 @@ func (p channelPusher) Push(_ context.Context, job queue.Job) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return p.hub.Push(job.NodeID, payload), nil
+	return p.hub.PushFrame(job.NodeID, frame.GetFrameId(), payload), nil
 }
+
+func (p channelPusher) IsAvailable(nodeID string) bool { return p.hub.IsOnline(nodeID) }
 
 func outputsToProto(outputs []queue.Output) []*channelv1.ArtifactOutput {
 	if len(outputs) == 0 {
@@ -87,6 +92,7 @@ var _ runs.Canceller = channelCanceller{}
 
 func (c channelCanceller) CancelJob(_ context.Context, nodeID, runID, reason string) error {
 	frame := &channelv1.ServerFrame{
+		FrameId: uuid.NewString(),
 		Payload: &channelv1.ServerFrame_Abort{
 			Abort: &channelv1.AbortJob{RunId: runID, Reason: reason},
 		},
@@ -95,7 +101,7 @@ func (c channelCanceller) CancelJob(_ context.Context, nodeID, runID, reason str
 	if err != nil {
 		return err
 	}
-	c.hub.Push(nodeID, payload)
+	c.hub.PushFrame(nodeID, frame.GetFrameId(), payload)
 	return nil
 }
 
@@ -115,6 +121,53 @@ var _ queue.Aborter = runsAborter{}
 func (a runsAborter) Abort(ctx context.Context, runID, reason string) error {
 	_, err := a.svc.Abort(ctx, runID, reason)
 	return err
+}
+
+type durableRunStore struct{ svc runs.Service }
+
+// NewDurableStore projects the runs domain into the queue's persistence seam.
+// The scheduler remains proto-free and can be tested with an in-memory store,
+// while production reconstructs its queue from the same SQLite-backed runs.
+func NewDurableStore(svc runs.Service) queue.DurableStore { return durableRunStore{svc: svc} }
+
+func (s durableRunStore) Load(ctx context.Context) ([]queue.DurableEntry, error) {
+	all, err := s.svc.List(ctx, runs.ListFilter{})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]queue.DurableEntry, 0, len(all))
+	for _, run := range all {
+		if run.Status.Terminal() {
+			continue
+		}
+		state := queue.StateRunning
+		if run.Status == runs.StatusQueued {
+			state = queue.StateQueued
+		}
+		out = append(out, queue.DurableEntry{
+			Job:   queue.Job{RunID: run.ID, NodeID: run.NodeID, Scenario: run.Scenario, Verb: run.Verb, Args: append([]string(nil), run.Args...), TimeoutSeconds: run.TimeoutSeconds},
+			State: state, EnqueuedAt: run.QueuedSince, StartedAt: run.StartedAt,
+			PushedAt: run.PushedAt, AckedAt: run.AckedAt, LeaseExpiresAt: run.DeliveryLeaseExpiresAt,
+			DeliveryAttempts: run.DeliveryAttempts, Acked: run.Status == runs.StatusAcked,
+		})
+	}
+	return out, nil
+}
+
+func (s durableRunStore) MarkQueued(ctx context.Context, runID string, at time.Time, detail ...string) error {
+	reason := ""
+	if len(detail) > 0 {
+		reason = detail[0]
+	}
+	return s.svc.MarkDeliveryState(ctx, runID, runs.StatusQueued, reason, at)
+}
+
+func (s durableRunStore) MarkPushed(ctx context.Context, runID string, at, leaseExpiresAt time.Time) error {
+	return s.svc.MarkDeliveryState(ctx, runID, runs.StatusPushed, "", at, leaseExpiresAt)
+}
+
+func (s durableRunStore) MarkFailedDelivery(ctx context.Context, runID, reason string, at time.Time) error {
+	return s.svc.MarkDeliveryState(ctx, runID, runs.StatusFailedDelivery, reason, at)
 }
 
 // ---- snapshot -> proto translations (api-steer §7) ----

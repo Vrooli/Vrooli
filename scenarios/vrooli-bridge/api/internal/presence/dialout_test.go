@@ -2,6 +2,7 @@ package presence_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -85,7 +86,7 @@ func TestDialOut_RecordsProtocolCompatibility(t *testing.T) {
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		srv.URL+"/api/v1/channel/events?node=n1&pv=1", nil)
+		srv.URL+"/api/v1/channel/events?node=n1&pv="+fmt.Sprint(compat.ProtocolVersion), nil)
 	require.NoError(t, err)
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)

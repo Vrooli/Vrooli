@@ -4,6 +4,7 @@ import { ShieldOff, X } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { strings } from "../../consts/strings";
+import { selectors } from "../../consts/selectors";
 import { useTranslation } from "../../i18n";
 import { NodeStatus, type Node } from "../../api/nodes";
 import { useRemoveNodeMutation, useRevokeNodeMutation, useUpdateNodeMutation } from "./queries";
@@ -43,7 +44,7 @@ export function NodeManagementPanel({ node, onClose }: { node: Node; onClose: ()
       <Button type="button" size="sm" variant="outline" onClick={onClose} aria-label={t(strings.fleet.management.close)}><X className="h-4 w-4" /></Button>
     </div>
     <div className="mt-5 grid gap-3 sm:grid-cols-2">
-      <label className="text-xs text-app-muted-foreground">{t(strings.fleet.onboard.nameLabel)}<Input className="mt-1" value={name} onChange={(event) => setName(event.target.value)} /></label>
+      <label className="text-xs text-app-muted-foreground">{t(strings.fleet.onboard.nameLabel)}<Input data-testid={selectors.fleet.managementNameInput} className="mt-1" value={name} onChange={(event) => setName(event.target.value)} /></label>
       <label className="text-xs text-app-muted-foreground">{t(strings.fleet.management.endpoint)}<Input className="mt-1" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} /></label>
       <label className="text-xs text-app-muted-foreground">{t(strings.fleet.onboard.capabilitiesLabel)}<Input className="mt-1" value={capabilities} onChange={(event) => setCapabilities(event.target.value)} /></label>
       <label className="text-xs text-app-muted-foreground">{t(strings.fleet.management.scopes)}<Input className="mt-1" value={scopes} onChange={(event) => setScopes(event.target.value)} /></label>

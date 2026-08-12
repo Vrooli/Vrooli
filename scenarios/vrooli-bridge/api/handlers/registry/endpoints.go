@@ -121,4 +121,9 @@ var Endpoints = []module.EndpointDescriptor{
 		Request: &module.Schema{Type: "object", Properties: map[string]string{"id": "string"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"removed_node_id": "string"}},
 		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Missing id"}, {Status: 401, Code: "unauthenticated", Description: "Owner token required"}, {Status: 404, Code: "not_found", Description: "No node with that id"}, {Status: 412, Code: "failed_precondition", Description: "Node must be revoked first"}},
 	},
+	{
+		ID: "registry_get_node_readiness", Path: registryconnect.NodeRegistryServiceGetNodeReadinessProcedure, Method: "POST", Summary: "Diagnose node readiness", Description: "Returns independent registry, heartbeat, channel, protocol, and dispatchability facts. Owner-gated.", Category: "registry",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{"id": "string"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"node": "Node"}},
+		Errors: []module.ErrorDesc{{Status: 401, Code: "unauthenticated", Description: "Owner token required"}, {Status: 404, Code: "not_found", Description: "No node with that id"}},
+	},
 }

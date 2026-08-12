@@ -1,4 +1,6 @@
-import { strings } from "../consts/strings";
+import { strings, type Strings } from "../consts/strings";
+
+type NavLabelKey = Strings["layout"]["nav"][keyof Strings["layout"]["nav"]];
 
 /**
  * Canonical nav-item list shared by `Sidebar` and `BottomNav` so the two
@@ -11,17 +13,25 @@ export interface NavItem {
   key:
     | "dashboard"
     | "runs"
-    | "settings";
+    | "settings"
+    | "sessions"
+    | "rollouts"
+    | "trust"
+    | "setup";
   /** Router path. */
   path: string;
   /** True when this is the index route (used for `<NavLink end>`). */
   end?: boolean;
   /** Translation key path. */
-  labelKey: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
+  labelKey: NavLabelKey;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
   { key: "runs", path: "/runs", labelKey: strings.layout.nav.runs },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
+  { key: "sessions", path: "/sessions", labelKey: strings.layout.nav.sessions },
+  { key: "rollouts", path: "/rollouts", labelKey: strings.layout.nav.rollouts },
+  { key: "trust", path: "/trust", labelKey: strings.layout.nav.trust },
+  { key: "setup", path: "/setup", labelKey: strings.layout.nav.setup },
 ];

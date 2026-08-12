@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -120,8 +119,8 @@ var (
 
 func (c *MCERecentCheck) Run(ctx context.Context) checks.Result {
 	r := checks.Result{CheckID: c.ID(), Details: map[string]interface{}{}}
-	if runtime.GOOS != "linux" {
-		r.Status = checks.StatusOK
+	if checkOS != "linux" {
+		r.Status = checks.StatusNotApplicable
 		r.Message = "MCE reporting is Linux-only"
 		return r
 	}

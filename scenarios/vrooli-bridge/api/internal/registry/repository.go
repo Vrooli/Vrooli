@@ -41,3 +41,13 @@ type Repository interface {
 	// node should not error the presence path.
 	TouchLastSeen(ctx context.Context, id string, t time.Time) error
 }
+
+const (
+	KindAgent    = "agent"
+	KindSSH      = "ssh"
+	KindAttached = "attached"
+)
+
+func ValidKind(kind string) bool {
+	return kind == KindAgent || kind == KindSSH || kind == KindAttached
+}

@@ -24,11 +24,11 @@ type handler struct {
 }
 
 func Module(db *sql.DB, logger *log.Logger) module.Module {
-	service, err := internal.NewServiceWithDB(db)
+	repo, err := internal.NewSQLiteRepository(db)
 	if err != nil {
 		panic(err)
 	}
-	h := &handler{service: service, logger: logger}
+	h := &handler{service: internal.NewServiceWithRepository(repo), logger: logger}
 	path, svc := attachedconnect.NewAttachedDeviceServiceHandler(h)
 	return module.Module{Name: "attached-devices", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: svc}) }, Endpoints: Endpoints}
 }

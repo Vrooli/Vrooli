@@ -18,7 +18,17 @@ type fakePusher struct {
 	mu        sync.Mutex
 	pushed    []queue.Job
 	failNodes map[string]bool
+	available map[string]bool
 	err       error
+}
+
+func (f *fakePusher) IsAvailable(nodeID string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.available == nil {
+		return true
+	}
+	return f.available[nodeID]
 }
 
 func (f *fakePusher) Push(_ context.Context, job queue.Job) (int, error) {
@@ -48,6 +58,30 @@ func (f *fakePusher) pushedRunIDs() []string {
 type fakeAborter struct {
 	mu      sync.Mutex
 	aborted []string
+}
+
+type fakeDurableStore struct {
+	entries                []queue.DurableEntry
+	queued, pushed, failed []string
+}
+
+func (f *fakeDurableStore) Load(context.Context) ([]queue.DurableEntry, error) {
+	return append([]queue.DurableEntry(nil), f.entries...), nil
+}
+
+func (f *fakeDurableStore) MarkQueued(_ context.Context, runID string, _ time.Time, _ ...string) error {
+	f.queued = append(f.queued, runID)
+	return nil
+}
+
+func (f *fakeDurableStore) MarkPushed(_ context.Context, runID string, _, _ time.Time) error {
+	f.pushed = append(f.pushed, runID)
+	return nil
+}
+
+func (f *fakeDurableStore) MarkFailedDelivery(_ context.Context, runID, _ string, _ time.Time) error {
+	f.failed = append(f.failed, runID)
+	return nil
 }
 
 func (f *fakeAborter) Abort(_ context.Context, runID, _ string) error {
@@ -159,6 +193,52 @@ func TestSubmit_ImmediatePushFailureReportsZeroAndFreesSlot(t *testing.T) {
 	require.Equal(t, 0, delivered, "non-delivery surfaces as 0 so the caller aborts the run")
 	require.Empty(t, s.Snapshot("n1"), "the optimistically-taken slot is freed")
 }
+
+func TestSubmit_OfflineQueuesAndReconnectPromotes(t *testing.T) {
+	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	pusher := &fakePusher{failNodes: map[string]bool{}, available: map[string]bool{"n1": false}}
+	s := queue.NewScheduler(pusher, &fakeAborter{}, clk, 1)
+
+	out, delivered, err := s.Submit(context.Background(), job("offline-1", "n1"))
+	require.NoError(t, err)
+	require.Equal(t, queue.OutcomeQueued, out)
+	require.Equal(t, 1, delivered)
+	require.Empty(t, pusher.pushedRunIDs())
+
+	pusher.mu.Lock()
+	pusher.available["n1"] = true
+	pusher.mu.Unlock()
+	s.Promote(context.Background(), "n1")
+	require.Equal(t, []string{"offline-1"}, pusher.pushedRunIDs())
+}
+
+func TestNewSchedulerWithStoreRestoresQueueProjection(t *testing.T) {
+	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	store := &fakeDurableStore{entries: []queue.DurableEntry{
+		{Job: job("r1", "n1"), State: queue.StateRunning, StartedAt: clk.Now()},
+		{Job: job("r2", "n1"), State: queue.StateQueued, EnqueuedAt: clk.Now()},
+	}}
+	s, err := queue.NewSchedulerWithStore(&fakePusher{failNodes: map[string]bool{}}, &fakeAborter{}, clk, 1, store)
+	require.NoError(t, err)
+	snap := s.Snapshot("n1")
+	require.Len(t, snap, 1)
+	require.Equal(t, 1, snap[0].Running)
+	require.Equal(t, 1, snap[0].Queued)
+}
+
+func TestReconcile_TerminalizesUnownedRunAndReportsOutcome(t *testing.T) {
+	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	store := &fakeDurableStore{entries: []queue.DurableEntry{{Job: job("r1", "n1"), State: queue.StateQueued}}}
+	presence := fakeReconcilePresence{dispatchable: false}
+	outcomes, err := queue.Reconcile(context.Background(), store, presence, &fakePusher{failNodes: map[string]bool{}}, clk)
+	require.NoError(t, err)
+	require.Equal(t, []string{"r1"}, store.failed)
+	require.Equal(t, []queue.Reconciliation{{RunID: "r1", NodeID: "n1", Reason: "node_channel_lost", Terminal: true}}, outcomes)
+}
+
+type fakeReconcilePresence struct{ dispatchable bool }
+
+func (f fakeReconcilePresence) Dispatchable(string) bool { return f.dispatchable }
 
 func submit(s *queue.Scheduler, ctx context.Context, runID, nodeID string) error {
 	_, _, err := s.Submit(ctx, job(runID, nodeID))

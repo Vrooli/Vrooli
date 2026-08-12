@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/broker"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/config"
@@ -83,6 +84,14 @@ func main() {
 		policyBroadcaster: policyBroadcaster,
 		webhookDeliverer:  webhookDeliverer,
 	}
+	descriptorSource, err := descriptorimage.NewForRepo(captureValidationRepoRoot())
+	if err != nil {
+		log.Fatalf("descriptor source: %v", err)
+	}
+	if _, err := descriptorSource.LoadWithRetry(5, 100*time.Millisecond); err != nil {
+		log.Fatalf("descriptor initial load: %v", err)
+	}
+	srv.descriptorSource = descriptorSource
 	// A generation is ordered across ordinary restarts as well as in-process
 	// mutations. The value is opaque to clients; only monotonic replacement
 	// matters. Wall-clock nanoseconds provide a durable ordering floor without
@@ -132,5 +141,6 @@ type Server struct {
 	subStore          subscription.Store
 	policyBroadcaster *policy.PolicyBroadcaster
 	webhookDeliverer  *subscription.WebhookDeliverer
+	descriptorSource  *descriptorimage.Source
 	policyVersion     atomic.Int64
 }

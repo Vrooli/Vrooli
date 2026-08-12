@@ -10,12 +10,15 @@ import (
 	"testing"
 	"time"
 
+	auditmocks "vrooli-bridge/internal/audit/mocks"
 	"vrooli-bridge/internal/nodeauth"
 	"vrooli-bridge/internal/presence"
+	"vrooli-bridge/internal/runs"
 	"vrooli-bridge/internal/testutil/mocks"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
@@ -24,6 +27,13 @@ import (
 type fakeLastSeen struct {
 	ids []string
 	err error
+}
+
+type fakeDeliveryAckRecorder struct{ acks []runs.DeliveryAck }
+
+func (f *fakeDeliveryAckRecorder) RecordDeliveryAck(_ context.Context, ack runs.DeliveryAck) error {
+	f.acks = append(f.acks, ack)
+	return nil
 }
 
 func (f *fakeLastSeen) TouchLastSeen(_ context.Context, id string, _ time.Time) error {
@@ -134,4 +144,40 @@ func TestReportHeartbeat_LastSeenErrorSwallowed(t *testing.T) {
 	require.NoError(t, err)
 	_, ok := hub.Health("n1")
 	require.True(t, ok, "health stored despite last-seen failure")
+}
+
+func TestReportDeliveryAckAcceptsFrameSentToSameNode(t *testing.T) {
+	hub := newHub()
+	conn := hub.Connect("n1")
+	defer conn.Close()
+	delivered := hub.PushFrame("n1", "frame-1", []byte("payload"))
+	require.Equal(t, 1, delivered)
+
+	recorder := &fakeDeliveryAckRecorder{}
+	h := NewHeartbeatHandler(HeartbeatDeps{Hub: hub, DeliveryAckRecorder: recorder})
+	req := connect.NewRequest(&presencev1.ReportDeliveryAckRequest{Ack: &sharedv1.DeliveryAck{
+		FrameId: "frame-1", RunId: "run-1", ReceivedAt: timestamppb.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)),
+	}})
+	req.Header().Set(nodeauth.HeaderNode, "n1")
+	resp, err := h.ReportDeliveryAck(context.Background(), req)
+	require.NoError(t, err)
+	require.True(t, resp.Msg.Accepted)
+	require.Equal(t, "n1", hub.DeliveryAcks()[0].NodeID)
+	require.Equal(t, "frame-1", recorder.acks[0].FrameID)
+}
+
+func TestReportDeliveryAckRejectsCrossNodeForge(t *testing.T) {
+	hub := newHub()
+	conn := hub.Connect("n1")
+	defer conn.Close()
+	require.Equal(t, 1, hub.PushFrame("n1", "frame-1", []byte("payload")))
+
+	auditSink := &auditmocks.FakeSink{}
+	h := NewHeartbeatHandler(HeartbeatDeps{Hub: hub, Audit: auditSink})
+	req := connect.NewRequest(&presencev1.ReportDeliveryAckRequest{Ack: &sharedv1.DeliveryAck{FrameId: "frame-1"}})
+	req.Header().Set(nodeauth.HeaderNode, "n2")
+	_, err := h.ReportDeliveryAck(context.Background(), req)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Empty(t, hub.DeliveryAcks())
+	require.Len(t, auditSink.Appended(), 1)
 }

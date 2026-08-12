@@ -144,7 +144,14 @@ type NodeVersion struct {
 // is revoked. The handler adapter projects a registry node down to this.
 type TargetNode struct {
 	ID      string
+	Kind    string
 	Revoked bool
+}
+
+type ErrUnsupportedNodeKind struct{ ID, Kind string }
+
+func (e ErrUnsupportedNodeKind) Error() string {
+	return fmt.Sprintf("node %q of kind %q cannot receive privileged provisioning", e.ID, e.Kind)
 }
 
 // SyncInput is what Service.Sync accepts: the owner actor (for audit), the

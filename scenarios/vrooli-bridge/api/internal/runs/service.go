@@ -56,6 +56,13 @@ type Service interface {
 	// channel that receives subsequent AppendEvent events and an unsubscribe
 	// func the caller MUST invoke. Use with Get to replay history then tail.
 	Subscribe(id string) (<-chan RunEvent, func())
+
+	// RecordDeliveryAck durably records an idempotent transport receipt.
+	RecordDeliveryAck(ctx context.Context, ack DeliveryAck) error
+
+	// MarkDeliveryState updates the server-owned delivery projection used by the
+	// queue scheduler and boot reconciliation.
+	MarkDeliveryState(ctx context.Context, runID string, status RunStatus, detail string, at time.Time, leaseExpiresAt ...time.Time) error
 }
 
 type service struct {
@@ -151,6 +158,61 @@ func (s *service) Get(ctx context.Context, id string) (Run, []RunEvent, error) {
 
 func (s *service) List(ctx context.Context, filter ListFilter) ([]Run, error) {
 	return s.repo.List(ctx, filter)
+}
+
+func (s *service) RecordDeliveryAck(ctx context.Context, ack DeliveryAck) error {
+	if err := s.repo.RecordDeliveryAck(ctx, ack); err != nil {
+		return err
+	}
+	if ack.RunID == "" {
+		return nil
+	}
+	run, err := s.repo.Get(ctx, ack.RunID)
+	if err != nil {
+		return err
+	}
+	if run.Status.Terminal() {
+		return nil
+	}
+	run.Status = StatusAcked
+	run.AckedAt = ack.ReceivedAt
+	if run.AckedAt.IsZero() {
+		run.AckedAt = s.clock.Now().UTC()
+	}
+	run.LastDeliveryError = ""
+	run.DeliveryLeaseExpiresAt = time.Time{}
+	_, err = s.repo.Update(ctx, run)
+	return err
+}
+
+func (s *service) MarkDeliveryState(ctx context.Context, runID string, status RunStatus, detail string, at time.Time, leaseExpiresAt ...time.Time) error {
+	run, err := s.repo.Get(ctx, runID)
+	if err != nil {
+		return err
+	}
+	if at.IsZero() {
+		at = s.clock.Now().UTC()
+	}
+	run.Status = status
+	switch status {
+	case StatusQueued:
+		run.QueuedSince = at
+		run.DeliveryLeaseExpiresAt = time.Time{}
+	case StatusPushed:
+		run.PushedAt = at
+		run.DeliveryAttempts++
+		if len(leaseExpiresAt) > 0 {
+			run.DeliveryLeaseExpiresAt = leaseExpiresAt[0]
+		}
+	case StatusAcked:
+		run.AckedAt = at
+		run.DeliveryLeaseExpiresAt = time.Time{}
+	case StatusFailedDelivery:
+		run.FinishedAt = at
+	}
+	run.LastDeliveryError = detail
+	_, err = s.repo.Update(ctx, run)
+	return err
 }
 
 func (s *service) AppendEvent(ctx context.Context, ev RunEvent) (bool, error) {

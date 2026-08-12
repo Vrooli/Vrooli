@@ -9,9 +9,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 	internalaudit "vrooli-bridge/internal/audit"
 	"vrooli-bridge/internal/auth"
+	"vrooli-bridge/internal/channelsign"
 	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/cpkeys"
 	"vrooli-bridge/internal/cprev"
@@ -21,6 +26,7 @@ import (
 	"vrooli-bridge/internal/nodeauth"
 	internalonboard "vrooli-bridge/internal/onboard"
 	onboardssh "vrooli-bridge/internal/onboard/ssh"
+	internalonboarding "vrooli-bridge/internal/onboarding"
 	internalpairing "vrooli-bridge/internal/pairing"
 	"vrooli-bridge/internal/presence"
 	internalprovision "vrooli-bridge/internal/provision"
@@ -29,6 +35,7 @@ import (
 	internalregistry "vrooli-bridge/internal/registry"
 	internalruns "vrooli-bridge/internal/runs"
 	"vrooli-bridge/internal/server"
+	internalsession "vrooli-bridge/internal/session"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -302,6 +309,9 @@ func main() {
 	if err := internalmachines.Migrate(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("machine schema migration failed: %v", err)
 	}
+	if err := internalruns.Migrate(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("runs schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
@@ -351,7 +361,8 @@ func main() {
 	// channel and their self-reported health. It is shared with the registry
 	// read path (which overlays live online/offline onto stored nodes) and the
 	// channel handler (which opens a Conn per dial-out connection).
-	presenceHub := presence.NewHub(clk)
+	watchdogConfig := internalqueue.WatchdogConfigFromEnv()
+	presenceHub := presence.NewHub(clk, presence.WithHeartbeatStaleAfter(watchdogConfig.PresenceStaleAfter))
 
 	// The channel handler persists last-seen onto the registry's nodes table via
 	// the repository's TouchLastSeen seam. It shares the same db/table the
@@ -387,6 +398,40 @@ func main() {
 	// is authenticated.
 	nodeVerifier := nodeauth.NewVerifier(pairingRepo)
 
+	// Audit (OT-P0-008): the append-only accountability substrate. Construct it
+	// before queue restoration so boot reconciliation can account for every run
+	// it terminates.
+	var auditStore internalaudit.Store = internalaudit.NewSQLiteStore(db, clk)
+	if endpoint := strings.TrimSpace(os.Getenv("VROOLI_WORKSPACE_SANDBOX_AUDIT_URL")); endpoint != "" {
+		auditStore = &internalaudit.HTTPStore{Endpoint: endpoint}
+		log.Printf("audit: workspace-sandbox sink enabled at %s", endpoint)
+	}
+	sessionManager := internalsession.NewManager(clk, auditStore)
+	presenceHub.SetOfflineHook(func(nodeID string) {
+		// A dial-out channel can disappear briefly while the agent reconnects.
+		// Keep the PTY and its bounded scrollback alive during that repair window;
+		// only a node that remains offline past the grace period gets a typed,
+		// auditable terminal outcome.
+		go func() {
+			time.Sleep(90 * time.Second)
+			if !presenceHub.IsOnline(nodeID) {
+				sessionManager.CloseByNode(context.Background(), nodeID, "node_channel_lost")
+			}
+		}()
+	})
+	pushSession := func(ctx context.Context, nodeID, sessionID string, frame *sessionv1.Frame) error {
+		payload, marshalErr := channelsign.Marshal(cpKeypair, &channelv1.ServerFrame{
+			Payload: &channelv1.ServerFrame_Session{Session: &sharedv1.SessionFrame{SessionId: sessionID, Frame: frame}},
+		})
+		if marshalErr != nil {
+			return marshalErr
+		}
+		if delivered := presenceHub.Push(nodeID, payload); delivered == 0 {
+			return fmt.Errorf("node %q has no live channel", nodeID)
+		}
+		return nil
+	}
+
 	// Runs (OT-P0-005): a single durable-run service instance is shared by the
 	// runs handler (operator verbs + node-facing ReportRunEvent ingest) and the
 	// dispatch handler (Create), so the in-memory block-once waiter and
@@ -408,13 +453,54 @@ func main() {
 			}
 		}),
 	)
-	scheduler = internalqueue.NewScheduler(queueH.NewChannelPusher(presenceHub, cpKeypair), queueH.NewAborter(runsSvc), clk, 0)
-
-	// Audit (OT-P0-008): the append-only accountability substrate. The same
-	// store is the dispatch handler's write Sink and the audit handler's read
-	// Reader. (A workspace-sandbox-backed Sink is the documented alternative
-	// behind the same seam; see docs/internal/SECURITY.md + PROBLEMS.md.)
-	auditStore := internalaudit.NewSQLiteStore(db, clk)
+	durableQueue := queueH.NewDurableStore(runsSvc)
+	if reconciled, reconcileErr := internalqueue.Reconcile(
+		context.Background(), durableQueue, presenceHub,
+		queueH.NewChannelPusher(presenceHub, cpKeypair), clk,
+	); reconcileErr != nil {
+		log.Fatalf("queue reconciliation failed: %v", reconcileErr)
+	} else {
+		for _, outcome := range reconciled {
+			auditOutcome := internalaudit.OutcomeAccepted
+			if outcome.Terminal {
+				auditOutcome = internalaudit.OutcomeFailed
+			}
+			if _, auditErr := auditStore.Append(context.Background(), internalaudit.Record{
+				Action: internalaudit.ActionDispatch, Actor: "system:reconcile", NodeID: outcome.NodeID,
+				Outcome: auditOutcome, Detail: "delivery reconciliation: " + outcome.Reason,
+				RunID: outcome.RunID,
+			}); auditErr != nil {
+				log.Printf("queue reconciliation audit for %q failed: %v", outcome.RunID, auditErr)
+			}
+		}
+	}
+	scheduler, err = internalqueue.NewSchedulerWithStore(
+		queueH.NewChannelPusher(presenceHub, cpKeypair), queueH.NewAborter(runsSvc), clk, 0,
+		durableQueue,
+	)
+	if err != nil {
+		log.Fatalf("queue projection restore failed: %v", err)
+	}
+	presenceHub.SetOnlineHook(func(nodeID string) {
+		if scheduler != nil {
+			scheduler.Promote(context.Background(), nodeID)
+		}
+	})
+	watchdog := internalqueue.NewWatchdog(durableQueue, scheduler, queueH.NewAborter(runsSvc), clk,
+		watchdogConfig, func(outcome internalqueue.Reconciliation) {
+			auditOutcome := internalaudit.OutcomeAccepted
+			if outcome.Terminal {
+				auditOutcome = internalaudit.OutcomeFailed
+			}
+			if _, auditErr := auditStore.Append(context.Background(), internalaudit.Record{
+				Action: internalaudit.ActionDispatch, Actor: "system:watchdog", NodeID: outcome.NodeID,
+				Outcome: auditOutcome, Detail: "delivery watchdog: " + outcome.Reason,
+				RunID: outcome.RunID,
+			}); auditErr != nil {
+				log.Printf("queue watchdog audit for %q failed: %v", outcome.RunID, auditErr)
+			}
+		})
+	watchdog.Start(context.Background())
 
 	// revResolver (phase 6): resolves the revision an onboarding/provisioning op
 	// pins to. By default that is the control plane's EXACT current commit
@@ -478,6 +564,10 @@ func main() {
 			return internalonboard.FirewallAdmissionResult{Status: result.Status, Code: result.Code, Changed: result.Changed, Managed: result.Evidence.Managed}, err
 		})),
 	}
+	if handoffEndpoint := strings.TrimSpace(os.Getenv("VROOLI_ONBOARDING_HANDOFF_URL")); handoffEndpoint != "" {
+		onboardOpts = append(onboardOpts, internalonboard.WithOnboardingHandoff(internalonboarding.HTTPHandoffClient{Endpoint: handoffEndpoint}))
+		log.Printf("onboard: external selection handoff enabled at %s", handoffEndpoint)
+	}
 	if cpURL, source := canonicalControlPlaneEndpoint(); source == "configured" {
 		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(cpURL))
 	} else {
@@ -515,12 +605,14 @@ func main() {
 		identityH.Module(authResolver, logger),
 		// machines: operator-intent identity and lifecycle. It references Node
 		// lineage rather than copying Registry or live Presence state.
-		machinesH.Module(db, clk, sshSvc, registrySvc, pairingSvc, presenceHub, logger),
+		machinesH.Module(db, clk, sshSvc, registrySvc, pairingSvc, presenceHub, onboardSvc, logger),
 		// registry RevokeNode performs atomic revocation: durable revoke +
 		// credential destruction (pairingSvc) + live-channel drop (presenceHub).
 		registryH.Module(db, clk, presenceHub, pairingSvc, presenceHub, logger),
 		attachedH.Module(db.Primary(), logger),
-		channelH.Module(presenceHub, nodeLastSeen, nodeVerifier, logger),
+		channelH.Module(presenceHub, nodeLastSeen, nodeVerifier, logger,
+			channelH.WithDeliveryAckRecorder(runsSvc), channelH.WithAuditSink(auditStore),
+			channelH.WithSessionManager(sessionManager, authClient, registrySvc), channelH.WithSessionPush(pushSession)),
 		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), postureDefaults.NodeExecutionScopes, logger),
 		// dispatch (OT-P0-004): the allowlist gate. It reads node scopes
 		// (registrySvc), checks presence + protocol compatibility, creates durable
@@ -593,7 +685,14 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		// The dial-out SSE channel and interactive WebSocket sessions are
+		// intentionally long-lived. api-core's normal 30-second write
+		// timeout is correct for request/response APIs but would silently
+		// evict a healthy node channel before the reconnect contract can be
+		// exercised. Keep the server bound while the handlers' own idle and
+		// lifetime limits remain authoritative.
+		WriteTimeout: 24 * time.Hour,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

@@ -46,6 +46,29 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 			return fmt.Errorf("add onboarding_ops.%s: %w", column, err)
 		}
 	}
+	// Older onboarding rows recorded FAILED but left the cause implicit in the
+	// exit code or diagnostic tail. Give every historical failure a stable,
+	// named taxonomy value without rewriting rows that already have one.
+	if exists {
+		hasState, stateErr := columnExists(ctx, db, "onboarding_ops", "state")
+		hasExitCode, exitErr := columnExists(ctx, db, "onboarding_ops", "exit_code")
+		if stateErr != nil || exitErr != nil {
+			return fmt.Errorf("inspect legacy failure columns: state=%v exit_code=%v", stateErr, exitErr)
+		}
+		if !hasState || !hasExitCode {
+			return nil
+		}
+		if _, err := db.ExecContext(ctx, `UPDATE onboarding_ops SET failure_reason = CASE
+			WHEN exit_code=2 THEN 'bootstrap_usage_error'
+			WHEN exit_code=3 THEN 'unsupported_platform'
+			WHEN exit_code=4 THEN 'pairing_failed'
+			WHEN lower(failure_detail) LIKE '%ssh%' THEN 'ssh_setup_failed'
+			WHEN lower(failure_detail) LIKE '%control plane%' OR lower(failure_detail) LIKE '%endpoint%' THEN 'control_plane_unreachable'
+			ELSE 'internal_error'
+		END WHERE state=7 AND trim(failure_reason)=''`); err != nil {
+			return fmt.Errorf("classify legacy onboarding failures: %w", err)
+		}
+	}
 	return nil
 }
 

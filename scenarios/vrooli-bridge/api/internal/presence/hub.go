@@ -1,8 +1,10 @@
 package presence
 
 import (
+	"errors"
 	"sort"
 	"sync"
+	"time"
 
 	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/compat"
@@ -19,22 +21,73 @@ import (
 // set still tolerates a brief reconnect overlap — a node that reconnects before
 // its old connection's Close lands never flickers offline.
 type Hub struct {
-	clock clock.Clock
+	clock      clock.Clock
+	staleAfter time.Duration
+	onlineHook func(string)
 
-	mu     sync.Mutex
-	conns  map[string]map[*Conn]struct{} // nodeID -> live connections
-	health map[string]HealthSnapshot     // nodeID -> latest self-reported health
-	compat map[string]compat.Status      // nodeID -> protocol-compatibility verdict
+	mu          sync.Mutex
+	conns       map[string]map[*Conn]struct{}  // nodeID -> live connections
+	health      map[string]HealthSnapshot      // nodeID -> latest self-reported health
+	compat      map[string]compat.Status       // nodeID -> protocol-compatibility verdict
+	pending     map[string]map[string]struct{} // nodeID -> frame ids awaiting acknowledgement
+	acks        []DeliveryAck
+	offlineHook func(string)
 }
 
-// NewHub constructs an empty Hub.
-func NewHub(clk clock.Clock) *Hub {
-	return &Hub{
-		clock:  clk,
-		conns:  make(map[string]map[*Conn]struct{}),
-		health: make(map[string]HealthSnapshot),
-		compat: make(map[string]compat.Status),
+const DefaultHeartbeatStaleAfter = 45 * time.Second
+
+type Option func(*Hub)
+
+func WithHeartbeatStaleAfter(after time.Duration) Option {
+	return func(h *Hub) {
+		if after > 0 {
+			h.staleAfter = after
+		}
 	}
+}
+
+// DeliveryAck is the proto-free delivery receipt recorded by the presence
+// layer. Phase 3 persists this fact with the run; keeping the seam here makes
+// the protocol acknowledgement testable without coupling presence to SQLite.
+type DeliveryAck struct {
+	NodeID     string
+	FrameID    string
+	RunID      string
+	OpID       string
+	ReceivedAt time.Time
+}
+
+var ErrUnknownDeliveryFrame = errors.New("delivery acknowledgement does not match a frame sent to this node")
+
+// NewHub constructs an empty Hub.
+func NewHub(clk clock.Clock, opts ...Option) *Hub {
+	h := &Hub{
+		clock: clk, staleAfter: DefaultHeartbeatStaleAfter,
+		conns:   make(map[string]map[*Conn]struct{}),
+		health:  make(map[string]HealthSnapshot),
+		compat:  make(map[string]compat.Status),
+		pending: make(map[string]map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
+}
+
+func (h *Hub) SetOnlineHook(hook func(string)) {
+	h.mu.Lock()
+	h.onlineHook = hook
+	h.mu.Unlock()
+}
+
+// SetOfflineHook registers a callback invoked after the last live channel for
+// a node closes. Consumers use this edge to terminate work that cannot make
+// progress without the node, such as an interactive PTY session. The callback
+// runs outside the hub lock.
+func (h *Hub) SetOfflineHook(hook func(string)) {
+	h.mu.Lock()
+	h.offlineHook = hook
+	h.mu.Unlock()
 }
 
 // pushBuffer bounds a connection's outbound frame queue. The control plane
@@ -74,6 +127,8 @@ func (c *Conn) Out() <-chan []byte { return c.out }
 func (h *Hub) Connect(nodeID string) *Conn {
 	c := &Conn{hub: h, nodeID: nodeID, done: make(chan struct{}), out: make(chan []byte, pushBuffer)}
 	h.mu.Lock()
+	wasOffline := len(h.conns[nodeID]) == 0
+	onlineHook := h.onlineHook
 	set := h.conns[nodeID]
 	if set == nil {
 		set = make(map[*Conn]struct{})
@@ -81,6 +136,9 @@ func (h *Hub) Connect(nodeID string) *Conn {
 	}
 	set[c] = struct{}{}
 	h.mu.Unlock()
+	if wasOffline && onlineHook != nil {
+		onlineHook(nodeID)
+	}
 	return c
 }
 
@@ -91,13 +149,20 @@ func (c *Conn) Close() {
 		close(c.done)
 		h := c.hub
 		h.mu.Lock()
-		defer h.mu.Unlock()
+		offlineHook := func(string) {}
+		becameOffline := false
 		if set := h.conns[c.nodeID]; set != nil {
 			delete(set, c)
 			if len(set) == 0 {
 				delete(h.conns, c.nodeID)
 				// Health is retained until the node reconnects and re-reports.
+				becameOffline = true
+				offlineHook = h.offlineHook
 			}
+		}
+		h.mu.Unlock()
+		if becameOffline && offlineHook != nil {
+			offlineHook(c.nodeID)
 		}
 	})
 }
@@ -117,10 +182,14 @@ func (h *Hub) Disconnect(nodeID string) int {
 	delete(h.conns, nodeID)
 	delete(h.health, nodeID)
 	delete(h.compat, nodeID)
+	offlineHook := h.offlineHook
 	h.mu.Unlock()
 
 	for _, c := range conns {
 		c.once.Do(func() { close(c.done) })
+	}
+	if len(conns) > 0 && offlineHook != nil {
+		offlineHook(nodeID)
 	}
 	return len(conns)
 }
@@ -150,7 +219,7 @@ func (h *Hub) Compatibility(nodeID string) compat.Status {
 func (h *Hub) Dispatchable(nodeID string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if len(h.conns[nodeID]) == 0 {
+	if !h.onlineLocked(nodeID) {
 		return false
 	}
 	return h.compat[nodeID].Dispatchable()
@@ -161,7 +230,42 @@ func (h *Hub) Dispatchable(nodeID string) bool {
 func (h *Hub) IsOnline(nodeID string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return len(h.conns[nodeID]) > 0
+	return h.onlineLocked(nodeID)
+}
+
+// Readiness returns five independent live facts. ChannelHeld intentionally
+// ignores heartbeat freshness so operators can distinguish a half-open
+// transport from a genuinely absent channel.
+func (h *Hub) Readiness(nodeID string) ReadinessFacts {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	now := h.clock.Now().UTC()
+	channelHeld := len(h.conns[nodeID]) > 0
+	heartbeatFresh := false
+	var age time.Duration
+	if snap, ok := h.health[nodeID]; ok && !snap.ReportedAt.IsZero() {
+		age = now.Sub(snap.ReportedAt)
+		heartbeatFresh = age >= 0 && age <= h.staleAfter
+	}
+	protocolCompatible := h.compat[nodeID].Dispatchable()
+	if h.compat[nodeID] == compat.StatusUnspecified {
+		protocolCompatible = true
+	}
+	return ReadinessFacts{
+		HeartbeatFresh: heartbeatFresh, HeartbeatAge: age, ChannelHeld: channelHeld,
+		ProtocolCompatible: protocolCompatible, Dispatchable: h.onlineLocked(nodeID) && protocolCompatible,
+	}
+}
+
+func (h *Hub) onlineLocked(nodeID string) bool {
+	if len(h.conns[nodeID]) == 0 {
+		return false
+	}
+	snap, ok := h.health[nodeID]
+	if !ok || snap.ReportedAt.IsZero() || h.staleAfter <= 0 {
+		return true
+	}
+	return h.clock.Now().UTC().Sub(snap.ReportedAt) <= h.staleAfter
 }
 
 // Push enqueues an already-serialised ServerFrame payload to every live channel
@@ -172,6 +276,14 @@ func (h *Hub) IsOnline(nodeID string) bool {
 // as non-delivery. This is the control-plane → node push half of the channel
 // (JobPush in Phase 3, ProvisionCommand in Phase 4).
 func (h *Hub) Push(nodeID string, payload []byte) int {
+	return h.PushFrame(nodeID, "", payload)
+}
+
+// PushFrame enqueues a frame and records its delivery identity for the exact
+// node connections that accepted it. A frame id is required for any push that
+// expects a DeliveryAck; the legacy Push seam remains for raw keepalive/test
+// payloads that have no acknowledgement contract.
+func (h *Hub) PushFrame(nodeID, frameID string, payload []byte) int {
 	h.mu.Lock()
 	set := h.conns[nodeID]
 	conns := make([]*Conn, 0, len(set))
@@ -185,11 +297,59 @@ func (h *Hub) Push(nodeID string, payload []byte) int {
 		select {
 		case c.out <- payload:
 			delivered++
+			if frameID != "" {
+				h.mu.Lock()
+				frames := h.pending[nodeID]
+				if frames == nil {
+					frames = make(map[string]struct{})
+					h.pending[nodeID] = frames
+				}
+				frames[frameID] = struct{}{}
+				h.mu.Unlock()
+			}
 		default:
 			// Buffer full: the node is not draining; skip it.
 		}
 	}
 	return delivered
+}
+
+// RecordDeliveryAck accepts a receipt only for a frame previously enqueued to
+// the same node. Duplicate receipts are harmless and remain idempotent; a
+// receipt from another node cannot forge delivery for the intended recipient.
+func (h *Hub) RecordDeliveryAck(ack DeliveryAck) error {
+	if ack.NodeID == "" || ack.FrameID == "" {
+		return ErrUnknownDeliveryFrame
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	frames := h.pending[ack.NodeID]
+	if _, ok := frames[ack.FrameID]; !ok {
+		for _, prior := range h.acks {
+			if prior.NodeID == ack.NodeID && prior.FrameID == ack.FrameID {
+				return nil
+			}
+		}
+		return ErrUnknownDeliveryFrame
+	}
+	delete(frames, ack.FrameID)
+	if len(frames) == 0 {
+		delete(h.pending, ack.NodeID)
+	}
+	if ack.ReceivedAt.IsZero() {
+		ack.ReceivedAt = h.clock.Now().UTC()
+	}
+	h.acks = append(h.acks, ack)
+	return nil
+}
+
+// DeliveryAcks returns a stable copy of receipts recorded by the hub.
+func (h *Hub) DeliveryAcks() []DeliveryAck {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	out := make([]DeliveryAck, len(h.acks))
+	copy(out, h.acks)
+	return out
 }
 
 // Heartbeat records the node's latest self-reported health. A heartbeat from a
@@ -220,6 +380,9 @@ func (h *Hub) OnlineNodes() []string {
 	defer h.mu.Unlock()
 	out := make([]string, 0, len(h.conns))
 	for id := range h.conns {
+		if !h.onlineLocked(id) {
+			continue
+		}
 		out = append(out, id)
 	}
 	sort.Strings(out)
@@ -234,6 +397,9 @@ func (h *Hub) Presence() []NodePresence {
 	defer h.mu.Unlock()
 	out := make([]NodePresence, 0, len(h.conns))
 	for id := range h.conns {
+		if !h.onlineLocked(id) {
+			continue
+		}
 		np := NodePresence{NodeID: id, Online: true, Compatibility: h.compat[id]}
 		if snap, ok := h.health[id]; ok {
 			np.Health = snap

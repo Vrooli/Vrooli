@@ -89,6 +89,18 @@ func TestDispatch_ProtocolIncompatibleNode_Excluded(t *testing.T) {
 	require.False(t, recorded[0].Accepted, "the exclusion is audited as rejected")
 }
 
+func TestDispatch_NonAgentNodeRejected(t *testing.T) {
+	svc, nodes, _, runsCtl, sink, pusher := newSvc(t)
+	nodes.Nodes["n1"] = dispatch.TargetNode{ID: "n1", Kind: "ssh", Scopes: []string{"scenario test*"}}
+	_, err := svc.Dispatch(context.Background(), dispatch.DispatchInput{Actor: "owner", Job: job()})
+	var kind dispatch.ErrUnsupportedNodeKind
+	require.ErrorAs(t, err, &kind)
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(dispatch.ToConnectError(err)))
+	require.Empty(t, runsCtl.Created)
+	require.Empty(t, pusher.PushedJobs())
+	require.False(t, sink.Recorded()[0].Accepted)
+}
+
 // [REQ:BRG-P0-004] An out-of-scope verb is rejected (PermissionDenied) and
 // audited as rejected BEFORE any run is created or anything is pushed.
 func TestDispatch_OutOfScope_RejectedAndAudited(t *testing.T) {
@@ -133,17 +145,18 @@ func TestDispatch_UnknownNode(t *testing.T) {
 	require.Empty(t, sink.Recorded())
 }
 
-// [REQ:BRG-P0-004] An offline node is a precondition failure; audited, no run.
-func TestDispatch_OfflineNode_Rejected(t *testing.T) {
+// [REQ:BRG-P2-001] An offline node is accepted into the durable delivery
+// path; the queue adapter holds it until the node reconnects.
+func TestDispatch_OfflineNode_AcceptedForDelivery(t *testing.T) {
 	svc, _, presence, runsCtl, sink, _ := newSvc(t)
 	presence.Online["n1"] = false
 
-	_, err := svc.Dispatch(context.Background(), dispatch.DispatchInput{Actor: "o", Job: job()})
-	var offline dispatch.ErrNodeOffline
-	require.True(t, errors.As(err, &offline))
-	require.Empty(t, runsCtl.Created)
+	dec, err := svc.Dispatch(context.Background(), dispatch.DispatchInput{Actor: "o", Job: job()})
+	require.NoError(t, err)
+	require.Equal(t, "run-1", dec.RunID)
+	require.Len(t, runsCtl.Created, 1)
 	require.Len(t, sink.Recorded(), 1)
-	require.Contains(t, sink.Recorded()[0].Detail, "offline")
+	require.True(t, sink.Recorded()[0].Accepted)
 }
 
 // [REQ:BRG-P0-004] A dry-run validates the job and target but creates no run,

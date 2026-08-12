@@ -77,6 +77,10 @@
               "description": "Architecture (e.g. amd64, arm64)"
             },
             {
+              "name": "kind",
+              "description": "Node kind: agent (default), ssh, or attached"
+            },
+            {
               "name": "endpoint",
               "description": "Reachable endpoint hint (informational; nodes dial out)"
             },
@@ -132,6 +136,29 @@
             "kind": "connect-rpc",
             "service": "NodeRegistryService",
             "method": "GetNode"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Diagnose the first failing node readiness rung",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Node id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NodeRegistryService",
+            "method": "GetNodeReadiness"
           },
           "governance": {
             "effect": "read",
@@ -306,6 +333,59 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "repair",
+          "description": "Repair a Machine in place using its durable identity and Bridge-managed SSH key",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Machine id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MachineService",
+            "method": "RepairMachine"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "merge",
+          "description": "Merge a duplicate Machine into an explicitly selected target",
+          "positionals": [
+            {
+              "name": "from",
+              "required": true,
+              "description": "Source Machine id to archive"
+            },
+            {
+              "name": "into",
+              "required": true,
+              "description": "Target active Machine id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MachineService",
+            "method": "MergeMachines"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
             "permissions": [
               "network:internal"
             ]
@@ -1517,6 +1597,34 @@
       ]
     },
     {
+      "name": "session",
+      "description": "Inspect and terminate interactive Bridge sessions",
+      "commands": [
+        {
+          "name": "kill",
+          "description": "Terminate an interactive session by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Interactive session id"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "audit",
       "description": "Read the append-only accountability trail of every dispatch/provision op",
       "commands": [
@@ -1896,8 +2004,18 @@
   "omitted": [
     {
       "service": "PresenceService",
+      "method": "ReportSessionFrame",
+      "reason": "Node-facing authenticated session output/close report called by the node-agent, not an operator. The agent reports interactive session frames on the channel."
+    },
+    {
+      "service": "PresenceService",
       "method": "ReportHeartbeat",
       "reason": "Node-facing dial-out RPC called by the node-agent, not an operator. There is no `nodes heartbeat` command; the agent reports liveness/health on the channel."
+    },
+    {
+      "service": "PresenceService",
+      "method": "ReportDeliveryAck",
+      "reason": "Node-facing dial-out RPC called by the node-agent after receiving a signed server frame, not an operator. There is no operator delivery-ack command; the agent reports receipt on the channel."
     },
     {
       "service": "RunsService",

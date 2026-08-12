@@ -50,9 +50,9 @@ func TestDial_UnpairedReturnsNotConfigured(t *testing.T) {
 
 // TestProtocolVersionMatchesProto guards the one invariant that would silently
 // mis-drive a node: the agent's implemented ProtocolVersion must equal the
-// CHANNEL_PROTOCOL_VERSION the proto documents (1).
+// CHANNEL_PROTOCOL_VERSION the proto documents (2).
 func TestProtocolVersionMatchesProto(t *testing.T) {
-	require.Equal(t, uint32(1), ProtocolVersion)
+	require.Equal(t, uint32(2), ProtocolVersion)
 }
 
 // fakeControlPlane stands up the node-facing edge of the control plane: the SSE
@@ -67,6 +67,7 @@ type fakeControlPlane struct {
 	hbAuthTS     string
 	sseToken     string // ?token= of the most recent dial-out
 	sseOpened    atomic.Int64
+	deliveryAcks []*sharedv1.DeliveryAck
 	closeStreams chan struct{}
 	// pushFrames carries already-serialised SSE payloads (a signed
 	// SignedServerFrame envelope) the control plane pushes down a held stream, so
@@ -88,6 +89,23 @@ func (f *fakeControlPlane) ReportHeartbeat(_ context.Context, req *connect.Reque
 	return connect.NewResponse(&presencev1.ReportHeartbeatResponse{
 		Compatibility: sharedv1.CompatibilityStatus_COMPATIBILITY_STATUS_OK,
 	}), nil
+}
+
+func (f *fakeControlPlane) ReportDeliveryAck(_ context.Context, req *connect.Request[presencev1.ReportDeliveryAckRequest]) (*connect.Response[presencev1.ReportDeliveryAckResponse], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.deliveryAcks = append(f.deliveryAcks, req.Msg.GetAck())
+	return connect.NewResponse(&presencev1.ReportDeliveryAckResponse{Accepted: req.Msg.GetAck().GetFrameId() != ""}), nil
+}
+
+func (f *fakeControlPlane) ReportSessionFrame(_ context.Context, _ *connect.Request[presencev1.ReportSessionFrameRequest]) (*connect.Response[presencev1.ReportSessionFrameResponse], error) {
+	return connect.NewResponse(&presencev1.ReportSessionFrameResponse{Accepted: true}), nil
+}
+
+func (f *fakeControlPlane) deliveryAckCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.deliveryAcks)
 }
 
 func (f *fakeControlPlane) heartbeatCount() int {
@@ -309,11 +327,13 @@ func TestDial_VerifiesSignedFramesOverTheWire(t *testing.T) {
 	}, 2*time.Second, 5*time.Millisecond, "rejected frame count is surfaced on the heartbeat")
 
 	// Legitimate: a frame signed by the PINNED key is verified and acted on.
-	abort := &channelv1.ServerFrame{Payload: &channelv1.ServerFrame_Abort{
+	abort := &channelv1.ServerFrame{FrameId: "frame-abort", Payload: &channelv1.ServerFrame_Abort{
 		Abort: &channelv1.AbortJob{RunId: "run-int", Reason: "operator abort"},
 	}}
 	fcp.pushFrames <- signFrame(t, priv, abort)
 
+	require.Eventually(t, func() bool { return fcp.deliveryAckCount() == 1 }, 2*time.Second, 5*time.Millisecond,
+		"the agent acknowledges the verified frame before dispatching it")
 	require.Eventually(t, func() bool { return cancelled(runCtx) }, 2*time.Second, 5*time.Millisecond,
 		"a validly signed AbortJob reaches the dispatch handler over the real transport")
 	require.Equal(t, uint64(1), client.rejectedFrames.Load(), "the valid frame is not counted as rejected")

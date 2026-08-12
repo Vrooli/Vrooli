@@ -25,6 +25,7 @@ func ToConnectError(err error) error {
 		noVersion ErrNoNodeVersion
 		revoked   ErrNodeRevoked
 		offline   ErrNodeOffline
+		kind      ErrUnsupportedNodeKind
 		delivery  ErrDeliveryFailed
 	)
 	switch {
@@ -40,6 +41,8 @@ func ToConnectError(err error) error {
 		return connect.NewError(connect.CodeFailedPrecondition, revoked)
 	case errors.As(err, &offline):
 		return connect.NewError(connect.CodeFailedPrecondition, offline)
+	case errors.As(err, &kind):
+		return connect.NewError(connect.CodeFailedPrecondition, kind)
 	case errors.As(err, &delivery):
 		return connect.NewError(connect.CodeUnavailable, delivery)
 	default:

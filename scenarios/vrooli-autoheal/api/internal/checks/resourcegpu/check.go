@@ -75,6 +75,12 @@ func (c *Check) Platforms() []platform.Type { return []platform.Type{platform.Li
 
 func (c *Check) Run(ctx context.Context) checks.Result {
 	result := checks.Result{CheckID: c.ID(), Details: map[string]interface{}{}, Timestamp: c.clock()}
+	if checkOS != "linux" {
+		result.Status = checks.StatusNotApplicable
+		result.Message = "container GPU access check is not implemented on this platform"
+		result.Details["platform"] = checkOS
+		return result
+	}
 	snap, err := c.host(ctx)
 	if err != nil {
 		result.Status = checks.StatusWarning

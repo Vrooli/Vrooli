@@ -36,6 +36,46 @@
       "sqlite",
       "ollama"
     ],
+    "capabilities": [
+      "system-monitor-cpu",
+      "system-monitor-memory",
+      "system-monitor-disk",
+      "system-monitor-network",
+      "system-monitor-process",
+      "system-monitor-gpu"
+    ],
+    "platform_capabilities": {
+      "system-monitor-cpu": {
+        "linux": {"status": "supported", "mechanism": "procfs"},
+        "macos": {"status": "unsupported", "mechanism": "host_statistics"},
+        "windows": {"status": "unsupported", "mechanism": "windows_performance_counters"}
+      },
+      "system-monitor-memory": {
+        "linux": {"status": "supported", "mechanism": "procfs"},
+        "macos": {"status": "unsupported", "mechanism": "host_statistics64"},
+        "windows": {"status": "unsupported", "mechanism": "global_memory_status_ex"}
+      },
+      "system-monitor-disk": {
+        "linux": {"status": "supported", "mechanism": "statfs_procfs"},
+        "macos": {"status": "unsupported", "mechanism": "getmntinfo"},
+        "windows": {"status": "unsupported", "mechanism": "get_disk_free_space_ex"}
+      },
+      "system-monitor-network": {
+        "linux": {"status": "supported", "mechanism": "procfs_sysfs"},
+        "macos": {"status": "unsupported", "mechanism": "if_data"},
+        "windows": {"status": "unsupported", "mechanism": "get_if_table_2"}
+      },
+      "system-monitor-process": {
+        "linux": {"status": "supported", "mechanism": "procfs"},
+        "macos": {"status": "unsupported", "mechanism": "sysctl_proc_list"},
+        "windows": {"status": "unsupported", "mechanism": "windows_toolhelp"}
+      },
+      "system-monitor-gpu": {
+        "linux": {"status": "supported", "mechanism": "hostinventory"},
+        "macos": {"status": "unsupported", "mechanism": "ioreg"},
+        "windows": {"status": "unsupported", "mechanism": "dxdiag"}
+      }
+    },
     "maintainers": [
       {
         "name": "Vrooli Team",

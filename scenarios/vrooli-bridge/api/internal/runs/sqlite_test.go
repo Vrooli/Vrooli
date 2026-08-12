@@ -110,3 +110,37 @@ func TestSQLiteRepository_AppendEventsDedup(t *testing.T) {
 	require.Equal(t, uint64(1), events[0].Sequence)
 	require.Equal(t, runs.EventExit, events[1].Kind)
 }
+
+func TestSQLiteRepository_DeliveryAckIsDurableAndIdempotent(t *testing.T) {
+	d, clk := newSchemaDB(t)
+	repo := runs.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	ack := runs.DeliveryAck{NodeID: "swarminator", FrameID: "frame-1", RunID: "run-1", ReceivedAt: clk.Now()}
+
+	require.NoError(t, repo.RecordDeliveryAck(ctx, ack))
+	require.NoError(t, repo.RecordDeliveryAck(ctx, ack))
+	var count int
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM delivery_acks WHERE frame_id = ?", ack.FrameID).Scan(&count))
+	require.Equal(t, 1, count)
+}
+
+func TestMigrate_AddsDeliveryColumnsWithoutReplacingRuns(t *testing.T) {
+	d := db.NewSQLite(t)
+	_, err := d.ExecContext(context.Background(), `CREATE TABLE runs (
+		id TEXT PRIMARY KEY, node_id TEXT NOT NULL, scenario TEXT NOT NULL DEFAULT '',
+		verb TEXT NOT NULL DEFAULT '', args TEXT NOT NULL DEFAULT '[]', status INTEGER NOT NULL DEFAULT 1,
+		exit_code INTEGER NOT NULL DEFAULT 0, timeout_seconds INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL, started_at TEXT NOT NULL DEFAULT '', finished_at TEXT NOT NULL DEFAULT '',
+		artifact_refs TEXT NOT NULL DEFAULT '[]')`)
+	require.NoError(t, err)
+	_, err = d.ExecContext(context.Background(), `INSERT INTO runs (id, node_id, created_at) VALUES ('legacy', 'n1', '2026-06-18T12:00:00Z')`)
+	require.NoError(t, err)
+	require.NoError(t, runs.Migrate(context.Background(), d))
+	require.NoError(t, runs.Migrate(context.Background(), d), "migration is idempotent")
+	var node string
+	require.NoError(t, d.QueryRowContext(context.Background(), "SELECT node_id FROM runs WHERE id = 'legacy'").Scan(&node))
+	require.Equal(t, "n1", node)
+	var found int
+	require.NoError(t, d.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM pragma_table_info('runs') WHERE name = 'delivery_lease_expires_at'").Scan(&found))
+	require.Equal(t, 1, found)
+}

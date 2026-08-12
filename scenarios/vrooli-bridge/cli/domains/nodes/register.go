@@ -22,12 +22,13 @@ const GroupName = "nodes"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"NodeRegistryService.RegisterNode": h.register,
-		"NodeRegistryService.ListNodes":    h.list,
-		"NodeRegistryService.GetNode":      h.get,
-		"NodeRegistryService.UpdateNode":   h.update,
-		"NodeRegistryService.RevokeNode":   h.revoke,
-		"NodeRegistryService.RemoveNode":   h.remove,
+		"NodeRegistryService.RegisterNode":     h.register,
+		"NodeRegistryService.ListNodes":        h.list,
+		"NodeRegistryService.GetNode":          h.get,
+		"NodeRegistryService.GetNodeReadiness": h.doctor,
+		"NodeRegistryService.UpdateNode":       h.update,
+		"NodeRegistryService.RevokeNode":       h.revoke,
+		"NodeRegistryService.RemoveNode":       h.remove,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

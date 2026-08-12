@@ -14,7 +14,7 @@ linters:
 
 linters-settings:
   gofumpt:
-    module-path: "image-tools"
+    module-path: "system-monitor/cli"
   revive:
     rules:
       - name: blank-imports

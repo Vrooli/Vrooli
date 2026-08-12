@@ -15,7 +15,7 @@ package compat
 // ProtocolVersion is the control plane's CURRENT channel wire-protocol version.
 // It mirrors channel.proto's CHANNEL_PROTOCOL_VERSION; bump both together when
 // the wire contract changes incompatibly.
-const ProtocolVersion uint32 = 1
+const ProtocolVersion uint32 = 2
 
 // MinSupportedProtocolVersion is the OLDEST agent protocol version the control
 // plane can still drive. A node below this is INCOMPATIBLE (its channel is held

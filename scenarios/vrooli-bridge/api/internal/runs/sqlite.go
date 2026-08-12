@@ -43,12 +43,12 @@ const runTimeFormat = time.RFC3339Nano
 
 const (
 	insertRunSQL = `
-INSERT INTO runs (id, node_id, scenario, verb, args, status, exit_code, timeout_seconds, created_at, started_at, finished_at, artifact_refs)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO runs (id, node_id, scenario, verb, args, status, exit_code, timeout_seconds, created_at, started_at, finished_at, artifact_refs, queued_since, pushed_at, acked_at, delivery_attempts, last_delivery_error, delivery_lease_expires_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	selectRunColumns = `
-SELECT id, node_id, scenario, verb, args, status, exit_code, timeout_seconds, created_at, started_at, finished_at, artifact_refs
+SELECT id, node_id, scenario, verb, args, status, exit_code, timeout_seconds, created_at, started_at, finished_at, artifact_refs, queued_since, pushed_at, acked_at, delivery_attempts, last_delivery_error, delivery_lease_expires_at
 FROM runs
 `
 
@@ -56,7 +56,7 @@ FROM runs
 
 	updateRunSQL = `
 UPDATE runs
-SET status = ?, exit_code = ?, started_at = ?, finished_at = ?, artifact_refs = ?
+SET status = ?, exit_code = ?, started_at = ?, finished_at = ?, artifact_refs = ?, queued_since = ?, pushed_at = ?, acked_at = ?, delivery_attempts = ?, last_delivery_error = ?, delivery_lease_expires_at = ?
 WHERE id = ?
 `
 
@@ -71,6 +71,11 @@ FROM run_events
 WHERE run_id = ?
 ORDER BY sequence ASC
 `
+
+	insertDeliveryAckSQL = `
+INSERT OR IGNORE INTO delivery_acks (frame_id, node_id, run_id, op_id, received_at)
+VALUES (?, ?, ?, ?, ?)
+`
 )
 
 func (s *sqliteRepository) Create(ctx context.Context, r Run) (Run, error) {
@@ -83,6 +88,9 @@ func (s *sqliteRepository) Create(ctx context.Context, r Run) (Run, error) {
 	if r.Status == StatusUnspecified {
 		r.Status = StatusQueued
 	}
+	if r.QueuedSince.IsZero() {
+		r.QueuedSince = r.CreatedAt
+	}
 	args, err := marshalStrings(r.Args)
 	if err != nil {
 		return Run{}, fmt.Errorf("encode args: %w", err)
@@ -94,6 +102,8 @@ func (s *sqliteRepository) Create(ctx context.Context, r Run) (Run, error) {
 	if _, err := s.db.ExecContext(ctx, insertRunSQL,
 		r.ID, r.NodeID, r.Scenario, r.Verb, args, int(r.Status), r.ExitCode, r.TimeoutSeconds,
 		r.CreatedAt.Format(runTimeFormat), formatNullableTime(r.StartedAt), formatNullableTime(r.FinishedAt), refs,
+		formatNullableTime(r.QueuedSince), formatNullableTime(r.PushedAt), formatNullableTime(r.AckedAt), r.DeliveryAttempts,
+		r.LastDeliveryError, formatNullableTime(r.DeliveryLeaseExpiresAt),
 	); err != nil {
 		return Run{}, fmt.Errorf("insert run %q: %w", r.ID, err)
 	}
@@ -155,6 +165,12 @@ func (s *sqliteRepository) Update(ctx context.Context, r Run) (Run, error) {
 	existing.StartedAt = r.StartedAt
 	existing.FinishedAt = r.FinishedAt
 	existing.ArtifactRefs = r.ArtifactRefs
+	existing.QueuedSince = r.QueuedSince
+	existing.PushedAt = r.PushedAt
+	existing.AckedAt = r.AckedAt
+	existing.DeliveryAttempts = r.DeliveryAttempts
+	existing.LastDeliveryError = r.LastDeliveryError
+	existing.DeliveryLeaseExpiresAt = r.DeliveryLeaseExpiresAt
 
 	refs, err := marshalStrings(existing.ArtifactRefs)
 	if err != nil {
@@ -162,7 +178,9 @@ func (s *sqliteRepository) Update(ctx context.Context, r Run) (Run, error) {
 	}
 	if _, err := s.db.ExecContext(ctx, updateRunSQL,
 		int(existing.Status), existing.ExitCode,
-		formatNullableTime(existing.StartedAt), formatNullableTime(existing.FinishedAt), refs, existing.ID,
+		formatNullableTime(existing.StartedAt), formatNullableTime(existing.FinishedAt), refs,
+		formatNullableTime(existing.QueuedSince), formatNullableTime(existing.PushedAt), formatNullableTime(existing.AckedAt), existing.DeliveryAttempts,
+		existing.LastDeliveryError, formatNullableTime(existing.DeliveryLeaseExpiresAt), existing.ID,
 	); err != nil {
 		return Run{}, fmt.Errorf("update run %q: %w", r.ID, err)
 	}
@@ -208,6 +226,20 @@ func (s *sqliteRepository) ListEvents(ctx context.Context, runID string) ([]RunE
 	return events, nil
 }
 
+func (s *sqliteRepository) RecordDeliveryAck(ctx context.Context, ack DeliveryAck) error {
+	if ack.NodeID == "" || ack.FrameID == "" {
+		return fmt.Errorf("delivery acknowledgement requires node_id and frame_id")
+	}
+	if ack.ReceivedAt.IsZero() {
+		ack.ReceivedAt = s.clock.Now().UTC()
+	}
+	if _, err := s.db.ExecContext(ctx, insertDeliveryAckSQL,
+		ack.FrameID, ack.NodeID, ack.RunID, ack.OpID, ack.ReceivedAt.Format(runTimeFormat)); err != nil {
+		return fmt.Errorf("record delivery acknowledgement %q: %w", ack.FrameID, err)
+	}
+	return nil
+}
+
 // rowScanner unifies *sql.Row and *sql.Rows under their common Scan surface.
 type rowScanner interface {
 	Scan(dest ...any) error
@@ -222,9 +254,14 @@ func scanRun(sc rowScanner) (Run, error) {
 		startedRaw  string
 		finishedRaw string
 		refsRaw     string
+		queuedRaw   string
+		pushedRaw   string
+		ackedRaw    string
+		leaseRaw    string
 	)
 	if err := sc.Scan(&r.ID, &r.NodeID, &r.Scenario, &r.Verb, &argsRaw, &status, &r.ExitCode,
-		&r.TimeoutSeconds, &createdRaw, &startedRaw, &finishedRaw, &refsRaw); err != nil {
+		&r.TimeoutSeconds, &createdRaw, &startedRaw, &finishedRaw, &refsRaw, &queuedRaw, &pushedRaw, &ackedRaw,
+		&r.DeliveryAttempts, &r.LastDeliveryError, &leaseRaw); err != nil {
 		return Run{}, err
 	}
 	r.Status = RunStatus(status)
@@ -248,6 +285,18 @@ func scanRun(sc rowScanner) (Run, error) {
 	}
 	if r.FinishedAt, err = parseNullableTime(finishedRaw); err != nil {
 		return Run{}, fmt.Errorf("parse finished_at %q: %w", finishedRaw, err)
+	}
+	if r.QueuedSince, err = parseNullableTime(queuedRaw); err != nil {
+		return Run{}, fmt.Errorf("parse queued_since %q: %w", queuedRaw, err)
+	}
+	if r.PushedAt, err = parseNullableTime(pushedRaw); err != nil {
+		return Run{}, fmt.Errorf("parse pushed_at %q: %w", pushedRaw, err)
+	}
+	if r.AckedAt, err = parseNullableTime(ackedRaw); err != nil {
+		return Run{}, fmt.Errorf("parse acked_at %q: %w", ackedRaw, err)
+	}
+	if r.DeliveryLeaseExpiresAt, err = parseNullableTime(leaseRaw); err != nil {
+		return Run{}, fmt.Errorf("parse delivery_lease_expires_at %q: %w", leaseRaw, err)
 	}
 	return r, nil
 }

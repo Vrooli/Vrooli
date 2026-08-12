@@ -2,6 +2,7 @@ package manifestvalidation
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 
 	"github.com/vrooli/measures-go/manifestscan"
@@ -88,7 +89,7 @@ func (s *Service) measureCheck(raw []byte, manifestPath string) []Finding {
 				Code:       CodeMeasureSchemaUnread,
 				Location:   loc,
 				Message:    fmt.Sprintf("measure %s: could not resolve proto param schema for %s.%s: %v", cm.MeasureName(), cm.Binding.Service, cm.Binding.Method, perr),
-				Suggestion: "ensure packages/proto/gen/descriptor/image.binpb is built (make -C packages/proto generate)",
+				Suggestion: fmt.Sprintf("run cd packages/proto && GOFLAGS=-mod=mod go run ./cmd/protogen generate --scenario %s", scenarioFromManifestPath(manifestPath)),
 			})
 			continue
 		}
@@ -114,4 +115,8 @@ func (s *Service) measureCheck(raw []byte, manifestPath string) []Finding {
 		})
 	}
 	return findings
+}
+
+func scenarioFromManifestPath(path string) string {
+	return filepath.Base(filepath.Dir(filepath.Dir(path)))
 }

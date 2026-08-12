@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/policy"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
@@ -44,6 +44,13 @@ type scenarioServiceConfig struct {
 	} `json:"dependencies"`
 }
 
+func (s *Server) descriptorSnapshot() (*descriptorimage.Snapshot, error) {
+	if s.descriptorSource == nil {
+		return nil, fmt.Errorf("descriptor source is not configured")
+	}
+	return s.descriptorSource.Snapshot()
+}
+
 // handleReconcileCapturePolicies applies a scenario's explicitly declared
 // receipt policies as an atomic batch. Validation finishes before any write so
 // one invalid declaration cannot leave a partially observed policy set.
@@ -56,7 +63,13 @@ func (s *Server) handleReconcileCapturePolicies(w http.ResponseWriter, r *http.R
 		writeError(w, http.StatusBadRequest, ErrCodeValidation, "scenario is required")
 		return
 	}
-	rules, err := loadCaptureDeclarationRules(request.Scenario)
+	repoRoot := captureValidationRepoRoot()
+	snapshot, snapshotErr := s.descriptorSnapshot()
+	if snapshotErr != nil {
+		writeError(w, http.StatusServiceUnavailable, ErrCodeValidation, "protobuf descriptor image is temporarily unavailable")
+		return
+	}
+	rules, err := loadCaptureDeclarationRulesAtRootWithSnapshot(repoRoot, request.Scenario, snapshot)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, ErrCodeValidation, err.Error())
 		return
@@ -83,6 +96,18 @@ func loadCaptureDeclarationRules(scenario string) ([]policy.ReceiptProjectionRul
 }
 
 func loadCaptureDeclarationRulesAtRoot(repoRoot, scenario string) ([]policy.ReceiptProjectionRule, error) {
+	source, err := descriptorimage.NewForRepo(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	snapshot, err := source.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	return loadCaptureDeclarationRulesAtRootWithSnapshot(repoRoot, scenario, snapshot)
+}
+
+func loadCaptureDeclarationRulesAtRootWithSnapshot(repoRoot, scenario string, snapshot *descriptorimage.Snapshot) ([]policy.ReceiptProjectionRule, error) {
 	if strings.Contains(scenario, "/") || strings.Contains(scenario, "\\") || scenario == "." || scenario == ".." {
 		return nil, fmt.Errorf("scenario must be a scenario slug")
 	}
@@ -129,7 +154,7 @@ func loadCaptureDeclarationRulesAtRoot(repoRoot, scenario string) ([]policy.Rece
 				return nil, fmt.Errorf("receipt declaration %q policy %q: %s", source, entry.PolicyID, message)
 			}
 			if entry.Protocol == "connect" {
-				if err := validateDeclaredResponse(repoRoot, entry.Operation, entry.ResponseType, entry.ResponseProjectionPaths); err != nil {
+				if err := validateDeclaredResponseWithSnapshot(repoRoot, entry.Operation, entry.ResponseType, entry.ResponseProjectionPaths, snapshot); err != nil {
 					return nil, fmt.Errorf("receipt declaration %q policy %q: %w", source, entry.PolicyID, err)
 				}
 			} else if !validHTTPCaptureOperation(entry.Operation) {
@@ -152,6 +177,18 @@ func validHTTPCaptureOperation(operation string) bool {
 // Connect descriptor. Declarations are consumer-authored, but may only project
 // fields explicitly present on the operation's actual response message.
 func validateDeclaredResponse(repoRoot, operation, responseType string, paths []string) error {
+	source, err := descriptorimage.NewForRepo(repoRoot)
+	if err != nil {
+		return err
+	}
+	snapshot, err := source.Snapshot()
+	if err != nil {
+		return err
+	}
+	return validateDeclaredResponseWithSnapshot(repoRoot, operation, responseType, paths, snapshot)
+}
+
+func validateDeclaredResponseWithSnapshot(repoRoot, operation, responseType string, paths []string, snapshot *descriptorimage.Snapshot) error {
 	parts := strings.Fields(operation)
 	if len(parts) != 2 || parts[0] != http.MethodPost {
 		return fmt.Errorf("operation %q must be a POST Connect operation", operation)
@@ -160,18 +197,13 @@ func validateDeclaredResponse(repoRoot, operation, responseType string, paths []
 	if len(operationParts) != 2 || operationParts[0] == "" || operationParts[1] == "" {
 		return fmt.Errorf("operation %q must name a Connect service and method", operation)
 	}
-	descriptorBytes, err := os.ReadFile(filepath.Join(repoRoot, "packages", "proto", "gen", "descriptor", "image.binpb"))
-	if err != nil {
-		return fmt.Errorf("read protobuf descriptor image: %w", err)
-	}
-	var image descriptorpb.FileDescriptorSet
-	if err := proto.Unmarshal(descriptorBytes, &image); err != nil {
-		return fmt.Errorf("decode protobuf descriptor image: %w", err)
+	if snapshot == nil || snapshot.Descriptor == nil {
+		return fmt.Errorf("protobuf descriptor snapshot is unavailable")
 	}
 
 	var outputType string
 	messages := make(map[string]*descriptorpb.DescriptorProto)
-	for _, file := range image.File {
+	for _, file := range snapshot.Descriptor.File {
 		pkg := file.GetPackage()
 		for _, message := range file.MessageType {
 			indexDescriptorMessage(messages, pkg, "", message)

@@ -34,6 +34,10 @@ CREATE TABLE IF NOT EXISTS machine_node_lineage (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_machine_one_current_node
   ON machine_node_lineage(machine_id) WHERE is_current = 1;
+-- A physical Node can be current for only one durable Machine. The migration
+-- reconciles legacy duplicates before creating this index.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_machine_one_current_node_global
+  ON machine_node_lineage(node_id) WHERE is_current = 1;
 CREATE INDEX IF NOT EXISTS idx_machine_locators_normalized
   ON machine_locators(kind, normalized_value);
 

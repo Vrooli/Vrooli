@@ -1,0 +1,36 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "android-sdk",
+  "display_name": "Android SDK",
+  "description": "Governed Android platform-tools, adb, emulator, system images, and AVD lifecycle for device-control.",
+  "template": "external-cli",
+  "driver": "external-cli",
+  "binary": "adb",
+  "cli": {
+    "enabled": true,
+    "command": "resource-android-sdk",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "invoke": {"kind": "installed_command", "command": "resource-android-sdk"},
+    "distribution": {"kind": "prebuilt_artifact", "artifact_name": "resource-android-sdk_${os}_${arch}"},
+    "source_build": {"kind": "go_module"},
+    "freshness": {"inputs": ["cli/**", "README.md", "resource.json"]}
+  },
+  "version_args": ["version"],
+  "category": "development",
+  "platforms": {"linux":"supported", "macos":"supported", "windows":"supported"},
+  "requirements": {"ram_mb":4096,"disk_mb":12000,"cpu_cores":2,"network":"required","bucket":"large","source":"estimated","confidence":"medium","class":"development","weight":3},
+  "health_checks": [{"type":"command","kind":"liveness","command":["adb","version"],"timeout_seconds":15}],
+  "orchestration": {"startup_order":300,"startup_timeout_seconds":30,"startup_time_estimate":"10-60s","dependencies":[],"recovery_attempts":2,"priority":"normal"},
+  "install": {"platforms":{"linux":["android-sdk","install-direct"],"macos":["android-sdk","install-direct"],"windows":["android-sdk","install-direct"]}},
+  "capabilities":{"supports_logs":true},
+  "lifecycle": {
+    "avd_create": "avdmanager create avd --name ${AVD_NAME} --package ${SYSTEM_IMAGE} --force",
+    "avd_start": "emulator -avd ${AVD_NAME} -no-snapshot -no-audio",
+    "avd_stop": "adb emu kill",
+    "avd_delete": "avdmanager delete avd --name ${AVD_NAME}"
+  },
+  "privilege":"user",
+  "bundling":"host-required",
+  "template_version":"2"
+  ,"deployment":{"profiles":{"desktop":{"linux":{"support":"conditional","mode":"native-host-tool","architectures":["amd64","arm64"],"requires":[],"limitations":["Android SDK, platform-tools, and emulator images remain host-managed."],"evidence":["manifest-validation","host-tool-preflight"]},"macos":{"support":"conditional","mode":"native-host-tool","architectures":["amd64","arm64"],"requires":[],"limitations":["Android SDK, platform-tools, and emulator images remain host-managed."],"evidence":["manifest-validation","host-tool-preflight"]},"windows":{"support":"conditional","mode":"native-host-tool","architectures":["amd64","arm64"],"requires":[],"limitations":["Android SDK, platform-tools, and emulator images remain host-managed."],"evidence":["manifest-validation","host-tool-preflight"]}}}}
+}

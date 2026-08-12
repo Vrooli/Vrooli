@@ -11,6 +11,31 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
+func TestCollectorsDoNotFabricateNonLinuxMetrics(t *testing.T) {
+	originalOS := collectorOS
+	collectorOS = "darwin"
+	t.Cleanup(func() { collectorOS = originalOS })
+
+	collectors := []Collector{
+		NewCPUCollector(),
+		NewNetworkCollector(),
+		NewProcessCollector(),
+		NewDiskCollector(),
+	}
+	for _, collector := range collectors {
+		data, err := collector.Collect(context.Background())
+		if err != nil {
+			t.Fatalf("%s returned error: %v", collector.GetName(), err)
+		}
+		if got := data.Values["status"]; got != "unsupported" {
+			t.Errorf("%s status = %v, want unsupported", collector.GetName(), got)
+		}
+		if _, fabricated := data.Values["usage_percent"]; fabricated {
+			t.Errorf("%s returned fabricated usage values", collector.GetName())
+		}
+	}
+}
+
 // TestCPUCollector_Collect tests CPU metrics collection
 func TestCPUCollector_Collect(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {

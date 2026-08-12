@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"sync"
+	"time"
 
 	"vrooli-bridge/internal/clock"
 )
@@ -13,10 +14,12 @@ import (
 // (Submit, via dispatch's job-push seam) and the runs domain (Complete, via the
 // run-terminal hook). The QueueService reads its Snapshot.
 type Scheduler struct {
-	pusher  Pusher
-	aborter Aborter
-	clock   clock.Clock
-	limit   int
+	pusher        Pusher
+	aborter       Aborter
+	clock         clock.Clock
+	limit         int
+	store         DurableStore
+	deliveryLease time.Duration
 
 	mu        sync.Mutex
 	running   map[string]map[string]Entry // nodeID -> runID -> running entry
@@ -24,21 +27,81 @@ type Scheduler struct {
 	promoting map[string]bool             // nodeID -> a Complete drain is in progress
 }
 
+type Option func(*Scheduler)
+
+func WithDurableStore(store DurableStore) Option {
+	return func(s *Scheduler) { s.store = store }
+}
+
+func WithDeliveryLease(lease time.Duration) Option {
+	return func(s *Scheduler) {
+		if lease > 0 {
+			s.deliveryLease = lease
+		}
+	}
+}
+
 // NewScheduler constructs the scheduler with a per-node concurrency limit
 // (limit <= 0 uses DefaultConcurrencyLimit).
-func NewScheduler(pusher Pusher, aborter Aborter, clk clock.Clock, limit int) *Scheduler {
+func NewScheduler(pusher Pusher, aborter Aborter, clk clock.Clock, limit int, opts ...Option) *Scheduler {
+	s := newScheduler(pusher, aborter, clk, limit, opts...)
+	_ = s.load(context.Background())
+	return s
+}
+
+// NewSchedulerWithStore is the boot path. It returns a migration/load error so
+// the control plane cannot accept traffic with an incomplete queue projection.
+func NewSchedulerWithStore(pusher Pusher, aborter Aborter, clk clock.Clock, limit int, store DurableStore) (*Scheduler, error) {
+	s := newScheduler(pusher, aborter, clk, limit, WithDurableStore(store))
+	if err := s.load(context.Background()); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func newScheduler(pusher Pusher, aborter Aborter, clk clock.Clock, limit int, opts ...Option) *Scheduler {
 	if limit <= 0 {
 		limit = DefaultConcurrencyLimit
 	}
-	return &Scheduler{
-		pusher:    pusher,
-		aborter:   aborter,
-		clock:     clk,
-		limit:     limit,
-		running:   make(map[string]map[string]Entry),
-		queued:    make(map[string][]Entry),
-		promoting: make(map[string]bool),
+	s := &Scheduler{
+		pusher:        pusher,
+		aborter:       aborter,
+		clock:         clk,
+		limit:         limit,
+		running:       make(map[string]map[string]Entry),
+		queued:        make(map[string][]Entry),
+		promoting:     make(map[string]bool),
+		deliveryLease: 10 * time.Second,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+func (s *Scheduler) load(ctx context.Context) error {
+	if s.store == nil {
+		return nil
+	}
+	entries, err := s.store.Load(ctx)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, entry := range entries {
+		if entry.State == StateQueued {
+			s.queued[entry.Job.NodeID] = append(s.queued[entry.Job.NodeID], Entry{
+				Job: entry.Job, State: StateQueued, EnqueuedAt: entry.EnqueuedAt,
+			})
+			continue
+		}
+		s.ensureRunning(entry.Job.NodeID)[entry.Job.RunID] = Entry{
+			Job: entry.Job, State: StateRunning, Position: -1,
+			EnqueuedAt: entry.EnqueuedAt, StartedAt: entry.StartedAt,
+		}
+	}
+	return nil
 }
 
 // Submit schedules a job for its node. If the node has a free running slot the
@@ -49,6 +112,21 @@ func NewScheduler(pusher Pusher, aborter Aborter, clk clock.Clock, limit int) *S
 // push that did not land reports delivered=0 so the caller aborts the run. A
 // genuine pusher error is returned verbatim.
 func (s *Scheduler) Submit(ctx context.Context, job Job) (Outcome, int, error) {
+	if available, ok := s.pusher.(Availability); ok && !available.IsAvailable(job.NodeID) {
+		entry := s.queuedEntry(job)
+		s.mu.Lock()
+		s.queued[job.NodeID] = append(s.queued[job.NodeID], entry)
+		s.mu.Unlock()
+		if s.store != nil {
+			if err := s.store.MarkQueued(ctx, job.RunID, entry.EnqueuedAt); err != nil {
+				s.mu.Lock()
+				s.removeLocked(job.NodeID, job.RunID)
+				s.mu.Unlock()
+				return OutcomeQueued, 0, err
+			}
+		}
+		return OutcomeQueued, 1, nil
+	}
 	s.mu.Lock()
 	if len(s.running[job.NodeID]) < s.limit {
 		// A slot is free: optimistically occupy it, then push outside the lock.
@@ -65,6 +143,15 @@ func (s *Scheduler) Submit(ctx context.Context, job Job) (Outcome, int, error) {
 			s.mu.Unlock()
 			return OutcomePushed, delivered, err
 		}
+		if s.store != nil {
+			now := s.clock.Now().UTC()
+			if err := s.store.MarkPushed(ctx, job.RunID, now, now.Add(s.deliveryLease)); err != nil {
+				s.mu.Lock()
+				s.removeLocked(job.NodeID, job.RunID)
+				s.mu.Unlock()
+				return OutcomePushed, delivered, err
+			}
+		}
 		return OutcomePushed, delivered, nil
 	}
 
@@ -72,7 +159,20 @@ func (s *Scheduler) Submit(ctx context.Context, job Job) (Outcome, int, error) {
 	entry := s.queuedEntry(job)
 	s.queued[job.NodeID] = append(s.queued[job.NodeID], entry)
 	s.mu.Unlock()
+	if s.store != nil {
+		if err := s.store.MarkQueued(ctx, job.RunID, entry.EnqueuedAt); err != nil {
+			s.mu.Lock()
+			s.removeLocked(job.NodeID, job.RunID)
+			s.mu.Unlock()
+			return OutcomeQueued, 0, err
+		}
+	}
 	return OutcomeQueued, 1, nil
+}
+
+// Promote pushes queued work for a node after its channel becomes available.
+func (s *Scheduler) Promote(ctx context.Context, nodeID string) {
+	s.promote(ctx, nodeID)
 }
 
 // Complete frees the slot a (now-terminal) run held on its node and promotes the
@@ -84,9 +184,41 @@ func (s *Scheduler) Submit(ctx context.Context, job Job) (Outcome, int, error) {
 func (s *Scheduler) Complete(ctx context.Context, nodeID, runID string) {
 	s.mu.Lock()
 	s.removeLocked(nodeID, runID)
+	s.mu.Unlock()
+
+	s.promote(ctx, nodeID)
+}
+
+// Requeue returns a delivery attempt to FIFO waiting state after its lease
+// expires without aborting the durable run.
+func (s *Scheduler) Requeue(ctx context.Context, job Job) error {
+	s.mu.Lock()
+	s.removeLocked(job.NodeID, job.RunID)
+	entry := s.queuedEntry(job)
+	s.queued[job.NodeID] = append(s.queued[job.NodeID], entry)
+	s.mu.Unlock()
+	if s.store != nil {
+		if err := s.store.MarkQueued(ctx, job.RunID, entry.EnqueuedAt, "delivery_lease_expired"); err != nil {
+			return err
+		}
+	}
+	if available, ok := s.pusher.(Availability); ok && available.IsAvailable(job.NodeID) {
+		s.Promote(ctx, job.NodeID)
+	}
+	return nil
+}
+
+// Remove drops a run from the live projection without changing its durable
+// status. It is used immediately before terminal watchdog transitions.
+func (s *Scheduler) Remove(nodeID, runID string) {
+	s.mu.Lock()
+	s.removeLocked(nodeID, runID)
+	s.mu.Unlock()
+}
+
+func (s *Scheduler) promote(ctx context.Context, nodeID string) {
+	s.mu.Lock()
 	if s.promoting[nodeID] {
-		// A drain is already in progress (possibly the one that triggered this
-		// call via an abort); it will pick up the freed slot. Avoid re-entrancy.
 		s.mu.Unlock()
 		return
 	}
@@ -120,6 +252,14 @@ func (s *Scheduler) Complete(ctx context.Context, nodeID, runID string) {
 			s.removeLocked(nodeID, next.Job.RunID)
 			s.mu.Unlock()
 			toAbort = append(toAbort, next.Job.RunID)
+		} else if s.store != nil {
+			now := s.clock.Now().UTC()
+			if markErr := s.store.MarkPushed(ctx, next.Job.RunID, now, now.Add(s.deliveryLease)); markErr != nil {
+				s.mu.Lock()
+				s.removeLocked(nodeID, next.Job.RunID)
+				s.mu.Unlock()
+				toAbort = append(toAbort, next.Job.RunID)
+			}
 		}
 	}
 
@@ -127,6 +267,9 @@ func (s *Scheduler) Complete(ctx context.Context, nodeID, runID string) {
 		// The terminal hook will re-enter Complete; the promoting guard (still
 		// held) makes that a no-op, and our loop already drained the queue.
 		_ = s.aborter.Abort(ctx, rid, "node unreachable when promoting from queue")
+		if s.store != nil {
+			_ = s.store.MarkFailedDelivery(ctx, rid, "node unreachable when promoting from queue", s.clock.Now().UTC())
+		}
 	}
 
 	s.mu.Lock()

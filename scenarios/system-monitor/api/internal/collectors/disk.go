@@ -7,7 +7,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -33,6 +32,9 @@ func NewDiskCollector() *DiskCollector {
 
 // Collect gathers disk metrics
 func (c *DiskCollector) Collect(ctx context.Context) (*MetricData, error) {
+	if collectorOS != "linux" {
+		return unsupportedMetricData(c.GetName(), "disk"), nil
+	}
 	diskUsage := c.getDiskUsage()
 	ioStats := c.getIOStats()
 	fileDescriptors := c.getFileDescriptors()
@@ -85,21 +87,9 @@ func (c *DiskCollector) getIOStats() map[string]interface{} {
 		"writes_per_sec":   float64(0),
 	}
 
-	if runtime.GOOS != "linux" {
-		ioStats["read_mb_per_sec"] = 15.0
-		ioStats["write_mb_per_sec"] = 8.0
-		ioStats["io_wait_percent"] = 2.5
-		return ioStats
-	}
-
 	if wait, ok := readIOWaitPercent(); ok {
 		ioStats["io_wait_percent"] = wait
 	}
-
-	// Mock additional stats for now
-	ioStats["read_mb_per_sec"] = 15.0
-	ioStats["write_mb_per_sec"] = 8.0
-	ioStats["queue_depth"] = 0.2
 
 	return ioStats
 }
@@ -110,12 +100,6 @@ func (c *DiskCollector) getFileDescriptors() map[string]interface{} {
 		"used":    0,
 		"max":     65536,
 		"percent": float64(0),
-	}
-
-	if runtime.GOOS != "linux" {
-		fdInfo["used"] = 1024
-		fdInfo["percent"] = 1.56
-		return fdInfo
 	}
 
 	// Get current FD count from /proc/sys/fs/file-nr (much faster than lsof)
@@ -154,26 +138,13 @@ func (c *DiskCollector) getInotifyStats() map[string]interface{} {
 	}
 
 	stats := map[string]interface{}{
-		"supported":         runtime.GOOS == "linux",
+		"supported":         collectorOS == "linux",
 		"watches_used":      0,
 		"watches_max":       0,
 		"watches_percent":   float64(0),
 		"instances_used":    0,
 		"instances_max":     0,
 		"instances_percent": float64(0),
-	}
-
-	if runtime.GOOS != "linux" {
-		// Provide representative sample values for non-Linux environments
-		stats["watches_used"] = 128
-		stats["watches_max"] = 524288
-		stats["instances_used"] = 4
-		stats["instances_max"] = 1024
-		stats["watches_percent"] = (float64(stats["watches_used"].(int)) / float64(stats["watches_max"].(int))) * 100
-		stats["instances_percent"] = (float64(stats["instances_used"].(int)) / float64(stats["instances_max"].(int))) * 100
-		c.lastInotifySample = time.Now()
-		c.lastInotifyStats = cloneMap(stats)
-		return stats
 	}
 
 	watchesMax, err := readIntFromFile("/proc/sys/fs/inotify/max_user_watches")
@@ -355,7 +326,7 @@ func readIOWaitPercent() (float64, bool) {
 
 // GetDiskPartitions returns information about disk partitions
 func GetDiskPartitions() ([]map[string]interface{}, error) {
-	if runtime.GOOS != "linux" {
+	if collectorOS != "linux" {
 		return []map[string]interface{}{}, nil
 	}
 
@@ -446,7 +417,7 @@ func shellQuote(value string) string {
 // GetLargestDirectories returns the heaviest directories inside mount up to the specified depth.
 func GetLargestDirectories(mount string, depth, limit int) ([]models.DiskUsageEntry, error) {
 	entries := []models.DiskUsageEntry{}
-	if runtime.GOOS != "linux" {
+	if collectorOS != "linux" {
 		return entries, nil
 	}
 	if mount == "" {
@@ -497,7 +468,7 @@ func GetLargestDirectories(mount string, depth, limit int) ([]models.DiskUsageEn
 // GetLargestFiles returns the largest files within a mount point (size threshold 50MB).
 func GetLargestFiles(mount string, limit int) ([]models.DiskUsageEntry, error) {
 	entries := []models.DiskUsageEntry{}
-	if runtime.GOOS != "linux" {
+	if collectorOS != "linux" {
 		return entries, nil
 	}
 	if mount == "" {

@@ -57,4 +57,37 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 	},
+	{
+		ID: "channel_session", Path: "/api/v1/channel/session", Method: "GET",
+		Summary:     "Open an authenticated interactive session",
+		Description: "Opens a binary WebSocket session with explicit owner re-authentication, the vrooli-bridge:session node scope, bounded flow-control window, idle timeout and hard lifetime. SSE job delivery remains available separately.",
+		Category:    "channel", Response: &module.Schema{Type: "application/octet-stream", Properties: map[string]string{"frame": "vrooli.vrooli_bridge.v1.session.Frame"}},
+		Errors:        []module.ErrorDesc{{Status: 401, Code: "unauthenticated", Description: "Owner token and re-authentication required"}, {Status: 403, Code: "permission_denied", Description: "Node lacks vrooli-bridge:session scope"}},
+		RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "Bidirectional binary WebSocket; each message carries the proto-encoded v1/session Frame contract.", ProtoPayloads: &module.RESTProtoPayloads{Request: module.RESTPayload{Transport: "binary", Conformance: "transport_only"}, Response: module.RESTPayload{Transport: "binary", Conformance: "transport_only"}, Error: module.RESTPayload{Transport: "none", Conformance: "none"}}},
+	},
+	{
+		ID: "channel_session_kill", Path: "/api/v1/channel/session/{id}", Method: "DELETE",
+		Summary: "Terminate an interactive session", Description: "Owner-gated kill switch. Closes the live transport and records the terminal reason.", Category: "channel",
+		Errors:        []module.ErrorDesc{{Status: 401, Code: "unauthenticated", Description: "Owner authentication required"}, {Status: 404, Code: "not_found", Description: "Session not found"}},
+		RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "Owner-gated operational control that closes the live binary WebSocket session.", ProtoPayloads: &module.RESTProtoPayloads{Request: module.RESTPayload{Transport: "none", Conformance: "none"}, Response: module.RESTPayload{Transport: "none", Conformance: "none"}, Error: module.RESTPayload{Transport: "none", Conformance: "none"}}},
+	},
+	{
+		ID:          "presence_report_delivery_ack",
+		Path:        presenceconnect.PresenceServiceReportDeliveryAckProcedure,
+		Method:      "POST",
+		Summary:     "Report a delivered server frame",
+		Description: "Node-facing: confirms a signed server frame reached the node before the represented operation began.",
+		Category:    "channel",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"ack": "DeliveryAck (frame_id, run_id or op_id, received_at)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"accepted": "boolean"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing frame id"},
+			{Status: 401, Code: "unauthenticated", Description: "Missing or invalid node proof"},
+			{Status: 403, Code: "permission_denied", Description: "Frame was not sent to this node"},
+		},
+	},
+	{
+		ID: "channel_session_frame", Path: presenceconnect.PresenceServiceReportSessionFrameProcedure, Method: "POST",
+		Summary: "Receive an authenticated node session frame", Description: "Node-facing Connect-RPC for PTY output and session close events. Requires the node proof and binds the frame to its Bridge session.", Category: "channel",
+	},
 }

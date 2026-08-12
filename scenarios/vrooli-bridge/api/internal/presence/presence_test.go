@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"vrooli-bridge/internal/compat"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/testutil/mocks"
 
@@ -94,6 +95,48 @@ func TestHub_PresenceOverlaysHealthForOnlineNodes(t *testing.T) {
 	require.True(t, snap[0].Online)
 	require.True(t, snap[0].HasHealth)
 	require.True(t, snap[0].Health.Ready())
+}
+
+func TestHub_HeartbeatStalenessMakesHalfOpenChannelUndispatchable(t *testing.T) {
+	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	h := presence.NewHub(clk, presence.WithHeartbeatStaleAfter(45*time.Second))
+	conn := h.Connect("n1")
+	defer conn.Close()
+	h.Heartbeat("n1", presence.HealthSnapshot{ToolchainPresent: true})
+	require.True(t, h.IsOnline("n1"))
+	require.True(t, h.Dispatchable("n1"))
+
+	clk.Advance(46 * time.Second)
+	require.False(t, h.IsOnline("n1"), "a half-open socket cannot remain online forever")
+	require.False(t, h.Dispatchable("n1"))
+	require.Empty(t, h.Presence())
+}
+
+func TestHub_ReadinessFactsFlipIndependently(t *testing.T) {
+	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	h := presence.NewHub(clk)
+	conn := h.Connect("n1")
+	facts := h.Readiness("n1")
+	require.True(t, facts.ChannelHeld)
+	require.False(t, facts.HeartbeatFresh)
+	require.True(t, facts.ProtocolCompatible)
+	require.True(t, facts.Dispatchable, "dispatchability remains the independent channel+protocol gate until a heartbeat becomes stale")
+
+	h.Heartbeat("n1", presence.HealthSnapshot{ToolchainPresent: true})
+	h.SetCompatibility("n1", compat.StatusNeedsUpdate)
+	facts = h.Readiness("n1")
+	require.True(t, facts.HeartbeatFresh)
+	require.True(t, facts.ChannelHeld)
+	require.False(t, facts.ProtocolCompatible)
+	require.False(t, facts.Dispatchable)
+
+	h.SetCompatibility("n1", compat.StatusOK)
+	conn.Close()
+	facts = h.Readiness("n1")
+	require.True(t, facts.HeartbeatFresh, "health remains independently observable after channel close")
+	require.False(t, facts.ChannelHeld)
+	require.True(t, facts.ProtocolCompatible)
+	require.False(t, facts.Dispatchable)
 }
 
 // HealthSnapshot.Ready gates on the toolchain.

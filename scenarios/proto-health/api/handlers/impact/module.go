@@ -2,10 +2,10 @@ package impact
 
 import (
 	"log"
-	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 
 	"proto-health/internal/baselines"
 	"proto-health/internal/impact"
@@ -18,14 +18,19 @@ import (
 
 var ProtoFile = impactv1.File_proto_health_v1_impact_impact_proto
 
-func Module(logger *log.Logger, repoRoot string) module.Module {
-	loader, err := protosurface.NewDescriptorLoaderFromFile(
-		repoRoot,
-		filepath.Join(repoRoot, "packages", "proto", "gen", "descriptor", "image.binpb"),
-	)
-	if err != nil {
-		logger.Fatalf("impact descriptor loader: %v", err)
+func Module(logger *log.Logger, repoRoot string, sources ...*descriptorimage.Source) module.Module {
+	var source *descriptorimage.Source
+	if len(sources) > 0 {
+		source = sources[0]
 	}
+	if source == nil {
+		var err error
+		source, err = descriptorimage.NewForRepo(repoRoot)
+		if err != nil {
+			logger.Printf("impact: descriptor source unavailable: %v", err)
+		}
+	}
+	loader := protosurface.NewDescriptorLoaderFromSource(repoRoot, source)
 	reporter := impact.New(repoRoot, loader)
 	reporter.Baselines = baselines.NewClient(nil, nil)
 	handler := NewConnectHandler(Deps{

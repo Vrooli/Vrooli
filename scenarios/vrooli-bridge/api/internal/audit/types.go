@@ -38,7 +38,12 @@ const (
 	// ActionProvision records a provisioning operation (Phase 4).
 	ActionProvision Action = 2
 	// ActionBreakGlass records a positively verified offline owner capability.
-	ActionBreakGlass Action = 3
+	ActionBreakGlass     Action = 3
+	ActionSessionOpen    Action = 4
+	ActionSessionClose   Action = 5
+	ActionSessionResize  Action = 6
+	ActionSessionDataIn  Action = 7
+	ActionSessionDataOut Action = 8
 )
 
 // Outcome is the result recorded for an audited operation.

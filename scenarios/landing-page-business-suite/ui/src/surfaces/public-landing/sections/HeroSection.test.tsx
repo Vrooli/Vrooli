@@ -18,6 +18,22 @@ describe('HeroSection', () => {
     expect(trackCTAClick).toHaveBeenCalledWith('hero-cta', { cta_text: 'Start now', cta_url: '#plans' });
   });
 
+  it('renders a released backdrop reference for its declared placement', () => {
+    render(<HeroSection content={{ backdrop_reference: { id: 'released-hero-1', url: 'https://cdn.example.test/hero.png', placement: 'full_bleed' } }} />);
+    const hero = screen.getByTestId('hero-section');
+    expect(hero).toHaveAttribute('data-backdrop-reference', 'released-hero-1');
+    expect(hero).toHaveAttribute('data-backdrop-placement', 'full_bleed');
+    expect(hero).toHaveStyle({ backgroundImage: 'url(https://cdn.example.test/hero.png)' });
+  });
+
+  it('keeps the complete gradient fallback when a reference has no resolved URI', () => {
+    render(<HeroSection content={{ backdrop_reference: { id: 'missing-release', placement: 'full_bleed' } }} />);
+    const hero = screen.getByTestId('hero-section');
+    expect(hero).toHaveAttribute('data-backdrop-reference', 'missing-release');
+    expect(hero.style.backgroundImage).toBe('');
+    expect(screen.getByRole('heading', { name: 'Record once. Automate forever' })).toBeInTheDocument();
+  });
+
   it('supports manual preview navigation, pause behavior, and animated preview progress', () => {
     vi.useFakeTimers();
     render(<HeroSection content={{}} />);

@@ -24,6 +24,8 @@ type fakeService struct {
 	archiveErr  error
 	removeOut   internalmachines.Machine
 	removeErr   error
+	mergeOut    internalmachines.Machine
+	mergeErr    error
 	trustOut    internalmachines.TrustRecord
 	reviewOut   internalmachines.TrustRecord
 	cleanupOut  []internalmachines.CleanupTombstone
@@ -47,6 +49,10 @@ func (f *fakeService) Remove(context.Context, string, int64) (internalmachines.M
 	return f.removeOut, f.removeErr
 }
 
+func (f *fakeService) Merge(context.Context, internalmachines.MergeInput) (internalmachines.Machine, error) {
+	return f.mergeOut, f.mergeErr
+}
+
 func (f *fakeService) GetTrust(context.Context, string) (internalmachines.TrustRecord, error) {
 	return f.trustOut, nil
 }
@@ -61,6 +67,15 @@ type fakeHostKeyResetter struct {
 }
 
 type fakeNodeRevoker struct{ nodeID string }
+
+type fakeRepairer struct {
+	opID, attemptID string
+	err             error
+}
+
+func (f fakeRepairer) Repair(context.Context, internalmachines.Machine) (string, string, error) {
+	return f.opID, f.attemptID, f.err
+}
 
 type fakeAttemptReader struct {
 	attempts []internalonboard.EnrollmentAttempt
@@ -128,6 +143,31 @@ func TestHandler_RequiresOwner(t *testing.T) {
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	_, err = h.RemoveMachine(context.Background(), connect.NewRequest(&machinesv1.RemoveMachineRequest{}))
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	_, err = h.MergeMachines(context.Background(), connect.NewRequest(&machinesv1.MergeMachinesRequest{}))
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+}
+
+func TestHandler_RepairStartsInPlaceEnrollment(t *testing.T) {
+	svc := &fakeService{getOut: internalmachines.Machine{ID: "m1", Lifecycle: internalmachines.LifecycleActive, Locators: []internalmachines.Locator{{Kind: "hostname", Value: "mini.local"}}}}
+	h := NewConnectHandler(Deps{Service: svc, Repairer: fakeRepairer{opID: "op-1", attemptID: "attempt-1"}})
+	resp, err := h.RepairMachine(machineOwnerContext(), machineOwnerRequest(&machinesv1.RepairMachineRequest{MachineId: "m1"}))
+	require.NoError(t, err)
+	require.Equal(t, "op-1", resp.Msg.OnboardingOpId)
+	require.Equal(t, "attempt-1", resp.Msg.EnrollmentAttemptId)
+	require.Equal(t, "m1", resp.Msg.Machine.Id)
+}
+
+func TestHandler_MergeArchivesExplicitSource(t *testing.T) {
+	svc := &fakeService{mergeOut: internalmachines.Machine{ID: "target", Lifecycle: internalmachines.LifecycleActive}}
+	h := NewConnectHandler(Deps{Service: svc})
+	resp, err := h.MergeMachines(machineOwnerContext(), machineOwnerRequest(&machinesv1.MergeMachinesRequest{FromMachineId: "source", IntoMachineId: "target"}))
+	require.NoError(t, err)
+	require.Equal(t, "target", resp.Msg.Machine.Id)
+	require.Equal(t, "source", resp.Msg.ArchivedMachineId)
+}
+
+func machineOwnerRequest[T any](msg *T) *connect.Request[T] {
+	return connect.NewRequest(msg)
 }
 
 func TestHandler_Create_MapsLocatorsAndDoesNotExposeTrustReferences(t *testing.T) {

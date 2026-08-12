@@ -76,11 +76,25 @@ func (systemdManager) Render(d Definition) (string, error) { return SystemdUnit(
 func (systemdManager) unitName(d Definition) string { return d.Name + ".service" }
 
 func (m systemdManager) unitPath(d Definition) (string, error) {
-	dir, err := m.unitDir()
+	dir, err := m.unitDirFor(d)
 	if err != nil {
 		return "", err
 	}
 	return filepath.Join(dir, m.unitName(d)), nil
+}
+
+func (m systemdManager) unitDirFor(d Definition) (string, error) {
+	if d.System {
+		return "/etc/systemd/system", nil
+	}
+	return m.unitDir()
+}
+
+func systemdArgs(d Definition, command ...string) []string {
+	if d.System {
+		return append([]string{"systemctl"}, command...)
+	}
+	return append([]string{"systemctl", "--user"}, command...)
 }
 
 func (m systemdManager) Install(ctx context.Context, d Definition) (InstallResult, error) {
@@ -88,31 +102,31 @@ func (m systemdManager) Install(ctx context.Context, d Definition) (InstallResul
 	if err != nil {
 		return InstallResult{}, err
 	}
-	dir, err := m.unitDir()
+	dir, err := m.unitDirFor(d)
 	if err != nil {
 		return InstallResult{}, err
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- native service managers require a traversable unit directory.
 		return InstallResult{}, fmt.Errorf("create systemd user unit dir %q: %w", dir, err)
 	}
 	unitName := m.unitName(d)
 	unitPath := filepath.Join(dir, unitName)
 	// Rewrite the whole unit every time (never append) so the on-disk unit always
 	// reflects the current Definition and the write itself is replay-safe.
-	if err := os.WriteFile(unitPath, []byte(unit), 0o644); err != nil {
+	if err := os.WriteFile(unitPath, []byte(unit), 0o644); err != nil { // #nosec G306 -- unit files contain no secrets and must be readable by the supervisor.
 		return InstallResult{}, fmt.Errorf("write systemd user unit %q: %w", unitPath, err)
 	}
-	if _, err := m.runner.run(ctx, "systemctl", "--user", "daemon-reload"); err != nil {
+	if _, err := m.runner.run(ctx, systemdArgs(d, "daemon-reload")...); err != nil {
 		return InstallResult{}, err
 	}
-	if _, err := m.runner.run(ctx, "systemctl", "--user", "enable", unitName); err != nil {
+	if _, err := m.runner.run(ctx, systemdArgs(d, "enable", unitName)...); err != nil {
 		return InstallResult{}, err
 	}
 	// restart, not start: on a re-install the service may already be running an
 	// older unit, and only restart re-execs it with the freshly-written content.
 	// On a first install restart simply starts it. This is the idempotent
 	// converge point — running Install twice ends in the same live state.
-	if _, err := m.runner.run(ctx, "systemctl", "--user", "restart", unitName); err != nil {
+	if _, err := m.runner.run(ctx, systemdArgs(d, "restart", unitName)...); err != nil {
 		return InstallResult{}, err
 	}
 	return InstallResult{
@@ -135,8 +149,7 @@ func (m systemdManager) Status(ctx context.Context, d Definition) (StatusResult,
 	}
 	// `systemctl show` exits 0 even for an unknown unit (LoadState=not-found), so
 	// its output — not the exit code — is the source of truth; ignore the error.
-	out, _ := m.runner.run(ctx, "systemctl", "--user", "show", m.unitName(d),
-		"--property=ActiveState,UnitFileState,MainPID,LoadState")
+	out, _ := m.runner.run(ctx, append(systemdArgs(d, "show", m.unitName(d)), "--property=ActiveState,UnitFileState,MainPID,LoadState")...)
 	props := parseSystemctlShow(out)
 	res.Running = props["ActiveState"] == "active"
 	res.Enabled = strings.HasPrefix(props["UnitFileState"], "enabled")
@@ -154,7 +167,7 @@ func (m systemdManager) Uninstall(ctx context.Context, d Definition) (UninstallR
 	unitName := m.unitName(d)
 	// Stop + disable first; ignore the error so uninstall is idempotent even when
 	// the unit was never installed or is already stopped.
-	_, _ = m.runner.run(ctx, "systemctl", "--user", "disable", "--now", unitName)
+	_, _ = m.runner.run(ctx, systemdArgs(d, "disable", "--now", unitName)...)
 	res := UninstallResult{Kind: platform.ServiceManagerSystemd, UnitName: unitName, UnitPath: unitPath}
 	if err := os.Remove(unitPath); err == nil {
 		res.Removed = true
@@ -162,7 +175,7 @@ func (m systemdManager) Uninstall(ctx context.Context, d Definition) (UninstallR
 		return UninstallResult{}, fmt.Errorf("remove systemd user unit %q: %w", unitPath, err)
 	}
 	// Reload so the user manager forgets the removed unit; best-effort.
-	_, _ = m.runner.run(ctx, "systemctl", "--user", "daemon-reload")
+	_, _ = m.runner.run(ctx, systemdArgs(d, "daemon-reload")...)
 	return res, nil
 }
 
@@ -232,11 +245,10 @@ func (m launchdManager) domainTarget() string {
 	return fmt.Sprintf("gui/%d", m.uid())
 }
 
-func (m launchdManager) serviceTarget(d Definition) string {
-	return m.domainTarget() + "/" + LaunchdLabel(d.Name)
-}
-
 func (m launchdManager) plistPath(d Definition) (string, error) {
+	if d.System {
+		return launchdSystemPath(d), nil
+	}
 	dir, err := m.agentDir()
 	if err != nil {
 		return "", err
@@ -271,7 +283,7 @@ func (m launchdManager) Install(ctx context.Context, d Definition) (InstallResul
 		return InstallResult{}, err
 	}
 	domain := m.domainTarget()
-	systemScope := strings.HasPrefix(domain, "user/")
+	systemScope := d.System || strings.HasPrefix(domain, "user/")
 	plistPath := ""
 	stagedPath := ""
 	if systemScope {
@@ -297,7 +309,7 @@ func (m launchdManager) Install(ctx context.Context, d Definition) (InstallResul
 			_ = os.Remove(stagedPath)
 			return InstallResult{}, fmt.Errorf("close staged launchd daemon plist: %w", closeErr)
 		}
-		if err := os.WriteFile(stagedPath, []byte(plist), 0o644); err != nil {
+		if err := os.WriteFile(stagedPath, []byte(plist), 0o644); err != nil { // #nosec G306 -- staged plist contains no secrets and is immediately installed as a root-owned unit.
 			_ = os.Remove(stagedPath)
 			return InstallResult{}, fmt.Errorf("write staged launchd daemon plist: %w", err)
 		}
@@ -311,11 +323,11 @@ func (m launchdManager) Install(ctx context.Context, d Definition) (InstallResul
 		if dirErr != nil {
 			return InstallResult{}, dirErr
 		}
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- LaunchAgents must be searchable by launchd.
 			return InstallResult{}, fmt.Errorf("create LaunchAgents dir %q: %w", dir, err)
 		}
 		plistPath = filepath.Join(dir, LaunchdLabel(d.Name)+".plist")
-		if err := os.WriteFile(plistPath, []byte(plist), 0o644); err != nil {
+		if err := os.WriteFile(plistPath, []byte(plist), 0o644); err != nil { // #nosec G306 -- plist contains no secrets and launchd reads it as the supervisor.
 			return InstallResult{}, fmt.Errorf("write launchd plist %q: %w", plistPath, err)
 		}
 	}
@@ -359,7 +371,7 @@ func (m launchdManager) Install(ctx context.Context, d Definition) (InstallResul
 
 func (m launchdManager) Status(ctx context.Context, d Definition) (StatusResult, error) {
 	domain := m.domainTarget()
-	systemScope := strings.HasPrefix(domain, "user/")
+	systemScope := d.System || strings.HasPrefix(domain, "user/")
 	plistPath, err := m.plistPath(d)
 	if err != nil {
 		return StatusResult{}, err
@@ -395,7 +407,7 @@ func (m launchdManager) Status(ctx context.Context, d Definition) (StatusResult,
 
 func (m launchdManager) Uninstall(ctx context.Context, d Definition) (UninstallResult, error) {
 	domain := m.domainTarget()
-	systemScope := strings.HasPrefix(domain, "user/")
+	systemScope := d.System || strings.HasPrefix(domain, "user/")
 	plistPath, err := m.plistPath(d)
 	if err != nil {
 		return UninstallResult{}, err
@@ -446,7 +458,7 @@ func launchdAgentDir() (string, error) {
 // Mac mini even though the user launchd domain is available.
 func resolveLaunchdDomain(uid int) string {
 	gui := fmt.Sprintf("gui/%d", uid)
-	if exec.Command("launchctl", "print", gui).Run() == nil {
+	if exec.Command("launchctl", "print", gui).Run() == nil { // #nosec G204 -- launchctl is fixed and gui is a locally-derived numeric domain.
 		return gui
 	}
 	return fmt.Sprintf("user/%d", uid)

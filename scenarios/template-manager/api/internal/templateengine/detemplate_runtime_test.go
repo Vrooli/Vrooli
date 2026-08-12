@@ -294,3 +294,122 @@ func TestPlanDetemplateFinalizersConditional(t *testing.T) {
 		t.Errorf("finalizer plan mismatch:\n got=%v\nwant=%v", cmds, want)
 	}
 }
+
+// TestPlanDetemplateEditsRefusesSymbolResidue covers the failure class that
+// broke scenario-to-ios and scenario-to-android: a kept file that references
+// the example domain by *symbol or value* rather than by import path. No path
+// scan can see these, so before the symbol gate they survived the strip and
+// left the scenario unable to typecheck.
+func TestPlanDetemplateEditsRefusesSymbolResidue(t *testing.T) {
+	root, item, info := detemplateFixture(t)
+
+	// A nav switch arm whose `notes` case has no marker: the strip removes the
+	// nav entry that defined the key, but this arm keeps matching on it.
+	writeFile(t, filepath.Join(item.Path, "ui/src/layout/BottomNav.tsx"), strings.Join([]string{
+		`import { NAV_ITEMS } from "./navItems";`,
+		"export function iconFor(item: NavItem) {",
+		"  switch (item.key) {",
+		`    case "notes":`,
+		"      return null;",
+		"  }",
+		"}",
+		"",
+	}, "\n"))
+
+	// A test reading a selector whose definition line the strip deletes.
+	writeFile(t, filepath.Join(item.Path, "ui/src/app/routes.test.tsx"), strings.Join([]string{
+		`import { selectors } from "../consts/selectors";`,
+		`it("renders notes", () => {`,
+		"  expect(selectors.pages.notes).toBeDefined();",
+		"});",
+		"",
+	}, "\n"))
+
+	dels := resolveDetemplateDeletions(root, item, info, info.Manifest.ExampleDomain.Paths)
+	_, dangling, err := planDetemplateEdits(item.Path, "notes", dels)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := map[string]string{}
+	for _, d := range dangling {
+		if d.Kind == templatecontracts.DanglingKindSymbol {
+			got[d.File] = d.Reference
+		}
+	}
+	for _, want := range []string{"ui/src/layout/BottomNav.tsx", "ui/src/app/routes.test.tsx"} {
+		if _, ok := got[want]; !ok {
+			t.Errorf("expected symbol residue reported for %s; got %+v", want, dangling)
+		}
+	}
+}
+
+// TestPlanDetemplateEditsAcceptsProseAndGeneratedResidue guards the two
+// deliberate blind spots. Prose may name the example domain forever — a doc
+// comment describing the worked example that used to exist is not a defect —
+// and a generated artifact still carrying the name at scan time is rewritten
+// by a finalizer moments later. Flagging either would refuse a clean pass.
+func TestPlanDetemplateEditsAcceptsProseAndGeneratedResidue(t *testing.T) {
+	root, item, info := detemplateFixture(t)
+
+	writeFile(t, filepath.Join(item.Path, "ui/src/test-utils/index.ts"), strings.Join([]string{
+		"// Domain factories (Note, NotesListResponse) live beside their feature",
+		"// (e.g. `features/notes/mocks/factories.ts`) so deleting one is clean.",
+		"/*",
+		" * A block comment naming notes across lines must not trip the gate.",
+		" */",
+		"export const helpers = {};",
+		"",
+	}, "\n"))
+
+	// Generated: still carries the name until strings:gen reruns.
+	writeFile(t, filepath.Join(item.Path, "ui/src/consts/strings.generated.ts"), strings.Join([]string{
+		"export const strings = {",
+		`  notes: "layout.nav.notes",`,
+		"};",
+		"",
+	}, "\n"))
+
+	// A longer identifier that merely contains the marker is not a reference.
+	writeFile(t, filepath.Join(item.Path, "ui/src/consts/keys.ts"), "export const denotesArchive = notesArchive;\n")
+
+	dels := resolveDetemplateDeletions(root, item, info, info.Manifest.ExampleDomain.Paths)
+	_, dangling, err := planDetemplateEdits(item.Path, "notes", dels)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range dangling {
+		if d.Kind == templatecontracts.DanglingKindSymbol {
+			t.Errorf("unexpected symbol residue for %s -> %q", d.File, d.Reference)
+		}
+	}
+}
+
+// TestPlanDetemplateFinalizersRegeneratesDerivedArtifacts pins the finalizers
+// that keep derived files honest: the selector manifest is built from the
+// selectors source the strip edits, and the BAS registry indexes the case
+// files the strip deletes. Without these, both keep advertising example-domain
+// entries that no longer resolve.
+func TestPlanDetemplateFinalizersRegeneratesDerivedArtifacts(t *testing.T) {
+	root, item, _ := detemplateFixture(t)
+	writeFile(t, filepath.Join(item.Path, "ui/package.json"), "{}\n")
+	writeFile(t, filepath.Join(item.Path, "ui/scripts/generate-selector-manifest.mjs"), "// gen\n")
+	writeFile(t, filepath.Join(item.Path, "bas/cases/experience-spec/dashboard.json"), "{}\n")
+
+	plans := planDetemplateFinalizers(root, item, false)
+	var sawSelector, sawRegistry bool
+	for _, p := range plans {
+		if strings.Contains(strings.Join(p.Args, " "), "selector:manifest") {
+			sawSelector = true
+		}
+		if p.Name == "test-genie" && strings.Contains(strings.Join(p.Args, " "), "registry build") {
+			sawRegistry = true
+		}
+	}
+	if !sawSelector {
+		t.Errorf("expected a selector-manifest finalizer; got %+v", plans)
+	}
+	if !sawRegistry {
+		t.Errorf("expected a BAS registry-rebuild finalizer; got %+v", plans)
+	}
+}

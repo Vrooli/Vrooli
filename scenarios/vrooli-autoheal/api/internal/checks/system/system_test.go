@@ -9,6 +9,24 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 )
 
+func TestLinuxOnlyChecksReportNotApplicableOnNonLinux(t *testing.T) {
+	originalOS := checkOS
+	checkOS = "darwin"
+	t.Cleanup(func() { checkOS = originalOS })
+
+	checksToTest := []checks.Check{
+		NewBootHistoryCheck(), NewGPUCheck(), NewInodeCheck(), NewLoadCheck(),
+		NewMCERecentCheck(), NewMemoryCheck(), NewPMRuntimeHogCheck(), NewPortCheck(),
+		NewPstoreEvidenceCheck(), NewSwapCheck(), NewZombieCheck(),
+	}
+	for _, check := range checksToTest {
+		result := check.Run(context.Background())
+		if result.Status != checks.StatusNotApplicable {
+			t.Errorf("%s status = %v, want %v", check.ID(), result.Status, checks.StatusNotApplicable)
+		}
+	}
+}
+
 func TestDiskCheck_Interface(t *testing.T) {
 	c := NewDiskCheck()
 

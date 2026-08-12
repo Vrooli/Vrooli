@@ -33,6 +33,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 func (h *handlers) register(ctx cliapp.RunContext) error {
 	resp, err := h.client.RegisterNode(context.Background(), connect.NewRequest(&registryv1.RegisterNodeRequest{
 		Name:         ctx.Flag("name"),
+		Kind:         nodeKind(ctx.Flag("kind")),
 		Os:           ctx.Flag("os"),
 		Arch:         ctx.Flag("arch"),
 		Endpoint:     ctx.Flag("endpoint"),
@@ -53,6 +54,17 @@ func (h *handlers) register(ctx cliapp.RunContext) error {
 			"`nodes list` — show the fleet",
 		},
 	})
+}
+
+func nodeKind(raw string) registryv1.NodeKind {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "ssh":
+		return registryv1.NodeKind_NODE_KIND_SSH
+	case "attached":
+		return registryv1.NodeKind_NODE_KIND_ATTACHED
+	default:
+		return registryv1.NodeKind_NODE_KIND_AGENT
+	}
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
@@ -91,6 +103,37 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 		Summary:        []string{fmt.Sprintf("Fetched node %s.", resp.Msg.Node.Id)},
 		ResultsHeading: "Node",
 		Results:        []string{formatNode(resp.Msg.Node)},
+	})
+}
+
+func (h *handlers) doctor(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.GetNodeReadiness(context.Background(), connect.NewRequest(&registryv1.GetNodeRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("diagnose node %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Node == nil {
+		return fmt.Errorf("server returned no node readiness")
+	}
+	n := resp.Msg.Node
+	rungs := []struct {
+		name, observed, remediation string
+		ok                          bool
+	}{
+		{"registry_record_present", fmt.Sprintf("%t", n.RegistryRecordPresent), "re-register the node with `nodes register`", n.RegistryRecordPresent},
+		{"heartbeat_fresh", fmt.Sprintf("%t (age=%ds)", n.HeartbeatFresh, n.HeartbeatAgeSeconds), "restart the node agent and verify heartbeats", n.HeartbeatFresh},
+		{"channel_held", fmt.Sprintf("%t", n.ChannelHeld), "start the node agent and reconnect its dial-out channel", n.ChannelHeld},
+		{"protocol_compatible", fmt.Sprintf("%t", n.ProtocolCompatible), "provision the node with the current Bridge agent", n.ProtocolCompatible},
+		{"dispatchable", fmt.Sprintf("%t", n.Dispatchable), "resolve the first failing readiness rung above", n.Dispatchable},
+	}
+	for _, rung := range rungs {
+		if !rung.ok {
+			return fmt.Errorf("nodes doctor %s: FAIL rung=%s observed=%s remediation=%s", id, rung.name, rung.observed, rung.remediation)
+		}
+	}
+	return ctx.RenderOperational(cliapp.OperationalReport{
+		Status:    []string{fmt.Sprintf("Node %s readiness: PASS", id), formatNode(n)},
+		NextSteps: []string{"The node is dispatchable; use `nodes list` for the fleet."},
 	})
 }
 
@@ -172,8 +215,8 @@ func formatNode(n *registryv1.Node) string {
 	if n.CreatedAt != nil {
 		created = n.CreatedAt.AsTime().Format(time.RFC3339)
 	}
-	return fmt.Sprintf("%s — %s [%s/%s status=%s online=%t rev=%s scopes=%d created=%s]",
-		n.Id, n.Name, n.Os, n.Arch, statusLabel(n.Status), n.Online, formatRevision(n.Revision), len(n.Scopes), created)
+	return fmt.Sprintf("%s — %s [%s kind=%s/%s status=%s online=%t channel=%t heartbeat=%t age=%ds protocol=%t dispatchable=%t rev=%s scopes=%d created=%s]",
+		n.Id, n.Name, n.Os, n.Kind.String(), n.Arch, statusLabel(n.Status), n.Online, n.ChannelHeld, n.HeartbeatFresh, n.HeartbeatAgeSeconds, n.ProtocolCompatible, n.Dispatchable, formatRevision(n.Revision), len(n.Scopes), created)
 }
 
 // formatRevision renders a node's provenance revision for a one-line listing,

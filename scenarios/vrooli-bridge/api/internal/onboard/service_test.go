@@ -11,6 +11,7 @@ import (
 	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/onboard/mocks"
+	"vrooli-bridge/internal/onboarding"
 
 	"github.com/stretchr/testify/require"
 )
@@ -57,6 +58,32 @@ type fixedEnrollmentResolver struct {
 	nodeID string
 	paired bool
 	err    error
+}
+
+type recordingHandoff struct {
+	request   onboarding.HandoffRequest
+	selection onboarding.Selection
+}
+
+func (h *recordingHandoff) Resolve(_ context.Context, request onboarding.HandoffRequest) (onboarding.Selection, error) {
+	h.request = request
+	return h.selection, nil
+}
+
+type onboardingRunnerDriver struct {
+	*mocks.FakeSSHDriver
+	commands []string
+	results  []onboarding.Result
+}
+
+func (d *onboardingRunnerDriver) Run(_ context.Context, _ onboarding.Target, command string) (onboarding.Result, error) {
+	d.commands = append(d.commands, command)
+	if len(d.results) == 0 {
+		return onboarding.Result{ExitCode: 0}, nil
+	}
+	result := d.results[0]
+	d.results = d.results[1:]
+	return result, nil
 }
 
 func (r fixedEnrollmentResolver) ResolveEnrollment(context.Context, string) (string, bool, error) {
@@ -129,10 +156,53 @@ func TestStart_SuccessFullFlow(t *testing.T) {
 	for _, step := range bootstrapSteps {
 		require.True(t, stepsSeen[step], "missing persisted step %q", step)
 	}
+	require.False(t, stepsSeen[onboard.StepApplySelection], "unset onboarding handoff must preserve the legacy setup path")
 	// Sequences are strictly increasing.
 	for i := 1; i < len(events); i++ {
 		require.Greater(t, events[i].Sequence, events[i-1].Sequence)
 	}
+}
+
+func TestStart_OnboardingHandoffReceivesIdentityAndAppliesReturnedSelection(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	driver := &onboardingRunnerDriver{
+		FakeSSHDriver: &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)},
+		results: []onboarding.Result{
+			{ExitCode: 0, Stdout: `{"status":"applied"}`},
+			{ExitCode: 0, Stdout: `{"status":"ready"}`},
+		},
+	}
+	handoff := &recordingHandoff{selection: onboarding.Selection{
+		Scenarios:         []string{"browser-automation-studio"},
+		OptionalResources: []string{"ollama"},
+		Apply:             true,
+	}}
+	svc := onboard.NewService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, clock.System{},
+		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}),
+		onboard.WithOnboardingHandoff(handoff),
+	)
+
+	in := validInput()
+	in.MachineID = "machine-1"
+	in.NodeKind = "agent"
+	dec, err := svc.Start(context.Background(), in)
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StateSucceeded, op.State)
+	require.Equal(t, onboarding.HandoffRequest{MachineID: "machine-1", NodeID: testNodeID, NodeKind: "agent"}, handoff.request)
+	require.Len(t, driver.commands, 2)
+	require.Contains(t, driver.commands[0], "vrooli-onboarding wizard apply --selection")
+	require.Contains(t, driver.commands[1], "vrooli-onboarding readiness --json")
+
+	_, events, err := svc.GetOp(context.Background(), dec.OpID)
+	require.NoError(t, err)
+	var applied bool
+	for _, event := range events {
+		if event.StepID == onboard.StepApplySelection && event.Status == onboard.StepStatusOK {
+			applied = true
+		}
+	}
+	require.True(t, applied, "returned onboarding selection must be represented in durable operation history")
 }
 
 func TestStart_ThreadsPostureDefaultScopesIntoPairing(t *testing.T) {

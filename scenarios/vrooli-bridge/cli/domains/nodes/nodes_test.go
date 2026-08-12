@@ -65,6 +65,15 @@ func (f *fakeRegistry) GetNode(_ context.Context, req *connect.Request[registryv
 	return connect.NewResponse(&registryv1.GetNodeResponse{Node: n}), nil
 }
 
+func (f *fakeRegistry) GetNodeReadiness(ctx context.Context, req *connect.Request[registryv1.GetNodeRequest]) (*connect.Response[registryv1.GetNodeReadinessResponse], error) {
+	node, err := f.GetNode(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	node.Msg.Node.RegistryRecordPresent = true
+	return connect.NewResponse(&registryv1.GetNodeReadinessResponse{Node: node.Msg.Node}), nil
+}
+
 func (f *fakeRegistry) UpdateNode(_ context.Context, req *connect.Request[registryv1.UpdateNodeRequest]) (*connect.Response[registryv1.UpdateNodeResponse], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -126,6 +135,7 @@ func TestNodes_RegisterListGetRevokeRoundTrip(t *testing.T) {
 		{Name: "name"},
 		{Name: "os"},
 		{Name: "arch"},
+		{Name: "kind"},
 		{Name: "endpoint"},
 		{Name: "capabilities"},
 		{Name: "scopes"},

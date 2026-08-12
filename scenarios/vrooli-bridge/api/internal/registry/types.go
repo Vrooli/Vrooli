@@ -27,6 +27,7 @@ import (
 type Node struct {
 	ID           string
 	Name         string
+	Kind         string
 	OS           string
 	Arch         string
 	Revision     string
@@ -54,6 +55,7 @@ func (n Node) Revoked() bool { return !n.RevokedAt.IsZero() }
 // Node so callers cannot pass an id/timestamp the service has no way to honour.
 type RegisterInput struct {
 	Name                 string
+	Kind                 string
 	OS                   string
 	Arch                 string
 	Endpoint             string

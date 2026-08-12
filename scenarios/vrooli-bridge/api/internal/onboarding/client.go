@@ -8,6 +8,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"strconv"
 	"strings"
 )
@@ -21,6 +23,65 @@ type Selection struct {
 	Host              HostSelection   `json:"host,omitempty"`
 	OperatingMode     map[string]Mode `json:"operating_mode,omitempty"`
 	Apply             bool            `json:"apply,omitempty"`
+}
+
+// HandoffRequest is the only identity Bridge sends across the scenario
+// boundary. It deliberately contains no credentials or Bridge persistence
+// details; onboarding remains the authority for the returned selection.
+type HandoffRequest struct {
+	MachineID string `json:"machine_id"`
+	NodeID    string `json:"node_id"`
+	NodeKind  string `json:"node_kind"`
+}
+
+// HandoffClient is the optional cross-scenario seam. A nil client means the
+// legacy Bridge-owned setup profile remains in force.
+type HandoffClient interface {
+	Resolve(ctx context.Context, request HandoffRequest) (Selection, error)
+}
+
+// HTTPHandoffClient calls the onboarding scenario's stable JSON surface. The
+// endpoint is configured by the operator; Bridge does not assume onboarding is
+// installed or reachable.
+type HTTPHandoffClient struct {
+	Endpoint string
+	Client   *http.Client
+}
+
+func (c HTTPHandoffClient) Resolve(ctx context.Context, request HandoffRequest) (Selection, error) {
+	if strings.TrimSpace(c.Endpoint) == "" {
+		return Selection{}, nil
+	}
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return Selection{}, fmt.Errorf("encode onboarding handoff: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.Endpoint, strings.NewReader(string(payload)))
+	if err != nil {
+		return Selection{}, fmt.Errorf("create onboarding handoff request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := c.Client
+	if client == nil {
+		client = http.DefaultClient
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return Selection{}, fmt.Errorf("onboarding handoff: %w", err)
+	}
+	defer resp.Body.Close()
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if readErr != nil {
+		return Selection{}, fmt.Errorf("read onboarding handoff: %w", readErr)
+	}
+	if resp.StatusCode/100 != 2 {
+		return Selection{}, fmt.Errorf("onboarding handoff returned HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var selection Selection
+	if err := json.Unmarshal(body, &selection); err != nil {
+		return Selection{}, fmt.Errorf("decode onboarding selection: %w", err)
+	}
+	return selection, nil
 }
 
 type HostSelection struct {
@@ -37,12 +98,8 @@ type Mode struct {
 // that request only pairing/bootstrap retain their existing behavior.
 func FromSetupProfile(scenarios, resources string, includeOptional bool) (Selection, bool) {
 	selection := Selection{Apply: true}
-	for _, name := range splitNames(scenarios) {
-		selection.Scenarios = append(selection.Scenarios, name)
-	}
-	for _, name := range splitNames(resources) {
-		selection.OptionalResources = append(selection.OptionalResources, name)
-	}
+	selection.Scenarios = append(selection.Scenarios, splitNames(scenarios)...)
+	selection.OptionalResources = append(selection.OptionalResources, splitNames(resources)...)
 	return selection, len(selection.Scenarios) > 0 || len(selection.OptionalResources) > 0
 }
 

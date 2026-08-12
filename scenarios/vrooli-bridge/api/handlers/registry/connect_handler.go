@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"vrooli-bridge/internal/auth"
+	internalpresence "vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/registry"
 
 	"connectrpc.com/connect"
@@ -23,6 +24,13 @@ type Presence interface {
 	// (not flagged). An online-but-flagged node reads NEEDS_UPDATE in the
 	// overlay (OT-P1-001).
 	Dispatchable(nodeID string) bool
+}
+
+// ReadinessPresence is an optional extension implemented by the live hub. It
+// keeps the registry handler's existing presence seam backwards-compatible
+// with focused fakes while exposing the independent operator facts.
+type ReadinessPresence interface {
+	Readiness(nodeID string) internalpresence.ReadinessFacts
 }
 
 // CredentialRevoker severs a node's mutual-auth credential. The pairing service
@@ -54,6 +62,15 @@ type connectHandler struct {
 	deps Deps
 }
 
+func (h *connectHandler) nodeProto(n registry.Node) *registryv1.Node {
+	online := h.deps.Presence.IsOnline(n.ID)
+	dispatchable := h.deps.Presence.Dispatchable(n.ID)
+	if r, ok := h.deps.Presence.(ReadinessPresence); ok {
+		return domainToProto(n, online, dispatchable, r.Readiness(n.ID))
+	}
+	return domainToProto(n, online, dispatchable)
+}
+
 // NewConnectHandler constructs the handler, defaulting the logger and the
 // presence reader (nil → all offline).
 func NewConnectHandler(d Deps) *connectHandler {
@@ -80,6 +97,7 @@ func (h *connectHandler) RegisterNode(ctx context.Context, req *connect.Request[
 	}
 	node, err := h.deps.Service.Register(ctx, registry.RegisterInput{
 		Name:         req.Msg.Name,
+		Kind:         kindString(req.Msg.Kind),
 		OS:           req.Msg.Os,
 		Arch:         req.Msg.Arch,
 		Endpoint:     req.Msg.Endpoint,
@@ -94,8 +112,19 @@ func (h *connectHandler) RegisterNode(ctx context.Context, req *connect.Request[
 		return nil, connectErr
 	}
 	return connect.NewResponse(&registryv1.RegisterNodeResponse{
-		Node: domainToProto(node, h.deps.Presence.IsOnline(node.ID), h.deps.Presence.Dispatchable(node.ID)),
+		Node: h.nodeProto(node),
 	}), nil
+}
+
+func kindString(kind registryv1.NodeKind) string {
+	switch kind {
+	case registryv1.NodeKind_NODE_KIND_SSH:
+		return registry.KindSSH
+	case registryv1.NodeKind_NODE_KIND_ATTACHED:
+		return registry.KindAttached
+	default:
+		return registry.KindAgent
+	}
 }
 
 func (h *connectHandler) ListNodes(ctx context.Context, _ *connect.Request[registryv1.ListNodesRequest]) (*connect.Response[registryv1.ListNodesResponse], error) {
@@ -109,7 +138,7 @@ func (h *connectHandler) ListNodes(ctx context.Context, _ *connect.Request[regis
 	}
 	resp := &registryv1.ListNodesResponse{Nodes: make([]*registryv1.Node, 0, len(nodes))}
 	for _, n := range nodes {
-		resp.Nodes = append(resp.Nodes, domainToProto(n, h.deps.Presence.IsOnline(n.ID), h.deps.Presence.Dispatchable(n.ID)))
+		resp.Nodes = append(resp.Nodes, h.nodeProto(n))
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -127,7 +156,7 @@ func (h *connectHandler) GetNode(ctx context.Context, req *connect.Request[regis
 		return nil, connectErr
 	}
 	return connect.NewResponse(&registryv1.GetNodeResponse{
-		Node: domainToProto(node, h.deps.Presence.IsOnline(node.ID), h.deps.Presence.Dispatchable(node.ID)),
+		Node: h.nodeProto(node),
 	}), nil
 }
 
@@ -151,7 +180,7 @@ func (h *connectHandler) UpdateNode(ctx context.Context, req *connect.Request[re
 		return nil, connectErr
 	}
 	return connect.NewResponse(&registryv1.UpdateNodeResponse{
-		Node: domainToProto(node, h.deps.Presence.IsOnline(node.ID), h.deps.Presence.Dispatchable(node.ID)),
+		Node: h.nodeProto(node),
 	}), nil
 }
 
@@ -196,4 +225,15 @@ func (h *connectHandler) RemoveNode(ctx context.Context, req *connect.Request[re
 		return nil, registry.ToConnectError(err)
 	}
 	return connect.NewResponse(&registryv1.RemoveNodeResponse{RemovedNodeId: req.Msg.Id}), nil
+}
+
+func (h *connectHandler) GetNodeReadiness(ctx context.Context, req *connect.Request[registryv1.GetNodeRequest]) (*connect.Response[registryv1.GetNodeReadinessResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	node, err := h.deps.Service.Get(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, registry.ToConnectError(err)
+	}
+	return connect.NewResponse(&registryv1.GetNodeReadinessResponse{Node: h.nodeProto(node)}), nil
 }

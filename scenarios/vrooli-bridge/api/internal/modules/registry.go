@@ -39,6 +39,7 @@ import (
 	readinessH "vrooli-bridge/handlers/readiness"
 	registryH "vrooli-bridge/handlers/registry"
 	runsH "vrooli-bridge/handlers/runs"
+	internalattached "vrooli-bridge/internal/attached"
 	localdb "vrooli-bridge/internal/database"
 	internalmachines "vrooli-bridge/internal/machines"
 	internalreadiness "vrooli-bridge/internal/readiness"
@@ -146,6 +147,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(gateH.Schema),
 		apidb.SchemaProviderFunc(identityH.Schema),
 		apidb.SchemaProviderFunc(internalmachines.Schema),
+		apidb.SchemaProviderFunc(internalattached.Schema),
 		apidb.SchemaProviderFunc(onboardH.Schema),
 		apidb.SchemaProviderFunc(pairingH.Schema),
 		apidb.SchemaProviderFunc(provisionH.Schema),

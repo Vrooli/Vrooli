@@ -292,6 +292,9 @@ type StepEvent struct {
 // owned, mutable slice you do not reuse.
 type StartInput struct {
 	Actor string
+	// MachineID is the durable physical-machine identity used by the optional
+	// onboarding handoff. It is empty for legacy host-only onboarding.
+	MachineID string
 	// EnrollmentCorrelationID binds this operation to an immutable Machine
 	// attempt. It is internal until the typed Machine API cutover.
 	EnrollmentCorrelationID string
@@ -332,6 +335,9 @@ type StartInput struct {
 	SetupResources   string // enabled | none | <comma list> | ""
 	SetupScenarios   string // none | all | <comma list> | ""
 	IncludeOptional  bool   // also apply optional (non-required) host safeguards
+	// NodeKind is forwarded to the optional vrooli-onboarding handoff. Empty
+	// preserves the agent default for callers that predate typed node kinds.
+	NodeKind string
 
 	// SourceMode selects pinned-revision (default; clone/fetch a pushed commit)
 	// or working-tree (ship the control plane's local tree over SSH). Working-tree

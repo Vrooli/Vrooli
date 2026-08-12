@@ -2,9 +2,36 @@ package onboarding
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+func TestHTTPHandoffClientIsInertWhenEndpointUnset(t *testing.T) {
+	selection, err := (HTTPHandoffClient{}).Resolve(context.Background(), HandoffRequest{NodeID: "node-1"})
+	require.NoError(t, err)
+	require.False(t, selection.Apply)
+}
+
+func TestHTTPHandoffClientCarriesIdentityAndDecodesSelection(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		var request HandoffRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+		require.Equal(t, HandoffRequest{MachineID: "machine-1", NodeID: "node-1", NodeKind: "agent"}, request)
+		_, _ = w.Write([]byte(`{"scenarios":["demo"],"apply":true}`))
+	}))
+	defer server.Close()
+
+	selection, err := (HTTPHandoffClient{Endpoint: server.URL}).Resolve(context.Background(), HandoffRequest{MachineID: "machine-1", NodeID: "node-1", NodeKind: "agent"})
+	require.NoError(t, err)
+	require.True(t, selection.Apply)
+	require.Equal(t, []string{"demo"}, selection.Scenarios)
+}
 
 type fakeRunner struct {
 	command string

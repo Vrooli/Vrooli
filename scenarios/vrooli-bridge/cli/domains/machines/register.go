@@ -22,6 +22,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"MachineService.UpdateMachineCleanup":     h.updateCleanup,
 		"MachineService.ApplyMachinePolicy":       h.applyPolicy,
 		"MachineService.RevokeMachineNode":        h.revokeNode,
+		"MachineService.RepairMachine":            h.repair,
+		"MachineService.MergeMachines":            h.merge,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

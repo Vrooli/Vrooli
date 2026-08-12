@@ -50,3 +50,27 @@ func TestServiceDefinition_EmbedsDialArgs(t *testing.T) {
 		"--presence-only=false",
 	}, def.Args)
 }
+
+func TestServiceDefinition_ProvisionerIsDistinctService(t *testing.T) {
+	dir := t.TempDir()
+	cfg := config.Config{
+		StateDir:           dir,
+		WorkDir:            "/srv/vrooli",
+		VrooliBin:          "/opt/vrooli/bin/vrooli",
+		ServiceUser:        "vrooli-provisioner",
+		ProvisionHelper:    true,
+		ProvisionSocket:    "/run/vrooli-bridge/provision.sock",
+		ProvisionClientUID: 1000,
+	}
+	def, err := serviceDefinition(cfg)
+	require.NoError(t, err)
+	require.Equal(t, "vrooli-bridge-provisioner", def.Name)
+	require.Equal(t, "vrooli-provisioner", def.User)
+	require.Equal(t, []string{
+		"--state-dir", dir,
+		"--provision-helper", "--provision-socket", "/run/vrooli-bridge/provision.sock",
+		"--provision-client-uid", "1000",
+		"--work-dir", "/srv/vrooli",
+		"--vrooli-bin", "/opt/vrooli/bin/vrooli",
+	}, def.Args)
+}

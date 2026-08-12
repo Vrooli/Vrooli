@@ -185,6 +185,8 @@ export function FleetPanel({
   const failedOnboardingsQuery = useFailedOnboardingsQuery();
   const readinessQuery = useBridgeReadinessQuery();
   const firewallAction = useBridgeFirewallActionMutation();
+  const readinessCandidate = readinessQuery.data?.last_candidate;
+  const readinessCandidateIP = readinessCandidate?.source_ip;
   const removeFailedOnboarding = useRemoveFailedOnboardingMutation();
   const revoke = useRevokeNodeMutation();
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -242,18 +244,18 @@ export function FleetPanel({
               {t(strings.fleet.bridgeReadinessFirewall, { state: readinessQuery.data.firewall.broker_available ? readinessQuery.data.firewall.broker_status ?? "available" : "unavailable" })}
             </p>
           ) : null}
-          {readinessQuery.data.status === "candidate_blocked" && readinessQuery.data.last_candidate?.source_ip ? (
+          {readinessQuery.data.status === "candidate_blocked" && readinessCandidate && readinessCandidateIP ? (
             <div className="mt-2 rounded-control border border-app-warning/40 bg-app-warning/10 p-2 text-xs text-app-foreground">
-              <p>{t(strings.fleet.bridgeReadinessRemediation, { host: readinessQuery.data.last_candidate.host, source: readinessQuery.data.last_candidate.source_ip })}</p>
+              <p>{t(strings.fleet.bridgeReadinessRemediation, { host: readinessCandidate.host, source: readinessCandidateIP })}</p>
               {readinessQuery.data.firewall?.broker_available ? (
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <Button size="sm" type="button" variant="outline" disabled={firewallAction.isPending} onClick={() => firewallAction.mutate({ action: "preview", candidateIP: readinessQuery.data!.last_candidate!.source_ip!, confirm: false })}>{t(strings.fleet.bridgeReadinessPreview)}</Button>
-                  <Button size="sm" type="button" disabled={firewallAction.isPending} onClick={() => firewallAction.mutate({ action: "verify", candidateIP: readinessQuery.data!.last_candidate!.source_ip!, confirm: false })}>{t(strings.fleet.bridgeReadinessVerify)}</Button>
+                  <Button size="sm" type="button" variant="outline" disabled={firewallAction.isPending} onClick={() => firewallAction.mutate({ action: "preview", candidateIP: readinessCandidateIP, confirm: false })}>{t(strings.fleet.bridgeReadinessPreview)}</Button>
+                  <Button size="sm" type="button" disabled={firewallAction.isPending} onClick={() => firewallAction.mutate({ action: "verify", candidateIP: readinessCandidateIP, confirm: false })}>{t(strings.fleet.bridgeReadinessVerify)}</Button>
                   <Button size="sm" type="button" disabled={firewallAction.isPending} onClick={() => {
-                    if (window.confirm(t(strings.fleet.bridgeReadinessAllowConfirm, { source: readinessQuery.data!.last_candidate!.source_ip! }))) firewallAction.mutate({ action: "allow", candidateIP: readinessQuery.data!.last_candidate!.source_ip!, confirm: true });
+                    if (window.confirm(t(strings.fleet.bridgeReadinessAllowConfirm, { source: readinessCandidateIP }))) firewallAction.mutate({ action: "allow", candidateIP: readinessCandidateIP, confirm: true });
                   }}>{t(strings.fleet.bridgeReadinessAllow)}</Button>
                   {readinessQuery.data.firewall.rule_found ? <Button size="sm" type="button" variant="outline" disabled={firewallAction.isPending} onClick={() => {
-                    if (window.confirm(t(strings.fleet.bridgeReadinessRevokeConfirm, { source: readinessQuery.data!.last_candidate!.source_ip! }))) firewallAction.mutate({ action: "revoke", candidateIP: readinessQuery.data!.last_candidate!.source_ip!, confirm: true });
+                    if (window.confirm(t(strings.fleet.bridgeReadinessRevokeConfirm, { source: readinessCandidateIP }))) firewallAction.mutate({ action: "revoke", candidateIP: readinessCandidateIP, confirm: true });
                   }}>{t(strings.fleet.bridgeReadinessRevoke)}</Button> : null}
                 </div>
               ) : <p className="mt-1 text-app-muted-foreground">{t(strings.fleet.bridgeReadinessBrokerUnavailable)}</p>}
@@ -329,6 +331,14 @@ export function FleetPanel({
                       value={node.revision ? formatRevision(node.revision) : unknown}
                     />
                     <MetaField label={t(strings.fleet.healthLabel)} value={t(STATUS_LABEL[node.status])} />
+                  </dl>
+
+                  <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-5">
+                    <MetaField label={t(strings.fleet.readiness.registry)} value={node.registryRecordPresent ? t(strings.fleet.readiness.present) : t(strings.fleet.readiness.missing)} />
+                    <MetaField label={t(strings.fleet.readiness.heartbeat)} value={node.heartbeatFresh ? t(strings.fleet.readiness.fresh, { age: node.heartbeatAgeSeconds }) : t(strings.fleet.readiness.stale, { age: node.heartbeatAgeSeconds })} />
+                    <MetaField label={t(strings.fleet.readiness.channel)} value={node.channelHeld ? t(strings.fleet.readiness.held) : t(strings.fleet.readiness.absent)} />
+                    <MetaField label={t(strings.fleet.readiness.protocol)} value={node.protocolCompatible ? t(strings.fleet.readiness.compatible) : t(strings.fleet.readiness.updateRequired)} />
+                    <MetaField label={t(strings.fleet.readiness.dispatch)} value={node.dispatchable ? t(strings.fleet.readiness.ready) : t(strings.fleet.readiness.blocked)} />
                   </dl>
 
                   <p className="mt-1 text-xs text-app-muted-foreground">

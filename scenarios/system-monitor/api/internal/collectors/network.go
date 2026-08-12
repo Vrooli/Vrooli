@@ -3,7 +3,6 @@ package collectors
 import (
 	"context"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +26,9 @@ func NewNetworkCollector() *NetworkCollector {
 
 // Collect gathers network metrics
 func (c *NetworkCollector) Collect(ctx context.Context) (*MetricData, error) {
+	if collectorOS != "linux" {
+		return unsupportedMetricData(c.GetName(), "network"), nil
+	}
 	tcpConnections := c.getTCPConnections(ctx)
 	tcpStates := c.getTCPConnectionStates(ctx)
 	networkStats := c.getNetworkStats(ctx)
@@ -48,8 +50,8 @@ func (c *NetworkCollector) Collect(ctx context.Context) (*MetricData, error) {
 
 // getTCPConnections returns the number of TCP connections
 func (c *NetworkCollector) getTCPConnections(ctx context.Context) int {
-	if runtime.GOOS != "linux" {
-		return 50 + (time.Now().Second() % 20)
+	if collectorOS != "linux" {
+		return 0
 	}
 
 	states, err := readTCPStates(ctx)
@@ -73,13 +75,6 @@ func (c *NetworkCollector) getTCPConnectionStates(ctx context.Context) map[strin
 		"last_ack":    0,
 		"listen":      0,
 		"total":       0,
-	}
-
-	if runtime.GOOS != "linux" {
-		states["established"] = 10
-		states["listen"] = 5
-		states["total"] = 15
-		return states
 	}
 
 	nativeStates, err := readTCPStates(ctx)
@@ -106,10 +101,6 @@ func (c *NetworkCollector) getNetworkStats(ctx context.Context) map[string]inter
 		"dropped_out":  int64(0),
 	}
 
-	if runtime.GOOS != "linux" {
-		return stats
-	}
-
 	dev, err := readPrimaryNetDev(ctx)
 	if err != nil {
 		return stats
@@ -134,11 +125,6 @@ func (c *NetworkCollector) getPortUsage(ctx context.Context) map[string]int {
 		"total": 32767, // Typical ephemeral port range
 	}
 
-	if runtime.GOOS != "linux" {
-		usage["used"] = 150
-		return usage
-	}
-
 	used, err := countEphemeralTCPPorts(ctx)
 	if err == nil {
 		usage["used"] = used
@@ -152,12 +138,6 @@ func (c *NetworkCollector) calculateBandwidth() map[string]float64 {
 	bandwidth := map[string]float64{
 		"in_mbps":  0.0,
 		"out_mbps": 0.0,
-	}
-
-	if runtime.GOOS != "linux" {
-		bandwidth["in_mbps"] = 12.5
-		bandwidth["out_mbps"] = 8.2
-		return bandwidth
 	}
 
 	dev, err := readPrimaryNetDev(context.Background())

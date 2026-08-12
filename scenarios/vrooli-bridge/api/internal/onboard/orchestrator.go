@@ -304,7 +304,19 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	}
 	s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusOK, "node is online with control-plane key pinned")
 	s.recordNodeRevision(ctx, opID, &seq, nodeID, in)
-	if selection, requested := onboarding.FromSetupProfile(in.SetupScenarios, in.SetupResources, in.IncludeOptional); requested {
+	selection, requested := onboarding.FromSetupProfile(in.SetupScenarios, in.SetupResources, in.IncludeOptional)
+	if s.handoff != nil {
+		resolved, handoffErr := s.handoff.Resolve(ctx, onboarding.HandoffRequest{MachineID: in.MachineID, NodeID: nodeID, NodeKind: in.NodeKind})
+		if handoffErr != nil {
+			detail := "onboarding handoff failed: " + handoffErr.Error()
+			s.emit(ctx, opID, &seq, StepApplySelection, StepStatusFailed, detail)
+			s.finishFailed(ctx, opID, &seq, FailureOnboarding, int32(res.ExitCode), detail, res.Diagnostics)
+			return
+		}
+		selection = resolved
+		requested = selection.Apply
+	}
+	if requested {
 		runner, supported := s.driver.(onboarding.Runner)
 		if !supported {
 			detail := "declarative onboarding requested but the connected transport does not support it"

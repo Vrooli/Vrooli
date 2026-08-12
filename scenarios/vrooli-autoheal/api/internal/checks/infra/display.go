@@ -79,7 +79,7 @@ func (c *DisplayManagerCheck) Run(ctx context.Context) checks.Result {
 
 	// Only supported on Linux
 	if runtime.GOOS != "linux" {
-		result.Status = checks.StatusOK
+		result.Status = checks.StatusNotApplicable
 		result.Message = "Display manager check not applicable on this platform"
 		result.Details["platform"] = runtime.GOOS
 		return result

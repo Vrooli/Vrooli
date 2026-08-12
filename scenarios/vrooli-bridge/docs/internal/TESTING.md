@@ -5,6 +5,23 @@ your first non-trivial test — the patterns below are load-bearing for
 the gates documented in [`SEAMS.md`](SEAMS.md), in `eslint.config.js`,
 and in `.github/workflows/test.yml`.
 
+## Multi-node soak
+
+The acceptance soak is owned by [`scripts/soak.sh`](../../scripts/soak.sh). It
+dispatches typed jobs to the Linux and macOS node IDs, restarts the control
+plane only through `vrooli scenario restart`, injects randomly selected agent
+kills and bounded network partitions, and continuously queries the durable
+SQLite run table. The invariant is fail-closed: no queued or running run may
+remain past `timeout_seconds + grace`.
+
+Run it only after the operator has supplied both real node IDs, SSH hosts,
+agent-kill commands, and partition enter/restore hooks. The default window is
+24 hours; `--dry-run` validates the shape without touching a host. The script
+writes the window, fault count, late-run count, fault log, and terminal-state
+distribution to `docs/internal/SOAK-REPORT.md`. A dry run or a partial window
+is evidence that the harness is configured, not evidence that the acceptance
+invariant passed.
+
 The shape is mature on purpose: every pattern below was already needed
 in workspace-sandbox and got there by accumulating bugs. Starting here
 means inheriting those lessons without repeating them.

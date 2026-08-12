@@ -6,7 +6,6 @@ package session
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -154,9 +153,6 @@ func replayRequest(req *http.Request) (*http.Request, error) {
 	}
 	retry := req.Clone(req.Context())
 	retry.Body = body
-	if closer, ok := body.(io.ReadCloser); ok {
-		retry.Body = closer
-	}
 	return retry, nil
 }
 

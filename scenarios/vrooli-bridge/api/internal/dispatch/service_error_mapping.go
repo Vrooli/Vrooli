@@ -29,6 +29,7 @@ func ToConnectError(err error) error {
 		revoked     ErrNodeRevoked
 		offline     ErrNodeOffline
 		needsUpdate ErrNodeNeedsUpdate
+		kind        ErrUnsupportedNodeKind
 		delivery    ErrDeliveryFailed
 	)
 	switch {
@@ -48,6 +49,8 @@ func ToConnectError(err error) error {
 		return connect.NewError(connect.CodeFailedPrecondition, offline)
 	case errors.As(err, &needsUpdate):
 		return connect.NewError(connect.CodeFailedPrecondition, needsUpdate)
+	case errors.As(err, &kind):
+		return connect.NewError(connect.CodeFailedPrecondition, kind)
 	case errors.As(err, &delivery):
 		return connect.NewError(connect.CodeUnavailable, delivery)
 	default:
@@ -67,8 +70,9 @@ func IsRejection(err error) bool {
 		revoked     ErrNodeRevoked
 		offline     ErrNodeOffline
 		needsUpdate ErrNodeNeedsUpdate
+		kind        ErrUnsupportedNodeKind
 	)
 	return errors.As(err, &invalid) || errors.As(err, &notInMan) || errors.As(err, &outOfScope) ||
 		errors.As(err, &unsafe) || errors.As(err, &notFound) || errors.As(err, &revoked) ||
-		errors.As(err, &offline) || errors.As(err, &needsUpdate)
+		errors.As(err, &offline) || errors.As(err, &needsUpdate) || errors.As(err, &kind)
 }

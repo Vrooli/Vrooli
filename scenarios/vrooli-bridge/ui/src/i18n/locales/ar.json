@@ -10,7 +10,11 @@
     "nav": {
       "dashboard": "لوحة التحكم",
       "runs": "عمليات التشغيل",
-      "settings": "الإعدادات"
+      "settings": "الإعدادات",
+      "sessions": "الجلسات",
+      "rollouts": "الإصدارات",
+      "trust": "الثقة",
+      "setup": "الإعداد"
     }
   },
   "theme": {
@@ -61,6 +65,7 @@
     "archLabel": "البنية",
     "versionLabel": "الإصدار",
     "healthLabel": "الصحة",
+    "readiness": { "registry": "السجل", "heartbeat": "نبضة الاتصال", "channel": "القناة", "protocol": "البروتوكول", "dispatch": "التوزيع", "present": "✓ موجود", "missing": "! مفقود", "fresh": "✓ حديث ({{age}}ث)", "stale": "! قديم ({{age}}ث)", "held": "✓ محتجز", "absent": "! غائب", "compatible": "✓ متوافق", "updateRequired": "! يلزم التحديث", "ready": "✓ جاهز", "blocked": "! محظور" },
     "unknownValue": "غير معروف",
     "machines": {
       "heading": "دورة حياة الجهاز",
@@ -154,6 +159,9 @@
       "controlPlaneUrlHelp": "العنوان الذي تتصل به العقدة للوصول إلى مستوى التحكم هذا. اتركه فارغًا لاستخدام عنوان مستوى التحكم نفسه؛ يجب أن يكون قابلاً للوصول من العقدة.",
       "reachabilityModeLabel": "وضع الوصول",
       "reachabilityModeHelp": "تتحقق العقدة من نقطة النهاية من شبكتها قبل نقل المصدر أو الاقتران.",
+      "reachabilityLan": "LAN — شبكة محلية موثوقة",
+      "reachabilityTunnel": "نفق — شبكة خارج LAN أو مقسمة",
+      "reachabilityManual": "يدوي — DNS مُدار أو VPN",
       "endpointEvidence": "نقطة النهاية: {{endpoint}} ({{mode}})",
       "capabilitiesLabel": "القدرات",
       "capabilitiesPlaceholder": "scenario, deploy",
@@ -245,7 +253,7 @@
       "reviewSummary": "سنتصل بـ {{target}}، ونثبّت مفتاحًا آمنًا، ونعدّ الجهاز، ونجعله متصلاً. قد يستغرق ذلك عدة دقائق — يمكنك متابعة كل خطوة."
     },
     "emptyHeading": "لا توجد أجهزة في أسطولك بعد",
-    "management": { "details": "إدارة", "heading": "إدارة {{name}}", "overview": "حالة هذا الجهاز وإعداده الموثوق.", "endpoint": "نقطة النهاية", "scopes": "الأوامر المسموح بها", "save": "حفظ التغييرات", "saving": "جارٍ الحفظ…", "revokeHeading": "إزالة الوصول", "revokeDescription": "يلغي الإلغاء اتصال العقدة فورًا ويمنعها من تشغيل العمل. يبقى سجل التدقيق.", "revoke": "إلغاء العقدة", "removeHeading": "إزالة من الأسطول", "removeDescription": "أزل سجل الجهاز الدائم بعد إلغاء الوصول. يبقى سجل التدقيق والتسجيل محفوظين.", "removeAction": "إزالة سجل الجهاز", "removeBlocked": "ألغِ وصول هذه العقدة قبل إزالة سجل جهازها.", "removeUnavailable": "لا يوجد سجل جهاز مرتبط بهذه العقدة لإزالته.", "removeConfirm": "إزالة سجل هذا الجهاز من الأسطول؟ سيبقى سجل التدقيق والتسجيل محفوظين.", "close": "إغلاق" }
+    "management": { "details": "إدارة", "heading": "إدارة {{name}}", "overview": "حالة هذا الجهاز وإعداده الموثوق.", "endpoint": "نقطة النهاية", "scopes": "الأوامر المسموح بها", "save": "حفظ التغييرات", "saving": "جارٍ الحفظ…", "revokeHeading": "إزالة الوصول", "revokeDescription": "يلغي الإلغاء اتصال العقدة فورًا ويمنعها من تشغيل العمل. يبقى سجل التدقيق.", "revoke": "إلغاء العقدة", "removeHeading": "إزالة من الأسطول", "removeDescription": "أزل سجل الجهاز الدائم بعد إلغاء الوصول. يبقى سجل التدقيق والتسجيل محفوظين.", "removeAction": "إزالة سجل الجهاز", "removeBlocked": "ألغِ وصول هذه العقدة قبل إزالة سجل جهازها.", "removeConfirm": "إزالة سجل هذا الجهاز من الأسطول؟ سيبقى سجل التدقيق والتسجيل محفوظين.", "close": "إغلاق" }
   },
   "runs": {
     "title": "سجل التشغيل",

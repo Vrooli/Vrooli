@@ -8,6 +8,7 @@
 CREATE TABLE IF NOT EXISTS nodes (
   id           TEXT PRIMARY KEY,
   name         TEXT NOT NULL,
+  kind         TEXT NOT NULL DEFAULT 'agent',
   os           TEXT NOT NULL DEFAULT '',
   arch         TEXT NOT NULL DEFAULT '',
   revision     TEXT NOT NULL DEFAULT '',

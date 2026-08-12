@@ -9,7 +9,6 @@ package system
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
@@ -77,8 +76,8 @@ func (c *PMRuntimeHogCheck) Platforms() []platform.Type { return []platform.Type
 
 func (c *PMRuntimeHogCheck) Run(ctx context.Context) checks.Result {
 	r := checks.Result{CheckID: c.ID(), Details: map[string]interface{}{}}
-	if runtime.GOOS != "linux" {
-		r.Status = checks.StatusOK
+	if checkOS != "linux" {
+		r.Status = checks.StatusNotApplicable
 		r.Message = "pm_runtime check is Linux-only"
 		return r
 	}

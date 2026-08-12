@@ -86,6 +86,22 @@ describe("FleetPanel", () => {
     expect(screen.getByTestId(selectors.fleet.revoke({ id: "n1" }))).toBeInTheDocument();
   });
 
+  it("renders each independent readiness fact when the node is fully ready", async () => {
+    listNodes.mockResolvedValue({
+      nodes: [makeNode({
+        id: "ready-1", registryRecordPresent: true, heartbeatFresh: true,
+        heartbeatAgeSeconds: 3n, channelHeld: true, protocolCompatible: true, dispatchable: true,
+      })],
+    });
+    renderWithProviders(<FleetPanel />);
+    const row = await screen.findByTestId(selectors.fleet.row({ id: "ready-1" }));
+    expect(row).toHaveTextContent(strings.fleet.readiness.present);
+    expect(row).toHaveTextContent(strings.fleet.readiness.fresh);
+    expect(row).toHaveTextContent(strings.fleet.readiness.held);
+    expect(row).toHaveTextContent(strings.fleet.readiness.compatible);
+    expect(row).toHaveTextContent(strings.fleet.readiness.ready);
+  });
+
   it("shows an offline node with its last-seen and offline label", async () => {
     listNodes.mockResolvedValue({
       nodes: [
@@ -124,7 +140,7 @@ describe("FleetPanel", () => {
 
     await user.click(await screen.findByText(strings.fleet.management.details));
     expect(await screen.findByTestId(selectors.fleet.management)).toBeInTheDocument();
-    const nameInput = screen.getByDisplayValue("linux-builder");
+    const nameInput = screen.getByTestId(selectors.fleet.managementNameInput);
     await user.clear(nameInput);
     await user.type(nameInput, "release-builder");
     await user.click(screen.getByText(strings.fleet.management.save));

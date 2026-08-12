@@ -32,6 +32,7 @@ func (a nodeReaderAdapter) GetTarget(ctx context.Context, id string) (dispatch.T
 	}
 	return dispatch.TargetNode{
 		ID:      n.ID,
+		Kind:    n.Kind,
 		OS:      n.OS,
 		Arch:    n.Arch,
 		Scopes:  append([]string(nil), n.Scopes...),
@@ -101,7 +102,12 @@ type jobPusherAdapter struct {
 }
 
 func (a jobPusherAdapter) PushJob(ctx context.Context, nodeID string, job dispatch.PushedJob) (int, error) {
-	_, delivered, err := a.scheduler.Submit(ctx, queue.Job{
+	delivered, _, err := a.PushJobOutcome(ctx, nodeID, job)
+	return delivered, err
+}
+
+func (a jobPusherAdapter) PushJobOutcome(ctx context.Context, nodeID string, job dispatch.PushedJob) (int, bool, error) {
+	outcome, delivered, err := a.scheduler.Submit(ctx, queue.Job{
 		RunID:          job.RunID,
 		NodeID:         nodeID,
 		Scenario:       job.Scenario,
@@ -110,7 +116,7 @@ func (a jobPusherAdapter) PushJob(ctx context.Context, nodeID string, job dispat
 		TimeoutSeconds: job.TimeoutSeconds,
 		Outputs:        outputsToQueue(job.Outputs),
 	})
-	return delivered, err
+	return delivered, outcome == queue.OutcomeQueued, err
 }
 
 func outputsToQueue(outputs []dispatch.ArtifactOutput) []queue.Output {

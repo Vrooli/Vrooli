@@ -154,6 +154,10 @@ func (s *service) Sync(ctx context.Context, in SyncInput) (Decision, error) {
 		s.auditReject(ctx, in, "node revoked")
 		return Decision{}, ErrNodeRevoked{ID: nodeID}
 	}
+	if node.Kind != "" && node.Kind != "agent" {
+		s.auditReject(ctx, in, "node kind does not support privileged provisioning")
+		return Decision{}, ErrUnsupportedNodeKind{ID: nodeID, Kind: node.Kind}
+	}
 
 	// 3. Resolve the rollback revision: an explicit one wins; otherwise the
 	//    node's last recorded version, so a failed setup returns the node to

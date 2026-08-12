@@ -37,6 +37,7 @@ import (
 	"vrooli-bridge/agent/internal/discovery"
 	"vrooli-bridge/agent/internal/nodecred"
 	"vrooli-bridge/agent/internal/platform"
+	"vrooli-bridge/agent/internal/privsep"
 	"vrooli-bridge/agent/internal/service"
 )
 
@@ -78,6 +79,19 @@ func run(args []string) error {
 			return fmt.Errorf("render service unit: %w", err)
 		}
 		fmt.Println(unit)
+		return nil
+	}
+
+	if cfg.ProvisionHelper {
+		if strings.TrimSpace(cfg.ProvisionSocket) == "" {
+			return fmt.Errorf("provision helper requires --provision-socket")
+		}
+		helperCtx, stopHelper := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stopHelper()
+		logger.Printf("provisioning helper socket=%s", cfg.ProvisionSocket)
+		if err := privsep.Serve(helperCtx, cfg.ProvisionSocket, cfg.VrooliBin, cfg.WorkDir, cfg.ProvisionClientUID); err != nil {
+			return fmt.Errorf("provisioning helper: %w", err)
+		}
 		return nil
 	}
 
@@ -170,10 +184,18 @@ func serviceDefinition(cfg config.Config) (service.Definition, error) {
 	if err != nil {
 		return service.Definition{}, fmt.Errorf("resolve agent binary path: %w", err)
 	}
-	args := []string{
-		"--control-plane-url", cfg.ControlPlaneURL,
-		"--node-id", cfg.NodeID,
-		"--state-dir", cfg.StateDir,
+	var args []string
+	name := "vrooli-bridge-agent"
+	description := "Vrooli Bridge node agent"
+	if cfg.ProvisionHelper {
+		name = "vrooli-bridge-provisioner"
+		description = "Vrooli Bridge privileged provisioning helper"
+		args = []string{"--state-dir", cfg.StateDir, "--provision-helper", "--provision-socket", cfg.ProvisionSocket}
+		if cfg.ProvisionClientUID >= 0 {
+			args = append(args, "--provision-client-uid", strconv.Itoa(cfg.ProvisionClientUID))
+		}
+	} else {
+		args = []string{"--control-plane-url", cfg.ControlPlaneURL, "--node-id", cfg.NodeID, "--state-dir", cfg.StateDir}
 	}
 	if cfg.WorkDir != "" {
 		args = append(args, "--work-dir", cfg.WorkDir)
@@ -186,22 +208,31 @@ func serviceDefinition(cfg config.Config) (service.Definition, error) {
 	if cfg.VrooliBin != "" {
 		args = append(args, "--vrooli-bin", cfg.VrooliBin)
 	}
-	if len(cfg.Capabilities) > 0 {
+	if cfg.ProvisionSocket != "" && !cfg.ProvisionHelper {
+		args = append(args, "--provision-socket", cfg.ProvisionSocket)
+		if cfg.ProvisionHelperUID >= 0 {
+			args = append(args, "--provision-helper-uid", strconv.Itoa(cfg.ProvisionHelperUID))
+		}
+	}
+	if !cfg.ProvisionHelper && len(cfg.Capabilities) > 0 {
 		args = append(args, "--capabilities", strings.Join(cfg.Capabilities, ","))
 	}
 	// Keep the boolean value in one argv token. Go's flag package treats a bare
 	// --presence-only as true, so the separated form would silently turn a
 	// granted execution node back into presence-only when rendering its service.
-	args = append(args, "--presence-only="+strconv.FormatBool(cfg.PresenceOnly))
+	if !cfg.ProvisionHelper {
+		args = append(args, "--presence-only="+strconv.FormatBool(cfg.PresenceOnly))
+	}
 	return service.Definition{
-		Name:              "vrooli-bridge-agent",
-		Description:       "Vrooli Bridge node agent",
+		Name:              name,
+		Description:       description,
 		ExecPath:          exe,
 		Args:              args,
 		WorkingDir:        cfg.WorkDir,
 		User:              cfg.ServiceUser,
 		StandardOutPath:   filepath.Join(cfg.StateDir, "agent.stdout.log"),
 		StandardErrorPath: filepath.Join(cfg.StateDir, "agent.stderr.log"),
+		System:            cfg.SystemService,
 	}, nil
 }
 

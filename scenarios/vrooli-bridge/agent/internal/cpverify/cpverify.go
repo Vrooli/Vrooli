@@ -48,7 +48,7 @@ type Verifier struct {
 // it); a malformed file is a hard error. There is no fallback: an agent that
 // cannot load its pin must not dial.
 func Load(path string) (*Verifier, error) {
-	raw, err := os.ReadFile(path) //nolint:gosec // path is the agent's own state dir, not user input
+	raw, err := os.ReadFile(path) // #nosec G304 -- path is the agent's own pinned control-plane key path, not user input.
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		return nil, fmt.Errorf("%w at %q", ErrNoPin, path)

@@ -33,6 +33,20 @@ for the full policy.
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 
+### Delivery safety bounds
+
+These defaults are also declared in the scenario manifest's `environment`
+section. They bound delivery independently from scenario startup time:
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| `BRIDGE_DELIVERY_LEASE_SECONDS` | `10` | Time allowed for a pushed frame to receive a node acknowledgement. |
+| `BRIDGE_WATCHDOG_INTERVAL_SECONDS` | `2` | Watchdog sweep interval. |
+| `BRIDGE_MAX_DELIVERY_ATTEMPTS` | `3` | Maximum push attempts before `FAILED_DELIVERY`. |
+| `BRIDGE_START_DEADLINE_SECONDS` | `30` | Time after acknowledgement before a `RUNNING` event is required. |
+| `BRIDGE_PRESENCE_STALE_SECONDS` | `45` | Heartbeat age after which a half-open channel is not dispatchable. |
+| `BRIDGE_DEADLINE_GRACE_SECONDS` | `5` | Control-plane grace after a run's execution budget. |
+
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect
 RPC namespace to the API process using the lifecycle-provided `API_PORT`.

@@ -55,8 +55,16 @@ func (s *service) Register(ctx context.Context, in RegisterInput) (Node, error) 
 	if arch == "" {
 		return Node{}, ErrInvalidNode{Field: "arch", Reason: "required"}
 	}
+	kind := strings.TrimSpace(in.Kind)
+	if kind == "" {
+		kind = KindAgent
+	}
+	if !ValidKind(kind) {
+		return Node{}, ErrInvalidNode{Field: "kind", Reason: "must be agent, ssh, or attached"}
+	}
 	return s.repo.Create(ctx, Node{
 		Name:                 name,
+		Kind:                 kind,
 		OS:                   os,
 		Arch:                 arch,
 		Endpoint:             strings.TrimSpace(in.Endpoint),

@@ -52,7 +52,7 @@ func LoadOrCreate(path string) (*Credential, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("nodecred: create dir: %w", err)
 	}
-	seed, err := os.ReadFile(path) //nolint:gosec // path is the agent's own state dir, not user input
+	seed, err := os.ReadFile(path) // #nosec G304 -- path is the agent's own state dir, not user input.
 	switch {
 	case err == nil:
 		if len(seed) != ed25519.SeedSize {

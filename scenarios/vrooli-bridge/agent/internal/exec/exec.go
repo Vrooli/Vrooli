@@ -254,5 +254,5 @@ func logEvent(chunk string) *sharedv1.RunEvent {
 }
 
 func exitEvent(code int) *sharedv1.RunEvent {
-	return &sharedv1.RunEvent{Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT, ExitCode: int32(code)}
+	return &sharedv1.RunEvent{Kind: sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT, ExitCode: int32(code)} // #nosec G115 -- runner exit codes are bounded OS process statuses.
 }

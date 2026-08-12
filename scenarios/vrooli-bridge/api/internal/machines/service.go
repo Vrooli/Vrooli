@@ -7,11 +7,13 @@ import "context"
 // owned by their respective domains and are joined through projection readers.
 type Service interface {
 	Create(context.Context, CreateInput) (Machine, error)
+	Resolve(context.Context, IdentityQuery) (Machine, error)
 	Get(context.Context, string) (Machine, error)
 	List(context.Context) ([]Machine, error)
 	Archive(context.Context, string, int64) (Machine, error)
 	Remove(context.Context, string, int64) (Machine, error)
 	LinkNode(context.Context, string, string, string) (Machine, error)
+	Merge(context.Context, MergeInput) (Machine, error)
 	ListMigrationReviews(context.Context) ([]MigrationReview, error)
 	AcknowledgeMigrationReview(context.Context, string) (MigrationReview, error)
 	CreateCleanupTombstone(context.Context, CleanupTombstone) (CleanupTombstone, error)

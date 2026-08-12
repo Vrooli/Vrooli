@@ -1,6 +1,9 @@
 package registry
 
 import (
+	"time"
+
+	internalpresence "vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/registry"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -12,20 +15,31 @@ import (
 // presence overlay (online + status) the handler computed from the live
 // presence reader. The domain layer never imports proto; this is the single
 // translation point (api-steer §7).
-func domainToProto(n registry.Node, online, dispatchable bool) *registryv1.Node {
+func domainToProto(n registry.Node, online, dispatchable bool, facts ...internalpresence.ReadinessFacts) *registryv1.Node {
+	readiness := internalpresence.ReadinessFacts{ChannelHeld: online, ProtocolCompatible: dispatchable, Dispatchable: dispatchable}
+	if len(facts) > 0 {
+		readiness = facts[0]
+	}
 	out := &registryv1.Node{
-		Id:           n.ID,
-		Name:         n.Name,
-		Os:           n.OS,
-		Arch:         n.Arch,
-		Revision:     n.Revision,
-		Endpoint:     n.Endpoint,
-		Capabilities: append([]string(nil), n.Capabilities...),
-		Scopes:       append([]string(nil), n.Scopes...),
-		Online:       online,
-		Status:       statusFor(n, online, dispatchable),
-		CreatedAt:    timestamppb.New(n.CreatedAt),
-		UpdatedAt:    timestamppb.New(n.UpdatedAt),
+		Id:                    n.ID,
+		Name:                  n.Name,
+		Kind:                  kindProto(n.Kind),
+		Os:                    n.OS,
+		Arch:                  n.Arch,
+		Revision:              n.Revision,
+		Endpoint:              n.Endpoint,
+		Capabilities:          append([]string(nil), n.Capabilities...),
+		Scopes:                append([]string(nil), n.Scopes...),
+		Online:                online,
+		Status:                statusFor(n, online, dispatchable),
+		CreatedAt:             timestamppb.New(n.CreatedAt),
+		UpdatedAt:             timestamppb.New(n.UpdatedAt),
+		RegistryRecordPresent: true,
+		HeartbeatFresh:        readiness.HeartbeatFresh,
+		HeartbeatAgeSeconds:   int64(readiness.HeartbeatAge / time.Second),
+		ChannelHeld:           readiness.ChannelHeld,
+		ProtocolCompatible:    readiness.ProtocolCompatible,
+		Dispatchable:          readiness.Dispatchable,
 	}
 	if !n.LastSeenAt.IsZero() {
 		out.LastSeenAt = timestamppb.New(n.LastSeenAt)
@@ -34,6 +48,17 @@ func domainToProto(n registry.Node, online, dispatchable bool) *registryv1.Node 
 		out.RevokedAt = timestamppb.New(n.RevokedAt)
 	}
 	return out
+}
+
+func kindProto(kind string) registryv1.NodeKind {
+	switch kind {
+	case registry.KindSSH:
+		return registryv1.NodeKind_NODE_KIND_SSH
+	case registry.KindAttached:
+		return registryv1.NodeKind_NODE_KIND_ATTACHED
+	default:
+		return registryv1.NodeKind_NODE_KIND_AGENT
+	}
 }
 
 // statusFor computes the overlaid status. Revocation is terminal and wins over

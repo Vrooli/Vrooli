@@ -5,7 +5,6 @@ package system
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"strings"
 	"time"
 
@@ -82,10 +81,10 @@ func (c *PortCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	if runtime.GOOS == "windows" {
-		result.Status = checks.StatusWarning
-		result.Message = "Port exhaustion check not yet implemented for Windows"
-		result.Details["platform"] = "windows"
+	if checkOS != "linux" {
+		result.Status = checks.StatusNotApplicable
+		result.Message = "Port exhaustion check is not implemented on this platform"
+		result.Details["platform"] = checkOS
 		return result
 	}
 
