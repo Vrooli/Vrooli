@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Typed jobs validated against the scope-catalog-derived scenario-CLI manifest and registry-owned execution scopes; never raw shell. The typed scenario screenshot verb remains Mode A, uses the operator-configured vrooli binary, and returns a bounded authenticated run artifact when the target has a usable display session.",
-    "last_validated_at": "2026-08-11T16:50:02-04:00",
+    "last_validated_at": "2026-08-11T22:10:46-04:00",
     "module": "job-dispatch",
     "prd_ref": "OT-P0-004",
     "priority": "P0",

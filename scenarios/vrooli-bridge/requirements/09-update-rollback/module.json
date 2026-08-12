@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Roll one node or the fleet to a target revision; protocol-compatibility gating; auto-rollback on failed setup.",
-    "last_validated_at": "2026-08-11T16:50:02-04:00",
+    "last_validated_at": "2026-08-11T22:10:46-04:00",
     "module": "update-rollback",
     "prd_ref": "OT-P1-001",
     "priority": "P1",

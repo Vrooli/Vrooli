@@ -33,7 +33,6 @@ describe("AppShell accessibility", () => {
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
     );
-
     expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
     expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument();
   });

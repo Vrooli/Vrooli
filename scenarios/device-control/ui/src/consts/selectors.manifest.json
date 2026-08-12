@@ -80,9 +80,69 @@
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
     },
+    "pages.onboardingReport": {
+      "testId": "page-dashboard-onboarding-report",
+      "selector": "[data-testid=\"page-dashboard-onboarding-report\"]"
+    },
+    "pages.dashboardDevices": {
+      "testId": "dashboard-devices",
+      "selector": "[data-testid=\"dashboard-devices\"]"
+    },
+    "pages.dashboardReprobe": {
+      "testId": "dashboard-reprobe",
+      "selector": "[data-testid=\"dashboard-reprobe\"]"
+    },
+    "pages.dashboardAcquire": {
+      "testId": "dashboard-acquire",
+      "selector": "[data-testid=\"dashboard-acquire\"]"
+    },
+    "pages.dashboardSessionKill": {
+      "testId": "dashboard-session-kill",
+      "selector": "[data-testid=\"dashboard-session-kill\"]"
+    },
     "pages.flows": {
       "testId": "page-flows",
       "selector": "[data-testid=\"page-flows\"]"
+    },
+    "pages.flowStrategy": {
+      "testId": "flow-strategy",
+      "selector": "[data-testid=\"flow-strategy\"]"
+    },
+    "pages.flowDevice": {
+      "testId": "flow-device",
+      "selector": "[data-testid=\"flow-device\"]"
+    },
+    "pages.flowDefinition": {
+      "testId": "flow-definition",
+      "selector": "[data-testid=\"flow-definition\"]"
+    },
+    "pages.flowValidate": {
+      "testId": "flow-validate",
+      "selector": "[data-testid=\"flow-validate\"]"
+    },
+    "pages.flowRun": {
+      "testId": "flow-run",
+      "selector": "[data-testid=\"flow-run\"]"
+    },
+    "pages.flowGapReport": {
+      "testId": "flow-gap-report",
+      "selector": "[data-testid=\"flow-gap-report\"]"
+    },
+    "pages.flowActiveSession": {
+      "testId": "flow-active-session",
+      "selector": "[data-testid=\"flow-active-session\"]"
+    },
+    "pages.flowKillSession": {
+      "testId": "flow-kill-session",
+      "selector": "[data-testid=\"flow-kill-session\"]"
+    },
+    "pages.flowRunReview": {
+      "testId": "flow-run-review",
+      "selector": "[data-testid=\"flow-run-review\"]"
+    },
+    "pages.flowEvidenceImage": {
+      "testId": "flow-evidence-image",
+      "selector": "[data-testid=\"flow-evidence-image\"]"
     },
     "pages.evidence": {
       "testId": "page-evidence",

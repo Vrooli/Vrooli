@@ -1,12 +1,13 @@
 package transcript
 
 import (
-	"github.com/stretchr/testify/require"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestAllP0StrategiesHaveProtocolTranscript(t *testing.T) {
+func TestAllP0StrategiesHaveProtocolTranscript(t *testing.T) { // [REQ:DVC-P0-002]
 	f, err := Load(filepath.Join("transcripts.json"))
 	require.NoError(t, err)
 	require.Len(t, f.Strategies, 5)

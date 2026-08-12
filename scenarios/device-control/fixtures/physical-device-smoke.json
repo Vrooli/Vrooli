@@ -1,0 +1,9 @@
+{
+  "id": "physical-device-smoke",
+  "name": "Physical device smoke proof",
+  "steps": [
+    {"id": "before", "kind": "observe", "required_capabilities": ["screenshot"], "timeout_ms": 10000},
+    {"id": "tap", "kind": "tap", "target": "20,20", "required_capabilities": ["input"], "timeout_ms": 10000},
+    {"id": "after", "kind": "observe", "required_capabilities": ["screenshot"], "timeout_ms": 10000}
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Dial-out persistent channel per node; online/offline presence + self-reported readiness; no inbound ports.",
-    "last_validated_at": "2026-08-11T16:50:02-04:00",
+    "last_validated_at": "2026-08-11T22:10:46-04:00",
     "module": "presence-health",
     "prd_ref": "OT-P0-003",
     "priority": "P0",

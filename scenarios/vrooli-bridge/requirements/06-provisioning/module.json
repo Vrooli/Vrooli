@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Privileged tier: bring a node to revision R (fetch source + idempotent vrooli setup); separated from the non-privileged runner.",
-    "last_validated_at": "2026-08-11T16:50:02-04:00",
+    "last_validated_at": "2026-08-11T22:10:46-04:00",
     "module": "provisioning",
     "prd_ref": "OT-P0-006",
     "priority": "P0",

@@ -1,6 +1,22 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "evidence": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Retained, redacted device-control captures referenced by completed flow runs.",
+        "budget": {
+          "max_bytes": "10GiB",
+          "rationale": "Bound retained evidence while preserving audit references; operators can configure a stricter evidence directory policy."
+        }
+      }
+    },
+    "rationale": "Device-control owns retained evidence bytes and the SQLite audit metadata; consumers receive references only."
+  },
   "service": {
     "parent": "vrooli",
     "name": "device-control",

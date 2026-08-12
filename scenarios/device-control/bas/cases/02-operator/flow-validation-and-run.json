@@ -1,0 +1,36 @@
+{
+  "metadata": {
+    "name": "device-control-flow-validation-and-run",
+    "description": "Open flow authoring, validate the starter flow, and verify the run review surface is reachable.",
+    "requirement": "DVC-P1-008",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "flows", "requires_confirmation": "true", "routed_isolation": "true" },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "id": "c6a57a4e-24ec-4bd8-90ed-10c1ea21de9f",
+  "project_id": "device-control",
+  "name": "device-control-flow-validation-and-run",
+  "folder_path": "/bas/cases/02-operator",
+  "description": "The operator can validate and dispatch the starter flow from the browser.",
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 1440, "viewport_height": 900 },
+    "nodes": [
+      { "id": "open-flows", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "@scenario/self", "scenario_path": "/flows", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open flow authoring" } } },
+      { "id": "wait-flow-page", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.flows", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Flow authoring renders" } } },
+      { "id": "validate", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/pages.flowValidate" }, "metadata": { "label": "Validate starter flow" } } },
+      { "id": "wait-gap-report", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.flowGapReport", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Capability report renders" } } },
+      { "id": "run", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/pages.flowRun" }, "metadata": { "label": "Run starter flow" } } },
+      { "id": "wait-review", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.flowRunReview", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Run review renders" } } },
+      { "id": "assert-no-error", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "[role=\"alert\"]", "mode": "ASSERTION_MODE_NOT_EXISTS", "timeout_ms": 1000, "failure_message": "Flow run reported an operator-visible error" }, "metadata": { "label": "Run completed without an operator error" } } }
+    ],
+    "edges": [
+      { "source": "open-flows", "target": "wait-flow-page" },
+      { "source": "wait-flow-page", "target": "validate" },
+      { "source": "validate", "target": "wait-gap-report" },
+      { "source": "wait-gap-report", "target": "run" },
+      { "source": "run", "target": "wait-review" },
+      { "source": "wait-review", "target": "assert-no-error" }
+    ]
+  }
+}

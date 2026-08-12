@@ -38,12 +38,14 @@ func (s *Strategy) Observe(context.Context) (strategy.Frame, error) {
 	_ = png.Encode(&out, image.NewRGBA(image.Rect(0, 0, 2, 2)))
 	return strategy.Frame{Width: 2, Height: 2, Scale: 1, Timestamp: time.Now().UTC(), MediaType: "image/png", Bytes: out.Bytes()}, nil
 }
+
 func (s *Strategy) Actuate(_ context.Context, a strategy.Actuation) error {
 	s.mu.Lock()
 	s.Actuations = append(s.Actuations, a)
 	s.mu.Unlock()
 	return s.ActuateErr
 }
+
 func (s *Strategy) Calls() []strategy.Actuation {
 	s.mu.Lock()
 	defer s.mu.Unlock()

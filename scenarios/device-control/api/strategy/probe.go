@@ -9,6 +9,8 @@ func ProbeCapability(name string, ok bool, prerequisite, nextAction, evidence st
 	c := Capability{Name: name, Prerequisite: strings.TrimSpace(prerequisite), NextAction: strings.TrimSpace(nextAction), ProbeEvidence: strings.TrimSpace(evidence)}
 	if ok {
 		c.Status = StatusAvailable
+		c.Prerequisite = ""
+		c.NextAction = ""
 	} else {
 		c.Status = StatusUnavailable
 	}

@@ -10,6 +10,7 @@ import (
 	internal "vrooli-bridge/internal/attached"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/module"
+	"vrooli-bridge/internal/presence"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -23,12 +24,12 @@ type handler struct {
 	logger  *log.Logger
 }
 
-func Module(db *sql.DB, logger *log.Logger) module.Module {
+func Module(db *sql.DB, logger *log.Logger, live *presence.Hub) module.Module {
 	repo, err := internal.NewSQLiteRepository(db)
 	if err != nil {
 		panic(err)
 	}
-	h := &handler{service: internal.NewServiceWithRepository(repo), logger: logger}
+	h := &handler{service: internal.NewServiceWithRepositoryAndPresence(repo, live), logger: logger}
 	path, svc := attachedconnect.NewAttachedDeviceServiceHandler(h)
 	return module.Module{Name: "attached-devices", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: svc}) }, Endpoints: Endpoints}
 }

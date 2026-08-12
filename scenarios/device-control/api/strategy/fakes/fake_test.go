@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStrategyProvidesReplayableFloor(t *testing.T) {
+func TestStrategyProvidesReplayableFloor(t *testing.T) { // [REQ:DVC-P0-001]
 	s := New("fake", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot)
 	frame, err := s.Observe(context.Background())
 	require.NoError(t, err)

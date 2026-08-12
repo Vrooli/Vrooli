@@ -24,7 +24,7 @@ Use this document to answer:
 | `agent-manager` | scenario | for agent mode | `agent` | Run spawn, bounds, transcript, terminal state | `device-control agent run` reports `unavailable`. Flow execution is unaffected. |
 | `prompt-manager` | scenario | for agent mode | `agent` | The operator skill that teaches this scenario's CLI | Agent mode refuses to start rather than improvising without the skill. |
 | `browser-automation-studio` | scenario | optional | `flows` | Named flow execution against an attached WebView | `bas.*` steps report `unavailable`; every other step kind still runs. Also gated on the strategy declaring `webview-attach` — a `bas.*` step on a strategy without it is `unsupported`, not `unavailable`. |
-| `android-sdk` | resource | for `android-adb` | `strategies` | adb, platform-tools, emulator, system images, AVD lifecycle | The `android-adb` strategy reports `unavailable` naming the missing tool. Other strategies are unaffected. |
+| `android-sdk` | resource | for `android-adb` | `strategies`, `conformance` | `adb`, platform-tools, emulator, system images, AVD lifecycle | The `android-adb` strategy reports `unavailable` naming the missing tool. Other strategies are unaffected. A physical conformance run fails closed unless the fixture APK and adb are both available. |
 | Xcode | host capability | for iOS strategies | `strategies` | `xcodebuild`, `simctl`, `devicectl`, signing identities | Probed and instructed, never installed by us. Missing Xcode makes the iOS strategies `unavailable` with an install next-action. |
 
 ## Vrooli Resources
@@ -36,7 +36,7 @@ instruct.
 
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
-| `android-sdk` | planned | The `android-adb` strategy needs adb, platform-tools, the emulator, system images, and AVD lifecycle. This is fully scriptable, so it earns real resource treatment rather than being a host prerequisite. | Create the resource before `OT-P0-011` (`android-adb` strategy) starts. |
+| `android-sdk` | active | The `android-adb` strategy needs adb and platform-tools for physical control; emulator, system images, and AVD lifecycle remain optional extensions. Installation must be an observable success or an explicit failure. | Revisit when mobile ramps require managed emulator images or AVD lifecycle. |
 | Xcode | not-a-resource | We cannot install, license, or version Xcode. Modelling it as a resource would put a permanently failing acquisition step in the resource fleet. It is a **host capability**: probed by `strategies`, and reported `unavailable` with an install next-action when absent. | Never. Revisit only if Apple ships a redistributable toolchain. |
 | SQLite | active | Default embedded store for flow definitions, run history, capability snapshots, leases, and audit. | Revisit only if run history outgrows single-writer access. |
 
@@ -78,6 +78,17 @@ this scenario supplies `app-lifecycle`, input, and capture, and knows
 nothing about why they were called. That is also why `manager` is the
 profile the ramps actually need — a `driver`-only strategy can validate
 a running app but cannot run a conformance journey.
+
+The device-control API exposes the provider-neutral chapter contract at
+`GET /api/v1/conformance/android` and executes a caller-supplied
+`hello-mobile` fixture at `POST /api/v1/conformance/android/run`. The result
+contains chapter dispositions, producer-owned evidence references, and a
+`common.v1.TargetVerdict` marked `DEVICE_KIND_PHYSICAL`; it never embeds APK
+bytes or local artifact paths. The shared contract descriptor is
+`fixtures/hello-mobile.contract.json`; its buildable source project is owned by
+`scenario-to-android/fixtures/hello-mobile`. The generated debug APK is a
+validation artifact and is intentionally not committed. Physical execution
+still requires building that artifact and installing it on the attached phone.
 
 ### Working vision integration
 

@@ -4,6 +4,40 @@
   "description": "Vrooli Bridge fleet control-plane CLI surface. Single source of truth for the operator/agent command shape: schema-validated against cli-manifest/v1 and cross-validated against each domain's proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
+      "name": "attached",
+      "description": "Inspect and govern devices attached to Bridge host nodes",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List retained attached devices",
+          "binding": { "kind": "connect-rpc", "service": "AttachedDeviceService", "method": "ListAttachedDevices" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "pair",
+          "description": "Pair an attached device through a trusted host node",
+          "flags": [
+            { "name": "name", "description": "Human-friendly device label" },
+            { "name": "host-node-id", "required": true, "description": "Trusted Bridge host node id" },
+            { "name": "kind", "required": true, "description": "Attached device kind, for example android" },
+            { "name": "transport", "description": "Physical transport, for example usb" },
+            { "name": "serial", "description": "Stable device serial" },
+            { "name": "os-version", "description": "Observed device OS version" },
+            { "name": "host-node-online", "bool": true, "description": "The host node is currently online" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AttachedDeviceService", "method": "PairAttachedDevice" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"] }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke a retained attached device",
+          "positionals": [{ "name": "id", "required": true, "description": "Attached device id" }],
+          "binding": { "kind": "connect-rpc", "service": "AttachedDeviceService", "method": "RevokeAttachedDevice" },
+          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal", "admin"] }
+        }
+      ]
+    },
+    {
       "name": "auth",
       "description": "Sign in the local CLI as a Bridge owner",
       "commands": [
@@ -2036,21 +2070,6 @@
       "service": "ArtifactsService",
       "method": "UploadRunArtifact",
       "reason": "Node-facing authenticated upload called by the bridge agent after a typed job produces bounded evidence; there is no operator upload command."
-    },
-    {
-      "service": "AttachedDeviceService",
-      "method": "ListAttachedDevices",
-      "reason": "The attached-device list is currently consumed by the Bridge UI and API integrations; no operator CLI command is exposed yet."
-    },
-    {
-      "service": "AttachedDeviceService",
-      "method": "PairAttachedDevice",
-      "reason": "Attached-device pairing is currently owned by the Bridge UI and API integrations; no operator CLI command is exposed yet."
-    },
-    {
-      "service": "AttachedDeviceService",
-      "method": "RevokeAttachedDevice",
-      "reason": "Attached-device revocation is currently owned by the Bridge UI and API integrations; no operator CLI command is exposed yet."
     }
   ]
 }

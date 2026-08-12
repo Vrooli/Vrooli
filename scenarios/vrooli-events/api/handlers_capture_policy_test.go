@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/policy"
@@ -117,6 +118,27 @@ func TestValidateDeclaredResponseRejectsUndeclaredProjection(t *testing.T) {
 	}
 	if err := validateDeclaredResponse(repoRoot, "POST /agent_manager.v1.AgentManagerService/CreateRun", "agent_manager.v1.StopRunResponse", []string{"status"}); err == nil {
 		t.Fatal("mismatched response type was accepted")
+	}
+}
+
+func BenchmarkValidateDeclaredResponseWithSnapshot(b *testing.B) {
+	repoRoot, err := filepath.Abs("../../..")
+	if err != nil {
+		b.Fatal(err)
+	}
+	source, err := descriptorimage.NewForRepo(repoRoot)
+	if err != nil {
+		b.Fatal(err)
+	}
+	snapshot, err := source.Snapshot()
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := validateDeclaredResponseWithSnapshot(repoRoot, "POST /agent_manager.v1.AgentManagerService/CreateRun", "agent_manager.v1.CreateRunResponse", []string{"run.id"}, snapshot); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

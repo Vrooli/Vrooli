@@ -2,6 +2,7 @@ package domains
 
 import (
 	"vrooli-bridge/cli/domains/artifacts"
+	"vrooli-bridge/cli/domains/attached"
 	"vrooli-bridge/cli/domains/audit"
 	"vrooli-bridge/cli/domains/auth"
 	"vrooli-bridge/cli/domains/dispatch"
@@ -54,6 +55,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	// this aggregator flat (no per-domain error-handling branch to grow).
 	registrars := []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
 		auth.Register,
+		attached.Register,
 		nodes.Register,
 		machines.Register,
 		pairing.Register,

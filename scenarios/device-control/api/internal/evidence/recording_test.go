@@ -1,9 +1,10 @@
 package evidence
 
 import (
-	"github.com/stretchr/testify/require"
 	"image"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestEncodeFramesProducesSynthesizedEvidence(t *testing.T) {
@@ -15,7 +16,7 @@ func TestEncodeFramesProducesSynthesizedEvidence(t *testing.T) {
 	require.NotEmpty(t, video.Bytes)
 }
 
-func TestNativeMetadataEnforcesUsefulFPS(t *testing.T) {
+func TestNativeMetadataEnforcesUsefulFPS(t *testing.T) { // [REQ:DVC-P0-012]
 	_, err := NativeMetadata(1)
 	require.Error(t, err)
 	meta, err := NativeMetadata(5)

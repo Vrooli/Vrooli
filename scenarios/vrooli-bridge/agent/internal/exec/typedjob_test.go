@@ -84,6 +84,30 @@ func TestBuildArgv_ConstructsTypedArgv(t *testing.T) {
 	require.Equal(t, []string{"vrooli", "scenario", "test", "web-search", "--json"}, argv)
 }
 
+func TestBuildArgv_RoutesDeviceControlNamespaceToScenarioCLI(t *testing.T) {
+	argv, err := exec.BuildArgv("vrooli", &channelv1.JobPush{
+		RunId: "bridge-run-42", Verb: "device-control flow", Scenario: "device-control",
+		Args: []string{"run", "--file", "/tmp/flow.json", "--device", "android-1"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"device-control", "flow", "run", "--file", "/tmp/flow.json", "--device", "android-1"}, argv)
+}
+
+func TestExecute_DeviceControlJobPreservesBridgeRunIdentity(t *testing.T) {
+	cmd := &fakeCommand{exit: 0}
+	rep := &fakeReporter{}
+	runner := exec.NewRunner("vrooli", "/work", rep, exec.WithCommandRunner(cmd))
+
+	require.NoError(t, runner.Execute(context.Background(), &channelv1.JobPush{
+		RunId: "bridge-run-42", Verb: "device-control flow", Scenario: "device-control",
+		Args: []string{"run", "--file", "/tmp/flow.json", "--device", "android-1"},
+	}))
+	require.Equal(t, []string{"device-control", "flow", "run", "--file", "/tmp/flow.json", "--device", "android-1"}, cmd.gotArgv)
+	for _, event := range rep.events {
+		require.Equal(t, "bridge-run-42", event.RunId)
+	}
+}
+
 // [REQ:BRG-P0-004] A shell metacharacter in any typed field is rejected before
 // execution — a smuggled shell construct can never reach the runner.
 func TestBuildArgv_RejectsShellMetacharacters(t *testing.T) {

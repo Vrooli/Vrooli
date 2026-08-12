@@ -36,5 +36,5 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	_ = manifest
-	return []cliapp.SubcommandGroup{control.Group(core), control.StrategyGroup(core), control.SessionGroup(core), control.FlowGroup(core), control.AuditGroup(core), control.AgentGroup(core)}, nil
+	return []cliapp.SubcommandGroup{control.Group(core), control.StrategyGroup(core), control.SessionGroup(core), control.FlowGroup(core), control.AuditGroup(core), control.AgentGroup(core), control.ConformanceGroup(core)}, nil
 }

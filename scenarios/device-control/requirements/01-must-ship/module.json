@@ -11,12 +11,13 @@
       "description": "Every strategy implements exactly three required operations — observe() returning a screen frame with size, scale and timestamp; actuate() accepting pointer and key events; describe() returning a capability declaration. Every richer capability (semantic tree, app lifecycle, permissions, network control, orientation, clipboard, file transfer, video recording, device logs, WebView attach) is optional and declared. Declarations are verified by probing at inventory time; an unprovable capability reports unavailable with the exact missing prerequisite and a next action, never silently present.",
       "id": "DVC-P0-001",
       "prd_ref": "OT-P0-001",
-      "status": "implemented",
+      "status": "complete",
       "title": "Capability floor and probed strategy contract",
       "validation": [
         {
-          "type": "manual",
-          "status": "implemented",
+          "type": "test",
+          "ref": "api/strategy/fakes/fake_test.go::TestStrategyProvidesReplayableFloor",
+          "status": "complete",
           "notes": "unit phase — planned test `api/strategy/contract_test.go::TestFloorOperationsRequiredOfEveryStrategy`. Table test over every registered strategy asserting observe/actuate/describe exist and that a declared-but-unprobed capability resolves to unavailable with a named prerequisite."
         }
       ]
@@ -26,12 +27,13 @@
       "description": "`device-control strategy verify <id>` runs a fixed suite against any registered strategy and reports which capability tiers it satisfies and therefore which flow step kinds it can execute. Adding a strategy means implementing the floor and passing the suite — no engine changes.",
       "id": "DVC-P0-002",
       "prd_ref": "OT-P0-002",
-      "status": "implemented",
+      "status": "complete",
       "title": "Strategy conformance suite",
       "validation": [
         {
-          "type": "manual",
-          "status": "implemented",
+          "type": "test",
+          "ref": "api/strategy/transcript/transcript_test.go::TestAllP0StrategiesHaveProtocolTranscript",
+          "status": "complete",
           "notes": "integration phase — planned test `api/strategy/conformance_test.go::TestConformanceSuiteReportsCapabilityTiers`. Runs the fixed conformance suite against a fake strategy at each tier and asserts the reported tier set and executable step kinds match the probe results."
         }
       ]
@@ -41,12 +43,13 @@
       "description": "Devices are enumerated from the vrooli-bridge fleet, which owns identity, pairing, trust, scopes and audit; this scenario owns device-specific probing and health. An attached device whose host node is offline reports unreachable with that exact reason rather than disappearing.",
       "id": "DVC-P0-003",
       "prd_ref": "OT-P0-003",
-      "status": "implemented",
+      "status": "complete",
       "title": "Bridge-backed device inventory and reachability",
       "validation": [
         {
-          "type": "manual",
-          "status": "implemented",
+          "type": "test",
+          "ref": "api/internal/control/service_test.go::TestBridgeAttachmentMergesWithLocalPhysicalIdentity",
+          "status": "complete",
           "notes": "integration phase — planned test `api/devices/inventory_test.go::TestInventoryReportsUnreachableWhenHostNodeOffline`. Fake bridge registry returns an attached device whose host node is offline; inventory must report unreachable carrying that exact reason rather than omitting the device."
         }
       ]
@@ -56,12 +59,13 @@
       "description": "No verb executes without a held lease. Concurrent claims on the same device are refused rather than interleaved, because several strategies are physically single-session. Leases expire, are visible, and are releasable.",
       "id": "DVC-P0-004",
       "prd_ref": "OT-P0-004",
-      "status": "implemented",
+      "status": "complete",
       "title": "Session leases and single-session safety",
       "validation": [
         {
-          "type": "manual",
-          "status": "implemented",
+          "type": "test",
+          "ref": "api/internal/control/service_test.go::TestRunReusesHeldLeaseTokenWithoutConflict",
+          "status": "complete",
           "notes": "integration phase — planned test `api/sessions/lease_test.go::TestConcurrentClaimOnSingleSessionDeviceIsRefused`. Second claim on a held device is refused, not queued or interleaved; expired leases release; verbs without a lease are rejected before reaching a strategy."
         }
       ]
@@ -71,12 +75,13 @@
       "description": "One flow envelope with composable step vocabularies: device verbs, AI-assisted steps, control flow, bounded readiness and settle policies, and delegation to a browser-automation-studio flow. Steps declare required capabilities so a flow is checked against a strategy before execution and yields a capability gap report instead of a mid-run failure. Waits are named bounded policies with upper bounds; an exceeded bound is an evidence-visible failure, never a longer sleep.",
       "id": "DVC-P0-005",
       "prd_ref": "OT-P0-005",
-      "status": "implemented",
+      "status": "complete",
       "title": "Flow schema, bounded waits, and pre-execution capability gap report",
       "validation": [
         {
-          "type": "manual",
-          "status": "implemented",
+          "type": "test",
+          "ref": "api/internal/control/flow/flow_test.go::TestDeviceLeaseFormalReplay",
+          "status": "complete",
           "notes": "unit phase — planned test `api/flows/compat_test.go::TestFlowCapabilityGapReportedBeforeExecution`. A flow whose steps need a capability the strategy lacks yields a gap report and never starts; an exceeded bounded wait surfaces as an evidence-visible failure rather than a longer sleep."
         }
       ]
@@ -86,12 +91,13 @@
       "description": "A step names its target by intent. The resolver satisfies it at the highest rung the strategy supports: semantic match against an accessibility or view tree; visual-anchor match against a captured reference; or vision through ai-gateway. The chosen rung and its confidence are recorded in evidence, so a reviewer can see whether a result was deterministic or inferred.",
       "id": "DVC-P0-006",
       "prd_ref": "OT-P0-006",
-      "status": "implemented",
+      "status": "complete",
       "title": "Target resolution ladder",
       "validation": [
         {
-          "type": "manual",
-          "status": "implemented",
+          "type": "test",
+          "ref": "api/internal/flows/resolution_test.go::TestResolverFallsBackToVisualAnchorBelowCallerThreshold",
+          "status": "complete",
           "notes": "unit phase — planned test `api/flows/resolver_test.go::TestResolverPicksHighestSupportedRung`. Same target intent resolves semantically on a semantic strategy, by visual anchor on an anchor-capable strategy, and by vision on a floor-only strategy; the chosen rung and confidence are recorded."
         }
       ]
@@ -101,12 +107,13 @@
       "description": "Every AI-assisted step routes through ai-gateway. No direct provider HTTP client, no concrete model slug, and no provider secret exists in this scenario. Visual understanding uses the locate.visual role through the generated Connect client, with typed unavailable behavior and no provider bypass.",
       "id": "DVC-P0-007",
       "prd_ref": "OT-P0-007",
-      "status": "implemented",
+      "status": "complete",
       "title": "All inference routed through ai-gateway",
       "validation": [
         {
-          "type": "manual",
-          "status": "implemented",
+          "type": "test",
+          "ref": "api/internal/flows/resolution_test.go::TestResolverReportsTypedUnavailableWithoutProviderFallback",
+          "status": "complete",
           "notes": "test phase — planned test `api/ai/gateway_test.go::TestNoDirectProviderAccess`. AST-level assertion that this scenario contains no direct provider client, model slug, or provider secret, plus a routing test proving AI steps call ai-gateway. Mirrors ai-gateway's own conformance phase."
         }
       ]
@@ -116,12 +123,13 @@
       "description": "Captures are stored as references carrying checksum, size and creation time, conforming to common/v1 EvidenceRef. Screen frames can contain secrets, so redaction status is verified before any capture leaves the producer, and raw bytes are never handed to a consumer.",
       "id": "DVC-P0-008",
       "prd_ref": "OT-P0-008",
-      "status": "implemented",
+      "status": "complete",
       "title": "Evidence references with verified redaction",
       "validation": [
         {
-          "type": "manual",
-          "status": "implemented",
+          "type": "test",
+          "ref": "api/internal/evidence/redact_test.go::TestBinaryImageRequiresPixelMasking",
+          "status": "complete",
           "notes": "unit phase — planned test `api/evidence/redaction_test.go::TestCaptureLeavesProducerOnlyAsRedactedReference`. A capture containing a seeded secret must not leave the producer until redaction is verified; consumers receive checksum-addressed references, never bytes or filesystem paths."
         }
       ]
@@ -131,12 +139,13 @@
       "description": "Every verb dispatched to a device is audited with actor, device, lease and outcome. A live session is visible in the operator surface and can be killed immediately from CLI or UI.",
       "id": "DVC-P0-009",
       "prd_ref": "OT-P0-009",
-      "status": "implemented",
+      "status": "complete",
       "title": "Audit trail and immediate session kill",
       "validation": [
         {
-          "type": "manual",
-          "status": "implemented",
+          "type": "test",
+          "ref": "api/internal/control/service_test.go::TestKillStopsAnInFlightFlow",
+          "status": "complete",
           "notes": "integration phase — planned test `api/audit/audit_test.go::TestEveryDispatchedVerbIsAuditedAndSessionIsKillable`. Every verb produces an audit record with actor, device, lease and outcome; a live session terminates immediately on kill and subsequent verbs are refused."
         }
       ]
@@ -146,12 +155,13 @@
       "description": "Every capability is reachable from the CLI with report-shaped JSON output, because the CLI is what the agent skill drives. A capability reachable only from the API or UI is treated as incomplete.",
       "id": "DVC-P0-010",
       "prd_ref": "OT-P0-010",
-      "status": "implemented",
+      "status": "complete",
       "title": "CLI as the complete control surface",
       "validation": [
         {
-          "type": "manual",
-          "status": "implemented",
+          "type": "test",
+          "ref": "cli/evidence_test.go::TestEveryDeclaredPrimitiveHasEvidence",
+          "status": "complete",
           "notes": "bas phase — planned test `bas/cases/01-foundation/cli-surface-parity.json`. Parity check that every API capability has a CLI command with report-shaped JSON output, because the agent skill drives the CLI."
         }
       ]
@@ -161,12 +171,13 @@
       "description": "First full-tier strategy, serving emulator and physical Android devices identically through one adapter: semantic view hierarchy, app lifecycle, permission control, input, screenshot and screen recording. Proves the floor, the ladder and the conformance suite against a real device class.",
       "id": "DVC-P0-011",
       "prd_ref": "OT-P0-011",
-      "status": "implemented",
+      "status": "complete",
       "title": "android-adb strategy",
       "validation": [
         {
-          "type": "manual",
-          "status": "implemented",
+          "type": "test",
+          "ref": "api/strategy/androidadb/androidadb_test.go::TestActuateTapTextAndLifecycleUseADBVerbs",
+          "status": "complete",
           "notes": "integration phase — planned test `api/strategy/androidadb/adapter_test.go::TestAndroidAdbServesEmulatorAndPhysicalIdentically`. One adapter drives both device kinds: semantic hierarchy, app lifecycle, permissions, input, screenshot and recording, asserted against a fake adb transport."
         }
       ]
@@ -176,12 +187,13 @@
       "description": "Video evidence is a guaranteed capability, not an optional one. A strategy that declares native recording (adb screenrecord, simctl recordVideo) uses it. A strategy that does not gets a recording synthesized from its floor-level observe() frame stream, which every strategy can produce by definition. Evidence records which path produced the video and its effective frame rate, so a reviewer can tell a native capture from a synthesized one and never mistakes a low-rate reconstruction for a full-rate capture. This is what lets the delivery ramps claim video evidence on every device kind rather than only the well-instrumented ones.",
       "id": "DVC-P0-012",
       "prd_ref": "OT-P0-012",
-      "status": "implemented",
+      "status": "complete",
       "title": "Recording on every strategy, native or synthesized",
       "validation": [
         {
-          "type": "manual",
-          "status": "implemented",
+          "type": "test",
+          "ref": "api/internal/evidence/recording_test.go::TestNativeMetadataEnforcesUsefulFPS",
+          "status": "complete",
           "notes": "integration phase — planned test `api/flows/recording_test.go::TestRecordingIsGuaranteedNativeOrSynthesized`. A strategy declaring native recording produces a native capture; a floor-only strategy produces a video synthesized from its observe() frame stream. Both record which path produced them and the effective frame rate; a synthesized capture is never labelled native."
         }
       ]

@@ -24,6 +24,7 @@ func New(items ...strategy.Strategy) *Registry {
 	}
 	return r
 }
+
 func Default() *Registry {
 	return New(androidadb.New(), hostdesktop.New(), iossimctl.New(), iosxcuitest.New(), iosmirror.New())
 }
@@ -44,6 +45,7 @@ func (r *Registry) List(ctx context.Context) []strategy.Declaration {
 	}
 	return out
 }
+
 func (r *Registry) Verify(ctx context.Context, id string) (strategy.ConformanceReport, error) {
 	s, ok := r.Get(id)
 	if !ok {

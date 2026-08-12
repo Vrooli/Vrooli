@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "48d46eda770871b6e441fc1fcffd6fcfe5f585c1d96e926f9bc57f361ff4cdf1",
+  "manifest_hash": "a2cc75076a1e0e42c90d6bfa7b802393f282df1ea7353ce7d79ebcc2c2e905ac",
   "commands": [
     {
       "path": "agent abort",
@@ -31,10 +31,28 @@
       "binding": "EvidenceService.ListAudit"
     },
     {
+      "path": "conformance plan",
+      "group": "conformance",
+      "command": "plan",
+      "binding": "."
+    },
+    {
+      "path": "conformance run",
+      "group": "conformance",
+      "command": "run",
+      "binding": "."
+    },
+    {
       "path": "device connect",
       "group": "device",
       "command": "connect",
       "binding": "DeviceService.ConnectDevice"
+    },
+    {
+      "path": "device forget",
+      "group": "device",
+      "command": "forget",
+      "binding": "."
     },
     {
       "path": "device list",

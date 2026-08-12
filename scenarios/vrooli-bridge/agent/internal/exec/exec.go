@@ -35,6 +35,7 @@ const shellMetachars = "|&;<>()$`\\\"'\n\r\t*?[]{}!#~"
 const (
 	rejectExitCode       = 126
 	startFailureExitCode = 127
+	deviceControlCLI     = "device-control"
 )
 
 // EventReporter delivers one RunEvent back to the control plane. The channel
@@ -111,10 +112,13 @@ func NewRunner(bin, workDir string, reporter EventReporter, opts ...Option) *Run
 //	[bin] + <verb tokens split on whitespace> + [scenario] + [args...]
 //
 // e.g. JobPush{verb:"scenario test", scenario:"web-search"} → ["vrooli",
-// "scenario", "test", "web-search"]. It is pure and exported so the
-// no-shell-path property is directly testable. It returns an error (not an
-// argv) when the verb is empty or ANY token carries a shell metacharacter — so
-// a malicious typed field can never reach execution.
+// "scenario", "test", "web-search"]. Device Control is a scenario CLI rather
+// than a vrooli subcommand, so its typed namespace is translated to
+// ["device-control", <device-control subcommand>, args...] and does not append
+// the redundant scenario field. It is pure and exported so the no-shell-path
+// property is directly testable. It returns an error (not an argv) when the
+// verb is empty or ANY token carries a shell metacharacter — so a malicious
+// typed field can never reach execution.
 func BuildArgv(bin string, job *channelv1.JobPush) ([]string, error) {
 	if job == nil {
 		return nil, fmt.Errorf("nil job")
@@ -125,6 +129,19 @@ func BuildArgv(bin string, job *channelv1.JobPush) ([]string, error) {
 	}
 
 	verbTokens := strings.Fields(verb)
+	if len(verbTokens) >= 2 && verbTokens[0] == deviceControlCLI {
+		argv := make([]string, 0, len(verbTokens)+len(job.GetArgs()))
+		argv = append(argv, deviceControlCLI)
+		argv = append(argv, verbTokens[1:]...)
+		argv = append(argv, job.GetArgs()...)
+		for _, tok := range argv[1:] {
+			if i := strings.IndexAny(tok, shellMetachars); i >= 0 {
+				return nil, fmt.Errorf("unsafe token %q: contains shell metacharacter %q", tok, string(tok[i]))
+			}
+		}
+		return argv, nil
+	}
+
 	argv := make([]string, 0, len(verbTokens)+len(job.GetArgs())+2)
 	argv = append(argv, strings.TrimSpace(bin))
 	argv = append(argv, verbTokens...)

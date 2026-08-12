@@ -232,6 +232,7 @@
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/vrooli-bridge.db"
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/vrooli-bridge.db",
+    "API_BIND_ADDRESS": "0.0.0.0"
   }
 }

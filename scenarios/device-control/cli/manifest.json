@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "device-control",
-  "description": "Device Control CLI surface. Runtime commands are grouped by device, strategy, session, flow, audit, and agent concerns.",
+  "description": "Device Control CLI surface. Runtime commands are grouped by device, strategy, session, flow, audit, agent, and physical conformance concerns.",
   "groups": [
     {
       "name": "device",
@@ -16,9 +16,20 @@
         {
           "name": "connect",
           "description": "Show device onboarding",
-          "flags": [{ "name": "kind", "description": "Device kind" }],
+          "flags": [
+            { "name": "kind", "description": "Device kind" },
+            { "name": "watch", "description": "Re-probe until onboarding is ready or the watch window expires" },
+            { "name": "watch-seconds", "description": "Maximum live re-probe window in seconds" }
+          ],
           "binding": { "kind": "connect-rpc", "service": "DeviceService", "method": "ConnectDevice" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "forget",
+          "description": "Forget a retained device identity",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "destructive", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     },
@@ -146,6 +157,32 @@
           "positionals": [{ "name": "id", "required": true }],
           "binding": { "kind": "local" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "conformance",
+      "description": "Run governed physical-device conformance plans",
+      "commands": [
+        {
+          "name": "plan",
+          "description": "Show the Android physical conformance chapters",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "run",
+          "description": "Run the Android physical conformance plan",
+          "flags": [
+            { "name": "device", "required": true },
+            { "name": "apk", "required": true },
+            { "name": "package", "required": true },
+            { "name": "deep-link", "required": true },
+            { "name": "actor", "default": "cli" },
+            { "name": "lease" }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
         }
       ]
     }

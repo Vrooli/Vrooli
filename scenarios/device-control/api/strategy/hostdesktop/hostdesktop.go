@@ -21,11 +21,20 @@ func (a *Adapter) Describe(context.Context) (strategy.Declaration, error) {
 		next := "Start a usable DISPLAY session (or configure WAYLAND_DISPLAY) for host-desktop."
 		return strategy.UnavailableDeclaration(a.ID(), "Local Linux desktop", []strategy.Capability{{Name: strategy.CapInput, Prerequisite: next, NextAction: next}, {Name: strategy.CapScreenshot, Prerequisite: next, NextAction: next}}, next), nil
 	}
+	if _, err := exec.LookPath("import"); err != nil {
+		next := "Install ImageMagick and expose import on PATH for host-desktop screenshots."
+		return strategy.UnavailableDeclaration(a.ID(), "Local Linux desktop", []strategy.Capability{{Name: strategy.CapScreenshot, Prerequisite: next, NextAction: next}}, next), nil
+	}
+	if _, err := exec.LookPath("xdotool"); err != nil {
+		next := "Install xdotool and expose it on PATH for host-desktop input."
+		return strategy.UnavailableDeclaration(a.ID(), "Local Linux desktop", []strategy.Capability{{Name: strategy.CapInput, Prerequisite: next, NextAction: next}, {Name: strategy.CapScreenshot, Status: strategy.StatusAvailable, ProbeEvidence: "ImageMagick import probe"}}, next), nil
+	}
 	caps := map[string]strategy.Capability{strategy.CapInput: strategy.ProbeCapability(strategy.CapInput, true, "", "", "DISPLAY probe"), strategy.CapScreenshot: strategy.ProbeCapability(strategy.CapScreenshot, true, "", "", "DISPLAY probe")}
 	d := strategy.Declaration{StrategyID: a.ID(), Description: "The local host desktop through the configured display", Status: strategy.StatusAvailable, Capabilities: caps, Promotable: true}
 	d.Tiers = strategy.Tiers(d)
 	return d, nil
 }
+
 func (a *Adapter) Observe(ctx context.Context) (strategy.Frame, error) {
 	if a.display == "" {
 		return strategy.Frame{}, &strategy.AvailabilityError{Reason: "no display session", NextAction: "Start a usable DISPLAY session for host-desktop."}
@@ -42,6 +51,7 @@ func (a *Adapter) Observe(ctx context.Context) (strategy.Frame, error) {
 	}
 	return strategy.Frame{Width: cfg.Width, Height: cfg.Height, Scale: 1, Timestamp: time.Now().UTC(), MediaType: "image/png", Bytes: data}, nil
 }
+
 func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 	if a.display == "" {
 		return &strategy.AvailabilityError{Reason: "no display session", NextAction: "Start a usable DISPLAY session for host-desktop."}

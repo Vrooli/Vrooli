@@ -2,11 +2,13 @@ package iossimctl
 
 import (
 	"context"
-	"device-control/strategy"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"device-control/strategy"
 )
 
 type Adapter struct{}
@@ -22,6 +24,11 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 		next := "Install an available iOS Simulator runtime in Xcode."
 		return strategy.UnavailableDeclaration(a.ID(), "iOS Simulator through simctl", []strategy.Capability{{Name: strategy.CapInput, Prerequisite: next, NextAction: next}}, next), nil
 	}
+	udid := strings.TrimSpace(os.Getenv("IOS_SIMULATOR_UDID"))
+	if udid == "" {
+		next := "Select a booted simulator by setting IOS_SIMULATOR_UDID before using ios-simctl."
+		return strategy.UnavailableDeclaration(a.ID(), "iOS Simulator through simctl", []strategy.Capability{{Name: strategy.CapInput, Prerequisite: next, NextAction: next}, {Name: strategy.CapScreenshot, Prerequisite: next, NextAction: next}}, next), nil
+	}
 	caps := map[string]strategy.Capability{}
 	for _, n := range []string{strategy.CapInput, strategy.CapScreenshot, strategy.CapSemanticTree, strategy.CapScreenRecording} {
 		caps[n] = strategy.ProbeCapability(n, true, "", "", "simctl probe")
@@ -30,12 +37,16 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 	d.Tiers = strategy.Tiers(d)
 	return d, nil
 }
+
 func (a *Adapter) Observe(context.Context) (strategy.Frame, error) {
 	return strategy.Frame{}, &strategy.AvailabilityError{Reason: "simulator capture requires a selected simulator UDID", NextAction: "Boot an iOS simulator on a macOS host node."}
 }
+
 func (a *Adapter) Actuate(context.Context, strategy.Actuation) error {
 	return fmt.Errorf("simulator is unavailable without a selected macOS simulator")
 }
 
-var _ = strings.TrimSpace
-var _ = time.Now
+var (
+	_ = strings.TrimSpace
+	_ = time.Now
+)

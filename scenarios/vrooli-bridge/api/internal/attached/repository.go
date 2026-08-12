@@ -20,6 +20,7 @@ func (r *memoryRepository) Create(_ context.Context, d Device) (Device, error) {
 	r.devices[d.ID] = d
 	return d, nil
 }
+
 func (r *memoryRepository) List(_ context.Context) ([]Device, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -31,6 +32,7 @@ func (r *memoryRepository) List(_ context.Context) ([]Device, error) {
 	}
 	return out, nil
 }
+
 func (r *memoryRepository) Get(_ context.Context, id string) (Device, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -40,6 +42,7 @@ func (r *memoryRepository) Get(_ context.Context, id string) (Device, error) {
 	}
 	return d, nil
 }
+
 func (r *memoryRepository) Revoke(ctx context.Context, id string, at time.Time) (Device, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -80,12 +83,13 @@ const schemaSQL = `CREATE TABLE IF NOT EXISTS bridge_attached_devices (id TEXT P
 func Schema() string { return schemaSQL }
 
 func (r *sqliteRepository) Create(ctx context.Context, d Device) (Device, error) {
-	_, err := r.db.ExecContext(ctx, `INSERT INTO bridge_attached_devices (id,name,host_node_id,kind,transport,serial,os_version,trust_state,reachability,health_reason,created_at,revoked_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, d.ID, d.Name, d.HostNodeID, d.Kind, d.Transport, d.Serial, d.OSVersion, d.TrustState, d.Reachability, d.HealthReason, d.CreatedAt.Format(time.RFC3339Nano), "")
+	_, err := r.db.ExecContext(ctx, `INSERT INTO bridge_attached_devices (id,name,host_node_id,kind,transport,serial,os_version,trust_state,reachability,health_reason,created_at,revoked_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,host_node_id=excluded.host_node_id,kind=excluded.kind,transport=excluded.transport,serial=excluded.serial,os_version=excluded.os_version,trust_state=excluded.trust_state,reachability=excluded.reachability,health_reason=excluded.health_reason,revoked_at=''`, d.ID, d.Name, d.HostNodeID, d.Kind, d.Transport, d.Serial, d.OSVersion, d.TrustState, d.Reachability, d.HealthReason, d.CreatedAt.Format(time.RFC3339Nano), "")
 	if err != nil {
 		return Device{}, fmt.Errorf("persist attached device: %w", err)
 	}
 	return d, nil
 }
+
 func (r *sqliteRepository) List(ctx context.Context) ([]Device, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT id,name,host_node_id,kind,transport,serial,os_version,trust_state,reachability,health_reason,created_at,revoked_at FROM bridge_attached_devices WHERE revoked_at = '' ORDER BY created_at DESC`)
 	if err != nil {
@@ -107,6 +111,7 @@ func (r *sqliteRepository) List(ctx context.Context) ([]Device, error) {
 	}
 	return out, rows.Err()
 }
+
 func (r *sqliteRepository) Get(ctx context.Context, id string) (Device, error) {
 	var d Device
 	var created, revoked string
@@ -120,6 +125,7 @@ func (r *sqliteRepository) Get(ctx context.Context, id string) (Device, error) {
 	}
 	return d, nil
 }
+
 func (r *sqliteRepository) Revoke(ctx context.Context, id string, at time.Time) (Device, error) {
 	d, err := r.Get(ctx, id)
 	if err != nil {

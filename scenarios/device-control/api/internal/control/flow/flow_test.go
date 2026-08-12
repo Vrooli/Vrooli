@@ -7,7 +7,7 @@ import (
 	"device-control/internal/testutil/modeltest"
 )
 
-func TestDeviceLeaseFormalReplay(t *testing.T) {
+func TestDeviceLeaseFormalReplay(t *testing.T) { // [REQ:DVC-P0-005]
 	modeltest.AssertFormalArtifactFresh(t, modeltest.LoadFormalArtifact(t, "generated/artifact.json"), modeltest.FormalArtifactExpectation{
 		ContractPath:    generated.DeviceLeaseContractPath,
 		ContractSHA256:  generated.DeviceLeaseContractSHA256,

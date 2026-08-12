@@ -68,12 +68,45 @@
       }
     },
     {
+      "id": "devices_forget",
+      "path": "/api/v1/devices/{id}",
+      "method": "DELETE",
+      "summary": "Forget a retained device identity",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
       "id": "devices_connect",
       "path": "/api/v1/devices/connect",
       "method": "POST",
       "summary": "Show guided device onboarding",
       "description": "",
       "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "android_conformance_plan",
+      "path": "/api/v1/conformance/android",
+      "method": "GET",
+      "summary": "Describe the physical Android conformance plan",
+      "description": "",
+      "category": "conformance",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "android_conformance_run",
+      "path": "/api/v1/conformance/android/run",
+      "method": "POST",
+      "summary": "Run physical Android conformance against a fixture",
+      "description": "",
+      "category": "conformance",
       "rest_exception": {
         "reason": "third_party_shape"
       }
@@ -171,6 +204,17 @@
       "path": "/api/v1/evidence/audit",
       "method": "GET",
       "summary": "List device verb audit records",
+      "description": "",
+      "category": "evidence",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "artifact_get",
+      "path": "/api/v1/evidence/{id}",
+      "method": "GET",
+      "summary": "Read a retained evidence artifact",
       "description": "",
       "category": "evidence",
       "rest_exception": {

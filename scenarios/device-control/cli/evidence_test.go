@@ -40,7 +40,7 @@ func TestPrimitiveEvidenceArtifactCurrent(t *testing.T) {
 // backed by matching observed cli-core evidence. This is the reference-shape
 // guard — a new command declared but not built with a cli-core primitive fails
 // here rather than silently claiming verified L4 from manifest text.
-func TestEveryDeclaredPrimitiveHasEvidence(t *testing.T) {
+func TestEveryDeclaredPrimitiveHasEvidence(t *testing.T) { // [REQ:DVC-P0-010]
 	groups, err := domains.SubcommandGroups(nil, manifestBytes)
 	if err != nil {
 		t.Fatalf("assemble command tree: %v", err)

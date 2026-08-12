@@ -4,6 +4,13 @@ Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.
 
+## Work ladder
+
+- Rung: W0
+- Evidence: the deterministic `swarm-manager goals list --json` search found no goal whose name, title, or description names `vrooli-bridge`; the requested Plan Manager slug `vrooli-onboarding-consent-true-apply-one-wizard-across` is absent from the live plan store.
+- Blocker: contract-to-goal comparison is unverifiable until the authoritative goal/plan record is restored or linked.
+- Measured: 2026-08-11
+
 This file ships empty in newly generated scenarios. Append entries as
 they appear.
 

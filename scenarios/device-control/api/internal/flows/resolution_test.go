@@ -48,7 +48,7 @@ func TestResolverNormalizesVisionResultAndConvertsToOriginalDeviceCoordinates(t 
 	require.Equal(t, []string{"attempt_vision", "resolved"}, evidenceNames(result.Evidence))
 }
 
-func TestResolverFallsBackToVisualAnchorBelowCallerThreshold(t *testing.T) {
+func TestResolverFallsBackToVisualAnchorBelowCallerThreshold(t *testing.T) { // [REQ:DVC-P0-006]
 	fake := &fakeGateway{response: &inferencev1.RunResponse{ValueJson: `{"found":true,"bounds":[0.1,0.1,0.9,0.9],"confidence":0.31}`}}
 	result, err := NewResolver(fake).Resolve(context.Background(), Request{
 		Target:              "submit",
@@ -65,7 +65,7 @@ func TestResolverFallsBackToVisualAnchorBelowCallerThreshold(t *testing.T) {
 	require.Equal(t, "confidence_below_threshold", result.Evidence[1].Reason)
 }
 
-func TestResolverReportsTypedUnavailableWithoutProviderFallback(t *testing.T) {
+func TestResolverReportsTypedUnavailableWithoutProviderFallback(t *testing.T) { // [REQ:DVC-P0-007]
 	fake := &fakeGateway{err: &UnavailableError{Reason: "gateway_route_unavailable"}}
 	result, err := NewResolver(fake).Resolve(context.Background(), Request{Target: "submit", Frame: testFrame()})
 	var unavailable *UnavailableError

@@ -35,5 +35,8 @@
 /logs/
 /api/uploads/
 
+# Generated conformance fixture artifact
+/fixtures/hello-mobile.apk
+
 # Build-freshness stamps
 /.build-fingerprint.json

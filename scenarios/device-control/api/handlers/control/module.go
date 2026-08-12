@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"device-control/internal/conformance"
 	internal "device-control/internal/control"
 	internalflows "device-control/internal/flows"
 	"device-control/internal/module"
@@ -19,6 +20,9 @@ func Module(s *internal.Service) module.Module {
 	h := &handler{service: s, anchors: internalflows.NewAnchorStore()}
 	return module.Module{Name: "device-control", Mount: func(r *mux.Router) {
 		r.HandleFunc("/api/v1/devices", h.listDevices).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/devices/{id}", h.forgetDevice).Methods(http.MethodDelete)
+		r.HandleFunc("/api/v1/conformance/android", h.androidConformancePlan).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/conformance/android/run", h.runAndroidConformance).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/connect", h.connectDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/strategies", h.listStrategies).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/strategies/{id}/verify", h.verifyStrategy).Methods(http.MethodGet, http.MethodPost)
@@ -29,6 +33,7 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/flows/validate", h.validateFlow).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/flows/run", h.runFlow).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/evidence/audit", h.audit).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/evidence/{id}", h.artifact).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/anchors", h.listAnchors).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/anchors", h.createAnchor).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/anchors/{id}", h.deleteAnchor).Methods(http.MethodDelete)
@@ -49,8 +54,45 @@ func (h *handler) listDevices(w http.ResponseWriter, r *http.Request) {
 	write(w, http.StatusOK, map[string]any{"devices": h.service.Devices(r.Context())})
 }
 
+func (h *handler) forgetDevice(w http.ResponseWriter, r *http.Request) {
+	if !h.service.ForgetDevice(mux.Vars(r)["id"]) {
+		writeError(w, http.StatusNotFound, "device_not_found", "unknown device "+mux.Vars(r)["id"])
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 type connectRequest struct {
 	Kind string `json:"kind"`
+}
+
+type androidConformanceRequest struct {
+	Fixture    conformance.Fixture `json:"fixture"`
+	DeviceID   string              `json:"device_id"`
+	Actor      string              `json:"actor"`
+	LeaseToken string              `json:"lease_token,omitempty"`
+}
+
+func (h *handler) androidConformancePlan(w http.ResponseWriter, _ *http.Request) {
+	write(w, http.StatusOK, h.service.AndroidConformancePlan())
+}
+
+func (h *handler) runAndroidConformance(w http.ResponseWriter, r *http.Request) {
+	var in androidConformanceRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	result, err := h.service.RunAndroidConformance(r.Context(), in.Fixture, in.DeviceID, in.Actor, in.LeaseToken)
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "unknown device ") {
+			writeError(w, http.StatusBadRequest, "unknown_device", err.Error())
+			return
+		}
+		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
+		return
+	}
+	write(w, http.StatusOK, result)
 }
 
 func (h *handler) connectDevice(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +101,7 @@ func (h *handler) connectDevice(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	rungs := h.service.Onboarding(in.Kind)
+	rungs := h.service.OnboardingLive(r.Context(), in.Kind)
 	next := ""
 	for _, v := range rungs {
 		if v["status"] != "available" {
@@ -69,14 +111,16 @@ func (h *handler) connectDevice(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, http.StatusOK, map[string]any{"kind": strings.ToLower(in.Kind), "rungs": rungs, "first_next_action": next})
 }
+
 func (h *handler) listStrategies(w http.ResponseWriter, r *http.Request) {
 	decls := h.service.Strategies(r.Context())
 	out := make([]map[string]any, 0, len(decls))
 	for _, d := range decls {
-		out = append(out, map[string]any{"id": d.StrategyID, "description": d.Description, "status": d.Status, "capabilities": d.Capabilities, "tiers": d.Tiers, "executable_step_kinds": strategy.StepKinds(d), "next_actions": d.NextActions, "promotable": d.Promotable, "evidence_class": d.EvidenceClass, "minimum_useful_fps": d.MinimumUsefulFPS})
+		out = append(out, map[string]any{"id": d.StrategyID, "description": d.Description, "status": d.Status, "capabilities": d.Capabilities, "tiers": append([]string{}, d.Tiers...), "executable_step_kinds": append([]string{}, strategy.StepKinds(d)...), "next_actions": append([]string{}, d.NextActions...), "promotable": d.Promotable, "evidence_class": d.EvidenceClass, "minimum_useful_fps": d.MinimumUsefulFPS})
 	}
 	write(w, http.StatusOK, map[string]any{"strategies": out})
 }
+
 func (h *handler) verifyStrategy(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	report, err := h.service.Verify(r.Context(), id)
@@ -86,13 +130,15 @@ func (h *handler) verifyStrategy(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, http.StatusOK, report)
 }
+
 func (h *handler) listSessions(w http.ResponseWriter, _ *http.Request) {
-	write(w, http.StatusOK, map[string]any{"sessions": h.service.ListSessions()})
+	write(w, http.StatusOK, map[string]any{"sessions": h.service.ListLiveSessions()})
 }
 
 type acquireRequest struct {
-	DeviceID, Actor string `json:"device_id"`
-	TTLSeconds      int    `json:"ttl_seconds"`
+	DeviceID   string `json:"device_id"`
+	Actor      string `json:"actor"`
+	TTLSeconds int    `json:"ttl_seconds"`
 }
 
 func (h *handler) acquire(w http.ResponseWriter, r *http.Request) {
@@ -103,11 +149,16 @@ func (h *handler) acquire(w http.ResponseWriter, r *http.Request) {
 	}
 	s, err := h.service.Acquire(in.DeviceID, in.Actor, time.Duration(in.TTLSeconds)*time.Second)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "unknown device ") {
+			writeError(w, http.StatusBadRequest, "unknown_device", err.Error())
+			return
+		}
 		writeError(w, http.StatusConflict, "lease_refused", err.Error())
 		return
 	}
 	write(w, http.StatusOK, map[string]any{"session": s})
 }
+
 func (h *handler) kill(w http.ResponseWriter, r *http.Request) {
 	s, err := h.service.Kill(mux.Vars(r)["id"], "operator requested kill")
 	if err != nil {
@@ -116,6 +167,7 @@ func (h *handler) kill(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, http.StatusOK, map[string]any{"session": s})
 }
+
 func (h *handler) release(w http.ResponseWriter, r *http.Request) {
 	s, err := h.service.Release(mux.Vars(r)["id"])
 	if err != nil {
@@ -130,6 +182,7 @@ type flowRequest struct {
 	StrategyID string        `json:"strategy_id"`
 	DeviceID   string        `json:"device_id"`
 	Actor      string        `json:"actor"`
+	LeaseToken string        `json:"lease_token,omitempty"`
 }
 
 func (h *handler) validateFlow(w http.ResponseWriter, r *http.Request) {
@@ -140,25 +193,71 @@ func (h *handler) validateFlow(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, http.StatusOK, h.service.Validate(r.Context(), in.Flow, in.StrategyID))
 }
+
 func (h *handler) runFlow(w http.ResponseWriter, r *http.Request) {
 	var in flowRequest
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	result, err := h.service.Run(r.Context(), in.Flow, in.DeviceID, in.Actor)
+	result, err := h.service.RunWithLease(r.Context(), in.Flow, in.DeviceID, in.Actor, in.LeaseToken)
 	if err != nil {
-		writeError(w, http.StatusConflict, "run_failed", err.Error())
+		if strings.HasPrefix(err.Error(), "unknown device ") {
+			writeError(w, http.StatusBadRequest, "unknown_device", err.Error())
+			return
+		}
+		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
 		return
 	}
 	write(w, http.StatusOK, result)
 }
+
+func leaseErrorCode(err error) string {
+	message := err.Error()
+	switch {
+	case strings.Contains(message, "lease expired"):
+		return "lease_expired"
+	case strings.Contains(message, "lease token is invalid"), strings.Contains(message, "lease is "):
+		return "lease_invalid"
+	case strings.Contains(message, "bound to device"):
+		return "lease_device_mismatch"
+	default:
+		return "run_failed"
+	}
+}
+
 func (h *handler) audit(w http.ResponseWriter, _ *http.Request) {
 	write(w, http.StatusOK, map[string]any{"records": h.service.Audit()})
 }
+
+func (h *handler) artifact(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	data, kind, err := h.service.Artifact(id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "artifact_not_found", err.Error())
+		return
+	}
+	contentType := http.DetectContentType(data)
+	switch kind {
+	case "image":
+		if strings.HasPrefix(contentType, "application/octet-stream") {
+			contentType = "image/png"
+		}
+	case "video":
+		contentType = "video/mp4"
+	case "log":
+		contentType = "text/plain; charset=utf-8"
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", contentType)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
+}
+
 func (h *handler) listAnchors(w http.ResponseWriter, _ *http.Request) {
 	write(w, http.StatusOK, map[string]any{"anchors": h.anchors.List()})
 }
+
 func (h *handler) createAnchor(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Name       string    `json:"name"`
@@ -177,6 +276,7 @@ func (h *handler) createAnchor(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, http.StatusCreated, map[string]any{"anchor": a})
 }
+
 func (h *handler) deleteAnchor(w http.ResponseWriter, r *http.Request) {
 	if err := h.anchors.Delete(mux.Vars(r)["id"]); err != nil {
 		writeError(w, http.StatusNotFound, "not_found", err.Error())
@@ -184,9 +284,11 @@ func (h *handler) deleteAnchor(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
 func (h *handler) listAgents(w http.ResponseWriter, _ *http.Request) {
 	write(w, http.StatusOK, map[string]any{"agents": h.service.ListAgents()})
 }
+
 func (h *handler) startAgent(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Goal           string `json:"goal"`
@@ -205,6 +307,7 @@ func (h *handler) startAgent(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, http.StatusAccepted, map[string]any{"agent": a})
 }
+
 func (h *handler) abortAgent(w http.ResponseWriter, r *http.Request) {
 	a, err := h.service.AbortAgent(mux.Vars(r)["id"], "operator requested abort")
 	if err != nil {
@@ -213,6 +316,7 @@ func (h *handler) abortAgent(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, http.StatusOK, map[string]any{"agent": a})
 }
+
 func (h *handler) promoteAgent(w http.ResponseWriter, r *http.Request) {
 	a, err := h.service.PromoteAgent(mux.Vars(r)["id"])
 	if err != nil {
@@ -221,18 +325,23 @@ func (h *handler) promoteAgent(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, http.StatusOK, map[string]any{"agent": a})
 }
+
 func write(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
+
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	write(w, status, map[string]any{"status": "failed", "code": code, "message": message})
 }
 
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "devices_list", Path: "/api/v1/devices", Method: "GET", Summary: "List devices and probed capabilities", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "devices_forget", Path: "/api/v1/devices/{id}", Method: "DELETE", Summary: "Forget a retained device identity", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "devices_connect", Path: "/api/v1/devices/connect", Method: "POST", Summary: "Show guided device onboarding", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "android_conformance_plan", Path: "/api/v1/conformance/android", Method: "GET", Summary: "Describe the physical Android conformance plan", Category: "conformance", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "android_conformance_run", Path: "/api/v1/conformance/android/run", Method: "POST", Summary: "Run physical Android conformance against a fixture", Category: "conformance", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "strategies_list", Path: "/api/v1/strategies", Method: "GET", Summary: "List strategy dispositions", Category: "strategies", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "strategy_verify", Path: "/api/v1/strategies/{id}/verify", Method: "GET", Summary: "Run fixed strategy conformance", Category: "strategies", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "sessions_list", Path: "/api/v1/sessions", Method: "GET", Summary: "List live leases", Category: "sessions", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
@@ -242,6 +351,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "flow_validate", Path: "/api/v1/flows/validate", Method: "POST", Summary: "Preflight a flow against a strategy", Category: "flows", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "flow_run", Path: "/api/v1/flows/run", Method: "POST", Summary: "Run a bounded flow", Category: "flows", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "audit_list", Path: "/api/v1/evidence/audit", Method: "GET", Summary: "List device verb audit records", Category: "evidence", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "artifact_get", Path: "/api/v1/evidence/{id}", Method: "GET", Summary: "Read a retained evidence artifact", Category: "evidence", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "anchors_list", Path: "/api/v1/anchors", Method: "GET", Summary: "List saved visual anchors", Category: "flows", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "anchors_create", Path: "/api/v1/anchors", Method: "POST", Summary: "Create a normalized visual anchor", Category: "flows", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "anchors_delete", Path: "/api/v1/anchors/{id}", Method: "DELETE", Summary: "Delete a visual anchor", Category: "flows", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
