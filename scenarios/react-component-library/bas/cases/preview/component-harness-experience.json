@@ -32,15 +32,52 @@
       }
     },
     {
+      "id": "wait-harness-lifecycle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"component-harness\"][data-experience-state=\"loading\"], [data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Harness exposes its loading or ready lifecycle" }
+      }
+    },
+    {
       "id": "wait-button-render",
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/components.harness.root button",
+          "selector": "[data-testid=\"component-harness-root\"][data-experience-surface=\"component-harness\"][data-experience-state=\"loading\"] button, [data-testid=\"component-harness-root\"][data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"] button",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 20000
         },
-        "metadata": { "label": "Wait for the real Button story" }
+        "metadata": { "label": "Wait for harness lifecycle or the real Button story" }
+      }
+    },
+    {
+      "id": "wait-harness-ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": { "label": "Harness reaches ready after story checks" }
+      }
+    },
+    {
+      "id": "assert-harness-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "The component harness did not reach its ready lifecycle state."
+        },
+        "metadata": { "label": "Harness reports ready" }
       }
     },
     {
@@ -58,7 +95,10 @@
     }
   ],
   "edges": [
-    { "id": "edge-open-wait", "source": "open-button-harness", "target": "wait-button-render", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "edge-wait-assert", "source": "wait-button-render", "target": "assert-button-name", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    { "id": "edge-open-lifecycle", "source": "open-button-harness", "target": "wait-harness-lifecycle", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-lifecycle-button", "source": "wait-harness-lifecycle", "target": "wait-button-render", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-button-ready", "source": "wait-button-render", "target": "wait-harness-ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-ready-assert", "source": "wait-harness-ready", "target": "assert-harness-ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-assert-button", "source": "assert-harness-ready", "target": "assert-button-name", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
   ]
 }

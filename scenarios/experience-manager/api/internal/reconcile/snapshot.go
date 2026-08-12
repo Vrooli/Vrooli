@@ -48,8 +48,9 @@ type Bounds struct {
 }
 
 type DOMNode struct {
-	TestID string `json:"testid"`
-	Tag    string `json:"tag"`
+	TestID     string            `json:"testid"`
+	Tag        string            `json:"tag"`
+	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
 // Appearance is the minimal computed-style evidence needed by state-contrast

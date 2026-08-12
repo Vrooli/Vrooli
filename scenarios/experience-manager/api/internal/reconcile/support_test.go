@@ -80,6 +80,56 @@ func TestWiredAxesOnlyReportsTransmittedCaptureFields(t *testing.T) {
 	}
 }
 
+// TestWiredAxesHaveDistinctCaptureRequests is the regression guard for phantom
+// axes. It deliberately derives the axes from WiredAxes rather than repeating
+// the registry list: every advertised value must change the capture request
+// that BAS receives. Native browser evidence is covered by the Playwright
+// driver tests and scenario capture gates.
+func TestWiredAxesHaveDistinctCaptureRequests(t *testing.T) {
+	profiles := DefaultCaptureProfiles
+	for _, axis := range WiredAxes() {
+		baseline, ok := profileForAxisValue(profiles, axis.Axis, axis.Values[0])
+		if !ok {
+			t.Fatalf("axis %q has no baseline profile for %q", axis.Axis, axis.Values[0])
+		}
+		for _, value := range axis.Values[1:] {
+			variant, ok := profileForAxisValue(profiles, axis.Axis, value)
+			if !ok {
+				t.Errorf("axis %q value %q has no capture profile", axis.Axis, value)
+				continue
+			}
+			if captureRequestFingerprint(baseline) == captureRequestFingerprint(variant) {
+				t.Errorf("axis %q value %q produced the same capture request as %q", axis.Axis, value, axis.Values[0])
+			}
+			t.Logf("axis %s: %s -> %s changes the BAS capture request", axis.Axis, axis.Values[0], value)
+		}
+	}
+}
+
+func profileForAxisValue(profiles []CaptureProfile, axis, value string) (CaptureProfile, bool) {
+	for _, profile := range profiles {
+		matches := map[string]string{
+			"viewport":          profile.ID,
+			"color-scheme":      profile.ColorScheme,
+			"locale":            profile.Locale,
+			"motion-preference": profile.MotionPreference,
+			"interaction-state": profile.InteractionState,
+		}[axis]
+		if matches == value {
+			return profile, true
+		}
+	}
+	return CaptureProfile{}, false
+}
+
+// This models the request identity BAS must preserve: two requests that
+// differ in a capture axis cannot collapse to one evidence row. The Playwright
+// driver tests exercise the native pseudo-state application; this package test
+// guards the reconciler's matrix/evidence join.
+func captureRequestFingerprint(profile CaptureProfile) string {
+	return profile.ID + "|" + profile.ColorScheme + "|" + profile.Locale + "|" + profile.MotionPreference + "|" + profile.InteractionState
+}
+
 func TestCaptureProfilesFromAxesIncludesDesktopDarkWithinBudget(t *testing.T) {
 	profiles, err := CaptureProfilesFromAxes(filepath.Join(repoRootForSupportTest(t), "scenarios", "experience-manager", "capabilities", "axes.json"), 16)
 	if err != nil {
@@ -147,5 +197,11 @@ func TestAvailableEvidenceIncludesComputedStyle(t *testing.T) {
 	}
 	if !slices.Contains(evidence, "ax-tree") {
 		t.Fatal("ax-tree must be available; it is the load-bearing evidence channel")
+	}
+}
+
+func TestAvailableEvidenceIncludesRetrievableScreenshot(t *testing.T) {
+	if !slices.Contains(AvailableEvidence(), "screenshot") {
+		t.Fatal("screenshot must be advertised because BAS captures and persists ScreenshotRef")
 	}
 }

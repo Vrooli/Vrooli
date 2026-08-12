@@ -46,8 +46,24 @@ func TestParseScenarioFixturesContractGreen(t *testing.T) { // [REQ:EXPERIEN-P0-
 			if err != nil {
 				t.Fatalf("ParseScenario: %v", err)
 			}
-			if len(report.Findings) > 0 {
+			if scenario != "react-component-library" && len(report.Findings) > 0 {
 				t.Fatalf("expected contract-green fixture, got findings: %+v", report.Findings)
+			}
+			if scenario == "react-component-library" {
+				if !hasCode(report.Findings, CodeVacuousContract) {
+					t.Fatalf("portable library contracts should be parsed and reject vacuous contracts: %+v", report.Findings)
+				}
+				foundLibraryPath := false
+				for _, finding := range report.Findings {
+					for _, location := range finding.Locations {
+						if strings.HasPrefix(location, "library/") {
+							foundLibraryPath = true
+						}
+					}
+				}
+				if !foundLibraryPath {
+					t.Fatalf("portable findings did not retain a library path: %+v", report.Findings)
+				}
 			}
 			if report.Spec == nil || report.Spec.Index.Scenario != scenario {
 				t.Fatalf("parsed spec identity mismatch: %+v", report.Spec)
@@ -171,8 +187,8 @@ func TestParseScenarioParsesComponentDocuments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseScenario: %v", err)
 	}
-	if len(report.Findings) > 0 {
-		t.Fatalf("expected component pilot to parse cleanly, got findings: %+v", report.Findings)
+	if !hasCode(report.Findings, CodeVacuousContract) {
+		t.Fatalf("expected portable contract findings from the component library, got: %+v", report.Findings)
 	}
 	button, ok := report.Spec.Components["button"]
 	if !ok {
@@ -237,6 +253,51 @@ func TestParseScenarioFindsContractViolations(t *testing.T) { // [REQ:EXPERIEN-P
 		if !hasCode(report.Findings, code) {
 			t.Fatalf("missing %s in findings: %+v", code, report.Findings)
 		}
+	}
+}
+
+func TestPortableContractAdversarialFixtures(t *testing.T) {
+	cases := []struct {
+		name        string
+		wantCode    string
+		wantVacuous bool
+	}{
+		{name: "vacuous-contract", wantCode: CodeVacuousContract, wantVacuous: true},
+		{name: "machine-custom", wantCode: CodeTierViolation, wantVacuous: true},
+		{name: "automated-tier", wantCode: CodeSchemaInvalid, wantVacuous: false},
+		{name: "real-machine", wantVacuous: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join("testdata", "portable", tc.name+".json")
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var contract portableContract
+			if err := json.Unmarshal(data, &contract); err != nil {
+				t.Fatal(err)
+			}
+			report := &Report{}
+			claims := make([]Claim, 0, len(contract.Claims))
+			for _, raw := range contract.Claims {
+				var claim Claim
+				if err := json.Unmarshal(raw, &claim); err != nil {
+					t.Fatal(err)
+				}
+				checkClaimShape(report, path, claim)
+				claims = append(claims, claim)
+			}
+			if tc.wantCode != "" && !hasCode(report.Findings, tc.wantCode) && !(tc.wantVacuous && hasSubstantiveClaim(claims) == false && tc.wantCode == CodeVacuousContract) {
+				t.Fatalf("findings = %+v, want %s", report.Findings, tc.wantCode)
+			}
+			if tc.wantVacuous != !hasSubstantiveClaim(claims) {
+				t.Fatalf("hasSubstantiveClaim = %v, want vacuous=%v", hasSubstantiveClaim(claims), tc.wantVacuous)
+			}
+			if tc.name == "real-machine" && len(report.Findings) != 0 {
+				t.Fatalf("real machine fixture produced findings: %+v", report.Findings)
+			}
+		})
 	}
 }
 

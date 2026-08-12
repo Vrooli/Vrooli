@@ -3,6 +3,7 @@ package capstatus
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"experience-manager/internal/reconcile"
@@ -105,6 +106,12 @@ func TestDeriveAgainstLiveReconciler(t *testing.T) {
 	if got := byID["contrast-floor"].Status; got != StatusProvable {
 		t.Errorf("contrast-floor: want provable, got %s (%v)", got, byID["contrast-floor"].Blockers)
 	}
+	// Screenshot is part of the BAS capture contract. Dark parity therefore has
+	// a complete axis/evidence/checker path and must not remain blocked by a
+	// stale capability self-description.
+	if got := byID["dark-parity"].Status; got != StatusProvable {
+		t.Errorf("dark-parity: want provable after screenshot join, got %s (%v)", got, byID["dark-parity"].Blockers)
+	}
 	// ramp-conformance names a claim type nobody has implemented.
 	ramp := byID["ramp-conformance"]
 	if ramp.Status != StatusEvidenceMissing && ramp.Status != StatusNoChecker {
@@ -113,6 +120,50 @@ func TestDeriveAgainstLiveReconciler(t *testing.T) {
 	// Ports carry no proves block and must never be counted as unprovable work.
 	if got := byID["router-adapter"].Status; got != StatusPortOnly {
 		t.Errorf("router-adapter: want port-only, got %s", got)
+	}
+}
+
+// TestProvableResultsHaveRuntimeSupport prevents the registry from becoming a
+// second, hand-maintained implementation of the reconciler. A capability may
+// only be reported provable when every declared axis value, evidence channel,
+// and claim evaluator is present in the live support snapshot.
+func TestProvableResultsHaveRuntimeSupport(t *testing.T) {
+	reg, err := Load(registryDir(t))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	support := liveSupport(t)
+	rep := Derive(reg, support)
+	capabilities := map[string]Capability{}
+	for _, capability := range reg.Capabilities {
+		capabilities[capability.ID] = capability
+	}
+
+	for _, result := range rep.Results {
+		if result.Status != StatusProvable {
+			continue
+		}
+		capability := capabilities[result.Capability]
+		if capability.Proves == nil {
+			t.Fatalf("port-only capability %q was reported provable", result.Capability)
+		}
+		for axis, values := range capability.Proves.Axes {
+			for _, value := range values {
+				if !slices.Contains(support.Axes[axis], value) {
+					t.Errorf("%s reported provable without runtime axis %s=%s", result.Capability, axis, value)
+				}
+			}
+		}
+		for _, evidence := range capability.Proves.Evidence {
+			if !slices.Contains(support.Evidence, evidence) {
+				t.Errorf("%s reported provable without runtime evidence %s", result.Capability, evidence)
+			}
+		}
+		for _, claimType := range capability.Proves.ClaimTypes {
+			if !slices.Contains(support.ClaimTypes, claimType) {
+				t.Errorf("%s reported provable without runtime checker %s", result.Capability, claimType)
+			}
+		}
 	}
 }
 

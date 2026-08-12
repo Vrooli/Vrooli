@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +14,10 @@ import (
 	"react-component-library/internal/modules"
 	"react-component-library/internal/server"
 
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -84,7 +88,19 @@ func (o *componentsDepsObserver) Observe(ctx context.Context, c componentsIntern
 // The pragmas mirror agent-inbox; tweak in lockstep with
 // internal/testutil/db.NewSQLite so production and tests open files the
 // same way.
-func sqliteDSN() (string, error) {
+// fileRootPath is the request-scoped file-store seam. It keeps the primary
+// SQLite file on the normal data root while allowing validation requests to
+// resolve any file-backed path through the leased test root. Every file store
+// must use RoutedRoots.Pick(ctx, class) rather than retaining a live root.
+func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
+	root, err := roots.Pick(ctx, class)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, rel), nil
+}
+
+func sqliteDSN(roots *filerouting.RoutedRoots) (string, error) {
 	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
 		return sqliteFileDSN(path)
 	}
@@ -92,20 +108,9 @@ func sqliteDSN() (string, error) {
 		return sqliteFileDSN(path)
 	}
 
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
+	path, err := fileRootPath(context.Background(), roots, storage.ClassData, "react-component-library.db")
 	if err != nil {
-		return "", fmt.Errorf("create storage resolver: %w", err)
-	}
-	path, err := resolver.Path(
-		storage.Options{ScenarioID: "react-component-library"},
-		storage.ClassData,
-		"react-component-library.db",
-	)
-	if err != nil {
-		return "", fmt.Errorf("resolve react-component-library db path: %w", err)
+		return "", fmt.Errorf("resolve react-component-library db path through routed roots: %w", err)
 	}
 	return sqliteFileDSN(path)
 }
@@ -123,6 +128,24 @@ func sqliteFileDSN(path string) (string, error) {
 	), nil
 }
 
+// scenarioStorageRoots resolves every storage class once at startup. Any
+// request-scoped file operation must select its class through RoutedRoots so
+// test-genie's leased isolation root is honored instead of the live tree.
+func scenarioStorageRoots() (storage.Paths, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("react-component-library")
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("resolve react-component-library storage namespace: %w", err)
+	}
+	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -130,12 +153,18 @@ func main() {
 		return
 	}
 
-	dsn, err := sqliteDSN()
+	primaryFileRoots, err := scenarioStorageRoots()
+	if err != nil {
+		log.Fatalf("file storage configuration failed: %v", err)
+	}
+	fileRoots := filerouting.New(primaryFileRoots)
+
+	dsn, err := sqliteDSN(fileRoots)
 	if err != nil {
 		log.Fatalf("sqlite configuration failed: %v", err)
 	}
 
-	db, err := database.Connect(context.Background(), database.Config{
+	db, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
 		DSN:          dsn,
 		MaxOpenConns: 1,
@@ -144,17 +173,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
+	primaryDB := db.Primary()
 
-	if err := componentsInternal.EnsureSchemaMigrations(context.Background(), db); err != nil {
+	if err := componentsInternal.EnsureSchemaMigrations(context.Background(), primaryDB); err != nil {
 		log.Fatalf("schema migration failed: %v", err)
 	}
-	if err := adoptionsInternal.EnsureSchemaMigrations(context.Background(), db); err != nil {
+	if err := adoptionsInternal.EnsureSchemaMigrations(context.Background(), primaryDB); err != nil {
 		log.Fatalf("adoption schema migration failed: %v", err)
 	}
-	if err := workflowsInternal.EnsureSchemaMigrations(context.Background(), db); err != nil {
+	if err := workflowsInternal.EnsureSchemaMigrations(context.Background(), primaryDB); err != nil {
 		log.Fatalf("assisted workflow schema migration failed: %v", err)
 	}
-	if err := database.EnsureSchemas(context.Background(), db, modules.AllSchemas()...); err != nil {
+	if err := database.EnsureSchemas(context.Background(), primaryDB, modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
@@ -162,14 +192,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("components source root: %v", err)
 	}
-	componentsSvc, componentsRepo := componentsH.BuildService(db, clock.System{}, sourceRoot)
+	componentsSvc, componentsRepo := componentsH.BuildService(primaryDB, clock.System{}, sourceRoot)
 
 	scenariosRoot, err := adoptionsH.DefaultScenariosRoot()
 	if err != nil {
 		log.Fatalf("adoptions scenarios root: %v", err)
 	}
 	componentsInternal.SetServiceJSONReader(componentsSvc, componentsInternal.NewFSServiceJSONReader(scenariosRoot))
-	adoptionsSvc, scenariosReader := adoptionsH.BuildService(db, clock.System{}, adoptionsH.LibraryFromComponents(componentsSvc), scenariosRoot)
+	adoptionsSvc, scenariosReader := adoptionsH.BuildService(primaryDB, clock.System{}, adoptionsH.LibraryFromComponents(componentsSvc), scenariosRoot)
 	if tokenReader, ok := scenariosReader.(adoptionsInternal.ScenarioTokenNamespaceReader); ok {
 		adoptionsInternal.SetTokenNamespaceReader(adoptionsSvc, tokenReader)
 	} else {
@@ -190,7 +220,7 @@ func main() {
 	}
 
 	versionsResolver := versionsH.AdoptionResolverFromService(adoptionsSvc, scenariosReader)
-	versionsSvc := versionsH.BuildService(db, clock.System{}, versionsResolver)
+	versionsSvc := versionsH.BuildService(primaryDB, clock.System{}, versionsResolver)
 
 	// Wire post-save versions recording. Listener errors are logged
 	// inside the adapter; UpdateContent does not fail when recording
@@ -205,14 +235,14 @@ func main() {
 	// refresh does. depsObserver re-syncs declarations after every
 	// successful components Upsert so the registry stays in step with
 	// the on-disk @deps headers.
-	depsSvc := depsH.BuildService(db, depsInternal.NewFSPackageJSONReader(scenariosRoot))
+	depsSvc := depsH.BuildService(primaryDB, depsInternal.NewFSPackageJSONReader(scenariosRoot))
 	depsObserver := &componentsDepsObserver{svc: depsSvc, logger: log.Default()}
 	adoptionsInternal.SetValidationGates(adoptionsSvc, depsSvc, componentsSvc)
 
 	// Wire the themes domain (req 12). Same scenariosRoot as adoptions
 	// + deps so the DESIGN.md reader walks the same tree. Seed the
 	// built-in themes table on first boot; idempotent on re-runs.
-	themesSvc := themesH.BuildService(db, themesInternal.NewFSDesignMDReader(scenariosRoot))
+	themesSvc := themesH.BuildService(primaryDB, themesInternal.NewFSDesignMDReader(scenariosRoot))
 	if err := themesSvc.EnsureBuiltinsSeeded(context.Background()); err != nil {
 		log.Fatalf("seed built-in themes: %v", err)
 	}
@@ -239,19 +269,24 @@ func main() {
 			adoptionsH.WithSuggestions(componentsSvc, depsSvc, inventoryScanner, scenariosRoot),
 		),
 		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot)))),
-		componentTestsH.Module(db, componentsSvc, sourceRoot, log.Default()),
-		catalogH.Module(filepath.Dir(scenariosRoot), db),
+		componentTestsH.Module(primaryDB, componentsSvc, sourceRoot, log.Default()),
+		catalogH.Module(filepath.Dir(scenariosRoot), primaryDB),
 		depsH.ModuleFromService(depsSvc, log.Default()),
-		healthH.Module(db, "react-component-library-api", "1.0.0"),
+		healthH.Module(primaryDB, "react-component-library-api", "1.0.0"),
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),
 		previewH.ModuleWithDepsAtRoot(componentsSvc, depsSvc, log.Default(), filepath.Dir(scenariosRoot)),
 		themesH.ModuleFromService(themesSvc, log.Default()),
-		versionsH.Module(db, clock.System{}, versionsResolver, log.Default()),
-		workflowsH.ModuleWithReadiness(db, clock.System{}, workflowsInternal.NewAgentManagerDispatcher(), workflowsInternal.NewPromotionReadinessReader(componentsSvc, adoptionsSvc), log.Default()),
+		versionsH.Module(primaryDB, clock.System{}, versionsResolver, log.Default()),
+		workflowsH.ModuleWithReadiness(primaryDB, clock.System{}, workflowsInternal.NewAgentManagerDispatcher(), workflowsInternal.NewPromotionReadinessReader(componentsSvc, adoptionsSvc), log.Default()),
 	)
 
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+	rootMux.Handle("/", srv.Handler())
+	handler := apihttp.TestModeMiddleware(rootMux)
+
 	if err := apiserver.Run(apiserver.Config{
-		Handler: srv.Handler(),
+		Handler: handler,
 		// The catalog provider executes one browser-backed report per latest
 		// asset. Keep the response open for the descriptor's 300s phase budget
 		// plus a bounded transport margin so a complete aggregate result is not

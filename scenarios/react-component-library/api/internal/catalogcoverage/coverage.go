@@ -252,10 +252,11 @@ func achieved(asset Asset, target string, impl Implementation, gates []GateDefin
 		}
 	}
 	current := RungScaffolded
+	// The catalog maturity is the declared bar, not a ceiling. A component can
+	// legitimately exceed its planned target when higher-rung gates have real
+	// passing evidence; coverage must preserve that distinction for next-work
+	// ranking and production-ready reporting.
 	for _, rung := range rungOrder {
-		if rungRank(rung) > rungRank(AchievedRung(asset.Maturity)) {
-			break
-		}
 		for _, gate := range gates {
 			if !gate.Blocking || rungRank(gate.Rung) > rungRank(rung) || !contains(gate.AppliesTo, asset.Kind) {
 				continue

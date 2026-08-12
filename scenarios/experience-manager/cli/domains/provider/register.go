@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -33,7 +34,11 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	// Provider validation may synchronously capture the complete declared
+	// experience matrix through BAS. Keep the CLI transport deadline aligned
+	// with the API's ten-minute write timeout so a healthy long run is not
+	// reported as a client-side failure at the generic two-minute CLI limit.
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 10*time.Minute)
 	return &handlers{
 		core:   core,
 		client: scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL),

@@ -228,7 +228,7 @@ frame. This is a greenfield cutover: there is no compatibility reader.
 
 ## Cross-References
 
-- [CODE: ../../api/internal/components/indexer.go]
-- [CODE: ../../api/handlers/preview/static.go]
+- [CODE: api/internal/components/indexer.go]
+- [CODE: api/handlers/preview/static.go]
 - [DOC: DATA.md]
 - [DOC: FLOWS.md]

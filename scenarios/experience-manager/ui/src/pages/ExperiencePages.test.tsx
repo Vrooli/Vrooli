@@ -117,15 +117,20 @@ describe("FleetPage", () => {
     );
     expect(screen.getByTestId(selectors.experience.fleet.debtTable)).toHaveTextContent("L3");
     expect(screen.getByTestId(selectors.experience.fleet.debtTable)).toHaveTextContent("business-health");
-    expect(screen.getByTestId(selectors.experience.fleet.coverageMeter)).toHaveAttribute("aria-valuenow", "25");
+    const table = screen.getByTestId(selectors.experience.fleet.debtTable);
+    expect(table).toHaveAttribute("data-testid", selectors.experience.fleet.debtTable);
+    expect(table.querySelector('th[aria-sort="ascending"]')).not.toBeNull();
+    expect(screen.getByRole("button", { name: strings.experience.fleet.filterAll })).toHaveAttribute("aria-pressed", "true");
 
     await userEvent.click(screen.getByRole("button", { name: strings.experience.fleet.filterFindings }));
-    expect(screen.getByTestId(selectors.experience.fleet.debtTable)).toHaveTextContent("experience-manager");
-    expect(screen.getByTestId(selectors.experience.fleet.debtTable)).not.toHaveTextContent("business-health");
+    expect(table).toHaveTextContent("experience-manager");
+    expect(table).not.toHaveTextContent("business-health");
+    expect(screen.getByRole("button", { name: strings.experience.fleet.filterFindings })).toHaveAttribute("aria-pressed", "true");
 
     await userEvent.click(screen.getByRole("button", { name: strings.experience.fleet.filterClean }));
-    expect(screen.getByTestId(selectors.experience.fleet.debtTable)).not.toHaveTextContent("experience-manager");
-    expect(screen.getByTestId(selectors.experience.fleet.debtTable)).toHaveTextContent("business-health");
+    expect(table).not.toHaveTextContent("experience-manager");
+    expect(table).toHaveTextContent("business-health");
+    expect(screen.getByRole("button", { name: strings.experience.fleet.filterClean })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("renders loading, empty, and error states from the real query", async () => {

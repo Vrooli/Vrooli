@@ -95,7 +95,12 @@ func ReadinessProfileForScenario(scenarioDir string) (ReadinessProfile, error) {
 		return ReadinessProfile{}, err
 	}
 	for _, finding := range report.Findings {
-		if finding.Severity == SeverityError {
+		// Portable library contracts are validated by the scenario's contract
+		// gate, but they do not affect route readiness for the authored pages.
+		// Keeping this projection available lets capture consumers wait for the
+		// rendered surface and report the contract debt independently, instead of
+		// falling back to an unbounded navigation settle that can race React.
+		if finding.Severity == SeverityError && finding.Code != CodeVacuousContract {
 			return ReadinessProfile{}, fmt.Errorf("cannot compile readiness profile: %s", finding.Message)
 		}
 	}

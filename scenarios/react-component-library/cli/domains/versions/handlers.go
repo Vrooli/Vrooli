@@ -31,7 +31,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 func (h *handlers) list(ctx cliapp.RunContext) error {
 	req := &versionsv1.ListVersionsRequest{ComponentId: ctx.Positional("component-id")}
 	if raw := ctx.Flag("limit"); raw != "" {
-		n, err := strconv.Atoi(raw)
+		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}

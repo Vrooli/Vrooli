@@ -4,10 +4,12 @@
     "description": "Perf-capture flow (intent:performance). Assertion-free: waits for the app shell to mount, then scrolls the main content region so performance-health can trace the scroll interaction inside the perf-trace window. Never bind as a requirement automation case — it must stay out of the functional Playbooks suite. Capture: performance-health audit run react-component-library --workflow perf-scroll-shell.",
     "labels": {
       "intent": "performance",
-      "reset": "none"
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
     "version": "1",
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

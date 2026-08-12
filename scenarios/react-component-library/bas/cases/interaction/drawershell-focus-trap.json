@@ -7,9 +7,12 @@
     "labels": {
       "reset": "none",
       "surface": "drawershell-focus-trap",
+      "spec_entry_id": "component-harness",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
       "requirements_json": "[\"TC-006\",\"TC-004\"]"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1400,

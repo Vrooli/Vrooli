@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 

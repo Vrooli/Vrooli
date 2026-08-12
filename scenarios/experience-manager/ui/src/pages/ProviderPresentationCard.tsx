@@ -28,7 +28,7 @@ export function ProviderPresentationCard({
       {presentation.northStar ? <p className="mt-3 text-sm"><strong>{t(strings.experience.findings.providerNorthStar)}</strong> {presentation.northStar}</p> : null}
       {presentation.nextAction ? <p className="mt-2 text-sm"><strong>{t(strings.experience.findings.providerNextAction)}</strong> {presentation.nextAction}</p> : null}
       <ul className="mt-3 grid gap-2" aria-label={t(strings.experience.findings.providerCapabilities)}>
-        {(presentation.capabilities ?? []).map((capability) => (
+        {presentation.capabilities.map((capability) => (
           <li key={capability.id} className="rounded-control bg-app-surface-muted p-3 text-sm">
             <p className="font-medium">{capability.label || capability.id}</p>
             <p className="text-app-muted-foreground">{capability.currentLevelLabel || capability.currentLevel}{capability.nextLevel ? ` → ${capability.nextLevel}` : ""}</p>
@@ -36,7 +36,7 @@ export function ProviderPresentationCard({
           </li>
         ))}
       </ul>
-      {(presentation.documentationTopics ?? []).length > 0 ? <p className="mt-3 text-xs text-app-muted-foreground">{t(strings.experience.findings.providerDocumentation, { topics: (presentation.documentationTopics ?? []).join(" · ") })}</p> : null}
+      {presentation.documentationTopics.length > 0 ? <p className="mt-3 text-xs text-app-muted-foreground">{t(strings.experience.findings.providerDocumentation, { topics: presentation.documentationTopics.join(" · ") })}</p> : null}
     </section>
   );
 }

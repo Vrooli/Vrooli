@@ -48,6 +48,7 @@ func (h *handlers) testRun(ctx cliapp.RunContext) error {
 	}
 	return renderTestReport(ctx, resp.Msg.Report, "Component test completed.")
 }
+
 func (h *handlers) testShow(ctx cliapp.RunContext) error {
 	resp, err := h.testClient.GetComponentTestReport(context.Background(), connect.NewRequest(&componenttestsv1.GetComponentTestReportRequest{Id: ctx.Positional("report-id")}))
 	if err != nil {
@@ -58,6 +59,7 @@ func (h *handlers) testShow(ctx cliapp.RunContext) error {
 	}
 	return renderTestReport(ctx, resp.Msg.Report, "Component test report.")
 }
+
 func (h *handlers) testRerun(ctx cliapp.RunContext) error {
 	resp, err := h.testClient.RerunComponentTest(context.Background(), connect.NewRequest(&componenttestsv1.RerunComponentTestRequest{ReportId: ctx.Positional("report-id")}))
 	if err != nil {
@@ -68,10 +70,11 @@ func (h *handlers) testRerun(ctx cliapp.RunContext) error {
 	}
 	return renderTestReport(ctx, resp.Msg.Report, "Component test rerun completed.")
 }
+
 func (h *handlers) testList(ctx cliapp.RunContext) error {
 	limit := int32(0)
 	if raw := ctx.Flag("limit"); raw != "" {
-		value, err := strconv.Atoi(raw)
+		value, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}
@@ -90,6 +93,7 @@ func (h *handlers) testList(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d component test report(s).", len(results))}, ResultsHeading: "Reports", Results: results, RetrievalHints: []string{"`components test-show <report-id>` — inspect stages and remediation"}})
 }
+
 func renderTestReport(ctx cliapp.RunContext, report *componenttestsv1.ComponentTestReport, summary string) error {
 	results := make([]string, 0, len(report.Results))
 	for _, result := range report.Results {
@@ -164,7 +168,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		}
 	}
 	if raw := ctx.Flag("limit"); raw != "" {
-		n, err := strconv.Atoi(raw)
+		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}
@@ -471,7 +475,7 @@ func (h *handlers) versions(ctx cliapp.RunContext) error {
 	componentID := ctx.Positional("component-id")
 	req := &componentsv1.ListComponentVersionsRequest{ComponentId: componentID}
 	if raw := ctx.Flag("limit"); raw != "" {
-		n, err := strconv.Atoi(raw)
+		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}
@@ -519,7 +523,7 @@ func (h *handlers) stories(ctx cliapp.RunContext) error {
 	componentID := ctx.Positional("component-id")
 	req := &componentsv1.ListComponentStoriesRequest{ComponentId: componentID, Version: ctx.Flag("version")}
 	if raw := ctx.Flag("limit"); raw != "" {
-		n, err := strconv.Atoi(raw)
+		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}

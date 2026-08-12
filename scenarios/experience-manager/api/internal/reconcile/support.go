@@ -1,6 +1,10 @@
 package reconcile
 
-import "sort"
+import (
+	"sort"
+
+	"experience-manager/internal/claimtypes"
+)
 
 // This file is the reconciler's self-description: what it can actually drive and
 // actually observe. The experience capability registry derives every capability's
@@ -22,14 +26,9 @@ type AxisSupport struct {
 	Values []string
 }
 
-// WiredAxes returns the capture axes the reconciler drives today.
-//
-// Only viewport is wired: CaptureTarget carries ViewportID, ViewportWidth, and
-// ViewportHeight and nothing else, so no other dimension can vary between two
-// capture targets. Six further axes (color-scheme, locale, interaction-state,
-// orientation, connectivity, and the browser half of pointer) are already
-// available in the underlying engine and are unwired here, which is a plumbing
-// gap rather than an engineering one.
+// WiredAxes returns the capture axes represented in the default capture matrix.
+// Each returned value is transmitted to BAS as part of the capture profile;
+// interaction-state is applied by the Playwright driver before evidence is read.
 func WiredAxes() []AxisSupport { return WiredAxesFromProfiles(DefaultCaptureProfiles) }
 
 // WiredAxesFromProfiles derives support only from values that the capture
@@ -63,15 +62,14 @@ func WiredAxesFromProfiles(profiles []CaptureProfile) []AxisSupport {
 
 // AvailableEvidence returns the evidence kinds a capture actually yields.
 //
-// ax-tree, layout-box, and computed-style all come from the BAS accessibility
+// ax-tree, layout-box, computed-style, and screenshot all come from the BAS
+// capture response
 // snapshot. The latter is a declared property map, so evaluators can distinguish
-// absent CSS evidence from a failed arithmetic check. The screenshot, runtime-log,
-// and timing channels exist elsewhere in the fleet but are not joined to
-// experience evidence, so they are deliberately absent here. The
-// screenshot, runtime-log, and timing channels exist elsewhere in the fleet but
-// are not joined to experience evidence, so they are deliberately absent here.
+// absent CSS evidence from a failed arithmetic check. runtime-log and timing
+// remain outside the experience evidence join until their durable contracts are
+// defined.
 func AvailableEvidence() []string {
-	return []string{"ax-tree", "computed-style", "layout-box"}
+	return []string{"ax-tree", "computed-style", "layout-box", "screenshot"}
 }
 
 func addAxisValue(values map[string]map[string]struct{}, axis, value string) {
@@ -88,10 +86,28 @@ func addAxisValue(values map[string]map[string]struct{}, axis, value string) {
 // evaluator, sorted. A claim type absent from this list parses and is accepted by
 // the spec, but can only ever record an unverifiable verdict.
 func ImplementedClaimTypes() []string {
+	// Keep the public self-description sourced from the evaluator map. The
+	// shared vocabulary package lets the parser use the same registry without
+	// creating a spec -> reconcile import cycle.
 	out := make([]string, 0, len(claimEvaluators))
 	for claimType := range claimEvaluators {
 		out = append(out, claimType)
 	}
 	sort.Strings(out)
+	if want := claimtypes.ImplementedClaimTypes(); !sameStrings(out, want) {
+		panic("claim evaluator vocabulary drifted from shared claimtypes registry")
+	}
 	return out
+}
+
+func sameStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
+			return false
+		}
+	}
+	return true
 }

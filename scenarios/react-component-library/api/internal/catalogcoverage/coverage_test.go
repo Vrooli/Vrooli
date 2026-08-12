@@ -187,6 +187,27 @@ func TestCoverageReachesTargetWhenEveryBlockingGatePasses(t *testing.T) {
 	}
 }
 
+func TestCoverageCanExceedDeclaredTargetWhenHigherRungGatesPass(t *testing.T) {
+	assets := []Asset{{ID: "navigation.navigation-tree", Name: "NavigationTree", Kind: "component", Domain: "navigation", Priority: "P1", Maturity: "verified", Targets: []string{"react-vite"}}}
+	impls := []Implementation{{Name: "NavigationTree", Root: "components", CatalogID: "navigation.navigation-tree"}}
+	gates := []GateDefinition{
+		{ID: "types", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "api", Rung: RungImplemented, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "visual", Rung: RungVerified, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "stress", Rung: RungProductionReady, Blocking: true, AppliesTo: []string{"component"}},
+	}
+	evidence := []GateEvidence{
+		{AssetID: "navigation.navigation-tree", Target: "react-vite", Gate: "types", Result: "pass"},
+		{AssetID: "navigation.navigation-tree", Target: "react-vite", Gate: "api", Result: "pass"},
+		{AssetID: "navigation.navigation-tree", Target: "react-vite", Gate: "visual", Result: "pass"},
+		{AssetID: "navigation.navigation-tree", Target: "react-vite", Gate: "stress", Result: "pass"},
+	}
+	report := ComputeWithEvidence(assets, impls, evidence, gates)
+	if got := report.Rows[0].Achieved; got != RungProductionReady {
+		t.Fatalf("achieved = %q, want production-ready above declared verified target", got)
+	}
+}
+
 func TestCoverageMetricsExposeAuditableIndependentDenominators(t *testing.T) {
 	assets := []Asset{
 		{ID: "controls.button", Name: "Button", Kind: "component", Domain: "controls", Priority: "P0", Maturity: "production-ready", Targets: []string{"react-vite"}},

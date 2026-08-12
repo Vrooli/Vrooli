@@ -8,9 +8,11 @@
       "reset": "none",
       "surface": "component-editor-preview",
       "spec_entry_id": "component-preview-workspace",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
       "requirements_json": "[\"PR-001\"]"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1400,

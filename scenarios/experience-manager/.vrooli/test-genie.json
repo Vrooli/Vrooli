@@ -6,6 +6,7 @@
   "displayName": "Experience",
   "description": "Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager.",
   "source": "validation-provider",
+  "runtimeClass": "execution",
   "orderHint": 14,
   "timeout": "10m",
   "findingSource": "ui",
@@ -250,6 +251,17 @@
         "fix_class": "manual",
         "reason": "Tier changes alter enforcement intent and need author judgment."
       },
+      "experience.vacuous_contract": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["experience-spec-authoring"],
+        "fix_class": "manual",
+        "reason": "A portable contract needs at least one claim backed by an implemented evaluator to earn a validated rung."
+      },
       "experience.route_unspecced": {
         "capability_id": "spec_contract",
         "local_level_impact": "L2",
@@ -326,6 +338,17 @@
         "recommended_skill_ids": ["experience-spec-authoring"],
         "fix_class": "manual",
         "reason": "Capture availability is an operational condition, not an in-place source fix."
+      },
+      "experience.capture_bindings_unjoined": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["experience-spec-authoring"],
+        "fix_class": "manual",
+        "reason": "A completed capture with zero joined bindings indicates broken document bindings."
       },
       "experience.attestation_expired": {
         "capability_id": "manual_evidence",

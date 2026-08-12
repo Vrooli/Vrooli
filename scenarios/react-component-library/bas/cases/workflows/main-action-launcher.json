@@ -4,8 +4,8 @@
     "description": "Opens the persistent main-actions launcher at the catalog root and verifies that guided extract, adoption, and component-creation actions are all reachable before any workflow is started.",
     "requirement": "OT-P0-008",
     "version": "1",
-    "labels": { "reset": "none", "surface": "main-action-launcher", "requirements_json": "[\"OT-P0-008\"]" },
-    "execution_mode": "observer"
+    "labels": { "reset": "none", "surface": "main-action-launcher", "requires_confirmation": "true", "routed_isolation": "true", "requirements_json": "[\"OT-P0-008\"]" },
+    "execution_mode": "mutating"
   },
   "settings": { "viewport_width": 1280, "viewport_height": 900 },
   "nodes": [

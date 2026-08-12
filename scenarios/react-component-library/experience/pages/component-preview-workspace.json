@@ -60,7 +60,7 @@
   "bindings": {
     "regions": {
       "component-preview": {
-        "testid": "experience-surface-component-preview"
+        "selector": "[data-experience-surface=\"component-preview\"]"
       }
     }
   }

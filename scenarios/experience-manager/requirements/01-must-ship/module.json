@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-07-14T20:47:52-04:00",
+    "last_validated_at": "2026-08-12T16:29:06-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "EXPERIEN-P0-001",
       "title": "Experience spec contract",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "Validate `experience/` (index, pages, journeys, and components) against `.vrooli/schemas/scenario-experience-spec.schema.json` plus parser checks: unique IDs, resolvable references (routes, PRD OTs, DESIGN.md states, bindings, component examples), enforcement-tier rules, and open-world semantics, with a frozen finding-code vocabulary.",
@@ -19,21 +19,21 @@
           "type": "test",
           "ref": "api/internal/spec/spec_test.go::TestParseScenarioFixturesContractGreen",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Parses the three golden fixture scenarios through the Go parser with contract-green verdicts. Last full scenario suite evidence: 20260705-222420-97ab2e55 experience phase PASS."
         },
         {
           "type": "test",
           "ref": "api/internal/spec/spec_test.go::TestParseScenarioFindsContractViolations",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covers cross-file parser checks and emitted contract finding codes for unresolved refs, PRD mismatch, tier violations, and orphan bindings."
         },
         {
           "type": "test",
           "ref": "api/internal/spec/spec_test.go::TestParseScenarioParsesExperienceComponents",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covers `experience-component` parser support, component index parity, example references, and the RCL Button pilot."
         }
       ]
@@ -41,7 +41,7 @@
     {
       "id": "EXPERIEN-P0-002",
       "title": "Scenario validation provider",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "Implement `ScenarioValidationService` for the canonical `experience` phase with findings, metrics, maturity ladders, and fix preview/apply, discovered by Test Genie through `.vrooli/test-genie.json` with presence-keyed applicability.",
@@ -50,14 +50,14 @@
           "type": "test",
           "ref": "api/handlers/validation/connect_handler_test.go::TestSharedValidateScenarioUsesParserReport",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proves the shared ScenarioValidationService response is sourced from the parser report and includes maturity assessment data."
         },
         {
           "type": "test",
           "ref": "api/handlers/validation/connect_handler_test.go::TestSharedValidateScenarioHonorsExperienceGate",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proves the EXPERIENCE_ALIGNMENT_GATE strict knob controls shared provider status while advisory mode remains non-gating."
         }
       ]
@@ -65,7 +65,7 @@
     {
       "id": "EXPERIEN-P0-003",
       "title": "Structure reconciliation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
       "description": "Drive Browser Automation Studio to capture a screenshot plus accessibility tree per declared page/state and per experience-component example/viewport, then check every machine-tier claim against the captured tree, persisting per-claim evidence; BAS unavailability yields skipped findings, never failures. Component reconciliation is advisory until the component contract is promoted to gating.",
@@ -74,35 +74,35 @@
           "type": "test",
           "ref": "api/internal/reconcile/reconcile_test.go::TestDraftCalibrationEmitsExpectedMatrixFailuresOnly",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Pins the business-health Matrix calibration to exactly eight advisory reconciliation findings."
         },
         {
           "type": "test",
           "ref": "api/internal/reconcile/reconcile_test.go::TestActivePageReconcilesAgainstAccessibilitySnapshot",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Checks machine-tier claims against the BAS accessibility snapshot model for an active page."
         },
         {
           "type": "test",
           "ref": "api/internal/reconcile/reconcile_test.go::TestActivePagePersistsPerClaimEvidence",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Persists per-claim reconciliation evidence for passed active-page verdicts."
         },
         {
           "type": "test",
           "ref": "api/internal/reconcile/reconcile_test.go::TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Builds RCL preview harness capture targets for component examples and persists component claim evidence."
         },
         {
           "type": "test",
           "ref": "api/internal/reconcile/reconcile_test.go::TestActiveComponentFailuresAreAdvisory",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proves component reconciliation failures are advisory warnings while the contract is still being calibrated."
         }
       ]
@@ -110,7 +110,7 @@
     {
       "id": "EXPERIEN-P0-004",
       "title": "Authoring studio",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "Form-based spec authoring with live validation and CLI parity, satisfying the round-trip property: a spec saved through the studio re-validates to zero contract findings.",
@@ -119,14 +119,14 @@
           "type": "test",
           "ref": "api/internal/authoring/service_test.go::TestAuthoringRoundTripAppliesParserCleanPage",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proves submit -\u003e preview -\u003e apply writes a page draft that re-parses with zero contract error findings."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/service_test.go::TestSuggestBindingsIncludesExistingSpecBindings",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covers the binding suggestion helper used by the studio authoring flow."
         }
       ]
@@ -134,7 +134,7 @@
     {
       "id": "EXPERIEN-P0-005",
       "title": "Self-spec dogfood",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "criticality": "P0",
       "description": "Experience Manager ships its own `experience/` folder at L3+ depth and validates green, serving as the first real proof of the spec schema on its own surfaces.",
@@ -143,7 +143,7 @@
           "type": "test",
           "ref": "ui/src/app/routes.test.tsx::AppRouter renders the fleet page at /",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Routes the dogfood Fleet page through the UI shell using the spec-backed selector set; full self-validation evidence: experience-manager experience phase 20260705-222420-97ab2e55 PASS."
         },
         {

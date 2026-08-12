@@ -7,9 +7,12 @@
     "labels": {
       "reset": "none",
       "surface": "bottomnav-keyboard-navigation",
+      "spec_entry_id": "component-harness",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
       "requirements_json": "[\"TC-006\",\"TC-004\"]"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 420,
@@ -42,6 +45,19 @@
         "metadata": { "label": "BottomNav rendered" }
       },
       "execution_settings": { "wait_after_ms": 300 }
+    },
+    {
+      "id": "assert-harness-region",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"component-harness\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "The component harness experience region was not exposed."
+        },
+        "metadata": { "label": "Component harness region visible" }
+      }
     },
     {
       "id": "focus-first-item",
@@ -89,7 +105,8 @@
   ],
   "edges": [
     { "id": "e1", "source": "navigate-bottomnav-harness", "target": "wait-nav", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e2", "source": "wait-nav", "target": "focus-first-item", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-nav", "target": "assert-harness-region", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2b", "source": "assert-harness-region", "target": "focus-first-item", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "e3", "source": "focus-first-item", "target": "press-tab", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "e4", "source": "press-tab", "target": "stamp-nav-advance", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "e5", "source": "stamp-nav-advance", "target": "assert-nav-advanced", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }

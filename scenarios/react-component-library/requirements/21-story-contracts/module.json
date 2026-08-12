@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Single-source story contracts for preview, generated controls, fixtures, and catalog tests.",
-    "last_validated_at": "2026-08-12T08:07:12-04:00",
+    "last_validated_at": "2026-08-12T14:08:34-04:00",
     "module": "story-contracts",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "SC-001",
       "title": "Every catalog version owns one validated story contract",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "catalog-contract",
       "criticality": "P0",
@@ -21,14 +21,14 @@
           "type": "test",
           "ref": "api/internal/components/story_contract_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "SC-002",
       "title": "Generated controls validate one public input boundary",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
@@ -38,7 +38,7 @@
           "type": "test",
           "ref": "ui/src/features/components/PropsExperimentPanel.test.tsx",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "automation",
@@ -52,7 +52,7 @@
     {
       "id": "SC-003",
       "title": "State and external dependencies remain explicit and safe",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "safety",
       "criticality": "P0",
@@ -62,7 +62,7 @@
           "type": "test",
           "ref": "api/handlers/preview/static_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "automation",
@@ -76,7 +76,7 @@
     {
       "id": "SC-004",
       "title": "The cutover is complete and legacy preview metadata is rejected",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "conformance",
       "criticality": "P0",
@@ -86,7 +86,7 @@
           "type": "test",
           "ref": "api/internal/components/story_conformance_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "automation",

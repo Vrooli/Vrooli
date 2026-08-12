@@ -36,7 +36,7 @@ require (
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

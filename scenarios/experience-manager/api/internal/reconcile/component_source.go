@@ -96,7 +96,7 @@ func readComponentSourceGraph(report spec.Report, component spec.ComponentDocume
 	}
 	refPath := filepath.Clean(filepath.Join(report.Spec.ExperienceDir, "components", filepath.FromSlash(ref)))
 	versionDir := filepath.Dir(refPath)
-	if !pathWithin(report.TargetPath, versionDir) {
+	if !catalogPathWithinScenarioOrRCL(report.TargetPath, versionDir) {
 		return "", fmt.Errorf("catalog reference %q escapes the scenario tree", ref)
 	}
 	entries, err := os.ReadDir(versionDir)
@@ -154,4 +154,11 @@ func readComponentSourceGraph(report spec.Report, component spec.ComponentDocume
 func pathWithin(root, candidate string) bool {
 	rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(candidate))
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func catalogPathWithinScenarioOrRCL(scenarioDir, candidate string) bool {
+	if pathWithin(scenarioDir, candidate) {
+		return true
+	}
+	return pathWithin(filepath.Join(filepath.Dir(scenarioDir), "react-component-library"), candidate)
 }

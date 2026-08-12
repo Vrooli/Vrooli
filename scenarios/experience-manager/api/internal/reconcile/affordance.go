@@ -91,6 +91,7 @@ var affordanceMatchers = map[string]func(*AXNode, string, string) bool{
 	"progress":      matchProgressAffordance,
 	"refresh":       matchRefreshAffordance,
 	"stale-refresh": matchRefreshAffordance,
+	"action":        matchActionAffordance,
 }
 
 func nodeMatchesAffordance(node *AXNode, affordance string) bool {
@@ -107,12 +108,50 @@ func matchSearchAffordance(_ *AXNode, name, role string) bool {
 }
 
 func matchSortAffordance(node *AXNode, name, role string) bool {
-	return strings.Contains(name, "sort") || role == "columnheader" && containsState(node, "sortable")
+	if strings.Contains(name, "sort") || role == "columnheader" && containsState(node, "sortable") {
+		return true
+	}
+	// Sort labels are localized, so their English wording cannot be the
+	// contract. A table header carrying aria-sort is the platform semantic for
+	// a sortable column and remains stable across translations.
+	return role == "columnheader" && hasAttribute(node, "aria-sort")
 }
 
-func matchFilterAffordance(_ *AXNode, name, role string) bool {
+func matchFilterAffordance(node *AXNode, name, role string) bool {
 	return strings.Contains(name, "filter") ||
-		(role == "combobox" || role == "listbox") && containsAny(name, "status", "category", "type", "severity", "owner")
+		(role == "combobox" || role == "listbox") && containsAny(name, "status", "category", "type", "severity", "owner") ||
+		(role == "group" || role == "toolbar") && hasDescendant(node, hasPressedControl)
+}
+
+func hasAttribute(node *AXNode, key string) bool {
+	if node == nil || node.DOM.Attributes == nil {
+		return false
+	}
+	_, present := node.DOM.Attributes[key]
+	return present
+}
+
+func hasPressedControl(node *AXNode) bool {
+	if node == nil || strings.ToLower(strings.TrimSpace(node.Role)) != "button" {
+		return false
+	}
+	if hasAttribute(node, "aria-pressed") {
+		return true
+	}
+	return containsState(node, "pressed")
+}
+
+func hasDescendant(node *AXNode, predicate func(*AXNode) bool) bool {
+	if node == nil {
+		return false
+	}
+	for index := range node.Children {
+		child := &node.Children[index]
+		if predicate(child) || hasDescendant(child, predicate) {
+			return true
+		}
+	}
+	return false
 }
 
 func containsAny(value string, needles ...string) bool {
@@ -142,6 +181,10 @@ func matchProgressAffordance(_ *AXNode, name, role string) bool {
 
 func matchRefreshAffordance(_ *AXNode, name, _ string) bool {
 	return strings.Contains(name, "refresh") || strings.Contains(name, "stale")
+}
+
+func matchActionAffordance(_ *AXNode, name, role string) bool {
+	return (role == "button" || role == "link") && name != ""
 }
 
 func paramString(params map[string]any, key string) string {

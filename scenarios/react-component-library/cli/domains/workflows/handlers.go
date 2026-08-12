@@ -41,7 +41,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 func (h *handlers) list(ctx cliapp.RunContext) error {
 	req := &workflowspb.ListWorkflowsRequest{AssetId: ctx.Flag("asset-id"), TargetScenario: ctx.Flag("target-scenario"), ActiveOnly: ctx.Flag("active") == "true"}
 	if raw := ctx.Flag("limit"); raw != "" {
-		n, err := strconv.Atoi(raw)
+		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}
@@ -71,6 +71,7 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{ResultsHeading: "Workflow", Results: []string{format(resp.Msg.Workflow)}})
 }
+
 func (h *handlers) refresh(ctx cliapp.RunContext) error {
 	resp, err := h.client.RefreshWorkflow(context.Background(), connect.NewRequest(&workflowspb.RefreshWorkflowRequest{Id: ctx.Positional("id")}))
 	if err != nil {
@@ -81,6 +82,7 @@ func (h *handlers) refresh(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{ResultsHeading: "Workflow", Results: []string{format(resp.Msg.Workflow)}})
 }
+
 func (h *handlers) stop(ctx cliapp.RunContext) error {
 	resp, err := h.client.StopWorkflow(context.Background(), connect.NewRequest(&workflowspb.StopWorkflowRequest{Id: ctx.Positional("id")}))
 	if err != nil {
@@ -91,6 +93,7 @@ func (h *handlers) stop(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{ResultsHeading: "Workflow", Results: []string{format(resp.Msg.Workflow)}})
 }
+
 func (h *handlers) retry(ctx cliapp.RunContext) error {
 	resp, err := h.client.RetryWorkflow(context.Background(), connect.NewRequest(&workflowspb.RetryWorkflowRequest{Id: ctx.Positional("id"), IdempotencyKey: ctx.Flag("idempotency-key")}))
 	if err != nil {
@@ -101,6 +104,7 @@ func (h *handlers) retry(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Workflow queued with depth %d.", resp.Msg.QueueDepth)}, ResultsHeading: "Workflow", Results: []string{format(resp.Msg.Workflow)}})
 }
+
 func (h *handlers) promotionReadiness(ctx cliapp.RunContext) error {
 	resp, err := h.client.GetPromotionReadiness(context.Background(), connect.NewRequest(&workflowspb.GetPromotionReadinessRequest{AssetId: ctx.Positional("asset-id"), OriginScenario: ctx.Flag("origin-scenario"), Version: ctx.Flag("version")}))
 	if err != nil {
@@ -125,6 +129,7 @@ func parseKind(value string) (workflowspb.WorkflowKind, error) {
 		return workflowspb.WorkflowKind_WORKFLOW_KIND_UNSPECIFIED, fmt.Errorf("--kind must be extract or adopt")
 	}
 }
+
 func format(w *workflowspb.Workflow) string {
 	if w == nil {
 		return "(nil)"

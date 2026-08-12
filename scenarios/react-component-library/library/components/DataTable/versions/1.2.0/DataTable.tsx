@@ -180,6 +180,7 @@ export function DataTable<Row>({
               <button
                 key={filter.id}
                 type="button"
+                aria-pressed={activeFilter === filter.id}
                 className={cn(
                   "min-h-11 rounded-control border px-3 text-sm font-medium transition",
                   activeFilter === filter.id
@@ -215,6 +216,7 @@ export function DataTable<Row>({
                   <th
                     key={column.id}
                     scope="col"
+                    aria-sort={active ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                     className={cn("px-3 py-3 font-semibold", column.className)}
                   >
                     {column.sortValue ? (

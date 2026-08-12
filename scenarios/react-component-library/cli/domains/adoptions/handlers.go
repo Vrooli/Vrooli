@@ -36,7 +36,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		Scenario:    ctx.Flag("scenario"),
 	}
 	if raw := ctx.Flag("limit"); raw != "" {
-		n, err := strconv.Atoi(raw)
+		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}
@@ -96,7 +96,7 @@ func (h *handlers) listScenarios(ctx cliapp.RunContext) error {
 func (h *handlers) listEffective(ctx cliapp.RunContext) error {
 	req := &adoptionsv1.ListEffectiveAdoptionsRequest{ComponentId: ctx.Positional("component-id")}
 	if raw := ctx.Flag("limit"); raw != "" {
-		limit, err := strconv.Atoi(raw)
+		limit, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}
@@ -157,7 +157,7 @@ func (h *handlers) apply(ctx cliapp.RunContext) error {
 func (h *handlers) suggest(ctx cliapp.RunContext) error {
 	req := &adoptionsv1.SuggestAdoptionsRequest{Scenario: ctx.Flag("scenario"), ComponentId: ctx.Flag("component-id")}
 	if raw := ctx.Flag("limit"); raw != "" {
-		limit, err := strconv.Atoi(raw)
+		limit, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}
@@ -323,7 +323,7 @@ func (h *handlers) discover(ctx cliapp.RunContext) error {
 		req.MinSimilarity = f
 	}
 	if raw := ctx.Flag("limit"); raw != "" {
-		n, err := strconv.Atoi(raw)
+		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
 			return fmt.Errorf("invalid --limit %q: %w", raw, err)
 		}

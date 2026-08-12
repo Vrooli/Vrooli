@@ -303,7 +303,7 @@ func TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence(t *testing.T) { 
 	}
 }
 
-func TestActiveComponentFailuresAreAdvisory(t *testing.T) {
+func TestActiveComponentFailuresAreBlocking(t *testing.T) {
 	report := activeComponentReport("action", spec.Binding{Selector: "button"})
 	component := report.Spec.Components["button"]
 	component.Claims = []spec.Claim{{
@@ -323,8 +323,8 @@ func TestActiveComponentFailuresAreAdvisory(t *testing.T) {
 	if len(findings) != 1 || findings[0].Code != spec.CodeClaimFailed {
 		t.Fatalf("expected one failed component claim, got %+v", findings)
 	}
-	if findings[0].Severity != spec.SeverityWarning {
-		t.Fatalf("component finding severity = %s, want advisory warning", findings[0].Severity)
+	if findings[0].Severity != spec.SeverityError {
+		t.Fatalf("component finding severity = %s, want blocking error", findings[0].Severity)
 	}
 }
 
@@ -548,6 +548,19 @@ func TestSelectorMatchesAriaLabelBinding(t *testing.T) {
 	}
 }
 
+func TestSelectorMatchesStableDOMAttributePresenceAndValue(t *testing.T) {
+	node := &AXNode{DOM: DOMNode{Attributes: map[string]string{"data-rcl-pressable": "true", "data-rcl-pending": "false"}}}
+	if !selectorMatches(node, "[data-rcl-pressable]") {
+		t.Fatal("presence selector should match a captured stable DOM attribute")
+	}
+	if !selectorMatches(node, `[data-rcl-pending='false']`) {
+		t.Fatal("value selector should match a captured stable DOM attribute")
+	}
+	if selectorMatches(node, "[data-rcl-missing]") {
+		t.Fatal("presence selector should reject an absent stable DOM attribute")
+	}
+}
+
 func TestComponentSourceClaimsDetectRemovedInteractionContracts(t *testing.T) {
 	good := `const densityClasses = { comfortable: "gap-2" }; const variants = "bg-app-primary hover:brightness-95"; const sizeClasses = "min-h-10 min-w-10";`
 	badSpacing := strings.Replace(good, "gap-2", "gap-0", 1)
@@ -629,6 +642,24 @@ func TestAffordancePresentChecksExpectedControls(t *testing.T) {
 	findings := Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if len(findings) != 0 {
 		t.Fatalf("expected affordance-present claim to pass, got %+v", findings)
+	}
+
+	localizedSnapshot := Snapshot{
+		Contract: snapshotContract,
+		Root: AXNode{Role: "WebArea", Bounds: &Bounds{Width: 1280, Height: 720}, Children: []AXNode{
+			{Role: "table", Name: "دين التجربة", Bounds: &Bounds{X: 0, Y: 100, Width: 500, Height: 300}, DOM: DOMNode{TestID: "debt-table"}, Children: []AXNode{
+				{Role: "columnheader", Name: "فرز حسب السيناريو", DOM: DOMNode{Attributes: map[string]string{"aria-sort": "ascending"}}, Children: []AXNode{{Role: "button", Name: "فرز حسب السيناريو"}}},
+			}},
+			{Role: "searchbox", Name: "دين التجربة", Bounds: &Bounds{X: 0, Y: 40, Width: 180, Height: 40}},
+			{Role: "group", Name: "تصفية الحالة", DOM: DOMNode{Attributes: map[string]string{"aria-label": "تصفية الحالة"}}, Children: []AXNode{
+				{Role: "button", Name: "كل الحالات", DOM: DOMNode{Attributes: map[string]string{"aria-pressed": "true"}}},
+				{Role: "button", Name: "نتائج", DOM: DOMNode{Attributes: map[string]string{"aria-pressed": "false"}}},
+			}},
+		}},
+	}
+	findings = Check{Capturer: fakeCapturer{snapshot: localizedSnapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("expected localized semantic affordances to pass, got %+v", findings)
 	}
 
 	snapshot.Root.Children = snapshot.Root.Children[:1]
@@ -875,11 +906,25 @@ func TestNonDefaultStateWithoutSetupReportsLimitation(t *testing.T) {
 	}
 }
 
-func TestActivePageWithNoJoinedBindingsSkipsAsUnavailable(t *testing.T) {
+func TestActivePageWithNoJoinedBindingsBlocks(t *testing.T) {
 	report := activeReport("missing", spec.Binding{TestID: "not-rendered"})
 	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
-	if len(findings) != 1 || findings[0].Code != spec.CodeCaptureUnavailable || findings[0].Severity != spec.SeverityInfo {
-		t.Fatalf("expected capture unavailable info finding, got %+v", findings)
+	if len(findings) != 1 || findings[0].Code != spec.CodeBindingsUnjoined || findings[0].Severity != spec.SeverityError {
+		t.Fatalf("expected zero-binding blocking finding, got %+v", findings)
+	}
+	if !strings.Contains(findings[0].Message, `state "default"`) || !strings.Contains(findings[0].Message, "zero of 1 declared bindings") {
+		t.Fatalf("zero-binding message = %q", findings[0].Message)
+	}
+}
+
+func TestActiveComponentWithNoJoinedBindingsBlocks(t *testing.T) {
+	report := activeComponentReport("action", spec.Binding{TestID: "not-rendered"})
+	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	if len(findings) != 1 || findings[0].Code != spec.CodeBindingsUnjoined || findings[0].Severity != spec.SeverityError {
+		t.Fatalf("expected component zero-binding blocking finding, got %+v", findings)
+	}
+	if !strings.Contains(findings[0].Message, `component "button"`) || !strings.Contains(findings[0].Message, "zero of 1 declared bindings") {
+		t.Fatalf("component zero-binding message = %q", findings[0].Message)
 	}
 }
 

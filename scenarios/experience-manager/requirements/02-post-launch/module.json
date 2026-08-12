@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P1 operational targets.",
-    "last_validated_at": "2026-07-14T20:47:52-04:00",
+    "last_validated_at": "2026-08-12T16:29:06-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "EXPERIEN-P1-001",
       "title": "Render and workshop",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
       "description": "Deterministic wireframe rendering of any spec page with claim annotations, side-by-side variant compare with promote-to-spec, and an optional AI-image render mode composing image-tools.",
@@ -19,28 +19,28 @@
           "type": "test",
           "ref": "api/internal/render/render_test.go::TestRenderPageIsByteStable",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proves deterministic page-to-wireframe rendering is byte-stable and includes claim annotations."
         },
         {
           "type": "test",
           "ref": "api/internal/render/render_test.go::TestCompareVariantsWritesStableArtifact",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proves stable side-by-side variant rendering artifacts."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/service_test.go::TestPromoteVariantAppliesParserCleanPage",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Promotes a selected variant through parser-clean apply semantics."
         },
         {
           "type": "test",
           "ref": "api/internal/render/render_test.go::TestImageModeDegradesToWireframe",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Pins optional image mode degradation when image-tools is unavailable."
         }
       ]
@@ -48,7 +48,7 @@
     {
       "id": "EXPERIEN-P1-002",
       "title": "BAS case scaffolding",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
       "description": "Derive `bas/cases` stubs from spec entries (routes to navigation, claims to assertions, bindings to selectors) for workflow-health governance, with spec-to-case reference-integrity findings in both directions.",
@@ -57,14 +57,14 @@
           "type": "test",
           "ref": "api/internal/autofix/autofix_test.go::TestCaseScaffoldPreviewApplyAndIdempotency",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Derives BAS case stubs and registry entries from active page specs with spec_entry_id linkage and idempotent apply."
         },
         {
           "type": "test",
           "ref": "api/handlers/validation/connect_handler_test.go::TestScaffoldCasesUsesCaseScaffoldFixer",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proves the native ScaffoldCases RPC uses the deterministic case-scaffold fixer path for dry-run and apply."
         }
       ]
@@ -72,7 +72,7 @@
     {
       "id": "EXPERIEN-P1-003",
       "title": "Deterministic autofix",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
       "description": "Preview and apply mechanical fixes for binding drift, index normalization, missing state stubs, and finding-doc stubs with accounting of fixed versus remaining findings.",
@@ -81,21 +81,21 @@
           "type": "test",
           "ref": "api/internal/autofix/autofix_test.go::TestCaseScaffoldPreviewApplyAndIdempotency",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Checks preview/apply accounting and idempotency for deterministic sequential fix application."
         },
         {
           "type": "test",
           "ref": "api/internal/autofix/autofix_test.go::TestBindingDriftRepairAddsDeterministicPlaceholders",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covers deterministic binding drift placeholder repair."
         },
         {
           "type": "test",
           "ref": "api/handlers/validation/connect_handler_test.go::TestFixRPCsPreviewAndApplyLiveRegistry",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proves shared PreviewFix and ApplyFix RPCs use the live registry."
         }
       ]
@@ -103,7 +103,7 @@
     {
       "id": "EXPERIEN-P1-004",
       "title": "Manual attestation ledger",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
       "description": "Manual-tier claims are attested with an expiry; expired attestations surface as findings so human-verified experience promises decay honestly instead of staying green forever.",
@@ -112,14 +112,14 @@
           "type": "test",
           "ref": "api/internal/attestation/check_test.go::TestCheckEmitsExpiredAttestationFinding",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Expired manual-tier attestations emit experience.attestation_expired findings."
         },
         {
           "type": "test",
           "ref": "api/internal/attestation/sqlite_test.go::TestSQLiteRepositoryHasSingleWriteSeam",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "AST guard proves the SQLite ledger has exactly one write seam: AppendAttestation."
         }
       ]
@@ -127,7 +127,7 @@
     {
       "id": "EXPERIEN-P1-005",
       "title": "Fleet sweep",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
       "description": "Compute-on-read sweep of spec coverage and depth across all scenarios, scored worst-first so experience debt is visible and prioritized fleet-wide.",
@@ -136,7 +136,7 @@
           "type": "test",
           "ref": "api/internal/fleet/fleet_test.go::TestSweepComputesWorstFirstDebt",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proves compute-on-read fleet sweep includes scenarios without experience specs and sorts debt worst-first."
         }
       ]

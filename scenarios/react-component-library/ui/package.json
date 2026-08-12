@@ -18,7 +18,7 @@
     "type-check:catalog": "node scripts/catalog-conformance.mjs type-check",
     "catalog:check": "pnpm run format:check && node scripts/catalog-conformance.mjs check",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage --minWorkers=2 --maxWorkers=2",
+    "test:coverage": "vitest run --coverage --minWorkers=1 --maxWorkers=1",
     "test:preview-e2e": "node scripts/preview-e2e.mjs",
     "build:preview-kits": "node scripts/build-preview-kits.mjs",
     "strings:gen": "node scripts/gen-strings.mjs",
@@ -51,7 +51,7 @@
     "react-i18next": "^15.1.1",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^4.12.2",
-    "react-router-dom": "^7.15.0",
+    "react-router-dom": "^7.18.2",
     "remark-gfm": "^4.0.1",
     "shiki": "^4.3.1",
     "tailwind-merge": "^2.3.0"

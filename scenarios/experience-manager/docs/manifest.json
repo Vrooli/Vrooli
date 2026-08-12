@@ -719,6 +719,18 @@
           "aliases": ["experience.binding_orphan"]
         },
         {
+          "path": "findings/experience.vacuous_contract.md",
+          "docType": "finding-experience-vacuous-contract",
+          "title": "experience.vacuous_contract",
+          "description": "Remediation doc for the `experience.vacuous_contract` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.vacuous_contract"]
+        },
+        {
           "path": "findings/experience.tier_violation.md",
           "docType": "finding-experience-tier-violation",
           "title": "experience.tier_violation",
@@ -813,6 +825,13 @@
           "completion": "required",
           "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
           "aliases": ["experience.capture_unavailable"]
+        },
+        {
+          "path": "findings/experience.capture_bindings_unjoined.md",
+          "docType": "finding-experience-capture-bindings-unjoined",
+          "title": "experience.capture_bindings_unjoined",
+          "description": "Remediation doc for the `experience.capture_bindings_unjoined` finding",
+          "aliases": ["experience.capture_bindings_unjoined"]
         },
         {
           "path": "findings/experience.attestation_expired.md",
