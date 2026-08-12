@@ -23,6 +23,11 @@ vrooli package test <name>
 vrooli package refresh <name> all
 ```
 
+Non-interactive refreshes do not restart running consumers by default. They
+reconcile the package outputs and leave lifecycle ownership with the operator;
+use the explicit interactive restart option when a restart is deliberately
+required.
+
 Dependency changes and local Go-module reconciliation go through Scenario
 Dependency Analyzer:
 
@@ -48,3 +53,12 @@ in the `Clean shared-package provisioning` job in `.github/workflows/test.yml`.
 The build-output digest is part of UI freshness, so rebuilding a shared package
 invalidates the consumer's installed copy on its next setup. Generated outputs
 remain lifecycle-owned artifacts and are not hand-built by scenario operators.
+
+Provisioning is single-flight at two levels: lifecycle phase entrypoints hold
+the scenario lock, and each governed package is protected by a shared-package
+lock under `$HOME/.vrooli/state/locks`. This is required because different
+scenario consumers can provision the same `file:` dependency concurrently.
+Lifecycle-owned package commands receive the setup environment and EOF stdin,
+so package-manager prompts fail deterministically and cannot wait on an
+operator terminal. Lock waits and command durations are recorded in the
+scenario lifecycle log with the package root, process ID, and wait duration.

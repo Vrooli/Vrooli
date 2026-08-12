@@ -1,11 +1,12 @@
 package cliapp
 
 import (
-	"os"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -88,19 +89,15 @@ func TestProtoBindingOptionsExposeRendererOverride(t *testing.T) {
 }
 
 func TestResolveArgFieldAgainstRealAIGatewayDescriptor(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "proto", "gen", "descriptor", "image.binpb"))
+	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: filepath.Join("..", "..", "proto", "gen", "descriptor", "image.binpb")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var set descriptorpb.FileDescriptorSet
-	if err := proto.Unmarshal(data, &set); err != nil {
-		t.Fatal(err)
-	}
-	files, err := protodesc.NewFiles(&set)
+	snapshot, err := source.Snapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	desc, err := files.FindDescriptorByName("vrooli.ai_gateway.v1.routing.PreviewRouteRequest")
+	desc, err := snapshot.Files.FindDescriptorByName("vrooli.ai_gateway.v1.routing.PreviewRouteRequest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,9 +131,31 @@ func TestResolveArgFieldTopLevelWins(t *testing.T) {
 
 func TestResolveArgFieldUnmappedNamesArgument(t *testing.T) {
 	_, err := ResolveArgField(testMessageDescriptor(t), "missing-value", ArgSchema{})
-	if err == nil || !strings.Contains(err.Error(), "missing-value") {
-		t.Fatalf("error=%v does not name argument", err)
+	var resolutionErr *ArgFieldResolutionError
+	if !errors.As(err, &resolutionErr) {
+		t.Fatalf("error=%T %v is not an ArgFieldResolutionError", err, err)
 	}
+	if resolutionErr.ArgumentName != "missing-value" || resolutionErr.RequestType != "test.Request" {
+		t.Fatalf("resolution metadata = %+v", resolutionErr)
+	}
+	if !containsString(resolutionErr.Candidates, "query") || !containsString(resolutionErr.Candidates, "request.role") {
+		t.Fatalf("candidate fields = %v", resolutionErr.Candidates)
+	}
+	if got := strings.Count(err.Error(), `argument "missing-value"`); got != 1 {
+		t.Fatalf("argument appears %d times in %q", got, err)
+	}
+	if !strings.Contains(err.Error(), "candidate fields: request, request.role, query") {
+		t.Fatalf("error=%v does not render candidates", err)
+	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 // scalarDecodableFixture carries one field of every shape the predicate must

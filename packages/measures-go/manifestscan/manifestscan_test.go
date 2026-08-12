@@ -258,7 +258,8 @@ func TestDescriptorSchemaReader_ReloadsWhenImageChanges(t *testing.T) {
 	if err := os.WriteFile(path, []byte("not a descriptor"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	r := &DescriptorSchemaReader{path: path}
+	t.Setenv("MEASURES_DESCRIPTOR_PATH", path)
+	r := NewDescriptorSchemaReader("")
 	if _, err := r.load(); err == nil {
 		t.Fatal("expected invalid descriptor error")
 	}
@@ -270,7 +271,7 @@ func TestDescriptorSchemaReader_ReloadsWhenImageChanges(t *testing.T) {
 	if _, err := r.load(); err == nil {
 		t.Fatal("expected invalid descriptor error")
 	}
-	if r.stamp.size != int64(len(changed)) {
-		t.Fatalf("reader did not reload changed descriptor: %+v", r.stamp)
+	if r.source.LastReloadError() == nil || r.source.LastReloadFailureAt().IsZero() {
+		t.Fatalf("reader did not record the failed reload: %v at %v", r.source.LastReloadError(), r.source.LastReloadFailureAt())
 	}
 }

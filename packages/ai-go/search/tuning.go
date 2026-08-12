@@ -24,12 +24,32 @@ import (
 // (to know what is sweepable and at what cost); it must not redefine it.
 
 // Engine shapes (the structural, index-time factor). A dense engine stores only
-// the dense vector; a hybrid engine adds the BM25 sparse leg for dense+sparse RRF
+// the dense vector; a hybrid engine adds the BM25 sparse leg for dense+sparse
 // fusion (the lexical half a terse dense vector fumbles).
 const (
 	EngineDense  = "dense"
 	EngineHybrid = "hybrid"
 )
+
+// Hybrid fusion strategies are Qdrant's server-side ways of combining the
+// dense and sparse prefetch legs. RRF is the conservative default; DBSF keeps
+// the score distributions when a sparse exact-term match should outweigh a
+// merely similar dense sibling.
+const (
+	HybridFusionRRF  = "rrf"
+	HybridFusionDBSF = "dbsf"
+)
+
+func normalizeHybridFusion(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case HybridFusionDBSF:
+		return HybridFusionDBSF
+	case HybridFusionRRF, "":
+		return HybridFusionRRF
+	default:
+		return ""
+	}
+}
 
 // FactorTier classifies whether changing a factor requires a reindex. It is the
 // split the override channel (Phase 4) enforces: only QueryTime factors may be
@@ -107,6 +127,11 @@ var Factors = []Factor{
 		Tradeoff: "over-fetch depth into the reranker; higher = more recall into the rerank but more candidates to score (LLM-leg latency; negligible on the cross-encoder).",
 	},
 	{
+		Key: "hybrid_fusion", Tier: QueryTime, Kind: FactorEnum,
+		Enum: []string{HybridFusionRRF, HybridFusionDBSF}, Default: HybridFusionRRF,
+		Tradeoff: "how Qdrant combines dense and sparse legs; RRF is rank-robust, while DBSF preserves score separation for exact lexical matches. Only affects hybrid engines.",
+	},
+	{
 		Key: "floor_max_gap", Tier: QueryTime, Kind: FactorFloat, Min: 0, Max: 1, Default: 0.0,
 		Tradeoff: "relative cutoff below the query's top hit; 0 = let the package pick the regime-appropriate band. Raise to cut more of the weak tail.",
 	},
@@ -167,6 +192,7 @@ type TuningConfig struct {
 	RerankEnabled   bool        `json:"rerank_enabled"`
 	RerankBlend     bool        `json:"rerank_blend"`
 	RerankShortlist int         `json:"rerank_shortlist"`
+	HybridFusion    string      `json:"hybrid_fusion"`
 	Floor           FloorTuning `json:"floor"`
 }
 
@@ -182,6 +208,9 @@ func (t TuningConfig) WithDefaults() TuningConfig {
 	}
 	if t.RerankShortlist <= 0 {
 		t.RerankShortlist = DefaultRerankShortlist
+	}
+	if strings.TrimSpace(t.HybridFusion) == "" {
+		t.HybridFusion = HybridFusionRRF
 	}
 	return t
 }
@@ -215,6 +244,13 @@ func (t TuningConfig) Validate() error {
 	if t.RerankShortlist != 0 && (t.RerankShortlist < MinRerankShortlist || t.RerankShortlist > MaxRerankShortlist) {
 		return fmt.Errorf("tuning.rerank_shortlist %d out of range [%d,%d]", t.RerankShortlist, MinRerankShortlist, MaxRerankShortlist)
 	}
+	switch strings.ToLower(strings.TrimSpace(t.HybridFusion)) {
+	case HybridFusionRRF, HybridFusionDBSF:
+	case "":
+		// WithDefaults supplies the conservative RRF default.
+	default:
+		return fmt.Errorf("tuning.hybrid_fusion %q is not known (expected %q or %q)", t.HybridFusion, HybridFusionRRF, HybridFusionDBSF)
+	}
 	if t.Floor.MaxGap < 0 || t.Floor.MaxGap > 1 {
 		return fmt.Errorf("tuning.floor.max_gap %g out of range [0,1]", t.Floor.MaxGap)
 	}
@@ -239,6 +275,7 @@ func CommandCorpusTuning() TuningConfig {
 		RerankEnabled:   true,
 		RerankBlend:     true,
 		RerankShortlist: DefaultRerankShortlist,
+		HybridFusion:    HybridFusionRRF,
 	}
 }
 
@@ -257,6 +294,7 @@ func DocCorpusTuning() TuningConfig {
 		RerankEnabled:   false,
 		RerankBlend:     false,
 		RerankShortlist: DefaultRerankShortlist,
+		HybridFusion:    HybridFusionRRF,
 	}
 }
 
@@ -316,6 +354,7 @@ func (e TunedEngine) ServiceOptions() ServiceOptions {
 		RerankEnabled: e.Tuning.RerankEnabled,
 		RerankBlend:   e.Tuning.RerankBlend,
 		Shortlist:     e.Tuning.RerankShortlist,
+		HybridFusion:  e.Tuning.HybridFusion,
 		ApplyFloor:    true,
 		Floor:         e.Tuning.Floor.Config(),
 	}

@@ -27,6 +27,19 @@ service StudioService {
   rpc ReleaseAsset(ReleaseAssetRequest) returns (ReleaseAssetResponse);
   rpc GetReleasedAssetReference(GetReleasedAssetReferenceRequest) returns (GetReleasedAssetReferenceResponse);
   rpc ImportCanon(ImportCanonRequest) returns (ImportCanonResponse);
+  // IngestExternalAsset admits bytes another scenario produced.
+  //
+  // Every other way an asset comes into existence here runs through
+  // CreateRender, which means Asset Studio produced it. That left a producing
+  // scenario with two bad options: duplicate the disclosure and release rules
+  // in its own code, or ship a model-backed image with no disclosure at all.
+  // Backdrop Studio chose a third — refusing to release model-backed output
+  // rather than mislabel it — and that refusal is the behaviour this RPC
+  // exists to make unnecessary rather than to remove.
+  //
+  // The caller supplies the facts; Asset Studio owns the record. That split is
+  // the point: disclosure has one authority, and it is this one.
+  rpc IngestExternalAsset(IngestExternalAssetRequest) returns (IngestExternalAssetResponse);
 }
 
 message ConditioningReference {
@@ -228,6 +241,59 @@ message GetReleasedAssetReferenceRequest {
 message GetReleasedAssetReferenceResponse {
   AssetReference asset = 1;
 }
+// ExternalProvenance is what the producing scenario knows about how its bytes
+// came to exist. It carries no identity record on purpose: Backdrop Studio
+// binds a scaffold and a palette, not a character, and requiring an identity
+// would make this door usable only by the producers that already fit the
+// identity model — which is every producer that did not need the door.
+message ExternalProvenance {
+  // producing_scenario names who made the bytes. It is not decoration: it is
+  // how a released asset is traced back to a generator when its disclosure is
+  // later questioned.
+  string producing_scenario = 1;
+  // strategy is how the image was obtained, in the producer's own vocabulary
+  // ("procedural", "procedural-treated", "guided", "synthesized"). Asset Studio
+  // does not interpret it beyond the one distinction that matters — whether it
+  // declares a model — because a closed enum here would make every new
+  // producer's lane a proto change.
+  string strategy = 2;
+  // model_backed is the producer's assertion that a generative model drew this.
+  // It is separate from `strategy` so the rule below is enforceable without
+  // Asset Studio having to know every producer's strategy names.
+  bool model_backed = 3;
+  string model = 4;
+  string prompt = 5;
+  string negative_prompt = 6;
+  string seed = 7;
+  // conditioning names what steered generation — a scaffold, a reference image
+  // set, a trained adapter, or a look. The existing ConditioningReference is
+  // reused deliberately: it was already general enough, and a second
+  // near-identical type would be the drift this scenario keeps paying for.
+  ConditioningReference conditioning = 8;
+  // parameters is the producer's own sampler settings as JSON, kept opaque.
+  string parameters = 9;
+}
+
+message IngestExternalAssetRequest {
+  bytes image = 1;
+  string media_type = 2;
+  string alt_text = 3;
+  // decorative marks an image that carries no information, which is the only
+  // case where empty alt text is correct rather than missing.
+  bool decorative = 4;
+  int32 width = 5;
+  int32 height = 6;
+  ExternalProvenance provenance = 7;
+  // actor_id and actor_kind record who asked. Release requires an operator
+  // verdict, and an ingress that dropped the actor would leave that verdict
+  // attributed to nobody.
+  string actor_id = 8;
+  string actor_kind = 9;
+}
+message IngestExternalAssetResponse {
+  AssetReference asset = 1;
+}
+
 message ImportCanonRequest {
   string root = 1;
 }

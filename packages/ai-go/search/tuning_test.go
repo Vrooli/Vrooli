@@ -13,6 +13,7 @@ func TestFactorTaxonomyConsistency(t *testing.T) {
 	wantKeys := map[string]bool{
 		"engine": true, "embed_model": true, "embed_task_prefix": true,
 		"rerank_enabled": true, "rerank_blend": true, "rerank_shortlist": true,
+		"hybrid_fusion": true,
 		"floor_max_gap": true, "floor_hard_floor": true,
 	}
 	got := map[string]bool{}
@@ -75,7 +76,7 @@ func TestQueryVsIndexTimeFactors(t *testing.T) {
 		}
 	}
 	// Query-time factors are per-request safe (the override channel honors these).
-	for _, k := range []string{"rerank_enabled", "rerank_blend", "rerank_shortlist", "floor_max_gap", "floor_hard_floor"} {
+	for _, k := range []string{"rerank_enabled", "rerank_blend", "rerank_shortlist", "hybrid_fusion", "floor_max_gap", "floor_hard_floor"} {
 		if !qt[k] {
 			t.Errorf("%q must be a query-time factor", k)
 		}
@@ -95,6 +96,9 @@ func TestTuningConfigWithDefaults(t *testing.T) {
 	}
 	if got.RerankShortlist != DefaultRerankShortlist {
 		t.Errorf("default rerank_shortlist = %d, want %d", got.RerankShortlist, DefaultRerankShortlist)
+	}
+	if got.HybridFusion != HybridFusionRRF {
+		t.Errorf("default hybrid_fusion = %q, want %q", got.HybridFusion, HybridFusionRRF)
 	}
 	// WithDefaults must not mutate non-zero fields.
 	in := TuningConfig{Engine: EngineHybrid, EmbedModel: "m", RerankShortlist: 7}
@@ -118,6 +122,8 @@ func TestTuningConfigValidate(t *testing.T) {
 		{"floor out of range", TuningConfig{Engine: EngineDense, Floor: FloorTuning{MaxGap: 1.5}}, true},
 		{"hard floor out of range", TuningConfig{Engine: EngineDense, Floor: FloorTuning{HardFloor: -0.1}}, true},
 		{"blend without rerank", TuningConfig{Engine: EngineDense, RerankBlend: true}, true},
+		{"bad hybrid fusion", TuningConfig{Engine: EngineHybrid, HybridFusion: "weighted"}, true},
+		{"dbsf hybrid fusion", TuningConfig{Engine: EngineHybrid, HybridFusion: HybridFusionDBSF}, false},
 		{"floor zero is legal", TuningConfig{Engine: EngineDense}, false},
 	}
 	for _, tc := range cases {
@@ -214,6 +220,9 @@ func TestTunedEngineServiceOptions(t *testing.T) {
 	}
 	if opts.Shortlist != 42 {
 		t.Errorf("shortlist not forwarded: got %d want 42", opts.Shortlist)
+	}
+	if opts.HybridFusion != HybridFusionRRF {
+		t.Errorf("default hybrid fusion not forwarded: got %q want %q", opts.HybridFusion, HybridFusionRRF)
 	}
 	if !opts.ApplyFloor {
 		t.Error("ApplyFloor must be true (regime floor is always safe to run)")

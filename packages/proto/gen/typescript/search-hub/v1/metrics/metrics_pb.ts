@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file search-hub/v1/metrics/metrics.proto.
  */
 export const file_search_hub_v1_metrics_metrics: GenFile = /*@__PURE__*/
-  fileDesc("CiNzZWFyY2gtaHViL3YxL21ldHJpY3MvbWV0cmljcy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcyImCg9JbnNpZ2h0c1JlcXVlc3QSEwoLd2luZG93X2RheXMYASABKAUiygIKE1Byb3ZpZGVyVXRpbGl6YXRpb24SEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIUCgx0aW1lc19yb3V0ZWQYBCABKAMSEgoKdG90YWxfaGl0cxgFIAEoAxIWCg51bmRlcl91dGlsaXplZBgGIAEoCBIWCg5sYXRlbmN5X3A1MF9tcxgHIAEoAxIWCg5sYXRlbmN5X3A5NV9tcxgIIAEoAxIWCg5kZWdyYWRlZF9jb3VudBgJIAEoAxIYChBkZWdyYWRhdGlvbl9yYXRlGAogASgBElQKE2RlZ3JhZGF0aW9uX3JlYXNvbnMYCyADKAsyNy52cm9vbGkuc2VhcmNoX2h1Yi52MS5tZXRyaWNzLlByb3ZpZGVyRGVncmFkYXRpb25SZWFzb24iOgoZUHJvdmlkZXJEZWdyYWRhdGlvblJlYXNvbhIOCgZyZWFzb24YASABKAkSDQoFY291bnQYAiABKAMiigIKEEluc2lnaHRzUmVzcG9uc2USFQoNdG90YWxfcXVlcmllcxgBIAEoAxIbChN6ZXJvX3Jlc3VsdF9xdWVyaWVzGAIgASgDEhgKEHplcm9fcmVzdWx0X3JhdGUYAyABKAESGAoQZGVncmFkZWRfcXVlcmllcxgEIAEoAxIYChByZXJhbmtlZF9xdWVyaWVzGAUgASgDEhYKDmxhdGVuY3lfcDUwX21zGAYgASgDEhYKDmxhdGVuY3lfcDk1X21zGAcgASgDEkQKCXByb3ZpZGVycxgIIAMoCzIxLnZyb29saS5zZWFyY2hfaHViLnYxLm1ldHJpY3MuUHJvdmlkZXJVdGlsaXphdGlvbjJ7Cg5NZXRyaWNzU2VydmljZRJpCghJbnNpZ2h0cxItLnZyb29saS5zZWFyY2hfaHViLnYxLm1ldHJpY3MuSW5zaWdodHNSZXF1ZXN0Gi4udnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcy5JbnNpZ2h0c1Jlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2VhcmNoLWh1Yi92MS9tZXRyaWNzO21ldHJpY3NfdjFiBnByb3RvMw");
+  fileDesc("CiNzZWFyY2gtaHViL3YxL21ldHJpY3MvbWV0cmljcy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcyImCg9JbnNpZ2h0c1JlcXVlc3QSEwoLd2luZG93X2RheXMYASABKAUiygIKE1Byb3ZpZGVyVXRpbGl6YXRpb24SEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIUCgx0aW1lc19yb3V0ZWQYBCABKAMSEgoKdG90YWxfaGl0cxgFIAEoAxIWCg51bmRlcl91dGlsaXplZBgGIAEoCBIWCg5sYXRlbmN5X3A1MF9tcxgHIAEoAxIWCg5sYXRlbmN5X3A5NV9tcxgIIAEoAxIWCg5kZWdyYWRlZF9jb3VudBgJIAEoAxIYChBkZWdyYWRhdGlvbl9yYXRlGAogASgBElQKE2RlZ3JhZGF0aW9uX3JlYXNvbnMYCyADKAsyNy52cm9vbGkuc2VhcmNoX2h1Yi52MS5tZXRyaWNzLlByb3ZpZGVyRGVncmFkYXRpb25SZWFzb24iOgoZUHJvdmlkZXJEZWdyYWRhdGlvblJlYXNvbhIOCgZyZWFzb24YASABKAkSDQoFY291bnQYAiABKAMibAobUHJvdmlkZXJSZXRpcmVtZW50Q2FuZGlkYXRlEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhQKDHRpbWVzX3JvdXRlZBgCIAEoAxISCgp0b3RhbF9oaXRzGAMgASgDEg4KBnJlYXNvbhgEIAEoCSJlChVQcm92aWRlckdyb3VwQWR2aXNvcnkSFgoOcHJvdmlkZXJfZ3JvdXAYASABKAkSFQoNYWN0aXZlX2xlYXZlcxgCIAEoBRINCgVzaGFyZRgDIAEoARIOCgZyZWFzb24YBCABKAkikAQKEEluc2lnaHRzUmVzcG9uc2USFQoNdG90YWxfcXVlcmllcxgBIAEoAxIbChN6ZXJvX3Jlc3VsdF9xdWVyaWVzGAIgASgDEhgKEHplcm9fcmVzdWx0X3JhdGUYAyABKAESGAoQZGVncmFkZWRfcXVlcmllcxgEIAEoAxIYChByZXJhbmtlZF9xdWVyaWVzGAUgASgDEhYKDmxhdGVuY3lfcDUwX21zGAYgASgDEhYKDmxhdGVuY3lfcDk1X21zGAcgASgDEkQKCXByb3ZpZGVycxgIIAMoCzIxLnZyb29saS5zZWFyY2hfaHViLnYxLm1ldHJpY3MuUHJvdmlkZXJVdGlsaXphdGlvbhJYChVyZXRpcmVtZW50X2NhbmRpZGF0ZXMYCSADKAsyOS52cm9vbGkuc2VhcmNoX2h1Yi52MS5tZXRyaWNzLlByb3ZpZGVyUmV0aXJlbWVudENhbmRpZGF0ZRJNChBncm91cF9hZHZpc29yaWVzGAogAygLMjMudnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcy5Qcm92aWRlckdyb3VwQWR2aXNvcnkSGwoTcmVzb2x2ZXJfY2FjaGVfaGl0cxgLIAEoAxIdChVyZXNvbHZlcl9jYWNoZV9taXNzZXMYDCABKAMSHwoXcmVzb2x2ZXJfY2FjaGVfaGl0X3JhdGUYDSABKAEyewoOTWV0cmljc1NlcnZpY2USaQoISW5zaWdodHMSLS52cm9vbGkuc2VhcmNoX2h1Yi52MS5tZXRyaWNzLkluc2lnaHRzUmVxdWVzdBouLnZyb29saS5zZWFyY2hfaHViLnYxLm1ldHJpY3MuSW5zaWdodHNSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NlYXJjaC1odWIvdjEvbWV0cmljczttZXRyaWNzX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.search_hub.v1.metrics.InsightsRequest
@@ -128,6 +128,70 @@ export const ProviderDegradationReasonSchema: GenMessage<ProviderDegradationReas
   messageDesc(file_search_hub_v1_metrics_metrics, 2);
 
 /**
+ * @generated from message vrooli.search_hub.v1.metrics.ProviderRetirementCandidate
+ */
+export type ProviderRetirementCandidate = Message<"vrooli.search_hub.v1.metrics.ProviderRetirementCandidate"> & {
+  /**
+   * @generated from field: string provider_id = 1;
+   */
+  providerId: string;
+
+  /**
+   * @generated from field: int64 times_routed = 2;
+   */
+  timesRouted: bigint;
+
+  /**
+   * @generated from field: int64 total_hits = 3;
+   */
+  totalHits: bigint;
+
+  /**
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.metrics.ProviderRetirementCandidate.
+ * Use `create(ProviderRetirementCandidateSchema)` to create a new message.
+ */
+export const ProviderRetirementCandidateSchema: GenMessage<ProviderRetirementCandidate> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_metrics_metrics, 3);
+
+/**
+ * @generated from message vrooli.search_hub.v1.metrics.ProviderGroupAdvisory
+ */
+export type ProviderGroupAdvisory = Message<"vrooli.search_hub.v1.metrics.ProviderGroupAdvisory"> & {
+  /**
+   * @generated from field: string provider_group = 1;
+   */
+  providerGroup: string;
+
+  /**
+   * @generated from field: int32 active_leaves = 2;
+   */
+  activeLeaves: number;
+
+  /**
+   * @generated from field: double share = 3;
+   */
+  share: number;
+
+  /**
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.metrics.ProviderGroupAdvisory.
+ * Use `create(ProviderGroupAdvisorySchema)` to create a new message.
+ */
+export const ProviderGroupAdvisorySchema: GenMessage<ProviderGroupAdvisory> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_metrics_metrics, 4);
+
+/**
  * @generated from message vrooli.search_hub.v1.metrics.InsightsResponse
  */
 export type InsightsResponse = Message<"vrooli.search_hub.v1.metrics.InsightsResponse"> & {
@@ -185,6 +249,33 @@ export type InsightsResponse = Message<"vrooli.search_hub.v1.metrics.InsightsRes
    * @generated from field: repeated vrooli.search_hub.v1.metrics.ProviderUtilization providers = 8;
    */
   providers: ProviderUtilization[];
+
+  /**
+   * Report-only hygiene signals. Search Hub never deregisters from these.
+   *
+   * @generated from field: repeated vrooli.search_hub.v1.metrics.ProviderRetirementCandidate retirement_candidates = 9;
+   */
+  retirementCandidates: ProviderRetirementCandidate[];
+
+  /**
+   * @generated from field: repeated vrooli.search_hub.v1.metrics.ProviderGroupAdvisory group_advisories = 10;
+   */
+  groupAdvisories: ProviderGroupAdvisory[];
+
+  /**
+   * @generated from field: int64 resolver_cache_hits = 11;
+   */
+  resolverCacheHits: bigint;
+
+  /**
+   * @generated from field: int64 resolver_cache_misses = 12;
+   */
+  resolverCacheMisses: bigint;
+
+  /**
+   * @generated from field: double resolver_cache_hit_rate = 13;
+   */
+  resolverCacheHitRate: number;
 };
 
 /**
@@ -192,7 +283,7 @@ export type InsightsResponse = Message<"vrooli.search_hub.v1.metrics.InsightsRes
  * Use `create(InsightsResponseSchema)` to create a new message.
  */
 export const InsightsResponseSchema: GenMessage<InsightsResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_metrics_metrics, 3);
+  messageDesc(file_search_hub_v1_metrics_metrics, 5);
 
 /**
  * @generated from service vrooli.search_hub.v1.metrics.MetricsService

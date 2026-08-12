@@ -75,7 +75,8 @@ type Config struct {
 	// StartServer is a custom function to start the server.
 	// Use this for non-standard servers like Fiber.
 	// When set, Handler is ignored and ShutdownServer must also be set.
-	// The addr parameter is in ":port" format (e.g., ":8080").
+	// The addr parameter contains the configured bind address and port
+	// (e.g., "127.0.0.1:8080").
 	// Optional.
 	StartServer func(addr string) error
 
@@ -89,6 +90,13 @@ type Config struct {
 	// If empty, reads from API_PORT environment variable.
 	// If API_PORT is also empty, defaults to "8080".
 	Port string
+
+	// BindAddress specifies the interface to listen on. An empty value defaults
+	// to loopback so a newly-started scenario is not exposed on the network
+	// before its operator has configured an explicit trust boundary.
+	// Set this explicitly (or use API_BIND_ADDRESS) for a remotely reachable
+	// service that has its own authentication boundary.
+	BindAddress string
 
 	// ReadTimeout is the maximum duration for reading the entire request.
 	// If zero, defaults to 30 seconds.
@@ -257,7 +265,7 @@ func recoverPanics(logf func(string, ...interface{}), next http.Handler) http.Ha
 // runStandardServer runs a standard net/http server.
 func runStandardServer(cfg Config) error {
 	srv := &http.Server{
-		Addr:         ":" + cfg.Port,
+		Addr:         net.JoinHostPort(cfg.BindAddress, cfg.Port),
 		Handler:      cfg.Handler,
 		ReadTimeout:  cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,
@@ -293,7 +301,7 @@ func runStandardServer(cfg Config) error {
 
 // runCustomServer runs a custom server using the provided callbacks.
 func runCustomServer(cfg Config) error {
-	addr := ":" + cfg.Port
+	addr := net.JoinHostPort(cfg.BindAddress, cfg.Port)
 
 	// Channel for server startup errors
 	errCh := make(chan error, 1)
@@ -359,6 +367,12 @@ func withDefaults(cfg Config) Config {
 	}
 	if cfg.Port == "" {
 		cfg.Port = "8080"
+	}
+	if cfg.BindAddress == "" {
+		cfg.BindAddress = cfg.getenv("API_BIND_ADDRESS")
+	}
+	if cfg.BindAddress == "" {
+		cfg.BindAddress = "127.0.0.1"
 	}
 
 	// Timeouts

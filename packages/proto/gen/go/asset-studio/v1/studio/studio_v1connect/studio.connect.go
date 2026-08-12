@@ -77,6 +77,9 @@ const (
 	// StudioServiceImportCanonProcedure is the fully-qualified name of the StudioService's ImportCanon
 	// RPC.
 	StudioServiceImportCanonProcedure = "/vrooli.asset_studio.v1.studio.StudioService/ImportCanon"
+	// StudioServiceIngestExternalAssetProcedure is the fully-qualified name of the StudioService's
+	// IngestExternalAsset RPC.
+	StudioServiceIngestExternalAssetProcedure = "/vrooli.asset_studio.v1.studio.StudioService/IngestExternalAsset"
 )
 
 // StudioServiceClient is a client for the vrooli.asset_studio.v1.studio.StudioService service.
@@ -100,6 +103,19 @@ type StudioServiceClient interface {
 	ReleaseAsset(context.Context, *connect.Request[studio.ReleaseAssetRequest]) (*connect.Response[studio.ReleaseAssetResponse], error)
 	GetReleasedAssetReference(context.Context, *connect.Request[studio.GetReleasedAssetReferenceRequest]) (*connect.Response[studio.GetReleasedAssetReferenceResponse], error)
 	ImportCanon(context.Context, *connect.Request[studio.ImportCanonRequest]) (*connect.Response[studio.ImportCanonResponse], error)
+	// IngestExternalAsset admits bytes another scenario produced.
+	//
+	// Every other way an asset comes into existence here runs through
+	// CreateRender, which means Asset Studio produced it. That left a producing
+	// scenario with two bad options: duplicate the disclosure and release rules
+	// in its own code, or ship a model-backed image with no disclosure at all.
+	// Backdrop Studio chose a third — refusing to release model-backed output
+	// rather than mislabel it — and that refusal is the behaviour this RPC
+	// exists to make unnecessary rather than to remove.
+	//
+	// The caller supplies the facts; Asset Studio owns the record. That split is
+	// the point: disclosure has one authority, and it is this one.
+	IngestExternalAsset(context.Context, *connect.Request[studio.IngestExternalAssetRequest]) (*connect.Response[studio.IngestExternalAssetResponse], error)
 }
 
 // NewStudioServiceClient constructs a client for the vrooli.asset_studio.v1.studio.StudioService
@@ -203,6 +219,12 @@ func NewStudioServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(studioServiceMethods.ByName("ImportCanon")),
 			connect.WithClientOptions(opts...),
 		),
+		ingestExternalAsset: connect.NewClient[studio.IngestExternalAssetRequest, studio.IngestExternalAssetResponse](
+			httpClient,
+			baseURL+StudioServiceIngestExternalAssetProcedure,
+			connect.WithSchema(studioServiceMethods.ByName("IngestExternalAsset")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -223,6 +245,7 @@ type studioServiceClient struct {
 	releaseAsset              *connect.Client[studio.ReleaseAssetRequest, studio.ReleaseAssetResponse]
 	getReleasedAssetReference *connect.Client[studio.GetReleasedAssetReferenceRequest, studio.GetReleasedAssetReferenceResponse]
 	importCanon               *connect.Client[studio.ImportCanonRequest, studio.ImportCanonResponse]
+	ingestExternalAsset       *connect.Client[studio.IngestExternalAssetRequest, studio.IngestExternalAssetResponse]
 }
 
 // ListIdentities calls vrooli.asset_studio.v1.studio.StudioService.ListIdentities.
@@ -301,6 +324,11 @@ func (c *studioServiceClient) ImportCanon(ctx context.Context, req *connect.Requ
 	return c.importCanon.CallUnary(ctx, req)
 }
 
+// IngestExternalAsset calls vrooli.asset_studio.v1.studio.StudioService.IngestExternalAsset.
+func (c *studioServiceClient) IngestExternalAsset(ctx context.Context, req *connect.Request[studio.IngestExternalAssetRequest]) (*connect.Response[studio.IngestExternalAssetResponse], error) {
+	return c.ingestExternalAsset.CallUnary(ctx, req)
+}
+
 // StudioServiceHandler is an implementation of the vrooli.asset_studio.v1.studio.StudioService
 // service.
 type StudioServiceHandler interface {
@@ -323,6 +351,19 @@ type StudioServiceHandler interface {
 	ReleaseAsset(context.Context, *connect.Request[studio.ReleaseAssetRequest]) (*connect.Response[studio.ReleaseAssetResponse], error)
 	GetReleasedAssetReference(context.Context, *connect.Request[studio.GetReleasedAssetReferenceRequest]) (*connect.Response[studio.GetReleasedAssetReferenceResponse], error)
 	ImportCanon(context.Context, *connect.Request[studio.ImportCanonRequest]) (*connect.Response[studio.ImportCanonResponse], error)
+	// IngestExternalAsset admits bytes another scenario produced.
+	//
+	// Every other way an asset comes into existence here runs through
+	// CreateRender, which means Asset Studio produced it. That left a producing
+	// scenario with two bad options: duplicate the disclosure and release rules
+	// in its own code, or ship a model-backed image with no disclosure at all.
+	// Backdrop Studio chose a third — refusing to release model-backed output
+	// rather than mislabel it — and that refusal is the behaviour this RPC
+	// exists to make unnecessary rather than to remove.
+	//
+	// The caller supplies the facts; Asset Studio owns the record. That split is
+	// the point: disclosure has one authority, and it is this one.
+	IngestExternalAsset(context.Context, *connect.Request[studio.IngestExternalAssetRequest]) (*connect.Response[studio.IngestExternalAssetResponse], error)
 }
 
 // NewStudioServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -422,6 +463,12 @@ func NewStudioServiceHandler(svc StudioServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(studioServiceMethods.ByName("ImportCanon")),
 		connect.WithHandlerOptions(opts...),
 	)
+	studioServiceIngestExternalAssetHandler := connect.NewUnaryHandler(
+		StudioServiceIngestExternalAssetProcedure,
+		svc.IngestExternalAsset,
+		connect.WithSchema(studioServiceMethods.ByName("IngestExternalAsset")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.asset_studio.v1.studio.StudioService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case StudioServiceListIdentitiesProcedure:
@@ -454,6 +501,8 @@ func NewStudioServiceHandler(svc StudioServiceHandler, opts ...connect.HandlerOp
 			studioServiceGetReleasedAssetReferenceHandler.ServeHTTP(w, r)
 		case StudioServiceImportCanonProcedure:
 			studioServiceImportCanonHandler.ServeHTTP(w, r)
+		case StudioServiceIngestExternalAssetProcedure:
+			studioServiceIngestExternalAssetHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -521,4 +570,8 @@ func (UnimplementedStudioServiceHandler) GetReleasedAssetReference(context.Conte
 
 func (UnimplementedStudioServiceHandler) ImportCanon(context.Context, *connect.Request[studio.ImportCanonRequest]) (*connect.Response[studio.ImportCanonResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.asset_studio.v1.studio.StudioService.ImportCanon is not implemented"))
+}
+
+func (UnimplementedStudioServiceHandler) IngestExternalAsset(context.Context, *connect.Request[studio.IngestExternalAssetRequest]) (*connect.Response[studio.IngestExternalAssetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.asset_studio.v1.studio.StudioService.IngestExternalAsset is not implemented"))
 }

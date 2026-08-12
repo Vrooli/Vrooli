@@ -1,6 +1,9 @@
 package spacedoc
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // splitRow splits a markdown table row "| a | b | c |" into its trimmed cells,
 // dropping the empty leading/trailing fields produced by the border pipes.
@@ -131,7 +134,7 @@ func normalizeConfidence(s string) DenominatorConfidence {
 // normalizeStatus maps a status cell to a normalized CellStatus, taking the
 // first recognized token (so "NOW (UI, CLI) / IN-REACH (API)" -> now and
 // "IN-REACH (gap stub)" -> in_reach). COVERED -> now, PARTIAL -> in_reach.
-func normalizeStatus(s string) CellStatus {
+func normalizeStatus(s string) (CellStatus, error) {
 	upper := strings.ToUpper(s)
 	type tok struct {
 		needle string
@@ -156,9 +159,12 @@ func normalizeStatus(s string) CellStatus {
 		}
 	}
 	if out == "" {
-		return StatusMissing
+		if strings.TrimSpace(s) == "" {
+			return StatusMissing, nil
+		}
+		return "", fmt.Errorf("unrecognized status token %q (use NOW, IN-REACH, or MISSING)", strings.TrimSpace(s))
 	}
-	return out
+	return out, nil
 }
 
 // normalizeBasis maps a basis cell to a normalized Basis, taking the first

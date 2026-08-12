@@ -2284,6 +2284,292 @@ func (x *GetReleasedAssetReferenceResponse) GetAsset() *AssetReference {
 	return nil
 }
 
+// ExternalProvenance is what the producing scenario knows about how its bytes
+// came to exist. It carries no identity record on purpose: Backdrop Studio
+// binds a scaffold and a palette, not a character, and requiring an identity
+// would make this door usable only by the producers that already fit the
+// identity model — which is every producer that did not need the door.
+type ExternalProvenance struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// producing_scenario names who made the bytes. It is not decoration: it is
+	// how a released asset is traced back to a generator when its disclosure is
+	// later questioned.
+	ProducingScenario string `protobuf:"bytes,1,opt,name=producing_scenario,json=producingScenario,proto3" json:"producing_scenario,omitempty"`
+	// strategy is how the image was obtained, in the producer's own vocabulary
+	// ("procedural", "procedural-treated", "guided", "synthesized"). Asset Studio
+	// does not interpret it beyond the one distinction that matters — whether it
+	// declares a model — because a closed enum here would make every new
+	// producer's lane a proto change.
+	Strategy string `protobuf:"bytes,2,opt,name=strategy,proto3" json:"strategy,omitempty"`
+	// model_backed is the producer's assertion that a generative model drew this.
+	// It is separate from `strategy` so the rule below is enforceable without
+	// Asset Studio having to know every producer's strategy names.
+	ModelBacked    bool   `protobuf:"varint,3,opt,name=model_backed,json=modelBacked,proto3" json:"model_backed,omitempty"`
+	Model          string `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
+	Prompt         string `protobuf:"bytes,5,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	NegativePrompt string `protobuf:"bytes,6,opt,name=negative_prompt,json=negativePrompt,proto3" json:"negative_prompt,omitempty"`
+	Seed           string `protobuf:"bytes,7,opt,name=seed,proto3" json:"seed,omitempty"`
+	// conditioning names what steered generation — a scaffold, a reference image
+	// set, a trained adapter, or a look. The existing ConditioningReference is
+	// reused deliberately: it was already general enough, and a second
+	// near-identical type would be the drift this scenario keeps paying for.
+	Conditioning *ConditioningReference `protobuf:"bytes,8,opt,name=conditioning,proto3" json:"conditioning,omitempty"`
+	// parameters is the producer's own sampler settings as JSON, kept opaque.
+	Parameters    string `protobuf:"bytes,9,opt,name=parameters,proto3" json:"parameters,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExternalProvenance) Reset() {
+	*x = ExternalProvenance{}
+	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExternalProvenance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExternalProvenance) ProtoMessage() {}
+
+func (x *ExternalProvenance) ProtoReflect() protoreflect.Message {
+	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExternalProvenance.ProtoReflect.Descriptor instead.
+func (*ExternalProvenance) Descriptor() ([]byte, []int) {
+	return file_asset_studio_v1_studio_studio_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *ExternalProvenance) GetProducingScenario() string {
+	if x != nil {
+		return x.ProducingScenario
+	}
+	return ""
+}
+
+func (x *ExternalProvenance) GetStrategy() string {
+	if x != nil {
+		return x.Strategy
+	}
+	return ""
+}
+
+func (x *ExternalProvenance) GetModelBacked() bool {
+	if x != nil {
+		return x.ModelBacked
+	}
+	return false
+}
+
+func (x *ExternalProvenance) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *ExternalProvenance) GetPrompt() string {
+	if x != nil {
+		return x.Prompt
+	}
+	return ""
+}
+
+func (x *ExternalProvenance) GetNegativePrompt() string {
+	if x != nil {
+		return x.NegativePrompt
+	}
+	return ""
+}
+
+func (x *ExternalProvenance) GetSeed() string {
+	if x != nil {
+		return x.Seed
+	}
+	return ""
+}
+
+func (x *ExternalProvenance) GetConditioning() *ConditioningReference {
+	if x != nil {
+		return x.Conditioning
+	}
+	return nil
+}
+
+func (x *ExternalProvenance) GetParameters() string {
+	if x != nil {
+		return x.Parameters
+	}
+	return ""
+}
+
+type IngestExternalAssetRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Image     []byte                 `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
+	MediaType string                 `protobuf:"bytes,2,opt,name=media_type,json=mediaType,proto3" json:"media_type,omitempty"`
+	AltText   string                 `protobuf:"bytes,3,opt,name=alt_text,json=altText,proto3" json:"alt_text,omitempty"`
+	// decorative marks an image that carries no information, which is the only
+	// case where empty alt text is correct rather than missing.
+	Decorative bool                `protobuf:"varint,4,opt,name=decorative,proto3" json:"decorative,omitempty"`
+	Width      int32               `protobuf:"varint,5,opt,name=width,proto3" json:"width,omitempty"`
+	Height     int32               `protobuf:"varint,6,opt,name=height,proto3" json:"height,omitempty"`
+	Provenance *ExternalProvenance `protobuf:"bytes,7,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	// actor_id and actor_kind record who asked. Release requires an operator
+	// verdict, and an ingress that dropped the actor would leave that verdict
+	// attributed to nobody.
+	ActorId       string `protobuf:"bytes,8,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	ActorKind     string `protobuf:"bytes,9,opt,name=actor_kind,json=actorKind,proto3" json:"actor_kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IngestExternalAssetRequest) Reset() {
+	*x = IngestExternalAssetRequest{}
+	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IngestExternalAssetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IngestExternalAssetRequest) ProtoMessage() {}
+
+func (x *IngestExternalAssetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IngestExternalAssetRequest.ProtoReflect.Descriptor instead.
+func (*IngestExternalAssetRequest) Descriptor() ([]byte, []int) {
+	return file_asset_studio_v1_studio_studio_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *IngestExternalAssetRequest) GetImage() []byte {
+	if x != nil {
+		return x.Image
+	}
+	return nil
+}
+
+func (x *IngestExternalAssetRequest) GetMediaType() string {
+	if x != nil {
+		return x.MediaType
+	}
+	return ""
+}
+
+func (x *IngestExternalAssetRequest) GetAltText() string {
+	if x != nil {
+		return x.AltText
+	}
+	return ""
+}
+
+func (x *IngestExternalAssetRequest) GetDecorative() bool {
+	if x != nil {
+		return x.Decorative
+	}
+	return false
+}
+
+func (x *IngestExternalAssetRequest) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *IngestExternalAssetRequest) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *IngestExternalAssetRequest) GetProvenance() *ExternalProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+func (x *IngestExternalAssetRequest) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *IngestExternalAssetRequest) GetActorKind() string {
+	if x != nil {
+		return x.ActorKind
+	}
+	return ""
+}
+
+type IngestExternalAssetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Asset         *AssetReference        `protobuf:"bytes,1,opt,name=asset,proto3" json:"asset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IngestExternalAssetResponse) Reset() {
+	*x = IngestExternalAssetResponse{}
+	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IngestExternalAssetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IngestExternalAssetResponse) ProtoMessage() {}
+
+func (x *IngestExternalAssetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IngestExternalAssetResponse.ProtoReflect.Descriptor instead.
+func (*IngestExternalAssetResponse) Descriptor() ([]byte, []int) {
+	return file_asset_studio_v1_studio_studio_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *IngestExternalAssetResponse) GetAsset() *AssetReference {
+	if x != nil {
+		return x.Asset
+	}
+	return nil
+}
+
 type ImportCanonRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Root          string                 `protobuf:"bytes,1,opt,name=root,proto3" json:"root,omitempty"`
@@ -2293,7 +2579,7 @@ type ImportCanonRequest struct {
 
 func (x *ImportCanonRequest) Reset() {
 	*x = ImportCanonRequest{}
-	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[37]
+	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2305,7 +2591,7 @@ func (x *ImportCanonRequest) String() string {
 func (*ImportCanonRequest) ProtoMessage() {}
 
 func (x *ImportCanonRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[37]
+	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2318,7 +2604,7 @@ func (x *ImportCanonRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportCanonRequest.ProtoReflect.Descriptor instead.
 func (*ImportCanonRequest) Descriptor() ([]byte, []int) {
-	return file_asset_studio_v1_studio_studio_proto_rawDescGZIP(), []int{37}
+	return file_asset_studio_v1_studio_studio_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ImportCanonRequest) GetRoot() string {
@@ -2339,7 +2625,7 @@ type ImportCanonResponse struct {
 
 func (x *ImportCanonResponse) Reset() {
 	*x = ImportCanonResponse{}
-	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[38]
+	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2351,7 +2637,7 @@ func (x *ImportCanonResponse) String() string {
 func (*ImportCanonResponse) ProtoMessage() {}
 
 func (x *ImportCanonResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[38]
+	mi := &file_asset_studio_v1_studio_studio_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2364,7 +2650,7 @@ func (x *ImportCanonResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportCanonResponse.ProtoReflect.Descriptor instead.
 func (*ImportCanonResponse) Descriptor() ([]byte, []int) {
-	return file_asset_studio_v1_studio_studio_proto_rawDescGZIP(), []int{38}
+	return file_asset_studio_v1_studio_studio_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ImportCanonResponse) GetCreated() int32 {
@@ -2579,13 +2865,43 @@ const file_asset_studio_v1_studio_studio_proto_rawDesc = "" +
 	" GetReleasedAssetReferenceRequest\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\"h\n" +
 	"!GetReleasedAssetReferenceResponse\x12C\n" +
+	"\x05asset\x18\x01 \x01(\v2-.vrooli.asset_studio.v1.studio.AssetReferenceR\x05asset\"\xe7\x02\n" +
+	"\x12ExternalProvenance\x12-\n" +
+	"\x12producing_scenario\x18\x01 \x01(\tR\x11producingScenario\x12\x1a\n" +
+	"\bstrategy\x18\x02 \x01(\tR\bstrategy\x12!\n" +
+	"\fmodel_backed\x18\x03 \x01(\bR\vmodelBacked\x12\x14\n" +
+	"\x05model\x18\x04 \x01(\tR\x05model\x12\x16\n" +
+	"\x06prompt\x18\x05 \x01(\tR\x06prompt\x12'\n" +
+	"\x0fnegative_prompt\x18\x06 \x01(\tR\x0enegativePrompt\x12\x12\n" +
+	"\x04seed\x18\a \x01(\tR\x04seed\x12X\n" +
+	"\fconditioning\x18\b \x01(\v24.vrooli.asset_studio.v1.studio.ConditioningReferenceR\fconditioning\x12\x1e\n" +
+	"\n" +
+	"parameters\x18\t \x01(\tR\n" +
+	"parameters\"\xc7\x02\n" +
+	"\x1aIngestExternalAssetRequest\x12\x14\n" +
+	"\x05image\x18\x01 \x01(\fR\x05image\x12\x1d\n" +
+	"\n" +
+	"media_type\x18\x02 \x01(\tR\tmediaType\x12\x19\n" +
+	"\balt_text\x18\x03 \x01(\tR\aaltText\x12\x1e\n" +
+	"\n" +
+	"decorative\x18\x04 \x01(\bR\n" +
+	"decorative\x12\x14\n" +
+	"\x05width\x18\x05 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x06 \x01(\x05R\x06height\x12Q\n" +
+	"\n" +
+	"provenance\x18\a \x01(\v21.vrooli.asset_studio.v1.studio.ExternalProvenanceR\n" +
+	"provenance\x12\x19\n" +
+	"\bactor_id\x18\b \x01(\tR\aactorId\x12\x1d\n" +
+	"\n" +
+	"actor_kind\x18\t \x01(\tR\tactorKind\"b\n" +
+	"\x1bIngestExternalAssetResponse\x12C\n" +
 	"\x05asset\x18\x01 \x01(\v2-.vrooli.asset_studio.v1.studio.AssetReferenceR\x05asset\"(\n" +
 	"\x12ImportCanonRequest\x12\x12\n" +
 	"\x04root\x18\x01 \x01(\tR\x04root\"a\n" +
 	"\x13ImportCanonResponse\x12\x18\n" +
 	"\acreated\x18\x01 \x01(\x05R\acreated\x12\x18\n" +
 	"\arevised\x18\x02 \x01(\x05R\arevised\x12\x16\n" +
-	"\x06errors\x18\x03 \x03(\tR\x06errors2\xa2\x0f\n" +
+	"\x06errors\x18\x03 \x03(\tR\x06errors2\xb1\x10\n" +
 	"\rStudioService\x12}\n" +
 	"\x0eListIdentities\x124.vrooli.asset_studio.v1.studio.ListIdentitiesRequest\x1a5.vrooli.asset_studio.v1.studio.ListIdentitiesResponse\x12}\n" +
 	"\x0eCreateIdentity\x124.vrooli.asset_studio.v1.studio.CreateIdentityRequest\x1a5.vrooli.asset_studio.v1.studio.CreateIdentityResponse\x12}\n" +
@@ -2601,7 +2917,8 @@ const file_asset_studio_v1_studio_studio_proto_rawDesc = "" +
 	"\x10JudgeConformance\x126.vrooli.asset_studio.v1.studio.JudgeConformanceRequest\x1a7.vrooli.asset_studio.v1.studio.JudgeConformanceResponse\x12w\n" +
 	"\fReleaseAsset\x122.vrooli.asset_studio.v1.studio.ReleaseAssetRequest\x1a3.vrooli.asset_studio.v1.studio.ReleaseAssetResponse\x12\x9e\x01\n" +
 	"\x19GetReleasedAssetReference\x12?.vrooli.asset_studio.v1.studio.GetReleasedAssetReferenceRequest\x1a@.vrooli.asset_studio.v1.studio.GetReleasedAssetReferenceResponse\x12t\n" +
-	"\vImportCanon\x121.vrooli.asset_studio.v1.studio.ImportCanonRequest\x1a2.vrooli.asset_studio.v1.studio.ImportCanonResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/studio;studio_v1b\x06proto3"
+	"\vImportCanon\x121.vrooli.asset_studio.v1.studio.ImportCanonRequest\x1a2.vrooli.asset_studio.v1.studio.ImportCanonResponse\x12\x8c\x01\n" +
+	"\x13IngestExternalAsset\x129.vrooli.asset_studio.v1.studio.IngestExternalAssetRequest\x1a:.vrooli.asset_studio.v1.studio.IngestExternalAssetResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/studio;studio_v1b\x06proto3"
 
 var (
 	file_asset_studio_v1_studio_studio_proto_rawDescOnce sync.Once
@@ -2615,7 +2932,7 @@ func file_asset_studio_v1_studio_studio_proto_rawDescGZIP() []byte {
 	return file_asset_studio_v1_studio_studio_proto_rawDescData
 }
 
-var file_asset_studio_v1_studio_studio_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_asset_studio_v1_studio_studio_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
 var file_asset_studio_v1_studio_studio_proto_goTypes = []any{
 	(*ConditioningReference)(nil),             // 0: vrooli.asset_studio.v1.studio.ConditioningReference
 	(*Identity)(nil),                          // 1: vrooli.asset_studio.v1.studio.Identity
@@ -2654,20 +2971,23 @@ var file_asset_studio_v1_studio_studio_proto_goTypes = []any{
 	(*ReleaseAssetResponse)(nil),              // 34: vrooli.asset_studio.v1.studio.ReleaseAssetResponse
 	(*GetReleasedAssetReferenceRequest)(nil),  // 35: vrooli.asset_studio.v1.studio.GetReleasedAssetReferenceRequest
 	(*GetReleasedAssetReferenceResponse)(nil), // 36: vrooli.asset_studio.v1.studio.GetReleasedAssetReferenceResponse
-	(*ImportCanonRequest)(nil),                // 37: vrooli.asset_studio.v1.studio.ImportCanonRequest
-	(*ImportCanonResponse)(nil),               // 38: vrooli.asset_studio.v1.studio.ImportCanonResponse
-	nil,                                       // 39: vrooli.asset_studio.v1.studio.Identity.TraitsEntry
-	nil,                                       // 40: vrooli.asset_studio.v1.studio.ResolveSpecRequest.FieldsEntry
+	(*ExternalProvenance)(nil),                // 37: vrooli.asset_studio.v1.studio.ExternalProvenance
+	(*IngestExternalAssetRequest)(nil),        // 38: vrooli.asset_studio.v1.studio.IngestExternalAssetRequest
+	(*IngestExternalAssetResponse)(nil),       // 39: vrooli.asset_studio.v1.studio.IngestExternalAssetResponse
+	(*ImportCanonRequest)(nil),                // 40: vrooli.asset_studio.v1.studio.ImportCanonRequest
+	(*ImportCanonResponse)(nil),               // 41: vrooli.asset_studio.v1.studio.ImportCanonResponse
+	nil,                                       // 42: vrooli.asset_studio.v1.studio.Identity.TraitsEntry
+	nil,                                       // 43: vrooli.asset_studio.v1.studio.ResolveSpecRequest.FieldsEntry
 }
 var file_asset_studio_v1_studio_studio_proto_depIdxs = []int32{
-	39, // 0: vrooli.asset_studio.v1.studio.Identity.traits:type_name -> vrooli.asset_studio.v1.studio.Identity.TraitsEntry
+	42, // 0: vrooli.asset_studio.v1.studio.Identity.traits:type_name -> vrooli.asset_studio.v1.studio.Identity.TraitsEntry
 	0,  // 1: vrooli.asset_studio.v1.studio.Identity.conditioning_references:type_name -> vrooli.asset_studio.v1.studio.ConditioningReference
 	1,  // 2: vrooli.asset_studio.v1.studio.ListIdentitiesResponse.identities:type_name -> vrooli.asset_studio.v1.studio.Identity
 	1,  // 3: vrooli.asset_studio.v1.studio.CreateIdentityRequest.identity:type_name -> vrooli.asset_studio.v1.studio.Identity
 	1,  // 4: vrooli.asset_studio.v1.studio.CreateIdentityResponse.identity:type_name -> vrooli.asset_studio.v1.studio.Identity
 	1,  // 5: vrooli.asset_studio.v1.studio.ReviseIdentityRequest.identity:type_name -> vrooli.asset_studio.v1.studio.Identity
 	1,  // 6: vrooli.asset_studio.v1.studio.ReviseIdentityResponse.identity:type_name -> vrooli.asset_studio.v1.studio.Identity
-	40, // 7: vrooli.asset_studio.v1.studio.ResolveSpecRequest.fields:type_name -> vrooli.asset_studio.v1.studio.ResolveSpecRequest.FieldsEntry
+	43, // 7: vrooli.asset_studio.v1.studio.ResolveSpecRequest.fields:type_name -> vrooli.asset_studio.v1.studio.ResolveSpecRequest.FieldsEntry
 	12, // 8: vrooli.asset_studio.v1.studio.CreateRenderRequest.composition_slots:type_name -> vrooli.asset_studio.v1.studio.CompositionSlot
 	2,  // 9: vrooli.asset_studio.v1.studio.CreateRenderResponse.candidates:type_name -> vrooli.asset_studio.v1.studio.AssetReference
 	16, // 10: vrooli.asset_studio.v1.studio.AnalyzeConformanceResponse.advisory:type_name -> vrooli.asset_studio.v1.studio.AdvisoryConformance
@@ -2679,41 +2999,46 @@ var file_asset_studio_v1_studio_studio_proto_depIdxs = []int32{
 	2,  // 16: vrooli.asset_studio.v1.studio.SelectCandidateResponse.selected:type_name -> vrooli.asset_studio.v1.studio.AssetReference
 	2,  // 17: vrooli.asset_studio.v1.studio.ReleaseAssetResponse.asset:type_name -> vrooli.asset_studio.v1.studio.AssetReference
 	2,  // 18: vrooli.asset_studio.v1.studio.GetReleasedAssetReferenceResponse.asset:type_name -> vrooli.asset_studio.v1.studio.AssetReference
-	3,  // 19: vrooli.asset_studio.v1.studio.StudioService.ListIdentities:input_type -> vrooli.asset_studio.v1.studio.ListIdentitiesRequest
-	5,  // 20: vrooli.asset_studio.v1.studio.StudioService.CreateIdentity:input_type -> vrooli.asset_studio.v1.studio.CreateIdentityRequest
-	7,  // 21: vrooli.asset_studio.v1.studio.StudioService.ReviseIdentity:input_type -> vrooli.asset_studio.v1.studio.ReviseIdentityRequest
-	9,  // 22: vrooli.asset_studio.v1.studio.StudioService.ResolveSpec:input_type -> vrooli.asset_studio.v1.studio.ResolveSpecRequest
-	11, // 23: vrooli.asset_studio.v1.studio.StudioService.CreateRender:input_type -> vrooli.asset_studio.v1.studio.CreateRenderRequest
-	14, // 24: vrooli.asset_studio.v1.studio.StudioService.RegenerateRender:input_type -> vrooli.asset_studio.v1.studio.RegenerateRenderRequest
-	17, // 25: vrooli.asset_studio.v1.studio.StudioService.AnalyzeConformance:input_type -> vrooli.asset_studio.v1.studio.AnalyzeConformanceRequest
-	20, // 26: vrooli.asset_studio.v1.studio.StudioService.CommissionAgent:input_type -> vrooli.asset_studio.v1.studio.CommissionAgentRequest
-	23, // 27: vrooli.asset_studio.v1.studio.StudioService.SetCampaignBudget:input_type -> vrooli.asset_studio.v1.studio.SetCampaignBudgetRequest
-	27, // 28: vrooli.asset_studio.v1.studio.StudioService.GetRender:input_type -> vrooli.asset_studio.v1.studio.GetRenderRequest
-	29, // 29: vrooli.asset_studio.v1.studio.StudioService.SelectCandidate:input_type -> vrooli.asset_studio.v1.studio.SelectCandidateRequest
-	31, // 30: vrooli.asset_studio.v1.studio.StudioService.JudgeConformance:input_type -> vrooli.asset_studio.v1.studio.JudgeConformanceRequest
-	33, // 31: vrooli.asset_studio.v1.studio.StudioService.ReleaseAsset:input_type -> vrooli.asset_studio.v1.studio.ReleaseAssetRequest
-	35, // 32: vrooli.asset_studio.v1.studio.StudioService.GetReleasedAssetReference:input_type -> vrooli.asset_studio.v1.studio.GetReleasedAssetReferenceRequest
-	37, // 33: vrooli.asset_studio.v1.studio.StudioService.ImportCanon:input_type -> vrooli.asset_studio.v1.studio.ImportCanonRequest
-	4,  // 34: vrooli.asset_studio.v1.studio.StudioService.ListIdentities:output_type -> vrooli.asset_studio.v1.studio.ListIdentitiesResponse
-	6,  // 35: vrooli.asset_studio.v1.studio.StudioService.CreateIdentity:output_type -> vrooli.asset_studio.v1.studio.CreateIdentityResponse
-	8,  // 36: vrooli.asset_studio.v1.studio.StudioService.ReviseIdentity:output_type -> vrooli.asset_studio.v1.studio.ReviseIdentityResponse
-	10, // 37: vrooli.asset_studio.v1.studio.StudioService.ResolveSpec:output_type -> vrooli.asset_studio.v1.studio.ResolveSpecResponse
-	13, // 38: vrooli.asset_studio.v1.studio.StudioService.CreateRender:output_type -> vrooli.asset_studio.v1.studio.CreateRenderResponse
-	15, // 39: vrooli.asset_studio.v1.studio.StudioService.RegenerateRender:output_type -> vrooli.asset_studio.v1.studio.RegenerateRenderResponse
-	18, // 40: vrooli.asset_studio.v1.studio.StudioService.AnalyzeConformance:output_type -> vrooli.asset_studio.v1.studio.AnalyzeConformanceResponse
-	21, // 41: vrooli.asset_studio.v1.studio.StudioService.CommissionAgent:output_type -> vrooli.asset_studio.v1.studio.CommissionAgentResponse
-	24, // 42: vrooli.asset_studio.v1.studio.StudioService.SetCampaignBudget:output_type -> vrooli.asset_studio.v1.studio.SetCampaignBudgetResponse
-	28, // 43: vrooli.asset_studio.v1.studio.StudioService.GetRender:output_type -> vrooli.asset_studio.v1.studio.GetRenderResponse
-	30, // 44: vrooli.asset_studio.v1.studio.StudioService.SelectCandidate:output_type -> vrooli.asset_studio.v1.studio.SelectCandidateResponse
-	32, // 45: vrooli.asset_studio.v1.studio.StudioService.JudgeConformance:output_type -> vrooli.asset_studio.v1.studio.JudgeConformanceResponse
-	34, // 46: vrooli.asset_studio.v1.studio.StudioService.ReleaseAsset:output_type -> vrooli.asset_studio.v1.studio.ReleaseAssetResponse
-	36, // 47: vrooli.asset_studio.v1.studio.StudioService.GetReleasedAssetReference:output_type -> vrooli.asset_studio.v1.studio.GetReleasedAssetReferenceResponse
-	38, // 48: vrooli.asset_studio.v1.studio.StudioService.ImportCanon:output_type -> vrooli.asset_studio.v1.studio.ImportCanonResponse
-	34, // [34:49] is the sub-list for method output_type
-	19, // [19:34] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	0,  // 19: vrooli.asset_studio.v1.studio.ExternalProvenance.conditioning:type_name -> vrooli.asset_studio.v1.studio.ConditioningReference
+	37, // 20: vrooli.asset_studio.v1.studio.IngestExternalAssetRequest.provenance:type_name -> vrooli.asset_studio.v1.studio.ExternalProvenance
+	2,  // 21: vrooli.asset_studio.v1.studio.IngestExternalAssetResponse.asset:type_name -> vrooli.asset_studio.v1.studio.AssetReference
+	3,  // 22: vrooli.asset_studio.v1.studio.StudioService.ListIdentities:input_type -> vrooli.asset_studio.v1.studio.ListIdentitiesRequest
+	5,  // 23: vrooli.asset_studio.v1.studio.StudioService.CreateIdentity:input_type -> vrooli.asset_studio.v1.studio.CreateIdentityRequest
+	7,  // 24: vrooli.asset_studio.v1.studio.StudioService.ReviseIdentity:input_type -> vrooli.asset_studio.v1.studio.ReviseIdentityRequest
+	9,  // 25: vrooli.asset_studio.v1.studio.StudioService.ResolveSpec:input_type -> vrooli.asset_studio.v1.studio.ResolveSpecRequest
+	11, // 26: vrooli.asset_studio.v1.studio.StudioService.CreateRender:input_type -> vrooli.asset_studio.v1.studio.CreateRenderRequest
+	14, // 27: vrooli.asset_studio.v1.studio.StudioService.RegenerateRender:input_type -> vrooli.asset_studio.v1.studio.RegenerateRenderRequest
+	17, // 28: vrooli.asset_studio.v1.studio.StudioService.AnalyzeConformance:input_type -> vrooli.asset_studio.v1.studio.AnalyzeConformanceRequest
+	20, // 29: vrooli.asset_studio.v1.studio.StudioService.CommissionAgent:input_type -> vrooli.asset_studio.v1.studio.CommissionAgentRequest
+	23, // 30: vrooli.asset_studio.v1.studio.StudioService.SetCampaignBudget:input_type -> vrooli.asset_studio.v1.studio.SetCampaignBudgetRequest
+	27, // 31: vrooli.asset_studio.v1.studio.StudioService.GetRender:input_type -> vrooli.asset_studio.v1.studio.GetRenderRequest
+	29, // 32: vrooli.asset_studio.v1.studio.StudioService.SelectCandidate:input_type -> vrooli.asset_studio.v1.studio.SelectCandidateRequest
+	31, // 33: vrooli.asset_studio.v1.studio.StudioService.JudgeConformance:input_type -> vrooli.asset_studio.v1.studio.JudgeConformanceRequest
+	33, // 34: vrooli.asset_studio.v1.studio.StudioService.ReleaseAsset:input_type -> vrooli.asset_studio.v1.studio.ReleaseAssetRequest
+	35, // 35: vrooli.asset_studio.v1.studio.StudioService.GetReleasedAssetReference:input_type -> vrooli.asset_studio.v1.studio.GetReleasedAssetReferenceRequest
+	40, // 36: vrooli.asset_studio.v1.studio.StudioService.ImportCanon:input_type -> vrooli.asset_studio.v1.studio.ImportCanonRequest
+	38, // 37: vrooli.asset_studio.v1.studio.StudioService.IngestExternalAsset:input_type -> vrooli.asset_studio.v1.studio.IngestExternalAssetRequest
+	4,  // 38: vrooli.asset_studio.v1.studio.StudioService.ListIdentities:output_type -> vrooli.asset_studio.v1.studio.ListIdentitiesResponse
+	6,  // 39: vrooli.asset_studio.v1.studio.StudioService.CreateIdentity:output_type -> vrooli.asset_studio.v1.studio.CreateIdentityResponse
+	8,  // 40: vrooli.asset_studio.v1.studio.StudioService.ReviseIdentity:output_type -> vrooli.asset_studio.v1.studio.ReviseIdentityResponse
+	10, // 41: vrooli.asset_studio.v1.studio.StudioService.ResolveSpec:output_type -> vrooli.asset_studio.v1.studio.ResolveSpecResponse
+	13, // 42: vrooli.asset_studio.v1.studio.StudioService.CreateRender:output_type -> vrooli.asset_studio.v1.studio.CreateRenderResponse
+	15, // 43: vrooli.asset_studio.v1.studio.StudioService.RegenerateRender:output_type -> vrooli.asset_studio.v1.studio.RegenerateRenderResponse
+	18, // 44: vrooli.asset_studio.v1.studio.StudioService.AnalyzeConformance:output_type -> vrooli.asset_studio.v1.studio.AnalyzeConformanceResponse
+	21, // 45: vrooli.asset_studio.v1.studio.StudioService.CommissionAgent:output_type -> vrooli.asset_studio.v1.studio.CommissionAgentResponse
+	24, // 46: vrooli.asset_studio.v1.studio.StudioService.SetCampaignBudget:output_type -> vrooli.asset_studio.v1.studio.SetCampaignBudgetResponse
+	28, // 47: vrooli.asset_studio.v1.studio.StudioService.GetRender:output_type -> vrooli.asset_studio.v1.studio.GetRenderResponse
+	30, // 48: vrooli.asset_studio.v1.studio.StudioService.SelectCandidate:output_type -> vrooli.asset_studio.v1.studio.SelectCandidateResponse
+	32, // 49: vrooli.asset_studio.v1.studio.StudioService.JudgeConformance:output_type -> vrooli.asset_studio.v1.studio.JudgeConformanceResponse
+	34, // 50: vrooli.asset_studio.v1.studio.StudioService.ReleaseAsset:output_type -> vrooli.asset_studio.v1.studio.ReleaseAssetResponse
+	36, // 51: vrooli.asset_studio.v1.studio.StudioService.GetReleasedAssetReference:output_type -> vrooli.asset_studio.v1.studio.GetReleasedAssetReferenceResponse
+	41, // 52: vrooli.asset_studio.v1.studio.StudioService.ImportCanon:output_type -> vrooli.asset_studio.v1.studio.ImportCanonResponse
+	39, // 53: vrooli.asset_studio.v1.studio.StudioService.IngestExternalAsset:output_type -> vrooli.asset_studio.v1.studio.IngestExternalAssetResponse
+	38, // [38:54] is the sub-list for method output_type
+	22, // [22:38] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_asset_studio_v1_studio_studio_proto_init() }
@@ -2727,7 +3052,7 @@ func file_asset_studio_v1_studio_studio_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_asset_studio_v1_studio_studio_proto_rawDesc), len(file_asset_studio_v1_studio_studio_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   41,
+			NumMessages:   44,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

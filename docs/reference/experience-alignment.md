@@ -186,6 +186,7 @@ CI failure.
 | `experience.prd_ref_unmatched` | page/claim `prd_ref` resolves to a real OT | 0 | det | error | active (mirror of `intent.prd_ref_unmatched`) |
 | `experience.binding_orphan` | bindings ↔ declared elements, both directions; machine-tier claims reference bound elements | 0 | det | error | active |
 | `experience.tier_violation` | tier semantics hold (custom ≠ machine; unknown type ⇒ aspirational) | 0 | det | error | active |
+| `experience.vacuous_contract` | every portable contract has an implemented, non-placeholder claim | 0 | det | error | active |
 | `experience.route_unspecced` | UI route → has a page entry | 0 | det | warning | active |
 | `experience.state_missing` | DESIGN.md-required UX state → declared on the page | 0 | det | warning (advisory `info` when no DESIGN.md — absent seed is not an error) | active |
 | `experience.binding_unresolved` | binding → matches a node in the captured AX tree | 0 | det | error | active — **keystone** |
@@ -193,6 +194,7 @@ CI failure.
 | `experience.affordance_missing` | `affordance-present` machine-tier claim → expected component controls are present in captured structure | 1 | det | error | active |
 | `experience.claim_unverifiable` | machine-tier claim → has a Tier 0–1 checker | 0 | det | warning | active |
 | `experience.capture_unavailable` | active page → capture obtained (BAS reachable) | 0 | det | info (**skipped, never failed**) | active |
+| `experience.capture_bindings_unjoined` | completed capture joins declared bindings | 1 | det | error (**blocking**) | active |
 | `experience.attestation_expired` | manual-tier claim → unexpired attestation | 0 | det | warning | active (mirror of `business_manual_expired`) |
 | `experience.claim_unproven` | active-page machine claim → has recorded evidence | 0 | det | warning | active (mirror of `business_unproven_claim`) |
 | `experience.floor_no_document_horizontal_overflow` | inherited page floor → document width stays inside captured viewport | 1 | det | error | active |

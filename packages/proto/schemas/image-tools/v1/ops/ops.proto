@@ -215,25 +215,56 @@ message DuotoneParams {
   string mid = 3;
   double mid_low = 4;
   double mid_high = 5;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 6;
 }
 
 message PosterizeParams {
   int32 levels = 1;
   string dark = 2;
   string light = 3;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 4;
 }
 
+// Relative spatial parameters
+//
+// Every spatial parameter below carries an absolute pixel form and a `_rel`
+// form. A relative value is a fraction of the image's SHORT edge:
+//
+//   px = round(rel * min(width, height))
+//
+// clamped up to the operation's minimum legal value. So `spacing_rel: 0.02` is
+// 9px on a 448px-tall frame and 27px on a 1344px-tall one, which is the same
+// screen density to the eye. An absolute value means pixels and keeps meaning
+// pixels; when both are set the relative form wins, and the resolved pixel
+// value is reported in OpResult.resolved_params so a caller can see what ran.
+//
+// HalftoneParams.lpi is deliberately absent from this scheme: it is a count of
+// screen lines across the image WIDTH (the implementation computes the cell as
+// width/lpi), so it is already resolution-independent and needs no relative
+// twin. See scenarios/backdrop-studio/docs/evidence/treatments/resolution-proof/.
 message HalftoneParams {
+  // lpi is the number of screen lines across the image width, not a pixel
+  // measurement — the same lpi yields the same screen coarseness at any size.
   int32 lpi = 1;
   double angle = 2;
   string dot = 3;
   string dark = 4;
   string light = 5;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 6;
 }
 
 message DitherParams {
   string dark = 1;
   string light = 2;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 3;
 }
 
 message GrainParams {
@@ -251,20 +282,49 @@ message ScrimParams {
 message LineScreenParams {
   double spacing = 1;
   double angle = 2;
+  string dark = 3;
+  string light = 4;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 5;
+  // spacing_rel is the line pitch as a fraction of the short edge.
+  double spacing_rel = 6;
 }
 message StippleParams {
   double spacing = 1;
   int64 seed = 2;
+  string dark = 3;
+  string light = 4;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 5;
+  // spacing_rel is the stipple cell pitch as a fraction of the short edge.
+  double spacing_rel = 6;
 }
 message EngravingParams {
   double spacing = 1;
+  string dark = 2;
+  string light = 3;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 4;
+  // spacing_rel is the hatching period as a fraction of the short edge.
+  double spacing_rel = 5;
 }
 message AberrationParams {
   double amplitude = 1;
+  // distance is the radial channel separation in px, which is what the
+  // implementation consumes; amplitude is retained for wire compatibility.
+  int32 distance = 2;
+  // distance_rel is the radial channel separation as a fraction of the short
+  // edge. It wins over both distance and amplitude when set.
+  double distance_rel = 3;
 }
 message BloomParams {
   int32 radius = 1;
   double threshold = 2;
+  // radius_rel is the bloom blur radius as a fraction of the short edge.
+  double radius_rel = 3;
 }
 message CurveParams {
   double exponent = 1;
@@ -272,13 +332,30 @@ message CurveParams {
 message DefocusParams {
   int32 radius = 1;
   int32 blade_count = 2;
+  // radius_rel is the defocus blur radius as a fraction of the short edge.
+  double radius_rel = 3;
 }
 message MotionBlurParams {
   int32 distance = 1;
   double angle = 2;
+  // distance_rel is the smear length as a fraction of the short edge.
+  double distance_rel = 3;
 }
 message AsciiMosaicParams {
   int32 block_size = 1;
+  string dark = 2;
+  string light = 3;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 4;
+  // block_size_rel is the character cell width as a fraction of the short
+  // edge. The operation blits a 7x13 bitmap face, so the resolved value snaps
+  // to the NEAREST whole multiple of the 7px glyph advance (minimum 7) — a
+  // cell that is not a whole multiple resamples the glyph and smears the
+  // characters the operation exists to draw. The advance is a coarse quantum
+  // at small cells, so this treatment holds density across resolutions less
+  // tightly than the screens do.
+  double block_size_rel = 5;
 }
 message PixelSortParams {
   double threshold = 1;
@@ -287,6 +364,12 @@ message PixelSortParams {
 message DisplacementParams {
   double amplitude = 1;
   int64 seed = 2;
+  double spacing = 3;
+  // spacing_rel is the displacement-field wavelength as a fraction of the
+  // short edge.
+  double spacing_rel = 4;
+  // amplitude_rel is the peak displacement as a fraction of the short edge.
+  double amplitude_rel = 5;
 }
 
 // OpResult is the proto-typed result metadata of a run. ref is the managed blob
@@ -298,6 +381,12 @@ message OpResult {
   int32 width = 4;
   int32 height = 5;
   int64 size_bytes = 6;
+  // resolved_params reports the pixel value every relative spatial parameter
+  // resolved to for this image, keyed by the absolute field's name ("spacing",
+  // "radius", "distance", "block_size"). It is empty when the request sent no
+  // relative parameter. Without it a caller sending `spacing_rel` has no way to
+  // learn what actually ran, which is how a mistuned screen stays invisible.
+  map<string, double> resolved_params = 7;
 }
 
 // RunOpResponse is the JSON (protojson) body returned by the REST run edge: a

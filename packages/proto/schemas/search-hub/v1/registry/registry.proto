@@ -212,6 +212,8 @@ message Tuning {
   int32 rerank_shortlist = 6;
   // QUERY-TIME: per-leg score floor overrides (0 fields = regime default).
   FloorConfig floor = 7;
+  // QUERY-TIME: dense+sparse Qdrant fusion strategy ("rrf" or "dbsf").
+  string hybrid_fusion = 8;
 }
 
 // The unit of registration: one (corpus, type) leaf.
@@ -251,6 +253,24 @@ message ProviderDescriptor {
   // config_endpoint. Absent for providers that declare no tuning (they run on
   // aisearch-go defaults).
   Tuning tuning = 15;
+  // production participates in automatic routing; fixture and experimental
+  // providers require an explicit selector. Empty is normalized to production.
+  string lifecycle = 16;
+  // Registrant-declared minimum reviewed evidence for ACTIVE production leaves.
+  EvalMinimum tests_minimum = 17;
+  // Explicit owner rationale for opting out of automatic junk-leak withholding.
+  // Empty means the provider is subject to the gate.
+  string junk_leak_opt_out_reason = 18;
+  // Declared JSON field carrying the provider's last index build timestamp.
+  // Search Hub reads this field as the primary freshness contract; the legacy
+  // key sniffer remains only as a compatibility fallback with a warning.
+  string index_timestamp_field = 19;
+}
+
+message EvalMinimum {
+  int32 reviewed_positive = 1;
+  int32 negative = 2;
+  repeated string required_tags = 3;
 }
 
 service RegistryService {

@@ -101,6 +101,19 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	// Admission is also an opportunistic liveness sweep. Operation claims are
+	// short-lived and heartbeat-backed; if their owner crashed or the process
+	// restarted, leaving them in the active ledger would make a dead operation
+	// consume capacity until a separate maintenance pass happens. Reclaiming
+	// elapsed claims here keeps admission authoritative at the point where it
+	// makes a scheduling decision.
+	at := time.Now().UTC()
+	if b.now != nil {
+		at = b.now().UTC()
+	}
+	if _, err := b.store.ExpireStaleClaims(ctx, at); err != nil {
+		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity liveness sweep failed: " + err.Error()}, nil
+	}
 	snapshot, err := b.snapshot(ctx)
 	if err != nil {
 		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity sensing unavailable: " + err.Error()}, nil

@@ -62,6 +62,20 @@ message ProviderDegradationReason {
   int64 count = 2;
 }
 
+message ProviderRetirementCandidate {
+  string provider_id = 1;
+  int64 times_routed = 2;
+  int64 total_hits = 3;
+  string reason = 4;
+}
+
+message ProviderGroupAdvisory {
+  string provider_group = 1;
+  int32 active_leaves = 2;
+  double share = 3;
+  string reason = 4;
+}
+
 message InsightsResponse {
   // Total federated queries recorded in the window.
   int64 total_queries = 1;
@@ -79,4 +93,10 @@ message InsightsResponse {
   // Per-provider utilization, including ACTIVE leaves never routed-to
   // (under_utilized=true, times_routed=0), ordered by provider_id.
   repeated ProviderUtilization providers = 8;
+  // Report-only hygiene signals. Search Hub never deregisters from these.
+  repeated ProviderRetirementCandidate retirement_candidates = 9;
+  repeated ProviderGroupAdvisory group_advisories = 10;
+  int64 resolver_cache_hits = 11;
+  int64 resolver_cache_misses = 12;
+  double resolver_cache_hit_rate = 13;
 }

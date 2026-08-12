@@ -233,50 +233,58 @@ class MetadataParams(_message.Message):
     def __init__(self, strip_all: _Optional[bool] = ..., strip_gps: _Optional[bool] = ..., auto_orient: _Optional[bool] = ...) -> None: ...
 
 class DuotoneParams(_message.Message):
-    __slots__ = ("dark", "light", "mid", "mid_low", "mid_high")
+    __slots__ = ("dark", "light", "mid", "mid_low", "mid_high", "normalize")
     DARK_FIELD_NUMBER: _ClassVar[int]
     LIGHT_FIELD_NUMBER: _ClassVar[int]
     MID_FIELD_NUMBER: _ClassVar[int]
     MID_LOW_FIELD_NUMBER: _ClassVar[int]
     MID_HIGH_FIELD_NUMBER: _ClassVar[int]
+    NORMALIZE_FIELD_NUMBER: _ClassVar[int]
     dark: str
     light: str
     mid: str
     mid_low: float
     mid_high: float
-    def __init__(self, dark: _Optional[str] = ..., light: _Optional[str] = ..., mid: _Optional[str] = ..., mid_low: _Optional[float] = ..., mid_high: _Optional[float] = ...) -> None: ...
+    normalize: bool
+    def __init__(self, dark: _Optional[str] = ..., light: _Optional[str] = ..., mid: _Optional[str] = ..., mid_low: _Optional[float] = ..., mid_high: _Optional[float] = ..., normalize: _Optional[bool] = ...) -> None: ...
 
 class PosterizeParams(_message.Message):
-    __slots__ = ("levels", "dark", "light")
+    __slots__ = ("levels", "dark", "light", "normalize")
     LEVELS_FIELD_NUMBER: _ClassVar[int]
     DARK_FIELD_NUMBER: _ClassVar[int]
     LIGHT_FIELD_NUMBER: _ClassVar[int]
+    NORMALIZE_FIELD_NUMBER: _ClassVar[int]
     levels: int
     dark: str
     light: str
-    def __init__(self, levels: _Optional[int] = ..., dark: _Optional[str] = ..., light: _Optional[str] = ...) -> None: ...
+    normalize: bool
+    def __init__(self, levels: _Optional[int] = ..., dark: _Optional[str] = ..., light: _Optional[str] = ..., normalize: _Optional[bool] = ...) -> None: ...
 
 class HalftoneParams(_message.Message):
-    __slots__ = ("lpi", "angle", "dot", "dark", "light")
+    __slots__ = ("lpi", "angle", "dot", "dark", "light", "normalize")
     LPI_FIELD_NUMBER: _ClassVar[int]
     ANGLE_FIELD_NUMBER: _ClassVar[int]
     DOT_FIELD_NUMBER: _ClassVar[int]
     DARK_FIELD_NUMBER: _ClassVar[int]
     LIGHT_FIELD_NUMBER: _ClassVar[int]
+    NORMALIZE_FIELD_NUMBER: _ClassVar[int]
     lpi: int
     angle: float
     dot: str
     dark: str
     light: str
-    def __init__(self, lpi: _Optional[int] = ..., angle: _Optional[float] = ..., dot: _Optional[str] = ..., dark: _Optional[str] = ..., light: _Optional[str] = ...) -> None: ...
+    normalize: bool
+    def __init__(self, lpi: _Optional[int] = ..., angle: _Optional[float] = ..., dot: _Optional[str] = ..., dark: _Optional[str] = ..., light: _Optional[str] = ..., normalize: _Optional[bool] = ...) -> None: ...
 
 class DitherParams(_message.Message):
-    __slots__ = ("dark", "light")
+    __slots__ = ("dark", "light", "normalize")
     DARK_FIELD_NUMBER: _ClassVar[int]
     LIGHT_FIELD_NUMBER: _ClassVar[int]
+    NORMALIZE_FIELD_NUMBER: _ClassVar[int]
     dark: str
     light: str
-    def __init__(self, dark: _Optional[str] = ..., light: _Optional[str] = ...) -> None: ...
+    normalize: bool
+    def __init__(self, dark: _Optional[str] = ..., light: _Optional[str] = ..., normalize: _Optional[bool] = ...) -> None: ...
 
 class GrainParams(_message.Message):
     __slots__ = ("seed", "amount", "contrast_multiplier")
@@ -299,40 +307,70 @@ class ScrimParams(_message.Message):
     def __init__(self, color: _Optional[str] = ..., opacity: _Optional[float] = ..., direction: _Optional[str] = ...) -> None: ...
 
 class LineScreenParams(_message.Message):
-    __slots__ = ("spacing", "angle")
+    __slots__ = ("spacing", "angle", "dark", "light", "normalize", "spacing_rel")
     SPACING_FIELD_NUMBER: _ClassVar[int]
     ANGLE_FIELD_NUMBER: _ClassVar[int]
+    DARK_FIELD_NUMBER: _ClassVar[int]
+    LIGHT_FIELD_NUMBER: _ClassVar[int]
+    NORMALIZE_FIELD_NUMBER: _ClassVar[int]
+    SPACING_REL_FIELD_NUMBER: _ClassVar[int]
     spacing: float
     angle: float
-    def __init__(self, spacing: _Optional[float] = ..., angle: _Optional[float] = ...) -> None: ...
+    dark: str
+    light: str
+    normalize: bool
+    spacing_rel: float
+    def __init__(self, spacing: _Optional[float] = ..., angle: _Optional[float] = ..., dark: _Optional[str] = ..., light: _Optional[str] = ..., normalize: _Optional[bool] = ..., spacing_rel: _Optional[float] = ...) -> None: ...
 
 class StippleParams(_message.Message):
-    __slots__ = ("spacing", "seed")
+    __slots__ = ("spacing", "seed", "dark", "light", "normalize", "spacing_rel")
     SPACING_FIELD_NUMBER: _ClassVar[int]
     SEED_FIELD_NUMBER: _ClassVar[int]
+    DARK_FIELD_NUMBER: _ClassVar[int]
+    LIGHT_FIELD_NUMBER: _ClassVar[int]
+    NORMALIZE_FIELD_NUMBER: _ClassVar[int]
+    SPACING_REL_FIELD_NUMBER: _ClassVar[int]
     spacing: float
     seed: int
-    def __init__(self, spacing: _Optional[float] = ..., seed: _Optional[int] = ...) -> None: ...
+    dark: str
+    light: str
+    normalize: bool
+    spacing_rel: float
+    def __init__(self, spacing: _Optional[float] = ..., seed: _Optional[int] = ..., dark: _Optional[str] = ..., light: _Optional[str] = ..., normalize: _Optional[bool] = ..., spacing_rel: _Optional[float] = ...) -> None: ...
 
 class EngravingParams(_message.Message):
-    __slots__ = ("spacing",)
+    __slots__ = ("spacing", "dark", "light", "normalize", "spacing_rel")
     SPACING_FIELD_NUMBER: _ClassVar[int]
+    DARK_FIELD_NUMBER: _ClassVar[int]
+    LIGHT_FIELD_NUMBER: _ClassVar[int]
+    NORMALIZE_FIELD_NUMBER: _ClassVar[int]
+    SPACING_REL_FIELD_NUMBER: _ClassVar[int]
     spacing: float
-    def __init__(self, spacing: _Optional[float] = ...) -> None: ...
+    dark: str
+    light: str
+    normalize: bool
+    spacing_rel: float
+    def __init__(self, spacing: _Optional[float] = ..., dark: _Optional[str] = ..., light: _Optional[str] = ..., normalize: _Optional[bool] = ..., spacing_rel: _Optional[float] = ...) -> None: ...
 
 class AberrationParams(_message.Message):
-    __slots__ = ("amplitude",)
+    __slots__ = ("amplitude", "distance", "distance_rel")
     AMPLITUDE_FIELD_NUMBER: _ClassVar[int]
+    DISTANCE_FIELD_NUMBER: _ClassVar[int]
+    DISTANCE_REL_FIELD_NUMBER: _ClassVar[int]
     amplitude: float
-    def __init__(self, amplitude: _Optional[float] = ...) -> None: ...
+    distance: int
+    distance_rel: float
+    def __init__(self, amplitude: _Optional[float] = ..., distance: _Optional[int] = ..., distance_rel: _Optional[float] = ...) -> None: ...
 
 class BloomParams(_message.Message):
-    __slots__ = ("radius", "threshold")
+    __slots__ = ("radius", "threshold", "radius_rel")
     RADIUS_FIELD_NUMBER: _ClassVar[int]
     THRESHOLD_FIELD_NUMBER: _ClassVar[int]
+    RADIUS_REL_FIELD_NUMBER: _ClassVar[int]
     radius: int
     threshold: float
-    def __init__(self, radius: _Optional[int] = ..., threshold: _Optional[float] = ...) -> None: ...
+    radius_rel: float
+    def __init__(self, radius: _Optional[int] = ..., threshold: _Optional[float] = ..., radius_rel: _Optional[float] = ...) -> None: ...
 
 class CurveParams(_message.Message):
     __slots__ = ("exponent",)
@@ -341,26 +379,38 @@ class CurveParams(_message.Message):
     def __init__(self, exponent: _Optional[float] = ...) -> None: ...
 
 class DefocusParams(_message.Message):
-    __slots__ = ("radius", "blade_count")
+    __slots__ = ("radius", "blade_count", "radius_rel")
     RADIUS_FIELD_NUMBER: _ClassVar[int]
     BLADE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    RADIUS_REL_FIELD_NUMBER: _ClassVar[int]
     radius: int
     blade_count: int
-    def __init__(self, radius: _Optional[int] = ..., blade_count: _Optional[int] = ...) -> None: ...
+    radius_rel: float
+    def __init__(self, radius: _Optional[int] = ..., blade_count: _Optional[int] = ..., radius_rel: _Optional[float] = ...) -> None: ...
 
 class MotionBlurParams(_message.Message):
-    __slots__ = ("distance", "angle")
+    __slots__ = ("distance", "angle", "distance_rel")
     DISTANCE_FIELD_NUMBER: _ClassVar[int]
     ANGLE_FIELD_NUMBER: _ClassVar[int]
+    DISTANCE_REL_FIELD_NUMBER: _ClassVar[int]
     distance: int
     angle: float
-    def __init__(self, distance: _Optional[int] = ..., angle: _Optional[float] = ...) -> None: ...
+    distance_rel: float
+    def __init__(self, distance: _Optional[int] = ..., angle: _Optional[float] = ..., distance_rel: _Optional[float] = ...) -> None: ...
 
 class AsciiMosaicParams(_message.Message):
-    __slots__ = ("block_size",)
+    __slots__ = ("block_size", "dark", "light", "normalize", "block_size_rel")
     BLOCK_SIZE_FIELD_NUMBER: _ClassVar[int]
+    DARK_FIELD_NUMBER: _ClassVar[int]
+    LIGHT_FIELD_NUMBER: _ClassVar[int]
+    NORMALIZE_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_SIZE_REL_FIELD_NUMBER: _ClassVar[int]
     block_size: int
-    def __init__(self, block_size: _Optional[int] = ...) -> None: ...
+    dark: str
+    light: str
+    normalize: bool
+    block_size_rel: float
+    def __init__(self, block_size: _Optional[int] = ..., dark: _Optional[str] = ..., light: _Optional[str] = ..., normalize: _Optional[bool] = ..., block_size_rel: _Optional[float] = ...) -> None: ...
 
 class PixelSortParams(_message.Message):
     __slots__ = ("threshold", "axis")
@@ -371,28 +421,43 @@ class PixelSortParams(_message.Message):
     def __init__(self, threshold: _Optional[float] = ..., axis: _Optional[str] = ...) -> None: ...
 
 class DisplacementParams(_message.Message):
-    __slots__ = ("amplitude", "seed")
+    __slots__ = ("amplitude", "seed", "spacing", "spacing_rel", "amplitude_rel")
     AMPLITUDE_FIELD_NUMBER: _ClassVar[int]
     SEED_FIELD_NUMBER: _ClassVar[int]
+    SPACING_FIELD_NUMBER: _ClassVar[int]
+    SPACING_REL_FIELD_NUMBER: _ClassVar[int]
+    AMPLITUDE_REL_FIELD_NUMBER: _ClassVar[int]
     amplitude: float
     seed: int
-    def __init__(self, amplitude: _Optional[float] = ..., seed: _Optional[int] = ...) -> None: ...
+    spacing: float
+    spacing_rel: float
+    amplitude_rel: float
+    def __init__(self, amplitude: _Optional[float] = ..., seed: _Optional[int] = ..., spacing: _Optional[float] = ..., spacing_rel: _Optional[float] = ..., amplitude_rel: _Optional[float] = ...) -> None: ...
 
 class OpResult(_message.Message):
-    __slots__ = ("ref", "format", "mime", "width", "height", "size_bytes")
+    __slots__ = ("ref", "format", "mime", "width", "height", "size_bytes", "resolved_params")
+    class ResolvedParamsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: float
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[float] = ...) -> None: ...
     REF_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
     MIME_FIELD_NUMBER: _ClassVar[int]
     WIDTH_FIELD_NUMBER: _ClassVar[int]
     HEIGHT_FIELD_NUMBER: _ClassVar[int]
     SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    RESOLVED_PARAMS_FIELD_NUMBER: _ClassVar[int]
     ref: str
     format: str
     mime: str
     width: int
     height: int
     size_bytes: int
-    def __init__(self, ref: _Optional[str] = ..., format: _Optional[str] = ..., mime: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., size_bytes: _Optional[int] = ...) -> None: ...
+    resolved_params: _containers.ScalarMap[str, float]
+    def __init__(self, ref: _Optional[str] = ..., format: _Optional[str] = ..., mime: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., size_bytes: _Optional[int] = ..., resolved_params: _Optional[_Mapping[str, float]] = ...) -> None: ...
 
 class RunOpResponse(_message.Message):
     __slots__ = ("job_id", "result")

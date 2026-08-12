@@ -113,3 +113,25 @@ class AddGapNoteResponse(_message.Message):
     GAP_FIELD_NUMBER: _ClassVar[int]
     gap: Gap
     def __init__(self, gap: _Optional[_Union[Gap, _Mapping]] = ...) -> None: ...
+
+class ListConditionRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListConditionResponse(_message.Message):
+    __slots__ = ("gaps",)
+    GAPS_FIELD_NUMBER: _ClassVar[int]
+    gaps: _containers.RepeatedCompositeFieldContainer[Gap]
+    def __init__(self, gaps: _Optional[_Iterable[_Union[Gap, _Mapping]]] = ...) -> None: ...
+
+class ExplainConditionRequest(_message.Message):
+    __slots__ = ("provider_id",)
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    provider_id: str
+    def __init__(self, provider_id: _Optional[str] = ...) -> None: ...
+
+class ExplainConditionResponse(_message.Message):
+    __slots__ = ("gap",)
+    GAP_FIELD_NUMBER: _ClassVar[int]
+    gap: Gap
+    def __init__(self, gap: _Optional[_Union[Gap, _Mapping]] = ...) -> None: ...

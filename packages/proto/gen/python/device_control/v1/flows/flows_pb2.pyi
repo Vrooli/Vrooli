@@ -16,14 +16,16 @@ class ValidateFlowRequest(_message.Message):
     def __init__(self, flow: _Optional[_Union[Flow, _Mapping]] = ..., strategy_id: _Optional[str] = ...) -> None: ...
 
 class RunFlowRequest(_message.Message):
-    __slots__ = ("flow", "device_id", "actor")
+    __slots__ = ("flow", "device_id", "actor", "lease_token")
     FLOW_FIELD_NUMBER: _ClassVar[int]
     DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
     ACTOR_FIELD_NUMBER: _ClassVar[int]
+    LEASE_TOKEN_FIELD_NUMBER: _ClassVar[int]
     flow: Flow
     device_id: str
     actor: str
-    def __init__(self, flow: _Optional[_Union[Flow, _Mapping]] = ..., device_id: _Optional[str] = ..., actor: _Optional[str] = ...) -> None: ...
+    lease_token: str
+    def __init__(self, flow: _Optional[_Union[Flow, _Mapping]] = ..., device_id: _Optional[str] = ..., actor: _Optional[str] = ..., lease_token: _Optional[str] = ...) -> None: ...
 
 class Flow(_message.Message):
     __slots__ = ("id", "name", "steps", "allow_unredacted_capture")
@@ -100,7 +102,7 @@ class Resolution(_message.Message):
     def __init__(self, target: _Optional[str] = ..., rung: _Optional[str] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class EvidenceReference(_message.Message):
-    __slots__ = ("id", "sha256", "size_bytes", "created_at", "redaction_verified", "recording_method", "effective_fps")
+    __slots__ = ("id", "sha256", "size_bytes", "created_at", "redaction_verified", "recording_method", "effective_fps", "producer", "kind", "applied_rules", "opted_out")
     ID_FIELD_NUMBER: _ClassVar[int]
     SHA256_FIELD_NUMBER: _ClassVar[int]
     SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
@@ -108,6 +110,10 @@ class EvidenceReference(_message.Message):
     REDACTION_VERIFIED_FIELD_NUMBER: _ClassVar[int]
     RECORDING_METHOD_FIELD_NUMBER: _ClassVar[int]
     EFFECTIVE_FPS_FIELD_NUMBER: _ClassVar[int]
+    PRODUCER_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_RULES_FIELD_NUMBER: _ClassVar[int]
+    OPTED_OUT_FIELD_NUMBER: _ClassVar[int]
     id: str
     sha256: str
     size_bytes: int
@@ -115,4 +121,8 @@ class EvidenceReference(_message.Message):
     redaction_verified: bool
     recording_method: str
     effective_fps: float
-    def __init__(self, id: _Optional[str] = ..., sha256: _Optional[str] = ..., size_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., redaction_verified: _Optional[bool] = ..., recording_method: _Optional[str] = ..., effective_fps: _Optional[float] = ...) -> None: ...
+    producer: str
+    kind: str
+    applied_rules: _containers.RepeatedScalarFieldContainer[str]
+    opted_out: bool
+    def __init__(self, id: _Optional[str] = ..., sha256: _Optional[str] = ..., size_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., redaction_verified: _Optional[bool] = ..., recording_method: _Optional[str] = ..., effective_fps: _Optional[float] = ..., producer: _Optional[str] = ..., kind: _Optional[str] = ..., applied_rules: _Optional[_Iterable[str]] = ..., opted_out: _Optional[bool] = ...) -> None: ...

@@ -129,7 +129,9 @@ message CaseResult {
   // 1-based rank of the first expect_id (0 = absent).
   int32 expected_rank = 3;
   double observed_top_score = 4;
-  // "met" | "below_expectation" | "above_expectation" | "unexpected_hit" | "n/a".
+  // "met" | "below_expectation" | "above_expectation" | "unexpected_hit" |
+  // "error" | "n/a". "error" means the provider call failed; "n/a" means
+  // the case ran but had no grading expectations.
   string outcome = 5;
   string expected_provider_id = 6;
   bool provider_routed = 7;
@@ -153,6 +155,10 @@ message EvalAggregate {
   // worst junk leakage over gibberish cases (lower = better).
   double max_gibberish_score = 5;
   int32 latency_p95_ms = 6;
+  // Number of cases with a grading outcome. Errors and n/a cases are not
+  // graded; keeping this denominator explicit prevents an empty run from
+  // masquerading as a clean zero-miss result.
+  int32 graded_cases = 7;
 }
 
 service EvalService {
@@ -185,6 +191,9 @@ service EvalService {
   // the provider's search.json through the control plane, then mirrors the
   // authoritative file corpus back into search-hub's suite cache.
   rpc PromoteCases(PromoteCasesRequest) returns (PromoteCasesResponse);
+  // Audit and, with explicit confirmation, remove suites whose provider is no
+  // longer registered. confirm=false is read-only.
+  rpc ReapOrphanSuites(ReapOrphanSuitesRequest) returns (ReapOrphanSuitesResponse);
 }
 
 message RegisterSuiteRequest {
@@ -244,6 +253,9 @@ enum ReferentialOutcome {
   REFERENTIAL_OUTCOME_HARD = 2;
   REFERENTIAL_OUTCOME_STALE = 3;
   REFERENTIAL_OUTCOME_INCONCLUSIVE = 4;
+  // The provider could not answer the probe. This is not evidence that the
+  // expected label is stale.
+  REFERENTIAL_OUTCOME_PROVIDER_ERROR = 5;
 }
 
 message ValidateCorpusRequest {
@@ -268,6 +280,7 @@ message CorpusValidationRollup {
   int32 stale = 4;
   int32 inconclusive = 5;
   int32 candidate = 6;
+  int32 provider_errors = 7;
 }
 
 message ValidateCorpusResponse {
@@ -517,6 +530,17 @@ message PromoteCasesRequest {
   repeated string case_ids = 2;
   // Promote every candidate case in the suite.
   bool all = 3;
+}
+
+message ReapOrphanSuitesRequest {
+  bool confirm = 1;
+}
+
+message ReapOrphanSuitesResponse {
+  // The orphan set observed before any mutation.
+  repeated EvalSuite orphan_suites = 1;
+  repeated string reaped_suite_ids = 2;
+  bool confirmed = 3;
 }
 
 message PromoteCasesResponse {

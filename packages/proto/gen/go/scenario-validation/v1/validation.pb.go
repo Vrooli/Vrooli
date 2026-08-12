@@ -652,14 +652,18 @@ func (x *ValidateTargetRequest) GetCapabilitySubset() []string {
 }
 
 type ValidateTargetResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Target        *v1.ValidationTarget   `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
-	Status        ValidationStatus       `protobuf:"varint,2,opt,name=status,proto3,enum=vrooli.scenario_validation.v1.ValidationStatus" json:"status,omitempty"`
-	Assessment    *v1.MaturityAssessment `protobuf:"bytes,3,opt,name=assessment,proto3" json:"assessment,omitempty"`
-	NativeDetail  *anypb.Any             `protobuf:"bytes,4,opt,name=native_detail,json=nativeDetail,proto3" json:"native_detail,omitempty"`
-	Metrics       *v1.ExecutionMetrics   `protobuf:"bytes,5,opt,name=metrics,proto3" json:"metrics,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Target       *v1.ValidationTarget   `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Status       ValidationStatus       `protobuf:"varint,2,opt,name=status,proto3,enum=vrooli.scenario_validation.v1.ValidationStatus" json:"status,omitempty"`
+	Assessment   *v1.MaturityAssessment `protobuf:"bytes,3,opt,name=assessment,proto3" json:"assessment,omitempty"`
+	NativeDetail *anypb.Any             `protobuf:"bytes,4,opt,name=native_detail,json=nativeDetail,proto3" json:"native_detail,omitempty"`
+	Metrics      *v1.ExecutionMetrics   `protobuf:"bytes,5,opt,name=metrics,proto3" json:"metrics,omitempty"`
+	// Provider-owned cause for a failed validation. Required when status is
+	// FAILED, ERROR, or DEGRADED; consumers report omission as a contract
+	// violation instead of guessing whether the harness or product failed.
+	FailureClassification string `protobuf:"bytes,6,opt,name=failure_classification,json=failureClassification,proto3" json:"failure_classification,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ValidateTargetResponse) Reset() {
@@ -727,6 +731,13 @@ func (x *ValidateTargetResponse) GetMetrics() *v1.ExecutionMetrics {
 	return nil
 }
 
+func (x *ValidateTargetResponse) GetFailureClassification() string {
+	if x != nil {
+		return x.FailureClassification
+	}
+	return ""
+}
+
 type ValidateScenarioResponse struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -738,9 +749,13 @@ type ValidateScenarioResponse struct {
 	NativeDetail *anypb.Any `protobuf:"bytes,4,opt,name=native_detail,json=nativeDetail,proto3" json:"native_detail,omitempty"`
 	// Optional execution metrics (timing, stages, resources, host environment)
 	// for this validation. Absent for providers that have not adopted metrics.
-	Metrics       *v1.ExecutionMetrics `protobuf:"bytes,5,opt,name=metrics,proto3" json:"metrics,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Metrics *v1.ExecutionMetrics `protobuf:"bytes,5,opt,name=metrics,proto3" json:"metrics,omitempty"`
+	// Provider-owned cause for a failed validation. Required when status is
+	// FAILED, ERROR, or DEGRADED; consumers report omission as a contract
+	// violation instead of guessing whether the harness or product failed.
+	FailureClassification string `protobuf:"bytes,6,opt,name=failure_classification,json=failureClassification,proto3" json:"failure_classification,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ValidateScenarioResponse) Reset() {
@@ -806,6 +821,13 @@ func (x *ValidateScenarioResponse) GetMetrics() *v1.ExecutionMetrics {
 		return x.Metrics
 	}
 	return nil
+}
+
+func (x *ValidateScenarioResponse) GetFailureClassification() string {
+	if x != nil {
+		return x.FailureClassification
+	}
+	return ""
 }
 
 type ValidationRunError struct {
@@ -1851,7 +1873,7 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"\x06target\x18\x01 \x01(\v2\x1b.common.v1.ValidationTargetR\x06target\x12+\n" +
 	"\x11include_execution\x18\x02 \x01(\bR\x10includeExecution\x12\x12\n" +
 	"\x04path\x18\x03 \x01(\tR\x04path\x12+\n" +
-	"\x11capability_subset\x18\x04 \x03(\tR\x10capabilitySubset\"\xc7\x02\n" +
+	"\x11capability_subset\x18\x04 \x03(\tR\x10capabilitySubset\"\xfe\x02\n" +
 	"\x16ValidateTargetResponse\x123\n" +
 	"\x06target\x18\x01 \x01(\v2\x1b.common.v1.ValidationTargetR\x06target\x12G\n" +
 	"\x06status\x18\x02 \x01(\x0e2/.vrooli.scenario_validation.v1.ValidationStatusR\x06status\x12=\n" +
@@ -1859,7 +1881,8 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"assessment\x18\x03 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
 	"assessment\x129\n" +
 	"\rnative_detail\x18\x04 \x01(\v2\x14.google.protobuf.AnyR\fnativeDetail\x125\n" +
-	"\ametrics\x18\x05 \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics\"\xb0\x02\n" +
+	"\ametrics\x18\x05 \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics\x125\n" +
+	"\x16failure_classification\x18\x06 \x01(\tR\x15failureClassification\"\xe7\x02\n" +
 	"\x18ValidateScenarioResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12G\n" +
 	"\x06status\x18\x02 \x01(\x0e2/.vrooli.scenario_validation.v1.ValidationStatusR\x06status\x12=\n" +
@@ -1867,7 +1890,8 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"assessment\x18\x03 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
 	"assessment\x129\n" +
 	"\rnative_detail\x18\x04 \x01(\v2\x14.google.protobuf.AnyR\fnativeDetail\x125\n" +
-	"\ametrics\x18\x05 \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics\"\x97\x01\n" +
+	"\ametrics\x18\x05 \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics\x125\n" +
+	"\x16failure_classification\x18\x06 \x01(\tR\x15failureClassification\"\x97\x01\n" +
 	"\x12ValidationRunError\x12I\n" +
 	"\x04code\x18\x01 \x01(\x0e25.vrooli.scenario_validation.v1.ValidationRunErrorCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +

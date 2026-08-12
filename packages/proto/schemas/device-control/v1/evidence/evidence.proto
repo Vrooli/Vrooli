@@ -22,4 +22,5 @@ message AuditRecord {
   string outcome = 6;
   google.protobuf.Timestamp created_at = 7;
   bool redaction_verified = 8;
+  bool redaction_opted_out = 9;
 }

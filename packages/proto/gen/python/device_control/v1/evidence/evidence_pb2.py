@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)device-control/v1/evidence/evidence.proto\x12!vrooli.device_control.v1.evidence\x1a\x1fgoogle/protobuf/timestamp.proto\"1\n\x10ListAuditRequest\x12\x1d\n\nsession_id\x18\x01 \x01(\tR\tsessionId\"]\n\x11ListAuditResponse\x12H\n\x07records\x18\x01 \x03(\x0b\x32..vrooli.device_control.v1.evidence.AuditRecordR\x07records\"\x83\x02\n\x0b\x41uditRecord\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05\x61\x63tor\x18\x02 \x01(\tR\x05\x61\x63tor\x12\x1b\n\tdevice_id\x18\x03 \x01(\tR\x08\x64\x65viceId\x12\x19\n\x08lease_id\x18\x04 \x01(\tR\x07leaseId\x12\x12\n\x04verb\x18\x05 \x01(\tR\x04verb\x12\x18\n\x07outcome\x18\x06 \x01(\tR\x07outcome\x12\x39\n\ncreated_at\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12-\n\x12redaction_verified\x18\x08 \x01(\x08R\x11redactionVerified2\x89\x01\n\x0f\x45videnceService\x12v\n\tListAudit\x12\x33.vrooli.device_control.v1.evidence.ListAuditRequest\x1a\x34.vrooli.device_control.v1.evidence.ListAuditResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/evidence;evidence_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)device-control/v1/evidence/evidence.proto\x12!vrooli.device_control.v1.evidence\x1a\x1fgoogle/protobuf/timestamp.proto\"1\n\x10ListAuditRequest\x12\x1d\n\nsession_id\x18\x01 \x01(\tR\tsessionId\"]\n\x11ListAuditResponse\x12H\n\x07records\x18\x01 \x03(\x0b\x32..vrooli.device_control.v1.evidence.AuditRecordR\x07records\"\xb3\x02\n\x0b\x41uditRecord\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05\x61\x63tor\x18\x02 \x01(\tR\x05\x61\x63tor\x12\x1b\n\tdevice_id\x18\x03 \x01(\tR\x08\x64\x65viceId\x12\x19\n\x08lease_id\x18\x04 \x01(\tR\x07leaseId\x12\x12\n\x04verb\x18\x05 \x01(\tR\x04verb\x12\x18\n\x07outcome\x18\x06 \x01(\tR\x07outcome\x12\x39\n\ncreated_at\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12-\n\x12redaction_verified\x18\x08 \x01(\x08R\x11redactionVerified\x12.\n\x13redaction_opted_out\x18\t \x01(\x08R\x11redactionOptedOut2\x89\x01\n\x0f\x45videnceService\x12v\n\tListAudit\x12\x33.vrooli.device_control.v1.evidence.ListAuditRequest\x1a\x34.vrooli.device_control.v1.evidence.ListAuditResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/evidence;evidence_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -38,7 +38,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_LISTAUDITRESPONSE']._serialized_start=164
   _globals['_LISTAUDITRESPONSE']._serialized_end=257
   _globals['_AUDITRECORD']._serialized_start=260
-  _globals['_AUDITRECORD']._serialized_end=519
-  _globals['_EVIDENCESERVICE']._serialized_start=522
-  _globals['_EVIDENCESERVICE']._serialized_end=659
+  _globals['_AUDITRECORD']._serialized_end=567
+  _globals['_EVIDENCESERVICE']._serialized_start=570
+  _globals['_EVIDENCESERVICE']._serialized_end=707
 # @@protoc_insertion_point(module_scope)

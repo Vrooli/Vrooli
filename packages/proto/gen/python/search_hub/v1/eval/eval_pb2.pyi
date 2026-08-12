@@ -14,11 +14,13 @@ class ReferentialOutcome(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     REFERENTIAL_OUTCOME_HARD: _ClassVar[ReferentialOutcome]
     REFERENTIAL_OUTCOME_STALE: _ClassVar[ReferentialOutcome]
     REFERENTIAL_OUTCOME_INCONCLUSIVE: _ClassVar[ReferentialOutcome]
+    REFERENTIAL_OUTCOME_PROVIDER_ERROR: _ClassVar[ReferentialOutcome]
 REFERENTIAL_OUTCOME_UNSPECIFIED: ReferentialOutcome
 REFERENTIAL_OUTCOME_LIVE: ReferentialOutcome
 REFERENTIAL_OUTCOME_HARD: ReferentialOutcome
 REFERENTIAL_OUTCOME_STALE: ReferentialOutcome
 REFERENTIAL_OUTCOME_INCONCLUSIVE: ReferentialOutcome
+REFERENTIAL_OUTCOME_PROVIDER_ERROR: ReferentialOutcome
 
 class EvalSuite(_message.Message):
     __slots__ = ("suite_id", "provider_id", "name", "description", "cases", "state", "created_at", "updated_at")
@@ -147,20 +149,22 @@ class ScoredHit(_message.Message):
     def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., score: _Optional[float] = ...) -> None: ...
 
 class EvalAggregate(_message.Message):
-    __slots__ = ("cases", "met", "below", "mean_strong_top1", "max_gibberish_score", "latency_p95_ms")
+    __slots__ = ("cases", "met", "below", "mean_strong_top1", "max_gibberish_score", "latency_p95_ms", "graded_cases")
     CASES_FIELD_NUMBER: _ClassVar[int]
     MET_FIELD_NUMBER: _ClassVar[int]
     BELOW_FIELD_NUMBER: _ClassVar[int]
     MEAN_STRONG_TOP1_FIELD_NUMBER: _ClassVar[int]
     MAX_GIBBERISH_SCORE_FIELD_NUMBER: _ClassVar[int]
     LATENCY_P95_MS_FIELD_NUMBER: _ClassVar[int]
+    GRADED_CASES_FIELD_NUMBER: _ClassVar[int]
     cases: int
     met: int
     below: int
     mean_strong_top1: float
     max_gibberish_score: float
     latency_p95_ms: int
-    def __init__(self, cases: _Optional[int] = ..., met: _Optional[int] = ..., below: _Optional[int] = ..., mean_strong_top1: _Optional[float] = ..., max_gibberish_score: _Optional[float] = ..., latency_p95_ms: _Optional[int] = ...) -> None: ...
+    graded_cases: int
+    def __init__(self, cases: _Optional[int] = ..., met: _Optional[int] = ..., below: _Optional[int] = ..., mean_strong_top1: _Optional[float] = ..., max_gibberish_score: _Optional[float] = ..., latency_p95_ms: _Optional[int] = ..., graded_cases: _Optional[int] = ...) -> None: ...
 
 class RegisterSuiteRequest(_message.Message):
     __slots__ = ("suite",)
@@ -245,20 +249,22 @@ class CorpusValidationCase(_message.Message):
     def __init__(self, case_id: _Optional[str] = ..., referential: _Optional[_Union[ReferentialOutcome, str]] = ..., observed_rank: _Optional[int] = ..., probed_queries: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ...) -> None: ...
 
 class CorpusValidationRollup(_message.Message):
-    __slots__ = ("positives", "live", "hard", "stale", "inconclusive", "candidate")
+    __slots__ = ("positives", "live", "hard", "stale", "inconclusive", "candidate", "provider_errors")
     POSITIVES_FIELD_NUMBER: _ClassVar[int]
     LIVE_FIELD_NUMBER: _ClassVar[int]
     HARD_FIELD_NUMBER: _ClassVar[int]
     STALE_FIELD_NUMBER: _ClassVar[int]
     INCONCLUSIVE_FIELD_NUMBER: _ClassVar[int]
     CANDIDATE_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ERRORS_FIELD_NUMBER: _ClassVar[int]
     positives: int
     live: int
     hard: int
     stale: int
     inconclusive: int
     candidate: int
-    def __init__(self, positives: _Optional[int] = ..., live: _Optional[int] = ..., hard: _Optional[int] = ..., stale: _Optional[int] = ..., inconclusive: _Optional[int] = ..., candidate: _Optional[int] = ...) -> None: ...
+    provider_errors: int
+    def __init__(self, positives: _Optional[int] = ..., live: _Optional[int] = ..., hard: _Optional[int] = ..., stale: _Optional[int] = ..., inconclusive: _Optional[int] = ..., candidate: _Optional[int] = ..., provider_errors: _Optional[int] = ...) -> None: ...
 
 class ValidateCorpusResponse(_message.Message):
     __slots__ = ("suite_id", "provider_id", "cases", "rollup")
@@ -479,6 +485,22 @@ class PromoteCasesRequest(_message.Message):
     case_ids: _containers.RepeatedScalarFieldContainer[str]
     all: bool
     def __init__(self, suite_id: _Optional[str] = ..., case_ids: _Optional[_Iterable[str]] = ..., all: _Optional[bool] = ...) -> None: ...
+
+class ReapOrphanSuitesRequest(_message.Message):
+    __slots__ = ("confirm",)
+    CONFIRM_FIELD_NUMBER: _ClassVar[int]
+    confirm: bool
+    def __init__(self, confirm: _Optional[bool] = ...) -> None: ...
+
+class ReapOrphanSuitesResponse(_message.Message):
+    __slots__ = ("orphan_suites", "reaped_suite_ids", "confirmed")
+    ORPHAN_SUITES_FIELD_NUMBER: _ClassVar[int]
+    REAPED_SUITE_IDS_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMED_FIELD_NUMBER: _ClassVar[int]
+    orphan_suites: _containers.RepeatedCompositeFieldContainer[EvalSuite]
+    reaped_suite_ids: _containers.RepeatedScalarFieldContainer[str]
+    confirmed: bool
+    def __init__(self, orphan_suites: _Optional[_Iterable[_Union[EvalSuite, _Mapping]]] = ..., reaped_suite_ids: _Optional[_Iterable[str]] = ..., confirmed: _Optional[bool] = ...) -> None: ...
 
 class PromoteCasesResponse(_message.Message):
     __slots__ = ("suite_id", "provider_id", "promoted_case_ids", "already_reviewed_case_ids", "suite", "applied")

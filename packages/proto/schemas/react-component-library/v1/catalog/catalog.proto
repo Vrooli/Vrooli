@@ -36,6 +36,16 @@ message MaturitySummary {
   int32 total = 1;
   int32 at_or_above_target = 2;
   map<string, int32> by_rung = 3;
+  CoverageMetric catalog_completion = 4;
+  CoverageMetric mandatory_gate_coverage = 5;
+  CoverageMetric weighted_quality = 6;
+  CoverageMetric production_ready_coverage = 7;
+}
+
+message CoverageMetric {
+  int32 numerator = 1;
+  int32 denominator = 2;
+  double ratio = 3;
 }
 
 message CoverageReport {

@@ -19,9 +19,20 @@ message ScaffoldBinding {
   string params_json = 3;
 }
 
+// GenerationBlock is a style's model-backed source declaration.
+//
+// It deliberately carries no model id, provider URL or credential: image-tools
+// owns model selection, and a catalog that named a concrete model would pin
+// every install to whatever was available the day the style was written.
+//
+// Fields 1 and 2 were `role` and `profile`. They were validated on write and
+// then never sent, because image-tools' AIParams has no such fields and derives
+// the role server-side — so the message advertised routing that did not exist.
+// They are reserved rather than reused so an old client cannot silently bind a
+// new meaning to a field it still remembers.
 message GenerationBlock {
-  string role = 1;
-  string profile = 2;
+  reserved 1, 2;
+  reserved "role", "profile";
   string prompt_template = 3;
   string negative = 4;
   string model = 5;

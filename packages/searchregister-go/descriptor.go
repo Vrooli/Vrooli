@@ -16,6 +16,7 @@ package searchregister
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/encoding/protojson"
 
@@ -53,6 +54,7 @@ import (
 // self-registering scenario, so it has no search.json to map.
 func Descriptor(p aisearch.ProviderConfig) (*registryv1.ProviderDescriptor, error) {
 	obj := map[string]json.RawMessage{}
+	var err error
 	setString := func(key, val string) error {
 		b, err := json.Marshal(val)
 		if err != nil {
@@ -85,12 +87,42 @@ func Descriptor(p aisearch.ProviderConfig) (*registryv1.ProviderDescriptor, erro
 			return nil, err
 		}
 	}
+	lifecycle := p.Lifecycle
+	if lifecycle == "" {
+		lifecycle = "production"
+	}
+	if err := setString("lifecycle", lifecycle); err != nil {
+		return nil, err
+	}
+	if minimum := p.Tests.Minimum; minimum != nil {
+		obj["tests_minimum"], err = json.Marshal(map[string]any{
+			"reviewed_positive": minimum.ReviewedPositive,
+			"negative":          minimum.Negative,
+			"required_tags":     minimum.RequiredTags,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("marshal tests_minimum: %w", err)
+		}
+	}
+	if reason := strings.TrimSpace(p.Scoring.JunkLeakOptOutReason); reason != "" {
+		obj["junk_leak_opt_out_reason"], err = json.Marshal(reason)
+		if err != nil {
+			return nil, fmt.Errorf("marshal junk leak opt-out reason: %w", err)
+		}
+	}
 	// Descriptor sub-objects are already protojson; pass them through verbatim.
 	if len(p.Endpoint) > 0 {
 		obj["endpoint"] = p.Endpoint
 	}
 	if len(p.StatusEndpoint) > 0 {
 		obj["status_endpoint"] = p.StatusEndpoint
+		// The shared status contract has one canonical field. Provider status
+		// handlers may add a nested response shape, but registration must state
+		// which field Search Hub reads before it can report a real age.
+		obj["index_timestamp_field"], err = json.Marshal("last_indexed_at")
+		if err != nil {
+			return nil, fmt.Errorf("marshal index_timestamp_field: %w", err)
+		}
 	}
 	if len(p.ResultMapping) > 0 {
 		obj["result_mapping"] = p.ResultMapping
@@ -121,7 +153,7 @@ func Descriptor(p aisearch.ProviderConfig) (*registryv1.ProviderDescriptor, erro
 // TuningToProto maps a TuningConfig (caller should pass the resolved, defaults-
 // filled value) to the registry proto Tuning message. The proto field names mirror
 // the TuningConfig JSON tags 1:1 (engine, embed_*, rerank_*, floor.{max_gap,
-// hard_floor}), so this is a direct field copy — the wire carrier transports
+// hard_floor, hybrid_fusion}), so this is a direct field copy — the wire carrier transports
 // values; the authoritative factor taxonomy stays in aisearch-go (tuning.go). It
 // is exported because the config-write contract (search-hub.v1.control) carries a
 // registry.Tuning too, so both the registration push and the write-back response
@@ -134,6 +166,7 @@ func TuningToProto(t aisearch.TuningConfig) *registryv1.Tuning {
 		RerankEnabled:   t.RerankEnabled,
 		RerankBlend:     t.RerankBlend,
 		RerankShortlist: int32(t.RerankShortlist),
+		HybridFusion:    t.HybridFusion,
 		Floor: &registryv1.FloorConfig{
 			MaxGap:    t.Floor.MaxGap,
 			HardFloor: t.Floor.HardFloor,
@@ -158,6 +191,7 @@ func TuningFromProto(t *registryv1.Tuning) aisearch.TuningConfig {
 		RerankEnabled:   t.GetRerankEnabled(),
 		RerankBlend:     t.GetRerankBlend(),
 		RerankShortlist: int(t.GetRerankShortlist()),
+		HybridFusion:    t.GetHybridFusion(),
 	}
 	if f := t.GetFloor(); f != nil {
 		cfg.Floor = aisearch.FloorTuning{MaxGap: f.GetMaxGap(), HardFloor: f.GetHardFloor()}

@@ -248,6 +248,142 @@ func (x *ProviderDegradationReason) GetCount() int64 {
 	return 0
 }
 
+type ProviderRetirementCandidate struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	TimesRouted   int64                  `protobuf:"varint,2,opt,name=times_routed,json=timesRouted,proto3" json:"times_routed,omitempty"`
+	TotalHits     int64                  `protobuf:"varint,3,opt,name=total_hits,json=totalHits,proto3" json:"total_hits,omitempty"`
+	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProviderRetirementCandidate) Reset() {
+	*x = ProviderRetirementCandidate{}
+	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProviderRetirementCandidate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProviderRetirementCandidate) ProtoMessage() {}
+
+func (x *ProviderRetirementCandidate) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProviderRetirementCandidate.ProtoReflect.Descriptor instead.
+func (*ProviderRetirementCandidate) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_metrics_metrics_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ProviderRetirementCandidate) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *ProviderRetirementCandidate) GetTimesRouted() int64 {
+	if x != nil {
+		return x.TimesRouted
+	}
+	return 0
+}
+
+func (x *ProviderRetirementCandidate) GetTotalHits() int64 {
+	if x != nil {
+		return x.TotalHits
+	}
+	return 0
+}
+
+func (x *ProviderRetirementCandidate) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type ProviderGroupAdvisory struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderGroup string                 `protobuf:"bytes,1,opt,name=provider_group,json=providerGroup,proto3" json:"provider_group,omitempty"`
+	ActiveLeaves  int32                  `protobuf:"varint,2,opt,name=active_leaves,json=activeLeaves,proto3" json:"active_leaves,omitempty"`
+	Share         float64                `protobuf:"fixed64,3,opt,name=share,proto3" json:"share,omitempty"`
+	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProviderGroupAdvisory) Reset() {
+	*x = ProviderGroupAdvisory{}
+	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProviderGroupAdvisory) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProviderGroupAdvisory) ProtoMessage() {}
+
+func (x *ProviderGroupAdvisory) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProviderGroupAdvisory.ProtoReflect.Descriptor instead.
+func (*ProviderGroupAdvisory) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_metrics_metrics_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ProviderGroupAdvisory) GetProviderGroup() string {
+	if x != nil {
+		return x.ProviderGroup
+	}
+	return ""
+}
+
+func (x *ProviderGroupAdvisory) GetActiveLeaves() int32 {
+	if x != nil {
+		return x.ActiveLeaves
+	}
+	return 0
+}
+
+func (x *ProviderGroupAdvisory) GetShare() float64 {
+	if x != nil {
+		return x.Share
+	}
+	return 0
+}
+
+func (x *ProviderGroupAdvisory) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 type InsightsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Total federated queries recorded in the window.
@@ -265,14 +401,20 @@ type InsightsResponse struct {
 	LatencyP95Ms int64 `protobuf:"varint,7,opt,name=latency_p95_ms,json=latencyP95Ms,proto3" json:"latency_p95_ms,omitempty"`
 	// Per-provider utilization, including ACTIVE leaves never routed-to
 	// (under_utilized=true, times_routed=0), ordered by provider_id.
-	Providers     []*ProviderUtilization `protobuf:"bytes,8,rep,name=providers,proto3" json:"providers,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Providers []*ProviderUtilization `protobuf:"bytes,8,rep,name=providers,proto3" json:"providers,omitempty"`
+	// Report-only hygiene signals. Search Hub never deregisters from these.
+	RetirementCandidates []*ProviderRetirementCandidate `protobuf:"bytes,9,rep,name=retirement_candidates,json=retirementCandidates,proto3" json:"retirement_candidates,omitempty"`
+	GroupAdvisories      []*ProviderGroupAdvisory       `protobuf:"bytes,10,rep,name=group_advisories,json=groupAdvisories,proto3" json:"group_advisories,omitempty"`
+	ResolverCacheHits    int64                          `protobuf:"varint,11,opt,name=resolver_cache_hits,json=resolverCacheHits,proto3" json:"resolver_cache_hits,omitempty"`
+	ResolverCacheMisses  int64                          `protobuf:"varint,12,opt,name=resolver_cache_misses,json=resolverCacheMisses,proto3" json:"resolver_cache_misses,omitempty"`
+	ResolverCacheHitRate float64                        `protobuf:"fixed64,13,opt,name=resolver_cache_hit_rate,json=resolverCacheHitRate,proto3" json:"resolver_cache_hit_rate,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *InsightsResponse) Reset() {
 	*x = InsightsResponse{}
-	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[3]
+	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -284,7 +426,7 @@ func (x *InsightsResponse) String() string {
 func (*InsightsResponse) ProtoMessage() {}
 
 func (x *InsightsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[3]
+	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -297,7 +439,7 @@ func (x *InsightsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InsightsResponse.ProtoReflect.Descriptor instead.
 func (*InsightsResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_metrics_metrics_proto_rawDescGZIP(), []int{3}
+	return file_search_hub_v1_metrics_metrics_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *InsightsResponse) GetTotalQueries() int64 {
@@ -356,6 +498,41 @@ func (x *InsightsResponse) GetProviders() []*ProviderUtilization {
 	return nil
 }
 
+func (x *InsightsResponse) GetRetirementCandidates() []*ProviderRetirementCandidate {
+	if x != nil {
+		return x.RetirementCandidates
+	}
+	return nil
+}
+
+func (x *InsightsResponse) GetGroupAdvisories() []*ProviderGroupAdvisory {
+	if x != nil {
+		return x.GroupAdvisories
+	}
+	return nil
+}
+
+func (x *InsightsResponse) GetResolverCacheHits() int64 {
+	if x != nil {
+		return x.ResolverCacheHits
+	}
+	return 0
+}
+
+func (x *InsightsResponse) GetResolverCacheMisses() int64 {
+	if x != nil {
+		return x.ResolverCacheMisses
+	}
+	return 0
+}
+
+func (x *InsightsResponse) GetResolverCacheHitRate() float64 {
+	if x != nil {
+		return x.ResolverCacheHitRate
+	}
+	return 0
+}
+
 var File_search_hub_v1_metrics_metrics_proto protoreflect.FileDescriptor
 
 const file_search_hub_v1_metrics_metrics_proto_rawDesc = "" +
@@ -381,7 +558,19 @@ const file_search_hub_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x13degradation_reasons\x18\v \x03(\v27.vrooli.search_hub.v1.metrics.ProviderDegradationReasonR\x12degradationReasons\"I\n" +
 	"\x19ProviderDegradationReason\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x03R\x05count\"\x84\x03\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count\"\x98\x01\n" +
+	"\x1bProviderRetirementCandidate\x12\x1f\n" +
+	"\vprovider_id\x18\x01 \x01(\tR\n" +
+	"providerId\x12!\n" +
+	"\ftimes_routed\x18\x02 \x01(\x03R\vtimesRouted\x12\x1d\n" +
+	"\n" +
+	"total_hits\x18\x03 \x01(\x03R\ttotalHits\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"\x91\x01\n" +
+	"\x15ProviderGroupAdvisory\x12%\n" +
+	"\x0eprovider_group\x18\x01 \x01(\tR\rproviderGroup\x12#\n" +
+	"\ractive_leaves\x18\x02 \x01(\x05R\factiveLeaves\x12\x14\n" +
+	"\x05share\x18\x03 \x01(\x01R\x05share\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"\xef\x05\n" +
 	"\x10InsightsResponse\x12#\n" +
 	"\rtotal_queries\x18\x01 \x01(\x03R\ftotalQueries\x12.\n" +
 	"\x13zero_result_queries\x18\x02 \x01(\x03R\x11zeroResultQueries\x12(\n" +
@@ -390,7 +579,13 @@ const file_search_hub_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x10reranked_queries\x18\x05 \x01(\x03R\x0frerankedQueries\x12$\n" +
 	"\x0elatency_p50_ms\x18\x06 \x01(\x03R\flatencyP50Ms\x12$\n" +
 	"\x0elatency_p95_ms\x18\a \x01(\x03R\flatencyP95Ms\x12O\n" +
-	"\tproviders\x18\b \x03(\v21.vrooli.search_hub.v1.metrics.ProviderUtilizationR\tproviders2{\n" +
+	"\tproviders\x18\b \x03(\v21.vrooli.search_hub.v1.metrics.ProviderUtilizationR\tproviders\x12n\n" +
+	"\x15retirement_candidates\x18\t \x03(\v29.vrooli.search_hub.v1.metrics.ProviderRetirementCandidateR\x14retirementCandidates\x12^\n" +
+	"\x10group_advisories\x18\n" +
+	" \x03(\v23.vrooli.search_hub.v1.metrics.ProviderGroupAdvisoryR\x0fgroupAdvisories\x12.\n" +
+	"\x13resolver_cache_hits\x18\v \x01(\x03R\x11resolverCacheHits\x122\n" +
+	"\x15resolver_cache_misses\x18\f \x01(\x03R\x13resolverCacheMisses\x125\n" +
+	"\x17resolver_cache_hit_rate\x18\r \x01(\x01R\x14resolverCacheHitRate2{\n" +
 	"\x0eMetricsService\x12i\n" +
 	"\bInsights\x12-.vrooli.search_hub.v1.metrics.InsightsRequest\x1a..vrooli.search_hub.v1.metrics.InsightsResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics;metrics_v1b\x06proto3"
 
@@ -406,23 +601,27 @@ func file_search_hub_v1_metrics_metrics_proto_rawDescGZIP() []byte {
 	return file_search_hub_v1_metrics_metrics_proto_rawDescData
 }
 
-var file_search_hub_v1_metrics_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_search_hub_v1_metrics_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_search_hub_v1_metrics_metrics_proto_goTypes = []any{
-	(*InsightsRequest)(nil),           // 0: vrooli.search_hub.v1.metrics.InsightsRequest
-	(*ProviderUtilization)(nil),       // 1: vrooli.search_hub.v1.metrics.ProviderUtilization
-	(*ProviderDegradationReason)(nil), // 2: vrooli.search_hub.v1.metrics.ProviderDegradationReason
-	(*InsightsResponse)(nil),          // 3: vrooli.search_hub.v1.metrics.InsightsResponse
+	(*InsightsRequest)(nil),             // 0: vrooli.search_hub.v1.metrics.InsightsRequest
+	(*ProviderUtilization)(nil),         // 1: vrooli.search_hub.v1.metrics.ProviderUtilization
+	(*ProviderDegradationReason)(nil),   // 2: vrooli.search_hub.v1.metrics.ProviderDegradationReason
+	(*ProviderRetirementCandidate)(nil), // 3: vrooli.search_hub.v1.metrics.ProviderRetirementCandidate
+	(*ProviderGroupAdvisory)(nil),       // 4: vrooli.search_hub.v1.metrics.ProviderGroupAdvisory
+	(*InsightsResponse)(nil),            // 5: vrooli.search_hub.v1.metrics.InsightsResponse
 }
 var file_search_hub_v1_metrics_metrics_proto_depIdxs = []int32{
 	2, // 0: vrooli.search_hub.v1.metrics.ProviderUtilization.degradation_reasons:type_name -> vrooli.search_hub.v1.metrics.ProviderDegradationReason
 	1, // 1: vrooli.search_hub.v1.metrics.InsightsResponse.providers:type_name -> vrooli.search_hub.v1.metrics.ProviderUtilization
-	0, // 2: vrooli.search_hub.v1.metrics.MetricsService.Insights:input_type -> vrooli.search_hub.v1.metrics.InsightsRequest
-	3, // 3: vrooli.search_hub.v1.metrics.MetricsService.Insights:output_type -> vrooli.search_hub.v1.metrics.InsightsResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 2: vrooli.search_hub.v1.metrics.InsightsResponse.retirement_candidates:type_name -> vrooli.search_hub.v1.metrics.ProviderRetirementCandidate
+	4, // 3: vrooli.search_hub.v1.metrics.InsightsResponse.group_advisories:type_name -> vrooli.search_hub.v1.metrics.ProviderGroupAdvisory
+	0, // 4: vrooli.search_hub.v1.metrics.MetricsService.Insights:input_type -> vrooli.search_hub.v1.metrics.InsightsRequest
+	5, // 5: vrooli.search_hub.v1.metrics.MetricsService.Insights:output_type -> vrooli.search_hub.v1.metrics.InsightsResponse
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_metrics_metrics_proto_init() }
@@ -436,7 +635,7 @@ func file_search_hub_v1_metrics_metrics_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_hub_v1_metrics_metrics_proto_rawDesc), len(file_search_hub_v1_metrics_metrics_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

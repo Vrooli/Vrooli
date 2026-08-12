@@ -321,12 +321,31 @@ func (a *App) dispatchCommand(prefix string, cmd Command, cmdArgs []string) erro
 			}
 			return err
 		}
-		return cmd.RunCtx(ctx)
+		return renderCommandError(prefix, cmd.RunCtx(ctx))
 	}
 	if cmd.Run != nil {
-		return cmd.Run(cmdArgs)
+		return renderCommandError(prefix, cmd.Run(cmdArgs))
 	}
 	return fmt.Errorf("command %q has no Run or RunCtx handler", cmd.Name)
+}
+
+// renderCommandError keeps the transport error available to callers while
+// making the API's canonical message visible to a human CLI invocation. The
+// API client deliberately returns a typed error so machine callers can inspect
+// status and raw response; the command boundary is the right place to turn
+// that envelope into actionable text.
+func renderCommandError(prefix string, err error) error {
+	if err == nil {
+		return nil
+	}
+	var apiErr *cliutil.APIError
+	if !errors.As(err, &apiErr) {
+		return err
+	}
+	if envelope, ok := DecodeEnvelope(apiErr.RawResponse); ok {
+		return fmt.Errorf("%s: %s: %s", strings.TrimSpace(prefix), envelope.Code, envelope.Message)
+	}
+	return err
 }
 
 // printSubcommandHelp prints help for a subcommand group.

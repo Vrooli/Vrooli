@@ -85,6 +85,10 @@ type ProviderConfig struct {
 	// this shared parser so capability-gap stubs and legacy descriptors still
 	// load; Search Hub requires it for active providers.
 	Class string `json:"class,omitempty"`
+	// Lifecycle controls whether a provider participates in automatic routing.
+	// Empty is production; fixture and experimental providers remain available
+	// to explicit selectors while staying out of the classifier path.
+	Lifecycle string `json:"lifecycle,omitempty"`
 
 	// Descriptor sub-objects — opaque to aisearch-go (search-hub registry shapes).
 	Endpoint       json.RawMessage `json:"endpoint,omitempty"`
@@ -182,10 +186,11 @@ func DefaultMinimumSamples(class string) int {
 
 // ScoringConfig is the JSON shape for a provider's corpus gate policy.
 type ScoringConfig struct {
-	RecallAt     int     `json:"recall_at,omitempty"`
-	RecallTarget float64 `json:"recall_target,omitempty"`
-	MRRAt        int     `json:"mrr_at,omitempty"`
-	DeepK        int     `json:"deep_k,omitempty"`
+	RecallAt             int     `json:"recall_at,omitempty"`
+	RecallTarget         float64 `json:"recall_target,omitempty"`
+	MRRAt                int     `json:"mrr_at,omitempty"`
+	DeepK                int     `json:"deep_k,omitempty"`
+	JunkLeakOptOutReason string  `json:"junk_leak_opt_out_reason,omitempty"`
 }
 
 // TestSuite is a provider's evaluation corpus: the single source of truth that
@@ -209,6 +214,17 @@ type TestSuite struct {
 	// Coverage declares the provider-owned question families/tags the reviewed
 	// positive corpus must cover before production certification.
 	Coverage CoverageConfig `json:"coverage,omitempty"`
+	// Minimum is the registrant-declared bar for an ACTIVE production provider.
+	// A zero value means no additional registration bar was declared.
+	Minimum *EvalMinimum `json:"minimum,omitempty"`
+}
+
+// EvalMinimum is the generic registration bar for a provider-owned suite.
+// Counts are deliberately about reviewed evidence, not scenario identity.
+type EvalMinimum struct {
+	ReviewedPositive int      `json:"reviewed_positive,omitempty"`
+	Negative         int      `json:"negative,omitempty"`
+	RequiredTags     []string `json:"required_tags,omitempty"`
 }
 
 // CoverageConfig declares corpus breadth requirements. Search Hub enforces
@@ -314,6 +330,9 @@ func (c ScoringConfig) Validate() error {
 	}
 	if c.RecallTarget < 0 || c.RecallTarget > 1 {
 		return fmt.Errorf("scoring.recall_target must be between 0 and 1")
+	}
+	if strings.TrimSpace(c.JunkLeakOptOutReason) == "" && c.JunkLeakOptOutReason != "" {
+		return fmt.Errorf("scoring.junk_leak_opt_out_reason must not be blank")
 	}
 	return nil
 }

@@ -79,6 +79,7 @@ type RunFlowRequest struct {
 	Flow          *Flow                  `protobuf:"bytes,1,opt,name=flow,proto3" json:"flow,omitempty"`
 	DeviceId      string                 `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
 	Actor         string                 `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
+	LeaseToken    string                 `protobuf:"bytes,4,opt,name=lease_token,json=leaseToken,proto3" json:"lease_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -130,6 +131,13 @@ func (x *RunFlowRequest) GetDeviceId() string {
 func (x *RunFlowRequest) GetActor() string {
 	if x != nil {
 		return x.Actor
+	}
+	return ""
+}
+
+func (x *RunFlowRequest) GetLeaseToken() string {
+	if x != nil {
+		return x.LeaseToken
 	}
 	return ""
 }
@@ -559,6 +567,10 @@ type EvidenceReference struct {
 	RedactionVerified bool                   `protobuf:"varint,5,opt,name=redaction_verified,json=redactionVerified,proto3" json:"redaction_verified,omitempty"`
 	RecordingMethod   string                 `protobuf:"bytes,6,opt,name=recording_method,json=recordingMethod,proto3" json:"recording_method,omitempty"`
 	EffectiveFps      float64                `protobuf:"fixed64,7,opt,name=effective_fps,json=effectiveFps,proto3" json:"effective_fps,omitempty"`
+	Producer          string                 `protobuf:"bytes,8,opt,name=producer,proto3" json:"producer,omitempty"`
+	Kind              string                 `protobuf:"bytes,9,opt,name=kind,proto3" json:"kind,omitempty"`
+	AppliedRules      []string               `protobuf:"bytes,10,rep,name=applied_rules,json=appliedRules,proto3" json:"applied_rules,omitempty"`
+	OptedOut          bool                   `protobuf:"varint,11,opt,name=opted_out,json=optedOut,proto3" json:"opted_out,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -642,6 +654,34 @@ func (x *EvidenceReference) GetEffectiveFps() float64 {
 	return 0
 }
 
+func (x *EvidenceReference) GetProducer() string {
+	if x != nil {
+		return x.Producer
+	}
+	return ""
+}
+
+func (x *EvidenceReference) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *EvidenceReference) GetAppliedRules() []string {
+	if x != nil {
+		return x.AppliedRules
+	}
+	return nil
+}
+
+func (x *EvidenceReference) GetOptedOut() bool {
+	if x != nil {
+		return x.OptedOut
+	}
+	return false
+}
+
 var File_device_control_v1_flows_flows_proto protoreflect.FileDescriptor
 
 const file_device_control_v1_flows_flows_proto_rawDesc = "" +
@@ -650,11 +690,13 @@ const file_device_control_v1_flows_flows_proto_rawDesc = "" +
 	"\x13ValidateFlowRequest\x128\n" +
 	"\x04flow\x18\x01 \x01(\v2$.vrooli.device_control.v1.flows.FlowR\x04flow\x12\x1f\n" +
 	"\vstrategy_id\x18\x02 \x01(\tR\n" +
-	"strategyId\"}\n" +
+	"strategyId\"\x9e\x01\n" +
 	"\x0eRunFlowRequest\x128\n" +
 	"\x04flow\x18\x01 \x01(\v2$.vrooli.device_control.v1.flows.FlowR\x04flow\x12\x1b\n" +
 	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\x12\x14\n" +
-	"\x05actor\x18\x03 \x01(\tR\x05actor\"\xa0\x01\n" +
+	"\x05actor\x18\x03 \x01(\tR\x05actor\x12\x1f\n" +
+	"\vlease_token\x18\x04 \x01(\tR\n" +
+	"leaseToken\"\xa0\x01\n" +
 	"\x04Flow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12:\n" +
@@ -689,7 +731,7 @@ const file_device_control_v1_flows_flows_proto_rawDesc = "" +
 	"\x04rung\x18\x02 \x01(\tR\x04rung\x12\x1e\n" +
 	"\n" +
 	"confidence\x18\x03 \x01(\x01R\n" +
-	"confidence\"\xf8\x01\n" +
+	"confidence\"\xea\x02\n" +
 	"\x11EvidenceReference\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06sha256\x18\x02 \x01(\tR\x06sha256\x12\x1d\n" +
@@ -699,7 +741,12 @@ const file_device_control_v1_flows_flows_proto_rawDesc = "" +
 	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12-\n" +
 	"\x12redaction_verified\x18\x05 \x01(\bR\x11redactionVerified\x12)\n" +
 	"\x10recording_method\x18\x06 \x01(\tR\x0frecordingMethod\x12#\n" +
-	"\reffective_fps\x18\a \x01(\x01R\feffectiveFps2\xed\x01\n" +
+	"\reffective_fps\x18\a \x01(\x01R\feffectiveFps\x12\x1a\n" +
+	"\bproducer\x18\b \x01(\tR\bproducer\x12\x12\n" +
+	"\x04kind\x18\t \x01(\tR\x04kind\x12#\n" +
+	"\rapplied_rules\x18\n" +
+	" \x03(\tR\fappliedRules\x12\x1b\n" +
+	"\topted_out\x18\v \x01(\bR\boptedOut2\xed\x01\n" +
 	"\vFlowService\x12x\n" +
 	"\fValidateFlow\x123.vrooli.device_control.v1.flows.ValidateFlowRequest\x1a3.vrooli.device_control.v1.flows.CapabilityGapReport\x12d\n" +
 	"\aRunFlow\x12..vrooli.device_control.v1.flows.RunFlowRequest\x1a).vrooli.device_control.v1.flows.RunResultBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows;flows_v1b\x06proto3"

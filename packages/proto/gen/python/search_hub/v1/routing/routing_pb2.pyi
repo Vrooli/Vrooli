@@ -1,5 +1,8 @@
+import datetime
+
 from common.v1 import attestation_pb2 as _attestation_pb2
 from common.v1 import confidence_pb2 as _confidence_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -29,21 +32,23 @@ class QueryRequest(_message.Message):
     def __init__(self, query: _Optional[str] = ..., types: _Optional[_Iterable[str]] = ..., all: _Optional[bool] = ..., limit: _Optional[int] = ..., group: _Optional[str] = ..., explain: _Optional[bool] = ..., overrides: _Optional[_Union[SearchOverrides, _Mapping]] = ..., control_token: _Optional[str] = ...) -> None: ...
 
 class SearchOverrides(_message.Message):
-    __slots__ = ("rerank_enabled", "rerank_blend", "rerank_shortlist", "floor_max_gap", "floor_hard_floor")
+    __slots__ = ("rerank_enabled", "rerank_blend", "rerank_shortlist", "floor_max_gap", "floor_hard_floor", "hybrid_fusion")
     RERANK_ENABLED_FIELD_NUMBER: _ClassVar[int]
     RERANK_BLEND_FIELD_NUMBER: _ClassVar[int]
     RERANK_SHORTLIST_FIELD_NUMBER: _ClassVar[int]
     FLOOR_MAX_GAP_FIELD_NUMBER: _ClassVar[int]
     FLOOR_HARD_FLOOR_FIELD_NUMBER: _ClassVar[int]
+    HYBRID_FUSION_FIELD_NUMBER: _ClassVar[int]
     rerank_enabled: bool
     rerank_blend: bool
     rerank_shortlist: int
     floor_max_gap: float
     floor_hard_floor: float
-    def __init__(self, rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor_max_gap: _Optional[float] = ..., floor_hard_floor: _Optional[float] = ...) -> None: ...
+    hybrid_fusion: str
+    def __init__(self, rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor_max_gap: _Optional[float] = ..., floor_hard_floor: _Optional[float] = ..., hybrid_fusion: _Optional[str] = ...) -> None: ...
 
 class SearchHit(_message.Message):
-    __slots__ = ("provider_id", "provider_group", "type", "id", "title", "snippet", "path", "score", "rerank_score", "measure", "attestation", "confidence", "locations")
+    __slots__ = ("provider_id", "provider_group", "type", "id", "title", "snippet", "path", "score", "rerank_score", "measure", "attestation", "confidence", "locations", "merged_count")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_GROUP_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -57,6 +62,7 @@ class SearchHit(_message.Message):
     ATTESTATION_FIELD_NUMBER: _ClassVar[int]
     CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
     LOCATIONS_FIELD_NUMBER: _ClassVar[int]
+    MERGED_COUNT_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     provider_group: str
     type: str
@@ -70,7 +76,8 @@ class SearchHit(_message.Message):
     attestation: _attestation_pb2.AttestedAnswer
     confidence: _confidence_pb2.Confidence
     locations: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., type: _Optional[str] = ..., id: _Optional[str] = ..., title: _Optional[str] = ..., snippet: _Optional[str] = ..., path: _Optional[str] = ..., score: _Optional[float] = ..., rerank_score: _Optional[float] = ..., measure: _Optional[_Union[MeasureHit, _Mapping]] = ..., attestation: _Optional[_Union[_attestation_pb2.AttestedAnswer, _Mapping]] = ..., confidence: _Optional[_Union[_confidence_pb2.Confidence, _Mapping]] = ..., locations: _Optional[_Iterable[str]] = ...) -> None: ...
+    merged_count: int
+    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., type: _Optional[str] = ..., id: _Optional[str] = ..., title: _Optional[str] = ..., snippet: _Optional[str] = ..., path: _Optional[str] = ..., score: _Optional[float] = ..., rerank_score: _Optional[float] = ..., measure: _Optional[_Union[MeasureHit, _Mapping]] = ..., attestation: _Optional[_Union[_attestation_pb2.AttestedAnswer, _Mapping]] = ..., confidence: _Optional[_Union[_confidence_pb2.Confidence, _Mapping]] = ..., locations: _Optional[_Iterable[str]] = ..., merged_count: _Optional[int] = ...) -> None: ...
 
 class MeasureHit(_message.Message):
     __slots__ = ("measure_id", "scenario", "params", "answer", "needs", "effect", "executed_query", "confidence")
@@ -116,7 +123,7 @@ class ProviderResultGroup(_message.Message):
     def __init__(self, provider_id: _Optional[str] = ..., hits: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., count: _Optional[int] = ..., degraded: _Optional[bool] = ..., note: _Optional[str] = ..., latency_ms: _Optional[int] = ...) -> None: ...
 
 class QueryResponse(_message.Message):
-    __slots__ = ("ranked", "groups", "corpora_searched", "routing_explanation", "reranked", "degraded", "latency_ms")
+    __slots__ = ("ranked", "groups", "corpora_searched", "routing_explanation", "reranked", "degraded", "latency_ms", "partial", "pending_providers")
     RANKED_FIELD_NUMBER: _ClassVar[int]
     GROUPS_FIELD_NUMBER: _ClassVar[int]
     CORPORA_SEARCHED_FIELD_NUMBER: _ClassVar[int]
@@ -124,6 +131,8 @@ class QueryResponse(_message.Message):
     RERANKED_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_FIELD_NUMBER: _ClassVar[int]
     LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    PARTIAL_FIELD_NUMBER: _ClassVar[int]
+    PENDING_PROVIDERS_FIELD_NUMBER: _ClassVar[int]
     ranked: _containers.RepeatedCompositeFieldContainer[SearchHit]
     groups: _containers.RepeatedCompositeFieldContainer[ProviderResultGroup]
     corpora_searched: _containers.RepeatedScalarFieldContainer[str]
@@ -131,32 +140,84 @@ class QueryResponse(_message.Message):
     reranked: bool
     degraded: bool
     latency_ms: int
-    def __init__(self, ranked: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., groups: _Optional[_Iterable[_Union[ProviderResultGroup, _Mapping]]] = ..., corpora_searched: _Optional[_Iterable[str]] = ..., routing_explanation: _Optional[_Iterable[str]] = ..., reranked: _Optional[bool] = ..., degraded: _Optional[bool] = ..., latency_ms: _Optional[int] = ...) -> None: ...
+    partial: bool
+    pending_providers: int
+    def __init__(self, ranked: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., groups: _Optional[_Iterable[_Union[ProviderResultGroup, _Mapping]]] = ..., corpora_searched: _Optional[_Iterable[str]] = ..., routing_explanation: _Optional[_Iterable[str]] = ..., reranked: _Optional[bool] = ..., degraded: _Optional[bool] = ..., latency_ms: _Optional[int] = ..., partial: _Optional[bool] = ..., pending_providers: _Optional[int] = ...) -> None: ...
 
 class StatusRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
+class RepromoteRequest(_message.Message):
+    __slots__ = ("provider_id",)
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    provider_id: str
+    def __init__(self, provider_id: _Optional[str] = ...) -> None: ...
+
+class RepromoteResponse(_message.Message):
+    __slots__ = ("provider_id", "reset", "message")
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    RESET_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    provider_id: str
+    reset: bool
+    message: str
+    def __init__(self, provider_id: _Optional[str] = ..., reset: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
+
 class ProviderHealth(_message.Message):
-    __slots__ = ("provider_id", "reachable", "freshness", "point_count", "degraded")
+    __slots__ = ("provider_id", "reachable", "point_count", "degraded", "demoted", "demotion_reason", "times_routed", "total_hits", "reachability", "index_age", "automatic_eligible", "automatic_exclusion_reason", "circuit_state", "quality_withheld", "quality_withheld_reason", "quality_evidence_run_id", "quality_gate_opted_out", "quality_gate_opt_out_reason", "last_indexed_at")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     REACHABLE_FIELD_NUMBER: _ClassVar[int]
-    FRESHNESS_FIELD_NUMBER: _ClassVar[int]
     POINT_COUNT_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    DEMOTED_FIELD_NUMBER: _ClassVar[int]
+    DEMOTION_REASON_FIELD_NUMBER: _ClassVar[int]
+    TIMES_ROUTED_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_HITS_FIELD_NUMBER: _ClassVar[int]
+    REACHABILITY_FIELD_NUMBER: _ClassVar[int]
+    INDEX_AGE_FIELD_NUMBER: _ClassVar[int]
+    AUTOMATIC_ELIGIBLE_FIELD_NUMBER: _ClassVar[int]
+    AUTOMATIC_EXCLUSION_REASON_FIELD_NUMBER: _ClassVar[int]
+    CIRCUIT_STATE_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_WITHHELD_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_WITHHELD_REASON_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_EVIDENCE_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_GATE_OPTED_OUT_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_GATE_OPT_OUT_REASON_FIELD_NUMBER: _ClassVar[int]
+    LAST_INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     reachable: bool
-    freshness: str
     point_count: int
     degraded: bool
-    def __init__(self, provider_id: _Optional[str] = ..., reachable: _Optional[bool] = ..., freshness: _Optional[str] = ..., point_count: _Optional[int] = ..., degraded: _Optional[bool] = ...) -> None: ...
+    demoted: bool
+    demotion_reason: str
+    times_routed: int
+    total_hits: int
+    reachability: str
+    index_age: str
+    automatic_eligible: bool
+    automatic_exclusion_reason: str
+    circuit_state: str
+    quality_withheld: bool
+    quality_withheld_reason: str
+    quality_evidence_run_id: str
+    quality_gate_opted_out: bool
+    quality_gate_opt_out_reason: str
+    last_indexed_at: _timestamp_pb2.Timestamp
+    def __init__(self, provider_id: _Optional[str] = ..., reachable: _Optional[bool] = ..., point_count: _Optional[int] = ..., degraded: _Optional[bool] = ..., demoted: _Optional[bool] = ..., demotion_reason: _Optional[str] = ..., times_routed: _Optional[int] = ..., total_hits: _Optional[int] = ..., reachability: _Optional[str] = ..., index_age: _Optional[str] = ..., automatic_eligible: _Optional[bool] = ..., automatic_exclusion_reason: _Optional[str] = ..., circuit_state: _Optional[str] = ..., quality_withheld: _Optional[bool] = ..., quality_withheld_reason: _Optional[str] = ..., quality_evidence_run_id: _Optional[str] = ..., quality_gate_opted_out: _Optional[bool] = ..., quality_gate_opt_out_reason: _Optional[str] = ..., last_indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class StatusResponse(_message.Message):
-    __slots__ = ("providers", "classifier_available", "reranker_available")
+    __slots__ = ("providers", "classifier_available", "reranker_available", "circuit_open_share", "circuit_open_quorum", "federation_degraded")
     PROVIDERS_FIELD_NUMBER: _ClassVar[int]
     CLASSIFIER_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     RERANKER_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    CIRCUIT_OPEN_SHARE_FIELD_NUMBER: _ClassVar[int]
+    CIRCUIT_OPEN_QUORUM_FIELD_NUMBER: _ClassVar[int]
+    FEDERATION_DEGRADED_FIELD_NUMBER: _ClassVar[int]
     providers: _containers.RepeatedCompositeFieldContainer[ProviderHealth]
     classifier_available: bool
     reranker_available: bool
-    def __init__(self, providers: _Optional[_Iterable[_Union[ProviderHealth, _Mapping]]] = ..., classifier_available: _Optional[bool] = ..., reranker_available: _Optional[bool] = ...) -> None: ...
+    circuit_open_share: float
+    circuit_open_quorum: float
+    federation_degraded: bool
+    def __init__(self, providers: _Optional[_Iterable[_Union[ProviderHealth, _Mapping]]] = ..., classifier_available: _Optional[bool] = ..., reranker_available: _Optional[bool] = ..., circuit_open_share: _Optional[float] = ..., circuit_open_quorum: _Optional[float] = ..., federation_degraded: _Optional[bool] = ...) -> None: ...

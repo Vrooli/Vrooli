@@ -56,6 +56,12 @@ message ProjectionCoverage {
   // degrades, it never false-fails.
   bool available = 9;
   string unavailable_reason = 10;
+  repeated ConditionCount condition_counts = 11;
+}
+
+message ConditionCount {
+  string condition = 1; // ok | degraded | uninstrumented | dormant
+  int32 count = 2;
 }
 
 // EmpiricalTrendPoint is the latest trials trend surfaced on the scoreboard.
@@ -76,6 +82,12 @@ message GetStatusResponse {
   // Latest empirical readiness trend; unset before the first trials run.
   EmpiricalTrendPoint latest_trial_trend = 2;
   google.protobuf.Timestamp computed_at = 3;
+  // Answer projection self-check performed two uncached joins and compared
+  // their effective coverage. This makes order-dependent numerator defects
+  // visible instead of silently publishing one sample.
+  bool determinism_checked = 4;
+  bool deterministic = 5;
+  string determinism_evidence = 6;
 }
 
 // Citation is a single provenance pointer behind an answer/cell.
@@ -96,6 +108,7 @@ message Cell {
   common.v1.Sufficiency sufficiency = 7;
   repeated string notes = 8; // gap-registry notes / approaches
   repeated Citation citations = 9; // provenance (populated by ExplainCell)
+  string condition = 10; // health beside coverage; never folded into status
 }
 
 message ListCellsRequest {

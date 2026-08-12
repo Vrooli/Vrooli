@@ -165,10 +165,19 @@ func (x *ScaffoldBinding) GetParamsJson() string {
 	return ""
 }
 
+// GenerationBlock is a style's model-backed source declaration.
+//
+// It deliberately carries no model id, provider URL or credential: image-tools
+// owns model selection, and a catalog that named a concrete model would pin
+// every install to whatever was available the day the style was written.
+//
+// Fields 1 and 2 were `role` and `profile`. They were validated on write and
+// then never sent, because image-tools' AIParams has no such fields and derives
+// the role server-side — so the message advertised routing that did not exist.
+// They are reserved rather than reused so an old client cannot silently bind a
+// new meaning to a field it still remembers.
 type GenerationBlock struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	Role           string                 `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
-	Profile        string                 `protobuf:"bytes,2,opt,name=profile,proto3" json:"profile,omitempty"`
 	PromptTemplate string                 `protobuf:"bytes,3,opt,name=prompt_template,json=promptTemplate,proto3" json:"prompt_template,omitempty"`
 	Negative       string                 `protobuf:"bytes,4,opt,name=negative,proto3" json:"negative,omitempty"`
 	Model          string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
@@ -206,20 +215,6 @@ func (x *GenerationBlock) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GenerationBlock.ProtoReflect.Descriptor instead.
 func (*GenerationBlock) Descriptor() ([]byte, []int) {
 	return file_backdrop_studio_v1_shared_shared_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *GenerationBlock) GetRole() string {
-	if x != nil {
-		return x.Role
-	}
-	return ""
-}
-
-func (x *GenerationBlock) GetProfile() string {
-	if x != nil {
-		return x.Profile
-	}
-	return ""
 }
 
 func (x *GenerationBlock) GetPromptTemplate() string {
@@ -414,17 +409,15 @@ const file_backdrop_studio_v1_shared_shared_proto_rawDesc = "" +
 	"\x06preset\x18\x01 \x01(\tR\x06preset\x12 \n" +
 	"\vconditioner\x18\x02 \x01(\tR\vconditioner\x12\x1f\n" +
 	"\vparams_json\x18\x03 \x01(\tR\n" +
-	"paramsJson\"\xdd\x01\n" +
-	"\x0fGenerationBlock\x12\x12\n" +
-	"\x04role\x18\x01 \x01(\tR\x04role\x12\x18\n" +
-	"\aprofile\x18\x02 \x01(\tR\aprofile\x12'\n" +
+	"paramsJson\"\xca\x01\n" +
+	"\x0fGenerationBlock\x12'\n" +
 	"\x0fprompt_template\x18\x03 \x01(\tR\x0epromptTemplate\x12\x1a\n" +
 	"\bnegative\x18\x04 \x01(\tR\bnegative\x12\x14\n" +
 	"\x05model\x18\x05 \x01(\tR\x05model\x12!\n" +
 	"\fprovider_url\x18\x06 \x01(\tR\vproviderUrl\x12\x1e\n" +
 	"\n" +
 	"credential\x18\a \x01(\tR\n" +
-	"credential\"\x86\x04\n" +
+	"credentialJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x04roleR\aprofile\"\x86\x04\n" +
 	"\x05Style\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +

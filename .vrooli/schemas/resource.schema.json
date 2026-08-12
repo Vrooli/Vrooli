@@ -9,7 +9,7 @@
     "name",
     "cli",
     "driver",
-    "portability_tier",
+    "requirements",
     "privilege",
     "bundling",
     "deployment"
@@ -178,13 +178,9 @@
     "credentials": {
       "$ref": "common.schema.json#/definitions/credentials"
     },
-    "portability_tier": {
-      "type": "string",
-      "enum": [
-        "full",
-        "partial",
-        "platform-specific"
-      ]
+    "requirements": {
+      "$ref": "service.schema.json#/definitions/deploymentRequirements",
+      "description": "Declared resource footprint used by deployability resolution. Values are authored inputs, not computed verdicts."
     },
     "privilege": {
       "type": "string",

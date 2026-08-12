@@ -16,6 +16,7 @@ message RunFlowRequest {
   Flow flow = 1;
   string device_id = 2;
   string actor = 3;
+  string lease_token = 4;
 }
 message Flow {
   string id = 1;
@@ -62,4 +63,8 @@ message EvidenceReference {
   bool redaction_verified = 5;
   string recording_method = 6;
   double effective_fps = 7;
+  string producer = 8;
+  string kind = 9;
+  repeated string applied_rules = 10;
+  bool opted_out = 11;
 }

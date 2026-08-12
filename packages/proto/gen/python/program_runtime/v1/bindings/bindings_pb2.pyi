@@ -49,7 +49,7 @@ ACT_VERDICT_IN_REACH: ActVerdict
 ACT_VERDICT_AUTHORED: ActVerdict
 
 class Binding(_message.Message):
-    __slots__ = ("id", "scenario", "group", "command", "service", "method", "request_type", "response_type", "effect", "run_eligible", "requires_confirmation", "permissions", "description", "signature")
+    __slots__ = ("id", "scenario", "group", "command", "service", "method", "request_type", "response_type", "effect", "run_eligible", "requires_confirmation", "permissions", "description", "signature", "reachable", "reachability_reason")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     GROUP_FIELD_NUMBER: _ClassVar[int]
@@ -64,6 +64,8 @@ class Binding(_message.Message):
     PERMISSIONS_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     SIGNATURE_FIELD_NUMBER: _ClassVar[int]
+    REACHABLE_FIELD_NUMBER: _ClassVar[int]
+    REACHABILITY_REASON_FIELD_NUMBER: _ClassVar[int]
     id: str
     scenario: str
     group: str
@@ -78,7 +80,9 @@ class Binding(_message.Message):
     permissions: _containers.RepeatedScalarFieldContainer[str]
     description: str
     signature: str
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., group: _Optional[str] = ..., command: _Optional[str] = ..., service: _Optional[str] = ..., method: _Optional[str] = ..., request_type: _Optional[str] = ..., response_type: _Optional[str] = ..., effect: _Optional[str] = ..., run_eligible: _Optional[bool] = ..., requires_confirmation: _Optional[bool] = ..., permissions: _Optional[_Iterable[str]] = ..., description: _Optional[str] = ..., signature: _Optional[str] = ...) -> None: ...
+    reachable: bool
+    reachability_reason: str
+    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., group: _Optional[str] = ..., command: _Optional[str] = ..., service: _Optional[str] = ..., method: _Optional[str] = ..., request_type: _Optional[str] = ..., response_type: _Optional[str] = ..., effect: _Optional[str] = ..., run_eligible: _Optional[bool] = ..., requires_confirmation: _Optional[bool] = ..., permissions: _Optional[_Iterable[str]] = ..., description: _Optional[str] = ..., signature: _Optional[str] = ..., reachable: _Optional[bool] = ..., reachability_reason: _Optional[str] = ...) -> None: ...
 
 class UnboundCapability(_message.Message):
     __slots__ = ("scenario", "group", "command", "service", "method", "reason", "detail")
@@ -99,18 +103,70 @@ class UnboundCapability(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., group: _Optional[str] = ..., command: _Optional[str] = ..., service: _Optional[str] = ..., method: _Optional[str] = ..., reason: _Optional[_Union[UnboundReason, str]] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class ListBindingsRequest(_message.Message):
-    __slots__ = ("scenario", "group")
+    __slots__ = ("scenario", "group", "reachable_only")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     GROUP_FIELD_NUMBER: _ClassVar[int]
+    REACHABLE_ONLY_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     group: str
-    def __init__(self, scenario: _Optional[str] = ..., group: _Optional[str] = ...) -> None: ...
+    reachable_only: bool
+    def __init__(self, scenario: _Optional[str] = ..., group: _Optional[str] = ..., reachable_only: _Optional[bool] = ...) -> None: ...
 
 class ListBindingsResponse(_message.Message):
-    __slots__ = ("bindings",)
+    __slots__ = ("bindings", "reachability_checked_at")
     BINDINGS_FIELD_NUMBER: _ClassVar[int]
+    REACHABILITY_CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
     bindings: _containers.RepeatedCompositeFieldContainer[Binding]
-    def __init__(self, bindings: _Optional[_Iterable[_Union[Binding, _Mapping]]] = ...) -> None: ...
+    reachability_checked_at: str
+    def __init__(self, bindings: _Optional[_Iterable[_Union[Binding, _Mapping]]] = ..., reachability_checked_at: _Optional[str] = ...) -> None: ...
+
+class SweepBindingsRequest(_message.Message):
+    __slots__ = ("scenario", "effect", "dry_run")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    EFFECT_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    effect: str
+    dry_run: bool
+    def __init__(self, scenario: _Optional[str] = ..., effect: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class SweepBindingResult(_message.Message):
+    __slots__ = ("binding_id", "scenario", "attempted", "skipped_reason", "outcome", "reason", "latency_ms")
+    BINDING_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPTED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_REASON_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    binding_id: str
+    scenario: str
+    attempted: bool
+    skipped_reason: str
+    outcome: str
+    reason: str
+    latency_ms: int
+    def __init__(self, binding_id: _Optional[str] = ..., scenario: _Optional[str] = ..., attempted: _Optional[bool] = ..., skipped_reason: _Optional[str] = ..., outcome: _Optional[str] = ..., reason: _Optional[str] = ..., latency_ms: _Optional[int] = ...) -> None: ...
+
+class SweepBindingsResponse(_message.Message):
+    __slots__ = ("results", "eligible", "attempted", "skipped", "succeeded", "failed", "refused", "provenance")
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    ELIGIBLE_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPTED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    SUCCEEDED_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    REFUSED_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    results: _containers.RepeatedCompositeFieldContainer[SweepBindingResult]
+    eligible: int
+    attempted: int
+    skipped: int
+    succeeded: int
+    failed: int
+    refused: int
+    provenance: str
+    def __init__(self, results: _Optional[_Iterable[_Union[SweepBindingResult, _Mapping]]] = ..., eligible: _Optional[int] = ..., attempted: _Optional[int] = ..., skipped: _Optional[int] = ..., succeeded: _Optional[int] = ..., failed: _Optional[int] = ..., refused: _Optional[int] = ..., provenance: _Optional[str] = ...) -> None: ...
 
 class ListUnboundRequest(_message.Message):
     __slots__ = ("scenario",)
@@ -159,7 +215,7 @@ class BindingIssue(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., binding_id: _Optional[str] = ..., argument: _Optional[str] = ..., request_type: _Optional[str] = ..., reason: _Optional[str] = ..., proto_path: _Optional[str] = ..., candidate_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DoctorBindingsResponse(_message.Message):
-    __slots__ = ("bindings", "callable", "uncallable", "partial", "zero_arg", "misroutes", "issues", "field_collisions", "control_flags_bound", "required_fields_unpopulated", "binds_where_rename_suffices", "scalar_bound_to_message", "skipped_manifests", "skipped_manifest_count", "reachable_scenarios", "unreachable_scenarios", "manifest_scenarios", "total_scenarios")
+    __slots__ = ("bindings", "callable", "uncallable", "partial", "zero_arg", "misroutes", "issues", "field_collisions", "control_flags_bound", "required_fields_unpopulated", "binds_where_rename_suffices", "scalar_bound_to_message", "skipped_manifests", "skipped_manifest_count", "reachable_scenarios", "unreachable_scenarios", "manifest_scenarios", "total_scenarios", "reachability_checked_at")
     BINDINGS_FIELD_NUMBER: _ClassVar[int]
     CALLABLE_FIELD_NUMBER: _ClassVar[int]
     UNCALLABLE_FIELD_NUMBER: _ClassVar[int]
@@ -178,6 +234,7 @@ class DoctorBindingsResponse(_message.Message):
     UNREACHABLE_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
     MANIFEST_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    REACHABILITY_CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
     bindings: int
     callable: int
     uncallable: int
@@ -196,7 +253,8 @@ class DoctorBindingsResponse(_message.Message):
     unreachable_scenarios: _containers.RepeatedScalarFieldContainer[str]
     manifest_scenarios: int
     total_scenarios: int
-    def __init__(self, bindings: _Optional[int] = ..., callable: _Optional[int] = ..., uncallable: _Optional[int] = ..., partial: _Optional[int] = ..., zero_arg: _Optional[int] = ..., misroutes: _Optional[int] = ..., issues: _Optional[_Iterable[_Union[BindingIssue, _Mapping]]] = ..., field_collisions: _Optional[int] = ..., control_flags_bound: _Optional[int] = ..., required_fields_unpopulated: _Optional[int] = ..., binds_where_rename_suffices: _Optional[int] = ..., scalar_bound_to_message: _Optional[int] = ..., skipped_manifests: _Optional[_Iterable[_Union[SkippedManifest, _Mapping]]] = ..., skipped_manifest_count: _Optional[int] = ..., reachable_scenarios: _Optional[_Iterable[str]] = ..., unreachable_scenarios: _Optional[_Iterable[str]] = ..., manifest_scenarios: _Optional[int] = ..., total_scenarios: _Optional[int] = ...) -> None: ...
+    reachability_checked_at: str
+    def __init__(self, bindings: _Optional[int] = ..., callable: _Optional[int] = ..., uncallable: _Optional[int] = ..., partial: _Optional[int] = ..., zero_arg: _Optional[int] = ..., misroutes: _Optional[int] = ..., issues: _Optional[_Iterable[_Union[BindingIssue, _Mapping]]] = ..., field_collisions: _Optional[int] = ..., control_flags_bound: _Optional[int] = ..., required_fields_unpopulated: _Optional[int] = ..., binds_where_rename_suffices: _Optional[int] = ..., scalar_bound_to_message: _Optional[int] = ..., skipped_manifests: _Optional[_Iterable[_Union[SkippedManifest, _Mapping]]] = ..., skipped_manifest_count: _Optional[int] = ..., reachable_scenarios: _Optional[_Iterable[str]] = ..., unreachable_scenarios: _Optional[_Iterable[str]] = ..., manifest_scenarios: _Optional[int] = ..., total_scenarios: _Optional[int] = ..., reachability_checked_at: _Optional[str] = ...) -> None: ...
 
 class ConditionFamily(_message.Message):
     __slots__ = ("status", "reason")
@@ -245,7 +303,7 @@ class ExerciseCondition(_message.Message):
     def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., invocations: _Optional[int] = ..., distinct_callers: _Optional[int] = ..., last_invoked_at: _Optional[str] = ...) -> None: ...
 
 class BindingCondition(_message.Message):
-    __slots__ = ("binding_id", "scenario", "status", "verdict", "serving", "freshness", "exercise")
+    __slots__ = ("binding_id", "scenario", "status", "verdict", "serving", "freshness", "exercise", "sustained_degradation", "sustained_degradation_reason")
     BINDING_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -253,6 +311,8 @@ class BindingCondition(_message.Message):
     SERVING_FIELD_NUMBER: _ClassVar[int]
     FRESHNESS_FIELD_NUMBER: _ClassVar[int]
     EXERCISE_FIELD_NUMBER: _ClassVar[int]
+    SUSTAINED_DEGRADATION_FIELD_NUMBER: _ClassVar[int]
+    SUSTAINED_DEGRADATION_REASON_FIELD_NUMBER: _ClassVar[int]
     binding_id: str
     scenario: str
     status: ConditionStatus
@@ -260,7 +320,9 @@ class BindingCondition(_message.Message):
     serving: ServingCondition
     freshness: FreshnessCondition
     exercise: ExerciseCondition
-    def __init__(self, binding_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[_Union[ConditionStatus, str]] = ..., verdict: _Optional[str] = ..., serving: _Optional[_Union[ServingCondition, _Mapping]] = ..., freshness: _Optional[_Union[FreshnessCondition, _Mapping]] = ..., exercise: _Optional[_Union[ExerciseCondition, _Mapping]] = ...) -> None: ...
+    sustained_degradation: bool
+    sustained_degradation_reason: str
+    def __init__(self, binding_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[_Union[ConditionStatus, str]] = ..., verdict: _Optional[str] = ..., serving: _Optional[_Union[ServingCondition, _Mapping]] = ..., freshness: _Optional[_Union[FreshnessCondition, _Mapping]] = ..., exercise: _Optional[_Union[ExerciseCondition, _Mapping]] = ..., sustained_degradation: _Optional[bool] = ..., sustained_degradation_reason: _Optional[str] = ...) -> None: ...
 
 class GetBindingConditionRequest(_message.Message):
     __slots__ = ("binding_id", "scenario", "window_seconds")

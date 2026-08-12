@@ -3,7 +3,7 @@
   "title": "Safeguard Manifest",
   "description": "Declares a host safeguard (idempotent machine-state modification) managed by the Vrooli runtime",
   "type": "object",
-  "required": ["name", "description", "handler", "privilege", "bundling", "deployment"],
+  "required": ["name", "description", "handler", "privilege", "bundling", "deployment", "capability", "capability_role"],
   "additionalProperties": false,
   "properties": {
     "storage": {
@@ -51,6 +51,16 @@
       "enum": ["vendorable", "host-required", "prohibited"],
       "description": "Tier 2 bundle policy. Safeguards are normally prohibited."
     },
+    "capability": {
+      "type": "string",
+      "enum": ["credential-storage", "process-containment", "crash-forensics", "hardware-error-telemetry", "headless-gui", "network-host-config", "clock-accuracy", "service-resource-limits", "gpu-driver-health", "remote-desktop", "ai-cli", "code-analysis", "test-execution", "protobuf-toolchain", "source-control", "container-runtime", "media-processing", "data-query", "build-toolchain", "package-management", "network-transfer", "runtime-language", "load-testing", "backup-storage", "web-proxy", "terminal-multiplexing", "developer-utility"],
+      "description": "Capability delivered by this safeguard; values are governed by .vrooli/capability-vocabulary.json."
+    },
+    "capability_role": {
+      "type": "string",
+      "enum": ["primary", "peer"],
+      "description": "Whether this is the primary implementation or a platform peer for the capability."
+    },
     "bundlingReason": {
       "type": "string",
       "description": "Required justification when a safeguard is not prohibited from bundles."
@@ -80,6 +90,11 @@
     "notes": {
       "type": "string",
       "description": "Freeform annotation for maintainers (not shown to users during install)"
+    },
+    "config": {
+      "type": "object",
+      "description": "JSON Schema fragment for typed safeguard parameters. A property's default is used when the operator records no value; operator-state values override those defaults and are validated before reaching the handler.",
+      "additionalProperties": true
     }
   }
 }

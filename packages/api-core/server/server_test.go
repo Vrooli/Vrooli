@@ -69,6 +69,24 @@ func TestWithDefaults_PortFallback(t *testing.T) {
 	}
 }
 
+func TestWithDefaults_BindsLoopbackByDefault(t *testing.T) {
+	t.Parallel()
+
+	cfg := withDefaults(Config{EnvGetter: func(string) string { return "" }})
+	if cfg.BindAddress != "127.0.0.1" {
+		t.Fatalf("BindAddress = %q, want loopback", cfg.BindAddress)
+	}
+}
+
+func TestWithDefaults_BindAddressExplicit(t *testing.T) {
+	t.Parallel()
+
+	cfg := withDefaults(Config{BindAddress: "0.0.0.0", EnvGetter: func(string) string { return "127.0.0.1" }})
+	if cfg.BindAddress != "0.0.0.0" {
+		t.Fatalf("BindAddress = %q, want explicit address", cfg.BindAddress)
+	}
+}
+
 func TestWithDefaults_Timeouts(t *testing.T) {
 	t.Parallel()
 

@@ -209,6 +209,13 @@ type Device struct {
 	HostNodeId    string                 `protobuf:"bytes,7,opt,name=host_node_id,json=hostNodeId,proto3" json:"host_node_id,omitempty"`
 	Capabilities  []*CapabilitySnapshot  `protobuf:"bytes,8,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
 	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	Serial        string                 `protobuf:"bytes,10,opt,name=serial,proto3" json:"serial,omitempty"`
+	Model         string                 `protobuf:"bytes,11,opt,name=model,proto3" json:"model,omitempty"`
+	OsVersion     string                 `protobuf:"bytes,12,opt,name=os_version,json=osVersion,proto3" json:"os_version,omitempty"`
+	Transport     string                 `protobuf:"bytes,13,opt,name=transport,proto3" json:"transport,omitempty"`
+	Health        string                 `protobuf:"bytes,14,opt,name=health,proto3" json:"health,omitempty"`
+	FirstSeenAt   string                 `protobuf:"bytes,15,opt,name=first_seen_at,json=firstSeenAt,proto3" json:"first_seen_at,omitempty"`
+	LastSeenAt    string                 `protobuf:"bytes,16,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -304,6 +311,55 @@ func (x *Device) GetObservedAt() *timestamppb.Timestamp {
 		return x.ObservedAt
 	}
 	return nil
+}
+
+func (x *Device) GetSerial() string {
+	if x != nil {
+		return x.Serial
+	}
+	return ""
+}
+
+func (x *Device) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *Device) GetOsVersion() string {
+	if x != nil {
+		return x.OsVersion
+	}
+	return ""
+}
+
+func (x *Device) GetTransport() string {
+	if x != nil {
+		return x.Transport
+	}
+	return ""
+}
+
+func (x *Device) GetHealth() string {
+	if x != nil {
+		return x.Health
+	}
+	return ""
+}
+
+func (x *Device) GetFirstSeenAt() string {
+	if x != nil {
+		return x.FirstSeenAt
+	}
+	return ""
+}
+
+func (x *Device) GetLastSeenAt() string {
+	if x != nil {
+		return x.LastSeenAt
+	}
+	return ""
 }
 
 type CapabilitySnapshot struct {
@@ -462,7 +518,7 @@ const file_device_control_v1_devices_devices_proto_rawDesc = "" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\"\x8b\x01\n" +
 	"\x15ConnectDeviceResponse\x12F\n" +
 	"\x05rungs\x18\x01 \x03(\v20.vrooli.device_control.v1.devices.OnboardingRungR\x05rungs\x12*\n" +
-	"\x11first_next_action\x18\x02 \x01(\tR\x0ffirstNextAction\"\xd7\x02\n" +
+	"\x11first_next_action\x18\x02 \x01(\tR\x0ffirstNextAction\"\xa0\x04\n" +
 	"\x06Device\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -475,7 +531,17 @@ const file_device_control_v1_devices_devices_proto_rawDesc = "" +
 	"hostNodeId\x12X\n" +
 	"\fcapabilities\x18\b \x03(\v24.vrooli.device_control.v1.devices.CapabilitySnapshotR\fcapabilities\x12;\n" +
 	"\vobserved_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"observedAt\"\x85\x01\n" +
+	"observedAt\x12\x16\n" +
+	"\x06serial\x18\n" +
+	" \x01(\tR\x06serial\x12\x14\n" +
+	"\x05model\x18\v \x01(\tR\x05model\x12\x1d\n" +
+	"\n" +
+	"os_version\x18\f \x01(\tR\tosVersion\x12\x1c\n" +
+	"\ttransport\x18\r \x01(\tR\ttransport\x12\x16\n" +
+	"\x06health\x18\x0e \x01(\tR\x06health\x12\"\n" +
+	"\rfirst_seen_at\x18\x0f \x01(\tR\vfirstSeenAt\x12 \n" +
+	"\flast_seen_at\x18\x10 \x01(\tR\n" +
+	"lastSeenAt\"\x85\x01\n" +
 	"\x12CapabilitySnapshot\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\"\n" +

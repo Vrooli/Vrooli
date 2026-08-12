@@ -140,7 +140,7 @@ class FloorConfig(_message.Message):
     def __init__(self, max_gap: _Optional[float] = ..., hard_floor: _Optional[float] = ...) -> None: ...
 
 class Tuning(_message.Message):
-    __slots__ = ("engine", "embed_model", "embed_task_prefix", "rerank_enabled", "rerank_blend", "rerank_shortlist", "floor")
+    __slots__ = ("engine", "embed_model", "embed_task_prefix", "rerank_enabled", "rerank_blend", "rerank_shortlist", "floor", "hybrid_fusion")
     ENGINE_FIELD_NUMBER: _ClassVar[int]
     EMBED_MODEL_FIELD_NUMBER: _ClassVar[int]
     EMBED_TASK_PREFIX_FIELD_NUMBER: _ClassVar[int]
@@ -148,6 +148,7 @@ class Tuning(_message.Message):
     RERANK_BLEND_FIELD_NUMBER: _ClassVar[int]
     RERANK_SHORTLIST_FIELD_NUMBER: _ClassVar[int]
     FLOOR_FIELD_NUMBER: _ClassVar[int]
+    HYBRID_FUSION_FIELD_NUMBER: _ClassVar[int]
     engine: str
     embed_model: str
     embed_task_prefix: bool
@@ -155,10 +156,11 @@ class Tuning(_message.Message):
     rerank_blend: bool
     rerank_shortlist: int
     floor: FloorConfig
-    def __init__(self, engine: _Optional[str] = ..., embed_model: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor: _Optional[_Union[FloorConfig, _Mapping]] = ...) -> None: ...
+    hybrid_fusion: str
+    def __init__(self, engine: _Optional[str] = ..., embed_model: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor: _Optional[_Union[FloorConfig, _Mapping]] = ..., hybrid_fusion: _Optional[str] = ...) -> None: ...
 
 class ProviderDescriptor(_message.Message):
-    __slots__ = ("provider_id", "provider_group", "bucket", "type", "description", "endpoint", "result_mapping", "query_hint", "status_endpoint", "scope", "state", "intended_home", "reindex_endpoint", "config_endpoint", "tuning")
+    __slots__ = ("provider_id", "provider_group", "bucket", "type", "description", "endpoint", "result_mapping", "query_hint", "status_endpoint", "scope", "state", "intended_home", "reindex_endpoint", "config_endpoint", "tuning", "lifecycle", "tests_minimum", "junk_leak_opt_out_reason", "index_timestamp_field")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_GROUP_FIELD_NUMBER: _ClassVar[int]
     BUCKET_FIELD_NUMBER: _ClassVar[int]
@@ -174,6 +176,10 @@ class ProviderDescriptor(_message.Message):
     REINDEX_ENDPOINT_FIELD_NUMBER: _ClassVar[int]
     CONFIG_ENDPOINT_FIELD_NUMBER: _ClassVar[int]
     TUNING_FIELD_NUMBER: _ClassVar[int]
+    LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
+    TESTS_MINIMUM_FIELD_NUMBER: _ClassVar[int]
+    JUNK_LEAK_OPT_OUT_REASON_FIELD_NUMBER: _ClassVar[int]
+    INDEX_TIMESTAMP_FIELD_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     provider_group: str
     bucket: Bucket
@@ -189,7 +195,21 @@ class ProviderDescriptor(_message.Message):
     reindex_endpoint: Endpoint
     config_endpoint: Endpoint
     tuning: Tuning
-    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., bucket: _Optional[_Union[Bucket, str]] = ..., type: _Optional[str] = ..., description: _Optional[str] = ..., endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., result_mapping: _Optional[_Union[ResultMapping, _Mapping]] = ..., query_hint: _Optional[str] = ..., status_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., scope: _Optional[_Union[Scope, str]] = ..., state: _Optional[_Union[ProviderState, str]] = ..., intended_home: _Optional[str] = ..., reindex_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., config_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., tuning: _Optional[_Union[Tuning, _Mapping]] = ...) -> None: ...
+    lifecycle: str
+    tests_minimum: EvalMinimum
+    junk_leak_opt_out_reason: str
+    index_timestamp_field: str
+    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., bucket: _Optional[_Union[Bucket, str]] = ..., type: _Optional[str] = ..., description: _Optional[str] = ..., endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., result_mapping: _Optional[_Union[ResultMapping, _Mapping]] = ..., query_hint: _Optional[str] = ..., status_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., scope: _Optional[_Union[Scope, str]] = ..., state: _Optional[_Union[ProviderState, str]] = ..., intended_home: _Optional[str] = ..., reindex_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., config_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., tuning: _Optional[_Union[Tuning, _Mapping]] = ..., lifecycle: _Optional[str] = ..., tests_minimum: _Optional[_Union[EvalMinimum, _Mapping]] = ..., junk_leak_opt_out_reason: _Optional[str] = ..., index_timestamp_field: _Optional[str] = ...) -> None: ...
+
+class EvalMinimum(_message.Message):
+    __slots__ = ("reviewed_positive", "negative", "required_tags")
+    REVIEWED_POSITIVE_FIELD_NUMBER: _ClassVar[int]
+    NEGATIVE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_TAGS_FIELD_NUMBER: _ClassVar[int]
+    reviewed_positive: int
+    negative: int
+    required_tags: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, reviewed_positive: _Optional[int] = ..., negative: _Optional[int] = ..., required_tags: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RegisterProviderRequest(_message.Message):
     __slots__ = ("descriptor", "control_token")

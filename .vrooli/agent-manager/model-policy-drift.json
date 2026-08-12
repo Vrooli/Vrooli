@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-09T19:52:14.655188153Z",
+  "last_run": "2026-08-12T17:25:36.544454531Z",
   "status": "warning",
   "measured": 4,
   "total": 4,
@@ -64,6 +64,14 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
+      "model": "opencode/hy3-free",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/hy3-free"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
       "model": "opencode/laguna-s-2.1-free",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/laguna-s-2.1-free"
@@ -75,14 +83,6 @@
       "model": "opencode/ling-3.0-tiny-free",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/ling-3.0-tiny-free"
-    },
-    {
-      "runner": "opencode",
-      "type": "unnamed_live_model",
-      "severity": "warning",
-      "model": "opencode/longcat-2.0-free",
-      "message": "runner offers a live model not named by this policy",
-      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/longcat-2.0-free"
     },
     {
       "runner": "opencode",
@@ -104,9 +104,9 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
-      "model": "opencode/north-mini-code-free",
+      "model": "opencode/nemotron-3.5-lightning-free",
       "message": "runner offers a live model not named by this policy",
-      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/north-mini-code-free"
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/nemotron-3.5-lightning-free"
     },
     {
       "runner": "opencode",
@@ -368,6 +368,22 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
+      "model": "openrouter/bytedance-seed/seed-2-1-turbo",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/bytedance-seed/seed-2-1-turbo"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/bytedance-seed/seed-2.0-code",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/bytedance-seed/seed-2.0-code"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
       "model": "openrouter/bytedance-seed/seed-2.0-lite",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/bytedance-seed/seed-2.0-lite"
@@ -515,6 +531,14 @@
       "model": "openrouter/deepseek/deepseek-v3.2-exp",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/deepseek/deepseek-v3.2-exp"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/deepseek/deepseek-v4-pro-0813",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/deepseek/deepseek-v4-pro-0813"
     },
     {
       "runner": "opencode",
@@ -856,6 +880,14 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
+      "model": "openrouter/liquid/lfm-2.5-2.6b:free",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/liquid/lfm-2.5-2.6b:free"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
       "model": "openrouter/mancer/weaver",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/mancer/weaver"
@@ -931,6 +963,14 @@
       "model": "openrouter/meta-llama/llama-guard-4-12b",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/meta-llama/llama-guard-4-12b"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/meta/muse-glimmer-30b",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/meta/muse-glimmer-30b"
     },
     {
       "runner": "opencode",
@@ -1352,6 +1392,22 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
+      "model": "openrouter/nvidia/nemotron-3.5-lightning",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/nvidia/nemotron-3.5-lightning"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/nvidia/nemotron-3.5-lightning:free",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/nvidia/nemotron-3.5-lightning:free"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
       "model": "openrouter/nvidia/nemotron-nano-12b-v2-vl:free",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/nvidia/nemotron-nano-12b-v2-vl:free"
@@ -1603,14 +1659,6 @@
       "model": "openrouter/openai/gpt-5.2-pro",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/openai/gpt-5.2-pro"
-    },
-    {
-      "runner": "opencode",
-      "type": "unnamed_live_model",
-      "severity": "warning",
-      "model": "openrouter/openai/gpt-5.3-chat",
-      "message": "runner offers a live model not named by this policy",
-      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/openai/gpt-5.3-chat"
     },
     {
       "runner": "opencode",
@@ -2352,6 +2400,14 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
+      "model": "openrouter/qwen/qwen3.8-2.4t-a95b",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/qwen/qwen3.8-2.4t-a95b"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
       "model": "openrouter/rekaai/reka-edge",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/rekaai/reka-edge"
@@ -2387,6 +2443,14 @@
       "model": "openrouter/sakana/fugu-ultra",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/sakana/fugu-ultra"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/sakana/sakana-namazu",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/sakana/sakana-namazu"
     },
     {
       "runner": "opencode",
@@ -2520,6 +2584,14 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
+      "model": "openrouter/upstage/solar-pro4",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/upstage/solar-pro4"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
       "model": "openrouter/writer/palmyra-x5",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/writer/palmyra-x5"
@@ -2555,6 +2627,14 @@
       "model": "openrouter/x-ai/grok-4.5",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/x-ai/grok-4.5"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/x-ai/grok-4.6",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/x-ai/grok-4.6"
     },
     {
       "runner": "opencode",

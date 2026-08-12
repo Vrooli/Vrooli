@@ -398,6 +398,56 @@ class GetReleasedAssetReferenceResponse(_message.Message):
     asset: AssetReference
     def __init__(self, asset: _Optional[_Union[AssetReference, _Mapping]] = ...) -> None: ...
 
+class ExternalProvenance(_message.Message):
+    __slots__ = ("producing_scenario", "strategy", "model_backed", "model", "prompt", "negative_prompt", "seed", "conditioning", "parameters")
+    PRODUCING_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    MODEL_BACKED_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    PROMPT_FIELD_NUMBER: _ClassVar[int]
+    NEGATIVE_PROMPT_FIELD_NUMBER: _ClassVar[int]
+    SEED_FIELD_NUMBER: _ClassVar[int]
+    CONDITIONING_FIELD_NUMBER: _ClassVar[int]
+    PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    producing_scenario: str
+    strategy: str
+    model_backed: bool
+    model: str
+    prompt: str
+    negative_prompt: str
+    seed: str
+    conditioning: ConditioningReference
+    parameters: str
+    def __init__(self, producing_scenario: _Optional[str] = ..., strategy: _Optional[str] = ..., model_backed: _Optional[bool] = ..., model: _Optional[str] = ..., prompt: _Optional[str] = ..., negative_prompt: _Optional[str] = ..., seed: _Optional[str] = ..., conditioning: _Optional[_Union[ConditioningReference, _Mapping]] = ..., parameters: _Optional[str] = ...) -> None: ...
+
+class IngestExternalAssetRequest(_message.Message):
+    __slots__ = ("image", "media_type", "alt_text", "decorative", "width", "height", "provenance", "actor_id", "actor_kind")
+    IMAGE_FIELD_NUMBER: _ClassVar[int]
+    MEDIA_TYPE_FIELD_NUMBER: _ClassVar[int]
+    ALT_TEXT_FIELD_NUMBER: _ClassVar[int]
+    DECORATIVE_FIELD_NUMBER: _ClassVar[int]
+    WIDTH_FIELD_NUMBER: _ClassVar[int]
+    HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_KIND_FIELD_NUMBER: _ClassVar[int]
+    image: bytes
+    media_type: str
+    alt_text: str
+    decorative: bool
+    width: int
+    height: int
+    provenance: ExternalProvenance
+    actor_id: str
+    actor_kind: str
+    def __init__(self, image: _Optional[bytes] = ..., media_type: _Optional[str] = ..., alt_text: _Optional[str] = ..., decorative: _Optional[bool] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., provenance: _Optional[_Union[ExternalProvenance, _Mapping]] = ..., actor_id: _Optional[str] = ..., actor_kind: _Optional[str] = ...) -> None: ...
+
+class IngestExternalAssetResponse(_message.Message):
+    __slots__ = ("asset",)
+    ASSET_FIELD_NUMBER: _ClassVar[int]
+    asset: AssetReference
+    def __init__(self, asset: _Optional[_Union[AssetReference, _Mapping]] = ...) -> None: ...
+
 class ImportCanonRequest(_message.Message):
     __slots__ = ("root",)
     ROOT_FIELD_NUMBER: _ClassVar[int]

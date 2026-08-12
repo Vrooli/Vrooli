@@ -4,6 +4,7 @@ package vrooli.search_hub.v1.routing;
 
 import "common/v1/attestation.proto";
 import "common/v1/confidence.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1";
 
@@ -29,6 +30,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v
 service RoutingService {
   rpc Query(QueryRequest) returns (QueryResponse);
   rpc Status(StatusRequest) returns (StatusResponse);
+  rpc Repromote(RepromoteRequest) returns (RepromoteResponse);
 }
 
 message QueryRequest {
@@ -66,6 +68,8 @@ message SearchOverrides {
   // 0-or-unset => regime default (mirrors registry.FloorConfig semantics).
   optional double floor_max_gap = 4;
   optional double floor_hard_floor = 5;
+  // Optional dense+sparse Qdrant fusion strategy ("rrf" or "dbsf").
+  optional string hybrid_fusion = 6;
 }
 
 message SearchHit {
@@ -103,6 +107,10 @@ message SearchHit {
   // Project-root-relative code locations or other concrete source locations
   // behind this hit. `path` remains the primary/first locator for back-compat.
   repeated string locations = 13;
+  // Number of provider passages represented by this document-level hit. A
+  // value greater than one means duplicate chunks were folded into the
+  // highest-scoring representative; one means no folding occurred.
+  int32 merged_count = 14;
 }
 
 // MeasureHit is the structured payload of a measure match: the resolved measure,
@@ -174,17 +182,60 @@ message QueryResponse {
   // Any provider degraded.
   bool degraded = 6;
   int64 latency_ms = 7;
+  // True when the query deadline expired after at least one provider returned
+  // usable results. The groups already received remain valid partial output.
+  bool partial = 8;
+  // Number of provider groups that did not complete before the deadline.
+  int32 pending_providers = 9;
 }
 
 message StatusRequest {}
 
+message RepromoteRequest {
+  string provider_id = 1;
+}
+
+message RepromoteResponse {
+  string provider_id = 1;
+  bool reset = 2;
+  string message = 3;
+}
+
 message ProviderHealth {
   string provider_id = 1;
   bool reachable = 2;
-  // e.g. "synced 12m ago".
-  string freshness = 3;
+  reserved 3;
   int64 point_count = 4;
   bool degraded = 5;
+  // True when automatic routing has temporarily excluded this leaf after
+  // sustained zero-yield evidence. Explicit queries can restore it.
+  bool demoted = 6;
+  string demotion_reason = 7;
+  int64 times_routed = 8;
+  int64 total_hits = 9;
+  // Resolution/reachability is intentionally separate from corpus age.
+  string reachability = 10;
+	// A computed age (for example "17m0s"), not_applicable reason, or
+	// unreported reason. These prefixes distinguish a provider that does not
+	// expose corpus-age telemetry from one whose telemetry could not be read.
+  string index_age = 11;
+  // Whether automatic classifier routing may select this leaf.
+  bool automatic_eligible = 12;
+  // For a non-production lifecycle, explains why explicit selection is needed.
+  string automatic_exclusion_reason = 13;
+  // closed, open, or probe_due. probe_due is distinct from unreachable: the
+  // cooldown elapsed and the next request is allowed to test recovery.
+  string circuit_state = 14;
+  // Fresh, non-degraded evaluation evidence blocks automatic routing because
+  // gibberish scored at least as high as the strongest real case.
+  bool quality_withheld = 15;
+  string quality_withheld_reason = 16;
+  string quality_evidence_run_id = 17;
+  bool quality_gate_opted_out = 18;
+  string quality_gate_opt_out_reason = 19;
+  // Typed source timestamp behind index_age. Providers that declare an
+  // index_timestamp_field must populate this when their status is reachable.
+  google.protobuf.Timestamp last_indexed_at = 20;
 }
 
 message StatusResponse {
@@ -192,4 +243,7 @@ message StatusResponse {
   bool classifier_available = 2;
   // false => degraded ranking mode (by-provider grouping only).
   bool reranker_available = 3;
+  double circuit_open_share = 4;
+  double circuit_open_quorum = 5;
+  bool federation_degraded = 6;
 }

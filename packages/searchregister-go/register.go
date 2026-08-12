@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -121,6 +122,47 @@ type Result struct {
 	CorpusErr error
 }
 
+// ValidateRegistration enforces a registrant-declared evidence bar before an
+// ACTIVE production provider is advertised. Fixture and experimental lifecycles
+// are explicit escapes because they are not eligible for automatic routing.
+// The error names the corpus-growth command so a boot log is actionable.
+func ValidateRegistration(p aisearch.ProviderConfig) error {
+	if strings.TrimSpace(p.Lifecycle) != "" && strings.TrimSpace(p.Lifecycle) != "production" {
+		return nil
+	}
+	minimum := p.Tests.Minimum
+	if minimum == nil {
+		return fmt.Errorf("provider %q must declare tests.minimum before ACTIVE production registration; add reviewed_positive and negative thresholds, then run `search-hub evals generate %s`", p.ProviderID, p.ProviderID)
+	}
+	positive, negative := 0, 0
+	tags := make(map[string]bool)
+	for _, c := range p.Tests.Cases {
+		if c.ExpectNoStrongHit {
+			negative++
+			continue
+		}
+		if len(c.ExpectIDs) == 0 || c.Status == aisearch.CaseStatusCandidate {
+			continue
+		}
+		positive++
+		for _, tag := range c.Tags {
+			tags[tag] = true
+		}
+	}
+	if positive < minimum.ReviewedPositive {
+		return fmt.Errorf("provider %q requires at least %d reviewed positive eval cases (found %d); run `search-hub evals generate %s` and review/promote the proposals", p.ProviderID, minimum.ReviewedPositive, positive, p.ProviderID)
+	}
+	if negative < minimum.Negative {
+		return fmt.Errorf("provider %q requires at least %d negative eval cases (found %d); run `search-hub evals generate %s` and review/promote the proposals", p.ProviderID, minimum.Negative, negative, p.ProviderID)
+	}
+	for _, required := range minimum.RequiredTags {
+		if !tags[required] {
+			return fmt.Errorf("provider %q requires reviewed eval tag %q; run `search-hub evals generate %s` and add reviewed coverage", p.ProviderID, required, p.ProviderID)
+		}
+	}
+	return nil
+}
+
 // Register reads the scenario's search.json, maps each provider to a registry
 // descriptor, and upserts it to search-hub with bounded retry. It degrades
 // gracefully — search-hub being down (or absent) yields logged, error-bearing
@@ -140,6 +182,12 @@ func Register(ctx context.Context, cfg Config) []Result {
 	if err != nil {
 		logger.Printf("[%s] search self-registration skipped: %v", cfg.ScenarioID, err)
 		return []Result{{Err: fmt.Errorf("load search.json: %w", err)}}
+	}
+	for _, provider := range file.Providers {
+		if err := ValidateRegistration(provider); err != nil {
+			logger.Printf("[%s] search self-registration rejected: %v", cfg.ScenarioID, err)
+			return []Result{{ProviderID: provider.ProviderID, Err: err}}
+		}
 	}
 	descriptors, err := Descriptors(file)
 	if err != nil {

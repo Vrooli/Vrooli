@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/ops/ops.proto.
  */
 export const file_image_tools_v1_ops_ops: GenFile = /*@__PURE__*/
-  fileDesc("ChxpbWFnZS10b29scy92MS9vcHMvb3BzLnByb3RvEhl2cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzIkAKDU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCKMAQoWTGlzdE9wZXJhdGlvbnNSZXNwb25zZRI8CgpvcGVyYXRpb25zGAEgAygLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcGVyYXRpb25JbmZvEhkKEWRlY29kYWJsZV9mb3JtYXRzGAIgAygJEhkKEWVuY29kYWJsZV9mb3JtYXRzGAMgAygJIpcPCghPcFBhcmFtcxI5CgZyZXNpemUYASABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJlc2l6ZVBhcmFtc0gAEjUKBGNyb3AYAiABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkNyb3BQYXJhbXNIABI5CgZyb3RhdGUYAyABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJvdGF0ZVBhcmFtc0gAEjUKBGZsaXAYBCABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkZsaXBQYXJhbXNIABI5CgZkZXNrZXcYBSABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkRlc2tld1BhcmFtc0gAEj8KCXRodW1ibmFpbBgGIAEoCzIqLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuVGh1bWJuYWlsUGFyYW1zSAASOQoGY2FudmFzGAcgASgLMicudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5DYW52YXNQYXJhbXNIABI5CgZhZGp1c3QYCCABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkFkanVzdFBhcmFtc0gAEjkKBmZpbHRlchgJIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRmlsdGVyUGFyYW1zSAASOwoHY29udmVydBgKIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuQ29udmVydFBhcmFtc0gAEj0KCGNvbXByZXNzGAsgASgLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Db21wcmVzc1BhcmFtc0gAEjsKB292ZXJsYXkYDCABKAsyKC52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLk92ZXJsYXlQYXJhbXNIABI9CghtZXRhZGF0YRgNIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTWV0YWRhdGFQYXJhbXNIABI7CgdkdW90b25lGA4gASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5EdW90b25lUGFyYW1zSAASPwoJcG9zdGVyaXplGA8gASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Qb3N0ZXJpemVQYXJhbXNIABI9CghoYWxmdG9uZRgQIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuSGFsZnRvbmVQYXJhbXNIABJBCg5kaXRoZXJfb3JkZXJlZBgRIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASQwoQZGl0aGVyX2RpZmZ1c2lvbhgSIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASNwoFZ3JhaW4YEyABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkdyYWluUGFyYW1zSAASNwoFc2NyaW0YFCABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlNjcmltUGFyYW1zSAASQgoLbGluZV9zY3JlZW4YFSABKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkxpbmVTY3JlZW5QYXJhbXNIABI7CgdzdGlwcGxlGBYgASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5TdGlwcGxlUGFyYW1zSAASPwoJZW5ncmF2aW5nGBcgASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5FbmdyYXZpbmdQYXJhbXNIABJBCgphYmVycmF0aW9uGBggASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5BYmVycmF0aW9uUGFyYW1zSAASNwoFYmxvb20YGSABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkJsb29tUGFyYW1zSAASNwoFY3VydmUYGiABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkN1cnZlUGFyYW1zSAASOwoHZGVmb2N1cxgbIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGVmb2N1c1BhcmFtc0gAEkIKC21vdGlvbl9ibHVyGBwgASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Nb3Rpb25CbHVyUGFyYW1zSAASRAoMYXNjaWlfbW9zYWljGB0gASgLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Bc2NpaU1vc2FpY1BhcmFtc0gAEkAKCnBpeGVsX3NvcnQYHiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlBpeGVsU29ydFBhcmFtc0gAEkUKDGRpc3BsYWNlbWVudBgfIAEoCzItLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGlzcGxhY2VtZW50UGFyYW1zSABCBAoCb3AiSwoMUmVzaXplUGFyYW1zEg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRILCgNmaXQYAyABKAkSDwoHZ3Jhdml0eRgEIAEoCSJSCgpDcm9wUGFyYW1zEgkKAXgYASABKAUSCQoBeRgCIAEoBRINCgV3aWR0aBgDIAEoBRIOCgZoZWlnaHQYBCABKAUSDwoHZ3Jhdml0eRgFIAEoCSJBCgxSb3RhdGVQYXJhbXMSDQoFYW5nbGUYASABKAESDgoGZXhwYW5kGAIgASgIEhIKCmJhY2tncm91bmQYAyABKAkiGgoKRmxpcFBhcmFtcxIMCgRheGlzGAEgASgJIiIKDERlc2tld1BhcmFtcxISCgpiYWNrZ3JvdW5kGAEgASgJIjAKD1RodW1ibmFpbFBhcmFtcxINCgV3aWR0aBgBIAEoBRIOCgZoZWlnaHQYAiABKAUiUgoMQ2FudmFzUGFyYW1zEg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRISCgpiYWNrZ3JvdW5kGAMgASgJEg8KB2dyYXZpdHkYBCABKAkiZAoMQWRqdXN0UGFyYW1zEhIKCmJyaWdodG5lc3MYASABKAESEAoIY29udHJhc3QYAiABKAESDQoFZ2FtbWEYAyABKAESEgoKc2F0dXJhdGlvbhgEIAEoARILCgNodWUYBSABKAEiLgoMRmlsdGVyUGFyYW1zEg4KBmZpbHRlchgBIAEoCRIOCgZhbW91bnQYAiABKAEiQgoNQ29udmVydFBhcmFtcxIOCgZmb3JtYXQYASABKAkSDwoHcXVhbGl0eRgCIAEoBRIQCghsb3NzbGVzcxgDIAEoCCJZCg5Db21wcmVzc1BhcmFtcxIOCgZmb3JtYXQYASABKAkSDwoHcXVhbGl0eRgCIAEoBRIQCghsb3NzbGVzcxgDIAEoCBIUCgx0YXJnZXRfYnl0ZXMYBCABKAMiYgoNT3ZlcmxheVBhcmFtcxIMCgR0ZXh0GAEgASgJEhAKCHBvc2l0aW9uGAIgASgJEg8KB29wYWNpdHkYAyABKAESDQoFY29sb3IYBCABKAkSEQoJZm9udF9zaXplGAUgASgBIksKDk1ldGFkYXRhUGFyYW1zEhEKCXN0cmlwX2FsbBgBIAEoCBIRCglzdHJpcF9ncHMYAiABKAgSEwoLYXV0b19vcmllbnQYAyABKAgiXAoNRHVvdG9uZVBhcmFtcxIMCgRkYXJrGAEgASgJEg0KBWxpZ2h0GAIgASgJEgsKA21pZBgDIAEoCRIPCgdtaWRfbG93GAQgASgBEhAKCG1pZF9oaWdoGAUgASgBIj4KD1Bvc3Rlcml6ZVBhcmFtcxIOCgZsZXZlbHMYASABKAUSDAoEZGFyaxgCIAEoCRINCgVsaWdodBgDIAEoCSJWCg5IYWxmdG9uZVBhcmFtcxILCgNscGkYASABKAUSDQoFYW5nbGUYAiABKAESCwoDZG90GAMgASgJEgwKBGRhcmsYBCABKAkSDQoFbGlnaHQYBSABKAkiKwoMRGl0aGVyUGFyYW1zEgwKBGRhcmsYASABKAkSDQoFbGlnaHQYAiABKAkiSAoLR3JhaW5QYXJhbXMSDAoEc2VlZBgBIAEoAxIOCgZhbW91bnQYAiABKAESGwoTY29udHJhc3RfbXVsdGlwbGllchgDIAEoASJACgtTY3JpbVBhcmFtcxINCgVjb2xvchgBIAEoCRIPCgdvcGFjaXR5GAIgASgBEhEKCWRpcmVjdGlvbhgDIAEoCSIyChBMaW5lU2NyZWVuUGFyYW1zEg8KB3NwYWNpbmcYASABKAESDQoFYW5nbGUYAiABKAEiLgoNU3RpcHBsZVBhcmFtcxIPCgdzcGFjaW5nGAEgASgBEgwKBHNlZWQYAiABKAMiIgoPRW5ncmF2aW5nUGFyYW1zEg8KB3NwYWNpbmcYASABKAEiJQoQQWJlcnJhdGlvblBhcmFtcxIRCglhbXBsaXR1ZGUYASABKAEiMAoLQmxvb21QYXJhbXMSDgoGcmFkaXVzGAEgASgFEhEKCXRocmVzaG9sZBgCIAEoASIfCgtDdXJ2ZVBhcmFtcxIQCghleHBvbmVudBgBIAEoASI0Cg1EZWZvY3VzUGFyYW1zEg4KBnJhZGl1cxgBIAEoBRITCgtibGFkZV9jb3VudBgCIAEoBSIzChBNb3Rpb25CbHVyUGFyYW1zEhAKCGRpc3RhbmNlGAEgASgFEg0KBWFuZ2xlGAIgASgBIicKEUFzY2lpTW9zYWljUGFyYW1zEhIKCmJsb2NrX3NpemUYASABKAUiMgoPUGl4ZWxTb3J0UGFyYW1zEhEKCXRocmVzaG9sZBgBIAEoARIMCgRheGlzGAIgASgJIjUKEkRpc3BsYWNlbWVudFBhcmFtcxIRCglhbXBsaXR1ZGUYASABKAESDAoEc2VlZBgCIAEoAyJoCghPcFJlc3VsdBILCgNyZWYYASABKAkSDgoGZm9ybWF0GAIgASgJEgwKBG1pbWUYAyABKAkSDQoFd2lkdGgYBCABKAUSDgoGaGVpZ2h0GAUgASgFEhIKCnNpemVfYnl0ZXMYBiABKAMiVAoNUnVuT3BSZXNwb25zZRIOCgZqb2JfaWQYASABKAkSMwoGcmVzdWx0GAIgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcFJlc3VsdDKDAQoKT3BzU2VydmljZRJ1Cg5MaXN0T3BlcmF0aW9ucxIwLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTGlzdE9wZXJhdGlvbnNSZXF1ZXN0GjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5MaXN0T3BlcmF0aW9uc1Jlc3BvbnNlQkpaSGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vaW1hZ2UtdG9vbHMvdjEvb3BzO29wc192MWIGcHJvdG8z");
+  fileDesc("ChxpbWFnZS10b29scy92MS9vcHMvb3BzLnByb3RvEhl2cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzIkAKDU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCKMAQoWTGlzdE9wZXJhdGlvbnNSZXNwb25zZRI8CgpvcGVyYXRpb25zGAEgAygLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcGVyYXRpb25JbmZvEhkKEWRlY29kYWJsZV9mb3JtYXRzGAIgAygJEhkKEWVuY29kYWJsZV9mb3JtYXRzGAMgAygJIpcPCghPcFBhcmFtcxI5CgZyZXNpemUYASABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJlc2l6ZVBhcmFtc0gAEjUKBGNyb3AYAiABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkNyb3BQYXJhbXNIABI5CgZyb3RhdGUYAyABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJvdGF0ZVBhcmFtc0gAEjUKBGZsaXAYBCABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkZsaXBQYXJhbXNIABI5CgZkZXNrZXcYBSABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkRlc2tld1BhcmFtc0gAEj8KCXRodW1ibmFpbBgGIAEoCzIqLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuVGh1bWJuYWlsUGFyYW1zSAASOQoGY2FudmFzGAcgASgLMicudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5DYW52YXNQYXJhbXNIABI5CgZhZGp1c3QYCCABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkFkanVzdFBhcmFtc0gAEjkKBmZpbHRlchgJIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRmlsdGVyUGFyYW1zSAASOwoHY29udmVydBgKIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuQ29udmVydFBhcmFtc0gAEj0KCGNvbXByZXNzGAsgASgLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Db21wcmVzc1BhcmFtc0gAEjsKB292ZXJsYXkYDCABKAsyKC52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLk92ZXJsYXlQYXJhbXNIABI9CghtZXRhZGF0YRgNIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTWV0YWRhdGFQYXJhbXNIABI7CgdkdW90b25lGA4gASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5EdW90b25lUGFyYW1zSAASPwoJcG9zdGVyaXplGA8gASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Qb3N0ZXJpemVQYXJhbXNIABI9CghoYWxmdG9uZRgQIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuSGFsZnRvbmVQYXJhbXNIABJBCg5kaXRoZXJfb3JkZXJlZBgRIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASQwoQZGl0aGVyX2RpZmZ1c2lvbhgSIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASNwoFZ3JhaW4YEyABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkdyYWluUGFyYW1zSAASNwoFc2NyaW0YFCABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlNjcmltUGFyYW1zSAASQgoLbGluZV9zY3JlZW4YFSABKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkxpbmVTY3JlZW5QYXJhbXNIABI7CgdzdGlwcGxlGBYgASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5TdGlwcGxlUGFyYW1zSAASPwoJZW5ncmF2aW5nGBcgASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5FbmdyYXZpbmdQYXJhbXNIABJBCgphYmVycmF0aW9uGBggASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5BYmVycmF0aW9uUGFyYW1zSAASNwoFYmxvb20YGSABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkJsb29tUGFyYW1zSAASNwoFY3VydmUYGiABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkN1cnZlUGFyYW1zSAASOwoHZGVmb2N1cxgbIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGVmb2N1c1BhcmFtc0gAEkIKC21vdGlvbl9ibHVyGBwgASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Nb3Rpb25CbHVyUGFyYW1zSAASRAoMYXNjaWlfbW9zYWljGB0gASgLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Bc2NpaU1vc2FpY1BhcmFtc0gAEkAKCnBpeGVsX3NvcnQYHiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlBpeGVsU29ydFBhcmFtc0gAEkUKDGRpc3BsYWNlbWVudBgfIAEoCzItLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGlzcGxhY2VtZW50UGFyYW1zSABCBAoCb3AiSwoMUmVzaXplUGFyYW1zEg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRILCgNmaXQYAyABKAkSDwoHZ3Jhdml0eRgEIAEoCSJSCgpDcm9wUGFyYW1zEgkKAXgYASABKAUSCQoBeRgCIAEoBRINCgV3aWR0aBgDIAEoBRIOCgZoZWlnaHQYBCABKAUSDwoHZ3Jhdml0eRgFIAEoCSJBCgxSb3RhdGVQYXJhbXMSDQoFYW5nbGUYASABKAESDgoGZXhwYW5kGAIgASgIEhIKCmJhY2tncm91bmQYAyABKAkiGgoKRmxpcFBhcmFtcxIMCgRheGlzGAEgASgJIiIKDERlc2tld1BhcmFtcxISCgpiYWNrZ3JvdW5kGAEgASgJIjAKD1RodW1ibmFpbFBhcmFtcxINCgV3aWR0aBgBIAEoBRIOCgZoZWlnaHQYAiABKAUiUgoMQ2FudmFzUGFyYW1zEg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRISCgpiYWNrZ3JvdW5kGAMgASgJEg8KB2dyYXZpdHkYBCABKAkiZAoMQWRqdXN0UGFyYW1zEhIKCmJyaWdodG5lc3MYASABKAESEAoIY29udHJhc3QYAiABKAESDQoFZ2FtbWEYAyABKAESEgoKc2F0dXJhdGlvbhgEIAEoARILCgNodWUYBSABKAEiLgoMRmlsdGVyUGFyYW1zEg4KBmZpbHRlchgBIAEoCRIOCgZhbW91bnQYAiABKAEiQgoNQ29udmVydFBhcmFtcxIOCgZmb3JtYXQYASABKAkSDwoHcXVhbGl0eRgCIAEoBRIQCghsb3NzbGVzcxgDIAEoCCJZCg5Db21wcmVzc1BhcmFtcxIOCgZmb3JtYXQYASABKAkSDwoHcXVhbGl0eRgCIAEoBRIQCghsb3NzbGVzcxgDIAEoCBIUCgx0YXJnZXRfYnl0ZXMYBCABKAMiYgoNT3ZlcmxheVBhcmFtcxIMCgR0ZXh0GAEgASgJEhAKCHBvc2l0aW9uGAIgASgJEg8KB29wYWNpdHkYAyABKAESDQoFY29sb3IYBCABKAkSEQoJZm9udF9zaXplGAUgASgBIksKDk1ldGFkYXRhUGFyYW1zEhEKCXN0cmlwX2FsbBgBIAEoCBIRCglzdHJpcF9ncHMYAiABKAgSEwoLYXV0b19vcmllbnQYAyABKAgibwoNRHVvdG9uZVBhcmFtcxIMCgRkYXJrGAEgASgJEg0KBWxpZ2h0GAIgASgJEgsKA21pZBgDIAEoCRIPCgdtaWRfbG93GAQgASgBEhAKCG1pZF9oaWdoGAUgASgBEhEKCW5vcm1hbGl6ZRgGIAEoCCJRCg9Qb3N0ZXJpemVQYXJhbXMSDgoGbGV2ZWxzGAEgASgFEgwKBGRhcmsYAiABKAkSDQoFbGlnaHQYAyABKAkSEQoJbm9ybWFsaXplGAQgASgIImkKDkhhbGZ0b25lUGFyYW1zEgsKA2xwaRgBIAEoBRINCgVhbmdsZRgCIAEoARILCgNkb3QYAyABKAkSDAoEZGFyaxgEIAEoCRINCgVsaWdodBgFIAEoCRIRCglub3JtYWxpemUYBiABKAgiPgoMRGl0aGVyUGFyYW1zEgwKBGRhcmsYASABKAkSDQoFbGlnaHQYAiABKAkSEQoJbm9ybWFsaXplGAMgASgIIkgKC0dyYWluUGFyYW1zEgwKBHNlZWQYASABKAMSDgoGYW1vdW50GAIgASgBEhsKE2NvbnRyYXN0X211bHRpcGxpZXIYAyABKAEiQAoLU2NyaW1QYXJhbXMSDQoFY29sb3IYASABKAkSDwoHb3BhY2l0eRgCIAEoARIRCglkaXJlY3Rpb24YAyABKAkidwoQTGluZVNjcmVlblBhcmFtcxIPCgdzcGFjaW5nGAEgASgBEg0KBWFuZ2xlGAIgASgBEgwKBGRhcmsYAyABKAkSDQoFbGlnaHQYBCABKAkSEQoJbm9ybWFsaXplGAUgASgIEhMKC3NwYWNpbmdfcmVsGAYgASgBInMKDVN0aXBwbGVQYXJhbXMSDwoHc3BhY2luZxgBIAEoARIMCgRzZWVkGAIgASgDEgwKBGRhcmsYAyABKAkSDQoFbGlnaHQYBCABKAkSEQoJbm9ybWFsaXplGAUgASgIEhMKC3NwYWNpbmdfcmVsGAYgASgBImcKD0VuZ3JhdmluZ1BhcmFtcxIPCgdzcGFjaW5nGAEgASgBEgwKBGRhcmsYAiABKAkSDQoFbGlnaHQYAyABKAkSEQoJbm9ybWFsaXplGAQgASgIEhMKC3NwYWNpbmdfcmVsGAUgASgBIk0KEEFiZXJyYXRpb25QYXJhbXMSEQoJYW1wbGl0dWRlGAEgASgBEhAKCGRpc3RhbmNlGAIgASgFEhQKDGRpc3RhbmNlX3JlbBgDIAEoASJECgtCbG9vbVBhcmFtcxIOCgZyYWRpdXMYASABKAUSEQoJdGhyZXNob2xkGAIgASgBEhIKCnJhZGl1c19yZWwYAyABKAEiHwoLQ3VydmVQYXJhbXMSEAoIZXhwb25lbnQYASABKAEiSAoNRGVmb2N1c1BhcmFtcxIOCgZyYWRpdXMYASABKAUSEwoLYmxhZGVfY291bnQYAiABKAUSEgoKcmFkaXVzX3JlbBgDIAEoASJJChBNb3Rpb25CbHVyUGFyYW1zEhAKCGRpc3RhbmNlGAEgASgFEg0KBWFuZ2xlGAIgASgBEhQKDGRpc3RhbmNlX3JlbBgDIAEoASJvChFBc2NpaU1vc2FpY1BhcmFtcxISCgpibG9ja19zaXplGAEgASgFEgwKBGRhcmsYAiABKAkSDQoFbGlnaHQYAyABKAkSEQoJbm9ybWFsaXplGAQgASgIEhYKDmJsb2NrX3NpemVfcmVsGAUgASgBIjIKD1BpeGVsU29ydFBhcmFtcxIRCgl0aHJlc2hvbGQYASABKAESDAoEYXhpcxgCIAEoCSJyChJEaXNwbGFjZW1lbnRQYXJhbXMSEQoJYW1wbGl0dWRlGAEgASgBEgwKBHNlZWQYAiABKAMSDwoHc3BhY2luZxgDIAEoARITCgtzcGFjaW5nX3JlbBgEIAEoARIVCg1hbXBsaXR1ZGVfcmVsGAUgASgBIvEBCghPcFJlc3VsdBILCgNyZWYYASABKAkSDgoGZm9ybWF0GAIgASgJEgwKBG1pbWUYAyABKAkSDQoFd2lkdGgYBCABKAUSDgoGaGVpZ2h0GAUgASgFEhIKCnNpemVfYnl0ZXMYBiABKAMSUAoPcmVzb2x2ZWRfcGFyYW1zGAcgAygLMjcudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcFJlc3VsdC5SZXNvbHZlZFBhcmFtc0VudHJ5GjUKE1Jlc29sdmVkUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4ASJUCg1SdW5PcFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRIzCgZyZXN1bHQYAiABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLk9wUmVzdWx0MoMBCgpPcHNTZXJ2aWNlEnUKDkxpc3RPcGVyYXRpb25zEjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5MaXN0T3BlcmF0aW9uc1JlcXVlc3QaMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkxpc3RPcGVyYXRpb25zUmVzcG9uc2VCSlpIZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9vcHM7b3BzX3YxYgZwcm90bzM");
 
 /**
  * OperationInfo describes one deterministic operation for discovery.
@@ -727,6 +727,14 @@ export type DuotoneParams = Message<"vrooli.image_tools.v1.ops.DuotoneParams"> &
    * @generated from field: double mid_high = 5;
    */
   midHigh: number;
+
+  /**
+   * normalize auto-levels the source p1-p99 tonal range onto the full ink
+   * ramp before mapping, so a low-contrast source still uses the whole ramp.
+   *
+   * @generated from field: bool normalize = 6;
+   */
+  normalize: boolean;
 };
 
 /**
@@ -754,6 +762,14 @@ export type PosterizeParams = Message<"vrooli.image_tools.v1.ops.PosterizeParams
    * @generated from field: string light = 3;
    */
   light: string;
+
+  /**
+   * normalize auto-levels the source p1-p99 tonal range onto the full ink
+   * ramp before mapping, so a low-contrast source still uses the whole ramp.
+   *
+   * @generated from field: bool normalize = 4;
+   */
+  normalize: boolean;
 };
 
 /**
@@ -764,10 +780,31 @@ export const PosterizeParamsSchema: GenMessage<PosterizeParams> = /*@__PURE__*/
   messageDesc(file_image_tools_v1_ops_ops, 18);
 
 /**
+ * Relative spatial parameters
+ *
+ * Every spatial parameter below carries an absolute pixel form and a `_rel`
+ * form. A relative value is a fraction of the image's SHORT edge:
+ *
+ *   px = round(rel * min(width, height))
+ *
+ * clamped up to the operation's minimum legal value. So `spacing_rel: 0.02` is
+ * 9px on a 448px-tall frame and 27px on a 1344px-tall one, which is the same
+ * screen density to the eye. An absolute value means pixels and keeps meaning
+ * pixels; when both are set the relative form wins, and the resolved pixel
+ * value is reported in OpResult.resolved_params so a caller can see what ran.
+ *
+ * HalftoneParams.lpi is deliberately absent from this scheme: it is a count of
+ * screen lines across the image WIDTH (the implementation computes the cell as
+ * width/lpi), so it is already resolution-independent and needs no relative
+ * twin. See scenarios/backdrop-studio/docs/evidence/treatments/resolution-proof/.
+ *
  * @generated from message vrooli.image_tools.v1.ops.HalftoneParams
  */
 export type HalftoneParams = Message<"vrooli.image_tools.v1.ops.HalftoneParams"> & {
   /**
+   * lpi is the number of screen lines across the image width, not a pixel
+   * measurement — the same lpi yields the same screen coarseness at any size.
+   *
    * @generated from field: int32 lpi = 1;
    */
   lpi: number;
@@ -791,6 +828,14 @@ export type HalftoneParams = Message<"vrooli.image_tools.v1.ops.HalftoneParams">
    * @generated from field: string light = 5;
    */
   light: string;
+
+  /**
+   * normalize auto-levels the source p1-p99 tonal range onto the full ink
+   * ramp before mapping, so a low-contrast source still uses the whole ramp.
+   *
+   * @generated from field: bool normalize = 6;
+   */
+  normalize: boolean;
 };
 
 /**
@@ -813,6 +858,14 @@ export type DitherParams = Message<"vrooli.image_tools.v1.ops.DitherParams"> & {
    * @generated from field: string light = 2;
    */
   light: string;
+
+  /**
+   * normalize auto-levels the source p1-p99 tonal range onto the full ink
+   * ramp before mapping, so a low-contrast source still uses the whole ramp.
+   *
+   * @generated from field: bool normalize = 3;
+   */
+  normalize: boolean;
 };
 
 /**
@@ -889,6 +942,31 @@ export type LineScreenParams = Message<"vrooli.image_tools.v1.ops.LineScreenPara
    * @generated from field: double angle = 2;
    */
   angle: number;
+
+  /**
+   * @generated from field: string dark = 3;
+   */
+  dark: string;
+
+  /**
+   * @generated from field: string light = 4;
+   */
+  light: string;
+
+  /**
+   * normalize auto-levels the source p1-p99 tonal range onto the full ink
+   * ramp before mapping, so a low-contrast source still uses the whole ramp.
+   *
+   * @generated from field: bool normalize = 5;
+   */
+  normalize: boolean;
+
+  /**
+   * spacing_rel is the line pitch as a fraction of the short edge.
+   *
+   * @generated from field: double spacing_rel = 6;
+   */
+  spacingRel: number;
 };
 
 /**
@@ -911,6 +989,31 @@ export type StippleParams = Message<"vrooli.image_tools.v1.ops.StippleParams"> &
    * @generated from field: int64 seed = 2;
    */
   seed: bigint;
+
+  /**
+   * @generated from field: string dark = 3;
+   */
+  dark: string;
+
+  /**
+   * @generated from field: string light = 4;
+   */
+  light: string;
+
+  /**
+   * normalize auto-levels the source p1-p99 tonal range onto the full ink
+   * ramp before mapping, so a low-contrast source still uses the whole ramp.
+   *
+   * @generated from field: bool normalize = 5;
+   */
+  normalize: boolean;
+
+  /**
+   * spacing_rel is the stipple cell pitch as a fraction of the short edge.
+   *
+   * @generated from field: double spacing_rel = 6;
+   */
+  spacingRel: number;
 };
 
 /**
@@ -928,6 +1031,31 @@ export type EngravingParams = Message<"vrooli.image_tools.v1.ops.EngravingParams
    * @generated from field: double spacing = 1;
    */
   spacing: number;
+
+  /**
+   * @generated from field: string dark = 2;
+   */
+  dark: string;
+
+  /**
+   * @generated from field: string light = 3;
+   */
+  light: string;
+
+  /**
+   * normalize auto-levels the source p1-p99 tonal range onto the full ink
+   * ramp before mapping, so a low-contrast source still uses the whole ramp.
+   *
+   * @generated from field: bool normalize = 4;
+   */
+  normalize: boolean;
+
+  /**
+   * spacing_rel is the hatching period as a fraction of the short edge.
+   *
+   * @generated from field: double spacing_rel = 5;
+   */
+  spacingRel: number;
 };
 
 /**
@@ -945,6 +1073,22 @@ export type AberrationParams = Message<"vrooli.image_tools.v1.ops.AberrationPara
    * @generated from field: double amplitude = 1;
    */
   amplitude: number;
+
+  /**
+   * distance is the radial channel separation in px, which is what the
+   * implementation consumes; amplitude is retained for wire compatibility.
+   *
+   * @generated from field: int32 distance = 2;
+   */
+  distance: number;
+
+  /**
+   * distance_rel is the radial channel separation as a fraction of the short
+   * edge. It wins over both distance and amplitude when set.
+   *
+   * @generated from field: double distance_rel = 3;
+   */
+  distanceRel: number;
 };
 
 /**
@@ -967,6 +1111,13 @@ export type BloomParams = Message<"vrooli.image_tools.v1.ops.BloomParams"> & {
    * @generated from field: double threshold = 2;
    */
   threshold: number;
+
+  /**
+   * radius_rel is the bloom blur radius as a fraction of the short edge.
+   *
+   * @generated from field: double radius_rel = 3;
+   */
+  radiusRel: number;
 };
 
 /**
@@ -1006,6 +1157,13 @@ export type DefocusParams = Message<"vrooli.image_tools.v1.ops.DefocusParams"> &
    * @generated from field: int32 blade_count = 2;
    */
   bladeCount: number;
+
+  /**
+   * radius_rel is the defocus blur radius as a fraction of the short edge.
+   *
+   * @generated from field: double radius_rel = 3;
+   */
+  radiusRel: number;
 };
 
 /**
@@ -1028,6 +1186,13 @@ export type MotionBlurParams = Message<"vrooli.image_tools.v1.ops.MotionBlurPara
    * @generated from field: double angle = 2;
    */
   angle: number;
+
+  /**
+   * distance_rel is the smear length as a fraction of the short edge.
+   *
+   * @generated from field: double distance_rel = 3;
+   */
+  distanceRel: number;
 };
 
 /**
@@ -1045,6 +1210,37 @@ export type AsciiMosaicParams = Message<"vrooli.image_tools.v1.ops.AsciiMosaicPa
    * @generated from field: int32 block_size = 1;
    */
   blockSize: number;
+
+  /**
+   * @generated from field: string dark = 2;
+   */
+  dark: string;
+
+  /**
+   * @generated from field: string light = 3;
+   */
+  light: string;
+
+  /**
+   * normalize auto-levels the source p1-p99 tonal range onto the full ink
+   * ramp before mapping, so a low-contrast source still uses the whole ramp.
+   *
+   * @generated from field: bool normalize = 4;
+   */
+  normalize: boolean;
+
+  /**
+   * block_size_rel is the character cell width as a fraction of the short
+   * edge. The operation blits a 7x13 bitmap face, so the resolved value snaps
+   * to the NEAREST whole multiple of the 7px glyph advance (minimum 7) — a
+   * cell that is not a whole multiple resamples the glyph and smears the
+   * characters the operation exists to draw. The advance is a coarse quantum
+   * at small cells, so this treatment holds density across resolutions less
+   * tightly than the screens do.
+   *
+   * @generated from field: double block_size_rel = 5;
+   */
+  blockSizeRel: number;
 };
 
 /**
@@ -1089,6 +1285,26 @@ export type DisplacementParams = Message<"vrooli.image_tools.v1.ops.Displacement
    * @generated from field: int64 seed = 2;
    */
   seed: bigint;
+
+  /**
+   * @generated from field: double spacing = 3;
+   */
+  spacing: number;
+
+  /**
+   * spacing_rel is the displacement-field wavelength as a fraction of the
+   * short edge.
+   *
+   * @generated from field: double spacing_rel = 4;
+   */
+  spacingRel: number;
+
+  /**
+   * amplitude_rel is the peak displacement as a fraction of the short edge.
+   *
+   * @generated from field: double amplitude_rel = 5;
+   */
+  amplitudeRel: number;
 };
 
 /**
@@ -1134,6 +1350,17 @@ export type OpResult = Message<"vrooli.image_tools.v1.ops.OpResult"> & {
    * @generated from field: int64 size_bytes = 6;
    */
   sizeBytes: bigint;
+
+  /**
+   * resolved_params reports the pixel value every relative spatial parameter
+   * resolved to for this image, keyed by the absolute field's name ("spacing",
+   * "radius", "distance", "block_size"). It is empty when the request sent no
+   * relative parameter. Without it a caller sending `spacing_rel` has no way to
+   * learn what actually ran, which is how a mistuned screen stays invisible.
+   *
+   * @generated from field: map<string, double> resolved_params = 7;
+   */
+  resolvedParams: { [key: string]: number };
 };
 
 /**

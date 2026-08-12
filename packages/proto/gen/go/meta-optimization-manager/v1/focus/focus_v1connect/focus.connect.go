@@ -41,6 +41,12 @@ const (
 	FocusServiceGetGapProcedure = "/vrooli.meta_optimization_manager.v1.focus.FocusService/GetGap"
 	// FocusServiceAddGapNoteProcedure is the fully-qualified name of the FocusService's AddGapNote RPC.
 	FocusServiceAddGapNoteProcedure = "/vrooli.meta_optimization_manager.v1.focus.FocusService/AddGapNote"
+	// FocusServiceListConditionProcedure is the fully-qualified name of the FocusService's
+	// ListCondition RPC.
+	FocusServiceListConditionProcedure = "/vrooli.meta_optimization_manager.v1.focus.FocusService/ListCondition"
+	// FocusServiceExplainConditionProcedure is the fully-qualified name of the FocusService's
+	// ExplainCondition RPC.
+	FocusServiceExplainConditionProcedure = "/vrooli.meta_optimization_manager.v1.focus.FocusService/ExplainCondition"
 )
 
 // FocusServiceClient is a client for the vrooli.meta_optimization_manager.v1.focus.FocusService
@@ -55,6 +61,11 @@ type FocusServiceClient interface {
 	// AddGapNote appends an explored approach/idea to a gap — the one focus write
 	// verb (the "store our thinking" primitive).
 	AddGapNote(context.Context, *connect.Request[focus.AddGapNoteRequest]) (*connect.Response[focus.AddGapNoteResponse], error)
+	// ListCondition returns observed condition findings derived from live
+	// serving telemetry, without mixing them into authored coverage cells.
+	ListCondition(context.Context, *connect.Request[focus.ListConditionRequest]) (*connect.Response[focus.ListConditionResponse], error)
+	// ExplainCondition traces one provider leg to its observed evidence.
+	ExplainCondition(context.Context, *connect.Request[focus.ExplainConditionRequest]) (*connect.Response[focus.ExplainConditionResponse], error)
 }
 
 // NewFocusServiceClient constructs a client for the
@@ -93,15 +104,29 @@ func NewFocusServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(focusServiceMethods.ByName("AddGapNote")),
 			connect.WithClientOptions(opts...),
 		),
+		listCondition: connect.NewClient[focus.ListConditionRequest, focus.ListConditionResponse](
+			httpClient,
+			baseURL+FocusServiceListConditionProcedure,
+			connect.WithSchema(focusServiceMethods.ByName("ListCondition")),
+			connect.WithClientOptions(opts...),
+		),
+		explainCondition: connect.NewClient[focus.ExplainConditionRequest, focus.ExplainConditionResponse](
+			httpClient,
+			baseURL+FocusServiceExplainConditionProcedure,
+			connect.WithSchema(focusServiceMethods.ByName("ExplainCondition")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // focusServiceClient implements FocusServiceClient.
 type focusServiceClient struct {
-	getFocus   *connect.Client[focus.GetFocusRequest, focus.GetFocusResponse]
-	listGaps   *connect.Client[focus.ListGapsRequest, focus.ListGapsResponse]
-	getGap     *connect.Client[focus.GetGapRequest, focus.GetGapResponse]
-	addGapNote *connect.Client[focus.AddGapNoteRequest, focus.AddGapNoteResponse]
+	getFocus         *connect.Client[focus.GetFocusRequest, focus.GetFocusResponse]
+	listGaps         *connect.Client[focus.ListGapsRequest, focus.ListGapsResponse]
+	getGap           *connect.Client[focus.GetGapRequest, focus.GetGapResponse]
+	addGapNote       *connect.Client[focus.AddGapNoteRequest, focus.AddGapNoteResponse]
+	listCondition    *connect.Client[focus.ListConditionRequest, focus.ListConditionResponse]
+	explainCondition *connect.Client[focus.ExplainConditionRequest, focus.ExplainConditionResponse]
 }
 
 // GetFocus calls vrooli.meta_optimization_manager.v1.focus.FocusService.GetFocus.
@@ -124,6 +149,16 @@ func (c *focusServiceClient) AddGapNote(ctx context.Context, req *connect.Reques
 	return c.addGapNote.CallUnary(ctx, req)
 }
 
+// ListCondition calls vrooli.meta_optimization_manager.v1.focus.FocusService.ListCondition.
+func (c *focusServiceClient) ListCondition(ctx context.Context, req *connect.Request[focus.ListConditionRequest]) (*connect.Response[focus.ListConditionResponse], error) {
+	return c.listCondition.CallUnary(ctx, req)
+}
+
+// ExplainCondition calls vrooli.meta_optimization_manager.v1.focus.FocusService.ExplainCondition.
+func (c *focusServiceClient) ExplainCondition(ctx context.Context, req *connect.Request[focus.ExplainConditionRequest]) (*connect.Response[focus.ExplainConditionResponse], error) {
+	return c.explainCondition.CallUnary(ctx, req)
+}
+
 // FocusServiceHandler is an implementation of the
 // vrooli.meta_optimization_manager.v1.focus.FocusService service.
 type FocusServiceHandler interface {
@@ -136,6 +171,11 @@ type FocusServiceHandler interface {
 	// AddGapNote appends an explored approach/idea to a gap — the one focus write
 	// verb (the "store our thinking" primitive).
 	AddGapNote(context.Context, *connect.Request[focus.AddGapNoteRequest]) (*connect.Response[focus.AddGapNoteResponse], error)
+	// ListCondition returns observed condition findings derived from live
+	// serving telemetry, without mixing them into authored coverage cells.
+	ListCondition(context.Context, *connect.Request[focus.ListConditionRequest]) (*connect.Response[focus.ListConditionResponse], error)
+	// ExplainCondition traces one provider leg to its observed evidence.
+	ExplainCondition(context.Context, *connect.Request[focus.ExplainConditionRequest]) (*connect.Response[focus.ExplainConditionResponse], error)
 }
 
 // NewFocusServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -169,6 +209,18 @@ func NewFocusServiceHandler(svc FocusServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(focusServiceMethods.ByName("AddGapNote")),
 		connect.WithHandlerOptions(opts...),
 	)
+	focusServiceListConditionHandler := connect.NewUnaryHandler(
+		FocusServiceListConditionProcedure,
+		svc.ListCondition,
+		connect.WithSchema(focusServiceMethods.ByName("ListCondition")),
+		connect.WithHandlerOptions(opts...),
+	)
+	focusServiceExplainConditionHandler := connect.NewUnaryHandler(
+		FocusServiceExplainConditionProcedure,
+		svc.ExplainCondition,
+		connect.WithSchema(focusServiceMethods.ByName("ExplainCondition")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.meta_optimization_manager.v1.focus.FocusService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FocusServiceGetFocusProcedure:
@@ -179,6 +231,10 @@ func NewFocusServiceHandler(svc FocusServiceHandler, opts ...connect.HandlerOpti
 			focusServiceGetGapHandler.ServeHTTP(w, r)
 		case FocusServiceAddGapNoteProcedure:
 			focusServiceAddGapNoteHandler.ServeHTTP(w, r)
+		case FocusServiceListConditionProcedure:
+			focusServiceListConditionHandler.ServeHTTP(w, r)
+		case FocusServiceExplainConditionProcedure:
+			focusServiceExplainConditionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -202,4 +258,12 @@ func (UnimplementedFocusServiceHandler) GetGap(context.Context, *connect.Request
 
 func (UnimplementedFocusServiceHandler) AddGapNote(context.Context, *connect.Request[focus.AddGapNoteRequest]) (*connect.Response[focus.AddGapNoteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.meta_optimization_manager.v1.focus.FocusService.AddGapNote is not implemented"))
+}
+
+func (UnimplementedFocusServiceHandler) ListCondition(context.Context, *connect.Request[focus.ListConditionRequest]) (*connect.Response[focus.ListConditionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.meta_optimization_manager.v1.focus.FocusService.ListCondition is not implemented"))
+}
+
+func (UnimplementedFocusServiceHandler) ExplainCondition(context.Context, *connect.Request[focus.ExplainConditionRequest]) (*connect.Response[focus.ExplainConditionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.meta_optimization_manager.v1.focus.FocusService.ExplainCondition is not implemented"))
 }

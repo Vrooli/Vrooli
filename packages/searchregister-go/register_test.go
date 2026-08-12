@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
+	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/retry"
 	searchregister "github.com/vrooli/searchregister-go"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
@@ -116,7 +118,7 @@ func cfgWithEval(t *testing.T, raw string, client *fakeClient, evalClient *fakeE
 	t.Helper()
 	return searchregister.Config{
 		ScenarioID:     "cli-health",
-		SearchFilePath: writeSearchFile(t, raw),
+		SearchFilePath: writeSearchFile(t, declareTestMinimum(raw)),
 		Logger:         testLogger(t),
 		ResolveBaseURL: func(context.Context) (string, error) { return "http://search-hub.test", nil },
 		NewClient:      func(string) searchregister.RegistryClient { return client },
@@ -130,6 +132,17 @@ func cfgWithEval(t *testing.T, raw string, client *fakeClient, evalClient *fakeE
 	}
 }
 
+// The registration fixtures predate the production minimum contract. Declare a
+// zero threshold in these transport-focused fixtures so they test retry and
+// mirroring behavior; dedicated validation tests cover the strict nil case.
+func declareTestMinimum(raw string) string {
+	minimum := `"minimum":{"reviewed_positive":0,"negative":0},`
+	for _, marker := range []string{`"tests": {`, `"tests":{`} {
+		raw = strings.ReplaceAll(raw, marker, marker+minimum)
+	}
+	return raw
+}
+
 func TestRegisterHappyPath(t *testing.T) {
 	client := &fakeClient{created: true}
 	results := searchregister.Register(context.Background(), cfgWith(t, cliHealthSearchJSON, client))
@@ -140,6 +153,19 @@ func TestRegisterHappyPath(t *testing.T) {
 	require.Equal(t, "cli-health.commands", results[0].ProviderID)
 	require.Equal(t, 1, client.callCount())
 	require.Equal(t, "cli-health.commands", client.calls[0].GetProviderId())
+}
+
+func TestValidateRegistrationRequiresDeclaredMinimumForProduction(t *testing.T) {
+	err := searchregister.ValidateRegistration(aisearch.ProviderConfig{ProviderID: "demo.docs"})
+	if err == nil || !strings.Contains(err.Error(), "tests.minimum") {
+		t.Fatalf("error = %v, want actionable tests.minimum rejection", err)
+	}
+}
+
+func TestValidateRegistrationAllowsFixtureWithoutMinimum(t *testing.T) {
+	if err := searchregister.ValidateRegistration(aisearch.ProviderConfig{ProviderID: "demo.fixture", Lifecycle: "fixture"}); err != nil {
+		t.Fatalf("fixture registration: %v", err)
+	}
 }
 
 func TestRegisterCapturesControlToken(t *testing.T) {

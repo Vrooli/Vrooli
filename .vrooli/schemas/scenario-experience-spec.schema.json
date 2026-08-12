@@ -568,13 +568,13 @@
         },
         "examplesRef": {
           "type": "string",
-          "pattern": "^\\.\\./(library/(components|hooks)|\\.\\./library/(components|hooks))/[A-Za-z0-9_-]+/versions/[^/]+/examples\\.json$",
-          "description": "Path from experience/components/ to the catalog component or hook version examples.json that grounds this spec."
+          "pattern": "^\\.\\./(library/(components|hooks|primitives)|\\.\\./library/(components|hooks|primitives)|\\.\\./\\.\\./react-component-library/library/(components|hooks|primitives))/[A-Za-z0-9_-]+/versions/[^/]+/examples\\.json$",
+          "description": "Path from experience/components/ to the catalog component or hook version examples.json that grounds this spec. Adopted scenario components may point at the shared react-component-library catalog."
         },
         "storyRef": {
           "type": "string",
-          "pattern": "^\\.\\./(library/(components|hooks)|\\.\\./library/(components|hooks))/[A-Za-z0-9_-]+/versions/[^/]+/story\\.json$",
-          "description": "Path from experience/components/ to the catalog component or hook version story.json that grounds this spec."
+          "pattern": "^\\.\\./(library/(components|hooks|primitives)|\\.\\./library/(components|hooks|primitives)|\\.\\./\\.\\./react-component-library/library/(components|hooks|primitives))/[A-Za-z0-9_-]+/versions/[^/]+/story\\.json$",
+          "description": "Path from experience/components/ to the catalog component or hook version story.json that grounds this spec. Adopted scenario components may point at the shared react-component-library catalog."
         },
         "extends": {
           "$ref": "#/$defs/LibraryComponentReference",

@@ -3,9 +3,11 @@ package capacity
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 
+	internalcapacity "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
@@ -14,9 +16,10 @@ import (
 // these per suite, and each one shelled out to a probe set that a single wedged
 // daemon had pushed to 8.2 seconds.
 type countingSource struct {
-	calls int
-	err   error
-	cores int
+	calls  int
+	err    error
+	cores  int
+	memory hostinventory.Memory
 }
 
 func (s *countingSource) Snapshot(context.Context) (hostinventory.Snapshot, error) {
@@ -24,7 +27,7 @@ func (s *countingSource) Snapshot(context.Context) (hostinventory.Snapshot, erro
 	if s.err != nil {
 		return hostinventory.Snapshot{}, s.err
 	}
-	return hostinventory.Snapshot{CPU: hostinventory.CPU{Cores: s.cores}}, nil
+	return hostinventory.Snapshot{CPU: hostinventory.CPU{Cores: s.cores}, Memory: s.memory}, nil
 }
 
 // fakeClock advances only when a test says so, so the TTL is exercised without
@@ -32,6 +35,7 @@ func (s *countingSource) Snapshot(context.Context) (hostinventory.Snapshot, erro
 type fakeClock struct{ at time.Time }
 
 func (c *fakeClock) now() time.Time          { return c.at }
+func (c *fakeClock) Now() time.Time          { return c.at }
 func (c *fakeClock) advance(d time.Duration) { c.at = c.at.Add(d) }
 
 func newTestBroker(source *countingSource, clock *fakeClock) *Broker {
@@ -128,5 +132,53 @@ func TestSnapshotCollectsOnFirstCall(t *testing.T) {
 	}
 	if snapshot.CPU.Cores != 8 {
 		t.Fatalf("cores = %d, want 8", snapshot.CPU.Cores)
+	}
+}
+
+func TestAcquireExpiresStaleOperationClaimsBeforeAdmission(t *testing.T) {
+	ctx := context.Background()
+	clock := &fakeClock{at: time.Date(2026, 8, 12, 20, 0, 0, 0, time.UTC)}
+	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{
+		DBPath: filepath.Join(t.TempDir(), "capacity.db"),
+		Clock:  clock,
+	})
+	if err != nil {
+		t.Fatalf("open capacity store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	stale, err := store.CreateClaim(ctx, internalcapacity.CapacityClaim{
+		OwnerKind:      internalcapacity.OwnerKindOp,
+		OwnerID:        "test-genie:crashed-run:phase",
+		ResourceKind:   internalcapacity.ResourceKindCPU,
+		AmountBytes:    4_000,
+		PreferredBytes: 4_000,
+		FloorBytes:     4_000,
+		Priority:       internalcapacity.PriorityBatch,
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("create stale claim: %v", err)
+	}
+	clock.advance(2 * time.Second)
+	broker := &Broker{
+		store:  store,
+		source: &countingSource{cores: 4, memory: hostinventory.Memory{TotalBytes: 1 << 30, AvailableBytes: 1 << 30}},
+		now:    clock.now,
+	}
+	lease, verdict, err := broker.Acquire(ctx, "test-genie:new-run:phase", 1, 1_000)
+	if err != nil {
+		t.Fatalf("acquire: %v", err)
+	}
+	if lease == nil || verdict.Kind != internalcapacity.VerdictGrant {
+		t.Fatalf("acquire verdict = %#v, lease=%v; stale claim should not block admission", verdict, lease != nil)
+	}
+	if err := lease.Release(ctx); err != nil {
+		t.Fatalf("release new lease: %v", err)
+	}
+	got, err := store.GetClaim(ctx, stale.ClaimID)
+	if err != nil {
+		t.Fatalf("read stale claim: %v", err)
+	}
+	if got.Status != internalcapacity.StatusExpired {
+		t.Fatalf("stale claim status = %q, want expired", got.Status)
 	}
 }

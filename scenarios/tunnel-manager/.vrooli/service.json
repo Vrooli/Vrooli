@@ -84,7 +84,6 @@
   "deployment": {
     "tiers": {
       "tier-1-local": {
-        "status": "ready",
         "secrets": [
           {
             "secret_id": "CLOUDFLARE_API_TOKEN",

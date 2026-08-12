@@ -44,6 +44,7 @@
         }
       },
       "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
         "name": "web-search findings — semantic recall corpus",
         "description": "Reviewed corpus for stable cited findings already stored in the web-search findings database. Positives assert stored finding ids; the live web provider uses separate smoke coverage.",
         "coverage": {
@@ -111,6 +112,7 @@
     },
     {
       "provider_id": "web-search.live",
+      "lifecycle": "fixture",
       "provider_group": "web-search",
       "bucket": "BUCKET_KNOW",
       "type": "web",

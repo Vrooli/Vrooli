@@ -80,6 +80,7 @@ func TestDescriptorMapsAllDescriptorFields(t *testing.T) {
 	require.Equal(t, "application/json", hj.GetHeaders()["Content-Type"])
 
 	require.Equal(t, "cli-health", d.GetStatusEndpoint().GetHttpJson().GetScenarioId())
+	require.Equal(t, "last_indexed_at", d.GetIndexTimestampField())
 
 	rm := d.GetResultMapping()
 	require.NotNil(t, rm)
@@ -188,6 +189,7 @@ func TestTuningProtoRoundTrip(t *testing.T) {
 		RerankEnabled:   true,
 		RerankBlend:     true,
 		RerankShortlist: 80,
+		HybridFusion:    aisearch.HybridFusionDBSF,
 		Floor:           aisearch.FloorTuning{MaxGap: 0.4, HardFloor: 0.15},
 	}
 	out := searchregister.TuningFromProto(searchregister.TuningToProto(in))

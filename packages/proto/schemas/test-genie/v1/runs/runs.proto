@@ -938,6 +938,10 @@ message GetSelfHealthRequest {
   // captured_at + trend delta against the last differing snapshot are always
   // filled when a snapshot history exists, independent of this flag.
   bool include_trend = 3;
+  // force_live_conformance opts into the synchronous provider scan. This is
+  // intentionally explicit because the scan fans out to every provider and
+  // is not suitable for a latency-bounded health read.
+  bool force_live_conformance = 4;
 }
 
 message GetSelfHealthResponse {
@@ -967,13 +971,39 @@ message FleetHealth {
   int32 scenarios_tested = 3; // scenarios with >=1 run in the window
   int32 scenarios_total = 4; // tested + never-tested (when roster requested)
   int32 total_runs = 5;
-  int32 total_issues = 6; // failed phase observations across the fleet
+  // Deprecated compatibility alias. Use failed_phase_observations; this name
+  // was ambiguous with findings emitted by individual phases.
+  int32 total_issues = 6 [deprecated = true];
   repeated FleetScenarioHealth scenarios = 7; // most-errored first
   repeated FleetFindingSource top_finding_sources = 8;
   // never_tested_in_window names roster scenarios with no run in the window — an
   // explicit coverage gap, never a silent zero. Empty when no roster requested.
   repeated string never_tested_in_window = 9;
   repeated FleetAlert alerts = 10;
+  repeated FailureClassificationCount failure_classifications = 11;
+  int32 failed_phase_observations = 12;
+  // Finding quality keeps actionable blockers/errors separate from the much
+  // larger warning/info volume.
+  FleetFindingQuality finding_quality = 13;
+}
+
+// FailureClassificationCount is a typed split of failed phase observations.
+// The `system` bucket is the orchestrator fallback; provider-stated causes are
+// preserved as their own buckets.
+message FailureClassificationCount {
+  string classification = 1;
+  int32 count = 2;
+}
+
+// FleetFindingQuality is the severity rollup for findings emitted by phases in
+// the requested window. Blockers + errors are the actionable headline; the
+// warning/info volume is advisory context.
+message FleetFindingQuality {
+  int32 blockers = 1;
+  int32 errors = 2;
+  int32 warnings = 3;
+  int32 infos = 4;
+  int32 total = 5;
 }
 
 // FleetAlert turns a non-clean fleet condition into an operator action. The
@@ -1018,13 +1048,16 @@ message SelfHealth {
   // conformance is the per-provider adoption scorecard. Empty when
   // skip_conformance was set.
   repeated ProviderConformance conformance = 2;
-  // conformance_freshness is "live" when conformance was probed this call, or
-  // "skipped" when skip_conformance was set. Conformance is never cached.
+  // conformance_freshness is "live" for an explicitly forced scan, "cached"
+  // for the background snapshot, or "skipped" when skip_conformance was set.
   string conformance_freshness = 3;
   ReliabilityLedger ledger = 4;
   // trend_series is the persisted self-health snapshot history, newest-first.
   // Populated only when include_trend was requested and snapshots exist.
   repeated SelfHealthTrendPoint trend_series = 5;
+  // conformance_captured_at is the UTC capture time of the cached scorecard.
+  // It is empty for live, skipped, or not-yet-captured conformance.
+  string conformance_captured_at = 6;
 }
 
 // SelfHealthTrendPoint is one persisted self-health snapshot in the trend
@@ -1102,6 +1135,7 @@ message ProviderConformance {
   // True when the live validation response carried metrics, independent of
   // whether the execution history persisted them.
   bool metrics_reachable = 16;
+  bool failure_classification_missing = 17;
 }
 
 // AutofixCoverage is the per-provider autofix declaration rollup derived from a
@@ -1198,6 +1232,12 @@ message PhaseReliability {
   // Populated for the security phase (or a phase explicitly backed by the
   // security finding source); empty for unrelated phases.
   SecurityFriction security_friction = 16;
+  int32 consecutive_failures = 17;
+  // RFC3339Nano timestamp of the oldest observation in the current contiguous
+  // failure streak. Consumers use the age of this streak for sustained
+  // degradation decisions rather than treating an arbitrary sample count as
+  // a duration.
+  string failure_streak_since = 18;
 }
 
 // ProviderReliability is the per-provider rollup across its phase(s).

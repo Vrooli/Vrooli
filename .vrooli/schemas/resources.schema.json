@@ -94,13 +94,6 @@
           "maximum": 9999,
           "description": "Startup priority (higher = starts first, like CSS z-index). Core infrastructure: 1000+, platforms: 500-999, optional: 100-499"
         },
-        "initialization": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/initializationItem"
-          },
-          "description": "Initialization files/scripts to run when resource is set up"
-        },
         "baseUrl": {
           "$ref": "common.schema.json#/definitions/url",
           "description": "Base URL for the resource API"
@@ -133,29 +126,6 @@
       },
       "additionalProperties": true,
       "description": "Base resource configuration with type-specific properties allowed"
-    },
-    "initializationItem": {
-      "type": "object",
-      "properties": {
-        "file": {
-          "type": "string",
-          "description": "Path to initialization file relative to scenario root"
-        },
-        "type": {
-          "type": "string",
-          "enum": ["workflow", "script", "app", "schema", "config", "data"],
-          "description": "Type of initialization content"
-        },
-        "target": {
-          "type": "string",
-          "description": "Target location or identifier for the content"
-        },
-        "order": {
-          "type": "integer",
-          "description": "Execution order (lower numbers run first)"
-        }
-      },
-      "required": ["file", "type"]
     },
     "healthCheckConfig": {
       "type": "object",

@@ -39,6 +39,60 @@ type ResolvedField struct {
 	Kind string
 }
 
+// ArgFieldResolutionError is returned when a manifest argument cannot be
+// mapped to the request descriptor. Keeping the descriptor-derived candidates
+// on the error makes the same contract available to validators, diagnostics,
+// and callers that need to repair a request without maintaining a second
+// field walk.
+type ArgFieldResolutionError struct {
+	ArgumentName string
+	RequestType  protoreflect.FullName
+	Candidates   []string
+	Detail       string
+}
+
+func (e *ArgFieldResolutionError) Error() string {
+	if e == nil {
+		return "argument field resolution failed"
+	}
+	message := fmt.Sprintf("argument %q: %s on %s", e.ArgumentName, e.Detail, e.RequestType)
+	if len(e.Candidates) == 0 {
+		return message
+	}
+	const maxCandidates = 12
+	displayed := e.Candidates
+	if len(displayed) > maxCandidates {
+		displayed = displayed[:maxCandidates]
+	}
+	message += "; candidate fields: " + strings.Join(displayed, ", ")
+	if omitted := len(e.Candidates) - len(displayed); omitted > 0 {
+		message += fmt.Sprintf(" (+%d omitted)", omitted)
+	}
+	return message
+}
+
+// DescriptorFieldNames returns the JSON names exposed by a request descriptor,
+// including the supported one-level envelope paths. It is the canonical
+// descriptor walk used by both manifest diagnostics and argument resolution.
+func DescriptorFieldNames(md protoreflect.MessageDescriptor) []string {
+	if md == nil {
+		return nil
+	}
+	fields := md.Fields()
+	out := make([]string, 0, fields.Len())
+	for i := 0; i < fields.Len(); i++ {
+		field := fields.Get(i)
+		out = append(out, field.JSONName())
+		if field.Kind() == protoreflect.MessageKind && !field.IsList() && !field.IsMap() {
+			nested := field.Message().Fields()
+			for j := 0; j < nested.Len(); j++ {
+				out = append(out, field.JSONName()+"."+nested.Get(j).JSONName())
+			}
+		}
+	}
+	return out
+}
+
 // scalarDecodableWellKnown lists the well-known messages protojson encodes as
 // a bare JSON scalar, so a single CLI string can legitimately populate them.
 // Struct, ListValue, Any, and Empty are deliberately absent: none of them
@@ -171,7 +225,12 @@ func ResolveArgField(md protoreflect.MessageDescriptor, argName string, schema A
 		}
 		return ResolvedField{}, fmt.Errorf("argument %q: auto-descent is ambiguous across %s", argName, strings.Join(names, ", "))
 	}
-	return ResolvedField{}, fmt.Errorf("argument %q: no proto field matches %q on %s", argName, canonical, md.FullName())
+	return ResolvedField{}, &ArgFieldResolutionError{
+		ArgumentName: argName,
+		RequestType:  md.FullName(),
+		Candidates:   DescriptorFieldNames(md),
+		Detail:       fmt.Sprintf("no proto field matches %q", canonical),
+	}
 }
 
 func bindKind(kind string) string {

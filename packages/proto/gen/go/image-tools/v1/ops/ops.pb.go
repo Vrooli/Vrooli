@@ -1559,12 +1559,15 @@ func (x *MetadataParams) GetAutoOrient() bool {
 }
 
 type DuotoneParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Dark          string                 `protobuf:"bytes,1,opt,name=dark,proto3" json:"dark,omitempty"`
-	Light         string                 `protobuf:"bytes,2,opt,name=light,proto3" json:"light,omitempty"`
-	Mid           string                 `protobuf:"bytes,3,opt,name=mid,proto3" json:"mid,omitempty"`
-	MidLow        float64                `protobuf:"fixed64,4,opt,name=mid_low,json=midLow,proto3" json:"mid_low,omitempty"`
-	MidHigh       float64                `protobuf:"fixed64,5,opt,name=mid_high,json=midHigh,proto3" json:"mid_high,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Dark    string                 `protobuf:"bytes,1,opt,name=dark,proto3" json:"dark,omitempty"`
+	Light   string                 `protobuf:"bytes,2,opt,name=light,proto3" json:"light,omitempty"`
+	Mid     string                 `protobuf:"bytes,3,opt,name=mid,proto3" json:"mid,omitempty"`
+	MidLow  float64                `protobuf:"fixed64,4,opt,name=mid_low,json=midLow,proto3" json:"mid_low,omitempty"`
+	MidHigh float64                `protobuf:"fixed64,5,opt,name=mid_high,json=midHigh,proto3" json:"mid_high,omitempty"`
+	// normalize auto-levels the source p1-p99 tonal range onto the full ink
+	// ramp before mapping, so a low-contrast source still uses the whole ramp.
+	Normalize     bool `protobuf:"varint,6,opt,name=normalize,proto3" json:"normalize,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1634,11 +1637,21 @@ func (x *DuotoneParams) GetMidHigh() float64 {
 	return 0
 }
 
+func (x *DuotoneParams) GetNormalize() bool {
+	if x != nil {
+		return x.Normalize
+	}
+	return false
+}
+
 type PosterizeParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Levels        int32                  `protobuf:"varint,1,opt,name=levels,proto3" json:"levels,omitempty"`
-	Dark          string                 `protobuf:"bytes,2,opt,name=dark,proto3" json:"dark,omitempty"`
-	Light         string                 `protobuf:"bytes,3,opt,name=light,proto3" json:"light,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Levels int32                  `protobuf:"varint,1,opt,name=levels,proto3" json:"levels,omitempty"`
+	Dark   string                 `protobuf:"bytes,2,opt,name=dark,proto3" json:"dark,omitempty"`
+	Light  string                 `protobuf:"bytes,3,opt,name=light,proto3" json:"light,omitempty"`
+	// normalize auto-levels the source p1-p99 tonal range onto the full ink
+	// ramp before mapping, so a low-contrast source still uses the whole ramp.
+	Normalize     bool `protobuf:"varint,4,opt,name=normalize,proto3" json:"normalize,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1694,13 +1707,42 @@ func (x *PosterizeParams) GetLight() string {
 	return ""
 }
 
+func (x *PosterizeParams) GetNormalize() bool {
+	if x != nil {
+		return x.Normalize
+	}
+	return false
+}
+
+// Relative spatial parameters
+//
+// Every spatial parameter below carries an absolute pixel form and a `_rel`
+// form. A relative value is a fraction of the image's SHORT edge:
+//
+//	px = round(rel * min(width, height))
+//
+// clamped up to the operation's minimum legal value. So `spacing_rel: 0.02` is
+// 9px on a 448px-tall frame and 27px on a 1344px-tall one, which is the same
+// screen density to the eye. An absolute value means pixels and keeps meaning
+// pixels; when both are set the relative form wins, and the resolved pixel
+// value is reported in OpResult.resolved_params so a caller can see what ran.
+//
+// HalftoneParams.lpi is deliberately absent from this scheme: it is a count of
+// screen lines across the image WIDTH (the implementation computes the cell as
+// width/lpi), so it is already resolution-independent and needs no relative
+// twin. See scenarios/backdrop-studio/docs/evidence/treatments/resolution-proof/.
 type HalftoneParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Lpi           int32                  `protobuf:"varint,1,opt,name=lpi,proto3" json:"lpi,omitempty"`
-	Angle         float64                `protobuf:"fixed64,2,opt,name=angle,proto3" json:"angle,omitempty"`
-	Dot           string                 `protobuf:"bytes,3,opt,name=dot,proto3" json:"dot,omitempty"`
-	Dark          string                 `protobuf:"bytes,4,opt,name=dark,proto3" json:"dark,omitempty"`
-	Light         string                 `protobuf:"bytes,5,opt,name=light,proto3" json:"light,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// lpi is the number of screen lines across the image width, not a pixel
+	// measurement — the same lpi yields the same screen coarseness at any size.
+	Lpi   int32   `protobuf:"varint,1,opt,name=lpi,proto3" json:"lpi,omitempty"`
+	Angle float64 `protobuf:"fixed64,2,opt,name=angle,proto3" json:"angle,omitempty"`
+	Dot   string  `protobuf:"bytes,3,opt,name=dot,proto3" json:"dot,omitempty"`
+	Dark  string  `protobuf:"bytes,4,opt,name=dark,proto3" json:"dark,omitempty"`
+	Light string  `protobuf:"bytes,5,opt,name=light,proto3" json:"light,omitempty"`
+	// normalize auto-levels the source p1-p99 tonal range onto the full ink
+	// ramp before mapping, so a low-contrast source still uses the whole ramp.
+	Normalize     bool `protobuf:"varint,6,opt,name=normalize,proto3" json:"normalize,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1770,10 +1812,20 @@ func (x *HalftoneParams) GetLight() string {
 	return ""
 }
 
+func (x *HalftoneParams) GetNormalize() bool {
+	if x != nil {
+		return x.Normalize
+	}
+	return false
+}
+
 type DitherParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Dark          string                 `protobuf:"bytes,1,opt,name=dark,proto3" json:"dark,omitempty"`
-	Light         string                 `protobuf:"bytes,2,opt,name=light,proto3" json:"light,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Dark  string                 `protobuf:"bytes,1,opt,name=dark,proto3" json:"dark,omitempty"`
+	Light string                 `protobuf:"bytes,2,opt,name=light,proto3" json:"light,omitempty"`
+	// normalize auto-levels the source p1-p99 tonal range onto the full ink
+	// ramp before mapping, so a low-contrast source still uses the whole ramp.
+	Normalize     bool `protobuf:"varint,3,opt,name=normalize,proto3" json:"normalize,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1820,6 +1872,13 @@ func (x *DitherParams) GetLight() string {
 		return x.Light
 	}
 	return ""
+}
+
+func (x *DitherParams) GetNormalize() bool {
+	if x != nil {
+		return x.Normalize
+	}
+	return false
 }
 
 type GrainParams struct {
@@ -1943,9 +2002,16 @@ func (x *ScrimParams) GetDirection() string {
 }
 
 type LineScreenParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Spacing       float64                `protobuf:"fixed64,1,opt,name=spacing,proto3" json:"spacing,omitempty"`
-	Angle         float64                `protobuf:"fixed64,2,opt,name=angle,proto3" json:"angle,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Spacing float64                `protobuf:"fixed64,1,opt,name=spacing,proto3" json:"spacing,omitempty"`
+	Angle   float64                `protobuf:"fixed64,2,opt,name=angle,proto3" json:"angle,omitempty"`
+	Dark    string                 `protobuf:"bytes,3,opt,name=dark,proto3" json:"dark,omitempty"`
+	Light   string                 `protobuf:"bytes,4,opt,name=light,proto3" json:"light,omitempty"`
+	// normalize auto-levels the source p1-p99 tonal range onto the full ink
+	// ramp before mapping, so a low-contrast source still uses the whole ramp.
+	Normalize bool `protobuf:"varint,5,opt,name=normalize,proto3" json:"normalize,omitempty"`
+	// spacing_rel is the line pitch as a fraction of the short edge.
+	SpacingRel    float64 `protobuf:"fixed64,6,opt,name=spacing_rel,json=spacingRel,proto3" json:"spacing_rel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1994,10 +2060,45 @@ func (x *LineScreenParams) GetAngle() float64 {
 	return 0
 }
 
+func (x *LineScreenParams) GetDark() string {
+	if x != nil {
+		return x.Dark
+	}
+	return ""
+}
+
+func (x *LineScreenParams) GetLight() string {
+	if x != nil {
+		return x.Light
+	}
+	return ""
+}
+
+func (x *LineScreenParams) GetNormalize() bool {
+	if x != nil {
+		return x.Normalize
+	}
+	return false
+}
+
+func (x *LineScreenParams) GetSpacingRel() float64 {
+	if x != nil {
+		return x.SpacingRel
+	}
+	return 0
+}
+
 type StippleParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Spacing       float64                `protobuf:"fixed64,1,opt,name=spacing,proto3" json:"spacing,omitempty"`
-	Seed          int64                  `protobuf:"varint,2,opt,name=seed,proto3" json:"seed,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Spacing float64                `protobuf:"fixed64,1,opt,name=spacing,proto3" json:"spacing,omitempty"`
+	Seed    int64                  `protobuf:"varint,2,opt,name=seed,proto3" json:"seed,omitempty"`
+	Dark    string                 `protobuf:"bytes,3,opt,name=dark,proto3" json:"dark,omitempty"`
+	Light   string                 `protobuf:"bytes,4,opt,name=light,proto3" json:"light,omitempty"`
+	// normalize auto-levels the source p1-p99 tonal range onto the full ink
+	// ramp before mapping, so a low-contrast source still uses the whole ramp.
+	Normalize bool `protobuf:"varint,5,opt,name=normalize,proto3" json:"normalize,omitempty"`
+	// spacing_rel is the stipple cell pitch as a fraction of the short edge.
+	SpacingRel    float64 `protobuf:"fixed64,6,opt,name=spacing_rel,json=spacingRel,proto3" json:"spacing_rel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2046,9 +2147,44 @@ func (x *StippleParams) GetSeed() int64 {
 	return 0
 }
 
+func (x *StippleParams) GetDark() string {
+	if x != nil {
+		return x.Dark
+	}
+	return ""
+}
+
+func (x *StippleParams) GetLight() string {
+	if x != nil {
+		return x.Light
+	}
+	return ""
+}
+
+func (x *StippleParams) GetNormalize() bool {
+	if x != nil {
+		return x.Normalize
+	}
+	return false
+}
+
+func (x *StippleParams) GetSpacingRel() float64 {
+	if x != nil {
+		return x.SpacingRel
+	}
+	return 0
+}
+
 type EngravingParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Spacing       float64                `protobuf:"fixed64,1,opt,name=spacing,proto3" json:"spacing,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Spacing float64                `protobuf:"fixed64,1,opt,name=spacing,proto3" json:"spacing,omitempty"`
+	Dark    string                 `protobuf:"bytes,2,opt,name=dark,proto3" json:"dark,omitempty"`
+	Light   string                 `protobuf:"bytes,3,opt,name=light,proto3" json:"light,omitempty"`
+	// normalize auto-levels the source p1-p99 tonal range onto the full ink
+	// ramp before mapping, so a low-contrast source still uses the whole ramp.
+	Normalize bool `protobuf:"varint,4,opt,name=normalize,proto3" json:"normalize,omitempty"`
+	// spacing_rel is the hatching period as a fraction of the short edge.
+	SpacingRel    float64 `protobuf:"fixed64,5,opt,name=spacing_rel,json=spacingRel,proto3" json:"spacing_rel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2090,9 +2226,43 @@ func (x *EngravingParams) GetSpacing() float64 {
 	return 0
 }
 
+func (x *EngravingParams) GetDark() string {
+	if x != nil {
+		return x.Dark
+	}
+	return ""
+}
+
+func (x *EngravingParams) GetLight() string {
+	if x != nil {
+		return x.Light
+	}
+	return ""
+}
+
+func (x *EngravingParams) GetNormalize() bool {
+	if x != nil {
+		return x.Normalize
+	}
+	return false
+}
+
+func (x *EngravingParams) GetSpacingRel() float64 {
+	if x != nil {
+		return x.SpacingRel
+	}
+	return 0
+}
+
 type AberrationParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Amplitude     float64                `protobuf:"fixed64,1,opt,name=amplitude,proto3" json:"amplitude,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Amplitude float64                `protobuf:"fixed64,1,opt,name=amplitude,proto3" json:"amplitude,omitempty"`
+	// distance is the radial channel separation in px, which is what the
+	// implementation consumes; amplitude is retained for wire compatibility.
+	Distance int32 `protobuf:"varint,2,opt,name=distance,proto3" json:"distance,omitempty"`
+	// distance_rel is the radial channel separation as a fraction of the short
+	// edge. It wins over both distance and amplitude when set.
+	DistanceRel   float64 `protobuf:"fixed64,3,opt,name=distance_rel,json=distanceRel,proto3" json:"distance_rel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2134,10 +2304,26 @@ func (x *AberrationParams) GetAmplitude() float64 {
 	return 0
 }
 
+func (x *AberrationParams) GetDistance() int32 {
+	if x != nil {
+		return x.Distance
+	}
+	return 0
+}
+
+func (x *AberrationParams) GetDistanceRel() float64 {
+	if x != nil {
+		return x.DistanceRel
+	}
+	return 0
+}
+
 type BloomParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Radius        int32                  `protobuf:"varint,1,opt,name=radius,proto3" json:"radius,omitempty"`
-	Threshold     float64                `protobuf:"fixed64,2,opt,name=threshold,proto3" json:"threshold,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Radius    int32                  `protobuf:"varint,1,opt,name=radius,proto3" json:"radius,omitempty"`
+	Threshold float64                `protobuf:"fixed64,2,opt,name=threshold,proto3" json:"threshold,omitempty"`
+	// radius_rel is the bloom blur radius as a fraction of the short edge.
+	RadiusRel     float64 `protobuf:"fixed64,3,opt,name=radius_rel,json=radiusRel,proto3" json:"radius_rel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2182,6 +2368,13 @@ func (x *BloomParams) GetRadius() int32 {
 func (x *BloomParams) GetThreshold() float64 {
 	if x != nil {
 		return x.Threshold
+	}
+	return 0
+}
+
+func (x *BloomParams) GetRadiusRel() float64 {
+	if x != nil {
+		return x.RadiusRel
 	}
 	return 0
 }
@@ -2231,9 +2424,11 @@ func (x *CurveParams) GetExponent() float64 {
 }
 
 type DefocusParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Radius        int32                  `protobuf:"varint,1,opt,name=radius,proto3" json:"radius,omitempty"`
-	BladeCount    int32                  `protobuf:"varint,2,opt,name=blade_count,json=bladeCount,proto3" json:"blade_count,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Radius     int32                  `protobuf:"varint,1,opt,name=radius,proto3" json:"radius,omitempty"`
+	BladeCount int32                  `protobuf:"varint,2,opt,name=blade_count,json=bladeCount,proto3" json:"blade_count,omitempty"`
+	// radius_rel is the defocus blur radius as a fraction of the short edge.
+	RadiusRel     float64 `protobuf:"fixed64,3,opt,name=radius_rel,json=radiusRel,proto3" json:"radius_rel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2282,10 +2477,19 @@ func (x *DefocusParams) GetBladeCount() int32 {
 	return 0
 }
 
+func (x *DefocusParams) GetRadiusRel() float64 {
+	if x != nil {
+		return x.RadiusRel
+	}
+	return 0
+}
+
 type MotionBlurParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Distance      int32                  `protobuf:"varint,1,opt,name=distance,proto3" json:"distance,omitempty"`
-	Angle         float64                `protobuf:"fixed64,2,opt,name=angle,proto3" json:"angle,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Distance int32                  `protobuf:"varint,1,opt,name=distance,proto3" json:"distance,omitempty"`
+	Angle    float64                `protobuf:"fixed64,2,opt,name=angle,proto3" json:"angle,omitempty"`
+	// distance_rel is the smear length as a fraction of the short edge.
+	DistanceRel   float64 `protobuf:"fixed64,3,opt,name=distance_rel,json=distanceRel,proto3" json:"distance_rel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2334,9 +2538,29 @@ func (x *MotionBlurParams) GetAngle() float64 {
 	return 0
 }
 
+func (x *MotionBlurParams) GetDistanceRel() float64 {
+	if x != nil {
+		return x.DistanceRel
+	}
+	return 0
+}
+
 type AsciiMosaicParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BlockSize     int32                  `protobuf:"varint,1,opt,name=block_size,json=blockSize,proto3" json:"block_size,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	BlockSize int32                  `protobuf:"varint,1,opt,name=block_size,json=blockSize,proto3" json:"block_size,omitempty"`
+	Dark      string                 `protobuf:"bytes,2,opt,name=dark,proto3" json:"dark,omitempty"`
+	Light     string                 `protobuf:"bytes,3,opt,name=light,proto3" json:"light,omitempty"`
+	// normalize auto-levels the source p1-p99 tonal range onto the full ink
+	// ramp before mapping, so a low-contrast source still uses the whole ramp.
+	Normalize bool `protobuf:"varint,4,opt,name=normalize,proto3" json:"normalize,omitempty"`
+	// block_size_rel is the character cell width as a fraction of the short
+	// edge. The operation blits a 7x13 bitmap face, so the resolved value snaps
+	// to the NEAREST whole multiple of the 7px glyph advance (minimum 7) — a
+	// cell that is not a whole multiple resamples the glyph and smears the
+	// characters the operation exists to draw. The advance is a coarse quantum
+	// at small cells, so this treatment holds density across resolutions less
+	// tightly than the screens do.
+	BlockSizeRel  float64 `protobuf:"fixed64,5,opt,name=block_size_rel,json=blockSizeRel,proto3" json:"block_size_rel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2374,6 +2598,34 @@ func (*AsciiMosaicParams) Descriptor() ([]byte, []int) {
 func (x *AsciiMosaicParams) GetBlockSize() int32 {
 	if x != nil {
 		return x.BlockSize
+	}
+	return 0
+}
+
+func (x *AsciiMosaicParams) GetDark() string {
+	if x != nil {
+		return x.Dark
+	}
+	return ""
+}
+
+func (x *AsciiMosaicParams) GetLight() string {
+	if x != nil {
+		return x.Light
+	}
+	return ""
+}
+
+func (x *AsciiMosaicParams) GetNormalize() bool {
+	if x != nil {
+		return x.Normalize
+	}
+	return false
+}
+
+func (x *AsciiMosaicParams) GetBlockSizeRel() float64 {
+	if x != nil {
+		return x.BlockSizeRel
 	}
 	return 0
 }
@@ -2431,9 +2683,15 @@ func (x *PixelSortParams) GetAxis() string {
 }
 
 type DisplacementParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Amplitude     float64                `protobuf:"fixed64,1,opt,name=amplitude,proto3" json:"amplitude,omitempty"`
-	Seed          int64                  `protobuf:"varint,2,opt,name=seed,proto3" json:"seed,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Amplitude float64                `protobuf:"fixed64,1,opt,name=amplitude,proto3" json:"amplitude,omitempty"`
+	Seed      int64                  `protobuf:"varint,2,opt,name=seed,proto3" json:"seed,omitempty"`
+	Spacing   float64                `protobuf:"fixed64,3,opt,name=spacing,proto3" json:"spacing,omitempty"`
+	// spacing_rel is the displacement-field wavelength as a fraction of the
+	// short edge.
+	SpacingRel float64 `protobuf:"fixed64,4,opt,name=spacing_rel,json=spacingRel,proto3" json:"spacing_rel,omitempty"`
+	// amplitude_rel is the peak displacement as a fraction of the short edge.
+	AmplitudeRel  float64 `protobuf:"fixed64,5,opt,name=amplitude_rel,json=amplitudeRel,proto3" json:"amplitude_rel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2482,18 +2740,45 @@ func (x *DisplacementParams) GetSeed() int64 {
 	return 0
 }
 
+func (x *DisplacementParams) GetSpacing() float64 {
+	if x != nil {
+		return x.Spacing
+	}
+	return 0
+}
+
+func (x *DisplacementParams) GetSpacingRel() float64 {
+	if x != nil {
+		return x.SpacingRel
+	}
+	return 0
+}
+
+func (x *DisplacementParams) GetAmplitudeRel() float64 {
+	if x != nil {
+		return x.AmplitudeRel
+	}
+	return 0
+}
+
 // OpResult is the proto-typed result metadata of a run. ref is the managed blob
 // key (or the caller-supplied local path) holding the output bytes.
 type OpResult struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ref           string                 `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
-	Format        string                 `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
-	Mime          string                 `protobuf:"bytes,3,opt,name=mime,proto3" json:"mime,omitempty"`
-	Width         int32                  `protobuf:"varint,4,opt,name=width,proto3" json:"width,omitempty"`
-	Height        int32                  `protobuf:"varint,5,opt,name=height,proto3" json:"height,omitempty"`
-	SizeBytes     int64                  `protobuf:"varint,6,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Ref       string                 `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	Format    string                 `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
+	Mime      string                 `protobuf:"bytes,3,opt,name=mime,proto3" json:"mime,omitempty"`
+	Width     int32                  `protobuf:"varint,4,opt,name=width,proto3" json:"width,omitempty"`
+	Height    int32                  `protobuf:"varint,5,opt,name=height,proto3" json:"height,omitempty"`
+	SizeBytes int64                  `protobuf:"varint,6,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	// resolved_params reports the pixel value every relative spatial parameter
+	// resolved to for this image, keyed by the absolute field's name ("spacing",
+	// "radius", "distance", "block_size"). It is empty when the request sent no
+	// relative parameter. Without it a caller sending `spacing_rel` has no way to
+	// learn what actually ran, which is how a mistuned screen stays invisible.
+	ResolvedParams map[string]float64 `protobuf:"bytes,7,rep,name=resolved_params,json=resolvedParams,proto3" json:"resolved_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *OpResult) Reset() {
@@ -2566,6 +2851,13 @@ func (x *OpResult) GetSizeBytes() int64 {
 		return x.SizeBytes
 	}
 	return 0
+}
+
+func (x *OpResult) GetResolvedParams() map[string]float64 {
+	if x != nil {
+		return x.ResolvedParams
+	}
+	return nil
 }
 
 // RunOpResponse is the JSON (protojson) body returned by the REST run edge: a
@@ -2748,26 +3040,30 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"\tstrip_all\x18\x01 \x01(\bR\bstripAll\x12\x1b\n" +
 	"\tstrip_gps\x18\x02 \x01(\bR\bstripGps\x12\x1f\n" +
 	"\vauto_orient\x18\x03 \x01(\bR\n" +
-	"autoOrient\"\x7f\n" +
+	"autoOrient\"\x9d\x01\n" +
 	"\rDuotoneParams\x12\x12\n" +
 	"\x04dark\x18\x01 \x01(\tR\x04dark\x12\x14\n" +
 	"\x05light\x18\x02 \x01(\tR\x05light\x12\x10\n" +
 	"\x03mid\x18\x03 \x01(\tR\x03mid\x12\x17\n" +
 	"\amid_low\x18\x04 \x01(\x01R\x06midLow\x12\x19\n" +
-	"\bmid_high\x18\x05 \x01(\x01R\amidHigh\"S\n" +
+	"\bmid_high\x18\x05 \x01(\x01R\amidHigh\x12\x1c\n" +
+	"\tnormalize\x18\x06 \x01(\bR\tnormalize\"q\n" +
 	"\x0fPosterizeParams\x12\x16\n" +
 	"\x06levels\x18\x01 \x01(\x05R\x06levels\x12\x12\n" +
 	"\x04dark\x18\x02 \x01(\tR\x04dark\x12\x14\n" +
-	"\x05light\x18\x03 \x01(\tR\x05light\"t\n" +
+	"\x05light\x18\x03 \x01(\tR\x05light\x12\x1c\n" +
+	"\tnormalize\x18\x04 \x01(\bR\tnormalize\"\x92\x01\n" +
 	"\x0eHalftoneParams\x12\x10\n" +
 	"\x03lpi\x18\x01 \x01(\x05R\x03lpi\x12\x14\n" +
 	"\x05angle\x18\x02 \x01(\x01R\x05angle\x12\x10\n" +
 	"\x03dot\x18\x03 \x01(\tR\x03dot\x12\x12\n" +
 	"\x04dark\x18\x04 \x01(\tR\x04dark\x12\x14\n" +
-	"\x05light\x18\x05 \x01(\tR\x05light\"8\n" +
+	"\x05light\x18\x05 \x01(\tR\x05light\x12\x1c\n" +
+	"\tnormalize\x18\x06 \x01(\bR\tnormalize\"V\n" +
 	"\fDitherParams\x12\x12\n" +
 	"\x04dark\x18\x01 \x01(\tR\x04dark\x12\x14\n" +
-	"\x05light\x18\x02 \x01(\tR\x05light\"j\n" +
+	"\x05light\x18\x02 \x01(\tR\x05light\x12\x1c\n" +
+	"\tnormalize\x18\x03 \x01(\bR\tnormalize\"j\n" +
 	"\vGrainParams\x12\x12\n" +
 	"\x04seed\x18\x01 \x01(\x03R\x04seed\x12\x16\n" +
 	"\x06amount\x18\x02 \x01(\x01R\x06amount\x12/\n" +
@@ -2775,38 +3071,68 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"\vScrimParams\x12\x14\n" +
 	"\x05color\x18\x01 \x01(\tR\x05color\x12\x18\n" +
 	"\aopacity\x18\x02 \x01(\x01R\aopacity\x12\x1c\n" +
-	"\tdirection\x18\x03 \x01(\tR\tdirection\"B\n" +
+	"\tdirection\x18\x03 \x01(\tR\tdirection\"\xab\x01\n" +
 	"\x10LineScreenParams\x12\x18\n" +
 	"\aspacing\x18\x01 \x01(\x01R\aspacing\x12\x14\n" +
-	"\x05angle\x18\x02 \x01(\x01R\x05angle\"=\n" +
+	"\x05angle\x18\x02 \x01(\x01R\x05angle\x12\x12\n" +
+	"\x04dark\x18\x03 \x01(\tR\x04dark\x12\x14\n" +
+	"\x05light\x18\x04 \x01(\tR\x05light\x12\x1c\n" +
+	"\tnormalize\x18\x05 \x01(\bR\tnormalize\x12\x1f\n" +
+	"\vspacing_rel\x18\x06 \x01(\x01R\n" +
+	"spacingRel\"\xa6\x01\n" +
 	"\rStippleParams\x12\x18\n" +
 	"\aspacing\x18\x01 \x01(\x01R\aspacing\x12\x12\n" +
-	"\x04seed\x18\x02 \x01(\x03R\x04seed\"+\n" +
+	"\x04seed\x18\x02 \x01(\x03R\x04seed\x12\x12\n" +
+	"\x04dark\x18\x03 \x01(\tR\x04dark\x12\x14\n" +
+	"\x05light\x18\x04 \x01(\tR\x05light\x12\x1c\n" +
+	"\tnormalize\x18\x05 \x01(\bR\tnormalize\x12\x1f\n" +
+	"\vspacing_rel\x18\x06 \x01(\x01R\n" +
+	"spacingRel\"\x94\x01\n" +
 	"\x0fEngravingParams\x12\x18\n" +
-	"\aspacing\x18\x01 \x01(\x01R\aspacing\"0\n" +
+	"\aspacing\x18\x01 \x01(\x01R\aspacing\x12\x12\n" +
+	"\x04dark\x18\x02 \x01(\tR\x04dark\x12\x14\n" +
+	"\x05light\x18\x03 \x01(\tR\x05light\x12\x1c\n" +
+	"\tnormalize\x18\x04 \x01(\bR\tnormalize\x12\x1f\n" +
+	"\vspacing_rel\x18\x05 \x01(\x01R\n" +
+	"spacingRel\"o\n" +
 	"\x10AberrationParams\x12\x1c\n" +
-	"\tamplitude\x18\x01 \x01(\x01R\tamplitude\"C\n" +
+	"\tamplitude\x18\x01 \x01(\x01R\tamplitude\x12\x1a\n" +
+	"\bdistance\x18\x02 \x01(\x05R\bdistance\x12!\n" +
+	"\fdistance_rel\x18\x03 \x01(\x01R\vdistanceRel\"b\n" +
 	"\vBloomParams\x12\x16\n" +
 	"\x06radius\x18\x01 \x01(\x05R\x06radius\x12\x1c\n" +
-	"\tthreshold\x18\x02 \x01(\x01R\tthreshold\")\n" +
+	"\tthreshold\x18\x02 \x01(\x01R\tthreshold\x12\x1d\n" +
+	"\n" +
+	"radius_rel\x18\x03 \x01(\x01R\tradiusRel\")\n" +
 	"\vCurveParams\x12\x1a\n" +
-	"\bexponent\x18\x01 \x01(\x01R\bexponent\"H\n" +
+	"\bexponent\x18\x01 \x01(\x01R\bexponent\"g\n" +
 	"\rDefocusParams\x12\x16\n" +
 	"\x06radius\x18\x01 \x01(\x05R\x06radius\x12\x1f\n" +
 	"\vblade_count\x18\x02 \x01(\x05R\n" +
-	"bladeCount\"D\n" +
+	"bladeCount\x12\x1d\n" +
+	"\n" +
+	"radius_rel\x18\x03 \x01(\x01R\tradiusRel\"g\n" +
 	"\x10MotionBlurParams\x12\x1a\n" +
 	"\bdistance\x18\x01 \x01(\x05R\bdistance\x12\x14\n" +
-	"\x05angle\x18\x02 \x01(\x01R\x05angle\"2\n" +
+	"\x05angle\x18\x02 \x01(\x01R\x05angle\x12!\n" +
+	"\fdistance_rel\x18\x03 \x01(\x01R\vdistanceRel\"\xa0\x01\n" +
 	"\x11AsciiMosaicParams\x12\x1d\n" +
 	"\n" +
-	"block_size\x18\x01 \x01(\x05R\tblockSize\"C\n" +
+	"block_size\x18\x01 \x01(\x05R\tblockSize\x12\x12\n" +
+	"\x04dark\x18\x02 \x01(\tR\x04dark\x12\x14\n" +
+	"\x05light\x18\x03 \x01(\tR\x05light\x12\x1c\n" +
+	"\tnormalize\x18\x04 \x01(\bR\tnormalize\x12$\n" +
+	"\x0eblock_size_rel\x18\x05 \x01(\x01R\fblockSizeRel\"C\n" +
 	"\x0fPixelSortParams\x12\x1c\n" +
 	"\tthreshold\x18\x01 \x01(\x01R\tthreshold\x12\x12\n" +
-	"\x04axis\x18\x02 \x01(\tR\x04axis\"F\n" +
+	"\x04axis\x18\x02 \x01(\tR\x04axis\"\xa6\x01\n" +
 	"\x12DisplacementParams\x12\x1c\n" +
 	"\tamplitude\x18\x01 \x01(\x01R\tamplitude\x12\x12\n" +
-	"\x04seed\x18\x02 \x01(\x03R\x04seed\"\x95\x01\n" +
+	"\x04seed\x18\x02 \x01(\x03R\x04seed\x12\x18\n" +
+	"\aspacing\x18\x03 \x01(\x01R\aspacing\x12\x1f\n" +
+	"\vspacing_rel\x18\x04 \x01(\x01R\n" +
+	"spacingRel\x12#\n" +
+	"\ramplitude_rel\x18\x05 \x01(\x01R\famplitudeRel\"\xba\x02\n" +
 	"\bOpResult\x12\x10\n" +
 	"\x03ref\x18\x01 \x01(\tR\x03ref\x12\x16\n" +
 	"\x06format\x18\x02 \x01(\tR\x06format\x12\x12\n" +
@@ -2814,7 +3140,11 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"\x05width\x18\x04 \x01(\x05R\x05width\x12\x16\n" +
 	"\x06height\x18\x05 \x01(\x05R\x06height\x12\x1d\n" +
 	"\n" +
-	"size_bytes\x18\x06 \x01(\x03R\tsizeBytes\"c\n" +
+	"size_bytes\x18\x06 \x01(\x03R\tsizeBytes\x12`\n" +
+	"\x0fresolved_params\x18\a \x03(\v27.vrooli.image_tools.v1.ops.OpResult.ResolvedParamsEntryR\x0eresolvedParams\x1aA\n" +
+	"\x13ResolvedParamsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\"c\n" +
 	"\rRunOpResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12;\n" +
 	"\x06result\x18\x02 \x01(\v2#.vrooli.image_tools.v1.ops.OpResultR\x06result2\x83\x01\n" +
@@ -2834,7 +3164,7 @@ func file_image_tools_v1_ops_ops_proto_rawDescGZIP() []byte {
 	return file_image_tools_v1_ops_ops_proto_rawDescData
 }
 
-var file_image_tools_v1_ops_ops_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_image_tools_v1_ops_ops_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_image_tools_v1_ops_ops_proto_goTypes = []any{
 	(*OperationInfo)(nil),          // 0: vrooli.image_tools.v1.ops.OperationInfo
 	(*ListOperationsRequest)(nil),  // 1: vrooli.image_tools.v1.ops.ListOperationsRequest
@@ -2872,6 +3202,7 @@ var file_image_tools_v1_ops_ops_proto_goTypes = []any{
 	(*DisplacementParams)(nil),     // 33: vrooli.image_tools.v1.ops.DisplacementParams
 	(*OpResult)(nil),               // 34: vrooli.image_tools.v1.ops.OpResult
 	(*RunOpResponse)(nil),          // 35: vrooli.image_tools.v1.ops.RunOpResponse
+	nil,                            // 36: vrooli.image_tools.v1.ops.OpResult.ResolvedParamsEntry
 }
 var file_image_tools_v1_ops_ops_proto_depIdxs = []int32{
 	0,  // 0: vrooli.image_tools.v1.ops.ListOperationsResponse.operations:type_name -> vrooli.image_tools.v1.ops.OperationInfo
@@ -2906,14 +3237,15 @@ var file_image_tools_v1_ops_ops_proto_depIdxs = []int32{
 	31, // 29: vrooli.image_tools.v1.ops.OpParams.ascii_mosaic:type_name -> vrooli.image_tools.v1.ops.AsciiMosaicParams
 	32, // 30: vrooli.image_tools.v1.ops.OpParams.pixel_sort:type_name -> vrooli.image_tools.v1.ops.PixelSortParams
 	33, // 31: vrooli.image_tools.v1.ops.OpParams.displacement:type_name -> vrooli.image_tools.v1.ops.DisplacementParams
-	34, // 32: vrooli.image_tools.v1.ops.RunOpResponse.result:type_name -> vrooli.image_tools.v1.ops.OpResult
-	1,  // 33: vrooli.image_tools.v1.ops.OpsService.ListOperations:input_type -> vrooli.image_tools.v1.ops.ListOperationsRequest
-	2,  // 34: vrooli.image_tools.v1.ops.OpsService.ListOperations:output_type -> vrooli.image_tools.v1.ops.ListOperationsResponse
-	34, // [34:35] is the sub-list for method output_type
-	33, // [33:34] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	36, // 32: vrooli.image_tools.v1.ops.OpResult.resolved_params:type_name -> vrooli.image_tools.v1.ops.OpResult.ResolvedParamsEntry
+	34, // 33: vrooli.image_tools.v1.ops.RunOpResponse.result:type_name -> vrooli.image_tools.v1.ops.OpResult
+	1,  // 34: vrooli.image_tools.v1.ops.OpsService.ListOperations:input_type -> vrooli.image_tools.v1.ops.ListOperationsRequest
+	2,  // 35: vrooli.image_tools.v1.ops.OpsService.ListOperations:output_type -> vrooli.image_tools.v1.ops.ListOperationsResponse
+	35, // [35:36] is the sub-list for method output_type
+	34, // [34:35] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_image_tools_v1_ops_ops_proto_init() }
@@ -2960,7 +3292,7 @@ func file_image_tools_v1_ops_ops_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_image_tools_v1_ops_ops_proto_rawDesc), len(file_image_tools_v1_ops_ops_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   36,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

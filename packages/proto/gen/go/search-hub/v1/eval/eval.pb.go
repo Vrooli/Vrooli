@@ -29,6 +29,9 @@ const (
 	ReferentialOutcome_REFERENTIAL_OUTCOME_HARD         ReferentialOutcome = 2
 	ReferentialOutcome_REFERENTIAL_OUTCOME_STALE        ReferentialOutcome = 3
 	ReferentialOutcome_REFERENTIAL_OUTCOME_INCONCLUSIVE ReferentialOutcome = 4
+	// The provider could not answer the probe. This is not evidence that the
+	// expected label is stale.
+	ReferentialOutcome_REFERENTIAL_OUTCOME_PROVIDER_ERROR ReferentialOutcome = 5
 )
 
 // Enum value maps for ReferentialOutcome.
@@ -39,13 +42,15 @@ var (
 		2: "REFERENTIAL_OUTCOME_HARD",
 		3: "REFERENTIAL_OUTCOME_STALE",
 		4: "REFERENTIAL_OUTCOME_INCONCLUSIVE",
+		5: "REFERENTIAL_OUTCOME_PROVIDER_ERROR",
 	}
 	ReferentialOutcome_value = map[string]int32{
-		"REFERENTIAL_OUTCOME_UNSPECIFIED":  0,
-		"REFERENTIAL_OUTCOME_LIVE":         1,
-		"REFERENTIAL_OUTCOME_HARD":         2,
-		"REFERENTIAL_OUTCOME_STALE":        3,
-		"REFERENTIAL_OUTCOME_INCONCLUSIVE": 4,
+		"REFERENTIAL_OUTCOME_UNSPECIFIED":    0,
+		"REFERENTIAL_OUTCOME_LIVE":           1,
+		"REFERENTIAL_OUTCOME_HARD":           2,
+		"REFERENTIAL_OUTCOME_STALE":          3,
+		"REFERENTIAL_OUTCOME_INCONCLUSIVE":   4,
+		"REFERENTIAL_OUTCOME_PROVIDER_ERROR": 5,
 	}
 )
 
@@ -579,7 +584,9 @@ type CaseResult struct {
 	// 1-based rank of the first expect_id (0 = absent).
 	ExpectedRank     int32   `protobuf:"varint,3,opt,name=expected_rank,json=expectedRank,proto3" json:"expected_rank,omitempty"`
 	ObservedTopScore float64 `protobuf:"fixed64,4,opt,name=observed_top_score,json=observedTopScore,proto3" json:"observed_top_score,omitempty"`
-	// "met" | "below_expectation" | "above_expectation" | "unexpected_hit" | "n/a".
+	// "met" | "below_expectation" | "above_expectation" | "unexpected_hit" |
+	// "error" | "n/a". "error" means the provider call failed; "n/a" means
+	// the case ran but had no grading expectations.
 	Outcome            string  `protobuf:"bytes,5,opt,name=outcome,proto3" json:"outcome,omitempty"`
 	ExpectedProviderId string  `protobuf:"bytes,6,opt,name=expected_provider_id,json=expectedProviderId,proto3" json:"expected_provider_id,omitempty"`
 	ProviderRouted     bool    `protobuf:"varint,7,opt,name=provider_routed,json=providerRouted,proto3" json:"provider_routed,omitempty"`
@@ -753,8 +760,12 @@ type EvalAggregate struct {
 	// worst junk leakage over gibberish cases (lower = better).
 	MaxGibberishScore float64 `protobuf:"fixed64,5,opt,name=max_gibberish_score,json=maxGibberishScore,proto3" json:"max_gibberish_score,omitempty"`
 	LatencyP95Ms      int32   `protobuf:"varint,6,opt,name=latency_p95_ms,json=latencyP95Ms,proto3" json:"latency_p95_ms,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Number of cases with a grading outcome. Errors and n/a cases are not
+	// graded; keeping this denominator explicit prevents an empty run from
+	// masquerading as a clean zero-miss result.
+	GradedCases   int32 `protobuf:"varint,7,opt,name=graded_cases,json=gradedCases,proto3" json:"graded_cases,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *EvalAggregate) Reset() {
@@ -825,6 +836,13 @@ func (x *EvalAggregate) GetMaxGibberishScore() float64 {
 func (x *EvalAggregate) GetLatencyP95Ms() int32 {
 	if x != nil {
 		return x.LatencyP95Ms
+	}
+	return 0
+}
+
+func (x *EvalAggregate) GetGradedCases() int32 {
+	if x != nil {
+		return x.GradedCases
 	}
 	return 0
 }
@@ -1373,15 +1391,16 @@ func (x *CorpusValidationCase) GetMessage() string {
 }
 
 type CorpusValidationRollup struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Positives     int32                  `protobuf:"varint,1,opt,name=positives,proto3" json:"positives,omitempty"`
-	Live          int32                  `protobuf:"varint,2,opt,name=live,proto3" json:"live,omitempty"`
-	Hard          int32                  `protobuf:"varint,3,opt,name=hard,proto3" json:"hard,omitempty"`
-	Stale         int32                  `protobuf:"varint,4,opt,name=stale,proto3" json:"stale,omitempty"`
-	Inconclusive  int32                  `protobuf:"varint,5,opt,name=inconclusive,proto3" json:"inconclusive,omitempty"`
-	Candidate     int32                  `protobuf:"varint,6,opt,name=candidate,proto3" json:"candidate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Positives      int32                  `protobuf:"varint,1,opt,name=positives,proto3" json:"positives,omitempty"`
+	Live           int32                  `protobuf:"varint,2,opt,name=live,proto3" json:"live,omitempty"`
+	Hard           int32                  `protobuf:"varint,3,opt,name=hard,proto3" json:"hard,omitempty"`
+	Stale          int32                  `protobuf:"varint,4,opt,name=stale,proto3" json:"stale,omitempty"`
+	Inconclusive   int32                  `protobuf:"varint,5,opt,name=inconclusive,proto3" json:"inconclusive,omitempty"`
+	Candidate      int32                  `protobuf:"varint,6,opt,name=candidate,proto3" json:"candidate,omitempty"`
+	ProviderErrors int32                  `protobuf:"varint,7,opt,name=provider_errors,json=providerErrors,proto3" json:"provider_errors,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CorpusValidationRollup) Reset() {
@@ -1452,6 +1471,13 @@ func (x *CorpusValidationRollup) GetInconclusive() int32 {
 func (x *CorpusValidationRollup) GetCandidate() int32 {
 	if x != nil {
 		return x.Candidate
+	}
+	return 0
+}
+
+func (x *CorpusValidationRollup) GetProviderErrors() int32 {
+	if x != nil {
+		return x.ProviderErrors
 	}
 	return 0
 }
@@ -2770,6 +2796,111 @@ func (x *PromoteCasesRequest) GetAll() bool {
 	return false
 }
 
+type ReapOrphanSuitesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Confirm       bool                   `protobuf:"varint,1,opt,name=confirm,proto3" json:"confirm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReapOrphanSuitesRequest) Reset() {
+	*x = ReapOrphanSuitesRequest{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReapOrphanSuitesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReapOrphanSuitesRequest) ProtoMessage() {}
+
+func (x *ReapOrphanSuitesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReapOrphanSuitesRequest.ProtoReflect.Descriptor instead.
+func (*ReapOrphanSuitesRequest) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ReapOrphanSuitesRequest) GetConfirm() bool {
+	if x != nil {
+		return x.Confirm
+	}
+	return false
+}
+
+type ReapOrphanSuitesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The orphan set observed before any mutation.
+	OrphanSuites   []*EvalSuite `protobuf:"bytes,1,rep,name=orphan_suites,json=orphanSuites,proto3" json:"orphan_suites,omitempty"`
+	ReapedSuiteIds []string     `protobuf:"bytes,2,rep,name=reaped_suite_ids,json=reapedSuiteIds,proto3" json:"reaped_suite_ids,omitempty"`
+	Confirmed      bool         `protobuf:"varint,3,opt,name=confirmed,proto3" json:"confirmed,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ReapOrphanSuitesResponse) Reset() {
+	*x = ReapOrphanSuitesResponse{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReapOrphanSuitesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReapOrphanSuitesResponse) ProtoMessage() {}
+
+func (x *ReapOrphanSuitesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReapOrphanSuitesResponse.ProtoReflect.Descriptor instead.
+func (*ReapOrphanSuitesResponse) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *ReapOrphanSuitesResponse) GetOrphanSuites() []*EvalSuite {
+	if x != nil {
+		return x.OrphanSuites
+	}
+	return nil
+}
+
+func (x *ReapOrphanSuitesResponse) GetReapedSuiteIds() []string {
+	if x != nil {
+		return x.ReapedSuiteIds
+	}
+	return nil
+}
+
+func (x *ReapOrphanSuitesResponse) GetConfirmed() bool {
+	if x != nil {
+		return x.Confirmed
+	}
+	return false
+}
+
 type PromoteCasesResponse struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	SuiteId    string                 `protobuf:"bytes,1,opt,name=suite_id,json=suiteId,proto3" json:"suite_id,omitempty"`
@@ -2789,7 +2920,7 @@ type PromoteCasesResponse struct {
 
 func (x *PromoteCasesResponse) Reset() {
 	*x = PromoteCasesResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[36]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2801,7 +2932,7 @@ func (x *PromoteCasesResponse) String() string {
 func (*PromoteCasesResponse) ProtoMessage() {}
 
 func (x *PromoteCasesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[36]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2814,7 +2945,7 @@ func (x *PromoteCasesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteCasesResponse.ProtoReflect.Descriptor instead.
 func (*PromoteCasesResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{36}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *PromoteCasesResponse) GetSuiteId() string {
@@ -2929,14 +3060,15 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\tScoredHit\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x14\n" +
-	"\x05score\x18\x03 \x01(\x01R\x05score\"\xcd\x01\n" +
+	"\x05score\x18\x03 \x01(\x01R\x05score\"\xf0\x01\n" +
 	"\rEvalAggregate\x12\x14\n" +
 	"\x05cases\x18\x01 \x01(\x05R\x05cases\x12\x10\n" +
 	"\x03met\x18\x02 \x01(\x05R\x03met\x12\x14\n" +
 	"\x05below\x18\x03 \x01(\x05R\x05below\x12(\n" +
 	"\x10mean_strong_top1\x18\x04 \x01(\x01R\x0emeanStrongTop1\x12.\n" +
 	"\x13max_gibberish_score\x18\x05 \x01(\x01R\x11maxGibberishScore\x12$\n" +
-	"\x0elatency_p95_ms\x18\x06 \x01(\x05R\flatencyP95Ms\"R\n" +
+	"\x0elatency_p95_ms\x18\x06 \x01(\x05R\flatencyP95Ms\x12!\n" +
+	"\fgraded_cases\x18\a \x01(\x05R\vgradedCases\"R\n" +
 	"\x14RegisterSuiteRequest\x12:\n" +
 	"\x05suite\x18\x01 \x01(\v2$.vrooli.search_hub.v1.eval.EvalSuiteR\x05suite\"m\n" +
 	"\x15RegisterSuiteResponse\x12:\n" +
@@ -2968,14 +3100,15 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\vreferential\x18\x02 \x01(\x0e2-.vrooli.search_hub.v1.eval.ReferentialOutcomeR\vreferential\x12#\n" +
 	"\robserved_rank\x18\x03 \x01(\x05R\fobservedRank\x12%\n" +
 	"\x0eprobed_queries\x18\x04 \x03(\tR\rprobedQueries\x12\x18\n" +
-	"\amessage\x18\x05 \x01(\tR\amessage\"\xb6\x01\n" +
+	"\amessage\x18\x05 \x01(\tR\amessage\"\xdf\x01\n" +
 	"\x16CorpusValidationRollup\x12\x1c\n" +
 	"\tpositives\x18\x01 \x01(\x05R\tpositives\x12\x12\n" +
 	"\x04live\x18\x02 \x01(\x05R\x04live\x12\x12\n" +
 	"\x04hard\x18\x03 \x01(\x05R\x04hard\x12\x14\n" +
 	"\x05stale\x18\x04 \x01(\x05R\x05stale\x12\"\n" +
 	"\finconclusive\x18\x05 \x01(\x05R\finconclusive\x12\x1c\n" +
-	"\tcandidate\x18\x06 \x01(\x05R\tcandidate\"\xe6\x01\n" +
+	"\tcandidate\x18\x06 \x01(\x05R\tcandidate\x12'\n" +
+	"\x0fprovider_errors\x18\a \x01(\x05R\x0eproviderErrors\"\xe6\x01\n" +
 	"\x16ValidateCorpusResponse\x12\x19\n" +
 	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
@@ -3073,7 +3206,13 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\x13PromoteCasesRequest\x12\x19\n" +
 	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12\x19\n" +
 	"\bcase_ids\x18\x02 \x03(\tR\acaseIds\x12\x10\n" +
-	"\x03all\x18\x03 \x01(\bR\x03all\"\x8f\x02\n" +
+	"\x03all\x18\x03 \x01(\bR\x03all\"3\n" +
+	"\x17ReapOrphanSuitesRequest\x12\x18\n" +
+	"\aconfirm\x18\x01 \x01(\bR\aconfirm\"\xad\x01\n" +
+	"\x18ReapOrphanSuitesResponse\x12I\n" +
+	"\rorphan_suites\x18\x01 \x03(\v2$.vrooli.search_hub.v1.eval.EvalSuiteR\forphanSuites\x12(\n" +
+	"\x10reaped_suite_ids\x18\x02 \x03(\tR\x0ereapedSuiteIds\x12\x1c\n" +
+	"\tconfirmed\x18\x03 \x01(\bR\tconfirmed\"\x8f\x02\n" +
 	"\x14PromoteCasesResponse\x12\x19\n" +
 	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
@@ -3081,13 +3220,15 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\x11promoted_case_ids\x18\x03 \x03(\tR\x0fpromotedCaseIds\x129\n" +
 	"\x19already_reviewed_case_ids\x18\x04 \x03(\tR\x16alreadyReviewedCaseIds\x12:\n" +
 	"\x05suite\x18\x05 \x01(\v2$.vrooli.search_hub.v1.eval.EvalSuiteR\x05suite\x12\x18\n" +
-	"\aapplied\x18\x06 \x01(\bR\aapplied*\xba\x01\n" +
+	"\aapplied\x18\x06 \x01(\bR\aapplied*\xe2\x01\n" +
 	"\x12ReferentialOutcome\x12#\n" +
 	"\x1fREFERENTIAL_OUTCOME_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18REFERENTIAL_OUTCOME_LIVE\x10\x01\x12\x1c\n" +
 	"\x18REFERENTIAL_OUTCOME_HARD\x10\x02\x12\x1d\n" +
 	"\x19REFERENTIAL_OUTCOME_STALE\x10\x03\x12$\n" +
-	" REFERENTIAL_OUTCOME_INCONCLUSIVE\x10\x042\x91\t\n" +
+	" REFERENTIAL_OUTCOME_INCONCLUSIVE\x10\x04\x12&\n" +
+	"\"REFERENTIAL_OUTCOME_PROVIDER_ERROR\x10\x052\x8e\n" +
+	"\n" +
 	"\vEvalService\x12r\n" +
 	"\rRegisterSuite\x12/.vrooli.search_hub.v1.eval.RegisterSuiteRequest\x1a0.vrooli.search_hub.v1.eval.RegisterSuiteResponse\x12i\n" +
 	"\n" +
@@ -3100,7 +3241,8 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\vCompareRuns\x12-.vrooli.search_hub.v1.eval.CompareRunsRequest\x1a..vrooli.search_hub.v1.eval.CompareRunsResponse\x12Z\n" +
 	"\x05Sweep\x12'.vrooli.search_hub.v1.eval.SweepRequest\x1a(.vrooli.search_hub.v1.eval.SweepResponse\x12c\n" +
 	"\bGenerate\x12*.vrooli.search_hub.v1.eval.GenerateRequest\x1a+.vrooli.search_hub.v1.eval.GenerateResponse\x12o\n" +
-	"\fPromoteCases\x12..vrooli.search_hub.v1.eval.PromoteCasesRequest\x1a/.vrooli.search_hub.v1.eval.PromoteCasesResponseBKZIgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval;eval_v1b\x06proto3"
+	"\fPromoteCases\x12..vrooli.search_hub.v1.eval.PromoteCasesRequest\x1a/.vrooli.search_hub.v1.eval.PromoteCasesResponse\x12{\n" +
+	"\x10ReapOrphanSuites\x122.vrooli.search_hub.v1.eval.ReapOrphanSuitesRequest\x1a3.vrooli.search_hub.v1.eval.ReapOrphanSuitesResponseBKZIgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval;eval_v1b\x06proto3"
 
 var (
 	file_search_hub_v1_eval_eval_proto_rawDescOnce sync.Once
@@ -3115,46 +3257,48 @@ func file_search_hub_v1_eval_eval_proto_rawDescGZIP() []byte {
 }
 
 var file_search_hub_v1_eval_eval_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_search_hub_v1_eval_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
+var file_search_hub_v1_eval_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
 var file_search_hub_v1_eval_eval_proto_goTypes = []any{
-	(ReferentialOutcome)(0),        // 0: vrooli.search_hub.v1.eval.ReferentialOutcome
-	(*EvalSuite)(nil),              // 1: vrooli.search_hub.v1.eval.EvalSuite
-	(*EvalCase)(nil),               // 2: vrooli.search_hub.v1.eval.EvalCase
-	(*EvalRun)(nil),                // 3: vrooli.search_hub.v1.eval.EvalRun
-	(*ConfigSnapshot)(nil),         // 4: vrooli.search_hub.v1.eval.ConfigSnapshot
-	(*CaseResult)(nil),             // 5: vrooli.search_hub.v1.eval.CaseResult
-	(*ScoredHit)(nil),              // 6: vrooli.search_hub.v1.eval.ScoredHit
-	(*EvalAggregate)(nil),          // 7: vrooli.search_hub.v1.eval.EvalAggregate
-	(*RegisterSuiteRequest)(nil),   // 8: vrooli.search_hub.v1.eval.RegisterSuiteRequest
-	(*RegisterSuiteResponse)(nil),  // 9: vrooli.search_hub.v1.eval.RegisterSuiteResponse
-	(*ListSuitesRequest)(nil),      // 10: vrooli.search_hub.v1.eval.ListSuitesRequest
-	(*ListSuitesResponse)(nil),     // 11: vrooli.search_hub.v1.eval.ListSuitesResponse
-	(*GetSuiteRequest)(nil),        // 12: vrooli.search_hub.v1.eval.GetSuiteRequest
-	(*GetSuiteResponse)(nil),       // 13: vrooli.search_hub.v1.eval.GetSuiteResponse
-	(*RunSuiteRequest)(nil),        // 14: vrooli.search_hub.v1.eval.RunSuiteRequest
-	(*RunSuiteResponse)(nil),       // 15: vrooli.search_hub.v1.eval.RunSuiteResponse
-	(*ValidateCorpusRequest)(nil),  // 16: vrooli.search_hub.v1.eval.ValidateCorpusRequest
-	(*CorpusValidationCase)(nil),   // 17: vrooli.search_hub.v1.eval.CorpusValidationCase
-	(*CorpusValidationRollup)(nil), // 18: vrooli.search_hub.v1.eval.CorpusValidationRollup
-	(*ValidateCorpusResponse)(nil), // 19: vrooli.search_hub.v1.eval.ValidateCorpusResponse
-	(*ListRunsRequest)(nil),        // 20: vrooli.search_hub.v1.eval.ListRunsRequest
-	(*ListRunsResponse)(nil),       // 21: vrooli.search_hub.v1.eval.ListRunsResponse
-	(*GetRunRequest)(nil),          // 22: vrooli.search_hub.v1.eval.GetRunRequest
-	(*GetRunResponse)(nil),         // 23: vrooli.search_hub.v1.eval.GetRunResponse
-	(*CompareRunsRequest)(nil),     // 24: vrooli.search_hub.v1.eval.CompareRunsRequest
-	(*CompareRunsResponse)(nil),    // 25: vrooli.search_hub.v1.eval.CompareRunsResponse
-	(*CaseDelta)(nil),              // 26: vrooli.search_hub.v1.eval.CaseDelta
-	(*SweepRequest)(nil),           // 27: vrooli.search_hub.v1.eval.SweepRequest
-	(*SweepArm)(nil),               // 28: vrooli.search_hub.v1.eval.SweepArm
-	(*SweepResult)(nil),            // 29: vrooli.search_hub.v1.eval.SweepResult
-	(*SweepStats)(nil),             // 30: vrooli.search_hub.v1.eval.SweepStats
-	(*SweepResponse)(nil),          // 31: vrooli.search_hub.v1.eval.SweepResponse
-	(*AdequacyWarning)(nil),        // 32: vrooli.search_hub.v1.eval.AdequacyWarning
-	(*GenerateRequest)(nil),        // 33: vrooli.search_hub.v1.eval.GenerateRequest
-	(*GeneratedCase)(nil),          // 34: vrooli.search_hub.v1.eval.GeneratedCase
-	(*GenerateResponse)(nil),       // 35: vrooli.search_hub.v1.eval.GenerateResponse
-	(*PromoteCasesRequest)(nil),    // 36: vrooli.search_hub.v1.eval.PromoteCasesRequest
-	(*PromoteCasesResponse)(nil),   // 37: vrooli.search_hub.v1.eval.PromoteCasesResponse
+	(ReferentialOutcome)(0),          // 0: vrooli.search_hub.v1.eval.ReferentialOutcome
+	(*EvalSuite)(nil),                // 1: vrooli.search_hub.v1.eval.EvalSuite
+	(*EvalCase)(nil),                 // 2: vrooli.search_hub.v1.eval.EvalCase
+	(*EvalRun)(nil),                  // 3: vrooli.search_hub.v1.eval.EvalRun
+	(*ConfigSnapshot)(nil),           // 4: vrooli.search_hub.v1.eval.ConfigSnapshot
+	(*CaseResult)(nil),               // 5: vrooli.search_hub.v1.eval.CaseResult
+	(*ScoredHit)(nil),                // 6: vrooli.search_hub.v1.eval.ScoredHit
+	(*EvalAggregate)(nil),            // 7: vrooli.search_hub.v1.eval.EvalAggregate
+	(*RegisterSuiteRequest)(nil),     // 8: vrooli.search_hub.v1.eval.RegisterSuiteRequest
+	(*RegisterSuiteResponse)(nil),    // 9: vrooli.search_hub.v1.eval.RegisterSuiteResponse
+	(*ListSuitesRequest)(nil),        // 10: vrooli.search_hub.v1.eval.ListSuitesRequest
+	(*ListSuitesResponse)(nil),       // 11: vrooli.search_hub.v1.eval.ListSuitesResponse
+	(*GetSuiteRequest)(nil),          // 12: vrooli.search_hub.v1.eval.GetSuiteRequest
+	(*GetSuiteResponse)(nil),         // 13: vrooli.search_hub.v1.eval.GetSuiteResponse
+	(*RunSuiteRequest)(nil),          // 14: vrooli.search_hub.v1.eval.RunSuiteRequest
+	(*RunSuiteResponse)(nil),         // 15: vrooli.search_hub.v1.eval.RunSuiteResponse
+	(*ValidateCorpusRequest)(nil),    // 16: vrooli.search_hub.v1.eval.ValidateCorpusRequest
+	(*CorpusValidationCase)(nil),     // 17: vrooli.search_hub.v1.eval.CorpusValidationCase
+	(*CorpusValidationRollup)(nil),   // 18: vrooli.search_hub.v1.eval.CorpusValidationRollup
+	(*ValidateCorpusResponse)(nil),   // 19: vrooli.search_hub.v1.eval.ValidateCorpusResponse
+	(*ListRunsRequest)(nil),          // 20: vrooli.search_hub.v1.eval.ListRunsRequest
+	(*ListRunsResponse)(nil),         // 21: vrooli.search_hub.v1.eval.ListRunsResponse
+	(*GetRunRequest)(nil),            // 22: vrooli.search_hub.v1.eval.GetRunRequest
+	(*GetRunResponse)(nil),           // 23: vrooli.search_hub.v1.eval.GetRunResponse
+	(*CompareRunsRequest)(nil),       // 24: vrooli.search_hub.v1.eval.CompareRunsRequest
+	(*CompareRunsResponse)(nil),      // 25: vrooli.search_hub.v1.eval.CompareRunsResponse
+	(*CaseDelta)(nil),                // 26: vrooli.search_hub.v1.eval.CaseDelta
+	(*SweepRequest)(nil),             // 27: vrooli.search_hub.v1.eval.SweepRequest
+	(*SweepArm)(nil),                 // 28: vrooli.search_hub.v1.eval.SweepArm
+	(*SweepResult)(nil),              // 29: vrooli.search_hub.v1.eval.SweepResult
+	(*SweepStats)(nil),               // 30: vrooli.search_hub.v1.eval.SweepStats
+	(*SweepResponse)(nil),            // 31: vrooli.search_hub.v1.eval.SweepResponse
+	(*AdequacyWarning)(nil),          // 32: vrooli.search_hub.v1.eval.AdequacyWarning
+	(*GenerateRequest)(nil),          // 33: vrooli.search_hub.v1.eval.GenerateRequest
+	(*GeneratedCase)(nil),            // 34: vrooli.search_hub.v1.eval.GeneratedCase
+	(*GenerateResponse)(nil),         // 35: vrooli.search_hub.v1.eval.GenerateResponse
+	(*PromoteCasesRequest)(nil),      // 36: vrooli.search_hub.v1.eval.PromoteCasesRequest
+	(*ReapOrphanSuitesRequest)(nil),  // 37: vrooli.search_hub.v1.eval.ReapOrphanSuitesRequest
+	(*ReapOrphanSuitesResponse)(nil), // 38: vrooli.search_hub.v1.eval.ReapOrphanSuitesResponse
+	(*PromoteCasesResponse)(nil),     // 39: vrooli.search_hub.v1.eval.PromoteCasesResponse
 }
 var file_search_hub_v1_eval_eval_proto_depIdxs = []int32{
 	2,  // 0: vrooli.search_hub.v1.eval.EvalSuite.cases:type_name -> vrooli.search_hub.v1.eval.EvalCase
@@ -3186,34 +3330,37 @@ var file_search_hub_v1_eval_eval_proto_depIdxs = []int32{
 	34, // 26: vrooli.search_hub.v1.eval.GenerateResponse.proposed:type_name -> vrooli.search_hub.v1.eval.GeneratedCase
 	1,  // 27: vrooli.search_hub.v1.eval.GenerateResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
 	32, // 28: vrooli.search_hub.v1.eval.GenerateResponse.adequacy:type_name -> vrooli.search_hub.v1.eval.AdequacyWarning
-	1,  // 29: vrooli.search_hub.v1.eval.PromoteCasesResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
-	8,  // 30: vrooli.search_hub.v1.eval.EvalService.RegisterSuite:input_type -> vrooli.search_hub.v1.eval.RegisterSuiteRequest
-	10, // 31: vrooli.search_hub.v1.eval.EvalService.ListSuites:input_type -> vrooli.search_hub.v1.eval.ListSuitesRequest
-	12, // 32: vrooli.search_hub.v1.eval.EvalService.GetSuite:input_type -> vrooli.search_hub.v1.eval.GetSuiteRequest
-	14, // 33: vrooli.search_hub.v1.eval.EvalService.RunSuite:input_type -> vrooli.search_hub.v1.eval.RunSuiteRequest
-	16, // 34: vrooli.search_hub.v1.eval.EvalService.ValidateCorpus:input_type -> vrooli.search_hub.v1.eval.ValidateCorpusRequest
-	20, // 35: vrooli.search_hub.v1.eval.EvalService.ListRuns:input_type -> vrooli.search_hub.v1.eval.ListRunsRequest
-	22, // 36: vrooli.search_hub.v1.eval.EvalService.GetRun:input_type -> vrooli.search_hub.v1.eval.GetRunRequest
-	24, // 37: vrooli.search_hub.v1.eval.EvalService.CompareRuns:input_type -> vrooli.search_hub.v1.eval.CompareRunsRequest
-	27, // 38: vrooli.search_hub.v1.eval.EvalService.Sweep:input_type -> vrooli.search_hub.v1.eval.SweepRequest
-	33, // 39: vrooli.search_hub.v1.eval.EvalService.Generate:input_type -> vrooli.search_hub.v1.eval.GenerateRequest
-	36, // 40: vrooli.search_hub.v1.eval.EvalService.PromoteCases:input_type -> vrooli.search_hub.v1.eval.PromoteCasesRequest
-	9,  // 41: vrooli.search_hub.v1.eval.EvalService.RegisterSuite:output_type -> vrooli.search_hub.v1.eval.RegisterSuiteResponse
-	11, // 42: vrooli.search_hub.v1.eval.EvalService.ListSuites:output_type -> vrooli.search_hub.v1.eval.ListSuitesResponse
-	13, // 43: vrooli.search_hub.v1.eval.EvalService.GetSuite:output_type -> vrooli.search_hub.v1.eval.GetSuiteResponse
-	15, // 44: vrooli.search_hub.v1.eval.EvalService.RunSuite:output_type -> vrooli.search_hub.v1.eval.RunSuiteResponse
-	19, // 45: vrooli.search_hub.v1.eval.EvalService.ValidateCorpus:output_type -> vrooli.search_hub.v1.eval.ValidateCorpusResponse
-	21, // 46: vrooli.search_hub.v1.eval.EvalService.ListRuns:output_type -> vrooli.search_hub.v1.eval.ListRunsResponse
-	23, // 47: vrooli.search_hub.v1.eval.EvalService.GetRun:output_type -> vrooli.search_hub.v1.eval.GetRunResponse
-	25, // 48: vrooli.search_hub.v1.eval.EvalService.CompareRuns:output_type -> vrooli.search_hub.v1.eval.CompareRunsResponse
-	31, // 49: vrooli.search_hub.v1.eval.EvalService.Sweep:output_type -> vrooli.search_hub.v1.eval.SweepResponse
-	35, // 50: vrooli.search_hub.v1.eval.EvalService.Generate:output_type -> vrooli.search_hub.v1.eval.GenerateResponse
-	37, // 51: vrooli.search_hub.v1.eval.EvalService.PromoteCases:output_type -> vrooli.search_hub.v1.eval.PromoteCasesResponse
-	41, // [41:52] is the sub-list for method output_type
-	30, // [30:41] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	1,  // 29: vrooli.search_hub.v1.eval.ReapOrphanSuitesResponse.orphan_suites:type_name -> vrooli.search_hub.v1.eval.EvalSuite
+	1,  // 30: vrooli.search_hub.v1.eval.PromoteCasesResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
+	8,  // 31: vrooli.search_hub.v1.eval.EvalService.RegisterSuite:input_type -> vrooli.search_hub.v1.eval.RegisterSuiteRequest
+	10, // 32: vrooli.search_hub.v1.eval.EvalService.ListSuites:input_type -> vrooli.search_hub.v1.eval.ListSuitesRequest
+	12, // 33: vrooli.search_hub.v1.eval.EvalService.GetSuite:input_type -> vrooli.search_hub.v1.eval.GetSuiteRequest
+	14, // 34: vrooli.search_hub.v1.eval.EvalService.RunSuite:input_type -> vrooli.search_hub.v1.eval.RunSuiteRequest
+	16, // 35: vrooli.search_hub.v1.eval.EvalService.ValidateCorpus:input_type -> vrooli.search_hub.v1.eval.ValidateCorpusRequest
+	20, // 36: vrooli.search_hub.v1.eval.EvalService.ListRuns:input_type -> vrooli.search_hub.v1.eval.ListRunsRequest
+	22, // 37: vrooli.search_hub.v1.eval.EvalService.GetRun:input_type -> vrooli.search_hub.v1.eval.GetRunRequest
+	24, // 38: vrooli.search_hub.v1.eval.EvalService.CompareRuns:input_type -> vrooli.search_hub.v1.eval.CompareRunsRequest
+	27, // 39: vrooli.search_hub.v1.eval.EvalService.Sweep:input_type -> vrooli.search_hub.v1.eval.SweepRequest
+	33, // 40: vrooli.search_hub.v1.eval.EvalService.Generate:input_type -> vrooli.search_hub.v1.eval.GenerateRequest
+	36, // 41: vrooli.search_hub.v1.eval.EvalService.PromoteCases:input_type -> vrooli.search_hub.v1.eval.PromoteCasesRequest
+	37, // 42: vrooli.search_hub.v1.eval.EvalService.ReapOrphanSuites:input_type -> vrooli.search_hub.v1.eval.ReapOrphanSuitesRequest
+	9,  // 43: vrooli.search_hub.v1.eval.EvalService.RegisterSuite:output_type -> vrooli.search_hub.v1.eval.RegisterSuiteResponse
+	11, // 44: vrooli.search_hub.v1.eval.EvalService.ListSuites:output_type -> vrooli.search_hub.v1.eval.ListSuitesResponse
+	13, // 45: vrooli.search_hub.v1.eval.EvalService.GetSuite:output_type -> vrooli.search_hub.v1.eval.GetSuiteResponse
+	15, // 46: vrooli.search_hub.v1.eval.EvalService.RunSuite:output_type -> vrooli.search_hub.v1.eval.RunSuiteResponse
+	19, // 47: vrooli.search_hub.v1.eval.EvalService.ValidateCorpus:output_type -> vrooli.search_hub.v1.eval.ValidateCorpusResponse
+	21, // 48: vrooli.search_hub.v1.eval.EvalService.ListRuns:output_type -> vrooli.search_hub.v1.eval.ListRunsResponse
+	23, // 49: vrooli.search_hub.v1.eval.EvalService.GetRun:output_type -> vrooli.search_hub.v1.eval.GetRunResponse
+	25, // 50: vrooli.search_hub.v1.eval.EvalService.CompareRuns:output_type -> vrooli.search_hub.v1.eval.CompareRunsResponse
+	31, // 51: vrooli.search_hub.v1.eval.EvalService.Sweep:output_type -> vrooli.search_hub.v1.eval.SweepResponse
+	35, // 52: vrooli.search_hub.v1.eval.EvalService.Generate:output_type -> vrooli.search_hub.v1.eval.GenerateResponse
+	39, // 53: vrooli.search_hub.v1.eval.EvalService.PromoteCases:output_type -> vrooli.search_hub.v1.eval.PromoteCasesResponse
+	38, // 54: vrooli.search_hub.v1.eval.EvalService.ReapOrphanSuites:output_type -> vrooli.search_hub.v1.eval.ReapOrphanSuitesResponse
+	43, // [43:55] is the sub-list for method output_type
+	31, // [31:43] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_eval_eval_proto_init() }
@@ -3227,7 +3374,7 @@ func file_search_hub_v1_eval_eval_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_hub_v1_eval_eval_proto_rawDesc), len(file_search_hub_v1_eval_eval_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   37,
+			NumMessages:   39,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -45,6 +45,23 @@ func TestResolveEffectiveNoOptionsUsesDefaults(t *testing.T) {
 	}
 }
 
+func TestResolveEffectiveHybridFusionOverride(t *testing.T) {
+	svc := NewService(ServiceOptions{
+		Embedder:       &countingEmbedder{},
+		VectorStore:    &queryStore{available: true},
+		HybridFusion:   HybridFusionRRF,
+		OverridePolicy: AllowOverrides(),
+	})
+	eff := svc.resolveEffective(WithOverrides(SearchOverrides{HybridFusion: OverrideString(HybridFusionDBSF)}))
+	if eff.hybridFusion != HybridFusionDBSF {
+		t.Fatalf("hybrid_fusion override = %q, want %q", eff.hybridFusion, HybridFusionDBSF)
+	}
+	invalid := svc.resolveEffective(WithOverrides(SearchOverrides{HybridFusion: OverrideString("weighted")}))
+	if invalid.hybridFusion != HybridFusionRRF {
+		t.Fatalf("invalid hybrid_fusion override = %q, want construction default %q", invalid.hybridFusion, HybridFusionRRF)
+	}
+}
+
 func TestResolveEffectiveNilPolicyDeniesOverrides(t *testing.T) {
 	// nil policy (constructed without one) => deny: a passed override is ignored.
 	svc, _, _ := rerankSvc(false, nil)
@@ -245,6 +262,7 @@ func TestOverridesHeaderRoundTrip(t *testing.T) {
 		RerankEnabled:   OverrideBool(true),
 		RerankShortlist: OverrideInt(40),
 		FloorMaxGap:     OverrideFloat(0.3),
+		HybridFusion:    OverrideString(HybridFusionDBSF),
 	}
 	val, err := MarshalOverridesHeader(in)
 	if err != nil {
@@ -265,6 +283,9 @@ func TestOverridesHeaderRoundTrip(t *testing.T) {
 	}
 	if out.RerankBlend != nil {
 		t.Fatal("an unset factor must stay unset across the round-trip")
+	}
+	if out.HybridFusion == nil || *out.HybridFusion != HybridFusionDBSF {
+		t.Fatalf("hybrid_fusion did not round-trip: %+v", out)
 	}
 }
 

@@ -210,6 +210,29 @@ func Action[Resp any](
 	}}
 }
 
+// ActionWithExit is Action with a post-render exit decision. It is useful for
+// diagnostic scans that must emit their complete report while still returning
+// a non-zero status when the report contains a gating finding.
+func ActionWithExit[Resp any](
+	call func(ctx OperationContext) (Resp, error),
+	report func(ctx OperationContext, resp Resp) MutationReport,
+	exit func(ctx OperationContext, resp Resp) error,
+) PrimitiveHandler {
+	return PrimitiveHandler{primitive: PrimitiveAction, Run: func(ctx RunContext) error {
+		resp, err := call(ctx)
+		if err != nil {
+			return err
+		}
+		if err := RenderAction(ctx, resp, report(ctx, resp)); err != nil {
+			return err
+		}
+		if exit == nil {
+			return nil
+		}
+		return exit(ctx, resp)
+	}}
+}
+
 // Upload builds a renderer-separated multipart upload handler. The operation
 // callback owns request construction and upload/decode; cli-core owns the final
 // proto render, so human and --json share one upload path. Pair it with a command

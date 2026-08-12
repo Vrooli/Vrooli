@@ -135,32 +135,36 @@ class ValidateTargetRequest(_message.Message):
     def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., include_execution: _Optional[bool] = ..., path: _Optional[str] = ..., capability_subset: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ValidateTargetResponse(_message.Message):
-    __slots__ = ("target", "status", "assessment", "native_detail", "metrics")
+    __slots__ = ("target", "status", "assessment", "native_detail", "metrics", "failure_classification")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
     NATIVE_DETAIL_FIELD_NUMBER: _ClassVar[int]
     METRICS_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     target: _validation_target_pb2.ValidationTarget
     status: ValidationStatus
     assessment: _maturity_pb2.MaturityAssessment
     native_detail: _any_pb2.Any
     metrics: _metrics_pb2.ExecutionMetrics
-    def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., status: _Optional[_Union[ValidationStatus, str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., native_detail: _Optional[_Union[_any_pb2.Any, _Mapping]] = ..., metrics: _Optional[_Union[_metrics_pb2.ExecutionMetrics, _Mapping]] = ...) -> None: ...
+    failure_classification: str
+    def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., status: _Optional[_Union[ValidationStatus, str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., native_detail: _Optional[_Union[_any_pb2.Any, _Mapping]] = ..., metrics: _Optional[_Union[_metrics_pb2.ExecutionMetrics, _Mapping]] = ..., failure_classification: _Optional[str] = ...) -> None: ...
 
 class ValidateScenarioResponse(_message.Message):
-    __slots__ = ("scenario", "status", "assessment", "native_detail", "metrics")
+    __slots__ = ("scenario", "status", "assessment", "native_detail", "metrics", "failure_classification")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
     NATIVE_DETAIL_FIELD_NUMBER: _ClassVar[int]
     METRICS_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     status: ValidationStatus
     assessment: _maturity_pb2.MaturityAssessment
     native_detail: _any_pb2.Any
     metrics: _metrics_pb2.ExecutionMetrics
-    def __init__(self, scenario: _Optional[str] = ..., status: _Optional[_Union[ValidationStatus, str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., native_detail: _Optional[_Union[_any_pb2.Any, _Mapping]] = ..., metrics: _Optional[_Union[_metrics_pb2.ExecutionMetrics, _Mapping]] = ...) -> None: ...
+    failure_classification: str
+    def __init__(self, scenario: _Optional[str] = ..., status: _Optional[_Union[ValidationStatus, str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., native_detail: _Optional[_Union[_any_pb2.Any, _Mapping]] = ..., metrics: _Optional[_Union[_metrics_pb2.ExecutionMetrics, _Mapping]] = ..., failure_classification: _Optional[str] = ...) -> None: ...
 
 class ValidationRunError(_message.Message):
     __slots__ = ("code", "message", "retryable")

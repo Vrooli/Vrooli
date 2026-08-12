@@ -19,6 +19,7 @@
   "category": "development",
   "platforms": {"linux":"supported", "macos":"supported", "windows":"supported"},
   "requirements": {"ram_mb":4096,"disk_mb":12000,"cpu_cores":2,"network":"required","bucket":"large","source":"estimated","confidence":"medium","class":"development","weight":3},
+  "storage": {"root":"~/.vrooli/resources/android-sdk","byte_budget":12000000000,"retention":"replaceable-platform-tools"},
   "health_checks": [{"type":"command","kind":"liveness","command":["adb","version"],"timeout_seconds":15}],
   "orchestration": {"startup_order":300,"startup_timeout_seconds":30,"startup_time_estimate":"10-60s","dependencies":[],"recovery_attempts":2,"priority":"normal"},
   "install": {"platforms":{"linux":["android-sdk","install-direct"],"macos":["android-sdk","install-direct"],"windows":["android-sdk","install-direct"]}},

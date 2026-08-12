@@ -33,22 +33,18 @@ class ScaffoldBinding(_message.Message):
     def __init__(self, preset: _Optional[str] = ..., conditioner: _Optional[str] = ..., params_json: _Optional[str] = ...) -> None: ...
 
 class GenerationBlock(_message.Message):
-    __slots__ = ("role", "profile", "prompt_template", "negative", "model", "provider_url", "credential")
-    ROLE_FIELD_NUMBER: _ClassVar[int]
-    PROFILE_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("prompt_template", "negative", "model", "provider_url", "credential")
     PROMPT_TEMPLATE_FIELD_NUMBER: _ClassVar[int]
     NEGATIVE_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_URL_FIELD_NUMBER: _ClassVar[int]
     CREDENTIAL_FIELD_NUMBER: _ClassVar[int]
-    role: str
-    profile: str
     prompt_template: str
     negative: str
     model: str
     provider_url: str
     credential: str
-    def __init__(self, role: _Optional[str] = ..., profile: _Optional[str] = ..., prompt_template: _Optional[str] = ..., negative: _Optional[str] = ..., model: _Optional[str] = ..., provider_url: _Optional[str] = ..., credential: _Optional[str] = ...) -> None: ...
+    def __init__(self, prompt_template: _Optional[str] = ..., negative: _Optional[str] = ..., model: _Optional[str] = ..., provider_url: _Optional[str] = ..., credential: _Optional[str] = ...) -> None: ...
 
 class Style(_message.Message):
     __slots__ = ("id", "name", "version", "role", "subject", "treatments", "lineage", "placements", "strategy", "regions", "contrast_threshold", "scaffold", "generation")

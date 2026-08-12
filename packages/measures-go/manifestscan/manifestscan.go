@@ -20,9 +20,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	measures "github.com/vrooli/measures-go"
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 )
 
 // ManifestMeasures is the parsed measure surface of one manifest: the commands
@@ -245,44 +245,42 @@ func DefaultDescriptorPath(repoRoot string) string {
 // load error) so a missing descriptor degrades to a per-call error rather than
 // crashing construction or indexing.
 type DescriptorSchemaReader struct {
-	path string
-
-	mu     sync.Mutex
-	loaded bool
-	stamp  descriptorStamp
-	reader *measures.SchemaReader
-	err    error
-}
-
-type descriptorStamp struct {
-	modTime time.Time
-	size    int64
+	path    string
+	source  *descriptorimage.Source
+	initErr error
+	mu      sync.Mutex
+	loaded  uint64
+	reader  *measures.SchemaReader
 }
 
 // NewDescriptorSchemaReader returns a reader resolving the descriptor image
 // relative to repoRoot (honoring MEASURES_DESCRIPTOR_PATH).
 func NewDescriptorSchemaReader(repoRoot string) *DescriptorSchemaReader {
-	return &DescriptorSchemaReader{path: DefaultDescriptorPath(repoRoot)}
+	path := DefaultDescriptorPath(repoRoot)
+	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: path})
+	return &DescriptorSchemaReader{path: path, source: source, initErr: err}
 }
 
 func (d *DescriptorSchemaReader) load() (*measures.SchemaReader, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	info, statErr := os.Stat(d.path)
-	stamp := descriptorStamp{}
-	if statErr == nil {
-		stamp = descriptorStamp{modTime: info.ModTime(), size: info.Size()}
+	if d.initErr != nil {
+		return nil, d.initErr
 	}
-	if d.loaded && statErr == nil && d.stamp == stamp {
-		return d.reader, d.err
+	snapshot, err := d.source.Snapshot()
+	if err != nil {
+		return nil, err
 	}
-	d.loaded, d.stamp = true, stamp
-	if statErr != nil {
-		d.reader, d.err = nil, statErr
-		return nil, d.err
+	if d.loaded == snapshot.Generation && d.reader != nil {
+		return d.reader, nil
 	}
-	d.reader, d.err = measures.NewSchemaReaderFromFile(d.path)
-	return d.reader, d.err
+	reader, err := measures.NewSchemaReaderFromBytes(snapshot.DescriptorBytes())
+	if err != nil {
+		return nil, err
+	}
+	d.loaded = snapshot.Generation
+	d.reader = reader
+	return reader, nil
 }
 
 // RequestParams resolves the request-message param schema for (service, method),

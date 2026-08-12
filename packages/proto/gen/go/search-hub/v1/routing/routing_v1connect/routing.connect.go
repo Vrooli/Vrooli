@@ -37,12 +37,16 @@ const (
 	RoutingServiceQueryProcedure = "/vrooli.search_hub.v1.routing.RoutingService/Query"
 	// RoutingServiceStatusProcedure is the fully-qualified name of the RoutingService's Status RPC.
 	RoutingServiceStatusProcedure = "/vrooli.search_hub.v1.routing.RoutingService/Status"
+	// RoutingServiceRepromoteProcedure is the fully-qualified name of the RoutingService's Repromote
+	// RPC.
+	RoutingServiceRepromoteProcedure = "/vrooli.search_hub.v1.routing.RoutingService/Repromote"
 )
 
 // RoutingServiceClient is a client for the vrooli.search_hub.v1.routing.RoutingService service.
 type RoutingServiceClient interface {
 	Query(context.Context, *connect.Request[routing.QueryRequest]) (*connect.Response[routing.QueryResponse], error)
 	Status(context.Context, *connect.Request[routing.StatusRequest]) (*connect.Response[routing.StatusResponse], error)
+	Repromote(context.Context, *connect.Request[routing.RepromoteRequest]) (*connect.Response[routing.RepromoteResponse], error)
 }
 
 // NewRoutingServiceClient constructs a client for the vrooli.search_hub.v1.routing.RoutingService
@@ -68,13 +72,20 @@ func NewRoutingServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(routingServiceMethods.ByName("Status")),
 			connect.WithClientOptions(opts...),
 		),
+		repromote: connect.NewClient[routing.RepromoteRequest, routing.RepromoteResponse](
+			httpClient,
+			baseURL+RoutingServiceRepromoteProcedure,
+			connect.WithSchema(routingServiceMethods.ByName("Repromote")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // routingServiceClient implements RoutingServiceClient.
 type routingServiceClient struct {
-	query  *connect.Client[routing.QueryRequest, routing.QueryResponse]
-	status *connect.Client[routing.StatusRequest, routing.StatusResponse]
+	query     *connect.Client[routing.QueryRequest, routing.QueryResponse]
+	status    *connect.Client[routing.StatusRequest, routing.StatusResponse]
+	repromote *connect.Client[routing.RepromoteRequest, routing.RepromoteResponse]
 }
 
 // Query calls vrooli.search_hub.v1.routing.RoutingService.Query.
@@ -87,11 +98,17 @@ func (c *routingServiceClient) Status(ctx context.Context, req *connect.Request[
 	return c.status.CallUnary(ctx, req)
 }
 
+// Repromote calls vrooli.search_hub.v1.routing.RoutingService.Repromote.
+func (c *routingServiceClient) Repromote(ctx context.Context, req *connect.Request[routing.RepromoteRequest]) (*connect.Response[routing.RepromoteResponse], error) {
+	return c.repromote.CallUnary(ctx, req)
+}
+
 // RoutingServiceHandler is an implementation of the vrooli.search_hub.v1.routing.RoutingService
 // service.
 type RoutingServiceHandler interface {
 	Query(context.Context, *connect.Request[routing.QueryRequest]) (*connect.Response[routing.QueryResponse], error)
 	Status(context.Context, *connect.Request[routing.StatusRequest]) (*connect.Response[routing.StatusResponse], error)
+	Repromote(context.Context, *connect.Request[routing.RepromoteRequest]) (*connect.Response[routing.RepromoteResponse], error)
 }
 
 // NewRoutingServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -113,12 +130,20 @@ func NewRoutingServiceHandler(svc RoutingServiceHandler, opts ...connect.Handler
 		connect.WithSchema(routingServiceMethods.ByName("Status")),
 		connect.WithHandlerOptions(opts...),
 	)
+	routingServiceRepromoteHandler := connect.NewUnaryHandler(
+		RoutingServiceRepromoteProcedure,
+		svc.Repromote,
+		connect.WithSchema(routingServiceMethods.ByName("Repromote")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.search_hub.v1.routing.RoutingService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RoutingServiceQueryProcedure:
 			routingServiceQueryHandler.ServeHTTP(w, r)
 		case RoutingServiceStatusProcedure:
 			routingServiceStatusHandler.ServeHTTP(w, r)
+		case RoutingServiceRepromoteProcedure:
+			routingServiceRepromoteHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -134,4 +159,8 @@ func (UnimplementedRoutingServiceHandler) Query(context.Context, *connect.Reques
 
 func (UnimplementedRoutingServiceHandler) Status(context.Context, *connect.Request[routing.StatusRequest]) (*connect.Response[routing.StatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.routing.RoutingService.Status is not implemented"))
+}
+
+func (UnimplementedRoutingServiceHandler) Repromote(context.Context, *connect.Request[routing.RepromoteRequest]) (*connect.Response[routing.RepromoteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.routing.RoutingService.Repromote is not implemented"))
 }

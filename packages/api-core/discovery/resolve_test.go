@@ -5,12 +5,12 @@ import (
 	"errors"
 	"os/exec"
 	"testing"
+	"time"
 )
 
-func TestResolveScenarioPortCallsCLIEachTime(t *testing.T) {
-	t.Parallel()
-
+func TestResolveScenarioPortCachesWithinTTL(t *testing.T) {
 	callCount := 0
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
 	runner := func(ctx context.Context, name string, args ...string) ([]byte, error) {
 		callCount++
 		if name != "vrooli" {
@@ -28,15 +28,50 @@ func TestResolveScenarioPortCallsCLIEachTime(t *testing.T) {
 		return []byte("12345\n"), nil
 	}
 
-	resolver := NewResolver(ResolverConfig{CommandRunner: runner})
+	resolver := NewResolver(ResolverConfig{CommandRunner: runner, CacheTTL: time.Second, Now: func() time.Time { return now }})
 	if _, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if _, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if callCount != 1 {
+		t.Fatalf("expected 1 call within TTL, got %d", callCount)
+	}
+	now = now.Add(2 * time.Second)
+	if _, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT"); err != nil {
+		t.Fatalf("unexpected error after TTL: %v", err)
 	}
 	if callCount != 2 {
-		t.Fatalf("expected 2 calls, got %d", callCount)
+		t.Fatalf("expected 2 calls after TTL, got %d", callCount)
+	}
+}
+
+func TestResolveScenarioPortInvalidatesCacheOnFailure(t *testing.T) {
+	responses := []struct {
+		out []byte
+		err error
+	}{
+		{out: []byte("1234"), err: nil},
+		{out: []byte("stopped"), err: errors.New("stopped")},
+		{out: []byte("5678"), err: nil},
+	}
+	calls := 0
+	runner := func(context.Context, string, ...string) ([]byte, error) {
+		response := responses[calls]
+		calls++
+		return response.out, response.err
+	}
+	resolver := NewResolver(ResolverConfig{CommandRunner: runner, CacheTTL: -time.Second})
+	if _, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT"); err == nil {
+		t.Fatal("expected failed refresh")
+	}
+	port, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT")
+	if err != nil || port != 5678 {
+		t.Fatalf("port=%d err=%v, want 5678 and nil", port, err)
 	}
 }
 

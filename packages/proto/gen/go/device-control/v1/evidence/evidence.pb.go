@@ -120,6 +120,7 @@ type AuditRecord struct {
 	Outcome           string                 `protobuf:"bytes,6,opt,name=outcome,proto3" json:"outcome,omitempty"`
 	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	RedactionVerified bool                   `protobuf:"varint,8,opt,name=redaction_verified,json=redactionVerified,proto3" json:"redaction_verified,omitempty"`
+	RedactionOptedOut bool                   `protobuf:"varint,9,opt,name=redaction_opted_out,json=redactionOptedOut,proto3" json:"redaction_opted_out,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -210,6 +211,13 @@ func (x *AuditRecord) GetRedactionVerified() bool {
 	return false
 }
 
+func (x *AuditRecord) GetRedactionOptedOut() bool {
+	if x != nil {
+		return x.RedactionOptedOut
+	}
+	return false
+}
+
 var File_device_control_v1_evidence_evidence_proto protoreflect.FileDescriptor
 
 const file_device_control_v1_evidence_evidence_proto_rawDesc = "" +
@@ -219,7 +227,7 @@ const file_device_control_v1_evidence_evidence_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\"]\n" +
 	"\x11ListAuditResponse\x12H\n" +
-	"\arecords\x18\x01 \x03(\v2..vrooli.device_control.v1.evidence.AuditRecordR\arecords\"\x83\x02\n" +
+	"\arecords\x18\x01 \x03(\v2..vrooli.device_control.v1.evidence.AuditRecordR\arecords\"\xb3\x02\n" +
 	"\vAuditRecord\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x1b\n" +
@@ -229,7 +237,8 @@ const file_device_control_v1_evidence_evidence_proto_rawDesc = "" +
 	"\aoutcome\x18\x06 \x01(\tR\aoutcome\x129\n" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12-\n" +
-	"\x12redaction_verified\x18\b \x01(\bR\x11redactionVerified2\x89\x01\n" +
+	"\x12redaction_verified\x18\b \x01(\bR\x11redactionVerified\x12.\n" +
+	"\x13redaction_opted_out\x18\t \x01(\bR\x11redactionOptedOut2\x89\x01\n" +
 	"\x0fEvidenceService\x12v\n" +
 	"\tListAudit\x123.vrooli.device_control.v1.evidence.ListAuditRequest\x1a4.vrooli.device_control.v1.evidence.ListAuditResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/evidence;evidence_v1b\x06proto3"
 

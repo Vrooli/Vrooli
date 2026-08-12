@@ -29,6 +29,16 @@ Vrooli's agents, scenarios, and tooling must measurably get sharper over time. I
 
 This comes after 1 and 2 but is never zero. A healthy portfolio always has at least one active goal from this category.
 
+### The instrument rule (applies across 1–3, not after them)
+
+A goal whose output is an **instrument** — a sensor, a measurement surface, or an actuator that another goal needs in order to be scoreable — inherits the rank of the highest-ranked goal it unblocks, and sequences ahead of it.
+
+An instrument does not get its own priority band; it borrows one. A sensor for a revenue loop ranks at revenue priority. A sensor for a meta-optimization loop stays at meta priority. Stating the rule relationally blocks both failure modes at once: instrument work starving because its payoff is indirect, and instrument work inflating because "everything is an instrument."
+
+**Test for whether the rule applies.** Name the goal the instrument unblocks, and state what is unscoreable without it. If you cannot name one, it is not an instrument — it is a feature, and it ranks on its own merits under 1–3.
+
+This is the portfolio application of `I3` (Enablement) in [`OBJECTIVES.md`](OBJECTIVES.md). That file states the rule as intent; this section is where it binds to ranking. A control loop whose sensor does not exist is open-loop no matter how good its policy is, so an instrument that trails the loop it enables is mis-sequenced rather than merely deprioritized.
+
 ## Concurrency
 
 **There is no cap on active goals.** Swarm Manager is the synthesis point for every idea the operator has for Vrooli; goals can accumulate faster than they're implemented, and that's expected. Storing months (or a year+) of goal-level planning is correct use of Swarm Manager.
@@ -38,6 +48,8 @@ The operator works the portfolio by moving between active goals based on where a
 **Discipline comes from calibration, not caps.** Portfolio decisions carry prediction blocks ([OUTCOMES_CHARTER.md](../evidence/OUTCOMES_CHARTER.md) §"Prediction ledger"), and expected-cost bands keep decision comparisons honest without bounding the goal count.
 
 **Priority ordering is Swarm Manager's job, not this doc's.** Swarm Manager's priority algorithm ranks goals based on its own signals (priority field, dependencies, backlog item state). `portfolio-manager` defers to that ordering for tactical sequencing, and only proposes portfolio-level decisions (`goal-portfolio`) when a goal's **category fit** against the criteria above is what's being adjusted — not its position in the queue.
+
+**How the instrument rule binds without violating that.** The instrument rule is a *category-fit* rule, not a queue position: it says which band an instrument goal borrows, and `portfolio-manager` proposes a `goal-portfolio` decision to place it there. Sequencing then follows from Swarm Manager's own dependency signal, which is the correct mechanism — an instrument that unblocks a goal should be modeled as that goal's dependency, at which point ordering falls out of the existing algorithm rather than from a second ranking authority. If the dependency signal proves too weak to carry it, that is a Swarm Manager change raised through `capability-work`, not a reason to rank goals here.
 
 ## Goal vs backlog item
 

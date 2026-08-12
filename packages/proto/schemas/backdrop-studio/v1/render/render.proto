@@ -18,7 +18,23 @@ message SubmitRequest {
   string placement = 2;
   int64 seed = 3;
   int32 candidate_count = 4;
+  // BrandTokens binds ink slots directly, for a caller that has no
+  // brand-manager. Keys are the "$brand.*" slot names brand-manager's
+  // GetTokens emits, so the two vocabularies cannot drift.
   map<string, string> brand_tokens = 5;
+  // BrandId names a brand-manager brand whose palette the API fetches. Ignored
+  // when brand_tokens is supplied, because a caller who states an ink means it.
+  // With neither set, a style renders from its own declared ink defaults.
+  string brand_id = 6;
+  // SurfaceId names the delivery target whose declared geometry the render
+  // uses. Empty means the first surface the style's placements permit.
+  //
+  // Delivery geometry has exactly one authority: the seeded surface record.
+  // It used to be a pair of constants (1600x1000) while surfaces declared
+  // 1440x720, 390x844, 1024x500 and 1290x2796 — so a 9:19.5 App Store portrait
+  // backdrop was produced as a 1.6:1 landscape and cropped, and no store asset
+  // was ever generated at its real aspect.
+  string surface_id = 7;
 }
 
 message GetJobRequest {
@@ -45,6 +61,9 @@ message RenderJob {
   repeated Candidate candidates = 6;
   string selected_candidate_id = 7;
   string selected_by = 8;
+  // SurfaceId is the surface the geometry was resolved from, echoed back so a
+  // caller who supplied none can see which one it got.
+  string surface_id = 9;
 }
 
 message Candidate {
@@ -61,4 +80,10 @@ message Candidate {
   bool disclosure_required = 11;
   string prompt = 12;
   string provenance_json = 13;
+  // quality_json is the perceptual verdict this candidate passed, as a JSON
+  // object of {passed, metrics[{name,value,min,max,passed,detail}]}. Every
+  // candidate that exists has passed — a failing one is refused rather than
+  // recorded — so this is the evidence of *how well* it passed, and the margin
+  // it cleared each bar by. Without it "the gate is green" is unfalsifiable.
+  string quality_json = 14;
 }

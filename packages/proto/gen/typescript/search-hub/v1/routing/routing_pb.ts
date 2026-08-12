@@ -8,13 +8,15 @@ import type { AttestedAnswer } from "../../../common/v1/attestation_pb";
 import { file_common_v1_attestation } from "../../../common/v1/attestation_pb";
 import type { Confidence } from "../../../common/v1/confidence_pb";
 import { file_common_v1_confidence } from "../../../common/v1/confidence_pb";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file search-hub/v1/routing/routing.proto.
  */
 export const file_search_hub_v1_routing_routing: GenFile = /*@__PURE__*/
-  fileDesc("CiNzZWFyY2gtaHViL3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZyLBAQoMUXVlcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXR5cGVzGAIgAygJEgsKA2FsbBgDIAEoCBINCgVsaW1pdBgEIAEoBRINCgVncm91cBgFIAEoCRIPCgdleHBsYWluGAYgASgIEkAKCW92ZXJyaWRlcxgHIAEoCzItLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoT3ZlcnJpZGVzEhUKDWNvbnRyb2xfdG9rZW4YCCABKAkigwIKD1NlYXJjaE92ZXJyaWRlcxIbCg5yZXJhbmtfZW5hYmxlZBgBIAEoCEgAiAEBEhkKDHJlcmFua19ibGVuZBgCIAEoCEgBiAEBEh0KEHJlcmFua19zaG9ydGxpc3QYAyABKAVIAogBARIaCg1mbG9vcl9tYXhfZ2FwGAQgASgBSAOIAQESHQoQZmxvb3JfaGFyZF9mbG9vchgFIAEoAUgEiAEBQhEKD19yZXJhbmtfZW5hYmxlZEIPCg1fcmVyYW5rX2JsZW5kQhMKEV9yZXJhbmtfc2hvcnRsaXN0QhAKDl9mbG9vcl9tYXhfZ2FwQhMKEV9mbG9vcl9oYXJkX2Zsb29yIs4CCglTZWFyY2hIaXQSEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIKCgJpZBgEIAEoCRINCgV0aXRsZRgFIAEoCRIPCgdzbmlwcGV0GAYgASgJEgwKBHBhdGgYByABKAkSDQoFc2NvcmUYCCABKAESFAoMcmVyYW5rX3Njb3JlGAkgASgBEjkKB21lYXN1cmUYCiABKAsyKC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLk1lYXN1cmVIaXQSLgoLYXR0ZXN0YXRpb24YCyABKAsyGS5jb21tb24udjEuQXR0ZXN0ZWRBbnN3ZXISKQoKY29uZmlkZW5jZRgMIAEoCzIVLmNvbW1vbi52MS5Db25maWRlbmNlEhEKCWxvY2F0aW9ucxgNIAMoCSKCAgoKTWVhc3VyZUhpdBISCgptZWFzdXJlX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEkQKBnBhcmFtcxgDIAMoCzI0LnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuTWVhc3VyZUhpdC5QYXJhbXNFbnRyeRIOCgZhbnN3ZXIYBCABKAkSDQoFbmVlZHMYBSADKAkSDgoGZWZmZWN0GAYgASgJEhYKDmV4ZWN1dGVkX3F1ZXJ5GAcgASgJEhIKCmNvbmZpZGVuY2UYCCABKAEaLQoLUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKkAQoTUHJvdmlkZXJSZXN1bHRHcm91cBITCgtwcm92aWRlcl9pZBgBIAEoCRI1CgRoaXRzGAIgAygLMicudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TZWFyY2hIaXQSDQoFY291bnQYAyABKAUSEAoIZGVncmFkZWQYBCABKAgSDAoEbm90ZRgFIAEoCRISCgpsYXRlbmN5X21zGAYgASgDIvoBCg1RdWVyeVJlc3BvbnNlEjcKBnJhbmtlZBgBIAMoCzInLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoSGl0EkEKBmdyb3VwcxgCIAMoCzIxLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUHJvdmlkZXJSZXN1bHRHcm91cBIYChBjb3Jwb3JhX3NlYXJjaGVkGAMgAygJEhsKE3JvdXRpbmdfZXhwbGFuYXRpb24YBCADKAkSEAoIcmVyYW5rZWQYBSABKAgSEAoIZGVncmFkZWQYBiABKAgSEgoKbGF0ZW5jeV9tcxgHIAEoAyIPCg1TdGF0dXNSZXF1ZXN0InIKDlByb3ZpZGVySGVhbHRoEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhEKCXJlYWNoYWJsZRgCIAEoCBIRCglmcmVzaG5lc3MYAyABKAkSEwoLcG9pbnRfY291bnQYBCABKAMSEAoIZGVncmFkZWQYBSABKAgiiwEKDlN0YXR1c1Jlc3BvbnNlEj8KCXByb3ZpZGVycxgBIAMoCzIsLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUHJvdmlkZXJIZWFsdGgSHAoUY2xhc3NpZmllcl9hdmFpbGFibGUYAiABKAgSGgoScmVyYW5rZXJfYXZhaWxhYmxlGAMgASgIMtcBCg5Sb3V0aW5nU2VydmljZRJgCgVRdWVyeRIqLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUXVlcnlSZXF1ZXN0GisudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5RdWVyeVJlc3BvbnNlEmMKBlN0YXR1cxIrLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU3RhdHVzUmVxdWVzdBosLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU3RhdHVzUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zZWFyY2gtaHViL3YxL3JvdXRpbmc7cm91dGluZ192MWIGcHJvdG8z", [file_common_v1_attestation, file_common_v1_confidence]);
+  fileDesc("CiNzZWFyY2gtaHViL3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZyLBAQoMUXVlcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXR5cGVzGAIgAygJEgsKA2FsbBgDIAEoCBINCgVsaW1pdBgEIAEoBRINCgVncm91cBgFIAEoCRIPCgdleHBsYWluGAYgASgIEkAKCW92ZXJyaWRlcxgHIAEoCzItLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoT3ZlcnJpZGVzEhUKDWNvbnRyb2xfdG9rZW4YCCABKAkisQIKD1NlYXJjaE92ZXJyaWRlcxIbCg5yZXJhbmtfZW5hYmxlZBgBIAEoCEgAiAEBEhkKDHJlcmFua19ibGVuZBgCIAEoCEgBiAEBEh0KEHJlcmFua19zaG9ydGxpc3QYAyABKAVIAogBARIaCg1mbG9vcl9tYXhfZ2FwGAQgASgBSAOIAQESHQoQZmxvb3JfaGFyZF9mbG9vchgFIAEoAUgEiAEBEhoKDWh5YnJpZF9mdXNpb24YBiABKAlIBYgBAUIRCg9fcmVyYW5rX2VuYWJsZWRCDwoNX3JlcmFua19ibGVuZEITChFfcmVyYW5rX3Nob3J0bGlzdEIQCg5fZmxvb3JfbWF4X2dhcEITChFfZmxvb3JfaGFyZF9mbG9vckIQCg5faHlicmlkX2Z1c2lvbiLkAgoJU2VhcmNoSGl0EhMKC3Byb3ZpZGVyX2lkGAEgASgJEhYKDnByb3ZpZGVyX2dyb3VwGAIgASgJEgwKBHR5cGUYAyABKAkSCgoCaWQYBCABKAkSDQoFdGl0bGUYBSABKAkSDwoHc25pcHBldBgGIAEoCRIMCgRwYXRoGAcgASgJEg0KBXNjb3JlGAggASgBEhQKDHJlcmFua19zY29yZRgJIAEoARI5CgdtZWFzdXJlGAogASgLMigudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5NZWFzdXJlSGl0Ei4KC2F0dGVzdGF0aW9uGAsgASgLMhkuY29tbW9uLnYxLkF0dGVzdGVkQW5zd2VyEikKCmNvbmZpZGVuY2UYDCABKAsyFS5jb21tb24udjEuQ29uZmlkZW5jZRIRCglsb2NhdGlvbnMYDSADKAkSFAoMbWVyZ2VkX2NvdW50GA4gASgFIoICCgpNZWFzdXJlSGl0EhIKCm1lYXN1cmVfaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSRAoGcGFyYW1zGAMgAygLMjQudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5NZWFzdXJlSGl0LlBhcmFtc0VudHJ5Eg4KBmFuc3dlchgEIAEoCRINCgVuZWVkcxgFIAMoCRIOCgZlZmZlY3QYBiABKAkSFgoOZXhlY3V0ZWRfcXVlcnkYByABKAkSEgoKY29uZmlkZW5jZRgIIAEoARotCgtQYXJhbXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIqQBChNQcm92aWRlclJlc3VsdEdyb3VwEhMKC3Byb3ZpZGVyX2lkGAEgASgJEjUKBGhpdHMYAiADKAsyJy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlNlYXJjaEhpdBINCgVjb3VudBgDIAEoBRIQCghkZWdyYWRlZBgEIAEoCBIMCgRub3RlGAUgASgJEhIKCmxhdGVuY3lfbXMYBiABKAMipgIKDVF1ZXJ5UmVzcG9uc2USNwoGcmFua2VkGAEgAygLMicudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TZWFyY2hIaXQSQQoGZ3JvdXBzGAIgAygLMjEudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5Qcm92aWRlclJlc3VsdEdyb3VwEhgKEGNvcnBvcmFfc2VhcmNoZWQYAyADKAkSGwoTcm91dGluZ19leHBsYW5hdGlvbhgEIAMoCRIQCghyZXJhbmtlZBgFIAEoCBIQCghkZWdyYWRlZBgGIAEoCBISCgpsYXRlbmN5X21zGAcgASgDEg8KB3BhcnRpYWwYCCABKAgSGQoRcGVuZGluZ19wcm92aWRlcnMYCSABKAUiDwoNU3RhdHVzUmVxdWVzdCInChBSZXByb21vdGVSZXF1ZXN0EhMKC3Byb3ZpZGVyX2lkGAEgASgJIkgKEVJlcHJvbW90ZVJlc3BvbnNlEhMKC3Byb3ZpZGVyX2lkGAEgASgJEg0KBXJlc2V0GAIgASgIEg8KB21lc3NhZ2UYAyABKAkijwQKDlByb3ZpZGVySGVhbHRoEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhEKCXJlYWNoYWJsZRgCIAEoCBITCgtwb2ludF9jb3VudBgEIAEoAxIQCghkZWdyYWRlZBgFIAEoCBIPCgdkZW1vdGVkGAYgASgIEhcKD2RlbW90aW9uX3JlYXNvbhgHIAEoCRIUCgx0aW1lc19yb3V0ZWQYCCABKAMSEgoKdG90YWxfaGl0cxgJIAEoAxIUCgxyZWFjaGFiaWxpdHkYCiABKAkSEQoJaW5kZXhfYWdlGAsgASgJEhoKEmF1dG9tYXRpY19lbGlnaWJsZRgMIAEoCBIiChphdXRvbWF0aWNfZXhjbHVzaW9uX3JlYXNvbhgNIAEoCRIVCg1jaXJjdWl0X3N0YXRlGA4gASgJEhgKEHF1YWxpdHlfd2l0aGhlbGQYDyABKAgSHwoXcXVhbGl0eV93aXRoaGVsZF9yZWFzb24YECABKAkSHwoXcXVhbGl0eV9ldmlkZW5jZV9ydW5faWQYESABKAkSHgoWcXVhbGl0eV9nYXRlX29wdGVkX291dBgSIAEoCBIjChtxdWFsaXR5X2dhdGVfb3B0X291dF9yZWFzb24YEyABKAkSMwoPbGFzdF9pbmRleGVkX2F0GBQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEoECAMQBCLhAQoOU3RhdHVzUmVzcG9uc2USPwoJcHJvdmlkZXJzGAEgAygLMiwudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5Qcm92aWRlckhlYWx0aBIcChRjbGFzc2lmaWVyX2F2YWlsYWJsZRgCIAEoCBIaChJyZXJhbmtlcl9hdmFpbGFibGUYAyABKAgSGgoSY2lyY3VpdF9vcGVuX3NoYXJlGAQgASgBEhsKE2NpcmN1aXRfb3Blbl9xdW9ydW0YBSABKAESGwoTZmVkZXJhdGlvbl9kZWdyYWRlZBgGIAEoCDLFAgoOUm91dGluZ1NlcnZpY2USYAoFUXVlcnkSKi52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlF1ZXJ5UmVxdWVzdBorLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUXVlcnlSZXNwb25zZRJjCgZTdGF0dXMSKy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlN0YXR1c1JlcXVlc3QaLC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlN0YXR1c1Jlc3BvbnNlEmwKCVJlcHJvbW90ZRIuLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUmVwcm9tb3RlUmVxdWVzdBovLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUmVwcm9tb3RlUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zZWFyY2gtaHViL3YxL3JvdXRpbmc7cm91dGluZ192MWIGcHJvdG8z", [file_common_v1_attestation, file_common_v1_confidence, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.QueryRequest
@@ -123,6 +125,13 @@ export type SearchOverrides = Message<"vrooli.search_hub.v1.routing.SearchOverri
    * @generated from field: optional double floor_hard_floor = 5;
    */
   floorHardFloor?: number | undefined;
+
+  /**
+   * Optional dense+sparse Qdrant fusion strategy ("rrf" or "dbsf").
+   *
+   * @generated from field: optional string hybrid_fusion = 6;
+   */
+  hybridFusion?: string | undefined;
 };
 
 /**
@@ -229,6 +238,15 @@ export type SearchHit = Message<"vrooli.search_hub.v1.routing.SearchHit"> & {
    * @generated from field: repeated string locations = 13;
    */
   locations: string[];
+
+  /**
+   * Number of provider passages represented by this document-level hit. A
+   * value greater than one means duplicate chunks were folded into the
+   * highest-scoring representative; one means no folding occurred.
+   *
+   * @generated from field: int32 merged_count = 14;
+   */
+  mergedCount: number;
 };
 
 /**
@@ -430,6 +448,21 @@ export type QueryResponse = Message<"vrooli.search_hub.v1.routing.QueryResponse"
    * @generated from field: int64 latency_ms = 7;
    */
   latencyMs: bigint;
+
+  /**
+   * True when the query deadline expired after at least one provider returned
+   * usable results. The groups already received remain valid partial output.
+   *
+   * @generated from field: bool partial = 8;
+   */
+  partial: boolean;
+
+  /**
+   * Number of provider groups that did not complete before the deadline.
+   *
+   * @generated from field: int32 pending_providers = 9;
+   */
+  pendingProviders: number;
 };
 
 /**
@@ -453,6 +486,50 @@ export const StatusRequestSchema: GenMessage<StatusRequest> = /*@__PURE__*/
   messageDesc(file_search_hub_v1_routing_routing, 6);
 
 /**
+ * @generated from message vrooli.search_hub.v1.routing.RepromoteRequest
+ */
+export type RepromoteRequest = Message<"vrooli.search_hub.v1.routing.RepromoteRequest"> & {
+  /**
+   * @generated from field: string provider_id = 1;
+   */
+  providerId: string;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.routing.RepromoteRequest.
+ * Use `create(RepromoteRequestSchema)` to create a new message.
+ */
+export const RepromoteRequestSchema: GenMessage<RepromoteRequest> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_routing_routing, 7);
+
+/**
+ * @generated from message vrooli.search_hub.v1.routing.RepromoteResponse
+ */
+export type RepromoteResponse = Message<"vrooli.search_hub.v1.routing.RepromoteResponse"> & {
+  /**
+   * @generated from field: string provider_id = 1;
+   */
+  providerId: string;
+
+  /**
+   * @generated from field: bool reset = 2;
+   */
+  reset: boolean;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.routing.RepromoteResponse.
+ * Use `create(RepromoteResponseSchema)` to create a new message.
+ */
+export const RepromoteResponseSchema: GenMessage<RepromoteResponse> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_routing_routing, 8);
+
+/**
  * @generated from message vrooli.search_hub.v1.routing.ProviderHealth
  */
 export type ProviderHealth = Message<"vrooli.search_hub.v1.routing.ProviderHealth"> & {
@@ -467,13 +544,6 @@ export type ProviderHealth = Message<"vrooli.search_hub.v1.routing.ProviderHealt
   reachable: boolean;
 
   /**
-   * e.g. "synced 12m ago".
-   *
-   * @generated from field: string freshness = 3;
-   */
-  freshness: string;
-
-  /**
    * @generated from field: int64 point_count = 4;
    */
   pointCount: bigint;
@@ -482,6 +552,103 @@ export type ProviderHealth = Message<"vrooli.search_hub.v1.routing.ProviderHealt
    * @generated from field: bool degraded = 5;
    */
   degraded: boolean;
+
+  /**
+   * True when automatic routing has temporarily excluded this leaf after
+   * sustained zero-yield evidence. Explicit queries can restore it.
+   *
+   * @generated from field: bool demoted = 6;
+   */
+  demoted: boolean;
+
+  /**
+   * @generated from field: string demotion_reason = 7;
+   */
+  demotionReason: string;
+
+  /**
+   * @generated from field: int64 times_routed = 8;
+   */
+  timesRouted: bigint;
+
+  /**
+   * @generated from field: int64 total_hits = 9;
+   */
+  totalHits: bigint;
+
+  /**
+   * Resolution/reachability is intentionally separate from corpus age.
+   *
+   * @generated from field: string reachability = 10;
+   */
+  reachability: string;
+
+  /**
+   * A computed age (for example "17m0s"), not_applicable reason, or
+   * unreported reason. These prefixes distinguish a provider that does not
+   * expose corpus-age telemetry from one whose telemetry could not be read.
+   *
+   * @generated from field: string index_age = 11;
+   */
+  indexAge: string;
+
+  /**
+   * Whether automatic classifier routing may select this leaf.
+   *
+   * @generated from field: bool automatic_eligible = 12;
+   */
+  automaticEligible: boolean;
+
+  /**
+   * For a non-production lifecycle, explains why explicit selection is needed.
+   *
+   * @generated from field: string automatic_exclusion_reason = 13;
+   */
+  automaticExclusionReason: string;
+
+  /**
+   * closed, open, or probe_due. probe_due is distinct from unreachable: the
+   * cooldown elapsed and the next request is allowed to test recovery.
+   *
+   * @generated from field: string circuit_state = 14;
+   */
+  circuitState: string;
+
+  /**
+   * Fresh, non-degraded evaluation evidence blocks automatic routing because
+   * gibberish scored at least as high as the strongest real case.
+   *
+   * @generated from field: bool quality_withheld = 15;
+   */
+  qualityWithheld: boolean;
+
+  /**
+   * @generated from field: string quality_withheld_reason = 16;
+   */
+  qualityWithheldReason: string;
+
+  /**
+   * @generated from field: string quality_evidence_run_id = 17;
+   */
+  qualityEvidenceRunId: string;
+
+  /**
+   * @generated from field: bool quality_gate_opted_out = 18;
+   */
+  qualityGateOptedOut: boolean;
+
+  /**
+   * @generated from field: string quality_gate_opt_out_reason = 19;
+   */
+  qualityGateOptOutReason: string;
+
+  /**
+   * Typed source timestamp behind index_age. Providers that declare an
+   * index_timestamp_field must populate this when their status is reachable.
+   *
+   * @generated from field: google.protobuf.Timestamp last_indexed_at = 20;
+   */
+  lastIndexedAt?: Timestamp | undefined;
 };
 
 /**
@@ -489,7 +656,7 @@ export type ProviderHealth = Message<"vrooli.search_hub.v1.routing.ProviderHealt
  * Use `create(ProviderHealthSchema)` to create a new message.
  */
 export const ProviderHealthSchema: GenMessage<ProviderHealth> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 7);
+  messageDesc(file_search_hub_v1_routing_routing, 9);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.StatusResponse
@@ -511,6 +678,21 @@ export type StatusResponse = Message<"vrooli.search_hub.v1.routing.StatusRespons
    * @generated from field: bool reranker_available = 3;
    */
   rerankerAvailable: boolean;
+
+  /**
+   * @generated from field: double circuit_open_share = 4;
+   */
+  circuitOpenShare: number;
+
+  /**
+   * @generated from field: double circuit_open_quorum = 5;
+   */
+  circuitOpenQuorum: number;
+
+  /**
+   * @generated from field: bool federation_degraded = 6;
+   */
+  federationDegraded: boolean;
 };
 
 /**
@@ -518,7 +700,7 @@ export type StatusResponse = Message<"vrooli.search_hub.v1.routing.StatusRespons
  * Use `create(StatusResponseSchema)` to create a new message.
  */
 export const StatusResponseSchema: GenMessage<StatusResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 8);
+  messageDesc(file_search_hub_v1_routing_routing, 10);
 
 /**
  * @generated from service vrooli.search_hub.v1.routing.RoutingService
@@ -539,6 +721,14 @@ export const RoutingService: GenService<{
     methodKind: "unary";
     input: typeof StatusRequestSchema;
     output: typeof StatusResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.search_hub.v1.routing.RoutingService.Repromote
+   */
+  repromote: {
+    methodKind: "unary";
+    input: typeof RepromoteRequestSchema;
+    output: typeof RepromoteResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_search_hub_v1_routing_routing, 0);

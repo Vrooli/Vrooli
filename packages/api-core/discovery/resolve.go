@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -35,10 +37,20 @@ type ResolverConfig struct {
 	// scenario slug is ignored and this URL is returned directly.
 	// Example: "http://127.0.0.1:12345"
 	StaticBaseURL string
+
+	// CacheTTL bounds how long a successful runtime address is reused. A short
+	// cache removes one CLI process per provider leaf while preserving dynamic
+	// port correctness; a failed lookup invalidates the entry immediately.
+	// Zero uses the default two-second TTL. Set it negative to disable caching.
+	CacheTTL time.Duration
+	// Now supplies time for deterministic cache tests. Nil uses time.Now.
+	Now func() time.Time
 }
 
-// Resolver resolves scenario ports by shelling out to the Vrooli CLI.
-// It intentionally performs a fresh lookup every call (no caching).
+// Resolver resolves scenario ports by shelling out to the Vrooli CLI. Successful
+// addresses are cached briefly and failed lookups invalidate the entry, so a
+// restarted scenario is never pinned to a stale address for longer than the
+// configured TTL.
 // If configured with a static base URL, it bypasses CLI discovery entirely.
 type Resolver struct {
 	vrooliPath    string
@@ -46,9 +58,24 @@ type Resolver struct {
 	host          string
 	scheme        string
 	staticBaseURL string // When set, bypasses CLI discovery
+	cacheTTL      time.Duration
+	now           func() time.Time
+	cacheMu       sync.Mutex
+	cache         map[string]cachedPort
+	cacheHits     int64
+	cacheMisses   int64
+}
+
+type cachedPort struct {
+	port      int
+	expiresAt time.Time
 }
 
 const defaultPortKey = "API_PORT"
+
+// defaultResolverCacheTTL amortizes fan-out resolution for one query while
+// bounding the stale-address window after a scenario restart.
+const defaultResolverCacheTTL = 2 * time.Second
 
 // ErrorKind identifies the class of discovery failure.
 type ErrorKind string
@@ -115,12 +142,23 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 	if scheme == "" {
 		scheme = "http"
 	}
+	cacheTTL := cfg.CacheTTL
+	if cacheTTL == 0 {
+		cacheTTL = defaultResolverCacheTTL
+	}
+	now := cfg.Now
+	if now == nil {
+		now = time.Now
+	}
 	return &Resolver{
 		vrooliPath:    vrooliPath,
 		runner:        runner,
 		host:          host,
 		scheme:        scheme,
 		staticBaseURL: strings.TrimRight(cfg.StaticBaseURL, "/"),
+		cacheTTL:      cacheTTL,
+		now:           now,
+		cache:         make(map[string]cachedPort),
 	}
 }
 
@@ -141,7 +179,8 @@ func NewStaticResolver(baseURL string) *Resolver {
 
 // ResolveScenarioPort resolves a scenario's port by calling:
 // `vrooli scenario port <slug> <portKey>`.
-// This always executes the CLI; it does not cache results.
+// Successful lookups are cached for ResolverConfig.CacheTTL. A failed lookup
+// removes the cache entry before returning the structured discovery error.
 //
 // If the resolver was created with a static base URL, the port is extracted
 // from that URL instead of invoking the CLI.
@@ -162,6 +201,10 @@ func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKe
 	if portKey == "" {
 		portKey = defaultPortKey
 	}
+	cacheKey := scenarioSlug + "\x00" + portKey
+	if port, ok := r.cached(cacheKey); ok {
+		return port, nil
+	}
 
 	// Instance routing (Case B): when the target scenario is ambiently shadowed
 	// (VROOLI_SHADOW_SCENARIOS), address its "@shadow" record. If that non-live
@@ -174,9 +217,55 @@ func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKe
 		port, derr = r.lookupPort(ctx, scenarioSlug, scenarioSlug, portKey)
 	}
 	if derr != nil {
+		r.invalidate(cacheKey)
 		return 0, derr
 	}
+	r.store(cacheKey, port)
 	return port, nil
+}
+
+func (r *Resolver) cached(key string) (int, bool) {
+	if r.cacheTTL < 0 {
+		return 0, false
+	}
+	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
+	entry, ok := r.cache[key]
+	if !ok {
+		r.cacheMisses++
+		return 0, false
+	}
+	if !r.now().Before(entry.expiresAt) {
+		delete(r.cache, key)
+		r.cacheMisses++
+		return 0, false
+	}
+	r.cacheHits++
+	return entry.port, true
+}
+
+// CacheStats returns cumulative successful cache lookups and misses. The
+// counters are resolver-local: callers can take a before/after sample around
+// one operation without exposing cache contents or corpus data.
+func (r *Resolver) CacheStats() (hits, misses int64) {
+	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
+	return r.cacheHits, r.cacheMisses
+}
+
+func (r *Resolver) store(key string, port int) {
+	if r.cacheTTL < 0 {
+		return
+	}
+	r.cacheMu.Lock()
+	r.cache[key] = cachedPort{port: port, expiresAt: r.now().Add(r.cacheTTL)}
+	r.cacheMu.Unlock()
+}
+
+func (r *Resolver) invalidate(key string) {
+	r.cacheMu.Lock()
+	delete(r.cache, key)
+	r.cacheMu.Unlock()
 }
 
 // lookupPort shells `vrooli scenario port <target> <portKey>` and classifies the

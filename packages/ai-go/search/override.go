@@ -49,13 +49,17 @@ type SearchOverrides struct {
 	// request. Clamped to [0,1]; 0 keeps the regime default (FloorForMethodLeg).
 	FloorMaxGap    *float64 `json:"floor_max_gap,omitempty"`
 	FloorHardFloor *float64 `json:"floor_hard_floor,omitempty"`
+	// HybridFusion selects the dense+sparse Qdrant fusion strategy. It is
+	// ignored by dense-only services and validated against the same enum as the
+	// construction-time tuning.
+	HybridFusion *string `json:"hybrid_fusion,omitempty"`
 }
 
 // IsZero reports whether no override field is set — used by a handler to skip
 // the override path entirely (and its telemetry) for an ordinary request.
 func (o SearchOverrides) IsZero() bool {
 	return o.RerankEnabled == nil && o.RerankBlend == nil && o.RerankShortlist == nil &&
-		o.FloorMaxGap == nil && o.FloorHardFloor == nil
+		o.FloorMaxGap == nil && o.FloorHardFloor == nil && o.HybridFusion == nil
 }
 
 // OverridePolicy decides WHICH per-request overrides a Service honors. A provider
@@ -107,6 +111,7 @@ func AllowOverrides() OverridePolicy { return allowOverrides{} }
 func OverrideBool(b bool) *bool        { return &b }
 func OverrideInt(i int) *int           { return &i }
 func OverrideFloat(f float64) *float64 { return &f }
+func OverrideString(s string) *string  { return &s }
 
 // searchSettings is the resolved per-call option set (currently just the
 // overrides). It is the target the SearchOption closures write into.
@@ -138,6 +143,7 @@ type effectiveParams struct {
 	shortlist     int
 	applyFloor    bool
 	floor         FloorConfig
+	hybridFusion  string
 }
 
 // resolveEffective computes the per-call query-time parameters from the Service
@@ -152,6 +158,7 @@ func (s *Service) resolveEffective(opts ...SearchOption) effectiveParams {
 		shortlist:     s.shortlist,
 		applyFloor:    s.applyFloor,
 		floor:         s.floor,
+		hybridFusion:  s.hybridFusion,
 	}
 
 	var set searchSettings
@@ -179,6 +186,11 @@ func (s *Service) resolveEffective(opts ...SearchOption) effectiveParams {
 	}
 	if permitted.FloorHardFloor != nil {
 		eff.floor.HardFloor = clampFloat(*permitted.FloorHardFloor, 0, 1)
+	}
+	if permitted.HybridFusion != nil {
+		if fusion := normalizeHybridFusion(*permitted.HybridFusion); fusion != "" {
+			eff.hybridFusion = fusion
+		}
 	}
 	// Re-enforce the package invariant: a blend with rerank off is a no-op that
 	// would only confuse the floor-regime classification, so drop it.

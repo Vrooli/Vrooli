@@ -6,14 +6,30 @@
 
 ```bash
 cd packages/proto
-make generate   # regenerate gen/ (Go, TS, JS, Python, pyi)
+make generate SCENARIO=<scenario>  # staged, locked, dependency-aware routine path
 make lint       # buf lint
-make breaking   # buf breaking-change check vs base branch
+make breaking SCENARIO=<scenario>  # proto-health impact check
 make verify-committed-gen  # CI-style committed gen/ diff guard
 make refresh-vendor  # refresh vendor/ from BSR (rare, requires login)
 ```
 
-All of `make generate`, `make lint`, `make breaking`, `make verify-committed-gen` are **fully offline-capable** — zero outbound BSR requests. `make refresh-vendor` is the only target that contacts buf.build (see [Refreshing vendored modules](#refreshing-vendored-modules)).
+Routine schema edits use a scoped invocation so one change does not rewrite the
+fleet. All of `make generate`, `make lint`, `make breaking`, and
+`make verify-committed-gen` are **fully offline-capable** — zero outbound BSR
+requests. `make refresh-vendor` is the only target that contacts buf.build (see
+[Refreshing vendored modules](#refreshing-vendored-modules)). Generation uses
+the Go `protogen` command, an advisory cross-process lock, a staging tree beside
+`gen/`, and publish-on-change semantics. Scoped runs include reverse dependents
+and shared imports.
+
+Use a full-fleet generation only deliberately, for example after a plugin or
+vendored-module change:
+
+```bash
+cd packages/proto
+make generate                 # deliberate full-fleet rebuild
+make verify-committed-gen
+```
 
 ## Pipeline shape
 
@@ -50,7 +66,8 @@ Why local? Two reasons:
 ## Adding a new .proto
 
 1. Create the file under `packages/proto/schemas/<scenario>/v1/<dir>/<name>.proto` matching the existing layout.
-2. `cd packages/proto && make generate`.
+2. `cd packages/proto && make generate SCENARIO=<scenario>` (or repeat
+   `SCENARIO` for several related edits).
 3. Commit `schemas/<...>`, the new files under `gen/`, and the refreshed `gen/manifests/<scenario>.lock.json`.
 4. `make verify-committed-gen` enforces the committed generated artifacts match.
 
@@ -70,20 +87,27 @@ No buf.gen.yaml change is needed for a new file — the existing 6 plugin invoca
 4. Register the handler in `internal/runtime/registry.go` `customToolHandlers` and update `internal/runtime/runtime_test.go`'s expected tool list.
 5. Add the plugin to `.vrooli/service.json` `hostTools[]` so `vrooli setup` installs it.
 6. Reference the plugin in `packages/proto/buf.gen.yaml` (`local:` form).
-7. Run `make generate` and commit the new `gen/` outputs.
+7. Run the deliberate full-fleet `make generate` and commit the new `gen/`
+   outputs.
 
 ## Bumping a plugin version
 
 1. Update both the manifest `version` field (`internal/tools/<plugin>/tool.json#/version`) and the handler's `defaultVersion` constant. The handler test asserts they match.
 2. `vrooli setup` (or run the install commands manually) to upgrade the local binary.
-3. `cd packages/proto && make generate`.
+3. `cd packages/proto && make generate` (a plugin change intentionally
+   restamps the full generated fleet).
 4. Commit the manifest, handler, and the resulting `gen/` diff. CI's `make verify-committed-gen` enforces the diff is consistent.
 
 ## Generation manifests
 
-`make generate` is prune-clean: it removes generated language output
-directories before running `buf generate`, rebuilds the descriptor image, and
-writes one lockfile per schema directory under `gen/manifests/`.
+The full-fleet form, `make generate`, builds every output in a temporary sibling
+tree, rebuilds the
+descriptor image and lockfiles there, then publishes changed language files by
+atomic per-file rename while preserving their existing directory roots; the
+descriptor is published as one atomic file rename. Unchanged outputs are
+discarded without changing their modification times. Scoped runs publish only
+the selected scenarios, their reverse dependents, shared import outputs, and
+the global descriptor.
 
 `packages/proto/gen/` is buf-output only. Keep scenario helpers, compatibility
 shims, hand-authored enum maps, debug renderings, and copied vendor files out
@@ -109,9 +133,23 @@ and reports stale inputs, edited outputs, or orphan generated files as
 `proto.gen_manifest_missing`, and changed toolchain pins are advisory
 `proto.gen_toolchain_drift` until `make generate` refreshes the manifests.
 
-`make verify-committed-gen` is the authoritative boundary gate. It runs the same
-prune-clean generation path and fails if any committed file under `gen/`,
-including descriptors or manifests, differs afterward.
+`make verify-committed-gen` is the authoritative boundary gate. It runs the
+same staged generation path under the same lock, compares every committed file
+under `gen/` (including descriptors and manifests), and leaves the worktree
+unchanged. Failed verification retains its staging path in the log for
+diagnosis; successful verification removes it.
+
+## Descriptor snapshot contract
+
+Runtime consumers use `packages/proto/descriptorimage.Source`, which watches
+the global descriptor and CLI manifests, caches an immutable parsed snapshot,
+and revalidates stamps on each request. A successful publication increments the
+generation and exposes its digest and load time. A malformed reload keeps the
+last known-good snapshot and reports the error through the consumer health
+surface; only an initial load failure prevents startup after bounded retries.
+Handlers pin one snapshot for an operation, so a request never mixes contract
+generations. Program-runtime gives new kernels the current binding projection
+while an in-flight kernel retains the generation it started with.
 
 ## Refreshing vendored modules
 

@@ -47,7 +47,7 @@ class Rollup(_message.Message):
     def __init__(self, key: _Optional[str] = ..., planned: _Optional[int] = ..., built: _Optional[int] = ...) -> None: ...
 
 class MaturitySummary(_message.Message):
-    __slots__ = ("total", "at_or_above_target", "by_rung")
+    __slots__ = ("total", "at_or_above_target", "by_rung", "catalog_completion", "mandatory_gate_coverage", "weighted_quality", "production_ready_coverage")
     class ByRungEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -58,10 +58,28 @@ class MaturitySummary(_message.Message):
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     AT_OR_ABOVE_TARGET_FIELD_NUMBER: _ClassVar[int]
     BY_RUNG_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_COMPLETION_FIELD_NUMBER: _ClassVar[int]
+    MANDATORY_GATE_COVERAGE_FIELD_NUMBER: _ClassVar[int]
+    WEIGHTED_QUALITY_FIELD_NUMBER: _ClassVar[int]
+    PRODUCTION_READY_COVERAGE_FIELD_NUMBER: _ClassVar[int]
     total: int
     at_or_above_target: int
     by_rung: _containers.ScalarMap[str, int]
-    def __init__(self, total: _Optional[int] = ..., at_or_above_target: _Optional[int] = ..., by_rung: _Optional[_Mapping[str, int]] = ...) -> None: ...
+    catalog_completion: CoverageMetric
+    mandatory_gate_coverage: CoverageMetric
+    weighted_quality: CoverageMetric
+    production_ready_coverage: CoverageMetric
+    def __init__(self, total: _Optional[int] = ..., at_or_above_target: _Optional[int] = ..., by_rung: _Optional[_Mapping[str, int]] = ..., catalog_completion: _Optional[_Union[CoverageMetric, _Mapping]] = ..., mandatory_gate_coverage: _Optional[_Union[CoverageMetric, _Mapping]] = ..., weighted_quality: _Optional[_Union[CoverageMetric, _Mapping]] = ..., production_ready_coverage: _Optional[_Union[CoverageMetric, _Mapping]] = ...) -> None: ...
+
+class CoverageMetric(_message.Message):
+    __slots__ = ("numerator", "denominator", "ratio")
+    NUMERATOR_FIELD_NUMBER: _ClassVar[int]
+    DENOMINATOR_FIELD_NUMBER: _ClassVar[int]
+    RATIO_FIELD_NUMBER: _ClassVar[int]
+    numerator: int
+    denominator: int
+    ratio: float
+    def __init__(self, numerator: _Optional[int] = ..., denominator: _Optional[int] = ..., ratio: _Optional[float] = ...) -> None: ...
 
 class CoverageReport(_message.Message):
     __slots__ = ("rows", "totals", "by_domain", "by_priority", "maturity")

@@ -146,12 +146,32 @@ func TestServiceFusionFloorOnKeepsLowScores(t *testing.T) {
 	if resp.Reranker != "none" {
 		t.Fatalf("reranker leg = %q, want none (rerank-off fused)", resp.Reranker)
 	}
+	if store.lastQuery.Fusion != HybridFusionRRF {
+		t.Fatalf("default hybrid fusion = %q, want %q", store.lastQuery.Fusion, HybridFusionRRF)
+	}
 	// Weak-labeled against the fusion band (0.20), not the cosine band (0.55): the
 	// real 0.30 hit is NOT weak — the latent mislabel bug is fixed.
 	for _, r := range resp.Results {
 		if r.Weak {
 			t.Fatalf("fused hit %s (%.2f) wrongly weak-labeled under the fusion band", r.ID, r.Score)
 		}
+	}
+}
+
+func TestServiceHybridFusionStrategyIsForwarded(t *testing.T) {
+	store := &queryStore{available: true, results: []SearchResult{{ID: "a", Score: 0.5, Payload: map[string]any{"body": "exact"}}}}
+	svc := NewService(ServiceOptions{
+		Embedder:      &countingEmbedder{},
+		SparseEncoder: NewBM25SparseEncoder(),
+		VectorStore:   store,
+		HybridFusion:  HybridFusionDBSF,
+		ApplyFloor:    false,
+	})
+	if _, err := svc.Search(context.Background(), SearchQuery{Query: "exact", Mode: ModeHybrid, Limit: 5}); err != nil {
+		t.Fatal(err)
+	}
+	if store.lastQuery.Fusion != HybridFusionDBSF {
+		t.Fatalf("hybrid fusion = %q, want %q", store.lastQuery.Fusion, HybridFusionDBSF)
 	}
 }
 

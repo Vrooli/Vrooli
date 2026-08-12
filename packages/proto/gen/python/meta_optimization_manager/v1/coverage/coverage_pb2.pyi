@@ -12,7 +12,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ProjectionCoverage(_message.Message):
-    __slots__ = ("projection", "now_count", "in_reach_count", "missing_count", "total_cells", "coverage_ratio", "denominator_confidence", "confidence_rationale", "available", "unavailable_reason")
+    __slots__ = ("projection", "now_count", "in_reach_count", "missing_count", "total_cells", "coverage_ratio", "denominator_confidence", "confidence_rationale", "available", "unavailable_reason", "condition_counts")
     PROJECTION_FIELD_NUMBER: _ClassVar[int]
     NOW_COUNT_FIELD_NUMBER: _ClassVar[int]
     IN_REACH_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -23,6 +23,7 @@ class ProjectionCoverage(_message.Message):
     CONFIDENCE_RATIONALE_FIELD_NUMBER: _ClassVar[int]
     AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     UNAVAILABLE_REASON_FIELD_NUMBER: _ClassVar[int]
+    CONDITION_COUNTS_FIELD_NUMBER: _ClassVar[int]
     projection: _model_pb2.Projection
     now_count: int
     in_reach_count: int
@@ -33,7 +34,16 @@ class ProjectionCoverage(_message.Message):
     confidence_rationale: str
     available: bool
     unavailable_reason: str
-    def __init__(self, projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., now_count: _Optional[int] = ..., in_reach_count: _Optional[int] = ..., missing_count: _Optional[int] = ..., total_cells: _Optional[int] = ..., coverage_ratio: _Optional[float] = ..., denominator_confidence: _Optional[_Union[_model_pb2.DenominatorConfidence, str]] = ..., confidence_rationale: _Optional[str] = ..., available: _Optional[bool] = ..., unavailable_reason: _Optional[str] = ...) -> None: ...
+    condition_counts: _containers.RepeatedCompositeFieldContainer[ConditionCount]
+    def __init__(self, projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., now_count: _Optional[int] = ..., in_reach_count: _Optional[int] = ..., missing_count: _Optional[int] = ..., total_cells: _Optional[int] = ..., coverage_ratio: _Optional[float] = ..., denominator_confidence: _Optional[_Union[_model_pb2.DenominatorConfidence, str]] = ..., confidence_rationale: _Optional[str] = ..., available: _Optional[bool] = ..., unavailable_reason: _Optional[str] = ..., condition_counts: _Optional[_Iterable[_Union[ConditionCount, _Mapping]]] = ...) -> None: ...
+
+class ConditionCount(_message.Message):
+    __slots__ = ("condition", "count")
+    CONDITION_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    condition: str
+    count: int
+    def __init__(self, condition: _Optional[str] = ..., count: _Optional[int] = ...) -> None: ...
 
 class EmpiricalTrendPoint(_message.Message):
     __slots__ = ("success_rate", "median_tokens", "median_duration_ms", "at")
@@ -54,14 +64,20 @@ class GetStatusRequest(_message.Message):
     def __init__(self, projection: _Optional[_Union[_model_pb2.Projection, str]] = ...) -> None: ...
 
 class GetStatusResponse(_message.Message):
-    __slots__ = ("projections", "latest_trial_trend", "computed_at")
+    __slots__ = ("projections", "latest_trial_trend", "computed_at", "determinism_checked", "deterministic", "determinism_evidence")
     PROJECTIONS_FIELD_NUMBER: _ClassVar[int]
     LATEST_TRIAL_TREND_FIELD_NUMBER: _ClassVar[int]
     COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
+    DETERMINISM_CHECKED_FIELD_NUMBER: _ClassVar[int]
+    DETERMINISTIC_FIELD_NUMBER: _ClassVar[int]
+    DETERMINISM_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     projections: _containers.RepeatedCompositeFieldContainer[ProjectionCoverage]
     latest_trial_trend: EmpiricalTrendPoint
     computed_at: _timestamp_pb2.Timestamp
-    def __init__(self, projections: _Optional[_Iterable[_Union[ProjectionCoverage, _Mapping]]] = ..., latest_trial_trend: _Optional[_Union[EmpiricalTrendPoint, _Mapping]] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    determinism_checked: bool
+    deterministic: bool
+    determinism_evidence: str
+    def __init__(self, projections: _Optional[_Iterable[_Union[ProjectionCoverage, _Mapping]]] = ..., latest_trial_trend: _Optional[_Union[EmpiricalTrendPoint, _Mapping]] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., determinism_checked: _Optional[bool] = ..., deterministic: _Optional[bool] = ..., determinism_evidence: _Optional[str] = ...) -> None: ...
 
 class Citation(_message.Message):
     __slots__ = ("locator", "kind", "note")
@@ -74,7 +90,7 @@ class Citation(_message.Message):
     def __init__(self, locator: _Optional[str] = ..., kind: _Optional[str] = ..., note: _Optional[str] = ...) -> None: ...
 
 class Cell(_message.Message):
-    __slots__ = ("id", "projection", "question", "owner", "status", "basis", "sufficiency", "notes", "citations")
+    __slots__ = ("id", "projection", "question", "owner", "status", "basis", "sufficiency", "notes", "citations", "condition")
     ID_FIELD_NUMBER: _ClassVar[int]
     PROJECTION_FIELD_NUMBER: _ClassVar[int]
     QUESTION_FIELD_NUMBER: _ClassVar[int]
@@ -84,6 +100,7 @@ class Cell(_message.Message):
     SUFFICIENCY_FIELD_NUMBER: _ClassVar[int]
     NOTES_FIELD_NUMBER: _ClassVar[int]
     CITATIONS_FIELD_NUMBER: _ClassVar[int]
+    CONDITION_FIELD_NUMBER: _ClassVar[int]
     id: str
     projection: _model_pb2.Projection
     question: str
@@ -93,7 +110,8 @@ class Cell(_message.Message):
     sufficiency: _attestation_pb2.Sufficiency
     notes: _containers.RepeatedScalarFieldContainer[str]
     citations: _containers.RepeatedCompositeFieldContainer[Citation]
-    def __init__(self, id: _Optional[str] = ..., projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., question: _Optional[str] = ..., owner: _Optional[str] = ..., status: _Optional[_Union[_model_pb2.CellStatus, str]] = ..., basis: _Optional[_Union[_attestation_pb2.Basis, str]] = ..., sufficiency: _Optional[_Union[_attestation_pb2.Sufficiency, str]] = ..., notes: _Optional[_Iterable[str]] = ..., citations: _Optional[_Iterable[_Union[Citation, _Mapping]]] = ...) -> None: ...
+    condition: str
+    def __init__(self, id: _Optional[str] = ..., projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., question: _Optional[str] = ..., owner: _Optional[str] = ..., status: _Optional[_Union[_model_pb2.CellStatus, str]] = ..., basis: _Optional[_Union[_attestation_pb2.Basis, str]] = ..., sufficiency: _Optional[_Union[_attestation_pb2.Sufficiency, str]] = ..., notes: _Optional[_Iterable[str]] = ..., citations: _Optional[_Iterable[_Union[Citation, _Mapping]]] = ..., condition: _Optional[str] = ...) -> None: ...
 
 class ListCellsRequest(_message.Message):
     __slots__ = ("projection", "status")

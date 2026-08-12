@@ -27,7 +27,7 @@ Objective ids are stable and citable. Do not renumber a retired objective's id; 
 | `T3` | **Contribution.** Other operators can run this system, and it outlives any one operator's involvement. | terminal | `team:marketing-crew` (partial — OSS surface only) | Command Center `broadcast` (all metrics `gap`) |
 | `I1` | **Capability compounding.** Every scenario built becomes a permanent capability that makes later work cheaper. | instrumental | `team:director-swarm`, `team:scenario-qa` | Command Center `hive`, `forge` |
 | `I2` | **Coherence.** The system stays reliable and stays reasonable-about as it grows. | instrumental | `team:infra-health`, `team:meta-optimization` | Command Center `mission-control`; `prompt-manager graph audit` |
-| `I3` | **Enablement.** Every supervising loop has the instruments it needs to actually close. | instrumental | *none* (`pending-operator-input` — see §"Enablement has no owner") | the capability ladder derived below |
+| `I3` | **Enablement.** Every supervising loop has the instruments it needs to actually close. | instrumental | `team:director-swarm` (primary — ranking authority; detection stays distributed) | `prompt-manager graph audit` — count of `no-sensor` targets, trending down |
 
 ## Terminal and instrumental
 
@@ -80,13 +80,17 @@ Command Center is the instrument for instrumental objectives. That is correct an
 
 The ladder is **derived, not curated**. It is the set of missing evidence sources and missing actuators named above, ordered by which objective they unblock. Nobody maintains it by hand; it falls out of the coverage rule and the evidence routing table, and its current contents are read by running the audit rather than by reading a list here (`OPERATING_GRAPHS.md` §"State belongs to scenarios").
 
-The ladder exists because enabling work has no privileged lane in the portfolio today. A sensor-building initiative competes against feature work on equal footing and loses, because its payoff is indirect. The ranking rule that corrects this: **an instrument ranks ahead of the loop it enables, not beside it.** A control loop whose sensor does not exist is open-loop no matter how well its policy is written — the same rule `path:docs/infra-health/strategy/RELIABILITY_TARGETS.md` already applies within one team, raised to the portfolio.
+The ladder exists because enabling work otherwise has no privileged lane in the portfolio. A sensor-building initiative competes against feature work on equal footing and loses, because its payoff is indirect. The ranking rule that corrects this: **an instrument ranks ahead of the loop it enables, not beside it.** A control loop whose sensor does not exist is open-loop no matter how well its policy is written — the same rule `path:docs/infra-health/strategy/RELIABILITY_TARGETS.md` already applies within one team, raised to the portfolio. The rule is stated here as intent; it is applied in [`PORTFOLIO_PHILOSOPHY.md`](PORTFOLIO_PHILOSOPHY.md) §"The instrument rule", which is where ranking criteria live.
 
-## Enablement has no owner
+## Enablement
 
-`I3` is stated and unowned. That is deliberate and visible rather than quietly absent: the objective is real, the work is real, and no team currently ranks it. The disposition is `pending-operator-input` — a lane inside `team:director-swarm` is the cheapest option that still lets instrument work outrank the loops it unblocks, but establishing it is an operator decision, not an agent's.
+`I3` is owned by `team:director-swarm`, resolved by operator decision 2026-08-09. It was stated and unowned from the objective set's creation until then — deliberately visible rather than quietly absent, because the coverage rule cannot report a hole that was never declared.
 
-Until it resolves, capability-ladder items route through the existing `outcome-gap` work type and are ranked by `portfolio-manager` alongside everything else, which is exactly the defect `I3` names.
+**What the ownership means, and what it does not.** Detection of missing instruments is already distributed and works: `team:meta-optimization` drains the friction inbox, `prompt-manager graph audit` reports `no-sensor` targets, and any member may raise a `capability-work` item. The defect `I3` named was never detection — it was that capability-ladder items reached `portfolio-manager` and were ranked alongside everything else, so an instrument competed with the loop it was supposed to unblock. Director-swarm owns `I3` because it owns ranking, not because it owns instrument-building. The work itself still lands wherever the capability belongs.
+
+**Why no new lane.** A dedicated member was the option this section previously named as cheapest. It is not: `portfolio-manager` already holds the ranking authority the objective needs, so extending its lane costs one field, while a new member costs a roster entry, a topic set, and a heartbeat against a framework already carrying orientation-cost pressure. If ranking authority alone proves insufficient — instrument items ranked correctly and still not executed — a lane is the next escalation, not the first move.
+
+**Scoring.** `I3` is measured by the `no-sensor` target count in `prompt-manager graph audit`, trending down. The audit's honesty flags split that count into two cost classes — `pending-telemetry` (no instrument exists; one must be built) and `pending-baseline` (the instrument exists and only the corpus sweep is missing) — and the instrument rule sorts against them. A count that is flat across cycles means the objective is owned on paper and unserved in fact.
 
 ## Deferred and unstaffed objectives
 

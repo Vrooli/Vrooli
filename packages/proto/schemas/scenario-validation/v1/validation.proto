@@ -163,6 +163,10 @@ message ValidateTargetResponse {
   common.v1.MaturityAssessment assessment = 3;
   google.protobuf.Any native_detail = 4;
   common.v1.ExecutionMetrics metrics = 5;
+  // Provider-owned cause for a failed validation. Required when status is
+  // FAILED, ERROR, or DEGRADED; consumers report omission as a contract
+  // violation instead of guessing whether the harness or product failed.
+  string failure_classification = 6;
 }
 
 enum ValidationStatus {
@@ -185,6 +189,10 @@ message ValidateScenarioResponse {
   // Optional execution metrics (timing, stages, resources, host environment)
   // for this validation. Absent for providers that have not adopted metrics.
   common.v1.ExecutionMetrics metrics = 5;
+  // Provider-owned cause for a failed validation. Required when status is
+  // FAILED, ERROR, or DEGRADED; consumers report omission as a contract
+  // violation instead of guessing whether the harness or product failed.
+  string failure_classification = 6;
 }
 
 // ValidationRunState is provider-neutral lifecycle state. A provider persists

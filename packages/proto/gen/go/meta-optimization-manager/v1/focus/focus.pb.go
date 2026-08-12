@@ -656,6 +656,174 @@ func (x *AddGapNoteResponse) GetGap() *Gap {
 	return nil
 }
 
+type ListConditionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListConditionRequest) Reset() {
+	*x = ListConditionRequest{}
+	mi := &file_meta_optimization_manager_v1_focus_focus_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListConditionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListConditionRequest) ProtoMessage() {}
+
+func (x *ListConditionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_meta_optimization_manager_v1_focus_focus_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListConditionRequest.ProtoReflect.Descriptor instead.
+func (*ListConditionRequest) Descriptor() ([]byte, []int) {
+	return file_meta_optimization_manager_v1_focus_focus_proto_rawDescGZIP(), []int{10}
+}
+
+type ListConditionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Gaps          []*Gap                 `protobuf:"bytes,1,rep,name=gaps,proto3" json:"gaps,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListConditionResponse) Reset() {
+	*x = ListConditionResponse{}
+	mi := &file_meta_optimization_manager_v1_focus_focus_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListConditionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListConditionResponse) ProtoMessage() {}
+
+func (x *ListConditionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_meta_optimization_manager_v1_focus_focus_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListConditionResponse.ProtoReflect.Descriptor instead.
+func (*ListConditionResponse) Descriptor() ([]byte, []int) {
+	return file_meta_optimization_manager_v1_focus_focus_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListConditionResponse) GetGaps() []*Gap {
+	if x != nil {
+		return x.Gaps
+	}
+	return nil
+}
+
+type ExplainConditionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExplainConditionRequest) Reset() {
+	*x = ExplainConditionRequest{}
+	mi := &file_meta_optimization_manager_v1_focus_focus_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExplainConditionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExplainConditionRequest) ProtoMessage() {}
+
+func (x *ExplainConditionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_meta_optimization_manager_v1_focus_focus_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExplainConditionRequest.ProtoReflect.Descriptor instead.
+func (*ExplainConditionRequest) Descriptor() ([]byte, []int) {
+	return file_meta_optimization_manager_v1_focus_focus_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ExplainConditionRequest) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+type ExplainConditionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Gap           *Gap                   `protobuf:"bytes,1,opt,name=gap,proto3" json:"gap,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExplainConditionResponse) Reset() {
+	*x = ExplainConditionResponse{}
+	mi := &file_meta_optimization_manager_v1_focus_focus_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExplainConditionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExplainConditionResponse) ProtoMessage() {}
+
+func (x *ExplainConditionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_meta_optimization_manager_v1_focus_focus_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExplainConditionResponse.ProtoReflect.Descriptor instead.
+func (*ExplainConditionResponse) Descriptor() ([]byte, []int) {
+	return file_meta_optimization_manager_v1_focus_focus_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ExplainConditionResponse) GetGap() *Gap {
+	if x != nil {
+		return x.Gap
+	}
+	return nil
+}
+
 var File_meta_optimization_manager_v1_focus_focus_proto protoreflect.FileDescriptor
 
 const file_meta_optimization_manager_v1_focus_focus_proto_rawDesc = "" +
@@ -718,13 +886,23 @@ const file_meta_optimization_manager_v1_focus_focus_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bapproach\x18\x02 \x01(\tR\bapproach\"V\n" +
 	"\x12AddGapNoteResponse\x12@\n" +
-	"\x03gap\x18\x01 \x01(\v2..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap2\xa5\x04\n" +
+	"\x03gap\x18\x01 \x01(\v2..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap\"\x16\n" +
+	"\x14ListConditionRequest\"[\n" +
+	"\x15ListConditionResponse\x12B\n" +
+	"\x04gaps\x18\x01 \x03(\v2..vrooli.meta_optimization_manager.v1.focus.GapR\x04gaps\":\n" +
+	"\x17ExplainConditionRequest\x12\x1f\n" +
+	"\vprovider_id\x18\x01 \x01(\tR\n" +
+	"providerId\"\\\n" +
+	"\x18ExplainConditionResponse\x12@\n" +
+	"\x03gap\x18\x01 \x01(\v2..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap2\xd8\x06\n" +
 	"\fFocusService\x12\x83\x01\n" +
 	"\bGetFocus\x12:.vrooli.meta_optimization_manager.v1.focus.GetFocusRequest\x1a;.vrooli.meta_optimization_manager.v1.focus.GetFocusResponse\x12\x83\x01\n" +
 	"\bListGaps\x12:.vrooli.meta_optimization_manager.v1.focus.ListGapsRequest\x1a;.vrooli.meta_optimization_manager.v1.focus.ListGapsResponse\x12}\n" +
 	"\x06GetGap\x128.vrooli.meta_optimization_manager.v1.focus.GetGapRequest\x1a9.vrooli.meta_optimization_manager.v1.focus.GetGapResponse\x12\x89\x01\n" +
 	"\n" +
-	"AddGapNote\x12<.vrooli.meta_optimization_manager.v1.focus.AddGapNoteRequest\x1a=.vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/focus;focus_v1b\x06proto3"
+	"AddGapNote\x12<.vrooli.meta_optimization_manager.v1.focus.AddGapNoteRequest\x1a=.vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse\x12\x92\x01\n" +
+	"\rListCondition\x12?.vrooli.meta_optimization_manager.v1.focus.ListConditionRequest\x1a@.vrooli.meta_optimization_manager.v1.focus.ListConditionResponse\x12\x9b\x01\n" +
+	"\x10ExplainCondition\x12B.vrooli.meta_optimization_manager.v1.focus.ExplainConditionRequest\x1aC.vrooli.meta_optimization_manager.v1.focus.ExplainConditionResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/focus;focus_v1b\x06proto3"
 
 var (
 	file_meta_optimization_manager_v1_focus_focus_proto_rawDescOnce sync.Once
@@ -738,47 +916,57 @@ func file_meta_optimization_manager_v1_focus_focus_proto_rawDescGZIP() []byte {
 	return file_meta_optimization_manager_v1_focus_focus_proto_rawDescData
 }
 
-var file_meta_optimization_manager_v1_focus_focus_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_meta_optimization_manager_v1_focus_focus_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_meta_optimization_manager_v1_focus_focus_proto_goTypes = []any{
-	(*Gap)(nil),                // 0: vrooli.meta_optimization_manager.v1.focus.Gap
-	(*FocusItem)(nil),          // 1: vrooli.meta_optimization_manager.v1.focus.FocusItem
-	(*GetFocusRequest)(nil),    // 2: vrooli.meta_optimization_manager.v1.focus.GetFocusRequest
-	(*GetFocusResponse)(nil),   // 3: vrooli.meta_optimization_manager.v1.focus.GetFocusResponse
-	(*ListGapsRequest)(nil),    // 4: vrooli.meta_optimization_manager.v1.focus.ListGapsRequest
-	(*ListGapsResponse)(nil),   // 5: vrooli.meta_optimization_manager.v1.focus.ListGapsResponse
-	(*GetGapRequest)(nil),      // 6: vrooli.meta_optimization_manager.v1.focus.GetGapRequest
-	(*GetGapResponse)(nil),     // 7: vrooli.meta_optimization_manager.v1.focus.GetGapResponse
-	(*AddGapNoteRequest)(nil),  // 8: vrooli.meta_optimization_manager.v1.focus.AddGapNoteRequest
-	(*AddGapNoteResponse)(nil), // 9: vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse
-	(shared.Projection)(0),     // 10: vrooli.meta_optimization_manager.v1.shared.Projection
-	(shared.CellStatus)(0),     // 11: vrooli.meta_optimization_manager.v1.shared.CellStatus
-	(shared.GapAxis)(0),        // 12: vrooli.meta_optimization_manager.v1.shared.GapAxis
+	(*Gap)(nil),                      // 0: vrooli.meta_optimization_manager.v1.focus.Gap
+	(*FocusItem)(nil),                // 1: vrooli.meta_optimization_manager.v1.focus.FocusItem
+	(*GetFocusRequest)(nil),          // 2: vrooli.meta_optimization_manager.v1.focus.GetFocusRequest
+	(*GetFocusResponse)(nil),         // 3: vrooli.meta_optimization_manager.v1.focus.GetFocusResponse
+	(*ListGapsRequest)(nil),          // 4: vrooli.meta_optimization_manager.v1.focus.ListGapsRequest
+	(*ListGapsResponse)(nil),         // 5: vrooli.meta_optimization_manager.v1.focus.ListGapsResponse
+	(*GetGapRequest)(nil),            // 6: vrooli.meta_optimization_manager.v1.focus.GetGapRequest
+	(*GetGapResponse)(nil),           // 7: vrooli.meta_optimization_manager.v1.focus.GetGapResponse
+	(*AddGapNoteRequest)(nil),        // 8: vrooli.meta_optimization_manager.v1.focus.AddGapNoteRequest
+	(*AddGapNoteResponse)(nil),       // 9: vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse
+	(*ListConditionRequest)(nil),     // 10: vrooli.meta_optimization_manager.v1.focus.ListConditionRequest
+	(*ListConditionResponse)(nil),    // 11: vrooli.meta_optimization_manager.v1.focus.ListConditionResponse
+	(*ExplainConditionRequest)(nil),  // 12: vrooli.meta_optimization_manager.v1.focus.ExplainConditionRequest
+	(*ExplainConditionResponse)(nil), // 13: vrooli.meta_optimization_manager.v1.focus.ExplainConditionResponse
+	(shared.Projection)(0),           // 14: vrooli.meta_optimization_manager.v1.shared.Projection
+	(shared.CellStatus)(0),           // 15: vrooli.meta_optimization_manager.v1.shared.CellStatus
+	(shared.GapAxis)(0),              // 16: vrooli.meta_optimization_manager.v1.shared.GapAxis
 }
 var file_meta_optimization_manager_v1_focus_focus_proto_depIdxs = []int32{
-	10, // 0: vrooli.meta_optimization_manager.v1.focus.Gap.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
-	11, // 1: vrooli.meta_optimization_manager.v1.focus.Gap.status:type_name -> vrooli.meta_optimization_manager.v1.shared.CellStatus
-	12, // 2: vrooli.meta_optimization_manager.v1.focus.Gap.axis:type_name -> vrooli.meta_optimization_manager.v1.shared.GapAxis
+	14, // 0: vrooli.meta_optimization_manager.v1.focus.Gap.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
+	15, // 1: vrooli.meta_optimization_manager.v1.focus.Gap.status:type_name -> vrooli.meta_optimization_manager.v1.shared.CellStatus
+	16, // 2: vrooli.meta_optimization_manager.v1.focus.Gap.axis:type_name -> vrooli.meta_optimization_manager.v1.shared.GapAxis
 	0,  // 3: vrooli.meta_optimization_manager.v1.focus.FocusItem.gap:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
-	10, // 4: vrooli.meta_optimization_manager.v1.focus.GetFocusRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
+	14, // 4: vrooli.meta_optimization_manager.v1.focus.GetFocusRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
 	1,  // 5: vrooli.meta_optimization_manager.v1.focus.GetFocusResponse.items:type_name -> vrooli.meta_optimization_manager.v1.focus.FocusItem
-	10, // 6: vrooli.meta_optimization_manager.v1.focus.ListGapsRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
-	11, // 7: vrooli.meta_optimization_manager.v1.focus.ListGapsRequest.status:type_name -> vrooli.meta_optimization_manager.v1.shared.CellStatus
+	14, // 6: vrooli.meta_optimization_manager.v1.focus.ListGapsRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
+	15, // 7: vrooli.meta_optimization_manager.v1.focus.ListGapsRequest.status:type_name -> vrooli.meta_optimization_manager.v1.shared.CellStatus
 	0,  // 8: vrooli.meta_optimization_manager.v1.focus.ListGapsResponse.gaps:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
 	0,  // 9: vrooli.meta_optimization_manager.v1.focus.GetGapResponse.gap:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
 	0,  // 10: vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse.gap:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
-	2,  // 11: vrooli.meta_optimization_manager.v1.focus.FocusService.GetFocus:input_type -> vrooli.meta_optimization_manager.v1.focus.GetFocusRequest
-	4,  // 12: vrooli.meta_optimization_manager.v1.focus.FocusService.ListGaps:input_type -> vrooli.meta_optimization_manager.v1.focus.ListGapsRequest
-	6,  // 13: vrooli.meta_optimization_manager.v1.focus.FocusService.GetGap:input_type -> vrooli.meta_optimization_manager.v1.focus.GetGapRequest
-	8,  // 14: vrooli.meta_optimization_manager.v1.focus.FocusService.AddGapNote:input_type -> vrooli.meta_optimization_manager.v1.focus.AddGapNoteRequest
-	3,  // 15: vrooli.meta_optimization_manager.v1.focus.FocusService.GetFocus:output_type -> vrooli.meta_optimization_manager.v1.focus.GetFocusResponse
-	5,  // 16: vrooli.meta_optimization_manager.v1.focus.FocusService.ListGaps:output_type -> vrooli.meta_optimization_manager.v1.focus.ListGapsResponse
-	7,  // 17: vrooli.meta_optimization_manager.v1.focus.FocusService.GetGap:output_type -> vrooli.meta_optimization_manager.v1.focus.GetGapResponse
-	9,  // 18: vrooli.meta_optimization_manager.v1.focus.FocusService.AddGapNote:output_type -> vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse
-	15, // [15:19] is the sub-list for method output_type
-	11, // [11:15] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	0,  // 11: vrooli.meta_optimization_manager.v1.focus.ListConditionResponse.gaps:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
+	0,  // 12: vrooli.meta_optimization_manager.v1.focus.ExplainConditionResponse.gap:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
+	2,  // 13: vrooli.meta_optimization_manager.v1.focus.FocusService.GetFocus:input_type -> vrooli.meta_optimization_manager.v1.focus.GetFocusRequest
+	4,  // 14: vrooli.meta_optimization_manager.v1.focus.FocusService.ListGaps:input_type -> vrooli.meta_optimization_manager.v1.focus.ListGapsRequest
+	6,  // 15: vrooli.meta_optimization_manager.v1.focus.FocusService.GetGap:input_type -> vrooli.meta_optimization_manager.v1.focus.GetGapRequest
+	8,  // 16: vrooli.meta_optimization_manager.v1.focus.FocusService.AddGapNote:input_type -> vrooli.meta_optimization_manager.v1.focus.AddGapNoteRequest
+	10, // 17: vrooli.meta_optimization_manager.v1.focus.FocusService.ListCondition:input_type -> vrooli.meta_optimization_manager.v1.focus.ListConditionRequest
+	12, // 18: vrooli.meta_optimization_manager.v1.focus.FocusService.ExplainCondition:input_type -> vrooli.meta_optimization_manager.v1.focus.ExplainConditionRequest
+	3,  // 19: vrooli.meta_optimization_manager.v1.focus.FocusService.GetFocus:output_type -> vrooli.meta_optimization_manager.v1.focus.GetFocusResponse
+	5,  // 20: vrooli.meta_optimization_manager.v1.focus.FocusService.ListGaps:output_type -> vrooli.meta_optimization_manager.v1.focus.ListGapsResponse
+	7,  // 21: vrooli.meta_optimization_manager.v1.focus.FocusService.GetGap:output_type -> vrooli.meta_optimization_manager.v1.focus.GetGapResponse
+	9,  // 22: vrooli.meta_optimization_manager.v1.focus.FocusService.AddGapNote:output_type -> vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse
+	11, // 23: vrooli.meta_optimization_manager.v1.focus.FocusService.ListCondition:output_type -> vrooli.meta_optimization_manager.v1.focus.ListConditionResponse
+	13, // 24: vrooli.meta_optimization_manager.v1.focus.FocusService.ExplainCondition:output_type -> vrooli.meta_optimization_manager.v1.focus.ExplainConditionResponse
+	19, // [19:25] is the sub-list for method output_type
+	13, // [13:19] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_meta_optimization_manager_v1_focus_focus_proto_init() }
@@ -792,7 +980,7 @@ func file_meta_optimization_manager_v1_focus_focus_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_meta_optimization_manager_v1_focus_focus_proto_rawDesc), len(file_meta_optimization_manager_v1_focus_focus_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

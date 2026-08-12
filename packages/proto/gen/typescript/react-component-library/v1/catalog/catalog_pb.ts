@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file react-component-library/v1/catalog/catalog.proto.
  */
 export const file_react_component_library_v1_catalog_catalog: GenFile = /*@__PURE__*/
-  fileDesc("CjByZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9jYXRhbG9nL2NhdGFsb2cucHJvdG8SKXZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nIhQKEkdldENvdmVyYWdlUmVxdWVzdCLUAQoLQ292ZXJhZ2VSb3cSEAoIYXNzZXRfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZkb21haW4YAyABKAkSDAoEa2luZBgEIAEoCRIQCghwcmlvcml0eRgFIAEoCRIOCgZidWNrZXQYBiABKAkSEAoIcGxhdGZvcm0YByABKAkSDgoGdGFyZ2V0GAggASgJEhAKCGFjaGlldmVkGAkgASgJEhYKDmltcGxlbWVudGF0aW9uGAogASgJEhkKEWJsb2Nrc19kb3duc3RyZWFtGAsgASgFIjUKBlJvbGx1cBILCgNrZXkYASABKAkSDwoHcGxhbm5lZBgCIAEoBRINCgVidWlsdBgDIAEoBSLEAQoPTWF0dXJpdHlTdW1tYXJ5Eg0KBXRvdGFsGAEgASgFEhoKEmF0X29yX2Fib3ZlX3RhcmdldBgCIAEoBRJXCgdieV9ydW5nGAMgAygLMkYudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuTWF0dXJpdHlTdW1tYXJ5LkJ5UnVuZ0VudHJ5Gi0KC0J5UnVuZ0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEiuAMKDkNvdmVyYWdlUmVwb3J0EkQKBHJvd3MYASADKAsyNi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5Db3ZlcmFnZVJvdxJVCgZ0b3RhbHMYAiADKAsyRS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5Db3ZlcmFnZVJlcG9ydC5Ub3RhbHNFbnRyeRJECglieV9kb21haW4YAyADKAsyMS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5Sb2xsdXASRgoLYnlfcHJpb3JpdHkYBCADKAsyMS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5Sb2xsdXASTAoIbWF0dXJpdHkYBSABKAsyOi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5NYXR1cml0eVN1bW1hcnkaLQoLVG90YWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgFOgI4ASJgChNHZXRDb3ZlcmFnZVJlc3BvbnNlEkkKBnJlcG9ydBgBIAEoCzI5LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkNvdmVyYWdlUmVwb3J0IiQKE0xpc3ROZXh0V29ya1JlcXVlc3QSDQoFbGltaXQYASABKAUiqgEKFExpc3ROZXh0V29ya1Jlc3BvbnNlEkQKBHJvd3MYASADKAsyNi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5Db3ZlcmFnZVJvdxJMCghtYXR1cml0eRgCIAEoCzI6LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLk1hdHVyaXR5U3VtbWFyeSIeCg5SdW5HYXRlUmVxdWVzdBIMCgRnYXRlGAEgASgJIlAKC0dhdGVGaW5kaW5nEgwKBGNvZGUYASABKAkSDwoHbWVzc2FnZRgCIAEoCRIQCghhc3NldF9pZBgDIAEoCRIQCghzZXZlcml0eRgEIAEoCSKCAQoPUnVuR2F0ZVJlc3BvbnNlEgwKBGdhdGUYASABKAkSSAoIZmluZGluZ3MYAiADKAsyNi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5HYXRlRmluZGluZxIXCg9pbnNwZWN0ZWRfZmlsZXMYAyABKAUytAMKDkNhdGFsb2dTZXJ2aWNlEowBCgtHZXRDb3ZlcmFnZRI9LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkdldENvdmVyYWdlUmVxdWVzdBo+LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkdldENvdmVyYWdlUmVzcG9uc2USjwEKDExpc3ROZXh0V29yaxI+LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkxpc3ROZXh0V29ya1JlcXVlc3QaPy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5MaXN0TmV4dFdvcmtSZXNwb25zZRKAAQoHUnVuR2F0ZRI5LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLlJ1bkdhdGVSZXF1ZXN0GjoudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuUnVuR2F0ZVJlc3BvbnNlQl5aXGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcmVhY3QtY29tcG9uZW50LWxpYnJhcnkvdjEvY2F0YWxvZztjYXRhbG9nX3YxYgZwcm90bzM");
+  fileDesc("CjByZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9jYXRhbG9nL2NhdGFsb2cucHJvdG8SKXZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nIhQKEkdldENvdmVyYWdlUmVxdWVzdCLUAQoLQ292ZXJhZ2VSb3cSEAoIYXNzZXRfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZkb21haW4YAyABKAkSDAoEa2luZBgEIAEoCRIQCghwcmlvcml0eRgFIAEoCRIOCgZidWNrZXQYBiABKAkSEAoIcGxhdGZvcm0YByABKAkSDgoGdGFyZ2V0GAggASgJEhAKCGFjaGlldmVkGAkgASgJEhYKDmltcGxlbWVudGF0aW9uGAogASgJEhkKEWJsb2Nrc19kb3duc3RyZWFtGAsgASgFIjUKBlJvbGx1cBILCgNrZXkYASABKAkSDwoHcGxhbm5lZBgCIAEoBRINCgVidWlsdBgDIAEoBSKqBAoPTWF0dXJpdHlTdW1tYXJ5Eg0KBXRvdGFsGAEgASgFEhoKEmF0X29yX2Fib3ZlX3RhcmdldBgCIAEoBRJXCgdieV9ydW5nGAMgAygLMkYudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuTWF0dXJpdHlTdW1tYXJ5LkJ5UnVuZ0VudHJ5ElUKEmNhdGFsb2dfY29tcGxldGlvbhgEIAEoCzI5LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkNvdmVyYWdlTWV0cmljEloKF21hbmRhdG9yeV9nYXRlX2NvdmVyYWdlGAUgASgLMjkudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQ292ZXJhZ2VNZXRyaWMSUwoQd2VpZ2h0ZWRfcXVhbGl0eRgGIAEoCzI5LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkNvdmVyYWdlTWV0cmljElwKGXByb2R1Y3Rpb25fcmVhZHlfY292ZXJhZ2UYByABKAsyOS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5Db3ZlcmFnZU1ldHJpYxotCgtCeVJ1bmdFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBIkcKDkNvdmVyYWdlTWV0cmljEhEKCW51bWVyYXRvchgBIAEoBRITCgtkZW5vbWluYXRvchgCIAEoBRINCgVyYXRpbxgDIAEoASK4AwoOQ292ZXJhZ2VSZXBvcnQSRAoEcm93cxgBIAMoCzI2LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkNvdmVyYWdlUm93ElUKBnRvdGFscxgCIAMoCzJFLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkNvdmVyYWdlUmVwb3J0LlRvdGFsc0VudHJ5EkQKCWJ5X2RvbWFpbhgDIAMoCzIxLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLlJvbGx1cBJGCgtieV9wcmlvcml0eRgEIAMoCzIxLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLlJvbGx1cBJMCghtYXR1cml0eRgFIAEoCzI6LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLk1hdHVyaXR5U3VtbWFyeRotCgtUb3RhbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBImAKE0dldENvdmVyYWdlUmVzcG9uc2USSQoGcmVwb3J0GAEgASgLMjkudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQ292ZXJhZ2VSZXBvcnQiJAoTTGlzdE5leHRXb3JrUmVxdWVzdBINCgVsaW1pdBgBIAEoBSKqAQoUTGlzdE5leHRXb3JrUmVzcG9uc2USRAoEcm93cxgBIAMoCzI2LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkNvdmVyYWdlUm93EkwKCG1hdHVyaXR5GAIgASgLMjoudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuTWF0dXJpdHlTdW1tYXJ5Ih4KDlJ1bkdhdGVSZXF1ZXN0EgwKBGdhdGUYASABKAkiUAoLR2F0ZUZpbmRpbmcSDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEhAKCGFzc2V0X2lkGAMgASgJEhAKCHNldmVyaXR5GAQgASgJIoIBCg9SdW5HYXRlUmVzcG9uc2USDAoEZ2F0ZRgBIAEoCRJICghmaW5kaW5ncxgCIAMoCzI2LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkdhdGVGaW5kaW5nEhcKD2luc3BlY3RlZF9maWxlcxgDIAEoBTK0AwoOQ2F0YWxvZ1NlcnZpY2USjAEKC0dldENvdmVyYWdlEj0udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuR2V0Q292ZXJhZ2VSZXF1ZXN0Gj4udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuR2V0Q292ZXJhZ2VSZXNwb25zZRKPAQoMTGlzdE5leHRXb3JrEj4udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuTGlzdE5leHRXb3JrUmVxdWVzdBo/LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkxpc3ROZXh0V29ya1Jlc3BvbnNlEoABCgdSdW5HYXRlEjkudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuUnVuR2F0ZVJlcXVlc3QaOi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5SdW5HYXRlUmVzcG9uc2VCXlpcZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9yZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9jYXRhbG9nO2NhdGFsb2dfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.GetCoverageRequest
@@ -137,6 +137,26 @@ export type MaturitySummary = Message<"vrooli.react_component_library.v1.catalog
    * @generated from field: map<string, int32> by_rung = 3;
    */
   byRung: { [key: string]: number };
+
+  /**
+   * @generated from field: vrooli.react_component_library.v1.catalog.CoverageMetric catalog_completion = 4;
+   */
+  catalogCompletion?: CoverageMetric | undefined;
+
+  /**
+   * @generated from field: vrooli.react_component_library.v1.catalog.CoverageMetric mandatory_gate_coverage = 5;
+   */
+  mandatoryGateCoverage?: CoverageMetric | undefined;
+
+  /**
+   * @generated from field: vrooli.react_component_library.v1.catalog.CoverageMetric weighted_quality = 6;
+   */
+  weightedQuality?: CoverageMetric | undefined;
+
+  /**
+   * @generated from field: vrooli.react_component_library.v1.catalog.CoverageMetric production_ready_coverage = 7;
+   */
+  productionReadyCoverage?: CoverageMetric | undefined;
 };
 
 /**
@@ -145,6 +165,33 @@ export type MaturitySummary = Message<"vrooli.react_component_library.v1.catalog
  */
 export const MaturitySummarySchema: GenMessage<MaturitySummary> = /*@__PURE__*/
   messageDesc(file_react_component_library_v1_catalog_catalog, 3);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.CoverageMetric
+ */
+export type CoverageMetric = Message<"vrooli.react_component_library.v1.catalog.CoverageMetric"> & {
+  /**
+   * @generated from field: int32 numerator = 1;
+   */
+  numerator: number;
+
+  /**
+   * @generated from field: int32 denominator = 2;
+   */
+  denominator: number;
+
+  /**
+   * @generated from field: double ratio = 3;
+   */
+  ratio: number;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.CoverageMetric.
+ * Use `create(CoverageMetricSchema)` to create a new message.
+ */
+export const CoverageMetricSchema: GenMessage<CoverageMetric> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 4);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.CoverageReport
@@ -181,7 +228,7 @@ export type CoverageReport = Message<"vrooli.react_component_library.v1.catalog.
  * Use `create(CoverageReportSchema)` to create a new message.
  */
 export const CoverageReportSchema: GenMessage<CoverageReport> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 4);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 5);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.GetCoverageResponse
@@ -198,7 +245,7 @@ export type GetCoverageResponse = Message<"vrooli.react_component_library.v1.cat
  * Use `create(GetCoverageResponseSchema)` to create a new message.
  */
 export const GetCoverageResponseSchema: GenMessage<GetCoverageResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 5);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 6);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.ListNextWorkRequest
@@ -215,7 +262,7 @@ export type ListNextWorkRequest = Message<"vrooli.react_component_library.v1.cat
  * Use `create(ListNextWorkRequestSchema)` to create a new message.
  */
 export const ListNextWorkRequestSchema: GenMessage<ListNextWorkRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 6);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 7);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.ListNextWorkResponse
@@ -237,7 +284,7 @@ export type ListNextWorkResponse = Message<"vrooli.react_component_library.v1.ca
  * Use `create(ListNextWorkResponseSchema)` to create a new message.
  */
 export const ListNextWorkResponseSchema: GenMessage<ListNextWorkResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 7);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 8);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.RunGateRequest
@@ -254,7 +301,7 @@ export type RunGateRequest = Message<"vrooli.react_component_library.v1.catalog.
  * Use `create(RunGateRequestSchema)` to create a new message.
  */
 export const RunGateRequestSchema: GenMessage<RunGateRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 8);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 9);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.GateFinding
@@ -286,7 +333,7 @@ export type GateFinding = Message<"vrooli.react_component_library.v1.catalog.Gat
  * Use `create(GateFindingSchema)` to create a new message.
  */
 export const GateFindingSchema: GenMessage<GateFinding> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 9);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 10);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.RunGateResponse
@@ -313,7 +360,7 @@ export type RunGateResponse = Message<"vrooli.react_component_library.v1.catalog
  * Use `create(RunGateResponseSchema)` to create a new message.
  */
 export const RunGateResponseSchema: GenMessage<RunGateResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 10);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 11);
 
 /**
  * @generated from service vrooli.react_component_library.v1.catalog.CatalogService

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backdrop-studio/v1/shared/shared.proto.
  */
 export const file_backdrop_studio_v1_shared_shared: GenFile = /*@__PURE__*/
-  fileDesc("CiZiYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkL3NoYXJlZC5wcm90bxIgdnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQiZwoOUmVzZXJ2ZWRSZWdpb24SCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoARIMCgRraW5kGAUgASgJEhIKCnRleHRfY29sb3IYBiABKAkiSwoPU2NhZmZvbGRCaW5kaW5nEg4KBnByZXNldBgBIAEoCRITCgtjb25kaXRpb25lchgCIAEoCRITCgtwYXJhbXNfanNvbhgDIAEoCSKUAQoPR2VuZXJhdGlvbkJsb2NrEgwKBHJvbGUYASABKAkSDwoHcHJvZmlsZRgCIAEoCRIXCg9wcm9tcHRfdGVtcGxhdGUYAyABKAkSEAoIbmVnYXRpdmUYBCABKAkSDQoFbW9kZWwYBSABKAkSFAoMcHJvdmlkZXJfdXJsGAYgASgJEhIKCmNyZWRlbnRpYWwYByABKAkihwMKBVN0eWxlEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDwoHdmVyc2lvbhgDIAEoBRIMCgRyb2xlGAQgASgJEg8KB3N1YmplY3QYBSABKAkSEgoKdHJlYXRtZW50cxgGIAMoCRIPCgdsaW5lYWdlGAcgASgJEhIKCnBsYWNlbWVudHMYCCADKAkSEAoIc3RyYXRlZ3kYCSABKAkSQQoHcmVnaW9ucxgKIAMoCzIwLnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEuc2hhcmVkLlJlc2VydmVkUmVnaW9uEhoKEmNvbnRyYXN0X3RocmVzaG9sZBgLIAEoARJDCghzY2FmZm9sZBgMIAEoCzIxLnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEuc2hhcmVkLlNjYWZmb2xkQmluZGluZxJFCgpnZW5lcmF0aW9uGA0gASgLMjEudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuR2VuZXJhdGlvbkJsb2NrQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYmFja2Ryb3Atc3R1ZGlvL3YxL3NoYXJlZDtzaGFyZWRfdjFiBnByb3RvMw");
+  fileDesc("CiZiYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkL3NoYXJlZC5wcm90bxIgdnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQiZwoOUmVzZXJ2ZWRSZWdpb24SCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoARIMCgRraW5kGAUgASgJEhIKCnRleHRfY29sb3IYBiABKAkiSwoPU2NhZmZvbGRCaW5kaW5nEg4KBnByZXNldBgBIAEoCRITCgtjb25kaXRpb25lchgCIAEoCRITCgtwYXJhbXNfanNvbhgDIAEoCSKQAQoPR2VuZXJhdGlvbkJsb2NrEhcKD3Byb21wdF90ZW1wbGF0ZRgDIAEoCRIQCghuZWdhdGl2ZRgEIAEoCRINCgVtb2RlbBgFIAEoCRIUCgxwcm92aWRlcl91cmwYBiABKAkSEgoKY3JlZGVudGlhbBgHIAEoCUoECAEQAkoECAIQA1IEcm9sZVIHcHJvZmlsZSKHAwoFU3R5bGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgFEgwKBHJvbGUYBCABKAkSDwoHc3ViamVjdBgFIAEoCRISCgp0cmVhdG1lbnRzGAYgAygJEg8KB2xpbmVhZ2UYByABKAkSEgoKcGxhY2VtZW50cxgIIAMoCRIQCghzdHJhdGVneRgJIAEoCRJBCgdyZWdpb25zGAogAygLMjAudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuUmVzZXJ2ZWRSZWdpb24SGgoSY29udHJhc3RfdGhyZXNob2xkGAsgASgBEkMKCHNjYWZmb2xkGAwgASgLMjEudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuU2NhZmZvbGRCaW5kaW5nEkUKCmdlbmVyYXRpb24YDSABKAsyMS52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5HZW5lcmF0aW9uQmxvY2tCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9iYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.backdrop_studio.v1.shared.ReservedRegion
@@ -82,19 +82,21 @@ export const ScaffoldBindingSchema: GenMessage<ScaffoldBinding> = /*@__PURE__*/
   messageDesc(file_backdrop_studio_v1_shared_shared, 1);
 
 /**
+ * GenerationBlock is a style's model-backed source declaration.
+ *
+ * It deliberately carries no model id, provider URL or credential: image-tools
+ * owns model selection, and a catalog that named a concrete model would pin
+ * every install to whatever was available the day the style was written.
+ *
+ * Fields 1 and 2 were `role` and `profile`. They were validated on write and
+ * then never sent, because image-tools' AIParams has no such fields and derives
+ * the role server-side — so the message advertised routing that did not exist.
+ * They are reserved rather than reused so an old client cannot silently bind a
+ * new meaning to a field it still remembers.
+ *
  * @generated from message vrooli.backdrop_studio.v1.shared.GenerationBlock
  */
 export type GenerationBlock = Message<"vrooli.backdrop_studio.v1.shared.GenerationBlock"> & {
-  /**
-   * @generated from field: string role = 1;
-   */
-  role: string;
-
-  /**
-   * @generated from field: string profile = 2;
-   */
-  profile: string;
-
   /**
    * @generated from field: string prompt_template = 3;
    */

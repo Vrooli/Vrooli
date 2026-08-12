@@ -32,6 +32,13 @@ service FocusService {
   // AddGapNote appends an explored approach/idea to a gap — the one focus write
   // verb (the "store our thinking" primitive).
   rpc AddGapNote(AddGapNoteRequest) returns (AddGapNoteResponse);
+
+  // ListCondition returns observed condition findings derived from live
+  // serving telemetry, without mixing them into authored coverage cells.
+  rpc ListCondition(ListConditionRequest) returns (ListConditionResponse);
+
+  // ExplainCondition traces one provider leg to its observed evidence.
+  rpc ExplainCondition(ExplainConditionRequest) returns (ExplainConditionResponse);
 }
 
 // Gap is one known gap with its qualitative context.
@@ -98,4 +105,18 @@ message AddGapNoteRequest {
 
 message AddGapNoteResponse {
   Gap gap = 1; // the updated gap
+}
+
+message ListConditionRequest {}
+
+message ListConditionResponse {
+  repeated Gap gaps = 1;
+}
+
+message ExplainConditionRequest {
+  string provider_id = 1;
+}
+
+message ExplainConditionResponse {
+  Gap gap = 1;
 }

@@ -38,8 +38,9 @@ type ProjectionCoverage struct {
 	ConfidenceRationale   string                       `protobuf:"bytes,8,opt,name=confidence_rationale,json=confidenceRationale,proto3" json:"confidence_rationale,omitempty"`
 	// false when the owner's `space` verb or registry was unreachable; coverage
 	// degrades, it never false-fails.
-	Available         bool   `protobuf:"varint,9,opt,name=available,proto3" json:"available,omitempty"`
-	UnavailableReason string `protobuf:"bytes,10,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
+	Available         bool              `protobuf:"varint,9,opt,name=available,proto3" json:"available,omitempty"`
+	UnavailableReason string            `protobuf:"bytes,10,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
+	ConditionCounts   []*ConditionCount `protobuf:"bytes,11,rep,name=condition_counts,json=conditionCounts,proto3" json:"condition_counts,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -144,6 +145,65 @@ func (x *ProjectionCoverage) GetUnavailableReason() string {
 	return ""
 }
 
+func (x *ProjectionCoverage) GetConditionCounts() []*ConditionCount {
+	if x != nil {
+		return x.ConditionCounts
+	}
+	return nil
+}
+
+type ConditionCount struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Condition     string                 `protobuf:"bytes,1,opt,name=condition,proto3" json:"condition,omitempty"` // ok | degraded | uninstrumented | dormant
+	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConditionCount) Reset() {
+	*x = ConditionCount{}
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConditionCount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConditionCount) ProtoMessage() {}
+
+func (x *ConditionCount) ProtoReflect() protoreflect.Message {
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConditionCount.ProtoReflect.Descriptor instead.
+func (*ConditionCount) Descriptor() ([]byte, []int) {
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ConditionCount) GetCondition() string {
+	if x != nil {
+		return x.Condition
+	}
+	return ""
+}
+
+func (x *ConditionCount) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 // EmpiricalTrendPoint is the latest trials trend surfaced on the scoreboard.
 type EmpiricalTrendPoint struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
@@ -157,7 +217,7 @@ type EmpiricalTrendPoint struct {
 
 func (x *EmpiricalTrendPoint) Reset() {
 	*x = EmpiricalTrendPoint{}
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[1]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -169,7 +229,7 @@ func (x *EmpiricalTrendPoint) String() string {
 func (*EmpiricalTrendPoint) ProtoMessage() {}
 
 func (x *EmpiricalTrendPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[1]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -182,7 +242,7 @@ func (x *EmpiricalTrendPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmpiricalTrendPoint.ProtoReflect.Descriptor instead.
 func (*EmpiricalTrendPoint) Descriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{1}
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *EmpiricalTrendPoint) GetSuccessRate() float64 {
@@ -223,7 +283,7 @@ type GetStatusRequest struct {
 
 func (x *GetStatusRequest) Reset() {
 	*x = GetStatusRequest{}
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[2]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -235,7 +295,7 @@ func (x *GetStatusRequest) String() string {
 func (*GetStatusRequest) ProtoMessage() {}
 
 func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[2]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -248,7 +308,7 @@ func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetStatusRequest) Descriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{2}
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetStatusRequest) GetProjection() shared.Projection {
@@ -264,13 +324,19 @@ type GetStatusResponse struct {
 	// Latest empirical readiness trend; unset before the first trials run.
 	LatestTrialTrend *EmpiricalTrendPoint   `protobuf:"bytes,2,opt,name=latest_trial_trend,json=latestTrialTrend,proto3" json:"latest_trial_trend,omitempty"`
 	ComputedAt       *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Answer projection self-check performed two uncached joins and compared
+	// their effective coverage. This makes order-dependent numerator defects
+	// visible instead of silently publishing one sample.
+	DeterminismChecked  bool   `protobuf:"varint,4,opt,name=determinism_checked,json=determinismChecked,proto3" json:"determinism_checked,omitempty"`
+	Deterministic       bool   `protobuf:"varint,5,opt,name=deterministic,proto3" json:"deterministic,omitempty"`
+	DeterminismEvidence string `protobuf:"bytes,6,opt,name=determinism_evidence,json=determinismEvidence,proto3" json:"determinism_evidence,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *GetStatusResponse) Reset() {
 	*x = GetStatusResponse{}
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[3]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -282,7 +348,7 @@ func (x *GetStatusResponse) String() string {
 func (*GetStatusResponse) ProtoMessage() {}
 
 func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[3]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -295,7 +361,7 @@ func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetStatusResponse) Descriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{3}
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetStatusResponse) GetProjections() []*ProjectionCoverage {
@@ -319,6 +385,27 @@ func (x *GetStatusResponse) GetComputedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *GetStatusResponse) GetDeterminismChecked() bool {
+	if x != nil {
+		return x.DeterminismChecked
+	}
+	return false
+}
+
+func (x *GetStatusResponse) GetDeterministic() bool {
+	if x != nil {
+		return x.Deterministic
+	}
+	return false
+}
+
+func (x *GetStatusResponse) GetDeterminismEvidence() string {
+	if x != nil {
+		return x.DeterminismEvidence
+	}
+	return ""
+}
+
 // Citation is a single provenance pointer behind an answer/cell.
 type Citation struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -331,7 +418,7 @@ type Citation struct {
 
 func (x *Citation) Reset() {
 	*x = Citation{}
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[4]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -343,7 +430,7 @@ func (x *Citation) String() string {
 func (*Citation) ProtoMessage() {}
 
 func (x *Citation) ProtoReflect() protoreflect.Message {
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[4]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -356,7 +443,7 @@ func (x *Citation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Citation.ProtoReflect.Descriptor instead.
 func (*Citation) Descriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{4}
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Citation) GetLocator() string {
@@ -390,15 +477,16 @@ type Cell struct {
 	Status        shared.CellStatus      `protobuf:"varint,5,opt,name=status,proto3,enum=vrooli.meta_optimization_manager.v1.shared.CellStatus" json:"status,omitempty"`
 	Basis         v1.Basis               `protobuf:"varint,6,opt,name=basis,proto3,enum=common.v1.Basis" json:"basis,omitempty"` // best attainable basis
 	Sufficiency   v1.Sufficiency         `protobuf:"varint,7,opt,name=sufficiency,proto3,enum=common.v1.Sufficiency" json:"sufficiency,omitempty"`
-	Notes         []string               `protobuf:"bytes,8,rep,name=notes,proto3" json:"notes,omitempty"`         // gap-registry notes / approaches
-	Citations     []*Citation            `protobuf:"bytes,9,rep,name=citations,proto3" json:"citations,omitempty"` // provenance (populated by ExplainCell)
+	Notes         []string               `protobuf:"bytes,8,rep,name=notes,proto3" json:"notes,omitempty"`          // gap-registry notes / approaches
+	Citations     []*Citation            `protobuf:"bytes,9,rep,name=citations,proto3" json:"citations,omitempty"`  // provenance (populated by ExplainCell)
+	Condition     string                 `protobuf:"bytes,10,opt,name=condition,proto3" json:"condition,omitempty"` // health beside coverage; never folded into status
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Cell) Reset() {
 	*x = Cell{}
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[5]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -410,7 +498,7 @@ func (x *Cell) String() string {
 func (*Cell) ProtoMessage() {}
 
 func (x *Cell) ProtoReflect() protoreflect.Message {
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[5]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -423,7 +511,7 @@ func (x *Cell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cell.ProtoReflect.Descriptor instead.
 func (*Cell) Descriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{5}
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Cell) GetId() string {
@@ -489,6 +577,13 @@ func (x *Cell) GetCitations() []*Citation {
 	return nil
 }
 
+func (x *Cell) GetCondition() string {
+	if x != nil {
+		return x.Condition
+	}
+	return ""
+}
+
 type ListCellsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Projection    shared.Projection      `protobuf:"varint,1,opt,name=projection,proto3,enum=vrooli.meta_optimization_manager.v1.shared.Projection" json:"projection,omitempty"` // optional filter
@@ -499,7 +594,7 @@ type ListCellsRequest struct {
 
 func (x *ListCellsRequest) Reset() {
 	*x = ListCellsRequest{}
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[6]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -511,7 +606,7 @@ func (x *ListCellsRequest) String() string {
 func (*ListCellsRequest) ProtoMessage() {}
 
 func (x *ListCellsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[6]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -524,7 +619,7 @@ func (x *ListCellsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCellsRequest.ProtoReflect.Descriptor instead.
 func (*ListCellsRequest) Descriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{6}
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListCellsRequest) GetProjection() shared.Projection {
@@ -550,7 +645,7 @@ type ListCellsResponse struct {
 
 func (x *ListCellsResponse) Reset() {
 	*x = ListCellsResponse{}
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[7]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -562,7 +657,7 @@ func (x *ListCellsResponse) String() string {
 func (*ListCellsResponse) ProtoMessage() {}
 
 func (x *ListCellsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[7]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -575,7 +670,7 @@ func (x *ListCellsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCellsResponse.ProtoReflect.Descriptor instead.
 func (*ListCellsResponse) Descriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{7}
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListCellsResponse) GetCells() []*Cell {
@@ -594,7 +689,7 @@ type ExplainCellRequest struct {
 
 func (x *ExplainCellRequest) Reset() {
 	*x = ExplainCellRequest{}
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[8]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -606,7 +701,7 @@ func (x *ExplainCellRequest) String() string {
 func (*ExplainCellRequest) ProtoMessage() {}
 
 func (x *ExplainCellRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[8]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -619,7 +714,7 @@ func (x *ExplainCellRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainCellRequest.ProtoReflect.Descriptor instead.
 func (*ExplainCellRequest) Descriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{8}
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ExplainCellRequest) GetCellId() string {
@@ -638,7 +733,7 @@ type ExplainCellResponse struct {
 
 func (x *ExplainCellResponse) Reset() {
 	*x = ExplainCellResponse{}
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[9]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -650,7 +745,7 @@ func (x *ExplainCellResponse) String() string {
 func (*ExplainCellResponse) ProtoMessage() {}
 
 func (x *ExplainCellResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[9]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -663,7 +758,7 @@ func (x *ExplainCellResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainCellResponse.ProtoReflect.Descriptor instead.
 func (*ExplainCellResponse) Descriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{9}
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ExplainCellResponse) GetCell() *Cell {
@@ -687,7 +782,7 @@ type BaseDocIssue struct {
 
 func (x *BaseDocIssue) Reset() {
 	*x = BaseDocIssue{}
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[10]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -699,7 +794,7 @@ func (x *BaseDocIssue) String() string {
 func (*BaseDocIssue) ProtoMessage() {}
 
 func (x *BaseDocIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[10]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -712,7 +807,7 @@ func (x *BaseDocIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BaseDocIssue.ProtoReflect.Descriptor instead.
 func (*BaseDocIssue) Descriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{10}
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *BaseDocIssue) GetProjection() shared.Projection {
@@ -759,7 +854,7 @@ type ValidateBaseDocsRequest struct {
 
 func (x *ValidateBaseDocsRequest) Reset() {
 	*x = ValidateBaseDocsRequest{}
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[11]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -771,7 +866,7 @@ func (x *ValidateBaseDocsRequest) String() string {
 func (*ValidateBaseDocsRequest) ProtoMessage() {}
 
 func (x *ValidateBaseDocsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[11]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -784,7 +879,7 @@ func (x *ValidateBaseDocsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateBaseDocsRequest.ProtoReflect.Descriptor instead.
 func (*ValidateBaseDocsRequest) Descriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{11}
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ValidateBaseDocsRequest) GetProjection() shared.Projection {
@@ -805,7 +900,7 @@ type ValidateBaseDocsResponse struct {
 
 func (x *ValidateBaseDocsResponse) Reset() {
 	*x = ValidateBaseDocsResponse{}
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[12]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -817,7 +912,7 @@ func (x *ValidateBaseDocsResponse) String() string {
 func (*ValidateBaseDocsResponse) ProtoMessage() {}
 
 func (x *ValidateBaseDocsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[12]
+	mi := &file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -830,7 +925,7 @@ func (x *ValidateBaseDocsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateBaseDocsResponse.ProtoReflect.Descriptor instead.
 func (*ValidateBaseDocsResponse) Descriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{12}
+	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ValidateBaseDocsResponse) GetIssues() []*BaseDocIssue {
@@ -851,7 +946,7 @@ var File_meta_optimization_manager_v1_coverage_coverage_proto protoreflect.FileD
 
 const file_meta_optimization_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\n" +
-	"4meta-optimization-manager/v1/coverage/coverage.proto\x12,vrooli.meta_optimization_manager.v1.coverage\x1a\x1bcommon/v1/attestation.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a/meta-optimization-manager/v1/shared/model.proto\"\x96\x04\n" +
+	"4meta-optimization-manager/v1/coverage/coverage.proto\x12,vrooli.meta_optimization_manager.v1.coverage\x1a\x1bcommon/v1/attestation.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a/meta-optimization-manager/v1/shared/model.proto\"\xff\x04\n" +
 	"\x12ProjectionCoverage\x12V\n" +
 	"\n" +
 	"projection\x18\x01 \x01(\x0e26.vrooli.meta_optimization_manager.v1.shared.ProjectionR\n" +
@@ -866,7 +961,11 @@ const file_meta_optimization_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\x14confidence_rationale\x18\b \x01(\tR\x13confidenceRationale\x12\x1c\n" +
 	"\tavailable\x18\t \x01(\bR\tavailable\x12-\n" +
 	"\x12unavailable_reason\x18\n" +
-	" \x01(\tR\x11unavailableReason\"\xb7\x01\n" +
+	" \x01(\tR\x11unavailableReason\x12g\n" +
+	"\x10condition_counts\x18\v \x03(\v2<.vrooli.meta_optimization_manager.v1.coverage.ConditionCountR\x0fconditionCounts\"D\n" +
+	"\x0eConditionCount\x12\x1c\n" +
+	"\tcondition\x18\x01 \x01(\tR\tcondition\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\xb7\x01\n" +
 	"\x13EmpiricalTrendPoint\x12!\n" +
 	"\fsuccess_rate\x18\x01 \x01(\x01R\vsuccessRate\x12#\n" +
 	"\rmedian_tokens\x18\x02 \x01(\x03R\fmedianTokens\x12,\n" +
@@ -875,16 +974,19 @@ const file_meta_optimization_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\x10GetStatusRequest\x12V\n" +
 	"\n" +
 	"projection\x18\x01 \x01(\x0e26.vrooli.meta_optimization_manager.v1.shared.ProjectionR\n" +
-	"projection\"\xa5\x02\n" +
+	"projection\"\xaf\x03\n" +
 	"\x11GetStatusResponse\x12b\n" +
 	"\vprojections\x18\x01 \x03(\v2@.vrooli.meta_optimization_manager.v1.coverage.ProjectionCoverageR\vprojections\x12o\n" +
 	"\x12latest_trial_trend\x18\x02 \x01(\v2A.vrooli.meta_optimization_manager.v1.coverage.EmpiricalTrendPointR\x10latestTrialTrend\x12;\n" +
 	"\vcomputed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"computedAt\"L\n" +
+	"computedAt\x12/\n" +
+	"\x13determinism_checked\x18\x04 \x01(\bR\x12determinismChecked\x12$\n" +
+	"\rdeterministic\x18\x05 \x01(\bR\rdeterministic\x121\n" +
+	"\x14determinism_evidence\x18\x06 \x01(\tR\x13determinismEvidence\"L\n" +
 	"\bCitation\x12\x18\n" +
 	"\alocator\x18\x01 \x01(\tR\alocator\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x12\n" +
-	"\x04note\x18\x03 \x01(\tR\x04note\"\xbe\x03\n" +
+	"\x04note\x18\x03 \x01(\tR\x04note\"\xdc\x03\n" +
 	"\x04Cell\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12V\n" +
 	"\n" +
@@ -896,7 +998,9 @@ const file_meta_optimization_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\x05basis\x18\x06 \x01(\x0e2\x10.common.v1.BasisR\x05basis\x128\n" +
 	"\vsufficiency\x18\a \x01(\x0e2\x16.common.v1.SufficiencyR\vsufficiency\x12\x14\n" +
 	"\x05notes\x18\b \x03(\tR\x05notes\x12T\n" +
-	"\tcitations\x18\t \x03(\v26.vrooli.meta_optimization_manager.v1.coverage.CitationR\tcitations\"\xba\x01\n" +
+	"\tcitations\x18\t \x03(\v26.vrooli.meta_optimization_manager.v1.coverage.CitationR\tcitations\x12\x1c\n" +
+	"\tcondition\x18\n" +
+	" \x01(\tR\tcondition\"\xba\x01\n" +
 	"\x10ListCellsRequest\x12V\n" +
 	"\n" +
 	"projection\x18\x01 \x01(\x0e26.vrooli.meta_optimization_manager.v1.shared.ProjectionR\n" +
@@ -941,63 +1045,65 @@ func file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescGZIP() []b
 	return file_meta_optimization_manager_v1_coverage_coverage_proto_rawDescData
 }
 
-var file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_meta_optimization_manager_v1_coverage_coverage_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_meta_optimization_manager_v1_coverage_coverage_proto_goTypes = []any{
 	(*ProjectionCoverage)(nil),        // 0: vrooli.meta_optimization_manager.v1.coverage.ProjectionCoverage
-	(*EmpiricalTrendPoint)(nil),       // 1: vrooli.meta_optimization_manager.v1.coverage.EmpiricalTrendPoint
-	(*GetStatusRequest)(nil),          // 2: vrooli.meta_optimization_manager.v1.coverage.GetStatusRequest
-	(*GetStatusResponse)(nil),         // 3: vrooli.meta_optimization_manager.v1.coverage.GetStatusResponse
-	(*Citation)(nil),                  // 4: vrooli.meta_optimization_manager.v1.coverage.Citation
-	(*Cell)(nil),                      // 5: vrooli.meta_optimization_manager.v1.coverage.Cell
-	(*ListCellsRequest)(nil),          // 6: vrooli.meta_optimization_manager.v1.coverage.ListCellsRequest
-	(*ListCellsResponse)(nil),         // 7: vrooli.meta_optimization_manager.v1.coverage.ListCellsResponse
-	(*ExplainCellRequest)(nil),        // 8: vrooli.meta_optimization_manager.v1.coverage.ExplainCellRequest
-	(*ExplainCellResponse)(nil),       // 9: vrooli.meta_optimization_manager.v1.coverage.ExplainCellResponse
-	(*BaseDocIssue)(nil),              // 10: vrooli.meta_optimization_manager.v1.coverage.BaseDocIssue
-	(*ValidateBaseDocsRequest)(nil),   // 11: vrooli.meta_optimization_manager.v1.coverage.ValidateBaseDocsRequest
-	(*ValidateBaseDocsResponse)(nil),  // 12: vrooli.meta_optimization_manager.v1.coverage.ValidateBaseDocsResponse
-	(shared.Projection)(0),            // 13: vrooli.meta_optimization_manager.v1.shared.Projection
-	(shared.DenominatorConfidence)(0), // 14: vrooli.meta_optimization_manager.v1.shared.DenominatorConfidence
-	(*timestamppb.Timestamp)(nil),     // 15: google.protobuf.Timestamp
-	(shared.CellStatus)(0),            // 16: vrooli.meta_optimization_manager.v1.shared.CellStatus
-	(v1.Basis)(0),                     // 17: common.v1.Basis
-	(v1.Sufficiency)(0),               // 18: common.v1.Sufficiency
-	(shared.Severity)(0),              // 19: vrooli.meta_optimization_manager.v1.shared.Severity
+	(*ConditionCount)(nil),            // 1: vrooli.meta_optimization_manager.v1.coverage.ConditionCount
+	(*EmpiricalTrendPoint)(nil),       // 2: vrooli.meta_optimization_manager.v1.coverage.EmpiricalTrendPoint
+	(*GetStatusRequest)(nil),          // 3: vrooli.meta_optimization_manager.v1.coverage.GetStatusRequest
+	(*GetStatusResponse)(nil),         // 4: vrooli.meta_optimization_manager.v1.coverage.GetStatusResponse
+	(*Citation)(nil),                  // 5: vrooli.meta_optimization_manager.v1.coverage.Citation
+	(*Cell)(nil),                      // 6: vrooli.meta_optimization_manager.v1.coverage.Cell
+	(*ListCellsRequest)(nil),          // 7: vrooli.meta_optimization_manager.v1.coverage.ListCellsRequest
+	(*ListCellsResponse)(nil),         // 8: vrooli.meta_optimization_manager.v1.coverage.ListCellsResponse
+	(*ExplainCellRequest)(nil),        // 9: vrooli.meta_optimization_manager.v1.coverage.ExplainCellRequest
+	(*ExplainCellResponse)(nil),       // 10: vrooli.meta_optimization_manager.v1.coverage.ExplainCellResponse
+	(*BaseDocIssue)(nil),              // 11: vrooli.meta_optimization_manager.v1.coverage.BaseDocIssue
+	(*ValidateBaseDocsRequest)(nil),   // 12: vrooli.meta_optimization_manager.v1.coverage.ValidateBaseDocsRequest
+	(*ValidateBaseDocsResponse)(nil),  // 13: vrooli.meta_optimization_manager.v1.coverage.ValidateBaseDocsResponse
+	(shared.Projection)(0),            // 14: vrooli.meta_optimization_manager.v1.shared.Projection
+	(shared.DenominatorConfidence)(0), // 15: vrooli.meta_optimization_manager.v1.shared.DenominatorConfidence
+	(*timestamppb.Timestamp)(nil),     // 16: google.protobuf.Timestamp
+	(shared.CellStatus)(0),            // 17: vrooli.meta_optimization_manager.v1.shared.CellStatus
+	(v1.Basis)(0),                     // 18: common.v1.Basis
+	(v1.Sufficiency)(0),               // 19: common.v1.Sufficiency
+	(shared.Severity)(0),              // 20: vrooli.meta_optimization_manager.v1.shared.Severity
 }
 var file_meta_optimization_manager_v1_coverage_coverage_proto_depIdxs = []int32{
-	13, // 0: vrooli.meta_optimization_manager.v1.coverage.ProjectionCoverage.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
-	14, // 1: vrooli.meta_optimization_manager.v1.coverage.ProjectionCoverage.denominator_confidence:type_name -> vrooli.meta_optimization_manager.v1.shared.DenominatorConfidence
-	15, // 2: vrooli.meta_optimization_manager.v1.coverage.EmpiricalTrendPoint.at:type_name -> google.protobuf.Timestamp
-	13, // 3: vrooli.meta_optimization_manager.v1.coverage.GetStatusRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
-	0,  // 4: vrooli.meta_optimization_manager.v1.coverage.GetStatusResponse.projections:type_name -> vrooli.meta_optimization_manager.v1.coverage.ProjectionCoverage
-	1,  // 5: vrooli.meta_optimization_manager.v1.coverage.GetStatusResponse.latest_trial_trend:type_name -> vrooli.meta_optimization_manager.v1.coverage.EmpiricalTrendPoint
-	15, // 6: vrooli.meta_optimization_manager.v1.coverage.GetStatusResponse.computed_at:type_name -> google.protobuf.Timestamp
-	13, // 7: vrooli.meta_optimization_manager.v1.coverage.Cell.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
-	16, // 8: vrooli.meta_optimization_manager.v1.coverage.Cell.status:type_name -> vrooli.meta_optimization_manager.v1.shared.CellStatus
-	17, // 9: vrooli.meta_optimization_manager.v1.coverage.Cell.basis:type_name -> common.v1.Basis
-	18, // 10: vrooli.meta_optimization_manager.v1.coverage.Cell.sufficiency:type_name -> common.v1.Sufficiency
-	4,  // 11: vrooli.meta_optimization_manager.v1.coverage.Cell.citations:type_name -> vrooli.meta_optimization_manager.v1.coverage.Citation
-	13, // 12: vrooli.meta_optimization_manager.v1.coverage.ListCellsRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
-	16, // 13: vrooli.meta_optimization_manager.v1.coverage.ListCellsRequest.status:type_name -> vrooli.meta_optimization_manager.v1.shared.CellStatus
-	5,  // 14: vrooli.meta_optimization_manager.v1.coverage.ListCellsResponse.cells:type_name -> vrooli.meta_optimization_manager.v1.coverage.Cell
-	5,  // 15: vrooli.meta_optimization_manager.v1.coverage.ExplainCellResponse.cell:type_name -> vrooli.meta_optimization_manager.v1.coverage.Cell
-	13, // 16: vrooli.meta_optimization_manager.v1.coverage.BaseDocIssue.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
-	19, // 17: vrooli.meta_optimization_manager.v1.coverage.BaseDocIssue.severity:type_name -> vrooli.meta_optimization_manager.v1.shared.Severity
-	13, // 18: vrooli.meta_optimization_manager.v1.coverage.ValidateBaseDocsRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
-	10, // 19: vrooli.meta_optimization_manager.v1.coverage.ValidateBaseDocsResponse.issues:type_name -> vrooli.meta_optimization_manager.v1.coverage.BaseDocIssue
-	2,  // 20: vrooli.meta_optimization_manager.v1.coverage.CoverageService.GetStatus:input_type -> vrooli.meta_optimization_manager.v1.coverage.GetStatusRequest
-	6,  // 21: vrooli.meta_optimization_manager.v1.coverage.CoverageService.ListCells:input_type -> vrooli.meta_optimization_manager.v1.coverage.ListCellsRequest
-	8,  // 22: vrooli.meta_optimization_manager.v1.coverage.CoverageService.ExplainCell:input_type -> vrooli.meta_optimization_manager.v1.coverage.ExplainCellRequest
-	11, // 23: vrooli.meta_optimization_manager.v1.coverage.CoverageService.ValidateBaseDocs:input_type -> vrooli.meta_optimization_manager.v1.coverage.ValidateBaseDocsRequest
-	3,  // 24: vrooli.meta_optimization_manager.v1.coverage.CoverageService.GetStatus:output_type -> vrooli.meta_optimization_manager.v1.coverage.GetStatusResponse
-	7,  // 25: vrooli.meta_optimization_manager.v1.coverage.CoverageService.ListCells:output_type -> vrooli.meta_optimization_manager.v1.coverage.ListCellsResponse
-	9,  // 26: vrooli.meta_optimization_manager.v1.coverage.CoverageService.ExplainCell:output_type -> vrooli.meta_optimization_manager.v1.coverage.ExplainCellResponse
-	12, // 27: vrooli.meta_optimization_manager.v1.coverage.CoverageService.ValidateBaseDocs:output_type -> vrooli.meta_optimization_manager.v1.coverage.ValidateBaseDocsResponse
-	24, // [24:28] is the sub-list for method output_type
-	20, // [20:24] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	14, // 0: vrooli.meta_optimization_manager.v1.coverage.ProjectionCoverage.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
+	15, // 1: vrooli.meta_optimization_manager.v1.coverage.ProjectionCoverage.denominator_confidence:type_name -> vrooli.meta_optimization_manager.v1.shared.DenominatorConfidence
+	1,  // 2: vrooli.meta_optimization_manager.v1.coverage.ProjectionCoverage.condition_counts:type_name -> vrooli.meta_optimization_manager.v1.coverage.ConditionCount
+	16, // 3: vrooli.meta_optimization_manager.v1.coverage.EmpiricalTrendPoint.at:type_name -> google.protobuf.Timestamp
+	14, // 4: vrooli.meta_optimization_manager.v1.coverage.GetStatusRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
+	0,  // 5: vrooli.meta_optimization_manager.v1.coverage.GetStatusResponse.projections:type_name -> vrooli.meta_optimization_manager.v1.coverage.ProjectionCoverage
+	2,  // 6: vrooli.meta_optimization_manager.v1.coverage.GetStatusResponse.latest_trial_trend:type_name -> vrooli.meta_optimization_manager.v1.coverage.EmpiricalTrendPoint
+	16, // 7: vrooli.meta_optimization_manager.v1.coverage.GetStatusResponse.computed_at:type_name -> google.protobuf.Timestamp
+	14, // 8: vrooli.meta_optimization_manager.v1.coverage.Cell.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
+	17, // 9: vrooli.meta_optimization_manager.v1.coverage.Cell.status:type_name -> vrooli.meta_optimization_manager.v1.shared.CellStatus
+	18, // 10: vrooli.meta_optimization_manager.v1.coverage.Cell.basis:type_name -> common.v1.Basis
+	19, // 11: vrooli.meta_optimization_manager.v1.coverage.Cell.sufficiency:type_name -> common.v1.Sufficiency
+	5,  // 12: vrooli.meta_optimization_manager.v1.coverage.Cell.citations:type_name -> vrooli.meta_optimization_manager.v1.coverage.Citation
+	14, // 13: vrooli.meta_optimization_manager.v1.coverage.ListCellsRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
+	17, // 14: vrooli.meta_optimization_manager.v1.coverage.ListCellsRequest.status:type_name -> vrooli.meta_optimization_manager.v1.shared.CellStatus
+	6,  // 15: vrooli.meta_optimization_manager.v1.coverage.ListCellsResponse.cells:type_name -> vrooli.meta_optimization_manager.v1.coverage.Cell
+	6,  // 16: vrooli.meta_optimization_manager.v1.coverage.ExplainCellResponse.cell:type_name -> vrooli.meta_optimization_manager.v1.coverage.Cell
+	14, // 17: vrooli.meta_optimization_manager.v1.coverage.BaseDocIssue.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
+	20, // 18: vrooli.meta_optimization_manager.v1.coverage.BaseDocIssue.severity:type_name -> vrooli.meta_optimization_manager.v1.shared.Severity
+	14, // 19: vrooli.meta_optimization_manager.v1.coverage.ValidateBaseDocsRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
+	11, // 20: vrooli.meta_optimization_manager.v1.coverage.ValidateBaseDocsResponse.issues:type_name -> vrooli.meta_optimization_manager.v1.coverage.BaseDocIssue
+	3,  // 21: vrooli.meta_optimization_manager.v1.coverage.CoverageService.GetStatus:input_type -> vrooli.meta_optimization_manager.v1.coverage.GetStatusRequest
+	7,  // 22: vrooli.meta_optimization_manager.v1.coverage.CoverageService.ListCells:input_type -> vrooli.meta_optimization_manager.v1.coverage.ListCellsRequest
+	9,  // 23: vrooli.meta_optimization_manager.v1.coverage.CoverageService.ExplainCell:input_type -> vrooli.meta_optimization_manager.v1.coverage.ExplainCellRequest
+	12, // 24: vrooli.meta_optimization_manager.v1.coverage.CoverageService.ValidateBaseDocs:input_type -> vrooli.meta_optimization_manager.v1.coverage.ValidateBaseDocsRequest
+	4,  // 25: vrooli.meta_optimization_manager.v1.coverage.CoverageService.GetStatus:output_type -> vrooli.meta_optimization_manager.v1.coverage.GetStatusResponse
+	8,  // 26: vrooli.meta_optimization_manager.v1.coverage.CoverageService.ListCells:output_type -> vrooli.meta_optimization_manager.v1.coverage.ListCellsResponse
+	10, // 27: vrooli.meta_optimization_manager.v1.coverage.CoverageService.ExplainCell:output_type -> vrooli.meta_optimization_manager.v1.coverage.ExplainCellResponse
+	13, // 28: vrooli.meta_optimization_manager.v1.coverage.CoverageService.ValidateBaseDocs:output_type -> vrooli.meta_optimization_manager.v1.coverage.ValidateBaseDocsResponse
+	25, // [25:29] is the sub-list for method output_type
+	21, // [21:25] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_meta_optimization_manager_v1_coverage_coverage_proto_init() }
@@ -1011,7 +1117,7 @@ func file_meta_optimization_manager_v1_coverage_coverage_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_meta_optimization_manager_v1_coverage_coverage_proto_rawDesc), len(file_meta_optimization_manager_v1_coverage_coverage_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

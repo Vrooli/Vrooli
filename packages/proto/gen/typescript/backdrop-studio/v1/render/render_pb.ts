@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backdrop-studio/v1/render/render.proto.
  */
 export const file_backdrop_studio_v1_render_render: GenFile = /*@__PURE__*/
-  fileDesc("CiZiYWNrZHJvcC1zdHVkaW8vdjEvcmVuZGVyL3JlbmRlci5wcm90bxIgdnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIijQIKDVN1Ym1pdFJlcXVlc3QSNgoFc3R5bGUYASABKAsyJy52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5TdHlsZRIRCglwbGFjZW1lbnQYAiABKAkSDAoEc2VlZBgDIAEoAxIXCg9jYW5kaWRhdGVfY291bnQYBCABKAUSVgoMYnJhbmRfdG9rZW5zGAUgAygLMkAudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIuU3VibWl0UmVxdWVzdC5CcmFuZFRva2Vuc0VudHJ5GjIKEEJyYW5kVG9rZW5zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASIfCg1HZXRKb2JSZXF1ZXN0Eg4KBmpvYl9pZBgBIAEoCSInChVMaXN0Q2FuZGlkYXRlc1JlcXVlc3QSDgoGam9iX2lkGAEgASgJIlkKFkxpc3RDYW5kaWRhdGVzUmVzcG9uc2USPwoKY2FuZGlkYXRlcxgBIAMoCzIrLnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEucmVuZGVyLkNhbmRpZGF0ZSJNChZTZWxlY3RDYW5kaWRhdGVSZXF1ZXN0Eg4KBmpvYl9pZBgBIAEoCRIUCgxjYW5kaWRhdGVfaWQYAiABKAkSDQoFYWN0b3IYAyABKAki1AEKCVJlbmRlckpvYhIKCgJpZBgBIAEoCRIQCghzdHlsZV9pZBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSDAoEc2VlZBgEIAEoAxIWCg5leGVjdXRpb25fcGF0aBgFIAEoCRI/CgpjYW5kaWRhdGVzGAYgAygLMisudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIuQ2FuZGlkYXRlEh0KFXNlbGVjdGVkX2NhbmRpZGF0ZV9pZBgHIAEoCRITCgtzZWxlY3RlZF9ieRgIIAEoCSKSAgoJQ2FuZGlkYXRlEgoKAmlkGAEgASgJEg4KBmpvYl9pZBgCIAEoCRIRCglpbWFnZV9wbmcYAyABKAwSDQoFd2lkdGgYBCABKAUSDgoGaGVpZ2h0GAUgASgFEhAKCHN0cmF0ZWd5GAYgASgJEhYKDmV4ZWN1dGlvbl9wYXRoGAcgASgJEhkKEXRyZWF0bWVudF9hcHBsaWVkGAggASgIEgwKBHNlZWQYCSABKAMSHgoWY29uZGl0aW9uaW5nX3N1Ym1pdHRlZBgKIAEoCBIbChNkaXNjbG9zdXJlX3JlcXVpcmVkGAsgASgIEg4KBnByb21wdBgMIAEoCRIXCg9wcm92ZW5hbmNlX2pzb24YDSABKAky3wMKDVJlbmRlclNlcnZpY2USZgoGU3VibWl0Ei8udnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIuU3VibWl0UmVxdWVzdBorLnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEucmVuZGVyLlJlbmRlckpvYhJmCgZHZXRKb2ISLy52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnJlbmRlci5HZXRKb2JSZXF1ZXN0GisudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIuUmVuZGVySm9iEoMBCg5MaXN0Q2FuZGlkYXRlcxI3LnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEucmVuZGVyLkxpc3RDYW5kaWRhdGVzUmVxdWVzdBo4LnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEucmVuZGVyLkxpc3RDYW5kaWRhdGVzUmVzcG9uc2USeAoPU2VsZWN0Q2FuZGlkYXRlEjgudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIuU2VsZWN0Q2FuZGlkYXRlUmVxdWVzdBorLnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEucmVuZGVyLlJlbmRlckpvYkJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2JhY2tkcm9wLXN0dWRpby92MS9yZW5kZXI7cmVuZGVyX3YxYgZwcm90bzM", [file_backdrop_studio_v1_shared_shared]);
+  fileDesc("CiZiYWNrZHJvcC1zdHVkaW8vdjEvcmVuZGVyL3JlbmRlci5wcm90bxIgdnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIiswIKDVN1Ym1pdFJlcXVlc3QSNgoFc3R5bGUYASABKAsyJy52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5TdHlsZRIRCglwbGFjZW1lbnQYAiABKAkSDAoEc2VlZBgDIAEoAxIXCg9jYW5kaWRhdGVfY291bnQYBCABKAUSVgoMYnJhbmRfdG9rZW5zGAUgAygLMkAudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIuU3VibWl0UmVxdWVzdC5CcmFuZFRva2Vuc0VudHJ5EhAKCGJyYW5kX2lkGAYgASgJEhIKCnN1cmZhY2VfaWQYByABKAkaMgoQQnJhbmRUb2tlbnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIh8KDUdldEpvYlJlcXVlc3QSDgoGam9iX2lkGAEgASgJIicKFUxpc3RDYW5kaWRhdGVzUmVxdWVzdBIOCgZqb2JfaWQYASABKAkiWQoWTGlzdENhbmRpZGF0ZXNSZXNwb25zZRI/CgpjYW5kaWRhdGVzGAEgAygLMisudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIuQ2FuZGlkYXRlIk0KFlNlbGVjdENhbmRpZGF0ZVJlcXVlc3QSDgoGam9iX2lkGAEgASgJEhQKDGNhbmRpZGF0ZV9pZBgCIAEoCRINCgVhY3RvchgDIAEoCSLoAQoJUmVuZGVySm9iEgoKAmlkGAEgASgJEhAKCHN0eWxlX2lkGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIMCgRzZWVkGAQgASgDEhYKDmV4ZWN1dGlvbl9wYXRoGAUgASgJEj8KCmNhbmRpZGF0ZXMYBiADKAsyKy52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnJlbmRlci5DYW5kaWRhdGUSHQoVc2VsZWN0ZWRfY2FuZGlkYXRlX2lkGAcgASgJEhMKC3NlbGVjdGVkX2J5GAggASgJEhIKCnN1cmZhY2VfaWQYCSABKAkiqAIKCUNhbmRpZGF0ZRIKCgJpZBgBIAEoCRIOCgZqb2JfaWQYAiABKAkSEQoJaW1hZ2VfcG5nGAMgASgMEg0KBXdpZHRoGAQgASgFEg4KBmhlaWdodBgFIAEoBRIQCghzdHJhdGVneRgGIAEoCRIWCg5leGVjdXRpb25fcGF0aBgHIAEoCRIZChF0cmVhdG1lbnRfYXBwbGllZBgIIAEoCBIMCgRzZWVkGAkgASgDEh4KFmNvbmRpdGlvbmluZ19zdWJtaXR0ZWQYCiABKAgSGwoTZGlzY2xvc3VyZV9yZXF1aXJlZBgLIAEoCBIOCgZwcm9tcHQYDCABKAkSFwoPcHJvdmVuYW5jZV9qc29uGA0gASgJEhQKDHF1YWxpdHlfanNvbhgOIAEoCTLfAwoNUmVuZGVyU2VydmljZRJmCgZTdWJtaXQSLy52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnJlbmRlci5TdWJtaXRSZXF1ZXN0GisudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIuUmVuZGVySm9iEmYKBkdldEpvYhIvLnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEucmVuZGVyLkdldEpvYlJlcXVlc3QaKy52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnJlbmRlci5SZW5kZXJKb2ISgwEKDkxpc3RDYW5kaWRhdGVzEjcudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIuTGlzdENhbmRpZGF0ZXNSZXF1ZXN0GjgudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIuTGlzdENhbmRpZGF0ZXNSZXNwb25zZRJ4Cg9TZWxlY3RDYW5kaWRhdGUSOC52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnJlbmRlci5TZWxlY3RDYW5kaWRhdGVSZXF1ZXN0GisudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5yZW5kZXIuUmVuZGVySm9iQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYmFja2Ryb3Atc3R1ZGlvL3YxL3JlbmRlcjtyZW5kZXJfdjFiBnByb3RvMw", [file_backdrop_studio_v1_shared_shared]);
 
 /**
  * @generated from message vrooli.backdrop_studio.v1.render.SubmitRequest
@@ -39,9 +39,36 @@ export type SubmitRequest = Message<"vrooli.backdrop_studio.v1.render.SubmitRequ
   candidateCount: number;
 
   /**
+   * BrandTokens binds ink slots directly, for a caller that has no
+   * brand-manager. Keys are the "$brand.*" slot names brand-manager's
+   * GetTokens emits, so the two vocabularies cannot drift.
+   *
    * @generated from field: map<string, string> brand_tokens = 5;
    */
   brandTokens: { [key: string]: string };
+
+  /**
+   * BrandId names a brand-manager brand whose palette the API fetches. Ignored
+   * when brand_tokens is supplied, because a caller who states an ink means it.
+   * With neither set, a style renders from its own declared ink defaults.
+   *
+   * @generated from field: string brand_id = 6;
+   */
+  brandId: string;
+
+  /**
+   * SurfaceId names the delivery target whose declared geometry the render
+   * uses. Empty means the first surface the style's placements permit.
+   *
+   * Delivery geometry has exactly one authority: the seeded surface record.
+   * It used to be a pair of constants (1600x1000) while surfaces declared
+   * 1440x720, 390x844, 1024x500 and 1290x2796 — so a 9:19.5 App Store portrait
+   * backdrop was produced as a 1.6:1 landscape and cropped, and no store asset
+   * was ever generated at its real aspect.
+   *
+   * @generated from field: string surface_id = 7;
+   */
+  surfaceId: string;
 };
 
 /**
@@ -172,6 +199,14 @@ export type RenderJob = Message<"vrooli.backdrop_studio.v1.render.RenderJob"> & 
    * @generated from field: string selected_by = 8;
    */
   selectedBy: string;
+
+  /**
+   * SurfaceId is the surface the geometry was resolved from, echoed back so a
+   * caller who supplied none can see which one it got.
+   *
+   * @generated from field: string surface_id = 9;
+   */
+  surfaceId: string;
 };
 
 /**
@@ -249,6 +284,17 @@ export type Candidate = Message<"vrooli.backdrop_studio.v1.render.Candidate"> & 
    * @generated from field: string provenance_json = 13;
    */
   provenanceJson: string;
+
+  /**
+   * quality_json is the perceptual verdict this candidate passed, as a JSON
+   * object of {passed, metrics[{name,value,min,max,passed,detail}]}. Every
+   * candidate that exists has passed — a failing one is refused rather than
+   * recorded — so this is the evidence of *how well* it passed, and the margin
+   * it cleared each bar by. Without it "the gate is green" is unfalsifiable.
+   *
+   * @generated from field: string quality_json = 14;
+   */
+  qualityJson: string;
 };
 
 /**

@@ -21,6 +21,7 @@
     },
     "groups": {
       "type": "array",
+      "minItems": 1,
       "items": { "$ref": "#/$defs/Group" }
     },
     "omitted": {
@@ -147,7 +148,19 @@
         "name": { "type": "string", "minLength": 1, "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$" },
         "description": { "type": "string" },
         "required": { "type": "boolean", "default": false },
-        "repeated": { "type": "boolean", "default": false }
+        "repeated": { "type": "boolean", "default": false },
+        "local_only": { "type": "boolean", "description": "The CLI parses this control but it is not projected into the bound RPC request." },
+		"bind_waiver": { "type": "string", "minLength": 1, "description": "Required explanation when an explicit bind intentionally overrides a semantic binding rule." },
+        "bind": {
+          "type": "object",
+          "description": "Maps the positional value onto a specific proto request field via the named decoding strategy.",
+          "required": ["field"],
+          "additionalProperties": false,
+          "properties": {
+            "field": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+            "kind": { "type": "string", "enum": ["raw_string", "json_inline", "json_file"] }
+          }
+        }
       }
     },
     "Flag": {
@@ -162,8 +175,11 @@
         },
         "description": { "type": "string" },
         "required": { "type": "boolean", "default": false },
+        "repeatable": { "type": "boolean", "default": false, "description": "Accept the flag more than once; equivalent to repeated for CLI compatibility." },
         "default": { "type": "string" },
         "bool": { "type": "boolean", "default": false },
+        "local_only": { "type": "boolean", "description": "The CLI parses this control but it is not projected into the bound RPC request." },
+		"bind_waiver": { "type": "string", "minLength": 1, "description": "Required explanation when an explicit bind intentionally overrides a semantic binding rule." },
         "values": {
           "type": "array",
           "minItems": 1,

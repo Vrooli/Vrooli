@@ -28,9 +28,25 @@ type SubmitRequest struct {
 	Placement      string                 `protobuf:"bytes,2,opt,name=placement,proto3" json:"placement,omitempty"`
 	Seed           int64                  `protobuf:"varint,3,opt,name=seed,proto3" json:"seed,omitempty"`
 	CandidateCount int32                  `protobuf:"varint,4,opt,name=candidate_count,json=candidateCount,proto3" json:"candidate_count,omitempty"`
-	BrandTokens    map[string]string      `protobuf:"bytes,5,rep,name=brand_tokens,json=brandTokens,proto3" json:"brand_tokens,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// BrandTokens binds ink slots directly, for a caller that has no
+	// brand-manager. Keys are the "$brand.*" slot names brand-manager's
+	// GetTokens emits, so the two vocabularies cannot drift.
+	BrandTokens map[string]string `protobuf:"bytes,5,rep,name=brand_tokens,json=brandTokens,proto3" json:"brand_tokens,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// BrandId names a brand-manager brand whose palette the API fetches. Ignored
+	// when brand_tokens is supplied, because a caller who states an ink means it.
+	// With neither set, a style renders from its own declared ink defaults.
+	BrandId string `protobuf:"bytes,6,opt,name=brand_id,json=brandId,proto3" json:"brand_id,omitempty"`
+	// SurfaceId names the delivery target whose declared geometry the render
+	// uses. Empty means the first surface the style's placements permit.
+	//
+	// Delivery geometry has exactly one authority: the seeded surface record.
+	// It used to be a pair of constants (1600x1000) while surfaces declared
+	// 1440x720, 390x844, 1024x500 and 1290x2796 — so a 9:19.5 App Store portrait
+	// backdrop was produced as a 1.6:1 landscape and cropped, and no store asset
+	// was ever generated at its real aspect.
+	SurfaceId     string `protobuf:"bytes,7,opt,name=surface_id,json=surfaceId,proto3" json:"surface_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SubmitRequest) Reset() {
@@ -96,6 +112,20 @@ func (x *SubmitRequest) GetBrandTokens() map[string]string {
 		return x.BrandTokens
 	}
 	return nil
+}
+
+func (x *SubmitRequest) GetBrandId() string {
+	if x != nil {
+		return x.BrandId
+	}
+	return ""
+}
+
+func (x *SubmitRequest) GetSurfaceId() string {
+	if x != nil {
+		return x.SurfaceId
+	}
+	return ""
 }
 
 type GetJobRequest struct {
@@ -300,8 +330,11 @@ type RenderJob struct {
 	Candidates          []*Candidate           `protobuf:"bytes,6,rep,name=candidates,proto3" json:"candidates,omitempty"`
 	SelectedCandidateId string                 `protobuf:"bytes,7,opt,name=selected_candidate_id,json=selectedCandidateId,proto3" json:"selected_candidate_id,omitempty"`
 	SelectedBy          string                 `protobuf:"bytes,8,opt,name=selected_by,json=selectedBy,proto3" json:"selected_by,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// SurfaceId is the surface the geometry was resolved from, echoed back so a
+	// caller who supplied none can see which one it got.
+	SurfaceId     string `protobuf:"bytes,9,opt,name=surface_id,json=surfaceId,proto3" json:"surface_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RenderJob) Reset() {
@@ -390,6 +423,13 @@ func (x *RenderJob) GetSelectedBy() string {
 	return ""
 }
 
+func (x *RenderJob) GetSurfaceId() string {
+	if x != nil {
+		return x.SurfaceId
+	}
+	return ""
+}
+
 type Candidate struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	Id                    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -405,8 +445,14 @@ type Candidate struct {
 	DisclosureRequired    bool                   `protobuf:"varint,11,opt,name=disclosure_required,json=disclosureRequired,proto3" json:"disclosure_required,omitempty"`
 	Prompt                string                 `protobuf:"bytes,12,opt,name=prompt,proto3" json:"prompt,omitempty"`
 	ProvenanceJson        string                 `protobuf:"bytes,13,opt,name=provenance_json,json=provenanceJson,proto3" json:"provenance_json,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// quality_json is the perceptual verdict this candidate passed, as a JSON
+	// object of {passed, metrics[{name,value,min,max,passed,detail}]}. Every
+	// candidate that exists has passed — a failing one is refused rather than
+	// recorded — so this is the evidence of *how well* it passed, and the margin
+	// it cleared each bar by. Without it "the gate is green" is unfalsifiable.
+	QualityJson   string `protobuf:"bytes,14,opt,name=quality_json,json=qualityJson,proto3" json:"quality_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Candidate) Reset() {
@@ -530,17 +576,27 @@ func (x *Candidate) GetProvenanceJson() string {
 	return ""
 }
 
+func (x *Candidate) GetQualityJson() string {
+	if x != nil {
+		return x.QualityJson
+	}
+	return ""
+}
+
 var File_backdrop_studio_v1_render_render_proto protoreflect.FileDescriptor
 
 const file_backdrop_studio_v1_render_render_proto_rawDesc = "" +
 	"\n" +
-	"&backdrop-studio/v1/render/render.proto\x12 vrooli.backdrop_studio.v1.render\x1a&backdrop-studio/v1/shared/shared.proto\"\xce\x02\n" +
+	"&backdrop-studio/v1/render/render.proto\x12 vrooli.backdrop_studio.v1.render\x1a&backdrop-studio/v1/shared/shared.proto\"\x88\x03\n" +
 	"\rSubmitRequest\x12=\n" +
 	"\x05style\x18\x01 \x01(\v2'.vrooli.backdrop_studio.v1.shared.StyleR\x05style\x12\x1c\n" +
 	"\tplacement\x18\x02 \x01(\tR\tplacement\x12\x12\n" +
 	"\x04seed\x18\x03 \x01(\x03R\x04seed\x12'\n" +
 	"\x0fcandidate_count\x18\x04 \x01(\x05R\x0ecandidateCount\x12c\n" +
-	"\fbrand_tokens\x18\x05 \x03(\v2@.vrooli.backdrop_studio.v1.render.SubmitRequest.BrandTokensEntryR\vbrandTokens\x1a>\n" +
+	"\fbrand_tokens\x18\x05 \x03(\v2@.vrooli.backdrop_studio.v1.render.SubmitRequest.BrandTokensEntryR\vbrandTokens\x12\x19\n" +
+	"\bbrand_id\x18\x06 \x01(\tR\abrandId\x12\x1d\n" +
+	"\n" +
+	"surface_id\x18\a \x01(\tR\tsurfaceId\x1a>\n" +
 	"\x10BrandTokensEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"&\n" +
@@ -555,7 +611,7 @@ const file_backdrop_studio_v1_render_render_proto_rawDesc = "" +
 	"\x16SelectCandidateRequest\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12!\n" +
 	"\fcandidate_id\x18\x02 \x01(\tR\vcandidateId\x12\x14\n" +
-	"\x05actor\x18\x03 \x01(\tR\x05actor\"\xab\x02\n" +
+	"\x05actor\x18\x03 \x01(\tR\x05actor\"\xca\x02\n" +
 	"\tRenderJob\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bstyle_id\x18\x02 \x01(\tR\astyleId\x12\x16\n" +
@@ -567,7 +623,9 @@ const file_backdrop_studio_v1_render_render_proto_rawDesc = "" +
 	"candidates\x122\n" +
 	"\x15selected_candidate_id\x18\a \x01(\tR\x13selectedCandidateId\x12\x1f\n" +
 	"\vselected_by\x18\b \x01(\tR\n" +
-	"selectedBy\"\xaa\x03\n" +
+	"selectedBy\x12\x1d\n" +
+	"\n" +
+	"surface_id\x18\t \x01(\tR\tsurfaceId\"\xcd\x03\n" +
 	"\tCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06job_id\x18\x02 \x01(\tR\x05jobId\x12\x1b\n" +
@@ -582,7 +640,8 @@ const file_backdrop_studio_v1_render_render_proto_rawDesc = "" +
 	" \x01(\bR\x15conditioningSubmitted\x12/\n" +
 	"\x13disclosure_required\x18\v \x01(\bR\x12disclosureRequired\x12\x16\n" +
 	"\x06prompt\x18\f \x01(\tR\x06prompt\x12'\n" +
-	"\x0fprovenance_json\x18\r \x01(\tR\x0eprovenanceJson2\xdf\x03\n" +
+	"\x0fprovenance_json\x18\r \x01(\tR\x0eprovenanceJson\x12!\n" +
+	"\fquality_json\x18\x0e \x01(\tR\vqualityJson2\xdf\x03\n" +
 	"\rRenderService\x12f\n" +
 	"\x06Submit\x12/.vrooli.backdrop_studio.v1.render.SubmitRequest\x1a+.vrooli.backdrop_studio.v1.render.RenderJob\x12f\n" +
 	"\x06GetJob\x12/.vrooli.backdrop_studio.v1.render.GetJobRequest\x1a+.vrooli.backdrop_studio.v1.render.RenderJob\x12\x83\x01\n" +

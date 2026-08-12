@@ -95,6 +95,10 @@ type ServiceOptions struct {
 	// the fusion constant (<=0 => DefaultRRFK).
 	RerankBlend bool
 	RerankRRFK  int
+	// HybridFusion selects the Qdrant fusion strategy for dense+sparse queries.
+	// Empty means HybridFusionRRF. It is a query-time factor and is ignored by
+	// dense-only services.
+	HybridFusion string
 
 	// ApplyFloor gates ApplyRelevanceFloor. It exists because the regime floor
 	// bands (cross-encoder / llm / cosine) assume a 0..1 score; an RRF-fused
@@ -115,12 +119,17 @@ type ServiceOptions struct {
 	PrefetchLimit int
 
 	// Seams (see the *Func types above).
-	Project      Projector
-	Filter       QueryFilterFunc
-	PostFilter   PostFilterFunc
-	Decorate     ScoreDecorator
-	RerankText   RerankTextFunc
-	TextFallback TextFallbackFunc
+	Project    Projector
+	Filter     QueryFilterFunc
+	PostFilter PostFilterFunc
+	// PreFloorDecorate adjusts scores after reranking but before the relevance
+	// floor. It is for a bounded second-leg signal (for example, an exact lexical
+	// match that should rescue a relevant candidate from a cross-encoder floor).
+	// Decorate remains the late, post-floor authority seam.
+	PreFloorDecorate ScoreDecorator
+	Decorate         ScoreDecorator
+	RerankText       RerankTextFunc
+	TextFallback     TextFallbackFunc
 
 	// OverridePolicy gates the per-request query-time override channel (see
 	// override.go). nil => DenyOverrides: the secure default in which the Service
@@ -139,6 +148,7 @@ type Service struct {
 	rerankEnabled bool
 	rerankBlend   bool
 	rrfK          int
+	hybridFusion  string
 	shortlist     int
 	applyFloor    bool
 	floor         FloorConfig
@@ -147,12 +157,13 @@ type Service struct {
 	maxLimit      int
 	prefetchLimit int
 
-	project    Projector
-	filter     QueryFilterFunc
-	postFilter PostFilterFunc
-	decorate   ScoreDecorator
-	rerankText RerankTextFunc
-	text       TextFallbackFunc
+	project          Projector
+	filter           QueryFilterFunc
+	postFilter       PostFilterFunc
+	preFloorDecorate ScoreDecorator
+	decorate         ScoreDecorator
+	rerankText       RerankTextFunc
+	text             TextFallbackFunc
 
 	overridePolicy OverridePolicy
 
@@ -184,34 +195,40 @@ func NewService(opts ServiceOptions) *Service {
 	if rrfK <= 0 {
 		rrfK = DefaultRRFK
 	}
+	hybridFusion := normalizeHybridFusion(opts.HybridFusion)
+	if hybridFusion == "" {
+		hybridFusion = HybridFusionRRF
+	}
 	threshold := opts.Threshold
 	if threshold < 0 {
 		threshold = 0
 	}
 	return &Service{
-		embedder:       opts.Embedder,
-		sparse:         opts.SparseEncoder,
-		store:          opts.VectorStore,
-		reranker:       opts.Reranker,
-		reconciler:     opts.Reconciler,
-		rerankEnabled:  opts.RerankEnabled,
-		rerankBlend:    opts.RerankBlend,
-		rrfK:           rrfK,
-		shortlist:      shortlist,
-		applyFloor:     opts.ApplyFloor,
-		floor:          opts.Floor,
-		threshold:      threshold,
-		defaultLimit:   defaultLimit,
-		maxLimit:       maxLimit,
-		prefetchLimit:  prefetch,
-		project:        opts.Project,
-		filter:         opts.Filter,
-		postFilter:     opts.PostFilter,
-		decorate:       opts.Decorate,
-		rerankText:     opts.RerankText,
-		text:           opts.TextFallback,
-		overridePolicy: opts.OverridePolicy,
-		jobs:           make(map[string]*ReindexJob),
+		embedder:         opts.Embedder,
+		sparse:           opts.SparseEncoder,
+		store:            opts.VectorStore,
+		reranker:         opts.Reranker,
+		reconciler:       opts.Reconciler,
+		rerankEnabled:    opts.RerankEnabled,
+		rerankBlend:      opts.RerankBlend,
+		rrfK:             rrfK,
+		hybridFusion:     hybridFusion,
+		shortlist:        shortlist,
+		applyFloor:       opts.ApplyFloor,
+		floor:            opts.Floor,
+		threshold:        threshold,
+		defaultLimit:     defaultLimit,
+		maxLimit:         maxLimit,
+		prefetchLimit:    prefetch,
+		project:          opts.Project,
+		filter:           opts.Filter,
+		postFilter:       opts.PostFilter,
+		preFloorDecorate: opts.PreFloorDecorate,
+		decorate:         opts.Decorate,
+		rerankText:       opts.RerankText,
+		text:             opts.TextFallback,
+		overridePolicy:   opts.OverridePolicy,
+		jobs:             make(map[string]*ReindexJob),
 	}
 }
 
@@ -305,7 +322,7 @@ func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool, 
 	// headroom those stages would operate on too few candidates and the page
 	// could lose in-scope or better-ranked results.
 	shortlist := q.Limit
-	overfetch := (eff.rerankEnabled && s.reranker != nil) || s.postFilter != nil || s.decorate != nil
+	overfetch := (eff.rerankEnabled && s.reranker != nil) || s.postFilter != nil || s.preFloorDecorate != nil || s.decorate != nil
 	if overfetch && eff.shortlist > shortlist {
 		shortlist = eff.shortlist
 	}
@@ -322,7 +339,7 @@ func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool, 
 	if hybrid {
 		sparse := s.sparse.Encode(q.Query)
 		hq.Sparse = &sparse
-		hq.Fusion = "rrf"
+		hq.Fusion = eff.hybridFusion
 		method = "hybrid"
 	} else {
 		// Threshold only applies to a pure dense query; fused queries ignore it.
@@ -356,6 +373,11 @@ func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool, 
 				log.Printf("[aisearch] rerank failed, keeping fused order: %v", rerr)
 			}
 		}
+	}
+
+	if s.preFloorDecorate != nil {
+		s.preFloorDecorate(hits, q)
+		sortByScoreDesc(hits)
 	}
 
 	// Choose the regime that classifies the post-rerank scores for the floor and

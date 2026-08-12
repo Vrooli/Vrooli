@@ -14,6 +14,7 @@ service BindingRegistryService {
   rpc DoctorBindings(DoctorBindingsRequest) returns (DoctorBindingsResponse);
   rpc DescribeBinding(DescribeBindingRequest) returns (DescribeBindingResponse);
   rpc ResolveIntent(ResolveIntentRequest) returns (ResolveIntentResponse);
+  rpc SweepBindings(SweepBindingsRequest) returns (SweepBindingsResponse);
 }
 
 service BindingConditionService {
@@ -44,6 +45,8 @@ message Binding {
   repeated string permissions = 12;
   string description = 13;
   string signature = 14;
+  bool reachable = 15;
+  string reachability_reason = 16;
 }
 
 message UnboundCapability {
@@ -59,10 +62,39 @@ message UnboundCapability {
 message ListBindingsRequest {
   string scenario = 1;
   string group = 2;
+  bool reachable_only = 3;
 }
 
 message ListBindingsResponse {
   repeated Binding bindings = 1;
+  string reachability_checked_at = 2;
+}
+
+message SweepBindingsRequest {
+  string scenario = 1;
+  string effect = 2;
+  bool dry_run = 3;
+}
+
+message SweepBindingResult {
+  string binding_id = 1;
+  string scenario = 2;
+  bool attempted = 3;
+  string skipped_reason = 4;
+  string outcome = 5;
+  string reason = 6;
+  int64 latency_ms = 7;
+}
+
+message SweepBindingsResponse {
+  repeated SweepBindingResult results = 1;
+  int32 eligible = 2;
+  int32 attempted = 3;
+  int32 skipped = 4;
+  int32 succeeded = 5;
+  int32 failed = 6;
+  int32 refused = 7;
+  string provenance = 8;
 }
 
 message ListUnboundRequest {
@@ -119,6 +151,7 @@ message DoctorBindingsResponse {
   repeated string unreachable_scenarios = 16;
   int32 manifest_scenarios = 17;
   int32 total_scenarios = 18;
+  string reachability_checked_at = 19;
 }
 
 enum ConditionStatus {
@@ -165,6 +198,8 @@ message BindingCondition {
   ServingCondition serving = 5;
   FreshnessCondition freshness = 6;
   ExerciseCondition exercise = 7;
+  bool sustained_degradation = 8;
+  string sustained_degradation_reason = 9;
 }
 
 message GetBindingConditionRequest {

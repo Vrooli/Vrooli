@@ -53,6 +53,9 @@ const (
 	// BindingRegistryServiceResolveIntentProcedure is the fully-qualified name of the
 	// BindingRegistryService's ResolveIntent RPC.
 	BindingRegistryServiceResolveIntentProcedure = "/vrooli.program_runtime.v1.bindings.BindingRegistryService/ResolveIntent"
+	// BindingRegistryServiceSweepBindingsProcedure is the fully-qualified name of the
+	// BindingRegistryService's SweepBindings RPC.
+	BindingRegistryServiceSweepBindingsProcedure = "/vrooli.program_runtime.v1.bindings.BindingRegistryService/SweepBindings"
 	// BindingConditionServiceGetBindingConditionProcedure is the fully-qualified name of the
 	// BindingConditionService's GetBindingCondition RPC.
 	BindingConditionServiceGetBindingConditionProcedure = "/vrooli.program_runtime.v1.bindings.BindingConditionService/GetBindingCondition"
@@ -67,6 +70,7 @@ type BindingRegistryServiceClient interface {
 	DoctorBindings(context.Context, *connect.Request[bindings.DoctorBindingsRequest]) (*connect.Response[bindings.DoctorBindingsResponse], error)
 	DescribeBinding(context.Context, *connect.Request[bindings.DescribeBindingRequest]) (*connect.Response[bindings.DescribeBindingResponse], error)
 	ResolveIntent(context.Context, *connect.Request[bindings.ResolveIntentRequest]) (*connect.Response[bindings.ResolveIntentResponse], error)
+	SweepBindings(context.Context, *connect.Request[bindings.SweepBindingsRequest]) (*connect.Response[bindings.SweepBindingsResponse], error)
 }
 
 // NewBindingRegistryServiceClient constructs a client for the
@@ -117,6 +121,12 @@ func NewBindingRegistryServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(bindingRegistryServiceMethods.ByName("ResolveIntent")),
 			connect.WithClientOptions(opts...),
 		),
+		sweepBindings: connect.NewClient[bindings.SweepBindingsRequest, bindings.SweepBindingsResponse](
+			httpClient,
+			baseURL+BindingRegistryServiceSweepBindingsProcedure,
+			connect.WithSchema(bindingRegistryServiceMethods.ByName("SweepBindings")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -128,6 +138,7 @@ type bindingRegistryServiceClient struct {
 	doctorBindings  *connect.Client[bindings.DoctorBindingsRequest, bindings.DoctorBindingsResponse]
 	describeBinding *connect.Client[bindings.DescribeBindingRequest, bindings.DescribeBindingResponse]
 	resolveIntent   *connect.Client[bindings.ResolveIntentRequest, bindings.ResolveIntentResponse]
+	sweepBindings   *connect.Client[bindings.SweepBindingsRequest, bindings.SweepBindingsResponse]
 }
 
 // ListBindings calls vrooli.program_runtime.v1.bindings.BindingRegistryService.ListBindings.
@@ -160,6 +171,11 @@ func (c *bindingRegistryServiceClient) ResolveIntent(ctx context.Context, req *c
 	return c.resolveIntent.CallUnary(ctx, req)
 }
 
+// SweepBindings calls vrooli.program_runtime.v1.bindings.BindingRegistryService.SweepBindings.
+func (c *bindingRegistryServiceClient) SweepBindings(ctx context.Context, req *connect.Request[bindings.SweepBindingsRequest]) (*connect.Response[bindings.SweepBindingsResponse], error) {
+	return c.sweepBindings.CallUnary(ctx, req)
+}
+
 // BindingRegistryServiceHandler is an implementation of the
 // vrooli.program_runtime.v1.bindings.BindingRegistryService service.
 type BindingRegistryServiceHandler interface {
@@ -169,6 +185,7 @@ type BindingRegistryServiceHandler interface {
 	DoctorBindings(context.Context, *connect.Request[bindings.DoctorBindingsRequest]) (*connect.Response[bindings.DoctorBindingsResponse], error)
 	DescribeBinding(context.Context, *connect.Request[bindings.DescribeBindingRequest]) (*connect.Response[bindings.DescribeBindingResponse], error)
 	ResolveIntent(context.Context, *connect.Request[bindings.ResolveIntentRequest]) (*connect.Response[bindings.ResolveIntentResponse], error)
+	SweepBindings(context.Context, *connect.Request[bindings.SweepBindingsRequest]) (*connect.Response[bindings.SweepBindingsResponse], error)
 }
 
 // NewBindingRegistryServiceHandler builds an HTTP handler from the service implementation. It
@@ -214,6 +231,12 @@ func NewBindingRegistryServiceHandler(svc BindingRegistryServiceHandler, opts ..
 		connect.WithSchema(bindingRegistryServiceMethods.ByName("ResolveIntent")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bindingRegistryServiceSweepBindingsHandler := connect.NewUnaryHandler(
+		BindingRegistryServiceSweepBindingsProcedure,
+		svc.SweepBindings,
+		connect.WithSchema(bindingRegistryServiceMethods.ByName("SweepBindings")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.program_runtime.v1.bindings.BindingRegistryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BindingRegistryServiceListBindingsProcedure:
@@ -228,6 +251,8 @@ func NewBindingRegistryServiceHandler(svc BindingRegistryServiceHandler, opts ..
 			bindingRegistryServiceDescribeBindingHandler.ServeHTTP(w, r)
 		case BindingRegistryServiceResolveIntentProcedure:
 			bindingRegistryServiceResolveIntentHandler.ServeHTTP(w, r)
+		case BindingRegistryServiceSweepBindingsProcedure:
+			bindingRegistryServiceSweepBindingsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -259,6 +284,10 @@ func (UnimplementedBindingRegistryServiceHandler) DescribeBinding(context.Contex
 
 func (UnimplementedBindingRegistryServiceHandler) ResolveIntent(context.Context, *connect.Request[bindings.ResolveIntentRequest]) (*connect.Response[bindings.ResolveIntentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveIntent is not implemented"))
+}
+
+func (UnimplementedBindingRegistryServiceHandler) SweepBindings(context.Context, *connect.Request[bindings.SweepBindingsRequest]) (*connect.Response[bindings.SweepBindingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.bindings.BindingRegistryService.SweepBindings is not implemented"))
 }
 
 // BindingConditionServiceClient is a client for the

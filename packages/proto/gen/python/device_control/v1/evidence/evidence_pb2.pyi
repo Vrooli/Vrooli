@@ -22,7 +22,7 @@ class ListAuditResponse(_message.Message):
     def __init__(self, records: _Optional[_Iterable[_Union[AuditRecord, _Mapping]]] = ...) -> None: ...
 
 class AuditRecord(_message.Message):
-    __slots__ = ("id", "actor", "device_id", "lease_id", "verb", "outcome", "created_at", "redaction_verified")
+    __slots__ = ("id", "actor", "device_id", "lease_id", "verb", "outcome", "created_at", "redaction_verified", "redaction_opted_out")
     ID_FIELD_NUMBER: _ClassVar[int]
     ACTOR_FIELD_NUMBER: _ClassVar[int]
     DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -31,6 +31,7 @@ class AuditRecord(_message.Message):
     OUTCOME_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     REDACTION_VERIFIED_FIELD_NUMBER: _ClassVar[int]
+    REDACTION_OPTED_OUT_FIELD_NUMBER: _ClassVar[int]
     id: str
     actor: str
     device_id: str
@@ -39,4 +40,5 @@ class AuditRecord(_message.Message):
     outcome: str
     created_at: _timestamp_pb2.Timestamp
     redaction_verified: bool
-    def __init__(self, id: _Optional[str] = ..., actor: _Optional[str] = ..., device_id: _Optional[str] = ..., lease_id: _Optional[str] = ..., verb: _Optional[str] = ..., outcome: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., redaction_verified: _Optional[bool] = ...) -> None: ...
+    redaction_opted_out: bool
+    def __init__(self, id: _Optional[str] = ..., actor: _Optional[str] = ..., device_id: _Optional[str] = ..., lease_id: _Optional[str] = ..., verb: _Optional[str] = ..., outcome: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., redaction_verified: _Optional[bool] = ..., redaction_opted_out: _Optional[bool] = ...) -> None: ...

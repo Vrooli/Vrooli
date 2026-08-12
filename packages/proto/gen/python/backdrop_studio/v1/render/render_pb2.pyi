@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SubmitRequest(_message.Message):
-    __slots__ = ("style", "placement", "seed", "candidate_count", "brand_tokens")
+    __slots__ = ("style", "placement", "seed", "candidate_count", "brand_tokens", "brand_id", "surface_id")
     class BrandTokensEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -21,12 +21,16 @@ class SubmitRequest(_message.Message):
     SEED_FIELD_NUMBER: _ClassVar[int]
     CANDIDATE_COUNT_FIELD_NUMBER: _ClassVar[int]
     BRAND_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    BRAND_ID_FIELD_NUMBER: _ClassVar[int]
+    SURFACE_ID_FIELD_NUMBER: _ClassVar[int]
     style: _shared_pb2.Style
     placement: str
     seed: int
     candidate_count: int
     brand_tokens: _containers.ScalarMap[str, str]
-    def __init__(self, style: _Optional[_Union[_shared_pb2.Style, _Mapping]] = ..., placement: _Optional[str] = ..., seed: _Optional[int] = ..., candidate_count: _Optional[int] = ..., brand_tokens: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    brand_id: str
+    surface_id: str
+    def __init__(self, style: _Optional[_Union[_shared_pb2.Style, _Mapping]] = ..., placement: _Optional[str] = ..., seed: _Optional[int] = ..., candidate_count: _Optional[int] = ..., brand_tokens: _Optional[_Mapping[str, str]] = ..., brand_id: _Optional[str] = ..., surface_id: _Optional[str] = ...) -> None: ...
 
 class GetJobRequest(_message.Message):
     __slots__ = ("job_id",)
@@ -57,7 +61,7 @@ class SelectCandidateRequest(_message.Message):
     def __init__(self, job_id: _Optional[str] = ..., candidate_id: _Optional[str] = ..., actor: _Optional[str] = ...) -> None: ...
 
 class RenderJob(_message.Message):
-    __slots__ = ("id", "style_id", "status", "seed", "execution_path", "candidates", "selected_candidate_id", "selected_by")
+    __slots__ = ("id", "style_id", "status", "seed", "execution_path", "candidates", "selected_candidate_id", "selected_by", "surface_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     STYLE_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -66,6 +70,7 @@ class RenderJob(_message.Message):
     CANDIDATES_FIELD_NUMBER: _ClassVar[int]
     SELECTED_CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
     SELECTED_BY_FIELD_NUMBER: _ClassVar[int]
+    SURFACE_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     style_id: str
     status: str
@@ -74,10 +79,11 @@ class RenderJob(_message.Message):
     candidates: _containers.RepeatedCompositeFieldContainer[Candidate]
     selected_candidate_id: str
     selected_by: str
-    def __init__(self, id: _Optional[str] = ..., style_id: _Optional[str] = ..., status: _Optional[str] = ..., seed: _Optional[int] = ..., execution_path: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[Candidate, _Mapping]]] = ..., selected_candidate_id: _Optional[str] = ..., selected_by: _Optional[str] = ...) -> None: ...
+    surface_id: str
+    def __init__(self, id: _Optional[str] = ..., style_id: _Optional[str] = ..., status: _Optional[str] = ..., seed: _Optional[int] = ..., execution_path: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[Candidate, _Mapping]]] = ..., selected_candidate_id: _Optional[str] = ..., selected_by: _Optional[str] = ..., surface_id: _Optional[str] = ...) -> None: ...
 
 class Candidate(_message.Message):
-    __slots__ = ("id", "job_id", "image_png", "width", "height", "strategy", "execution_path", "treatment_applied", "seed", "conditioning_submitted", "disclosure_required", "prompt", "provenance_json")
+    __slots__ = ("id", "job_id", "image_png", "width", "height", "strategy", "execution_path", "treatment_applied", "seed", "conditioning_submitted", "disclosure_required", "prompt", "provenance_json", "quality_json")
     ID_FIELD_NUMBER: _ClassVar[int]
     JOB_ID_FIELD_NUMBER: _ClassVar[int]
     IMAGE_PNG_FIELD_NUMBER: _ClassVar[int]
@@ -91,6 +97,7 @@ class Candidate(_message.Message):
     DISCLOSURE_REQUIRED_FIELD_NUMBER: _ClassVar[int]
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     PROVENANCE_JSON_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_JSON_FIELD_NUMBER: _ClassVar[int]
     id: str
     job_id: str
     image_png: bytes
@@ -104,4 +111,5 @@ class Candidate(_message.Message):
     disclosure_required: bool
     prompt: str
     provenance_json: str
-    def __init__(self, id: _Optional[str] = ..., job_id: _Optional[str] = ..., image_png: _Optional[bytes] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., strategy: _Optional[str] = ..., execution_path: _Optional[str] = ..., treatment_applied: _Optional[bool] = ..., seed: _Optional[int] = ..., conditioning_submitted: _Optional[bool] = ..., disclosure_required: _Optional[bool] = ..., prompt: _Optional[str] = ..., provenance_json: _Optional[str] = ...) -> None: ...
+    quality_json: str
+    def __init__(self, id: _Optional[str] = ..., job_id: _Optional[str] = ..., image_png: _Optional[bytes] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., strategy: _Optional[str] = ..., execution_path: _Optional[str] = ..., treatment_applied: _Optional[bool] = ..., seed: _Optional[int] = ..., conditioning_submitted: _Optional[bool] = ..., disclosure_required: _Optional[bool] = ..., prompt: _Optional[str] = ..., provenance_json: _Optional[str] = ..., quality_json: _Optional[str] = ...) -> None: ...

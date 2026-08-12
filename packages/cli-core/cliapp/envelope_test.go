@@ -73,6 +73,14 @@ func TestWrapAPIErrorWithAPIErrorEnvelope(t *testing.T) {
 	}
 }
 
+func TestAppCommandBoundaryRendersAPIMessage(t *testing.T) {
+	apiErr := &cliutil.APIError{StatusCode: 400, RawResponse: []byte(`{"code":"unknown_device","message":"device missing-phone is not registered"}`)}
+	got := renderCommandError("device session acquire", apiErr)
+	if got == nil || got.Error() != "device session acquire: unknown_device: device missing-phone is not registered" {
+		t.Fatalf("renderCommandError() = %v", got)
+	}
+}
+
 func TestWrapAPIErrorWithAPIErrorNoEnvelope(t *testing.T) {
 	apiErr := &cliutil.APIError{
 		StatusCode:  500,

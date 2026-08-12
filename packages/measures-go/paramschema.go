@@ -12,10 +12,10 @@ package measures
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	validate "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -88,11 +88,15 @@ type SchemaReader struct {
 // NewSchemaReaderFromFile loads a FileDescriptorSet image (e.g.
 // packages/proto/gen/descriptor/image.binpb) from disk.
 func NewSchemaReaderFromFile(path string) (*SchemaReader, error) {
-	b, err := os.ReadFile(path)
+	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: path})
 	if err != nil {
-		return nil, fmt.Errorf("measures: read descriptor image %q: %w", path, err)
+		return nil, err
 	}
-	return NewSchemaReaderFromBytes(b)
+	snapshot, err := source.Snapshot()
+	if err != nil {
+		return nil, fmt.Errorf("measures: load descriptor image %q: %w", path, err)
+	}
+	return NewSchemaReaderFromBytes(snapshot.DescriptorBytes())
 }
 
 // NewSchemaReaderFromBytes loads a serialized FileDescriptorSet image from

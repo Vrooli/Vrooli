@@ -193,12 +193,15 @@ func TestNormalizeStatus(t *testing.T) {
 		"MISSING":                        StatusMissing,
 		"NOW (UI, CLI) / IN-REACH (API)": StatusNow,
 		"":                               StatusMissing,
-		"garbage":                        StatusMissing,
 	}
 	for in, want := range cases {
-		if got := normalizeStatus(in); got != want {
-			t.Errorf("normalizeStatus(%q) = %q, want %q", in, got, want)
+		got, err := normalizeStatus(in)
+		if err != nil || got != want {
+			t.Errorf("normalizeStatus(%q) = %q, err=%v, want %q", in, got, err, want)
 		}
+	}
+	if _, err := normalizeStatus("garbage"); err == nil {
+		t.Fatal("expected unknown status to be rejected")
 	}
 }
 

@@ -204,13 +204,28 @@ func validateCLICoverage(eps []endpoints.EndpointDescriptor, mf manifestView) er
 		}
 		key := svc + "/" + method
 		endpointKeys[key] = struct{}{}
+		fullKey := ""
+		if fullService, _, ok := parseProcedureFull(e.Path); ok {
+			fullKey = fullService + "/" + method
+			endpointKeys[fullKey] = struct{}{}
+		}
 
 		if _, bound := mf.bindings[key]; bound {
 			continue
 		}
+		if fullKey != "" {
+			if _, bound := mf.bindings[fullKey]; bound {
+				continue
+			}
+		}
 
 		// Not bound: must be explicitly omitted in the manifest.
 		if _, omitted := mf.omitted[key]; !omitted {
+			if fullKey != "" {
+				if _, omitted := mf.omitted[fullKey]; omitted {
+					continue
+				}
+			}
 			violations = append(violations, fmt.Sprintf(
 				"endpoint %q (%s) is a Connect procedure with no binding and no omission in cli/manifest.json; "+
 					"bind it under groups[] or declare it in omitted[] with a reason",
@@ -256,6 +271,22 @@ func parseProcedure(path string) (service, method string, ok bool) {
 		return "", "", false
 	}
 	return left[dot+1:], method, true
+}
+
+// parseProcedureFull returns the fully-qualified service name from a Connect
+// procedure path. Coverage accepts both this canonical name and the historic
+// short service alias so manifests can qualify bindings when descriptor-backed
+// consumers need an unambiguous request schema.
+func parseProcedureFull(path string) (service, method string, ok bool) {
+	if !strings.HasPrefix(path, "/vrooli.") {
+		return "", "", false
+	}
+	p := strings.TrimPrefix(path, "/")
+	slash := strings.IndexByte(p, '/')
+	if slash < 0 || slash == 0 || slash == len(p)-1 {
+		return "", "", false
+	}
+	return p[:slash], p[slash+1:], true
 }
 
 // --- transport contract ----------------------------------------------------
