@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("mermaid", () => ({
@@ -9,6 +9,7 @@ vi.mock("mermaid", () => ({
 }));
 
 import { MermaidDiagram } from "./MermaidDiagram";
+import { renderWithProviders } from "../../test-utils";
 
 describe("MermaidDiagram", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -17,7 +18,7 @@ describe("MermaidDiagram", () => {
     const onMermaidOpen = vi.fn();
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
-    render(<MermaidDiagram code="graph TD; A-->B" onMermaidOpen={onMermaidOpen} />);
+    renderWithProviders(<MermaidDiagram code="graph TD; A-->B" onMermaidOpen={onMermaidOpen} />);
 
     await waitFor(() => expect(screen.getByLabelText("diagram")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Source" }));
@@ -29,7 +30,7 @@ describe("MermaidDiagram", () => {
   });
 
   it("renders safely when no external open action is provided", async () => {
-    render(<MermaidDiagram code="graph TD; A-->B" />);
+    renderWithProviders(<MermaidDiagram code="graph TD; A-->B" />);
     await waitFor(() => expect(screen.getByText("graph TD; A-->B")).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "Open" })).not.toBeInTheDocument();
   });

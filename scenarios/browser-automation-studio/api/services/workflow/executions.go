@@ -106,6 +106,23 @@ type ExecuteOptions struct {
 	ValidationContext *autodriver.ValidationContext
 }
 
+// requiredVideoArtifactError turns the requires-video request flag into an
+// evidence contract. Capture being enabled is not sufficient: callers asking
+// for video need a durable artifact they can attach to a journey or release
+// record, and a missing artifact must make the execution fail closed.
+func requiredVideoArtifactError(required bool, videos []ExecutionVideoArtifact, lookupErr error) error {
+	if !required {
+		return nil
+	}
+	if lookupErr != nil {
+		return fmt.Errorf("required video artifact could not be verified: %w", lookupErr)
+	}
+	if len(videos) == 0 {
+		return errors.New("required video artifact was not produced")
+	}
+	return nil
+}
+
 // ExecuteWorkflowAPI starts a workflow execution using proto request/response types.
 func (s *WorkflowService) ExecuteWorkflowAPI(ctx context.Context, req *basapi.ExecuteWorkflowRequest) (*basapi.ExecuteWorkflowResponse, error) {
 	return s.ExecuteWorkflowAPIWithOptions(ctx, req, nil)
@@ -651,6 +668,10 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		executor = autoexecutor.NewSimpleExecutor(nil)
 	}
 	runErr := executor.Execute(ctx, req)
+	if runErr == nil && opts != nil && opts.RequiresVideo {
+		videos, artifactErr := s.GetExecutionVideoArtifacts(persistenceCtx, executionID)
+		runErr = requiredVideoArtifactError(true, videos, artifactErr)
+	}
 
 	status := database.ExecutionStatusCompleted
 	errMsg := ""

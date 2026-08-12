@@ -36,14 +36,14 @@
       "id": "truthful-count",
       "type": "custom",
       "statement": "Every rendered row exposes its position and the full collection size while the live status describes the visible window.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "dense"]
     },
     {
       "id": "measured-window",
       "type": "custom",
       "statement": "Rows are dynamically measured and overscanned instead of relying on a fixed-height rendering assumption.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "dense"]
     },
     {

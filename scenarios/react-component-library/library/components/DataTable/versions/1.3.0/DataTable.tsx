@@ -163,6 +163,7 @@ const styles = `
 @container (max-width: 30rem) { [data-rcl-data-table-controls] { padding: var(--space-sm); } [data-rcl-data-table-filter-group] { grid-template-columns: minmax(0, 1fr); } [data-rcl-data-table-card-fields] div { grid-template-columns: minmax(0, 1fr); gap: var(--space-3xs); } [data-rcl-data-table-actions] { justify-content: start; } }
 @media (prefers-reduced-motion: reduce) { [data-rcl-data-table] *, [data-rcl-data-table] *::before, [data-rcl-data-table] *::after { transition-duration: .01ms; } }
 @media (forced-colors: active) { [data-rcl-data-table-controls], [data-rcl-data-table-empty], [data-rcl-data-table-permission], [data-rcl-data-table-card], [data-rcl-data-table-filter-group] button, [data-rcl-data-table-page] button, [data-rcl-data-table-actions] button { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-data-table-filter-group] button[aria-pressed="true"], [data-rcl-data-table-page] button[aria-current="page"] { border-color: Highlight; background: Highlight; color: HighlightText; } }
+@container (min-width: 30.01rem) and (max-width: 52rem) { [data-rcl-data-table-desktop] { display: block; } [data-rcl-data-table-card-list] { display: none; } }
 `;
 
 function searchableText(value: ReactNode): string {
@@ -223,7 +224,11 @@ function useCardPresentation() {
     if (!element) return;
     const update = () => {
       const width = element.getBoundingClientRect().width;
-      if (width > 0) setCards(width <= 832);
+      // The preview host reserves padding around the specimen, so a desktop
+      // 1280px capture can legitimately provide a ~646px component stage.
+      // Keep the semantic table presentation through that stage width and
+      // reserve cards for genuinely narrow/mobile surfaces.
+      if (width > 0) setCards(width <= 480);
     };
     update();
     const observer =
@@ -506,7 +511,11 @@ export function DataTable<Row>({
     ) : null;
 
   const tableContent = (
-    <>
+    <div
+      data-testid="data-table-content"
+      role="region"
+      aria-label="Data table content"
+    >
       {status === "permission-denied" ? (
         <div data-rcl-data-table-permission role="status">
           <strong>Access is limited</strong>
@@ -717,7 +726,7 @@ export function DataTable<Row>({
           ) : null}
         </>
       )}
-    </>
+    </div>
   );
 
   return (

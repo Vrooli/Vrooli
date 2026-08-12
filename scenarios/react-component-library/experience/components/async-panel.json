@@ -2,11 +2,6 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library/AsyncPanel@1.0.0"
-  },
   "component": {
     "id": "async-panel",
     "title": "Async Panel",
@@ -40,6 +35,10 @@
       "description": "The panel announces a terminal error and can provide retry."
     }
   ],
+  "elements": [
+    { "id": "surface", "role": "region", "description": "The lifecycle-bearing async surface." },
+    { "id": "status", "role": "status", "description": "The polite lifecycle announcement when applicable." }
+  ],
   "claims": [
     {
       "id": "surface-lifecycle-preserved",
@@ -55,5 +54,11 @@
       "tier": "manual",
       "states": ["loading", "partial", "error"]
     }
-  ]
+  ],
+  "bindings": {
+    "elements": {
+      "surface": { "selector": "[data-experience-surface]" },
+      "status": { "selector": "[data-experience-surface] [role=status]" }
+    }
+  }
 }

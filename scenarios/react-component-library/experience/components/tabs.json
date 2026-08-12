@@ -2,11 +2,6 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library:Tabs@1.0.0"
-  },
   "component": {
     "id": "tabs",
     "title": "Tabs",
@@ -25,6 +20,10 @@
       "description": "Long labels remain operable."
     }
   ],
+  "elements": [
+    { "id": "tablist", "role": "tablist", "description": "The responsive tab navigation." },
+    { "id": "panel", "role": "tabpanel", "description": "The selected tab panel." }
+  ],
   "claims": [
     {
       "id": "contract-present",
@@ -34,6 +33,12 @@
       "states": ["default", "long-content"]
     }
   ],
+  "bindings": {
+    "elements": {
+      "tablist": { "selector": "[data-rcl-tablist]" },
+      "panel": { "selector": "[data-rcl-tab-panel]" }
+    }
+  },
   "floorOptOuts": [
     {
       "floor": "no-document-horizontal-overflow",

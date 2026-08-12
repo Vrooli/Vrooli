@@ -1,33 +1,48 @@
 {
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library:NavLink@1.0.0"
-  },
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
   "component": {
-    "id": "navigation.nav-link",
+    "id": "nav-link",
     "title": "NavLink",
-    "purpose": "NavLink preserves responsive navigation semantics and token ownership."
+    "purpose": "A named navigation link with a stable current-page indicator and bounded label.",
+    "storyRef": "../../library/components/NavLink/versions/1.0.0/story.json"
   },
   "states": [
     {
       "id": "default",
       "example": "default",
-      "description": "The navigation surface is available."
+      "description": "The navigation link is available."
     },
     {
       "id": "long-content",
       "example": "long-content",
-      "description": "Long labels remain operable."
+      "description": "Long labels remain operable and bounded."
+    }
+  ],
+  "elements": [
+    {
+      "id": "link",
+      "role": "link",
+      "description": "The navigation destination."
     }
   ],
   "claims": [
     {
-      "id": "contract-present",
-      "type": "custom",
-      "statement": "NavLink preserves responsive navigation semantics and token ownership.",
-      "tier": "manual",
+      "id": "link-present",
+      "type": "element-present",
+      "statement": "The asset exposes a named navigation link.",
+      "tier": "machine",
+      "elements": ["link"],
+      "states": ["default", "long-content"]
+    },
+    {
+      "id": "link-no-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "Long labels do not create document-level horizontal overflow.",
+      "tier": "machine",
       "states": ["default", "long-content"]
     }
-  ]
+  ],
+  "bindings": { "elements": { "link": { "selector": "link" } } }
 }

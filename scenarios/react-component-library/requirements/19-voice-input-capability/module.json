@@ -1,6 +1,7 @@
 {
   "_metadata": {
     "description": "Reusable, safe browser voice-input lifecycle and presentation capability.",
+    "last_validated_at": "2026-08-12T08:07:12-04:00",
     "module": "voice-input-capability",
     "prd_ref": "OT-P0-008",
     "priority": "P0",
@@ -15,8 +16,19 @@
       "category": "reliability",
       "criticality": "P0",
       "description": "The versioned hook owns injected capture, timer, cue, and adapter seams. Always-on mode does not stop on silence; timeout mode is the only automatic termination clock; terminal cleanup is idempotent.",
-      "tags": ["voice", "lifecycle", "reliability"],
-      "validation": [{ "type": "test", "ref": "ui/src/test-utils/voiceInput.test.ts", "phase": "unit", "status": "passing" }]
+      "tags": [
+        "voice",
+        "lifecycle",
+        "reliability"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/test-utils/voiceInput.test.ts",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
     },
     {
       "id": "VI-002",
@@ -26,8 +38,25 @@
       "category": "accessibility",
       "criticality": "P0",
       "description": "The cataloged button has fake-backed state specimens, accessible labels, no preview permission acquisition, and a version-pinned hook dependency closure.",
-      "tags": ["voice", "catalog", "accessibility"],
-      "validation": [{ "type": "test", "ref": "ui/src/test-utils/voiceInputButton.test.tsx", "phase": "unit", "status": "passing" }, { "type": "test", "ref": "ui/scripts/catalog-conformance.mjs", "phase": "workflow", "status": "passing" }]
+      "tags": [
+        "voice",
+        "catalog",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/test-utils/voiceInputButton.test.tsx",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "ui/scripts/catalog-conformance.mjs",
+          "phase": "workflow",
+          "status": "failing"
+        }
+      ]
     }
   ]
 }

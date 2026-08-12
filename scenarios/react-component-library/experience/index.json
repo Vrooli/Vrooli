@@ -91,6 +91,24 @@
       "status": "active"
     },
     {
+      "id": "navigation-tree",
+      "path": "components/navigation-tree.json",
+      "title": "NavigationTree",
+      "status": "active"
+    },
+    {
+      "id": "nav-link",
+      "path": "components/nav-link.json",
+      "title": "NavLink",
+      "status": "active"
+    },
+    {
+      "id": "sidebar-shell",
+      "path": "components/sidebar-shell.json",
+      "title": "SidebarShell",
+      "status": "active"
+    },
+    {
       "id": "asset-detail-shell",
       "path": "components/asset-detail-shell.json",
       "title": "Asset Detail Shell",
@@ -160,6 +178,30 @@
       "id": "status-badge",
       "path": "components/status-badge.json",
       "title": "Status Badge",
+      "status": "active"
+    },
+    {
+      "id": "pressable",
+      "path": "components/pressable.json",
+      "title": "Pressable",
+      "status": "active"
+    },
+    {
+      "id": "icon",
+      "path": "components/icon.json",
+      "title": "Icon",
+      "status": "active"
+    },
+    {
+      "id": "text",
+      "path": "components/text.json",
+      "title": "Text",
+      "status": "active"
+    },
+    {
+      "id": "drawer",
+      "path": "components/drawer.json",
+      "title": "Drawer",
       "status": "active"
     }
   ]

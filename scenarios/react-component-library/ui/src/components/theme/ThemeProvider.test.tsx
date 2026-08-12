@@ -57,6 +57,16 @@ describe("ThemeProvider", () => {
     vi.unstubAllGlobals();
   });
 
+  it("fails loudly when the hook is used without its provider", () => {
+    const originalConsoleError = console.error;
+    console.error = () => undefined;
+    try {
+      expect(() => render(<Probe />)).toThrow("useTheme must be used inside <ThemeProvider>");
+    } finally {
+      console.error = originalConsoleError;
+    }
+  });
+
   it("defaults to system and resolves to OS preference", () => {
     installMatchMedia(true);
     render(

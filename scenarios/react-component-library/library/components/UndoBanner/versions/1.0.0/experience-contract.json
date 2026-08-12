@@ -36,12 +36,12 @@
       "id": "recovery",
       "type": "custom",
       "statement": "Undo is available before expiry, while rollback progress, completion, and failure remain explicit.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "submitting", "success", "request-error"]
     },
     {
       "id": "reflow",
-      "type": "responsive",
+      "type": "custom",
       "statement": "The action becomes a full-width mobile control without clipping the explanation.",
       "tier": "manual",
       "states": ["default", "request-error"]

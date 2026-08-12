@@ -1,9 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "./renderWithProviders";
 import { ExperienceSurface } from "../components/ExperienceSurface/versions/1.0.0/ExperienceSurface";
 
 describe("ExperienceSurface", () => {
   it("exposes the stable semantic lifecycle contract without prescribing layout", () => {
-    render(
+    renderWithProviders(
       <ExperienceSurface surfaceId="results" state="ready" className="custom-layout">
         <p>Ready results</p>
       </ExperienceSurface>,
@@ -16,7 +17,7 @@ describe("ExperienceSurface", () => {
   });
 
   it("announces transient and failure state only when a message is declared", () => {
-    render(
+    renderWithProviders(
       <ExperienceSurface surfaceId="results" state="error" statusMessage="Results could not load">
         <p>Try again</p>
       </ExperienceSurface>,
@@ -28,7 +29,7 @@ describe("ExperienceSurface", () => {
   });
 
   it("marks loading surfaces busy for assistive technology", () => {
-    render(
+    renderWithProviders(
       <ExperienceSurface surfaceId="results" state="loading">
         <p>Loading results</p>
       </ExperienceSurface>,

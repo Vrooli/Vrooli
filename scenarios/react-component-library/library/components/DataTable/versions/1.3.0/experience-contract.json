@@ -1,13 +1,12 @@
 {
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library:DataTable@1.3.0"
-  },
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
   "component": {
     "id": "data-display.data-table",
     "title": "DataTable",
-    "purpose": "Present dense data as a calm, selectable, keyboard-operable surface whose async states and mobile transformation preserve context."
+    "purpose": "Present dense data as a calm, selectable, keyboard-operable surface whose async states and mobile transformation preserve context.",
+    "storyRef": "../../library/components/DataTable/versions/1.3.0/story.json"
   },
   "states": [
     {
@@ -78,7 +77,8 @@
       "statement": "Refreshing keeps the table visible while announcing the update state.",
       "tier": "machine",
       "elements": ["table"],
-      "states": ["refreshing", "partial"]
+      "states": ["refreshing", "partial"],
+      "viewports": ["desktop"]
     },
     {
       "id": "error-retryable",

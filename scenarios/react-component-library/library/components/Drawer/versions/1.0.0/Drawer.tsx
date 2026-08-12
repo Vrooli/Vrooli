@@ -33,7 +33,11 @@ export function Drawer({
       style={{ ...panel, display: "grid", gap: 16 }}
     >
       {children ?? "Drawer content"}
-      <button type="button" onClick={onClose}>
+      <button
+        type="button"
+        onClick={onClose}
+        style={{ minHeight: 44, minWidth: 44 }}
+      >
         Close
       </button>
     </section>

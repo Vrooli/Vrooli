@@ -38,7 +38,9 @@ if (!url) {
       pageErrors.push(error && error.stack ? error.stack : String(error));
     });
     page.on("requestfailed", (request) => {
-      failedRequests.push(`${request.method()} ${request.url()} - ${request.failure()?.errorText || "request failed"}`);
+      failedRequests.push(
+        `${request.method()} ${request.url()} - ${request.failure()?.errorText || "request failed"}`,
+      );
     });
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 });
     try {
@@ -48,15 +50,23 @@ if (!url) {
         { timeout: 15_000 },
       );
     } catch (error) {
-      const previewError = await page.locator("#preview-error").textContent().catch(() => "");
-      const state = await page.locator("#root").getAttribute("data-experience-state").catch(() => "");
+      const previewError = await page
+        .locator("#preview-error")
+        .textContent()
+        .catch(() => "");
+      const state = await page
+        .locator("#root")
+        .getAttribute("data-experience-state")
+        .catch(() => "");
       const diagnostics = [
         `state=${state || "unknown"}`,
         previewError ? `preview-error=${previewError.trim()}` : "",
         pageErrors.length ? `page-errors=${pageErrors.join(" | ")}` : "",
         consoleErrors.length ? `console-errors=${consoleErrors.join(" | ")}` : "",
         failedRequests.length ? `failed-requests=${failedRequests.join(" | ")}` : "",
-      ].filter(Boolean).join("; ");
+      ]
+        .filter(Boolean)
+        .join("; ");
       throw new Error(`${error.message}${diagnostics ? ` (${diagnostics})` : ""}`);
     }
     const result = await page.locator("#rcl-story-result").textContent();

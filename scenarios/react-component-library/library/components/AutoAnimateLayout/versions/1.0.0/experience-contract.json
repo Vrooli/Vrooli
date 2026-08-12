@@ -21,19 +21,19 @@
       "id": "layout-difference",
       "type": "custom",
       "statement": "The boundary snapshots keyed rectangles and animates only transform differences after insertion, removal, reorder, or resize.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "reduced-motion",
       "type": "custom",
       "statement": "The shared reduced-motion hook disables layout animation while preserving the resulting geometry.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "causality",
-      "type": "visual",
+      "type": "custom",
       "statement": "Rows move as a consequence of the change that caused their displacement rather than independently drifting.",
       "tier": "manual",
       "states": ["default"]

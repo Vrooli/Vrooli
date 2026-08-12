@@ -136,7 +136,11 @@ func (r *reader) readVersionContract(component Component) ([]byte, error) {
 		return nil, os.ErrNotExist
 	}
 	root := filepath.Join(r.repoRoot, "scenarios", "react-component-library", "library")
-	for _, kind := range []string{"components", "hooks"} {
+	// Experience contracts are part of every publishable library tier. The
+	// reader used to accept only components and hooks, which silently turned
+	// primitive/foundation captures into "not-configured" evidence and left
+	// those assets below verified even when Experience Manager had passed them.
+	for _, kind := range []string{"foundations", "primitives", "components", "hooks", "services"} {
 		path := filepath.Join(root, kind, filepath.Clean(name), "versions", filepath.Clean(version), "experience-contract.json")
 		data, err := os.ReadFile(path)
 		if err == nil || !os.IsNotExist(err) {

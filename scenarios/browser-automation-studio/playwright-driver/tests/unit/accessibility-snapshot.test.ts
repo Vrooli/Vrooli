@@ -205,16 +205,25 @@ describe('deriveStates', () => {
 describe('parseDomSnapshot', () => {
   it('joins backend node id → tag, data-testid, and layout bounds', () => {
     // strings table: index → value
-    const strings = ['BUTTON', 'data-testid', 'submit-btn', 'id', 'x', 'DIV'];
+    const strings = [
+      'BUTTON',
+      'data-testid',
+      'submit-btn',
+      'id',
+      'x',
+      'data-rcl-control',
+      'true',
+      'DIV',
+    ];
     const snapshot: DOMSnapshotResult = {
       strings,
       documents: [
         {
           nodes: {
             backendNodeId: [30, 31],
-            nodeName: [0, 5], // BUTTON, DIV
+            nodeName: [0, 7], // BUTTON, DIV
             attributes: [
-              [1, 2, 3, 4], // data-testid=submit-btn, id=x
+              [1, 2, 3, 4, 5, 6], // data-testid=submit-btn, id=x, data-rcl-control=true
               [], // no attributes
             ],
           },
@@ -229,6 +238,7 @@ describe('parseDomSnapshot', () => {
     expect(map.get(30)).toEqual({
       tag: 'button',
       testid: 'submit-btn',
+      attributes: { 'data-testid': 'submit-btn', id: 'x', 'data-rcl-control': 'true' },
       bounds: { x: 20, y: 40, width: 100, height: 32 },
     });
     // node 31 (DIV, no testid, no layout) still carries its tag.
@@ -285,7 +295,15 @@ describe('AccessibilitySnapshotter', () => {
 
   it('captures, normalizes, and writes accessibility.json', async () => {
     const domSnapshot: DOMSnapshotResult = {
-      strings: ['BODY', 'BUTTON', 'data-testid', 'submit-btn', 'rgb(15, 23, 42)', 'rgb(255, 255, 255)', '14px'],
+      strings: [
+        'BODY',
+        'BUTTON',
+        'data-testid',
+        'submit-btn',
+        'rgb(15, 23, 42)',
+        'rgb(255, 255, 255)',
+        '14px',
+      ],
       documents: [
         {
           nodes: {

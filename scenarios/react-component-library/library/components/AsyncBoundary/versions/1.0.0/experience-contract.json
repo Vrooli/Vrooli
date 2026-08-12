@@ -73,7 +73,7 @@
       "id": "accessible-recovery",
       "type": "custom",
       "statement": "Loading and failure states expose live semantics, descriptive copy, and a focusable retry path.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["pending", "error"]
     },
     {

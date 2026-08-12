@@ -31,14 +31,14 @@
       "id": "semantic-shell",
       "type": "custom",
       "statement": "The form exposes a named form landmark and live status region.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "validation-error", "offline"]
     },
     {
       "id": "lifecycle-state",
       "type": "custom",
       "statement": "Validation, save, error, success, and offline phases are represented in the DOM without replacing form content.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "validation-error", "offline"]
     },
     {

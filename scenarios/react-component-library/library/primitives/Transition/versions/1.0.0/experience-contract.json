@@ -26,14 +26,14 @@
       "id": "shared-motion-family",
       "type": "custom",
       "statement": "Convenience kinds resolve to MotionPrimitive variants and Presence owns mounting, exit, interruption, and reduced-motion collapse.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "interactive"]
     },
     {
       "id": "no-layout-animation",
       "type": "custom",
       "statement": "Transitions animate opacity, transform, and filter only, preserving layout geometry while content enters or exits.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "interactive"]
     }
   ]

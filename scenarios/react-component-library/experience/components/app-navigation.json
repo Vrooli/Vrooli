@@ -2,11 +2,6 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library:AppNavigation@1.0.0"
-  },
   "component": {
     "id": "app-navigation",
     "title": "AppNavigation",
@@ -14,50 +9,21 @@
     "storyRef": "../../library/components/AppNavigation/versions/1.0.0/story.json"
   },
   "states": [
-    {
-      "id": "desktop",
-      "example": "desktop",
-      "description": "Persistent sidebar presentation."
-    },
-    {
-      "id": "tablet",
-      "example": "tablet",
-      "description": "Drawer presentation for constrained workspaces."
-    },
-    {
-      "id": "mobile",
-      "example": "mobile",
-      "description": "Bottom-navigation presentation for compact viewports."
-    }
+    { "id": "default", "example": "desktop", "description": "The desktop navigation surface is available." },
+    { "id": "long-content", "example": "mobile", "description": "Long labels remain operable across responsive presentations." }
   ],
   "elements": [
-    {
-      "id": "navigation",
-      "role": "navigation",
-      "description": "The semantic navigation landmark in the current presentation."
-    }
+    { "id": "navigation", "role": "navigation", "description": "The named application navigation landmark." },
+    { "id": "active-link", "role": "link", "description": "The current navigation destination." }
   ],
   "claims": [
-    {
-      "id": "navigation-present",
-      "type": "element-present",
-      "statement": "Each presentation exposes a semantic navigation landmark.",
-      "tier": "machine",
-      "elements": ["navigation"],
-      "states": ["desktop", "tablet", "mobile"]
-    },
-    {
-      "id": "responsive-presentation",
-      "type": "custom",
-      "statement": "The same navigation model changes presentation across desktop, tablet, and mobile without losing destinations.",
-      "tier": "manual",
-      "elements": ["navigation"],
-      "states": ["desktop", "tablet", "mobile"]
-    }
+    { "id": "named-navigation", "type": "element-present", "statement": "The asset exposes a named application navigation landmark with links.", "tier": "machine", "elements": ["navigation", "active-link"], "states": ["default", "long-content"] },
+    { "id": "navigation-no-overflow", "type": "no-document-horizontal-overflow", "statement": "Navigation presentation changes do not create document-level horizontal overflow.", "tier": "machine", "states": ["default", "long-content"] }
   ],
   "bindings": {
     "elements": {
-      "navigation": { "selector": "navigation" }
+      "navigation": { "selector": "navigation" },
+      "active-link": { "selector": "link" }
     }
   }
 }

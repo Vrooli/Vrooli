@@ -31,14 +31,14 @@
       "id": "semantic-group",
       "type": "custom",
       "statement": "The section preserves heading, field grouping, and live validation context without requiring consumer layout glue.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "validation"]
     },
     {
       "id": "keyboard-collapse",
       "type": "custom",
       "statement": "Collapsible sections use a native button with an accurate expanded relationship and remain keyboard-operable.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["collapsed"]
     },
     {

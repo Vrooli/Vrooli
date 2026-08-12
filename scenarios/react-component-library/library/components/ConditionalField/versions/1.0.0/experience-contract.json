@@ -26,14 +26,14 @@
       "id": "store-driven",
       "type": "custom",
       "statement": "Visibility is derived from the form store rather than duplicated local state or consumer conditional markup.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["visible", "reset-on-hide"]
     },
     {
       "id": "value-policy",
       "type": "custom",
       "statement": "Reset mode makes the hidden-value policy explicit instead of silently submitting stale dependent data.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["reset-on-hide"]
     },
     {

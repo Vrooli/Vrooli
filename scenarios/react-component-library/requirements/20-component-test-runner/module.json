@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "First-class, safe, version-pinned component and hook test contracts.",
-    "last_validated_at": "2026-07-18T01:34:26-04:00",
+    "last_validated_at": "2026-08-12T08:07:12-04:00",
     "module": "component-test-runner",
     "prd_ref": "OT-P0-008",
     "priority": "P0",

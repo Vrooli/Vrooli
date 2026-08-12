@@ -187,6 +187,40 @@ func TestCoverageReachesTargetWhenEveryBlockingGatePasses(t *testing.T) {
 	}
 }
 
+func TestCoverageMetricsExposeAuditableIndependentDenominators(t *testing.T) {
+	assets := []Asset{
+		{ID: "controls.button", Name: "Button", Kind: "component", Domain: "controls", Priority: "P0", Maturity: "production-ready", Targets: []string{"react-vite"}},
+		{ID: "controls.input", Name: "Input", Kind: "component", Domain: "controls", Priority: "P1", Maturity: "verified", Targets: []string{"react-vite"}},
+	}
+	impls := []Implementation{{Name: "Button", CatalogID: "controls.button"}}
+	gates := []GateDefinition{{ID: "types", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}}}
+	report := ComputeWithEvidence(assets, impls, []GateEvidence{{AssetID: "controls.button", Target: "react-vite", Gate: "types", Result: "pass"}}, gates)
+	if report.Maturity.CatalogCompletion.Numerator != 1 || report.Maturity.CatalogCompletion.Denominator != 2 {
+		t.Fatalf("catalog completion = %#v", report.Maturity.CatalogCompletion)
+	}
+	if report.Maturity.MandatoryGateCoverage.Numerator != 1 || report.Maturity.MandatoryGateCoverage.Denominator != 2 {
+		t.Fatalf("mandatory gate coverage = %#v", report.Maturity.MandatoryGateCoverage)
+	}
+	if report.Maturity.ProductionReadyCoverage.Denominator != 2 {
+		t.Fatalf("production-ready denominator = %#v", report.Maturity.ProductionReadyCoverage)
+	}
+}
+
+func TestMissingOrVacuousExperienceCannotEarnMaturity(t *testing.T) {
+	asset := []Asset{{ID: "controls.button", Name: "Button", Kind: "component", Maturity: "verified", Targets: []string{"react-vite"}}}
+	gates := []GateDefinition{{ID: "types", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}}}
+	evidence := []GateEvidence{{AssetID: "controls.button", Target: "react-vite", Gate: "types", Result: "pass"}}
+	for _, impl := range []Implementation{
+		{Name: "Button", CatalogID: "controls.button", ExperienceStateKnown: true},
+		{Name: "Button", CatalogID: "controls.button", ExperienceStateKnown: true, ExperienceRegistered: true, ExperienceVacuous: true},
+	} {
+		got := ComputeWithEvidence(asset, []Implementation{impl}, evidence, gates).Rows[0].Achieved
+		if got != RungScaffolded {
+			t.Fatalf("experience state %#v earned %q, want scaffolded", impl, got)
+		}
+	}
+}
+
 func TestCoverageDropsOneRungWhenLastGateEvidenceIsRemoved(t *testing.T) {
 	assets := []Asset{{ID: "controls.button", Name: "Button", Kind: "component", Maturity: "production-ready", Targets: []string{"react-vite"}}}
 	impls := []Implementation{{Name: "Button", Root: "components", CatalogID: "controls.button"}}

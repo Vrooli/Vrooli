@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, within } from "@testing-library/react";
 import { renderWithProviders } from "../test-utils";
 import userEvent from "@testing-library/user-event";
@@ -210,5 +210,85 @@ describe("DataTable", () => {
     const bodyRows = within(screen.getByTestId("people-table")).getAllByRole("row").slice(1);
     expect(bodyRows).toHaveLength(1);
     expect(bodyRows[0]).toHaveTextContent("alice");
+  });
+
+  it("supports selection, density, row actions, and bounded pagination", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const onPageChange = vi.fn();
+    renderTable({
+      enableSelection: true,
+      defaultSelectedRowKeys: ["a"],
+      pageSize: 1,
+      rowActions: [{ id: "inspect", label: "Inspect", onSelect }],
+      onPageChange,
+    });
+
+    expect(document.querySelector("[data-rcl-data-table-summary]")).toHaveTextContent("1 selected");
+    await user.click(screen.getByRole("button", { name: "Dense" }));
+    expect(screen.getByTestId("people-table").closest("[data-rcl-data-table]")).toHaveAttribute(
+      "data-rcl-data-table-density",
+      "compact",
+    );
+    await user.click(screen.getByRole("button", { name: "Inspect b" }));
+    expect(onSelect).toHaveBeenCalledWith(rows[1]);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(onPageChange).toHaveBeenCalledWith(2);
+    await user.click(screen.getByRole("checkbox", { name: "Select c" }));
+    expect(document.querySelector("[data-rcl-data-table-summary]")).toHaveTextContent("2 selected");
+  });
+
+  it("renders permission and retry states without pretending the table loaded", async () => {
+    const user = userEvent.setup();
+    const onRetry = vi.fn();
+    renderTable({
+      status: "permission-denied",
+      permissionMessage: "Ask an administrator for access.",
+      onRetry,
+    });
+    expect(screen.getByText("Access is limited")).toBeInTheDocument();
+    expect(screen.getByText("Ask an administrator for access.")).toBeInTheDocument();
+
+    cleanup();
+    renderTable({ status: "retry", onRetry });
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["loading", "pending"],
+    ["refreshing", "refreshing"],
+    ["stale", "stale"],
+    ["partial", "partial-error"],
+    ["offline", "offline"],
+    ["empty", "idle"],
+    ["success", "idle"],
+  ] as const)("maps %s to the corresponding async surface", (status, asyncStatus) => {
+    renderTable({ status, statusMessage: "Status detail" });
+    expect(document.querySelector("[data-rcl-async-boundary]")).toHaveAttribute(
+      "data-rcl-async-status",
+      asyncStatus,
+    );
+    cleanup();
+  });
+
+  it("switches to the card presentation for a narrow measured surface", () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      width: 400,
+      height: 0,
+      top: 0,
+      right: 400,
+      bottom: 0,
+      left: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    renderTable({
+      enableSelection: true,
+      rowActions: [{ id: "inspect", label: "Inspect", onSelect: vi.fn() }],
+    });
+    expect(screen.getByLabelText("People cards")).toBeInTheDocument();
+    expect(screen.queryByTestId("people-table")).not.toBeInTheDocument();
   });
 });

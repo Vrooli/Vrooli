@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // Asset is one desired-state catalog entry.
@@ -51,6 +52,12 @@ type Implementation struct {
 	SupplementalJustification string
 	Latest                    string
 	Slot                      string
+	// ExperienceStateKnown is true for live catalog loading. It lets unit
+	// callers retain the small in-memory Compute fixture while production
+	// coverage fail-closes when no registered contract exists.
+	ExperienceStateKnown bool
+	ExperienceRegistered bool
+	ExperienceVacuous    bool
 }
 
 type rawAsset struct {
@@ -154,6 +161,7 @@ func LoadCatalog(catalogDir string) ([]Asset, error) {
 // LoadImplementations reads every component.json under the library roots.
 func LoadImplementations(libraryDir string) ([]Implementation, error) {
 	var out []Implementation
+	experience := loadExperienceStates(filepath.Dir(libraryDir))
 	for _, root := range []string{"foundations", "hooks", "services", "primitives", "components"} {
 		paths, err := filepath.Glob(filepath.Join(libraryDir, root, "*", "component.json"))
 		if err != nil {
@@ -169,15 +177,75 @@ func LoadImplementations(libraryDir string) ([]Implementation, error) {
 			if err := json.Unmarshal(data, &raw); err != nil {
 				return nil, fmt.Errorf("parse %s: %w", path, err)
 			}
-			out = append(out, Implementation{
+			implementation := Implementation{
 				Name:                      filepath.Base(filepath.Dir(path)),
 				Root:                      root,
 				CatalogID:                 raw.CatalogID,
 				SupplementalJustification: raw.SupplementalJustification,
 				Latest:                    raw.Latest,
 				Slot:                      raw.Slot,
-			})
+				ExperienceStateKnown:      true,
+			}
+			if state, ok := experience[implementation.Name+"@"+implementation.Latest]; ok {
+				implementation.ExperienceRegistered = true
+				implementation.ExperienceVacuous = state.vacuous
+			}
+			out = append(out, implementation)
 		}
 	}
 	return out, nil
+}
+
+type experienceState struct{ vacuous bool }
+
+// loadExperienceStates joins generated scenario component documents back to
+// their library source by storyRef. This is intentionally read-only: the
+// experience index remains the authority, while coverage refuses to promote a
+// library asset that has no registered, substantive contract.
+func loadExperienceStates(scenarioRoot string) map[string]experienceState {
+	out := map[string]experienceState{}
+	paths, _ := filepath.Glob(filepath.Join(scenarioRoot, "experience", "components", "*.json"))
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var document struct {
+			Component struct {
+				StoryRef string `json:"storyRef"`
+			} `json:"component"`
+			Claims []struct {
+				ID   string `json:"id"`
+				Type string `json:"type"`
+			} `json:"claims"`
+		}
+		if json.Unmarshal(data, &document) != nil || document.Component.StoryRef == "" {
+			continue
+		}
+		story := filepath.ToSlash(document.Component.StoryRef)
+		parts := strings.Split(story, "/")
+		version := ""
+		name := ""
+		for i, part := range parts {
+			if part == "versions" && i+1 < len(parts) {
+				version = parts[i+1]
+				if i > 0 {
+					name = parts[i-1]
+				}
+				break
+			}
+		}
+		if name == "" || version == "" {
+			continue
+		}
+		substantive := false
+		for _, claim := range document.Claims {
+			if claim.ID != "contract-present" && claim.Type != "" && claim.Type != "custom" {
+				substantive = true
+				break
+			}
+		}
+		out[name+"@"+version] = experienceState{vacuous: !substantive}
+	}
+	return out
 }

@@ -82,7 +82,7 @@ function DetailTabs({
   ];
 
   return (
-    <div className="min-w-0 overflow-x-auto" data-testid="component-detail-tabs-scroll">
+    <div className="min-w-0" data-testid="component-detail-tabs-scroll">
       <Tabs
         items={tabs.map(({ id, label, count }) => ({
           id,

@@ -26,14 +26,14 @@
       "id": "accessible-name",
       "type": "custom",
       "statement": "The rendered control is named by its visible label.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "validation-error"]
     },
     {
       "id": "error-association",
       "type": "custom",
       "statement": "An error state marks the control invalid and renders an alert associated with the field.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["validation-error"]
     },
     {

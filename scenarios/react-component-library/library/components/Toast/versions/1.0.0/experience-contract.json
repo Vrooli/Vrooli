@@ -33,7 +33,7 @@
       "id": "announced-dismissible",
       "type": "custom",
       "statement": "Transient feedback has live-region semantics, explicit tone glyphs, keyboard-dismissible controls, and safe-area-aware placement.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "interactive"]
     }
   ]

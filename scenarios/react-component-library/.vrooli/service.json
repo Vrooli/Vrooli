@@ -190,6 +190,7 @@
               ".vrooli/agent-manager/adopt-assist.json"
             ]
           }
+        }
       },
       "experience-manager": {
         "type": "scenario",
@@ -206,7 +207,6 @@
         "required": false,
         "description": "Provides the shared UI inventory and provenance contracts used by RCL inventory adapters.",
         "degraded_behavior": "Catalog and component APIs remain available; cross-scenario UI inventory integration is unavailable until ui-health is healthy."
-      }
       }
     },
     "resources": {}

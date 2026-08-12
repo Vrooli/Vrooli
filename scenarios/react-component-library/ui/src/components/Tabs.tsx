@@ -42,7 +42,7 @@ export interface TabsProps {
 const styleSheet = `
 [data-rcl-tabs] { position: relative; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 [data-rcl-tabs]::-webkit-scrollbar { display: none; }
-[data-rcl-tablist] { position: relative; display: inline-flex; min-width: 100%; gap: var(--space-3xs); border-bottom: var(--border-hairline) solid var(--color-border); }
+[data-rcl-tablist] { position: relative; display: flex; flex-wrap: wrap; min-width: 100%; gap: var(--space-3xs); border-bottom: var(--border-hairline) solid var(--color-border); }
 [data-rcl-tab] { position: relative; min-height: var(--tap-target-min); padding-inline: var(--space-sm); border: 0; border-radius: var(--radius-control) var(--radius-control) 0 0; background: transparent; color: var(--color-muted-foreground); cursor: pointer; font: inherit; font-weight: 650; white-space: nowrap; transition: ${motionTransition(["color", "background-color"], "interaction")}; }
 [data-rcl-tab]:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
 [data-rcl-tab]:focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: calc(var(--space-3xs) * -1); }

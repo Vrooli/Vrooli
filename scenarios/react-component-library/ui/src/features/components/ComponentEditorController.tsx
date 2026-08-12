@@ -987,7 +987,7 @@ export function ComponentEditorImpl({
                           data-testid={selectors.components.editor.workspacePane}
                           data-preview-state={previewExperienceState}
                           data-pane="preview"
-                          className="flex h-full min-h-0 flex-col overflow-hidden bg-app-background"
+                          className="flex h-full min-h-0 min-w-0 w-full max-w-full flex-col overflow-hidden bg-app-background"
                         >
                           {splitView &&
                             paneHeader(
@@ -996,7 +996,7 @@ export function ComponentEditorImpl({
                               paneLabels.preview,
                               <Eye aria-hidden className="h-3.5 w-3.5" />,
                             )}
-                          <div className="flex shrink-0 flex-wrap items-center gap-space-2xs border-b border-app-border bg-app-surface px-space-2xs py-space-2xs">
+                          <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-space-2xs border-b border-app-border bg-app-surface px-space-2xs py-space-2xs">
                             <nav
                               className="order-last flex min-w-0 max-w-full basis-full flex-wrap gap-space-3xs sm:order-none sm:basis-auto sm:flex-1"
                               aria-label={t(strings.components.editor.storiesLabel)}

@@ -273,7 +273,8 @@ export async function handleSessionRun(
       logger: appLogger,
       metrics: appMetrics,
       sessionId,
-      electronTarget: session.spec.electron_target,
+      electronTarget: session.spec?.electron_target,
+      interactionState: session.spec?.browser_profile?.interaction_state,
     };
 
     const executionResult = await executeInstruction(

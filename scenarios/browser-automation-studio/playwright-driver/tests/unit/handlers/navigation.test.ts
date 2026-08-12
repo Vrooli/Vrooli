@@ -64,6 +64,32 @@ describe('NavigationHandler', () => {
   });
 
   describe('execute', () => {
+    it('applies the declared interaction state after navigation', async () => {
+      const target = {
+        isVisible: jest.fn().mockResolvedValue(true),
+        boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 0, width: 100, height: 40 }),
+        waitFor: jest.fn().mockResolvedValue(undefined),
+        hover: jest.fn().mockResolvedValue(undefined),
+        evaluate: jest.fn().mockResolvedValue(true),
+      };
+      const candidates = {
+        count: jest.fn().mockResolvedValue(1),
+        nth: jest.fn().mockReturnValue(target),
+        first: jest.fn().mockReturnValue(target),
+      };
+      mockPage.locator = jest.fn().mockReturnValue(candidates) as typeof mockPage.locator;
+      context.interactionState = 'hover';
+
+      const instruction = createTypedInstruction('navigate', { url: 'https://example.com' }, { nodeId: 'node-1' });
+
+      const result = await handler.execute(instruction, context);
+
+      expect(result.success).toBe(true);
+      expect(mockPage.goto).toHaveBeenCalled();
+      expect(target.hover).toHaveBeenCalled();
+      expect(target.evaluate).toHaveBeenCalled();
+    });
+
     it('should navigate to URL from params', async () => {
       const instruction = createTypedInstruction('navigate', { url: 'https://example.com' }, { nodeId: 'node-1' });
 

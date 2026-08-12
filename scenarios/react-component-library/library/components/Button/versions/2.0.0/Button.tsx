@@ -56,6 +56,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             data-testid="button-icon"
             data-control-slot="icon"
             role="img"
+            aria-label=""
             style={{ flex: "0 0 auto" }}
           >
             {icon}

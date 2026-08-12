@@ -37,13 +37,13 @@ const appShellStyles = `
 [data-rcl-app-shell] [data-rcl-app-shell-nav] a[aria-current="page"] { font-weight: 650; box-shadow: inset var(--space-3xs) 0 var(--color-primary); }
 [data-rcl-app-shell] .rcl-app-shell-skip { position: fixed; inset-block-start: var(--space-sm); inset-inline-start: var(--space-sm); z-index: var(--layer-toast); inline-size: var(--tap-target-min); block-size: var(--tap-target-min); overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; padding: 0; border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-primary-foreground); font: var(--text-label); text-decoration: none; }
 [data-rcl-app-shell] .rcl-app-shell-skip:focus-visible { inline-size: auto; block-size: auto; overflow: visible; clip-path: none; white-space: normal; padding: var(--space-xs) var(--space-sm); outline: var(--focus-ring-width) solid var(--color-focus-ring); outline-offset: var(--focus-ring-offset); }
-@media (max-width: 48rem) { [data-rcl-app-shell] { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } [data-rcl-app-shell] [data-rcl-app-shell-nav] { border-block-end: var(--border-hairline) solid var(--color-border); border-inline-end: 0; padding: var(--space-xs); } [data-rcl-app-shell] [data-rcl-app-shell-nav] nav { display: flex; overflow-x: auto; scrollbar-width: none; } [data-rcl-app-shell] [data-rcl-app-shell-nav] a { flex: 0 0 auto; white-space: nowrap; } [data-rcl-app-shell] [data-rcl-app-shell-header] { padding-inline: var(--space-sm); } [data-rcl-app-shell] [data-rcl-app-shell-main] { padding: var(--space-sm); } }
+@media (max-width: 48rem) { [data-rcl-app-shell] { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } [data-rcl-app-shell] [data-rcl-app-shell-nav] { border-block-end: var(--border-hairline) solid var(--color-border); border-inline-end: 0; padding: var(--space-xs); } [data-rcl-app-shell] [data-rcl-app-shell-nav] nav { display: flex; flex-wrap: wrap; max-inline-size: 100%; overflow: hidden; scrollbar-width: none; } [data-rcl-app-shell] [data-rcl-app-shell-nav] a { flex: 1 1 auto; min-inline-size: 0; max-inline-size: 100%; overflow-wrap: anywhere; white-space: normal; } [data-rcl-app-shell] [data-rcl-app-shell-header] { padding-inline: var(--space-sm); } [data-rcl-app-shell] [data-rcl-app-shell-main] { padding: var(--space-sm); } }
 [data-rcl-app-shell][data-navigation-mode="managed"] { grid-template-columns: minmax(0, auto) minmax(0, 1fr); }
-[data-rcl-app-shell][data-navigation-mode="managed"] [data-rcl-app-shell-nav] { overflow: visible; padding: 0; border: 0; background: transparent; }
+[data-rcl-app-shell][data-navigation-mode="managed"] [data-rcl-app-shell-nav] { block-size: 100dvh; max-block-size: 100dvh; min-block-size: 0; overflow: hidden; padding: 0; border: 0; background: transparent; }
 [data-rcl-app-shell][data-navigation-mode="managed"] [data-rcl-app-shell-content] { min-inline-size: 0; }
 [data-rcl-app-shell][data-header-mode="hidden"] [data-rcl-app-shell-header] { display: none; }
 [data-rcl-app-shell][data-main-mode="flush"] [data-rcl-app-shell-main] { padding: 0; }
-@media (max-width: 48rem) { [data-rcl-app-shell][data-navigation-mode="managed"] [data-rcl-app-shell-nav] { min-block-size: 0; border: 0; padding: 0; overflow: visible; } }
+@media (max-width: 48rem) { [data-rcl-app-shell][data-navigation-mode="managed"] [data-rcl-app-shell-nav] { block-size: auto; max-block-size: none; min-block-size: 0; border: 0; padding: 0; overflow: visible; } }
 @media (prefers-reduced-motion: reduce) { [data-rcl-app-shell] *, [data-rcl-app-shell] *::before, [data-rcl-app-shell] *::after { transition: none !important; } }
 @media (forced-colors: active) { [data-rcl-app-shell] [data-rcl-app-shell-nav] a[aria-current="page"] { background: Highlight; color: HighlightText; } }
 `;
@@ -87,11 +87,16 @@ export function AppShell({
         data-rcl-app-shell-styles
         dangerouslySetInnerHTML={{ __html: appShellStyles }}
       />
-      <a className="rcl-app-shell-skip" href="#app-shell-main">
+      <a
+        className="rcl-app-shell-skip"
+        data-testid="app-shell-skip"
+        href="#app-shell-main"
+      >
         Skip to content
       </a>
       <div
         data-rcl-app-shell-nav
+        data-testid="app-shell-navigation"
         role="complementary"
         aria-label={navigationLabel}
         className={navigationClassName}
@@ -100,16 +105,25 @@ export function AppShell({
       </div>
       <div data-rcl-app-shell-content>
         {header ? (
-          <header data-rcl-app-shell-header className={headerClassName}>
+          <header
+            data-rcl-app-shell-header
+            data-testid="app-shell-header"
+            className={headerClassName}
+          >
             {header}
           </header>
         ) : (
-          <header data-rcl-app-shell-header className={headerClassName}>
+          <header
+            data-rcl-app-shell-header
+            data-testid="app-shell-header"
+            className={headerClassName}
+          >
             <h1>{title}</h1>
           </header>
         )}
         <main
           id="app-shell-main"
+          data-testid="app-shell-main"
           data-rcl-app-shell-main
           role="main"
           aria-label={title}

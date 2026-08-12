@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Static and browser gates that make the catalog source itself a tested surface.",
-    "last_validated_at": "2026-07-17T00:27:17-04:00",
+    "last_validated_at": "2026-08-12T08:07:12-04:00",
     "module": "catalog-conformance",
     "prd_ref": "PRD.md",
     "priority": "P0",

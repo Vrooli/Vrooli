@@ -1,18 +1,17 @@
 {
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library:Pressable@1.0.0"
-  },
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
   "component": {
-    "id": "controls.pressable",
+    "id": "pressable",
     "title": "Pressable",
-    "purpose": "Shared press behavior for controls."
+    "purpose": "Shared press behavior with stable ready and pending geometry.",
+    "storyRef": "../../library/components/Pressable/versions/1.0.0/story.json"
   },
   "states": [
     {
       "id": "default",
-      "example": "default",
+      "example": "ready",
       "description": "The action is ready."
     },
     {
@@ -21,13 +20,31 @@
       "description": "The action is working."
     }
   ],
+  "elements": [
+    {
+      "id": "control",
+      "role": "button",
+      "description": "The pressable control."
+    }
+  ],
   "claims": [
     {
-      "id": "contract-present",
+      "id": "control-present",
+      "type": "element-present",
+      "statement": "Pressable exposes an operable named control.",
+      "tier": "machine",
+      "elements": ["control"],
+      "states": ["default", "pending"]
+    },
+    {
+      "id": "pending-contract",
       "type": "custom",
-      "statement": "Pressable exposes bounded tone and pending behavior without allowing the hidden pending label to resize ready or icon-only controls.",
+      "statement": "Pressable preserves bounded tone and pending behavior without resizing ready or icon-only controls.",
       "tier": "manual",
       "states": ["default", "pending"]
     }
-  ]
+  ],
+  "bindings": {
+    "elements": { "control": { "selector": "[data-rcl-pressable]" } }
+  }
 }

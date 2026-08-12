@@ -46,7 +46,7 @@
       "id": "scope-before-consent",
       "type": "custom",
       "statement": "The exact action, target, and scope are rendered immediately before the approval control.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "retry"]
     },
     {
@@ -60,12 +60,12 @@
       "id": "recovery",
       "type": "custom",
       "statement": "Request errors and permission denial preserve context and expose distinct recovery paths.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["request-error", "permission-denied"]
     },
     {
       "id": "dark-parity",
-      "type": "visual",
+      "type": "custom",
       "statement": "The decision surface remains readable across the declared kits and dark mode.",
       "tier": "manual",
       "states": ["default", "success", "request-error"]

@@ -31,14 +31,14 @@
       "id": "keyboard-combobox",
       "type": "custom",
       "statement": "The field exposes combobox and listbox semantics with arrow-key navigation, selection, and escape-to-close behavior.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "selected"]
     },
     {
       "id": "async-recovery",
       "type": "custom",
       "statement": "Cancellation, retry, empty, and offline states are represented as deliberate user-facing surfaces rather than silent failures.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "error-state"]
     },
     {

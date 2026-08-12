@@ -18,6 +18,14 @@
     { "id": "recovering", "name": "Recovering", "args": { "state": "recovering", "level": 0.35 }, "expect": [{ "kind": "role", "role": "button", "name": "Listening for voice input" }] },
     { "id": "transcribing", "name": "Transcribing", "args": { "state": "transcribing" }, "expect": [{ "kind": "role", "role": "button", "name": "Transcribing voice input" }] },
     { "id": "unavailable", "name": "Unavailable", "args": { "state": "unavailable" }, "expect": [{ "kind": "role", "role": "button", "name": "Voice input unavailable" }] },
-    { "id": "error", "name": "Error", "args": { "state": "error" }, "expect": [{ "kind": "role", "role": "button", "name": "Voice input error" }] }
+    { "id": "error", "name": "Error", "args": { "state": "error" }, "expect": [{ "kind": "role", "role": "button", "name": "Voice input error" }] },
+    { "id": "timeout", "name": "Timeout recording", "args": { "state": "recording", "mode": "timeout" }, "expect": [{ "kind": "role", "role": "button", "name": "Stop voice input" }] },
+    { "id": "size-xs", "name": "Extra small", "args": { "state": "idle", "size": "xs" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "size-md", "name": "Medium", "args": { "state": "idle", "size": "md" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "size-lg", "name": "Large", "args": { "state": "idle", "size": "lg" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "size-xl", "name": "Extra large", "args": { "state": "idle", "size": "xl" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "size-icon", "name": "Icon only", "args": { "state": "idle", "size": "icon" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "density-comfortable", "name": "Comfortable density", "args": { "state": "idle", "density": "comfortable" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "density-compact", "name": "Compact density", "args": { "state": "idle", "density": "compact" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] }
   ]
 }

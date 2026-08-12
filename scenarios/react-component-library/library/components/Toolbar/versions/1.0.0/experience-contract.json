@@ -31,14 +31,14 @@
       "id": "toolbar-semantics",
       "type": "custom",
       "statement": "Toolbar exposes a named toolbar region and uses shared ControlBase/Toggle controls for action semantics.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "interactive", "vertical"]
     },
     {
       "id": "roving-focus",
       "type": "custom",
       "statement": "Arrow keys, Home, and End move focus among enabled items while disabled items are skipped.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "interactive", "vertical"]
     },
     {

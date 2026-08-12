@@ -1,2 +1,1 @@
-/** @vrooliComponentSource react-component-library:DataTable */
-export * from "./DataTable/versions/1.3.0/DataTable";
+export * from "./ui/DataTable/versions/1.3.0/DataTable";

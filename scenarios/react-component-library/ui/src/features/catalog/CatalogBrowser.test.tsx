@@ -122,4 +122,23 @@ describe("CatalogBrowser", () => {
       }),
     );
   });
+
+  it("renders the adopted foundation reference surface and its drawer state", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<CatalogBrowser />);
+
+    expect(await screen.findByTestId("adopted-asset-showcase")).toBeInTheDocument();
+    expect(screen.getByText("Adopted foundation reference")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Validate state" }));
+    expect(screen.getByRole("button", { name: "Checking…" })).toHaveAttribute(
+      "data-rcl-pending",
+      "true",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Open drawer" }));
+    expect(screen.getByRole("dialog", { name: "Drawer" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog", { name: "Drawer" })).not.toBeInTheDocument();
+  });
 });

@@ -5,40 +5,68 @@
   "component": {
     "id": "empty-state",
     "title": "EmptyState",
-    "purpose": "Explain the absence of content with a clear hierarchy, optional next action, and responsive touch target.",
+    "purpose": "Explain an empty surface and offer its most relevant next action.",
     "storyRef": "../../library/components/EmptyState/versions/1.2.0/story.json"
   },
   "states": [
-    { "id": "no-components", "example": "no-components", "description": "No content is available." },
-    { "id": "with-action", "example": "with-action", "description": "The empty state offers a next action." },
-    { "id": "compact", "example": "compact", "description": "The compact presentation preserves the same hierarchy." }
+    {
+      "id": "no-content",
+      "example": "no-components",
+      "description": "No content exists yet."
+    },
+    {
+      "id": "with-action",
+      "example": "with-action",
+      "description": "The empty state offers a recovery action."
+    },
+    {
+      "id": "compact",
+      "example": "compact",
+      "description": "The compact empty state preserves hierarchy."
+    }
   ],
   "elements": [
-    { "id": "state", "role": "region", "description": "The labelled empty-state region." },
-    { "id": "action", "role": "button", "description": "The optional recovery or next action." }
+    {
+      "id": "region",
+      "role": "region",
+      "description": "The labelled empty-state region."
+    },
+    {
+      "id": "action",
+      "role": "button",
+      "description": "The optional recovery action."
+    }
   ],
   "claims": [
     {
-      "id": "hierarchy",
-      "type": "custom",
-      "statement": "Title, explanation, icon cue, and next action form a clear content hierarchy.",
-      "tier": "manual",
-      "elements": ["state"],
-      "states": ["no-components", "with-action", "compact"]
+      "id": "region-present",
+      "type": "element-present",
+      "statement": "The empty state presents a labelled region.",
+      "tier": "machine",
+      "elements": ["region"],
+      "states": ["no-content", "with-action", "compact"]
     },
     {
-      "id": "responsive-action",
-      "type": "custom",
-      "statement": "The action becomes a full-width touch target on narrow viewports without changing content order.",
-      "tier": "manual",
+      "id": "recovery-affordance",
+      "type": "affordance-present",
+      "statement": "The actionable empty state offers a next step.",
+      "tier": "machine",
       "elements": ["action"],
+      "params": { "affordances": ["action"] },
       "states": ["with-action"]
+    },
+    {
+      "id": "empty-state-craft",
+      "type": "custom",
+      "statement": "The empty state explains why it is empty and offers the most relevant next action.",
+      "tier": "manual",
+      "states": ["no-content", "with-action", "compact"]
     }
   ],
   "bindings": {
     "elements": {
-      "state": { "selector": "[data-rcl-empty-state]" },
-      "action": { "selector": "[data-rcl-empty-state-action]" }
+      "region": { "selector": "[data-rcl-empty-state]" },
+      "action": { "selector": "button" }
     }
   }
 }

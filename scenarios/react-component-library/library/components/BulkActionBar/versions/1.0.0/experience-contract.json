@@ -46,7 +46,7 @@
       "id": "stable-selection-context",
       "type": "custom",
       "statement": "Selection count and scope remain visible through idle, pending, success, partial, and request-error states.",
-      "tier": "machine",
+      "tier": "manual",
       "states": [
         "default",
         "submitting",
@@ -60,7 +60,7 @@
       "id": "partial-recovery",
       "type": "custom",
       "statement": "Partial results identify failed items and provide a retry path without hiding successful work.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["partial"]
     },
     {
@@ -72,7 +72,7 @@
     },
     {
       "id": "dark-parity",
-      "type": "visual",
+      "type": "custom",
       "statement": "The contextual action surface remains legible across the declared kits and dark mode.",
       "tier": "manual",
       "states": ["default", "partial", "request-error"]

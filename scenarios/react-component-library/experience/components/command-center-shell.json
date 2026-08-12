@@ -2,11 +2,6 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library/CommandCenterShell@1.0.0"
-  },
   "component": {
     "id": "command-center-shell",
     "title": "Command Center Shell",
@@ -40,6 +35,10 @@
       "description": "The primary region exposes a terminal failure and optional retry."
     }
   ],
+  "elements": [
+    { "id": "navigation", "role": "navigation", "description": "Operational navigation." },
+    { "id": "primary-region", "role": "region", "description": "The primary operational work region." }
+  ],
   "claims": [
     {
       "id": "primary-region-observable",
@@ -55,5 +54,11 @@
       "tier": "manual",
       "states": ["loading", "ready", "empty", "partial", "error"]
     }
-  ]
+  ],
+  "bindings": {
+    "elements": {
+      "navigation": { "selector": "[data-rcl-command-center] nav" },
+      "primary-region": { "selector": "[data-rcl-command-center] .rcl-command-center__primary" }
+    }
+  }
 }

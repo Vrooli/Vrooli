@@ -36,21 +36,21 @@
       "id": "identity-name",
       "type": "custom",
       "statement": "Every avatar exposes a stable accessible identity name independent of image availability.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "loading", "request-error"]
     },
     {
       "id": "presence",
       "type": "custom",
       "statement": "Presence is a separately announced status and is not communicated by color alone.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "group-overflow",
       "type": "custom",
       "statement": "Avatar groups announce the number of hidden people through the overflow affordance.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["group"]
     }
   ]

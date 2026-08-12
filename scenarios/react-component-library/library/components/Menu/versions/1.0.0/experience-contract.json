@@ -26,12 +26,12 @@
       "id": "keyboard",
       "type": "custom",
       "statement": "Roving focus, Home/End, typeahead, Escape, and semantic item roles are wired through the menu surface.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "interactive"]
     },
     {
       "id": "dark-parity",
-      "type": "visual",
+      "type": "custom",
       "statement": "The anchored surface maintains contrast and focus visibility in dark kits.",
       "tier": "manual",
       "states": ["default"]

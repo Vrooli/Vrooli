@@ -2,11 +2,6 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library:TreeView@1.0.0"
-  },
   "component": {
     "id": "tree-view",
     "title": "TreeView",
@@ -31,9 +26,21 @@
     }
   ],
   "elements": [
-    { "id": "tree", "role": "tree", "name": "Project files", "description": "The named hierarchical surface." },
-    { "id": "item", "role": "treeitem", "description": "A navigable tree item." },
-    { "id": "empty", "role": "status", "description": "The empty tree message." }
+    {
+      "id": "tree",
+      "role": "x-tree",
+      "description": "The semantic hierarchy container."
+    },
+    {
+      "id": "treeitem",
+      "role": "x-treeitem",
+      "description": "A selectable node in the hierarchy."
+    },
+    {
+      "id": "empty",
+      "role": "x-status",
+      "description": "The empty-tree announcement."
+    }
   ],
   "claims": [
     {
@@ -41,7 +48,7 @@
       "type": "element-present",
       "statement": "The surface exposes a named tree with level-aware treeitems and groups for nested content.",
       "tier": "machine",
-      "elements": ["tree", "item"],
+      "elements": ["tree", "treeitem"],
       "states": ["default", "collapsed"]
     },
     {
@@ -63,14 +70,14 @@
       "type": "element-present",
       "statement": "The empty state is announced through a status region.",
       "tier": "machine",
-      "elements": ["tree", "empty"],
+      "elements": ["empty"],
       "states": ["empty"]
     }
   ],
   "bindings": {
     "elements": {
-      "tree": { "selector": "tree" },
-      "item": { "selector": "[role='treeitem']" },
+      "tree": { "selector": "[data-rcl-tree]" },
+      "treeitem": { "selector": "[role='treeitem']" },
       "empty": { "selector": "[role='status']" }
     }
   }

@@ -1,49 +1,55 @@
 {
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library:Icon@1.0.0"
-  },
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
   "component": {
-    "id": "primitives.icon",
+    "id": "icon",
     "title": "Icon",
-    "purpose": "Icon is a token-bound, accessible renderer backed by a bounded semantic registry."
+    "purpose": "A bounded, token-backed semantic icon renderer.",
+    "storyRef": "../../library/primitives/Icon/versions/1.0.0/story.json"
   },
   "states": [
     {
       "id": "registry",
       "example": "name-check",
-      "description": "The named icon registry rendered with optical sizing."
+      "description": "The named icon registry renders with optical sizing."
     },
     {
       "id": "accessible",
       "example": "name-search",
-      "description": "A meaningful icon exposes an accessible name while decorative icons remain hidden."
+      "description": "Meaningful icons expose a name while decorative icons remain hidden."
+    }
+  ],
+  "elements": [
+    {
+      "id": "icon",
+      "role": "x-icon",
+      "description": "The semantic icon output."
     }
   ],
   "claims": [
     {
-      "id": "accessible-naming",
+      "id": "icon-present",
+      "type": "element-present",
+      "statement": "The named icon renders as an image-like element.",
+      "tier": "machine",
+      "elements": ["icon"],
+      "states": ["accessible", "registry"]
+    },
+    {
+      "id": "accessible-contract",
       "type": "custom",
       "statement": "Icon distinguishes meaningful named icons from decorative glyphs for assistive technology.",
       "tier": "manual",
       "states": ["accessible"]
     },
     {
-      "id": "registry-backed",
+      "id": "registry-contract",
       "type": "custom",
       "statement": "Icon resolves bounded geometry and optical size from the shared icon registry.",
       "tier": "manual",
       "states": ["registry"]
     }
   ],
-  "machineClaims": [
-    {
-      "id": "named-icon-is-image",
-      "type": "element-present",
-      "selector": "[data-icon]",
-      "role": "img",
-      "states": ["accessible"]
-    }
-  ]
+  "bindings": { "elements": { "icon": { "selector": "[data-icon]" } } }
 }

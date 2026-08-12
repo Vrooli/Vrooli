@@ -6,6 +6,7 @@
   "displayName": "UI Health",
   "description": "Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health.",
   "source": "validation-provider",
+  "artifactComparisonProvider": true,
   "orderHint": 2,
   "timeout": "300s",
   "findingSource": "ui",
@@ -1390,8 +1391,8 @@
     "mode": "provider-serial"
   },
   "determinism": {
-    "default": "observational",
-    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+    "default": "file-determined",
+    "inputs": ["**"]
   },
   "dimensions": [
     "ui"

@@ -73,10 +73,12 @@ function defaultId(label: string, index: number) {
 }
 
 function labelText(label: ReactNode): string {
-  if (typeof label === "string" || typeof label === "number") return String(label);
+  if (typeof label === "string" || typeof label === "number")
+    return String(label);
   const text = Children.toArray(label)
     .map((child) => {
-      if (typeof child === "string" || typeof child === "number") return String(child);
+      if (typeof child === "string" || typeof child === "number")
+        return String(child);
       if (isValidElement<{ children?: ReactNode }>(child)) {
         return labelText(child.props.children);
       }
@@ -118,7 +120,8 @@ export function TreeView({
   defaultExpandedIds: defaultExpandedIdsProp,
   onSelect,
 }: TreeViewProps) {
-  const defaultExpandedIds = defaultExpandedIdsProp ?? EMPTY_DEFAULT_EXPANDED_IDS;
+  const defaultExpandedIds =
+    defaultExpandedIdsProp ?? EMPTY_DEFAULT_EXPANDED_IDS;
   const resolvedNodes = useMemo<TreeNode[]>(
     () =>
       items ??

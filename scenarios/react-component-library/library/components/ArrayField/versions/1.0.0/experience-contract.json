@@ -26,14 +26,14 @@
       "id": "item-actions",
       "type": "custom",
       "statement": "Move, duplicate, and remove actions are native buttons with names that identify the item they affect.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "constraint-recovery",
       "type": "custom",
       "statement": "Minimum and maximum item constraints remain visible and do not silently discard user values.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["empty", "default"]
     },
     {

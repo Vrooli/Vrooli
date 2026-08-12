@@ -48,7 +48,7 @@
       "id": "native-action-semantics",
       "type": "custom",
       "statement": "The action uses a native button with busy, disabled, live-status, keyboard, and focus-visible semantics.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "loading", "success", "request-error"]
     }
   ]

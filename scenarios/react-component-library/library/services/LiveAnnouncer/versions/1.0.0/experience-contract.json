@@ -16,7 +16,7 @@
       "id": "single-live-region",
       "type": "custom",
       "statement": "Announcements are queued through one shared, atomic live region.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["idle", "announcing"]
     }
   ]

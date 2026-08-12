@@ -28,7 +28,10 @@ func (h *handlers) coverage(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no catalog coverage")
 	}
 	r := resp.Msg.Report
-	summary := fmt.Sprintf("Catalog targets: %d; at/above target: %d.", r.Maturity.GetTotal(), r.Maturity.GetAtOrAboveTarget())
+	summary := fmt.Sprintf("Catalog completion %.1f%% (%d/%d); mandatory gates %.1f%% (%d/%d); weighted quality %.1f%%; production-ready %.1f%%.",
+		r.Maturity.GetCatalogCompletion().GetRatio()*100, r.Maturity.GetCatalogCompletion().GetNumerator(), r.Maturity.GetCatalogCompletion().GetDenominator(),
+		r.Maturity.GetMandatoryGateCoverage().GetRatio()*100, r.Maturity.GetMandatoryGateCoverage().GetNumerator(), r.Maturity.GetMandatoryGateCoverage().GetDenominator(),
+		r.Maturity.GetWeightedQuality().GetRatio()*100, r.Maturity.GetProductionReadyCoverage().GetRatio()*100)
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Maturity distribution", Results: formatMaturity(r.Maturity.GetByRung())})
 }
 

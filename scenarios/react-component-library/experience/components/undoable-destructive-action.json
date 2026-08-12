@@ -2,11 +2,6 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library:UndoableDestructiveAction@1.0.0"
-  },
   "component": {
     "id": "undoable-destructive-action",
     "title": "UndoableDestructiveAction",
@@ -35,6 +30,10 @@
       "description": "Failure includes a useful retry path."
     }
   ],
+  "elements": [
+    { "id": "surface", "role": "region", "description": "The reversible destructive-action surface." },
+    { "id": "action", "role": "button", "description": "The destructive action or recovery control." }
+  ],
   "claims": [
     {
       "id": "recovery",
@@ -50,5 +49,11 @@
       "tier": "manual",
       "states": ["default", "request-error"]
     }
-  ]
+  ],
+  "bindings": {
+    "elements": {
+      "surface": { "selector": "[data-rcl-undoable-action]" },
+      "action": { "selector": "[data-rcl-undoable-action-button], [data-rcl-undoable-action-retry]" }
+    }
+  }
 }

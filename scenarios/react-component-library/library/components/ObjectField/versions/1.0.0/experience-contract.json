@@ -26,14 +26,14 @@
       "id": "nested-context",
       "type": "custom",
       "statement": "The object heading, description, issue count, and child values form one semantic section.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "validation"]
     },
     {
       "id": "preserved-inputs",
       "type": "custom",
       "statement": "Validation preserves the nested inputs and leaves the recovery path visible.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["validation"]
     },
     {

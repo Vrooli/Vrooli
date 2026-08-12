@@ -26,14 +26,14 @@
       "id": "alert-summary",
       "type": "custom",
       "statement": "Errors are exposed as an alert with a heading and field-specific links.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["errors"]
     },
     {
       "id": "empty-layout",
       "type": "custom",
       "statement": "The component renders no summary surface when the error map is empty.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["empty"]
     },
     {

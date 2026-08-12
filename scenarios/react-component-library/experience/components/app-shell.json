@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "component": {
@@ -12,7 +12,7 @@
     {
       "id": "default",
       "example": "default",
-      "description": "The workspace exposes navigation, a title, and a named main region."
+      "description": "The application frame is available."
     },
     {
       "id": "long-content",
@@ -55,10 +55,24 @@
       "states": ["default", "long-content"]
     },
     {
-      "id": "responsive-frame",
-      "type": "custom",
-      "statement": "Navigation transforms into a compact rail below the responsive breakpoint while main content remains min-width-safe.",
-      "tier": "manual",
+      "id": "viewport-fill",
+      "type": "viewport-fill",
+      "statement": "The shell fills the captured viewport while its content columns remain min-width safe.",
+      "tier": "machine",
+      "states": ["default", "long-content"]
+    },
+    {
+      "id": "chrome-pinned",
+      "type": "chrome-pinned",
+      "statement": "Navigation and header chrome remain inside the viewport while main content scrolls.",
+      "tier": "machine",
+      "states": ["default", "long-content"]
+    },
+    {
+      "id": "single-line-chrome",
+      "type": "single-line-chrome",
+      "statement": "Shell chrome labels remain single-line controls at every captured viewport.",
+      "tier": "machine",
       "states": ["default", "long-content"]
     }
   ],
@@ -68,11 +82,5 @@
       "main": { "selector": "[role='main']" },
       "skip-link": { "selector": "[role='link']" }
     }
-  },
-  "floorOptOuts": [
-    {
-      "floor": "no-document-horizontal-overflow",
-      "reason": "Compact navigation is intentionally horizontally scrollable inside the bounded navigation region; the document itself remains viewport-contained."
-    }
-  ]
+  }
 }

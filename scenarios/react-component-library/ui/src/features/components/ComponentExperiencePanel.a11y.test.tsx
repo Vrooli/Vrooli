@@ -1,12 +1,11 @@
-import { render } from "@testing-library/react";
 import { describe, it } from "vitest";
 
-import { expectNoA11yViolations } from "../../test-utils/a11y";
+import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { ComponentExperiencePanel } from "./ComponentExperiencePanel";
 
 describe("ComponentExperiencePanel accessibility", () => {
   it("labels the contract summary and claim list", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ComponentExperiencePanel
         isLoading={false}
         experience={{
@@ -36,7 +35,9 @@ describe("ComponentExperiencePanel accessibility", () => {
   });
 
   it("announces a live-evidence loading failure without presenting it as no contract", async () => {
-    const { container, getByRole } = render(<ComponentExperiencePanel isLoading={false} isError />);
+    const { container, getByRole } = renderWithProviders(
+      <ComponentExperiencePanel isLoading={false} isError />,
+    );
     expect(getByRole("alert")).toBeInTheDocument();
     await expectNoA11yViolations(container);
   });

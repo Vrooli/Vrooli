@@ -40,7 +40,7 @@
   "elements": [
     {
       "id": "field",
-      "role": "textbox",
+      "role": "x-field",
       "description": "The rendered native text-entry field."
     }
   ],

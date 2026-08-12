@@ -1,28 +1,67 @@
 {
-  "schemaVersion": 1,
-  "componentId": "react-component-library:BottomNav",
-  "version": "1.3.0",
-  "states": ["mobile-primary", "disabled-item", "long-labels"],
-  "behaviors": [
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "bottom-nav",
+    "title": "BottomNav",
+    "purpose": "A fixed compact navigation surface with current-page semantics, stable tap targets, and safe-area support.",
+    "storyRef": "../../library/components/BottomNav/versions/1.3.0/story.json"
+  },
+  "states": [
     {
-      "id": "active-indicator",
-      "description": "The active destination is communicated by semantic current-page state, color, weight, and a motion-safe indicator."
+      "id": "mobile-primary",
+      "example": "mobile-primary",
+      "description": "Primary mobile destinations are available."
+    },
+    {
+      "id": "disabled-item",
+      "example": "disabled-item",
+      "description": "Disabled destinations remain announced and non-operable."
+    },
+    {
+      "id": "long-labels",
+      "example": "long-labels",
+      "description": "Long labels remain bounded within item geometry."
+    }
+  ],
+  "elements": [
+    {
+      "id": "navigation",
+      "role": "navigation",
+      "description": "The fixed navigation landmark."
+    }
+  ],
+  "claims": [
+    {
+      "id": "nav-present",
+      "type": "element-present",
+      "statement": "The fixed navigation exposes a named navigation landmark and destinations.",
+      "tier": "machine",
+      "elements": ["navigation"],
+      "states": ["mobile-primary", "disabled-item", "long-labels"]
+    },
+    {
+      "id": "tap-targets",
+      "type": "tap-target-size",
+      "statement": "Every interactive destination meets the minimum mobile tap target.",
+      "tier": "machine",
+      "states": ["mobile-primary", "disabled-item", "long-labels"]
     },
     {
       "id": "safe-area",
-      "description": "The fixed navigation reserves the device bottom safe area without changing item geometry."
+      "type": "safe-area-tap-targets",
+      "statement": "Navigation items remain clear of the mobile unsafe bottom area.",
+      "tier": "machine",
+      "states": ["mobile-primary", "disabled-item", "long-labels"]
     },
     {
-      "id": "viewport-stable",
-      "description": "The fixed navigation preserves its item geometry and safe-area treatment across viewport widths; consumers decide when their product should mount or hide it."
+      "id": "no-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "Long labels do not create document-level horizontal scrolling.",
+      "tier": "machine",
+      "states": ["mobile-primary", "disabled-item", "long-labels"]
     }
   ],
-  "accessibility": [
-    "navigation landmark",
-    "current page semantics",
-    "disabled state",
-    "focus-visible",
-    "forced colors",
-    "reduced motion"
-  ]
+  "bindings": { "elements": { "navigation": { "selector": "navigation" } } }
 }

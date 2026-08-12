@@ -4,23 +4,33 @@
   "claims": [
     {
       "id": "recovery",
-      "description": "Leaving with dirty work presents an explicit recovery decision."
+      "description": "Leaving with dirty work presents an explicit recovery decision.",
+      "type": "custom",
+      "tier": "manual"
     },
     {
       "id": "preservation",
-      "description": "The flow can preserve a private draft without forcing data loss."
+      "description": "The flow can preserve a private draft without forcing data loss.",
+      "type": "custom",
+      "tier": "manual"
     },
     {
       "id": "error-honesty",
-      "description": "Save errors remain visible and retryable while the work stays in place."
+      "description": "Save errors remain visible and retryable while the work stays in place.",
+      "type": "custom",
+      "tier": "manual"
     },
     {
       "id": "keyboard",
-      "description": "The composed alert dialog preserves focus order and native keyboard actions."
+      "description": "The composed alert dialog preserves focus order and native keyboard actions.",
+      "type": "custom",
+      "tier": "manual"
     },
     {
       "id": "responsive",
-      "description": "The decision surface becomes a full-width mobile action stack."
+      "description": "The decision surface becomes a full-width mobile action stack.",
+      "type": "custom",
+      "tier": "manual"
     }
   ]
 }

@@ -50,7 +50,9 @@ function versionPaths(manifestPath) {
       .map((entry) => path.join(versionDir, entry.name))
       .sort((a, b) => a.localeCompare(b));
     if (sourceFiles.length === 0) {
-      throw new Error(`${manifestPath} version ${version} has no top-level TypeScript source files`);
+      throw new Error(
+        `${manifestPath} version ${version} has no top-level TypeScript source files`,
+      );
     }
     return sourceFiles.map((filePath) => {
       const scenarioRelative = path.relative(scenarioDir, filePath);
@@ -71,8 +73,8 @@ function validateVersionLocalImports(filePath) {
   const source = readFileSync(filePath, "utf8");
   if (/runtimePhase\d+|shared\/runtime/.test(source)) {
     throw new Error(
-      `${filePath} contains a legacy shared runtime reference; `
-      + "published assets must expose their real version-local source",
+      `${filePath} contains a legacy shared runtime reference; ` +
+        "published assets must expose their real version-local source",
     );
   }
   const relativeImports = /\b(?:from\s*|import\s*\()\s*["'](\.{1,2}\/[^"']+)["']/g;
@@ -80,20 +82,26 @@ function validateVersionLocalImports(filePath) {
     const specifier = match[1];
     const resolved = path.resolve(path.dirname(filePath), specifier);
     const isPublishedAsset = path.relative(scenarioDir, filePath).startsWith(`library${path.sep}`);
-    const reachesSharedRuntime = path.relative(scenarioDir, resolved).split(path.sep).includes("shared");
+    const reachesSharedRuntime = path
+      .relative(scenarioDir, resolved)
+      .split(path.sep)
+      .includes("shared");
     if (isPublishedAsset && reachesSharedRuntime) {
       throw new Error(
-        `${filePath} imports ${specifier} outside its version directory; `
-        + "released asset source must not depend on shared runtime shells",
+        `${filePath} imports ${specifier} outside its version directory; ` +
+          "released asset source must not depend on shared runtime shells",
       );
     }
   }
 }
 
 function catalogFiles() {
-  return assetRoots.flatMap((assetRoot) => readdirSync(assetRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name !== "shared")
-    .flatMap((entry) => versionPaths(path.join(assetRoot, entry.name, "component.json"))))
+  return assetRoots
+    .flatMap((assetRoot) =>
+      readdirSync(assetRoot, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && entry.name !== "shared")
+        .flatMap((entry) => versionPaths(path.join(assetRoot, entry.name, "component.json"))),
+    )
     .sort((a, b) => a.uiRelative.localeCompare(b.uiRelative));
 }
 
@@ -119,7 +127,11 @@ try {
     run("pnpm", ["exec", "tsc", "--noEmit", "--project", ".catalog-tsconfig.generated.json"]);
   }
   if (mode === "lint" || mode === "check") {
-    run(process.execPath, [eslintBin, "--config", "ui/eslint.catalog.config.js", "--no-ignore", ...eslintFiles], scenarioDir);
+    run(
+      process.execPath,
+      [eslintBin, "--config", "ui/eslint.catalog.config.js", "--no-ignore", ...eslintFiles],
+      scenarioDir,
+    );
   }
   if (!["type-check", "lint", "check"].includes(mode)) {
     throw new Error(`unknown catalog conformance mode ${mode}`);

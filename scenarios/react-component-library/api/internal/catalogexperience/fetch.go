@@ -28,6 +28,12 @@ func Fetcher(repoRoot string) catalogcoverage.ExperienceCaptureFetcher {
 		}
 		out := make([]catalogcoverage.ExperienceCapture, 0, len(snapshot.Evidence))
 		for _, item := range snapshot.Evidence {
+			// Evidence is append-only in Experience Manager. A renamed story
+			// must not let an older specimen with the same state poison the
+			// current contract's gate result (for example, default -> ready).
+			if !matchesCurrentState(snapshot, item) {
+				continue
+			}
 			claimType := item.ClaimType
 			// Older Experience Manager records did not persist claim_type. The
 			// exact version contract is the authoritative fallback, while
@@ -48,4 +54,14 @@ func Fetcher(repoRoot string) catalogcoverage.ExperienceCaptureFetcher {
 		}
 		return out, nil
 	}
+}
+
+func matchesCurrentState(snapshot experience.Snapshot, item experience.Evidence) bool {
+	for _, state := range snapshot.States {
+		if state.ID != item.StateID {
+			continue
+		}
+		return state.ExampleName == "" || item.ExampleName == state.ExampleName
+	}
+	return true
 }

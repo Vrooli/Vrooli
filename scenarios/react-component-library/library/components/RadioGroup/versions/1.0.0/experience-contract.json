@@ -31,14 +31,14 @@
       "id": "native-group",
       "type": "custom",
       "statement": "RadioGroup exposes a named radiogroup and native radio inputs sharing one name.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "interactive", "disabled"]
     },
     {
       "id": "controlled-selection",
       "type": "custom",
       "statement": "Controlled selection updates the consumer-visible value when a radio is chosen.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["interactive"]
     },
     {

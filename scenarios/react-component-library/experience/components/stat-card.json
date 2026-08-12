@@ -2,11 +2,6 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library:StatCard@1.0.0"
-  },
   "component": {
     "id": "stat-card",
     "title": "StatCard",
@@ -25,6 +20,10 @@
       "description": "The quiet state remains understandable."
     }
   ],
+  "elements": [
+    { "id": "card", "role": "region", "description": "The metric card surface." },
+    { "id": "value", "role": "x-value", "description": "The primary metric value." }
+  ],
   "claims": [
     {
       "id": "contract-present",
@@ -33,5 +32,11 @@
       "tier": "manual",
       "states": ["default", "empty"]
     }
-  ]
+  ],
+  "bindings": {
+    "elements": {
+      "card": { "selector": "article" },
+      "value": { "testid": "stat-value" }
+    }
+  }
 }

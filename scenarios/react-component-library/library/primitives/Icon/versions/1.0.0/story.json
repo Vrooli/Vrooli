@@ -45,6 +45,48 @@
         { "kind": "role", "role": "img", "name": "Arrow end" },
         { "kind": "text", "value": "Arrow end · named for assistive technology" }
       ]
+    },
+    {
+      "id": "name-close",
+      "name": "Close",
+      "harness": "IconShowcase",
+      "args": { "name": "close" },
+      "expect": [{ "kind": "role", "role": "img", "name": "Close" }]
+    },
+    {
+      "id": "name-chevron-down",
+      "name": "Chevron down",
+      "harness": "IconShowcase",
+      "args": { "name": "chevronDown" },
+      "expect": [{ "kind": "role", "role": "img", "name": "Chevron down" }]
+    },
+    {
+      "id": "name-chevron-right",
+      "name": "Chevron right",
+      "harness": "IconShowcase",
+      "args": { "name": "chevronRight" },
+      "expect": [{ "kind": "role", "role": "img", "name": "Chevron right" }]
+    },
+    {
+      "id": "name-menu",
+      "name": "Menu",
+      "harness": "IconShowcase",
+      "args": { "name": "menu" },
+      "expect": [{ "kind": "role", "role": "img", "name": "Menu" }]
+    },
+    {
+      "id": "name-plus",
+      "name": "Plus",
+      "harness": "IconShowcase",
+      "args": { "name": "plus" },
+      "expect": [{ "kind": "role", "role": "img", "name": "Plus" }]
+    },
+    {
+      "id": "name-arrow-start",
+      "name": "Arrow start",
+      "harness": "IconShowcase",
+      "args": { "name": "arrowStart" },
+      "expect": [{ "kind": "role", "role": "img", "name": "Arrow start" }]
     }
   ]
 }

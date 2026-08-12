@@ -1,11 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { renderWithProviders } from "./renderWithProviders";
 import { AssetDetailShell } from "../components/AssetDetailShell/versions/1.0.0/AssetDetailShell";
 import { InspectorLayout } from "../components/InspectorLayout/versions/1.0.0/InspectorLayout";
 
 describe("archetype lifecycle layouts", () => {
   it("keeps asset preview and metadata usable when supporting activity is partial", () => {
-    render(
+    renderWithProviders(
       <AssetDetailShell
         title="Release artifact"
         preview={<p>Artifact preview</p>}
@@ -29,7 +30,7 @@ describe("archetype lifecycle layouts", () => {
   });
 
   it("keeps the primary canvas available when the inspector is empty", () => {
-    render(
+    renderWithProviders(
       <InspectorLayout
         title="Workflow editor"
         canvas={<p>Workflow canvas</p>}

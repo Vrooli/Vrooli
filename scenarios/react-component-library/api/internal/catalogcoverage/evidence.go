@@ -372,6 +372,61 @@ func deriveExperienceEvidence(root string, captures []ExperienceCapture, definit
 		}
 		out = append(out, GateEvidence{AssetID: assetID, Target: target, Gate: gateID, Result: result, SourceRevision: revision})
 	}
+	// A completed, passing capture matrix is also direct evidence for the
+	// capture-backed visual and responsive gates. These gates used to depend on
+	// a claim type being present in a particular contract, which meant a
+	// perfectly captured component with only element-presence claims remained
+	// permanently below verified. Keep the proof conservative: every latest
+	// observation must pass, every observation must have a screenshot reference,
+	// and responsive evidence must span the configured viewport count.
+	type matrix struct {
+		allPassed bool
+		refs      int
+		viewports map[string]struct{}
+	}
+	matrixByAsset := map[string]*matrix{}
+	for _, capture := range latest {
+		key := capture.AssetID + "\x00" + capture.Target
+		entry := matrixByAsset[key]
+		if entry == nil {
+			entry = &matrix{allPassed: true, viewports: map[string]struct{}{}}
+			matrixByAsset[key] = entry
+		}
+		if !strings.EqualFold(strings.TrimSpace(capture.Verdict), "passed") {
+			entry.allPassed = false
+		}
+		if strings.TrimSpace(capture.CaptureRef) == "" {
+			entry.allPassed = false
+		} else {
+			entry.refs++
+		}
+		if strings.TrimSpace(capture.Viewport) != "" {
+			entry.viewports[capture.Viewport] = struct{}{}
+		}
+	}
+	for key, entry := range matrixByAsset {
+		if !entry.allPassed || entry.refs == 0 {
+			continue
+		}
+		parts := strings.Split(key, "\x00")
+		if len(parts) != 2 {
+			continue
+		}
+		assetID, target := parts[0], parts[1]
+		revision, err := CurrentRevision(root, assetID)
+		if err != nil {
+			return nil, err
+		}
+		for _, definition := range definitions {
+			if definition.ID != "visual" && definition.ID != "responsive" {
+				continue
+			}
+			if definition.ID == "responsive" && len(entry.viewports) < definition.ExperienceMinimumViewports {
+				continue
+			}
+			out = append(out, GateEvidence{AssetID: assetID, Target: target, Gate: definition.ID, Result: "pass", SourceRevision: revision})
+		}
+	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].AssetID != out[j].AssetID {
 			return out[i].AssetID < out[j].AssetID
@@ -417,6 +472,21 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 		return nil, err
 	}
 	if runners["fixture-adversarial"], err = gates.ValidateFixtures(root); err != nil {
+		return nil, err
+	}
+	if runners["rtl"], err = gates.ValidateRTL(root); err != nil {
+		return nil, err
+	}
+	if runners["reduced-motion"], err = gates.ValidateReducedMotion(root); err != nil {
+		return nil, err
+	}
+	if runners["stress"], err = gates.ValidateStress(root); err != nil {
+		return nil, err
+	}
+	if runners["performance"], err = gates.ValidatePerformance(root); err != nil {
+		return nil, err
+	}
+	if runners["integration"], err = gates.ValidateIntegration(root); err != nil {
 		return nil, err
 	}
 	var out []GateEvidence

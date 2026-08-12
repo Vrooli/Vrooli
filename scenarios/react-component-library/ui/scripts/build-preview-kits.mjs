@@ -10,11 +10,7 @@ const adapterRoot = join(repoRoot, "templates", "design");
 const content = [
   join(repoRoot, "scenarios", "react-component-library", "library", "**", "*.{ts,tsx}"),
 ];
-const kits = [
-  "vrooli-default",
-  "vrooli-command-display",
-  "vrooli-conversion-landing",
-];
+const kits = ["vrooli-default", "vrooli-command-display", "vrooli-conversion-landing"];
 
 for (const kit of kits) {
   const adapter = join(adapterRoot, kit, "adapters", "react-vite-tailwind");

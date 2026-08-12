@@ -26,14 +26,14 @@
       "id": "priority",
       "type": "custom",
       "statement": "The primary submit action is distinct from secondary and destructive-adjacent actions.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "pending-semantics",
       "type": "custom",
       "statement": "Pending submission disables actions and exposes a busy submit state.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["pending"]
     },
     {

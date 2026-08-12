@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Header-comment-driven indexer that walks the components root and upserts a SQLite-backed registry of shared UI primitives.",
-    "last_validated_at": "2026-07-15T01:58:56-04:00",
+    "last_validated_at": "2026-08-12T08:07:12-04:00",
     "module": "component-registry-and-header-format",
     "prd_ref": "PRD.md",
     "priority": "P0",

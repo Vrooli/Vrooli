@@ -97,7 +97,7 @@ const styles = `
   [data-rcl-async-state-copy] { display: grid; gap: var(--space-3xs, .25rem); min-inline-size: 0; }
   [data-rcl-async-state-title] { color: var(--rcl-async-foreground); font-weight: 700; }
   [data-rcl-async-state-detail] { color: var(--rcl-async-muted); }
-  [data-rcl-async-state-action] { flex: 0 0 auto; margin-inline-start: auto; min-block-size: 2rem; border: 1px solid currentColor; border-radius: var(--radius-control, .5rem); background: transparent; color: inherit; padding-inline: var(--space-xs, .75rem); font: var(--text-label, 600 .8125rem/1rem system-ui, sans-serif); cursor: pointer; }
+  [data-rcl-async-state-action] { flex: 0 0 auto; margin-inline-start: auto; min-block-size: var(--tap-target-min, 44px); border: 1px solid currentColor; border-radius: var(--radius-control, .5rem); background: transparent; color: inherit; padding-inline: var(--space-xs, .75rem); font: var(--text-label, 600 .8125rem/1rem system-ui, sans-serif); cursor: pointer; }
   [data-rcl-async-state-action]:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
   [data-rcl-async-state-action]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 35%, transparent); outline-offset: 2px; }
   [data-rcl-async-loading], [data-rcl-async-failure] {

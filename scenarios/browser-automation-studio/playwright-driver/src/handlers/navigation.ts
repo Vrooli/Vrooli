@@ -5,6 +5,7 @@ import { normalizeError } from '../utils';
 import { resolveTimeoutFromContext } from './behavior-utils';
 import type { ElectronTargetSpec } from '../types/session';
 import path from 'node:path';
+import { applyInteractionState } from '../session/interaction-state';
 
 // =============================================================================
 // URL VALIDATION - Decision Boundary for Navigation Security
@@ -219,6 +220,10 @@ export class NavigationHandler extends BaseHandler {
 
       if (params.waitForSelector) {
         await page.waitForSelector(params.waitForSelector, { timeout, state: 'visible' });
+      }
+
+      if (context.interactionState && context.interactionState !== 'rest') {
+        await applyInteractionState(page, context.interactionState, timeout);
       }
 
       const finalUrl = page.url();

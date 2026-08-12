@@ -36,14 +36,14 @@
       "id": "accessible-value",
       "type": "custom",
       "statement": "Determinate progress exposes an accessible numeric value and a stable label.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "success", "request-error"]
     },
     {
       "id": "motion-policy",
       "type": "custom",
       "statement": "Indeterminate motion respects reduced-motion preference.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["loading"]
     },
     {

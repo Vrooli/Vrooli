@@ -2,11 +2,6 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library:DataTable@1.3.0"
-  },
   "component": {
     "id": "data-table",
     "title": "DataTable",
@@ -82,7 +77,8 @@
       "statement": "Refreshing keeps the table visible while announcing the update state.",
       "tier": "machine",
       "elements": ["table"],
-      "states": ["refreshing", "partial"]
+      "states": ["refreshing", "partial"],
+      "viewports": ["desktop"]
     },
     {
       "id": "error-retryable",
@@ -102,10 +98,10 @@
   ],
   "bindings": {
     "elements": {
-      "selection": { "selector": "[role='checkbox']" },
-      "table": { "selector": "table" },
       "query": { "selector": "[role='searchbox']" },
-      "retry": { "selector": "[role='button']" }
+      "table": { "selector": "[role='table']" },
+      "selection": { "selector": "[role='checkbox']" },
+      "retry": { "selector": "button" }
     }
   }
 }

@@ -253,10 +253,10 @@ func main() {
 	if err := apiserver.Run(apiserver.Config{
 		Handler: srv.Handler(),
 		// The catalog provider executes one browser-backed report per latest
-		// asset. Keep the response open long enough for the descriptor's 300s
-		// phase envelope to receive the real aggregate result instead of an EOF
-		// at api-core's 30s default.
-		WriteTimeout: 2 * time.Minute,
+		// asset. Keep the response open for the descriptor's 300s phase budget
+		// plus a bounded transport margin so a complete aggregate result is not
+		// truncated into an opaque unexpected EOF.
+		WriteTimeout: 6 * time.Minute,
 		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)

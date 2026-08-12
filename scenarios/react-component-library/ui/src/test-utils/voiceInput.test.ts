@@ -78,4 +78,67 @@ describe("VoiceInputController", () => {
     expect(controller.snapshot.rejectionReason).toBe("not recognized");
     expect(media.capture.stopped).toBe(1);
   });
+
+  it("reports adapter failures, cleans up capture, and tolerates cue failures", async () => {
+    const { adapter, media, cues, controller } = arrange();
+    adapter.error = new Error("transport unavailable");
+    cues.play = vi.fn().mockRejectedValue(new Error("audio unavailable"));
+
+    await controller.start();
+
+    expect(controller.snapshot.state).toBe("error");
+    expect(controller.snapshot.terminalReason).toBe("adapter-failed");
+    expect(adapter.stopReasons).toEqual(["adapter-failed"]);
+    expect(media.capture.stopped).toBe(1);
+  });
+
+  it("retries a stopped session through the adapter before starting a fresh capture", async () => {
+    const { adapter, controller } = arrange();
+    await controller.start();
+    await controller.stop();
+    await controller.retry();
+
+    expect(adapter.retryCalls).toBe(1);
+    expect(adapter.connectCalls).toBe(2);
+    expect(controller.snapshot.state).toBe("recording");
+  });
+
+  it("turns an adapter failure event into one terminal error", async () => {
+    const { adapter, controller } = arrange();
+    await controller.start();
+    adapter.emit({ type: "failure", error: new Error("stream lost") });
+    await vi.waitFor(() => expect(controller.snapshot.state).toBe("error"));
+    expect(controller.snapshot.terminalReason).toBe("adapter-failed");
+  });
+
+  it("ignores duplicate starts and can retry without an adapter retry hook", async () => {
+    const { adapter, media, controller } = arrange();
+    await controller.start();
+    await controller.start();
+    expect(media.acquireCalls).toBe(1);
+
+    Object.defineProperty(adapter, "retry", { configurable: true, value: undefined });
+    await controller.stop();
+    await controller.retry();
+    expect(media.acquireCalls).toBe(2);
+  });
+
+  it("continues cleanup after a non-Error acquisition failure or transport stop failure", async () => {
+    const adapter = new FakeVoiceAdapter();
+    adapter.stop = vi.fn().mockRejectedValue(new Error("stop failed"));
+    const controller = new VoiceInputController({
+      adapter,
+      media: {
+        acquire: () => Promise.reject("permission denied"),
+      },
+    });
+    await controller.start();
+    expect(controller.snapshot.state).toBe("unavailable");
+
+    const ready = arrange();
+    ready.adapter.stop = vi.fn().mockRejectedValue(new Error("stop failed"));
+    await ready.controller.start();
+    await ready.controller.stop();
+    expect(ready.controller.snapshot.state).toBe("idle");
+  });
 });

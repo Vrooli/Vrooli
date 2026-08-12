@@ -2,11 +2,6 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library/Button@2.0.0"
-  },
   "component": {
     "id": "button",
     "title": "Button",
@@ -56,6 +51,19 @@
       "elements": ["icon", "label"],
       "states": ["icon-start"],
       "params": { "axis": "inline", "minSeparation": 4 }
+    },
+    {
+      "id": "primary-state-contrast",
+      "type": "state-contrast",
+      "statement": "The primary action keeps its foreground legible against its rendered surface.",
+      "tier": "machine",
+      "elements": ["action"],
+      "states": ["primary"],
+      "params": {
+        "background": "action",
+        "state": "rest",
+        "minContrastRatio": 3
+      }
     },
     {
       "id": "disabled-state-reflected",

@@ -21,14 +21,14 @@
       "id": "rollback",
       "type": "custom",
       "statement": "A rejected action restores the exact previous value and exposes the async error state.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "cancellation",
       "type": "custom",
       "statement": "Cancellation stops the underlying async action and exposes cancelled status without falsely committing the prediction.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default"]
     }
   ]

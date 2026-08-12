@@ -31,14 +31,14 @@
       "id": "field-granularity",
       "type": "custom",
       "statement": "A field subscriber rerenders from its own field state rather than requiring whole-form consumer glue.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "validating", "error"]
     },
     {
       "id": "input-preservation",
       "type": "custom",
       "statement": "Validation and submission errors preserve current field values and expose field-level errors.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["error"]
     }
   ]

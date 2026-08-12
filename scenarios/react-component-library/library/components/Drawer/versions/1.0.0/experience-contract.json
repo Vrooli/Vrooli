@@ -1,24 +1,39 @@
 {
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library:Drawer@1.0.0"
-  },
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
   "component": {
-    "id": "overlays.drawer",
+    "id": "drawer",
     "title": "Drawer",
-    "purpose": "Layered side surface."
+    "purpose": "A layered side surface with an explicit dialog boundary.",
+    "storyRef": "../../library/components/Drawer/versions/1.0.0/story.json"
   },
   "states": [
     { "id": "open", "example": "open", "description": "The drawer is open." }
   ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "dialog",
+      "description": "The open drawer surface."
+    }
+  ],
   "claims": [
     {
-      "id": "contract-present",
+      "id": "surface-present",
+      "type": "element-present",
+      "statement": "The open drawer exposes a named dialog surface.",
+      "tier": "machine",
+      "elements": ["surface"],
+      "states": ["open"]
+    },
+    {
+      "id": "dismissal-contract",
       "type": "custom",
       "statement": "Drawer uses the shared layer coordinator and bounded dismissal.",
       "tier": "manual",
       "states": ["open"]
     }
-  ]
+  ],
+  "bindings": { "elements": { "surface": { "selector": "[role='dialog']" } } }
 }

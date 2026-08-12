@@ -620,10 +620,6 @@ func ensureHeaderFields(source, libraryID, displayName, description, version str
 	return strings.TrimRight(componentHeader(libraryID, displayName, description, version, tags, deps), "\n") + "\n" + strings.TrimLeft(body, "\n")
 }
 
-func defaultComponentHeader(libraryID, displayName, description, version string, tags []string) string {
-	return componentHeader(libraryID, displayName, description, version, tags, "")
-}
-
 func componentHeader(libraryID, displayName, description, version string, tags []string, deps string) string {
 	depsLine := ""
 	if deps = strings.TrimSpace(deps); deps != "" {

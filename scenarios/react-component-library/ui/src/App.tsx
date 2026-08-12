@@ -1,7 +1,7 @@
 import { Suspense, lazy, type ReactNode } from "react";
 import { Route, Routes } from "react-router-dom";
 
-import { AppShell } from "./components/AppShell";
+import { ApplicationShell as AppShell } from "./components/ui/ApplicationShell";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useHostShortcutRelay } from "./hooks/useHostShortcutRelay";
 import { useTranslation } from "./i18n";

@@ -519,13 +519,6 @@ func dependencyEntryTarget(rootTarget string, asset components.Component, versio
 		dir = filepath.ToSlash(filepath.Dir(dir))
 		dir = filepath.ToSlash(filepath.Join(dir, "components"))
 	}
-	ext := filepath.Ext(version.SourcePath)
-	if ext == "" {
-		ext = ".ts"
-		if asset.AssetKind == components.AssetKindComponent {
-			ext = ".tsx"
-		}
-	}
 	return filepath.ToSlash(filepath.Join(dir, filepath.Base(version.SourcePath)))
 }
 
@@ -699,20 +692,6 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 // are stable kebab-case identifiers.
 func componentExperiencePath(slug string) string {
 	return filepath.ToSlash(filepath.Join("experience", "components", toKebab(slug)+".json"))
-}
-
-func (s *service) resolveTokenNamespace(ctx context.Context, scenario string) (string, error) {
-	if s.tokens == nil {
-		return "app", nil
-	}
-	namespace, err := s.tokens.TokenNamespace(ctx, scenario)
-	if err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(namespace) == "" {
-		return "app", nil
-	}
-	return strings.TrimSpace(namespace), nil
 }
 
 // writeAdoptedSource returns the exact bytes that the target scenario now

@@ -41,21 +41,21 @@
       "id": "input-preservation",
       "type": "custom",
       "statement": "Validation, server rejection, and cancellation preserve the values the user entered.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "request-error"]
     },
     {
       "id": "shared-async-runtime",
       "type": "custom",
       "statement": "Loading, refresh, stale, partial, offline, and request-error presentation delegates to AsyncBoundary.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["loading", "request-error", "offline"]
     },
     {
       "id": "recovery-and-navigation",
       "type": "custom",
       "statement": "The flow exposes retry, cancellation, useful server field errors, and an explicit success handoff.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["request-error", "success"]
     },
     {

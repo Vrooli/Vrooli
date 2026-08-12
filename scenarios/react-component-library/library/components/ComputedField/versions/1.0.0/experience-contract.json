@@ -21,14 +21,14 @@
       "id": "derived-value",
       "type": "custom",
       "statement": "The output recalculates from current store values rather than requiring consumer synchronization state.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["calculated"]
     },
     {
       "id": "honest-status",
       "type": "custom",
       "statement": "The field labels the value as calculated and exposes an accessible live status without pretending it is an editable input.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["calculated"]
     },
     {

@@ -5,6 +5,8 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { useTranslation } from "../i18n";
 import { BarChart3, Blocks, FolderTree, PanelLeftClose, Sparkles } from "lucide-react";
 import { BrandMark } from "./BrandMark";
+import { AppNavigation } from "./ui/AppNavigation/versions/1.0.0/AppNavigation";
+import { NavigationTree } from "./ui/NavigationTree/versions/1.0.0/NavigationTree";
 
 interface SidebarContentProps {
   onNavigate?: () => void;
@@ -64,32 +66,42 @@ export function SidebarContent({
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-space-2xs py-space-xs">
-        <nav aria-label="Library navigation" className="mb-space-sm grid gap-space-3xs">
-          <Link
-            to="/catalog"
-            onClick={onNavigate}
-            aria-current={isCatalogActive ? "page" : undefined}
-            className={navClass({ isActive: isCatalogActive })}
-          >
-            <FolderTree aria-hidden className="h-4 w-4 shrink-0 text-app-primary" />
-            <span className="truncate">
-              {t("nav.browseAssets", { defaultValue: "Browse assets" })}
-            </span>
-          </Link>
-          <NavLink to="/coverage" onClick={onNavigate} className={navClass}>
-            <BarChart3 aria-hidden className="h-4 w-4 shrink-0" />
-            <span className="truncate">Catalog coverage</span>
-          </NavLink>
-          <NavLink to="/capabilities" onClick={onNavigate} className={navClass}>
-            <Sparkles aria-hidden className="h-4 w-4 shrink-0" />
-            <span className="truncate">Capability readiness</span>
-          </NavLink>
-        </nav>
+        <AppNavigation brand={t("app.brand", { defaultValue: "Component Library" })}>
+          <ul data-rcl-app-navigation-list>
+            <li>
+              <Link
+                to="/catalog"
+                onClick={onNavigate}
+                aria-current={isCatalogActive ? "page" : undefined}
+                className={navClass({ isActive: isCatalogActive })}
+              >
+                <FolderTree aria-hidden className="h-4 w-4 shrink-0 text-app-primary" />
+                <span className="truncate">
+                  {t("nav.browseAssets", { defaultValue: "Browse assets" })}
+                </span>
+              </Link>
+            </li>
+            <li>
+              <NavLink to="/coverage" onClick={onNavigate} className={navClass}>
+                <BarChart3 aria-hidden className="h-4 w-4 shrink-0" />
+                <span className="truncate">Catalog coverage</span>
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/capabilities" onClick={onNavigate} className={navClass}>
+                <Sparkles aria-hidden className="h-4 w-4 shrink-0" />
+                <span className="truncate">Capability readiness</span>
+              </NavLink>
+            </li>
+          </ul>
+        </AppNavigation>
         <div className="mb-space-xs flex items-center gap-space-2xs border-b border-app-border px-space-xs pb-space-2xs text-[11px] font-semibold uppercase tracking-wide text-app-muted-foreground">
           <Blocks aria-hidden className="h-3.5 w-3.5" />
           <span>Library inventory</span>
         </div>
-        {inventorySlot}
+        <NavigationTree title="Library inventory" items={[]}>
+          <div data-rcl-navigation-tree-list>{inventorySlot}</div>
+        </NavigationTree>
       </div>
     </div>
   );

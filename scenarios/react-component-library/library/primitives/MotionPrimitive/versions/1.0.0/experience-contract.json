@@ -26,21 +26,21 @@
       "id": "tokenized-transition",
       "type": "custom",
       "statement": "Motion variants use shared duration and easing tokens and animate opacity, transform, and filter rather than layout dimensions.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "interactive"]
     },
     {
       "id": "reduced-motion",
       "type": "custom",
       "statement": "The shared reduced-motion preference collapses transitions and restores the settled visual state without requiring consumer code.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "interactive"]
     },
     {
       "id": "direct-motion-values",
       "type": "custom",
       "statement": "MotionValue subscriptions write continuous values directly to the element style without frame-rate React state updates.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["interactive"]
     }
   ]

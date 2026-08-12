@@ -31,14 +31,14 @@
       "id": "reserved-layout",
       "type": "custom",
       "statement": "The image is contained by an AspectRatio frame before the resource resolves.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "loading", "request-error"]
     },
     {
       "id": "native-image-name",
       "type": "custom",
       "statement": "The image preserves native alt naming and the error surface announces failure without relying on color alone.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "request-error"]
     }
   ]

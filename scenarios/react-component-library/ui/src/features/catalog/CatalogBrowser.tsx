@@ -1,12 +1,6 @@
 /** @vrooliComponentSource data-display.data-table */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  FileCode2,
-  Grid2X2,
-  List,
-  Network,
-  Search,
-} from "lucide-react";
+import { FileCode2, Grid2X2, List, Network, Search } from "lucide-react";
 import { type FormEvent, useDeferredValue, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
@@ -23,6 +17,7 @@ import {
   type ExperienceSurfaceState,
 } from "../../components/ExperienceSurface/versions/1.0.0/ExperienceSurface";
 import { CreateComponentDialog } from "../components/CreateComponentDialog";
+import { AdoptedAssetShowcase } from "./AdoptedAssetShowcase";
 import { workflowsClient } from "../../api/workflows";
 import { assetInfoTab, assetPath } from "../../routes";
 
@@ -328,6 +323,7 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
       }
     >
       {!compact && <CatalogActions />}
+      {!compact && <AdoptedAssetShowcase />}
       <Tabs
         items={[
           {

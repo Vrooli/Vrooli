@@ -37,6 +37,7 @@
         "rerank_enabled": false
       },
       "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
         "name": "workflow-health workflows - primary golden corpus",
         "description": "Starter rank-centric corpus for the workflow-health workflow provider. The provider is deterministic and scans the workflow-health BAS catalog through WorkflowSearchService.",
         "cases": [
@@ -138,6 +139,7 @@
         }
       },
       "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
         "name": "workflow-health tests — primary golden corpus",
         "description": "Reviewed corpus for BAS validation cases indexed by workflow-health.",
         "coverage": {
@@ -221,6 +223,7 @@
         }
       },
       "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
         "name": "workflow-health fragments — honest empty-readiness corpus",
         "description": "Reviewed corpus for reusable BAS action fragments indexed by workflow-health.",
         "cases": [

@@ -31,14 +31,14 @@
       "id": "state-honesty",
       "type": "custom",
       "statement": "The attachment communicates upload, scanning, success, and request-error states without implying an adapter action occurred.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["uploading", "success", "recovery"]
     },
     {
       "id": "independent-progress",
       "type": "custom",
       "statement": "Progress is associated with the individual file and remains accessible through a named progressbar.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["uploading"]
     },
     {

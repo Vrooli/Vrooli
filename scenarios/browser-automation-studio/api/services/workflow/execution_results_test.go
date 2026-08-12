@@ -2,12 +2,29 @@ package workflow
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/google/uuid"
 )
+
+func TestRequiredVideoArtifactContract(t *testing.T) {
+	if err := requiredVideoArtifactError(true, nil, nil); err == nil {
+		t.Fatal("required video with no artifact must fail")
+	}
+	if err := requiredVideoArtifactError(true, []ExecutionVideoArtifact{{ArtifactID: "video-1"}}, nil); err != nil {
+		t.Fatalf("required video with an artifact failed: %v", err)
+	}
+	want := errors.New("artifact lookup failed")
+	if err := requiredVideoArtifactError(true, nil, want); !errors.Is(err, want) {
+		t.Fatalf("artifact lookup error = %v, want wrapped %v", err, want)
+	}
+	if err := requiredVideoArtifactError(false, nil, nil); err != nil {
+		t.Fatalf("optional video must not fail: %v", err)
+	}
+}
 
 func TestListExecutionArtifactsDoesNotExposeCapturePath(t *testing.T) {
 	// enforces invariant: protectedEvidenceHasNoPublicLocation

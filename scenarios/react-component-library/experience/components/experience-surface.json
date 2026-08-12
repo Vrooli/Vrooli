@@ -1,13 +1,12 @@
 {
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library/ExperienceSurface@1.0.0"
-  },
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
   "component": {
     "id": "experience-surface",
     "title": "Experience Surface",
-    "purpose": "Expose the lifecycle of an independently meaningful rendered region without imposing layout or visual presentation."
+    "purpose": "Expose the lifecycle of an independently meaningful rendered region without imposing layout or visual presentation.",
+    "storyRef": "../../library/components/ExperienceSurface/versions/1.0.0/story.json"
   },
   "states": [
     {
@@ -41,27 +40,37 @@
       "description": "The surface has no asynchronous lifecycle requirement."
     }
   ],
+  "elements": [
+    { "id": "surface", "role": "region", "description": "The lifecycle-bearing surface." },
+    { "id": "status", "role": "status", "description": "The polite terminal or loading announcement." }
+  ],
   "claims": [
     {
       "id": "stable-surface-identity",
       "type": "custom",
       "statement": "Every example exposes its stable surface identity and lifecycle state through data-experience-surface and data-experience-state.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["loading", "ready", "empty", "partial", "error", "static"]
     },
     {
       "id": "loading-busy-state",
       "type": "custom",
       "statement": "Loading examples expose aria-busy=true on the semantic surface.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["loading"]
     },
     {
       "id": "live-terminal-status",
       "type": "custom",
       "statement": "Loading, partial, and error examples expose a polite status announcement when a status message is supplied.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["loading", "partial", "error"]
     }
-  ]
+  ],
+  "bindings": {
+    "elements": {
+      "surface": { "selector": "[data-experience-surface]" },
+      "status": { "selector": "[data-experience-surface] [role=status]" }
+    }
+  }
 }

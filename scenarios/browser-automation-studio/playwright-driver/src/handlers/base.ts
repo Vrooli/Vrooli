@@ -20,6 +20,7 @@ import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
 import type winston from 'winston';
 import type { ElectronTargetSpec } from '../types/session';
+import type { InteractionState } from '../session/interaction-state';
 
 // Import types from proto and outcome-builder
 import type { HandlerInstruction } from '../proto';
@@ -90,6 +91,8 @@ export interface HandlerContext {
   sessionId: string;
   /** The admitted target identity, when this is a controlled Electron run. */
   electronTarget?: ElectronTargetSpec;
+  /** Semantic interaction state requested by a validation capture, if any. */
+  interactionState?: InteractionState;
 
   // -------------------------------------------------------------------------
   // OPTIONAL FIELDS - Populated when relevant features are used

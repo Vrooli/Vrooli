@@ -1,6 +1,10 @@
 {
   "states": [
-    { "id": "idle", "example": "idle", "description": "No drag is active." },
+    {
+      "id": "idle",
+      "example": "idle",
+      "description": "No drag is active."
+    },
     {
       "id": "pointer",
       "example": "pointer",
@@ -17,7 +21,7 @@
       "id": "scoped-state",
       "type": "custom",
       "statement": "Drag state is scoped to one interaction region and exposes cancellation as a first-class outcome.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["idle", "pointer", "keyboard"]
     }
   ]

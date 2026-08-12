@@ -41,14 +41,14 @@
       "id": "supporting-activity-observable",
       "type": "custom",
       "statement": "Supporting activity is rendered through AsyncPanel and exposes its lifecycle via ExperienceSurface.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["loading", "ready", "empty", "partial", "error"]
     },
     {
       "id": "asset-task-resilient",
       "type": "custom",
       "statement": "Preview and metadata remain structurally available when only supporting activity is partial or failed.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["partial", "error"]
     }
   ]

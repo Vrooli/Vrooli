@@ -1,8 +1,9 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MouseEvent } from "react";
 import { InlineCode } from "./InlineCode";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { renderWithProviders } from "../../test-utils";
 
 vi.mock("mermaid", () => ({
   default: {
@@ -15,7 +16,7 @@ afterEach(cleanup);
 
 describe("MarkdownRenderer", () => {
   it("renders GFM tables and blockquotes", () => {
-    render(
+    renderWithProviders(
       <MarkdownRenderer
         content={"| Name | Value |\n| --- | --- |\n| state | ready |\n\n> Operator guidance"}
       />,
@@ -27,7 +28,7 @@ describe("MarkdownRenderer", () => {
   it("delegates entity and file inline-code seams", () => {
     const onLinkClick = vi.fn();
     const onFileReferenceClick = vi.fn();
-    render(
+    renderWithProviders(
       <MarkdownRenderer
         content={"`initiative:ship` `docs/plan.md`"}
         resolveInlineToken={(text) =>
@@ -50,13 +51,13 @@ describe("MarkdownRenderer", () => {
   });
 
   it("keeps an unresolved token semantic inline code", () => {
-    render(<InlineCode>unknown:token</InlineCode>);
+    renderWithProviders(<InlineCode>unknown:token</InlineCode>);
     expect(screen.getByText("unknown:token").tagName).toBe("CODE");
   });
 
   it("supports inline rendering and ordinary markdown links", () => {
     const onLinkClick = vi.fn((_: string, event: MouseEvent) => event.preventDefault());
-    const { container } = render(
+    const { container } = renderWithProviders(
       <MarkdownRenderer
         inline
         className="inline-copy"
@@ -71,12 +72,12 @@ describe("MarkdownRenderer", () => {
   });
 
   it("does not render an empty markdown value", () => {
-    const { container } = render(<MarkdownRenderer content="" />);
+    const { container } = renderWithProviders(<MarkdownRenderer content="" />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders fenced code and Mermaid blocks through their specialized surfaces", async () => {
-    render(
+    renderWithProviders(
       <MarkdownRenderer
         content={"```ts\nconst story = true\n```\n\n```mermaid\ngraph TD; A-->B\n```"}
       />,
@@ -86,12 +87,12 @@ describe("MarkdownRenderer", () => {
   });
 
   it("keeps ordinary links usable when no navigation callback is supplied", () => {
-    render(<MarkdownRenderer content="[Guide](/docs/guide)" />);
+    renderWithProviders(<MarkdownRenderer content="[Guide](/docs/guide)" />);
     expect(screen.getByRole("link", { name: "Guide" })).toHaveAttribute("href", "/docs/guide");
   });
 
   it("keeps inline-code content bounded to text and numeric children", () => {
-    const { rerender, container } = render(<InlineCode>{42}</InlineCode>);
+    const { rerender, container } = renderWithProviders(<InlineCode>{42}</InlineCode>);
     expect(screen.getByText("42")).toBeInTheDocument();
     rerender(
       <InlineCode>
@@ -102,7 +103,7 @@ describe("MarkdownRenderer", () => {
   });
 
   it("renders resolved and file-reference inline tokens without optional callbacks", () => {
-    const { rerender } = render(
+    const { rerender } = renderWithProviders(
       <InlineCode resolveInlineToken={() => ({ href: "/asset" })}>asset:Button</InlineCode>,
     );
     expect(screen.getByRole("link", { name: "asset:Button" })).toHaveAttribute("href", "/asset");

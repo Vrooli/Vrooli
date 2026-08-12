@@ -49,4 +49,18 @@ describe("api/componentTests", () => {
       runComponentTest({ componentId: "asset-1", version: "1.0.0", includeClosure: false }),
     ).rejects.toThrow("no component test report");
   });
+
+  it("surfaces transport errors and missing saved reports", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: "unavailable", message: "provider offline" }), {
+        status: 503,
+      }),
+    );
+    await expect(
+      listComponentTestReports({ componentId: "asset-1", limit: 3 }),
+    ).rejects.toMatchObject({ code: "unavailable", status: 503 });
+
+    fetchSpy.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    await expect(getComponentTestReport("missing")).rejects.toThrow("no component test report");
+  });
 });

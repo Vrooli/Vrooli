@@ -4,19 +4,27 @@
   "claims": [
     {
       "id": "semantic-status",
-      "description": "Tone is expressed through role, label, icon, text, and border—not color alone."
+      "description": "Tone is expressed through role, label, icon, text, and border—not color alone.",
+      "type": "custom",
+      "tier": "manual"
     },
     {
       "id": "recovery",
-      "description": "Actions remain native, reachable, and large enough for recovery work."
+      "description": "Actions remain native, reachable, and large enough for recovery work.",
+      "type": "custom",
+      "tier": "manual"
     },
     {
       "id": "responsive",
-      "description": "Long copy and actions reflow without horizontal overflow."
+      "description": "Long copy and actions reflow without horizontal overflow.",
+      "type": "custom",
+      "tier": "manual"
     },
     {
       "id": "forced-colors",
-      "description": "The alert remains legible when custom colors are removed by forced-colors mode."
+      "description": "The alert remains legible when custom colors are removed by forced-colors mode.",
+      "type": "custom",
+      "tier": "manual"
     }
   ]
 }

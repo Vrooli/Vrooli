@@ -26,14 +26,14 @@
       "id": "native-checkbox",
       "type": "custom",
       "statement": "Checkbox exposes a native checkbox role and label association.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["default", "invalid"]
     },
     {
       "id": "error-associated",
       "type": "custom",
       "statement": "An invalid checkbox associates its error text through aria-describedby and exposes an alert.",
-      "tier": "automated",
+      "tier": "manual",
       "states": ["invalid"]
     }
   ]

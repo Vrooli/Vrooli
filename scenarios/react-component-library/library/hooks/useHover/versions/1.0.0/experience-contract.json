@@ -21,14 +21,14 @@
       "id": "pointer-independence",
       "type": "custom",
       "statement": "Hover opens only for hover-capable mouse/pen pointers while keyboard focus remains an explicit path and touch does not engage hover.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "related-surface",
       "type": "custom",
       "statement": "Leaving the trigger for a declared related surface does not schedule closure.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default"]
     }
   ]

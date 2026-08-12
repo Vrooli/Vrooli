@@ -89,11 +89,23 @@ type Report struct {
 }
 
 type MaturityCoverage struct {
-	AtOrAboveTarget int
-	Total           int
-	ByDomain        map[string]DomainCount
-	ByPriority      map[string]DomainCount
-	ByRung          map[AchievedRung]int
+	AtOrAboveTarget         int
+	Total                   int
+	ByDomain                map[string]DomainCount
+	ByPriority              map[string]DomainCount
+	ByRung                  map[AchievedRung]int
+	CatalogCompletion       CoverageMetric
+	MandatoryGateCoverage   CoverageMetric
+	WeightedQuality         CoverageMetric
+	ProductionReadyCoverage CoverageMetric
+}
+
+// CoverageMetric keeps a ratio auditable. A percentage without its
+// numerator and denominator is not a trustworthy coverage report.
+type CoverageMetric struct {
+	Numerator   int
+	Denominator int
+	Ratio       float64
 }
 
 // DomainCount is a planned/built pair for one grouping.
@@ -141,7 +153,7 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 			if impl, ok := byCatalogID[asset.ID]; ok {
 				row.Bucket = BucketPlannedBuilt
 				row.Implementation = impl.Name
-				row.Achieved = achieved(asset, target, gates, evidence)
+				row.Achieved = achieved(asset, target, impl, gates, evidence)
 				claimed[impl.Name] = true
 			} else {
 				row.Bucket = BucketPlannedUnbuilt
@@ -174,6 +186,31 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 			}
 		}
 	}
+	rep.Maturity.CatalogCompletion = metric(rep.Totals[BucketPlannedBuilt], rep.Maturity.Total)
+	for _, row := range rep.Rows {
+		if row.Bucket == BucketSupplemental {
+			continue
+		}
+		for _, gate := range gates {
+			if !gate.Blocking || !contains(gate.AppliesTo, row.Kind) {
+				continue
+			}
+			rep.Maturity.MandatoryGateCoverage.Denominator++
+			if hasEvidence(evidence, row.AssetID, row.Platform, gate.ID) {
+				rep.Maturity.MandatoryGateCoverage.Numerator++
+			}
+		}
+		weight := priorityWeight(row.Priority)
+		rep.Maturity.WeightedQuality.Denominator += weight * rungRank(RungProductionReady)
+		rep.Maturity.WeightedQuality.Numerator += weight * rungRank(row.Achieved)
+		if row.Achieved == RungProductionReady {
+			rep.Maturity.ProductionReadyCoverage.Numerator++
+		}
+		rep.Maturity.ProductionReadyCoverage.Denominator++
+	}
+	rep.Maturity.MandatoryGateCoverage.Ratio = ratio(rep.Maturity.MandatoryGateCoverage.Numerator, rep.Maturity.MandatoryGateCoverage.Denominator)
+	rep.Maturity.WeightedQuality.Ratio = ratio(rep.Maturity.WeightedQuality.Numerator, rep.Maturity.WeightedQuality.Denominator)
+	rep.Maturity.ProductionReadyCoverage.Ratio = ratio(rep.Maturity.ProductionReadyCoverage.Numerator, rep.Maturity.ProductionReadyCoverage.Denominator)
 
 	for _, impl := range impls {
 		if impl.CatalogID != "" && claimed[impl.Name] {
@@ -201,7 +238,10 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 
 var rungOrder = []AchievedRung{RungScaffolded, RungImplemented, RungVerified, RungProductionReady}
 
-func achieved(asset Asset, target string, gates []GateDefinition, evidence []GateEvidence) AchievedRung {
+func achieved(asset Asset, target string, impl Implementation, gates []GateDefinition, evidence []GateEvidence) AchievedRung {
+	if impl.ExperienceStateKnown && (!impl.ExperienceRegistered || impl.ExperienceVacuous) {
+		return RungScaffolded
+	}
 	if len(gates) == 0 {
 		return RungScaffolded
 	}
@@ -227,6 +267,37 @@ func achieved(asset Asset, target string, gates []GateDefinition, evidence []Gat
 		current = rung
 	}
 	return current
+}
+
+func hasEvidence(evidence []GateEvidence, assetID, target, gate string) bool {
+	for _, item := range evidence {
+		if item.AssetID == assetID && item.Target == target && item.Gate == gate && strings.EqualFold(item.Result, "pass") {
+			return true
+		}
+	}
+	return false
+}
+
+func priorityWeight(priority string) int {
+	switch strings.ToUpper(priority) {
+	case "P0":
+		return 3
+	case "P1":
+		return 2
+	default:
+		return 1
+	}
+}
+
+func ratio(numerator, denominator int) float64 {
+	if denominator == 0 {
+		return 0
+	}
+	return float64(numerator) / float64(denominator)
+}
+
+func metric(numerator, denominator int) CoverageMetric {
+	return CoverageMetric{Numerator: numerator, Denominator: denominator, Ratio: ratio(numerator, denominator)}
 }
 
 func contains(values []string, value string) bool {

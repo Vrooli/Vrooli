@@ -18,7 +18,7 @@
     "type-check:catalog": "node scripts/catalog-conformance.mjs type-check",
     "catalog:check": "pnpm run format:check && node scripts/catalog-conformance.mjs check",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --minWorkers=2 --maxWorkers=2",
     "test:preview-e2e": "node scripts/preview-e2e.mjs",
     "build:preview-kits": "node scripts/build-preview-kits.mjs",
     "strings:gen": "node scripts/gen-strings.mjs",

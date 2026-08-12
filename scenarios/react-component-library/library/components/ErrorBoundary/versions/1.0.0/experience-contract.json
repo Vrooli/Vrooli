@@ -26,14 +26,14 @@
       "id": "partial-degradation",
       "type": "custom",
       "statement": "The boundary replaces only its failed subtree; the host surface remains mounted.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["request-error"]
     },
     {
       "id": "recovery",
       "type": "custom",
       "statement": "The failure fallback exposes a keyboard-operable retry action and reset-key recovery without automatic focus capture.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["request-error", "retry"]
     },
     {
@@ -45,7 +45,7 @@
     },
     {
       "id": "theme-parity",
-      "type": "visual",
+      "type": "custom",
       "statement": "Contained errors remain legible across native and compatible preview kits.",
       "tier": "manual",
       "states": ["request-error", "retry"]

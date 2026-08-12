@@ -102,6 +102,8 @@ export interface AXTreeResult {
 export interface DomNodeInfo {
   tag?: string;
   testid?: string;
+  /** Stable DOM attributes used by downstream experience contracts. */
+  attributes?: Record<string, string>;
   bounds?: { x: number; y: number; width: number; height: number };
   computedStyle?: Record<string, string>;
 }
@@ -152,7 +154,7 @@ export interface NormalizedAXNode {
   value?: string;
   states?: string[];
   bounds?: { x: number; y: number; width: number; height: number };
-  dom?: { testid?: string; tag?: string };
+  dom?: { testid?: string; tag?: string; attributes?: Record<string, string> };
   computedStyle?: Record<string, string>;
   children: NormalizedAXNode[];
 }
@@ -252,7 +254,9 @@ export function normalizeAccessibilityTree(
 
   const counter = { count: 0, truncated: false };
 
-  const buildDom = (node: RawAXNode): { testid?: string; tag?: string } | undefined => {
+  const buildDom = (
+    node: RawAXNode
+  ): { testid?: string; tag?: string; attributes?: Record<string, string> } | undefined => {
     if (node.backendDOMNodeId == null) {
       return undefined;
     }
@@ -260,12 +264,15 @@ export function normalizeAccessibilityTree(
     if (!info) {
       return undefined;
     }
-    const dom: { testid?: string; tag?: string } = {};
+    const dom: { testid?: string; tag?: string; attributes?: Record<string, string> } = {};
     if (info.testid) {
       dom.testid = info.testid;
     }
     if (info.tag) {
       dom.tag = info.tag;
+    }
+    if (info.attributes && Object.keys(info.attributes).length > 0) {
+      dom.attributes = info.attributes;
     }
     return dom.testid || dom.tag ? dom : undefined;
   };
@@ -399,7 +406,7 @@ function findRootId(rawNodes: RawAXNode[]): string | undefined {
 
 /**
  * Parse a DOMSnapshot.captureSnapshot payload into a backend-node-id → DOM
- * info map (tag, data-testid, layout bounds). Layout bounds are the
+ * info map (tag, stable DOM attributes, layout bounds). Layout bounds are the
  * document-relative CSS-pixel box DOMSnapshot reports.
  */
 export function parseDomSnapshot(snapshot: DOMSnapshotResult): Map<number, DomNodeInfo> {
@@ -440,14 +447,28 @@ export function parseDomSnapshot(snapshot: DOMSnapshotResult): Map<number, DomNo
       }
 
       const attrs = attributes[i] ?? [];
+      const stableAttributes: Record<string, string> = {};
       for (let a = 0; a + 1 < attrs.length; a += 2) {
-        if (str(attrs[a]) === 'data-testid') {
-          const testid = str(attrs[a + 1]);
-          if (testid) {
-            info.testid = testid;
-          }
-          break;
+        const name = str(attrs[a]);
+        const value = str(attrs[a + 1]);
+        if (!name || value == null) {
+          continue;
         }
+        if (name === 'data-testid') {
+          info.testid = value;
+        }
+        if (
+          name.startsWith('data-') ||
+          name === 'id' ||
+          name === 'name' ||
+          name === 'type' ||
+          name.startsWith('aria-')
+        ) {
+          stableAttributes[name] = value;
+        }
+      }
+      if (Object.keys(stableAttributes).length > 0) {
+        info.attributes = stableAttributes;
       }
 
       const b = layoutBounds.get(i);
@@ -458,7 +479,11 @@ export function parseDomSnapshot(snapshot: DOMSnapshotResult): Map<number, DomNo
       const styleValues = nodes.computedStyles?.[i] ?? [];
       if (styleValues.length > 0) {
         const computedStyle: Record<string, string> = {};
-        for (let propertyIndex = 0; propertyIndex < COMPUTED_STYLE_PROPERTIES.length; propertyIndex += 1) {
+        for (
+          let propertyIndex = 0;
+          propertyIndex < COMPUTED_STYLE_PROPERTIES.length;
+          propertyIndex += 1
+        ) {
           const value = str(styleValues[propertyIndex]);
           const property = COMPUTED_STYLE_PROPERTIES[propertyIndex];
           if (value != null && property != null) {
@@ -470,12 +495,54 @@ export function parseDomSnapshot(snapshot: DOMSnapshotResult): Map<number, DomNo
         }
       }
 
-      if (info.tag || info.testid || info.bounds || info.computedStyle) {
+      if (info.tag || info.testid || info.attributes || info.bounds || info.computedStyle) {
         out.set(backendId, info);
       }
     }
   }
   return out;
+}
+
+/**
+ * Chromium versions used by the managed driver have intermittently returned
+ * geometry and attributes from DOMSnapshot.captureSnapshot while omitting its
+ * optional computedStyles arrays. The page is still live at this point, so
+ * collect styles for declared test-id surfaces as a deterministic fallback.
+ * This also preserves pseudo-class state (for example :hover) after the
+ * interaction profile has been applied.
+ */
+async function computedStylesByTestID(page: Page): Promise<Map<string, Record<string, string>>> {
+  const values = await page.evaluate(
+    (properties: readonly string[]) => {
+      const result: Array<{ testid: string; style: Record<string, string> }> = [];
+      for (const element of document.querySelectorAll<HTMLElement>('[data-testid]')) {
+        const testid = element.getAttribute('data-testid');
+        if (!testid) continue;
+        const computed = getComputedStyle(element);
+        const style: Record<string, string> = {};
+        for (const property of properties) {
+          const value = computed.getPropertyValue(property).trim();
+          if (value) style[property] = value;
+        }
+        if (Object.keys(style).length > 0) result.push({ testid, style });
+      }
+      return result;
+    },
+    [...COMPUTED_STYLE_PROPERTIES]
+  );
+  return new Map(values.map(({ testid, style }) => [testid, style]));
+}
+
+function mergeComputedStyles(
+  domInfo: Map<number, DomNodeInfo>,
+  stylesByTestID: Map<string, Record<string, string>>
+): void {
+  if (stylesByTestID.size === 0) return;
+  for (const info of domInfo.values()) {
+    if (!info.testid || info.computedStyle) continue;
+    const style = stylesByTestID.get(info.testid);
+    if (style) info.computedStyle = style;
+  }
 }
 
 /**
@@ -519,6 +586,9 @@ export class AccessibilitySnapshotter {
           computedStyles: [...COMPUTED_STYLE_PROPERTIES],
         });
         domInfo = parseDomSnapshot(snap);
+        if (![...domInfo.values()].some((info) => info.computedStyle)) {
+          mergeComputedStyles(domInfo, await computedStylesByTestID(page));
+        }
       } catch (error) {
         logger.warn(scopedLog(LogContext.TELEMETRY, 'accessibility DOM join failed'), {
           error: error instanceof Error ? error.message : String(error),

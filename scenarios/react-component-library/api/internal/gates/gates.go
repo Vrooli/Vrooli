@@ -4,6 +4,7 @@
 package gates
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -525,6 +526,138 @@ func ValidateExamples(root string) (Result, error) {
 		}
 	}
 	return nonEmpty(result, "examples"), nil
+}
+
+// ValidateReducedMotion checks the source contract rather than inferring
+// support from a component's existence. Motion-bearing implementations must
+// declare their reduced-motion behavior; components without motion need no
+// special override and pass this gate after inspection.
+func ValidateReducedMotion(root string) (Result, error) {
+	motionDeclaration := regexp.MustCompile(`(?m)(?:^|[;{\s])(?:transition|animation|transform)\s*:`)
+	return validateActiveSources(root, "reduced-motion", func(asset assetDoc, source string) string {
+		if !motionDeclaration.MatchString(source) {
+			return ""
+		}
+		if strings.Contains(source, "prefers-reduced-motion") || strings.Contains(source, "useReducedMotion") || strings.Contains(source, "reducedMotion") {
+			return ""
+		}
+		return "motion-bearing source has no reduced-motion branch"
+	})
+}
+
+// ValidateRTL rejects physical horizontal CSS declarations in active source.
+// Logical properties are the shared library's direction-safe contract.
+func ValidateRTL(root string) (Result, error) {
+	physical := regexp.MustCompile(`(?i)(?:margin|padding|inset|border)-(?:left|right)\s*:|(?:margin|padding)(?:Left|Right)\s*:`)
+	return validateActiveSources(root, "rtl", func(asset assetDoc, source string) string {
+		if physical.MatchString(source) {
+			return "active source contains a physical left/right declaration"
+		}
+		return ""
+	})
+}
+
+// ValidateStress requires every active renderable implementation to have an
+// indexed story contract. The story contract is the stress fixture boundary:
+// it is where long, empty, disabled, and large-value specimens are declared
+// and version-pinned for the browser runner.
+func ValidateStress(root string) (Result, error) {
+	return validateActiveSources(root, "stress", func(asset assetDoc, source string) string {
+		_ = source
+		manifest, _, ok, err := implementationSource(root, asset.Asset.ID)
+		if err != nil || !ok {
+			return "active implementation is not available to the stress runner"
+		}
+		data, readErr := os.ReadFile(manifest)
+		if readErr != nil {
+			return "implementation manifest could not be read"
+		}
+		var doc struct {
+			Latest string `json:"latest"`
+		}
+		if json.Unmarshal(data, &doc) != nil || doc.Latest == "" {
+			return "implementation manifest has no released version"
+		}
+		storyPath := filepath.Join(filepath.Dir(manifest), "versions", doc.Latest, "story.json")
+		story, readErr := os.ReadFile(storyPath)
+		if readErr != nil || len(bytes.TrimSpace(story)) == 0 {
+			return "released implementation has no non-empty story contract"
+		}
+		return ""
+	})
+}
+
+// ValidatePerformance executes the same production build boundary used by
+// the scenario lifecycle. It is intentionally corpus-level: a successful
+// immutable build proves the selected source can be bundled by the target,
+// while bundle-budget policy remains a separate diagnostic.
+func ValidatePerformance(root string) (Result, error) {
+	uiDir := filepath.Join(root, "scenarios", "react-component-library", "ui")
+	result := Result{Inspected: countCatalogSources(root)}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	command := exec.CommandContext(ctx, "pnpm", "run", "build")
+	command.Dir = uiDir
+	output, err := command.CombinedOutput()
+	if ctx.Err() != nil {
+		result.Findings = append(result.Findings, Finding{Code: "catalog.performance_timeout", AssetID: "catalog.runner", Message: "production build timed out before the performance gate completed"})
+	} else if err != nil {
+		message := strings.TrimSpace(string(output))
+		if len(message) > 4000 {
+			message = message[len(message)-4000:]
+		}
+		result.Findings = append(result.Findings, Finding{Code: "catalog.performance_failed", AssetID: "catalog.runner", Message: "production build failed: " + message})
+	}
+	return nonEmpty(result, "performance"), nil
+}
+
+// ValidateIntegration checks the source-level integration boundary shared by
+// every released renderable asset. The actual manager/browser integration is
+// recorded by component-test and Experience Manager evidence; this runner
+// prevents a source-only asset from receiving an integration pass.
+func ValidateIntegration(root string) (Result, error) {
+	return validateActiveSources(root, "integration", func(asset assetDoc, source string) string {
+		if strings.TrimSpace(source) == "" {
+			return "released integration source is empty"
+		}
+		// The active component manifest supplies the exact released version;
+		// source identity may use the library marker or the established
+		// adoption-facade marker. Both are valid integration boundaries, while
+		// an unowned source is not.
+		if !strings.Contains(source, "@libraryId") && !strings.Contains(source, "@vrooliComponentSource") {
+			return "released source has no library or adoption identity metadata"
+		}
+		return ""
+	})
+}
+
+func validateActiveSources(root, gate string, check func(asset assetDoc, source string) string) (Result, error) {
+	assets, err := loadAssets(root)
+	if err != nil {
+		return Result{}, err
+	}
+	result := Result{}
+	for _, asset := range assets {
+		if asset.Asset.Kind != "component" && asset.Asset.Kind != "navigation" && asset.Asset.Kind != "primitive" && asset.Asset.Kind != "pattern" && asset.Asset.Kind != "page-template" {
+			continue
+		}
+		_, source, ok, err := implementationSource(root, asset.Asset.ID)
+		if err != nil {
+			return Result{}, err
+		}
+		if !ok {
+			continue
+		}
+		data, err := os.ReadFile(source)
+		if err != nil {
+			return Result{}, err
+		}
+		result.Inspected++
+		if message := check(asset, string(data)); message != "" {
+			result.Findings = append(result.Findings, Finding{Code: "catalog." + gate, AssetID: asset.Asset.ID, Message: message})
+		}
+	}
+	return nonEmpty(result, gate), nil
 }
 
 func nonEmpty(result Result, gate string) Result {

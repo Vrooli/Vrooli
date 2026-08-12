@@ -144,5 +144,13 @@ func maturityProto(m catalogcoverage.MaturityCoverage) *catalogv1.MaturitySummar
 	for key, value := range m.ByRung {
 		out.ByRung[string(key)] = int32(value)
 	}
+	out.CatalogCompletion = metricProto(m.CatalogCompletion)
+	out.MandatoryGateCoverage = metricProto(m.MandatoryGateCoverage)
+	out.WeightedQuality = metricProto(m.WeightedQuality)
+	out.ProductionReadyCoverage = metricProto(m.ProductionReadyCoverage)
 	return out
+}
+
+func metricProto(metric catalogcoverage.CoverageMetric) *catalogv1.CoverageMetric {
+	return &catalogv1.CoverageMetric{Numerator: int32(metric.Numerator), Denominator: int32(metric.Denominator), Ratio: metric.Ratio}
 }

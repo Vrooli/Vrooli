@@ -65,7 +65,8 @@
           "hard_floor": 0
         }
       },
-      "tests": {
+    "tests": {
+      "minimum": {"reviewed_positive": 1, "negative": 1},
         "name": "ui-health surfaces — reviewed production corpus",
         "description": "Rank-centric reviewed corpus for reusable UI surfaces. Cases span configuration, search evaluation, audit, theme, dashboard, and shared feedback components; every added expected path was verified by a live provider query on 2026-07-12.",
         "cases": [

@@ -1,6 +1,7 @@
 package adoptions_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -77,7 +78,7 @@ func TestFSScenarioFileReaderLoadsScenarioOwnedMapping(t *testing.T) {
   "contrast_pairs": [{"foreground": "app-primary", "background": "app-danger", "ratio": 4.5}]
 }`)
 
-	mapping, err := adoptions.NewFSScenarioFileReader(root).TokenMapping(nil, "web-console")
+	mapping, err := adoptions.NewFSScenarioFileReader(root).TokenMapping(context.Background(), "web-console")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +88,7 @@ func TestFSScenarioFileReaderLoadsScenarioOwnedMapping(t *testing.T) {
 }
 
 func TestFSScenarioFileReaderRejectsMissingMapping(t *testing.T) {
-	_, err := adoptions.NewFSScenarioFileReader(t.TempDir()).TokenMapping(nil, "web-console")
+	_, err := adoptions.NewFSScenarioFileReader(t.TempDir()).TokenMapping(context.Background(), "web-console")
 	if err == nil || !strings.Contains(err.Error(), "mapping missing") {
 		t.Fatalf("err = %v", err)
 	}

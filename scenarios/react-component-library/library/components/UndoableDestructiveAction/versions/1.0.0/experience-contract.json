@@ -36,12 +36,12 @@
       "id": "reversible-action",
       "type": "custom",
       "statement": "A successful destructive action immediately creates a time-bounded undo record with explicit success and failure states.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["default", "submitting", "success", "request-error"]
     },
     {
       "id": "responsive-reflow",
-      "type": "responsive",
+      "type": "custom",
       "statement": "The recovery surface and retry controls reflow to full-width mobile controls without clipping content.",
       "tier": "manual",
       "states": ["default", "request-error"]

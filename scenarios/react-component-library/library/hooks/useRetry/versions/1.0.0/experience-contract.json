@@ -4,15 +4,21 @@
   "claims": [
     {
       "id": "bounded",
-      "description": "Attempts are bounded and the final error remains available to the caller."
+      "description": "Attempts are bounded and the final error remains available to the caller.",
+      "type": "custom",
+      "tier": "manual"
     },
     {
       "id": "cancellable",
-      "description": "Superseded work and backoff timers are abortable and cleaned up on unmount."
+      "description": "Superseded work and backoff timers are abortable and cleaned up on unmount.",
+      "type": "custom",
+      "tier": "manual"
     },
     {
       "id": "classified",
-      "description": "Non-retryable errors stop immediately instead of creating noisy repeated requests."
+      "description": "Non-retryable errors stop immediately instead of creating noisy repeated requests.",
+      "type": "custom",
+      "tier": "manual"
     }
   ]
 }

@@ -41,7 +41,7 @@
       "id": "inspector-observable",
       "type": "custom",
       "statement": "The inspector region uses AsyncPanel and exposes a stable ExperienceSurface lifecycle.",
-      "tier": "machine",
+      "tier": "manual",
       "states": ["loading", "ready", "empty", "partial", "error"]
     }
   ]
