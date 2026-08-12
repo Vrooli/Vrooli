@@ -46,7 +46,12 @@ message BacklogCriterion {
 
 // CriterionCheck is the machine-verifiable check bound to a criterion.
 message CriterionCheck {
-  string kind = 1 [(buf.validate.field).string = {in: ["test_genie_phase", "command"]}];
+  string kind = 1 [(buf.validate.field).string = {
+    in: [
+      "test_genie_phase",
+      "command"
+    ]
+  }];
   string scenario = 2;
   string phase = 3;
   repeated string argv = 4;

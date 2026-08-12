@@ -74,4 +74,8 @@ message DispatchJobResponse {
   string scenario = 4;
   string verb = 5;
   repeated string args = 6;
+
+  // True when the server accepted the job into the node's durable queue but
+  // has not pushed it to the node yet.
+  bool queued = 7;
 }

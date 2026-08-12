@@ -4,7 +4,7 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { CompatibilityStatus, Heartbeat } from "../shared/shared_pb";
+import type { CompatibilityStatus, DeliveryAck, Heartbeat, SessionFrame } from "../shared/shared_pb";
 import { file_vrooli_bridge_v1_shared_shared } from "../shared/shared_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/presence/presence.proto.
  */
 export const file_vrooli_bridge_v1_presence_presence: GenFile = /*@__PURE__*/
-  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL3ByZXNlbmNlL3ByZXNlbmNlLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZSJWChZSZXBvcnRIZWFydGJlYXRSZXF1ZXN0EjwKCWhlYXJ0YmVhdBgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5IZWFydGJlYXQiZQoXUmVwb3J0SGVhcnRiZWF0UmVzcG9uc2USSgoNY29tcGF0aWJpbGl0eRgBIAEoDjIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5Db21wYXRpYmlsaXR5U3RhdHVzMpoBCg9QcmVzZW5jZVNlcnZpY2UShgEKD1JlcG9ydEhlYXJ0YmVhdBI4LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnByZXNlbmNlLlJlcG9ydEhlYXJ0YmVhdFJlcXVlc3QaOS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZS5SZXBvcnRIZWFydGJlYXRSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvcHJlc2VuY2U7cHJlc2VuY2VfdjFiBnByb3RvMw", [file_vrooli_bridge_v1_shared_shared]);
+  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL3ByZXNlbmNlL3ByZXNlbmNlLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZSJWChZSZXBvcnRIZWFydGJlYXRSZXF1ZXN0EjwKCWhlYXJ0YmVhdBgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5IZWFydGJlYXQiZQoXUmVwb3J0SGVhcnRiZWF0UmVzcG9uc2USSgoNY29tcGF0aWJpbGl0eRgBIAEoDjIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5Db21wYXRpYmlsaXR5U3RhdHVzIlQKGFJlcG9ydERlbGl2ZXJ5QWNrUmVxdWVzdBI4CgNhY2sYASABKAsyKy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuRGVsaXZlcnlBY2siLQoZUmVwb3J0RGVsaXZlcnlBY2tSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCCJYChlSZXBvcnRTZXNzaW9uRnJhbWVSZXF1ZXN0EjsKBWZyYW1lGAEgASgLMiwudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLlNlc3Npb25GcmFtZSIuChpSZXBvcnRTZXNzaW9uRnJhbWVSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCDK7AwoPUHJlc2VuY2VTZXJ2aWNlEoYBCg9SZXBvcnRIZWFydGJlYXQSOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZS5SZXBvcnRIZWFydGJlYXRSZXF1ZXN0GjkudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0SGVhcnRiZWF0UmVzcG9uc2USjAEKEVJlcG9ydERlbGl2ZXJ5QWNrEjoudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0RGVsaXZlcnlBY2tSZXF1ZXN0GjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0RGVsaXZlcnlBY2tSZXNwb25zZRKPAQoSUmVwb3J0U2Vzc2lvbkZyYW1lEjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0U2Vzc2lvbkZyYW1lUmVxdWVzdBo8LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnByZXNlbmNlLlJlcG9ydFNlc3Npb25GcmFtZVJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9wcmVzZW5jZTtwcmVzZW5jZV92MWIGcHJvdG8z", [file_vrooli_bridge_v1_shared_shared]);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
@@ -54,6 +54,74 @@ export const ReportHeartbeatResponseSchema: GenMessage<ReportHeartbeatResponse> 
   messageDesc(file_vrooli_bridge_v1_presence_presence, 1);
 
 /**
+ * @generated from message vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest
+ */
+export type ReportDeliveryAckRequest = Message<"vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest"> & {
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.shared.DeliveryAck ack = 1;
+   */
+  ack?: DeliveryAck | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest.
+ * Use `create(ReportDeliveryAckRequestSchema)` to create a new message.
+ */
+export const ReportDeliveryAckRequestSchema: GenMessage<ReportDeliveryAckRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_presence_presence, 2);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse
+ */
+export type ReportDeliveryAckResponse = Message<"vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse"> & {
+  /**
+   * @generated from field: bool accepted = 1;
+   */
+  accepted: boolean;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse.
+ * Use `create(ReportDeliveryAckResponseSchema)` to create a new message.
+ */
+export const ReportDeliveryAckResponseSchema: GenMessage<ReportDeliveryAckResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_presence_presence, 3);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest
+ */
+export type ReportSessionFrameRequest = Message<"vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest"> & {
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.shared.SessionFrame frame = 1;
+   */
+  frame?: SessionFrame | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest.
+ * Use `create(ReportSessionFrameRequestSchema)` to create a new message.
+ */
+export const ReportSessionFrameRequestSchema: GenMessage<ReportSessionFrameRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_presence_presence, 4);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse
+ */
+export type ReportSessionFrameResponse = Message<"vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse"> & {
+  /**
+   * @generated from field: bool accepted = 1;
+   */
+  accepted: boolean;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse.
+ * Use `create(ReportSessionFrameResponseSchema)` to create a new message.
+ */
+export const ReportSessionFrameResponseSchema: GenMessage<ReportSessionFrameResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_presence_presence, 5);
+
+/**
  * =============================================================================
  * PRESENCE DOMAIN — dial-out heartbeat intake (OT-P0-003)
  * =============================================================================
@@ -86,6 +154,28 @@ export const PresenceService: GenService<{
     methodKind: "unary";
     input: typeof ReportHeartbeatRequestSchema;
     output: typeof ReportHeartbeatResponseSchema;
+  },
+  /**
+   * ReportDeliveryAck confirms that a signed server frame reached the node and
+   * was verified before the represented operation began.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.presence.PresenceService.ReportDeliveryAck
+   */
+  reportDeliveryAck: {
+    methodKind: "unary";
+    input: typeof ReportDeliveryAckRequestSchema;
+    output: typeof ReportDeliveryAckResponseSchema;
+  },
+  /**
+   * ReportSessionFrame carries node PTY output and terminal lifecycle events
+   * back over the node's mutually-authenticated Connect channel.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.presence.PresenceService.ReportSessionFrame
+   */
+  reportSessionFrame: {
+    methodKind: "unary";
+    input: typeof ReportSessionFrameRequestSchema;
+    output: typeof ReportSessionFrameResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_bridge_v1_presence_presence, 0);

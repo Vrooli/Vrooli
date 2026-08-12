@@ -13,22 +13,50 @@ message Session {
   string sandbox_workspace = 6;
   string reclaimed_reason = 7;
   string name = 8;
+  int64 inference_cost_micros = 9;
+  int64 inference_tokens = 10;
+  int64 delegation_cost_micros = 11;
+  int64 inference_ceiling_micros = 12;
+  int64 delegation_ceiling_micros = 13;
+  bool delegation_spend_measured = 14;
+  string delegation_spend_note = 15;
 }
 
 message CreateSessionRequest {
   repeated string grants = 1;
   string sandbox_workspace = 2;
   string name = 3;
+  int64 inference_ceiling_micros = 4;
+  int64 delegation_ceiling_micros = 5;
 }
-message CreateSessionResponse { Session session = 1; }
-message GetSessionRequest { string id = 1; }
-message GetSessionResponse { Session session = 1; }
+message CreateSessionResponse {
+  Session session = 1;
+}
+message GetSessionRequest {
+  string id = 1;
+}
+message GetSessionResponse {
+  Session session = 1;
+}
 message ListSessionsRequest {}
-message ListSessionsResponse { repeated Session sessions = 1; int64 count = 2; }
-message DeleteSessionRequest { string id = 1; string reason = 2; }
-message DeleteSessionResponse { Session session = 1; }
-message GrantSessionRequest { string id = 1; repeated string grants = 2; }
-message GrantSessionResponse { Session session = 1; }
+message ListSessionsResponse {
+  repeated Session sessions = 1;
+  int64 count = 2;
+}
+message DeleteSessionRequest {
+  string id = 1;
+  string reason = 2;
+}
+message DeleteSessionResponse {
+  Session session = 1;
+}
+message GrantSessionRequest {
+  string id = 1;
+  repeated string grants = 2;
+}
+message GrantSessionResponse {
+  Session session = 1;
+}
 
 service SessionService {
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);

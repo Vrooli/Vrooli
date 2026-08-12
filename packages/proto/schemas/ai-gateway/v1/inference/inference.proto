@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package vrooli.ai_gateway.v1.inference;
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1";
-
 import "ai-gateway/v1/shared/gateway.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1";
 
 // Usage is the provider-reported accounting for one inference operation.
 // cost_micros is expressed in USD micro-units; local providers report zero

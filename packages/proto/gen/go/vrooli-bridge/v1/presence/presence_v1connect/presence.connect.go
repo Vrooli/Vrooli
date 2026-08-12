@@ -36,6 +36,12 @@ const (
 	// PresenceServiceReportHeartbeatProcedure is the fully-qualified name of the PresenceService's
 	// ReportHeartbeat RPC.
 	PresenceServiceReportHeartbeatProcedure = "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportHeartbeat"
+	// PresenceServiceReportDeliveryAckProcedure is the fully-qualified name of the PresenceService's
+	// ReportDeliveryAck RPC.
+	PresenceServiceReportDeliveryAckProcedure = "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportDeliveryAck"
+	// PresenceServiceReportSessionFrameProcedure is the fully-qualified name of the PresenceService's
+	// ReportSessionFrame RPC.
+	PresenceServiceReportSessionFrameProcedure = "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportSessionFrame"
 )
 
 // PresenceServiceClient is a client for the vrooli.vrooli_bridge.v1.presence.PresenceService
@@ -45,6 +51,12 @@ type PresenceServiceClient interface {
 	// control plane's compatibility verdict so an out-of-date agent learns it is
 	// flagged NEEDS_UPDATE without a separate call.
 	ReportHeartbeat(context.Context, *connect.Request[presence.ReportHeartbeatRequest]) (*connect.Response[presence.ReportHeartbeatResponse], error)
+	// ReportDeliveryAck confirms that a signed server frame reached the node and
+	// was verified before the represented operation began.
+	ReportDeliveryAck(context.Context, *connect.Request[presence.ReportDeliveryAckRequest]) (*connect.Response[presence.ReportDeliveryAckResponse], error)
+	// ReportSessionFrame carries node PTY output and terminal lifecycle events
+	// back over the node's mutually-authenticated Connect channel.
+	ReportSessionFrame(context.Context, *connect.Request[presence.ReportSessionFrameRequest]) (*connect.Response[presence.ReportSessionFrameResponse], error)
 }
 
 // NewPresenceServiceClient constructs a client for the
@@ -65,17 +77,41 @@ func NewPresenceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(presenceServiceMethods.ByName("ReportHeartbeat")),
 			connect.WithClientOptions(opts...),
 		),
+		reportDeliveryAck: connect.NewClient[presence.ReportDeliveryAckRequest, presence.ReportDeliveryAckResponse](
+			httpClient,
+			baseURL+PresenceServiceReportDeliveryAckProcedure,
+			connect.WithSchema(presenceServiceMethods.ByName("ReportDeliveryAck")),
+			connect.WithClientOptions(opts...),
+		),
+		reportSessionFrame: connect.NewClient[presence.ReportSessionFrameRequest, presence.ReportSessionFrameResponse](
+			httpClient,
+			baseURL+PresenceServiceReportSessionFrameProcedure,
+			connect.WithSchema(presenceServiceMethods.ByName("ReportSessionFrame")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // presenceServiceClient implements PresenceServiceClient.
 type presenceServiceClient struct {
-	reportHeartbeat *connect.Client[presence.ReportHeartbeatRequest, presence.ReportHeartbeatResponse]
+	reportHeartbeat    *connect.Client[presence.ReportHeartbeatRequest, presence.ReportHeartbeatResponse]
+	reportDeliveryAck  *connect.Client[presence.ReportDeliveryAckRequest, presence.ReportDeliveryAckResponse]
+	reportSessionFrame *connect.Client[presence.ReportSessionFrameRequest, presence.ReportSessionFrameResponse]
 }
 
 // ReportHeartbeat calls vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat.
 func (c *presenceServiceClient) ReportHeartbeat(ctx context.Context, req *connect.Request[presence.ReportHeartbeatRequest]) (*connect.Response[presence.ReportHeartbeatResponse], error) {
 	return c.reportHeartbeat.CallUnary(ctx, req)
+}
+
+// ReportDeliveryAck calls vrooli.vrooli_bridge.v1.presence.PresenceService.ReportDeliveryAck.
+func (c *presenceServiceClient) ReportDeliveryAck(ctx context.Context, req *connect.Request[presence.ReportDeliveryAckRequest]) (*connect.Response[presence.ReportDeliveryAckResponse], error) {
+	return c.reportDeliveryAck.CallUnary(ctx, req)
+}
+
+// ReportSessionFrame calls vrooli.vrooli_bridge.v1.presence.PresenceService.ReportSessionFrame.
+func (c *presenceServiceClient) ReportSessionFrame(ctx context.Context, req *connect.Request[presence.ReportSessionFrameRequest]) (*connect.Response[presence.ReportSessionFrameResponse], error) {
+	return c.reportSessionFrame.CallUnary(ctx, req)
 }
 
 // PresenceServiceHandler is an implementation of the
@@ -85,6 +121,12 @@ type PresenceServiceHandler interface {
 	// control plane's compatibility verdict so an out-of-date agent learns it is
 	// flagged NEEDS_UPDATE without a separate call.
 	ReportHeartbeat(context.Context, *connect.Request[presence.ReportHeartbeatRequest]) (*connect.Response[presence.ReportHeartbeatResponse], error)
+	// ReportDeliveryAck confirms that a signed server frame reached the node and
+	// was verified before the represented operation began.
+	ReportDeliveryAck(context.Context, *connect.Request[presence.ReportDeliveryAckRequest]) (*connect.Response[presence.ReportDeliveryAckResponse], error)
+	// ReportSessionFrame carries node PTY output and terminal lifecycle events
+	// back over the node's mutually-authenticated Connect channel.
+	ReportSessionFrame(context.Context, *connect.Request[presence.ReportSessionFrameRequest]) (*connect.Response[presence.ReportSessionFrameResponse], error)
 }
 
 // NewPresenceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -100,10 +142,26 @@ func NewPresenceServiceHandler(svc PresenceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(presenceServiceMethods.ByName("ReportHeartbeat")),
 		connect.WithHandlerOptions(opts...),
 	)
+	presenceServiceReportDeliveryAckHandler := connect.NewUnaryHandler(
+		PresenceServiceReportDeliveryAckProcedure,
+		svc.ReportDeliveryAck,
+		connect.WithSchema(presenceServiceMethods.ByName("ReportDeliveryAck")),
+		connect.WithHandlerOptions(opts...),
+	)
+	presenceServiceReportSessionFrameHandler := connect.NewUnaryHandler(
+		PresenceServiceReportSessionFrameProcedure,
+		svc.ReportSessionFrame,
+		connect.WithSchema(presenceServiceMethods.ByName("ReportSessionFrame")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.presence.PresenceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PresenceServiceReportHeartbeatProcedure:
 			presenceServiceReportHeartbeatHandler.ServeHTTP(w, r)
+		case PresenceServiceReportDeliveryAckProcedure:
+			presenceServiceReportDeliveryAckHandler.ServeHTTP(w, r)
+		case PresenceServiceReportSessionFrameProcedure:
+			presenceServiceReportSessionFrameHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -115,4 +173,12 @@ type UnimplementedPresenceServiceHandler struct{}
 
 func (UnimplementedPresenceServiceHandler) ReportHeartbeat(context.Context, *connect.Request[presence.ReportHeartbeatRequest]) (*connect.Response[presence.ReportHeartbeatResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat is not implemented"))
+}
+
+func (UnimplementedPresenceServiceHandler) ReportDeliveryAck(context.Context, *connect.Request[presence.ReportDeliveryAckRequest]) (*connect.Response[presence.ReportDeliveryAckResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.presence.PresenceService.ReportDeliveryAck is not implemented"))
+}
+
+func (UnimplementedPresenceServiceHandler) ReportSessionFrame(context.Context, *connect.Request[presence.ReportSessionFrameRequest]) (*connect.Response[presence.ReportSessionFrameResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.presence.PresenceService.ReportSessionFrame is not implemented"))
 }

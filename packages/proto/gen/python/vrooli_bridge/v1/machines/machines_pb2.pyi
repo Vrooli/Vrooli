@@ -337,3 +337,35 @@ class RevokeMachineNodeResponse(_message.Message):
     machine: Machine
     revoked_node_id: str
     def __init__(self, machine: _Optional[_Union[Machine, _Mapping]] = ..., revoked_node_id: _Optional[str] = ...) -> None: ...
+
+class RepairMachineRequest(_message.Message):
+    __slots__ = ("machine_id",)
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    machine_id: str
+    def __init__(self, machine_id: _Optional[str] = ...) -> None: ...
+
+class RepairMachineResponse(_message.Message):
+    __slots__ = ("machine", "onboarding_op_id", "enrollment_attempt_id")
+    MACHINE_FIELD_NUMBER: _ClassVar[int]
+    ONBOARDING_OP_ID_FIELD_NUMBER: _ClassVar[int]
+    ENROLLMENT_ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
+    machine: Machine
+    onboarding_op_id: str
+    enrollment_attempt_id: str
+    def __init__(self, machine: _Optional[_Union[Machine, _Mapping]] = ..., onboarding_op_id: _Optional[str] = ..., enrollment_attempt_id: _Optional[str] = ...) -> None: ...
+
+class MergeMachinesRequest(_message.Message):
+    __slots__ = ("from_machine_id", "into_machine_id")
+    FROM_MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    INTO_MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    from_machine_id: str
+    into_machine_id: str
+    def __init__(self, from_machine_id: _Optional[str] = ..., into_machine_id: _Optional[str] = ...) -> None: ...
+
+class MergeMachinesResponse(_message.Message):
+    __slots__ = ("machine", "archived_machine_id")
+    MACHINE_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    machine: Machine
+    archived_machine_id: str
+    def __init__(self, machine: _Optional[_Union[Machine, _Mapping]] = ..., archived_machine_id: _Optional[str] = ...) -> None: ...

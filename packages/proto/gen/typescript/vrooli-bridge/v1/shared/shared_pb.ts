@@ -6,13 +6,15 @@ import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2"
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { Frame } from "../session/session_pb";
+import { file_vrooli_bridge_v1_session_session } from "../session/session_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file vrooli-bridge/v1/shared/shared.proto.
  */
 export const file_vrooli_bridge_v1_shared_shared: GenFile = /*@__PURE__*/
-  fileDesc("CiR2cm9vbGktYnJpZGdlL3YxL3NoYXJlZC9zaGFyZWQucHJvdG8SHnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZCKVAgoOSGVhbHRoU25hcHNob3QSGQoRdG9vbGNoYWluX3ByZXNlbnQYASABKAgSGwoTZGlza19oZWFkcm9vbV9ieXRlcxgCIAEoAxIcChRjb250YWluZXJfcnVudGltZV91cBgDIAEoCBJMCgdkZXRhaWxzGAQgAygLMjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkhlYWx0aFNuYXBzaG90LkRldGFpbHNFbnRyeRIvCgtyZXBvcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAaLgoMRGV0YWlsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEimwEKCUhlYXJ0YmVhdBIPCgdub2RlX2lkGAEgASgJEhAKCHNlcXVlbmNlGAIgASgEEj4KBmhlYWx0aBgDIAEoCzIuLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5IZWFsdGhTbmFwc2hvdBIrCgdzZW50X2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLkAQoIUnVuRXZlbnQSDgoGcnVuX2lkGAEgASgJEjoKBGtpbmQYAiABKA4yLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuUnVuRXZlbnRLaW5kEhAKCHNlcXVlbmNlGAMgASgEEhEKCWxvZ19jaHVuaxgEIAEoCRIOCgZzdGF0dXMYBSABKAkSEQoJZXhpdF9jb2RlGAYgASgFEhQKDGFydGlmYWN0X3JlZhgHIAEoCRIuCgplbWl0dGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCqmAQoTQ29tcGF0aWJpbGl0eVN0YXR1cxIkCiBDT01QQVRJQklMSVRZX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF0NPTVBBVElCSUxJVFlfU1RBVFVTX09LEAESJQohQ09NUEFUSUJJTElUWV9TVEFUVVNfTkVFRFNfVVBEQVRFEAISJQohQ09NUEFUSUJJTElUWV9TVEFUVVNfSU5DT01QQVRJQkxFEAMqmwEKDFJ1bkV2ZW50S2luZBIeChpSVU5fRVZFTlRfS0lORF9VTlNQRUNJRklFRBAAEhYKElJVTl9FVkVOVF9LSU5EX0xPRxABEhkKFVJVTl9FVkVOVF9LSU5EX1NUQVRVUxACEhcKE1JVTl9FVkVOVF9LSU5EX0VYSVQQAxIfChtSVU5fRVZFTlRfS0lORF9BUlRJRkFDVF9SRUYQBEJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("CiR2cm9vbGktYnJpZGdlL3YxL3NoYXJlZC9zaGFyZWQucHJvdG8SHnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZCKVAgoOSGVhbHRoU25hcHNob3QSGQoRdG9vbGNoYWluX3ByZXNlbnQYASABKAgSGwoTZGlza19oZWFkcm9vbV9ieXRlcxgCIAEoAxIcChRjb250YWluZXJfcnVudGltZV91cBgDIAEoCBJMCgdkZXRhaWxzGAQgAygLMjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkhlYWx0aFNuYXBzaG90LkRldGFpbHNFbnRyeRIvCgtyZXBvcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAaLgoMRGV0YWlsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEimwEKCUhlYXJ0YmVhdBIPCgdub2RlX2lkGAEgASgJEhAKCHNlcXVlbmNlGAIgASgEEj4KBmhlYWx0aBgDIAEoCzIuLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5IZWFsdGhTbmFwc2hvdBIrCgdzZW50X2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLkAQoIUnVuRXZlbnQSDgoGcnVuX2lkGAEgASgJEjoKBGtpbmQYAiABKA4yLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuUnVuRXZlbnRLaW5kEhAKCHNlcXVlbmNlGAMgASgEEhEKCWxvZ19jaHVuaxgEIAEoCRIOCgZzdGF0dXMYBSABKAkSEQoJZXhpdF9jb2RlGAYgASgFEhQKDGFydGlmYWN0X3JlZhgHIAEoCRIuCgplbWl0dGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJvCgtEZWxpdmVyeUFjaxIQCghmcmFtZV9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSDQoFb3BfaWQYAyABKAkSLwoLcmVjZWl2ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlkKDFNlc3Npb25GcmFtZRISCgpzZXNzaW9uX2lkGAEgASgJEjUKBWZyYW1lGAIgASgLMiYudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2Vzc2lvbi5GcmFtZSqmAQoTQ29tcGF0aWJpbGl0eVN0YXR1cxIkCiBDT01QQVRJQklMSVRZX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF0NPTVBBVElCSUxJVFlfU1RBVFVTX09LEAESJQohQ09NUEFUSUJJTElUWV9TVEFUVVNfTkVFRFNfVVBEQVRFEAISJQohQ09NUEFUSUJJTElUWV9TVEFUVVNfSU5DT01QQVRJQkxFEAMqmwEKDFJ1bkV2ZW50S2luZBIeChpSVU5fRVZFTlRfS0lORF9VTlNQRUNJRklFRBAAEhYKElJVTl9FVkVOVF9LSU5EX0xPRxABEhkKFVJVTl9FVkVOVF9LSU5EX1NUQVRVUxACEhcKE1JVTl9FVkVOVF9LSU5EX0VYSVQQAxIfChtSVU5fRVZFTlRfS0lORF9BUlRJRkFDVF9SRUYQBEJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_session_session]);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.shared.HealthSnapshot
@@ -134,6 +136,69 @@ export type RunEvent = Message<"vrooli.vrooli_bridge.v1.shared.RunEvent"> & {
  */
 export const RunEventSchema: GenMessage<RunEvent> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_shared_shared, 2);
+
+/**
+ * DeliveryAck is emitted by a node immediately after it receives and verifies
+ * a pushed frame. It is shared by the channel transport and presence RPC so
+ * the receipt has one canonical wire type across domains.
+ *
+ * @generated from message vrooli.vrooli_bridge.v1.shared.DeliveryAck
+ */
+export type DeliveryAck = Message<"vrooli.vrooli_bridge.v1.shared.DeliveryAck"> & {
+  /**
+   * @generated from field: string frame_id = 1;
+   */
+  frameId: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string op_id = 3;
+   */
+  opId: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp received_at = 4;
+   */
+  receivedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.shared.DeliveryAck.
+ * Use `create(DeliveryAckSchema)` to create a new message.
+ */
+export const DeliveryAckSchema: GenMessage<DeliveryAck> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_shared_shared, 3);
+
+/**
+ * SessionFrame is the node-facing envelope shared by the channel push and
+ * presence report domains. The byte-transparent session.Frame remains owned
+ * by the session contract; this envelope carries its authenticated identity
+ * across both transports.
+ *
+ * @generated from message vrooli.vrooli_bridge.v1.shared.SessionFrame
+ */
+export type SessionFrame = Message<"vrooli.vrooli_bridge.v1.shared.SessionFrame"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.session.Frame frame = 2;
+   */
+  frame?: Frame | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.shared.SessionFrame.
+ * Use `create(SessionFrameSchema)` to create a new message.
+ */
+export const SessionFrameSchema: GenMessage<SessionFrame> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_shared_shared, 4);
 
 /**
  * @generated from enum vrooli.vrooli_bridge.v1.shared.CompatibilityStatus

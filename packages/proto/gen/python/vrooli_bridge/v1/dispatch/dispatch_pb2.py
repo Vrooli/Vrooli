@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(vrooli-bridge/v1/dispatch/dispatch.proto\x12 vrooli.vrooli_bridge.v1.dispatch\"\x9a\x01\n\x12\x44ispatchJobRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x12\n\x04verb\x18\x03 \x01(\tR\x04verb\x12\x12\n\x04\x61rgs\x18\x04 \x03(\tR\x04\x61rgs\x12\'\n\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\"\xa2\x01\n\x13\x44ispatchJobResponse\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x17\n\x07\x64ry_run\x18\x02 \x01(\x08R\x06\x64ryRun\x12\x17\n\x07node_id\x18\x03 \x01(\tR\x06nodeId\x12\x1a\n\x08scenario\x18\x04 \x01(\tR\x08scenario\x12\x12\n\x04verb\x18\x05 \x01(\tR\x04verb\x12\x12\n\x04\x61rgs\x18\x06 \x03(\tR\x04\x61rgs2\x8d\x01\n\x0f\x44ispatchService\x12z\n\x0b\x44ispatchJob\x12\x34.vrooli.vrooli_bridge.v1.dispatch.DispatchJobRequest\x1a\x35.vrooli.vrooli_bridge.v1.dispatch.DispatchJobResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch;dispatch_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(vrooli-bridge/v1/dispatch/dispatch.proto\x12 vrooli.vrooli_bridge.v1.dispatch\"\x9a\x01\n\x12\x44ispatchJobRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x12\n\x04verb\x18\x03 \x01(\tR\x04verb\x12\x12\n\x04\x61rgs\x18\x04 \x03(\tR\x04\x61rgs\x12\'\n\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\"\xba\x01\n\x13\x44ispatchJobResponse\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x17\n\x07\x64ry_run\x18\x02 \x01(\x08R\x06\x64ryRun\x12\x17\n\x07node_id\x18\x03 \x01(\tR\x06nodeId\x12\x1a\n\x08scenario\x18\x04 \x01(\tR\x08scenario\x12\x12\n\x04verb\x18\x05 \x01(\tR\x04verb\x12\x12\n\x04\x61rgs\x18\x06 \x03(\tR\x04\x61rgs\x12\x16\n\x06queued\x18\x07 \x01(\x08R\x06queued2\x8d\x01\n\x0f\x44ispatchService\x12z\n\x0b\x44ispatchJob\x12\x34.vrooli.vrooli_bridge.v1.dispatch.DispatchJobRequest\x1a\x35.vrooli.vrooli_bridge.v1.dispatch.DispatchJobResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch;dispatch_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,7 +35,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_DISPATCHJOBREQUEST']._serialized_start=79
   _globals['_DISPATCHJOBREQUEST']._serialized_end=233
   _globals['_DISPATCHJOBRESPONSE']._serialized_start=236
-  _globals['_DISPATCHJOBRESPONSE']._serialized_end=398
-  _globals['_DISPATCHSERVICE']._serialized_start=401
-  _globals['_DISPATCHSERVICE']._serialized_end=542
+  _globals['_DISPATCHJOBRESPONSE']._serialized_end=422
+  _globals['_DISPATCHSERVICE']._serialized_start=425
+  _globals['_DISPATCHSERVICE']._serialized_end=566
 # @@protoc_insertion_point(module_scope)

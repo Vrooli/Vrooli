@@ -7,9 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 )
 
@@ -36,6 +38,31 @@ func TestProjectsManifestBoundMethods(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("program-runtime manifest did not produce a typed callable")
+	}
+}
+
+func TestRegistryRefreshesOnManifestGenerationChange(t *testing.T) {
+	root := repoRoot(t)
+	dir := t.TempDir()
+	descriptorPath := filepath.Join(dir, "image.binpb")
+	raw, err := os.ReadFile(filepath.Join(root, "packages", "proto", "gen", "descriptor", "image.binpb"))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(descriptorPath, raw, 0o644))
+	manifestPath := filepath.Join(dir, "manifest.json")
+	manifest, err := os.ReadFile(filepath.Join(root, "scenarios", "program-runtime", "cli", "manifest.json"))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(manifestPath, manifest, 0o644))
+	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: descriptorPath, ManifestPaths: []string{manifestPath}})
+	require.NoError(t, err)
+	registry, err := LoadFromSource(source)
+	require.NoError(t, err)
+	_, firstGeneration, _, _, _ := registry.SnapshotMetadata()
+	time.Sleep(2 * time.Millisecond)
+	require.NoError(t, os.WriteFile(manifestPath, append(manifest, '\n'), 0o644))
+	registry.Count()
+	_, secondGeneration, _, _, _ := registry.SnapshotMetadata()
+	if secondGeneration <= firstGeneration {
+		t.Fatalf("registry generation did not advance: first=%d second=%d", firstGeneration, secondGeneration)
 	}
 }
 

@@ -73,6 +73,9 @@ message EvalCase {
   string status = 10;
   // Optional provider-native query scope: ""|"global"|"scenario:<id>"|"path:<prefix>".
   string scope = 11;
+  // Optional minimum rank-1/rank-2 margin for the federated tier. Empty/zero
+  // uses the tier's documented default floor.
+  double expect_min_margin = 12;
 }
 
 // An immutable execution of a suite. The TAG is the experimentation lever.
@@ -86,6 +89,10 @@ message EvalRun {
   ConfigSnapshot config = 5;
   repeated CaseResult results = 6;
   EvalAggregate aggregate = 7;
+  // "provider_direct" (legacy/default) or "federated".
+  string tier = 10;
+  bool degraded = 11;
+  string degraded_reason = 12;
 }
 
 // Captured from the provider's status probe at run time so a historical
@@ -124,6 +131,10 @@ message CaseResult {
   double observed_top_score = 4;
   // "met" | "below_expectation" | "above_expectation" | "unexpected_hit" | "n/a".
   string outcome = 5;
+  string expected_provider_id = 6;
+  bool provider_routed = 7;
+  double margin = 8;
+  string outcome_reason = 9;
 }
 
 message ScoredHit {
@@ -214,6 +225,8 @@ message RunSuiteRequest {
   string tag = 2;
   // per-case fetch depth; 0 → a sensible default (max(expect_within_top_k, 10)).
   int32 limit = 3;
+  // "provider_direct" (default) or "federated".
+  string tier = 4;
 }
 
 message RunSuiteResponse {
@@ -270,6 +283,7 @@ message ListRunsRequest {
   string tag = 2;
   // optional max rows (0 → all), newest first.
   int32 limit = 3;
+  string tier = 4; // optional "provider_direct" or "federated" filter
 }
 
 message ListRunsResponse {

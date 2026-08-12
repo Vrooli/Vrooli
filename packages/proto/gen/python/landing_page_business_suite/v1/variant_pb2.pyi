@@ -1,7 +1,7 @@
 import datetime
 
-from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf import struct_pb2 as _struct_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from landing_page_business_suite.v1.shared import content_pb2 as _content_pb2
 from landing_page_business_suite.v1.shared import presentation_pb2 as _presentation_pb2
 from google.protobuf.internal import containers as _containers

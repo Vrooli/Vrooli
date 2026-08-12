@@ -22,9 +22,15 @@ message PairAttachedDeviceRequest {
   bool host_node_online = 7;
 }
 message ListAttachedDevicesRequest {}
-message ListAttachedDevicesResponse { repeated AttachedDevice devices = 1; }
-message RevokeAttachedDeviceRequest { string id = 1; }
-message AttachedDeviceResponse { AttachedDevice device = 1; }
+message ListAttachedDevicesResponse {
+  repeated AttachedDevice devices = 1;
+}
+message RevokeAttachedDeviceRequest {
+  string id = 1;
+}
+message AttachedDeviceResponse {
+  AttachedDevice device = 1;
+}
 
 message AttachedDevice {
   string id = 1;

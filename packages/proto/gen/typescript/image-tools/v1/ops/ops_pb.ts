@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/ops/ops.proto.
  */
 export const file_image_tools_v1_ops_ops: GenFile = /*@__PURE__*/
-  fileDesc("ChxpbWFnZS10b29scy92MS9vcHMvb3BzLnByb3RvEhl2cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzIkAKDU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCKMAQoWTGlzdE9wZXJhdGlvbnNSZXNwb25zZRI8CgpvcGVyYXRpb25zGAEgAygLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcGVyYXRpb25JbmZvEhkKEWRlY29kYWJsZV9mb3JtYXRzGAIgAygJEhkKEWVuY29kYWJsZV9mb3JtYXRzGAMgAygJIpkGCghPcFBhcmFtcxI5CgZyZXNpemUYASABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJlc2l6ZVBhcmFtc0gAEjUKBGNyb3AYAiABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkNyb3BQYXJhbXNIABI5CgZyb3RhdGUYAyABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJvdGF0ZVBhcmFtc0gAEjUKBGZsaXAYBCABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkZsaXBQYXJhbXNIABI5CgZkZXNrZXcYBSABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkRlc2tld1BhcmFtc0gAEj8KCXRodW1ibmFpbBgGIAEoCzIqLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuVGh1bWJuYWlsUGFyYW1zSAASOQoGY2FudmFzGAcgASgLMicudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5DYW52YXNQYXJhbXNIABI5CgZhZGp1c3QYCCABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkFkanVzdFBhcmFtc0gAEjkKBmZpbHRlchgJIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRmlsdGVyUGFyYW1zSAASOwoHY29udmVydBgKIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuQ29udmVydFBhcmFtc0gAEj0KCGNvbXByZXNzGAsgASgLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Db21wcmVzc1BhcmFtc0gAEjsKB292ZXJsYXkYDCABKAsyKC52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLk92ZXJsYXlQYXJhbXNIABI9CghtZXRhZGF0YRgNIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTWV0YWRhdGFQYXJhbXNIAEIECgJvcCJLCgxSZXNpemVQYXJhbXMSDQoFd2lkdGgYASABKAUSDgoGaGVpZ2h0GAIgASgFEgsKA2ZpdBgDIAEoCRIPCgdncmF2aXR5GAQgASgJIlIKCkNyb3BQYXJhbXMSCQoBeBgBIAEoBRIJCgF5GAIgASgFEg0KBXdpZHRoGAMgASgFEg4KBmhlaWdodBgEIAEoBRIPCgdncmF2aXR5GAUgASgJIkEKDFJvdGF0ZVBhcmFtcxINCgVhbmdsZRgBIAEoARIOCgZleHBhbmQYAiABKAgSEgoKYmFja2dyb3VuZBgDIAEoCSIaCgpGbGlwUGFyYW1zEgwKBGF4aXMYASABKAkiIgoMRGVza2V3UGFyYW1zEhIKCmJhY2tncm91bmQYASABKAkiMAoPVGh1bWJuYWlsUGFyYW1zEg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBSJSCgxDYW52YXNQYXJhbXMSDQoFd2lkdGgYASABKAUSDgoGaGVpZ2h0GAIgASgFEhIKCmJhY2tncm91bmQYAyABKAkSDwoHZ3Jhdml0eRgEIAEoCSJkCgxBZGp1c3RQYXJhbXMSEgoKYnJpZ2h0bmVzcxgBIAEoARIQCghjb250cmFzdBgCIAEoARINCgVnYW1tYRgDIAEoARISCgpzYXR1cmF0aW9uGAQgASgBEgsKA2h1ZRgFIAEoASIuCgxGaWx0ZXJQYXJhbXMSDgoGZmlsdGVyGAEgASgJEg4KBmFtb3VudBgCIAEoASJCCg1Db252ZXJ0UGFyYW1zEg4KBmZvcm1hdBgBIAEoCRIPCgdxdWFsaXR5GAIgASgFEhAKCGxvc3NsZXNzGAMgASgIIlkKDkNvbXByZXNzUGFyYW1zEg4KBmZvcm1hdBgBIAEoCRIPCgdxdWFsaXR5GAIgASgFEhAKCGxvc3NsZXNzGAMgASgIEhQKDHRhcmdldF9ieXRlcxgEIAEoAyJiCg1PdmVybGF5UGFyYW1zEgwKBHRleHQYASABKAkSEAoIcG9zaXRpb24YAiABKAkSDwoHb3BhY2l0eRgDIAEoARINCgVjb2xvchgEIAEoCRIRCglmb250X3NpemUYBSABKAEiSwoOTWV0YWRhdGFQYXJhbXMSEQoJc3RyaXBfYWxsGAEgASgIEhEKCXN0cmlwX2dwcxgCIAEoCBITCgthdXRvX29yaWVudBgDIAEoCCJoCghPcFJlc3VsdBILCgNyZWYYASABKAkSDgoGZm9ybWF0GAIgASgJEgwKBG1pbWUYAyABKAkSDQoFd2lkdGgYBCABKAUSDgoGaGVpZ2h0GAUgASgFEhIKCnNpemVfYnl0ZXMYBiABKAMiVAoNUnVuT3BSZXNwb25zZRIOCgZqb2JfaWQYASABKAkSMwoGcmVzdWx0GAIgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcFJlc3VsdDKDAQoKT3BzU2VydmljZRJ1Cg5MaXN0T3BlcmF0aW9ucxIwLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTGlzdE9wZXJhdGlvbnNSZXF1ZXN0GjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5MaXN0T3BlcmF0aW9uc1Jlc3BvbnNlQkpaSGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vaW1hZ2UtdG9vbHMvdjEvb3BzO29wc192MWIGcHJvdG8z");
+  fileDesc("ChxpbWFnZS10b29scy92MS9vcHMvb3BzLnByb3RvEhl2cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzIkAKDU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCKMAQoWTGlzdE9wZXJhdGlvbnNSZXNwb25zZRI8CgpvcGVyYXRpb25zGAEgAygLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcGVyYXRpb25JbmZvEhkKEWRlY29kYWJsZV9mb3JtYXRzGAIgAygJEhkKEWVuY29kYWJsZV9mb3JtYXRzGAMgAygJIpcPCghPcFBhcmFtcxI5CgZyZXNpemUYASABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJlc2l6ZVBhcmFtc0gAEjUKBGNyb3AYAiABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkNyb3BQYXJhbXNIABI5CgZyb3RhdGUYAyABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJvdGF0ZVBhcmFtc0gAEjUKBGZsaXAYBCABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkZsaXBQYXJhbXNIABI5CgZkZXNrZXcYBSABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkRlc2tld1BhcmFtc0gAEj8KCXRodW1ibmFpbBgGIAEoCzIqLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuVGh1bWJuYWlsUGFyYW1zSAASOQoGY2FudmFzGAcgASgLMicudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5DYW52YXNQYXJhbXNIABI5CgZhZGp1c3QYCCABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkFkanVzdFBhcmFtc0gAEjkKBmZpbHRlchgJIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRmlsdGVyUGFyYW1zSAASOwoHY29udmVydBgKIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuQ29udmVydFBhcmFtc0gAEj0KCGNvbXByZXNzGAsgASgLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Db21wcmVzc1BhcmFtc0gAEjsKB292ZXJsYXkYDCABKAsyKC52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLk92ZXJsYXlQYXJhbXNIABI9CghtZXRhZGF0YRgNIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTWV0YWRhdGFQYXJhbXNIABI7CgdkdW90b25lGA4gASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5EdW90b25lUGFyYW1zSAASPwoJcG9zdGVyaXplGA8gASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Qb3N0ZXJpemVQYXJhbXNIABI9CghoYWxmdG9uZRgQIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuSGFsZnRvbmVQYXJhbXNIABJBCg5kaXRoZXJfb3JkZXJlZBgRIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASQwoQZGl0aGVyX2RpZmZ1c2lvbhgSIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASNwoFZ3JhaW4YEyABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkdyYWluUGFyYW1zSAASNwoFc2NyaW0YFCABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlNjcmltUGFyYW1zSAASQgoLbGluZV9zY3JlZW4YFSABKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkxpbmVTY3JlZW5QYXJhbXNIABI7CgdzdGlwcGxlGBYgASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5TdGlwcGxlUGFyYW1zSAASPwoJZW5ncmF2aW5nGBcgASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5FbmdyYXZpbmdQYXJhbXNIABJBCgphYmVycmF0aW9uGBggASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5BYmVycmF0aW9uUGFyYW1zSAASNwoFYmxvb20YGSABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkJsb29tUGFyYW1zSAASNwoFY3VydmUYGiABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkN1cnZlUGFyYW1zSAASOwoHZGVmb2N1cxgbIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGVmb2N1c1BhcmFtc0gAEkIKC21vdGlvbl9ibHVyGBwgASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Nb3Rpb25CbHVyUGFyYW1zSAASRAoMYXNjaWlfbW9zYWljGB0gASgLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Bc2NpaU1vc2FpY1BhcmFtc0gAEkAKCnBpeGVsX3NvcnQYHiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlBpeGVsU29ydFBhcmFtc0gAEkUKDGRpc3BsYWNlbWVudBgfIAEoCzItLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGlzcGxhY2VtZW50UGFyYW1zSABCBAoCb3AiSwoMUmVzaXplUGFyYW1zEg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRILCgNmaXQYAyABKAkSDwoHZ3Jhdml0eRgEIAEoCSJSCgpDcm9wUGFyYW1zEgkKAXgYASABKAUSCQoBeRgCIAEoBRINCgV3aWR0aBgDIAEoBRIOCgZoZWlnaHQYBCABKAUSDwoHZ3Jhdml0eRgFIAEoCSJBCgxSb3RhdGVQYXJhbXMSDQoFYW5nbGUYASABKAESDgoGZXhwYW5kGAIgASgIEhIKCmJhY2tncm91bmQYAyABKAkiGgoKRmxpcFBhcmFtcxIMCgRheGlzGAEgASgJIiIKDERlc2tld1BhcmFtcxISCgpiYWNrZ3JvdW5kGAEgASgJIjAKD1RodW1ibmFpbFBhcmFtcxINCgV3aWR0aBgBIAEoBRIOCgZoZWlnaHQYAiABKAUiUgoMQ2FudmFzUGFyYW1zEg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRISCgpiYWNrZ3JvdW5kGAMgASgJEg8KB2dyYXZpdHkYBCABKAkiZAoMQWRqdXN0UGFyYW1zEhIKCmJyaWdodG5lc3MYASABKAESEAoIY29udHJhc3QYAiABKAESDQoFZ2FtbWEYAyABKAESEgoKc2F0dXJhdGlvbhgEIAEoARILCgNodWUYBSABKAEiLgoMRmlsdGVyUGFyYW1zEg4KBmZpbHRlchgBIAEoCRIOCgZhbW91bnQYAiABKAEiQgoNQ29udmVydFBhcmFtcxIOCgZmb3JtYXQYASABKAkSDwoHcXVhbGl0eRgCIAEoBRIQCghsb3NzbGVzcxgDIAEoCCJZCg5Db21wcmVzc1BhcmFtcxIOCgZmb3JtYXQYASABKAkSDwoHcXVhbGl0eRgCIAEoBRIQCghsb3NzbGVzcxgDIAEoCBIUCgx0YXJnZXRfYnl0ZXMYBCABKAMiYgoNT3ZlcmxheVBhcmFtcxIMCgR0ZXh0GAEgASgJEhAKCHBvc2l0aW9uGAIgASgJEg8KB29wYWNpdHkYAyABKAESDQoFY29sb3IYBCABKAkSEQoJZm9udF9zaXplGAUgASgBIksKDk1ldGFkYXRhUGFyYW1zEhEKCXN0cmlwX2FsbBgBIAEoCBIRCglzdHJpcF9ncHMYAiABKAgSEwoLYXV0b19vcmllbnQYAyABKAgiXAoNRHVvdG9uZVBhcmFtcxIMCgRkYXJrGAEgASgJEg0KBWxpZ2h0GAIgASgJEgsKA21pZBgDIAEoCRIPCgdtaWRfbG93GAQgASgBEhAKCG1pZF9oaWdoGAUgASgBIj4KD1Bvc3Rlcml6ZVBhcmFtcxIOCgZsZXZlbHMYASABKAUSDAoEZGFyaxgCIAEoCRINCgVsaWdodBgDIAEoCSJWCg5IYWxmdG9uZVBhcmFtcxILCgNscGkYASABKAUSDQoFYW5nbGUYAiABKAESCwoDZG90GAMgASgJEgwKBGRhcmsYBCABKAkSDQoFbGlnaHQYBSABKAkiKwoMRGl0aGVyUGFyYW1zEgwKBGRhcmsYASABKAkSDQoFbGlnaHQYAiABKAkiSAoLR3JhaW5QYXJhbXMSDAoEc2VlZBgBIAEoAxIOCgZhbW91bnQYAiABKAESGwoTY29udHJhc3RfbXVsdGlwbGllchgDIAEoASJACgtTY3JpbVBhcmFtcxINCgVjb2xvchgBIAEoCRIPCgdvcGFjaXR5GAIgASgBEhEKCWRpcmVjdGlvbhgDIAEoCSIyChBMaW5lU2NyZWVuUGFyYW1zEg8KB3NwYWNpbmcYASABKAESDQoFYW5nbGUYAiABKAEiLgoNU3RpcHBsZVBhcmFtcxIPCgdzcGFjaW5nGAEgASgBEgwKBHNlZWQYAiABKAMiIgoPRW5ncmF2aW5nUGFyYW1zEg8KB3NwYWNpbmcYASABKAEiJQoQQWJlcnJhdGlvblBhcmFtcxIRCglhbXBsaXR1ZGUYASABKAEiMAoLQmxvb21QYXJhbXMSDgoGcmFkaXVzGAEgASgFEhEKCXRocmVzaG9sZBgCIAEoASIfCgtDdXJ2ZVBhcmFtcxIQCghleHBvbmVudBgBIAEoASI0Cg1EZWZvY3VzUGFyYW1zEg4KBnJhZGl1cxgBIAEoBRITCgtibGFkZV9jb3VudBgCIAEoBSIzChBNb3Rpb25CbHVyUGFyYW1zEhAKCGRpc3RhbmNlGAEgASgFEg0KBWFuZ2xlGAIgASgBIicKEUFzY2lpTW9zYWljUGFyYW1zEhIKCmJsb2NrX3NpemUYASABKAUiMgoPUGl4ZWxTb3J0UGFyYW1zEhEKCXRocmVzaG9sZBgBIAEoARIMCgRheGlzGAIgASgJIjUKEkRpc3BsYWNlbWVudFBhcmFtcxIRCglhbXBsaXR1ZGUYASABKAESDAoEc2VlZBgCIAEoAyJoCghPcFJlc3VsdBILCgNyZWYYASABKAkSDgoGZm9ybWF0GAIgASgJEgwKBG1pbWUYAyABKAkSDQoFd2lkdGgYBCABKAUSDgoGaGVpZ2h0GAUgASgFEhIKCnNpemVfYnl0ZXMYBiABKAMiVAoNUnVuT3BSZXNwb25zZRIOCgZqb2JfaWQYASABKAkSMwoGcmVzdWx0GAIgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcFJlc3VsdDKDAQoKT3BzU2VydmljZRJ1Cg5MaXN0T3BlcmF0aW9ucxIwLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTGlzdE9wZXJhdGlvbnNSZXF1ZXN0GjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5MaXN0T3BlcmF0aW9uc1Jlc3BvbnNlQkpaSGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vaW1hZ2UtdG9vbHMvdjEvb3BzO29wc192MWIGcHJvdG8z");
 
 /**
  * OperationInfo describes one deterministic operation for discovery.
@@ -179,6 +179,114 @@ export type OpParams = Message<"vrooli.image_tools.v1.ops.OpParams"> & {
      */
     value: MetadataParams;
     case: "metadata";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.DuotoneParams duotone = 14;
+     */
+    value: DuotoneParams;
+    case: "duotone";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.PosterizeParams posterize = 15;
+     */
+    value: PosterizeParams;
+    case: "posterize";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.HalftoneParams halftone = 16;
+     */
+    value: HalftoneParams;
+    case: "halftone";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.DitherParams dither_ordered = 17;
+     */
+    value: DitherParams;
+    case: "ditherOrdered";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.DitherParams dither_diffusion = 18;
+     */
+    value: DitherParams;
+    case: "ditherDiffusion";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.GrainParams grain = 19;
+     */
+    value: GrainParams;
+    case: "grain";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.ScrimParams scrim = 20;
+     */
+    value: ScrimParams;
+    case: "scrim";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.LineScreenParams line_screen = 21;
+     */
+    value: LineScreenParams;
+    case: "lineScreen";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.StippleParams stipple = 22;
+     */
+    value: StippleParams;
+    case: "stipple";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.EngravingParams engraving = 23;
+     */
+    value: EngravingParams;
+    case: "engraving";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.AberrationParams aberration = 24;
+     */
+    value: AberrationParams;
+    case: "aberration";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.BloomParams bloom = 25;
+     */
+    value: BloomParams;
+    case: "bloom";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.CurveParams curve = 26;
+     */
+    value: CurveParams;
+    case: "curve";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.DefocusParams defocus = 27;
+     */
+    value: DefocusParams;
+    case: "defocus";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.MotionBlurParams motion_blur = 28;
+     */
+    value: MotionBlurParams;
+    case: "motionBlur";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.AsciiMosaicParams ascii_mosaic = 29;
+     */
+    value: AsciiMosaicParams;
+    case: "asciiMosaic";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.PixelSortParams pixel_sort = 30;
+     */
+    value: PixelSortParams;
+    case: "pixelSort";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.DisplacementParams displacement = 31;
+     */
+    value: DisplacementParams;
+    case: "displacement";
   } | { case: undefined; value?: undefined };
 };
 
@@ -592,6 +700,405 @@ export const MetadataParamsSchema: GenMessage<MetadataParams> = /*@__PURE__*/
   messageDesc(file_image_tools_v1_ops_ops, 16);
 
 /**
+ * @generated from message vrooli.image_tools.v1.ops.DuotoneParams
+ */
+export type DuotoneParams = Message<"vrooli.image_tools.v1.ops.DuotoneParams"> & {
+  /**
+   * @generated from field: string dark = 1;
+   */
+  dark: string;
+
+  /**
+   * @generated from field: string light = 2;
+   */
+  light: string;
+
+  /**
+   * @generated from field: string mid = 3;
+   */
+  mid: string;
+
+  /**
+   * @generated from field: double mid_low = 4;
+   */
+  midLow: number;
+
+  /**
+   * @generated from field: double mid_high = 5;
+   */
+  midHigh: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.DuotoneParams.
+ * Use `create(DuotoneParamsSchema)` to create a new message.
+ */
+export const DuotoneParamsSchema: GenMessage<DuotoneParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 17);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.PosterizeParams
+ */
+export type PosterizeParams = Message<"vrooli.image_tools.v1.ops.PosterizeParams"> & {
+  /**
+   * @generated from field: int32 levels = 1;
+   */
+  levels: number;
+
+  /**
+   * @generated from field: string dark = 2;
+   */
+  dark: string;
+
+  /**
+   * @generated from field: string light = 3;
+   */
+  light: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.PosterizeParams.
+ * Use `create(PosterizeParamsSchema)` to create a new message.
+ */
+export const PosterizeParamsSchema: GenMessage<PosterizeParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 18);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.HalftoneParams
+ */
+export type HalftoneParams = Message<"vrooli.image_tools.v1.ops.HalftoneParams"> & {
+  /**
+   * @generated from field: int32 lpi = 1;
+   */
+  lpi: number;
+
+  /**
+   * @generated from field: double angle = 2;
+   */
+  angle: number;
+
+  /**
+   * @generated from field: string dot = 3;
+   */
+  dot: string;
+
+  /**
+   * @generated from field: string dark = 4;
+   */
+  dark: string;
+
+  /**
+   * @generated from field: string light = 5;
+   */
+  light: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.HalftoneParams.
+ * Use `create(HalftoneParamsSchema)` to create a new message.
+ */
+export const HalftoneParamsSchema: GenMessage<HalftoneParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 19);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.DitherParams
+ */
+export type DitherParams = Message<"vrooli.image_tools.v1.ops.DitherParams"> & {
+  /**
+   * @generated from field: string dark = 1;
+   */
+  dark: string;
+
+  /**
+   * @generated from field: string light = 2;
+   */
+  light: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.DitherParams.
+ * Use `create(DitherParamsSchema)` to create a new message.
+ */
+export const DitherParamsSchema: GenMessage<DitherParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 20);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.GrainParams
+ */
+export type GrainParams = Message<"vrooli.image_tools.v1.ops.GrainParams"> & {
+  /**
+   * @generated from field: int64 seed = 1;
+   */
+  seed: bigint;
+
+  /**
+   * @generated from field: double amount = 2;
+   */
+  amount: number;
+
+  /**
+   * @generated from field: double contrast_multiplier = 3;
+   */
+  contrastMultiplier: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.GrainParams.
+ * Use `create(GrainParamsSchema)` to create a new message.
+ */
+export const GrainParamsSchema: GenMessage<GrainParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 21);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.ScrimParams
+ */
+export type ScrimParams = Message<"vrooli.image_tools.v1.ops.ScrimParams"> & {
+  /**
+   * @generated from field: string color = 1;
+   */
+  color: string;
+
+  /**
+   * @generated from field: double opacity = 2;
+   */
+  opacity: number;
+
+  /**
+   * @generated from field: string direction = 3;
+   */
+  direction: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.ScrimParams.
+ * Use `create(ScrimParamsSchema)` to create a new message.
+ */
+export const ScrimParamsSchema: GenMessage<ScrimParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 22);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.LineScreenParams
+ */
+export type LineScreenParams = Message<"vrooli.image_tools.v1.ops.LineScreenParams"> & {
+  /**
+   * @generated from field: double spacing = 1;
+   */
+  spacing: number;
+
+  /**
+   * @generated from field: double angle = 2;
+   */
+  angle: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.LineScreenParams.
+ * Use `create(LineScreenParamsSchema)` to create a new message.
+ */
+export const LineScreenParamsSchema: GenMessage<LineScreenParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 23);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.StippleParams
+ */
+export type StippleParams = Message<"vrooli.image_tools.v1.ops.StippleParams"> & {
+  /**
+   * @generated from field: double spacing = 1;
+   */
+  spacing: number;
+
+  /**
+   * @generated from field: int64 seed = 2;
+   */
+  seed: bigint;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.StippleParams.
+ * Use `create(StippleParamsSchema)` to create a new message.
+ */
+export const StippleParamsSchema: GenMessage<StippleParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 24);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.EngravingParams
+ */
+export type EngravingParams = Message<"vrooli.image_tools.v1.ops.EngravingParams"> & {
+  /**
+   * @generated from field: double spacing = 1;
+   */
+  spacing: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.EngravingParams.
+ * Use `create(EngravingParamsSchema)` to create a new message.
+ */
+export const EngravingParamsSchema: GenMessage<EngravingParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 25);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.AberrationParams
+ */
+export type AberrationParams = Message<"vrooli.image_tools.v1.ops.AberrationParams"> & {
+  /**
+   * @generated from field: double amplitude = 1;
+   */
+  amplitude: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.AberrationParams.
+ * Use `create(AberrationParamsSchema)` to create a new message.
+ */
+export const AberrationParamsSchema: GenMessage<AberrationParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 26);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.BloomParams
+ */
+export type BloomParams = Message<"vrooli.image_tools.v1.ops.BloomParams"> & {
+  /**
+   * @generated from field: int32 radius = 1;
+   */
+  radius: number;
+
+  /**
+   * @generated from field: double threshold = 2;
+   */
+  threshold: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.BloomParams.
+ * Use `create(BloomParamsSchema)` to create a new message.
+ */
+export const BloomParamsSchema: GenMessage<BloomParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 27);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.CurveParams
+ */
+export type CurveParams = Message<"vrooli.image_tools.v1.ops.CurveParams"> & {
+  /**
+   * @generated from field: double exponent = 1;
+   */
+  exponent: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.CurveParams.
+ * Use `create(CurveParamsSchema)` to create a new message.
+ */
+export const CurveParamsSchema: GenMessage<CurveParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 28);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.DefocusParams
+ */
+export type DefocusParams = Message<"vrooli.image_tools.v1.ops.DefocusParams"> & {
+  /**
+   * @generated from field: int32 radius = 1;
+   */
+  radius: number;
+
+  /**
+   * @generated from field: int32 blade_count = 2;
+   */
+  bladeCount: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.DefocusParams.
+ * Use `create(DefocusParamsSchema)` to create a new message.
+ */
+export const DefocusParamsSchema: GenMessage<DefocusParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 29);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.MotionBlurParams
+ */
+export type MotionBlurParams = Message<"vrooli.image_tools.v1.ops.MotionBlurParams"> & {
+  /**
+   * @generated from field: int32 distance = 1;
+   */
+  distance: number;
+
+  /**
+   * @generated from field: double angle = 2;
+   */
+  angle: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.MotionBlurParams.
+ * Use `create(MotionBlurParamsSchema)` to create a new message.
+ */
+export const MotionBlurParamsSchema: GenMessage<MotionBlurParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 30);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.AsciiMosaicParams
+ */
+export type AsciiMosaicParams = Message<"vrooli.image_tools.v1.ops.AsciiMosaicParams"> & {
+  /**
+   * @generated from field: int32 block_size = 1;
+   */
+  blockSize: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.AsciiMosaicParams.
+ * Use `create(AsciiMosaicParamsSchema)` to create a new message.
+ */
+export const AsciiMosaicParamsSchema: GenMessage<AsciiMosaicParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 31);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.PixelSortParams
+ */
+export type PixelSortParams = Message<"vrooli.image_tools.v1.ops.PixelSortParams"> & {
+  /**
+   * @generated from field: double threshold = 1;
+   */
+  threshold: number;
+
+  /**
+   * @generated from field: string axis = 2;
+   */
+  axis: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.PixelSortParams.
+ * Use `create(PixelSortParamsSchema)` to create a new message.
+ */
+export const PixelSortParamsSchema: GenMessage<PixelSortParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 32);
+
+/**
+ * @generated from message vrooli.image_tools.v1.ops.DisplacementParams
+ */
+export type DisplacementParams = Message<"vrooli.image_tools.v1.ops.DisplacementParams"> & {
+  /**
+   * @generated from field: double amplitude = 1;
+   */
+  amplitude: number;
+
+  /**
+   * @generated from field: int64 seed = 2;
+   */
+  seed: bigint;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.DisplacementParams.
+ * Use `create(DisplacementParamsSchema)` to create a new message.
+ */
+export const DisplacementParamsSchema: GenMessage<DisplacementParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 33);
+
+/**
  * OpResult is the proto-typed result metadata of a run. ref is the managed blob
  * key (or the caller-supplied local path) holding the output bytes.
  *
@@ -634,7 +1141,7 @@ export type OpResult = Message<"vrooli.image_tools.v1.ops.OpResult"> & {
  * Use `create(OpResultSchema)` to create a new message.
  */
 export const OpResultSchema: GenMessage<OpResult> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 17);
+  messageDesc(file_image_tools_v1_ops_ops, 34);
 
 /**
  * RunOpResponse is the JSON (protojson) body returned by the REST run edge: a
@@ -663,7 +1170,7 @@ export type RunOpResponse = Message<"vrooli.image_tools.v1.ops.RunOpResponse"> &
  * Use `create(RunOpResponseSchema)` to create a new message.
  */
 export const RunOpResponseSchema: GenMessage<RunOpResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 18);
+  messageDesc(file_image_tools_v1_ops_ops, 35);
 
 /**
  * @generated from service vrooli.image_tools.v1.ops.OpsService

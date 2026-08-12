@@ -108,7 +108,11 @@ message CreateRenderRequest {
   string budget_confirmation_actor_id = 9;
   repeated CompositionSlot composition_slots = 10;
 }
-message CompositionSlot { string name = 1; string asset_id = 2; int32 order = 3; }
+message CompositionSlot {
+  string name = 1;
+  string asset_id = 2;
+  int32 order = 3;
+}
 message CreateRenderResponse {
   string render_id = 1;
   string status = 2;
@@ -135,8 +139,12 @@ message AdvisoryConformance {
   repeated string notes = 4;
   string recorded_at = 5;
 }
-message AnalyzeConformanceRequest { string asset_id = 1; }
-message AnalyzeConformanceResponse { AdvisoryConformance advisory = 1; }
+message AnalyzeConformanceRequest {
+  string asset_id = 1;
+}
+message AnalyzeConformanceResponse {
+  AdvisoryConformance advisory = 1;
+}
 message AgentCommission {
   string id = 1;
   string agent_task_id = 2;
@@ -146,8 +154,14 @@ message AgentCommission {
   string status = 6;
   string created_at = 7;
 }
-message CommissionAgentRequest { string request = 1; repeated string source_identity_version_ids = 2; string agent_identity = 3; }
-message CommissionAgentResponse { AgentCommission commission = 1; }
+message CommissionAgentRequest {
+  string request = 1;
+  repeated string source_identity_version_ids = 2;
+  string agent_identity = 3;
+}
+message CommissionAgentResponse {
+  AgentCommission commission = 1;
+}
 message CampaignBudget {
   string campaign_ref = 1;
   double limit_usd = 2;
@@ -157,7 +171,9 @@ message SetCampaignBudgetRequest {
   string campaign_ref = 1;
   double limit_usd = 2;
 }
-message SetCampaignBudgetResponse { CampaignBudget budget = 1; }
+message SetCampaignBudgetResponse {
+  CampaignBudget budget = 1;
+}
 message RenderProvenance {
   string spec_id = 1;
   repeated string identity_version_ids = 2;
@@ -179,8 +195,12 @@ message Render {
   int32 frame_count = 10;
   string parent_asset_id = 11;
 }
-message GetRenderRequest { string render_id = 1; }
-message GetRenderResponse { Render render = 1; }
+message GetRenderRequest {
+  string render_id = 1;
+}
+message GetRenderResponse {
+  Render render = 1;
+}
 message SelectCandidateRequest {
   string asset_id = 1;
 }

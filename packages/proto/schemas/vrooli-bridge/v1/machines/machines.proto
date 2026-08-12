@@ -20,6 +20,8 @@ service MachineService {
   rpc UpdateMachineCleanup(UpdateMachineCleanupRequest) returns (UpdateMachineCleanupResponse);
   rpc ApplyMachinePolicy(ApplyMachinePolicyRequest) returns (ApplyMachinePolicyResponse);
   rpc RevokeMachineNode(RevokeMachineNodeRequest) returns (RevokeMachineNodeResponse);
+  rpc RepairMachine(RepairMachineRequest) returns (RepairMachineResponse);
+  rpc MergeMachines(MergeMachinesRequest) returns (MergeMachinesResponse);
 }
 
 message ConnectionLocator {
@@ -207,4 +209,28 @@ message RevokeMachineNodeRequest {
 message RevokeMachineNodeResponse {
   Machine machine = 1;
   string revoked_node_id = 2;
+}
+
+// Repair reuses the durable Machine identity and Bridge-managed SSH key. The
+// server starts a normal enrollment attempt; it never creates a replacement
+// Machine as a side effect.
+message RepairMachineRequest {
+  string machine_id = 1;
+}
+message RepairMachineResponse {
+  Machine machine = 1;
+  string onboarding_op_id = 2;
+  string enrollment_attempt_id = 3;
+}
+
+// Merge is an explicit, audited reconciliation of duplicate durable records.
+// The source is archived after locators and lineage are folded into target;
+// history is retained and the operation is owner-gated.
+message MergeMachinesRequest {
+  string from_machine_id = 1;
+  string into_machine_id = 2;
+}
+message MergeMachinesResponse {
+  Machine machine = 1;
+  string archived_machine_id = 2;
 }

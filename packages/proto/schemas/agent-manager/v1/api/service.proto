@@ -1208,7 +1208,7 @@ message RunReport {
   int32 repeated_tool_calls = 22;
   int64 longest_event_gap_ms = 23;
   int32 files_read_more_than_once = 24;
-	RunTimeAccounting time_accounting = 25;
+  RunTimeAccounting time_accounting = 25;
   RunGoalOutcome goal_outcome = 26;
 }
 

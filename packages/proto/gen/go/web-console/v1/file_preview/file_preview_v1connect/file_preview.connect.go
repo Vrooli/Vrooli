@@ -39,6 +39,9 @@ const (
 	// FilePreviewServiceGetTextContentProcedure is the fully-qualified name of the FilePreviewService's
 	// GetTextContent RPC.
 	FilePreviewServiceGetTextContentProcedure = "/vrooli.web_console.v1.file_preview.FilePreviewService/GetTextContent"
+	// FilePreviewServiceListDirectoryProcedure is the fully-qualified name of the FilePreviewService's
+	// ListDirectory RPC.
+	FilePreviewServiceListDirectoryProcedure = "/vrooli.web_console.v1.file_preview.FilePreviewService/ListDirectory"
 )
 
 // FilePreviewServiceClient is a client for the
@@ -52,6 +55,10 @@ type FilePreviewServiceClient interface {
 	// (markdown/code/text/csv/diff). Media and images never use this — they
 	// stream from the blob route.
 	GetTextContent(context.Context, *connect.Request[file_preview.GetTextContentRequest]) (*connect.Response[file_preview.GetTextContentResponse], error)
+	// ListDirectory returns one bounded, sorted page of a directory previously
+	// resolved by Resolve. It accepts only a preview_id — never a raw path — so
+	// a directory handle can never be repointed at another directory.
+	ListDirectory(context.Context, *connect.Request[file_preview.ListDirectoryRequest]) (*connect.Response[file_preview.ListDirectoryResponse], error)
 }
 
 // NewFilePreviewServiceClient constructs a client for the
@@ -78,6 +85,12 @@ func NewFilePreviewServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(filePreviewServiceMethods.ByName("GetTextContent")),
 			connect.WithClientOptions(opts...),
 		),
+		listDirectory: connect.NewClient[file_preview.ListDirectoryRequest, file_preview.ListDirectoryResponse](
+			httpClient,
+			baseURL+FilePreviewServiceListDirectoryProcedure,
+			connect.WithSchema(filePreviewServiceMethods.ByName("ListDirectory")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -85,6 +98,7 @@ func NewFilePreviewServiceClient(httpClient connect.HTTPClient, baseURL string, 
 type filePreviewServiceClient struct {
 	resolve        *connect.Client[file_preview.ResolveRequest, file_preview.ResolveResponse]
 	getTextContent *connect.Client[file_preview.GetTextContentRequest, file_preview.GetTextContentResponse]
+	listDirectory  *connect.Client[file_preview.ListDirectoryRequest, file_preview.ListDirectoryResponse]
 }
 
 // Resolve calls vrooli.web_console.v1.file_preview.FilePreviewService.Resolve.
@@ -95,6 +109,11 @@ func (c *filePreviewServiceClient) Resolve(ctx context.Context, req *connect.Req
 // GetTextContent calls vrooli.web_console.v1.file_preview.FilePreviewService.GetTextContent.
 func (c *filePreviewServiceClient) GetTextContent(ctx context.Context, req *connect.Request[file_preview.GetTextContentRequest]) (*connect.Response[file_preview.GetTextContentResponse], error) {
 	return c.getTextContent.CallUnary(ctx, req)
+}
+
+// ListDirectory calls vrooli.web_console.v1.file_preview.FilePreviewService.ListDirectory.
+func (c *filePreviewServiceClient) ListDirectory(ctx context.Context, req *connect.Request[file_preview.ListDirectoryRequest]) (*connect.Response[file_preview.ListDirectoryResponse], error) {
+	return c.listDirectory.CallUnary(ctx, req)
 }
 
 // FilePreviewServiceHandler is an implementation of the
@@ -108,6 +127,10 @@ type FilePreviewServiceHandler interface {
 	// (markdown/code/text/csv/diff). Media and images never use this — they
 	// stream from the blob route.
 	GetTextContent(context.Context, *connect.Request[file_preview.GetTextContentRequest]) (*connect.Response[file_preview.GetTextContentResponse], error)
+	// ListDirectory returns one bounded, sorted page of a directory previously
+	// resolved by Resolve. It accepts only a preview_id — never a raw path — so
+	// a directory handle can never be repointed at another directory.
+	ListDirectory(context.Context, *connect.Request[file_preview.ListDirectoryRequest]) (*connect.Response[file_preview.ListDirectoryResponse], error)
 }
 
 // NewFilePreviewServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -129,12 +152,20 @@ func NewFilePreviewServiceHandler(svc FilePreviewServiceHandler, opts ...connect
 		connect.WithSchema(filePreviewServiceMethods.ByName("GetTextContent")),
 		connect.WithHandlerOptions(opts...),
 	)
+	filePreviewServiceListDirectoryHandler := connect.NewUnaryHandler(
+		FilePreviewServiceListDirectoryProcedure,
+		svc.ListDirectory,
+		connect.WithSchema(filePreviewServiceMethods.ByName("ListDirectory")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_console.v1.file_preview.FilePreviewService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FilePreviewServiceResolveProcedure:
 			filePreviewServiceResolveHandler.ServeHTTP(w, r)
 		case FilePreviewServiceGetTextContentProcedure:
 			filePreviewServiceGetTextContentHandler.ServeHTTP(w, r)
+		case FilePreviewServiceListDirectoryProcedure:
+			filePreviewServiceListDirectoryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -150,4 +181,8 @@ func (UnimplementedFilePreviewServiceHandler) Resolve(context.Context, *connect.
 
 func (UnimplementedFilePreviewServiceHandler) GetTextContent(context.Context, *connect.Request[file_preview.GetTextContentRequest]) (*connect.Response[file_preview.GetTextContentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.file_preview.FilePreviewService.GetTextContent is not implemented"))
+}
+
+func (UnimplementedFilePreviewServiceHandler) ListDirectory(context.Context, *connect.Request[file_preview.ListDirectoryRequest]) (*connect.Response[file_preview.ListDirectoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.file_preview.FilePreviewService.ListDirectory is not implemented"))
 }

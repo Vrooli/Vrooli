@@ -13,6 +13,11 @@ service BindingRegistryService {
   rpc ResolveActCells(ResolveActCellsRequest) returns (ResolveActCellsResponse);
   rpc DoctorBindings(DoctorBindingsRequest) returns (DoctorBindingsResponse);
   rpc DescribeBinding(DescribeBindingRequest) returns (DescribeBindingResponse);
+  rpc ResolveIntent(ResolveIntentRequest) returns (ResolveIntentResponse);
+}
+
+service BindingConditionService {
+  rpc GetBindingCondition(GetBindingConditionRequest) returns (GetBindingConditionResponse);
 }
 
 enum UnboundReason {
@@ -21,6 +26,7 @@ enum UnboundReason {
   UNBOUND_REASON_LOCAL_BINDING = 2;
   UNBOUND_REASON_OMITTED_RPC = 3;
   UNBOUND_REASON_EXTERNAL_TOOL_ONLY = 4;
+  UNBOUND_REASON_MALFORMED_MANIFEST = 5;
 }
 
 message Binding {
@@ -71,6 +77,12 @@ message DoctorBindingsRequest {
   string scenario = 1;
 }
 
+message SkippedManifest {
+  string path = 1;
+  string scenario = 2;
+  string parse_error = 3;
+}
+
 message BindingIssue {
   string scenario = 1;
   string binding_id = 2;
@@ -101,6 +113,71 @@ message DoctorBindingsResponse {
   // populate. These pass every callability check, so they are only visible as
   // their own dimension.
   int32 scalar_bound_to_message = 12;
+  repeated SkippedManifest skipped_manifests = 13;
+  int32 skipped_manifest_count = 14;
+  repeated string reachable_scenarios = 15;
+  repeated string unreachable_scenarios = 16;
+  int32 manifest_scenarios = 17;
+  int32 total_scenarios = 18;
+}
+
+enum ConditionStatus {
+  CONDITION_STATUS_UNSPECIFIED = 0;
+  CONDITION_STATUS_HEALTHY = 1;
+  CONDITION_STATUS_DEGRADED = 2;
+  CONDITION_STATUS_DORMANT = 3;
+  CONDITION_STATUS_UNINSTRUMENTED = 4;
+  CONDITION_STATUS_UNAVAILABLE = 5;
+}
+
+message ConditionFamily {
+  ConditionStatus status = 1;
+  string reason = 2;
+}
+
+message ServingCondition {
+  ConditionFamily family = 1;
+  double failure_rate = 2;
+  double degradation_rate = 3;
+  int64 latency_p50_ms = 4;
+  int64 latency_p95_ms = 5;
+}
+
+message FreshnessCondition {
+  ConditionFamily family = 1;
+  int64 age_seconds = 2;
+  ConditionStatus drift_status = 3;
+  string drift_reason = 4;
+}
+
+message ExerciseCondition {
+  ConditionFamily family = 1;
+  int64 invocations = 2;
+  int64 distinct_callers = 3;
+  string last_invoked_at = 4;
+}
+
+message BindingCondition {
+  string binding_id = 1;
+  string scenario = 2;
+  ConditionStatus status = 3;
+  string verdict = 4;
+  ServingCondition serving = 5;
+  FreshnessCondition freshness = 6;
+  ExerciseCondition exercise = 7;
+}
+
+message GetBindingConditionRequest {
+  string binding_id = 1;
+  string scenario = 2;
+  int64 window_seconds = 3;
+}
+
+message GetBindingConditionResponse {
+  repeated BindingCondition conditions = 1;
+  int64 window_seconds = 2;
+  int32 total_bindings = 3;
+  int32 instrumented_bindings = 4;
 }
 
 message DescribeBindingRequest {
@@ -154,4 +231,15 @@ message ResolveActCellsResponse {
   int32 audited_cells = 2;
   int32 total_cells = 3;
   string denominator_confidence = 4;
+}
+
+message ResolveIntentRequest {
+  string intent = 1;
+  int32 limit = 2;
+}
+
+message ResolveIntentResponse {
+  repeated Binding bindings = 1;
+  string reason = 2;
+  bool fallback = 3;
 }

@@ -21,17 +21,19 @@ class DispatchJobRequest(_message.Message):
     def __init__(self, node_id: _Optional[str] = ..., scenario: _Optional[str] = ..., verb: _Optional[str] = ..., args: _Optional[_Iterable[str]] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
 
 class DispatchJobResponse(_message.Message):
-    __slots__ = ("run_id", "dry_run", "node_id", "scenario", "verb", "args")
+    __slots__ = ("run_id", "dry_run", "node_id", "scenario", "verb", "args", "queued")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     VERB_FIELD_NUMBER: _ClassVar[int]
     ARGS_FIELD_NUMBER: _ClassVar[int]
+    QUEUED_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     dry_run: bool
     node_id: str
     scenario: str
     verb: str
     args: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, run_id: _Optional[str] = ..., dry_run: _Optional[bool] = ..., node_id: _Optional[str] = ..., scenario: _Optional[str] = ..., verb: _Optional[str] = ..., args: _Optional[_Iterable[str]] = ...) -> None: ...
+    queued: bool
+    def __init__(self, run_id: _Optional[str] = ..., dry_run: _Optional[bool] = ..., node_id: _Optional[str] = ..., scenario: _Optional[str] = ..., verb: _Optional[str] = ..., args: _Optional[_Iterable[str]] = ..., queued: _Optional[bool] = ...) -> None: ...

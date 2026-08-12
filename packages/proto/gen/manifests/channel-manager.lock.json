@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "channel-manager",
-  "input_digest": "sha256:f8d4ec3c66fda51d2e0e765d42518fd80754f19e268ef69a0982b1ff55aebf29",
+  "input_digest": "sha256:8ba0171d7d07821235b253cd5e06249ccbf9bc633fb9eb56c2db570184091ead",
   "input_files": [
     "schemas/channel-manager/v1/channelmanager/channel_manager.proto",
     "schemas/channel-manager/v1/shared/errors.proto",

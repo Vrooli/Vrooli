@@ -4,7 +4,15 @@ package vrooli.program_runtime.v1.telemetry;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry;telemetry_v1";
 
-enum EventKind { EVENT_KIND_UNSPECIFIED = 0; PROGRAM_SUBMITTED = 1; PROGRAM_SUCCEEDED = 2; PROGRAM_FAILED = 3; BINDING_REFUSED = 4; SESSION_RECLAIMED = 5; BINDING_INVOKED = 6; }
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  PROGRAM_SUBMITTED = 1;
+  PROGRAM_SUCCEEDED = 2;
+  PROGRAM_FAILED = 3;
+  BINDING_REFUSED = 4;
+  SESSION_RECLAIMED = 5;
+  BINDING_INVOKED = 6;
+}
 
 message ProgramEvent {
   string event_id = 1;
@@ -21,6 +29,13 @@ message ProgramEvent {
   string failure_location = 12;
 }
 
-message ListEventsRequest { string session_id = 1; EventKind kind = 2; }
-message ListEventsResponse { repeated ProgramEvent events = 1; }
-service TelemetryService { rpc ListEvents(ListEventsRequest) returns (ListEventsResponse); }
+message ListEventsRequest {
+  string session_id = 1;
+  EventKind kind = 2;
+}
+message ListEventsResponse {
+  repeated ProgramEvent events = 1;
+}
+service TelemetryService {
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+}

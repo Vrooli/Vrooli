@@ -66,6 +66,12 @@ const (
 	// MachineServiceRevokeMachineNodeProcedure is the fully-qualified name of the MachineService's
 	// RevokeMachineNode RPC.
 	MachineServiceRevokeMachineNodeProcedure = "/vrooli.vrooli_bridge.v1.machines.MachineService/RevokeMachineNode"
+	// MachineServiceRepairMachineProcedure is the fully-qualified name of the MachineService's
+	// RepairMachine RPC.
+	MachineServiceRepairMachineProcedure = "/vrooli.vrooli_bridge.v1.machines.MachineService/RepairMachine"
+	// MachineServiceMergeMachinesProcedure is the fully-qualified name of the MachineService's
+	// MergeMachines RPC.
+	MachineServiceMergeMachinesProcedure = "/vrooli.vrooli_bridge.v1.machines.MachineService/MergeMachines"
 )
 
 // MachineServiceClient is a client for the vrooli.vrooli_bridge.v1.machines.MachineService service.
@@ -81,6 +87,8 @@ type MachineServiceClient interface {
 	UpdateMachineCleanup(context.Context, *connect.Request[machines.UpdateMachineCleanupRequest]) (*connect.Response[machines.UpdateMachineCleanupResponse], error)
 	ApplyMachinePolicy(context.Context, *connect.Request[machines.ApplyMachinePolicyRequest]) (*connect.Response[machines.ApplyMachinePolicyResponse], error)
 	RevokeMachineNode(context.Context, *connect.Request[machines.RevokeMachineNodeRequest]) (*connect.Response[machines.RevokeMachineNodeResponse], error)
+	RepairMachine(context.Context, *connect.Request[machines.RepairMachineRequest]) (*connect.Response[machines.RepairMachineResponse], error)
+	MergeMachines(context.Context, *connect.Request[machines.MergeMachinesRequest]) (*connect.Response[machines.MergeMachinesResponse], error)
 }
 
 // NewMachineServiceClient constructs a client for the
@@ -161,6 +169,18 @@ func NewMachineServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(machineServiceMethods.ByName("RevokeMachineNode")),
 			connect.WithClientOptions(opts...),
 		),
+		repairMachine: connect.NewClient[machines.RepairMachineRequest, machines.RepairMachineResponse](
+			httpClient,
+			baseURL+MachineServiceRepairMachineProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("RepairMachine")),
+			connect.WithClientOptions(opts...),
+		),
+		mergeMachines: connect.NewClient[machines.MergeMachinesRequest, machines.MergeMachinesResponse](
+			httpClient,
+			baseURL+MachineServiceMergeMachinesProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("MergeMachines")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -177,6 +197,8 @@ type machineServiceClient struct {
 	updateMachineCleanup     *connect.Client[machines.UpdateMachineCleanupRequest, machines.UpdateMachineCleanupResponse]
 	applyMachinePolicy       *connect.Client[machines.ApplyMachinePolicyRequest, machines.ApplyMachinePolicyResponse]
 	revokeMachineNode        *connect.Client[machines.RevokeMachineNodeRequest, machines.RevokeMachineNodeResponse]
+	repairMachine            *connect.Client[machines.RepairMachineRequest, machines.RepairMachineResponse]
+	mergeMachines            *connect.Client[machines.MergeMachinesRequest, machines.MergeMachinesResponse]
 }
 
 // CreateMachine calls vrooli.vrooli_bridge.v1.machines.MachineService.CreateMachine.
@@ -235,6 +257,16 @@ func (c *machineServiceClient) RevokeMachineNode(ctx context.Context, req *conne
 	return c.revokeMachineNode.CallUnary(ctx, req)
 }
 
+// RepairMachine calls vrooli.vrooli_bridge.v1.machines.MachineService.RepairMachine.
+func (c *machineServiceClient) RepairMachine(ctx context.Context, req *connect.Request[machines.RepairMachineRequest]) (*connect.Response[machines.RepairMachineResponse], error) {
+	return c.repairMachine.CallUnary(ctx, req)
+}
+
+// MergeMachines calls vrooli.vrooli_bridge.v1.machines.MachineService.MergeMachines.
+func (c *machineServiceClient) MergeMachines(ctx context.Context, req *connect.Request[machines.MergeMachinesRequest]) (*connect.Response[machines.MergeMachinesResponse], error) {
+	return c.mergeMachines.CallUnary(ctx, req)
+}
+
 // MachineServiceHandler is an implementation of the vrooli.vrooli_bridge.v1.machines.MachineService
 // service.
 type MachineServiceHandler interface {
@@ -249,6 +281,8 @@ type MachineServiceHandler interface {
 	UpdateMachineCleanup(context.Context, *connect.Request[machines.UpdateMachineCleanupRequest]) (*connect.Response[machines.UpdateMachineCleanupResponse], error)
 	ApplyMachinePolicy(context.Context, *connect.Request[machines.ApplyMachinePolicyRequest]) (*connect.Response[machines.ApplyMachinePolicyResponse], error)
 	RevokeMachineNode(context.Context, *connect.Request[machines.RevokeMachineNodeRequest]) (*connect.Response[machines.RevokeMachineNodeResponse], error)
+	RepairMachine(context.Context, *connect.Request[machines.RepairMachineRequest]) (*connect.Response[machines.RepairMachineResponse], error)
+	MergeMachines(context.Context, *connect.Request[machines.MergeMachinesRequest]) (*connect.Response[machines.MergeMachinesResponse], error)
 }
 
 // NewMachineServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -324,6 +358,18 @@ func NewMachineServiceHandler(svc MachineServiceHandler, opts ...connect.Handler
 		connect.WithSchema(machineServiceMethods.ByName("RevokeMachineNode")),
 		connect.WithHandlerOptions(opts...),
 	)
+	machineServiceRepairMachineHandler := connect.NewUnaryHandler(
+		MachineServiceRepairMachineProcedure,
+		svc.RepairMachine,
+		connect.WithSchema(machineServiceMethods.ByName("RepairMachine")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceMergeMachinesHandler := connect.NewUnaryHandler(
+		MachineServiceMergeMachinesProcedure,
+		svc.MergeMachines,
+		connect.WithSchema(machineServiceMethods.ByName("MergeMachines")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.machines.MachineService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MachineServiceCreateMachineProcedure:
@@ -348,6 +394,10 @@ func NewMachineServiceHandler(svc MachineServiceHandler, opts ...connect.Handler
 			machineServiceApplyMachinePolicyHandler.ServeHTTP(w, r)
 		case MachineServiceRevokeMachineNodeProcedure:
 			machineServiceRevokeMachineNodeHandler.ServeHTTP(w, r)
+		case MachineServiceRepairMachineProcedure:
+			machineServiceRepairMachineHandler.ServeHTTP(w, r)
+		case MachineServiceMergeMachinesProcedure:
+			machineServiceMergeMachinesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -399,4 +449,12 @@ func (UnimplementedMachineServiceHandler) ApplyMachinePolicy(context.Context, *c
 
 func (UnimplementedMachineServiceHandler) RevokeMachineNode(context.Context, *connect.Request[machines.RevokeMachineNodeRequest]) (*connect.Response[machines.RevokeMachineNodeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.machines.MachineService.RevokeMachineNode is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) RepairMachine(context.Context, *connect.Request[machines.RepairMachineRequest]) (*connect.Response[machines.RepairMachineResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.machines.MachineService.RepairMachine is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) MergeMachines(context.Context, *connect.Request[machines.MergeMachinesRequest]) (*connect.Response[machines.MergeMachinesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.machines.MachineService.MergeMachines is not implemented"))
 }

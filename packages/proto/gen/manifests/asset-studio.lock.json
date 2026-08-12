@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "asset-studio",
-  "input_digest": "sha256:879985987e6420a4cd35d9b9c616f96c58f4ca0f8db3ffd0997e1c3c1833281e",
+  "input_digest": "sha256:6ca482e8c533a69270f12ec1e41db8e438f17f144430da844a2b52907da6a5a7",
   "input_files": [
     "schemas/asset-studio/v1/search/search.proto",
     "schemas/asset-studio/v1/shared/errors.proto",

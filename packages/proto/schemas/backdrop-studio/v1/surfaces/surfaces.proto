@@ -1,0 +1,23 @@
+syntax = "proto3";
+package vrooli.backdrop_studio.v1.surfaces;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/surfaces;surfaces_v1";
+
+service SurfacesService {
+  rpc ListSurfaces(ListSurfacesRequest) returns (ListSurfacesResponse);
+}
+
+message ListSurfacesRequest {}
+message Surface {
+  string id = 1;
+  string name = 2;
+  string kind = 3;
+  int32 width = 4;
+  int32 height = 5;
+  repeated string placements = 6;
+  string authority = 7;
+  string confirmed_on = 8;
+}
+message ListSurfacesResponse {
+  repeated Surface surfaces = 1;
+}

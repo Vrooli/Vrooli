@@ -28,7 +28,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridg
 // Versioning / back-compat policy
 // -------------------------------
 // `protocol_version` is the single integer the handshake negotiates. The
-// current version is CHANNEL_PROTOCOL_VERSION = 1 (mirrored as a Go const in
+// current version is CHANNEL_PROTOCOL_VERSION = 2 (mirrored as a Go const in
 // the agent and api). Both sides parse with DiscardUnknown so a newer peer
 // adding fields never breaks an older peer. A node whose protocol_version the
 // control plane cannot drive is flagged NEEDS_UPDATE (or INCOMPATIBLE) in the
@@ -49,7 +49,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridg
 // establishes durable identity and negotiates the protocol version.
 message Handshake {
   // Negotiated wire protocol version. Current peers send
-  // CHANNEL_PROTOCOL_VERSION = 1.
+  // CHANNEL_PROTOCOL_VERSION = 2.
   uint32 protocol_version = 1;
 
   // Durable node identity assigned at registration (registry domain).
@@ -69,7 +69,11 @@ message Handshake {
   // this is the node's advertisement, reconciled at dispatch.
   repeated string capabilities = 6;
 
-  reserved 7 to 15; // forward growth (hardware facts, agent flags)
+  // True when the agent can participate in the bidirectional session wire.
+  // False is valid: SSE job delivery remains the compatibility fallback.
+  bool supports_websocket = 7;
+
+  reserved 8 to 15; // forward growth (hardware facts, agent flags)
 }
 
 // HandshakeAck is the control plane's first push after a Handshake. It accepts
@@ -185,12 +189,17 @@ message AbortJob {
 // wrapped in over the SSE stream. New push kinds extend this oneof; the node
 // parses with DiscardUnknown and ignores kinds it does not understand.
 message ServerFrame {
+  // Unique control-plane delivery identity. It is acknowledged by the node
+  // before any work represented by the payload begins.
+  string frame_id = 6;
+
   oneof payload {
     HandshakeAck ack = 1;
     JobPush job = 2;
     ProvisionCommand provision = 3;
     ControlPing ping = 4;
     AbortJob abort = 5;
+    shared.SessionFrame session = 7;
   }
 }
 
@@ -226,5 +235,7 @@ message NodeFrame {
     Handshake handshake = 1;
     shared.Heartbeat heartbeat = 2;
     shared.RunEvent run_event = 3;
+    shared.DeliveryAck delivery_ack = 4;
+    shared.SessionFrame session = 5;
   }
 }

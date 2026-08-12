@@ -14,18 +14,18 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
-	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
@@ -43,9 +43,12 @@ type methodInfo struct {
 // tests while production uses api-core/discovery's cross-platform resolver.
 type ReachabilityResolver func(context.Context, string) (string, error)
 
-// Registry is an immutable snapshot of the callable fleet surface. It is
-// loaded once at API boot; callers receive cloned protobuf messages.
+// Registry is a pinned callable fleet surface. A registry returned by Load is
+// backed by a Source and refreshes between requests; each method observes one
+// immutable generation. Registries built by LoadFiles remain deterministic
+// static fixtures for tests.
 type Registry struct {
+	dynamic        *registryDynamic
 	bindings       []*bindingsv1.Binding
 	unbound        []*bindingsv1.UnboundCapability
 	skipped        []*bindingsv1.SkippedManifest
@@ -61,6 +64,17 @@ type Registry struct {
 	resolver       ReachabilityResolver
 	manifestCount  int
 	totalScenarios int
+}
+
+type registryDynamic struct {
+	source         *descriptorimage.Source
+	descriptorPath string
+	manifestPaths  []string
+	mu             sync.Mutex
+	current        *Registry
+	generation     uint64
+	recorder       InvocationRecorder
+	resolver       ReachabilityResolver
 }
 
 // Load resolves the canonical repository artifacts and builds a registry.
@@ -88,24 +102,81 @@ func Load(repoRoot string) (*Registry, error) {
 		}
 		manifestPaths = append(manifestPaths, path)
 	}
-	return LoadFiles(descriptorPath, manifestPaths)
+	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: descriptorPath, ManifestPaths: manifestPaths})
+	if err != nil {
+		return nil, err
+	}
+	return LoadFromSource(source)
+}
+
+// LoadFromSource builds a registry over a shared descriptor source. The source
+// must watch the descriptor first and any CLI manifests after it.
+func LoadFromSource(source *descriptorimage.Source) (*Registry, error) {
+	if source == nil {
+		return nil, errors.New("descriptor source is required")
+	}
+	paths := source.WatchedPaths()
+	if len(paths) == 0 {
+		return nil, errors.New("descriptor source has no watched paths")
+	}
+	descriptorPath := source.DescriptorPath()
+	manifestPaths := make([]string, 0, len(paths)-1)
+	for _, path := range paths {
+		if path != descriptorPath {
+			manifestPaths = append(manifestPaths, path)
+		}
+	}
+	initial, err := source.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	registry, err := buildRegistry(descriptorPath, manifestPaths, initial)
+	if err != nil {
+		return nil, err
+	}
+	registry.dynamic = &registryDynamic{source: source, descriptorPath: descriptorPath, manifestPaths: append([]string(nil), manifestPaths...), current: registry, generation: initial.Generation}
+	return registry, nil
+}
+
+// LoadWithRetry bounds startup retries around descriptor publication. Once a
+// registry exists, refresh failures are fail-safe and keep the prior surface.
+func LoadWithRetry(repoRoot string, attempts int, delay time.Duration) (*Registry, error) {
+	if attempts < 1 {
+		attempts = 1
+	}
+	var err error
+	for attempt := 0; attempt < attempts; attempt++ {
+		var registry *Registry
+		registry, err = Load(repoRoot)
+		if err == nil {
+			return registry, nil
+		}
+		if attempt+1 < attempts && delay > 0 {
+			time.Sleep(delay)
+		}
+	}
+	return nil, err
 }
 
 // LoadFiles builds a registry from an explicit descriptor and manifest set.
 // It is the deterministic seam used by unit tests and fixture-based checks.
 func LoadFiles(descriptorPath string, manifestPaths []string) (*Registry, error) {
-	data, err := os.ReadFile(descriptorPath)
+	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: descriptorPath, ManifestPaths: manifestPaths})
 	if err != nil {
-		return nil, fmt.Errorf("read descriptor image: %w", err)
+		return nil, err
 	}
-	var set descriptorpb.FileDescriptorSet
-	if err := proto.Unmarshal(data, &set); err != nil {
-		return nil, fmt.Errorf("decode descriptor image: %w", err)
-	}
-	files, err := protodesc.NewFiles(&set)
+	snapshot, err := source.Snapshot()
 	if err != nil {
-		return nil, fmt.Errorf("load descriptor image: %w", err)
+		return nil, err
 	}
+	return buildRegistry(descriptorPath, manifestPaths, snapshot)
+}
+
+func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *descriptorimage.Snapshot) (*Registry, error) {
+	if snapshot == nil || snapshot.Files == nil {
+		return nil, errors.New("descriptor snapshot is unavailable")
+	}
+	files := snapshot.Files
 	methods := make(map[string]methodInfo)
 	serviceMethods := make(map[string][]methodInfo)
 	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
@@ -140,13 +211,7 @@ func LoadFiles(descriptorPath string, manifestPaths []string) (*Registry, error)
 			r.manifestCount++
 		}
 	}
-	var newest time.Time
-	for _, artifact := range append([]string{descriptorPath}, manifestPaths...) {
-		if info, statErr := os.Stat(artifact); statErr == nil && info.ModTime().After(newest) {
-			newest = info.ModTime()
-		}
-	}
-	r.artifactMtime = newest
+	r.artifactMtime = snapshot.ArtifactMTime
 	r.shared = sharedContractPrefixes(filepath.Clean(filepath.Join(filepath.Dir(descriptorPath), "../../../..")))
 	for _, path := range manifestPaths {
 		skipped, err := r.addManifest(path, serviceMethods, r.shared)
@@ -178,6 +243,55 @@ func LoadFiles(descriptorPath string, manifestPaths []string) (*Registry, error)
 	return r, nil
 }
 
+func (r *Registry) active() *Registry {
+	if r == nil || r.dynamic == nil {
+		return r
+	}
+	return r.dynamic.refresh()
+}
+
+func (d *registryDynamic) refresh() *Registry {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	snapshot, err := d.source.Snapshot()
+	if err != nil {
+		return d.current
+	}
+	if d.current != nil && d.generation == snapshot.Generation {
+		return d.current
+	}
+	next, err := buildRegistry(d.descriptorPath, d.manifestPaths, snapshot)
+	if err != nil {
+		return d.current
+	}
+	next.recorder = d.recorder
+	if d.resolver != nil {
+		next.resolver = d.resolver
+	}
+	d.current = next
+	d.generation = snapshot.Generation
+	return next
+}
+
+// SnapshotMetadata exposes the source state for health surfaces without
+// forcing callers to know how the registry is refreshed.
+func (r *Registry) SnapshotMetadata() (digest string, generation uint64, loadedAt, artifactMTime time.Time, reloadErr error) {
+	if r == nil || r.dynamic == nil {
+		return "", 0, time.Time{}, r.artifactMtime, nil
+	}
+	snapshot, err := r.dynamic.source.Snapshot()
+	if snapshot != nil {
+		digest, generation, loadedAt, artifactMTime = snapshot.Digest, snapshot.Generation, snapshot.LoadedAt, snapshot.ArtifactMTime
+	}
+	if err != nil {
+		reloadErr = err
+	}
+	if sourceErr := r.dynamic.source.LastReloadError(); sourceErr != nil {
+		reloadErr = sourceErr
+	}
+	return
+}
+
 // Execute performs one governed outbound Connect JSON call. The bridge is
 // intentionally behind this method so Python cannot bypass the manifest-bound
 // descriptor and governance checks. Process isolation is enforced by the
@@ -189,10 +303,20 @@ type InvocationMetadata struct {
 }
 
 func (r *Registry) SetInvocationRecorder(recorder InvocationRecorder) {
+	if r.dynamic != nil {
+		r.dynamic.mu.Lock()
+		r.dynamic.recorder = recorder
+		if r.dynamic.current != nil {
+			r.dynamic.current.recorder = recorder
+		}
+		r.dynamic.mu.Unlock()
+		return
+	}
 	r.recorder = recorder
 }
 
 func (r *Registry) RecordInvocation(ctx context.Context, invocation Invocation) {
+	r = r.active()
 	if r.recorder != nil {
 		if invocation.TargetScenario == "" {
 			if binding := r.byID[invocation.BindingID]; binding != nil {
@@ -204,6 +328,7 @@ func (r *Registry) RecordInvocation(ctx context.Context, invocation Invocation) 
 }
 
 func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, grants []string, confirmed bool, metadata InvocationMetadata, client *http.Client) (result map[string]any, err error) {
+	r = r.active()
 	started := time.Now()
 	defer func() {
 		if r.recorder == nil {
@@ -471,6 +596,7 @@ func normalizeField(s string) string {
 }
 
 func (r *Registry) List(scenario, group string) []*bindingsv1.Binding {
+	r = r.active()
 	out := make([]*bindingsv1.Binding, 0)
 	for _, b := range r.bindings {
 		if scenario != "" && b.GetScenario() != scenario {
@@ -485,6 +611,7 @@ func (r *Registry) List(scenario, group string) []*bindingsv1.Binding {
 }
 
 func (r *Registry) Unbound(scenario string) []*bindingsv1.UnboundCapability {
+	r = r.active()
 	out := make([]*bindingsv1.UnboundCapability, 0)
 	for _, c := range r.unbound {
 		if scenario == "" || c.GetScenario() == scenario {
@@ -495,6 +622,7 @@ func (r *Registry) Unbound(scenario string) []*bindingsv1.UnboundCapability {
 }
 
 func (r *Registry) Binding(id string) (*bindingsv1.Binding, bool) {
+	r = r.active()
 	b, ok := r.byID[id]
 	if !ok {
 		return nil, false
@@ -503,6 +631,7 @@ func (r *Registry) Binding(id string) (*bindingsv1.Binding, bool) {
 }
 
 func (r *Registry) IsInferenceBinding(id string) bool {
+	r = r.active()
 	binding, ok := r.byID[id]
 	if !ok {
 		return false
@@ -536,6 +665,15 @@ func InferenceUsage(result map[string]any) (input, output, cost int64, present b
 // intended for deterministic tests and controlled embedding; nil restores
 // the production api-core/discovery resolver.
 func (r *Registry) SetReachabilityResolver(resolver ReachabilityResolver) {
+	if r.dynamic != nil {
+		r.dynamic.mu.Lock()
+		r.dynamic.resolver = resolver
+		if r.dynamic.current != nil {
+			r.dynamic.current.resolver = resolver
+		}
+		r.dynamic.mu.Unlock()
+		return
+	}
 	if resolver == nil {
 		r.resolver = discovery.ResolveScenarioURLDefault
 		return
@@ -547,6 +685,7 @@ func (r *Registry) SetReachabilityResolver(resolver ReachabilityResolver) {
 // cannot be projected onto its request descriptor. It intentionally derives
 // its results from the same resolver used by Execute.
 func (r *Registry) Doctor(scenario string) *bindingsv1.DoctorBindingsResponse {
+	r = r.active()
 	return r.DoctorContext(context.Background(), scenario)
 }
 
@@ -556,6 +695,7 @@ func (r *Registry) Doctor(scenario string) *bindingsv1.DoctorBindingsResponse {
 // manifest-bearing scenario count, which is the measured ceiling for this
 // binding-backed surface.
 func (r *Registry) DoctorContext(ctx context.Context, scenario string) *bindingsv1.DoctorBindingsResponse {
+	r = r.active()
 	response := &bindingsv1.DoctorBindingsResponse{}
 	response.ManifestScenarios = int32(r.manifestCount)
 	response.TotalScenarios = int32(r.totalScenarios)
@@ -641,6 +781,7 @@ func (r *Registry) populateReachability(ctx context.Context, scenario string, re
 
 // Describe returns the resolved request path for every manifest argument.
 func (r *Registry) Describe(id string) (*bindingsv1.DescribeBindingResponse, error) {
+	r = r.active()
 	binding, ok := r.byID[id]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", errNoBinding, id)
@@ -795,6 +936,7 @@ func (r *Registry) sourceBelongsTo(scenario, source string) bool {
 // the vocabulary (effect and permissions come from the manifest); a session
 // only supplies grants and an explicit confirmation for destructive work.
 func (r *Registry) Authorize(id string, grants []string, confirmed bool) error {
+	r = r.active()
 	b, ok := r.byID[id]
 	if !ok {
 		return fmt.Errorf("%w: %s", errNoBinding, id)
@@ -829,6 +971,7 @@ func (r *Registry) Authorize(id string, grants []string, confirmed bool) error {
 // through protojson's canonical diagnostic. Manifest-required arguments are
 // checked in addition to protobuf required fields.
 func (r *Registry) ValidateArguments(id string, args map[string]any) error {
+	r = r.active()
 	info, ok := r.methods[id]
 	if !ok {
 		return fmt.Errorf("%w: %s", errNoBinding, id)
@@ -953,6 +1096,7 @@ func putResolvedArgument(out map[string]any, path []protoreflect.FieldDescriptor
 // all candidates; a cell is covered only when at least one governed binding
 // exists for every operation it names.
 func (r *Registry) ResolveOperation(operation string) []*bindingsv1.Binding {
+	r = r.active()
 	key := normalizeField(strings.Trim(operation, "`"))
 	if found := r.operation[key]; len(found) > 0 {
 		return found
@@ -982,6 +1126,7 @@ func (r *Registry) ResolveOperation(operation string) []*bindingsv1.Binding {
 // adapter can replace the local index without changing the program contract;
 // direct binding calls remain available when search is unavailable.
 func (r *Registry) ResolveByIntent(intent string) ([]*bindingsv1.Binding, string) {
+	r = r.active()
 	terms := strings.Fields(normalizeField(intent))
 	if len(terms) == 0 {
 		return nil, "intent is empty"
@@ -1008,6 +1153,7 @@ func (r *Registry) ResolveByIntent(intent string) ([]*bindingsv1.Binding, string
 
 // ResolveActCells applies the strict all-operations join rule.
 func (r *Registry) ResolveActCells(ctx context.Context, cells []*bindingsv1.ActCell) []*bindingsv1.ActCellVerdict {
+	r = r.active()
 	_ = ctx
 	out := make([]*bindingsv1.ActCellVerdict, 0, len(cells))
 	for _, cell := range cells {
@@ -1153,13 +1299,19 @@ func ActConfidence(verdicts []*bindingsv1.ActCellVerdict) string {
 }
 
 // Count returns snapshot sizes for health and measures surfaces.
-func (r *Registry) Count() (bound, unbound int) { return len(r.bindings), len(r.unbound) }
+func (r *Registry) Count() (bound, unbound int) {
+	r = r.active()
+	return len(r.bindings), len(r.unbound)
+}
 
 // SkippedManifestCount reports manifests that were isolated during the
 // immutable registry load. It is intentionally separate from Unbound so
 // operators can distinguish malformed fleet input from a valid, intentionally
 // unbound command.
-func (r *Registry) SkippedManifestCount() int { return len(r.skipped) }
+func (r *Registry) SkippedManifestCount() int {
+	r = r.active()
+	return len(r.skipped)
+}
 
 // Ensure the imported registry package remains used even when a build omits
 // the descriptor path in a platform-specific test.

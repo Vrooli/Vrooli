@@ -536,9 +536,14 @@ After any schema change:
 
 ```bash
 cd packages/proto
+# For a routine focused schema edit:
+make generate SCENARIO=<scenario>
+# For several related edits, pass a space-separated scenario list:
+make generate SCENARIO="<scenario-a> <scenario-b>"
+# Use the full-fleet form deliberately after plugin or vendor changes:
 make generate
 make lint
-make breaking
+make breaking SCENARIO=<scenario>
 make verify-committed-gen
 ```
 
@@ -546,9 +551,9 @@ make verify-committed-gen
 committed artifacts. They must stay in sync with `schemas/`. Do not hand-edit
 generated code or manifests.
 
-`make verify-committed-gen` is the CI-style sync gate: it runs the same
-prune-clean generation path as `make generate` and fails if committed generated
-artifacts, descriptors, or manifests drift from schema sources.
+`make verify-committed-gen` is the CI-style sync gate: it runs the same staged
+generation path as `make generate` and fails if committed generated artifacts,
+descriptors, or manifests drift from schema sources.
 
 ---
 
@@ -599,5 +604,6 @@ Before committing proto changes:
       available.
 - [ ] Reserved fields explain what was removed and why.
 - [ ] `make lint` passes.
-- [ ] `make generate` and `make verify-committed-gen` leave generated artifacts
-      in sync.
+- [ ] `make generate SCENARIO=<scenario>` and `make verify-committed-gen` leave
+      generated artifacts in sync. Use full `make generate` deliberately after
+      plugin or vendored-module changes.

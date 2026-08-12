@@ -206,9 +206,12 @@ type EvalCase struct {
 	// Candidates are excluded from acceptance recall until promoted.
 	Status string `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
 	// Optional provider-native query scope: ""|"global"|"scenario:<id>"|"path:<prefix>".
-	Scope         string `protobuf:"bytes,11,opt,name=scope,proto3" json:"scope,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Scope string `protobuf:"bytes,11,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Optional minimum rank-1/rank-2 margin for the federated tier. Empty/zero
+	// uses the tier's documented default floor.
+	ExpectMinMargin float64 `protobuf:"fixed64,12,opt,name=expect_min_margin,json=expectMinMargin,proto3" json:"expect_min_margin,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *EvalCase) Reset() {
@@ -318,6 +321,13 @@ func (x *EvalCase) GetScope() string {
 	return ""
 }
 
+func (x *EvalCase) GetExpectMinMargin() float64 {
+	if x != nil {
+		return x.ExpectMinMargin
+	}
+	return 0
+}
+
 // An immutable execution of a suite. The TAG is the experimentation lever.
 type EvalRun struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
@@ -327,11 +337,15 @@ type EvalRun struct {
 	Tag       string `protobuf:"bytes,3,opt,name=tag,proto3" json:"tag,omitempty"`
 	CreatedAt string `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// self-describing snapshot of the config that affects results.
-	Config        *ConfigSnapshot `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
-	Results       []*CaseResult   `protobuf:"bytes,6,rep,name=results,proto3" json:"results,omitempty"`
-	Aggregate     *EvalAggregate  `protobuf:"bytes,7,opt,name=aggregate,proto3" json:"aggregate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Config    *ConfigSnapshot `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
+	Results   []*CaseResult   `protobuf:"bytes,6,rep,name=results,proto3" json:"results,omitempty"`
+	Aggregate *EvalAggregate  `protobuf:"bytes,7,opt,name=aggregate,proto3" json:"aggregate,omitempty"`
+	// "provider_direct" (legacy/default) or "federated".
+	Tier           string `protobuf:"bytes,10,opt,name=tier,proto3" json:"tier,omitempty"`
+	Degraded       bool   `protobuf:"varint,11,opt,name=degraded,proto3" json:"degraded,omitempty"`
+	DegradedReason string `protobuf:"bytes,12,opt,name=degraded_reason,json=degradedReason,proto3" json:"degraded_reason,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *EvalRun) Reset() {
@@ -411,6 +425,27 @@ func (x *EvalRun) GetAggregate() *EvalAggregate {
 		return x.Aggregate
 	}
 	return nil
+}
+
+func (x *EvalRun) GetTier() string {
+	if x != nil {
+		return x.Tier
+	}
+	return ""
+}
+
+func (x *EvalRun) GetDegraded() bool {
+	if x != nil {
+		return x.Degraded
+	}
+	return false
+}
+
+func (x *EvalRun) GetDegradedReason() string {
+	if x != nil {
+		return x.DegradedReason
+	}
+	return ""
 }
 
 // Captured from the provider's status probe at run time so a historical
@@ -545,9 +580,13 @@ type CaseResult struct {
 	ExpectedRank     int32   `protobuf:"varint,3,opt,name=expected_rank,json=expectedRank,proto3" json:"expected_rank,omitempty"`
 	ObservedTopScore float64 `protobuf:"fixed64,4,opt,name=observed_top_score,json=observedTopScore,proto3" json:"observed_top_score,omitempty"`
 	// "met" | "below_expectation" | "above_expectation" | "unexpected_hit" | "n/a".
-	Outcome       string `protobuf:"bytes,5,opt,name=outcome,proto3" json:"outcome,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Outcome            string  `protobuf:"bytes,5,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	ExpectedProviderId string  `protobuf:"bytes,6,opt,name=expected_provider_id,json=expectedProviderId,proto3" json:"expected_provider_id,omitempty"`
+	ProviderRouted     bool    `protobuf:"varint,7,opt,name=provider_routed,json=providerRouted,proto3" json:"provider_routed,omitempty"`
+	Margin             float64 `protobuf:"fixed64,8,opt,name=margin,proto3" json:"margin,omitempty"`
+	OutcomeReason      string  `protobuf:"bytes,9,opt,name=outcome_reason,json=outcomeReason,proto3" json:"outcome_reason,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *CaseResult) Reset() {
@@ -611,6 +650,34 @@ func (x *CaseResult) GetObservedTopScore() float64 {
 func (x *CaseResult) GetOutcome() string {
 	if x != nil {
 		return x.Outcome
+	}
+	return ""
+}
+
+func (x *CaseResult) GetExpectedProviderId() string {
+	if x != nil {
+		return x.ExpectedProviderId
+	}
+	return ""
+}
+
+func (x *CaseResult) GetProviderRouted() bool {
+	if x != nil {
+		return x.ProviderRouted
+	}
+	return false
+}
+
+func (x *CaseResult) GetMargin() float64 {
+	if x != nil {
+		return x.Margin
+	}
+	return 0
+}
+
+func (x *CaseResult) GetOutcomeReason() string {
+	if x != nil {
+		return x.OutcomeReason
 	}
 	return ""
 }
@@ -1054,7 +1121,9 @@ type RunSuiteRequest struct {
 	// free-text experiment label stored with the run.
 	Tag string `protobuf:"bytes,2,opt,name=tag,proto3" json:"tag,omitempty"`
 	// per-case fetch depth; 0 → a sensible default (max(expect_within_top_k, 10)).
-	Limit         int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Limit int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// "provider_direct" (default) or "federated".
+	Tier          string `protobuf:"bytes,4,opt,name=tier,proto3" json:"tier,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1108,6 +1177,13 @@ func (x *RunSuiteRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *RunSuiteRequest) GetTier() string {
+	if x != nil {
+		return x.Tier
+	}
+	return ""
 }
 
 type RunSuiteResponse struct {
@@ -1454,7 +1530,8 @@ type ListRunsRequest struct {
 	// optional tag filter; empty means all tags.
 	Tag string `protobuf:"bytes,2,opt,name=tag,proto3" json:"tag,omitempty"`
 	// optional max rows (0 → all), newest first.
-	Limit         int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Limit         int32  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Tier          string `protobuf:"bytes,4,opt,name=tier,proto3" json:"tier,omitempty"` // optional "provider_direct" or "federated" filter
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1508,6 +1585,13 @@ func (x *ListRunsRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListRunsRequest) GetTier() string {
+	if x != nil {
+		return x.Tier
+	}
+	return ""
 }
 
 type ListRunsResponse struct {
@@ -2791,7 +2875,7 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\b \x01(\tR\tupdatedAt\"\xe2\x02\n" +
+	"updated_at\x18\b \x01(\tR\tupdatedAt\"\x8e\x03\n" +
 	"\bEvalCase\x12\x17\n" +
 	"\acase_id\x18\x01 \x01(\tR\x06caseId\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12\x12\n" +
@@ -2805,7 +2889,8 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\x04note\x18\t \x01(\tR\x04note\x12\x16\n" +
 	"\x06status\x18\n" +
 	" \x01(\tR\x06status\x12\x14\n" +
-	"\x05scope\x18\v \x01(\tR\x05scope\"\xb8\x02\n" +
+	"\x05scope\x18\v \x01(\tR\x05scope\x12*\n" +
+	"\x11expect_min_margin\x18\f \x01(\x01R\x0fexpectMinMargin\"\x91\x03\n" +
 	"\aEvalRun\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x19\n" +
 	"\bsuite_id\x18\x02 \x01(\tR\asuiteId\x12\x10\n" +
@@ -2814,7 +2899,11 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12A\n" +
 	"\x06config\x18\x05 \x01(\v2).vrooli.search_hub.v1.eval.ConfigSnapshotR\x06config\x12?\n" +
 	"\aresults\x18\x06 \x03(\v2%.vrooli.search_hub.v1.eval.CaseResultR\aresults\x12F\n" +
-	"\taggregate\x18\a \x01(\v2(.vrooli.search_hub.v1.eval.EvalAggregateR\taggregate\"\xcf\x02\n" +
+	"\taggregate\x18\a \x01(\v2(.vrooli.search_hub.v1.eval.EvalAggregateR\taggregate\x12\x12\n" +
+	"\x04tier\x18\n" +
+	" \x01(\tR\x04tier\x12\x1a\n" +
+	"\bdegraded\x18\v \x01(\bR\bdegraded\x12'\n" +
+	"\x0fdegraded_reason\x18\f \x01(\tR\x0edegradedReason\"\xcf\x02\n" +
 	"\x0eConfigSnapshot\x12%\n" +
 	"\x0ererank_enabled\x18\x01 \x01(\bR\rrerankEnabled\x12!\n" +
 	"\freranker_leg\x18\x02 \x01(\tR\vrerankerLeg\x12\x1f\n" +
@@ -2825,14 +2914,18 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\x11embed_task_prefix\x18\x06 \x01(\bR\x0fembedTaskPrefix\x12!\n" +
 	"\frerank_blend\x18\a \x01(\bR\vrerankBlend\x12\x16\n" +
 	"\x06engine\x18\b \x01(\tR\x06engine\x12!\n" +
-	"\ffloor_regime\x18\t \x01(\tR\vfloorRegime\"\xca\x01\n" +
+	"\ffloor_regime\x18\t \x01(\tR\vfloorRegime\"\xe4\x02\n" +
 	"\n" +
 	"CaseResult\x12\x17\n" +
 	"\acase_id\x18\x01 \x01(\tR\x06caseId\x126\n" +
 	"\x03top\x18\x02 \x03(\v2$.vrooli.search_hub.v1.eval.ScoredHitR\x03top\x12#\n" +
 	"\rexpected_rank\x18\x03 \x01(\x05R\fexpectedRank\x12,\n" +
 	"\x12observed_top_score\x18\x04 \x01(\x01R\x10observedTopScore\x12\x18\n" +
-	"\aoutcome\x18\x05 \x01(\tR\aoutcome\"G\n" +
+	"\aoutcome\x18\x05 \x01(\tR\aoutcome\x120\n" +
+	"\x14expected_provider_id\x18\x06 \x01(\tR\x12expectedProviderId\x12'\n" +
+	"\x0fprovider_routed\x18\a \x01(\bR\x0eproviderRouted\x12\x16\n" +
+	"\x06margin\x18\b \x01(\x01R\x06margin\x12%\n" +
+	"\x0eoutcome_reason\x18\t \x01(\tR\routcomeReason\"G\n" +
 	"\tScoredHit\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x14\n" +
@@ -2858,11 +2951,12 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\"\x96\x01\n" +
 	"\x10GetSuiteResponse\x12:\n" +
 	"\x05suite\x18\x01 \x01(\v2$.vrooli.search_hub.v1.eval.EvalSuiteR\x05suite\x12F\n" +
-	"\badequacy\x18\x02 \x03(\v2*.vrooli.search_hub.v1.eval.AdequacyWarningR\badequacy\"T\n" +
+	"\badequacy\x18\x02 \x03(\v2*.vrooli.search_hub.v1.eval.AdequacyWarningR\badequacy\"h\n" +
 	"\x0fRunSuiteRequest\x12\x19\n" +
 	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12\x10\n" +
 	"\x03tag\x18\x02 \x01(\tR\x03tag\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x05R\x05limit\"\x90\x01\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x12\n" +
+	"\x04tier\x18\x04 \x01(\tR\x04tier\"\x90\x01\n" +
 	"\x10RunSuiteResponse\x124\n" +
 	"\x03run\x18\x01 \x01(\v2\".vrooli.search_hub.v1.eval.EvalRunR\x03run\x12F\n" +
 	"\badequacy\x18\x02 \x03(\v2*.vrooli.search_hub.v1.eval.AdequacyWarningR\badequacy\"I\n" +
@@ -2887,11 +2981,12 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
 	"providerId\x12E\n" +
 	"\x05cases\x18\x03 \x03(\v2/.vrooli.search_hub.v1.eval.CorpusValidationCaseR\x05cases\x12I\n" +
-	"\x06rollup\x18\x04 \x01(\v21.vrooli.search_hub.v1.eval.CorpusValidationRollupR\x06rollup\"T\n" +
+	"\x06rollup\x18\x04 \x01(\v21.vrooli.search_hub.v1.eval.CorpusValidationRollupR\x06rollup\"h\n" +
 	"\x0fListRunsRequest\x12\x19\n" +
 	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12\x10\n" +
 	"\x03tag\x18\x02 \x01(\tR\x03tag\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x05R\x05limit\"J\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x12\n" +
+	"\x04tier\x18\x04 \x01(\tR\x04tier\"J\n" +
 	"\x10ListRunsResponse\x126\n" +
 	"\x04runs\x18\x01 \x03(\v2\".vrooli.search_hub.v1.eval.EvalRunR\x04runs\"&\n" +
 	"\rGetRunRequest\x12\x15\n" +

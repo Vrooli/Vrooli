@@ -2,12 +2,15 @@ package health
 
 import (
 	"net/http"
+	"time"
 
 	"program-runtime/internal/database"
 	"program-runtime/internal/module"
 
 	"github.com/gorilla/mux"
 )
+
+type DescriptorMetadata func() (digest string, generation uint64, loadedAt, artifactMTime time.Time, reloadErr error)
 
 // Module returns the health domain's contribution to the API: the
 // /health and /api/v1/health routes plus the descriptor the codegen
@@ -20,7 +23,15 @@ func Module(pinger database.Pinger, service, version string, skippedManifestCoun
 	if len(skippedManifestCount) > 0 {
 		skipped = skippedManifestCount[0]
 	}
-	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version, SkippedManifestCount: skipped})
+	return moduleWithMetadata(pinger, service, version, skipped, nil)
+}
+
+func ModuleWithDescriptor(pinger database.Pinger, service, version string, skippedManifestCount func() int, descriptorMetadata DescriptorMetadata) module.Module {
+	return moduleWithMetadata(pinger, service, version, skippedManifestCount, descriptorMetadata)
+}
+
+func moduleWithMetadata(pinger database.Pinger, service, version string, skipped func() int, metadata DescriptorMetadata) module.Module {
+	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version, SkippedManifestCount: skipped, DescriptorMetadata: metadata})
 	return module.Module{
 		Name: "health",
 		Mount: func(r *mux.Router) {

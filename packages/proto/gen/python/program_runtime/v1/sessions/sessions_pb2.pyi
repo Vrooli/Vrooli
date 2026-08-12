@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Session(_message.Message):
-    __slots__ = ("id", "state", "created_at", "last_activity_at", "grants", "sandbox_workspace", "reclaimed_reason", "name")
+    __slots__ = ("id", "state", "created_at", "last_activity_at", "grants", "sandbox_workspace", "reclaimed_reason", "name", "inference_cost_micros", "inference_tokens", "delegation_cost_micros", "inference_ceiling_micros", "delegation_ceiling_micros", "delegation_spend_measured", "delegation_spend_note")
     ID_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -16,6 +16,13 @@ class Session(_message.Message):
     SANDBOX_WORKSPACE_FIELD_NUMBER: _ClassVar[int]
     RECLAIMED_REASON_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
+    INFERENCE_COST_MICROS_FIELD_NUMBER: _ClassVar[int]
+    INFERENCE_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    DELEGATION_COST_MICROS_FIELD_NUMBER: _ClassVar[int]
+    INFERENCE_CEILING_MICROS_FIELD_NUMBER: _ClassVar[int]
+    DELEGATION_CEILING_MICROS_FIELD_NUMBER: _ClassVar[int]
+    DELEGATION_SPEND_MEASURED_FIELD_NUMBER: _ClassVar[int]
+    DELEGATION_SPEND_NOTE_FIELD_NUMBER: _ClassVar[int]
     id: str
     state: str
     created_at: str
@@ -24,17 +31,28 @@ class Session(_message.Message):
     sandbox_workspace: str
     reclaimed_reason: str
     name: str
-    def __init__(self, id: _Optional[str] = ..., state: _Optional[str] = ..., created_at: _Optional[str] = ..., last_activity_at: _Optional[str] = ..., grants: _Optional[_Iterable[str]] = ..., sandbox_workspace: _Optional[str] = ..., reclaimed_reason: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
+    inference_cost_micros: int
+    inference_tokens: int
+    delegation_cost_micros: int
+    inference_ceiling_micros: int
+    delegation_ceiling_micros: int
+    delegation_spend_measured: bool
+    delegation_spend_note: str
+    def __init__(self, id: _Optional[str] = ..., state: _Optional[str] = ..., created_at: _Optional[str] = ..., last_activity_at: _Optional[str] = ..., grants: _Optional[_Iterable[str]] = ..., sandbox_workspace: _Optional[str] = ..., reclaimed_reason: _Optional[str] = ..., name: _Optional[str] = ..., inference_cost_micros: _Optional[int] = ..., inference_tokens: _Optional[int] = ..., delegation_cost_micros: _Optional[int] = ..., inference_ceiling_micros: _Optional[int] = ..., delegation_ceiling_micros: _Optional[int] = ..., delegation_spend_measured: _Optional[bool] = ..., delegation_spend_note: _Optional[str] = ...) -> None: ...
 
 class CreateSessionRequest(_message.Message):
-    __slots__ = ("grants", "sandbox_workspace", "name")
+    __slots__ = ("grants", "sandbox_workspace", "name", "inference_ceiling_micros", "delegation_ceiling_micros")
     GRANTS_FIELD_NUMBER: _ClassVar[int]
     SANDBOX_WORKSPACE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
+    INFERENCE_CEILING_MICROS_FIELD_NUMBER: _ClassVar[int]
+    DELEGATION_CEILING_MICROS_FIELD_NUMBER: _ClassVar[int]
     grants: _containers.RepeatedScalarFieldContainer[str]
     sandbox_workspace: str
     name: str
-    def __init__(self, grants: _Optional[_Iterable[str]] = ..., sandbox_workspace: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
+    inference_ceiling_micros: int
+    delegation_ceiling_micros: int
+    def __init__(self, grants: _Optional[_Iterable[str]] = ..., sandbox_workspace: _Optional[str] = ..., name: _Optional[str] = ..., inference_ceiling_micros: _Optional[int] = ..., delegation_ceiling_micros: _Optional[int] = ...) -> None: ...
 
 class CreateSessionResponse(_message.Message):
     __slots__ = ("session",)

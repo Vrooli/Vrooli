@@ -20,11 +20,20 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/
 // bounded text over Connect (GetTextContent) or stream bytes from the REST blob
 // endpoint using the opaque preview_id.
 //
+// Every resolved target falls into exactly one of three transport classes:
+//   text    — bounded UTF-8 fetched with GetTextContent (markdown/code/csv/…)
+//   blob    — opaque bytes streamed from the REST range route (image/pdf/av)
+//   listing — a bounded page of directory entries from ListDirectory
+// The class follows from PreviewKind, so the client routes on kind alone.
+//
 // Binary/media bytes do NOT travel through Connect. Resolve returns a blob_url
 // (a relative path on the same origin); the browser's native <img>/<video>/
 // <audio>/<iframe> elements fetch it with HTTP Range support. See
 //   GET/HEAD /api/v1/sessions/{sessionId}/file-previews/{previewId}/blob
 // (a sanctioned REST exception, reason ops_probe).
+//
+// Directory listings are NOT a REST exception: they are structured data with a
+// generated client, so they stay on the typed Connect surface.
 //
 // Consumed by:
 //   - API: handlers/file_preview/connect_handler.go (+ api/file_preview_handlers.go for the blob route)
@@ -42,6 +51,11 @@ service FilePreviewService {
   // (markdown/code/text/csv/diff). Media and images never use this — they
   // stream from the blob route.
   rpc GetTextContent(GetTextContentRequest) returns (GetTextContentResponse);
+
+  // ListDirectory returns one bounded, sorted page of a directory previously
+  // resolved by Resolve. It accepts only a preview_id — never a raw path — so
+  // a directory handle can never be repointed at another directory.
+  rpc ListDirectory(ListDirectoryRequest) returns (ListDirectoryResponse);
 }
 
 // PreviewKind classifies how a resolved file should be rendered. The UI keys
@@ -59,6 +73,33 @@ enum PreviewKind {
   PREVIEW_KIND_CSV = 9;
   PREVIEW_KIND_DIFF = 10;
   PREVIEW_KIND_UNSUPPORTED = 11;
+  // A directory. Renders from ListDirectory rather than text or bytes.
+  PREVIEW_KIND_DIRECTORY = 12;
+}
+
+// DirectorySort selects the ordering of a directory page.
+//
+// NAME and DIRS_FIRST_NAME are derivable from a single directory scan.
+// SIZE_DESC and MTIME_DESC require stat-ing every entry, so the server applies
+// them only below an entry-count threshold and reports what it actually used
+// in ListDirectoryResponse.effective_sort.
+enum DirectorySort {
+  DIRECTORY_SORT_UNSPECIFIED = 0; // Treated as DIRS_FIRST_NAME.
+  DIRECTORY_SORT_DIRS_FIRST_NAME = 1;
+  DIRECTORY_SORT_NAME = 2;
+  DIRECTORY_SORT_SIZE_DESC = 3;
+  DIRECTORY_SORT_MTIME_DESC = 4;
+}
+
+// EntryType is the filesystem category of one directory entry, taken from the
+// entry's own metadata (not followed through symlinks).
+enum EntryType {
+  ENTRY_TYPE_UNSPECIFIED = 0;
+  ENTRY_TYPE_FILE = 1;
+  ENTRY_TYPE_DIRECTORY = 2;
+  ENTRY_TYPE_SYMLINK = 3;
+  // Socket, FIFO, device, or any other non-regular entry.
+  ENTRY_TYPE_OTHER = 4;
 }
 
 // SourceContext records where the resolve request originated, so future
@@ -100,6 +141,9 @@ message ResolveResponse {
   // expires_unix_nano is when preview_id (and blob_url) stop working.
   int64 expires_unix_nano = 17;
   repeated string warnings = 18;
+  // listing_available is true for directories, whose contents come from
+  // ListDirectory. Mutually exclusive with text_content_available.
+  bool listing_available = 19;
 }
 
 message GetTextContentRequest {
@@ -115,4 +159,59 @@ message GetTextContentResponse {
   bool truncated = 5;
   int32 line = 6; // 0 = absent
   bool has_line = 7;
+}
+
+message ListDirectoryRequest {
+  string session_id = 1;
+  // preview_id must name a directory target issued by Resolve.
+  string preview_id = 2;
+  DirectorySort sort = 3;
+  // show_hidden includes dot-prefixed entries. Defaults to false so secrets
+  // and VCS metadata stay out of the default view.
+  bool show_hidden = 4;
+  // page_size is clamped server-side; 0 selects the server default.
+  int32 page_size = 5;
+  // page_token continues a previous page. It is opaque and encodes the sort,
+  // filter, offset, and the directory mtime observed when the page was issued.
+  string page_token = 6;
+}
+
+// DirectoryEntry is one child of a listed directory. Sizes and times come from
+// the entry itself (lstat semantics): a symlink reports the link, not target.
+message DirectoryEntry {
+  string name = 1;
+  EntryType entry_type = 2;
+  // preview_kind is classified from the extension alone so a page costs no
+  // file reads. PREVIEW_KIND_UNSPECIFIED means "determined when opened".
+  PreviewKind preview_kind = 3;
+  int64 size_bytes = 4;
+  int64 mtime_unix_nano = 5;
+  // can_preview is false when the entry's metadata could not be read.
+  bool can_preview = 6;
+  // symlink_target is the raw link text; set only for ENTRY_TYPE_SYMLINK.
+  string symlink_target = 7;
+  bool symlink_broken = 8;
+  // mode is the permission string (e.g. "drwxr-xr-x"). Best-effort: platforms
+  // without POSIX modes report what their filesystem exposes.
+  string mode = 9;
+  // child_count is the number of entries a subdirectory holds, or -1 when it
+  // was not counted (unreadable, or the page skipped counting).
+  int64 child_count = 10;
+}
+
+message ListDirectoryResponse {
+  string resolved_path = 1;
+  // parent_path is empty at a filesystem root.
+  string parent_path = 2;
+  repeated DirectoryEntry entries = 3;
+  // total_entries counts the directory after the hidden filter, before paging.
+  int32 total_entries = 4;
+  // truncated is true when the directory exceeded the server scan ceiling and
+  // total_entries is therefore a floor rather than an exact count.
+  bool truncated = 5;
+  string next_page_token = 6;
+  // effective_sort is the ordering actually applied, which may differ from the
+  // request when an expensive sort exceeded its threshold.
+  DirectorySort effective_sort = 7;
+  repeated string warnings = 8;
 }

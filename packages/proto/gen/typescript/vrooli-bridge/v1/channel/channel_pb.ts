@@ -6,7 +6,7 @@ import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import type { CompatibilityStatus, Heartbeat, RunEvent } from "../shared/shared_pb";
+import type { CompatibilityStatus, DeliveryAck, Heartbeat, RunEvent, SessionFrame } from "../shared/shared_pb";
 import { file_vrooli_bridge_v1_shared_shared } from "../shared/shared_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/channel/channel.proto.
  */
 export const file_vrooli_bridge_v1_channel_channel: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL2NoYW5uZWwvY2hhbm5lbC5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbCKDAQoJSGFuZHNoYWtlEhgKEHByb3RvY29sX3ZlcnNpb24YASABKA0SDwoHbm9kZV9pZBgCIAEoCRIVCg1hZ2VudF92ZXJzaW9uGAMgASgJEgoKAm9zGAQgASgJEgwKBGFyY2gYBSABKAkSFAoMY2FwYWJpbGl0aWVzGAYgAygJSgQIBxAQIrgBCgxIYW5kc2hha2VBY2sSEAoIYWNjZXB0ZWQYASABKAgSSgoNY29tcGF0aWJpbGl0eRgCIAEoDjIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5Db21wYXRpYmlsaXR5U3RhdHVzEiYKHmNvbnRyb2xfcGxhbmVfcHJvdG9jb2xfdmVyc2lvbhgDIAEoDRISCgpzZXNzaW9uX2lkGAQgASgJEg4KBnJlYXNvbhgFIAEoCSKoAQoHSm9iUHVzaBIOCgZydW5faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDAoEdmVyYhgDIAEoCRIMCgRhcmdzGAQgAygJEhcKD3RpbWVvdXRfc2Vjb25kcxgFIAEoAxJACgdvdXRwdXRzGAYgAygLMi8udnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5BcnRpZmFjdE91dHB1dEoECAcQECJaCg5BcnRpZmFjdE91dHB1dBIMCgRuYW1lGAEgASgJEhIKCm1lZGlhX3R5cGUYAiABKAkSEwoLb3V0cHV0X2ZsYWcYAyABKAkSEQoJbWF4X2J5dGVzGAQgASgDIlsKEFByb3Zpc2lvbkNvbW1hbmQSDQoFb3BfaWQYASABKAkSFwoPdGFyZ2V0X3JldmlzaW9uGAIgASgJEhkKEXJvbGxiYWNrX3JldmlzaW9uGAMgASgJSgQIBBAQIjoKC0NvbnRyb2xQaW5nEisKB3NlbnRfYXQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjAKCEFib3J0Sm9iEg4KBnJ1bl9pZBgBIAEoCRIOCgZyZWFzb24YAiABKAlKBAgDEBAi0QIKC1NlcnZlckZyYW1lEjwKA2FjaxgBIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSGFuZHNoYWtlQWNrSAASNwoDam9iGAIgASgLMigudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5Kb2JQdXNoSAASRgoJcHJvdmlzaW9uGAMgASgLMjEudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5Qcm92aXNpb25Db21tYW5kSAASPAoEcGluZxgEIAEoCzIsLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQ29udHJvbFBpbmdIABI6CgVhYm9ydBgFIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQWJvcnRKb2JIAEIJCgdwYXlsb2FkIjUKEVNpZ25lZFNlcnZlckZyYW1lEg0KBWZyYW1lGAEgASgMEhEKCXNpZ25hdHVyZRgCIAEoDCLWAQoJTm9kZUZyYW1lEj8KCWhhbmRzaGFrZRgBIAEoCzIqLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSGFuZHNoYWtlSAASPgoJaGVhcnRiZWF0GAIgASgLMikudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkhlYXJ0YmVhdEgAEj0KCXJ1bl9ldmVudBgDIAEoCzIoLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5SdW5FdmVudEgAQgkKB3BheWxvYWRCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL2NoYW5uZWw7Y2hhbm5lbF92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_shared_shared]);
+  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL2NoYW5uZWwvY2hhbm5lbC5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbCKfAQoJSGFuZHNoYWtlEhgKEHByb3RvY29sX3ZlcnNpb24YASABKA0SDwoHbm9kZV9pZBgCIAEoCRIVCg1hZ2VudF92ZXJzaW9uGAMgASgJEgoKAm9zGAQgASgJEgwKBGFyY2gYBSABKAkSFAoMY2FwYWJpbGl0aWVzGAYgAygJEhoKEnN1cHBvcnRzX3dlYnNvY2tldBgHIAEoCEoECAgQECK4AQoMSGFuZHNoYWtlQWNrEhAKCGFjY2VwdGVkGAEgASgIEkoKDWNvbXBhdGliaWxpdHkYAiABKA4yMy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuQ29tcGF0aWJpbGl0eVN0YXR1cxImCh5jb250cm9sX3BsYW5lX3Byb3RvY29sX3ZlcnNpb24YAyABKA0SEgoKc2Vzc2lvbl9pZBgEIAEoCRIOCgZyZWFzb24YBSABKAkiqAEKB0pvYlB1c2gSDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBHZlcmIYAyABKAkSDAoEYXJncxgEIAMoCRIXCg90aW1lb3V0X3NlY29uZHMYBSABKAMSQAoHb3V0cHV0cxgGIAMoCzIvLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQXJ0aWZhY3RPdXRwdXRKBAgHEBAiWgoOQXJ0aWZhY3RPdXRwdXQSDAoEbmFtZRgBIAEoCRISCgptZWRpYV90eXBlGAIgASgJEhMKC291dHB1dF9mbGFnGAMgASgJEhEKCW1heF9ieXRlcxgEIAEoAyJbChBQcm92aXNpb25Db21tYW5kEg0KBW9wX2lkGAEgASgJEhcKD3RhcmdldF9yZXZpc2lvbhgCIAEoCRIZChFyb2xsYmFja19yZXZpc2lvbhgDIAEoCUoECAQQECI6CgtDb250cm9sUGluZxIrCgdzZW50X2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIwCghBYm9ydEpvYhIOCgZydW5faWQYASABKAkSDgoGcmVhc29uGAIgASgJSgQIAxAQIqQDCgtTZXJ2ZXJGcmFtZRIQCghmcmFtZV9pZBgGIAEoCRI8CgNhY2sYASABKAsyLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkhhbmRzaGFrZUFja0gAEjcKA2pvYhgCIAEoCzIoLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSm9iUHVzaEgAEkYKCXByb3Zpc2lvbhgDIAEoCzIxLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuUHJvdmlzaW9uQ29tbWFuZEgAEjwKBHBpbmcYBCABKAsyLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkNvbnRyb2xQaW5nSAASOgoFYWJvcnQYBSABKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkFib3J0Sm9iSAASPwoHc2Vzc2lvbhgHIAEoCzIsLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5TZXNzaW9uRnJhbWVIAEIJCgdwYXlsb2FkIjUKEVNpZ25lZFNlcnZlckZyYW1lEg0KBWZyYW1lGAEgASgMEhEKCXNpZ25hdHVyZRgCIAEoDCLcAgoJTm9kZUZyYW1lEj8KCWhhbmRzaGFrZRgBIAEoCzIqLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSGFuZHNoYWtlSAASPgoJaGVhcnRiZWF0GAIgASgLMikudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkhlYXJ0YmVhdEgAEj0KCXJ1bl9ldmVudBgDIAEoCzIoLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5SdW5FdmVudEgAEkMKDGRlbGl2ZXJ5X2FjaxgEIAEoCzIrLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5EZWxpdmVyeUFja0gAEj8KB3Nlc3Npb24YBSABKAsyLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuU2Vzc2lvbkZyYW1lSABCCQoHcGF5bG9hZEJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvY2hhbm5lbDtjaGFubmVsX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_shared_shared]);
 
 /**
  * Handshake is the first frame a node sends when it opens the channel. It
@@ -25,7 +25,7 @@ export const file_vrooli_bridge_v1_channel_channel: GenFile = /*@__PURE__*/
 export type Handshake = Message<"vrooli.vrooli_bridge.v1.channel.Handshake"> & {
   /**
    * Negotiated wire protocol version. Current peers send
-   * CHANNEL_PROTOCOL_VERSION = 1.
+   * CHANNEL_PROTOCOL_VERSION = 2.
    *
    * @generated from field: uint32 protocol_version = 1;
    */
@@ -67,6 +67,14 @@ export type Handshake = Message<"vrooli.vrooli_bridge.v1.channel.Handshake"> & {
    * @generated from field: repeated string capabilities = 6;
    */
   capabilities: string[];
+
+  /**
+   * True when the agent can participate in the bidirectional session wire.
+   * False is valid: SSE job delivery remains the compatibility fallback.
+   *
+   * @generated from field: bool supports_websocket = 7;
+   */
+  supportsWebsocket: boolean;
 };
 
 /**
@@ -336,6 +344,14 @@ export const AbortJobSchema: GenMessage<AbortJob> = /*@__PURE__*/
  */
 export type ServerFrame = Message<"vrooli.vrooli_bridge.v1.channel.ServerFrame"> & {
   /**
+   * Unique control-plane delivery identity. It is acknowledged by the node
+   * before any work represented by the payload begins.
+   *
+   * @generated from field: string frame_id = 6;
+   */
+  frameId: string;
+
+  /**
    * @generated from oneof vrooli.vrooli_bridge.v1.channel.ServerFrame.payload
    */
   payload: {
@@ -368,6 +384,12 @@ export type ServerFrame = Message<"vrooli.vrooli_bridge.v1.channel.ServerFrame">
      */
     value: AbortJob;
     case: "abort";
+  } | {
+    /**
+     * @generated from field: vrooli.vrooli_bridge.v1.shared.SessionFrame session = 7;
+     */
+    value: SessionFrame;
+    case: "session";
   } | { case: undefined; value?: undefined };
 };
 
@@ -450,6 +472,18 @@ export type NodeFrame = Message<"vrooli.vrooli_bridge.v1.channel.NodeFrame"> & {
      */
     value: RunEvent;
     case: "runEvent";
+  } | {
+    /**
+     * @generated from field: vrooli.vrooli_bridge.v1.shared.DeliveryAck delivery_ack = 4;
+     */
+    value: DeliveryAck;
+    case: "deliveryAck";
+  } | {
+    /**
+     * @generated from field: vrooli.vrooli_bridge.v1.shared.SessionFrame session = 5;
+     */
+    value: SessionFrame;
+    case: "session";
   } | { case: undefined; value?: undefined };
 };
 

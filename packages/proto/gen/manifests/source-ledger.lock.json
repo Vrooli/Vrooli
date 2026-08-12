@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "source-ledger",
-  "input_digest": "sha256:f522308f380a9bcc06461668aa692a9a7d0890b2c37e6b2c4a89142103fc95a2",
+  "input_digest": "sha256:8c62db3cb81888163acc174c0ed587548a70152fe7e792a2694d35a80ec7e4f6",
   "input_files": [
     "schemas/source-ledger/v1/facets/facets.proto",
     "schemas/source-ledger/v1/forest/forest.proto",

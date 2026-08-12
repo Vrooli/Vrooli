@@ -1,8 +1,8 @@
 syntax = "proto3";
 package landing_page_business_suite.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 import "landing-page-business-suite/v1/shared/content.proto";
 import "landing-page-business-suite/v1/shared/presentation.proto";
 
@@ -92,12 +92,14 @@ message ImportVariantSnapshotRequest {
 message ImportVariantSnapshotResponse {
   VariantSnapshot snapshot = 1;
 }
+
 // SyncVariantSnapshotsRequest reloads the persisted variant snapshot files.
 // It is administrative because it changes the in-memory serving configuration.
 message SyncVariantSnapshotsRequest {}
 message SyncVariantSnapshotsResponse {
   int32 count = 1;
 }
+
 // GetVariantSectionsRequest addresses JSON-backed content by its owning
 // variant slug; section IDs are not globally meaningful in this domain.
 message GetVariantSectionsRequest {

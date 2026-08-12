@@ -39,6 +39,7 @@ type Gap struct {
 	EvidenceSource     string                 `protobuf:"bytes,12,opt,name=evidence_source,json=evidenceSource,proto3" json:"evidence_source,omitempty"`                      // source scenario/domain that produced the evidence
 	EvidenceLocator    string                 `protobuf:"bytes,13,opt,name=evidence_locator,json=evidenceLocator,proto3" json:"evidence_locator,omitempty"`                   // run/task locator a reader can follow
 	AvailabilityReason string                 `protobuf:"bytes,14,opt,name=availability_reason,json=availabilityReason,proto3" json:"availability_reason,omitempty"`          // honest per-source degradation, when present
+	ProviderIds        []string               `protobuf:"bytes,15,rep,name=provider_ids,json=providerIds,proto3" json:"provider_ids,omitempty"`                               // owning Search Hub leaves/groups used for ranking
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -171,6 +172,13 @@ func (x *Gap) GetAvailabilityReason() string {
 	return ""
 }
 
+func (x *Gap) GetProviderIds() []string {
+	if x != nil {
+		return x.ProviderIds
+	}
+	return nil
+}
+
 // FocusItem is a ranked next-best gap.
 type FocusItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -301,10 +309,12 @@ func (x *GetFocusRequest) GetProjection() shared.Projection {
 }
 
 type GetFocusResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Items         []*FocusItem           `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Items          []*FocusItem           `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Degraded       bool                   `protobuf:"varint,2,opt,name=degraded,proto3" json:"degraded,omitempty"`                                  // true when live joins or ranking telemetry fell back
+	DegradedReason string                 `protobuf:"bytes,3,opt,name=degraded_reason,json=degradedReason,proto3" json:"degraded_reason,omitempty"` // actionable reason for the fallback
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetFocusResponse) Reset() {
@@ -342,6 +352,20 @@ func (x *GetFocusResponse) GetItems() []*FocusItem {
 		return x.Items
 	}
 	return nil
+}
+
+func (x *GetFocusResponse) GetDegraded() bool {
+	if x != nil {
+		return x.Degraded
+	}
+	return false
+}
+
+func (x *GetFocusResponse) GetDegradedReason() string {
+	if x != nil {
+		return x.DegradedReason
+	}
+	return ""
 }
 
 type ListGapsRequest struct {
@@ -636,7 +660,7 @@ var File_meta_optimization_manager_v1_focus_focus_proto protoreflect.FileDescrip
 
 const file_meta_optimization_manager_v1_focus_focus_proto_rawDesc = "" +
 	"\n" +
-	".meta-optimization-manager/v1/focus/focus.proto\x12)vrooli.meta_optimization_manager.v1.focus\x1a/meta-optimization-manager/v1/shared/model.proto\"\xd4\x04\n" +
+	".meta-optimization-manager/v1/focus/focus.proto\x12)vrooli.meta_optimization_manager.v1.focus\x1a/meta-optimization-manager/v1/shared/model.proto\"\xf7\x04\n" +
 	"\x03Gap\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12V\n" +
 	"\n" +
@@ -659,7 +683,8 @@ const file_meta_optimization_manager_v1_focus_focus_proto_rawDesc = "" +
 	"recurrence\x12'\n" +
 	"\x0fevidence_source\x18\f \x01(\tR\x0eevidenceSource\x12)\n" +
 	"\x10evidence_locator\x18\r \x01(\tR\x0fevidenceLocator\x12/\n" +
-	"\x13availability_reason\x18\x0e \x01(\tR\x12availabilityReason\"\xca\x01\n" +
+	"\x13availability_reason\x18\x0e \x01(\tR\x12availabilityReason\x12!\n" +
+	"\fprovider_ids\x18\x0f \x03(\tR\vproviderIds\"\xca\x01\n" +
 	"\tFocusItem\x12@\n" +
 	"\x03gap\x18\x01 \x01(\v2..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap\x12\x16\n" +
 	"\x06impact\x18\x02 \x01(\x01R\x06impact\x12\x1e\n" +
@@ -672,9 +697,11 @@ const file_meta_optimization_manager_v1_focus_focus_proto_rawDesc = "" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12V\n" +
 	"\n" +
 	"projection\x18\x02 \x01(\x0e26.vrooli.meta_optimization_manager.v1.shared.ProjectionR\n" +
-	"projection\"^\n" +
+	"projection\"\xa3\x01\n" +
 	"\x10GetFocusResponse\x12J\n" +
-	"\x05items\x18\x01 \x03(\v24.vrooli.meta_optimization_manager.v1.focus.FocusItemR\x05items\"\xd2\x01\n" +
+	"\x05items\x18\x01 \x03(\v24.vrooli.meta_optimization_manager.v1.focus.FocusItemR\x05items\x12\x1a\n" +
+	"\bdegraded\x18\x02 \x01(\bR\bdegraded\x12'\n" +
+	"\x0fdegraded_reason\x18\x03 \x01(\tR\x0edegradedReason\"\xd2\x01\n" +
 	"\x0fListGapsRequest\x12V\n" +
 	"\n" +
 	"projection\x18\x01 \x01(\x0e26.vrooli.meta_optimization_manager.v1.shared.ProjectionR\n" +

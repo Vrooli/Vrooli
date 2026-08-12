@@ -1,5 +1,5 @@
-from buf.validate import validate_pb2 as _validate_pb2
 from browser_automation_studio.v1.base import browser_profile_pb2 as _browser_profile_pb2
+from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor

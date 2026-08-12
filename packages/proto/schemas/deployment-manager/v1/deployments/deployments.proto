@@ -1,6 +1,8 @@
 syntax = "proto3";
 package vrooli.deployment_manager.v1.deployments;
+
 import "google/protobuf/struct.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/deployments;deploymentsv1";
 service DeploymentsService {
   rpc Deploy(google.protobuf.Value) returns (google.protobuf.Value);

@@ -40,12 +40,14 @@ class GetAgentSessionResponse(_message.Message):
     def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ...) -> None: ...
 
 class CreateAgentSessionRequest(_message.Message):
-    __slots__ = ("kind", "title")
+    __slots__ = ("kind", "title", "starter_job_id")
     KIND_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
+    STARTER_JOB_ID_FIELD_NUMBER: _ClassVar[int]
     kind: str
     title: str
-    def __init__(self, kind: _Optional[str] = ..., title: _Optional[str] = ...) -> None: ...
+    starter_job_id: str
+    def __init__(self, kind: _Optional[str] = ..., title: _Optional[str] = ..., starter_job_id: _Optional[str] = ...) -> None: ...
 
 class CreateAgentSessionResponse(_message.Message):
     __slots__ = ("session",)
@@ -54,18 +56,20 @@ class CreateAgentSessionResponse(_message.Message):
     def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ...) -> None: ...
 
 class StartAgentSessionRequest(_message.Message):
-    __slots__ = ("session_id", "message", "attachment_ids", "context_refs", "auto_context_policy")
+    __slots__ = ("session_id", "message", "attachment_ids", "context_refs", "auto_context_policy", "starter_job_id")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENT_IDS_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_REFS_FIELD_NUMBER: _ClassVar[int]
     AUTO_CONTEXT_POLICY_FIELD_NUMBER: _ClassVar[int]
+    STARTER_JOB_ID_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     message: str
     attachment_ids: _containers.RepeatedScalarFieldContainer[str]
     context_refs: _containers.RepeatedCompositeFieldContainer[AgentSessionContextRef]
     auto_context_policy: str
-    def __init__(self, session_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ..., context_refs: _Optional[_Iterable[_Union[AgentSessionContextRef, _Mapping]]] = ..., auto_context_policy: _Optional[str] = ...) -> None: ...
+    starter_job_id: str
+    def __init__(self, session_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ..., context_refs: _Optional[_Iterable[_Union[AgentSessionContextRef, _Mapping]]] = ..., auto_context_policy: _Optional[str] = ..., starter_job_id: _Optional[str] = ...) -> None: ...
 
 class StartAgentSessionResponse(_message.Message):
     __slots__ = ("session",)
@@ -112,6 +116,30 @@ class GetAgentSessionStartupBriefResponse(_message.Message):
     BRIEF_FIELD_NUMBER: _ClassVar[int]
     brief: _agent_session_pb2_1.AgentSessionContextItem
     def __init__(self, brief: _Optional[_Union[_agent_session_pb2_1.AgentSessionContextItem, _Mapping]] = ...) -> None: ...
+
+class PreviewAgentSessionPromptRequest(_message.Message):
+    __slots__ = ("session_id", "message", "attachment_ids", "context_refs", "auto_context_policy", "starter_job_id")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_REFS_FIELD_NUMBER: _ClassVar[int]
+    AUTO_CONTEXT_POLICY_FIELD_NUMBER: _ClassVar[int]
+    STARTER_JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    message: str
+    attachment_ids: _containers.RepeatedScalarFieldContainer[str]
+    context_refs: _containers.RepeatedCompositeFieldContainer[AgentSessionContextRef]
+    auto_context_policy: str
+    starter_job_id: str
+    def __init__(self, session_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ..., context_refs: _Optional[_Iterable[_Union[AgentSessionContextRef, _Mapping]]] = ..., auto_context_policy: _Optional[str] = ..., starter_job_id: _Optional[str] = ...) -> None: ...
+
+class PreviewAgentSessionPromptResponse(_message.Message):
+    __slots__ = ("prompt", "initial")
+    PROMPT_FIELD_NUMBER: _ClassVar[int]
+    INITIAL_FIELD_NUMBER: _ClassVar[int]
+    prompt: str
+    initial: bool
+    def __init__(self, prompt: _Optional[str] = ..., initial: _Optional[bool] = ...) -> None: ...
 
 class UploadAgentSessionAttachmentsResponse(_message.Message):
     __slots__ = ("attachments",)

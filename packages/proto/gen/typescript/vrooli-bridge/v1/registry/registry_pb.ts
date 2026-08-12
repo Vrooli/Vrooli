@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/registry/registry.proto.
  */
 export const file_vrooli_bridge_v1_registry_registry: GenFile = /*@__PURE__*/
-  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL3JlZ2lzdHJ5L3JlZ2lzdHJ5LnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeSKUAwoETm9kZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgoKAm9zGAMgASgJEgwKBGFyY2gYBCABKAkSEAoIcmV2aXNpb24YBSABKAkSEAoIZW5kcG9pbnQYBiABKAkSFAoMY2FwYWJpbGl0aWVzGAcgAygJEg4KBnNjb3BlcxgIIAMoCRI8CgZzdGF0dXMYCSABKA4yLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5Ob2RlU3RhdHVzEg4KBm9ubGluZRgKIAEoCBIuCgpjcmVhdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxsYXN0X3NlZW5fYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJldm9rZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInUKE1JlZ2lzdGVyTm9kZVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIKCgJvcxgCIAEoCRIMCgRhcmNoGAMgASgJEhAKCGVuZHBvaW50GAQgASgJEhQKDGNhcGFiaWxpdGllcxgFIAMoCRIOCgZzY29wZXMYBiADKAkiTAoUUmVnaXN0ZXJOb2RlUmVzcG9uc2USNAoEbm9kZRgBIAEoCzImLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5Lk5vZGUiEgoQTGlzdE5vZGVzUmVxdWVzdCJKChFMaXN0Tm9kZXNSZXNwb25zZRI1CgVub2RlcxgBIAMoCzImLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5Lk5vZGUiHAoOR2V0Tm9kZVJlcXVlc3QSCgoCaWQYASABKAkiRwoPR2V0Tm9kZVJlc3BvbnNlEjQKBG5vZGUYASABKAsyJi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5Ob2RlIncKEVVwZGF0ZU5vZGVSZXF1ZXN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEAoIZW5kcG9pbnQYAyABKAkSFAoMY2FwYWJpbGl0aWVzGAQgAygJEg4KBnNjb3BlcxgFIAMoCRIQCghyZXZpc2lvbhgGIAEoCSJKChJVcGRhdGVOb2RlUmVzcG9uc2USNAoEbm9kZRgBIAEoCzImLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5Lk5vZGUiHwoRUmV2b2tlTm9kZVJlcXVlc3QSCgoCaWQYASABKAkiSgoSUmV2b2tlTm9kZVJlc3BvbnNlEjQKBG5vZGUYASABKAsyJi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5Ob2RlIh8KEVJlbW92ZU5vZGVSZXF1ZXN0EgoKAmlkGAEgASgJIi0KElJlbW92ZU5vZGVSZXNwb25zZRIXCg9yZW1vdmVkX25vZGVfaWQYASABKAkqkQEKCk5vZGVTdGF0dXMSGwoXTk9ERV9TVEFUVVNfVU5TUEVDSUZJRUQQABIXChNOT0RFX1NUQVRVU19PRkZMSU5FEAESFgoSTk9ERV9TVEFUVVNfT05MSU5FEAISHAoYTk9ERV9TVEFUVVNfTkVFRFNfVVBEQVRFEAMSFwoTTk9ERV9TVEFUVVNfUkVWT0tFRBAEMuUFChNOb2RlUmVnaXN0cnlTZXJ2aWNlEn0KDFJlZ2lzdGVyTm9kZRI1LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5LlJlZ2lzdGVyTm9kZVJlcXVlc3QaNi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5SZWdpc3Rlck5vZGVSZXNwb25zZRJ0CglMaXN0Tm9kZXMSMi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5MaXN0Tm9kZXNSZXF1ZXN0GjMudnJvb2xpLnZyb29saV9icmlkZ2UudjEucmVnaXN0cnkuTGlzdE5vZGVzUmVzcG9uc2USbgoHR2V0Tm9kZRIwLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5LkdldE5vZGVSZXF1ZXN0GjEudnJvb2xpLnZyb29saV9icmlkZ2UudjEucmVnaXN0cnkuR2V0Tm9kZVJlc3BvbnNlEncKClVwZGF0ZU5vZGUSMy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5VcGRhdGVOb2RlUmVxdWVzdBo0LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5LlVwZGF0ZU5vZGVSZXNwb25zZRJ3CgpSZXZva2VOb2RlEjMudnJvb2xpLnZyb29saV9icmlkZ2UudjEucmVnaXN0cnkuUmV2b2tlTm9kZVJlcXVlc3QaNC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5SZXZva2VOb2RlUmVzcG9uc2USdwoKUmVtb3ZlTm9kZRIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5LlJlbW92ZU5vZGVSZXF1ZXN0GjQudnJvb2xpLnZyb29saV9icmlkZ2UudjEucmVnaXN0cnkuUmVtb3ZlTm9kZVJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9yZWdpc3RyeTtyZWdpc3RyeV92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL3JlZ2lzdHJ5L3JlZ2lzdHJ5LnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeSLwBAoETm9kZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgoKAm9zGAMgASgJEgwKBGFyY2gYBCABKAkSEAoIcmV2aXNpb24YBSABKAkSEAoIZW5kcG9pbnQYBiABKAkSFAoMY2FwYWJpbGl0aWVzGAcgAygJEg4KBnNjb3BlcxgIIAMoCRI8CgZzdGF0dXMYCSABKA4yLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5Ob2RlU3RhdHVzEg4KBm9ubGluZRgKIAEoCBIuCgpjcmVhdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxsYXN0X3NlZW5fYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJldm9rZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEh8KF3JlZ2lzdHJ5X3JlY29yZF9wcmVzZW50GA8gASgIEhcKD2hlYXJ0YmVhdF9mcmVzaBgQIAEoCBIdChVoZWFydGJlYXRfYWdlX3NlY29uZHMYESABKAMSFAoMY2hhbm5lbF9oZWxkGBIgASgIEhsKE3Byb3RvY29sX2NvbXBhdGlibGUYEyABKAgSFAoMZGlzcGF0Y2hhYmxlGBQgASgIEjgKBGtpbmQYFSABKA4yKi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5Ob2RlS2luZCKvAQoTUmVnaXN0ZXJOb2RlUmVxdWVzdBIMCgRuYW1lGAEgASgJEgoKAm9zGAIgASgJEgwKBGFyY2gYAyABKAkSEAoIZW5kcG9pbnQYBCABKAkSFAoMY2FwYWJpbGl0aWVzGAUgAygJEg4KBnNjb3BlcxgGIAMoCRI4CgRraW5kGAcgASgOMioudnJvb2xpLnZyb29saV9icmlkZ2UudjEucmVnaXN0cnkuTm9kZUtpbmQiTAoUUmVnaXN0ZXJOb2RlUmVzcG9uc2USNAoEbm9kZRgBIAEoCzImLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5Lk5vZGUiEgoQTGlzdE5vZGVzUmVxdWVzdCJKChFMaXN0Tm9kZXNSZXNwb25zZRI1CgVub2RlcxgBIAMoCzImLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5Lk5vZGUiHAoOR2V0Tm9kZVJlcXVlc3QSCgoCaWQYASABKAkiRwoPR2V0Tm9kZVJlc3BvbnNlEjQKBG5vZGUYASABKAsyJi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5Ob2RlIncKEVVwZGF0ZU5vZGVSZXF1ZXN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEAoIZW5kcG9pbnQYAyABKAkSFAoMY2FwYWJpbGl0aWVzGAQgAygJEg4KBnNjb3BlcxgFIAMoCRIQCghyZXZpc2lvbhgGIAEoCSJKChJVcGRhdGVOb2RlUmVzcG9uc2USNAoEbm9kZRgBIAEoCzImLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5Lk5vZGUiHwoRUmV2b2tlTm9kZVJlcXVlc3QSCgoCaWQYASABKAkiSgoSUmV2b2tlTm9kZVJlc3BvbnNlEjQKBG5vZGUYASABKAsyJi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5Ob2RlIh8KEVJlbW92ZU5vZGVSZXF1ZXN0EgoKAmlkGAEgASgJIi0KElJlbW92ZU5vZGVSZXNwb25zZRIXCg9yZW1vdmVkX25vZGVfaWQYASABKAkiUAoYR2V0Tm9kZVJlYWRpbmVzc1Jlc3BvbnNlEjQKBG5vZGUYASABKAsyJi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5Ob2RlKmUKCE5vZGVLaW5kEhkKFU5PREVfS0lORF9VTlNQRUNJRklFRBAAEhMKD05PREVfS0lORF9BR0VOVBABEhEKDU5PREVfS0lORF9TU0gQAhIWChJOT0RFX0tJTkRfQVRUQUNIRUQQAyqRAQoKTm9kZVN0YXR1cxIbChdOT0RFX1NUQVRVU19VTlNQRUNJRklFRBAAEhcKE05PREVfU1RBVFVTX09GRkxJTkUQARIWChJOT0RFX1NUQVRVU19PTkxJTkUQAhIcChhOT0RFX1NUQVRVU19ORUVEU19VUERBVEUQAxIXChNOT0RFX1NUQVRVU19SRVZPS0VEEAQy6AYKE05vZGVSZWdpc3RyeVNlcnZpY2USfQoMUmVnaXN0ZXJOb2RlEjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEucmVnaXN0cnkuUmVnaXN0ZXJOb2RlUmVxdWVzdBo2LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5LlJlZ2lzdGVyTm9kZVJlc3BvbnNlEnQKCUxpc3ROb2RlcxIyLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5Lkxpc3ROb2Rlc1JlcXVlc3QaMy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5MaXN0Tm9kZXNSZXNwb25zZRJuCgdHZXROb2RlEjAudnJvb2xpLnZyb29saV9icmlkZ2UudjEucmVnaXN0cnkuR2V0Tm9kZVJlcXVlc3QaMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5HZXROb2RlUmVzcG9uc2USdwoKVXBkYXRlTm9kZRIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5LlVwZGF0ZU5vZGVSZXF1ZXN0GjQudnJvb2xpLnZyb29saV9icmlkZ2UudjEucmVnaXN0cnkuVXBkYXRlTm9kZVJlc3BvbnNlEncKClJldm9rZU5vZGUSMy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5SZXZva2VOb2RlUmVxdWVzdBo0LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5LlJldm9rZU5vZGVSZXNwb25zZRJ3CgpSZW1vdmVOb2RlEjMudnJvb2xpLnZyb29saV9icmlkZ2UudjEucmVnaXN0cnkuUmVtb3ZlTm9kZVJlcXVlc3QaNC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5SZW1vdmVOb2RlUmVzcG9uc2USgAEKEEdldE5vZGVSZWFkaW5lc3MSMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5yZWdpc3RyeS5HZXROb2RlUmVxdWVzdBo6LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnJlZ2lzdHJ5LkdldE5vZGVSZWFkaW5lc3NSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvcmVnaXN0cnk7cmVnaXN0cnlfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * Node is the canonical wire shape for one trusted node. Durable fields are
@@ -124,6 +124,43 @@ export type Node = Message<"vrooli.vrooli_bridge.v1.registry.Node"> & {
    * @generated from field: google.protobuf.Timestamp revoked_at = 14;
    */
   revokedAt?: Timestamp | undefined;
+
+  /**
+   * Independent readiness facts. These are overlays, never persisted.
+   *
+   * @generated from field: bool registry_record_present = 15;
+   */
+  registryRecordPresent: boolean;
+
+  /**
+   * @generated from field: bool heartbeat_fresh = 16;
+   */
+  heartbeatFresh: boolean;
+
+  /**
+   * @generated from field: int64 heartbeat_age_seconds = 17;
+   */
+  heartbeatAgeSeconds: bigint;
+
+  /**
+   * @generated from field: bool channel_held = 18;
+   */
+  channelHeld: boolean;
+
+  /**
+   * @generated from field: bool protocol_compatible = 19;
+   */
+  protocolCompatible: boolean;
+
+  /**
+   * @generated from field: bool dispatchable = 20;
+   */
+  dispatchable: boolean;
+
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.registry.NodeKind kind = 21;
+   */
+  kind: NodeKind;
 };
 
 /**
@@ -168,6 +205,11 @@ export type RegisterNodeRequest = Message<"vrooli.vrooli_bridge.v1.registry.Regi
    * @generated from field: repeated string scopes = 6;
    */
   scopes: string[];
+
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.registry.NodeKind kind = 7;
+   */
+  kind: NodeKind;
 };
 
 /**
@@ -392,6 +434,58 @@ export const RemoveNodeResponseSchema: GenMessage<RemoveNodeResponse> = /*@__PUR
   messageDesc(file_vrooli_bridge_v1_registry_registry, 12);
 
 /**
+ * @generated from message vrooli.vrooli_bridge.v1.registry.GetNodeReadinessResponse
+ */
+export type GetNodeReadinessResponse = Message<"vrooli.vrooli_bridge.v1.registry.GetNodeReadinessResponse"> & {
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.registry.Node node = 1;
+   */
+  node?: Node | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.registry.GetNodeReadinessResponse.
+ * Use `create(GetNodeReadinessResponseSchema)` to create a new message.
+ */
+export const GetNodeReadinessResponseSchema: GenMessage<GetNodeReadinessResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_registry_registry, 13);
+
+/**
+ * NodeKind describes which Bridge capabilities the node can provide. It is
+ * persisted independently from the live presence overlay so a host that has
+ * no agent is still a first-class, honestly limited fleet member.
+ *
+ * @generated from enum vrooli.vrooli_bridge.v1.registry.NodeKind
+ */
+export enum NodeKind {
+  /**
+   * @generated from enum value: NODE_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: NODE_KIND_AGENT = 1;
+   */
+  AGENT = 1,
+
+  /**
+   * @generated from enum value: NODE_KIND_SSH = 2;
+   */
+  SSH = 2,
+
+  /**
+   * @generated from enum value: NODE_KIND_ATTACHED = 3;
+   */
+  ATTACHED = 3,
+}
+
+/**
+ * Describes the enum vrooli.vrooli_bridge.v1.registry.NodeKind.
+ */
+export const NodeKindSchema: GenEnum<NodeKind> = /*@__PURE__*/
+  enumDesc(file_vrooli_bridge_v1_registry_registry, 0);
+
+/**
  * NodeStatus is the node's current state. The persisted dimension is
  * REVOKED vs not; ONLINE/OFFLINE/NEEDS_UPDATE are overlaid from the live
  * presence hub at read time (a revoked node is always REVOKED regardless of
@@ -439,7 +533,7 @@ export enum NodeStatus {
  * Describes the enum vrooli.vrooli_bridge.v1.registry.NodeStatus.
  */
 export const NodeStatusSchema: GenEnum<NodeStatus> = /*@__PURE__*/
-  enumDesc(file_vrooli_bridge_v1_registry_registry, 0);
+  enumDesc(file_vrooli_bridge_v1_registry_registry, 1);
 
 /**
  * @generated from service vrooli.vrooli_bridge.v1.registry.NodeRegistryService
@@ -513,6 +607,18 @@ export const NodeRegistryService: GenService<{
     methodKind: "unary";
     input: typeof RemoveNodeRequestSchema;
     output: typeof RemoveNodeResponseSchema;
+  },
+  /**
+   * GetNodeReadiness returns the independent readiness ladder used by the
+   * operator doctor and fleet surfaces. It never collapses transport facts
+   * into the legacy status enum.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.registry.NodeRegistryService.GetNodeReadiness
+   */
+  getNodeReadiness: {
+    methodKind: "unary";
+    input: typeof GetNodeRequestSchema;
+    output: typeof GetNodeReadinessResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_bridge_v1_registry_registry, 0);

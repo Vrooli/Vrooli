@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "device-control",
-  "input_digest": "sha256:23bd5628089671b4186e37a2aa905d8b3e2c6af4917bc6b784bc4db3506e642f",
+  "input_digest": "sha256:2e5db17081c730c4649a9e913c59727c784f3a7aa382f09c49670a7177e9ac29",
   "input_files": [
     "schemas/device-control/v1/devices/devices.proto",
     "schemas/device-control/v1/evidence/evidence.proto",

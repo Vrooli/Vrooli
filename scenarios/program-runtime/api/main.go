@@ -180,7 +180,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("repository root resolution failed: %v", err)
 	}
-	bindingRegistry, err := bindings.Load(repoRoot)
+	bindingRegistry, err := bindings.LoadWithRetry(repoRoot, 5, 100*time.Millisecond)
 	if err != nil {
 		log.Fatalf("binding registry initialization failed: %v", err)
 	}
@@ -200,6 +200,14 @@ func main() {
 		agentBridgeURL = fmt.Sprintf("http://127.0.0.1:%s/internal/program-runtime/agent/execute", port)
 	}
 	runner := programs.NewSubprocessRunnerWithBindings(filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "engine.py"), bindingSpecs, bridgeURL, agentBridgeURL)
+	runner.SetBindingProvider(func() []programs.BindingSpec {
+		current := bindingRegistry.List("", "")
+		out := make([]programs.BindingSpec, 0, len(current))
+		for _, binding := range current {
+			out = append(out, programs.BindingSpec{ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect()})
+		}
+		return out
+	})
 	if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 		runner.SetDiscoveryURL(fmt.Sprintf("http://127.0.0.1:%s/internal/program-runtime/bindings/resolve-intent", port))
 	}
@@ -224,7 +232,7 @@ func main() {
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
-		healthH.Module(db, "program-runtime-api", "1.0.0", bindingRegistry.SkippedManifestCount),
+		healthH.ModuleWithDescriptor(db, "program-runtime-api", "1.0.0", bindingRegistry.SkippedManifestCount, bindingRegistry.SnapshotMetadata),
 		capsH.Module(capabilities.NewRegistry()),
 		bindingsH.Module(bindingRegistry),
 		programsH.Module(programService),

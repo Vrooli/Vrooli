@@ -75,8 +75,6 @@ message GetAgentSessionResponse {
 
 // CreateAgentSessionRequest creates a pre-spawn typed draft session.
 message CreateAgentSessionRequest {
-  reserved 3, 4;
-
   // Session kind.
   // @constraint one of: meta_orchestration, swarm_operations, workflow_authoring
   string kind = 1 [(buf.validate.field).string = {
@@ -89,6 +87,9 @@ message CreateAgentSessionRequest {
 
   // Human-readable title.
   string title = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Server-declared starter framing to render in the job band.
+  optional string starter_job_id = 3;
 }
 
 // CreateAgentSessionResponse returns the created session.
@@ -112,6 +113,8 @@ message StartAgentSessionRequest {
       "none"
     ]
   }];
+
+  optional string starter_job_id = 6;
 }
 
 // StartAgentSessionResponse returns the spawned session.
@@ -168,6 +171,42 @@ message GetAgentSessionStartupBriefRequest {
 // carries kind, freshness, source counts, and drill-down commands.
 message GetAgentSessionStartupBriefResponse {
   shared.AgentSessionContextItem brief = 1;
+}
+
+// PreviewAgentSessionPromptRequest asks the server to assemble the prompt a
+// message would produce, without sending it. The field set mirrors
+// StartAgentSessionRequest so a preview reflects exactly what start or
+// continue would build.
+message PreviewAgentSessionPromptRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+  string message = 2;
+  repeated string attachment_ids = 3;
+  repeated AgentSessionContextRef context_refs = 4;
+  // Auto context policy.
+  // @constraint one of: empty, default, none
+  optional string auto_context_policy = 5 [(buf.validate.field).string = {
+    in: [
+      "",
+      "default",
+      "none"
+    ]
+  }];
+
+  optional string starter_job_id = 6;
+}
+
+// PreviewAgentSessionPromptResponse returns the assembled prompt text.
+//
+// Assembly is server-owned so a preview cannot drift from what is actually
+// sent: reimplementing the section order or the volatility gradient in a
+// client would produce a preview that agrees with nothing.
+message PreviewAgentSessionPromptResponse {
+  // The fully assembled prompt, exactly as the spawner would receive it.
+  string prompt = 1;
+  // True when this preview used the initial-prompt builder. A started session
+  // previews the continuation builder instead, which omits the stable bands
+  // already present in the conversation.
+  bool initial = 2;
 }
 
 // UploadAgentSessionAttachmentsResponse returns uploaded session attachments.
@@ -271,7 +310,7 @@ message ListAgentSessionArtifactsResponse {
 // GetArtifactsByEntityRequest finds session links for an entity.
 message GetArtifactsByEntityRequest {
   // Artifact type.
-  // @constraint one of: backlog_item, milestone, operating_mode_proposal, operating_mode_definition, capture, file, agent_activity
+  // @constraint one of: backlog_item, milestone, operating_mode_proposal, operating_mode_definition, capture, file, agent_activity, transition_execution
   string artifact_type = 1 [(buf.validate.field).string = {
     in: [
       "backlog_item",
@@ -280,7 +319,8 @@ message GetArtifactsByEntityRequest {
       "operating_mode_definition",
       "capture",
       "file",
-      "agent_activity"
+      "agent_activity",
+      "transition_execution"
     ]
   }];
 

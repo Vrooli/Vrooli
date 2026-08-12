@@ -84,6 +84,24 @@ message OpParams {
     CompressParams compress = 11;
     OverlayParams overlay = 12;
     MetadataParams metadata = 13;
+    DuotoneParams duotone = 14;
+    PosterizeParams posterize = 15;
+    HalftoneParams halftone = 16;
+    DitherParams dither_ordered = 17;
+    DitherParams dither_diffusion = 18;
+    GrainParams grain = 19;
+    ScrimParams scrim = 20;
+    LineScreenParams line_screen = 21;
+    StippleParams stipple = 22;
+    EngravingParams engraving = 23;
+    AberrationParams aberration = 24;
+    BloomParams bloom = 25;
+    CurveParams curve = 26;
+    DefocusParams defocus = 27;
+    MotionBlurParams motion_blur = 28;
+    AsciiMosaicParams ascii_mosaic = 29;
+    PixelSortParams pixel_sort = 30;
+    DisplacementParams displacement = 31;
   }
 }
 
@@ -189,6 +207,86 @@ message MetadataParams {
   bool strip_all = 1;
   bool strip_gps = 2;
   bool auto_orient = 3;
+}
+
+message DuotoneParams {
+  string dark = 1;
+  string light = 2;
+  string mid = 3;
+  double mid_low = 4;
+  double mid_high = 5;
+}
+
+message PosterizeParams {
+  int32 levels = 1;
+  string dark = 2;
+  string light = 3;
+}
+
+message HalftoneParams {
+  int32 lpi = 1;
+  double angle = 2;
+  string dot = 3;
+  string dark = 4;
+  string light = 5;
+}
+
+message DitherParams {
+  string dark = 1;
+  string light = 2;
+}
+
+message GrainParams {
+  int64 seed = 1;
+  double amount = 2;
+  double contrast_multiplier = 3;
+}
+
+message ScrimParams {
+  string color = 1;
+  double opacity = 2;
+  string direction = 3;
+}
+
+message LineScreenParams {
+  double spacing = 1;
+  double angle = 2;
+}
+message StippleParams {
+  double spacing = 1;
+  int64 seed = 2;
+}
+message EngravingParams {
+  double spacing = 1;
+}
+message AberrationParams {
+  double amplitude = 1;
+}
+message BloomParams {
+  int32 radius = 1;
+  double threshold = 2;
+}
+message CurveParams {
+  double exponent = 1;
+}
+message DefocusParams {
+  int32 radius = 1;
+  int32 blade_count = 2;
+}
+message MotionBlurParams {
+  int32 distance = 1;
+  double angle = 2;
+}
+message AsciiMosaicParams {
+  int32 block_size = 1;
+}
+message PixelSortParams {
+  double threshold = 1;
+  string axis = 2;
+}
+message DisplacementParams {
+  double amplitude = 1;
+  int64 seed = 2;
 }
 
 // OpResult is the proto-typed result metadata of a run. ref is the managed blob

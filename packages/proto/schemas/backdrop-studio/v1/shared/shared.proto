@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package vrooli.backdrop_studio.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared;shared_v1";
+
+message ReservedRegion {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+  string kind = 5;
+  string text_color = 6;
+}
+
+message ScaffoldBinding {
+  string preset = 1;
+  string conditioner = 2;
+  string params_json = 3;
+}
+
+message GenerationBlock {
+  string role = 1;
+  string profile = 2;
+  string prompt_template = 3;
+  string negative = 4;
+  string model = 5;
+  string provider_url = 6;
+  string credential = 7;
+}
+
+message Style {
+  string id = 1;
+  string name = 2;
+  int32 version = 3;
+  string role = 4;
+  string subject = 5;
+  repeated string treatments = 6;
+  string lineage = 7;
+  repeated string placements = 8;
+  string strategy = 9;
+  repeated ReservedRegion regions = 10;
+  double contrast_threshold = 11;
+  ScaffoldBinding scaffold = 12;
+  GenerationBlock generation = 13;
+}

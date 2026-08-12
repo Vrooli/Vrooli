@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package landing_page_business_suite.v1;
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
-
 import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
 
 // WaitlistEntry is the durable record created by a public waitlist signup.
 message WaitlistEntry {

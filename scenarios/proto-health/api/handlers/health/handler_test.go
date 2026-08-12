@@ -6,6 +6,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"proto-health/handlers/health"
@@ -17,7 +19,10 @@ import (
 	"proto-health/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/health"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/gorilla/mux"
 )
@@ -110,4 +115,49 @@ func TestHealthHandler(t *testing.T) {
 			require.Equal(t, int64(1), pinger.Calls.Load(), "Pinger.PingContext call count")
 		})
 	}
+}
+
+func TestHealthHandlerRefreshesDescriptorWithoutRestart(t *testing.T) {
+	dir := t.TempDir()
+	descriptorPath := filepath.Join(dir, "image.binpb")
+	writeDescriptorForHealth(t, descriptorPath, "health-refresh/v1/first.proto")
+	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: descriptorPath})
+	require.NoError(t, err)
+	pinger := &mocks.FakePinger{}
+	h := health.NewHandler(health.Deps{
+		Pinger:           pinger,
+		Service:          "proto-health-test",
+		Version:          "1.0.0",
+		DescriptorSource: source,
+	})
+	apiServer := server.New(server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)}, module.Module{
+		Name: "health",
+		Mount: func(r *mux.Router) {
+			r.HandleFunc("/health", h).Methods(http.MethodGet)
+		},
+	})
+	live := httpx.NewLiveServer(t, apiServer)
+
+	first, _ := live.Do(t, http.MethodGet, "/health", nil)
+	firstDigest := first.Header.Get("X-Proto-Descriptor-Digest")
+	firstGeneration := first.Header.Get("X-Proto-Descriptor-Generation")
+	require.NotEmpty(t, firstDigest)
+	require.Equal(t, "1", firstGeneration)
+
+	stage := descriptorPath + ".stage"
+	writeDescriptorForHealth(t, stage, "health-refresh/v1/second.proto")
+	require.NoError(t, os.Rename(stage, descriptorPath))
+
+	second, _ := live.Do(t, http.MethodGet, "/health", nil)
+	require.NotEqual(t, firstDigest, second.Header.Get("X-Proto-Descriptor-Digest"))
+	require.Equal(t, "2", second.Header.Get("X-Proto-Descriptor-Generation"))
+}
+
+func writeDescriptorForHealth(t *testing.T, path, name string) {
+	t.Helper()
+	data, err := proto.Marshal(&descriptorpb.FileDescriptorSet{File: []*descriptorpb.FileDescriptorProto{{
+		Name: proto.String(name), Syntax: proto.String("proto3"),
+	}}})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o644))
 }

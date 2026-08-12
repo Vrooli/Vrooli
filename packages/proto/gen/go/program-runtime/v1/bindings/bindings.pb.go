@@ -29,6 +29,7 @@ const (
 	UnboundReason_UNBOUND_REASON_LOCAL_BINDING      UnboundReason = 2
 	UnboundReason_UNBOUND_REASON_OMITTED_RPC        UnboundReason = 3
 	UnboundReason_UNBOUND_REASON_EXTERNAL_TOOL_ONLY UnboundReason = 4
+	UnboundReason_UNBOUND_REASON_MALFORMED_MANIFEST UnboundReason = 5
 )
 
 // Enum value maps for UnboundReason.
@@ -39,6 +40,7 @@ var (
 		2: "UNBOUND_REASON_LOCAL_BINDING",
 		3: "UNBOUND_REASON_OMITTED_RPC",
 		4: "UNBOUND_REASON_EXTERNAL_TOOL_ONLY",
+		5: "UNBOUND_REASON_MALFORMED_MANIFEST",
 	}
 	UnboundReason_value = map[string]int32{
 		"UNBOUND_REASON_UNSPECIFIED":        0,
@@ -46,6 +48,7 @@ var (
 		"UNBOUND_REASON_LOCAL_BINDING":      2,
 		"UNBOUND_REASON_OMITTED_RPC":        3,
 		"UNBOUND_REASON_EXTERNAL_TOOL_ONLY": 4,
+		"UNBOUND_REASON_MALFORMED_MANIFEST": 5,
 	}
 )
 
@@ -74,6 +77,64 @@ func (x UnboundReason) Number() protoreflect.EnumNumber {
 // Deprecated: Use UnboundReason.Descriptor instead.
 func (UnboundReason) EnumDescriptor() ([]byte, []int) {
 	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{0}
+}
+
+type ConditionStatus int32
+
+const (
+	ConditionStatus_CONDITION_STATUS_UNSPECIFIED    ConditionStatus = 0
+	ConditionStatus_CONDITION_STATUS_HEALTHY        ConditionStatus = 1
+	ConditionStatus_CONDITION_STATUS_DEGRADED       ConditionStatus = 2
+	ConditionStatus_CONDITION_STATUS_DORMANT        ConditionStatus = 3
+	ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED ConditionStatus = 4
+	ConditionStatus_CONDITION_STATUS_UNAVAILABLE    ConditionStatus = 5
+)
+
+// Enum value maps for ConditionStatus.
+var (
+	ConditionStatus_name = map[int32]string{
+		0: "CONDITION_STATUS_UNSPECIFIED",
+		1: "CONDITION_STATUS_HEALTHY",
+		2: "CONDITION_STATUS_DEGRADED",
+		3: "CONDITION_STATUS_DORMANT",
+		4: "CONDITION_STATUS_UNINSTRUMENTED",
+		5: "CONDITION_STATUS_UNAVAILABLE",
+	}
+	ConditionStatus_value = map[string]int32{
+		"CONDITION_STATUS_UNSPECIFIED":    0,
+		"CONDITION_STATUS_HEALTHY":        1,
+		"CONDITION_STATUS_DEGRADED":       2,
+		"CONDITION_STATUS_DORMANT":        3,
+		"CONDITION_STATUS_UNINSTRUMENTED": 4,
+		"CONDITION_STATUS_UNAVAILABLE":    5,
+	}
+)
+
+func (x ConditionStatus) Enum() *ConditionStatus {
+	p := new(ConditionStatus)
+	*p = x
+	return p
+}
+
+func (x ConditionStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ConditionStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_program_runtime_v1_bindings_bindings_proto_enumTypes[1].Descriptor()
+}
+
+func (ConditionStatus) Type() protoreflect.EnumType {
+	return &file_program_runtime_v1_bindings_bindings_proto_enumTypes[1]
+}
+
+func (x ConditionStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ConditionStatus.Descriptor instead.
+func (ConditionStatus) EnumDescriptor() ([]byte, []int) {
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{1}
 }
 
 type ActVerdict int32
@@ -112,11 +173,11 @@ func (x ActVerdict) String() string {
 }
 
 func (ActVerdict) Descriptor() protoreflect.EnumDescriptor {
-	return file_program_runtime_v1_bindings_bindings_proto_enumTypes[1].Descriptor()
+	return file_program_runtime_v1_bindings_bindings_proto_enumTypes[2].Descriptor()
 }
 
 func (ActVerdict) Type() protoreflect.EnumType {
-	return &file_program_runtime_v1_bindings_bindings_proto_enumTypes[1]
+	return &file_program_runtime_v1_bindings_bindings_proto_enumTypes[2]
 }
 
 func (x ActVerdict) Number() protoreflect.EnumNumber {
@@ -125,7 +186,7 @@ func (x ActVerdict) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ActVerdict.Descriptor instead.
 func (ActVerdict) EnumDescriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{1}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{2}
 }
 
 type Binding struct {
@@ -596,6 +657,66 @@ func (x *DoctorBindingsRequest) GetScenario() string {
 	return ""
 }
 
+type SkippedManifest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Scenario      string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	ParseError    string                 `protobuf:"bytes,3,opt,name=parse_error,json=parseError,proto3" json:"parse_error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SkippedManifest) Reset() {
+	*x = SkippedManifest{}
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SkippedManifest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SkippedManifest) ProtoMessage() {}
+
+func (x *SkippedManifest) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SkippedManifest.ProtoReflect.Descriptor instead.
+func (*SkippedManifest) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SkippedManifest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *SkippedManifest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *SkippedManifest) GetParseError() string {
+	if x != nil {
+		return x.ParseError
+	}
+	return ""
+}
+
 type BindingIssue struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Scenario        string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -611,7 +732,7 @@ type BindingIssue struct {
 
 func (x *BindingIssue) Reset() {
 	*x = BindingIssue{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[7]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -623,7 +744,7 @@ func (x *BindingIssue) String() string {
 func (*BindingIssue) ProtoMessage() {}
 
 func (x *BindingIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[7]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -636,7 +757,7 @@ func (x *BindingIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BindingIssue.ProtoReflect.Descriptor instead.
 func (*BindingIssue) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{7}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *BindingIssue) GetScenario() string {
@@ -707,14 +828,20 @@ type DoctorBindingsResponse struct {
 	// Arguments that resolve onto a structured field a bare CLI string cannot
 	// populate. These pass every callability check, so they are only visible as
 	// their own dimension.
-	ScalarBoundToMessage int32 `protobuf:"varint,12,opt,name=scalar_bound_to_message,json=scalarBoundToMessage,proto3" json:"scalar_bound_to_message,omitempty"`
+	ScalarBoundToMessage int32              `protobuf:"varint,12,opt,name=scalar_bound_to_message,json=scalarBoundToMessage,proto3" json:"scalar_bound_to_message,omitempty"`
+	SkippedManifests     []*SkippedManifest `protobuf:"bytes,13,rep,name=skipped_manifests,json=skippedManifests,proto3" json:"skipped_manifests,omitempty"`
+	SkippedManifestCount int32              `protobuf:"varint,14,opt,name=skipped_manifest_count,json=skippedManifestCount,proto3" json:"skipped_manifest_count,omitempty"`
+	ReachableScenarios   []string           `protobuf:"bytes,15,rep,name=reachable_scenarios,json=reachableScenarios,proto3" json:"reachable_scenarios,omitempty"`
+	UnreachableScenarios []string           `protobuf:"bytes,16,rep,name=unreachable_scenarios,json=unreachableScenarios,proto3" json:"unreachable_scenarios,omitempty"`
+	ManifestScenarios    int32              `protobuf:"varint,17,opt,name=manifest_scenarios,json=manifestScenarios,proto3" json:"manifest_scenarios,omitempty"`
+	TotalScenarios       int32              `protobuf:"varint,18,opt,name=total_scenarios,json=totalScenarios,proto3" json:"total_scenarios,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
 
 func (x *DoctorBindingsResponse) Reset() {
 	*x = DoctorBindingsResponse{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[8]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -726,7 +853,7 @@ func (x *DoctorBindingsResponse) String() string {
 func (*DoctorBindingsResponse) ProtoMessage() {}
 
 func (x *DoctorBindingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[8]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -739,7 +866,7 @@ func (x *DoctorBindingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorBindingsResponse.ProtoReflect.Descriptor instead.
 func (*DoctorBindingsResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{8}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DoctorBindingsResponse) GetBindings() int32 {
@@ -826,6 +953,532 @@ func (x *DoctorBindingsResponse) GetScalarBoundToMessage() int32 {
 	return 0
 }
 
+func (x *DoctorBindingsResponse) GetSkippedManifests() []*SkippedManifest {
+	if x != nil {
+		return x.SkippedManifests
+	}
+	return nil
+}
+
+func (x *DoctorBindingsResponse) GetSkippedManifestCount() int32 {
+	if x != nil {
+		return x.SkippedManifestCount
+	}
+	return 0
+}
+
+func (x *DoctorBindingsResponse) GetReachableScenarios() []string {
+	if x != nil {
+		return x.ReachableScenarios
+	}
+	return nil
+}
+
+func (x *DoctorBindingsResponse) GetUnreachableScenarios() []string {
+	if x != nil {
+		return x.UnreachableScenarios
+	}
+	return nil
+}
+
+func (x *DoctorBindingsResponse) GetManifestScenarios() int32 {
+	if x != nil {
+		return x.ManifestScenarios
+	}
+	return 0
+}
+
+func (x *DoctorBindingsResponse) GetTotalScenarios() int32 {
+	if x != nil {
+		return x.TotalScenarios
+	}
+	return 0
+}
+
+type ConditionFamily struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        ConditionStatus        `protobuf:"varint,1,opt,name=status,proto3,enum=vrooli.program_runtime.v1.bindings.ConditionStatus" json:"status,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConditionFamily) Reset() {
+	*x = ConditionFamily{}
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConditionFamily) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConditionFamily) ProtoMessage() {}
+
+func (x *ConditionFamily) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConditionFamily.ProtoReflect.Descriptor instead.
+func (*ConditionFamily) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ConditionFamily) GetStatus() ConditionStatus {
+	if x != nil {
+		return x.Status
+	}
+	return ConditionStatus_CONDITION_STATUS_UNSPECIFIED
+}
+
+func (x *ConditionFamily) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type ServingCondition struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Family          *ConditionFamily       `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
+	FailureRate     float64                `protobuf:"fixed64,2,opt,name=failure_rate,json=failureRate,proto3" json:"failure_rate,omitempty"`
+	DegradationRate float64                `protobuf:"fixed64,3,opt,name=degradation_rate,json=degradationRate,proto3" json:"degradation_rate,omitempty"`
+	LatencyP50Ms    int64                  `protobuf:"varint,4,opt,name=latency_p50_ms,json=latencyP50Ms,proto3" json:"latency_p50_ms,omitempty"`
+	LatencyP95Ms    int64                  `protobuf:"varint,5,opt,name=latency_p95_ms,json=latencyP95Ms,proto3" json:"latency_p95_ms,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ServingCondition) Reset() {
+	*x = ServingCondition{}
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServingCondition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServingCondition) ProtoMessage() {}
+
+func (x *ServingCondition) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServingCondition.ProtoReflect.Descriptor instead.
+func (*ServingCondition) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ServingCondition) GetFamily() *ConditionFamily {
+	if x != nil {
+		return x.Family
+	}
+	return nil
+}
+
+func (x *ServingCondition) GetFailureRate() float64 {
+	if x != nil {
+		return x.FailureRate
+	}
+	return 0
+}
+
+func (x *ServingCondition) GetDegradationRate() float64 {
+	if x != nil {
+		return x.DegradationRate
+	}
+	return 0
+}
+
+func (x *ServingCondition) GetLatencyP50Ms() int64 {
+	if x != nil {
+		return x.LatencyP50Ms
+	}
+	return 0
+}
+
+func (x *ServingCondition) GetLatencyP95Ms() int64 {
+	if x != nil {
+		return x.LatencyP95Ms
+	}
+	return 0
+}
+
+type FreshnessCondition struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Family        *ConditionFamily       `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
+	AgeSeconds    int64                  `protobuf:"varint,2,opt,name=age_seconds,json=ageSeconds,proto3" json:"age_seconds,omitempty"`
+	DriftStatus   ConditionStatus        `protobuf:"varint,3,opt,name=drift_status,json=driftStatus,proto3,enum=vrooli.program_runtime.v1.bindings.ConditionStatus" json:"drift_status,omitempty"`
+	DriftReason   string                 `protobuf:"bytes,4,opt,name=drift_reason,json=driftReason,proto3" json:"drift_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FreshnessCondition) Reset() {
+	*x = FreshnessCondition{}
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FreshnessCondition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FreshnessCondition) ProtoMessage() {}
+
+func (x *FreshnessCondition) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FreshnessCondition.ProtoReflect.Descriptor instead.
+func (*FreshnessCondition) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *FreshnessCondition) GetFamily() *ConditionFamily {
+	if x != nil {
+		return x.Family
+	}
+	return nil
+}
+
+func (x *FreshnessCondition) GetAgeSeconds() int64 {
+	if x != nil {
+		return x.AgeSeconds
+	}
+	return 0
+}
+
+func (x *FreshnessCondition) GetDriftStatus() ConditionStatus {
+	if x != nil {
+		return x.DriftStatus
+	}
+	return ConditionStatus_CONDITION_STATUS_UNSPECIFIED
+}
+
+func (x *FreshnessCondition) GetDriftReason() string {
+	if x != nil {
+		return x.DriftReason
+	}
+	return ""
+}
+
+type ExerciseCondition struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Family          *ConditionFamily       `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
+	Invocations     int64                  `protobuf:"varint,2,opt,name=invocations,proto3" json:"invocations,omitempty"`
+	DistinctCallers int64                  `protobuf:"varint,3,opt,name=distinct_callers,json=distinctCallers,proto3" json:"distinct_callers,omitempty"`
+	LastInvokedAt   string                 `protobuf:"bytes,4,opt,name=last_invoked_at,json=lastInvokedAt,proto3" json:"last_invoked_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ExerciseCondition) Reset() {
+	*x = ExerciseCondition{}
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExerciseCondition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExerciseCondition) ProtoMessage() {}
+
+func (x *ExerciseCondition) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExerciseCondition.ProtoReflect.Descriptor instead.
+func (*ExerciseCondition) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ExerciseCondition) GetFamily() *ConditionFamily {
+	if x != nil {
+		return x.Family
+	}
+	return nil
+}
+
+func (x *ExerciseCondition) GetInvocations() int64 {
+	if x != nil {
+		return x.Invocations
+	}
+	return 0
+}
+
+func (x *ExerciseCondition) GetDistinctCallers() int64 {
+	if x != nil {
+		return x.DistinctCallers
+	}
+	return 0
+}
+
+func (x *ExerciseCondition) GetLastInvokedAt() string {
+	if x != nil {
+		return x.LastInvokedAt
+	}
+	return ""
+}
+
+type BindingCondition struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BindingId     string                 `protobuf:"bytes,1,opt,name=binding_id,json=bindingId,proto3" json:"binding_id,omitempty"`
+	Scenario      string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Status        ConditionStatus        `protobuf:"varint,3,opt,name=status,proto3,enum=vrooli.program_runtime.v1.bindings.ConditionStatus" json:"status,omitempty"`
+	Verdict       string                 `protobuf:"bytes,4,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	Serving       *ServingCondition      `protobuf:"bytes,5,opt,name=serving,proto3" json:"serving,omitempty"`
+	Freshness     *FreshnessCondition    `protobuf:"bytes,6,opt,name=freshness,proto3" json:"freshness,omitempty"`
+	Exercise      *ExerciseCondition     `protobuf:"bytes,7,opt,name=exercise,proto3" json:"exercise,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BindingCondition) Reset() {
+	*x = BindingCondition{}
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BindingCondition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BindingCondition) ProtoMessage() {}
+
+func (x *BindingCondition) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BindingCondition.ProtoReflect.Descriptor instead.
+func (*BindingCondition) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *BindingCondition) GetBindingId() string {
+	if x != nil {
+		return x.BindingId
+	}
+	return ""
+}
+
+func (x *BindingCondition) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *BindingCondition) GetStatus() ConditionStatus {
+	if x != nil {
+		return x.Status
+	}
+	return ConditionStatus_CONDITION_STATUS_UNSPECIFIED
+}
+
+func (x *BindingCondition) GetVerdict() string {
+	if x != nil {
+		return x.Verdict
+	}
+	return ""
+}
+
+func (x *BindingCondition) GetServing() *ServingCondition {
+	if x != nil {
+		return x.Serving
+	}
+	return nil
+}
+
+func (x *BindingCondition) GetFreshness() *FreshnessCondition {
+	if x != nil {
+		return x.Freshness
+	}
+	return nil
+}
+
+func (x *BindingCondition) GetExercise() *ExerciseCondition {
+	if x != nil {
+		return x.Exercise
+	}
+	return nil
+}
+
+type GetBindingConditionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BindingId     string                 `protobuf:"bytes,1,opt,name=binding_id,json=bindingId,proto3" json:"binding_id,omitempty"`
+	Scenario      string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	WindowSeconds int64                  `protobuf:"varint,3,opt,name=window_seconds,json=windowSeconds,proto3" json:"window_seconds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBindingConditionRequest) Reset() {
+	*x = GetBindingConditionRequest{}
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBindingConditionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBindingConditionRequest) ProtoMessage() {}
+
+func (x *GetBindingConditionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBindingConditionRequest.ProtoReflect.Descriptor instead.
+func (*GetBindingConditionRequest) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetBindingConditionRequest) GetBindingId() string {
+	if x != nil {
+		return x.BindingId
+	}
+	return ""
+}
+
+func (x *GetBindingConditionRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *GetBindingConditionRequest) GetWindowSeconds() int64 {
+	if x != nil {
+		return x.WindowSeconds
+	}
+	return 0
+}
+
+type GetBindingConditionResponse struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Conditions           []*BindingCondition    `protobuf:"bytes,1,rep,name=conditions,proto3" json:"conditions,omitempty"`
+	WindowSeconds        int64                  `protobuf:"varint,2,opt,name=window_seconds,json=windowSeconds,proto3" json:"window_seconds,omitempty"`
+	TotalBindings        int32                  `protobuf:"varint,3,opt,name=total_bindings,json=totalBindings,proto3" json:"total_bindings,omitempty"`
+	InstrumentedBindings int32                  `protobuf:"varint,4,opt,name=instrumented_bindings,json=instrumentedBindings,proto3" json:"instrumented_bindings,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *GetBindingConditionResponse) Reset() {
+	*x = GetBindingConditionResponse{}
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBindingConditionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBindingConditionResponse) ProtoMessage() {}
+
+func (x *GetBindingConditionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBindingConditionResponse.ProtoReflect.Descriptor instead.
+func (*GetBindingConditionResponse) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetBindingConditionResponse) GetConditions() []*BindingCondition {
+	if x != nil {
+		return x.Conditions
+	}
+	return nil
+}
+
+func (x *GetBindingConditionResponse) GetWindowSeconds() int64 {
+	if x != nil {
+		return x.WindowSeconds
+	}
+	return 0
+}
+
+func (x *GetBindingConditionResponse) GetTotalBindings() int32 {
+	if x != nil {
+		return x.TotalBindings
+	}
+	return 0
+}
+
+func (x *GetBindingConditionResponse) GetInstrumentedBindings() int32 {
+	if x != nil {
+		return x.InstrumentedBindings
+	}
+	return 0
+}
+
 type DescribeBindingRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -835,7 +1488,7 @@ type DescribeBindingRequest struct {
 
 func (x *DescribeBindingRequest) Reset() {
 	*x = DescribeBindingRequest{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[9]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -847,7 +1500,7 @@ func (x *DescribeBindingRequest) String() string {
 func (*DescribeBindingRequest) ProtoMessage() {}
 
 func (x *DescribeBindingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[9]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -860,7 +1513,7 @@ func (x *DescribeBindingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeBindingRequest.ProtoReflect.Descriptor instead.
 func (*DescribeBindingRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{9}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DescribeBindingRequest) GetId() string {
@@ -883,7 +1536,7 @@ type BindingArgument struct {
 
 func (x *BindingArgument) Reset() {
 	*x = BindingArgument{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[10]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -895,7 +1548,7 @@ func (x *BindingArgument) String() string {
 func (*BindingArgument) ProtoMessage() {}
 
 func (x *BindingArgument) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[10]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -908,7 +1561,7 @@ func (x *BindingArgument) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BindingArgument.ProtoReflect.Descriptor instead.
 func (*BindingArgument) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{10}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *BindingArgument) GetName() string {
@@ -958,7 +1611,7 @@ type DescribeBindingResponse struct {
 
 func (x *DescribeBindingResponse) Reset() {
 	*x = DescribeBindingResponse{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[11]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -970,7 +1623,7 @@ func (x *DescribeBindingResponse) String() string {
 func (*DescribeBindingResponse) ProtoMessage() {}
 
 func (x *DescribeBindingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[11]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -983,7 +1636,7 @@ func (x *DescribeBindingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeBindingResponse.ProtoReflect.Descriptor instead.
 func (*DescribeBindingResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{11}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DescribeBindingResponse) GetBinding() *Binding {
@@ -1025,7 +1678,7 @@ type ActCell struct {
 
 func (x *ActCell) Reset() {
 	*x = ActCell{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[12]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1037,7 +1690,7 @@ func (x *ActCell) String() string {
 func (*ActCell) ProtoMessage() {}
 
 func (x *ActCell) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[12]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1050,7 +1703,7 @@ func (x *ActCell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActCell.ProtoReflect.Descriptor instead.
 func (*ActCell) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{12}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ActCell) GetId() string {
@@ -1089,7 +1742,7 @@ type ActCellVerdict struct {
 
 func (x *ActCellVerdict) Reset() {
 	*x = ActCellVerdict{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[13]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1101,7 +1754,7 @@ func (x *ActCellVerdict) String() string {
 func (*ActCellVerdict) ProtoMessage() {}
 
 func (x *ActCellVerdict) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[13]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1114,7 +1767,7 @@ func (x *ActCellVerdict) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActCellVerdict.ProtoReflect.Descriptor instead.
 func (*ActCellVerdict) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{13}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ActCellVerdict) GetId() string {
@@ -1175,7 +1828,7 @@ type ResolveActCellsRequest struct {
 
 func (x *ResolveActCellsRequest) Reset() {
 	*x = ResolveActCellsRequest{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[14]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1187,7 +1840,7 @@ func (x *ResolveActCellsRequest) String() string {
 func (*ResolveActCellsRequest) ProtoMessage() {}
 
 func (x *ResolveActCellsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[14]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1200,7 +1853,7 @@ func (x *ResolveActCellsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveActCellsRequest.ProtoReflect.Descriptor instead.
 func (*ResolveActCellsRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{14}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ResolveActCellsRequest) GetCells() []*ActCell {
@@ -1222,7 +1875,7 @@ type ResolveActCellsResponse struct {
 
 func (x *ResolveActCellsResponse) Reset() {
 	*x = ResolveActCellsResponse{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[15]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1234,7 +1887,7 @@ func (x *ResolveActCellsResponse) String() string {
 func (*ResolveActCellsResponse) ProtoMessage() {}
 
 func (x *ResolveActCellsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[15]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1247,7 +1900,7 @@ func (x *ResolveActCellsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveActCellsResponse.ProtoReflect.Descriptor instead.
 func (*ResolveActCellsResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{15}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ResolveActCellsResponse) GetCells() []*ActCellVerdict {
@@ -1276,6 +1929,118 @@ func (x *ResolveActCellsResponse) GetDenominatorConfidence() string {
 		return x.DenominatorConfidence
 	}
 	return ""
+}
+
+type ResolveIntentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Intent        string                 `protobuf:"bytes,1,opt,name=intent,proto3" json:"intent,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveIntentRequest) Reset() {
+	*x = ResolveIntentRequest{}
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveIntentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveIntentRequest) ProtoMessage() {}
+
+func (x *ResolveIntentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveIntentRequest.ProtoReflect.Descriptor instead.
+func (*ResolveIntentRequest) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ResolveIntentRequest) GetIntent() string {
+	if x != nil {
+		return x.Intent
+	}
+	return ""
+}
+
+func (x *ResolveIntentRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ResolveIntentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Bindings      []*Binding             `protobuf:"bytes,1,rep,name=bindings,proto3" json:"bindings,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	Fallback      bool                   `protobuf:"varint,3,opt,name=fallback,proto3" json:"fallback,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveIntentResponse) Reset() {
+	*x = ResolveIntentResponse{}
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveIntentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveIntentResponse) ProtoMessage() {}
+
+func (x *ResolveIntentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveIntentResponse.ProtoReflect.Descriptor instead.
+func (*ResolveIntentResponse) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ResolveIntentResponse) GetBindings() []*Binding {
+	if x != nil {
+		return x.Bindings
+	}
+	return nil
+}
+
+func (x *ResolveIntentResponse) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ResolveIntentResponse) GetFallback() bool {
+	if x != nil {
+		return x.Fallback
+	}
+	return false
 }
 
 var File_program_runtime_v1_bindings_bindings_proto protoreflect.FileDescriptor
@@ -1317,7 +2082,12 @@ const file_program_runtime_v1_bindings_bindings_proto_rawDesc = "" +
 	"\x13ListUnboundResponse\x12Y\n" +
 	"\fcapabilities\x18\x01 \x03(\v25.vrooli.program_runtime.v1.bindings.UnboundCapabilityR\fcapabilities\"3\n" +
 	"\x15DoctorBindingsRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\"\xea\x01\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\"b\n" +
+	"\x0fSkippedManifest\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1a\n" +
+	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x1f\n" +
+	"\vparse_error\x18\x03 \x01(\tR\n" +
+	"parseError\"\xea\x01\n" +
 	"\fBindingIssue\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1d\n" +
 	"\n" +
@@ -1327,7 +2097,7 @@ const file_program_runtime_v1_bindings_bindings_proto_rawDesc = "" +
 	"\x06reason\x18\x05 \x01(\tR\x06reason\x12\x1d\n" +
 	"\n" +
 	"proto_path\x18\x06 \x01(\tR\tprotoPath\x12)\n" +
-	"\x10candidate_fields\x18\a \x03(\tR\x0fcandidateFields\"\x9e\x04\n" +
+	"\x10candidate_fields\x18\a \x03(\tR\x0fcandidateFields\"\xf4\x06\n" +
 	"\x16DoctorBindingsResponse\x12\x1a\n" +
 	"\bbindings\x18\x01 \x01(\x05R\bbindings\x12\x1a\n" +
 	"\bcallable\x18\x02 \x01(\x05R\bcallable\x12\x1e\n" +
@@ -1343,7 +2113,54 @@ const file_program_runtime_v1_bindings_bindings_proto_rawDesc = "" +
 	"\x1brequired_fields_unpopulated\x18\n" +
 	" \x01(\x05R\x19requiredFieldsUnpopulated\x12=\n" +
 	"\x1bbinds_where_rename_suffices\x18\v \x01(\x05R\x18bindsWhereRenameSuffices\x125\n" +
-	"\x17scalar_bound_to_message\x18\f \x01(\x05R\x14scalarBoundToMessage\"(\n" +
+	"\x17scalar_bound_to_message\x18\f \x01(\x05R\x14scalarBoundToMessage\x12`\n" +
+	"\x11skipped_manifests\x18\r \x03(\v23.vrooli.program_runtime.v1.bindings.SkippedManifestR\x10skippedManifests\x124\n" +
+	"\x16skipped_manifest_count\x18\x0e \x01(\x05R\x14skippedManifestCount\x12/\n" +
+	"\x13reachable_scenarios\x18\x0f \x03(\tR\x12reachableScenarios\x123\n" +
+	"\x15unreachable_scenarios\x18\x10 \x03(\tR\x14unreachableScenarios\x12-\n" +
+	"\x12manifest_scenarios\x18\x11 \x01(\x05R\x11manifestScenarios\x12'\n" +
+	"\x0ftotal_scenarios\x18\x12 \x01(\x05R\x0etotalScenarios\"v\n" +
+	"\x0fConditionFamily\x12K\n" +
+	"\x06status\x18\x01 \x01(\x0e23.vrooli.program_runtime.v1.bindings.ConditionStatusR\x06status\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xf9\x01\n" +
+	"\x10ServingCondition\x12K\n" +
+	"\x06family\x18\x01 \x01(\v23.vrooli.program_runtime.v1.bindings.ConditionFamilyR\x06family\x12!\n" +
+	"\ffailure_rate\x18\x02 \x01(\x01R\vfailureRate\x12)\n" +
+	"\x10degradation_rate\x18\x03 \x01(\x01R\x0fdegradationRate\x12$\n" +
+	"\x0elatency_p50_ms\x18\x04 \x01(\x03R\flatencyP50Ms\x12$\n" +
+	"\x0elatency_p95_ms\x18\x05 \x01(\x03R\flatencyP95Ms\"\xfd\x01\n" +
+	"\x12FreshnessCondition\x12K\n" +
+	"\x06family\x18\x01 \x01(\v23.vrooli.program_runtime.v1.bindings.ConditionFamilyR\x06family\x12\x1f\n" +
+	"\vage_seconds\x18\x02 \x01(\x03R\n" +
+	"ageSeconds\x12V\n" +
+	"\fdrift_status\x18\x03 \x01(\x0e23.vrooli.program_runtime.v1.bindings.ConditionStatusR\vdriftStatus\x12!\n" +
+	"\fdrift_reason\x18\x04 \x01(\tR\vdriftReason\"\xd5\x01\n" +
+	"\x11ExerciseCondition\x12K\n" +
+	"\x06family\x18\x01 \x01(\v23.vrooli.program_runtime.v1.bindings.ConditionFamilyR\x06family\x12 \n" +
+	"\vinvocations\x18\x02 \x01(\x03R\vinvocations\x12)\n" +
+	"\x10distinct_callers\x18\x03 \x01(\x03R\x0fdistinctCallers\x12&\n" +
+	"\x0flast_invoked_at\x18\x04 \x01(\tR\rlastInvokedAt\"\xad\x03\n" +
+	"\x10BindingCondition\x12\x1d\n" +
+	"\n" +
+	"binding_id\x18\x01 \x01(\tR\tbindingId\x12\x1a\n" +
+	"\bscenario\x18\x02 \x01(\tR\bscenario\x12K\n" +
+	"\x06status\x18\x03 \x01(\x0e23.vrooli.program_runtime.v1.bindings.ConditionStatusR\x06status\x12\x18\n" +
+	"\averdict\x18\x04 \x01(\tR\averdict\x12N\n" +
+	"\aserving\x18\x05 \x01(\v24.vrooli.program_runtime.v1.bindings.ServingConditionR\aserving\x12T\n" +
+	"\tfreshness\x18\x06 \x01(\v26.vrooli.program_runtime.v1.bindings.FreshnessConditionR\tfreshness\x12Q\n" +
+	"\bexercise\x18\a \x01(\v25.vrooli.program_runtime.v1.bindings.ExerciseConditionR\bexercise\"~\n" +
+	"\x1aGetBindingConditionRequest\x12\x1d\n" +
+	"\n" +
+	"binding_id\x18\x01 \x01(\tR\tbindingId\x12\x1a\n" +
+	"\bscenario\x18\x02 \x01(\tR\bscenario\x12%\n" +
+	"\x0ewindow_seconds\x18\x03 \x01(\x03R\rwindowSeconds\"\xf6\x01\n" +
+	"\x1bGetBindingConditionResponse\x12T\n" +
+	"\n" +
+	"conditions\x18\x01 \x03(\v24.vrooli.program_runtime.v1.bindings.BindingConditionR\n" +
+	"conditions\x12%\n" +
+	"\x0ewindow_seconds\x18\x02 \x01(\x03R\rwindowSeconds\x12%\n" +
+	"\x0etotal_bindings\x18\x03 \x01(\x05R\rtotalBindings\x123\n" +
+	"\x15instrumented_bindings\x18\x04 \x01(\x05R\x14instrumentedBindings\"(\n" +
 	"\x16DescribeBindingRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x8c\x01\n" +
 	"\x0fBindingArgument\x12\x12\n" +
@@ -1379,25 +2196,43 @@ const file_program_runtime_v1_bindings_bindings_proto_rawDesc = "" +
 	"\raudited_cells\x18\x02 \x01(\x05R\fauditedCells\x12\x1f\n" +
 	"\vtotal_cells\x18\x03 \x01(\x05R\n" +
 	"totalCells\x125\n" +
-	"\x16denominator_confidence\x18\x04 \x01(\tR\x15denominatorConfidence*\xb8\x01\n" +
+	"\x16denominator_confidence\x18\x04 \x01(\tR\x15denominatorConfidence\"D\n" +
+	"\x14ResolveIntentRequest\x12\x16\n" +
+	"\x06intent\x18\x01 \x01(\tR\x06intent\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\"\x94\x01\n" +
+	"\x15ResolveIntentResponse\x12G\n" +
+	"\bbindings\x18\x01 \x03(\v2+.vrooli.program_runtime.v1.bindings.BindingR\bbindings\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x1a\n" +
+	"\bfallback\x18\x03 \x01(\bR\bfallback*\xdf\x01\n" +
 	"\rUnboundReason\x12\x1e\n" +
 	"\x1aUNBOUND_REASON_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aUNBOUND_REASON_NO_MANIFEST\x10\x01\x12 \n" +
 	"\x1cUNBOUND_REASON_LOCAL_BINDING\x10\x02\x12\x1e\n" +
 	"\x1aUNBOUND_REASON_OMITTED_RPC\x10\x03\x12%\n" +
-	"!UNBOUND_REASON_EXTERNAL_TOOL_ONLY\x10\x04*r\n" +
+	"!UNBOUND_REASON_EXTERNAL_TOOL_ONLY\x10\x04\x12%\n" +
+	"!UNBOUND_REASON_MALFORMED_MANIFEST\x10\x05*\xd5\x01\n" +
+	"\x0fConditionStatus\x12 \n" +
+	"\x1cCONDITION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18CONDITION_STATUS_HEALTHY\x10\x01\x12\x1d\n" +
+	"\x19CONDITION_STATUS_DEGRADED\x10\x02\x12\x1c\n" +
+	"\x18CONDITION_STATUS_DORMANT\x10\x03\x12#\n" +
+	"\x1fCONDITION_STATUS_UNINSTRUMENTED\x10\x04\x12 \n" +
+	"\x1cCONDITION_STATUS_UNAVAILABLE\x10\x05*r\n" +
 	"\n" +
 	"ActVerdict\x12\x1b\n" +
 	"\x17ACT_VERDICT_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fACT_VERDICT_NOW\x10\x01\x12\x18\n" +
 	"\x14ACT_VERDICT_IN_REACH\x10\x02\x12\x18\n" +
-	"\x14ACT_VERDICT_AUTHORED\x10\x032\xc0\x05\n" +
+	"\x14ACT_VERDICT_AUTHORED\x10\x032\xc7\x06\n" +
 	"\x16BindingRegistryService\x12\x81\x01\n" +
 	"\fListBindings\x127.vrooli.program_runtime.v1.bindings.ListBindingsRequest\x1a8.vrooli.program_runtime.v1.bindings.ListBindingsResponse\x12~\n" +
 	"\vListUnbound\x126.vrooli.program_runtime.v1.bindings.ListUnboundRequest\x1a7.vrooli.program_runtime.v1.bindings.ListUnboundResponse\x12\x8a\x01\n" +
 	"\x0fResolveActCells\x12:.vrooli.program_runtime.v1.bindings.ResolveActCellsRequest\x1a;.vrooli.program_runtime.v1.bindings.ResolveActCellsResponse\x12\x87\x01\n" +
 	"\x0eDoctorBindings\x129.vrooli.program_runtime.v1.bindings.DoctorBindingsRequest\x1a:.vrooli.program_runtime.v1.bindings.DoctorBindingsResponse\x12\x8a\x01\n" +
-	"\x0fDescribeBinding\x12:.vrooli.program_runtime.v1.bindings.DescribeBindingRequest\x1a;.vrooli.program_runtime.v1.bindings.DescribeBindingResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings;bindings_v1b\x06proto3"
+	"\x0fDescribeBinding\x12:.vrooli.program_runtime.v1.bindings.DescribeBindingRequest\x1a;.vrooli.program_runtime.v1.bindings.DescribeBindingResponse\x12\x84\x01\n" +
+	"\rResolveIntent\x128.vrooli.program_runtime.v1.bindings.ResolveIntentRequest\x1a9.vrooli.program_runtime.v1.bindings.ResolveIntentResponse2\xb2\x01\n" +
+	"\x17BindingConditionService\x12\x96\x01\n" +
+	"\x13GetBindingCondition\x12>.vrooli.program_runtime.v1.bindings.GetBindingConditionRequest\x1a?.vrooli.program_runtime.v1.bindings.GetBindingConditionResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings;bindings_v1b\x06proto3"
 
 var (
 	file_program_runtime_v1_bindings_bindings_proto_rawDescOnce sync.Once
@@ -1411,53 +2246,80 @@ func file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP() []byte {
 	return file_program_runtime_v1_bindings_bindings_proto_rawDescData
 }
 
-var file_program_runtime_v1_bindings_bindings_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_program_runtime_v1_bindings_bindings_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_program_runtime_v1_bindings_bindings_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_program_runtime_v1_bindings_bindings_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_program_runtime_v1_bindings_bindings_proto_goTypes = []any{
-	(UnboundReason)(0),              // 0: vrooli.program_runtime.v1.bindings.UnboundReason
-	(ActVerdict)(0),                 // 1: vrooli.program_runtime.v1.bindings.ActVerdict
-	(*Binding)(nil),                 // 2: vrooli.program_runtime.v1.bindings.Binding
-	(*UnboundCapability)(nil),       // 3: vrooli.program_runtime.v1.bindings.UnboundCapability
-	(*ListBindingsRequest)(nil),     // 4: vrooli.program_runtime.v1.bindings.ListBindingsRequest
-	(*ListBindingsResponse)(nil),    // 5: vrooli.program_runtime.v1.bindings.ListBindingsResponse
-	(*ListUnboundRequest)(nil),      // 6: vrooli.program_runtime.v1.bindings.ListUnboundRequest
-	(*ListUnboundResponse)(nil),     // 7: vrooli.program_runtime.v1.bindings.ListUnboundResponse
-	(*DoctorBindingsRequest)(nil),   // 8: vrooli.program_runtime.v1.bindings.DoctorBindingsRequest
-	(*BindingIssue)(nil),            // 9: vrooli.program_runtime.v1.bindings.BindingIssue
-	(*DoctorBindingsResponse)(nil),  // 10: vrooli.program_runtime.v1.bindings.DoctorBindingsResponse
-	(*DescribeBindingRequest)(nil),  // 11: vrooli.program_runtime.v1.bindings.DescribeBindingRequest
-	(*BindingArgument)(nil),         // 12: vrooli.program_runtime.v1.bindings.BindingArgument
-	(*DescribeBindingResponse)(nil), // 13: vrooli.program_runtime.v1.bindings.DescribeBindingResponse
-	(*ActCell)(nil),                 // 14: vrooli.program_runtime.v1.bindings.ActCell
-	(*ActCellVerdict)(nil),          // 15: vrooli.program_runtime.v1.bindings.ActCellVerdict
-	(*ResolveActCellsRequest)(nil),  // 16: vrooli.program_runtime.v1.bindings.ResolveActCellsRequest
-	(*ResolveActCellsResponse)(nil), // 17: vrooli.program_runtime.v1.bindings.ResolveActCellsResponse
+	(UnboundReason)(0),                  // 0: vrooli.program_runtime.v1.bindings.UnboundReason
+	(ConditionStatus)(0),                // 1: vrooli.program_runtime.v1.bindings.ConditionStatus
+	(ActVerdict)(0),                     // 2: vrooli.program_runtime.v1.bindings.ActVerdict
+	(*Binding)(nil),                     // 3: vrooli.program_runtime.v1.bindings.Binding
+	(*UnboundCapability)(nil),           // 4: vrooli.program_runtime.v1.bindings.UnboundCapability
+	(*ListBindingsRequest)(nil),         // 5: vrooli.program_runtime.v1.bindings.ListBindingsRequest
+	(*ListBindingsResponse)(nil),        // 6: vrooli.program_runtime.v1.bindings.ListBindingsResponse
+	(*ListUnboundRequest)(nil),          // 7: vrooli.program_runtime.v1.bindings.ListUnboundRequest
+	(*ListUnboundResponse)(nil),         // 8: vrooli.program_runtime.v1.bindings.ListUnboundResponse
+	(*DoctorBindingsRequest)(nil),       // 9: vrooli.program_runtime.v1.bindings.DoctorBindingsRequest
+	(*SkippedManifest)(nil),             // 10: vrooli.program_runtime.v1.bindings.SkippedManifest
+	(*BindingIssue)(nil),                // 11: vrooli.program_runtime.v1.bindings.BindingIssue
+	(*DoctorBindingsResponse)(nil),      // 12: vrooli.program_runtime.v1.bindings.DoctorBindingsResponse
+	(*ConditionFamily)(nil),             // 13: vrooli.program_runtime.v1.bindings.ConditionFamily
+	(*ServingCondition)(nil),            // 14: vrooli.program_runtime.v1.bindings.ServingCondition
+	(*FreshnessCondition)(nil),          // 15: vrooli.program_runtime.v1.bindings.FreshnessCondition
+	(*ExerciseCondition)(nil),           // 16: vrooli.program_runtime.v1.bindings.ExerciseCondition
+	(*BindingCondition)(nil),            // 17: vrooli.program_runtime.v1.bindings.BindingCondition
+	(*GetBindingConditionRequest)(nil),  // 18: vrooli.program_runtime.v1.bindings.GetBindingConditionRequest
+	(*GetBindingConditionResponse)(nil), // 19: vrooli.program_runtime.v1.bindings.GetBindingConditionResponse
+	(*DescribeBindingRequest)(nil),      // 20: vrooli.program_runtime.v1.bindings.DescribeBindingRequest
+	(*BindingArgument)(nil),             // 21: vrooli.program_runtime.v1.bindings.BindingArgument
+	(*DescribeBindingResponse)(nil),     // 22: vrooli.program_runtime.v1.bindings.DescribeBindingResponse
+	(*ActCell)(nil),                     // 23: vrooli.program_runtime.v1.bindings.ActCell
+	(*ActCellVerdict)(nil),              // 24: vrooli.program_runtime.v1.bindings.ActCellVerdict
+	(*ResolveActCellsRequest)(nil),      // 25: vrooli.program_runtime.v1.bindings.ResolveActCellsRequest
+	(*ResolveActCellsResponse)(nil),     // 26: vrooli.program_runtime.v1.bindings.ResolveActCellsResponse
+	(*ResolveIntentRequest)(nil),        // 27: vrooli.program_runtime.v1.bindings.ResolveIntentRequest
+	(*ResolveIntentResponse)(nil),       // 28: vrooli.program_runtime.v1.bindings.ResolveIntentResponse
 }
 var file_program_runtime_v1_bindings_bindings_proto_depIdxs = []int32{
 	0,  // 0: vrooli.program_runtime.v1.bindings.UnboundCapability.reason:type_name -> vrooli.program_runtime.v1.bindings.UnboundReason
-	2,  // 1: vrooli.program_runtime.v1.bindings.ListBindingsResponse.bindings:type_name -> vrooli.program_runtime.v1.bindings.Binding
-	3,  // 2: vrooli.program_runtime.v1.bindings.ListUnboundResponse.capabilities:type_name -> vrooli.program_runtime.v1.bindings.UnboundCapability
-	9,  // 3: vrooli.program_runtime.v1.bindings.DoctorBindingsResponse.issues:type_name -> vrooli.program_runtime.v1.bindings.BindingIssue
-	2,  // 4: vrooli.program_runtime.v1.bindings.DescribeBindingResponse.binding:type_name -> vrooli.program_runtime.v1.bindings.Binding
-	12, // 5: vrooli.program_runtime.v1.bindings.DescribeBindingResponse.arguments:type_name -> vrooli.program_runtime.v1.bindings.BindingArgument
-	1,  // 6: vrooli.program_runtime.v1.bindings.ActCellVerdict.verdict:type_name -> vrooli.program_runtime.v1.bindings.ActVerdict
-	14, // 7: vrooli.program_runtime.v1.bindings.ResolveActCellsRequest.cells:type_name -> vrooli.program_runtime.v1.bindings.ActCell
-	15, // 8: vrooli.program_runtime.v1.bindings.ResolveActCellsResponse.cells:type_name -> vrooli.program_runtime.v1.bindings.ActCellVerdict
-	4,  // 9: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListBindings:input_type -> vrooli.program_runtime.v1.bindings.ListBindingsRequest
-	6,  // 10: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListUnbound:input_type -> vrooli.program_runtime.v1.bindings.ListUnboundRequest
-	16, // 11: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveActCells:input_type -> vrooli.program_runtime.v1.bindings.ResolveActCellsRequest
-	8,  // 12: vrooli.program_runtime.v1.bindings.BindingRegistryService.DoctorBindings:input_type -> vrooli.program_runtime.v1.bindings.DoctorBindingsRequest
-	11, // 13: vrooli.program_runtime.v1.bindings.BindingRegistryService.DescribeBinding:input_type -> vrooli.program_runtime.v1.bindings.DescribeBindingRequest
-	5,  // 14: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListBindings:output_type -> vrooli.program_runtime.v1.bindings.ListBindingsResponse
-	7,  // 15: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListUnbound:output_type -> vrooli.program_runtime.v1.bindings.ListUnboundResponse
-	17, // 16: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveActCells:output_type -> vrooli.program_runtime.v1.bindings.ResolveActCellsResponse
-	10, // 17: vrooli.program_runtime.v1.bindings.BindingRegistryService.DoctorBindings:output_type -> vrooli.program_runtime.v1.bindings.DoctorBindingsResponse
-	13, // 18: vrooli.program_runtime.v1.bindings.BindingRegistryService.DescribeBinding:output_type -> vrooli.program_runtime.v1.bindings.DescribeBindingResponse
-	14, // [14:19] is the sub-list for method output_type
-	9,  // [9:14] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	3,  // 1: vrooli.program_runtime.v1.bindings.ListBindingsResponse.bindings:type_name -> vrooli.program_runtime.v1.bindings.Binding
+	4,  // 2: vrooli.program_runtime.v1.bindings.ListUnboundResponse.capabilities:type_name -> vrooli.program_runtime.v1.bindings.UnboundCapability
+	11, // 3: vrooli.program_runtime.v1.bindings.DoctorBindingsResponse.issues:type_name -> vrooli.program_runtime.v1.bindings.BindingIssue
+	10, // 4: vrooli.program_runtime.v1.bindings.DoctorBindingsResponse.skipped_manifests:type_name -> vrooli.program_runtime.v1.bindings.SkippedManifest
+	1,  // 5: vrooli.program_runtime.v1.bindings.ConditionFamily.status:type_name -> vrooli.program_runtime.v1.bindings.ConditionStatus
+	13, // 6: vrooli.program_runtime.v1.bindings.ServingCondition.family:type_name -> vrooli.program_runtime.v1.bindings.ConditionFamily
+	13, // 7: vrooli.program_runtime.v1.bindings.FreshnessCondition.family:type_name -> vrooli.program_runtime.v1.bindings.ConditionFamily
+	1,  // 8: vrooli.program_runtime.v1.bindings.FreshnessCondition.drift_status:type_name -> vrooli.program_runtime.v1.bindings.ConditionStatus
+	13, // 9: vrooli.program_runtime.v1.bindings.ExerciseCondition.family:type_name -> vrooli.program_runtime.v1.bindings.ConditionFamily
+	1,  // 10: vrooli.program_runtime.v1.bindings.BindingCondition.status:type_name -> vrooli.program_runtime.v1.bindings.ConditionStatus
+	14, // 11: vrooli.program_runtime.v1.bindings.BindingCondition.serving:type_name -> vrooli.program_runtime.v1.bindings.ServingCondition
+	15, // 12: vrooli.program_runtime.v1.bindings.BindingCondition.freshness:type_name -> vrooli.program_runtime.v1.bindings.FreshnessCondition
+	16, // 13: vrooli.program_runtime.v1.bindings.BindingCondition.exercise:type_name -> vrooli.program_runtime.v1.bindings.ExerciseCondition
+	17, // 14: vrooli.program_runtime.v1.bindings.GetBindingConditionResponse.conditions:type_name -> vrooli.program_runtime.v1.bindings.BindingCondition
+	3,  // 15: vrooli.program_runtime.v1.bindings.DescribeBindingResponse.binding:type_name -> vrooli.program_runtime.v1.bindings.Binding
+	21, // 16: vrooli.program_runtime.v1.bindings.DescribeBindingResponse.arguments:type_name -> vrooli.program_runtime.v1.bindings.BindingArgument
+	2,  // 17: vrooli.program_runtime.v1.bindings.ActCellVerdict.verdict:type_name -> vrooli.program_runtime.v1.bindings.ActVerdict
+	23, // 18: vrooli.program_runtime.v1.bindings.ResolveActCellsRequest.cells:type_name -> vrooli.program_runtime.v1.bindings.ActCell
+	24, // 19: vrooli.program_runtime.v1.bindings.ResolveActCellsResponse.cells:type_name -> vrooli.program_runtime.v1.bindings.ActCellVerdict
+	3,  // 20: vrooli.program_runtime.v1.bindings.ResolveIntentResponse.bindings:type_name -> vrooli.program_runtime.v1.bindings.Binding
+	5,  // 21: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListBindings:input_type -> vrooli.program_runtime.v1.bindings.ListBindingsRequest
+	7,  // 22: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListUnbound:input_type -> vrooli.program_runtime.v1.bindings.ListUnboundRequest
+	25, // 23: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveActCells:input_type -> vrooli.program_runtime.v1.bindings.ResolveActCellsRequest
+	9,  // 24: vrooli.program_runtime.v1.bindings.BindingRegistryService.DoctorBindings:input_type -> vrooli.program_runtime.v1.bindings.DoctorBindingsRequest
+	20, // 25: vrooli.program_runtime.v1.bindings.BindingRegistryService.DescribeBinding:input_type -> vrooli.program_runtime.v1.bindings.DescribeBindingRequest
+	27, // 26: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveIntent:input_type -> vrooli.program_runtime.v1.bindings.ResolveIntentRequest
+	18, // 27: vrooli.program_runtime.v1.bindings.BindingConditionService.GetBindingCondition:input_type -> vrooli.program_runtime.v1.bindings.GetBindingConditionRequest
+	6,  // 28: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListBindings:output_type -> vrooli.program_runtime.v1.bindings.ListBindingsResponse
+	8,  // 29: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListUnbound:output_type -> vrooli.program_runtime.v1.bindings.ListUnboundResponse
+	26, // 30: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveActCells:output_type -> vrooli.program_runtime.v1.bindings.ResolveActCellsResponse
+	12, // 31: vrooli.program_runtime.v1.bindings.BindingRegistryService.DoctorBindings:output_type -> vrooli.program_runtime.v1.bindings.DoctorBindingsResponse
+	22, // 32: vrooli.program_runtime.v1.bindings.BindingRegistryService.DescribeBinding:output_type -> vrooli.program_runtime.v1.bindings.DescribeBindingResponse
+	28, // 33: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveIntent:output_type -> vrooli.program_runtime.v1.bindings.ResolveIntentResponse
+	19, // 34: vrooli.program_runtime.v1.bindings.BindingConditionService.GetBindingCondition:output_type -> vrooli.program_runtime.v1.bindings.GetBindingConditionResponse
+	28, // [28:35] is the sub-list for method output_type
+	21, // [21:28] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_program_runtime_v1_bindings_bindings_proto_init() }
@@ -1470,10 +2332,10 @@ func file_program_runtime_v1_bindings_bindings_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_program_runtime_v1_bindings_bindings_proto_rawDesc), len(file_program_runtime_v1_bindings_bindings_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   16,
+			NumEnums:      3,
+			NumMessages:   26,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_program_runtime_v1_bindings_bindings_proto_goTypes,
 		DependencyIndexes: file_program_runtime_v1_bindings_bindings_proto_depIdxs,

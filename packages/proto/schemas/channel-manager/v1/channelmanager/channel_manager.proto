@@ -25,9 +25,9 @@ message Identity {
   string platform_id = 2;
   string purpose = 3;
   string environment_ref = 4;
-	// Opaque credential-authority identity/field reference. Values never cross
-	// the API boundary; the executor resolves them in its own authority scope.
-	string credential_ref = 5;
+  // Opaque credential-authority identity/field reference. Values never cross
+  // the API boundary; the executor resolves them in its own authority scope.
+  string credential_ref = 5;
   string status = 6;
   repeated string lane_grants = 7;
   string handle = 8;
@@ -78,12 +78,22 @@ message ReleaseReceipt {
   string published_url = 6;
   string first_comment_status = 7;
 }
-message SubmitReleaseResponse { ReleaseReceipt receipt = 1; }
+message SubmitReleaseResponse {
+  ReleaseReceipt receipt = 1;
+}
 
-message DeliverReleaseOutcomeRequest { string release_id = 1; }
-message DeliverReleaseOutcomeResponse { string delivery_status = 1; }
-message DeliverMetricSampleRequest { string sample_id = 1; }
-message DeliverMetricSampleResponse { string delivery_status = 1; }
+message DeliverReleaseOutcomeRequest {
+  string release_id = 1;
+}
+message DeliverReleaseOutcomeResponse {
+  string delivery_status = 1;
+}
+message DeliverMetricSampleRequest {
+  string sample_id = 1;
+}
+message DeliverMetricSampleResponse {
+  string delivery_status = 1;
+}
 
 // A profile reference is opaque to Channel Manager. It must never contain
 // cookies or platform credentials; BAS resolves it in its own boundary.
@@ -98,13 +108,21 @@ message AssignAutomationRequest {
   // BAS remains unaware of this consumer-specific mapping.
   string consumer_profile_key = 6;
 }
-message AssignAutomationResponse { string identity_id = 1; }
-message DispatchBrowserActionRequest { string action_id = 1; }
-message DispatchBrowserActionResponse { string execution_id = 1; }
+message AssignAutomationResponse {
+  string identity_id = 1;
+}
+message DispatchBrowserActionRequest {
+  string action_id = 1;
+}
+message DispatchBrowserActionResponse {
+  string execution_id = 1;
+}
 
 // A bounded BAS review projection. Artifact IDs are stable references only;
 // raw evidence bytes and all session material stay behind BAS's own policy.
-message GetBrowserExecutionReviewRequest { string action_id = 1; }
+message GetBrowserExecutionReviewRequest {
+  string action_id = 1;
+}
 message GetBrowserExecutionReviewResponse {
   string execution_id = 1;
   string status = 2;

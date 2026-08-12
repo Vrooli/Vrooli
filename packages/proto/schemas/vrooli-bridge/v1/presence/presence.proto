@@ -28,6 +28,14 @@ service PresenceService {
   // control plane's compatibility verdict so an out-of-date agent learns it is
   // flagged NEEDS_UPDATE without a separate call.
   rpc ReportHeartbeat(ReportHeartbeatRequest) returns (ReportHeartbeatResponse);
+
+  // ReportDeliveryAck confirms that a signed server frame reached the node and
+  // was verified before the represented operation began.
+  rpc ReportDeliveryAck(ReportDeliveryAckRequest) returns (ReportDeliveryAckResponse);
+
+  // ReportSessionFrame carries node PTY output and terminal lifecycle events
+  // back over the node's mutually-authenticated Connect channel.
+  rpc ReportSessionFrame(ReportSessionFrameRequest) returns (ReportSessionFrameResponse);
 }
 
 message ReportHeartbeatRequest {
@@ -39,4 +47,20 @@ message ReportHeartbeatResponse {
   // The control plane's verdict on the node's protocol version (echoed from the
   // handshake negotiation). OK while the agent is current.
   vrooli.vrooli_bridge.v1.shared.CompatibilityStatus compatibility = 1;
+}
+
+message ReportDeliveryAckRequest {
+  vrooli.vrooli_bridge.v1.shared.DeliveryAck ack = 1;
+}
+
+message ReportDeliveryAckResponse {
+  bool accepted = 1;
+}
+
+message ReportSessionFrameRequest {
+  vrooli.vrooli_bridge.v1.shared.SessionFrame frame = 1;
+}
+
+message ReportSessionFrameResponse {
+  bool accepted = 1;
 }

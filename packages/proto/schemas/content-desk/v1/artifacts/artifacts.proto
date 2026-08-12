@@ -79,18 +79,43 @@ message AttachReleasedAssetRequest {
   string alt_text = 5;
   int32 position = 6;
 }
-message AttachReleasedAssetResponse { DraftAttachment attachment = 1; }
-message ListDraftAttachmentsRequest { string draft_id = 1; }
-message ListDraftAttachmentsResponse { repeated DraftAttachment attachments = 1; }
+message AttachReleasedAssetResponse {
+  DraftAttachment attachment = 1;
+}
+message ListDraftAttachmentsRequest {
+  string draft_id = 1;
+}
+message ListDraftAttachmentsResponse {
+  repeated DraftAttachment attachments = 1;
+}
 
 // CommissionAgentWork starts only a declared, read-only Agent Manager profile.
 // Its output remains an operator-editable suggestion and can never approve or publish.
-message CommissionAgentWorkRequest { string draft_id = 1; string action = 2; }
-message CommissionAgentWorkResponse { string commission_id = 1; string task_id = 2; string run_id = 3; string status = 4; }
-message GetAgentWorkResultRequest { string commission_id = 1; }
-message GetAgentWorkResultResponse { string run_id = 1; string status = 2; string body = 3; }
-message AdoptAgentSuggestionRequest { string commission_id = 1; string body = 2; }
-message AdoptAgentSuggestionResponse { Draft draft = 1; }
+message CommissionAgentWorkRequest {
+  string draft_id = 1;
+  string action = 2;
+}
+message CommissionAgentWorkResponse {
+  string commission_id = 1;
+  string task_id = 2;
+  string run_id = 3;
+  string status = 4;
+}
+message GetAgentWorkResultRequest {
+  string commission_id = 1;
+}
+message GetAgentWorkResultResponse {
+  string run_id = 1;
+  string status = 2;
+  string body = 3;
+}
+message AdoptAgentSuggestionRequest {
+  string commission_id = 1;
+  string body = 2;
+}
+message AdoptAgentSuggestionResponse {
+  Draft draft = 1;
+}
 
 // SubmitReleaseDraft asks Channel Manager to own a durable release action.
 // It does not assert that a platform post exists; that outcome returns later

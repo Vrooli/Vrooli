@@ -50,6 +50,8 @@ const (
 	// BrandsServiceListBrandVersionsProcedure is the fully-qualified name of the BrandsService's
 	// ListBrandVersions RPC.
 	BrandsServiceListBrandVersionsProcedure = "/vrooli.brand_manager.v1.brands.BrandsService/ListBrandVersions"
+	// BrandsServiceGetTokensProcedure is the fully-qualified name of the BrandsService's GetTokens RPC.
+	BrandsServiceGetTokensProcedure = "/vrooli.brand_manager.v1.brands.BrandsService/GetTokens"
 )
 
 // BrandsServiceClient is a client for the vrooli.brand_manager.v1.brands.BrandsService service.
@@ -60,6 +62,7 @@ type BrandsServiceClient interface {
 	UpdateBrand(context.Context, *connect.Request[brands.UpdateBrandRequest]) (*connect.Response[brands.UpdateBrandResponse], error)
 	DeleteBrand(context.Context, *connect.Request[brands.DeleteBrandRequest]) (*connect.Response[brands.DeleteBrandResponse], error)
 	ListBrandVersions(context.Context, *connect.Request[brands.ListBrandVersionsRequest]) (*connect.Response[brands.ListBrandVersionsResponse], error)
+	GetTokens(context.Context, *connect.Request[brands.GetTokensRequest]) (*connect.Response[brands.GetTokensResponse], error)
 }
 
 // NewBrandsServiceClient constructs a client for the vrooli.brand_manager.v1.brands.BrandsService
@@ -109,6 +112,12 @@ func NewBrandsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(brandsServiceMethods.ByName("ListBrandVersions")),
 			connect.WithClientOptions(opts...),
 		),
+		getTokens: connect.NewClient[brands.GetTokensRequest, brands.GetTokensResponse](
+			httpClient,
+			baseURL+BrandsServiceGetTokensProcedure,
+			connect.WithSchema(brandsServiceMethods.ByName("GetTokens")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -120,6 +129,7 @@ type brandsServiceClient struct {
 	updateBrand       *connect.Client[brands.UpdateBrandRequest, brands.UpdateBrandResponse]
 	deleteBrand       *connect.Client[brands.DeleteBrandRequest, brands.DeleteBrandResponse]
 	listBrandVersions *connect.Client[brands.ListBrandVersionsRequest, brands.ListBrandVersionsResponse]
+	getTokens         *connect.Client[brands.GetTokensRequest, brands.GetTokensResponse]
 }
 
 // ListBrands calls vrooli.brand_manager.v1.brands.BrandsService.ListBrands.
@@ -152,6 +162,11 @@ func (c *brandsServiceClient) ListBrandVersions(ctx context.Context, req *connec
 	return c.listBrandVersions.CallUnary(ctx, req)
 }
 
+// GetTokens calls vrooli.brand_manager.v1.brands.BrandsService.GetTokens.
+func (c *brandsServiceClient) GetTokens(ctx context.Context, req *connect.Request[brands.GetTokensRequest]) (*connect.Response[brands.GetTokensResponse], error) {
+	return c.getTokens.CallUnary(ctx, req)
+}
+
 // BrandsServiceHandler is an implementation of the vrooli.brand_manager.v1.brands.BrandsService
 // service.
 type BrandsServiceHandler interface {
@@ -161,6 +176,7 @@ type BrandsServiceHandler interface {
 	UpdateBrand(context.Context, *connect.Request[brands.UpdateBrandRequest]) (*connect.Response[brands.UpdateBrandResponse], error)
 	DeleteBrand(context.Context, *connect.Request[brands.DeleteBrandRequest]) (*connect.Response[brands.DeleteBrandResponse], error)
 	ListBrandVersions(context.Context, *connect.Request[brands.ListBrandVersionsRequest]) (*connect.Response[brands.ListBrandVersionsResponse], error)
+	GetTokens(context.Context, *connect.Request[brands.GetTokensRequest]) (*connect.Response[brands.GetTokensResponse], error)
 }
 
 // NewBrandsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -206,6 +222,12 @@ func NewBrandsServiceHandler(svc BrandsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(brandsServiceMethods.ByName("ListBrandVersions")),
 		connect.WithHandlerOptions(opts...),
 	)
+	brandsServiceGetTokensHandler := connect.NewUnaryHandler(
+		BrandsServiceGetTokensProcedure,
+		svc.GetTokens,
+		connect.WithSchema(brandsServiceMethods.ByName("GetTokens")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.brand_manager.v1.brands.BrandsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BrandsServiceListBrandsProcedure:
@@ -220,6 +242,8 @@ func NewBrandsServiceHandler(svc BrandsServiceHandler, opts ...connect.HandlerOp
 			brandsServiceDeleteBrandHandler.ServeHTTP(w, r)
 		case BrandsServiceListBrandVersionsProcedure:
 			brandsServiceListBrandVersionsHandler.ServeHTTP(w, r)
+		case BrandsServiceGetTokensProcedure:
+			brandsServiceGetTokensHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -251,4 +275,8 @@ func (UnimplementedBrandsServiceHandler) DeleteBrand(context.Context, *connect.R
 
 func (UnimplementedBrandsServiceHandler) ListBrandVersions(context.Context, *connect.Request[brands.ListBrandVersionsRequest]) (*connect.Response[brands.ListBrandVersionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.brand_manager.v1.brands.BrandsService.ListBrandVersions is not implemented"))
+}
+
+func (UnimplementedBrandsServiceHandler) GetTokens(context.Context, *connect.Request[brands.GetTokensRequest]) (*connect.Response[brands.GetTokensResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.brand_manager.v1.brands.BrandsService.GetTokens is not implemented"))
 }

@@ -348,8 +348,10 @@ type AgentSession struct {
 	Attachments []*shared.AgentSessionAttachment `protobuf:"bytes,16,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	// Entity whose proposal review surface owns this session's proposals.
 	ProposalTarget *AgentSessionProposalTarget `protobuf:"bytes,17,opt,name=proposal_target,json=proposalTarget,proto3,oneof" json:"proposal_target,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Server-declared starter framing selected for this draft session.
+	StarterJobId  *string `protobuf:"bytes,18,opt,name=starter_job_id,json=starterJobId,proto3,oneof" json:"starter_job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AgentSession) Reset() {
@@ -501,6 +503,13 @@ func (x *AgentSession) GetProposalTarget() *AgentSessionProposalTarget {
 	return nil
 }
 
+func (x *AgentSession) GetStarterJobId() string {
+	if x != nil && x.StarterJobId != nil {
+		return *x.StarterJobId
+	}
+	return ""
+}
+
 var File_swarm_manager_v1_domain_agent_session_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
@@ -529,7 +538,7 @@ const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\x1aAgentSessionProposalTarget\x126\n" +
 	"\x04type\x18\x01 \x01(\tB\"\xbaH\x1fr\x1dR\fbacklog_itemR\x04goalR\acaptureR\x04type\x12\x19\n" +
 	"\x03ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03ref\x12\x1b\n" +
-	"\x04name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\xad\t\n" +
+	"\x04name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\xeb\t\n" +
 	"\fAgentSession\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12m\n" +
@@ -552,14 +561,16 @@ const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\n" +
 	"created_by\x18\x0f \x01(\v27.vrooli.swarm_manager.v1.shared.AgentSessionAttributionH\x04R\tcreatedBy\x88\x01\x01\x12X\n" +
 	"\vattachments\x18\x10 \x03(\v26.vrooli.swarm_manager.v1.shared.AgentSessionAttachmentR\vattachments\x12h\n" +
-	"\x0fproposal_target\x18\x11 \x01(\v2:.vrooli.swarm_manager.v1.domain.AgentSessionProposalTargetH\x05R\x0eproposalTarget\x88\x01\x01B\n" +
+	"\x0fproposal_target\x18\x11 \x01(\v2:.vrooli.swarm_manager.v1.domain.AgentSessionProposalTargetH\x05R\x0eproposalTarget\x88\x01\x01\x12)\n" +
+	"\x0estarter_job_id\x18\x12 \x01(\tH\x06R\fstarterJobId\x88\x01\x01B\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
 	"\a_run_idB\x0e\n" +
 	"\f_profile_keyB\x11\n" +
 	"\x0f_failure_reasonB\r\n" +
 	"\v_created_byB\x12\n" +
-	"\x10_proposal_targetBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x10_proposal_targetB\x11\n" +
+	"\x0f_starter_job_idBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_agent_session_proto_rawDescOnce sync.Once

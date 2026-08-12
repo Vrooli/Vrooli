@@ -16,6 +16,11 @@ class AuditAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AUDIT_ACTION_DISPATCH: _ClassVar[AuditAction]
     AUDIT_ACTION_PROVISION: _ClassVar[AuditAction]
     AUDIT_ACTION_BREAK_GLASS: _ClassVar[AuditAction]
+    AUDIT_ACTION_SESSION_OPEN: _ClassVar[AuditAction]
+    AUDIT_ACTION_SESSION_CLOSE: _ClassVar[AuditAction]
+    AUDIT_ACTION_SESSION_RESIZE: _ClassVar[AuditAction]
+    AUDIT_ACTION_SESSION_DATA_IN: _ClassVar[AuditAction]
+    AUDIT_ACTION_SESSION_DATA_OUT: _ClassVar[AuditAction]
 
 class AuditOutcome(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -28,6 +33,11 @@ AUDIT_ACTION_UNSPECIFIED: AuditAction
 AUDIT_ACTION_DISPATCH: AuditAction
 AUDIT_ACTION_PROVISION: AuditAction
 AUDIT_ACTION_BREAK_GLASS: AuditAction
+AUDIT_ACTION_SESSION_OPEN: AuditAction
+AUDIT_ACTION_SESSION_CLOSE: AuditAction
+AUDIT_ACTION_SESSION_RESIZE: AuditAction
+AUDIT_ACTION_SESSION_DATA_IN: AuditAction
+AUDIT_ACTION_SESSION_DATA_OUT: AuditAction
 AUDIT_OUTCOME_UNSPECIFIED: AuditOutcome
 AUDIT_OUTCOME_ACCEPTED: AuditOutcome
 AUDIT_OUTCOME_REJECTED: AuditOutcome

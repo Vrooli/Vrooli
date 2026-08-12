@@ -258,7 +258,13 @@ message DeleteBacklogItemResponse {
 // free-form JSON envelope.
 message ReviewFollowUp {
   string steering = 1 [(buf.validate.field).string.min_len = 1];
-  string disposition = 2 [(buf.validate.field).string = {in: ["follow_up_run", "replan", "new_items"]}];
+  string disposition = 2 [(buf.validate.field).string = {
+    in: [
+      "follow_up_run",
+      "replan",
+      "new_items"
+    ]
+  }];
   repeated ReviewFollowUpItem items = 3;
 }
 
@@ -275,7 +281,14 @@ message DecideAttemptRequest {
   string subject_kind = 1 [(buf.validate.field).string.min_len = 1];
   string subject_ref = 2 [(buf.validate.field).string.min_len = 1];
   uint32 round_num = 3 [(buf.validate.field).uint32.gt = 0];
-  string decision = 4 [(buf.validate.field).string = {in: ["accept", "fail", "followup", "drop"]}];
+  string decision = 4 [(buf.validate.field).string = {
+    in: [
+      "accept",
+      "fail",
+      "followup",
+      "drop"
+    ]
+  }];
   string actor = 5 [(buf.validate.field).string.min_len = 1];
   string rationale = 6;
   repeated string accepted_proposal_ids = 7;

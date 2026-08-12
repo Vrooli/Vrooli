@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from vrooli_bridge.v1.shared import shared_pb2 as vrooli__bridge_dot_v1_dot_shared_dot_shared__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(vrooli-bridge/v1/presence/presence.proto\x12 vrooli.vrooli_bridge.v1.presence\x1a$vrooli-bridge/v1/shared/shared.proto\"a\n\x16ReportHeartbeatRequest\x12G\n\theartbeat\x18\x01 \x01(\x0b\x32).vrooli.vrooli_bridge.v1.shared.HeartbeatR\theartbeat\"t\n\x17ReportHeartbeatResponse\x12Y\n\rcompatibility\x18\x01 \x01(\x0e\x32\x33.vrooli.vrooli_bridge.v1.shared.CompatibilityStatusR\rcompatibility2\x9a\x01\n\x0fPresenceService\x12\x86\x01\n\x0fReportHeartbeat\x12\x38.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest\x1a\x39.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(vrooli-bridge/v1/presence/presence.proto\x12 vrooli.vrooli_bridge.v1.presence\x1a$vrooli-bridge/v1/shared/shared.proto\"a\n\x16ReportHeartbeatRequest\x12G\n\theartbeat\x18\x01 \x01(\x0b\x32).vrooli.vrooli_bridge.v1.shared.HeartbeatR\theartbeat\"t\n\x17ReportHeartbeatResponse\x12Y\n\rcompatibility\x18\x01 \x01(\x0e\x32\x33.vrooli.vrooli_bridge.v1.shared.CompatibilityStatusR\rcompatibility\"Y\n\x18ReportDeliveryAckRequest\x12=\n\x03\x61\x63k\x18\x01 \x01(\x0b\x32+.vrooli.vrooli_bridge.v1.shared.DeliveryAckR\x03\x61\x63k\"7\n\x19ReportDeliveryAckResponse\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08R\x08\x61\x63\x63\x65pted\"_\n\x19ReportSessionFrameRequest\x12\x42\n\x05\x66rame\x18\x01 \x01(\x0b\x32,.vrooli.vrooli_bridge.v1.shared.SessionFrameR\x05\x66rame\"8\n\x1aReportSessionFrameResponse\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08R\x08\x61\x63\x63\x65pted2\xbb\x03\n\x0fPresenceService\x12\x86\x01\n\x0fReportHeartbeat\x12\x38.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest\x1a\x39.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse\x12\x8c\x01\n\x11ReportDeliveryAck\x12:.vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest\x1a;.vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse\x12\x8f\x01\n\x12ReportSessionFrame\x12;.vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest\x1a<.vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,6 +37,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_REPORTHEARTBEATREQUEST']._serialized_end=213
   _globals['_REPORTHEARTBEATRESPONSE']._serialized_start=215
   _globals['_REPORTHEARTBEATRESPONSE']._serialized_end=331
-  _globals['_PRESENCESERVICE']._serialized_start=334
-  _globals['_PRESENCESERVICE']._serialized_end=488
+  _globals['_REPORTDELIVERYACKREQUEST']._serialized_start=333
+  _globals['_REPORTDELIVERYACKREQUEST']._serialized_end=422
+  _globals['_REPORTDELIVERYACKRESPONSE']._serialized_start=424
+  _globals['_REPORTDELIVERYACKRESPONSE']._serialized_end=479
+  _globals['_REPORTSESSIONFRAMEREQUEST']._serialized_start=481
+  _globals['_REPORTSESSIONFRAMEREQUEST']._serialized_end=576
+  _globals['_REPORTSESSIONFRAMERESPONSE']._serialized_start=578
+  _globals['_REPORTSESSIONFRAMERESPONSE']._serialized_end=634
+  _globals['_PRESENCESERVICE']._serialized_start=637
+  _globals['_PRESENCESERVICE']._serialized_end=1080
 # @@protoc_insertion_point(module_scope)

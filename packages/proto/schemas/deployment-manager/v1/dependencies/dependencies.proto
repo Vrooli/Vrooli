@@ -1,5 +1,9 @@
 syntax = "proto3";
 package vrooli.deployment_manager.v1.dependencies;
+
 import "google/protobuf/struct.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/dependencies;dependenciesv1";
-service DependenciesService { rpc Analyze(google.protobuf.Value) returns (google.protobuf.Value); }
+service DependenciesService {
+  rpc Analyze(google.protobuf.Value) returns (google.protobuf.Value);
+}

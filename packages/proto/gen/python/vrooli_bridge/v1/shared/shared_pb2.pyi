@@ -1,6 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from vrooli_bridge.v1.session import session_pb2 as _session_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -86,3 +87,23 @@ class RunEvent(_message.Message):
     artifact_ref: str
     emitted_at: _timestamp_pb2.Timestamp
     def __init__(self, run_id: _Optional[str] = ..., kind: _Optional[_Union[RunEventKind, str]] = ..., sequence: _Optional[int] = ..., log_chunk: _Optional[str] = ..., status: _Optional[str] = ..., exit_code: _Optional[int] = ..., artifact_ref: _Optional[str] = ..., emitted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class DeliveryAck(_message.Message):
+    __slots__ = ("frame_id", "run_id", "op_id", "received_at")
+    FRAME_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    OP_ID_FIELD_NUMBER: _ClassVar[int]
+    RECEIVED_AT_FIELD_NUMBER: _ClassVar[int]
+    frame_id: str
+    run_id: str
+    op_id: str
+    received_at: _timestamp_pb2.Timestamp
+    def __init__(self, frame_id: _Optional[str] = ..., run_id: _Optional[str] = ..., op_id: _Optional[str] = ..., received_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class SessionFrame(_message.Message):
+    __slots__ = ("session_id", "frame")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    FRAME_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    frame: _session_pb2.Frame
+    def __init__(self, session_id: _Optional[str] = ..., frame: _Optional[_Union[_session_pb2.Frame, _Mapping]] = ...) -> None: ...

@@ -113,10 +113,13 @@ type DispatchJobResponse struct {
 	DryRun bool `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	// Echo of the validated job, so the caller can confirm exactly what was (or
 	// would be) dispatched.
-	NodeId        string   `protobuf:"bytes,3,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	Scenario      string   `protobuf:"bytes,4,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Verb          string   `protobuf:"bytes,5,opt,name=verb,proto3" json:"verb,omitempty"`
-	Args          []string `protobuf:"bytes,6,rep,name=args,proto3" json:"args,omitempty"`
+	NodeId   string   `protobuf:"bytes,3,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Scenario string   `protobuf:"bytes,4,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Verb     string   `protobuf:"bytes,5,opt,name=verb,proto3" json:"verb,omitempty"`
+	Args     []string `protobuf:"bytes,6,rep,name=args,proto3" json:"args,omitempty"`
+	// True when the server accepted the job into the node's durable queue but
+	// has not pushed it to the node yet.
+	Queued        bool `protobuf:"varint,7,opt,name=queued,proto3" json:"queued,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -193,6 +196,13 @@ func (x *DispatchJobResponse) GetArgs() []string {
 	return nil
 }
 
+func (x *DispatchJobResponse) GetQueued() bool {
+	if x != nil {
+		return x.Queued
+	}
+	return false
+}
+
 var File_vrooli_bridge_v1_dispatch_dispatch_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_dispatch_dispatch_proto_rawDesc = "" +
@@ -203,14 +213,15 @@ const file_vrooli_bridge_v1_dispatch_dispatch_proto_rawDesc = "" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04verb\x18\x03 \x01(\tR\x04verb\x12\x12\n" +
 	"\x04args\x18\x04 \x03(\tR\x04args\x12'\n" +
-	"\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\"\xa2\x01\n" +
+	"\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\"\xba\x01\n" +
 	"\x13DispatchJobResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12\x17\n" +
 	"\anode_id\x18\x03 \x01(\tR\x06nodeId\x12\x1a\n" +
 	"\bscenario\x18\x04 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04verb\x18\x05 \x01(\tR\x04verb\x12\x12\n" +
-	"\x04args\x18\x06 \x03(\tR\x04args2\x8d\x01\n" +
+	"\x04args\x18\x06 \x03(\tR\x04args\x12\x16\n" +
+	"\x06queued\x18\a \x01(\bR\x06queued2\x8d\x01\n" +
 	"\x0fDispatchService\x12z\n" +
 	"\vDispatchJob\x124.vrooli.vrooli_bridge.v1.dispatch.DispatchJobRequest\x1a5.vrooli.vrooli_bridge.v1.dispatch.DispatchJobResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch;dispatch_v1b\x06proto3"
 

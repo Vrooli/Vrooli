@@ -35,6 +35,9 @@ type Toolchain struct {
 type Options struct {
 	RepoRoot  string
 	ProtoRoot string
+	// OutputRoot points at a generated tree. It defaults to ProtoRoot/gen and
+	// lets the generator build manifests against an isolated staging tree.
+	OutputRoot string
 }
 
 var importRE = regexp.MustCompile(`(?m)^\s*import\s+(?:(?:public|weak)\s+)?"([^"]+)"\s*;`)
@@ -165,8 +168,7 @@ func ToolchainFingerprint(opts Options) (Toolchain, error) {
 }
 
 func OutputDigests(opts Options, scenario string) (map[string]string, error) {
-	protoRoot := cleanProtoRoot(opts)
-	files, err := OutputFiles(protoRoot, scenario)
+	files, err := OutputFilesAt(outputRoot(opts), scenario)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +190,8 @@ func OutputDigests(opts Options, scenario string) (map[string]string, error) {
 		go func() {
 			defer wg.Done()
 			for rel := range jobs {
-				digest, err := digestOne(filepath.Join(protoRoot, filepath.FromSlash(rel)))
+				generatedRel := strings.TrimPrefix(rel, "gen/")
+				digest, err := digestOne(filepath.Join(outputRoot(opts), filepath.FromSlash(generatedRel)))
 				results <- result{rel: rel, digest: digest, err: err}
 			}
 		}()
@@ -211,9 +214,16 @@ func OutputDigests(opts Options, scenario string) (map[string]string, error) {
 }
 
 func OutputFiles(protoRoot, scenario string) ([]string, error) {
+	return OutputFilesAt(filepath.Join(protoRoot, "gen"), scenario)
+}
+
+// OutputFilesAt lists generated files below outputRoot while retaining paths
+// relative to the proto root's generated tree (gen/...).
+func OutputFilesAt(outputRoot, scenario string) ([]string, error) {
 	var out []string
 	for _, dir := range scenarioOutputDirs(scenario) {
-		root := filepath.Join(protoRoot, filepath.FromSlash(dir))
+		rel := strings.TrimPrefix(dir, "gen/")
+		root := filepath.Join(outputRoot, filepath.FromSlash(rel))
 		if _, err := os.Stat(root); err != nil {
 			if os.IsNotExist(err) {
 				continue
@@ -227,11 +237,11 @@ func OutputFiles(protoRoot, scenario string) ([]string, error) {
 			if entry.IsDir() {
 				return nil
 			}
-			rel, err := filepath.Rel(protoRoot, path)
+			rel, err := filepath.Rel(outputRoot, path)
 			if err != nil {
 				return err
 			}
-			out = append(out, filepath.ToSlash(rel))
+			out = append(out, filepath.ToSlash(filepath.Join("gen", rel)))
 			return nil
 		})
 		if err != nil {
@@ -256,6 +266,11 @@ func WriteManifest(path string, manifest Manifest) error {
 
 func ManifestPath(protoRoot, scenario string) string {
 	return filepath.Join(protoRoot, "gen", "manifests", scenario+".lock.json")
+}
+
+// ManifestPathAt returns the lockfile path in an alternate generated tree.
+func ManifestPathAt(outputRoot, scenario string) string {
+	return filepath.Join(outputRoot, "manifests", scenario+".lock.json")
 }
 
 func LoadManifest(protoRoot, scenario string) (Manifest, error) {
@@ -361,6 +376,20 @@ func cleanProtoRoot(opts Options) string {
 		return opts.ProtoRoot
 	}
 	return filepath.Join(cleanRepoRoot(opts), "packages", "proto")
+}
+
+func outputRoot(opts Options) string {
+	if opts.OutputRoot != "" {
+		return filepath.Clean(opts.OutputRoot)
+	}
+	return filepath.Join(cleanProtoRoot(opts), "gen")
+}
+
+// ScenarioOutputDirs returns the four generated directories owned by a
+// scenario. The paths are rooted at gen/ and use slash separators for stable
+// manifest and logging output.
+func ScenarioOutputDirs(scenario string) []string {
+	return scenarioOutputDirs(scenario)
 }
 
 func cleanRepoRoot(opts Options) string {

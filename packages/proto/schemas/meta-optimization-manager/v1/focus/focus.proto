@@ -50,6 +50,7 @@ message Gap {
   string evidence_source = 12; // source scenario/domain that produced the evidence
   string evidence_locator = 13; // run/task locator a reader can follow
   string availability_reason = 14; // honest per-source degradation, when present
+  repeated string provider_ids = 15; // owning Search Hub leaves/groups used for ranking
 }
 
 // FocusItem is a ranked next-best gap.
@@ -68,6 +69,8 @@ message GetFocusRequest {
 
 message GetFocusResponse {
   repeated FocusItem items = 1;
+  bool degraded = 2; // true when live joins or ranking telemetry fell back
+  string degraded_reason = 3; // actionable reason for the fallback
 }
 
 message ListGapsRequest {

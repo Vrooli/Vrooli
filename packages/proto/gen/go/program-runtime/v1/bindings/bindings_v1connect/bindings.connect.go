@@ -23,6 +23,8 @@ const _ = connect.IsAtLeastVersion1_13_0
 const (
 	// BindingRegistryServiceName is the fully-qualified name of the BindingRegistryService service.
 	BindingRegistryServiceName = "vrooli.program_runtime.v1.bindings.BindingRegistryService"
+	// BindingConditionServiceName is the fully-qualified name of the BindingConditionService service.
+	BindingConditionServiceName = "vrooli.program_runtime.v1.bindings.BindingConditionService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -48,6 +50,12 @@ const (
 	// BindingRegistryServiceDescribeBindingProcedure is the fully-qualified name of the
 	// BindingRegistryService's DescribeBinding RPC.
 	BindingRegistryServiceDescribeBindingProcedure = "/vrooli.program_runtime.v1.bindings.BindingRegistryService/DescribeBinding"
+	// BindingRegistryServiceResolveIntentProcedure is the fully-qualified name of the
+	// BindingRegistryService's ResolveIntent RPC.
+	BindingRegistryServiceResolveIntentProcedure = "/vrooli.program_runtime.v1.bindings.BindingRegistryService/ResolveIntent"
+	// BindingConditionServiceGetBindingConditionProcedure is the fully-qualified name of the
+	// BindingConditionService's GetBindingCondition RPC.
+	BindingConditionServiceGetBindingConditionProcedure = "/vrooli.program_runtime.v1.bindings.BindingConditionService/GetBindingCondition"
 )
 
 // BindingRegistryServiceClient is a client for the
@@ -58,6 +66,7 @@ type BindingRegistryServiceClient interface {
 	ResolveActCells(context.Context, *connect.Request[bindings.ResolveActCellsRequest]) (*connect.Response[bindings.ResolveActCellsResponse], error)
 	DoctorBindings(context.Context, *connect.Request[bindings.DoctorBindingsRequest]) (*connect.Response[bindings.DoctorBindingsResponse], error)
 	DescribeBinding(context.Context, *connect.Request[bindings.DescribeBindingRequest]) (*connect.Response[bindings.DescribeBindingResponse], error)
+	ResolveIntent(context.Context, *connect.Request[bindings.ResolveIntentRequest]) (*connect.Response[bindings.ResolveIntentResponse], error)
 }
 
 // NewBindingRegistryServiceClient constructs a client for the
@@ -102,6 +111,12 @@ func NewBindingRegistryServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(bindingRegistryServiceMethods.ByName("DescribeBinding")),
 			connect.WithClientOptions(opts...),
 		),
+		resolveIntent: connect.NewClient[bindings.ResolveIntentRequest, bindings.ResolveIntentResponse](
+			httpClient,
+			baseURL+BindingRegistryServiceResolveIntentProcedure,
+			connect.WithSchema(bindingRegistryServiceMethods.ByName("ResolveIntent")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -112,6 +127,7 @@ type bindingRegistryServiceClient struct {
 	resolveActCells *connect.Client[bindings.ResolveActCellsRequest, bindings.ResolveActCellsResponse]
 	doctorBindings  *connect.Client[bindings.DoctorBindingsRequest, bindings.DoctorBindingsResponse]
 	describeBinding *connect.Client[bindings.DescribeBindingRequest, bindings.DescribeBindingResponse]
+	resolveIntent   *connect.Client[bindings.ResolveIntentRequest, bindings.ResolveIntentResponse]
 }
 
 // ListBindings calls vrooli.program_runtime.v1.bindings.BindingRegistryService.ListBindings.
@@ -139,6 +155,11 @@ func (c *bindingRegistryServiceClient) DescribeBinding(ctx context.Context, req 
 	return c.describeBinding.CallUnary(ctx, req)
 }
 
+// ResolveIntent calls vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveIntent.
+func (c *bindingRegistryServiceClient) ResolveIntent(ctx context.Context, req *connect.Request[bindings.ResolveIntentRequest]) (*connect.Response[bindings.ResolveIntentResponse], error) {
+	return c.resolveIntent.CallUnary(ctx, req)
+}
+
 // BindingRegistryServiceHandler is an implementation of the
 // vrooli.program_runtime.v1.bindings.BindingRegistryService service.
 type BindingRegistryServiceHandler interface {
@@ -147,6 +168,7 @@ type BindingRegistryServiceHandler interface {
 	ResolveActCells(context.Context, *connect.Request[bindings.ResolveActCellsRequest]) (*connect.Response[bindings.ResolveActCellsResponse], error)
 	DoctorBindings(context.Context, *connect.Request[bindings.DoctorBindingsRequest]) (*connect.Response[bindings.DoctorBindingsResponse], error)
 	DescribeBinding(context.Context, *connect.Request[bindings.DescribeBindingRequest]) (*connect.Response[bindings.DescribeBindingResponse], error)
+	ResolveIntent(context.Context, *connect.Request[bindings.ResolveIntentRequest]) (*connect.Response[bindings.ResolveIntentResponse], error)
 }
 
 // NewBindingRegistryServiceHandler builds an HTTP handler from the service implementation. It
@@ -186,6 +208,12 @@ func NewBindingRegistryServiceHandler(svc BindingRegistryServiceHandler, opts ..
 		connect.WithSchema(bindingRegistryServiceMethods.ByName("DescribeBinding")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bindingRegistryServiceResolveIntentHandler := connect.NewUnaryHandler(
+		BindingRegistryServiceResolveIntentProcedure,
+		svc.ResolveIntent,
+		connect.WithSchema(bindingRegistryServiceMethods.ByName("ResolveIntent")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.program_runtime.v1.bindings.BindingRegistryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BindingRegistryServiceListBindingsProcedure:
@@ -198,6 +226,8 @@ func NewBindingRegistryServiceHandler(svc BindingRegistryServiceHandler, opts ..
 			bindingRegistryServiceDoctorBindingsHandler.ServeHTTP(w, r)
 		case BindingRegistryServiceDescribeBindingProcedure:
 			bindingRegistryServiceDescribeBindingHandler.ServeHTTP(w, r)
+		case BindingRegistryServiceResolveIntentProcedure:
+			bindingRegistryServiceResolveIntentHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -225,4 +255,82 @@ func (UnimplementedBindingRegistryServiceHandler) DoctorBindings(context.Context
 
 func (UnimplementedBindingRegistryServiceHandler) DescribeBinding(context.Context, *connect.Request[bindings.DescribeBindingRequest]) (*connect.Response[bindings.DescribeBindingResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.bindings.BindingRegistryService.DescribeBinding is not implemented"))
+}
+
+func (UnimplementedBindingRegistryServiceHandler) ResolveIntent(context.Context, *connect.Request[bindings.ResolveIntentRequest]) (*connect.Response[bindings.ResolveIntentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveIntent is not implemented"))
+}
+
+// BindingConditionServiceClient is a client for the
+// vrooli.program_runtime.v1.bindings.BindingConditionService service.
+type BindingConditionServiceClient interface {
+	GetBindingCondition(context.Context, *connect.Request[bindings.GetBindingConditionRequest]) (*connect.Response[bindings.GetBindingConditionResponse], error)
+}
+
+// NewBindingConditionServiceClient constructs a client for the
+// vrooli.program_runtime.v1.bindings.BindingConditionService service. By default, it uses the
+// Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewBindingConditionServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) BindingConditionServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	bindingConditionServiceMethods := bindings.File_program_runtime_v1_bindings_bindings_proto.Services().ByName("BindingConditionService").Methods()
+	return &bindingConditionServiceClient{
+		getBindingCondition: connect.NewClient[bindings.GetBindingConditionRequest, bindings.GetBindingConditionResponse](
+			httpClient,
+			baseURL+BindingConditionServiceGetBindingConditionProcedure,
+			connect.WithSchema(bindingConditionServiceMethods.ByName("GetBindingCondition")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// bindingConditionServiceClient implements BindingConditionServiceClient.
+type bindingConditionServiceClient struct {
+	getBindingCondition *connect.Client[bindings.GetBindingConditionRequest, bindings.GetBindingConditionResponse]
+}
+
+// GetBindingCondition calls
+// vrooli.program_runtime.v1.bindings.BindingConditionService.GetBindingCondition.
+func (c *bindingConditionServiceClient) GetBindingCondition(ctx context.Context, req *connect.Request[bindings.GetBindingConditionRequest]) (*connect.Response[bindings.GetBindingConditionResponse], error) {
+	return c.getBindingCondition.CallUnary(ctx, req)
+}
+
+// BindingConditionServiceHandler is an implementation of the
+// vrooli.program_runtime.v1.bindings.BindingConditionService service.
+type BindingConditionServiceHandler interface {
+	GetBindingCondition(context.Context, *connect.Request[bindings.GetBindingConditionRequest]) (*connect.Response[bindings.GetBindingConditionResponse], error)
+}
+
+// NewBindingConditionServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewBindingConditionServiceHandler(svc BindingConditionServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	bindingConditionServiceMethods := bindings.File_program_runtime_v1_bindings_bindings_proto.Services().ByName("BindingConditionService").Methods()
+	bindingConditionServiceGetBindingConditionHandler := connect.NewUnaryHandler(
+		BindingConditionServiceGetBindingConditionProcedure,
+		svc.GetBindingCondition,
+		connect.WithSchema(bindingConditionServiceMethods.ByName("GetBindingCondition")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/vrooli.program_runtime.v1.bindings.BindingConditionService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case BindingConditionServiceGetBindingConditionProcedure:
+			bindingConditionServiceGetBindingConditionHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedBindingConditionServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedBindingConditionServiceHandler struct{}
+
+func (UnimplementedBindingConditionServiceHandler) GetBindingCondition(context.Context, *connect.Request[bindings.GetBindingConditionRequest]) (*connect.Response[bindings.GetBindingConditionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.bindings.BindingConditionService.GetBindingCondition is not implemented"))
 }

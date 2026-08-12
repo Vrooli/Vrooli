@@ -95,9 +95,23 @@ message ClaimProposal {
   string created_at = 5;
   string decided_at = 6;
 }
-message ExtractClaimProposalsRequest { string draft_id = 1; string body = 2; }
-message ExtractClaimProposalsResponse { repeated ClaimProposal proposals = 1; }
-message ListClaimProposalsRequest { string draft_id = 1; }
-message ListClaimProposalsResponse { repeated ClaimProposal proposals = 1; }
-message DecideClaimProposalRequest { string id = 1; string status = 2; }
-message DecideClaimProposalResponse { ClaimProposal proposal = 1; }
+message ExtractClaimProposalsRequest {
+  string draft_id = 1;
+  string body = 2;
+}
+message ExtractClaimProposalsResponse {
+  repeated ClaimProposal proposals = 1;
+}
+message ListClaimProposalsRequest {
+  string draft_id = 1;
+}
+message ListClaimProposalsResponse {
+  repeated ClaimProposal proposals = 1;
+}
+message DecideClaimProposalRequest {
+  string id = 1;
+  string status = 2;
+}
+message DecideClaimProposalResponse {
+  ClaimProposal proposal = 1;
+}

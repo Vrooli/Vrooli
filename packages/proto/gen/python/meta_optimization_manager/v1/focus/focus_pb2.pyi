@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Gap(_message.Message):
-    __slots__ = ("id", "projection", "title", "status", "source_cell_id", "notes", "approaches", "follow_ups", "axis", "recurrence", "evidence_source", "evidence_locator", "availability_reason")
+    __slots__ = ("id", "projection", "title", "status", "source_cell_id", "notes", "approaches", "follow_ups", "axis", "recurrence", "evidence_source", "evidence_locator", "availability_reason", "provider_ids")
     ID_FIELD_NUMBER: _ClassVar[int]
     PROJECTION_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -23,6 +23,7 @@ class Gap(_message.Message):
     EVIDENCE_SOURCE_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_LOCATOR_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_REASON_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_IDS_FIELD_NUMBER: _ClassVar[int]
     id: str
     projection: _model_pb2.Projection
     title: str
@@ -36,7 +37,8 @@ class Gap(_message.Message):
     evidence_source: str
     evidence_locator: str
     availability_reason: str
-    def __init__(self, id: _Optional[str] = ..., projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., title: _Optional[str] = ..., status: _Optional[_Union[_model_pb2.CellStatus, str]] = ..., source_cell_id: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., approaches: _Optional[_Iterable[str]] = ..., follow_ups: _Optional[_Iterable[str]] = ..., axis: _Optional[_Union[_model_pb2.GapAxis, str]] = ..., recurrence: _Optional[int] = ..., evidence_source: _Optional[str] = ..., evidence_locator: _Optional[str] = ..., availability_reason: _Optional[str] = ..., **kwargs) -> None: ...
+    provider_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., title: _Optional[str] = ..., status: _Optional[_Union[_model_pb2.CellStatus, str]] = ..., source_cell_id: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., approaches: _Optional[_Iterable[str]] = ..., follow_ups: _Optional[_Iterable[str]] = ..., axis: _Optional[_Union[_model_pb2.GapAxis, str]] = ..., recurrence: _Optional[int] = ..., evidence_source: _Optional[str] = ..., evidence_locator: _Optional[str] = ..., availability_reason: _Optional[str] = ..., provider_ids: _Optional[_Iterable[str]] = ..., **kwargs) -> None: ...
 
 class FocusItem(_message.Message):
     __slots__ = ("gap", "impact", "importance", "priority_score", "rationale")
@@ -61,10 +63,14 @@ class GetFocusRequest(_message.Message):
     def __init__(self, limit: _Optional[int] = ..., projection: _Optional[_Union[_model_pb2.Projection, str]] = ...) -> None: ...
 
 class GetFocusResponse(_message.Message):
-    __slots__ = ("items",)
+    __slots__ = ("items", "degraded", "degraded_reason")
     ITEMS_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_REASON_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[FocusItem]
-    def __init__(self, items: _Optional[_Iterable[_Union[FocusItem, _Mapping]]] = ...) -> None: ...
+    degraded: bool
+    degraded_reason: str
+    def __init__(self, items: _Optional[_Iterable[_Union[FocusItem, _Mapping]]] = ..., degraded: _Optional[bool] = ..., degraded_reason: _Optional[str] = ...) -> None: ...
 
 class ListGapsRequest(_message.Message):
     __slots__ = ("projection", "cell_id", "status")

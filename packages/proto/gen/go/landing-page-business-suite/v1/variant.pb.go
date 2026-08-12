@@ -1554,7 +1554,7 @@ var File_landing_page_business_suite_v1_variant_proto protoreflect.FileDescripto
 
 const file_landing_page_business_suite_v1_variant_proto_rawDesc = "" +
 	"\n" +
-	",landing-page-business-suite/v1/variant.proto\x12\x1elanding_page_business_suite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a3landing-page-business-suite/v1/shared/content.proto\x1a8landing-page-business-suite/v1/shared/presentation.proto\"\xa1\x05\n" +
+	",landing-page-business-suite/v1/variant.proto\x12\x1elanding_page_business_suite.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a3landing-page-business-suite/v1/shared/content.proto\x1a8landing-page-business-suite/v1/shared/presentation.proto\"\xa1\x05\n" +
 	"\aVariant\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x12\n" +

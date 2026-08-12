@@ -202,6 +202,24 @@ type OpParams struct {
 	//	*OpParams_Compress
 	//	*OpParams_Overlay
 	//	*OpParams_Metadata
+	//	*OpParams_Duotone
+	//	*OpParams_Posterize
+	//	*OpParams_Halftone
+	//	*OpParams_DitherOrdered
+	//	*OpParams_DitherDiffusion
+	//	*OpParams_Grain
+	//	*OpParams_Scrim
+	//	*OpParams_LineScreen
+	//	*OpParams_Stipple
+	//	*OpParams_Engraving
+	//	*OpParams_Aberration
+	//	*OpParams_Bloom
+	//	*OpParams_Curve
+	//	*OpParams_Defocus
+	//	*OpParams_MotionBlur
+	//	*OpParams_AsciiMosaic
+	//	*OpParams_PixelSort
+	//	*OpParams_Displacement
 	Op            isOpParams_Op `protobuf_oneof:"op"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -361,6 +379,168 @@ func (x *OpParams) GetMetadata() *MetadataParams {
 	return nil
 }
 
+func (x *OpParams) GetDuotone() *DuotoneParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Duotone); ok {
+			return x.Duotone
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetPosterize() *PosterizeParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Posterize); ok {
+			return x.Posterize
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetHalftone() *HalftoneParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Halftone); ok {
+			return x.Halftone
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetDitherOrdered() *DitherParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_DitherOrdered); ok {
+			return x.DitherOrdered
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetDitherDiffusion() *DitherParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_DitherDiffusion); ok {
+			return x.DitherDiffusion
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetGrain() *GrainParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Grain); ok {
+			return x.Grain
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetScrim() *ScrimParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Scrim); ok {
+			return x.Scrim
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetLineScreen() *LineScreenParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_LineScreen); ok {
+			return x.LineScreen
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetStipple() *StippleParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Stipple); ok {
+			return x.Stipple
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetEngraving() *EngravingParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Engraving); ok {
+			return x.Engraving
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetAberration() *AberrationParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Aberration); ok {
+			return x.Aberration
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetBloom() *BloomParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Bloom); ok {
+			return x.Bloom
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetCurve() *CurveParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Curve); ok {
+			return x.Curve
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetDefocus() *DefocusParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Defocus); ok {
+			return x.Defocus
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetMotionBlur() *MotionBlurParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_MotionBlur); ok {
+			return x.MotionBlur
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetAsciiMosaic() *AsciiMosaicParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_AsciiMosaic); ok {
+			return x.AsciiMosaic
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetPixelSort() *PixelSortParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_PixelSort); ok {
+			return x.PixelSort
+		}
+	}
+	return nil
+}
+
+func (x *OpParams) GetDisplacement() *DisplacementParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Displacement); ok {
+			return x.Displacement
+		}
+	}
+	return nil
+}
+
 type isOpParams_Op interface {
 	isOpParams_Op()
 }
@@ -417,6 +597,78 @@ type OpParams_Metadata struct {
 	Metadata *MetadataParams `protobuf:"bytes,13,opt,name=metadata,proto3,oneof"`
 }
 
+type OpParams_Duotone struct {
+	Duotone *DuotoneParams `protobuf:"bytes,14,opt,name=duotone,proto3,oneof"`
+}
+
+type OpParams_Posterize struct {
+	Posterize *PosterizeParams `protobuf:"bytes,15,opt,name=posterize,proto3,oneof"`
+}
+
+type OpParams_Halftone struct {
+	Halftone *HalftoneParams `protobuf:"bytes,16,opt,name=halftone,proto3,oneof"`
+}
+
+type OpParams_DitherOrdered struct {
+	DitherOrdered *DitherParams `protobuf:"bytes,17,opt,name=dither_ordered,json=ditherOrdered,proto3,oneof"`
+}
+
+type OpParams_DitherDiffusion struct {
+	DitherDiffusion *DitherParams `protobuf:"bytes,18,opt,name=dither_diffusion,json=ditherDiffusion,proto3,oneof"`
+}
+
+type OpParams_Grain struct {
+	Grain *GrainParams `protobuf:"bytes,19,opt,name=grain,proto3,oneof"`
+}
+
+type OpParams_Scrim struct {
+	Scrim *ScrimParams `protobuf:"bytes,20,opt,name=scrim,proto3,oneof"`
+}
+
+type OpParams_LineScreen struct {
+	LineScreen *LineScreenParams `protobuf:"bytes,21,opt,name=line_screen,json=lineScreen,proto3,oneof"`
+}
+
+type OpParams_Stipple struct {
+	Stipple *StippleParams `protobuf:"bytes,22,opt,name=stipple,proto3,oneof"`
+}
+
+type OpParams_Engraving struct {
+	Engraving *EngravingParams `protobuf:"bytes,23,opt,name=engraving,proto3,oneof"`
+}
+
+type OpParams_Aberration struct {
+	Aberration *AberrationParams `protobuf:"bytes,24,opt,name=aberration,proto3,oneof"`
+}
+
+type OpParams_Bloom struct {
+	Bloom *BloomParams `protobuf:"bytes,25,opt,name=bloom,proto3,oneof"`
+}
+
+type OpParams_Curve struct {
+	Curve *CurveParams `protobuf:"bytes,26,opt,name=curve,proto3,oneof"`
+}
+
+type OpParams_Defocus struct {
+	Defocus *DefocusParams `protobuf:"bytes,27,opt,name=defocus,proto3,oneof"`
+}
+
+type OpParams_MotionBlur struct {
+	MotionBlur *MotionBlurParams `protobuf:"bytes,28,opt,name=motion_blur,json=motionBlur,proto3,oneof"`
+}
+
+type OpParams_AsciiMosaic struct {
+	AsciiMosaic *AsciiMosaicParams `protobuf:"bytes,29,opt,name=ascii_mosaic,json=asciiMosaic,proto3,oneof"`
+}
+
+type OpParams_PixelSort struct {
+	PixelSort *PixelSortParams `protobuf:"bytes,30,opt,name=pixel_sort,json=pixelSort,proto3,oneof"`
+}
+
+type OpParams_Displacement struct {
+	Displacement *DisplacementParams `protobuf:"bytes,31,opt,name=displacement,proto3,oneof"`
+}
+
 func (*OpParams_Resize) isOpParams_Op() {}
 
 func (*OpParams_Crop) isOpParams_Op() {}
@@ -442,6 +694,42 @@ func (*OpParams_Compress) isOpParams_Op() {}
 func (*OpParams_Overlay) isOpParams_Op() {}
 
 func (*OpParams_Metadata) isOpParams_Op() {}
+
+func (*OpParams_Duotone) isOpParams_Op() {}
+
+func (*OpParams_Posterize) isOpParams_Op() {}
+
+func (*OpParams_Halftone) isOpParams_Op() {}
+
+func (*OpParams_DitherOrdered) isOpParams_Op() {}
+
+func (*OpParams_DitherDiffusion) isOpParams_Op() {}
+
+func (*OpParams_Grain) isOpParams_Op() {}
+
+func (*OpParams_Scrim) isOpParams_Op() {}
+
+func (*OpParams_LineScreen) isOpParams_Op() {}
+
+func (*OpParams_Stipple) isOpParams_Op() {}
+
+func (*OpParams_Engraving) isOpParams_Op() {}
+
+func (*OpParams_Aberration) isOpParams_Op() {}
+
+func (*OpParams_Bloom) isOpParams_Op() {}
+
+func (*OpParams_Curve) isOpParams_Op() {}
+
+func (*OpParams_Defocus) isOpParams_Op() {}
+
+func (*OpParams_MotionBlur) isOpParams_Op() {}
+
+func (*OpParams_AsciiMosaic) isOpParams_Op() {}
+
+func (*OpParams_PixelSort) isOpParams_Op() {}
+
+func (*OpParams_Displacement) isOpParams_Op() {}
 
 // ResizeParams: width/height in px (0 = derive from aspect). fit is
 // "fit" (contain), "fill" (cover+crop), or "stretch" (exact). gravity anchors a
@@ -1270,6 +1558,930 @@ func (x *MetadataParams) GetAutoOrient() bool {
 	return false
 }
 
+type DuotoneParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Dark          string                 `protobuf:"bytes,1,opt,name=dark,proto3" json:"dark,omitempty"`
+	Light         string                 `protobuf:"bytes,2,opt,name=light,proto3" json:"light,omitempty"`
+	Mid           string                 `protobuf:"bytes,3,opt,name=mid,proto3" json:"mid,omitempty"`
+	MidLow        float64                `protobuf:"fixed64,4,opt,name=mid_low,json=midLow,proto3" json:"mid_low,omitempty"`
+	MidHigh       float64                `protobuf:"fixed64,5,opt,name=mid_high,json=midHigh,proto3" json:"mid_high,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DuotoneParams) Reset() {
+	*x = DuotoneParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DuotoneParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DuotoneParams) ProtoMessage() {}
+
+func (x *DuotoneParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DuotoneParams.ProtoReflect.Descriptor instead.
+func (*DuotoneParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *DuotoneParams) GetDark() string {
+	if x != nil {
+		return x.Dark
+	}
+	return ""
+}
+
+func (x *DuotoneParams) GetLight() string {
+	if x != nil {
+		return x.Light
+	}
+	return ""
+}
+
+func (x *DuotoneParams) GetMid() string {
+	if x != nil {
+		return x.Mid
+	}
+	return ""
+}
+
+func (x *DuotoneParams) GetMidLow() float64 {
+	if x != nil {
+		return x.MidLow
+	}
+	return 0
+}
+
+func (x *DuotoneParams) GetMidHigh() float64 {
+	if x != nil {
+		return x.MidHigh
+	}
+	return 0
+}
+
+type PosterizeParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Levels        int32                  `protobuf:"varint,1,opt,name=levels,proto3" json:"levels,omitempty"`
+	Dark          string                 `protobuf:"bytes,2,opt,name=dark,proto3" json:"dark,omitempty"`
+	Light         string                 `protobuf:"bytes,3,opt,name=light,proto3" json:"light,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PosterizeParams) Reset() {
+	*x = PosterizeParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PosterizeParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PosterizeParams) ProtoMessage() {}
+
+func (x *PosterizeParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PosterizeParams.ProtoReflect.Descriptor instead.
+func (*PosterizeParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *PosterizeParams) GetLevels() int32 {
+	if x != nil {
+		return x.Levels
+	}
+	return 0
+}
+
+func (x *PosterizeParams) GetDark() string {
+	if x != nil {
+		return x.Dark
+	}
+	return ""
+}
+
+func (x *PosterizeParams) GetLight() string {
+	if x != nil {
+		return x.Light
+	}
+	return ""
+}
+
+type HalftoneParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Lpi           int32                  `protobuf:"varint,1,opt,name=lpi,proto3" json:"lpi,omitempty"`
+	Angle         float64                `protobuf:"fixed64,2,opt,name=angle,proto3" json:"angle,omitempty"`
+	Dot           string                 `protobuf:"bytes,3,opt,name=dot,proto3" json:"dot,omitempty"`
+	Dark          string                 `protobuf:"bytes,4,opt,name=dark,proto3" json:"dark,omitempty"`
+	Light         string                 `protobuf:"bytes,5,opt,name=light,proto3" json:"light,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HalftoneParams) Reset() {
+	*x = HalftoneParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HalftoneParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HalftoneParams) ProtoMessage() {}
+
+func (x *HalftoneParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HalftoneParams.ProtoReflect.Descriptor instead.
+func (*HalftoneParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *HalftoneParams) GetLpi() int32 {
+	if x != nil {
+		return x.Lpi
+	}
+	return 0
+}
+
+func (x *HalftoneParams) GetAngle() float64 {
+	if x != nil {
+		return x.Angle
+	}
+	return 0
+}
+
+func (x *HalftoneParams) GetDot() string {
+	if x != nil {
+		return x.Dot
+	}
+	return ""
+}
+
+func (x *HalftoneParams) GetDark() string {
+	if x != nil {
+		return x.Dark
+	}
+	return ""
+}
+
+func (x *HalftoneParams) GetLight() string {
+	if x != nil {
+		return x.Light
+	}
+	return ""
+}
+
+type DitherParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Dark          string                 `protobuf:"bytes,1,opt,name=dark,proto3" json:"dark,omitempty"`
+	Light         string                 `protobuf:"bytes,2,opt,name=light,proto3" json:"light,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DitherParams) Reset() {
+	*x = DitherParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DitherParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DitherParams) ProtoMessage() {}
+
+func (x *DitherParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DitherParams.ProtoReflect.Descriptor instead.
+func (*DitherParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *DitherParams) GetDark() string {
+	if x != nil {
+		return x.Dark
+	}
+	return ""
+}
+
+func (x *DitherParams) GetLight() string {
+	if x != nil {
+		return x.Light
+	}
+	return ""
+}
+
+type GrainParams struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Seed               int64                  `protobuf:"varint,1,opt,name=seed,proto3" json:"seed,omitempty"`
+	Amount             float64                `protobuf:"fixed64,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	ContrastMultiplier float64                `protobuf:"fixed64,3,opt,name=contrast_multiplier,json=contrastMultiplier,proto3" json:"contrast_multiplier,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *GrainParams) Reset() {
+	*x = GrainParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GrainParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GrainParams) ProtoMessage() {}
+
+func (x *GrainParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GrainParams.ProtoReflect.Descriptor instead.
+func (*GrainParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GrainParams) GetSeed() int64 {
+	if x != nil {
+		return x.Seed
+	}
+	return 0
+}
+
+func (x *GrainParams) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *GrainParams) GetContrastMultiplier() float64 {
+	if x != nil {
+		return x.ContrastMultiplier
+	}
+	return 0
+}
+
+type ScrimParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Color         string                 `protobuf:"bytes,1,opt,name=color,proto3" json:"color,omitempty"`
+	Opacity       float64                `protobuf:"fixed64,2,opt,name=opacity,proto3" json:"opacity,omitempty"`
+	Direction     string                 `protobuf:"bytes,3,opt,name=direction,proto3" json:"direction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScrimParams) Reset() {
+	*x = ScrimParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScrimParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScrimParams) ProtoMessage() {}
+
+func (x *ScrimParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScrimParams.ProtoReflect.Descriptor instead.
+func (*ScrimParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ScrimParams) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *ScrimParams) GetOpacity() float64 {
+	if x != nil {
+		return x.Opacity
+	}
+	return 0
+}
+
+func (x *ScrimParams) GetDirection() string {
+	if x != nil {
+		return x.Direction
+	}
+	return ""
+}
+
+type LineScreenParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Spacing       float64                `protobuf:"fixed64,1,opt,name=spacing,proto3" json:"spacing,omitempty"`
+	Angle         float64                `protobuf:"fixed64,2,opt,name=angle,proto3" json:"angle,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LineScreenParams) Reset() {
+	*x = LineScreenParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LineScreenParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LineScreenParams) ProtoMessage() {}
+
+func (x *LineScreenParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LineScreenParams.ProtoReflect.Descriptor instead.
+func (*LineScreenParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *LineScreenParams) GetSpacing() float64 {
+	if x != nil {
+		return x.Spacing
+	}
+	return 0
+}
+
+func (x *LineScreenParams) GetAngle() float64 {
+	if x != nil {
+		return x.Angle
+	}
+	return 0
+}
+
+type StippleParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Spacing       float64                `protobuf:"fixed64,1,opt,name=spacing,proto3" json:"spacing,omitempty"`
+	Seed          int64                  `protobuf:"varint,2,opt,name=seed,proto3" json:"seed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StippleParams) Reset() {
+	*x = StippleParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StippleParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StippleParams) ProtoMessage() {}
+
+func (x *StippleParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StippleParams.ProtoReflect.Descriptor instead.
+func (*StippleParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *StippleParams) GetSpacing() float64 {
+	if x != nil {
+		return x.Spacing
+	}
+	return 0
+}
+
+func (x *StippleParams) GetSeed() int64 {
+	if x != nil {
+		return x.Seed
+	}
+	return 0
+}
+
+type EngravingParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Spacing       float64                `protobuf:"fixed64,1,opt,name=spacing,proto3" json:"spacing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EngravingParams) Reset() {
+	*x = EngravingParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EngravingParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EngravingParams) ProtoMessage() {}
+
+func (x *EngravingParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EngravingParams.ProtoReflect.Descriptor instead.
+func (*EngravingParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *EngravingParams) GetSpacing() float64 {
+	if x != nil {
+		return x.Spacing
+	}
+	return 0
+}
+
+type AberrationParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Amplitude     float64                `protobuf:"fixed64,1,opt,name=amplitude,proto3" json:"amplitude,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AberrationParams) Reset() {
+	*x = AberrationParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AberrationParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AberrationParams) ProtoMessage() {}
+
+func (x *AberrationParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AberrationParams.ProtoReflect.Descriptor instead.
+func (*AberrationParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *AberrationParams) GetAmplitude() float64 {
+	if x != nil {
+		return x.Amplitude
+	}
+	return 0
+}
+
+type BloomParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Radius        int32                  `protobuf:"varint,1,opt,name=radius,proto3" json:"radius,omitempty"`
+	Threshold     float64                `protobuf:"fixed64,2,opt,name=threshold,proto3" json:"threshold,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BloomParams) Reset() {
+	*x = BloomParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BloomParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BloomParams) ProtoMessage() {}
+
+func (x *BloomParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BloomParams.ProtoReflect.Descriptor instead.
+func (*BloomParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *BloomParams) GetRadius() int32 {
+	if x != nil {
+		return x.Radius
+	}
+	return 0
+}
+
+func (x *BloomParams) GetThreshold() float64 {
+	if x != nil {
+		return x.Threshold
+	}
+	return 0
+}
+
+type CurveParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Exponent      float64                `protobuf:"fixed64,1,opt,name=exponent,proto3" json:"exponent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CurveParams) Reset() {
+	*x = CurveParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CurveParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CurveParams) ProtoMessage() {}
+
+func (x *CurveParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CurveParams.ProtoReflect.Descriptor instead.
+func (*CurveParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *CurveParams) GetExponent() float64 {
+	if x != nil {
+		return x.Exponent
+	}
+	return 0
+}
+
+type DefocusParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Radius        int32                  `protobuf:"varint,1,opt,name=radius,proto3" json:"radius,omitempty"`
+	BladeCount    int32                  `protobuf:"varint,2,opt,name=blade_count,json=bladeCount,proto3" json:"blade_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DefocusParams) Reset() {
+	*x = DefocusParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DefocusParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DefocusParams) ProtoMessage() {}
+
+func (x *DefocusParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DefocusParams.ProtoReflect.Descriptor instead.
+func (*DefocusParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *DefocusParams) GetRadius() int32 {
+	if x != nil {
+		return x.Radius
+	}
+	return 0
+}
+
+func (x *DefocusParams) GetBladeCount() int32 {
+	if x != nil {
+		return x.BladeCount
+	}
+	return 0
+}
+
+type MotionBlurParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Distance      int32                  `protobuf:"varint,1,opt,name=distance,proto3" json:"distance,omitempty"`
+	Angle         float64                `protobuf:"fixed64,2,opt,name=angle,proto3" json:"angle,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MotionBlurParams) Reset() {
+	*x = MotionBlurParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MotionBlurParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MotionBlurParams) ProtoMessage() {}
+
+func (x *MotionBlurParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MotionBlurParams.ProtoReflect.Descriptor instead.
+func (*MotionBlurParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *MotionBlurParams) GetDistance() int32 {
+	if x != nil {
+		return x.Distance
+	}
+	return 0
+}
+
+func (x *MotionBlurParams) GetAngle() float64 {
+	if x != nil {
+		return x.Angle
+	}
+	return 0
+}
+
+type AsciiMosaicParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BlockSize     int32                  `protobuf:"varint,1,opt,name=block_size,json=blockSize,proto3" json:"block_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AsciiMosaicParams) Reset() {
+	*x = AsciiMosaicParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AsciiMosaicParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AsciiMosaicParams) ProtoMessage() {}
+
+func (x *AsciiMosaicParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AsciiMosaicParams.ProtoReflect.Descriptor instead.
+func (*AsciiMosaicParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *AsciiMosaicParams) GetBlockSize() int32 {
+	if x != nil {
+		return x.BlockSize
+	}
+	return 0
+}
+
+type PixelSortParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Threshold     float64                `protobuf:"fixed64,1,opt,name=threshold,proto3" json:"threshold,omitempty"`
+	Axis          string                 `protobuf:"bytes,2,opt,name=axis,proto3" json:"axis,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PixelSortParams) Reset() {
+	*x = PixelSortParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PixelSortParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PixelSortParams) ProtoMessage() {}
+
+func (x *PixelSortParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PixelSortParams.ProtoReflect.Descriptor instead.
+func (*PixelSortParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *PixelSortParams) GetThreshold() float64 {
+	if x != nil {
+		return x.Threshold
+	}
+	return 0
+}
+
+func (x *PixelSortParams) GetAxis() string {
+	if x != nil {
+		return x.Axis
+	}
+	return ""
+}
+
+type DisplacementParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Amplitude     float64                `protobuf:"fixed64,1,opt,name=amplitude,proto3" json:"amplitude,omitempty"`
+	Seed          int64                  `protobuf:"varint,2,opt,name=seed,proto3" json:"seed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DisplacementParams) Reset() {
+	*x = DisplacementParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DisplacementParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DisplacementParams) ProtoMessage() {}
+
+func (x *DisplacementParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DisplacementParams.ProtoReflect.Descriptor instead.
+func (*DisplacementParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *DisplacementParams) GetAmplitude() float64 {
+	if x != nil {
+		return x.Amplitude
+	}
+	return 0
+}
+
+func (x *DisplacementParams) GetSeed() int64 {
+	if x != nil {
+		return x.Seed
+	}
+	return 0
+}
+
 // OpResult is the proto-typed result metadata of a run. ref is the managed blob
 // key (or the caller-supplied local path) holding the output bytes.
 type OpResult struct {
@@ -1286,7 +2498,7 @@ type OpResult struct {
 
 func (x *OpResult) Reset() {
 	*x = OpResult{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[17]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1298,7 +2510,7 @@ func (x *OpResult) String() string {
 func (*OpResult) ProtoMessage() {}
 
 func (x *OpResult) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[17]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1311,7 +2523,7 @@ func (x *OpResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpResult.ProtoReflect.Descriptor instead.
 func (*OpResult) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{17}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *OpResult) GetRef() string {
@@ -1372,7 +2584,7 @@ type RunOpResponse struct {
 
 func (x *RunOpResponse) Reset() {
 	*x = RunOpResponse{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[18]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1384,7 +2596,7 @@ func (x *RunOpResponse) String() string {
 func (*RunOpResponse) ProtoMessage() {}
 
 func (x *RunOpResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[18]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1397,7 +2609,7 @@ func (x *RunOpResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunOpResponse.ProtoReflect.Descriptor instead.
 func (*RunOpResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{18}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *RunOpResponse) GetJobId() string {
@@ -1429,7 +2641,7 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"operations\x18\x01 \x03(\v2(.vrooli.image_tools.v1.ops.OperationInfoR\n" +
 	"operations\x12+\n" +
 	"\x11decodable_formats\x18\x02 \x03(\tR\x10decodableFormats\x12+\n" +
-	"\x11encodable_formats\x18\x03 \x03(\tR\x10encodableFormats\"\x86\a\n" +
+	"\x11encodable_formats\x18\x03 \x03(\tR\x10encodableFormats\"\xc5\x11\n" +
 	"\bOpParams\x12A\n" +
 	"\x06resize\x18\x01 \x01(\v2'.vrooli.image_tools.v1.ops.ResizeParamsH\x00R\x06resize\x12;\n" +
 	"\x04crop\x18\x02 \x01(\v2%.vrooli.image_tools.v1.ops.CropParamsH\x00R\x04crop\x12A\n" +
@@ -1444,7 +2656,30 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	" \x01(\v2(.vrooli.image_tools.v1.ops.ConvertParamsH\x00R\aconvert\x12G\n" +
 	"\bcompress\x18\v \x01(\v2).vrooli.image_tools.v1.ops.CompressParamsH\x00R\bcompress\x12D\n" +
 	"\aoverlay\x18\f \x01(\v2(.vrooli.image_tools.v1.ops.OverlayParamsH\x00R\aoverlay\x12G\n" +
-	"\bmetadata\x18\r \x01(\v2).vrooli.image_tools.v1.ops.MetadataParamsH\x00R\bmetadataB\x04\n" +
+	"\bmetadata\x18\r \x01(\v2).vrooli.image_tools.v1.ops.MetadataParamsH\x00R\bmetadata\x12D\n" +
+	"\aduotone\x18\x0e \x01(\v2(.vrooli.image_tools.v1.ops.DuotoneParamsH\x00R\aduotone\x12J\n" +
+	"\tposterize\x18\x0f \x01(\v2*.vrooli.image_tools.v1.ops.PosterizeParamsH\x00R\tposterize\x12G\n" +
+	"\bhalftone\x18\x10 \x01(\v2).vrooli.image_tools.v1.ops.HalftoneParamsH\x00R\bhalftone\x12P\n" +
+	"\x0edither_ordered\x18\x11 \x01(\v2'.vrooli.image_tools.v1.ops.DitherParamsH\x00R\rditherOrdered\x12T\n" +
+	"\x10dither_diffusion\x18\x12 \x01(\v2'.vrooli.image_tools.v1.ops.DitherParamsH\x00R\x0fditherDiffusion\x12>\n" +
+	"\x05grain\x18\x13 \x01(\v2&.vrooli.image_tools.v1.ops.GrainParamsH\x00R\x05grain\x12>\n" +
+	"\x05scrim\x18\x14 \x01(\v2&.vrooli.image_tools.v1.ops.ScrimParamsH\x00R\x05scrim\x12N\n" +
+	"\vline_screen\x18\x15 \x01(\v2+.vrooli.image_tools.v1.ops.LineScreenParamsH\x00R\n" +
+	"lineScreen\x12D\n" +
+	"\astipple\x18\x16 \x01(\v2(.vrooli.image_tools.v1.ops.StippleParamsH\x00R\astipple\x12J\n" +
+	"\tengraving\x18\x17 \x01(\v2*.vrooli.image_tools.v1.ops.EngravingParamsH\x00R\tengraving\x12M\n" +
+	"\n" +
+	"aberration\x18\x18 \x01(\v2+.vrooli.image_tools.v1.ops.AberrationParamsH\x00R\n" +
+	"aberration\x12>\n" +
+	"\x05bloom\x18\x19 \x01(\v2&.vrooli.image_tools.v1.ops.BloomParamsH\x00R\x05bloom\x12>\n" +
+	"\x05curve\x18\x1a \x01(\v2&.vrooli.image_tools.v1.ops.CurveParamsH\x00R\x05curve\x12D\n" +
+	"\adefocus\x18\x1b \x01(\v2(.vrooli.image_tools.v1.ops.DefocusParamsH\x00R\adefocus\x12N\n" +
+	"\vmotion_blur\x18\x1c \x01(\v2+.vrooli.image_tools.v1.ops.MotionBlurParamsH\x00R\n" +
+	"motionBlur\x12Q\n" +
+	"\fascii_mosaic\x18\x1d \x01(\v2,.vrooli.image_tools.v1.ops.AsciiMosaicParamsH\x00R\vasciiMosaic\x12K\n" +
+	"\n" +
+	"pixel_sort\x18\x1e \x01(\v2*.vrooli.image_tools.v1.ops.PixelSortParamsH\x00R\tpixelSort\x12S\n" +
+	"\fdisplacement\x18\x1f \x01(\v2-.vrooli.image_tools.v1.ops.DisplacementParamsH\x00R\fdisplacementB\x04\n" +
 	"\x02op\"h\n" +
 	"\fResizeParams\x12\x14\n" +
 	"\x05width\x18\x01 \x01(\x05R\x05width\x12\x16\n" +
@@ -1513,7 +2748,65 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"\tstrip_all\x18\x01 \x01(\bR\bstripAll\x12\x1b\n" +
 	"\tstrip_gps\x18\x02 \x01(\bR\bstripGps\x12\x1f\n" +
 	"\vauto_orient\x18\x03 \x01(\bR\n" +
-	"autoOrient\"\x95\x01\n" +
+	"autoOrient\"\x7f\n" +
+	"\rDuotoneParams\x12\x12\n" +
+	"\x04dark\x18\x01 \x01(\tR\x04dark\x12\x14\n" +
+	"\x05light\x18\x02 \x01(\tR\x05light\x12\x10\n" +
+	"\x03mid\x18\x03 \x01(\tR\x03mid\x12\x17\n" +
+	"\amid_low\x18\x04 \x01(\x01R\x06midLow\x12\x19\n" +
+	"\bmid_high\x18\x05 \x01(\x01R\amidHigh\"S\n" +
+	"\x0fPosterizeParams\x12\x16\n" +
+	"\x06levels\x18\x01 \x01(\x05R\x06levels\x12\x12\n" +
+	"\x04dark\x18\x02 \x01(\tR\x04dark\x12\x14\n" +
+	"\x05light\x18\x03 \x01(\tR\x05light\"t\n" +
+	"\x0eHalftoneParams\x12\x10\n" +
+	"\x03lpi\x18\x01 \x01(\x05R\x03lpi\x12\x14\n" +
+	"\x05angle\x18\x02 \x01(\x01R\x05angle\x12\x10\n" +
+	"\x03dot\x18\x03 \x01(\tR\x03dot\x12\x12\n" +
+	"\x04dark\x18\x04 \x01(\tR\x04dark\x12\x14\n" +
+	"\x05light\x18\x05 \x01(\tR\x05light\"8\n" +
+	"\fDitherParams\x12\x12\n" +
+	"\x04dark\x18\x01 \x01(\tR\x04dark\x12\x14\n" +
+	"\x05light\x18\x02 \x01(\tR\x05light\"j\n" +
+	"\vGrainParams\x12\x12\n" +
+	"\x04seed\x18\x01 \x01(\x03R\x04seed\x12\x16\n" +
+	"\x06amount\x18\x02 \x01(\x01R\x06amount\x12/\n" +
+	"\x13contrast_multiplier\x18\x03 \x01(\x01R\x12contrastMultiplier\"[\n" +
+	"\vScrimParams\x12\x14\n" +
+	"\x05color\x18\x01 \x01(\tR\x05color\x12\x18\n" +
+	"\aopacity\x18\x02 \x01(\x01R\aopacity\x12\x1c\n" +
+	"\tdirection\x18\x03 \x01(\tR\tdirection\"B\n" +
+	"\x10LineScreenParams\x12\x18\n" +
+	"\aspacing\x18\x01 \x01(\x01R\aspacing\x12\x14\n" +
+	"\x05angle\x18\x02 \x01(\x01R\x05angle\"=\n" +
+	"\rStippleParams\x12\x18\n" +
+	"\aspacing\x18\x01 \x01(\x01R\aspacing\x12\x12\n" +
+	"\x04seed\x18\x02 \x01(\x03R\x04seed\"+\n" +
+	"\x0fEngravingParams\x12\x18\n" +
+	"\aspacing\x18\x01 \x01(\x01R\aspacing\"0\n" +
+	"\x10AberrationParams\x12\x1c\n" +
+	"\tamplitude\x18\x01 \x01(\x01R\tamplitude\"C\n" +
+	"\vBloomParams\x12\x16\n" +
+	"\x06radius\x18\x01 \x01(\x05R\x06radius\x12\x1c\n" +
+	"\tthreshold\x18\x02 \x01(\x01R\tthreshold\")\n" +
+	"\vCurveParams\x12\x1a\n" +
+	"\bexponent\x18\x01 \x01(\x01R\bexponent\"H\n" +
+	"\rDefocusParams\x12\x16\n" +
+	"\x06radius\x18\x01 \x01(\x05R\x06radius\x12\x1f\n" +
+	"\vblade_count\x18\x02 \x01(\x05R\n" +
+	"bladeCount\"D\n" +
+	"\x10MotionBlurParams\x12\x1a\n" +
+	"\bdistance\x18\x01 \x01(\x05R\bdistance\x12\x14\n" +
+	"\x05angle\x18\x02 \x01(\x01R\x05angle\"2\n" +
+	"\x11AsciiMosaicParams\x12\x1d\n" +
+	"\n" +
+	"block_size\x18\x01 \x01(\x05R\tblockSize\"C\n" +
+	"\x0fPixelSortParams\x12\x1c\n" +
+	"\tthreshold\x18\x01 \x01(\x01R\tthreshold\x12\x12\n" +
+	"\x04axis\x18\x02 \x01(\tR\x04axis\"F\n" +
+	"\x12DisplacementParams\x12\x1c\n" +
+	"\tamplitude\x18\x01 \x01(\x01R\tamplitude\x12\x12\n" +
+	"\x04seed\x18\x02 \x01(\x03R\x04seed\"\x95\x01\n" +
 	"\bOpResult\x12\x10\n" +
 	"\x03ref\x18\x01 \x01(\tR\x03ref\x12\x16\n" +
 	"\x06format\x18\x02 \x01(\tR\x06format\x12\x12\n" +
@@ -1541,7 +2834,7 @@ func file_image_tools_v1_ops_ops_proto_rawDescGZIP() []byte {
 	return file_image_tools_v1_ops_ops_proto_rawDescData
 }
 
-var file_image_tools_v1_ops_ops_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_image_tools_v1_ops_ops_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_image_tools_v1_ops_ops_proto_goTypes = []any{
 	(*OperationInfo)(nil),          // 0: vrooli.image_tools.v1.ops.OperationInfo
 	(*ListOperationsRequest)(nil),  // 1: vrooli.image_tools.v1.ops.ListOperationsRequest
@@ -1560,8 +2853,25 @@ var file_image_tools_v1_ops_ops_proto_goTypes = []any{
 	(*CompressParams)(nil),         // 14: vrooli.image_tools.v1.ops.CompressParams
 	(*OverlayParams)(nil),          // 15: vrooli.image_tools.v1.ops.OverlayParams
 	(*MetadataParams)(nil),         // 16: vrooli.image_tools.v1.ops.MetadataParams
-	(*OpResult)(nil),               // 17: vrooli.image_tools.v1.ops.OpResult
-	(*RunOpResponse)(nil),          // 18: vrooli.image_tools.v1.ops.RunOpResponse
+	(*DuotoneParams)(nil),          // 17: vrooli.image_tools.v1.ops.DuotoneParams
+	(*PosterizeParams)(nil),        // 18: vrooli.image_tools.v1.ops.PosterizeParams
+	(*HalftoneParams)(nil),         // 19: vrooli.image_tools.v1.ops.HalftoneParams
+	(*DitherParams)(nil),           // 20: vrooli.image_tools.v1.ops.DitherParams
+	(*GrainParams)(nil),            // 21: vrooli.image_tools.v1.ops.GrainParams
+	(*ScrimParams)(nil),            // 22: vrooli.image_tools.v1.ops.ScrimParams
+	(*LineScreenParams)(nil),       // 23: vrooli.image_tools.v1.ops.LineScreenParams
+	(*StippleParams)(nil),          // 24: vrooli.image_tools.v1.ops.StippleParams
+	(*EngravingParams)(nil),        // 25: vrooli.image_tools.v1.ops.EngravingParams
+	(*AberrationParams)(nil),       // 26: vrooli.image_tools.v1.ops.AberrationParams
+	(*BloomParams)(nil),            // 27: vrooli.image_tools.v1.ops.BloomParams
+	(*CurveParams)(nil),            // 28: vrooli.image_tools.v1.ops.CurveParams
+	(*DefocusParams)(nil),          // 29: vrooli.image_tools.v1.ops.DefocusParams
+	(*MotionBlurParams)(nil),       // 30: vrooli.image_tools.v1.ops.MotionBlurParams
+	(*AsciiMosaicParams)(nil),      // 31: vrooli.image_tools.v1.ops.AsciiMosaicParams
+	(*PixelSortParams)(nil),        // 32: vrooli.image_tools.v1.ops.PixelSortParams
+	(*DisplacementParams)(nil),     // 33: vrooli.image_tools.v1.ops.DisplacementParams
+	(*OpResult)(nil),               // 34: vrooli.image_tools.v1.ops.OpResult
+	(*RunOpResponse)(nil),          // 35: vrooli.image_tools.v1.ops.RunOpResponse
 }
 var file_image_tools_v1_ops_ops_proto_depIdxs = []int32{
 	0,  // 0: vrooli.image_tools.v1.ops.ListOperationsResponse.operations:type_name -> vrooli.image_tools.v1.ops.OperationInfo
@@ -1578,14 +2888,32 @@ var file_image_tools_v1_ops_ops_proto_depIdxs = []int32{
 	14, // 11: vrooli.image_tools.v1.ops.OpParams.compress:type_name -> vrooli.image_tools.v1.ops.CompressParams
 	15, // 12: vrooli.image_tools.v1.ops.OpParams.overlay:type_name -> vrooli.image_tools.v1.ops.OverlayParams
 	16, // 13: vrooli.image_tools.v1.ops.OpParams.metadata:type_name -> vrooli.image_tools.v1.ops.MetadataParams
-	17, // 14: vrooli.image_tools.v1.ops.RunOpResponse.result:type_name -> vrooli.image_tools.v1.ops.OpResult
-	1,  // 15: vrooli.image_tools.v1.ops.OpsService.ListOperations:input_type -> vrooli.image_tools.v1.ops.ListOperationsRequest
-	2,  // 16: vrooli.image_tools.v1.ops.OpsService.ListOperations:output_type -> vrooli.image_tools.v1.ops.ListOperationsResponse
-	16, // [16:17] is the sub-list for method output_type
-	15, // [15:16] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	17, // 14: vrooli.image_tools.v1.ops.OpParams.duotone:type_name -> vrooli.image_tools.v1.ops.DuotoneParams
+	18, // 15: vrooli.image_tools.v1.ops.OpParams.posterize:type_name -> vrooli.image_tools.v1.ops.PosterizeParams
+	19, // 16: vrooli.image_tools.v1.ops.OpParams.halftone:type_name -> vrooli.image_tools.v1.ops.HalftoneParams
+	20, // 17: vrooli.image_tools.v1.ops.OpParams.dither_ordered:type_name -> vrooli.image_tools.v1.ops.DitherParams
+	20, // 18: vrooli.image_tools.v1.ops.OpParams.dither_diffusion:type_name -> vrooli.image_tools.v1.ops.DitherParams
+	21, // 19: vrooli.image_tools.v1.ops.OpParams.grain:type_name -> vrooli.image_tools.v1.ops.GrainParams
+	22, // 20: vrooli.image_tools.v1.ops.OpParams.scrim:type_name -> vrooli.image_tools.v1.ops.ScrimParams
+	23, // 21: vrooli.image_tools.v1.ops.OpParams.line_screen:type_name -> vrooli.image_tools.v1.ops.LineScreenParams
+	24, // 22: vrooli.image_tools.v1.ops.OpParams.stipple:type_name -> vrooli.image_tools.v1.ops.StippleParams
+	25, // 23: vrooli.image_tools.v1.ops.OpParams.engraving:type_name -> vrooli.image_tools.v1.ops.EngravingParams
+	26, // 24: vrooli.image_tools.v1.ops.OpParams.aberration:type_name -> vrooli.image_tools.v1.ops.AberrationParams
+	27, // 25: vrooli.image_tools.v1.ops.OpParams.bloom:type_name -> vrooli.image_tools.v1.ops.BloomParams
+	28, // 26: vrooli.image_tools.v1.ops.OpParams.curve:type_name -> vrooli.image_tools.v1.ops.CurveParams
+	29, // 27: vrooli.image_tools.v1.ops.OpParams.defocus:type_name -> vrooli.image_tools.v1.ops.DefocusParams
+	30, // 28: vrooli.image_tools.v1.ops.OpParams.motion_blur:type_name -> vrooli.image_tools.v1.ops.MotionBlurParams
+	31, // 29: vrooli.image_tools.v1.ops.OpParams.ascii_mosaic:type_name -> vrooli.image_tools.v1.ops.AsciiMosaicParams
+	32, // 30: vrooli.image_tools.v1.ops.OpParams.pixel_sort:type_name -> vrooli.image_tools.v1.ops.PixelSortParams
+	33, // 31: vrooli.image_tools.v1.ops.OpParams.displacement:type_name -> vrooli.image_tools.v1.ops.DisplacementParams
+	34, // 32: vrooli.image_tools.v1.ops.RunOpResponse.result:type_name -> vrooli.image_tools.v1.ops.OpResult
+	1,  // 33: vrooli.image_tools.v1.ops.OpsService.ListOperations:input_type -> vrooli.image_tools.v1.ops.ListOperationsRequest
+	2,  // 34: vrooli.image_tools.v1.ops.OpsService.ListOperations:output_type -> vrooli.image_tools.v1.ops.ListOperationsResponse
+	34, // [34:35] is the sub-list for method output_type
+	33, // [33:34] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_image_tools_v1_ops_ops_proto_init() }
@@ -1607,6 +2935,24 @@ func file_image_tools_v1_ops_ops_proto_init() {
 		(*OpParams_Compress)(nil),
 		(*OpParams_Overlay)(nil),
 		(*OpParams_Metadata)(nil),
+		(*OpParams_Duotone)(nil),
+		(*OpParams_Posterize)(nil),
+		(*OpParams_Halftone)(nil),
+		(*OpParams_DitherOrdered)(nil),
+		(*OpParams_DitherDiffusion)(nil),
+		(*OpParams_Grain)(nil),
+		(*OpParams_Scrim)(nil),
+		(*OpParams_LineScreen)(nil),
+		(*OpParams_Stipple)(nil),
+		(*OpParams_Engraving)(nil),
+		(*OpParams_Aberration)(nil),
+		(*OpParams_Bloom)(nil),
+		(*OpParams_Curve)(nil),
+		(*OpParams_Defocus)(nil),
+		(*OpParams_MotionBlur)(nil),
+		(*OpParams_AsciiMosaic)(nil),
+		(*OpParams_PixelSort)(nil),
+		(*OpParams_Displacement)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1614,7 +2960,7 @@ func file_image_tools_v1_ops_ops_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_image_tools_v1_ops_ops_proto_rawDesc), len(file_image_tools_v1_ops_ops_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

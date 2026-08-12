@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/dispatch/dispatch.proto.
  */
 export const file_vrooli_bridge_v1_dispatch_dispatch: GenFile = /*@__PURE__*/
-  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL2Rpc3BhdGNoL2Rpc3BhdGNoLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5kaXNwYXRjaCJsChJEaXNwYXRjaEpvYlJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIMCgR2ZXJiGAMgASgJEgwKBGFyZ3MYBCADKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgDInUKE0Rpc3BhdGNoSm9iUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg8KB2RyeV9ydW4YAiABKAgSDwoHbm9kZV9pZBgDIAEoCRIQCghzY2VuYXJpbxgEIAEoCRIMCgR2ZXJiGAUgASgJEgwKBGFyZ3MYBiADKAkyjQEKD0Rpc3BhdGNoU2VydmljZRJ6CgtEaXNwYXRjaEpvYhI0LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmRpc3BhdGNoLkRpc3BhdGNoSm9iUmVxdWVzdBo1LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmRpc3BhdGNoLkRpc3BhdGNoSm9iUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL2Rpc3BhdGNoO2Rpc3BhdGNoX3YxYgZwcm90bzM");
+  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL2Rpc3BhdGNoL2Rpc3BhdGNoLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5kaXNwYXRjaCJsChJEaXNwYXRjaEpvYlJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIMCgR2ZXJiGAMgASgJEgwKBGFyZ3MYBCADKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgDIoUBChNEaXNwYXRjaEpvYlJlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIPCgdkcnlfcnVuGAIgASgIEg8KB25vZGVfaWQYAyABKAkSEAoIc2NlbmFyaW8YBCABKAkSDAoEdmVyYhgFIAEoCRIMCgRhcmdzGAYgAygJEg4KBnF1ZXVlZBgHIAEoCDKNAQoPRGlzcGF0Y2hTZXJ2aWNlEnoKC0Rpc3BhdGNoSm9iEjQudnJvb2xpLnZyb29saV9icmlkZ2UudjEuZGlzcGF0Y2guRGlzcGF0Y2hKb2JSZXF1ZXN0GjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEuZGlzcGF0Y2guRGlzcGF0Y2hKb2JSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvZGlzcGF0Y2g7ZGlzcGF0Y2hfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.dispatch.DispatchJobRequest
@@ -100,6 +100,14 @@ export type DispatchJobResponse = Message<"vrooli.vrooli_bridge.v1.dispatch.Disp
    * @generated from field: repeated string args = 6;
    */
   args: string[];
+
+  /**
+   * True when the server accepted the job into the node's durable queue but
+   * has not pushed it to the node yet.
+   *
+   * @generated from field: bool queued = 7;
+   */
+  queued: boolean;
 };
 
 /**

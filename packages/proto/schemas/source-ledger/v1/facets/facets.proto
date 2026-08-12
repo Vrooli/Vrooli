@@ -26,7 +26,9 @@ message PinProposal {
   repeated string entry_ids = 2;
   string rationale = 3;
 }
-message ListFacetsRequest { string scope = 1; }
+message ListFacetsRequest {
+  string scope = 1;
+}
 message ListFacetsResponse {
   repeated Facet facets = 1;
 }
@@ -37,7 +39,9 @@ message SetFacetPolicyRequest {
   bool compaction_eligible = 4;
   int32 resident_budget = 5;
 }
-message SetFacetPolicyResponse { Facet facet = 1; }
+message SetFacetPolicyResponse {
+  Facet facet = 1;
+}
 message AssignFacetRequest {
   string entry_id = 1;
   string facet_id = 2;
@@ -50,7 +54,9 @@ message SetPinRequest {
   string scope = 3;
 }
 message SetPinResponse {}
-message ListPinProposalsRequest { string scope = 1; }
+message ListPinProposalsRequest {
+  string scope = 1;
+}
 message ListPinProposalsResponse {
   repeated PinProposal proposals = 1;
 }
@@ -61,8 +67,13 @@ message PinCandidate {
   string created_at = 4;
   string last_recalled_at = 5;
 }
-message ListPinCandidatesRequest { int32 limit = 1; string scope = 2; }
-message ListPinCandidatesResponse { repeated PinCandidate candidates = 1; }
+message ListPinCandidatesRequest {
+  int32 limit = 1;
+  string scope = 2;
+}
+message ListPinCandidatesResponse {
+  repeated PinCandidate candidates = 1;
+}
 message ResolvePinProposalRequest {
   string proposal_id = 1;
   bool accept = 2;
@@ -75,5 +86,8 @@ message MarkSupersededRequest {
   string scope = 3;
 }
 message MarkSupersededResponse {}
-message ResolveThreadRequest { string entry_id = 1; string scope = 2; }
+message ResolveThreadRequest {
+  string entry_id = 1;
+  string scope = 2;
+}
 message ResolveThreadResponse {}

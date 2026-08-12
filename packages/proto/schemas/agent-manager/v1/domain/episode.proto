@@ -36,13 +36,17 @@ message FrictionEpisode {
   string repeated_element = 19;
 }
 
-message GetEpisodesRequest { string run_id = 1; }
+message GetEpisodesRequest {
+  string run_id = 1;
+}
 message GetEpisodesResponse {
   string classifier_version = 1;
   repeated FrictionEpisode episodes = 2;
 }
 
-message GetSelfReportSpansRequest { string run_id = 1; }
+message GetSelfReportSpansRequest {
+  string run_id = 1;
+}
 message SelfReportSpan {
   string classifier_version = 1;
   string event_id = 2;

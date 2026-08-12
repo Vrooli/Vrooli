@@ -1,5 +1,9 @@
 syntax = "proto3";
 package vrooli.deployment_manager.v1.fitness;
+
 import "google/protobuf/struct.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/fitness;fitnessv1";
-service FitnessService { rpc Score(google.protobuf.Value) returns (google.protobuf.Value); }
+service FitnessService {
+  rpc Score(google.protobuf.Value) returns (google.protobuf.Value);
+}

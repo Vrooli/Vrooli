@@ -13,6 +13,7 @@ import (
 const defaultConditionWindow = 24 * time.Hour
 
 func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, window time.Duration) (*bindingsv1.GetBindingConditionResponse, error) {
+	r = r.active()
 	if window <= 0 {
 		window = defaultConditionWindow
 	}
@@ -43,6 +44,7 @@ func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, w
 }
 
 func (r *Registry) InvocationMeasures(ctx context.Context) (total, failureRatePercent, dormant int) {
+	r = r.active()
 	if r.recorder == nil {
 		return 0, 0, len(r.bindings)
 	}

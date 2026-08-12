@@ -835,7 +835,7 @@ var File_browser_automation_studio_v1_capture_capture_proto protoreflect.FileDes
 
 const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\n" +
-	"2browser-automation-studio/v1/capture/capture.proto\x12$browser_automation_studio.v1.capture\x1a\x1bbuf/validate/validate.proto\x1a7browser-automation-studio/v1/base/browser_profile.proto\"\xa7\x02\n" +
+	"2browser-automation-studio/v1/capture/capture.proto\x12$browser_automation_studio.v1.capture\x1a7browser-automation-studio/v1/base/browser_profile.proto\x1a\x1bbuf/validate/validate.proto\"\xa7\x02\n" +
 	"\n" +
 	"Dimensions\x12N\n" +
 	"\x06preset\x18\x01 \x01(\x0e26.browser_automation_studio.v1.capture.DimensionsPresetR\x06preset\x12%\n" +

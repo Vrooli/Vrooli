@@ -187,4 +187,7 @@ message AgentSession {
 
   // Entity whose proposal review surface owns this session's proposals.
   optional AgentSessionProposalTarget proposal_target = 17;
+
+  // Server-declared starter framing selected for this draft session.
+  optional string starter_job_id = 18;
 }

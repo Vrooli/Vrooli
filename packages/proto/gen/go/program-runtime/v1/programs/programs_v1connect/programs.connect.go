@@ -45,6 +45,12 @@ const (
 	// ProgramServiceMineFailuresProcedure is the fully-qualified name of the ProgramService's
 	// MineFailures RPC.
 	ProgramServiceMineFailuresProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/MineFailures"
+	// ProgramServiceMineRefusalsProcedure is the fully-qualified name of the ProgramService's
+	// MineRefusals RPC.
+	ProgramServiceMineRefusalsProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/MineRefusals"
+	// ProgramServiceMineUnresolvedBindingsProcedure is the fully-qualified name of the ProgramService's
+	// MineUnresolvedBindings RPC.
+	ProgramServiceMineUnresolvedBindingsProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/MineUnresolvedBindings"
 )
 
 // ProgramServiceClient is a client for the vrooli.program_runtime.v1.programs.ProgramService
@@ -54,6 +60,8 @@ type ProgramServiceClient interface {
 	GetProgram(context.Context, *connect.Request[programs.GetProgramRequest]) (*connect.Response[programs.GetProgramResponse], error)
 	ListPrograms(context.Context, *connect.Request[programs.ListProgramsRequest]) (*connect.Response[programs.ListProgramsResponse], error)
 	MineFailures(context.Context, *connect.Request[programs.MineFailuresRequest]) (*connect.Response[programs.MineFailuresResponse], error)
+	MineRefusals(context.Context, *connect.Request[programs.MineRefusalsRequest]) (*connect.Response[programs.MineRefusalsResponse], error)
+	MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error)
 }
 
 // NewProgramServiceClient constructs a client for the
@@ -92,15 +100,29 @@ func NewProgramServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(programServiceMethods.ByName("MineFailures")),
 			connect.WithClientOptions(opts...),
 		),
+		mineRefusals: connect.NewClient[programs.MineRefusalsRequest, programs.MineRefusalsResponse](
+			httpClient,
+			baseURL+ProgramServiceMineRefusalsProcedure,
+			connect.WithSchema(programServiceMethods.ByName("MineRefusals")),
+			connect.WithClientOptions(opts...),
+		),
+		mineUnresolvedBindings: connect.NewClient[programs.MineUnresolvedBindingsRequest, programs.MineUnresolvedBindingsResponse](
+			httpClient,
+			baseURL+ProgramServiceMineUnresolvedBindingsProcedure,
+			connect.WithSchema(programServiceMethods.ByName("MineUnresolvedBindings")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // programServiceClient implements ProgramServiceClient.
 type programServiceClient struct {
-	submitProgram *connect.Client[programs.SubmitProgramRequest, programs.SubmitProgramResponse]
-	getProgram    *connect.Client[programs.GetProgramRequest, programs.GetProgramResponse]
-	listPrograms  *connect.Client[programs.ListProgramsRequest, programs.ListProgramsResponse]
-	mineFailures  *connect.Client[programs.MineFailuresRequest, programs.MineFailuresResponse]
+	submitProgram          *connect.Client[programs.SubmitProgramRequest, programs.SubmitProgramResponse]
+	getProgram             *connect.Client[programs.GetProgramRequest, programs.GetProgramResponse]
+	listPrograms           *connect.Client[programs.ListProgramsRequest, programs.ListProgramsResponse]
+	mineFailures           *connect.Client[programs.MineFailuresRequest, programs.MineFailuresResponse]
+	mineRefusals           *connect.Client[programs.MineRefusalsRequest, programs.MineRefusalsResponse]
+	mineUnresolvedBindings *connect.Client[programs.MineUnresolvedBindingsRequest, programs.MineUnresolvedBindingsResponse]
 }
 
 // SubmitProgram calls vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram.
@@ -123,6 +145,17 @@ func (c *programServiceClient) MineFailures(ctx context.Context, req *connect.Re
 	return c.mineFailures.CallUnary(ctx, req)
 }
 
+// MineRefusals calls vrooli.program_runtime.v1.programs.ProgramService.MineRefusals.
+func (c *programServiceClient) MineRefusals(ctx context.Context, req *connect.Request[programs.MineRefusalsRequest]) (*connect.Response[programs.MineRefusalsResponse], error) {
+	return c.mineRefusals.CallUnary(ctx, req)
+}
+
+// MineUnresolvedBindings calls
+// vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings.
+func (c *programServiceClient) MineUnresolvedBindings(ctx context.Context, req *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error) {
+	return c.mineUnresolvedBindings.CallUnary(ctx, req)
+}
+
 // ProgramServiceHandler is an implementation of the
 // vrooli.program_runtime.v1.programs.ProgramService service.
 type ProgramServiceHandler interface {
@@ -130,6 +163,8 @@ type ProgramServiceHandler interface {
 	GetProgram(context.Context, *connect.Request[programs.GetProgramRequest]) (*connect.Response[programs.GetProgramResponse], error)
 	ListPrograms(context.Context, *connect.Request[programs.ListProgramsRequest]) (*connect.Response[programs.ListProgramsResponse], error)
 	MineFailures(context.Context, *connect.Request[programs.MineFailuresRequest]) (*connect.Response[programs.MineFailuresResponse], error)
+	MineRefusals(context.Context, *connect.Request[programs.MineRefusalsRequest]) (*connect.Response[programs.MineRefusalsResponse], error)
+	MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error)
 }
 
 // NewProgramServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -163,6 +198,18 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 		connect.WithSchema(programServiceMethods.ByName("MineFailures")),
 		connect.WithHandlerOptions(opts...),
 	)
+	programServiceMineRefusalsHandler := connect.NewUnaryHandler(
+		ProgramServiceMineRefusalsProcedure,
+		svc.MineRefusals,
+		connect.WithSchema(programServiceMethods.ByName("MineRefusals")),
+		connect.WithHandlerOptions(opts...),
+	)
+	programServiceMineUnresolvedBindingsHandler := connect.NewUnaryHandler(
+		ProgramServiceMineUnresolvedBindingsProcedure,
+		svc.MineUnresolvedBindings,
+		connect.WithSchema(programServiceMethods.ByName("MineUnresolvedBindings")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.program_runtime.v1.programs.ProgramService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ProgramServiceSubmitProgramProcedure:
@@ -173,6 +220,10 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 			programServiceListProgramsHandler.ServeHTTP(w, r)
 		case ProgramServiceMineFailuresProcedure:
 			programServiceMineFailuresHandler.ServeHTTP(w, r)
+		case ProgramServiceMineRefusalsProcedure:
+			programServiceMineRefusalsHandler.ServeHTTP(w, r)
+		case ProgramServiceMineUnresolvedBindingsProcedure:
+			programServiceMineUnresolvedBindingsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -196,4 +247,12 @@ func (UnimplementedProgramServiceHandler) ListPrograms(context.Context, *connect
 
 func (UnimplementedProgramServiceHandler) MineFailures(context.Context, *connect.Request[programs.MineFailuresRequest]) (*connect.Response[programs.MineFailuresResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.MineFailures is not implemented"))
+}
+
+func (UnimplementedProgramServiceHandler) MineRefusals(context.Context, *connect.Request[programs.MineRefusalsRequest]) (*connect.Response[programs.MineRefusalsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.MineRefusals is not implemented"))
+}
+
+func (UnimplementedProgramServiceHandler) MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings is not implemented"))
 }

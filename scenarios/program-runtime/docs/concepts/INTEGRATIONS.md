@@ -50,6 +50,17 @@ through **Scenario Dependency Analyzer**. No raw `pip`, `pnpm add`, or
 | `workspace-sandbox` | optional (P1) | Copy-on-write filesystem isolation for a session. | Discovery-resolved `GET /api/v1/sandboxes/{id}/workspace` today; no shared typed resolver exists yet. A resolved root is pinned as the kernel cwd. Safety from accidents, not from adversaries. |
 | `meta-optimization-manager` | consumer, not a dependency | Reads the Act denominator and numerator this scenario owns. The arrow points inward: it pulls, this scenario never pushes. | `space --projection act --json` plus the binding-registry RPC. |
 
+## Live contract snapshots
+
+The binding registry is backed by the shared `packages/proto/descriptorimage`
+source. It validates the descriptor image and CLI-manifest stamps between
+requests, publishes an immutable generation, and keeps the last known-good
+generation when a reload is malformed. New kernels obtain binding specs from
+the current generation; an existing kernel keeps the generation it received so
+an in-flight program has a stable contract. Health metadata reports the digest,
+generation, load time, artifact time, and any reload error. No scenario restart
+is required after a staged proto or manifest publication.
+
 ## Third-Party Services
 
 | Service | Status | Reason | Contract |

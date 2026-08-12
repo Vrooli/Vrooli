@@ -40,6 +40,7 @@ service BrandsService {
   rpc UpdateBrand(UpdateBrandRequest) returns (UpdateBrandResponse);
   rpc DeleteBrand(DeleteBrandRequest) returns (DeleteBrandResponse);
   rpc ListBrandVersions(ListBrandVersionsRequest) returns (ListBrandVersionsResponse);
+  rpc GetTokens(GetTokensRequest) returns (GetTokensResponse);
 }
 
 // Brand is the root aggregate for a complete brand identity.
@@ -194,4 +195,15 @@ message ListBrandVersionsRequest {
 // ListBrandVersionsResponse returns versions newest-first.
 message ListBrandVersionsResponse {
   repeated BrandVersion versions = 1;
+}
+
+message GetTokensRequest {
+  string brand_id = 1;
+}
+message Token {
+  string name = 1;
+  string value = 2;
+}
+message GetTokensResponse {
+  repeated Token tokens = 1;
 }

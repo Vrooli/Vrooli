@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"program-runtime/internal/database"
 
@@ -25,6 +26,7 @@ type Deps struct {
 	Service              string
 	Version              string
 	SkippedManifestCount func() int
+	DescriptorMetadata   DescriptorMetadata
 }
 
 // NewHandler returns a handler that reports overall health, service
@@ -53,6 +55,16 @@ func NewHandler(d Deps) http.HandlerFunc {
 			metrics = make(map[string]any)
 		}
 		metrics["skipped_manifests"] = d.SkippedManifestCount()
+		if d.DescriptorMetadata != nil {
+			digest, generation, loadedAt, artifactMTime, reloadErr := d.DescriptorMetadata()
+			metrics["proto_descriptor_digest"] = digest
+			metrics["proto_descriptor_generation"] = generation
+			metrics["proto_descriptor_loaded_at"] = loadedAt.UTC().Format(time.RFC3339Nano)
+			metrics["proto_descriptor_artifact_mtime"] = artifactMTime.UTC().Format(time.RFC3339Nano)
+			if reloadErr != nil {
+				metrics["proto_descriptor_reload_error"] = reloadErr.Error()
+			}
+		}
 		payload["metrics"] = metrics
 		capture.body.Reset()
 		encoded, err := json.Marshal(payload)

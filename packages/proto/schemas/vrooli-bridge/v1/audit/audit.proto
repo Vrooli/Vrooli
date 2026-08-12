@@ -40,6 +40,16 @@ enum AuditAction {
 
   // An accepted offline break-glass capability use.
   AUDIT_ACTION_BREAK_GLASS = 3;
+
+  // Interactive session lifecycle events.
+  AUDIT_ACTION_SESSION_OPEN = 4;
+  AUDIT_ACTION_SESSION_CLOSE = 5;
+  AUDIT_ACTION_SESSION_RESIZE = 6;
+
+  // Byte-level interactive-session records. Detail contains a bounded,
+  // base64-encoded payload prefixed with "in:" or "out:".
+  AUDIT_ACTION_SESSION_DATA_IN = 7;
+  AUDIT_ACTION_SESSION_DATA_OUT = 8;
 }
 
 // AuditOutcome is the result recorded for an audited operation.

@@ -41,7 +41,7 @@ class EvalSuite(_message.Message):
     def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., cases: _Optional[_Iterable[_Union[EvalCase, _Mapping]]] = ..., state: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
 class EvalCase(_message.Message):
-    __slots__ = ("case_id", "query", "tags", "expect_ids", "expect_within_top_k", "expect_min_score", "expect_max_score", "expect_no_strong_hit", "note", "status", "scope")
+    __slots__ = ("case_id", "query", "tags", "expect_ids", "expect_within_top_k", "expect_min_score", "expect_max_score", "expect_no_strong_hit", "note", "status", "scope", "expect_min_margin")
     CASE_ID_FIELD_NUMBER: _ClassVar[int]
     QUERY_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
@@ -53,6 +53,7 @@ class EvalCase(_message.Message):
     NOTE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SCOPE_FIELD_NUMBER: _ClassVar[int]
+    EXPECT_MIN_MARGIN_FIELD_NUMBER: _ClassVar[int]
     case_id: str
     query: str
     tags: _containers.RepeatedScalarFieldContainer[str]
@@ -64,10 +65,11 @@ class EvalCase(_message.Message):
     note: str
     status: str
     scope: str
-    def __init__(self, case_id: _Optional[str] = ..., query: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., expect_ids: _Optional[_Iterable[str]] = ..., expect_within_top_k: _Optional[int] = ..., expect_min_score: _Optional[float] = ..., expect_max_score: _Optional[float] = ..., expect_no_strong_hit: _Optional[bool] = ..., note: _Optional[str] = ..., status: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
+    expect_min_margin: float
+    def __init__(self, case_id: _Optional[str] = ..., query: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., expect_ids: _Optional[_Iterable[str]] = ..., expect_within_top_k: _Optional[int] = ..., expect_min_score: _Optional[float] = ..., expect_max_score: _Optional[float] = ..., expect_no_strong_hit: _Optional[bool] = ..., note: _Optional[str] = ..., status: _Optional[str] = ..., scope: _Optional[str] = ..., expect_min_margin: _Optional[float] = ...) -> None: ...
 
 class EvalRun(_message.Message):
-    __slots__ = ("run_id", "suite_id", "tag", "created_at", "config", "results", "aggregate")
+    __slots__ = ("run_id", "suite_id", "tag", "created_at", "config", "results", "aggregate", "tier", "degraded", "degraded_reason")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SUITE_ID_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
@@ -75,6 +77,9 @@ class EvalRun(_message.Message):
     CONFIG_FIELD_NUMBER: _ClassVar[int]
     RESULTS_FIELD_NUMBER: _ClassVar[int]
     AGGREGATE_FIELD_NUMBER: _ClassVar[int]
+    TIER_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_REASON_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     suite_id: str
     tag: str
@@ -82,7 +87,10 @@ class EvalRun(_message.Message):
     config: ConfigSnapshot
     results: _containers.RepeatedCompositeFieldContainer[CaseResult]
     aggregate: EvalAggregate
-    def __init__(self, run_id: _Optional[str] = ..., suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., created_at: _Optional[str] = ..., config: _Optional[_Union[ConfigSnapshot, _Mapping]] = ..., results: _Optional[_Iterable[_Union[CaseResult, _Mapping]]] = ..., aggregate: _Optional[_Union[EvalAggregate, _Mapping]] = ...) -> None: ...
+    tier: str
+    degraded: bool
+    degraded_reason: str
+    def __init__(self, run_id: _Optional[str] = ..., suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., created_at: _Optional[str] = ..., config: _Optional[_Union[ConfigSnapshot, _Mapping]] = ..., results: _Optional[_Iterable[_Union[CaseResult, _Mapping]]] = ..., aggregate: _Optional[_Union[EvalAggregate, _Mapping]] = ..., tier: _Optional[str] = ..., degraded: _Optional[bool] = ..., degraded_reason: _Optional[str] = ...) -> None: ...
 
 class ConfigSnapshot(_message.Message):
     __slots__ = ("rerank_enabled", "reranker_leg", "embed_model", "indexed_count", "provider_note", "embed_task_prefix", "rerank_blend", "engine", "floor_regime")
@@ -107,18 +115,26 @@ class ConfigSnapshot(_message.Message):
     def __init__(self, rerank_enabled: _Optional[bool] = ..., reranker_leg: _Optional[str] = ..., embed_model: _Optional[str] = ..., indexed_count: _Optional[int] = ..., provider_note: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., engine: _Optional[str] = ..., floor_regime: _Optional[str] = ...) -> None: ...
 
 class CaseResult(_message.Message):
-    __slots__ = ("case_id", "top", "expected_rank", "observed_top_score", "outcome")
+    __slots__ = ("case_id", "top", "expected_rank", "observed_top_score", "outcome", "expected_provider_id", "provider_routed", "margin", "outcome_reason")
     CASE_ID_FIELD_NUMBER: _ClassVar[int]
     TOP_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_RANK_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_TOP_SCORE_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ROUTED_FIELD_NUMBER: _ClassVar[int]
+    MARGIN_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_REASON_FIELD_NUMBER: _ClassVar[int]
     case_id: str
     top: _containers.RepeatedCompositeFieldContainer[ScoredHit]
     expected_rank: int
     observed_top_score: float
     outcome: str
-    def __init__(self, case_id: _Optional[str] = ..., top: _Optional[_Iterable[_Union[ScoredHit, _Mapping]]] = ..., expected_rank: _Optional[int] = ..., observed_top_score: _Optional[float] = ..., outcome: _Optional[str] = ...) -> None: ...
+    expected_provider_id: str
+    provider_routed: bool
+    margin: float
+    outcome_reason: str
+    def __init__(self, case_id: _Optional[str] = ..., top: _Optional[_Iterable[_Union[ScoredHit, _Mapping]]] = ..., expected_rank: _Optional[int] = ..., observed_top_score: _Optional[float] = ..., outcome: _Optional[str] = ..., expected_provider_id: _Optional[str] = ..., provider_routed: _Optional[bool] = ..., margin: _Optional[float] = ..., outcome_reason: _Optional[str] = ...) -> None: ...
 
 class ScoredHit(_message.Message):
     __slots__ = ("id", "title", "score")
@@ -187,14 +203,16 @@ class GetSuiteResponse(_message.Message):
     def __init__(self, suite: _Optional[_Union[EvalSuite, _Mapping]] = ..., adequacy: _Optional[_Iterable[_Union[AdequacyWarning, _Mapping]]] = ...) -> None: ...
 
 class RunSuiteRequest(_message.Message):
-    __slots__ = ("suite_id", "tag", "limit")
+    __slots__ = ("suite_id", "tag", "limit", "tier")
     SUITE_ID_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    TIER_FIELD_NUMBER: _ClassVar[int]
     suite_id: str
     tag: str
     limit: int
-    def __init__(self, suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+    tier: str
+    def __init__(self, suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ..., tier: _Optional[str] = ...) -> None: ...
 
 class RunSuiteResponse(_message.Message):
     __slots__ = ("run", "adequacy")
@@ -255,14 +273,16 @@ class ValidateCorpusResponse(_message.Message):
     def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., cases: _Optional[_Iterable[_Union[CorpusValidationCase, _Mapping]]] = ..., rollup: _Optional[_Union[CorpusValidationRollup, _Mapping]] = ...) -> None: ...
 
 class ListRunsRequest(_message.Message):
-    __slots__ = ("suite_id", "tag", "limit")
+    __slots__ = ("suite_id", "tag", "limit", "tier")
     SUITE_ID_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    TIER_FIELD_NUMBER: _ClassVar[int]
     suite_id: str
     tag: str
     limit: int
-    def __init__(self, suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+    tier: str
+    def __init__(self, suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ..., tier: _Optional[str] = ...) -> None: ...
 
 class ListRunsResponse(_message.Message):
     __slots__ = ("runs",)

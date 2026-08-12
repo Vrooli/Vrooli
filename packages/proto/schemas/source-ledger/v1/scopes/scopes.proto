@@ -61,7 +61,9 @@ message PolicySnapshot {
   string max_entry_chars_origin = 10;
 }
 
-message GetPolicyRequest { string scope = 1; }
+message GetPolicyRequest {
+  string scope = 1;
+}
 message GetPolicyResponse {
   PolicySnapshot effective = 1;
   PolicySnapshot defaults = 2;
@@ -88,7 +90,9 @@ message SetPolicyResponse {
   CompactionLiveness liveness = 3;
 }
 
-message ResetPolicyRequest { string scope = 1; }
+message ResetPolicyRequest {
+  string scope = 1;
+}
 message ResetPolicyResponse {
   PolicySnapshot effective = 1;
   PolicySnapshot defaults = 2;

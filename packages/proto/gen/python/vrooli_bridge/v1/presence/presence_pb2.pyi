@@ -17,3 +17,27 @@ class ReportHeartbeatResponse(_message.Message):
     COMPATIBILITY_FIELD_NUMBER: _ClassVar[int]
     compatibility: _shared_pb2.CompatibilityStatus
     def __init__(self, compatibility: _Optional[_Union[_shared_pb2.CompatibilityStatus, str]] = ...) -> None: ...
+
+class ReportDeliveryAckRequest(_message.Message):
+    __slots__ = ("ack",)
+    ACK_FIELD_NUMBER: _ClassVar[int]
+    ack: _shared_pb2.DeliveryAck
+    def __init__(self, ack: _Optional[_Union[_shared_pb2.DeliveryAck, _Mapping]] = ...) -> None: ...
+
+class ReportDeliveryAckResponse(_message.Message):
+    __slots__ = ("accepted",)
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    accepted: bool
+    def __init__(self, accepted: _Optional[bool] = ...) -> None: ...
+
+class ReportSessionFrameRequest(_message.Message):
+    __slots__ = ("frame",)
+    FRAME_FIELD_NUMBER: _ClassVar[int]
+    frame: _shared_pb2.SessionFrame
+    def __init__(self, frame: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ...) -> None: ...
+
+class ReportSessionFrameResponse(_message.Message):
+    __slots__ = ("accepted",)
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    accepted: bool
+    def __init__(self, accepted: _Optional[bool] = ...) -> None: ...

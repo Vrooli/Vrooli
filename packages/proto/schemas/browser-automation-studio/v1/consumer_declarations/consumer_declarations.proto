@@ -1,9 +1,23 @@
 syntax = "proto3";
 package browser_automation_studio.v1.consumer_declarations;
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/consumer_declarations;consumer_declarations";
+
 // ConsumerDeclarationsService validates a public BAS adoption declaration.
 // It accepts a payload, never a server filesystem path.
-service ConsumerDeclarationsService { rpc Validate(ValidateConsumerDeclarationRequest) returns (ValidateConsumerDeclarationResponse); }
-message ValidateConsumerDeclarationRequest { string declaration_json = 1; }
-message ValidateConsumerDeclarationResponse { bool valid = 1; repeated string issues = 2; repeated DeclaredProfile profiles = 3; }
-message DeclaredProfile { string key = 1; string workflow_ref = 2; repeated string allowed_variables = 3; }
+service ConsumerDeclarationsService {
+  rpc Validate(ValidateConsumerDeclarationRequest) returns (ValidateConsumerDeclarationResponse);
+}
+message ValidateConsumerDeclarationRequest {
+  string declaration_json = 1;
+}
+message ValidateConsumerDeclarationResponse {
+  bool valid = 1;
+  repeated string issues = 2;
+  repeated DeclaredProfile profiles = 3;
+}
+message DeclaredProfile {
+  string key = 1;
+  string workflow_ref = 2;
+  repeated string allowed_variables = 3;
+}

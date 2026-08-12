@@ -1205,6 +1205,146 @@ func (x *ListBrandVersionsResponse) GetVersions() []*BrandVersion {
 	return nil
 }
 
+type GetTokensRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BrandId       string                 `protobuf:"bytes,1,opt,name=brand_id,json=brandId,proto3" json:"brand_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTokensRequest) Reset() {
+	*x = GetTokensRequest{}
+	mi := &file_brand_manager_v1_brands_brands_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTokensRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTokensRequest) ProtoMessage() {}
+
+func (x *GetTokensRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_brand_manager_v1_brands_brands_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTokensRequest.ProtoReflect.Descriptor instead.
+func (*GetTokensRequest) Descriptor() ([]byte, []int) {
+	return file_brand_manager_v1_brands_brands_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *GetTokensRequest) GetBrandId() string {
+	if x != nil {
+		return x.BrandId
+	}
+	return ""
+}
+
+type Token struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Token) Reset() {
+	*x = Token{}
+	mi := &file_brand_manager_v1_brands_brands_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Token) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Token) ProtoMessage() {}
+
+func (x *Token) ProtoReflect() protoreflect.Message {
+	mi := &file_brand_manager_v1_brands_brands_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Token.ProtoReflect.Descriptor instead.
+func (*Token) Descriptor() ([]byte, []int) {
+	return file_brand_manager_v1_brands_brands_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *Token) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Token) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+type GetTokensResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tokens        []*Token               `protobuf:"bytes,1,rep,name=tokens,proto3" json:"tokens,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTokensResponse) Reset() {
+	*x = GetTokensResponse{}
+	mi := &file_brand_manager_v1_brands_brands_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTokensResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTokensResponse) ProtoMessage() {}
+
+func (x *GetTokensResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_brand_manager_v1_brands_brands_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTokensResponse.ProtoReflect.Descriptor instead.
+func (*GetTokensResponse) Descriptor() ([]byte, []int) {
+	return file_brand_manager_v1_brands_brands_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetTokensResponse) GetTokens() []*Token {
+	if x != nil {
+		return x.Tokens
+	}
+	return nil
+}
+
 var File_brand_manager_v1_brands_brands_proto protoreflect.FileDescriptor
 
 const file_brand_manager_v1_brands_brands_proto_rawDesc = "" +
@@ -1302,7 +1442,14 @@ const file_brand_manager_v1_brands_brands_proto_rawDesc = "" +
 	"\x18ListBrandVersionsRequest\x12\x19\n" +
 	"\bbrand_id\x18\x01 \x01(\tR\abrandId\"e\n" +
 	"\x19ListBrandVersionsResponse\x12H\n" +
-	"\bversions\x18\x01 \x03(\v2,.vrooli.brand_manager.v1.brands.BrandVersionR\bversions2\xe6\x05\n" +
+	"\bversions\x18\x01 \x03(\v2,.vrooli.brand_manager.v1.brands.BrandVersionR\bversions\"-\n" +
+	"\x10GetTokensRequest\x12\x19\n" +
+	"\bbrand_id\x18\x01 \x01(\tR\abrandId\"1\n" +
+	"\x05Token\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"R\n" +
+	"\x11GetTokensResponse\x12=\n" +
+	"\x06tokens\x18\x01 \x03(\v2%.vrooli.brand_manager.v1.brands.TokenR\x06tokens2\xd8\x06\n" +
 	"\rBrandsService\x12s\n" +
 	"\n" +
 	"ListBrands\x121.vrooli.brand_manager.v1.brands.ListBrandsRequest\x1a2.vrooli.brand_manager.v1.brands.ListBrandsResponse\x12v\n" +
@@ -1310,7 +1457,8 @@ const file_brand_manager_v1_brands_brands_proto_rawDesc = "" +
 	"\bGetBrand\x12/.vrooli.brand_manager.v1.brands.GetBrandRequest\x1a0.vrooli.brand_manager.v1.brands.GetBrandResponse\x12v\n" +
 	"\vUpdateBrand\x122.vrooli.brand_manager.v1.brands.UpdateBrandRequest\x1a3.vrooli.brand_manager.v1.brands.UpdateBrandResponse\x12v\n" +
 	"\vDeleteBrand\x122.vrooli.brand_manager.v1.brands.DeleteBrandRequest\x1a3.vrooli.brand_manager.v1.brands.DeleteBrandResponse\x12\x88\x01\n" +
-	"\x11ListBrandVersions\x128.vrooli.brand_manager.v1.brands.ListBrandVersionsRequest\x1a9.vrooli.brand_manager.v1.brands.ListBrandVersionsResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/brands;brands_v1b\x06proto3"
+	"\x11ListBrandVersions\x128.vrooli.brand_manager.v1.brands.ListBrandVersionsRequest\x1a9.vrooli.brand_manager.v1.brands.ListBrandVersionsResponse\x12p\n" +
+	"\tGetTokens\x120.vrooli.brand_manager.v1.brands.GetTokensRequest\x1a1.vrooli.brand_manager.v1.brands.GetTokensResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/brands;brands_v1b\x06proto3"
 
 var (
 	file_brand_manager_v1_brands_brands_proto_rawDescOnce sync.Once
@@ -1324,7 +1472,7 @@ func file_brand_manager_v1_brands_brands_proto_rawDescGZIP() []byte {
 	return file_brand_manager_v1_brands_brands_proto_rawDescData
 }
 
-var file_brand_manager_v1_brands_brands_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_brand_manager_v1_brands_brands_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_brand_manager_v1_brands_brands_proto_goTypes = []any{
 	(*Brand)(nil),                     // 0: vrooli.brand_manager.v1.brands.Brand
 	(*Identity)(nil),                  // 1: vrooli.brand_manager.v1.brands.Identity
@@ -1344,16 +1492,19 @@ var file_brand_manager_v1_brands_brands_proto_goTypes = []any{
 	(*DeleteBrandResponse)(nil),       // 15: vrooli.brand_manager.v1.brands.DeleteBrandResponse
 	(*ListBrandVersionsRequest)(nil),  // 16: vrooli.brand_manager.v1.brands.ListBrandVersionsRequest
 	(*ListBrandVersionsResponse)(nil), // 17: vrooli.brand_manager.v1.brands.ListBrandVersionsResponse
-	(*timestamppb.Timestamp)(nil),     // 18: google.protobuf.Timestamp
+	(*GetTokensRequest)(nil),          // 18: vrooli.brand_manager.v1.brands.GetTokensRequest
+	(*Token)(nil),                     // 19: vrooli.brand_manager.v1.brands.Token
+	(*GetTokensResponse)(nil),         // 20: vrooli.brand_manager.v1.brands.GetTokensResponse
+	(*timestamppb.Timestamp)(nil),     // 21: google.protobuf.Timestamp
 }
 var file_brand_manager_v1_brands_brands_proto_depIdxs = []int32{
 	1,  // 0: vrooli.brand_manager.v1.brands.Brand.identity:type_name -> vrooli.brand_manager.v1.brands.Identity
 	2,  // 1: vrooli.brand_manager.v1.brands.Brand.colors:type_name -> vrooli.brand_manager.v1.brands.Colors
 	3,  // 2: vrooli.brand_manager.v1.brands.Brand.typography:type_name -> vrooli.brand_manager.v1.brands.Typography
 	4,  // 3: vrooli.brand_manager.v1.brands.Brand.voice:type_name -> vrooli.brand_manager.v1.brands.Voice
-	18, // 4: vrooli.brand_manager.v1.brands.Brand.created_at:type_name -> google.protobuf.Timestamp
-	18, // 5: vrooli.brand_manager.v1.brands.Brand.updated_at:type_name -> google.protobuf.Timestamp
-	18, // 6: vrooli.brand_manager.v1.brands.BrandVersion.created_at:type_name -> google.protobuf.Timestamp
+	21, // 4: vrooli.brand_manager.v1.brands.Brand.created_at:type_name -> google.protobuf.Timestamp
+	21, // 5: vrooli.brand_manager.v1.brands.Brand.updated_at:type_name -> google.protobuf.Timestamp
+	21, // 6: vrooli.brand_manager.v1.brands.BrandVersion.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 7: vrooli.brand_manager.v1.brands.ListBrandsResponse.brands:type_name -> vrooli.brand_manager.v1.brands.Brand
 	1,  // 8: vrooli.brand_manager.v1.brands.CreateBrandRequest.identity:type_name -> vrooli.brand_manager.v1.brands.Identity
 	2,  // 9: vrooli.brand_manager.v1.brands.CreateBrandRequest.colors:type_name -> vrooli.brand_manager.v1.brands.Colors
@@ -1367,23 +1518,26 @@ var file_brand_manager_v1_brands_brands_proto_depIdxs = []int32{
 	4,  // 17: vrooli.brand_manager.v1.brands.UpdateBrandRequest.voice:type_name -> vrooli.brand_manager.v1.brands.Voice
 	0,  // 18: vrooli.brand_manager.v1.brands.UpdateBrandResponse.brand:type_name -> vrooli.brand_manager.v1.brands.Brand
 	5,  // 19: vrooli.brand_manager.v1.brands.ListBrandVersionsResponse.versions:type_name -> vrooli.brand_manager.v1.brands.BrandVersion
-	6,  // 20: vrooli.brand_manager.v1.brands.BrandsService.ListBrands:input_type -> vrooli.brand_manager.v1.brands.ListBrandsRequest
-	8,  // 21: vrooli.brand_manager.v1.brands.BrandsService.CreateBrand:input_type -> vrooli.brand_manager.v1.brands.CreateBrandRequest
-	10, // 22: vrooli.brand_manager.v1.brands.BrandsService.GetBrand:input_type -> vrooli.brand_manager.v1.brands.GetBrandRequest
-	12, // 23: vrooli.brand_manager.v1.brands.BrandsService.UpdateBrand:input_type -> vrooli.brand_manager.v1.brands.UpdateBrandRequest
-	14, // 24: vrooli.brand_manager.v1.brands.BrandsService.DeleteBrand:input_type -> vrooli.brand_manager.v1.brands.DeleteBrandRequest
-	16, // 25: vrooli.brand_manager.v1.brands.BrandsService.ListBrandVersions:input_type -> vrooli.brand_manager.v1.brands.ListBrandVersionsRequest
-	7,  // 26: vrooli.brand_manager.v1.brands.BrandsService.ListBrands:output_type -> vrooli.brand_manager.v1.brands.ListBrandsResponse
-	9,  // 27: vrooli.brand_manager.v1.brands.BrandsService.CreateBrand:output_type -> vrooli.brand_manager.v1.brands.CreateBrandResponse
-	11, // 28: vrooli.brand_manager.v1.brands.BrandsService.GetBrand:output_type -> vrooli.brand_manager.v1.brands.GetBrandResponse
-	13, // 29: vrooli.brand_manager.v1.brands.BrandsService.UpdateBrand:output_type -> vrooli.brand_manager.v1.brands.UpdateBrandResponse
-	15, // 30: vrooli.brand_manager.v1.brands.BrandsService.DeleteBrand:output_type -> vrooli.brand_manager.v1.brands.DeleteBrandResponse
-	17, // 31: vrooli.brand_manager.v1.brands.BrandsService.ListBrandVersions:output_type -> vrooli.brand_manager.v1.brands.ListBrandVersionsResponse
-	26, // [26:32] is the sub-list for method output_type
-	20, // [20:26] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	19, // 20: vrooli.brand_manager.v1.brands.GetTokensResponse.tokens:type_name -> vrooli.brand_manager.v1.brands.Token
+	6,  // 21: vrooli.brand_manager.v1.brands.BrandsService.ListBrands:input_type -> vrooli.brand_manager.v1.brands.ListBrandsRequest
+	8,  // 22: vrooli.brand_manager.v1.brands.BrandsService.CreateBrand:input_type -> vrooli.brand_manager.v1.brands.CreateBrandRequest
+	10, // 23: vrooli.brand_manager.v1.brands.BrandsService.GetBrand:input_type -> vrooli.brand_manager.v1.brands.GetBrandRequest
+	12, // 24: vrooli.brand_manager.v1.brands.BrandsService.UpdateBrand:input_type -> vrooli.brand_manager.v1.brands.UpdateBrandRequest
+	14, // 25: vrooli.brand_manager.v1.brands.BrandsService.DeleteBrand:input_type -> vrooli.brand_manager.v1.brands.DeleteBrandRequest
+	16, // 26: vrooli.brand_manager.v1.brands.BrandsService.ListBrandVersions:input_type -> vrooli.brand_manager.v1.brands.ListBrandVersionsRequest
+	18, // 27: vrooli.brand_manager.v1.brands.BrandsService.GetTokens:input_type -> vrooli.brand_manager.v1.brands.GetTokensRequest
+	7,  // 28: vrooli.brand_manager.v1.brands.BrandsService.ListBrands:output_type -> vrooli.brand_manager.v1.brands.ListBrandsResponse
+	9,  // 29: vrooli.brand_manager.v1.brands.BrandsService.CreateBrand:output_type -> vrooli.brand_manager.v1.brands.CreateBrandResponse
+	11, // 30: vrooli.brand_manager.v1.brands.BrandsService.GetBrand:output_type -> vrooli.brand_manager.v1.brands.GetBrandResponse
+	13, // 31: vrooli.brand_manager.v1.brands.BrandsService.UpdateBrand:output_type -> vrooli.brand_manager.v1.brands.UpdateBrandResponse
+	15, // 32: vrooli.brand_manager.v1.brands.BrandsService.DeleteBrand:output_type -> vrooli.brand_manager.v1.brands.DeleteBrandResponse
+	17, // 33: vrooli.brand_manager.v1.brands.BrandsService.ListBrandVersions:output_type -> vrooli.brand_manager.v1.brands.ListBrandVersionsResponse
+	20, // 34: vrooli.brand_manager.v1.brands.BrandsService.GetTokens:output_type -> vrooli.brand_manager.v1.brands.GetTokensResponse
+	28, // [28:35] is the sub-list for method output_type
+	21, // [21:28] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_brand_manager_v1_brands_brands_proto_init() }
@@ -1397,7 +1551,7 @@ func file_brand_manager_v1_brands_brands_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_brand_manager_v1_brands_brands_proto_rawDesc), len(file_brand_manager_v1_brands_brands_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

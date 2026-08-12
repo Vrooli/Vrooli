@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n*program-runtime/v1/sessions/sessions.proto\x12\"vrooli.program_runtime.v1.sessions\"\xfc\x01\n\x07Session\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05state\x18\x02 \x01(\tR\x05state\x12\x1d\n\ncreated_at\x18\x03 \x01(\tR\tcreatedAt\x12(\n\x10last_activity_at\x18\x04 \x01(\tR\x0elastActivityAt\x12\x16\n\x06grants\x18\x05 \x03(\tR\x06grants\x12+\n\x11sandbox_workspace\x18\x06 \x01(\tR\x10sandboxWorkspace\x12)\n\x10reclaimed_reason\x18\x07 \x01(\tR\x0freclaimedReason\x12\x12\n\x04name\x18\x08 \x01(\tR\x04name\"o\n\x14\x43reateSessionRequest\x12\x16\n\x06grants\x18\x01 \x03(\tR\x06grants\x12+\n\x11sandbox_workspace\x18\x02 \x01(\tR\x10sandboxWorkspace\x12\x12\n\x04name\x18\x03 \x01(\tR\x04name\"^\n\x15\x43reateSessionResponse\x12\x45\n\x07session\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.sessions.SessionR\x07session\"#\n\x11GetSessionRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"[\n\x12GetSessionResponse\x12\x45\n\x07session\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.sessions.SessionR\x07session\"\x15\n\x13ListSessionsRequest\"u\n\x14ListSessionsResponse\x12G\n\x08sessions\x18\x01 \x03(\x0b\x32+.vrooli.program_runtime.v1.sessions.SessionR\x08sessions\x12\x14\n\x05\x63ount\x18\x02 \x01(\x03R\x05\x63ount\">\n\x14\x44\x65leteSessionRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reason\"^\n\x15\x44\x65leteSessionResponse\x12\x45\n\x07session\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.sessions.SessionR\x07session\"=\n\x13GrantSessionRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n\x06grants\x18\x02 \x03(\tR\x06grants\"]\n\x14GrantSessionResponse\x12\x45\n\x07session\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.sessions.SessionR\x07session2\xa3\x05\n\x0eSessionService\x12\x84\x01\n\rCreateSession\x12\x38.vrooli.program_runtime.v1.sessions.CreateSessionRequest\x1a\x39.vrooli.program_runtime.v1.sessions.CreateSessionResponse\x12{\n\nGetSession\x12\x35.vrooli.program_runtime.v1.sessions.GetSessionRequest\x1a\x36.vrooli.program_runtime.v1.sessions.GetSessionResponse\x12\x81\x01\n\x0cListSessions\x12\x37.vrooli.program_runtime.v1.sessions.ListSessionsRequest\x1a\x38.vrooli.program_runtime.v1.sessions.ListSessionsResponse\x12\x84\x01\n\rDeleteSession\x12\x38.vrooli.program_runtime.v1.sessions.DeleteSessionRequest\x1a\x39.vrooli.program_runtime.v1.sessions.DeleteSessionResponse\x12\x81\x01\n\x0cGrantSession\x12\x37.vrooli.program_runtime.v1.sessions.GrantSessionRequest\x1a\x38.vrooli.program_runtime.v1.sessions.GrantSessionResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions;sessions_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n*program-runtime/v1/sessions/sessions.proto\x12\"vrooli.program_runtime.v1.sessions\"\xf7\x04\n\x07Session\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05state\x18\x02 \x01(\tR\x05state\x12\x1d\n\ncreated_at\x18\x03 \x01(\tR\tcreatedAt\x12(\n\x10last_activity_at\x18\x04 \x01(\tR\x0elastActivityAt\x12\x16\n\x06grants\x18\x05 \x03(\tR\x06grants\x12+\n\x11sandbox_workspace\x18\x06 \x01(\tR\x10sandboxWorkspace\x12)\n\x10reclaimed_reason\x18\x07 \x01(\tR\x0freclaimedReason\x12\x12\n\x04name\x18\x08 \x01(\tR\x04name\x12\x32\n\x15inference_cost_micros\x18\t \x01(\x03R\x13inferenceCostMicros\x12)\n\x10inference_tokens\x18\n \x01(\x03R\x0finferenceTokens\x12\x34\n\x16\x64\x65legation_cost_micros\x18\x0b \x01(\x03R\x14\x64\x65legationCostMicros\x12\x38\n\x18inference_ceiling_micros\x18\x0c \x01(\x03R\x16inferenceCeilingMicros\x12:\n\x19\x64\x65legation_ceiling_micros\x18\r \x01(\x03R\x17\x64\x65legationCeilingMicros\x12:\n\x19\x64\x65legation_spend_measured\x18\x0e \x01(\x08R\x17\x64\x65legationSpendMeasured\x12\x32\n\x15\x64\x65legation_spend_note\x18\x0f \x01(\tR\x13\x64\x65legationSpendNote\"\xe5\x01\n\x14\x43reateSessionRequest\x12\x16\n\x06grants\x18\x01 \x03(\tR\x06grants\x12+\n\x11sandbox_workspace\x18\x02 \x01(\tR\x10sandboxWorkspace\x12\x12\n\x04name\x18\x03 \x01(\tR\x04name\x12\x38\n\x18inference_ceiling_micros\x18\x04 \x01(\x03R\x16inferenceCeilingMicros\x12:\n\x19\x64\x65legation_ceiling_micros\x18\x05 \x01(\x03R\x17\x64\x65legationCeilingMicros\"^\n\x15\x43reateSessionResponse\x12\x45\n\x07session\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.sessions.SessionR\x07session\"#\n\x11GetSessionRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"[\n\x12GetSessionResponse\x12\x45\n\x07session\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.sessions.SessionR\x07session\"\x15\n\x13ListSessionsRequest\"u\n\x14ListSessionsResponse\x12G\n\x08sessions\x18\x01 \x03(\x0b\x32+.vrooli.program_runtime.v1.sessions.SessionR\x08sessions\x12\x14\n\x05\x63ount\x18\x02 \x01(\x03R\x05\x63ount\">\n\x14\x44\x65leteSessionRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reason\"^\n\x15\x44\x65leteSessionResponse\x12\x45\n\x07session\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.sessions.SessionR\x07session\"=\n\x13GrantSessionRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n\x06grants\x18\x02 \x03(\tR\x06grants\"]\n\x14GrantSessionResponse\x12\x45\n\x07session\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.sessions.SessionR\x07session2\xa3\x05\n\x0eSessionService\x12\x84\x01\n\rCreateSession\x12\x38.vrooli.program_runtime.v1.sessions.CreateSessionRequest\x1a\x39.vrooli.program_runtime.v1.sessions.CreateSessionResponse\x12{\n\nGetSession\x12\x35.vrooli.program_runtime.v1.sessions.GetSessionRequest\x1a\x36.vrooli.program_runtime.v1.sessions.GetSessionResponse\x12\x81\x01\n\x0cListSessions\x12\x37.vrooli.program_runtime.v1.sessions.ListSessionsRequest\x1a\x38.vrooli.program_runtime.v1.sessions.ListSessionsResponse\x12\x84\x01\n\rDeleteSession\x12\x38.vrooli.program_runtime.v1.sessions.DeleteSessionRequest\x1a\x39.vrooli.program_runtime.v1.sessions.DeleteSessionResponse\x12\x81\x01\n\x0cGrantSession\x12\x37.vrooli.program_runtime.v1.sessions.GrantSessionRequest\x1a\x38.vrooli.program_runtime.v1.sessions.GrantSessionResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions;sessions_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,27 +33,27 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions;sessions_v1'
   _globals['_SESSION']._serialized_start=83
-  _globals['_SESSION']._serialized_end=335
-  _globals['_CREATESESSIONREQUEST']._serialized_start=337
-  _globals['_CREATESESSIONREQUEST']._serialized_end=448
-  _globals['_CREATESESSIONRESPONSE']._serialized_start=450
-  _globals['_CREATESESSIONRESPONSE']._serialized_end=544
-  _globals['_GETSESSIONREQUEST']._serialized_start=546
-  _globals['_GETSESSIONREQUEST']._serialized_end=581
-  _globals['_GETSESSIONRESPONSE']._serialized_start=583
-  _globals['_GETSESSIONRESPONSE']._serialized_end=674
-  _globals['_LISTSESSIONSREQUEST']._serialized_start=676
-  _globals['_LISTSESSIONSREQUEST']._serialized_end=697
-  _globals['_LISTSESSIONSRESPONSE']._serialized_start=699
-  _globals['_LISTSESSIONSRESPONSE']._serialized_end=816
-  _globals['_DELETESESSIONREQUEST']._serialized_start=818
-  _globals['_DELETESESSIONREQUEST']._serialized_end=880
-  _globals['_DELETESESSIONRESPONSE']._serialized_start=882
-  _globals['_DELETESESSIONRESPONSE']._serialized_end=976
-  _globals['_GRANTSESSIONREQUEST']._serialized_start=978
-  _globals['_GRANTSESSIONREQUEST']._serialized_end=1039
-  _globals['_GRANTSESSIONRESPONSE']._serialized_start=1041
-  _globals['_GRANTSESSIONRESPONSE']._serialized_end=1134
-  _globals['_SESSIONSERVICE']._serialized_start=1137
-  _globals['_SESSIONSERVICE']._serialized_end=1812
+  _globals['_SESSION']._serialized_end=714
+  _globals['_CREATESESSIONREQUEST']._serialized_start=717
+  _globals['_CREATESESSIONREQUEST']._serialized_end=946
+  _globals['_CREATESESSIONRESPONSE']._serialized_start=948
+  _globals['_CREATESESSIONRESPONSE']._serialized_end=1042
+  _globals['_GETSESSIONREQUEST']._serialized_start=1044
+  _globals['_GETSESSIONREQUEST']._serialized_end=1079
+  _globals['_GETSESSIONRESPONSE']._serialized_start=1081
+  _globals['_GETSESSIONRESPONSE']._serialized_end=1172
+  _globals['_LISTSESSIONSREQUEST']._serialized_start=1174
+  _globals['_LISTSESSIONSREQUEST']._serialized_end=1195
+  _globals['_LISTSESSIONSRESPONSE']._serialized_start=1197
+  _globals['_LISTSESSIONSRESPONSE']._serialized_end=1314
+  _globals['_DELETESESSIONREQUEST']._serialized_start=1316
+  _globals['_DELETESESSIONREQUEST']._serialized_end=1378
+  _globals['_DELETESESSIONRESPONSE']._serialized_start=1380
+  _globals['_DELETESESSIONRESPONSE']._serialized_end=1474
+  _globals['_GRANTSESSIONREQUEST']._serialized_start=1476
+  _globals['_GRANTSESSIONREQUEST']._serialized_end=1537
+  _globals['_GRANTSESSIONRESPONSE']._serialized_start=1539
+  _globals['_GRANTSESSIONRESPONSE']._serialized_end=1632
+  _globals['_SESSIONSERVICE']._serialized_start=1635
+  _globals['_SESSIONSERVICE']._serialized_end=2310
 # @@protoc_insertion_point(module_scope)

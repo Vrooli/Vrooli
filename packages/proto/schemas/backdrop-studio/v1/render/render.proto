@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package vrooli.backdrop_studio.v1.render;
+
+import "backdrop-studio/v1/shared/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/render;render_v1";
+
+service RenderService {
+  rpc Submit(SubmitRequest) returns (RenderJob);
+  rpc GetJob(GetJobRequest) returns (RenderJob);
+  rpc ListCandidates(ListCandidatesRequest) returns (ListCandidatesResponse);
+  rpc SelectCandidate(SelectCandidateRequest) returns (RenderJob);
+}
+
+message SubmitRequest {
+  shared.Style style = 1;
+  string placement = 2;
+  int64 seed = 3;
+  int32 candidate_count = 4;
+  map<string, string> brand_tokens = 5;
+}
+
+message GetJobRequest {
+  string job_id = 1;
+}
+message ListCandidatesRequest {
+  string job_id = 1;
+}
+message ListCandidatesResponse {
+  repeated Candidate candidates = 1;
+}
+message SelectCandidateRequest {
+  string job_id = 1;
+  string candidate_id = 2;
+  string actor = 3;
+}
+
+message RenderJob {
+  string id = 1;
+  string style_id = 2;
+  string status = 3;
+  int64 seed = 4;
+  string execution_path = 5;
+  repeated Candidate candidates = 6;
+  string selected_candidate_id = 7;
+  string selected_by = 8;
+}
+
+message Candidate {
+  string id = 1;
+  string job_id = 2;
+  bytes image_png = 3;
+  int32 width = 4;
+  int32 height = 5;
+  string strategy = 6;
+  string execution_path = 7;
+  bool treatment_applied = 8;
+  int64 seed = 9;
+  bool conditioning_submitted = 10;
+  bool disclosure_required = 11;
+  string prompt = 12;
+  string provenance_json = 13;
+}

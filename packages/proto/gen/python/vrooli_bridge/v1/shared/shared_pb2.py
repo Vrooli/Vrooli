@@ -23,9 +23,10 @@ _sym_db = _symbol_database.Default()
 
 
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
+from vrooli_bridge.v1.session import session_pb2 as vrooli__bridge_dot_v1_dot_session_dot_session__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$vrooli-bridge/v1/shared/shared.proto\x12\x1evrooli.vrooli_bridge.v1.shared\x1a\x1fgoogle/protobuf/timestamp.proto\"\xef\x02\n\x0eHealthSnapshot\x12+\n\x11toolchain_present\x18\x01 \x01(\x08R\x10toolchainPresent\x12.\n\x13\x64isk_headroom_bytes\x18\x02 \x01(\x03R\x11\x64iskHeadroomBytes\x12\x30\n\x14\x63ontainer_runtime_up\x18\x03 \x01(\x08R\x12\x63ontainerRuntimeUp\x12U\n\x07\x64\x65tails\x18\x04 \x03(\x0b\x32;.vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntryR\x07\x64\x65tails\x12;\n\x0breported_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nreportedAt\x1a:\n\x0c\x44\x65tailsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\xbd\x01\n\tHeartbeat\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n\x08sequence\x18\x02 \x01(\x04R\x08sequence\x12\x46\n\x06health\x18\x03 \x01(\x0b\x32..vrooli.vrooli_bridge.v1.shared.HealthSnapshotR\x06health\x12\x33\n\x07sent_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x06sentAt\"\xaf\x02\n\x08RunEvent\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12@\n\x04kind\x18\x02 \x01(\x0e\x32,.vrooli.vrooli_bridge.v1.shared.RunEventKindR\x04kind\x12\x1a\n\x08sequence\x18\x03 \x01(\x04R\x08sequence\x12\x1b\n\tlog_chunk\x18\x04 \x01(\tR\x08logChunk\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12\x1b\n\texit_code\x18\x06 \x01(\x05R\x08\x65xitCode\x12!\n\x0c\x61rtifact_ref\x18\x07 \x01(\tR\x0b\x61rtifactRef\x12\x39\n\nemitted_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\temittedAt*\xa6\x01\n\x13\x43ompatibilityStatus\x12$\n COMPATIBILITY_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n\x17\x43OMPATIBILITY_STATUS_OK\x10\x01\x12%\n!COMPATIBILITY_STATUS_NEEDS_UPDATE\x10\x02\x12%\n!COMPATIBILITY_STATUS_INCOMPATIBLE\x10\x03*\x9b\x01\n\x0cRunEventKind\x12\x1e\n\x1aRUN_EVENT_KIND_UNSPECIFIED\x10\x00\x12\x16\n\x12RUN_EVENT_KIND_LOG\x10\x01\x12\x19\n\x15RUN_EVENT_KIND_STATUS\x10\x02\x12\x17\n\x13RUN_EVENT_KIND_EXIT\x10\x03\x12\x1f\n\x1bRUN_EVENT_KIND_ARTIFACT_REF\x10\x04\x42RZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared;shared_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$vrooli-bridge/v1/shared/shared.proto\x12\x1evrooli.vrooli_bridge.v1.shared\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&vrooli-bridge/v1/session/session.proto\"\xef\x02\n\x0eHealthSnapshot\x12+\n\x11toolchain_present\x18\x01 \x01(\x08R\x10toolchainPresent\x12.\n\x13\x64isk_headroom_bytes\x18\x02 \x01(\x03R\x11\x64iskHeadroomBytes\x12\x30\n\x14\x63ontainer_runtime_up\x18\x03 \x01(\x08R\x12\x63ontainerRuntimeUp\x12U\n\x07\x64\x65tails\x18\x04 \x03(\x0b\x32;.vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntryR\x07\x64\x65tails\x12;\n\x0breported_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nreportedAt\x1a:\n\x0c\x44\x65tailsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\xbd\x01\n\tHeartbeat\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n\x08sequence\x18\x02 \x01(\x04R\x08sequence\x12\x46\n\x06health\x18\x03 \x01(\x0b\x32..vrooli.vrooli_bridge.v1.shared.HealthSnapshotR\x06health\x12\x33\n\x07sent_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x06sentAt\"\xaf\x02\n\x08RunEvent\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12@\n\x04kind\x18\x02 \x01(\x0e\x32,.vrooli.vrooli_bridge.v1.shared.RunEventKindR\x04kind\x12\x1a\n\x08sequence\x18\x03 \x01(\x04R\x08sequence\x12\x1b\n\tlog_chunk\x18\x04 \x01(\tR\x08logChunk\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12\x1b\n\texit_code\x18\x06 \x01(\x05R\x08\x65xitCode\x12!\n\x0c\x61rtifact_ref\x18\x07 \x01(\tR\x0b\x61rtifactRef\x12\x39\n\nemitted_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\temittedAt\"\x91\x01\n\x0b\x44\x65liveryAck\x12\x19\n\x08\x66rame_id\x18\x01 \x01(\tR\x07\x66rameId\x12\x15\n\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x13\n\x05op_id\x18\x03 \x01(\tR\x04opId\x12;\n\x0breceived_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nreceivedAt\"k\n\x0cSessionFrame\x12\x1d\n\nsession_id\x18\x01 \x01(\tR\tsessionId\x12<\n\x05\x66rame\x18\x02 \x01(\x0b\x32&.vrooli.vrooli_bridge.v1.session.FrameR\x05\x66rame*\xa6\x01\n\x13\x43ompatibilityStatus\x12$\n COMPATIBILITY_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n\x17\x43OMPATIBILITY_STATUS_OK\x10\x01\x12%\n!COMPATIBILITY_STATUS_NEEDS_UPDATE\x10\x02\x12%\n!COMPATIBILITY_STATUS_INCOMPATIBLE\x10\x03*\x9b\x01\n\x0cRunEventKind\x12\x1e\n\x1aRUN_EVENT_KIND_UNSPECIFIED\x10\x00\x12\x16\n\x12RUN_EVENT_KIND_LOG\x10\x01\x12\x19\n\x15RUN_EVENT_KIND_STATUS\x10\x02\x12\x17\n\x13RUN_EVENT_KIND_EXIT\x10\x03\x12\x1f\n\x1bRUN_EVENT_KIND_ARTIFACT_REF\x10\x04\x42RZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared;shared_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,16 +36,20 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared;shared_v1'
   _globals['_HEALTHSNAPSHOT_DETAILSENTRY']._loaded_options = None
   _globals['_HEALTHSNAPSHOT_DETAILSENTRY']._serialized_options = b'8\001'
-  _globals['_COMPATIBILITYSTATUS']._serialized_start=974
-  _globals['_COMPATIBILITYSTATUS']._serialized_end=1140
-  _globals['_RUNEVENTKIND']._serialized_start=1143
-  _globals['_RUNEVENTKIND']._serialized_end=1298
-  _globals['_HEALTHSNAPSHOT']._serialized_start=106
-  _globals['_HEALTHSNAPSHOT']._serialized_end=473
-  _globals['_HEALTHSNAPSHOT_DETAILSENTRY']._serialized_start=415
-  _globals['_HEALTHSNAPSHOT_DETAILSENTRY']._serialized_end=473
-  _globals['_HEARTBEAT']._serialized_start=476
-  _globals['_HEARTBEAT']._serialized_end=665
-  _globals['_RUNEVENT']._serialized_start=668
-  _globals['_RUNEVENT']._serialized_end=971
+  _globals['_COMPATIBILITYSTATUS']._serialized_start=1271
+  _globals['_COMPATIBILITYSTATUS']._serialized_end=1437
+  _globals['_RUNEVENTKIND']._serialized_start=1440
+  _globals['_RUNEVENTKIND']._serialized_end=1595
+  _globals['_HEALTHSNAPSHOT']._serialized_start=146
+  _globals['_HEALTHSNAPSHOT']._serialized_end=513
+  _globals['_HEALTHSNAPSHOT_DETAILSENTRY']._serialized_start=455
+  _globals['_HEALTHSNAPSHOT_DETAILSENTRY']._serialized_end=513
+  _globals['_HEARTBEAT']._serialized_start=516
+  _globals['_HEARTBEAT']._serialized_end=705
+  _globals['_RUNEVENT']._serialized_start=708
+  _globals['_RUNEVENT']._serialized_end=1011
+  _globals['_DELIVERYACK']._serialized_start=1014
+  _globals['_DELIVERYACK']._serialized_end=1159
+  _globals['_SESSIONFRAME']._serialized_start=1161
+  _globals['_SESSIONFRAME']._serialized_end=1268
 # @@protoc_insertion_point(module_scope)

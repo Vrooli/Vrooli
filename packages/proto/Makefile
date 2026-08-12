@@ -1,70 +1,33 @@
-BUF_BASE_BRANCH ?= master
-DESCRIPTOR_DIR ?= gen/descriptor
-
 .PHONY: generate gen-code descriptor gen-manifests lint format breaking verify-committed-gen clean refresh-vendor
 
-generate: gen-code descriptor gen-manifests
+SCENARIO_ARGS := $(foreach scenario,$(SCENARIO),--scenario $(scenario))
+
+generate:
+	GOFLAGS=-mod=mod go run ./cmd/protogen generate $(SCENARIO_ARGS)
 
 gen-code:
-	@if [ ! -f vendor/googleapis/google/api/annotations.proto ] || [ ! -f vendor/protovalidate/buf/validate/validate.proto ]; then \
-		echo "==> proto vendor inputs missing; refreshing Buf dependencies"; \
-		$(MAKE) refresh-vendor; \
-	fi
-	GOFLAGS=-mod=mod go run ./cmd/prune-gen
-	buf generate
-	# Mark every generated Python package directory as typed (PEP 561).
-	# Recursive find replaces the previous hardcoded list so adding a new
-	# scenario doesn't require Makefile edits.
-	@if [ -d gen/python ]; then \
-		find gen/python -type d -exec touch {}/py.typed \; ; \
-	fi
+	GOFLAGS=-mod=mod go run ./cmd/protogen gen-code $(SCENARIO_ARGS)
 
-# descriptor emits a self-contained FileDescriptorSet ("image") so request-
-# message param schemas — buf.validate constraints, enum values, optionality,
-# and leading comments — are runtime-introspectable by packages/measures-go and
-# any other consumer. This is a `buf build` invocation, not a `buf generate`
-# plugin. image.binpb is committed as the canonical descriptor artifact.
 descriptor:
-	@mkdir -p $(DESCRIPTOR_DIR)
-	buf build -o $(DESCRIPTOR_DIR)/image.binpb
+	GOFLAGS=-mod=mod go run ./cmd/protogen descriptor
 
 gen-manifests:
-	rm -rf gen/manifests
-	GOFLAGS=-mod=mod go run ./cmd/gen-manifest
+	GOFLAGS=-mod=mod go run ./cmd/protogen gen-manifests $(SCENARIO_ARGS)
 
 lint:
-	buf lint
+	GOFLAGS=-mod=mod go run ./cmd/protogen lint
 
 format:
-	buf format -w
+	GOFLAGS=-mod=mod go run ./cmd/protogen format
 
 breaking:
-	@if [ -n "$(SCENARIO)" ]; then \
-		proto-health impact scenario "$(SCENARIO)"; \
-	else \
-		for dir in schemas/*; do \
-			if [ -d "$$dir" ]; then \
-				proto-health impact scenario "$$(basename "$$dir")"; \
-			fi; \
-		done; \
-	fi
+	GOFLAGS=-mod=mod go run ./cmd/protogen breaking --scenario $(SCENARIO)
 
-verify-committed-gen: lint generate
-	@if ! git diff --quiet gen/; then \
-		echo "ERROR: Committed generated code (or descriptor) does not match schemas. Run 'make generate' and commit the generated artifacts.'"; \
-		git diff --stat gen/; \
-		exit 1; \
-	fi
+verify-committed-gen:
+	GOFLAGS=-mod=mod go run ./cmd/protogen verify
 
 clean:
-	rm -rf gen/*
+	GOFLAGS=-mod=mod go run ./cmd/protogen clean
 
-# refresh-vendor re-exports the BSR module deps (googleapis, protovalidate)
-# into vendor/ so codegen continues to resolve transitive imports without
-# contacting BSR. This is the single code path that requires BSR access;
-# see docs/configuration/integrations/buf-bsr.md for the optional login.
-# After refresh, run `make verify-committed-gen` to confirm committed gen/
-# remains consistent.
 refresh-vendor:
-	buf export buf.build/googleapis/googleapis -o vendor/googleapis
-	buf export buf.build/bufbuild/protovalidate -o vendor/protovalidate
+	GOFLAGS=-mod=mod go run ./cmd/protogen refresh-vendor

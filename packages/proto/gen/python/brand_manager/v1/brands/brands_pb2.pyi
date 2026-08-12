@@ -204,3 +204,23 @@ class ListBrandVersionsResponse(_message.Message):
     VERSIONS_FIELD_NUMBER: _ClassVar[int]
     versions: _containers.RepeatedCompositeFieldContainer[BrandVersion]
     def __init__(self, versions: _Optional[_Iterable[_Union[BrandVersion, _Mapping]]] = ...) -> None: ...
+
+class GetTokensRequest(_message.Message):
+    __slots__ = ("brand_id",)
+    BRAND_ID_FIELD_NUMBER: _ClassVar[int]
+    brand_id: str
+    def __init__(self, brand_id: _Optional[str] = ...) -> None: ...
+
+class Token(_message.Message):
+    __slots__ = ("name", "value")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    value: str
+    def __init__(self, name: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+
+class GetTokensResponse(_message.Message):
+    __slots__ = ("tokens",)
+    TOKENS_FIELD_NUMBER: _ClassVar[int]
+    tokens: _containers.RepeatedCompositeFieldContainer[Token]
+    def __init__(self, tokens: _Optional[_Iterable[_Union[Token, _Mapping]]] = ...) -> None: ...

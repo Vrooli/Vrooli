@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/file_preview/file_preview.proto.
  */
 export const file_web_console_v1_file_preview_file_preview: GenFile = /*@__PURE__*/
-  fileDesc("Ci53ZWItY29uc29sZS92MS9maWxlX3ByZXZpZXcvZmlsZV9wcmV2aWV3LnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3In0KDlJlc29sdmVSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDAoEcGF0aBgCIAEoCRJJCg5zb3VyY2VfY29udGV4dBgDIAEoDjIxLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuU291cmNlQ29udGV4dCLFAwoPUmVzb2x2ZVJlc3BvbnNlEhIKCnByZXZpZXdfaWQYASABKAkSEgoKaW5wdXRfcGF0aBgCIAEoCRIVCg1yZXNvbHZlZF9wYXRoGAMgASgJEhAKCGJhc2VuYW1lGAQgASgJEgwKBGxpbmUYBSABKAUSEAoIaGFzX2xpbmUYBiABKAgSGAoQcmVzb2x1dGlvbl9iYXNpcxgHIAEoCRJFCgxwcmV2aWV3X2tpbmQYCCABKA4yLy52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LlByZXZpZXdLaW5kEhEKCW1pbWVfdHlwZRgJIAEoCRISCgpzaXplX2J5dGVzGAogASgDEhcKD210aW1lX3VuaXhfbmFubxgLIAEoAxITCgtjYW5fcHJldmlldxgMIAEoCBIUCgxjYW5fZG93bmxvYWQYDSABKAgSFgoOc3VwcG9ydHNfcmFuZ2UYDiABKAgSHgoWdGV4dF9jb250ZW50X2F2YWlsYWJsZRgPIAEoCBIQCghibG9iX3VybBgQIAEoCRIZChFleHBpcmVzX3VuaXhfbmFubxgRIAEoAxIQCgh3YXJuaW5ncxgSIAMoCSI/ChVHZXRUZXh0Q29udGVudFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRISCgpwcmV2aWV3X2lkGAIgASgJIs0BChZHZXRUZXh0Q29udGVudFJlc3BvbnNlEhUKDXJlc29sdmVkX3BhdGgYASABKAkSRQoMcHJldmlld19raW5kGAIgASgOMi8udnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5QcmV2aWV3S2luZBIRCgltaW1lX3R5cGUYAyABKAkSDwoHY29udGVudBgEIAEoCRIRCgl0cnVuY2F0ZWQYBSABKAgSDAoEbGluZRgGIAEoBRIQCghoYXNfbGluZRgHIAEoCCqzAgoLUHJldmlld0tpbmQSHAoYUFJFVklFV19LSU5EX1VOU1BFQ0lGSUVEEAASGQoVUFJFVklFV19LSU5EX01BUktET1dOEAESFQoRUFJFVklFV19LSU5EX0NPREUQAhIVChFQUkVWSUVXX0tJTkRfVEVYVBADEhQKEFBSRVZJRVdfS0lORF9TVkcQBBIWChJQUkVWSUVXX0tJTkRfSU1BR0UQBRIUChBQUkVWSUVXX0tJTkRfUERGEAYSFgoSUFJFVklFV19LSU5EX0FVRElPEAcSFgoSUFJFVklFV19LSU5EX1ZJREVPEAgSFAoQUFJFVklFV19LSU5EX0NTVhAJEhUKEVBSRVZJRVdfS0lORF9ESUZGEAoSHAoYUFJFVklFV19LSU5EX1VOU1VQUE9SVEVEEAsqiAEKDVNvdXJjZUNvbnRleHQSHgoaU09VUkNFX0NPTlRFWFRfVU5TUEVDSUZJRUQQABIfChtTT1VSQ0VfQ09OVEVYVF9NRVNTQUdFX0xJTksQARIeChpTT1VSQ0VfQ09OVEVYVF9JTkxJTkVfQ09ERRACEhYKElNPVVJDRV9DT05URVhUX0NMSRADMpICChJGaWxlUHJldmlld1NlcnZpY2UScgoHUmVzb2x2ZRIyLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuUmVzb2x2ZVJlcXVlc3QaMy52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LlJlc29sdmVSZXNwb25zZRKHAQoOR2V0VGV4dENvbnRlbnQSOS52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LkdldFRleHRDb250ZW50UmVxdWVzdBo6LnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuR2V0VGV4dENvbnRlbnRSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL2ZpbGVfcHJldmlldztmaWxlX3ByZXZpZXdfdjFiBnByb3RvMw");
+  fileDesc("Ci53ZWItY29uc29sZS92MS9maWxlX3ByZXZpZXcvZmlsZV9wcmV2aWV3LnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3In0KDlJlc29sdmVSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDAoEcGF0aBgCIAEoCRJJCg5zb3VyY2VfY29udGV4dBgDIAEoDjIxLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuU291cmNlQ29udGV4dCLgAwoPUmVzb2x2ZVJlc3BvbnNlEhIKCnByZXZpZXdfaWQYASABKAkSEgoKaW5wdXRfcGF0aBgCIAEoCRIVCg1yZXNvbHZlZF9wYXRoGAMgASgJEhAKCGJhc2VuYW1lGAQgASgJEgwKBGxpbmUYBSABKAUSEAoIaGFzX2xpbmUYBiABKAgSGAoQcmVzb2x1dGlvbl9iYXNpcxgHIAEoCRJFCgxwcmV2aWV3X2tpbmQYCCABKA4yLy52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LlByZXZpZXdLaW5kEhEKCW1pbWVfdHlwZRgJIAEoCRISCgpzaXplX2J5dGVzGAogASgDEhcKD210aW1lX3VuaXhfbmFubxgLIAEoAxITCgtjYW5fcHJldmlldxgMIAEoCBIUCgxjYW5fZG93bmxvYWQYDSABKAgSFgoOc3VwcG9ydHNfcmFuZ2UYDiABKAgSHgoWdGV4dF9jb250ZW50X2F2YWlsYWJsZRgPIAEoCBIQCghibG9iX3VybBgQIAEoCRIZChFleHBpcmVzX3VuaXhfbmFubxgRIAEoAxIQCgh3YXJuaW5ncxgSIAMoCRIZChFsaXN0aW5nX2F2YWlsYWJsZRgTIAEoCCI/ChVHZXRUZXh0Q29udGVudFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRISCgpwcmV2aWV3X2lkGAIgASgJIs0BChZHZXRUZXh0Q29udGVudFJlc3BvbnNlEhUKDXJlc29sdmVkX3BhdGgYASABKAkSRQoMcHJldmlld19raW5kGAIgASgOMi8udnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5QcmV2aWV3S2luZBIRCgltaW1lX3R5cGUYAyABKAkSDwoHY29udGVudBgEIAEoCRIRCgl0cnVuY2F0ZWQYBSABKAgSDAoEbGluZRgGIAEoBRIQCghoYXNfbGluZRgHIAEoCCK7AQoUTGlzdERpcmVjdG9yeVJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRISCgpwcmV2aWV3X2lkGAIgASgJEj8KBHNvcnQYAyABKA4yMS52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LkRpcmVjdG9yeVNvcnQSEwoLc2hvd19oaWRkZW4YBCABKAgSEQoJcGFnZV9zaXplGAUgASgFEhIKCnBhZ2VfdG9rZW4YBiABKAkivQIKDkRpcmVjdG9yeUVudHJ5EgwKBG5hbWUYASABKAkSQQoKZW50cnlfdHlwZRgCIAEoDjItLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuRW50cnlUeXBlEkUKDHByZXZpZXdfa2luZBgDIAEoDjIvLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuUHJldmlld0tpbmQSEgoKc2l6ZV9ieXRlcxgEIAEoAxIXCg9tdGltZV91bml4X25hbm8YBSABKAMSEwoLY2FuX3ByZXZpZXcYBiABKAgSFgoOc3ltbGlua190YXJnZXQYByABKAkSFgoOc3ltbGlua19icm9rZW4YCCABKAgSDAoEbW9kZRgJIAEoCRITCgtjaGlsZF9jb3VudBgKIAEoAyKoAgoVTGlzdERpcmVjdG9yeVJlc3BvbnNlEhUKDXJlc29sdmVkX3BhdGgYASABKAkSEwoLcGFyZW50X3BhdGgYAiABKAkSQwoHZW50cmllcxgDIAMoCzIyLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuRGlyZWN0b3J5RW50cnkSFQoNdG90YWxfZW50cmllcxgEIAEoBRIRCgl0cnVuY2F0ZWQYBSABKAgSFwoPbmV4dF9wYWdlX3Rva2VuGAYgASgJEkkKDmVmZmVjdGl2ZV9zb3J0GAcgASgOMjEudnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5EaXJlY3RvcnlTb3J0EhAKCHdhcm5pbmdzGAggAygJKs8CCgtQcmV2aWV3S2luZBIcChhQUkVWSUVXX0tJTkRfVU5TUEVDSUZJRUQQABIZChVQUkVWSUVXX0tJTkRfTUFSS0RPV04QARIVChFQUkVWSUVXX0tJTkRfQ09ERRACEhUKEVBSRVZJRVdfS0lORF9URVhUEAMSFAoQUFJFVklFV19LSU5EX1NWRxAEEhYKElBSRVZJRVdfS0lORF9JTUFHRRAFEhQKEFBSRVZJRVdfS0lORF9QREYQBhIWChJQUkVWSUVXX0tJTkRfQVVESU8QBxIWChJQUkVWSUVXX0tJTkRfVklERU8QCBIUChBQUkVWSUVXX0tJTkRfQ1NWEAkSFQoRUFJFVklFV19LSU5EX0RJRkYQChIcChhQUkVWSUVXX0tJTkRfVU5TVVBQT1JURUQQCxIaChZQUkVWSUVXX0tJTkRfRElSRUNUT1JZEAwqqQEKDURpcmVjdG9yeVNvcnQSHgoaRElSRUNUT1JZX1NPUlRfVU5TUEVDSUZJRUQQABIiCh5ESVJFQ1RPUllfU09SVF9ESVJTX0ZJUlNUX05BTUUQARIXChNESVJFQ1RPUllfU09SVF9OQU1FEAISHAoYRElSRUNUT1JZX1NPUlRfU0laRV9ERVNDEAMSHQoZRElSRUNUT1JZX1NPUlRfTVRJTUVfREVTQxAEKoQBCglFbnRyeVR5cGUSGgoWRU5UUllfVFlQRV9VTlNQRUNJRklFRBAAEhMKD0VOVFJZX1RZUEVfRklMRRABEhgKFEVOVFJZX1RZUEVfRElSRUNUT1JZEAISFgoSRU5UUllfVFlQRV9TWU1MSU5LEAMSFAoQRU5UUllfVFlQRV9PVEhFUhAEKogBCg1Tb3VyY2VDb250ZXh0Eh4KGlNPVVJDRV9DT05URVhUX1VOU1BFQ0lGSUVEEAASHwobU09VUkNFX0NPTlRFWFRfTUVTU0FHRV9MSU5LEAESHgoaU09VUkNFX0NPTlRFWFRfSU5MSU5FX0NPREUQAhIWChJTT1VSQ0VfQ09OVEVYVF9DTEkQAzKZAwoSRmlsZVByZXZpZXdTZXJ2aWNlEnIKB1Jlc29sdmUSMi52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LlJlc29sdmVSZXF1ZXN0GjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5SZXNvbHZlUmVzcG9uc2UShwEKDkdldFRleHRDb250ZW50EjkudnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5HZXRUZXh0Q29udGVudFJlcXVlc3QaOi52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LkdldFRleHRDb250ZW50UmVzcG9uc2UShAEKDUxpc3REaXJlY3RvcnkSOC52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3Lkxpc3REaXJlY3RvcnlSZXF1ZXN0GjkudnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5MaXN0RGlyZWN0b3J5UmVzcG9uc2VCXFpaZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93ZWItY29uc29sZS92MS9maWxlX3ByZXZpZXc7ZmlsZV9wcmV2aWV3X3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.web_console.v1.file_preview.ResolveRequest
@@ -144,6 +144,14 @@ export type ResolveResponse = Message<"vrooli.web_console.v1.file_preview.Resolv
    * @generated from field: repeated string warnings = 18;
    */
   warnings: string[];
+
+  /**
+   * listing_available is true for directories, whose contents come from
+   * ListDirectory. Mutually exclusive with text_content_available.
+   *
+   * @generated from field: bool listing_available = 19;
+   */
+  listingAvailable: boolean;
 };
 
 /**
@@ -225,6 +233,198 @@ export const GetTextContentResponseSchema: GenMessage<GetTextContentResponse> = 
   messageDesc(file_web_console_v1_file_preview_file_preview, 3);
 
 /**
+ * @generated from message vrooli.web_console.v1.file_preview.ListDirectoryRequest
+ */
+export type ListDirectoryRequest = Message<"vrooli.web_console.v1.file_preview.ListDirectoryRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * preview_id must name a directory target issued by Resolve.
+   *
+   * @generated from field: string preview_id = 2;
+   */
+  previewId: string;
+
+  /**
+   * @generated from field: vrooli.web_console.v1.file_preview.DirectorySort sort = 3;
+   */
+  sort: DirectorySort;
+
+  /**
+   * show_hidden includes dot-prefixed entries. Defaults to false so secrets
+   * and VCS metadata stay out of the default view.
+   *
+   * @generated from field: bool show_hidden = 4;
+   */
+  showHidden: boolean;
+
+  /**
+   * page_size is clamped server-side; 0 selects the server default.
+   *
+   * @generated from field: int32 page_size = 5;
+   */
+  pageSize: number;
+
+  /**
+   * page_token continues a previous page. It is opaque and encodes the sort,
+   * filter, offset, and the directory mtime observed when the page was issued.
+   *
+   * @generated from field: string page_token = 6;
+   */
+  pageToken: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.file_preview.ListDirectoryRequest.
+ * Use `create(ListDirectoryRequestSchema)` to create a new message.
+ */
+export const ListDirectoryRequestSchema: GenMessage<ListDirectoryRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_file_preview_file_preview, 4);
+
+/**
+ * DirectoryEntry is one child of a listed directory. Sizes and times come from
+ * the entry itself (lstat semantics): a symlink reports the link, not target.
+ *
+ * @generated from message vrooli.web_console.v1.file_preview.DirectoryEntry
+ */
+export type DirectoryEntry = Message<"vrooli.web_console.v1.file_preview.DirectoryEntry"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: vrooli.web_console.v1.file_preview.EntryType entry_type = 2;
+   */
+  entryType: EntryType;
+
+  /**
+   * preview_kind is classified from the extension alone so a page costs no
+   * file reads. PREVIEW_KIND_UNSPECIFIED means "determined when opened".
+   *
+   * @generated from field: vrooli.web_console.v1.file_preview.PreviewKind preview_kind = 3;
+   */
+  previewKind: PreviewKind;
+
+  /**
+   * @generated from field: int64 size_bytes = 4;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * @generated from field: int64 mtime_unix_nano = 5;
+   */
+  mtimeUnixNano: bigint;
+
+  /**
+   * can_preview is false when the entry's metadata could not be read.
+   *
+   * @generated from field: bool can_preview = 6;
+   */
+  canPreview: boolean;
+
+  /**
+   * symlink_target is the raw link text; set only for ENTRY_TYPE_SYMLINK.
+   *
+   * @generated from field: string symlink_target = 7;
+   */
+  symlinkTarget: string;
+
+  /**
+   * @generated from field: bool symlink_broken = 8;
+   */
+  symlinkBroken: boolean;
+
+  /**
+   * mode is the permission string (e.g. "drwxr-xr-x"). Best-effort: platforms
+   * without POSIX modes report what their filesystem exposes.
+   *
+   * @generated from field: string mode = 9;
+   */
+  mode: string;
+
+  /**
+   * child_count is the number of entries a subdirectory holds, or -1 when it
+   * was not counted (unreadable, or the page skipped counting).
+   *
+   * @generated from field: int64 child_count = 10;
+   */
+  childCount: bigint;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.file_preview.DirectoryEntry.
+ * Use `create(DirectoryEntrySchema)` to create a new message.
+ */
+export const DirectoryEntrySchema: GenMessage<DirectoryEntry> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_file_preview_file_preview, 5);
+
+/**
+ * @generated from message vrooli.web_console.v1.file_preview.ListDirectoryResponse
+ */
+export type ListDirectoryResponse = Message<"vrooli.web_console.v1.file_preview.ListDirectoryResponse"> & {
+  /**
+   * @generated from field: string resolved_path = 1;
+   */
+  resolvedPath: string;
+
+  /**
+   * parent_path is empty at a filesystem root.
+   *
+   * @generated from field: string parent_path = 2;
+   */
+  parentPath: string;
+
+  /**
+   * @generated from field: repeated vrooli.web_console.v1.file_preview.DirectoryEntry entries = 3;
+   */
+  entries: DirectoryEntry[];
+
+  /**
+   * total_entries counts the directory after the hidden filter, before paging.
+   *
+   * @generated from field: int32 total_entries = 4;
+   */
+  totalEntries: number;
+
+  /**
+   * truncated is true when the directory exceeded the server scan ceiling and
+   * total_entries is therefore a floor rather than an exact count.
+   *
+   * @generated from field: bool truncated = 5;
+   */
+  truncated: boolean;
+
+  /**
+   * @generated from field: string next_page_token = 6;
+   */
+  nextPageToken: string;
+
+  /**
+   * effective_sort is the ordering actually applied, which may differ from the
+   * request when an expensive sort exceeded its threshold.
+   *
+   * @generated from field: vrooli.web_console.v1.file_preview.DirectorySort effective_sort = 7;
+   */
+  effectiveSort: DirectorySort;
+
+  /**
+   * @generated from field: repeated string warnings = 8;
+   */
+  warnings: string[];
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.file_preview.ListDirectoryResponse.
+ * Use `create(ListDirectoryResponseSchema)` to create a new message.
+ */
+export const ListDirectoryResponseSchema: GenMessage<ListDirectoryResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_file_preview_file_preview, 6);
+
+/**
  * PreviewKind classifies how a resolved file should be rendered. The UI keys
  * its renderer registry on these values.
  *
@@ -290,6 +490,13 @@ export enum PreviewKind {
    * @generated from enum value: PREVIEW_KIND_UNSUPPORTED = 11;
    */
   UNSUPPORTED = 11,
+
+  /**
+   * A directory. Renders from ListDirectory rather than text or bytes.
+   *
+   * @generated from enum value: PREVIEW_KIND_DIRECTORY = 12;
+   */
+  DIRECTORY = 12,
 }
 
 /**
@@ -297,6 +504,92 @@ export enum PreviewKind {
  */
 export const PreviewKindSchema: GenEnum<PreviewKind> = /*@__PURE__*/
   enumDesc(file_web_console_v1_file_preview_file_preview, 0);
+
+/**
+ * DirectorySort selects the ordering of a directory page.
+ *
+ * NAME and DIRS_FIRST_NAME are derivable from a single directory scan.
+ * SIZE_DESC and MTIME_DESC require stat-ing every entry, so the server applies
+ * them only below an entry-count threshold and reports what it actually used
+ * in ListDirectoryResponse.effective_sort.
+ *
+ * @generated from enum vrooli.web_console.v1.file_preview.DirectorySort
+ */
+export enum DirectorySort {
+  /**
+   * Treated as DIRS_FIRST_NAME.
+   *
+   * @generated from enum value: DIRECTORY_SORT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: DIRECTORY_SORT_DIRS_FIRST_NAME = 1;
+   */
+  DIRS_FIRST_NAME = 1,
+
+  /**
+   * @generated from enum value: DIRECTORY_SORT_NAME = 2;
+   */
+  NAME = 2,
+
+  /**
+   * @generated from enum value: DIRECTORY_SORT_SIZE_DESC = 3;
+   */
+  SIZE_DESC = 3,
+
+  /**
+   * @generated from enum value: DIRECTORY_SORT_MTIME_DESC = 4;
+   */
+  MTIME_DESC = 4,
+}
+
+/**
+ * Describes the enum vrooli.web_console.v1.file_preview.DirectorySort.
+ */
+export const DirectorySortSchema: GenEnum<DirectorySort> = /*@__PURE__*/
+  enumDesc(file_web_console_v1_file_preview_file_preview, 1);
+
+/**
+ * EntryType is the filesystem category of one directory entry, taken from the
+ * entry's own metadata (not followed through symlinks).
+ *
+ * @generated from enum vrooli.web_console.v1.file_preview.EntryType
+ */
+export enum EntryType {
+  /**
+   * @generated from enum value: ENTRY_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ENTRY_TYPE_FILE = 1;
+   */
+  FILE = 1,
+
+  /**
+   * @generated from enum value: ENTRY_TYPE_DIRECTORY = 2;
+   */
+  DIRECTORY = 2,
+
+  /**
+   * @generated from enum value: ENTRY_TYPE_SYMLINK = 3;
+   */
+  SYMLINK = 3,
+
+  /**
+   * Socket, FIFO, device, or any other non-regular entry.
+   *
+   * @generated from enum value: ENTRY_TYPE_OTHER = 4;
+   */
+  OTHER = 4,
+}
+
+/**
+ * Describes the enum vrooli.web_console.v1.file_preview.EntryType.
+ */
+export const EntryTypeSchema: GenEnum<EntryType> = /*@__PURE__*/
+  enumDesc(file_web_console_v1_file_preview_file_preview, 2);
 
 /**
  * SourceContext records where the resolve request originated, so future
@@ -330,7 +623,7 @@ export enum SourceContext {
  * Describes the enum vrooli.web_console.v1.file_preview.SourceContext.
  */
 export const SourceContextSchema: GenEnum<SourceContext> = /*@__PURE__*/
-  enumDesc(file_web_console_v1_file_preview_file_preview, 1);
+  enumDesc(file_web_console_v1_file_preview_file_preview, 3);
 
 /**
  * @generated from service vrooli.web_console.v1.file_preview.FilePreviewService
@@ -359,6 +652,18 @@ export const FilePreviewService: GenService<{
     methodKind: "unary";
     input: typeof GetTextContentRequestSchema;
     output: typeof GetTextContentResponseSchema;
+  },
+  /**
+   * ListDirectory returns one bounded, sorted page of a directory previously
+   * resolved by Resolve. It accepts only a preview_id — never a raw path — so
+   * a directory handle can never be repointed at another directory.
+   *
+   * @generated from rpc vrooli.web_console.v1.file_preview.FilePreviewService.ListDirectory
+   */
+  listDirectory: {
+    methodKind: "unary";
+    input: typeof ListDirectoryRequestSchema;
+    output: typeof ListDirectoryResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_console_v1_file_preview_file_preview, 0);

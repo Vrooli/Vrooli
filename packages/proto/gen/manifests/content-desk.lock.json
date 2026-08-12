@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "content-desk",
-  "input_digest": "sha256:e6350d8d8110aa08e0466eec3996a7bad352b48132b77e31e7359a3157dcea6c",
+  "input_digest": "sha256:2ccc9a485cd167f6500555e130a1dc85f1c8ae2361b0d91b970e794dcaf28e20",
   "input_files": [
     "schemas/content-desk/v1/artifacts/artifacts.proto",
     "schemas/content-desk/v1/campaigns/campaigns.proto",

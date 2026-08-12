@@ -28,7 +28,7 @@ const (
 type Handshake struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Negotiated wire protocol version. Current peers send
-	// CHANNEL_PROTOCOL_VERSION = 1.
+	// CHANNEL_PROTOCOL_VERSION = 2.
 	ProtocolVersion uint32 `protobuf:"varint,1,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
 	// Durable node identity assigned at registration (registry domain).
 	NodeId string `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
@@ -42,9 +42,12 @@ type Handshake struct {
 	// Self-reported verb-namespace capabilities the node is willing to run
 	// (e.g. "scenario test*"). Authoritative scopes live on the node record;
 	// this is the node's advertisement, reconciled at dispatch.
-	Capabilities  []string `protobuf:"bytes,6,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Capabilities []string `protobuf:"bytes,6,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	// True when the agent can participate in the bidirectional session wire.
+	// False is valid: SSE job delivery remains the compatibility fallback.
+	SupportsWebsocket bool `protobuf:"varint,7,opt,name=supports_websocket,json=supportsWebsocket,proto3" json:"supports_websocket,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Handshake) Reset() {
@@ -117,6 +120,13 @@ func (x *Handshake) GetCapabilities() []string {
 		return x.Capabilities
 	}
 	return nil
+}
+
+func (x *Handshake) GetSupportsWebsocket() bool {
+	if x != nil {
+		return x.SupportsWebsocket
+	}
+	return false
 }
 
 // HandshakeAck is the control plane's first push after a Handshake. It accepts
@@ -562,6 +572,9 @@ func (x *AbortJob) GetReason() string {
 // parses with DiscardUnknown and ignores kinds it does not understand.
 type ServerFrame struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique control-plane delivery identity. It is acknowledged by the node
+	// before any work represented by the payload begins.
+	FrameId string `protobuf:"bytes,6,opt,name=frame_id,json=frameId,proto3" json:"frame_id,omitempty"`
 	// Types that are valid to be assigned to Payload:
 	//
 	//	*ServerFrame_Ack
@@ -569,6 +582,7 @@ type ServerFrame struct {
 	//	*ServerFrame_Provision
 	//	*ServerFrame_Ping
 	//	*ServerFrame_Abort
+	//	*ServerFrame_Session
 	Payload       isServerFrame_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -602,6 +616,13 @@ func (x *ServerFrame) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ServerFrame.ProtoReflect.Descriptor instead.
 func (*ServerFrame) Descriptor() ([]byte, []int) {
 	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ServerFrame) GetFrameId() string {
+	if x != nil {
+		return x.FrameId
+	}
+	return ""
 }
 
 func (x *ServerFrame) GetPayload() isServerFrame_Payload {
@@ -656,6 +677,15 @@ func (x *ServerFrame) GetAbort() *AbortJob {
 	return nil
 }
 
+func (x *ServerFrame) GetSession() *shared.SessionFrame {
+	if x != nil {
+		if x, ok := x.Payload.(*ServerFrame_Session); ok {
+			return x.Session
+		}
+	}
+	return nil
+}
+
 type isServerFrame_Payload interface {
 	isServerFrame_Payload()
 }
@@ -680,6 +710,10 @@ type ServerFrame_Abort struct {
 	Abort *AbortJob `protobuf:"bytes,5,opt,name=abort,proto3,oneof"`
 }
 
+type ServerFrame_Session struct {
+	Session *shared.SessionFrame `protobuf:"bytes,7,opt,name=session,proto3,oneof"`
+}
+
 func (*ServerFrame_Ack) isServerFrame_Payload() {}
 
 func (*ServerFrame_Job) isServerFrame_Payload() {}
@@ -689,6 +723,8 @@ func (*ServerFrame_Provision) isServerFrame_Payload() {}
 func (*ServerFrame_Ping) isServerFrame_Payload() {}
 
 func (*ServerFrame_Abort) isServerFrame_Payload() {}
+
+func (*ServerFrame_Session) isServerFrame_Payload() {}
 
 // SignedServerFrame is the mutual-auth envelope EVERY control-plane → node push
 // is wrapped in (SECURITY.md boundary 2, DECISIONS.md 2026-06-18). The control
@@ -770,6 +806,8 @@ type NodeFrame struct {
 	//	*NodeFrame_Handshake
 	//	*NodeFrame_Heartbeat
 	//	*NodeFrame_RunEvent
+	//	*NodeFrame_DeliveryAck
+	//	*NodeFrame_Session
 	Payload       isNodeFrame_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -839,6 +877,24 @@ func (x *NodeFrame) GetRunEvent() *shared.RunEvent {
 	return nil
 }
 
+func (x *NodeFrame) GetDeliveryAck() *shared.DeliveryAck {
+	if x != nil {
+		if x, ok := x.Payload.(*NodeFrame_DeliveryAck); ok {
+			return x.DeliveryAck
+		}
+	}
+	return nil
+}
+
+func (x *NodeFrame) GetSession() *shared.SessionFrame {
+	if x != nil {
+		if x, ok := x.Payload.(*NodeFrame_Session); ok {
+			return x.Session
+		}
+	}
+	return nil
+}
+
 type isNodeFrame_Payload interface {
 	isNodeFrame_Payload()
 }
@@ -855,24 +911,37 @@ type NodeFrame_RunEvent struct {
 	RunEvent *shared.RunEvent `protobuf:"bytes,3,opt,name=run_event,json=runEvent,proto3,oneof"`
 }
 
+type NodeFrame_DeliveryAck struct {
+	DeliveryAck *shared.DeliveryAck `protobuf:"bytes,4,opt,name=delivery_ack,json=deliveryAck,proto3,oneof"`
+}
+
+type NodeFrame_Session struct {
+	Session *shared.SessionFrame `protobuf:"bytes,5,opt,name=session,proto3,oneof"`
+}
+
 func (*NodeFrame_Handshake) isNodeFrame_Payload() {}
 
 func (*NodeFrame_Heartbeat) isNodeFrame_Payload() {}
 
 func (*NodeFrame_RunEvent) isNodeFrame_Payload() {}
 
+func (*NodeFrame_DeliveryAck) isNodeFrame_Payload() {}
+
+func (*NodeFrame_Session) isNodeFrame_Payload() {}
+
 var File_vrooli_bridge_v1_channel_channel_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\n" +
-	"&vrooli-bridge/v1/channel/channel.proto\x12\x1fvrooli.vrooli_bridge.v1.channel\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$vrooli-bridge/v1/shared/shared.proto\"\xc2\x01\n" +
+	"&vrooli-bridge/v1/channel/channel.proto\x12\x1fvrooli.vrooli_bridge.v1.channel\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$vrooli-bridge/v1/shared/shared.proto\"\xf1\x01\n" +
 	"\tHandshake\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12#\n" +
 	"\ragent_version\x18\x03 \x01(\tR\fagentVersion\x12\x0e\n" +
 	"\x02os\x18\x04 \x01(\tR\x02os\x12\x12\n" +
 	"\x04arch\x18\x05 \x01(\tR\x04arch\x12\"\n" +
-	"\fcapabilities\x18\x06 \x03(\tR\fcapabilitiesJ\x04\b\a\x10\x10\"\x81\x02\n" +
+	"\fcapabilities\x18\x06 \x03(\tR\fcapabilities\x12-\n" +
+	"\x12supports_websocket\x18\a \x01(\bR\x11supportsWebsocketJ\x04\b\b\x10\x10\"\x81\x02\n" +
 	"\fHandshakeAck\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\bR\baccepted\x12Y\n" +
 	"\rcompatibility\x18\x02 \x01(\x0e23.vrooli.vrooli_bridge.v1.shared.CompatibilityStatusR\rcompatibility\x12C\n" +
@@ -902,21 +971,25 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\asent_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"?\n" +
 	"\bAbortJob\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
-	"\x06reason\x18\x02 \x01(\tR\x06reasonJ\x04\b\x03\x10\x10\"\xf3\x02\n" +
-	"\vServerFrame\x12A\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reasonJ\x04\b\x03\x10\x10\"\xd8\x03\n" +
+	"\vServerFrame\x12\x19\n" +
+	"\bframe_id\x18\x06 \x01(\tR\aframeId\x12A\n" +
 	"\x03ack\x18\x01 \x01(\v2-.vrooli.vrooli_bridge.v1.channel.HandshakeAckH\x00R\x03ack\x12<\n" +
 	"\x03job\x18\x02 \x01(\v2(.vrooli.vrooli_bridge.v1.channel.JobPushH\x00R\x03job\x12Q\n" +
 	"\tprovision\x18\x03 \x01(\v21.vrooli.vrooli_bridge.v1.channel.ProvisionCommandH\x00R\tprovision\x12B\n" +
 	"\x04ping\x18\x04 \x01(\v2,.vrooli.vrooli_bridge.v1.channel.ControlPingH\x00R\x04ping\x12A\n" +
-	"\x05abort\x18\x05 \x01(\v2).vrooli.vrooli_bridge.v1.channel.AbortJobH\x00R\x05abortB\t\n" +
+	"\x05abort\x18\x05 \x01(\v2).vrooli.vrooli_bridge.v1.channel.AbortJobH\x00R\x05abort\x12H\n" +
+	"\asession\x18\a \x01(\v2,.vrooli.vrooli_bridge.v1.shared.SessionFrameH\x00R\asessionB\t\n" +
 	"\apayload\"G\n" +
 	"\x11SignedServerFrame\x12\x14\n" +
 	"\x05frame\x18\x01 \x01(\fR\x05frame\x12\x1c\n" +
-	"\tsignature\x18\x02 \x01(\fR\tsignature\"\xf6\x01\n" +
+	"\tsignature\x18\x02 \x01(\fR\tsignature\"\x92\x03\n" +
 	"\tNodeFrame\x12J\n" +
 	"\thandshake\x18\x01 \x01(\v2*.vrooli.vrooli_bridge.v1.channel.HandshakeH\x00R\thandshake\x12I\n" +
 	"\theartbeat\x18\x02 \x01(\v2).vrooli.vrooli_bridge.v1.shared.HeartbeatH\x00R\theartbeat\x12G\n" +
-	"\trun_event\x18\x03 \x01(\v2(.vrooli.vrooli_bridge.v1.shared.RunEventH\x00R\brunEventB\t\n" +
+	"\trun_event\x18\x03 \x01(\v2(.vrooli.vrooli_bridge.v1.shared.RunEventH\x00R\brunEvent\x12P\n" +
+	"\fdelivery_ack\x18\x04 \x01(\v2+.vrooli.vrooli_bridge.v1.shared.DeliveryAckH\x00R\vdeliveryAck\x12H\n" +
+	"\asession\x18\x05 \x01(\v2,.vrooli.vrooli_bridge.v1.shared.SessionFrameH\x00R\asessionB\t\n" +
 	"\apayloadBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel;channel_v1b\x06proto3"
 
 var (
@@ -945,8 +1018,10 @@ var file_vrooli_bridge_v1_channel_channel_proto_goTypes = []any{
 	(*NodeFrame)(nil),               // 9: vrooli.vrooli_bridge.v1.channel.NodeFrame
 	(shared.CompatibilityStatus)(0), // 10: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
 	(*timestamppb.Timestamp)(nil),   // 11: google.protobuf.Timestamp
-	(*shared.Heartbeat)(nil),        // 12: vrooli.vrooli_bridge.v1.shared.Heartbeat
-	(*shared.RunEvent)(nil),         // 13: vrooli.vrooli_bridge.v1.shared.RunEvent
+	(*shared.SessionFrame)(nil),     // 12: vrooli.vrooli_bridge.v1.shared.SessionFrame
+	(*shared.Heartbeat)(nil),        // 13: vrooli.vrooli_bridge.v1.shared.Heartbeat
+	(*shared.RunEvent)(nil),         // 14: vrooli.vrooli_bridge.v1.shared.RunEvent
+	(*shared.DeliveryAck)(nil),      // 15: vrooli.vrooli_bridge.v1.shared.DeliveryAck
 }
 var file_vrooli_bridge_v1_channel_channel_proto_depIdxs = []int32{
 	10, // 0: vrooli.vrooli_bridge.v1.channel.HandshakeAck.compatibility:type_name -> vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
@@ -957,14 +1032,17 @@ var file_vrooli_bridge_v1_channel_channel_proto_depIdxs = []int32{
 	4,  // 5: vrooli.vrooli_bridge.v1.channel.ServerFrame.provision:type_name -> vrooli.vrooli_bridge.v1.channel.ProvisionCommand
 	5,  // 6: vrooli.vrooli_bridge.v1.channel.ServerFrame.ping:type_name -> vrooli.vrooli_bridge.v1.channel.ControlPing
 	6,  // 7: vrooli.vrooli_bridge.v1.channel.ServerFrame.abort:type_name -> vrooli.vrooli_bridge.v1.channel.AbortJob
-	0,  // 8: vrooli.vrooli_bridge.v1.channel.NodeFrame.handshake:type_name -> vrooli.vrooli_bridge.v1.channel.Handshake
-	12, // 9: vrooli.vrooli_bridge.v1.channel.NodeFrame.heartbeat:type_name -> vrooli.vrooli_bridge.v1.shared.Heartbeat
-	13, // 10: vrooli.vrooli_bridge.v1.channel.NodeFrame.run_event:type_name -> vrooli.vrooli_bridge.v1.shared.RunEvent
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	12, // 8: vrooli.vrooli_bridge.v1.channel.ServerFrame.session:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
+	0,  // 9: vrooli.vrooli_bridge.v1.channel.NodeFrame.handshake:type_name -> vrooli.vrooli_bridge.v1.channel.Handshake
+	13, // 10: vrooli.vrooli_bridge.v1.channel.NodeFrame.heartbeat:type_name -> vrooli.vrooli_bridge.v1.shared.Heartbeat
+	14, // 11: vrooli.vrooli_bridge.v1.channel.NodeFrame.run_event:type_name -> vrooli.vrooli_bridge.v1.shared.RunEvent
+	15, // 12: vrooli.vrooli_bridge.v1.channel.NodeFrame.delivery_ack:type_name -> vrooli.vrooli_bridge.v1.shared.DeliveryAck
+	12, // 13: vrooli.vrooli_bridge.v1.channel.NodeFrame.session:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_channel_channel_proto_init() }
@@ -978,11 +1056,14 @@ func file_vrooli_bridge_v1_channel_channel_proto_init() {
 		(*ServerFrame_Provision)(nil),
 		(*ServerFrame_Ping)(nil),
 		(*ServerFrame_Abort)(nil),
+		(*ServerFrame_Session)(nil),
 	}
 	file_vrooli_bridge_v1_channel_channel_proto_msgTypes[9].OneofWrappers = []any{
 		(*NodeFrame_Handshake)(nil),
 		(*NodeFrame_Heartbeat)(nil),
 		(*NodeFrame_RunEvent)(nil),
+		(*NodeFrame_DeliveryAck)(nil),
+		(*NodeFrame_Session)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

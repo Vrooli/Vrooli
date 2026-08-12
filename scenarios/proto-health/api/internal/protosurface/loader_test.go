@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 func TestDescriptorLoaderLoadScenario(t *testing.T) {
@@ -94,6 +96,31 @@ func TestDescriptorLoaderListScenarios(t *testing.T) {
 	sorted := append([]string{}, scenarios...)
 	sort.Strings(sorted)
 	require.Equal(t, sorted, scenarios)
+}
+
+func TestDescriptorLoaderRefreshesWithoutReconstruction(t *testing.T) {
+	repoRoot := findRepoRoot(t)
+	original, err := os.ReadFile(filepath.Join(repoRoot, "packages", "proto", "gen", "descriptor", "image.binpb"))
+	require.NoError(t, err)
+	set := &descriptorpb.FileDescriptorSet{}
+	require.NoError(t, proto.Unmarshal(original, set))
+	descriptorPath := filepath.Join(t.TempDir(), "image.binpb")
+	require.NoError(t, os.WriteFile(descriptorPath, original, 0o644))
+	loader, err := NewDescriptorLoaderFromFile(repoRoot, descriptorPath)
+	require.NoError(t, err)
+	before, err := loader.ListScenarios()
+	require.NoError(t, err)
+
+	set.File = append(set.File, &descriptorpb.FileDescriptorProto{Name: proto.String("snapshot-refresh/v1/contract.proto"), Package: proto.String("snapshot_refresh.v1"), Syntax: proto.String("proto3")})
+	updated, err := proto.Marshal(set)
+	require.NoError(t, err)
+	stage := descriptorPath + ".stage"
+	require.NoError(t, os.WriteFile(stage, updated, 0o644))
+	require.NoError(t, os.Rename(stage, descriptorPath))
+	after, err := loader.ListScenarios()
+	require.NoError(t, err)
+	require.Len(t, after, len(before)+1)
+	require.Contains(t, after, "snapshot-refresh")
 }
 
 func TestApplyTransportFactsAtScenarioPathUsesPhysicalWorkspace(t *testing.T) {

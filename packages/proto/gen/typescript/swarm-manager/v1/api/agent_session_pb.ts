@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/agent_session.proto.
  */
 export const file_swarm_manager_v1_api_agent_session: GenFile = /*@__PURE__*/
-  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2FwaS9hZ2VudF9zZXNzaW9uLnByb3RvEht2cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkiwwIKGExpc3RBZ2VudFNlc3Npb25zUmVxdWVzdBJUCgRraW5kGAEgASgJQkG6SD5yPFIAUhJtZXRhX29yY2hlc3RyYXRpb25SEHN3YXJtX29wZXJhdGlvbnNSEndvcmtmbG93X2F1dGhvcmluZ0gAiAEBEn4KBnN0YXR1cxgCIAEoCUJpukhmcmRSAFIFZHJhZnRSCHN0YXJ0aW5nUgdydW5uaW5nUhB3YWl0aW5nX2Zvcl91c2VyUg5wcm9wb3NhbF9yZWFkeVIIYXBwbHlpbmdSCGNvbXBsZXRlUgZmYWlsZWRSCGNhbmNlbGVkSAGIAQESEwoLYWN0aXZlX29ubHkYAyABKAgSHgoFbGltaXQYBCABKAVCCrpIBxoFGMgBKABIAogBAUIHCgVfa2luZEIJCgdfc3RhdHVzQggKBl9saW1pdCJbChlMaXN0QWdlbnRTZXNzaW9uc1Jlc3BvbnNlEj4KCHNlc3Npb25zGAEgAygLMiwudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLkFnZW50U2Vzc2lvbiI1ChZHZXRBZ2VudFNlc3Npb25SZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAEiWAoXR2V0QWdlbnRTZXNzaW9uUmVzcG9uc2USPQoHc2Vzc2lvbhgBIAEoCzIsLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5BZ2VudFNlc3Npb24ijgEKGUNyZWF0ZUFnZW50U2Vzc2lvblJlcXVlc3QSTQoEa2luZBgBIAEoCUI/ukg8cjpSEm1ldGFfb3JjaGVzdHJhdGlvblIQc3dhcm1fb3BlcmF0aW9uc1ISd29ya2Zsb3dfYXV0aG9yaW5nEhYKBXRpdGxlGAIgASgJQge6SARyAhABSgQIAxAESgQIBBAFIlsKGkNyZWF0ZUFnZW50U2Vzc2lvblJlc3BvbnNlEj0KB3Nlc3Npb24YASABKAsyLC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uQWdlbnRTZXNzaW9uIv0BChhTdGFydEFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQARIPCgdtZXNzYWdlGAIgASgJEhYKDmF0dGFjaG1lbnRfaWRzGAMgAygJEkkKDGNvbnRleHRfcmVmcxgEIAMoCzIzLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5BZ2VudFNlc3Npb25Db250ZXh0UmVmEjgKE2F1dG9fY29udGV4dF9wb2xpY3kYBSABKAlCFrpIE3IRUgBSB2RlZmF1bHRSBG5vbmVIAIgBAUIWChRfYXV0b19jb250ZXh0X3BvbGljeSJaChlTdGFydEFnZW50U2Vzc2lvblJlc3BvbnNlEj0KB3Nlc3Npb24YASABKAsyLC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uQWdlbnRTZXNzaW9uIq4BChtDb250aW51ZUFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQARIPCgdtZXNzYWdlGAIgASgJEhYKDmF0dGFjaG1lbnRfaWRzGAMgAygJEkkKDGNvbnRleHRfcmVmcxgEIAMoCzIzLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5BZ2VudFNlc3Npb25Db250ZXh0UmVmIl0KHENvbnRpbnVlQWdlbnRTZXNzaW9uUmVzcG9uc2USPQoHc2Vzc2lvbhgBIAEoCzIsLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5BZ2VudFNlc3Npb24ixQEKFkFnZW50U2Vzc2lvbkNvbnRleHRSZWYSlAEKBHR5cGUYASABKAlChQG6SIEBcn9SDGJhY2tsb2dfaXRlbVIEZ29hbFIHY2FwdHVyZVIJZXhlY3V0aW9uUg5hZ2VudF9hY3Rpdml0eVIIc2NlbmFyaW9SDm9wZXJhdGluZ19tb2RlUgdzZXNzaW9uUhNvcGVyYXRpb25zX2JyaWVmaW5nUg1zdGFydHVwX2JyaWVmEhQKA3JlZhgCIAEoCUIHukgEcgIQASJSCiJHZXRBZ2VudFNlc3Npb25TdGFydHVwQnJpZWZSZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAESDwoHcmVmcmVzaBgCIAEoCCJtCiNHZXRBZ2VudFNlc3Npb25TdGFydHVwQnJpZWZSZXNwb25zZRJGCgVicmllZhgBIAEoCzI3LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZC5BZ2VudFNlc3Npb25Db250ZXh0SXRlbSJ0CiVVcGxvYWRBZ2VudFNlc3Npb25BdHRhY2htZW50c1Jlc3BvbnNlEksKC2F0dGFjaG1lbnRzGAEgAygLMjYudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuc2hhcmVkLkFnZW50U2Vzc2lvbkF0dGFjaG1lbnQilgEKHUxpc3RBZ2VudFNlc3Npb25FdmVudHNSZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAESGwoOYWZ0ZXJfc2VxdWVuY2UYAiABKANIAIgBARIeCgVsaW1pdBgDIAEoBUIKukgHGgUY6AcoAUgBiAEBQhEKD19hZnRlcl9zZXF1ZW5jZUIICgZfbGltaXQi+gIKFEFnZW50U2Vzc2lvblJ1bkV2ZW50EgoKAmlkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIQCghzZXF1ZW5jZRgDIAEoAxISCgpjcmVhdGVkX2F0GAQgASgJEhIKCmV2ZW50X3R5cGUYBSABKAkSDAoEcm9sZRgGIAEoCRIPCgdjb250ZW50GAcgASgJEhEKCXRvb2xfbmFtZRgIIAEoCRIUCgx0b29sX2NhbGxfaWQYCSABKAkSDQoFaW5wdXQYCiABKAkSDgoGb3V0cHV0GAsgASgJEg0KBWVycm9yGAwgASgJEg4KBnN0YXR1cxgNIAEoCRIXCg9wcmV2aW91c19zdGF0dXMYDiABKAkSFgoOcHJvZ3Jlc3NfcGhhc2UYDyABKAkSGAoQcHJvZ3Jlc3NfcGVyY2VudBgQIAEoBRIYChBwcm9ncmVzc19tZXNzYWdlGBEgASgJEg8KB3N1bW1hcnkYEiABKAkSEAoIcmF3X2pzb24YEyABKAkikgEKHkxpc3RBZ2VudFNlc3Npb25FdmVudHNSZXNwb25zZRJBCgZldmVudHMYASADKAsyMS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkuQWdlbnRTZXNzaW9uUnVuRXZlbnQSEAoIaGFzX21vcmUYAiABKAgSGwoTbmV4dF9hZnRlcl9zZXF1ZW5jZRgDIAEoAyI5ChpSZWZyZXNoQWdlbnRTZXNzaW9uUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABIlwKG1JlZnJlc2hBZ2VudFNlc3Npb25SZXNwb25zZRI9CgdzZXNzaW9uGAEgASgLMiwudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLkFnZW50U2Vzc2lvbiI4ChlDYW5jZWxBZ2VudFNlc3Npb25SZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAEiWwoaQ2FuY2VsQWdlbnRTZXNzaW9uUmVzcG9uc2USPQoHc2Vzc2lvbhgBIAEoCzIsLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5BZ2VudFNlc3Npb24iOAoZRGVsZXRlQWdlbnRTZXNzaW9uUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABIjAKGkRlbGV0ZUFnZW50U2Vzc2lvblJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkiXQogQXBwbHlBZ2VudFNlc3Npb25Qcm9wb3NhbFJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQARIcCgtwcm9wb3NhbF9pZBgCIAEoCUIHukgEcgIQASKrAQohQXBwbHlBZ2VudFNlc3Npb25Qcm9wb3NhbFJlc3BvbnNlEj0KB3Nlc3Npb24YASABKAsyLC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uQWdlbnRTZXNzaW9uEkcKCWFydGlmYWN0cxgCIAMoCzI0LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZC5BZ2VudFNlc3Npb25BcnRpZmFjdCI/CiBMaXN0QWdlbnRTZXNzaW9uQXJ0aWZhY3RzUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABImwKIUxpc3RBZ2VudFNlc3Npb25BcnRpZmFjdHNSZXNwb25zZRJHCglhcnRpZmFjdHMYASADKAsyNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5zaGFyZWQuQWdlbnRTZXNzaW9uQXJ0aWZhY3QixQEKG0dldEFydGlmYWN0c0J5RW50aXR5UmVxdWVzdBKIAQoNYXJ0aWZhY3RfdHlwZRgBIAEoCUJxukhucmxSDGJhY2tsb2dfaXRlbVIJbWlsZXN0b25lUhdvcGVyYXRpbmdfbW9kZV9wcm9wb3NhbFIZb3BlcmF0aW5nX21vZGVfZGVmaW5pdGlvblIHY2FwdHVyZVIEZmlsZVIOYWdlbnRfYWN0aXZpdHkSGwoKZW50aXR5X3JlZhgCIAEoCUIHukgEcgIQASJnChxHZXRBcnRpZmFjdHNCeUVudGl0eVJlc3BvbnNlEkcKCWFydGlmYWN0cxgBIAMoCzI0LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZC5BZ2VudFNlc3Npb25BcnRpZmFjdEJJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z", [file_buf_validate_validate, file_swarm_manager_v1_domain_agent_session, file_swarm_manager_v1_shared_agent_session]);
+  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2FwaS9hZ2VudF9zZXNzaW9uLnByb3RvEht2cm9vbGkuc3dhcm1fbWFuYWdlci52MS5hcGkiwwIKGExpc3RBZ2VudFNlc3Npb25zUmVxdWVzdBJUCgRraW5kGAEgASgJQkG6SD5yPFIAUhJtZXRhX29yY2hlc3RyYXRpb25SEHN3YXJtX29wZXJhdGlvbnNSEndvcmtmbG93X2F1dGhvcmluZ0gAiAEBEn4KBnN0YXR1cxgCIAEoCUJpukhmcmRSAFIFZHJhZnRSCHN0YXJ0aW5nUgdydW5uaW5nUhB3YWl0aW5nX2Zvcl91c2VyUg5wcm9wb3NhbF9yZWFkeVIIYXBwbHlpbmdSCGNvbXBsZXRlUgZmYWlsZWRSCGNhbmNlbGVkSAGIAQESEwoLYWN0aXZlX29ubHkYAyABKAgSHgoFbGltaXQYBCABKAVCCrpIBxoFGMgBKABIAogBAUIHCgVfa2luZEIJCgdfc3RhdHVzQggKBl9saW1pdCJbChlMaXN0QWdlbnRTZXNzaW9uc1Jlc3BvbnNlEj4KCHNlc3Npb25zGAEgAygLMiwudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLkFnZW50U2Vzc2lvbiI1ChZHZXRBZ2VudFNlc3Npb25SZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAEiWAoXR2V0QWdlbnRTZXNzaW9uUmVzcG9uc2USPQoHc2Vzc2lvbhgBIAEoCzIsLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5BZ2VudFNlc3Npb24isgEKGUNyZWF0ZUFnZW50U2Vzc2lvblJlcXVlc3QSTQoEa2luZBgBIAEoCUI/ukg8cjpSEm1ldGFfb3JjaGVzdHJhdGlvblIQc3dhcm1fb3BlcmF0aW9uc1ISd29ya2Zsb3dfYXV0aG9yaW5nEhYKBXRpdGxlGAIgASgJQge6SARyAhABEhsKDnN0YXJ0ZXJfam9iX2lkGAMgASgJSACIAQFCEQoPX3N0YXJ0ZXJfam9iX2lkIlsKGkNyZWF0ZUFnZW50U2Vzc2lvblJlc3BvbnNlEj0KB3Nlc3Npb24YASABKAsyLC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uQWdlbnRTZXNzaW9uIq0CChhTdGFydEFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQARIPCgdtZXNzYWdlGAIgASgJEhYKDmF0dGFjaG1lbnRfaWRzGAMgAygJEkkKDGNvbnRleHRfcmVmcxgEIAMoCzIzLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5BZ2VudFNlc3Npb25Db250ZXh0UmVmEjgKE2F1dG9fY29udGV4dF9wb2xpY3kYBSABKAlCFrpIE3IRUgBSB2RlZmF1bHRSBG5vbmVIAIgBARIbCg5zdGFydGVyX2pvYl9pZBgGIAEoCUgBiAEBQhYKFF9hdXRvX2NvbnRleHRfcG9saWN5QhEKD19zdGFydGVyX2pvYl9pZCJaChlTdGFydEFnZW50U2Vzc2lvblJlc3BvbnNlEj0KB3Nlc3Npb24YASABKAsyLC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uQWdlbnRTZXNzaW9uIq4BChtDb250aW51ZUFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQARIPCgdtZXNzYWdlGAIgASgJEhYKDmF0dGFjaG1lbnRfaWRzGAMgAygJEkkKDGNvbnRleHRfcmVmcxgEIAMoCzIzLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5BZ2VudFNlc3Npb25Db250ZXh0UmVmIl0KHENvbnRpbnVlQWdlbnRTZXNzaW9uUmVzcG9uc2USPQoHc2Vzc2lvbhgBIAEoCzIsLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5BZ2VudFNlc3Npb24ixQEKFkFnZW50U2Vzc2lvbkNvbnRleHRSZWYSlAEKBHR5cGUYASABKAlChQG6SIEBcn9SDGJhY2tsb2dfaXRlbVIEZ29hbFIHY2FwdHVyZVIJZXhlY3V0aW9uUg5hZ2VudF9hY3Rpdml0eVIIc2NlbmFyaW9SDm9wZXJhdGluZ19tb2RlUgdzZXNzaW9uUhNvcGVyYXRpb25zX2JyaWVmaW5nUg1zdGFydHVwX2JyaWVmEhQKA3JlZhgCIAEoCUIHukgEcgIQASJSCiJHZXRBZ2VudFNlc3Npb25TdGFydHVwQnJpZWZSZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAESDwoHcmVmcmVzaBgCIAEoCCJtCiNHZXRBZ2VudFNlc3Npb25TdGFydHVwQnJpZWZSZXNwb25zZRJGCgVicmllZhgBIAEoCzI3LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZC5BZ2VudFNlc3Npb25Db250ZXh0SXRlbSK1AgogUHJldmlld0FnZW50U2Vzc2lvblByb21wdFJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQARIPCgdtZXNzYWdlGAIgASgJEhYKDmF0dGFjaG1lbnRfaWRzGAMgAygJEkkKDGNvbnRleHRfcmVmcxgEIAMoCzIzLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmFwaS5BZ2VudFNlc3Npb25Db250ZXh0UmVmEjgKE2F1dG9fY29udGV4dF9wb2xpY3kYBSABKAlCFrpIE3IRUgBSB2RlZmF1bHRSBG5vbmVIAIgBARIbCg5zdGFydGVyX2pvYl9pZBgGIAEoCUgBiAEBQhYKFF9hdXRvX2NvbnRleHRfcG9saWN5QhEKD19zdGFydGVyX2pvYl9pZCJECiFQcmV2aWV3QWdlbnRTZXNzaW9uUHJvbXB0UmVzcG9uc2USDgoGcHJvbXB0GAEgASgJEg8KB2luaXRpYWwYAiABKAgidAolVXBsb2FkQWdlbnRTZXNzaW9uQXR0YWNobWVudHNSZXNwb25zZRJLCgthdHRhY2htZW50cxgBIAMoCzI2LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZC5BZ2VudFNlc3Npb25BdHRhY2htZW50IpYBCh1MaXN0QWdlbnRTZXNzaW9uRXZlbnRzUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABEhsKDmFmdGVyX3NlcXVlbmNlGAIgASgDSACIAQESHgoFbGltaXQYAyABKAVCCrpIBxoFGOgHKAFIAYgBAUIRCg9fYWZ0ZXJfc2VxdWVuY2VCCAoGX2xpbWl0IvoCChRBZ2VudFNlc3Npb25SdW5FdmVudBIKCgJpZBgBIAEoCRIOCgZydW5faWQYAiABKAkSEAoIc2VxdWVuY2UYAyABKAMSEgoKY3JlYXRlZF9hdBgEIAEoCRISCgpldmVudF90eXBlGAUgASgJEgwKBHJvbGUYBiABKAkSDwoHY29udGVudBgHIAEoCRIRCgl0b29sX25hbWUYCCABKAkSFAoMdG9vbF9jYWxsX2lkGAkgASgJEg0KBWlucHV0GAogASgJEg4KBm91dHB1dBgLIAEoCRINCgVlcnJvchgMIAEoCRIOCgZzdGF0dXMYDSABKAkSFwoPcHJldmlvdXNfc3RhdHVzGA4gASgJEhYKDnByb2dyZXNzX3BoYXNlGA8gASgJEhgKEHByb2dyZXNzX3BlcmNlbnQYECABKAUSGAoQcHJvZ3Jlc3NfbWVzc2FnZRgRIAEoCRIPCgdzdW1tYXJ5GBIgASgJEhAKCHJhd19qc29uGBMgASgJIpIBCh5MaXN0QWdlbnRTZXNzaW9uRXZlbnRzUmVzcG9uc2USQQoGZXZlbnRzGAEgAygLMjEudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuYXBpLkFnZW50U2Vzc2lvblJ1bkV2ZW50EhAKCGhhc19tb3JlGAIgASgIEhsKE25leHRfYWZ0ZXJfc2VxdWVuY2UYAyABKAMiOQoaUmVmcmVzaEFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQASJcChtSZWZyZXNoQWdlbnRTZXNzaW9uUmVzcG9uc2USPQoHc2Vzc2lvbhgBIAEoCzIsLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5BZ2VudFNlc3Npb24iOAoZQ2FuY2VsQWdlbnRTZXNzaW9uUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABIlsKGkNhbmNlbEFnZW50U2Vzc2lvblJlc3BvbnNlEj0KB3Nlc3Npb24YASABKAsyLC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uQWdlbnRTZXNzaW9uIjgKGURlbGV0ZUFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQASIwChpEZWxldGVBZ2VudFNlc3Npb25SZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJIl0KIEFwcGx5QWdlbnRTZXNzaW9uUHJvcG9zYWxSZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAESHAoLcHJvcG9zYWxfaWQYAiABKAlCB7pIBHICEAEiqwEKIUFwcGx5QWdlbnRTZXNzaW9uUHJvcG9zYWxSZXNwb25zZRI9CgdzZXNzaW9uGAEgASgLMiwudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLkFnZW50U2Vzc2lvbhJHCglhcnRpZmFjdHMYAiADKAsyNC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5zaGFyZWQuQWdlbnRTZXNzaW9uQXJ0aWZhY3QiPwogTGlzdEFnZW50U2Vzc2lvbkFydGlmYWN0c1JlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQASJsCiFMaXN0QWdlbnRTZXNzaW9uQXJ0aWZhY3RzUmVzcG9uc2USRwoJYXJ0aWZhY3RzGAEgAygLMjQudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuc2hhcmVkLkFnZW50U2Vzc2lvbkFydGlmYWN0It4BChtHZXRBcnRpZmFjdHNCeUVudGl0eVJlcXVlc3QSoQEKDWFydGlmYWN0X3R5cGUYASABKAlCiQG6SIUBcoIBUgxiYWNrbG9nX2l0ZW1SCW1pbGVzdG9uZVIXb3BlcmF0aW5nX21vZGVfcHJvcG9zYWxSGW9wZXJhdGluZ19tb2RlX2RlZmluaXRpb25SB2NhcHR1cmVSBGZpbGVSDmFnZW50X2FjdGl2aXR5UhR0cmFuc2l0aW9uX2V4ZWN1dGlvbhIbCgplbnRpdHlfcmVmGAIgASgJQge6SARyAhABImcKHEdldEFydGlmYWN0c0J5RW50aXR5UmVzcG9uc2USRwoJYXJ0aWZhY3RzGAEgAygLMjQudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuc2hhcmVkLkFnZW50U2Vzc2lvbkFydGlmYWN0QklaR2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9hcGk7YXBpYgZwcm90bzM", [file_buf_validate_validate, file_swarm_manager_v1_domain_agent_session, file_swarm_manager_v1_shared_agent_session]);
 
 /**
  * ListAgentSessionsRequest filters the session sidebar list.
@@ -138,6 +138,13 @@ export type CreateAgentSessionRequest = Message<"vrooli.swarm_manager.v1.api.Cre
    * @generated from field: string title = 2;
    */
   title: string;
+
+  /**
+   * Server-declared starter framing to render in the job band.
+   *
+   * @generated from field: optional string starter_job_id = 3;
+   */
+  starterJobId?: string | undefined;
 };
 
 /**
@@ -200,6 +207,11 @@ export type StartAgentSessionRequest = Message<"vrooli.swarm_manager.v1.api.Star
    * @generated from field: optional string auto_context_policy = 5;
    */
   autoContextPolicy?: string | undefined;
+
+  /**
+   * @generated from field: optional string starter_job_id = 6;
+   */
+  starterJobId?: string | undefined;
 };
 
 /**
@@ -358,6 +370,90 @@ export const GetAgentSessionStartupBriefResponseSchema: GenMessage<GetAgentSessi
   messageDesc(file_swarm_manager_v1_api_agent_session, 12);
 
 /**
+ * PreviewAgentSessionPromptRequest asks the server to assemble the prompt a
+ * message would produce, without sending it. The field set mirrors
+ * StartAgentSessionRequest so a preview reflects exactly what start or
+ * continue would build.
+ *
+ * @generated from message vrooli.swarm_manager.v1.api.PreviewAgentSessionPromptRequest
+ */
+export type PreviewAgentSessionPromptRequest = Message<"vrooli.swarm_manager.v1.api.PreviewAgentSessionPromptRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
+
+  /**
+   * @generated from field: repeated string attachment_ids = 3;
+   */
+  attachmentIds: string[];
+
+  /**
+   * @generated from field: repeated vrooli.swarm_manager.v1.api.AgentSessionContextRef context_refs = 4;
+   */
+  contextRefs: AgentSessionContextRef[];
+
+  /**
+   * Auto context policy.
+   * @constraint one of: empty, default, none
+   *
+   * @generated from field: optional string auto_context_policy = 5;
+   */
+  autoContextPolicy?: string | undefined;
+
+  /**
+   * @generated from field: optional string starter_job_id = 6;
+   */
+  starterJobId?: string | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.PreviewAgentSessionPromptRequest.
+ * Use `create(PreviewAgentSessionPromptRequestSchema)` to create a new message.
+ */
+export const PreviewAgentSessionPromptRequestSchema: GenMessage<PreviewAgentSessionPromptRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_agent_session, 13);
+
+/**
+ * PreviewAgentSessionPromptResponse returns the assembled prompt text.
+ *
+ * Assembly is server-owned so a preview cannot drift from what is actually
+ * sent: reimplementing the section order or the volatility gradient in a
+ * client would produce a preview that agrees with nothing.
+ *
+ * @generated from message vrooli.swarm_manager.v1.api.PreviewAgentSessionPromptResponse
+ */
+export type PreviewAgentSessionPromptResponse = Message<"vrooli.swarm_manager.v1.api.PreviewAgentSessionPromptResponse"> & {
+  /**
+   * The fully assembled prompt, exactly as the spawner would receive it.
+   *
+   * @generated from field: string prompt = 1;
+   */
+  prompt: string;
+
+  /**
+   * True when this preview used the initial-prompt builder. A started session
+   * previews the continuation builder instead, which omits the stable bands
+   * already present in the conversation.
+   *
+   * @generated from field: bool initial = 2;
+   */
+  initial: boolean;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.api.PreviewAgentSessionPromptResponse.
+ * Use `create(PreviewAgentSessionPromptResponseSchema)` to create a new message.
+ */
+export const PreviewAgentSessionPromptResponseSchema: GenMessage<PreviewAgentSessionPromptResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_agent_session, 14);
+
+/**
  * UploadAgentSessionAttachmentsResponse returns uploaded session attachments.
  *
  * @generated from message vrooli.swarm_manager.v1.api.UploadAgentSessionAttachmentsResponse
@@ -374,7 +470,7 @@ export type UploadAgentSessionAttachmentsResponse = Message<"vrooli.swarm_manage
  * Use `create(UploadAgentSessionAttachmentsResponseSchema)` to create a new message.
  */
 export const UploadAgentSessionAttachmentsResponseSchema: GenMessage<UploadAgentSessionAttachmentsResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 13);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 15);
 
 /**
  * ListAgentSessionEventsRequest reads Agent Manager run events through Swarm
@@ -404,7 +500,7 @@ export type ListAgentSessionEventsRequest = Message<"vrooli.swarm_manager.v1.api
  * Use `create(ListAgentSessionEventsRequestSchema)` to create a new message.
  */
 export const ListAgentSessionEventsRequestSchema: GenMessage<ListAgentSessionEventsRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 14);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 16);
 
 /**
  * AgentSessionRunEvent is the bounded session-owned timeline event shape.
@@ -513,7 +609,7 @@ export type AgentSessionRunEvent = Message<"vrooli.swarm_manager.v1.api.AgentSes
  * Use `create(AgentSessionRunEventSchema)` to create a new message.
  */
 export const AgentSessionRunEventSchema: GenMessage<AgentSessionRunEvent> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 15);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 17);
 
 /**
  * ListAgentSessionEventsResponse returns bounded Agent Manager run events.
@@ -542,7 +638,7 @@ export type ListAgentSessionEventsResponse = Message<"vrooli.swarm_manager.v1.ap
  * Use `create(ListAgentSessionEventsResponseSchema)` to create a new message.
  */
 export const ListAgentSessionEventsResponseSchema: GenMessage<ListAgentSessionEventsResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 16);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 18);
 
 /**
  * RefreshAgentSessionRequest refreshes session state from Agent Manager.
@@ -561,7 +657,7 @@ export type RefreshAgentSessionRequest = Message<"vrooli.swarm_manager.v1.api.Re
  * Use `create(RefreshAgentSessionRequestSchema)` to create a new message.
  */
 export const RefreshAgentSessionRequestSchema: GenMessage<RefreshAgentSessionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 17);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 19);
 
 /**
  * RefreshAgentSessionResponse returns the refreshed session.
@@ -580,7 +676,7 @@ export type RefreshAgentSessionResponse = Message<"vrooli.swarm_manager.v1.api.R
  * Use `create(RefreshAgentSessionResponseSchema)` to create a new message.
  */
 export const RefreshAgentSessionResponseSchema: GenMessage<RefreshAgentSessionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 18);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 20);
 
 /**
  * CancelAgentSessionRequest cancels a running session.
@@ -599,7 +695,7 @@ export type CancelAgentSessionRequest = Message<"vrooli.swarm_manager.v1.api.Can
  * Use `create(CancelAgentSessionRequestSchema)` to create a new message.
  */
 export const CancelAgentSessionRequestSchema: GenMessage<CancelAgentSessionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 19);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 21);
 
 /**
  * CancelAgentSessionResponse returns the canceled session.
@@ -618,7 +714,7 @@ export type CancelAgentSessionResponse = Message<"vrooli.swarm_manager.v1.api.Ca
  * Use `create(CancelAgentSessionResponseSchema)` to create a new message.
  */
 export const CancelAgentSessionResponseSchema: GenMessage<CancelAgentSessionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 20);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 22);
 
 /**
  * DeleteAgentSessionRequest permanently removes a session-owned record.
@@ -637,7 +733,7 @@ export type DeleteAgentSessionRequest = Message<"vrooli.swarm_manager.v1.api.Del
  * Use `create(DeleteAgentSessionRequestSchema)` to create a new message.
  */
 export const DeleteAgentSessionRequestSchema: GenMessage<DeleteAgentSessionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 21);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 23);
 
 /**
  * DeleteAgentSessionResponse returns the deleted session ID.
@@ -656,7 +752,7 @@ export type DeleteAgentSessionResponse = Message<"vrooli.swarm_manager.v1.api.De
  * Use `create(DeleteAgentSessionResponseSchema)` to create a new message.
  */
 export const DeleteAgentSessionResponseSchema: GenMessage<DeleteAgentSessionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 22);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 24);
 
 /**
  * ApplyAgentSessionProposalRequest applies an approved proposal.
@@ -680,7 +776,7 @@ export type ApplyAgentSessionProposalRequest = Message<"vrooli.swarm_manager.v1.
  * Use `create(ApplyAgentSessionProposalRequestSchema)` to create a new message.
  */
 export const ApplyAgentSessionProposalRequestSchema: GenMessage<ApplyAgentSessionProposalRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 23);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 25);
 
 /**
  * ApplyAgentSessionProposalResponse returns updated session state and artifacts.
@@ -704,7 +800,7 @@ export type ApplyAgentSessionProposalResponse = Message<"vrooli.swarm_manager.v1
  * Use `create(ApplyAgentSessionProposalResponseSchema)` to create a new message.
  */
 export const ApplyAgentSessionProposalResponseSchema: GenMessage<ApplyAgentSessionProposalResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 24);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 26);
 
 /**
  * ListAgentSessionArtifactsRequest filters artifacts for one session.
@@ -723,7 +819,7 @@ export type ListAgentSessionArtifactsRequest = Message<"vrooli.swarm_manager.v1.
  * Use `create(ListAgentSessionArtifactsRequestSchema)` to create a new message.
  */
 export const ListAgentSessionArtifactsRequestSchema: GenMessage<ListAgentSessionArtifactsRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 25);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 27);
 
 /**
  * ListAgentSessionArtifactsResponse returns artifact links for one session.
@@ -742,7 +838,7 @@ export type ListAgentSessionArtifactsResponse = Message<"vrooli.swarm_manager.v1
  * Use `create(ListAgentSessionArtifactsResponseSchema)` to create a new message.
  */
 export const ListAgentSessionArtifactsResponseSchema: GenMessage<ListAgentSessionArtifactsResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 26);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 28);
 
 /**
  * GetArtifactsByEntityRequest finds session links for an entity.
@@ -752,7 +848,7 @@ export const ListAgentSessionArtifactsResponseSchema: GenMessage<ListAgentSessio
 export type GetArtifactsByEntityRequest = Message<"vrooli.swarm_manager.v1.api.GetArtifactsByEntityRequest"> & {
   /**
    * Artifact type.
-   * @constraint one of: backlog_item, milestone, operating_mode_proposal, operating_mode_definition, capture, file, agent_activity
+   * @constraint one of: backlog_item, milestone, operating_mode_proposal, operating_mode_definition, capture, file, agent_activity, transition_execution
    *
    * @generated from field: string artifact_type = 1;
    */
@@ -771,7 +867,7 @@ export type GetArtifactsByEntityRequest = Message<"vrooli.swarm_manager.v1.api.G
  * Use `create(GetArtifactsByEntityRequestSchema)` to create a new message.
  */
 export const GetArtifactsByEntityRequestSchema: GenMessage<GetArtifactsByEntityRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 27);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 29);
 
 /**
  * GetArtifactsByEntityResponse returns artifact links for one entity.
@@ -790,5 +886,5 @@ export type GetArtifactsByEntityResponse = Message<"vrooli.swarm_manager.v1.api.
  * Use `create(GetArtifactsByEntityResponseSchema)` to create a new message.
  */
 export const GetArtifactsByEntityResponseSchema: GenMessage<GetArtifactsByEntityResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 28);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 30);
 

@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.vrooli_bridge.v1.shared;
 
 import "google/protobuf/timestamp.proto";
+import "vrooli-bridge/v1/session/session.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared;shared_v1";
 
@@ -47,4 +48,23 @@ message RunEvent {
   int32 exit_code = 6;
   string artifact_ref = 7;
   google.protobuf.Timestamp emitted_at = 8;
+}
+
+// DeliveryAck is emitted by a node immediately after it receives and verifies
+// a pushed frame. It is shared by the channel transport and presence RPC so
+// the receipt has one canonical wire type across domains.
+message DeliveryAck {
+  string frame_id = 1;
+  string run_id = 2;
+  string op_id = 3;
+  google.protobuf.Timestamp received_at = 4;
+}
+
+// SessionFrame is the node-facing envelope shared by the channel push and
+// presence report domains. The byte-transparent session.Frame remains owned
+// by the session contract; this envelope carries its authenticated identity
+// across both transports.
+message SessionFrame {
+  string session_id = 1;
+  vrooli.vrooli_bridge.v1.session.Frame frame = 2;
 }

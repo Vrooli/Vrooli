@@ -7,6 +7,7 @@
 package shared_v1
 
 import (
+	session "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -373,11 +374,138 @@ func (x *RunEvent) GetEmittedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// DeliveryAck is emitted by a node immediately after it receives and verifies
+// a pushed frame. It is shared by the channel transport and presence RPC so
+// the receipt has one canonical wire type across domains.
+type DeliveryAck struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FrameId       string                 `protobuf:"bytes,1,opt,name=frame_id,json=frameId,proto3" json:"frame_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	OpId          string                 `protobuf:"bytes,3,opt,name=op_id,json=opId,proto3" json:"op_id,omitempty"`
+	ReceivedAt    *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=received_at,json=receivedAt,proto3" json:"received_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeliveryAck) Reset() {
+	*x = DeliveryAck{}
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeliveryAck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeliveryAck) ProtoMessage() {}
+
+func (x *DeliveryAck) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeliveryAck.ProtoReflect.Descriptor instead.
+func (*DeliveryAck) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *DeliveryAck) GetFrameId() string {
+	if x != nil {
+		return x.FrameId
+	}
+	return ""
+}
+
+func (x *DeliveryAck) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *DeliveryAck) GetOpId() string {
+	if x != nil {
+		return x.OpId
+	}
+	return ""
+}
+
+func (x *DeliveryAck) GetReceivedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReceivedAt
+	}
+	return nil
+}
+
+// SessionFrame is the node-facing envelope shared by the channel push and
+// presence report domains. The byte-transparent session.Frame remains owned
+// by the session contract; this envelope carries its authenticated identity
+// across both transports.
+type SessionFrame struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Frame         *session.Frame         `protobuf:"bytes,2,opt,name=frame,proto3" json:"frame,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SessionFrame) Reset() {
+	*x = SessionFrame{}
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionFrame) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionFrame) ProtoMessage() {}
+
+func (x *SessionFrame) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionFrame.ProtoReflect.Descriptor instead.
+func (*SessionFrame) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SessionFrame) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *SessionFrame) GetFrame() *session.Frame {
+	if x != nil {
+		return x.Frame
+	}
+	return nil
+}
+
 var File_vrooli_bridge_v1_shared_shared_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_shared_shared_proto_rawDesc = "" +
 	"\n" +
-	"$vrooli-bridge/v1/shared/shared.proto\x12\x1evrooli.vrooli_bridge.v1.shared\x1a\x1fgoogle/protobuf/timestamp.proto\"\xef\x02\n" +
+	"$vrooli-bridge/v1/shared/shared.proto\x12\x1evrooli.vrooli_bridge.v1.shared\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&vrooli-bridge/v1/session/session.proto\"\xef\x02\n" +
 	"\x0eHealthSnapshot\x12+\n" +
 	"\x11toolchain_present\x18\x01 \x01(\bR\x10toolchainPresent\x12.\n" +
 	"\x13disk_headroom_bytes\x18\x02 \x01(\x03R\x11diskHeadroomBytes\x120\n" +
@@ -402,7 +530,17 @@ const file_vrooli_bridge_v1_shared_shared_proto_rawDesc = "" +
 	"\texit_code\x18\x06 \x01(\x05R\bexitCode\x12!\n" +
 	"\fartifact_ref\x18\a \x01(\tR\vartifactRef\x129\n" +
 	"\n" +
-	"emitted_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\temittedAt*\xa6\x01\n" +
+	"emitted_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\temittedAt\"\x91\x01\n" +
+	"\vDeliveryAck\x12\x19\n" +
+	"\bframe_id\x18\x01 \x01(\tR\aframeId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x13\n" +
+	"\x05op_id\x18\x03 \x01(\tR\x04opId\x12;\n" +
+	"\vreceived_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"receivedAt\"k\n" +
+	"\fSessionFrame\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12<\n" +
+	"\x05frame\x18\x02 \x01(\v2&.vrooli.vrooli_bridge.v1.session.FrameR\x05frame*\xa6\x01\n" +
 	"\x13CompatibilityStatus\x12$\n" +
 	" COMPATIBILITY_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17COMPATIBILITY_STATUS_OK\x10\x01\x12%\n" +
@@ -428,28 +566,33 @@ func file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP() []byte {
 }
 
 var file_vrooli_bridge_v1_shared_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_vrooli_bridge_v1_shared_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_vrooli_bridge_v1_shared_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_vrooli_bridge_v1_shared_shared_proto_goTypes = []any{
 	(CompatibilityStatus)(0),      // 0: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
 	(RunEventKind)(0),             // 1: vrooli.vrooli_bridge.v1.shared.RunEventKind
 	(*HealthSnapshot)(nil),        // 2: vrooli.vrooli_bridge.v1.shared.HealthSnapshot
 	(*Heartbeat)(nil),             // 3: vrooli.vrooli_bridge.v1.shared.Heartbeat
 	(*RunEvent)(nil),              // 4: vrooli.vrooli_bridge.v1.shared.RunEvent
-	nil,                           // 5: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntry
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*DeliveryAck)(nil),           // 5: vrooli.vrooli_bridge.v1.shared.DeliveryAck
+	(*SessionFrame)(nil),          // 6: vrooli.vrooli_bridge.v1.shared.SessionFrame
+	nil,                           // 7: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntry
+	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
+	(*session.Frame)(nil),         // 9: vrooli.vrooli_bridge.v1.session.Frame
 }
 var file_vrooli_bridge_v1_shared_shared_proto_depIdxs = []int32{
-	5, // 0: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.details:type_name -> vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntry
-	6, // 1: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.reported_at:type_name -> google.protobuf.Timestamp
+	7, // 0: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.details:type_name -> vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntry
+	8, // 1: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.reported_at:type_name -> google.protobuf.Timestamp
 	2, // 2: vrooli.vrooli_bridge.v1.shared.Heartbeat.health:type_name -> vrooli.vrooli_bridge.v1.shared.HealthSnapshot
-	6, // 3: vrooli.vrooli_bridge.v1.shared.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
+	8, // 3: vrooli.vrooli_bridge.v1.shared.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
 	1, // 4: vrooli.vrooli_bridge.v1.shared.RunEvent.kind:type_name -> vrooli.vrooli_bridge.v1.shared.RunEventKind
-	6, // 5: vrooli.vrooli_bridge.v1.shared.RunEvent.emitted_at:type_name -> google.protobuf.Timestamp
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	8, // 5: vrooli.vrooli_bridge.v1.shared.RunEvent.emitted_at:type_name -> google.protobuf.Timestamp
+	8, // 6: vrooli.vrooli_bridge.v1.shared.DeliveryAck.received_at:type_name -> google.protobuf.Timestamp
+	9, // 7: vrooli.vrooli_bridge.v1.shared.SessionFrame.frame:type_name -> vrooli.vrooli_bridge.v1.session.Frame
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_shared_shared_proto_init() }
@@ -463,7 +606,7 @@ func file_vrooli_bridge_v1_shared_shared_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_shared_shared_proto_rawDesc), len(file_vrooli_bridge_v1_shared_shared_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

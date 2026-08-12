@@ -33,6 +33,14 @@ const (
 	AuditAction_AUDIT_ACTION_PROVISION AuditAction = 2
 	// An accepted offline break-glass capability use.
 	AuditAction_AUDIT_ACTION_BREAK_GLASS AuditAction = 3
+	// Interactive session lifecycle events.
+	AuditAction_AUDIT_ACTION_SESSION_OPEN   AuditAction = 4
+	AuditAction_AUDIT_ACTION_SESSION_CLOSE  AuditAction = 5
+	AuditAction_AUDIT_ACTION_SESSION_RESIZE AuditAction = 6
+	// Byte-level interactive-session records. Detail contains a bounded,
+	// base64-encoded payload prefixed with "in:" or "out:".
+	AuditAction_AUDIT_ACTION_SESSION_DATA_IN  AuditAction = 7
+	AuditAction_AUDIT_ACTION_SESSION_DATA_OUT AuditAction = 8
 )
 
 // Enum value maps for AuditAction.
@@ -42,12 +50,22 @@ var (
 		1: "AUDIT_ACTION_DISPATCH",
 		2: "AUDIT_ACTION_PROVISION",
 		3: "AUDIT_ACTION_BREAK_GLASS",
+		4: "AUDIT_ACTION_SESSION_OPEN",
+		5: "AUDIT_ACTION_SESSION_CLOSE",
+		6: "AUDIT_ACTION_SESSION_RESIZE",
+		7: "AUDIT_ACTION_SESSION_DATA_IN",
+		8: "AUDIT_ACTION_SESSION_DATA_OUT",
 	}
 	AuditAction_value = map[string]int32{
-		"AUDIT_ACTION_UNSPECIFIED": 0,
-		"AUDIT_ACTION_DISPATCH":    1,
-		"AUDIT_ACTION_PROVISION":   2,
-		"AUDIT_ACTION_BREAK_GLASS": 3,
+		"AUDIT_ACTION_UNSPECIFIED":      0,
+		"AUDIT_ACTION_DISPATCH":         1,
+		"AUDIT_ACTION_PROVISION":        2,
+		"AUDIT_ACTION_BREAK_GLASS":      3,
+		"AUDIT_ACTION_SESSION_OPEN":     4,
+		"AUDIT_ACTION_SESSION_CLOSE":    5,
+		"AUDIT_ACTION_SESSION_RESIZE":   6,
+		"AUDIT_ACTION_SESSION_DATA_IN":  7,
+		"AUDIT_ACTION_SESSION_DATA_OUT": 8,
 	}
 )
 
@@ -405,12 +423,17 @@ const file_vrooli_bridge_v1_audit_audit_proto_rawDesc = "" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\"`\n" +
 	"\x18ListAuditRecordsResponse\x12D\n" +
-	"\arecords\x18\x01 \x03(\v2*.vrooli.vrooli_bridge.v1.audit.AuditRecordR\arecords*\x80\x01\n" +
+	"\arecords\x18\x01 \x03(\v2*.vrooli.vrooli_bridge.v1.audit.AuditRecordR\arecords*\xa5\x02\n" +
 	"\vAuditAction\x12\x1c\n" +
 	"\x18AUDIT_ACTION_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUDIT_ACTION_DISPATCH\x10\x01\x12\x1a\n" +
 	"\x16AUDIT_ACTION_PROVISION\x10\x02\x12\x1c\n" +
-	"\x18AUDIT_ACTION_BREAK_GLASS\x10\x03*\x9c\x01\n" +
+	"\x18AUDIT_ACTION_BREAK_GLASS\x10\x03\x12\x1d\n" +
+	"\x19AUDIT_ACTION_SESSION_OPEN\x10\x04\x12\x1e\n" +
+	"\x1aAUDIT_ACTION_SESSION_CLOSE\x10\x05\x12\x1f\n" +
+	"\x1bAUDIT_ACTION_SESSION_RESIZE\x10\x06\x12 \n" +
+	"\x1cAUDIT_ACTION_SESSION_DATA_IN\x10\a\x12!\n" +
+	"\x1dAUDIT_ACTION_SESSION_DATA_OUT\x10\b*\x9c\x01\n" +
 	"\fAuditOutcome\x12\x1d\n" +
 	"\x19AUDIT_OUTCOME_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16AUDIT_OUTCOME_ACCEPTED\x10\x01\x12\x1a\n" +

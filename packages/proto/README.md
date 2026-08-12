@@ -7,9 +7,10 @@ This package hosts Protocol Buffers schemas for inter-scenario contracts and the
 ## Quickstart
 
 - Edit `.proto` files in `schemas/`.
-- Regenerate: `cd packages/proto && make generate`
+- Regenerate one schema change: `cd packages/proto && make generate SCENARIO=<scenario>`
+- Deliberate full-fleet rebuild: `cd packages/proto && make generate`
 - Lint: `cd packages/proto && make lint`
-- Breaking check (against `master` by default): `cd packages/proto && make breaking`
+- Breaking check: `cd packages/proto && make breaking SCENARIO=<scenario>`
 - Keep `gen/` in sync with `schemas/` before committing.
 - JSON serialization: Vrooli HTTP JSON endpoints use proto field names (`snake_case`) on the wire. Go writers use `protojson.MarshalOptions{UseProtoNames: true}`; TypeScript writers use `toJsonString(..., { useProtoFieldName: true })`. TypeScript `fromJson` accepts both proto field names and JSON/lowerCamel names, so UI readers should parse through generated descriptors instead of manually reshaping payloads.
 
@@ -107,7 +108,13 @@ vrooli package dependents proto
 vrooli package refresh proto all --no-restart
 ```
 
-`make generate` remains useful when working directly inside `packages/proto`, but the governed repo-wide operator surface is `vrooli package generate/refresh`. See [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1) for the canonical policy.
+`make generate` remains useful for deliberate full-fleet rebuilds when working
+directly inside `packages/proto`, but a routine schema edit should use
+`vrooli package generate --scenario <scenario>` or the equivalent
+`make generate SCENARIO=<scenario>`. Generation is staged and advisory-locked;
+unchanged outputs are not rewritten. Scoped runs include reverse dependents and
+shared imports. See [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1)
+for the canonical policy.
 
 ## Language support matrix
 
@@ -176,12 +183,13 @@ Each file should include a header with `@layer`, `@domain`, `@imports`, and `@st
 ### 3. Regenerate code
 
 ```bash
-cd packages/proto && make generate
+cd packages/proto && make generate SCENARIO=<scenario>
 ```
 
-This prune-cleans and regenerates all language outputs (Go, TypeScript,
-Python), creates `py.typed` markers, rebuilds the descriptor image, and writes
-per-scenario generation manifests under `gen/manifests/`.
+This stages and regenerates all language outputs (Go, TypeScript, Python),
+creates `py.typed` markers, rebuilds the descriptor image, and writes
+per-scenario generation manifests under `gen/manifests/` before publishing only
+changed outputs. Use `--scenario` for a dependency-aware scoped run.
 
 ### 4. Verify your changes
 
@@ -190,7 +198,7 @@ per-scenario generation manifests under `gen/manifests/`.
 make lint
 
 # Check for breaking changes (against master)
-make breaking
+make breaking SCENARIO=<scenario>
 
 # Ensure committed generated code, descriptors, and manifests are in sync
 make verify-committed-gen
@@ -243,7 +251,8 @@ message CreatePlanRequest {
 
 ### Breaking change detected
 
-`make breaking` compares against `master` by default. If you intentionally made a breaking change:
+`make breaking SCENARIO=<scenario>` asks proto-health to inspect the selected
+scenario's compatibility impact. If you intentionally made a breaking change:
 
 1. Document the change in your PR
 2. Ensure downstream consumers are updated
@@ -252,8 +261,8 @@ message CreatePlanRequest {
 ### Generated code not updating
 
 ```bash
-# Clean and regenerate
-make clean && make generate
+# Regenerate the affected scenario through the staged pipeline
+make generate SCENARIO=<scenario>
 
 # Verify generated code is committed
 make verify-committed-gen

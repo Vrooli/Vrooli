@@ -55,6 +55,21 @@ service NodeRegistryService {
   // It is intentionally unavailable for active nodes: trust must be severed
   // through RevokeNode before an operator can hide the historical identity.
   rpc RemoveNode(RemoveNodeRequest) returns (RemoveNodeResponse);
+
+  // GetNodeReadiness returns the independent readiness ladder used by the
+  // operator doctor and fleet surfaces. It never collapses transport facts
+  // into the legacy status enum.
+  rpc GetNodeReadiness(GetNodeRequest) returns (GetNodeReadinessResponse);
+}
+
+// NodeKind describes which Bridge capabilities the node can provide. It is
+// persisted independently from the live presence overlay so a host that has
+// no agent is still a first-class, honestly limited fleet member.
+enum NodeKind {
+  NODE_KIND_UNSPECIFIED = 0;
+  NODE_KIND_AGENT = 1;
+  NODE_KIND_SSH = 2;
+  NODE_KIND_ATTACHED = 3;
 }
 
 // NodeStatus is the node's current state. The persisted dimension is
@@ -128,6 +143,16 @@ message Node {
 
   // When the node was revoked, if it has been. Unset on active nodes.
   google.protobuf.Timestamp revoked_at = 14;
+
+  // Independent readiness facts. These are overlays, never persisted.
+  bool registry_record_present = 15;
+  bool heartbeat_fresh = 16;
+  int64 heartbeat_age_seconds = 17;
+  bool channel_held = 18;
+  bool protocol_compatible = 19;
+  bool dispatchable = 20;
+
+  NodeKind kind = 21;
 }
 
 // RegisterNodeRequest carries the durable identity of a node being registered.
@@ -138,6 +163,7 @@ message RegisterNodeRequest {
   string endpoint = 4;
   repeated string capabilities = 5;
   repeated string scopes = 6;
+  NodeKind kind = 7;
 }
 
 message RegisterNodeResponse {
@@ -188,4 +214,8 @@ message RemoveNodeRequest {
 }
 message RemoveNodeResponse {
   string removed_node_id = 1;
+}
+
+message GetNodeReadinessResponse {
+  Node node = 1;
 }

@@ -66,13 +66,17 @@ message RunDrillRequest {
   bool scheduled = 5;
 }
 
-message RunDrillResponse { RecoveryDrill drill = 1; }
+message RunDrillResponse {
+  RecoveryDrill drill = 1;
+}
 
 message GetDrillRequest {
   string id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
-message GetDrillResponse { RecoveryDrill drill = 1; }
+message GetDrillResponse {
+  RecoveryDrill drill = 1;
+}
 
 message ListDrillsRequest {
   string plan_id = 1;

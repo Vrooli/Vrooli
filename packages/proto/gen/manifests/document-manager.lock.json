@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "document-manager",
-  "input_digest": "sha256:e0623d61c3ae72a86506ef1f6049f5f0b418e0b0616cb81f90d797000510ec4f",
+  "input_digest": "sha256:3c49d63a3e3626fc64de3198a29095df5f9c239efb911d8c0f8c9634c23d8205",
   "input_files": [
     "schemas/document-manager/v1/notes/attachments.proto",
     "schemas/document-manager/v1/notes/notes.proto",

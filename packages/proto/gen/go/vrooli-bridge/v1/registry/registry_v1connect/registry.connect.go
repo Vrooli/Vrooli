@@ -51,6 +51,9 @@ const (
 	// NodeRegistryServiceRemoveNodeProcedure is the fully-qualified name of the NodeRegistryService's
 	// RemoveNode RPC.
 	NodeRegistryServiceRemoveNodeProcedure = "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RemoveNode"
+	// NodeRegistryServiceGetNodeReadinessProcedure is the fully-qualified name of the
+	// NodeRegistryService's GetNodeReadiness RPC.
+	NodeRegistryServiceGetNodeReadinessProcedure = "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/GetNodeReadiness"
 )
 
 // NodeRegistryServiceClient is a client for the
@@ -77,6 +80,10 @@ type NodeRegistryServiceClient interface {
 	// It is intentionally unavailable for active nodes: trust must be severed
 	// through RevokeNode before an operator can hide the historical identity.
 	RemoveNode(context.Context, *connect.Request[registry.RemoveNodeRequest]) (*connect.Response[registry.RemoveNodeResponse], error)
+	// GetNodeReadiness returns the independent readiness ladder used by the
+	// operator doctor and fleet surfaces. It never collapses transport facts
+	// into the legacy status enum.
+	GetNodeReadiness(context.Context, *connect.Request[registry.GetNodeRequest]) (*connect.Response[registry.GetNodeReadinessResponse], error)
 }
 
 // NewNodeRegistryServiceClient constructs a client for the
@@ -127,17 +134,24 @@ func NewNodeRegistryServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(nodeRegistryServiceMethods.ByName("RemoveNode")),
 			connect.WithClientOptions(opts...),
 		),
+		getNodeReadiness: connect.NewClient[registry.GetNodeRequest, registry.GetNodeReadinessResponse](
+			httpClient,
+			baseURL+NodeRegistryServiceGetNodeReadinessProcedure,
+			connect.WithSchema(nodeRegistryServiceMethods.ByName("GetNodeReadiness")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // nodeRegistryServiceClient implements NodeRegistryServiceClient.
 type nodeRegistryServiceClient struct {
-	registerNode *connect.Client[registry.RegisterNodeRequest, registry.RegisterNodeResponse]
-	listNodes    *connect.Client[registry.ListNodesRequest, registry.ListNodesResponse]
-	getNode      *connect.Client[registry.GetNodeRequest, registry.GetNodeResponse]
-	updateNode   *connect.Client[registry.UpdateNodeRequest, registry.UpdateNodeResponse]
-	revokeNode   *connect.Client[registry.RevokeNodeRequest, registry.RevokeNodeResponse]
-	removeNode   *connect.Client[registry.RemoveNodeRequest, registry.RemoveNodeResponse]
+	registerNode     *connect.Client[registry.RegisterNodeRequest, registry.RegisterNodeResponse]
+	listNodes        *connect.Client[registry.ListNodesRequest, registry.ListNodesResponse]
+	getNode          *connect.Client[registry.GetNodeRequest, registry.GetNodeResponse]
+	updateNode       *connect.Client[registry.UpdateNodeRequest, registry.UpdateNodeResponse]
+	revokeNode       *connect.Client[registry.RevokeNodeRequest, registry.RevokeNodeResponse]
+	removeNode       *connect.Client[registry.RemoveNodeRequest, registry.RemoveNodeResponse]
+	getNodeReadiness *connect.Client[registry.GetNodeRequest, registry.GetNodeReadinessResponse]
 }
 
 // RegisterNode calls vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RegisterNode.
@@ -170,6 +184,11 @@ func (c *nodeRegistryServiceClient) RemoveNode(ctx context.Context, req *connect
 	return c.removeNode.CallUnary(ctx, req)
 }
 
+// GetNodeReadiness calls vrooli.vrooli_bridge.v1.registry.NodeRegistryService.GetNodeReadiness.
+func (c *nodeRegistryServiceClient) GetNodeReadiness(ctx context.Context, req *connect.Request[registry.GetNodeRequest]) (*connect.Response[registry.GetNodeReadinessResponse], error) {
+	return c.getNodeReadiness.CallUnary(ctx, req)
+}
+
 // NodeRegistryServiceHandler is an implementation of the
 // vrooli.vrooli_bridge.v1.registry.NodeRegistryService service.
 type NodeRegistryServiceHandler interface {
@@ -194,6 +213,10 @@ type NodeRegistryServiceHandler interface {
 	// It is intentionally unavailable for active nodes: trust must be severed
 	// through RevokeNode before an operator can hide the historical identity.
 	RemoveNode(context.Context, *connect.Request[registry.RemoveNodeRequest]) (*connect.Response[registry.RemoveNodeResponse], error)
+	// GetNodeReadiness returns the independent readiness ladder used by the
+	// operator doctor and fleet surfaces. It never collapses transport facts
+	// into the legacy status enum.
+	GetNodeReadiness(context.Context, *connect.Request[registry.GetNodeRequest]) (*connect.Response[registry.GetNodeReadinessResponse], error)
 }
 
 // NewNodeRegistryServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -239,6 +262,12 @@ func NewNodeRegistryServiceHandler(svc NodeRegistryServiceHandler, opts ...conne
 		connect.WithSchema(nodeRegistryServiceMethods.ByName("RemoveNode")),
 		connect.WithHandlerOptions(opts...),
 	)
+	nodeRegistryServiceGetNodeReadinessHandler := connect.NewUnaryHandler(
+		NodeRegistryServiceGetNodeReadinessProcedure,
+		svc.GetNodeReadiness,
+		connect.WithSchema(nodeRegistryServiceMethods.ByName("GetNodeReadiness")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case NodeRegistryServiceRegisterNodeProcedure:
@@ -253,6 +282,8 @@ func NewNodeRegistryServiceHandler(svc NodeRegistryServiceHandler, opts ...conne
 			nodeRegistryServiceRevokeNodeHandler.ServeHTTP(w, r)
 		case NodeRegistryServiceRemoveNodeProcedure:
 			nodeRegistryServiceRemoveNodeHandler.ServeHTTP(w, r)
+		case NodeRegistryServiceGetNodeReadinessProcedure:
+			nodeRegistryServiceGetNodeReadinessHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -284,4 +315,8 @@ func (UnimplementedNodeRegistryServiceHandler) RevokeNode(context.Context, *conn
 
 func (UnimplementedNodeRegistryServiceHandler) RemoveNode(context.Context, *connect.Request[registry.RemoveNodeRequest]) (*connect.Response[registry.RemoveNodeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RemoveNode is not implemented"))
+}
+
+func (UnimplementedNodeRegistryServiceHandler) GetNodeReadiness(context.Context, *connect.Request[registry.GetNodeRequest]) (*connect.Response[registry.GetNodeReadinessResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.registry.NodeRegistryService.GetNodeReadiness is not implemented"))
 }

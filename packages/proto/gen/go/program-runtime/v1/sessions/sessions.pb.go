@@ -22,17 +22,24 @@ const (
 )
 
 type Session struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	State            string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
-	CreatedAt        string                 `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	LastActivityAt   string                 `protobuf:"bytes,4,opt,name=last_activity_at,json=lastActivityAt,proto3" json:"last_activity_at,omitempty"`
-	Grants           []string               `protobuf:"bytes,5,rep,name=grants,proto3" json:"grants,omitempty"`
-	SandboxWorkspace string                 `protobuf:"bytes,6,opt,name=sandbox_workspace,json=sandboxWorkspace,proto3" json:"sandbox_workspace,omitempty"`
-	ReclaimedReason  string                 `protobuf:"bytes,7,opt,name=reclaimed_reason,json=reclaimedReason,proto3" json:"reclaimed_reason,omitempty"`
-	Name             string                 `protobuf:"bytes,8,opt,name=name,proto3" json:"name,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Id                      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	State                   string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	CreatedAt               string                 `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	LastActivityAt          string                 `protobuf:"bytes,4,opt,name=last_activity_at,json=lastActivityAt,proto3" json:"last_activity_at,omitempty"`
+	Grants                  []string               `protobuf:"bytes,5,rep,name=grants,proto3" json:"grants,omitempty"`
+	SandboxWorkspace        string                 `protobuf:"bytes,6,opt,name=sandbox_workspace,json=sandboxWorkspace,proto3" json:"sandbox_workspace,omitempty"`
+	ReclaimedReason         string                 `protobuf:"bytes,7,opt,name=reclaimed_reason,json=reclaimedReason,proto3" json:"reclaimed_reason,omitempty"`
+	Name                    string                 `protobuf:"bytes,8,opt,name=name,proto3" json:"name,omitempty"`
+	InferenceCostMicros     int64                  `protobuf:"varint,9,opt,name=inference_cost_micros,json=inferenceCostMicros,proto3" json:"inference_cost_micros,omitempty"`
+	InferenceTokens         int64                  `protobuf:"varint,10,opt,name=inference_tokens,json=inferenceTokens,proto3" json:"inference_tokens,omitempty"`
+	DelegationCostMicros    int64                  `protobuf:"varint,11,opt,name=delegation_cost_micros,json=delegationCostMicros,proto3" json:"delegation_cost_micros,omitempty"`
+	InferenceCeilingMicros  int64                  `protobuf:"varint,12,opt,name=inference_ceiling_micros,json=inferenceCeilingMicros,proto3" json:"inference_ceiling_micros,omitempty"`
+	DelegationCeilingMicros int64                  `protobuf:"varint,13,opt,name=delegation_ceiling_micros,json=delegationCeilingMicros,proto3" json:"delegation_ceiling_micros,omitempty"`
+	DelegationSpendMeasured bool                   `protobuf:"varint,14,opt,name=delegation_spend_measured,json=delegationSpendMeasured,proto3" json:"delegation_spend_measured,omitempty"`
+	DelegationSpendNote     string                 `protobuf:"bytes,15,opt,name=delegation_spend_note,json=delegationSpendNote,proto3" json:"delegation_spend_note,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *Session) Reset() {
@@ -121,13 +128,64 @@ func (x *Session) GetName() string {
 	return ""
 }
 
+func (x *Session) GetInferenceCostMicros() int64 {
+	if x != nil {
+		return x.InferenceCostMicros
+	}
+	return 0
+}
+
+func (x *Session) GetInferenceTokens() int64 {
+	if x != nil {
+		return x.InferenceTokens
+	}
+	return 0
+}
+
+func (x *Session) GetDelegationCostMicros() int64 {
+	if x != nil {
+		return x.DelegationCostMicros
+	}
+	return 0
+}
+
+func (x *Session) GetInferenceCeilingMicros() int64 {
+	if x != nil {
+		return x.InferenceCeilingMicros
+	}
+	return 0
+}
+
+func (x *Session) GetDelegationCeilingMicros() int64 {
+	if x != nil {
+		return x.DelegationCeilingMicros
+	}
+	return 0
+}
+
+func (x *Session) GetDelegationSpendMeasured() bool {
+	if x != nil {
+		return x.DelegationSpendMeasured
+	}
+	return false
+}
+
+func (x *Session) GetDelegationSpendNote() string {
+	if x != nil {
+		return x.DelegationSpendNote
+	}
+	return ""
+}
+
 type CreateSessionRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Grants           []string               `protobuf:"bytes,1,rep,name=grants,proto3" json:"grants,omitempty"`
-	SandboxWorkspace string                 `protobuf:"bytes,2,opt,name=sandbox_workspace,json=sandboxWorkspace,proto3" json:"sandbox_workspace,omitempty"`
-	Name             string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Grants                  []string               `protobuf:"bytes,1,rep,name=grants,proto3" json:"grants,omitempty"`
+	SandboxWorkspace        string                 `protobuf:"bytes,2,opt,name=sandbox_workspace,json=sandboxWorkspace,proto3" json:"sandbox_workspace,omitempty"`
+	Name                    string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	InferenceCeilingMicros  int64                  `protobuf:"varint,4,opt,name=inference_ceiling_micros,json=inferenceCeilingMicros,proto3" json:"inference_ceiling_micros,omitempty"`
+	DelegationCeilingMicros int64                  `protobuf:"varint,5,opt,name=delegation_ceiling_micros,json=delegationCeilingMicros,proto3" json:"delegation_ceiling_micros,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *CreateSessionRequest) Reset() {
@@ -179,6 +237,20 @@ func (x *CreateSessionRequest) GetName() string {
 		return x.Name
 	}
 	return ""
+}
+
+func (x *CreateSessionRequest) GetInferenceCeilingMicros() int64 {
+	if x != nil {
+		return x.InferenceCeilingMicros
+	}
+	return 0
+}
+
+func (x *CreateSessionRequest) GetDelegationCeilingMicros() int64 {
+	if x != nil {
+		return x.DelegationCeilingMicros
+	}
+	return 0
 }
 
 type CreateSessionResponse struct {
@@ -597,7 +669,7 @@ var File_program_runtime_v1_sessions_sessions_proto protoreflect.FileDescriptor
 
 const file_program_runtime_v1_sessions_sessions_proto_rawDesc = "" +
 	"\n" +
-	"*program-runtime/v1/sessions/sessions.proto\x12\"vrooli.program_runtime.v1.sessions\"\xfc\x01\n" +
+	"*program-runtime/v1/sessions/sessions.proto\x12\"vrooli.program_runtime.v1.sessions\"\xf7\x04\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x1d\n" +
@@ -607,11 +679,21 @@ const file_program_runtime_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x06grants\x18\x05 \x03(\tR\x06grants\x12+\n" +
 	"\x11sandbox_workspace\x18\x06 \x01(\tR\x10sandboxWorkspace\x12)\n" +
 	"\x10reclaimed_reason\x18\a \x01(\tR\x0freclaimedReason\x12\x12\n" +
-	"\x04name\x18\b \x01(\tR\x04name\"o\n" +
+	"\x04name\x18\b \x01(\tR\x04name\x122\n" +
+	"\x15inference_cost_micros\x18\t \x01(\x03R\x13inferenceCostMicros\x12)\n" +
+	"\x10inference_tokens\x18\n" +
+	" \x01(\x03R\x0finferenceTokens\x124\n" +
+	"\x16delegation_cost_micros\x18\v \x01(\x03R\x14delegationCostMicros\x128\n" +
+	"\x18inference_ceiling_micros\x18\f \x01(\x03R\x16inferenceCeilingMicros\x12:\n" +
+	"\x19delegation_ceiling_micros\x18\r \x01(\x03R\x17delegationCeilingMicros\x12:\n" +
+	"\x19delegation_spend_measured\x18\x0e \x01(\bR\x17delegationSpendMeasured\x122\n" +
+	"\x15delegation_spend_note\x18\x0f \x01(\tR\x13delegationSpendNote\"\xe5\x01\n" +
 	"\x14CreateSessionRequest\x12\x16\n" +
 	"\x06grants\x18\x01 \x03(\tR\x06grants\x12+\n" +
 	"\x11sandbox_workspace\x18\x02 \x01(\tR\x10sandboxWorkspace\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\"^\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x128\n" +
+	"\x18inference_ceiling_micros\x18\x04 \x01(\x03R\x16inferenceCeilingMicros\x12:\n" +
+	"\x19delegation_ceiling_micros\x18\x05 \x01(\x03R\x17delegationCeilingMicros\"^\n" +
 	"\x15CreateSessionResponse\x12E\n" +
 	"\asession\x18\x01 \x01(\v2+.vrooli.program_runtime.v1.sessions.SessionR\asession\"#\n" +
 	"\x11GetSessionRequest\x12\x0e\n" +

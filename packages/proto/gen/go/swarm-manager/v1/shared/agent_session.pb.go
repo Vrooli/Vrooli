@@ -502,12 +502,12 @@ const file_swarm_manager_v1_shared_agent_session_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcreatedAtB\x0f\n" +
 	"\r_content_typeB\r\n" +
-	"\v_size_bytes\"\xf6\x05\n" +
+	"\v_size_bytes\"\x8f\x06\n" +
 	"\x14AgentSessionArtifact\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12&\n" +
 	"\n" +
-	"session_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12\x96\x01\n" +
-	"\rartifact_type\x18\x03 \x01(\tBq\xbaHnrlR\fbacklog_itemR\tmilestoneR\x17operating_mode_proposalR\x19operating_mode_definitionR\acaptureR\x04fileR\x0eagent_activityR\fartifactType\x12J\n" +
+	"session_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12\xaf\x01\n" +
+	"\rartifact_type\x18\x03 \x01(\tB\x89\x01\xbaH\x85\x01r\x82\x01R\fbacklog_itemR\tmilestoneR\x17operating_mode_proposalR\x19operating_mode_definitionR\acaptureR\x04fileR\x0eagent_activityR\x14transition_executionR\fartifactType\x12J\n" +
 	"\x06action\x18\x04 \x01(\tB2\xbaH/r-R\bproposedR\acreatedR\aupdatedR\adeletedR\x06linkedR\x06action\x12&\n" +
 	"\n" +
 	"entity_ref\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tentityRef\x12\x19\n" +

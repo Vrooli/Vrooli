@@ -191,17 +191,37 @@ message MediaExecution {
   string error_message = 14;
 }
 
-message SubmitMediaResponse { MediaExecution execution = 1; }
-message GetMediaExecutionRequest { string execution_id = 1; }
-message GetMediaExecutionResponse { MediaExecution execution = 1; }
+message SubmitMediaResponse {
+  MediaExecution execution = 1;
+}
+message GetMediaExecutionRequest {
+  string execution_id = 1;
+}
+message GetMediaExecutionResponse {
+  MediaExecution execution = 1;
+}
+
 // WaitMediaExecution blocks server-side until the receipt becomes terminal.
 // Callers must not implement client-side polling loops for media work.
-message WaitMediaExecutionRequest { string execution_id = 1; }
-message WaitMediaExecutionResponse { MediaExecution execution = 1; }
-message CancelMediaExecutionRequest { string execution_id = 1; }
-message CancelMediaExecutionResponse { MediaExecution execution = 1; }
-message RetryMediaExecutionRequest { string execution_id = 1; string idempotency_key = 2; }
-message RetryMediaExecutionResponse { MediaExecution execution = 1; }
+message WaitMediaExecutionRequest {
+  string execution_id = 1;
+}
+message WaitMediaExecutionResponse {
+  MediaExecution execution = 1;
+}
+message CancelMediaExecutionRequest {
+  string execution_id = 1;
+}
+message CancelMediaExecutionResponse {
+  MediaExecution execution = 1;
+}
+message RetryMediaExecutionRequest {
+  string execution_id = 1;
+  string idempotency_key = 2;
+}
+message RetryMediaExecutionResponse {
+  MediaExecution execution = 1;
+}
 
 message ListRouteEvidenceRequest {
   int32 limit = 1;

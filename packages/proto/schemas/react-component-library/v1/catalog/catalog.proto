@@ -46,15 +46,21 @@ message CoverageReport {
   MaturitySummary maturity = 5;
 }
 
-message GetCoverageResponse { CoverageReport report = 1; }
+message GetCoverageResponse {
+  CoverageReport report = 1;
+}
 
-message ListNextWorkRequest { int32 limit = 1; }
+message ListNextWorkRequest {
+  int32 limit = 1;
+}
 message ListNextWorkResponse {
   repeated CoverageRow rows = 1;
   MaturitySummary maturity = 2;
 }
 
-message RunGateRequest { string gate = 1; }
+message RunGateRequest {
+  string gate = 1;
+}
 message GateFinding {
   string code = 1;
   string message = 2;

@@ -64,6 +64,7 @@ type SubprocessRunner struct {
 	processes          map[string]*kernelProcess
 	locks              map[string]*sync.Mutex
 	SubmissionDeadline time.Duration
+	bindingProvider    func() []BindingSpec
 }
 
 // DeadlineExceededError is returned when the supervisor kills a kernel after
@@ -91,6 +92,23 @@ func NewSubprocessRunnerWithBindings(path string, bindings []BindingSpec, bridge
 		scratchRoot = os.TempDir()
 	}
 	return &SubprocessRunner{path: path, bindings: append([]BindingSpec(nil), bindings...), bridgeURL: strings.TrimSpace(bridgeURL), agentBridgeURL: agentURL, scratchRoot: scratchRoot, processes: make(map[string]*kernelProcess), locks: make(map[string]*sync.Mutex), workspaces: make(map[string]string), SubmissionDeadline: 120 * time.Second}
+}
+
+// SetBindings replaces the binding projection used by kernels created after
+// the call. A running kernel keeps the binding set it received at startup so
+// an in-flight program sees one consistent contract generation.
+func (r *SubprocessRunner) SetBindings(bindings []BindingSpec) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.bindings = append([]BindingSpec(nil), bindings...)
+}
+
+// SetBindingProvider lets the runtime refresh the kernel projection whenever a
+// new process is created, without polling or restarting existing programs.
+func (r *SubprocessRunner) SetBindingProvider(provider func() []BindingSpec) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.bindingProvider = provider
 }
 
 // SetDiscoveryURL configures the private runtime endpoint used by the Python
@@ -131,6 +149,9 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 	defer r.mu.Unlock()
 	if p := r.processes[sessionID]; p != nil {
 		return p, nil
+	}
+	if r.bindingProvider != nil {
+		r.bindings = append([]BindingSpec(nil), r.bindingProvider()...)
 	}
 	python, err := pythonInterpreter()
 	if err != nil {

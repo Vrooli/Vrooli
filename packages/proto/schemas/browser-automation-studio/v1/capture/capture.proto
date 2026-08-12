@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package browser_automation_studio.v1.capture;
 
-import "buf/validate/validate.proto";
 import "browser-automation-studio/v1/base/browser_profile.proto";
+import "buf/validate/validate.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture;capture";
 

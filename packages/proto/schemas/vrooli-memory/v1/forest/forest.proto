@@ -42,7 +42,9 @@ message GetNodeRequest {
 message GetNodeResponse {
   Node node = 1;
 }
-message RebuildForestRequest { string scope = 1; }
+message RebuildForestRequest {
+  string scope = 1;
+}
 message RebuildForestResponse {
   int32 node_count = 1;
 }

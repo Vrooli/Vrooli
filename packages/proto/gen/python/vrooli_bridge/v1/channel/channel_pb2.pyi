@@ -11,20 +11,22 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Handshake(_message.Message):
-    __slots__ = ("protocol_version", "node_id", "agent_version", "os", "arch", "capabilities")
+    __slots__ = ("protocol_version", "node_id", "agent_version", "os", "arch", "capabilities", "supports_websocket")
     PROTOCOL_VERSION_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     AGENT_VERSION_FIELD_NUMBER: _ClassVar[int]
     OS_FIELD_NUMBER: _ClassVar[int]
     ARCH_FIELD_NUMBER: _ClassVar[int]
     CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_WEBSOCKET_FIELD_NUMBER: _ClassVar[int]
     protocol_version: int
     node_id: str
     agent_version: str
     os: str
     arch: str
     capabilities: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, protocol_version: _Optional[int] = ..., node_id: _Optional[str] = ..., agent_version: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ...) -> None: ...
+    supports_websocket: bool
+    def __init__(self, protocol_version: _Optional[int] = ..., node_id: _Optional[str] = ..., agent_version: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., supports_websocket: _Optional[bool] = ...) -> None: ...
 
 class HandshakeAck(_message.Message):
     __slots__ = ("accepted", "compatibility", "control_plane_protocol_version", "session_id", "reason")
@@ -93,18 +95,22 @@ class AbortJob(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class ServerFrame(_message.Message):
-    __slots__ = ("ack", "job", "provision", "ping", "abort")
+    __slots__ = ("frame_id", "ack", "job", "provision", "ping", "abort", "session")
+    FRAME_ID_FIELD_NUMBER: _ClassVar[int]
     ACK_FIELD_NUMBER: _ClassVar[int]
     JOB_FIELD_NUMBER: _ClassVar[int]
     PROVISION_FIELD_NUMBER: _ClassVar[int]
     PING_FIELD_NUMBER: _ClassVar[int]
     ABORT_FIELD_NUMBER: _ClassVar[int]
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    frame_id: str
     ack: HandshakeAck
     job: JobPush
     provision: ProvisionCommand
     ping: ControlPing
     abort: AbortJob
-    def __init__(self, ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ..., abort: _Optional[_Union[AbortJob, _Mapping]] = ...) -> None: ...
+    session: _shared_pb2.SessionFrame
+    def __init__(self, frame_id: _Optional[str] = ..., ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ..., abort: _Optional[_Union[AbortJob, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ...) -> None: ...
 
 class SignedServerFrame(_message.Message):
     __slots__ = ("frame", "signature")
@@ -115,11 +121,15 @@ class SignedServerFrame(_message.Message):
     def __init__(self, frame: _Optional[bytes] = ..., signature: _Optional[bytes] = ...) -> None: ...
 
 class NodeFrame(_message.Message):
-    __slots__ = ("handshake", "heartbeat", "run_event")
+    __slots__ = ("handshake", "heartbeat", "run_event", "delivery_ack", "session")
     HANDSHAKE_FIELD_NUMBER: _ClassVar[int]
     HEARTBEAT_FIELD_NUMBER: _ClassVar[int]
     RUN_EVENT_FIELD_NUMBER: _ClassVar[int]
+    DELIVERY_ACK_FIELD_NUMBER: _ClassVar[int]
+    SESSION_FIELD_NUMBER: _ClassVar[int]
     handshake: Handshake
     heartbeat: _shared_pb2.Heartbeat
     run_event: _shared_pb2.RunEvent
-    def __init__(self, handshake: _Optional[_Union[Handshake, _Mapping]] = ..., heartbeat: _Optional[_Union[_shared_pb2.Heartbeat, _Mapping]] = ..., run_event: _Optional[_Union[_shared_pb2.RunEvent, _Mapping]] = ...) -> None: ...
+    delivery_ack: _shared_pb2.DeliveryAck
+    session: _shared_pb2.SessionFrame
+    def __init__(self, handshake: _Optional[_Union[Handshake, _Mapping]] = ..., heartbeat: _Optional[_Union[_shared_pb2.Heartbeat, _Mapping]] = ..., run_event: _Optional[_Union[_shared_pb2.RunEvent, _Mapping]] = ..., delivery_ack: _Optional[_Union[_shared_pb2.DeliveryAck, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ...) -> None: ...

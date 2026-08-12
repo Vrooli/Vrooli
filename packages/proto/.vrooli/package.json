@@ -34,7 +34,7 @@
     },
     "refresh": {
       "strategy": "generate_then_setup",
-      "restart_running_consumers": true
+      "restart_running_consumers": false
     },
     "docs": ["packages/proto/README.md", "docs/package-governance.md"]
   }
