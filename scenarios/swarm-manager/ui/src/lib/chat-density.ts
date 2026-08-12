@@ -20,6 +20,17 @@ export const CHAT_DENSITY_LABELS: Record<ChatDensity, string> = {
   compact: "Compact",
 };
 
+/**
+ * What each density does, for the icon-button tooltip and accessible name.
+ * The toggle is rendered as icons — a two-word label is not worth the width in
+ * a toolbar that also carries the profile and run links — so the label alone
+ * no longer explains the choice.
+ */
+export const CHAT_DENSITY_DESCRIPTIONS: Record<ChatDensity, string> = {
+  comfortable: "Bubbles — speaker-aligned, easier for short exchanges",
+  compact: "Compact — full-width rows, fits more turns on screen",
+};
+
 const STORAGE_KEY = "swarm-manager:chat-density:v1";
 const DEFAULT_DENSITY: ChatDensity = "comfortable";
 

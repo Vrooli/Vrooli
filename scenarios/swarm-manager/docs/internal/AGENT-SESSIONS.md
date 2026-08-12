@@ -129,15 +129,20 @@ Sections are emitted on a strict volatility gradient. Each registered section de
 |---|---|---|
 | `universal` | nothing — byte-identical for every session | `session-doctrine` |
 | `kind` | session kind | `session-kind` |
-| `job` | proposal target | `proposal-target` |
-| `volatile` | session and turn | `session-identity`, `startup-brief`, `attached-context`, `attached-images` |
+| `job` | starter card or proposal target | `starter-job`, `proposal-target` |
+| `volatile` | session and turn | `ledger-wake` or `continuity-fallback`, `session-identity`, `startup-brief`, `attached-context`, `attached-images` |
 | `task` | every message; emitted outside `<context>` | `operator-message` |
 
 **Why the order is load-bearing.** A provider caches a prompt prefix up to its first differing byte. If a volatile section moves above a stable one, the prefix collapses to nothing. The defect this replaced emitted `Session ID: sess_…` third, above every instruction, so no two sessions shared more than about forty bytes. Two sessions of one kind now share roughly 94% of the initial prompt. `prompt_structure_test.go` guards the ordering and the shared-prefix floor.
 
 This mirrors `scenarios/prompt-manager/api/heartbeat/prompt_templates.go`, which solved the same problem first. Do not introduce a second prompt architecture; extend the registry. A section kind the registry does not name panics rather than emitting an unnamed block.
 
-**The skill is fetched, not inlined.** The kind band names the authoritative Prompt Manager skill and instructs the agent to read it before answering. Inlining the skill text would make the largest stable block part of the cached prefix and would remove a tool round trip from turn one, but Swarm Manager has no client that reads skill *content* — `promptcatalog` carries metadata only, and session spawns pass a raw prompt string with no `promptRef` seam. Adding that client is a cross-scenario dependency with its own failure mode (Prompt Manager down means no session can start) and is deferred as an explicit decision, not an oversight.
+**The kind skill is cached and inlined when available.** The service warms the authoritative
+Prompt Manager skill content for ten minutes and places it in the stable kind band. A cold or
+unavailable Prompt Manager does not block a session: the prompt retains the skill identifier and an
+explicit read instruction, and the continuity fallback remains visible. This keeps the first turn
+substantive while preserving degraded startup. The cache is byte-stable per kind and is a
+best-effort optimization, not a second skill store; Prompt Manager remains authoritative.
 
 ### Prompt Preview
 
@@ -313,9 +318,26 @@ is only safe after backup/restore and API-read verification.
 - Keep session-owned Agent Manager work under `agentactivity.OwnerSession`.
 - Keep mutation attribution service-owned and API-owned.
 - Add proposal kinds only when they have a typed validation and apply policy.
-- Keep `swarm_operations` advisory in v1: use existing UI/API/CLI flows for state changes, and add typed proposal kinds only after review/apply semantics are designed.
+- Keep state changes behind typed review/apply seams. `swarm_operations` may recommend a registered
+  transition, but the operator approves a `start_transition` proposal; Swarm Manager starts the
+  transition through the registry and records its execution as a session artifact.
 - Update `SEAMS.md`, stats tests, UI contract mappers, and this document when adding a new session kind or artifact type.
 - Prefer extending shared proposal/apply seams over introducing mode-specific UI or handler branches.
 - Register a new prompt section in `prompt_sections.go` with its volatility scope. Never emit a section the registry does not name, and never place a volatile section above a stable one.
 - Keep the skill as the home of methodology and the startup brief as the home of current state. A brief that carries procedure, or a prompt that restates the skill, splits the attention budget and drifts.
-- When adding a starter card, write `label` and `prompt` as two separate strings. The tests reject a prompt that is a label in disguise.
+- When adding a starter card, give it a stable `id`/`jobId` and a human label. The server must know
+  the job before it can compose the prompt; the tests reject cards that bypass that contract.
+
+## Operator surface details
+
+- The message composer grows with the operator's text up to roughly 40% of the viewport and offers
+  an expanded editor for longer material. The overlay and textarea share scroll position so the
+  visible text and caret remain aligned.
+- The session inspector and section tabs are `min-h-0` flex columns. The active panel owns the
+  scroll region, so proposals and artifacts remain usable in a full-height session view.
+- A `start_transition` proposal renders its registered transition key, declared subject, projection
+  verdict, optional disagreement reason, and separate approval/review-projection controls. Apply
+  creates a `transition_execution` artifact with the returned execution ID.
+- Every session prompt wakes the Source Ledger in a kind-owned scope before identity and attached
+  context. Ledger text is bounded orientation, never authority. If the ledger is unavailable the
+  prompt emits `continuity-fallback` and explicitly forbids inferring prior decisions.

@@ -40,7 +40,10 @@ const (
 const (
 	promptSectionKindDoctrine       = "session-doctrine"
 	promptSectionKindSubject        = "session-kind"
+	promptSectionKindStarterJob     = "starter-job"
 	promptSectionKindProposalTarget = "proposal-target"
+	promptSectionKindLedgerWake     = "ledger-wake"
+	promptSectionKindFallback       = "continuity-fallback"
 	promptSectionKindIdentity       = "session-identity"
 	promptSectionKindStartupBrief   = "startup-brief"
 	promptSectionKindContext        = "attached-context"
@@ -59,7 +62,10 @@ type promptSectionSpec struct {
 var promptSectionSpecs = map[string]promptSectionSpec{
 	promptSectionKindDoctrine:       {Element: "session-doctrine", Scope: promptScopeUniversal},
 	promptSectionKindSubject:        {Element: "session-kind", Scope: promptScopeKind},
+	promptSectionKindStarterJob:     {Element: "starter-job", Scope: promptScopeJob},
 	promptSectionKindProposalTarget: {Element: "proposal-target", Scope: promptScopeJob},
+	promptSectionKindLedgerWake:     {Element: "ledger-wake", Scope: promptScopeVolatile},
+	promptSectionKindFallback:       {Element: "continuity-fallback", Scope: promptScopeVolatile},
 	promptSectionKindIdentity:       {Element: "session-identity", Scope: promptScopeVolatile},
 	promptSectionKindStartupBrief:   {Element: "startup-brief", Scope: promptScopeVolatile},
 	promptSectionKindContext:        {Element: "attached-context", Scope: promptScopeVolatile},

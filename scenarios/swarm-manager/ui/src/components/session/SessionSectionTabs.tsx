@@ -37,7 +37,7 @@ export function SessionSectionTabs({
   const activeSection = sections.find((section) => section.value === activeValue) ?? firstSection;
 
   return (
-    <div className={cn("min-h-0", className)}>
+    <div className={cn("flex min-h-0 flex-col", className)}>
       <CompactTabBar
         items={sections.map(({ value, label, count }) => ({ value, label, count }))}
         activeValue={activeSection.value}
@@ -46,7 +46,7 @@ export function SessionSectionTabs({
         className={tabBarClassName}
         tabTestIdPrefix="session-tab"
       />
-      <div className={contentClassName}>{activeSection.content}</div>
+      <div className={cn("min-h-0 flex-1", contentClassName)}>{activeSection.content}</div>
     </div>
   );
 }

@@ -2,10 +2,13 @@ package agentsessions
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/sourceledger"
 )
 
 // The session prompt exists to be cached. Two sessions of the same kind must
@@ -95,7 +98,10 @@ func TestEverySessionPromptSectionIsRegistered(t *testing.T) {
 	emitted := []string{
 		promptSectionKindDoctrine,
 		promptSectionKindSubject,
+		promptSectionKindStarterJob,
 		promptSectionKindProposalTarget,
+		promptSectionKindLedgerWake,
+		promptSectionKindFallback,
 		promptSectionKindIdentity,
 		promptSectionKindStartupBrief,
 		promptSectionKindContext,
@@ -114,6 +120,68 @@ func TestEverySessionPromptSectionIsRegistered(t *testing.T) {
 	if len(promptSectionSpecs) != len(emitted) {
 		t.Fatalf("registry has %d entries but the builder emits %d; an unemitted section is dead weight", len(promptSectionSpecs), len(emitted))
 	}
+}
+
+func TestLedgerWakeFallsBackWhenSourceLedgerErrors(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	svc.SetSourceLedger(fakePromptLedger{err: errors.New("source ledger down")})
+	prompt := svc.buildInitialPrompt(context.Background(), Session{ID: "sess_fallback", Kind: KindSwarmOperations, SkillID: SkillSwarmOperations}, Message{Content: "Review."}, nil)
+	if !strings.Contains(prompt, "<continuity-fallback>") || strings.Contains(prompt, "<ledger-wake") {
+		t.Fatalf("fallback prompt sections = %s", prompt)
+	}
+
+	svc.SetSourceLedger(fakePromptLedger{wake: sourceledger.WakeResult{Entries: []sourceledger.Entry{{ID: "entry-1", Kind: "decision", Body: "Keep the current boundary."}}}})
+	prompt = svc.buildInitialPrompt(context.Background(), Session{ID: "sess_wake", Kind: KindSwarmOperations, SkillID: SkillSwarmOperations}, Message{Content: "Review."}, nil)
+	if !strings.Contains(prompt, "<ledger-wake scope=\"session:swarm-operations\">") || strings.Contains(prompt, "<continuity-fallback>") {
+		t.Fatalf("wake prompt sections = %s", prompt)
+	}
+	if strings.Index(prompt, "<ledger-wake") > strings.Index(prompt, "<session-identity>") {
+		t.Fatalf("ledger wake must precede identity: %s", prompt)
+	}
+}
+
+func TestKindBandInlinesCachedSkillAndFallsBackToReadInstruction(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	svc.promptClient = fakePromptClient{content: "# Complete operations methodology\nUse the registered transitions."}
+	first := svc.buildInitialPrompt(context.Background(), Session{ID: "sess_skill_a", Kind: KindSwarmOperations, SkillID: SkillSwarmOperations}, Message{Content: "Review."}, nil)
+	second := svc.buildInitialPrompt(context.Background(), Session{ID: "sess_skill_b", Kind: KindSwarmOperations, SkillID: SkillSwarmOperations}, Message{Content: "Different."}, nil)
+	if !strings.Contains(first, "<skill-content>\n# Complete operations methodology") {
+		t.Fatalf("kind band did not inline skill: %s", first)
+	}
+	firstKind := first[strings.Index(first, "<session-kind") : strings.Index(first, "</session-kind>")+len("</session-kind>")]
+	secondKind := second[strings.Index(second, "<session-kind") : strings.Index(second, "</session-kind>")+len("</session-kind>")]
+	if firstKind != secondKind {
+		t.Fatalf("same-kind skill bands differ:\n--- first ---\n%s\n--- second ---\n%s", firstKind, secondKind)
+	}
+
+	coldSvc := newTestService(t, &fakeSessionSpawner{})
+	coldSvc.promptClient = fakePromptClient{err: errors.New("prompt manager down")}
+	fallback := coldSvc.buildInitialPrompt(context.Background(), Session{ID: "sess_skill_cold", Kind: KindSwarmOperations, SkillID: SkillSwarmOperations}, Message{Content: "Review."}, nil)
+	if !strings.Contains(fallback, "prompt-manager skill read swarm-manager-operations-session") || strings.Contains(fallback, "<skill-content>") {
+		t.Fatalf("skill fallback = %s", fallback)
+	}
+}
+
+type fakePromptLedger struct {
+	wake sourceledger.WakeResult
+	err  error
+}
+
+type fakePromptClient struct {
+	content string
+	err     error
+}
+
+func (f fakePromptClient) ReadSkill(context.Context, string, map[string]string, bool) (string, error) {
+	return f.content, f.err
+}
+
+func (f fakePromptClient) ReadSkillWithExperiment(context.Context, string, map[string]string, bool, string) (promptmanager.ReadSkillResult, error) {
+	return promptmanager.ReadSkillResult{Content: f.content}, f.err
+}
+
+func (f fakePromptLedger) Wake(context.Context, string, int) (sourceledger.WakeResult, error) {
+	return f.wake, f.err
 }
 
 func TestContinuationPromptStaysPlainWhenNothingIsAttached(t *testing.T) {

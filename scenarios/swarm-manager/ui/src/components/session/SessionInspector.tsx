@@ -73,7 +73,7 @@ export function SessionInspector({
         ref={inspectorRef}
         style={{ width: size }}
         className={cn(
-          "flex min-h-0 shrink-0 flex-col bg-slate-950/30",
+          "flex h-full min-h-0 flex-col bg-slate-950/30",
           presentation === "card" && "rounded-lg border border-white/10 p-3",
           presentation === "pane" && "h-full border-l border-white/10 p-3",
         )}

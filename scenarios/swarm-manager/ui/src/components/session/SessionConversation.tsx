@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ExternalLink, Pencil, RotateCcw } from "lucide-react";
+import { ExternalLink, MessagesSquare, Pencil, RotateCcw, Rows3 } from "lucide-react";
 import { ChatThread } from "../chat/ChatThread";
 import { MessageComposer, type MessageComposerHandle } from "../composer/MessageComposer";
 import { ContextChipTray } from "../composer/ContextChipTray";
@@ -8,7 +8,13 @@ import { SessionPromptPreview } from "./SessionPromptPreview";
 import { formatRelativeTime } from "../../lib/format-utils";
 import { cn } from "../../lib/utils";
 import { selectors } from "../../consts/selectors";
-import { CHAT_DENSITIES, CHAT_DENSITY_LABELS, type ChatDensity } from "../../lib/chat-density";
+import { CHAT_DENSITIES, CHAT_DENSITY_DESCRIPTIONS, CHAT_DENSITY_LABELS, type ChatDensity } from "../../lib/chat-density";
+
+/** Icon per density. Bubbles reads as a conversation; compact reads as rows. */
+const CHAT_DENSITY_ICONS: Record<ChatDensity, typeof MessagesSquare> = {
+  comfortable: MessagesSquare,
+  compact: Rows3,
+};
 import { useAgentProfileUrl, useAgentRunUrl } from "../../services/external-links";
 import type { CaptureAttachment } from "../../hooks/useIndexedDBAttachments";
 import type { AgentSessionAttachment, AgentSessionContextType, AgentSessionKind, AgentSessionMessage, AgentSessionStatus } from "../../types";
@@ -51,6 +57,8 @@ interface SessionConversationProps {
   pendingMessage?: ChatMessageView;
   onRetryPendingMessage?: () => void;
   onEditPendingMessage?: () => void;
+  onStarterJobChange?: (jobId: string | undefined) => void;
+  starterJobId?: string;
 }
 
 export function SessionConversation({
@@ -78,6 +86,8 @@ export function SessionConversation({
   pendingMessage,
   onRetryPendingMessage,
   onEditPendingMessage,
+  onStarterJobChange,
+  starterJobId,
 }: SessionConversationProps) {
   const navigate = useNavigate();
   const composerRef = useRef<MessageComposerHandle>(null);
@@ -87,7 +97,7 @@ export function SessionConversation({
   const [imagePickerRequestKey, setImagePickerRequestKey] = useState(0);
   const isDraft = sessionStatus === "draft";
   const placeholder = isDraft
-    ? draftPlaceholderForKind(sessionKind)
+    ? (starterJobId ? "Add any specific context or direction, or send the selected job as-is..." : draftPlaceholderForKind(sessionKind))
     : "Continue this session...";
   const showStarterSuggestions = isDraft && messages.length === 0;
 
@@ -162,12 +172,10 @@ export function SessionConversation({
           sessionKind={sessionKind}
           pendingContext={pendingContext}
           pendingAttachmentCount={pendingAttachments.length}
-          onChooseText={(text) => {
-            // Through the composer handle so the user's undo history survives
-            // the swap; falls back to a plain state set before first render.
-            if (composerRef.current) composerRef.current.replaceText(text);
-            else onDraftChange(text);
-          }}
+          selectedJobId={starterJobId}
+          // Re-clicking the selected card clears it. Without a way back out,
+          // the only escape from a mis-clicked job was to abandon the draft.
+          onChooseJob={(jobId) => onStarterJobChange?.(jobId === starterJobId ? undefined : jobId)}
           onRequestContext={(type, filterKey) => openContextPicker(type, filterKey)}
           onRequestImage={() => setImagePickerRequestKey((value) => value + 1)}
           className={cn("flex-1 p-3", variant === "mobile" && "px-3 pb-40")}
@@ -212,7 +220,11 @@ export function SessionConversation({
           onOpenContextPicker={() => openContextPicker(null)}
           onRemoveContext={(type, ref) => onPendingContextChange(pendingContext.filter((item) => !(item.type === type && item.ref === ref)))}
           onOpenContext={(path) => navigate(path)}
-          canSubmit={Boolean(draft.trim() || pendingAttachments.length > 0 || pendingContext.length > 0)}
+          // A selected starter job is a complete message on its own — the
+          // server composes its instruction into the job band. Omitting it
+          // here left every job-only start with a disabled Send button, so
+          // choosing a card appeared to do nothing at all.
+          canSubmit={Boolean(draft.trim() || pendingAttachments.length > 0 || pendingContext.length > 0 || starterJobId)}
           imagePickerRequestKey={imagePickerRequestKey}
           onTranscript={(text) => onDraftChange((draft ? draft.trimEnd() + " " : "") + text)}
         />
@@ -221,8 +233,9 @@ export function SessionConversation({
         <div className="mt-1 flex justify-end">
           <SessionPromptPreview
             sessionId={sessionId}
-            message={draft}
-            contextRefs={pendingContext.map((item) => ({ type: item.type, ref: item.ref }))}
+          message={draft}
+          contextRefs={pendingContext.map((item) => ({ type: item.type, ref: item.ref }))}
+            starterJobId={starterJobId}
             disabled={isMutating}
           />
         </div>
@@ -286,21 +299,26 @@ function ConversationToolbar({
         role="group"
         aria-label="Conversation display density"
       >
-        {CHAT_DENSITIES.map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => onDensityChange(option)}
-            aria-pressed={density === option}
-            className={cn(
-              "rounded px-2 py-0.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50",
-              density === option ? "bg-cyan-500/15 text-cyan-200" : "text-slate-400 hover:text-slate-200",
-            )}
-            data-testid={`agent-session-density-${option}`}
-          >
-            {CHAT_DENSITY_LABELS[option]}
-          </button>
-        ))}
+        {CHAT_DENSITIES.map((option) => {
+          const DensityIcon = CHAT_DENSITY_ICONS[option];
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => onDensityChange(option)}
+              aria-pressed={density === option}
+              aria-label={CHAT_DENSITY_LABELS[option]}
+              title={CHAT_DENSITY_DESCRIPTIONS[option]}
+              className={cn(
+                "rounded p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50",
+                density === option ? "bg-cyan-500/15 text-cyan-200" : "text-slate-400 hover:text-slate-200",
+              )}
+              data-testid={`agent-session-density-${option}`}
+            >
+              <DensityIcon className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -438,7 +456,8 @@ export function SessionStarterSuggestions({
   sessionKind,
   pendingContext,
   pendingAttachmentCount,
-  onChooseText,
+  selectedJobId,
+  onChooseJob,
   onRequestContext,
   onRequestImage,
   className,
@@ -446,7 +465,8 @@ export function SessionStarterSuggestions({
   sessionKind: AgentSessionKind;
   pendingContext: SessionContextOption[];
   pendingAttachmentCount: number;
-  onChooseText: (value: string) => void;
+  selectedJobId?: string;
+  onChooseJob: (jobId: string) => void;
   onRequestContext: (type: AgentSessionContextType, filterKey?: StarterContextFilterKey) => void;
   onRequestImage: () => void;
   className?: string;
@@ -459,6 +479,11 @@ export function SessionStarterSuggestions({
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-2">
         <div className="px-1 pb-1">
           <h3 className="text-sm font-medium text-slate-200">Start this session</h3>
+          <p className="mt-0.5 text-xs leading-5 text-slate-400">
+            {selectedJobId
+              ? "Job selected. Send it as-is, or add your own context first."
+              : "Pick a starting job, or just type your own message below."}
+          </p>
         </div>
         {suggestions.map((suggestion) => {
           const missing = firstMissingRequirement(suggestion, pendingContext, pendingAttachmentCount);
@@ -471,6 +496,7 @@ export function SessionStarterSuggestions({
           // dead-end click (empty picker) — disable it. Never disable while the
           // count is still loading, and never for soft/optional/text cards.
           const disabled = Boolean(badge?.gating && !badgeLoading && badgeCount === 0);
+          const selected = (suggestion.jobId ?? suggestion.id) === selectedJobId;
           const Icon = suggestion.icon;
           return (
             <button
@@ -478,6 +504,7 @@ export function SessionStarterSuggestions({
               type="button"
               disabled={disabled}
               aria-disabled={disabled}
+              aria-pressed={selected}
               onClick={() => {
                 if (disabled) return;
                 if (missing?.kind === "context") {
@@ -488,21 +515,37 @@ export function SessionStarterSuggestions({
                   onRequestImage();
                   return;
                 }
-                onChooseText(suggestion.prompt);
+                onChooseJob(suggestion.jobId ?? suggestion.id);
               }}
               className={cn(
                 "group flex w-full items-start gap-3 rounded-md border px-3 py-3 text-left transition-colors",
                 disabled
                   ? "cursor-not-allowed border-slate-800/60 bg-slate-950/25 opacity-55"
-                  : "border-slate-800 bg-slate-950/45 hover:border-cyan-500/45 hover:bg-slate-900/70",
+                  : selected
+                    ? "border-cyan-500/70 bg-cyan-500/10"
+                    : "border-slate-800 bg-slate-950/45 hover:border-cyan-500/45 hover:bg-slate-900/70",
               )}
               data-testid={selectors.agentSessions.starterSuggestion}
             >
-              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-cyan-500/20 bg-cyan-500/10 text-cyan-200 transition-colors group-hover:border-cyan-400/45 group-hover:text-cyan-100">
+              <span
+                className={cn(
+                  "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors",
+                  selected
+                    ? "border-cyan-400/60 bg-cyan-500/20 text-cyan-100"
+                    : "border-cyan-500/20 bg-cyan-500/10 text-cyan-200 group-hover:border-cyan-400/45 group-hover:text-cyan-100",
+                )}
+              >
                 <Icon className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium leading-5 text-slate-100">{suggestion.label}</span>
+                <span className="flex items-center gap-2">
+                  <span className="min-w-0 flex-1 text-sm font-medium leading-5 text-slate-100">{suggestion.label}</span>
+                  {selected && (
+                    <span className="shrink-0 rounded border border-cyan-500/40 bg-cyan-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-cyan-200">
+                      Selected
+                    </span>
+                  )}
+                </span>
                 {suggestion.detail && <span className="mt-0.5 block text-xs leading-5 text-slate-400">{suggestion.detail}</span>}
                 <span className="mt-2 flex flex-wrap items-center gap-1.5">
                   {badge && <StarterCountChip type={badge.type} count={badgeCount} loading={badgeLoading} />}

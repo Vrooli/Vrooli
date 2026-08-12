@@ -10,6 +10,7 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/idgen"
+	"swarm-manager/internal/transitionrunner"
 )
 
 func (s *Service) RecordProposal(ctx context.Context, sessionID string, proposal Proposal) (Proposal, error) {
@@ -138,6 +139,13 @@ func (s *Service) checkProposalApplyCapability(proposal Proposal) error {
 		if s.backlogBatchApplier == nil {
 			return apierr.Unavailable("backlog batch proposal apply is unavailable")
 		}
+	case ProposalStartTransition:
+		if _, err := s.validateStartTransitionProposal(proposal); err != nil {
+			return err
+		}
+		if s.transitionStarter == nil {
+			return apierr.Unavailable("transition proposal apply is unavailable")
+		}
 	case ProposalOperatingModeDraft, ProposalOperatingModeImplementationPlan:
 		return apierr.Wrapf(apierr.ErrNotImplemented, http.StatusGone, "legacy agent session proposal kind %q is read-only", string(proposal.Kind))
 	default:
@@ -158,8 +166,88 @@ func (s *Service) executeProposalApplyWork(ctx context.Context, session *Session
 		if err != nil {
 			return nil, s.failProposalApply(ctx, session, proposal, err)
 		}
+	case ProposalStartTransition:
+		start, validateErr := s.validateStartTransitionProposal(*proposal)
+		if validateErr != nil {
+			return nil, s.failProposalApply(ctx, session, proposal, validateErr)
+		}
+		correlation, startErr := s.transitionStarter.StartWith(identity.NewContext(ctx, prov), start.TransitionKey, start.SubjectValue, transitionrunner.PreparedInput{})
+		if startErr != nil {
+			return nil, s.failProposalApply(ctx, session, proposal, apierr.Wrapf(apierr.ErrBadGateway, http.StatusBadGateway, "start transition %q: %v", start.TransitionKey, startErr))
+		}
+		if strings.TrimSpace(correlation.ExecutionID) == "" {
+			return nil, s.failProposalApply(ctx, session, proposal, apierr.BadGateway("start transition %q returned no execution id", start.TransitionKey))
+		}
+		artifact, artifactErr := s.AttachArtifact(ctx, Artifact{
+			SessionID:      session.ID,
+			ArtifactType:   ArtifactTransitionExecution,
+			Action:         ArtifactActionCreated,
+			EntityRef:      "transition/" + correlation.ExecutionID,
+			Title:          start.TransitionKey,
+			ProposalID:     proposal.ID,
+			RunID:          session.RunID,
+			MutationSource: string(ProposalStartTransition),
+			Attribution: &Attribution{
+				Type:        AttributionAgent,
+				RunID:       prov.RunID,
+				TaskID:      prov.TaskID,
+				ProfileKey:  prov.ProfileKey,
+				SessionID:   session.ID,
+				SessionKind: session.Kind,
+				Source:      "session/" + session.ID,
+			},
+		})
+		if artifactErr != nil {
+			return nil, s.failProposalApply(ctx, session, proposal, artifactErr)
+		}
+		artifacts = []Artifact{artifact}
 	}
 	return artifacts, nil
+}
+
+type validatedStartTransitionProposal struct {
+	StartTransitionProposal
+	SubjectValue string
+}
+
+// validateStartTransitionProposal keeps the proposal envelope deliberately
+// small while preserving the registry's typed subject contract. The wire
+// subject_ref is `<declared-subject>/<value>` (or the equivalent `:` form);
+// only the value is handed to transitionrunner, which owns domain parsing.
+func (s *Service) validateStartTransitionProposal(proposal Proposal) (validatedStartTransitionProposal, error) {
+	var payload StartTransitionProposal
+	if err := json.Unmarshal([]byte(proposal.PayloadJSON), &payload); err != nil {
+		return validatedStartTransitionProposal{}, apierr.BadRequest("start_transition payload is invalid JSON: %v", err)
+	}
+	payload.TransitionKey = strings.TrimSpace(payload.TransitionKey)
+	payload.SubjectRef = strings.TrimSpace(payload.SubjectRef)
+	payload.ProjectionAction = strings.TrimSpace(payload.ProjectionAction)
+	payload.Reason = strings.TrimSpace(payload.Reason)
+	if payload.TransitionKey == "" || payload.SubjectRef == "" || payload.ProjectionAction == "" {
+		return validatedStartTransitionProposal{}, apierr.BadRequest("start_transition requires transition_key, subject_ref, and projection_action")
+	}
+	definition, ok := s.transitionRegistry.Get(payload.TransitionKey)
+	if !ok {
+		return validatedStartTransitionProposal{}, apierr.BadRequest("transition %q is not declared", payload.TransitionKey)
+	}
+	subjectValue, ok := splitDeclaredSubjectRef(payload.SubjectRef, definition.Subject)
+	if !ok {
+		return validatedStartTransitionProposal{}, apierr.BadRequest("subject_ref must match declared subject %q", definition.Subject)
+	}
+	if !payload.ProjectionAgrees && payload.Reason == "" {
+		return validatedStartTransitionProposal{}, apierr.BadRequest("start_transition requires a reason when projection_agrees is false")
+	}
+	return validatedStartTransitionProposal{StartTransitionProposal: payload, SubjectValue: subjectValue}, nil
+}
+
+func splitDeclaredSubjectRef(subjectRef, declaredSubject string) (string, bool) {
+	for _, separator := range []string{"/", ":"} {
+		prefix, value, found := strings.Cut(subjectRef, separator)
+		if found && strings.TrimSpace(prefix) == declaredSubject && strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value), true
+		}
+	}
+	return "", false
 }
 
 // failProposalApply rolls the proposal back to failed and the session back to

@@ -6,6 +6,9 @@ import (
 	"html"
 	"sort"
 	"strings"
+
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/sourceledger"
 )
 
 // sessionDoctrine is the universal band: byte-identical for every session of
@@ -37,14 +40,26 @@ func subjectForKind(kind Kind) string {
 }
 
 func buildInitialPrompt(session Session, message Message, attachments []Attachment) string {
+	return buildInitialPromptWithBand(session, message, attachments, kindBand(session), continuityFallbackSection())
+}
+
+func (s *Service) buildInitialPrompt(ctx context.Context, session Session, message Message, attachments []Attachment) string {
+	return buildInitialPromptWithBand(session, message, attachments, s.kindBand(ctx, session), s.ledgerSection(ctx, session))
+}
+
+func buildInitialPromptWithBand(session Session, message Message, attachments []Attachment, kindContent string, ledger promptSection) string {
 	sections := []promptSection{
 		newPromptSection(promptSectionKindDoctrine, "", sessionDoctrine),
-		newPromptSection(promptSectionKindSubject, attr("name", string(session.Kind)), kindBand(session)),
+		newPromptSection(promptSectionKindSubject, attr("name", string(session.Kind)), kindContent),
+	}
+	if section, ok := starterJobSection(session); ok {
+		sections = append(sections, section)
 	}
 
 	if section, ok := proposalTargetSection(session); ok {
 		sections = append(sections, section)
 	}
+	sections = append(sections, ledger)
 
 	// Identity is volatile by construction — it is unique per session — so it
 	// sits below every stable band. Emitting it earlier is what collapsed the
@@ -111,10 +126,80 @@ func assemblePrompt(sections []promptSection) string {
 func kindBand(session Session) string {
 	var b strings.Builder
 	b.WriteString(subjectForKind(session.Kind))
+	b.WriteString("\n\nBefore answering, recall precedent with `search-hub query \"<the operator's intent>\" --type record,skill,doc`; a solved instance elsewhere in the repository outranks a fresh design. The work ledger search is for execution state only and does not replace precedent.")
+	scope := sessionLedgerScope(session.Kind)
+	fmt.Fprintf(&b, "\n\nDurable continuity is optional and agent-chosen. Recall knowledge with `source-ledger recall \"<query>\" --scope=%s`; record knowledge with `source-ledger journal note \"<prose>\" --scope=%s --kind=session-knowledge`. Nothing writes automatically. Record knowledge, evidence, and decisions — never a task for another agent to pick up.", scope, scope)
+	if session.Kind == KindMetaOrchestration {
+		b.WriteString(" Record only rejected and deferred dispositions, never accepted work.")
+	}
+	if session.Kind == KindSwarmOperations {
+		b.WriteString(" A keep verdict and a leave-alone decision are worth recording.")
+	}
+	if session.Kind == KindWorkflowAuthoring {
+		b.WriteString(" This scope is shared with the autonomous meta-optimization team.")
+	}
 	if skill := strings.TrimSpace(session.SkillID); skill != "" {
 		fmt.Fprintf(&b, "\n\nYour complete methodology is the Prompt Manager skill `%s`. Read it in full before your first answer:\n\n    prompt-manager skill read %s\n\nThe startup brief below is current state, not procedure. Follow the skill.", skill, skill)
 	}
 	return b.String()
+}
+
+func (s *Service) kindBand(ctx context.Context, session Session) string {
+	content := kindBand(session)
+	skillID := strings.TrimSpace(session.SkillID)
+	if skillID == "" {
+		return content
+	}
+	text, ok := s.skillText(ctx, skillID)
+	if !ok {
+		return content
+	}
+	needle := fmt.Sprintf("Your complete methodology is the Prompt Manager skill `%s`. Read it in full before your first answer:\n\n    prompt-manager skill read %s\n\nThe startup brief below is current state, not procedure. Follow the skill.", skillID, skillID)
+	return strings.Replace(content, needle, "Your complete methodology is the Prompt Manager skill `"+skillID+"`, inlined below. The startup brief below is current state, not procedure. Follow the skill.\n\n<skill-content>\n"+strings.TrimSpace(text)+"\n</skill-content>", 1)
+}
+
+func sessionLedgerScope(kind Kind) string {
+	switch kind {
+	case KindMetaOrchestration:
+		return "session:meta-orchestration"
+	case KindSwarmOperations:
+		return "session:swarm-operations"
+	case KindWorkflowAuthoring:
+		return "team:meta-optimization"
+	default:
+		return "session:" + strings.ReplaceAll(string(kind), "_", "-")
+	}
+}
+
+func continuityFallbackSection() promptSection {
+	return newPromptSection(promptSectionKindFallback, "", "Source Ledger continuity is unavailable for this turn. Treat the startup brief and attached context as the available record; do not infer prior decisions that are not present here.")
+}
+
+func (s *Service) ledgerSection(ctx context.Context, session Session) promptSection {
+	if s == nil || s.sourceLedger == nil {
+		return continuityFallbackSection()
+	}
+	wake, err := s.sourceLedger.Wake(ctx, sessionLedgerScope(session.Kind), sourceledger.DefaultWakeBudget)
+	if err != nil {
+		return continuityFallbackSection()
+	}
+	var b strings.Builder
+	b.WriteString("This is bounded ambient orientation from Source Ledger, not authority. Verify it against the current startup brief and repository before deciding.")
+	if len(wake.Entries) == 0 {
+		b.WriteString("\n\nNo prior continuity entries were selected.")
+	} else {
+		for _, entry := range wake.Entries {
+			body := strings.TrimSpace(entry.Body)
+			if body == "" {
+				continue
+			}
+			fmt.Fprintf(&b, "\n\n<entry id=%q kind=%q>\n%s\n</entry>", entry.ID, entry.Kind, body)
+		}
+	}
+	if wake.Overflow || wake.Refused > 0 {
+		b.WriteString("\n\nThe ledger view is bounded; do not treat missing entries as evidence that no other history exists.")
+	}
+	return newPromptSection(promptSectionKindLedgerWake, attr("scope", sessionLedgerScope(session.Kind)), b.String())
 }
 
 func proposalTargetSection(session Session) (promptSection, bool) {
@@ -130,6 +215,18 @@ func proposalTargetSection(session Session) (promptSection, bool) {
 	}
 	attrs := attr("type", string(target.Type)) + attr("ref", target.Ref)
 	return newPromptSection(promptSectionKindProposalTarget, attrs, b.String()), true
+}
+
+func starterJobSection(session Session) (promptSection, bool) {
+	jobID := strings.TrimSpace(session.StarterJob)
+	if jobID == "" {
+		return promptSection{}, false
+	}
+	job, ok := starterJobText(jobID)
+	if !ok {
+		return promptSection{}, false
+	}
+	return newPromptSection(promptSectionKindStarterJob, attr("id", jobID), job), true
 }
 
 // contextSections splits resolved context into the startup brief and everything
@@ -249,6 +346,12 @@ func (s *Service) PreviewPrompt(ctx context.Context, req ContinueRequest) (Previ
 	}
 
 	initial := session.Status == StatusDraft && strings.TrimSpace(session.RunID) == ""
+	if initial && strings.TrimSpace(req.StarterJob) != "" {
+		if !IsKnownStarterJob(req.StarterJob) {
+			return PreviewResult{}, apierr.BadRequest("starter job is not declared")
+		}
+		session.StarterJob = strings.TrimSpace(req.StarterJob)
+	}
 
 	refs := req.ContextRefs
 	if initial {
@@ -275,7 +378,7 @@ func (s *Service) PreviewPrompt(ctx context.Context, req ContinueRequest) (Previ
 	attachments := sessionAttachmentsByID(session, req.AttachmentIDs)
 
 	if initial {
-		return PreviewResult{Prompt: buildInitialPrompt(session, message, attachments), Initial: true}, nil
+		return PreviewResult{Prompt: s.buildInitialPrompt(ctx, session, message, attachments), Initial: true}, nil
 	}
 	return PreviewResult{Prompt: buildContinuationPrompt(message, attachments), Initial: false}, nil
 }

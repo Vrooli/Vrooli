@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
+	"math"
 	"strings"
 )
 
@@ -68,7 +69,7 @@ func PreviewPlacements(candidate []byte, placements []string, verdict func([]byt
 			if viewport == "mobile" {
 				w, h = 390, 844
 			}
-			preview := resizeNearest(img, w, h)
+			preview := composePlacement(img, placement, w, h)
 			var b bytes.Buffer
 			if err := png.Encode(&b, preview); err != nil {
 				return nil, err
@@ -81,6 +82,170 @@ func PreviewPlacements(candidate []byte, placements []string, verdict func([]byt
 		}
 	}
 	return out, nil
+}
+
+// composePlacement renders the candidate inside a mock page layout.
+//
+// This used to ignore the placement entirely and simply resize the candidate to
+// the viewport, so full_bleed and split_panel produced byte-identical previews
+// and the artifact showed no placement at all. A placement preview exists to
+// answer one question — does this image work behind this copy, in this
+// arrangement — so it has to draw the copy and the arrangement.
+func composePlacement(src image.Image, placement string, w, h int) *image.RGBA {
+	page := image.NewRGBA(image.Rect(0, 0, w, h))
+	paper := color.RGBA{247, 247, 245, 255}
+	fill(page, page.Bounds(), paper)
+
+	mobile := h > w
+	var imageRect, copyRect image.Rectangle
+	scrim := "none"
+
+	switch placement {
+	case "split_panel":
+		if mobile {
+			imageRect = image.Rect(0, 0, w, h*45/100)
+			copyRect = image.Rect(w*7/100, h*54/100, w*93/100, h*88/100)
+		} else {
+			imageRect = image.Rect(w/2, 0, w, h)
+			copyRect = image.Rect(w*7/100, h*28/100, w*44/100, h*74/100)
+		}
+	case "framed_inset":
+		if mobile {
+			imageRect = image.Rect(w*5/100, h*6/100, w*95/100, h*46/100)
+			copyRect = image.Rect(w*7/100, h*54/100, w*93/100, h*86/100)
+		} else {
+			imageRect = image.Rect(w*6/100, h*7/100, w*94/100, h*62/100)
+			copyRect = image.Rect(w*6/100, h*70/100, w*62/100, h*92/100)
+		}
+	case "corner_bleed":
+		if mobile {
+			imageRect = image.Rect(w*30/100, 0, w, h*40/100)
+			copyRect = image.Rect(w*7/100, h*50/100, w*93/100, h*84/100)
+		} else {
+			imageRect = image.Rect(w*46/100, 0, w, h*78/100)
+			copyRect = image.Rect(w*6/100, h*30/100, w*42/100, h*74/100)
+		}
+	default: // full_bleed
+		imageRect = page.Bounds()
+		scrim = "left"
+		if mobile {
+			copyRect = image.Rect(w*8/100, h*52/100, w*92/100, h*86/100)
+			scrim = "bottom"
+		} else {
+			copyRect = image.Rect(w*6/100, h*26/100, w*52/100, h*76/100)
+		}
+	}
+
+	drawScaled(page, imageRect, src)
+	if scrim != "none" {
+		applyScrim(page, imageRect, scrim)
+	}
+	drawCopyBlock(page, copyRect)
+	return page
+}
+
+func fill(dst *image.RGBA, r image.Rectangle, c color.RGBA) {
+	for y := r.Min.Y; y < r.Max.Y; y++ {
+		for x := r.Min.X; x < r.Max.X; x++ {
+			dst.SetRGBA(x, y, c)
+		}
+	}
+}
+
+// applyScrim washes the image so overlaid copy has contrast to sit on. It is
+// the same device the legibility gate measures, so the preview shows what the
+// gate scores rather than an untreated image.
+func applyScrim(dst *image.RGBA, r image.Rectangle, direction string) {
+	for y := r.Min.Y; y < r.Max.Y; y++ {
+		for x := r.Min.X; x < r.Max.X; x++ {
+			var t float64
+			switch direction {
+			case "bottom":
+				t = float64(y-r.Min.Y) / math.Max(1, float64(r.Dy()-1))
+			default: // left
+				t = 1 - float64(x-r.Min.X)/math.Max(1, float64(r.Dx()-1))*1.7
+			}
+			if t < 0 {
+				t = 0
+			}
+			if t > 1 {
+				t = 1
+			}
+			a := 0.82 * t
+			c := dst.RGBAAt(x, y)
+			dst.SetRGBA(x, y, color.RGBA{
+				R: uint8(float64(c.R)*(1-a) + 8*a),
+				G: uint8(float64(c.G)*(1-a) + 10*a),
+				B: uint8(float64(c.B)*(1-a) + 16*a),
+				A: 255,
+			})
+		}
+	}
+}
+
+// drawCopyBlock lays in a kicker, a two-line headline, two subhead lines and a
+// call to action as solid bars. Real glyphs are unnecessary — the preview is
+// judged on whether the copy mass is readable against the image behind it, and
+// bars carry that mass honestly while staying locale-free.
+func drawCopyBlock(dst *image.RGBA, r image.Rectangle) {
+	if r.Dx() < 8 || r.Dy() < 8 {
+		return
+	}
+	// Choose ink from what is actually behind the copy, so the preview shows a
+	// legible pairing rather than assuming one.
+	var sum float64
+	n := 0
+	for y := r.Min.Y; y < r.Max.Y; y += 2 {
+		for x := r.Min.X; x < r.Max.X; x += 2 {
+			c := dst.RGBAAt(x, y)
+			sum += (0.299*float64(c.R) + 0.587*float64(c.G) + 0.114*float64(c.B)) / 255
+			n++
+		}
+	}
+	dark := color.RGBA{18, 20, 26, 255}
+	lightInk := color.RGBA{252, 252, 250, 255}
+	ink, cta, ctaInk := lightInk, lightInk, dark
+	if n > 0 && sum/float64(n) > 0.55 {
+		ink, cta, ctaInk = dark, dark, lightInk
+	}
+
+	unit := r.Dy() / 22
+	if unit < 2 {
+		unit = 2
+	}
+	y := r.Min.Y
+	bar := func(wFrac float64, height int, c color.RGBA) {
+		bw := int(float64(r.Dx()) * wFrac)
+		if bw > r.Dx() {
+			bw = r.Dx()
+		}
+		if y+height > r.Max.Y {
+			return
+		}
+		fill(dst, image.Rect(r.Min.X, y, r.Min.X+bw, y+height), c)
+		y += height
+	}
+	gap := func(nUnits int) { y += unit * nUnits }
+
+	bar(0.24, unit, ink) // kicker
+	gap(2)
+	bar(0.92, unit*3, ink) // headline line 1
+	gap(1)
+	bar(0.68, unit*3, ink) // headline line 2
+	gap(2)
+	bar(0.80, unit, ink) // subhead line 1
+	gap(1)
+	bar(0.62, unit, ink) // subhead line 2
+	gap(2)
+	// call to action
+	btnW, btnH := int(float64(r.Dx())*0.30), unit*4
+	if y+btnH <= r.Max.Y {
+		fill(dst, image.Rect(r.Min.X, y, r.Min.X+btnW, y+btnH), cta)
+		inset := btnH / 3
+		if btnW > inset*4 {
+			fill(dst, image.Rect(r.Min.X+inset, y+inset, r.Min.X+btnW-inset*3, y+btnH-inset), ctaInk)
+		}
+	}
 }
 
 func resizeNearest(src image.Image, w, h int) *image.RGBA {

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"swarm-manager/internal/agentactivity"
@@ -14,6 +15,11 @@ import (
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/idgen"
+	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/sourceledger"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitionrunner"
+	"swarm-manager/internal/transitions"
 
 	agentdomainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -30,6 +36,13 @@ const (
 )
 
 var nowUTC = func() time.Time { return time.Now().UTC() }
+
+const sessionSkillCacheTTL = 10 * time.Minute
+
+type cachedSkillText struct {
+	content   string
+	fetchedAt time.Time
+}
 
 type SessionSpawner interface {
 	SpawnSession(ctx context.Context, req agentmanager.SessionSpawnRequest) (agentmanager.RunResult, error)
@@ -50,6 +63,10 @@ type ContextResolver interface {
 	ResolveSessionMessageContext(ctx context.Context, refs []ContextRef, limits ContextLimits) ([]ContextItem, error)
 }
 
+type SourceLedger interface {
+	Wake(context.Context, string, int) (sourceledger.WakeResult, error)
+}
+
 // MutationProposalProcessor keeps graph-aware extraction and ApplyFlow on the
 // API composition side. Agent sessions own durable conversation and review
 // state without importing proposal/backlog packages (which would form a cycle).
@@ -57,6 +74,10 @@ type MutationProposalProcessor interface {
 	Ingest(ctx context.Context, target ProposalTarget, assistantReply string) (MutationProposalIngestion, error)
 	Apply(ctx context.Context, target ProposalTarget, payloadJSON string, acceptedMutationIDs []string, source MutationProposalSource) (MutationProposalApplication, error)
 	AcceptNoChange(ctx context.Context, target ProposalTarget, payloadJSON string, source MutationProposalSource) error
+}
+
+type TransitionStarter interface {
+	StartWith(context.Context, string, string, transitionrunner.PreparedInput) (transitionrun.Correlation, error)
 }
 
 type MutationProposalIngestion struct {
@@ -94,6 +115,12 @@ type Service struct {
 	profileKey                string
 	mutationProposalProcessor MutationProposalProcessor
 	eventDispatcher           dispatch.Invalidator
+	transitionRegistry        transitions.Registry
+	transitionStarter         TransitionStarter
+	sourceLedger              SourceLedger
+	promptClient              promptmanager.Client
+	skillCacheMu              sync.Mutex
+	skillCache                map[string]cachedSkillText
 }
 
 // storeFor is the only sanctioned way to reach session storage. The production
@@ -166,12 +193,17 @@ type ServiceConfig struct {
 	ProjectRoot               string
 	ProfileKey                string
 	MutationProposalProcessor MutationProposalProcessor
+	TransitionRegistry        transitions.Registry
+	TransitionStarter         TransitionStarter
+	SourceLedger              SourceLedger
+	PromptClient              promptmanager.Client
 }
 
 type CreateRequest struct {
 	Kind           Kind
 	Title          string
 	ProposalTarget *ProposalTarget
+	StarterJob     string
 }
 
 type ContinueRequest struct {
@@ -180,6 +212,7 @@ type ContinueRequest struct {
 	AttachmentIDs     []string
 	ContextRefs       []ContextRef
 	AutoContextPolicy AutoContextPolicy
+	StarterJob        string
 }
 
 type ContextLimits struct {
@@ -221,6 +254,11 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		projectRoot:               cfg.ProjectRoot,
 		profileKey:                cfg.ProfileKey,
 		mutationProposalProcessor: cfg.MutationProposalProcessor,
+		transitionRegistry:        cfg.TransitionRegistry,
+		transitionStarter:         cfg.TransitionStarter,
+		sourceLedger:              cfg.SourceLedger,
+		promptClient:              cfg.PromptClient,
+		skillCache:                make(map[string]cachedSkillText),
 	}, nil
 }
 
@@ -236,6 +274,46 @@ func (s *Service) SetMutationProposalProcessor(processor MutationProposalProcess
 	s.mutationProposalProcessor = processor
 }
 
+func (s *Service) SetTransitionRunner(registry transitions.Registry, starter TransitionStarter) {
+	s.transitionRegistry = registry
+	s.transitionStarter = starter
+}
+
+func (s *Service) SetSourceLedger(ledger SourceLedger) {
+	s.sourceLedger = ledger
+}
+
+// WarmSkillCache is best effort. A Prompt Manager outage must degrade the
+// prompt's kind band to its existing read instruction, never prevent the API
+// from starting.
+func (s *Service) WarmSkillCache(ctx context.Context) {
+	for _, skillID := range []string{SkillMetaOrchestrator, SkillSwarmOperations, SkillWorkflowAuthoring} {
+		_, _ = s.skillText(ctx, skillID)
+	}
+}
+
+func (s *Service) skillText(ctx context.Context, skillID string) (string, bool) {
+	if s == nil || s.promptClient == nil {
+		return "", false
+	}
+	now := nowUTC()
+	s.skillCacheMu.Lock()
+	if cached, ok := s.skillCache[skillID]; ok && now.Sub(cached.fetchedAt) < sessionSkillCacheTTL {
+		s.skillCacheMu.Unlock()
+		return cached.content, true
+	}
+	s.skillCacheMu.Unlock()
+
+	content, err := s.promptClient.ReadSkill(ctx, skillID, nil, false)
+	if err != nil || strings.TrimSpace(content) == "" {
+		return "", false
+	}
+	s.skillCacheMu.Lock()
+	s.skillCache[skillID] = cachedSkillText{content: content, fetchedAt: nowUTC()}
+	s.skillCacheMu.Unlock()
+	return content, true
+}
+
 func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error) {
 	store, err := s.storeFor(ctx)
 	if err != nil {
@@ -247,6 +325,9 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error
 	}
 	if req.Title == "" {
 		return Session{}, apierr.BadRequest("title is required")
+	}
+	if req.StarterJob != "" && !IsKnownStarterJob(req.StarterJob) {
+		return Session{}, apierr.BadRequest("starter job is not declared")
 	}
 	if req.ProposalTarget != nil {
 		if err := req.ProposalTarget.Validate(); err != nil {
@@ -266,6 +347,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error
 		UpdatedAt:      now,
 		CreatedBy:      attributionForContext(ctx),
 		ProposalTarget: req.ProposalTarget,
+		StarterJob:     strings.TrimSpace(req.StarterJob),
 	}
 	if req.ProposalTarget != nil {
 		session.SkillID = SkillProposals
@@ -283,7 +365,7 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 		return Session{}, err
 	}
 	messageText := strings.TrimSpace(req.Message)
-	if messageText == "" && len(req.AttachmentIDs) == 0 && len(req.ContextRefs) == 0 {
+	if messageText == "" && len(req.AttachmentIDs) == 0 && len(req.ContextRefs) == 0 && strings.TrimSpace(req.StarterJob) == "" {
 		return Session{}, apierr.BadRequest("message, attachment, or context is required")
 	}
 	session, err := store.LoadSession(strings.TrimSpace(req.SessionID))
@@ -292,6 +374,15 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 	}
 	if session.Status != StatusDraft || strings.TrimSpace(session.RunID) != "" {
 		return Session{}, apierr.Conflict("agent session is already started")
+	}
+	if strings.TrimSpace(req.StarterJob) != "" {
+		if !IsKnownStarterJob(req.StarterJob) {
+			return Session{}, apierr.BadRequest("starter job is not declared")
+		}
+		session.StarterJob = strings.TrimSpace(req.StarterJob)
+		if err := store.SaveSession(session); err != nil {
+			return Session{}, err
+		}
 	}
 	if s.spawner == nil {
 		return Session{}, apierr.Unavailable("agent session spawning is unavailable")
@@ -328,7 +419,7 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 		Kind:        string(session.Kind),
 		Title:       session.Title,
 		Description: messageText,
-		Prompt:      buildInitialPrompt(session, userMessage, sessionAttachmentsByID(session, req.AttachmentIDs)),
+		Prompt:      s.buildInitialPrompt(ctx, session, userMessage, sessionAttachmentsByID(session, req.AttachmentIDs)),
 		ScopePath:   ".",
 		ProjectRoot: s.projectRoot,
 		CreatedBy:   sessionCreatedBy(session),

@@ -1,24 +1,36 @@
 {
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library/VoiceInputButton@4.0.0"
-  },
-  "component": {
-    "id": "voice-input-button",
-    "title": "VoiceInputButton",
-    "purpose": "Expose one fixed-footprint microphone control; consumers own errors and recovery actions."
-  },
+  "schemaVersion": 1,
+  "componentId": "react-component-library:VoiceInputButton",
+  "version": "4.1.0",
   "states": [
-    { "id": "idle", "example": "idle", "description": "Ready to start voice input." },
-    { "id": "recording", "example": "recording", "description": "Capturing microphone input." },
-    { "id": "error", "example": "error", "description": "Error state without an embedded recovery surface." }
+    "idle",
+    "preparing",
+    "recording",
+    "recovering",
+    "transcribing",
+    "unavailable",
+    "error"
   ],
-  "elements": [
-    { "id": "voice-control", "role": "button", "description": "The only rendered control." }
+  "behaviors": [
+    {
+      "id": "fixed-footprint",
+      "description": "Every lifecycle state uses the same IconButton geometry so surrounding composer layouts do not jump."
+    },
+    {
+      "id": "input-feedback",
+      "description": "Recording level fills the control and timeout mode adds a progress ring without replacing the microphone action."
+    },
+    {
+      "id": "press-intent",
+      "description": "Pointer press, release, cancel, click, and long-press preserve the existing start/stop/passive-exit intent contract."
+    }
   ],
-  "claims": [
-    { "id": "voice-input-action", "type": "element-present", "statement": "Every state exposes exactly one named microphone control.", "tier": "machine", "elements": ["voice-control"], "states": ["idle", "recording", "error"] }
-  ],
-  "bindings": { "elements": { "voice-control": { "testid": "voice-input-control" } } }
+  "accessibility": [
+    "named button",
+    "pressed state",
+    "state-specific labels",
+    "reduced motion",
+    "forced colors",
+    "non-color recording feedback"
+  ]
 }

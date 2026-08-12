@@ -60,3 +60,17 @@ migration evidence is kept under
 - Evidence: Search found multiple swarm-manager goals, but none directly represents the user-supplied audio-tools reliability plan. Swarm-manager is in scope only for the thin shared-package adapter and focused validation evidence.
 - Constraint: Broad pre-existing swarm-manager health findings remain separate from the audio capture contract.
 - Measured: 2026-08-03.
+
+### 2026-08-11 mobile composer follow-up
+
+- Rung: W3 (implementation)
+- Evidence: The mobile composer’s fixed expansion mode was nested inside the fixed footer’s backdrop-filter containing block, so the editor could be positioned below the safe area; the implementation now uses a bounded 2–6 row textarea with scrolling after the cap.
+- Blocker: Resolved in the composer and auto-resize implementation; scenario-owned test-genie validation remains unavailable because its CLI build requests `go mod tidy` before running.
+- Measured: 2026-08-11.
+
+### 2026-08-12 mobile mic/composer follow-up
+
+- Rung: W3 (implementation)
+- Evidence: The supplied mobile screenshots showed `VoiceMicButton` rendering `Voice input unavailable (discovery_failed)` as a visible alert inside the composer. That expanded the mic flex item and starved the textarea; the host label is now removed, unavailable voice remains represented by the button’s accessible state, and the adopted React component-library version is refreshed from 4.0.0 to 4.1.0.
+- Blocker: Resolved in the mic host, composer layering, and component-library adoption. Focused UI validation and the component contract suite pass; scenario-owned test-genie validation remains unavailable because its CLI build requests `go mod tidy` before running.
+- Measured: 2026-08-12.

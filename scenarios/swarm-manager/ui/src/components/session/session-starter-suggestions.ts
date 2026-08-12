@@ -42,6 +42,8 @@ export type SuggestionRequirement =
 
 export interface StarterSuggestion {
   id: string;
+  /** Server-declared prompt framing rendered in the session job band. */
+  jobId?: string;
   icon: LucideIcon;
   /** Menu text. Terse and scannable — read while choosing, never sent. */
   label: string;
@@ -122,7 +124,7 @@ function withSlot(body: string, invitation: string): string {
 export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSuggestion[] {
   switch (kind) {
     case "swarm_operations":
-      return [
+      return withStarterJobs([
         {
           id: "operations-review",
           icon: Gauge,
@@ -208,11 +210,11 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
           softCountType: "backlog_item",
           softCountFilterKey: "backlog_item_stale",
         },
-      ];
+      ]);
     case "operating_mode_authoring":
       return [];
     case "workflow_authoring":
-      return [
+      return withStarterJobs([
         {
           id: "workflow-author-method",
           icon: Workflow,
@@ -255,10 +257,10 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
             { kind: "context", type: "goal", optional: true },
           ],
         },
-      ];
+      ]);
     case "meta_orchestration":
     default:
-      return [
+      return withStarterJobs([
         {
           id: "meta-plan",
           icon: Workflow,
@@ -310,13 +312,18 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
           ),
           requirements: [{ kind: "image" }],
         },
-      ];
+      ]);
   }
+}
+
+function withStarterJobs(cards: StarterSuggestion[]): StarterSuggestion[] {
+  return cards.map((card) => ({ ...card, jobId: card.jobId ?? card.id }));
 }
 
 /** A starter card as offered by the attach-to-session sheet. */
 export interface AttachStarterSuggestion {
   id: string;
+  jobId?: string;
   icon: LucideIcon;
   /** Menu text shown in the sheet. */
   label: string;
@@ -443,6 +450,7 @@ export function attachStarterSuggestions(
       const specific = Boolean(suggestion.contextLabel && mentionsOption);
       return {
         id: suggestion.id,
+        jobId: suggestion.jobId,
         icon: suggestion.icon,
         label: specific && suggestion.contextLabel ? suggestion.contextLabel(title) : suggestion.label,
         prompt: specific && suggestion.contextPrompt ? suggestion.contextPrompt(title) : suggestion.prompt,
@@ -455,12 +463,14 @@ export function attachStarterSuggestions(
   const lenses = option.type === "goal" ? goalLensCards(title) : itemLensCards(title);
   const proposalActions: AttachStarterSuggestion[] = lenses.map((lens) => ({
     ...lens,
+    jobId: lens.jobId ?? lens.id,
     icon: GitPullRequestArrow,
     specific: true,
     proposalFlavor: "mutation_list" as const,
   }));
   proposalActions.push({
     id: "proposal-triage-staleness",
+    jobId: "operations-triage-staleness",
     icon: GitPullRequestArrow,
     label: `Triage "${title}" for staleness.`,
     prompt: `Triage "${title}" for staleness. Compare its recorded intent against the repository and its owning goal — not against its age — and return one of three verdicts with the evidence behind it: keep (explain only), refresh (update_item, with reset_artifacts or recreate_item when the plan is invalid), or supersede (archive_item with a note naming what replaced it). Propose the mutations; do not apply them.`,

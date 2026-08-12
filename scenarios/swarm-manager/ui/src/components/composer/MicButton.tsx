@@ -63,7 +63,7 @@ export function MicButton({ onTranscript, onPartialTranscript, disabled, testId 
 
   return (
     <VoiceMicButton
-      supported={supported || Boolean(errorMessage)}
+      supported={supported}
       isPreparing={voice.isPreparing}
       isRecording={voice.isRecording}
       isListening={voice.isListening}

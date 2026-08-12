@@ -12,6 +12,9 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/identity"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitionrunner"
+	"swarm-manager/internal/transitions"
 
 	agentdomainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -851,6 +854,86 @@ func TestServiceApplyBacklogBatchImportProposalUsesSessionAttribution(t *testing
 	}
 }
 
+func TestServiceApplyStartTransitionProposalStartsRegisteredTransition(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	starter := &fakeTransitionStarter{correlation: transitionrun.Correlation{ExecutionID: "exec-transition-1"}}
+	svc := newTestService(t, &fakeSessionSpawner{})
+	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatalf("load transition registry: %v", err)
+	}
+	svc.SetTransitionRunner(registry, starter)
+	session := createStartedSession(t, svc, KindSwarmOperations, "Transition review", "Review.")
+	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
+		ID:          "prop-transition",
+		Kind:        ProposalStartTransition,
+		Status:      ProposalStatusReady,
+		Summary:     "Start the goal transition.",
+		PayloadJSON: `{"transition_key":"goal.close_out","subject_ref":"goal:release","projection_action":"close_out","projection_agrees":true}`,
+	})
+	if err != nil {
+		t.Fatalf("RecordProposal() error = %v", err)
+	}
+
+	applied, artifacts, err := svc.ApplyProposal(context.Background(), session.ID, proposal.ID)
+	if err != nil {
+		t.Fatalf("ApplyProposal() error = %v", err)
+	}
+	if starter.calls != 1 || starter.key != "goal.close_out" || starter.subject != "release" {
+		t.Fatalf("transition start = calls=%d key=%q subject=%q", starter.calls, starter.key, starter.subject)
+	}
+	if applied.Proposals[0].Status != ProposalStatusApplied || len(artifacts) != 1 {
+		t.Fatalf("applied proposal/artifacts = %+v / %+v", applied.Proposals, artifacts)
+	}
+	if artifacts[0].ArtifactType != ArtifactTransitionExecution || artifacts[0].EntityRef != "transition/exec-transition-1" || artifacts[0].Title != "goal.close_out" {
+		t.Fatalf("transition artifact = %+v", artifacts[0])
+	}
+}
+
+func TestServiceApplyStartTransitionRejectsUnknownKeyBeforeRunner(t *testing.T) {
+	starter := &fakeTransitionStarter{}
+	svc := newTestService(t, &fakeSessionSpawner{})
+	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatalf("load transition registry: %v", err)
+	}
+	svc.SetTransitionRunner(registry, starter)
+	session := createStartedSession(t, svc, KindSwarmOperations, "Transition review", "Review.")
+	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{ID: "prop-unknown", Kind: ProposalStartTransition, Status: ProposalStatusReady, Summary: "Unknown", PayloadJSON: `{"transition_key":"no.such.transition","subject_ref":"goal:release","projection_action":"start","projection_agrees":true}`})
+	if err != nil {
+		t.Fatalf("RecordProposal() error = %v", err)
+	}
+	if _, _, err := svc.ApplyProposal(context.Background(), session.ID, proposal.ID); err == nil {
+		t.Fatal("ApplyProposal() error = nil, want unknown transition rejection")
+	}
+	if starter.calls != 0 {
+		t.Fatalf("transition start calls = %d, want 0", starter.calls)
+	}
+}
+
+func TestServiceApplyStartTransitionRejectsProjectionDisagreementWithoutReason(t *testing.T) {
+	starter := &fakeTransitionStarter{}
+	svc := newTestService(t, &fakeSessionSpawner{})
+	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatalf("load transition registry: %v", err)
+	}
+	svc.SetTransitionRunner(registry, starter)
+	session := createStartedSession(t, svc, KindSwarmOperations, "Transition review", "Review.")
+	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{ID: "prop-disagree", Kind: ProposalStartTransition, Status: ProposalStatusReady, Summary: "Disagreement", PayloadJSON: `{"transition_key":"goal.close_out","subject_ref":"goal:release","projection_action":"keep_open","projection_agrees":false}`})
+	if err != nil {
+		t.Fatalf("RecordProposal() error = %v", err)
+	}
+	if _, _, err := svc.ApplyProposal(context.Background(), session.ID, proposal.ID); err == nil {
+		t.Fatal("ApplyProposal() error = nil, want disagreement rejection")
+	}
+	if starter.calls != 0 {
+		t.Fatalf("transition start calls = %d, want 0", starter.calls)
+	}
+}
+
 func TestServiceAttachArtifactsPersistsBatchAtomically(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
@@ -962,6 +1045,20 @@ func newTestService(t *testing.T, spawner *fakeSessionSpawner) *Service {
 		t.Fatalf("NewService() error = %v", err)
 	}
 	return svc
+}
+
+type fakeTransitionStarter struct {
+	correlation transitionrun.Correlation
+	calls       int
+	key         string
+	subject     string
+}
+
+func (f *fakeTransitionStarter) StartWith(_ context.Context, key, subject string, _ transitionrunner.PreparedInput) (transitionrun.Correlation, error) {
+	f.calls++
+	f.key = key
+	f.subject = subject
+	return f.correlation, nil
 }
 
 func createStartedSession(t *testing.T, svc *Service, kind Kind, title, message string) Session {

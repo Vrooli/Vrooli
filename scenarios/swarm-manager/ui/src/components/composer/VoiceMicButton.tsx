@@ -44,7 +44,7 @@ export default function VoiceMicButton({
 }: VoiceMicButtonProps & { onPrepare?: () => void }) {
   const state = !supported ? "unavailable" : isTranscribing ? "transcribing" : isPreparing ? "preparing" : isPassive ? "recovering" : isRecording || isListening ? "recording" : error ? "error" : "idle";
   return (
-    <div className={className}>
+    <div className={["shrink-0", className].filter(Boolean).join(" ")}>
       <VoiceInputButton
         state={state}
         mode={isListening ? "always-on" : "timeout"}
@@ -54,16 +54,10 @@ export default function VoiceMicButton({
         onStop={onStop}
         onPrepare={onPrepare}
         onExitPassive={onExitPassive}
-        onPointerCancel={() => onCancel?.()}
+        onCancel={onCancel}
         className={buttonClassName}
         data-testid={testId}
       />
-      {error && <div role="alert" className="mt-1 text-center text-xs text-app-danger">{error}</div>}
-      {state === "transcribing" && onCancel && (
-        <button type="button" className="mt-1 rounded border border-app-border px-1.5 py-0.5 text-xs text-app-muted-foreground" onClick={onCancel}>
-          Cancel
-        </button>
-      )}
     </div>
   );
 }

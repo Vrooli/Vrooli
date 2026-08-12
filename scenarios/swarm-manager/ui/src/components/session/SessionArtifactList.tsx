@@ -11,7 +11,35 @@ interface SessionArtifactListProps {
   proposalTarget?: AgentSessionProposalTarget;
   onOpenArtifact: (artifact: AgentSessionArtifact) => void;
   onOpenProposal?: (proposal: AgentSessionProposal) => void;
+  onApplyProposal?: (proposal: AgentSessionProposal) => void;
+  applyingProposalId?: string;
   variant?: "panel" | "plain";
+}
+
+interface StartTransitionPayload {
+  transitionKey: string;
+  subjectRef: string;
+  projectionAction: string;
+  projectionAgrees: boolean;
+  reason?: string;
+}
+
+function parseStartTransitionPayload(payloadJson: string): StartTransitionPayload | null {
+  try {
+    const value = JSON.parse(payloadJson) as Record<string, unknown>;
+    if (typeof value.transition_key !== "string" || typeof value.subject_ref !== "string" || typeof value.projection_action !== "string") {
+      return null;
+    }
+    return {
+      transitionKey: value.transition_key,
+      subjectRef: value.subject_ref,
+      projectionAction: value.projection_action,
+      projectionAgrees: value.projection_agrees === true,
+      reason: typeof value.reason === "string" ? value.reason : undefined,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function SessionArtifactListImpl({
@@ -20,6 +48,8 @@ function SessionArtifactListImpl({
   proposalTarget,
   onOpenArtifact,
   onOpenProposal,
+  onApplyProposal,
+  applyingProposalId,
   variant = "panel",
 }: SessionArtifactListProps) {
   return (
@@ -35,6 +65,59 @@ function SessionArtifactListImpl({
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Proposals</p>
             {proposals.map((proposal) => {
               const canOpen = Boolean(proposalTarget && onOpenProposal);
+              if (proposal.kind === "start_transition") {
+                const transition = parseStartTransitionPayload(proposal.payloadJson);
+                const disagrees = transition?.projectionAgrees === false;
+                const canApply = proposal.status === "ready" && Boolean(onApplyProposal) && !applyingProposalId;
+                return (
+                  <div
+                    key={proposal.id}
+                    className={cn(
+                      "rounded-md border bg-violet-500/5 p-3",
+                      disagrees ? "border-amber-400/40" : "border-violet-400/20",
+                    )}
+                    data-testid="agent-session-start-transition-proposal"
+                  >
+                    <div className="flex items-start gap-2">
+                      <GitPullRequestArrow className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-300" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-slate-100">Start registered transition</p>
+                        <p className="mt-1 break-all text-[11px] text-slate-300">{transition?.transitionKey ?? "Invalid transition payload"}</p>
+                        <p className="mt-0.5 break-all text-[11px] text-slate-500">Subject: {transition?.subjectRef ?? "unknown"}</p>
+                        <p className="mt-1 text-[11px] text-slate-400" data-testid="agent-session-transition-verdicts">
+                          Projection: {transition?.projectionAction ?? "unknown"} · Session: {transition?.projectionAgrees ? "agrees" : "disagrees"}
+                        </p>
+                        {disagrees && (
+                          <p className="mt-1 text-[11px] text-amber-200" data-testid="agent-session-transition-disagreement">
+                            Reason: {transition?.reason || "No reason supplied"}
+                          </p>
+                        )}
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onApplyProposal?.(proposal)}
+                            disabled={!canApply}
+                            className="rounded border border-emerald-400/30 px-2 py-1 text-[11px] font-medium text-emerald-200 hover:bg-emerald-400/10 disabled:pointer-events-none disabled:opacity-50"
+                            data-testid="agent-session-approve-transition"
+                          >
+                            {applyingProposalId === proposal.id ? "Approving…" : disagrees ? "Approve despite projection" : "Approve transition"}
+                          </button>
+                          {canOpen && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenProposal?.(proposal)}
+                              className="rounded border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/5"
+                              data-testid="agent-session-open-projection"
+                            >
+                              Review projection
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <button
                   key={proposal.id}

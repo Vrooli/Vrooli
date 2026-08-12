@@ -44,7 +44,7 @@ import { useAgentSessionPolling } from "../hooks/useAgentSessionPolling";
 import { useAppBack } from "../app/routes/useAppBack";
 import { backlogDetailPath, detailPathFromNodeId, goalDetailPath } from "../app/routes/route-paths";
 import { useIsMobile } from "../hooks/useMediaQuery";
-import type { AgentSession, AgentSessionArtifact } from "../types";
+import type { AgentSession, AgentSessionArtifact, AgentSessionProposal } from "../types";
 
 /**
  * A message the operator has composed and the server has not yet confirmed.
@@ -80,6 +80,7 @@ export function SessionDetailsPage() {
   const refreshSession = useAgentSessionStore((s) => s.refreshSession);
   const cancelSession = useAgentSessionStore((s) => s.cancelSession);
   const deleteSession = useAgentSessionStore((s) => s.deleteSession);
+  const applyProposal = useAgentSessionStore((s) => s.applyProposal);
   const isMutating = useAgentSessionStore((s) => s.isMutating);
   const isRefreshing = useAgentSessionStore((s) => s.isRefreshing);
   const error = useAgentSessionStore((s) => s.error);
@@ -106,6 +107,7 @@ export function SessionDetailsPage() {
   const { events, isLoading: eventsLoading, error: eventsError, refreshEvents } = useAgentSessionEvents(session);
 
   const [draft, setDraft] = useState("");
+  const [starterJobId, setStarterJobId] = useState<string | undefined>();
   const [pendingContext, setPendingContext] = useState<SessionContextOption[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
   const [pendingSend, setPendingSend] = useState<PendingSend | null>(null);
@@ -119,9 +121,10 @@ export function SessionDetailsPage() {
 
   useEffect(() => {
     setDraft(readSessionDraft(draftSessionId));
+    setStarterJobId(session?.starterJobId);
     setPendingContext(session?.status === "draft" ? [startupBriefOption(session.kind)] : []);
     setPendingSend(null);
-  }, [session?.id, session?.kind, session?.status, draftSessionId]);
+  }, [session?.id, session?.kind, session?.status, session?.starterJobId, draftSessionId]);
 
   useEffect(() => {
     if (!session) return;
@@ -184,6 +187,7 @@ export function SessionDetailsPage() {
           ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
           ...(contextRefs.length > 0 ? { contextRefs } : {}),
           ...(session.status === "draft" && hasAutoStartupContext ? { autoContextPolicy: "none" as const } : {}),
+          ...(session.status === "draft" && starterJobId ? { starterJobId } : {}),
         };
         if (session.status === "draft") {
           await startSession(sendArgs);
@@ -201,13 +205,13 @@ export function SessionDetailsPage() {
         setLocalError(err instanceof Error ? err.message : "Unable to send session message.");
       }
     },
-    [continueSession, draftSessionId, session, sessionAttachments, startSession, uploadSessionAttachments],
+    [continueSession, draftSessionId, session, sessionAttachments, starterJobId, startSession, uploadSessionAttachments],
   );
 
   const handleSend = useCallback(() => {
     if (!session || pendingSend) return;
     const message = draft.trim();
-    if (!message && sessionAttachments.attachments.length === 0 && pendingContext.length === 0) return;
+    if (!message && sessionAttachments.attachments.length === 0 && pendingContext.length === 0 && !starterJobId) return;
     const send: PendingSend = {
       id: `pending-${session.id}-${session.messages.length}`,
       content: message,
@@ -223,7 +227,7 @@ export function SessionDetailsPage() {
     setPendingContext([]);
     setPendingSend(send);
     void deliverMessage(send);
-  }, [deliverMessage, draft, pendingContext, pendingSend, session, sessionAttachments]);
+  }, [deliverMessage, draft, pendingContext, pendingSend, session, sessionAttachments, starterJobId]);
 
   const handleRetrySend = useCallback(() => {
     if (!pendingSend) return;
@@ -332,6 +336,16 @@ export function SessionDetailsPage() {
     }
   }, [navigate, proposalTarget]);
 
+  const handleApplyProposal = useCallback(async (proposal: AgentSessionProposal) => {
+    if (!session) return;
+    setLocalError(null);
+    try {
+      await applyProposal(session.id, proposal.id);
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Unable to apply proposal.");
+    }
+  }, [applyProposal, session]);
+
   const handleRefreshEvents = useCallback(() => { void refreshEvents(); }, [refreshEvents]);
 
   if (!sessionId) {
@@ -397,6 +411,8 @@ export function SessionDetailsPage() {
     pendingMessage: pendingMessageView,
     onRetryPendingMessage: handleRetrySend,
     onEditPendingMessage: handleEditPendingSend,
+    starterJobId,
+    onStarterJobChange: setStarterJobId,
   };
 
   const artifactContent = (variant: "panel" | "plain") => (
@@ -406,6 +422,8 @@ export function SessionDetailsPage() {
       proposalTarget={session.proposalTarget}
       onOpenArtifact={handleOpenArtifact}
       onOpenProposal={handleOpenProposal}
+      onApplyProposal={(proposal) => void handleApplyProposal(proposal)}
+      applyingProposalId={isMutating ? session.proposals.find((proposal) => proposal.status === "ready")?.id : undefined}
       variant={variant}
     />
   );

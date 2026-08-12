@@ -17,6 +17,7 @@ interface SessionPromptPreviewProps {
   message: string;
   attachmentIds?: string[];
   contextRefs?: AgentSessionContextRef[];
+  starterJobId?: string;
   disabled?: boolean;
 }
 
@@ -25,6 +26,7 @@ export function SessionPromptPreview({
   message,
   attachmentIds,
   contextRefs,
+  starterJobId,
   disabled,
 }: SessionPromptPreviewProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -43,6 +45,7 @@ export function SessionPromptPreview({
         message,
         attachmentIds,
         contextRefs,
+        starterJobId,
       });
       setPrompt(preview.prompt);
       setInitial(preview.initial);

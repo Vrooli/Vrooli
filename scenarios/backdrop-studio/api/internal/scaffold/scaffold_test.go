@@ -54,3 +54,23 @@ func TestGoldenEvidence(t *testing.T) {
 		}
 	}
 }
+
+// TestScaffoldFocalZeroIsHonoured is the regression test for clamp() treating
+// an explicit 0 as "unset". focal_x=0 must place the focal mass at the left
+// edge, not silently fall back to the default.
+func TestScaffoldFocalZeroIsHonoured(t *testing.T) {
+	run := func(params string) string {
+		r, err := Render(Request{Preset: "arcade", Width: 256, Height: 160, Seed: 3, ParamsJSON: params})
+		if err != nil {
+			t.Fatalf("render(%s): %v", params, err)
+		}
+		return string(r.SHA256)
+	}
+	zero, def, one := run(`{"focal_x":0}`), run(""), run(`{"focal_x":1}`)
+	if zero == def {
+		t.Fatal("focal_x=0 produced the default render; an explicit zero is being discarded")
+	}
+	if zero == one {
+		t.Fatal("focal_x=0 and focal_x=1 produced identical output")
+	}
+}

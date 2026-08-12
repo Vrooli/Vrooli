@@ -64,6 +64,7 @@ import (
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/sessioncontext"
 	"swarm-manager/internal/settings"
+	"swarm-manager/internal/sourceledger"
 	"swarm-manager/internal/stats"
 	"swarm-manager/internal/transitioncatalog"
 	"swarm-manager/internal/transitionrun"
@@ -335,6 +336,7 @@ func (s *Server) setupRoutes() {
 	s.registerReviewRoutes(scenarioRoot, execSvc)
 	s.wireWorkflowStartGuards(backlogHandler, execSvc)
 	s.configureTransitionRunner()
+	s.agentSessionSvc.SetTransitionRunner(s.transitionRegistry, s.transitionRunner)
 	planWorkshopService := s.registerPlanWorkshopRoutes(s.dataRoot)
 	if err := s.attemptDecisions.Register(planworkshop.AttemptSubjectCandidate, planworkshop.NewAttemptDecider(planWorkshopService)); err != nil {
 		panic(fmt.Errorf("register plan workshop candidate attempt decider: %w", err))
@@ -955,6 +957,21 @@ func (s *Server) registerAgentSessionRoutes(dataRoot, scenarioRoot string) {
 		panic(fmt.Sprintf("migrate legacy agent session data: %v", err))
 	}
 	sessionStore := agentsessions.NewRoutedFileStore(s.fileRoots)
+	var ledger *sourceledger.Client
+	ledger, err := sourceledger.New(context.Background())
+	if err != nil {
+		slog.Warn("source-ledger unavailable at agent-session startup; sessions will use continuity fallback", "err", err)
+	} else {
+		for _, scope := range []string{"session:meta-orchestration", "session:swarm-operations"} {
+			if ensureErr := ledger.EnsureScope(context.Background(), scope, "Swarm Manager "+scope, sourceledger.SessionScopeFacets(scope)); ensureErr != nil {
+				slog.Warn("source-ledger session scope provisioning failed", "scope", scope, "err", ensureErr)
+			}
+		}
+	}
+	promptClient := s.promptClient
+	if promptClient == nil {
+		promptClient = promptmanager.NewHTTPClient()
+	}
 	svc, err := agentsessions.NewService(agentsessions.ServiceConfig{
 		Store:       sessionStore,
 		Spawner:     s.requireTrackedAgentService(),
@@ -965,11 +982,14 @@ func (s *Server) registerAgentSessionRoutes(dataRoot, scenarioRoot string) {
 		// has no reason to hold the file-write tools. The key is session-owned
 		// so that overriding the execute profile does not silently re-grant
 		// write access to every conversation.
-		ProfileKey: getEnvDefault("SWARM_MANAGER_SESSION_PROFILE_KEY", "swarm-manager/session"),
+		ProfileKey:   getEnvDefault("SWARM_MANAGER_SESSION_PROFILE_KEY", "swarm-manager/session"),
+		SourceLedger: ledger,
+		PromptClient: promptClient,
 	})
 	if err != nil {
 		panic(err)
 	}
+	svc.WarmSkillCache(context.Background())
 	// Session context resolves backlog and initiative records from the same
 	// storage data root as their HTTP handlers. scenarioRoot is source/config
 	// state and does not contain live backlog specs in a managed runtime.

@@ -201,6 +201,9 @@ func SessionToProto(session Session) *domainpb.AgentSession {
 		msg.CreatedBy = AttributionToProto(*session.CreatedBy)
 	}
 	msg.ProposalTarget = proposalTargetToProto(session.ProposalTarget)
+	if session.StarterJob != "" {
+		msg.StarterJobId = proto.String(session.StarterJob)
+	}
 	for _, message := range session.Messages {
 		msg.Messages = append(msg.Messages, messageToProto(message))
 	}

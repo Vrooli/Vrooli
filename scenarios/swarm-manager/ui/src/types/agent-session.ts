@@ -69,7 +69,8 @@ export type AgentSessionArtifactType =
   | "operating_mode_definition"
   | "capture"
   | "file"
-  | "agent_activity";
+  | "agent_activity"
+  | "transition_execution";
 
 export type AgentSessionArtifactAction =
   | "proposed"

@@ -18,7 +18,6 @@ import {
 } from "../session-view-model";
 import { SessionSummaryCard } from "../session-summary-card";
 import { attachStarterSuggestions } from "../session-starter-suggestions";
-import { writeSessionDraft } from "../session-draft-storage";
 import { CONTEXT_TYPE_LABELS, compatibleSessionKindsForContextType, sessionKindAllowsContextType } from "./session-context-config";
 import { stageContextForSession } from "./pending-session-context";
 import { type SessionContextOption } from "./session-context-refs";
@@ -132,15 +131,10 @@ function EntityAttachToSessionSheetContent({
         ? await proposalSessionService.create({
           title: `Proposal for ${option.title || option.ref}`,
           target: { type: option.type, ref: option.ref, name: option.title || option.ref },
+          starterJobId: selectedSuggestion?.jobId,
         })
-        : await createSession({ kind: selectedKind, title: titleForQuickStart(option) });
+        : await createSession({ kind: selectedKind, title: titleForQuickStart(option), starterJobId: selectedSuggestion?.jobId });
       stageContextForSession(session.id, option);
-      if (selectedSuggestion) {
-        // The detail page restores this like any saved composer draft.
-        writeSessionDraft(session.id, selectedSuggestion.prompt);
-      } else if (proposalMode) {
-        writeSessionDraft(session.id, `Review ${option.title || option.ref} and return a validated mutation_list proposal.`);
-      }
       onClose();
       navigate(sessionDetailPath(session.id));
     } catch (err) {
@@ -161,7 +155,7 @@ function EntityAttachToSessionSheetContent({
           <p className="min-w-0 truncate text-xs text-slate-400">
             {mode === "new"
               ? selectedSuggestion
-                ? "The chosen prompt will prefill the first message."
+                ? "The selected job will frame the first prompt; the composer stays yours."
                 : proposalMode
                   ? "A proposal session starts with a structured mutation-list request."
                   : "Context is staged before the first message."

@@ -9,8 +9,9 @@ import { AttachmentPreviewTray } from "./AttachmentPreviewTray";
 import { ContextChipTray, type ComposerContextChip } from "./ContextChipTray";
 import { MicButton } from "./MicButton";
 
-const MAX_TEXTAREA_HEIGHT = 104;
 const ACCEPTED_IMAGE_TYPES = "image/jpeg,image/png,image/gif,image/webp";
+const MIN_TEXTAREA_ROWS = 2;
+const MAX_TEXTAREA_ROWS = 6;
 
 export interface MessageComposerHandle {
   /**
@@ -79,10 +80,17 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   micTestId,
 }: MessageComposerProps, ref) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [interimTranscript, setInterimTranscript] = useState("");
   const materializedInterimRef = useRef("");
-  useAutoResizeTextarea(textareaRef, value, { maxHeight: MAX_TEXTAREA_HEIGHT });
+  useAutoResizeTextarea(textareaRef, value, { minRows: MIN_TEXTAREA_ROWS, maxRows: MAX_TEXTAREA_ROWS });
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    const overlay = overlayRef.current;
+    if (textarea && overlay) overlay.scrollTop = textarea.scrollTop;
+  }, [value]);
 
   const appendInterim = useCallback((base: string, interim: string) => {
     const left = base.trimEnd();
@@ -184,7 +192,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
         testId={testId ? `${testId}-context-chips` : undefined}
       />
 
-      <div className={cn("flex items-end gap-2 rounded-lg border border-slate-700 bg-slate-900/70 p-2.5 transition-colors focus-within:border-cyan-500/50", className)}>
+      <div className={cn("flex min-h-0 items-end gap-2 rounded-lg border border-slate-700 bg-slate-900/70 p-2.5 transition-colors focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/20", className)}>
         {onOpenForm && (
           <button
             type="button"
@@ -199,8 +207,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
 
         <div className="relative min-w-0 flex-1">
           <div
+            ref={overlayRef}
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 min-h-[2.5rem] whitespace-pre-wrap break-words text-base text-slate-200"
+            className={cn("pointer-events-none absolute inset-0 z-0 min-h-[2.5rem] overflow-hidden whitespace-pre-wrap break-words text-base leading-6 text-slate-200 transition-opacity", !interimTranscript && "opacity-0")}
+            data-testid={testId ? `${testId}-overlay` : "composer-overlay"}
           >
             <span>{value}</span>
             {interimTranscript && (
@@ -216,10 +226,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             onChange={(event) => handleComposerChange(event.target.value)}
             onFocus={materializeInterim}
             onKeyDown={handleKeyDown}
+            onScroll={(event) => {
+              if (overlayRef.current) overlayRef.current.scrollTop = event.currentTarget.scrollTop;
+            }}
             placeholder={placeholder}
-            rows={2}
+            rows={MIN_TEXTAREA_ROWS}
             disabled={disabled || isSubmitting}
-            className="relative min-h-[2.5rem] w-full resize-none bg-transparent text-base text-transparent caret-slate-200 placeholder:text-slate-500 outline-none selection:bg-cyan-500/30 disabled:opacity-50"
+            aria-label={placeholder}
+            className={cn("relative z-10 min-h-[2.5rem] w-full resize-none bg-transparent text-base leading-6 caret-slate-200 placeholder:text-slate-500 outline-none selection:bg-cyan-500/30 disabled:opacity-50", interimTranscript ? "text-transparent" : "text-slate-200")}
             data-testid={inputTestId ?? testId}
           />
         </div>

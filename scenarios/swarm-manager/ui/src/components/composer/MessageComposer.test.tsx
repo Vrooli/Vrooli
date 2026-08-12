@@ -7,7 +7,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { createRef } from "react";
-import { act, render } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MessageComposer, type MessageComposerHandle } from "./MessageComposer";
 
 function renderComposer(props: Partial<React.ComponentProps<typeof MessageComposer>> = {}) {
@@ -40,5 +40,28 @@ describe("MessageComposer replaceText", () => {
     act(() => ref.current?.replaceText("Suggested prompt."));
 
     expect(onChange).toHaveBeenCalledWith("Suggested prompt.");
+  });
+});
+
+describe("MessageComposer layout controls", () => {
+  it("starts as a normal two-row, focusable textarea", () => {
+    renderComposer({ testId: "composer" });
+    const textarea = screen.getByTestId("composer");
+
+    expect(textarea).toHaveAttribute("rows", "2");
+    expect(textarea).not.toHaveAttribute("disabled");
+    textarea.focus();
+    expect(document.activeElement).toBe(textarea);
+  });
+
+  it("keeps the painted overlay at the textarea scroll position", () => {
+    renderComposer({ testId: "composer" });
+    const textarea = screen.getByTestId("composer");
+    const overlay = screen.getByTestId("composer-overlay");
+    Object.defineProperty(textarea, "scrollTop", { configurable: true, value: 48, writable: true });
+
+    fireEvent.scroll(textarea);
+
+    expect(overlay.scrollTop).toBe(48);
   });
 });

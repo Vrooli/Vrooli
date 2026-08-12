@@ -6,7 +6,7 @@ Source: [`../../.vrooli/swarm-transitions/registry.json`](../../.vrooli/swarm-tr
 
 | Transition | Kind | Subject | Workflow | Input contract | Requires | Terminal outcomes | Apply action |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `capture.classify` | workflow | capture | `swarm-manager/capture-classify` | `capture-classification-input/v1` | agent-manager, prompt-manager | suggested, discarded, abstained, failed | `apply_capture_classification` |
+| `capture.classify` | workflow | capture | `swarm-manager/capture-classify` | `capture-classification-input/v1` | agent-manager, prompt-manager | suggested, research, discarded, abstained, failed | `apply_capture_classification` |
 | `follow_up.dispatch` | deterministic | backlog-item | `—` | `follow-up-dispatch-input/v1` | — | dispatched, needs_attention | `dispatch_follow_up` |
 | `goal.close_out` | deterministic | goal | `—` | `goal-close-out-input/v1` | — | achieved, needs_attention | `mark_goal_achieved` |
 | `goal.discover` | workflow | goal | `swarm-manager/goal-discover` | `goal-discovery-input/v1` | agent-manager, prompt-manager | proposed, needs_attention, abstained, failed | `apply_goal_proposal` |

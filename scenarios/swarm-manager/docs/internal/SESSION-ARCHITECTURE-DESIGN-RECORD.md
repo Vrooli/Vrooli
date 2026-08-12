@@ -7,9 +7,9 @@
 
 - **Scope**: agent sessions · session kinds · prompt construction · startup briefs · starter prompts
 - **Dated**: 2026-08-11
-- **Basis**: code reading during an operator design conversation. Nothing here was verified by
-  running the system. Line numbers reflect the working tree at time of writing and will drift —
-  treat them as pointers, not as assertions.
+- **Basis**: code reading during an operator design conversation, followed by focused Go and UI
+  tests and the scenario-owned validation pass for the implementation. Line numbers reflect the
+  working tree at time of writing and will drift — treat them as pointers, not as assertions.
 - **Open questions**: none material. Deferred items are listed in §9.
 
 ---
@@ -213,9 +213,9 @@ execution"*:
 
 ### 4.5 The job has no channel of its own
 
-`kind` fans out to four mechanisms. The **job** (the starter card) fans out to exactly one: composer
-text. Everything that distinguishes *"turn this idea into goals"* from *"find the stalest work and
-walk me through it"* must fit in a single sentence, because there is no other channel for it.
+`kind` fans out to four mechanisms. The **job** (the starter card) now has its own typed channel:
+the card sends a stable job id to the server, where the job instruction is composed into the prompt.
+The operator can still add text, but the job does not depend on a canned composer sentence.
 
 **This is the structural cause of §4.1, not a separate problem.** The prompts are thin because
 architecturally there is nowhere else for job-specific context to go.
@@ -227,7 +227,7 @@ architecturally there is nowhere else for job-specific context to go.
 ```mermaid
 flowchart TD
     A["Launcher: capture · plan work · manage swarm · improve the system<br/>ordered by commitment and abstraction"]
-    B["Starter card<br/>label for the menu · promptTemplate for the composer<br/>natural prose · explicit input slot"]
+    B["Starter card<br/>label for the menu · server-owned job id<br/>operator may add text or send the selected job"]
     C["Startup brief<br/>real state for every kind<br/>job-scoped slices where a card promises more<br/>readable in the UI"]
     D["buildInitialPrompt<br/>one XML context block<br/>universal -> kind -> job -> brief -> attached context<br/>skill inlined · volatile identity below the stable bands<br/>operator message outside, in prose"]
     E["Session profile<br/>web_search · web_fetch<br/>no write · no edit"]
@@ -313,17 +313,11 @@ and first, the task outside the context block in natural prose.
 
 The division of labour is unchanged: skill = procedure, brief = current state.
 
-**Inlining the skill is deferred, as a decision rather than an oversight.** The intent was to inline
-the skill text so the largest stable block joins the cached prefix and turn one is not spent on a
-tool round trip. Execution found no seam for it: `promptcatalog` carries skill *metadata* only, and
-`SessionSpawnRequest` passes a raw prompt string with no `promptRef` — sessions are raw runs by
-design, so they bypass the workflow declaration system that would otherwise resolve a prompt
-reference. Inlining therefore requires a new Prompt Manager content client, which makes Prompt
-Manager a hard dependency of session start. That tradeoff — a wasted first turn against a new
-failure mode that blocks every conversation — is the operator's call, not a drive-by.
-
-The structural fix landed without it. Two sessions of one kind now share ~94% of the initial prompt,
-up from roughly forty bytes.
+The kind skill is now best-effort inlined through a ten-minute, byte-stable Prompt Manager content
+cache. A cold or unavailable Prompt Manager leaves the authoritative skill identifier and read
+instruction in the prompt instead of blocking session start. This resolves the first-turn cost
+without making Prompt Manager a hard availability dependency. Two sessions of one kind share the
+same kind band whether the content came from the warm cache or the deterministic fallback.
 
 ### 7.7 The propose-only profile is a narrowing, not a boundary
 
@@ -335,6 +329,29 @@ and `search-hub` CLIs — and a shell can write files. A true capability boundar
 restriction, which is a separate design question with its own blast radius. Claiming the invariant is
 capability-enforced would be false; claiming instruction is the only guard is now also false.
 
+### 7.8 Starter jobs are server-owned, and transition starts are typed
+
+Rejected: letting a UI card submit arbitrary prompt prose or an arbitrary transition command. The
+card id is a stable job selector; the server owns the job text and the prompt section. Transition
+recommendations use a typed `start_transition` proposal containing the registered key, declared
+subject reference, projection action, and agreement verdict. Approval calls the transition registry
+and runner once, then records a `transition_execution` artifact. This preserves operator control,
+prevents command-shaped prompt injection from becoming execution, and makes the handoff auditable.
+
+### 7.9 Continuity is orientation, not authority
+
+Rejected: making Source Ledger required for session startup or silently pretending recalled context
+exists when it does not. Each kind has a session-owned ledger scope; the prompt wakes a bounded
+orientation section before volatile identity. Ledger failure emits an explicit fallback that says
+no prior decisions may be inferred. This trades some continuity for truthful degraded behavior.
+
+### 7.10 The UI owns interaction affordances, not the protocol
+
+The composer, inspector, proposal verdict, and review controls are client surfaces over server-owned
+contracts. The composer can expand and resize, and the inspector owns its scroll region, but the
+server still owns starter-job validation, prompt assembly, transition validation, apply semantics,
+and artifact attribution. This avoids a visually complete UI that can bypass the typed rails.
+
 ---
 
 ## 8. Work order
@@ -343,14 +360,16 @@ capability-enforced would be false; claiming instruction is the only guard is no
 |---|---|---|
 | 0 | **This design record** | `docs/internal/SESSION-ARCHITECTURE-DESIGN-RECORD.md` |
 | 1 | **Skills** — rescope workflow-authoring to improve-the-system; rewrite all three against `skill-authoring-meta` and `writing-standards`; check `swarm-manager-proposals` for consistency | `prompt-manager/store/skills/packs/core/swarm-manager-*` |
-| 2 | **Prompt builder** — XML context block, section registry, volatility gradient, volatile identity demoted, skill inlined | `api/internal/agentsessions/service_prompts.go` |
+| 2 | **Prompt builder** — XML context block, section registry, volatility gradient, volatile identity demoted, cached skill inlining with fallback | `api/internal/agentsessions/service_prompts.go` |
 | 3 | **Startup briefs** — build a real improve-the-system brief; job-scoped slices where a card promises more than the kind brief carries | `api/internal/sessioncontext/startup_brief.go` |
-| 4 | **Starter prompt templates** — split `text` into `label` + `promptTemplate`; natural prose with an explicit input slot; all three kinds plus the proposal lenses | `ui/src/components/session/session-starter-suggestions.ts` |
+| 4 | **Starter jobs** — stable card ids mapped to server-owned jobs; empty first-message starts are valid and the operator may add context | `agent_session.proto`, `starter_jobs.go`, `session-starter-suggestions.ts` |
 | 5 | **Profile** — grant `web_search`/`web_fetch`; a session profile without `write`/`edit` | `.vrooli/agent-manager/` |
 | 6 | **Docs** — kinds, naming, prompt architecture, in-session resolution; the object/meta axis in the session-kind table | `docs/internal/AGENT-SESSIONS.md`, `docs/concepts/TARGET-OPERATING-MODEL.md` |
 | 7 | **Launcher copy and icons** — "Improve the System"; subject-first descriptions; a distinct icon (two of three entries rendered the same glyph); the sheet no longer names itself after its first child | `ui/src/components/session/session-view-model.ts`, `GraphActionLauncher.tsx` |
 | 8 | **Brief legibility** — the resolved `summary` now rides on the chip and renders in its popover; the improve-the-system brief no longer offers a drill-down that navigates away from the session | `session-context-refs.ts`, `ContextChipTray.tsx`, `SessionDetailsPage.tsx` |
 | 9 | **Prompt preview** — server-owned assembly exposed over API, CLI, and a composer panel, with a test asserting the preview is byte-identical to what is spawned | `agent_session.proto`, `service_prompts.go`, `handler.go`, `cli/cmd_agent_sessions.go`, `SessionPromptPreview.tsx` |
+| 10 | **Continuity and transition rail** — Source Ledger wake/fallback, registered `start_transition`, apply artifact, and UI review controls | `sourceledger/client.go`, `service_proposals.go`, `SessionArtifactList.tsx` |
+| 11 | **Layout and degraded behavior** — expandable composer, bounded inspector scroll, and tests for missing Prompt Manager/Source Ledger | `MessageComposer.tsx`, `SessionSectionTabs.tsx`, `prompt_structure_test.go` |
 
 ---
 
@@ -361,7 +380,7 @@ Deliberately out of scope for this pass, in rough priority order:
 | Item | Why deferred |
 |---|---|
 | **Job-scoped brief slices** | Cards promise things the kind brief does not carry (a staleness snapshot, a run's terminal reason). The agent still fetches those itself. |
-| **Inlining the skill into the prompt** | §7.6 — needs a Prompt Manager content client and an explicit decision about making it a hard dependency of session start. The operator's preferred shape is **auto-resolving skill variables**: prompt-manager already substitutes `{{VAR}}` (`api/skills/variables.go`), but values are caller-supplied only. A variable that resolves to another skill's content would make a skill *part of* a prompt rather than something an agent is asked to read, and would put the capability where the content already lives. Note `variableRegex` currently admits only `[A-Z][A-Z0-9_]*`, so a `{{SKILL:<id>}}` form needs a pattern change as well as a resolver. |
+| **Skill content freshness beyond the ten-minute cache** | The cache is intentionally best effort and bounded. A future content-version or invalidation signal could reduce the stale window without making Prompt Manager a hard session-start dependency. |
 | **Shell command restriction** | §7.7 — the remaining gap between a narrowed profile and a real propose-only capability boundary. |
 | **`workflow_authoring` wire-value migration** | §7.3. |
 | **Job-level skill selection** | The job currently shares its kind's skill. Revisit only if job-scoped briefs and prompt templates prove insufficient. |

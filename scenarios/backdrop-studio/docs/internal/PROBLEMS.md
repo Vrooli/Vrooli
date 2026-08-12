@@ -9,8 +9,46 @@
   backdrop byte-ingress RPC. Backdrop Studio therefore owns an injectable
   publisher seam and refuses model-backed release without it. This keeps
   provenance and disclosure from being duplicated or fabricated.
+  **Filed 2026-08-12 as `knw-1786507241786326657`** (scenario-qa,
+  `bug-inbox/code-defect/asset-studio-exposes-no-external-byte-ingress-rpc`).
 - Tier-3 image treatments remain unbuilt by explicit plan decision: `glitch`,
   `kaleidoscope`, `slit_scan`, `fluted_glass`, `photomosaic`, and `resample`.
+
+## Open after the 2026-08-12 output-quality repair
+
+- **`Normalize` is not on the wire.** `treatments.Params.Normalize` (p1–p99
+  auto-level) is wired through `image-tools/internal/ops` as a JSON field, but
+  `ops.proto` has no matching field, so it cannot be set from the CLI or the
+  Connect edge. Styles that need it cannot request it yet. Adding it means a
+  proto field on each treatment param message plus regeneration.
+- **Every scenario's `api/go.mod` is stale** (`golang.org/x/sys` v0.42.0 vs the
+  required v0.44.0), which makes `go test` refuse to run on any package whose
+  dependency closure touches it. Filed 2026-08-12 as `knw-1786507219127843663`.
+  The repair session validated `internal/render` and friends by backing up
+  `go.mod`/`go.sum`, running with `GOFLAGS=-mod=mod`, and restoring. **That is a
+  diagnostic workaround, not a practice to adopt** — it resolves a different
+  module graph than the one committed.
+- **`docs/evidence/` is 8.8 MB across 36 PNGs** now that evidence renders at
+  delivery resolution. `treatments/grain.png` alone is 2.9 MB because noise does
+  not compress. Delivery resolution was the point — a screen cannot be judged at
+  64×48 — but whether this belongs in git or behind a blob seam is an owner
+  decision that has not been made.
+- **`ascii_mosaic` is the only treatment whose cell size is coupled to a
+  font.** It blits a 7×13 bitmap face, so `block_size` values far from 7 resample
+  the glyph. Legible, but not crisp at extremes.
+
+## Corrections to the 2026-08-11 audit
+
+The audit that drove this repair got one finding wrong, recorded here so it is
+not re-derived:
+
+- **"Treatments are not reachable from the CLI" was false.** All 18 were already
+  registered in `image-tools/cli/domains/ops/register.go`, with param builders
+  and proto messages. `cli/manifest.json` legitimately carries only
+  Connect-bound calls; REST multipart run commands are hand-appended and
+  documented in the manifest's `omitted` array. The audit tested a **stale
+  installed binary** (`~/.vrooli/bin/image-tools`, a day older than the source).
+  Rebuild before concluding a CLI surface is missing.
 
 Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid

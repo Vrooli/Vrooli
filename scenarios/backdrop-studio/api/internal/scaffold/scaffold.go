@@ -71,14 +71,14 @@ func Render(req Request) (Result, error) {
 	img := image.NewRGBA(image.Rect(0, 0, req.Width, req.Height))
 	seed := uint64(req.Seed) + 0x9e3779b97f4a7c15
 	noise := func() float64 { seed ^= seed << 7; seed ^= seed >> 9; return float64(seed%10000) / 10000 }
-	horizon := clamp(params["horizon"], .2, .8, .58)
-	focalX := clamp(params["focal_x"], .1, .9, .62)
-	depth := clamp(params["depth_ramp"], .2, 1, .72)
+	horizon := param(params, "horizon", .2, .8, .58)
+	focalX := param(params, "focal_x", 0, 1, .62)
+	depth := param(params, "depth_ramp", .2, 1, .72)
 	switch req.Preset {
 	case "horizon":
 		drawHorizon(img, horizon, focalX, depth, noise)
 	case "arcade":
-		drawArcade(img, int(clamp(params["bays"], 1, 8, 3)), focalX, depth, noise)
+		drawArcade(img, int(param(params, "bays", 1, 8, 3)), focalX, depth, noise)
 	case "terrain":
 		drawTerrain(img, horizon, focalX, depth, noise)
 	case "field":
@@ -98,12 +98,18 @@ func Render(req Request) (Result, error) {
 	return Result{PNG: buf.Bytes(), SHA256: []byte(hex.EncodeToString(sum[:])), Width: req.Width, Height: req.Height, Conditioner: req.Conditioner}, nil
 }
 
-func clamp(v, min, max, fallback float64) float64 {
-	if v == 0 {
+// param reads an optional scaffold parameter, distinguishing "absent" from
+// "explicitly zero". The previous clamp() treated any 0 as unset and
+// substituted the fallback, so focal_x=0 silently became 0.62 and the left edge
+// of the frame was unreachable — a legitimate value the caller could not spend.
+func param(m map[string]float64, key string, min, max, fallback float64) float64 {
+	v, ok := m[key]
+	if !ok {
 		return fallback
 	}
 	return math.Min(max, math.Max(min, v))
 }
+
 func set(img *image.RGBA, x, y int, c color.RGBA) {
 	if image.Pt(x, y).In(img.Bounds()) {
 		img.SetRGBA(x, y, c)
@@ -218,6 +224,7 @@ func edgeImage(src *image.RGBA) *image.RGBA {
 	}
 	return out
 }
+
 func flatten(img *image.RGBA, r Region, conditioner string) {
 	x0 := int(r.X * float64(img.Bounds().Dx()))
 	y0 := int(r.Y * float64(img.Bounds().Dy()))

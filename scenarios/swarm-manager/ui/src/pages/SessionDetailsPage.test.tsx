@@ -320,7 +320,7 @@ describe("SessionDetailsPage", () => {
     });
   });
 
-  it("shows starter suggestions for draft sessions and starts with the selected ready prompt", async () => {
+  it("shows starter suggestions, selects a server-declared job, and keeps the composer empty", async () => {
     const startSession = vi.fn().mockResolvedValue({ ...DRAFT_SESSION, status: "running", runId: "run-draft" });
     storeMock.useAgentSessionStore.setState({ sessions: [DRAFT_SESSION], startSession });
 
@@ -328,22 +328,73 @@ describe("SessionDetailsPage", () => {
 
     expect(screen.getByTestId("agent-session-starter-suggestions")).toBeInTheDocument();
 
-    // The card is chosen by its label but seeds the composer with its prompt.
-    // The prompt is read from the card definition rather than duplicated here:
-    // its wording is owned by session-starter-suggestions.test.ts.
+    // The card selects a server-declared job; its framing is not operator text.
     const planCard = starterSuggestionsForKind("meta_orchestration").find((card) => card.id === "meta-plan")!;
     await userEvent.click(screen.getByRole("button", { name: new RegExp(planCard.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") }));
 
-    expect(screen.getByTestId("agent-session-composer")).toHaveValue(planCard.prompt);
+    expect(planCard.jobId).toBe("meta-plan");
+    expect(screen.getByTestId("agent-session-composer")).toHaveValue("");
+    expect(screen.getByTestId("agent-session-composer")).toHaveAttribute("placeholder", expect.stringContaining("selected job"));
 
     fireEvent.keyDown(screen.getByTestId("agent-session-composer"), { key: "Enter", ctrlKey: true });
 
     await waitFor(() => {
       expect(startSession).toHaveBeenCalledWith({
         sessionId: "sess_draft",
-        message: planCard.prompt.trim(),
+        message: "",
         contextRefs: [{ type: "startup_brief", ref: "startup_brief/meta_orchestration" }],
         autoContextPolicy: "none",
+        starterJobId: planCard.jobId,
+      });
+    });
+  });
+
+  it("marks the chosen starter card as selected and lets a second click clear it", async () => {
+    storeMock.useAgentSessionStore.setState({ sessions: [DRAFT_SESSION] });
+
+    renderPage("/sessions/sess_draft");
+
+    const planCard = starterSuggestionsForKind("meta_orchestration").find((card) => card.id === "meta-plan")!;
+    const cardName = new RegExp(planCard.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+
+    // Choosing a job used to change nothing an operator could see: the card
+    // kept its resting style and only a placeholder shifted, so the click read
+    // as a dead control.
+    expect(screen.getByRole("button", { name: cardName })).toHaveAttribute("aria-pressed", "false");
+
+    await userEvent.click(screen.getByRole("button", { name: cardName }));
+    expect(screen.getByRole("button", { name: cardName })).toHaveAttribute("aria-pressed", "true");
+
+    await userEvent.click(screen.getByRole("button", { name: cardName }));
+    expect(screen.getByRole("button", { name: cardName })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("keeps send enabled for a job-only start after the operator clears every context chip", async () => {
+    const startSession = vi.fn().mockResolvedValue({ ...DRAFT_SESSION, status: "running", runId: "run-draft" });
+    storeMock.useAgentSessionStore.setState({ sessions: [DRAFT_SESSION], startSession });
+
+    renderPage("/sessions/sess_draft");
+
+    const planCard = starterSuggestionsForKind("meta_orchestration").find((card) => card.id === "meta-plan")!;
+    await userEvent.click(
+      screen.getByRole("button", { name: new RegExp(planCard.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") }),
+    );
+
+    // Drop the auto-attached startup brief. The selected job is then the only
+    // thing the message carries, and it is a complete message on its own —
+    // the server composes its instruction into the job band.
+    await userEvent.click(screen.getByRole("button", { name: /remove/i }));
+
+    const submit = screen.getByTestId("agent-session-composer-submit");
+    expect(submit).toBeEnabled();
+
+    await userEvent.click(submit);
+
+    await waitFor(() => {
+      expect(startSession).toHaveBeenCalledWith({
+        sessionId: "sess_draft",
+        message: "",
+        starterJobId: planCard.jobId,
       });
     });
   });

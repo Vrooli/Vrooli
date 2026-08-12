@@ -59,6 +59,7 @@ const (
 	// separate outcome from mutation_list so it cannot be accidentally applied
 	// as an empty change set.
 	ProposalNoChangeRecommendation ProposalKind = "no_change_recommendation"
+	ProposalStartTransition        ProposalKind = "start_transition"
 )
 
 // knownProposalKinds is the server-owned catalog of proposal payloads the
@@ -72,6 +73,7 @@ var knownProposalKinds = []ProposalKind{
 	ProposalMutationList,
 	ProposalGoalMigrationDisposition,
 	ProposalNoChangeRecommendation,
+	ProposalStartTransition,
 }
 
 // KnownProposalKinds returns a copy of the persisted proposal-kind catalog.
@@ -101,6 +103,7 @@ const (
 	ArtifactCapture                 ArtifactType = "capture"
 	ArtifactFile                    ArtifactType = "file"
 	ArtifactAgentActivity           ArtifactType = "agent_activity"
+	ArtifactTransitionExecution     ArtifactType = "transition_execution"
 )
 
 type ArtifactAction string
@@ -224,6 +227,14 @@ type ProposalTarget struct {
 	Name string      `json:"name"`
 }
 
+type StartTransitionProposal struct {
+	TransitionKey    string `json:"transition_key"`
+	SubjectRef       string `json:"subject_ref"`
+	ProjectionAction string `json:"projection_action"`
+	ProjectionAgrees bool   `json:"projection_agrees"`
+	Reason           string `json:"reason,omitempty"`
+}
+
 type ProposalDecision struct {
 	Kind                string            `json:"kind"`
 	AcceptedMutationIDs []string          `json:"accepted_mutation_ids,omitempty"`
@@ -275,6 +286,7 @@ type Session struct {
 	CreatedBy      *Attribution    `json:"created_by,omitempty"`
 	Attachments    []Attachment    `json:"attachments,omitempty"`
 	ProposalTarget *ProposalTarget `json:"proposal_target,omitempty"`
+	StarterJob     string          `json:"starter_job,omitempty"`
 }
 
 func (s Session) Validate() error {
@@ -292,6 +304,9 @@ func (s Session) Validate() error {
 	}
 	if strings.TrimSpace(s.SkillID) == "" {
 		return validationError("skill_id is required")
+	}
+	if s.StarterJob != "" && !IsKnownStarterJob(s.StarterJob) {
+		return validationError("starter_job is not declared")
 	}
 	if err := validateRFC3339("created_at", s.CreatedAt); err != nil {
 		return err
@@ -529,7 +544,7 @@ func IsKnownMessageRole(role MessageRole) bool {
 
 func IsKnownProposalKind(kind ProposalKind) bool {
 	switch kind {
-	case ProposalBacklogBatchImport, ProposalOperatingModeDraft, ProposalOperatingModeImplementationPlan, ProposalMutationList, ProposalNoChangeRecommendation, ProposalGoalMigrationDisposition:
+	case ProposalBacklogBatchImport, ProposalOperatingModeDraft, ProposalOperatingModeImplementationPlan, ProposalMutationList, ProposalNoChangeRecommendation, ProposalGoalMigrationDisposition, ProposalStartTransition:
 		return true
 	default:
 		return false
@@ -549,7 +564,7 @@ func IsKnownProposalStatus(status ProposalStatus) bool {
 func IsKnownArtifactType(artifactType ArtifactType) bool {
 	switch artifactType {
 	case ArtifactBacklogItem, ArtifactMilestone, ArtifactOperatingModeProposal,
-		ArtifactOperatingModeDefinition, ArtifactCapture, ArtifactFile, ArtifactAgentActivity:
+		ArtifactOperatingModeDefinition, ArtifactCapture, ArtifactFile, ArtifactAgentActivity, ArtifactTransitionExecution:
 		return true
 	default:
 		return false

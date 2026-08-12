@@ -46,9 +46,10 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 }
 
 type proposalSessionRequest struct {
-	Kind   Kind           `json:"kind"`
-	Title  string         `json:"title"`
-	Target ProposalTarget `json:"target"`
+	Kind       Kind           `json:"kind"`
+	Title      string         `json:"title"`
+	Target     ProposalTarget `json:"target"`
+	StarterJob string         `json:"starter_job_id,omitempty"`
 }
 
 func (h *Handler) CreateProposalSession(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +64,7 @@ func (h *Handler) CreateProposalSession(w http.ResponseWriter, r *http.Request) 
 	if strings.TrimSpace(req.Title) == "" {
 		req.Title = "Proposal for " + req.Target.Name
 	}
-	session, err := h.service.Create(r.Context(), CreateRequest{Kind: req.Kind, Title: req.Title, ProposalTarget: &req.Target})
+	session, err := h.service.Create(r.Context(), CreateRequest{Kind: req.Kind, Title: req.Title, ProposalTarget: &req.Target, StarterJob: req.StarterJob})
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] create proposal session", err)
 		return
@@ -202,8 +203,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	createReq := CreateRequest{
-		Kind:  Kind(req.Kind),
-		Title: req.Title,
+		Kind:       Kind(req.Kind),
+		Title:      req.Title,
+		StarterJob: req.GetStarterJobId(),
 	}
 	session, err := h.service.Create(r.Context(), createReq)
 	if err != nil {
@@ -231,6 +233,7 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		AttachmentIDs:     req.AttachmentIds,
 		ContextRefs:       contextRefsFromProto(req.ContextRefs),
 		AutoContextPolicy: AutoContextPolicy(req.GetAutoContextPolicy()),
+		StarterJob:        req.GetStarterJobId(),
 	})
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] start", err)
@@ -259,6 +262,7 @@ func (h *Handler) PreviewPrompt(w http.ResponseWriter, r *http.Request) {
 		AttachmentIDs:     req.AttachmentIds,
 		ContextRefs:       contextRefsFromProto(req.ContextRefs),
 		AutoContextPolicy: AutoContextPolicy(req.GetAutoContextPolicy()),
+		StarterJob:        req.GetStarterJobId(),
 	})
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] prompt-preview", err)

@@ -10,6 +10,7 @@ import (
 	"backdrop-studio/internal/catalog"
 	"backdrop-studio/internal/imageengine"
 	"backdrop-studio/internal/scaffold"
+	"backdrop-studio/internal/scenes"
 )
 
 type Candidate struct {
@@ -28,6 +29,18 @@ type Job struct {
 	Candidates                         []Candidate
 	SelectedCandidateID, SelectedBy    string
 }
+
+// Render sizes. Scenes are the deliverable, so they render at a size a landing
+// page can actually use; scaffolds are conditioning input for a preprocessor
+// and gain nothing from extra pixels. The previous code rendered everything —
+// procedural output included — at 320x180, which is why no shipped evidence
+// could be judged.
+const (
+	deliveryWidth  = 1600
+	deliveryHeight = 1000
+	scaffoldWidth  = 512
+	scaffoldHeight = 320
+)
 
 type Store struct {
 	mu        sync.RWMutex
@@ -92,14 +105,33 @@ func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, plac
 		if style.Scaffold != nil {
 			conditioner = style.Scaffold.Conditioner
 		}
-		result, err := scaffold.Render(scaffold.Request{Preset: preset, Conditioner: conditioner, ParamsJSON: scaffoldParams(style), Width: 320, Height: 180, Seed: candidateSeed, Regions: regions})
-		if err != nil {
-			return Job{}, err
-		}
 		if s.engine == nil {
 			return Job{}, fmt.Errorf("render: image-tools executor is not configured")
 		}
-		input := result.PNG
+
+		// The procedural lanes ship what this step produces, so they render a
+		// finished scene. The model-backed lanes only need conditioning
+		// geometry, so they render a scaffold. Serving both from the scaffold
+		// generators is what made the procedural lane emit blocked-out shapes.
+		var input []byte
+		var conditioning []byte
+		outW, outH := deliveryWidth, deliveryHeight
+
+		if style.Strategy == "guided" || style.Strategy == "synthesized" {
+			sc, scErr := scaffold.Render(scaffold.Request{Preset: preset, Conditioner: conditioner, ParamsJSON: scaffoldParams(style), Width: scaffoldWidth, Height: scaffoldHeight, Seed: candidateSeed, Regions: regions})
+			if scErr != nil {
+				return Job{}, scErr
+			}
+			conditioning = sc.PNG
+			input = sc.PNG
+		} else {
+			sn, snErr := scenes.Render(scenes.Request{Preset: preset, ParamsJSON: scaffoldParams(style), Width: deliveryWidth, Height: deliveryHeight, Seed: candidateSeed})
+			if snErr != nil {
+				return Job{}, fmt.Errorf("render: scene: %w", snErr)
+			}
+			input = sn.PNG
+			outW, outH = sn.Width, sn.Height
+		}
 		conditioningSubmitted := false
 		prompt := ""
 		if style.Generation != nil {
@@ -112,7 +144,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, plac
 			generated, genErr := s.generator.Generate(ctx, imageengine.GenerationRequest{Prompt: prompt, Negative: generationNegative(style), Role: style.Generation.Role, Profile: style.Generation.Profile, Seed: candidateSeed, Conditioner: conditioner, Conditioning: func() []byte {
 				if style.Strategy == "guided" {
 					conditioningSubmitted = true
-					return result.PNG
+					return conditioning
 				}
 				return nil
 			}()})
@@ -128,7 +160,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, plac
 		if err != nil {
 			return Job{}, fmt.Errorf("render: treatment chain: %w", err)
 		}
-		job.Candidates = append(job.Candidates, Candidate{ID: id(jobID, candidateSeed, i), JobID: jobID, Strategy: style.Strategy, ExecutionPath: job.ExecutionPath, PNG: treated, Width: result.Width, Height: result.Height, Seed: candidateSeed, TreatmentApplied: true, ConditioningSubmitted: conditioningSubmitted, DisclosureRequired: style.Strategy == "guided" || style.Strategy == "synthesized", Prompt: prompt, ProvenanceJSON: fmt.Sprintf(`{"style_id":%q,"strategy":%q,"seed":%d,"treatments":%q,"execution_path":%q}`, style.ID, style.Strategy, candidateSeed, style.Treatments, job.ExecutionPath)})
+		job.Candidates = append(job.Candidates, Candidate{ID: id(jobID, candidateSeed, i), JobID: jobID, Strategy: style.Strategy, ExecutionPath: job.ExecutionPath, PNG: treated, Width: outW, Height: outH, Seed: candidateSeed, TreatmentApplied: true, ConditioningSubmitted: conditioningSubmitted, DisclosureRequired: style.Strategy == "guided" || style.Strategy == "synthesized", Prompt: prompt, ProvenanceJSON: fmt.Sprintf(`{"style_id":%q,"strategy":%q,"seed":%d,"treatments":%q,"execution_path":%q}`, style.ID, style.Strategy, candidateSeed, style.Treatments, job.ExecutionPath)})
 	}
 	s.mu.Lock()
 	s.jobs[jobID] = job
@@ -142,6 +174,7 @@ func scaffoldParams(style catalog.Style) string {
 	}
 	return style.Scaffold.ParamsJSON
 }
+
 func generationNegative(style catalog.Style) string {
 	if style.Generation == nil {
 		return ""
@@ -158,6 +191,7 @@ func (s *Store) Get(id string) (Job, error) {
 	}
 	return copyJob(job), nil
 }
+
 func (s *Store) Select(jobID, candidateID, actor string) (Job, error) {
 	if actor == "" {
 		return Job{}, fmt.Errorf("render: actor is required for selection")
@@ -178,6 +212,7 @@ func (s *Store) Select(jobID, candidateID, actor string) (Job, error) {
 	}
 	return Job{}, fmt.Errorf("render: candidate %q does not belong to job %q", candidateID, jobID)
 }
+
 func (s *Store) Candidate(jobID, candidateID string) (Candidate, error) {
 	job, err := s.Get(jobID)
 	if err != nil {
@@ -201,6 +236,7 @@ func expectedPath(strategy string) string {
 		return "procedural → treatment"
 	}
 }
+
 func contains(xs []string, want string) bool {
 	for _, x := range xs {
 		if x == want {
@@ -209,6 +245,7 @@ func contains(xs []string, want string) bool {
 	}
 	return false
 }
+
 func id(parts ...interface{}) string {
 	h := sha256.New()
 	for _, part := range parts {
@@ -216,6 +253,7 @@ func id(parts ...interface{}) string {
 	}
 	return hex.EncodeToString(h.Sum(nil))[:20]
 }
+
 func copyJob(job *Job) Job {
 	out := *job
 	out.Candidates = make([]Candidate, len(job.Candidates))

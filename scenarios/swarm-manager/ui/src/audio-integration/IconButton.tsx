@@ -2,9 +2,9 @@
  * @vrooliComponentSource react-component-library:IconButton
  * @vrooliComponentVersion 2.0.0
  * @vrooliComponentAdoption b11fce87-57ac-4860-b70f-75c25987167f
- * @vrooliComponentAppliedAt 2026-08-09T14:56:12Z
- * @vrooliComponentSourceSha256 ccccf184e76a94bddee516dc40c34879f87b0b33750aa2ebe0855bb23845bd6b
- * @vrooliComponentDriftHash 04628579373a27c186c2e55d0e4de04c44f8f62aa39e5cc31aae489c491955f8
+ * @vrooliComponentAppliedAt 2026-08-12T02:09:05Z
+ * @vrooliComponentSourceSha256 f73de8840bf838fe9eca29ab657587bd667443b2658ba4296632916b5d72d5a2
+ * @vrooliComponentDriftHash 03f7660b3628cb98830a46305fb34366af8d98c31c1d8e17336ceeb747e513cb
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -46,7 +46,7 @@ export function IconButton({
       {...props}
       aria-label={ariaLabel}
       type={type}
-      title={disableTooltip ? undefined : title ?? ariaLabel}
+      title={disableTooltip ? undefined : (title ?? ariaLabel)}
       size={size}
       density={density}
       shape="square"

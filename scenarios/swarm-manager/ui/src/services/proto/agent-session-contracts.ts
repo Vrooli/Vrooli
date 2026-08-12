@@ -44,7 +44,7 @@ import type {
 import { API_ENDPOINTS } from "../../lib/api-endpoints";
 import { createProtoSchema } from "./shared";
 
-const sessionKinds = new Set<string>(["meta_orchestration", "operating_mode_authoring", "swarm_operations"]);
+const sessionKinds = new Set<string>(["meta_orchestration", "operating_mode_authoring", "swarm_operations", "workflow_authoring"]);
 const sessionStatuses = new Set<string>([
   "draft",
   "starting",
@@ -77,6 +77,7 @@ const artifactTypes = new Set<string>([
   "capture",
   "file",
   "agent_activity",
+  "transition_execution",
 ]);
 const artifactActions = new Set<string>(["proposed", "created", "updated", "deleted", "linked"]);
 const eventTypes = new Set<string>([
@@ -178,6 +179,7 @@ export function mapProtoAgentSession(protoSession: AgentSession): AgentSessionDo
     })) ?? [],
     ...(protoSession.createdBy ? { createdBy: mapProtoAgentSessionAttribution(protoSession.createdBy) } : {}),
     ...(protoSession.proposalTarget ? { proposalTarget: mapProtoProposalTarget(protoSession.proposalTarget) } : {}),
+    ...(protoSession.starterJobId ? { starterJobId: protoSession.starterJobId } : {}),
   };
 }
 

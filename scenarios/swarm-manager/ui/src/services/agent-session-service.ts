@@ -48,6 +48,7 @@ export interface ListAgentSessionsFilters {
 export interface CreateAgentSessionArgs {
   kind: AgentSessionKind;
   title: string;
+  starterJobId?: string;
 }
 
 export interface ContinueAgentSessionArgs {
@@ -56,6 +57,7 @@ export interface ContinueAgentSessionArgs {
   attachmentIds?: string[];
   contextRefs?: AgentSessionContextRef[];
   autoContextPolicy?: "default" | "none";
+  starterJobId?: string;
 }
 
 export interface ApplyAgentSessionProposalResult {
@@ -82,6 +84,7 @@ export interface PreviewSessionPromptArgs {
   attachmentIds?: string[];
   contextRefs?: AgentSessionContextRef[];
   autoContextPolicy?: string;
+  starterJobId?: string;
 }
 
 export interface SessionPromptPreview {
@@ -148,19 +151,21 @@ export function createAgentSessionService(apiClient: IApiClient = defaultApiClie
         attachment_ids: args.attachmentIds ?? [],
         context_refs: (args.contextRefs ?? []).map((ref) => ({ type: ref.type, ref: ref.ref })),
         ...(args.autoContextPolicy ? { auto_context_policy: args.autoContextPolicy } : {}),
+        ...(args.starterJobId ? { starter_job_id: args.starterJobId } : {}),
       });
       const parsed = parseProtoResponse(
         previewAgentSessionPromptResponseSchema,
         data,
         "agent session prompt preview",
       );
-      return { prompt: parsed.prompt ?? "", initial: Boolean(parsed.initial) };
+      return { prompt: parsed.prompt ?? "", initial: parsed.initial };
     },
 
     async create(args: CreateAgentSessionArgs): Promise<AgentSession> {
       const data = await apiClient.post<unknown>(API_ENDPOINTS.agentSessions, {
         kind: args.kind,
         title: args.title,
+        ...(args.starterJobId ? { starter_job_id: args.starterJobId } : {}),
       });
       const parsed = parseProtoResponse(createAgentSessionResponseSchema, data, "agent session create");
       return mapProtoAgentSession(requireProtoField(parsed.session, "agent session"));
@@ -176,6 +181,7 @@ export function createAgentSessionService(apiClient: IApiClient = defaultApiClie
       if (args.autoContextPolicy) {
         body.auto_context_policy = args.autoContextPolicy;
       }
+      if (args.starterJobId) body.starter_job_id = args.starterJobId;
       const data = await apiClient.post<unknown>(API_ENDPOINTS.agentSessionStart(args.sessionId), body);
       const parsed = parseProtoResponse(startAgentSessionResponseSchema, data, "agent session start");
       return mapProtoAgentSession(requireProtoField(parsed.session, "agent session"));

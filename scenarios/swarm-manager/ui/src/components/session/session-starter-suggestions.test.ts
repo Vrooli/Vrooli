@@ -30,6 +30,7 @@ describe("label and prompt are two different jobs", () => {
   it("gives every card both a label and a prompt, and never reuses one as the other", () => {
     for (const { kind, card } of allCards()) {
       expect(card.label.trim(), `${kind}/${card.id} label`).not.toBe("");
+      expect(card.jobId, `${kind}/${card.id} job id`).toBe(card.id);
       expect(card.prompt.trim(), `${kind}/${card.id} prompt`).not.toBe("");
       expect(card.prompt.trim(), `${kind}/${card.id} reuses its label as the prompt`).not.toBe(card.label.trim());
     }

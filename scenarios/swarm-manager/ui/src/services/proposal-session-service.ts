@@ -45,6 +45,7 @@ export interface ProposalSession {
 export interface CreateProposalSessionArgs {
   title: string;
   target: { type: ProposalSessionTargetType; ref: string; name: string };
+  starterJobId?: string;
 }
 
 export interface IProposalSessionService {
@@ -65,7 +66,12 @@ export function createProposalSessionService(
       return data.sessions ?? [];
     },
     create(args) {
-      return apiClient.post<ProposalSession>(API_ENDPOINTS.proposalSessions, { kind: "swarm_operations", ...args });
+      return apiClient.post<ProposalSession>(API_ENDPOINTS.proposalSessions, {
+        kind: "swarm_operations",
+        title: args.title,
+        target: args.target,
+        ...(args.starterJobId ? { starter_job_id: args.starterJobId } : {}),
+      });
     },
     async decide(sessionId, proposalId, acceptedMutationIds, note) {
       await decisions.decide({
