@@ -2,7 +2,7 @@
 
 
 failures = vrooli.program_runtime.programs.mine(include_operator=False)
-print({"top_failure_shapes": failures.group_by("failureShape")})
+print({"top_failure_shapes": failures.group_by("shape")})
 
-# Live output (2026-08-07):
-# {'top_failure_shapes': {None: 1}}
+# Live output (2026-08-12):
+# {'top_failure_shapes': {'modulenotfounderror': 1, 'runtimeerror': 1}}

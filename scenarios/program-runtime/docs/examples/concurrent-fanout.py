@@ -16,5 +16,5 @@ print(
     }
 )
 
-# Live output (2026-08-07):
-# {'elapsed_seconds': 0.147, 'result_counts': [1, 1, 1]}
+# Live output (2026-08-12):
+# {'elapsed_seconds': 0.258, 'result_counts': [1, 1, 2]}

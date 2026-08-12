@@ -66,6 +66,29 @@ func TestBindingConditionReportsDormantAndNotHealthy(t *testing.T) { // [REQ:PRT
 	response, err := r.Conditions(context.Background(), "", "", time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT, response.Conditions[0].Status)
+	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, response.Conditions[0].Serving.Family.Status)
+	require.Equal(t, "serving has no invocations in window", response.Conditions[0].Serving.Family.Reason)
 	require.Contains(t, response.Conditions[0].Verdict, "exercise.invocations=0")
 	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, response.Conditions[0].Freshness.Family.Status)
+}
+
+func TestBindingConditionPromotesOnlySustainedDegradation(t *testing.T) { // [REQ:PRT-P1-008]
+	now := time.Now().UTC()
+	binding := &bindingsv1.Binding{Id: "demo/read/flaky", Scenario: "demo"}
+	current := []Invocation{{BindingID: binding.Id, Outcome: "failed", OccurredAt: now.Add(-time.Hour)}}
+	sustained := []Invocation{
+		{BindingID: binding.Id, Outcome: "failed", OccurredAt: now.Add(-8 * 24 * time.Hour)},
+		{BindingID: binding.Id, Outcome: "failed", OccurredAt: now.Add(-time.Hour)},
+	}
+	condition := conditionForWithSustained(binding, current, sustained, time.Time{})
+	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED, condition.Status)
+	require.True(t, condition.GetSustainedDegradation())
+	require.Contains(t, condition.GetSustainedDegradationReason(), "sustained window")
+
+	condition = conditionForWithSustained(binding, current, current, time.Time{})
+	require.False(t, condition.GetSustainedDegradation())
+
+	cleared := append(sustained, Invocation{BindingID: binding.Id, Outcome: "success", OccurredAt: now})
+	condition = conditionForWithSustained(binding, current, cleared, time.Time{})
+	require.False(t, condition.GetSustainedDegradation())
 }

@@ -10,7 +10,31 @@ import (
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 )
 
-const defaultConditionWindow = 24 * time.Hour
+// Load-bearing condition constants. The exercise window is one day because
+// the Phase 8 ledger calibration observed the operational sweep and normal
+// reads at a daily-or-faster cadence (the slowest legitimate caller must be
+// re-measured if it is ever reported dormant). Seven days exceeds ordinary
+// restart and rollout windows, so a sustained flag means degradation survived
+// more than one normal recovery opportunity.
+const (
+	conditionSustainedWindow = 7 * 24 * time.Hour
+	conditionExerciseWindow  = 24 * time.Hour
+)
+
+type conditionBand struct {
+	failureRate     float64
+	degradationRate float64
+}
+
+// Calibrated 2026-08-12 from 639 instrumented bindings after the operator
+// sweep: failure-rate p50=0.50, p95=1.00, max=1.00; refusal/degradation-rate
+// p95=0.00, max=1.00. A leg is degraded only when its observed bad-outcome
+// majority exceeds 0.50; a refusal majority uses the same conservative band.
+// Latency p95 was 13,266ms at the distribution p95 and is reported as a
+// measure, not used as a health verdict until a latency SLO is authored.
+var conditionBands = conditionBand{failureRate: 0.50, degradationRate: 0.50}
+
+const defaultConditionWindow = conditionExerciseWindow
 
 func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, window time.Duration) (*bindingsv1.GetBindingConditionResponse, error) {
 	r = r.active()
@@ -20,7 +44,12 @@ func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, w
 	if r.recorder == nil {
 		return nil, fmt.Errorf("binding invocation ledger is unavailable")
 	}
-	rows, err := r.recorder.ListInvocations(ctx, time.Now().UTC().Add(-window), bindingID, scenario)
+	now := time.Now().UTC()
+	rows, err := r.recorder.ListInvocations(ctx, now.Add(-window), bindingID, scenario)
+	if err != nil {
+		return nil, err
+	}
+	sustainedRows, err := r.recorder.ListInvocations(ctx, now.Add(-conditionSustainedWindow), bindingID, scenario)
 	if err != nil {
 		return nil, err
 	}
@@ -28,19 +57,40 @@ func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, w
 	for _, row := range rows {
 		byBinding[row.BindingID] = append(byBinding[row.BindingID], row)
 	}
+	sustainedByBinding := make(map[string][]Invocation)
+	for _, row := range sustainedRows {
+		sustainedByBinding[row.BindingID] = append(sustainedByBinding[row.BindingID], row)
+	}
 	response := &bindingsv1.GetBindingConditionResponse{WindowSeconds: int64(window / time.Second)}
 	for _, binding := range r.bindings {
 		if bindingID != "" && binding.GetId() != bindingID || scenario != "" && binding.GetScenario() != scenario {
 			continue
 		}
 		response.TotalBindings++
-		condition := conditionFor(binding, byBinding[binding.GetId()], r.artifactMtime)
+		condition := conditionForWithSustained(binding, byBinding[binding.GetId()], sustainedByBinding[binding.GetId()], r.artifactMtime)
 		if len(byBinding[binding.GetId()]) > 0 {
 			response.InstrumentedBindings++
 		}
 		response.Conditions = append(response.Conditions, condition)
 	}
 	return response, nil
+}
+
+// SustainedDegradedCount is the measure-facing projection of the same
+// condition logic returned by GetBindingCondition. Keeping it on Registry
+// prevents the measure from inventing a second health calculation.
+func (r *Registry) SustainedDegradedCount(ctx context.Context) int {
+	response, err := r.Conditions(ctx, "", "", defaultConditionWindow)
+	if err != nil {
+		return 0
+	}
+	count := 0
+	for _, condition := range response.GetConditions() {
+		if condition.GetSustainedDegradation() {
+			count++
+		}
+	}
+	return count
 }
 
 func (r *Registry) InvocationMeasures(ctx context.Context) (total, failureRatePercent, dormant int) {
@@ -76,8 +126,16 @@ func conditionFor(binding interface {
 	GetScenario() string
 }, rows []Invocation, artifactMtime time.Time,
 ) *bindingsv1.BindingCondition {
+	return conditionForWithSustained(binding, rows, rows, artifactMtime)
+}
+
+func conditionForWithSustained(binding interface {
+	GetId() string
+	GetScenario() string
+}, rows, sustainedRows []Invocation, artifactMtime time.Time,
+) *bindingsv1.BindingCondition {
 	condition := &bindingsv1.BindingCondition{BindingId: binding.GetId(), Scenario: binding.GetScenario()}
-	serving := &bindingsv1.ServingCondition{Family: &bindingsv1.ConditionFamily{Status: bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY}}
+	serving := &bindingsv1.ServingCondition{Family: &bindingsv1.ConditionFamily{Status: bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, Reason: "serving has no invocations in window"}}
 	exercise := &bindingsv1.ExerciseCondition{Family: &bindingsv1.ConditionFamily{Status: bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT, Reason: "exercise.invocations=0"}}
 	callers := map[string]struct{}{}
 	latencies := make([]int64, 0, len(rows))
@@ -111,13 +169,17 @@ func conditionFor(binding interface {
 		serving.DegradationRate = float64(refused) / float64(len(rows))
 		serving.LatencyP50Ms = nearestRank(latencies, 0.50)
 		serving.LatencyP95Ms = nearestRank(latencies, 0.95)
-		if failed > 0 {
+		if serving.FailureRate > conditionBands.failureRate {
 			serving.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED
 			serving.Family.Reason = fmt.Sprintf("serving.failure_rate=%.4f", serving.FailureRate)
-		} else if refused > 0 {
+		} else if serving.DegradationRate > conditionBands.degradationRate {
 			serving.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED
 			serving.Family.Reason = fmt.Sprintf("serving.degradation_rate=%.4f", serving.DegradationRate)
 		}
+	}
+	if serving.Family.Status == bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED && sustainedDegradation(sustainedRows) {
+		condition.SustainedDegradation = true
+		condition.SustainedDegradationReason = fmt.Sprintf("serving degraded across the %s sustained window", conditionSustainedWindow)
 	}
 	exercise.DistinctCallers = int64(len(callers))
 	if !latest.IsZero() {
@@ -146,6 +208,29 @@ func conditionFor(binding interface {
 		condition.Verdict = "HEALTHY"
 	}
 	return condition
+}
+
+// sustainedDegradation treats the invocation ledger as an observation stream:
+// all observations in the sustained window must be bad outcomes and the
+// stream must span the full window. A later success clears the promotion flag
+// because the condition was not continuously degraded.
+func sustainedDegradation(rows []Invocation) bool {
+	if len(rows) == 0 {
+		return false
+	}
+	first, last := rows[0].OccurredAt, rows[0].OccurredAt
+	for _, row := range rows {
+		if row.OccurredAt.Before(first) {
+			first = row.OccurredAt
+		}
+		if row.OccurredAt.After(last) {
+			last = row.OccurredAt
+		}
+		if row.Outcome != "failed" && row.Outcome != "refused" {
+			return false
+		}
+	}
+	return !first.IsZero() && last.Sub(first) >= conditionSustainedWindow
 }
 
 func nearestRank(values []int64, percentile float64) int64 {

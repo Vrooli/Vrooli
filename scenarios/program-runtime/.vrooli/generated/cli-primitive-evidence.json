@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "ccc6e50dac266d155bb3e9ab535c1657b5c0f3c7bb51900a5bfe6d30acbd70ef",
+  "manifest_hash": "3952bd7c8ca93c35fb08f67ed3ff88844cde2b8c15143a7419fd892edfd598f2",
   "commands": [
     {
       "path": "bindings act",
@@ -51,6 +51,14 @@
       "group": "bindings",
       "command": "resolve-intent",
       "binding": "BindingRegistryService.ResolveIntent",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings sweep",
+      "group": "bindings",
+      "command": "sweep",
+      "binding": "BindingRegistryService.SweepBindings",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

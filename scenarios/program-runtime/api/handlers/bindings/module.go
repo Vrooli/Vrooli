@@ -6,12 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/spacedoc"
+	"github.com/vrooli/repo-contract-go"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	bindingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings/bindings_v1connect"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
@@ -26,7 +30,8 @@ import (
 
 type service struct {
 	bindingsconnect.UnimplementedBindingRegistryServiceHandler
-	registry *bindings.Registry
+	registry     *bindings.Registry
+	actSpacePath string
 }
 
 type conditionService struct {
@@ -87,6 +92,59 @@ func IntentBridge(registry *bindings.Registry) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(payload)
 	})
+}
+
+// DescribeBridge is the private kernel seam for live binding contracts. The
+// registry remains the only owner of descriptor resolution and validation;
+// this handler only authenticates the live session and marshals its response.
+func DescribeBridge(registry *bindings.Registry, manager *sessions.Manager) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var request struct {
+			SessionID string `json:"session_id"`
+			Binding   string `json:"binding"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("decode binding description request: %v", err))
+			return
+		}
+		if _, err := manager.Get(r.Context(), request.SessionID); err != nil {
+			writeBridgeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		id, err := resolveDescriptionID(registry, request.Binding)
+		if err != nil {
+			writeBridgeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		response, err := registry.Describe(id)
+		if err != nil {
+			writeBridgeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			return
+		}
+	})
+}
+
+func resolveDescriptionID(registry *bindings.Registry, reference string) (string, error) {
+	reference = strings.TrimSpace(reference)
+	if strings.HasPrefix(reference, "vrooli.") {
+		reference = strings.TrimPrefix(reference, "vrooli.")
+	}
+	pathReference := strings.ReplaceAll(reference, ".", "/")
+	for _, candidate := range registry.List("", "") {
+		id := candidate.GetId()
+		if reference == id || pathReference == id || strings.ReplaceAll(pathReference, "-", "_") == strings.ReplaceAll(id, "-", "_") {
+			return id, nil
+		}
+	}
+	return "", fmt.Errorf("binding %q is not governed; use a binding id or qualified path", reference)
 }
 
 // Bridge is a private sidecar seam. It is not part of the public proto/CLI
@@ -227,11 +285,13 @@ func writeBridgeError(w http.ResponseWriter, status int, message string) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
-func (s *service) ListBindings(_ context.Context, req *connect.Request[bindingsv1.ListBindingsRequest]) (*connect.Response[bindingsv1.ListBindingsResponse], error) {
+func (s *service) ListBindings(ctx context.Context, req *connect.Request[bindingsv1.ListBindingsRequest]) (*connect.Response[bindingsv1.ListBindingsResponse], error) {
 	if s.registry == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, context.Canceled)
 	}
-	return connect.NewResponse(&bindingsv1.ListBindingsResponse{Bindings: s.registry.List(req.Msg.GetScenario(), req.Msg.GetGroup())}), nil
+	bindings := s.registry.ListContext(ctx, req.Msg.GetScenario(), req.Msg.GetGroup(), req.Msg.GetReachableOnly())
+	checkedAt := s.registry.ReachabilityCheckedAt(ctx, req.Msg.GetScenario())
+	return connect.NewResponse(&bindingsv1.ListBindingsResponse{Bindings: bindings, ReachabilityCheckedAt: checkedAt.UTC().Format(time.RFC3339Nano)}), nil
 }
 
 func (s *service) ListUnbound(_ context.Context, req *connect.Request[bindingsv1.ListUnboundRequest]) (*connect.Response[bindingsv1.ListUnboundResponse], error) {
@@ -239,6 +299,13 @@ func (s *service) ListUnbound(_ context.Context, req *connect.Request[bindingsv1
 		return nil, connect.NewError(connect.CodeUnavailable, context.Canceled)
 	}
 	return connect.NewResponse(&bindingsv1.ListUnboundResponse{Capabilities: s.registry.Unbound(req.Msg.GetScenario())}), nil
+}
+
+func (s *service) SweepBindings(ctx context.Context, req *connect.Request[bindingsv1.SweepBindingsRequest]) (*connect.Response[bindingsv1.SweepBindingsResponse], error) {
+	if s.registry == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, context.Canceled)
+	}
+	return connect.NewResponse(s.registry.Sweep(ctx, req.Msg.GetScenario(), req.Msg.GetEffect(), req.Msg.GetDryRun())), nil
 }
 
 func (s *service) ResolveIntent(ctx context.Context, req *connect.Request[bindingsv1.ResolveIntentRequest]) (*connect.Response[bindingsv1.ResolveIntentResponse], error) {
@@ -318,9 +385,38 @@ func (s *service) ResolveActCells(ctx context.Context, req *connect.Request[bind
 	if s.registry == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, context.Canceled)
 	}
-	verdicts := s.registry.ResolveActCells(ctx, req.Msg.GetCells())
+	cells := req.Msg.GetCells()
+	if len(cells) == 0 {
+		definition, err := s.loadActSpace()
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
+		verdicts := actspace.Audit(ctx, s.registry, definition)
+		return connect.NewResponse(&bindingsv1.ResolveActCellsResponse{Cells: verdicts, AuditedCells: int32(len(verdicts)), TotalCells: int32(len(verdicts)), DenominatorConfidence: string(actspace.Confidence(verdicts))}), nil
+	}
+	verdicts := s.registry.ResolveActCells(ctx, cells)
 	confidence := string(actspace.Confidence(verdicts))
-	return connect.NewResponse(&bindingsv1.ResolveActCellsResponse{Cells: verdicts, AuditedCells: int32(len(verdicts)), TotalCells: int32(len(req.Msg.GetCells())), DenominatorConfidence: confidence}), nil
+	return connect.NewResponse(&bindingsv1.ResolveActCellsResponse{Cells: verdicts, AuditedCells: int32(len(verdicts)), TotalCells: int32(len(cells)), DenominatorConfidence: confidence}), nil
+}
+
+func (s *service) loadActSpace() (*spacedoc.SpaceDefinition, error) {
+	path := s.actSpacePath
+	if path == "" {
+		root, err := repocontract.FindRepoRootFromEnvOrCWD()
+		if err != nil {
+			return nil, fmt.Errorf("resolve repository root for Act denominator: %w", err)
+		}
+		path = filepath.Join(root, "scenarios", "program-runtime", "docs", "spaces", "act-space.md")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("Act denominator %q unavailable: %w", path, err)
+	}
+	definition, err := spacedoc.Parse(spacedoc.ProjectionAct, data)
+	if err != nil {
+		return nil, fmt.Errorf("parse Act denominator %q: %w", path, err)
+	}
+	return definition, nil
 }
 
 func (s *service) DoctorBindings(ctx context.Context, req *connect.Request[bindingsv1.DoctorBindingsRequest]) (*connect.Response[bindingsv1.DoctorBindingsResponse], error) {

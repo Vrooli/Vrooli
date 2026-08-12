@@ -66,9 +66,21 @@ class Handle:
         return Handle((row for row in self._rows if predicate(row)), self.label)
 
     def group_by(self, key: str) -> dict[Any, int]:
+        if not self._rows:
+            return {}
         counts: dict[Any, int] = {}
         for row in self._rows:
-            value = row.get(key) if isinstance(row, dict) else getattr(row, key)
+            if isinstance(row, dict):
+                if key not in row:
+                    available = ", ".join(sorted(str(name) for name in row)) or "<none>"
+                    raise KeyError(f"group_by key {key!r} is missing; available keys: {available}")
+                value = row[key]
+            else:
+                try:
+                    value = getattr(row, key)
+                except AttributeError as exc:
+                    available = ", ".join(sorted(vars(row))) if hasattr(row, "__dict__") else "<unknown>"
+                    raise KeyError(f"group_by key {key!r} is missing; available keys: {available}") from exc
             counts[value] = counts.get(value, 0) + 1
         return counts
 
@@ -83,27 +95,24 @@ class Handle:
 
 
 class Namespace:
-    def __init__(self, bindings: dict[str, Any] | None = None, invocations: list[dict[str, str]] | None = None, session_id: str = "", agent_bridge_url: str = "", bridge_url: str = "", discovery_url: str = "") -> None:
+    def __init__(self, bindings: dict[str, Any] | None = None, invocations: list[dict[str, str]] | None = None, session_id: str = "", agent_bridge_url: str = "", bridge_url: str = "", discovery_url: str = "", reachability: dict[str, Any] | None = None) -> None:
         self._bindings = _normalize_bindings(bindings or {})
         self._invocations = invocations if invocations is not None else []
-        self._flat: dict[str, dict[str, Any]] = {}
-        self._collisions: dict[str, list[str]] = {}
-        owners: dict[str, list[Any]] = {}
+        self._session_id = session_id
+        self._bridge_url = bridge_url.strip()
+        self._bare_groups: dict[str, list[str]] = {}
         for scenario, groups in self._bindings.items():
             if not _is_scenario_map(groups):
                 continue
             for group, commands in groups.items():
-                for command, value in commands.items():
-                    owners.setdefault(f"{group}.{command}", []).append((scenario, group, value))
-        for key, values in owners.items():
-            if len(values) == 1:
-                scenario, group, value = values[0]
-                self._flat.setdefault(group, {})[key.rsplit(".", 1)[1]] = value
-            else:
-                self._collisions[key] = sorted({scenario for scenario, _, _ in values})
+                paths = self._bare_groups.setdefault(group, [])
+                paths.extend(f"vrooli.{scenario}.{group}.{command}" for command in commands)
+        for paths in self._bare_groups.values():
+            paths.sort()
         self._agent = _DelegationSurface(session_id, agent_bridge_url, self._invocations) if agent_bridge_url else _DeferredSurface("agent-manager delegation")
         self._inference = _InferenceSurface(session_id, bridge_url, self._invocations) if bridge_url else _DeferredSurface("ai-gateway inference")
         self._discovery_url = discovery_url.strip()
+        self._reachability = _normalize_bindings(reachability or {})
 
     @property
     def ai(self) -> "_DeferredSurface":
@@ -113,22 +122,57 @@ class Namespace:
     def agent(self) -> "_DeferredSurface":
         return self._agent
 
+    def describe(self, binding: str) -> Handle:
+        """Read a binding contract through the registry's live descriptor path."""
+        if not self._bridge_url:
+            raise RuntimeError("program-runtime binding bridge is unavailable")
+        endpoint = self._bridge_url.rsplit("/", 1)[0] + "/describe"
+        request = urllib.request.Request(
+            endpoint,
+            data=json.dumps({"session_id": self._session_id, "binding": binding}).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                payload = json.loads(response.read().decode())
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode(errors="replace")
+            try:
+                detail = json.loads(detail).get("error", detail)
+            except json.JSONDecodeError:
+                pass
+            raise RuntimeError(str(detail)) from exc
+        except (urllib.error.URLError, TimeoutError) as exc:
+            raise RuntimeError(f"binding description bridge unavailable: {exc}") from exc
+        rows = payload.get("arguments", []) if isinstance(payload, dict) else []
+        return Handle(rows, f"vrooli.describe({binding})")
+
+    def reachable(self) -> Handle:
+        rows = []
+        for scenario, status in sorted(self._reachability.items()):
+            rows.append({
+                "scenario": scenario,
+                "reachable": bool(status.get("reachable", True)) if isinstance(status, dict) else True,
+                "reason": status.get("reason", "") if isinstance(status, dict) else "",
+            })
+        return Handle(rows, "vrooli.reachable")
+
     def __getattr__(self, group: str) -> Any:
         if group in self._bindings:
             value = self._bindings[group]
             if _is_scenario_map(value):
                 return _NamespaceScenario(group, value, self._invocations)
             return _NamespaceGroup(group, value, self._invocations)
-        collision = next((owners for path, owners in self._collisions.items() if path.split(".", 1)[0] == group), None)
-        if collision is not None:
-            command = next(path.split(".", 1)[1] for path in self._collisions if path.split(".", 1)[0] == group)
-            alternatives = ", ".join(f"vrooli.{owner}.{group}.{command}" for owner in collision)
+        if group in self._bare_groups:
+            alternatives = ", ".join(self._bare_groups[group][:4])
+            omitted = len(self._bare_groups[group]) - 4
+            if omitted > 0:
+                alternatives += f", (+{omitted} more)"
             raise AttributeError(
-                f"ambiguous governed binding group {group!r}; owning scenarios: {', '.join(collision)}; "
-                f"use qualified alternatives: {alternatives}"
+                f"bare governed binding group {group!r} has no unqualified namespace; "
+                f"owning scenario path required, use qualified alternatives: {alternatives}"
             )
-        if group in self._flat:
-            return _NamespaceGroup(group, self._flat[group], self._invocations)
         raise AttributeError(f"no governed binding scenario or group {group!r}")
 
     def discover(self, intent: str) -> Handle:
@@ -181,12 +225,12 @@ class Namespace:
             raise TypeError("vrooli.gather accepts zero-argument callables")
         if max_workers <= 0:
             raise ValueError("vrooli.gather max_workers must be positive")
-        if len(calls) > max_workers:
-            raise ValueError(
-                f"vrooli.gather concurrency ceiling exceeded: requested {len(calls)}, maximum {max_workers}"
-            )
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            return list(executor.map(lambda call: call(), calls))
+            results: list[Handle] = []
+            for offset in range(0, len(calls), max_workers):
+                batch = calls[offset : offset + max_workers]
+                results.extend(executor.map(lambda call: call(), batch))
+            return results
 
     def callable_namespace(self) -> list[str]:
         paths: list[str] = []
@@ -351,12 +395,14 @@ class _NamespaceGroup:
 class BridgeBinding:
     """A callable that can only reach the Go governance bridge."""
 
-    def __init__(self, binding_id: str, effect: str, session_id: str, bridge_url: str, invocations: list[dict[str, str]]) -> None:
+    def __init__(self, binding_id: str, effect: str, session_id: str, bridge_url: str, invocations: list[dict[str, str]], reachable: bool = True, reachability_reason: str = "") -> None:
         self.binding_id = binding_id
         self.effect = effect
         self.session_id = session_id
         self.bridge_url = bridge_url
         self.invocations = invocations
+        self.reachable = reachable
+        self.reachability_reason = reachability_reason
         self._records_invocation = True
 
     def __call__(self, *args: Any, **kwargs: Any) -> Handle:
@@ -365,6 +411,8 @@ class BridgeBinding:
         confirmed = bool(kwargs.pop("_confirm", False))
         if not self.bridge_url:
             raise RuntimeError("program-runtime binding bridge is unavailable")
+        if not self.reachable:
+            raise RuntimeError(f"binding {self.binding_id} is unreachable: {self.reachability_reason}")
         return self._invoke(kwargs, confirmed)
 
     def _invoke(self, kwargs: dict[str, Any], confirmed: bool) -> Handle:
@@ -398,15 +446,21 @@ class SessionKernel:
             bindings = {}
         if isinstance(bindings, list):
             mapped: dict[str, dict[str, dict[str, Any]]] = {}
+            reachability: dict[str, dict[str, Any]] = {}
             for spec in bindings:
                 scenario = _segment(spec.get("scenario", ""))
                 group = _segment(spec["group"])
                 command = _segment(spec["command"])
-                mapped.setdefault(scenario, {}).setdefault(group, {})[command] = BridgeBinding(spec["id"], spec.get("effect", ""), session_id, bridge_url, self.invocations)
+                reachable = bool(spec.get("reachable", True))
+                reason = spec.get("reachability_reason", "")
+                reachability[scenario] = {"reachable": reachable, "reason": reason}
+                mapped.setdefault(scenario, {}).setdefault(group, {})[command] = BridgeBinding(spec["id"], spec.get("effect", ""), session_id, bridge_url, self.invocations, reachable, reason)
             bindings = mapped
+        else:
+            reachability = {scenario: {"reachable": True, "reason": ""} for scenario in bindings}
         self.globals: dict[str, Any] = {
             "__name__": "program_runtime_session",
-            "vrooli": Namespace(bindings, self.invocations, session_id, agent_bridge_url, bridge_url, discovery_url),
+            "vrooli": Namespace(bindings, self.invocations, session_id, agent_bridge_url, bridge_url, discovery_url, reachability),
         }
 
     def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "") -> dict[str, Any]:

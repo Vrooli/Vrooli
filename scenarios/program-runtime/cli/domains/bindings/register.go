@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -24,6 +25,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
 		"BindingRegistryService.ListBindings":                                            cliapp.ProtoList(h.list, h.listReport),
 		"BindingRegistryService.ListUnbound":                                             cliapp.ProtoList(h.unbound, h.unboundReport),
+		"BindingRegistryService.SweepBindings":                                           cliapp.ProtoList(h.sweep, h.sweepReport),
 		"BindingRegistryService.ResolveActCells":                                         cliapp.ProtoList(h.act, h.actReport),
 		"BindingRegistryService.DoctorBindings":                                          cliapp.ProtoListEmitUnpopulatedJSON(h.doctor, h.doctorReport),
 		"BindingRegistryService.DescribeBinding":                                         cliapp.ProtoList(h.describe, h.describeReport),
@@ -75,14 +77,22 @@ func (h *handlers) condition(ctx cliapp.OperationContext) (*bindingsv1.GetBindin
 
 func (h *handlers) conditionReport(_ cliapp.OperationContext, r *bindingsv1.GetBindingConditionResponse) cliapp.ListReport {
 	items := make([]string, 0, len(r.GetConditions()))
+	verdicts := map[string]int{}
 	for _, c := range r.GetConditions() {
-		items = append(items, fmt.Sprintf("%s — %s (%s; p50=%dms p95=%dms invocations=%d)", c.GetBindingId(), c.GetStatus().String(), c.GetVerdict(), c.GetServing().GetLatencyP50Ms(), c.GetServing().GetLatencyP95Ms(), c.GetExercise().GetInvocations()))
+		status := c.GetStatus().String()
+		verdicts[status]++
+		sustained := ""
+		if c.GetSustainedDegradation() {
+			sustained = "; sustained=" + c.GetSustainedDegradationReason()
+		}
+		items = append(items, fmt.Sprintf("%s — %s (%s; p50=%dms p95=%dms invocations=%d%s)", c.GetBindingId(), status, c.GetVerdict(), c.GetServing().GetLatencyP50Ms(), c.GetServing().GetLatencyP95Ms(), c.GetExercise().GetInvocations(), sustained))
 	}
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Binding conditions: %d; instrumented: %d; window: %ds.", len(items), r.GetInstrumentedBindings(), r.GetWindowSeconds())}, ResultsHeading: "Conditions", Results: items}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Binding conditions: verdicts healthy=%d degraded=%d dormant=%d uninstrumented=%d; instrumented=%d/%d; window: %ds.", verdicts["CONDITION_STATUS_HEALTHY"], verdicts["CONDITION_STATUS_DEGRADED"], verdicts["CONDITION_STATUS_DORMANT"], verdicts["CONDITION_STATUS_UNINSTRUMENTED"], r.GetInstrumentedBindings(), r.GetTotalBindings(), r.GetWindowSeconds())}, ResultsHeading: "Conditions", Results: items}
 }
 
 func (h *handlers) list(ctx cliapp.OperationContext) (*bindingsv1.ListBindingsResponse, error) {
-	r, err := h.client.ListBindings(context.Background(), connect.NewRequest(&bindingsv1.ListBindingsRequest{Scenario: ctx.Flag("scenario"), Group: ctx.Flag("group")}))
+	reachableOnly := ctx.BoolFlag("reachable-only")
+	r, err := h.client.ListBindings(context.Background(), connect.NewRequest(&bindingsv1.ListBindingsRequest{Scenario: ctx.Flag("scenario"), Group: ctx.Flag("group"), ReachableOnly: reachableOnly}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("list bindings", err, nil)
 	}
@@ -92,9 +102,9 @@ func (h *handlers) list(ctx cliapp.OperationContext) (*bindingsv1.ListBindingsRe
 func (h *handlers) listReport(_ cliapp.OperationContext, r *bindingsv1.ListBindingsResponse) cliapp.ListReport {
 	items := make([]string, 0, len(r.GetBindings()))
 	for _, b := range r.GetBindings() {
-		items = append(items, fmt.Sprintf("%s — %s.%s [%s]", b.GetId(), b.GetService(), b.GetMethod(), b.GetEffect()))
+		items = append(items, fmt.Sprintf("%s — %s.%s [%s; reachable=%t]", b.GetId(), b.GetService(), b.GetMethod(), b.GetEffect(), b.GetReachable()))
 	}
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d governed binding(s).", len(items))}, ResultsHeading: "Bindings", Results: items}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d governed binding(s); reachability checked at %s.", len(items), r.GetReachabilityCheckedAt())}, ResultsHeading: "Bindings", Results: items}
 }
 
 func (h *handlers) unbound(ctx cliapp.OperationContext) (*bindingsv1.ListUnboundResponse, error) {
@@ -113,6 +123,30 @@ func (h *handlers) unboundReport(_ cliapp.OperationContext, r *bindingsv1.ListUn
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d unbound capability record(s).", len(items))}, ResultsHeading: "Unbound", Results: items}
 }
 
+func (h *handlers) sweep(ctx cliapp.OperationContext) (*bindingsv1.SweepBindingsResponse, error) {
+	dryRun := !ctx.BoolFlag("execute")
+	if ctx.BoolFlag("dry-run") {
+		dryRun = true
+	}
+	r, err := h.client.SweepBindings(context.Background(), connect.NewRequest(&bindingsv1.SweepBindingsRequest{Scenario: ctx.Flag("scenario"), Effect: ctx.Flag("effect"), DryRun: dryRun}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("sweep bindings", err, nil)
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) sweepReport(_ cliapp.OperationContext, r *bindingsv1.SweepBindingsResponse) cliapp.ListReport {
+	items := make([]string, 0, len(r.GetResults()))
+	for _, result := range r.GetResults() {
+		if result.GetSkippedReason() != "" {
+			items = append(items, fmt.Sprintf("%s — skipped: %s", result.GetBindingId(), result.GetSkippedReason()))
+		} else if result.GetAttempted() {
+			items = append(items, fmt.Sprintf("%s — %s (%dms)", result.GetBindingId(), result.GetOutcome(), result.GetLatencyMs()))
+		}
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Sweep: eligible=%d attempted=%d succeeded=%d failed=%d refused=%d skipped=%d provenance=%s.", r.GetEligible(), r.GetAttempted(), r.GetSucceeded(), r.GetFailed(), r.GetRefused(), r.GetSkipped(), r.GetProvenance())}, ResultsHeading: "Sweep", Results: items}
+}
+
 func (h *handlers) act(_ cliapp.OperationContext) (*bindingsv1.ResolveActCellsResponse, error) {
 	r, err := h.client.ResolveActCells(context.Background(), connect.NewRequest(&bindingsv1.ResolveActCellsRequest{}))
 	if err != nil {
@@ -123,10 +157,23 @@ func (h *handlers) act(_ cliapp.OperationContext) (*bindingsv1.ResolveActCellsRe
 
 func (h *handlers) actReport(_ cliapp.OperationContext, r *bindingsv1.ResolveActCellsResponse) cliapp.ListReport {
 	items := make([]string, 0, len(r.GetCells()))
+	now, inReach, missing := 0, 0, 0
 	for _, c := range r.GetCells() {
 		items = append(items, fmt.Sprintf("%s — %s", c.GetId(), c.GetVerdict().String()))
+		switch c.GetVerdict() {
+		case bindingsv1.ActVerdict_ACT_VERDICT_NOW:
+			now++
+		case bindingsv1.ActVerdict_ACT_VERDICT_IN_REACH:
+			inReach++
+		case bindingsv1.ActVerdict_ACT_VERDICT_AUTHORED:
+			if strings.EqualFold(c.GetAuthoredStatus(), "missing") {
+				missing++
+			} else {
+				inReach++
+			}
+		}
 	}
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Act cells: %d (confidence=%s).", len(items), r.GetDenominatorConfidence())}, ResultsHeading: "Act", Results: items}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Act cells: %d; NOW=%d, IN-REACH=%d, MISSING=%d (confidence=%s).", len(items), now, inReach, missing, r.GetDenominatorConfidence())}, ResultsHeading: "Act", Results: items}
 }
 
 func (h *handlers) doctor(ctx cliapp.OperationContext) (*bindingsv1.DoctorBindingsResponse, error) {

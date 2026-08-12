@@ -55,7 +55,7 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 
 | Date | Superseded Decision | Replacement | Details |
 |---|---|---|---|
-| None yet. | n/a | n/a | Add when a durable decision is replaced. |
+| 2026-08-12 | Agent-manager subscription obligation for Program Runtime events | Meta-optimization-manager reads the durable `mine*` surfaces directly over Connect; the event subscription is not required for the delivered Act/condition path. | The PRD now replaces the superseded hand-off with the still-open per-run delegated charge-receipt obligation for PRT-P1-011. The subscription row was removed rather than left as a stale external obligation. | A consumer needs program events on the shared bus for a capability not covered by the direct `mine*` surfaces. |
 
 ## Cross-References
 

@@ -3,6 +3,8 @@ package bindings
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -137,6 +139,57 @@ func TestDoctorReportsManifestCeilingAndReachability(t *testing.T) {
 	require.Empty(t, doctor.GetUnreachableScenarios())
 }
 
+type sweepRecorder struct{ rows []Invocation }
+
+func (r *sweepRecorder) RecordInvocation(_ context.Context, invocation Invocation) error {
+	r.rows = append(r.rows, invocation)
+	return nil
+}
+
+func (r *sweepRecorder) ListInvocations(context.Context, time.Time, string, string) ([]Invocation, error) {
+	return r.rows, nil
+}
+
+func TestSweepRefusesDestructiveEffect(t *testing.T) {
+	registry := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"ops","commands":[{"name":"delete","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"destructive","run_eligible":true}}]}]}`)
+	response := registry.Sweep(context.Background(), "program-runtime", "read", true)
+	require.Len(t, response.GetResults(), 1)
+	require.Equal(t, "not read-effect", response.GetResults()[0].GetSkippedReason())
+	require.Equal(t, int32(1), response.GetSkipped())
+}
+
+func TestSweepRecordsOperatorInvocationWithLatency(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(5 * time.Millisecond)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"bindings":[]}`))
+	}))
+	defer server.Close()
+	registry := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	recorder := &sweepRecorder{}
+	registry.SetInvocationRecorder(recorder)
+	registry.SetReachabilityResolver(func(context.Context, string) (string, error) { return server.URL, nil })
+	response := registry.Sweep(context.Background(), "program-runtime", "read", false)
+	require.Equal(t, int32(1), response.GetAttempted())
+	require.Equal(t, int32(1), response.GetSucceeded())
+	require.Len(t, recorder.rows, 1)
+	require.Equal(t, "PROVENANCE_OPERATOR", recorder.rows[0].Provenance)
+	require.Greater(t, recorder.rows[0].LatencyMS, int64(0))
+}
+
+func TestListAnnotatesAndFiltersUnreachableBindings(t *testing.T) {
+	registry := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	registry.SetReachabilityResolver(func(_ context.Context, _ string) (string, error) {
+		return "", errors.New("scenario API is not running")
+	})
+	all := registry.ListContext(context.Background(), "program-runtime", "", false)
+	require.Len(t, all, 1)
+	require.False(t, all[0].GetReachable())
+	require.Equal(t, "scenario API is not running", all[0].GetReachabilityReason())
+	require.Empty(t, registry.ListContext(context.Background(), "program-runtime", "", true))
+	require.NotZero(t, registry.ReachabilityCheckedAt(context.Background(), "program-runtime"))
+}
+
 func TestRejectsUnknownFieldBeforeDispatch(t *testing.T) {
 	// [REQ:PRT-P0-002]
 	r := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
@@ -144,6 +197,15 @@ func TestRejectsUnknownFieldBeforeDispatch(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "not_a_field") {
 		t.Fatalf("unknown field error = %v, want offending field", err)
 	}
+}
+
+func TestUnknownArgumentNamesCandidateFieldsOnce(t *testing.T) {
+	r := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	err := r.ValidateArguments("program-runtime/records/list", map[string]any{"not_a_field": "x"})
+	require.Error(t, err)
+	require.Equal(t, 1, strings.Count(err.Error(), `argument "not_a_field"`), err.Error())
+	require.Contains(t, err.Error(), "candidate fields:")
+	require.NotEqual(t, "candidate fields:", err.Error()[strings.Index(err.Error(), "candidate fields:"):])
 }
 
 func TestErrorNamesOffendingField(t *testing.T) {

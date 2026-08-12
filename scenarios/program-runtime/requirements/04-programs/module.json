@@ -169,10 +169,10 @@
       ],
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "Target `api/internal/programs/mining_test.go::TestProposesRecurringShapeWithCallSites` (tag the test [REQ:PRT-P2-002]). A recurring program shape is proposed as a skill or action candidate with its call sites attached as evidence."
+          "status": "not_implemented",
+          "notes": "No validation target exists: MineFailures reports recurring failure shapes, but no scenario-owned surface proposes skill or action candidates with call-site evidence."
         },
         {
           "type": "manual",

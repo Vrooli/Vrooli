@@ -92,24 +92,24 @@ Scenario-language independence is structural, not a convention: transport is Con
 | Scenario | Why |
 |---|---|
 | `ai-gateway` | Typed inference inside programs. The typed Connect/CLI surface, schema gate, role catalog, batch operation, and usage accounting are now available; program-runtime bindings remain owned by OT-P1-002 implementation work. |
-| `agent-manager` | Delegated agent runs spawned from a program. Separately, agent-manager must **subscribe** to this scenario's events — see the external obligations below. |
+| `agent-manager` | Delegated agent runs spawned from a program. Its delegated workflow result still lacks a per-run charge receipt, so delegated spend remains explicitly unmeasured. |
 | `vrooli-events` | Telemetry through the shared event bus. This scenario can prove emission and delivery; it cannot make anything consume them. |
 | `search-hub` | In-kernel capability discovery. |
 | `workspace-sandbox` | Optional filesystem isolation for a session. |
 
 `meta-optimization-manager` is a consumer, not a dependency: it reads the Act projection this scenario owns.
 
-**External obligations.** Three pieces of required work sit outside this scenario's boundary. Each is stated here with a named owner so it is a scheduled hand-off rather than an unowned risk, because in every case this scenario can reach 100% green while the obligation stays unmet and the value stays unrealised.
+**External obligations.** Two pieces of required work sit outside this scenario's boundary. Each is stated here with a named owner so it is a scheduled hand-off rather than an unowned risk, because in every case this scenario can reach 100% green while the obligation stays unmet and the value stays unrealised.
 
 | Obligation | Owner | What it unblocks | Consequence if it stalls |
 |---|---|---|---|
-| Subscribe to this scenario's program events | `agent-manager` | Friction analysis reading program evidence | OT-P0-006 is green, events are delivered to the bus, and nothing reads them |
-| Raise `cli/manifest.json` coverage beyond 58 of 128 scenarios | fleet-wide; surfaced by `cli-health` and ranked by `meta-optimization-manager` `focus next` | The ceiling on the entire Act surface | Act coverage is capped at roughly 45% of the fleet no matter how complete this scenario is |
+| Publish a per-run delegated charge receipt | `agent-manager` | PRT-P1-011 delegated-run spend ceiling | Delegated spend remains explicitly unmeasured; Program Runtime must not fabricate a zero-cost value |
+| Raise `cli/manifest.json` coverage beyond 63 of 117 scenarios | fleet-wide; surfaced by `cli-health` and ranked by `meta-optimization-manager` `focus next` | The ceiling on the entire Act surface | Act coverage remains capped by the current manifest-bearing fleet surface no matter how complete this scenario is |
 
 **Operational risks.**
 
 1. *Identity propagation is unsolved and deliberately deferred.* Agent identity reaches event receipts today through Go shared packages. The kernel is a non-Go sidecar, so identity across agent to program-runtime to program to ai-gateway does not inherit and must be carried explicitly. This blocks trustworthy attribution of in-program inference; it does not block the runtime.
-2. *Manifest coverage bounds the Act surface.* 58 of 128 scenarios ship a CLI manifest. The callable surface cannot exceed manifest coverage, and the Act numerator reports that honestly rather than concealing it. Raising the ceiling is fleet work, not this scenario's — it is listed under External obligations with a named owner so it is scheduled rather than merely acknowledged.
+2. *Manifest coverage bounds the Act surface.* 63 of 117 scenarios ship a CLI manifest. The callable surface cannot exceed manifest coverage, and the Act numerator reports that honestly rather than concealing it. Raising the ceiling is fleet work, not this scenario's — it is listed under External obligations with a named owner so it is scheduled rather than merely acknowledged.
 3. *Execution is not adversarially contained.* Recorded as a stated boundary, not a defect.
 4. *Handle discipline carries the whole value.* Bindings without bounded materialization produce the same context cost with different syntax. This is a design risk, not an implementation detail, and it is why context bytes per query is an acceptance signal rather than a nice-to-have.
 

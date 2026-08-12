@@ -1,5 +1,7 @@
 import asyncio
+import io
 import time
+from unittest.mock import patch
 
 from host.engine import Handle, SessionKernel, _InferenceSurface
 
@@ -32,6 +34,21 @@ def test_public_scenario_namespace_and_discovery():
     discovered = kernel.execute("print(vrooli.discover('demo search').head())")
     assert discovered["ok"]
     assert "demo_service" in discovered["stdout"]
+
+
+def test_reachable_reports_scenario_reason_and_blocks_unreachable_binding():
+    kernel = SessionKernel([
+        {"id": "offline/health/status", "scenario": "offline", "group": "health", "command": "status", "effect": "read", "reachable": False, "reachability_reason": "scenario API is not running"},
+        {"id": "online/health/status", "scenario": "online", "group": "health", "command": "status", "effect": "read", "reachable": True, "reachability_reason": "scenario API resolved"},
+    ], bridge_url="http://127.0.0.1:1/internal/program-runtime/bindings/execute")
+    reachability = kernel.execute("print(vrooli.reachable().materialize())")
+    assert reachability["ok"]
+    assert "offline" in reachability["stdout"]
+    assert "scenario API is not running" in reachability["stdout"]
+    blocked = kernel.execute("vrooli.offline.health.status()")
+    assert not blocked["ok"]
+    assert "unreachable" in blocked["error"]
+    assert blocked["invocations"] == []
 
 
 def test_bare_binding_call_executes_after_top_level_await():
@@ -72,11 +89,72 @@ def test_gather_runs_binding_callables_in_parallel():
     assert elapsed < 0.35
 
 
-def test_gather_enforces_default_concurrency_ceiling():
+def test_describe_reads_live_binding_contract_from_registry_bridge():
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"arguments":[{"name":"scenario","protoPath":"scenario","kind":"raw_string","required":true}]}'
+
+    kernel = SessionKernel(session_id="session-1", bridge_url="http://127.0.0.1:1/internal/program-runtime/bindings/execute")
+    with patch("host.engine.urllib.request.urlopen", return_value=Response()):
+        result = kernel.execute('print(vrooli.describe("test-genie/runs/list").head(1))')
+    assert result["ok"]
+    assert "scenario" in result["stdout"]
+
+
+def test_describe_surfaces_named_registry_error():
+    import urllib.error
+
+    kernel = SessionKernel(session_id="session-1", bridge_url="http://127.0.0.1:1/internal/program-runtime/bindings/execute")
+    error = urllib.error.HTTPError(
+        "http://127.0.0.1:1",
+        400,
+        "bad request",
+        {},
+        io.BytesIO(b'{"error":"binding \\\"missing\\\" is not governed"}'),
+    )
+    with patch("host.engine.urllib.request.urlopen", side_effect=error):
+        result = kernel.execute('vrooli.describe("missing")')
+    assert not result["ok"]
+    assert "missing" in result["error"]
+
+
+def test_gather_uses_default_concurrency_limit_without_rejecting_fanout():
     kernel = SessionKernel({"demo": {"work": lambda: Handle([{"ok": True}])}})
-    result = kernel.execute("vrooli.gather(*[lambda: vrooli.demo.work() for _ in range(9)])")
-    assert result["ok"] is False
-    assert "concurrency ceiling exceeded" in result["error"]
+    result = kernel.execute("print(len(vrooli.gather(*[lambda: vrooli.demo.work() for _ in range(200)])))")
+    assert result["ok"]
+    assert "200" in result["stdout"]
+
+
+def test_gather_preserves_order_and_caps_peak_concurrency():
+    active = 0
+    peak = 0
+    lock = __import__("threading").Lock()
+
+    def call(index):
+        nonlocal active, peak
+        with lock:
+            active += 1
+            peak = max(peak, active)
+        time.sleep(0.002)
+        with lock:
+            active -= 1
+        return Handle([{"index": index}])
+
+    class FakeBinding:
+        def __call__(self, index):
+            return call(index)
+
+    kernel = SessionKernel({"demo": {"work": FakeBinding()}})
+    result = kernel.execute("print([item.head(1)[0]['index'] for item in vrooli.gather(*[lambda i=i: vrooli.demo.work(index=i) for i in range(200)], max_workers=8)])")
+    assert result["ok"]
+    assert "[0, 1, 2, 3" in result["stdout"]
+    assert peak <= 8
 
 
 def test_collision_requires_qualified_scenario_path():
@@ -88,6 +166,15 @@ def test_collision_requires_qualified_scenario_path():
     assert result["ok"] is False
     assert "alpha" in result["error"] and "beta" in result["error"]
     assert "vrooli.alpha.search.query" in result["error"]
+
+
+def test_unique_bare_group_requires_qualified_scenario_path():
+    kernel = SessionKernel([
+        {"id": "demo/search/query", "scenario": "demo", "group": "search", "command": "query"},
+    ])
+    result = kernel.execute("vrooli.search.query()")
+    assert result["ok"] is False
+    assert "vrooli.demo.search.query" in result["error"]
 
 
 def test_inference_facade_forwards_optional_profile_and_batch_shape():

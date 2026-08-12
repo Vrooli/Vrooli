@@ -130,6 +130,20 @@ manifests were present in the registry input, while 117 scenario targets were
 enumerated. This is an evidence-backed ceiling for the manifest-bound surface,
 not a claim that every manifest-bearing scenario is currently reachable.
 
+## Post-sweep condition snapshot — 2026-08-12
+
+The operator read-effect sweep examined **1,168** registry bindings: **632**
+were eligible, **536** were skipped by effect, reachability, scenario filter,
+or required-argument constraints, and all 632 eligible bindings were attempted.
+The ledger recorded **276 successes** and **356 failures** under explicit
+`PROVENANCE_OPERATOR` provenance. The condition projection now reports **639 of
+1,168 bindings instrumented**, with **302 DEGRADED**, **866 UNINSTRUMENTED**,
+and **0 sustained-degradation promotions**. The zero promotion count is
+expected: this sweep is a point-in-time exercise and has not spanned the
+seven-day sustained window. Act cell coverage remains **14 NOW / 13 IN-REACH /
+1 MISSING**; condition reports beside coverage and does not change those cell
+statuses.
+
 Suggested live-join rule, mirroring the sibling projections: a cell is `NOW` only when **every**
 operation it names resolves to a manifest-bound Connect method whose binding generates cleanly and
 whose declared `effect` is satisfiable under the caller's grant. A cell whose operations are

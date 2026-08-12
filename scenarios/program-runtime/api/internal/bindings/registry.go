@@ -48,22 +48,30 @@ type ReachabilityResolver func(context.Context, string) (string, error)
 // immutable generation. Registries built by LoadFiles remain deterministic
 // static fixtures for tests.
 type Registry struct {
-	dynamic        *registryDynamic
-	bindings       []*bindingsv1.Binding
-	unbound        []*bindingsv1.UnboundCapability
-	skipped        []*bindingsv1.SkippedManifest
-	methods        map[string]methodInfo
-	required       map[string]map[string]bool
-	schemas        map[string]cliapp.ArgSchema
-	byID           map[string]*bindingsv1.Binding
-	operation      map[string][]*bindingsv1.Binding
-	shared         []string
-	semantic       map[string]semanticCounts
-	recorder       InvocationRecorder
-	artifactMtime  time.Time
-	resolver       ReachabilityResolver
-	manifestCount  int
-	totalScenarios int
+	dynamic           *registryDynamic
+	bindings          []*bindingsv1.Binding
+	unbound           []*bindingsv1.UnboundCapability
+	skipped           []*bindingsv1.SkippedManifest
+	methods           map[string]methodInfo
+	required          map[string]map[string]bool
+	schemas           map[string]cliapp.ArgSchema
+	byID              map[string]*bindingsv1.Binding
+	operation         map[string][]*bindingsv1.Binding
+	shared            []string
+	semantic          map[string]semanticCounts
+	recorder          InvocationRecorder
+	artifactMtime     time.Time
+	resolver          ReachabilityResolver
+	manifestCount     int
+	totalScenarios    int
+	reachabilityMu    sync.Mutex
+	reachabilityCache map[string]reachabilityStatus
+	reachabilityAt    time.Time
+}
+
+type reachabilityStatus struct {
+	reachable bool
+	reason    string
 }
 
 type registryDynamic struct {
@@ -197,14 +205,15 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 	})
 
 	r := &Registry{
-		methods:        methods,
-		required:       make(map[string]map[string]bool),
-		schemas:        make(map[string]cliapp.ArgSchema),
-		byID:           make(map[string]*bindingsv1.Binding),
-		operation:      make(map[string][]*bindingsv1.Binding),
-		semantic:       make(map[string]semanticCounts),
-		resolver:       discovery.ResolveScenarioURLDefault,
-		totalScenarios: len(manifestPaths),
+		methods:           methods,
+		required:          make(map[string]map[string]bool),
+		schemas:           make(map[string]cliapp.ArgSchema),
+		byID:              make(map[string]*bindingsv1.Binding),
+		operation:         make(map[string][]*bindingsv1.Binding),
+		semantic:          make(map[string]semanticCounts),
+		resolver:          discovery.ResolveScenarioURLDefault,
+		totalScenarios:    len(manifestPaths),
+		reachabilityCache: make(map[string]reachabilityStatus),
 	}
 	for _, path := range manifestPaths {
 		if info, statErr := os.Stat(path); statErr == nil && !info.IsDir() {
@@ -365,7 +374,11 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 	if !ok {
 		return nil, fmt.Errorf("binding %q has no descriptor method", id)
 	}
-	base, err := discovery.ResolveScenarioURLDefault(ctx, binding.GetScenario())
+	resolver := r.resolver
+	if resolver == nil {
+		resolver = discovery.ResolveScenarioURLDefault
+	}
+	base, err := resolver(ctx, binding.GetScenario())
 	if err != nil {
 		return nil, fmt.Errorf("resolve %s: %w", binding.GetScenario(), err)
 	}
@@ -596,7 +609,14 @@ func normalizeField(s string) string {
 }
 
 func (r *Registry) List(scenario, group string) []*bindingsv1.Binding {
+	return r.ListContext(context.Background(), scenario, group, false)
+}
+
+// ListContext returns governed bindings annotated with the cached reachability
+// result from the same discovery probe used by DoctorContext.
+func (r *Registry) ListContext(ctx context.Context, scenario, group string, reachableOnly bool) []*bindingsv1.Binding {
 	r = r.active()
+	statuses, _ := r.reachability(ctx, scenario)
 	out := make([]*bindingsv1.Binding, 0)
 	for _, b := range r.bindings {
 		if scenario != "" && b.GetScenario() != scenario {
@@ -605,9 +625,22 @@ func (r *Registry) List(scenario, group string) []*bindingsv1.Binding {
 		if group != "" && b.GetGroup() != group {
 			continue
 		}
-		out = append(out, proto.Clone(b).(*bindingsv1.Binding))
+		status := statuses[b.GetScenario()]
+		if reachableOnly && !status.reachable {
+			continue
+		}
+		clone := proto.Clone(b).(*bindingsv1.Binding)
+		clone.Reachable = status.reachable
+		clone.ReachabilityReason = status.reason
+		out = append(out, clone)
 	}
 	return out
+}
+
+func (r *Registry) ReachabilityCheckedAt(ctx context.Context, scenario string) time.Time {
+	r = r.active()
+	_, checkedAt := r.reachability(ctx, scenario)
+	return checkedAt
 }
 
 func (r *Registry) Unbound(scenario string) []*bindingsv1.UnboundCapability {
@@ -741,9 +774,6 @@ func (r *Registry) DoctorContext(ctx context.Context, scenario string) *bindings
 }
 
 func (r *Registry) populateReachability(ctx context.Context, scenario string, response *bindingsv1.DoctorBindingsResponse) {
-	if r.resolver == nil {
-		r.resolver = discovery.ResolveScenarioURLDefault
-	}
 	names := make(map[string]struct{})
 	for _, binding := range r.bindings {
 		if scenario == "" || binding.GetScenario() == scenario {
@@ -753,30 +783,85 @@ func (r *Registry) populateReachability(ctx context.Context, scenario string, re
 	if len(names) == 0 {
 		return
 	}
-	type result struct {
-		name      string
-		reachable bool
-	}
-	results := make(chan result, len(names))
+	statuses, checkedAt := r.reachability(ctx, scenario)
+	response.ReachabilityCheckedAt = checkedAt.UTC().Format(time.RFC3339Nano)
 	for name := range names {
+		item := statuses[name]
+		if item.reachable {
+			response.ReachableScenarios = append(response.ReachableScenarios, name)
+		} else {
+			response.UnreachableScenarios = append(response.UnreachableScenarios, name)
+		}
+	}
+	sort.Strings(response.ReachableScenarios)
+	sort.Strings(response.UnreachableScenarios)
+}
+
+// reachability performs one concurrent discovery probe per scenario and
+// caches the result for the lifetime of the active registry generation.
+func (r *Registry) reachability(ctx context.Context, scenario string) (map[string]reachabilityStatus, time.Time) {
+	if r.resolver == nil {
+		r.resolver = discovery.ResolveScenarioURLDefault
+	}
+	names := make(map[string]struct{})
+	for _, binding := range r.bindings {
+		if scenario == "" || binding.GetScenario() == scenario {
+			names[binding.GetScenario()] = struct{}{}
+		}
+	}
+	r.reachabilityMu.Lock()
+	missing := make([]string, 0, len(names))
+	for name := range names {
+		if _, ok := r.reachabilityCache[name]; !ok {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) == 0 {
+		cached := cloneReachability(r.reachabilityCache)
+		checkedAt := r.reachabilityAt
+		r.reachabilityMu.Unlock()
+		return cached, checkedAt
+	}
+	r.reachabilityMu.Unlock()
+
+	type result struct {
+		name   string
+		status reachabilityStatus
+	}
+	results := make(chan result, len(missing))
+	for _, name := range missing {
 		name := name
 		go func() {
 			probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 			defer cancel()
 			_, err := r.resolver(probeCtx, name)
-			results <- result{name: name, reachable: err == nil}
+			status := reachabilityStatus{reachable: err == nil, reason: "scenario API resolved"}
+			if err != nil {
+				status.reason = err.Error()
+			}
+			results <- result{name: name, status: status}
 		}()
 	}
-	for range names {
+	r.reachabilityMu.Lock()
+	for range missing {
 		item := <-results
-		if item.reachable {
-			response.ReachableScenarios = append(response.ReachableScenarios, item.name)
-		} else {
-			response.UnreachableScenarios = append(response.UnreachableScenarios, item.name)
-		}
+		r.reachabilityCache[item.name] = item.status
 	}
-	sort.Strings(response.ReachableScenarios)
-	sort.Strings(response.UnreachableScenarios)
+	if r.reachabilityAt.IsZero() {
+		r.reachabilityAt = time.Now().UTC()
+	}
+	cached := cloneReachability(r.reachabilityCache)
+	checkedAt := r.reachabilityAt
+	r.reachabilityMu.Unlock()
+	return cached, checkedAt
+}
+
+func cloneReachability(source map[string]reachabilityStatus) map[string]reachabilityStatus {
+	clone := make(map[string]reachabilityStatus, len(source))
+	for name, status := range source {
+		clone[name] = status
+	}
+	return clone
 }
 
 // Describe returns the resolved request path for every manifest argument.
@@ -886,19 +971,7 @@ func (r *Registry) analyze(id string) bindingAnalysis {
 }
 
 func descriptorFieldNames(md protoreflect.MessageDescriptor) []string {
-	fields := md.Fields()
-	out := make([]string, 0, fields.Len())
-	for i := 0; i < fields.Len(); i++ {
-		field := fields.Get(i)
-		out = append(out, field.JSONName())
-		if field.Kind() == protoreflect.MessageKind && !field.IsList() && !field.IsMap() {
-			nested := field.Message().Fields()
-			for j := 0; j < nested.Len(); j++ {
-				out = append(out, field.JSONName()+"."+nested.Get(j).JSONName())
-			}
-		}
-	}
-	return out
+	return cliapp.DescriptorFieldNames(md)
 }
 
 func resolvedPath(argumentName string, path []protoreflect.FieldDescriptor) string {
@@ -1041,6 +1114,10 @@ func (r *Registry) canonicalArguments(id string, args map[string]any) (map[strin
 		}
 		resolved, err := cliapp.ResolveArgField(info.input, name, schema)
 		if err != nil {
+			var resolutionErr *cliapp.ArgFieldResolutionError
+			if errors.As(err, &resolutionErr) {
+				return nil, err
+			}
 			return nil, fmt.Errorf("argument %q: %w", name, err)
 		}
 		if len(resolved.Path) == 0 {
@@ -1181,6 +1258,161 @@ func (r *Registry) ResolveActCells(ctx context.Context, cells []*bindingsv1.ActC
 		out = append(out, v)
 	}
 	return out
+}
+
+// Sweep executes only safe, reachable, read-effect bindings with no required
+// manifest arguments. It is intentionally operator-provenance evidence: the
+// sweep exercises the same registry Execute path while remaining absent from
+// the default agent friction corpus.
+func (r *Registry) Sweep(ctx context.Context, scenario, effect string, dryRun bool) *bindingsv1.SweepBindingsResponse {
+	r = r.active()
+	if strings.TrimSpace(effect) == "" {
+		effect = "read"
+	}
+	statuses, _ := r.reachability(ctx, scenario)
+	response := &bindingsv1.SweepBindingsResponse{Provenance: "PROVENANCE_OPERATOR"}
+	type pendingSweep struct {
+		result *bindingsv1.SweepBindingResult
+		id     string
+		args   map[string]any
+	}
+	pending := make([]pendingSweep, 0)
+	for _, binding := range r.bindings {
+		result := &bindingsv1.SweepBindingResult{BindingId: binding.GetId(), Scenario: binding.GetScenario()}
+		if scenario != "" && binding.GetScenario() != scenario {
+			result.SkippedReason = "scenario filter excluded"
+			response.Skipped++
+			response.Results = append(response.Results, result)
+			continue
+		}
+		if !strings.EqualFold(binding.GetEffect(), effect) {
+			result.SkippedReason = "not read-effect"
+			response.Skipped++
+			response.Results = append(response.Results, result)
+			continue
+		}
+		status := statuses[binding.GetScenario()]
+		if !status.reachable {
+			result.SkippedReason = "not reachable: " + status.reason
+			response.Skipped++
+			response.Results = append(response.Results, result)
+			continue
+		}
+		analysis := r.analyze(binding.GetId())
+		if !analysis.callable {
+			result.SkippedReason = "unpopulatable required field"
+			if len(analysis.issues) > 0 {
+				result.SkippedReason += ": " + analysis.issues[0].GetArgument()
+			}
+			response.Skipped++
+			response.Results = append(response.Results, result)
+			continue
+		}
+		args, err := r.sweepArguments(binding.GetId())
+		if err != nil {
+			result.SkippedReason = "unpopulatable required field: " + err.Error()
+			response.Skipped++
+			response.Results = append(response.Results, result)
+			continue
+		}
+		response.Eligible++
+		if dryRun {
+			response.Results = append(response.Results, result)
+			continue
+		}
+		pending = append(pending, pendingSweep{result: result, id: binding.GetId(), args: args})
+	}
+	if !dryRun {
+		workers := 16
+		semaphore := make(chan struct{}, workers)
+		outcomes := make(chan pendingSweep, len(pending))
+		var wait sync.WaitGroup
+		for _, item := range pending {
+			item := item
+			wait.Add(1)
+			go func() {
+				defer wait.Done()
+				semaphore <- struct{}{}
+				defer func() { <-semaphore }()
+				started := time.Now()
+				_, err := r.Execute(ctx, item.id, item.args, nil, false, InvocationMetadata{ProgramID: "sweep", Provenance: "PROVENANCE_OPERATOR"}, &http.Client{Timeout: 2 * time.Second})
+				item.result.Attempted = true
+				item.result.LatencyMs = time.Since(started).Milliseconds()
+				if err != nil {
+					item.result.Outcome = "failed"
+					item.result.Reason = err.Error()
+				} else {
+					item.result.Outcome = "success"
+				}
+				outcomes <- item
+			}()
+		}
+		wait.Wait()
+		close(outcomes)
+		for item := range outcomes {
+			response.Attempted++
+			if item.result.Outcome == "failed" {
+				response.Failed++
+			} else {
+				response.Succeeded++
+			}
+			response.Results = append(response.Results, item.result)
+		}
+	}
+	return response
+}
+
+func (r *Registry) sweepArguments(id string) (map[string]any, error) {
+	args := make(map[string]any)
+	for name := range r.required[id] {
+		resolved, err := cliapp.ResolveArgField(r.methods[id].input, name, r.schemas[id])
+		if err != nil || len(resolved.Path) == 0 {
+			return nil, fmt.Errorf("%s", name)
+		}
+		field := resolved.Path[len(resolved.Path)-1]
+		value, ok := defaultSweepValue(field, name)
+		if !ok {
+			return nil, fmt.Errorf("%s", name)
+		}
+		args[name] = value
+	}
+	return args, nil
+}
+
+func defaultSweepValue(field protoreflect.FieldDescriptor, name string) (any, bool) {
+	if field.IsList() {
+		return []any{}, true
+	}
+	if field.IsMap() {
+		return map[string]any{}, true
+	}
+	switch field.Kind() {
+	case protoreflect.BoolKind:
+		return false, true
+	case protoreflect.StringKind:
+		if strings.Contains(strings.ToLower(name), "scenario") {
+			return "program-runtime", true
+		}
+		return "sweep-probe", true
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sint64Kind, protoreflect.Int64Kind:
+		return int64(1), true
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind, protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		return uint64(1), true
+	case protoreflect.FloatKind, protoreflect.DoubleKind:
+		return float64(1), true
+	case protoreflect.BytesKind:
+		return "", true
+	case protoreflect.EnumKind:
+		values := field.Enum().Values()
+		if values.Len() == 0 {
+			return nil, false
+		}
+		return string(values.Get(0).Name()), true
+	case protoreflect.MessageKind, protoreflect.GroupKind:
+		return map[string]any{}, true
+	default:
+		return nil, false
+	}
 }
 
 // resolveActOperation bridges the denominator's human-readable owner field

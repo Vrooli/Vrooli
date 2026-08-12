@@ -32,11 +32,13 @@ type Invocation struct {
 }
 
 type BindingSpec struct {
-	ID       string `json:"id"`
-	Scenario string `json:"scenario"`
-	Group    string `json:"group"`
-	Command  string `json:"command"`
-	Effect   string `json:"effect"`
+	ID                 string `json:"id"`
+	Scenario           string `json:"scenario"`
+	Group              string `json:"group"`
+	Command            string `json:"command"`
+	Effect             string `json:"effect"`
+	Reachable          bool   `json:"reachable"`
+	ReachabilityReason string `json:"reachability_reason"`
 }
 
 type Delegator interface {

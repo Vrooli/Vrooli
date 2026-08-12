@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Cross-domain obligations that no single product domain owns: declared measure coverage, the broader operator console, and future kernel adapters.",
-    "last_validated_at": "2026-08-11T17:07:52-04:00",
+    "last_validated_at": "2026-08-12T02:40:00-04:00",
     "module": "platform",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -50,10 +50,10 @@
       ],
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "Target `ui/src/features/sessions/SessionsCard.test.tsx::renders session and program history` (tag the test [REQ:PRT-P2-001]). Operator surface lists sessions, program history, and the resolved binding surface."
+          "status": "not_implemented",
+          "notes": "No validation target exists: the broader sessions and program-history operator surface remains planned. The binding registry surface is separately earned by PRT-P1-007."
         },
         {
           "type": "manual",
@@ -77,10 +77,10 @@
       ],
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "Target `api/internal/sessions/adapter_test.go::TestKernelAdapterSeamIsLanguageNeutral` (tag the test [REQ:PRT-P2-004]). The kernel adapter seam admits a non-Python kernel without changes to bindings or governance."
+          "status": "not_implemented",
+          "notes": "No validation target exists: no non-Python kernel has been admitted and no measured capability argument justifies alternate adapters."
         },
         {
           "type": "manual",

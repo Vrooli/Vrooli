@@ -191,7 +191,7 @@ func main() {
 	registryBindings := bindingRegistry.List("", "")
 	bindingSpecs := make([]programs.BindingSpec, 0, len(registryBindings))
 	for _, binding := range registryBindings {
-		bindingSpecs = append(bindingSpecs, programs.BindingSpec{ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect()})
+		bindingSpecs = append(bindingSpecs, programs.BindingSpec{ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason()})
 	}
 	bridgeURL := ""
 	agentBridgeURL := ""
@@ -204,7 +204,7 @@ func main() {
 		current := bindingRegistry.List("", "")
 		out := make([]programs.BindingSpec, 0, len(current))
 		for _, binding := range current {
-			out = append(out, programs.BindingSpec{ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect()})
+			out = append(out, programs.BindingSpec{ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason()})
 		}
 		return out
 	})
@@ -246,6 +246,7 @@ func main() {
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 	rootMux.Handle("/internal/program-runtime/bindings/execute", bindingsH.Bridge(bindingRegistry, sessionManager, refusalRepository))
+	rootMux.Handle("/internal/program-runtime/bindings/describe", bindingsH.DescribeBridge(bindingRegistry, sessionManager))
 	rootMux.Handle("/internal/program-runtime/bindings/resolve-intent", bindingsH.IntentBridge(bindingRegistry))
 	rootMux.Handle("/internal/program-runtime/agent/execute", bindingsH.AgentBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 
@@ -264,6 +265,8 @@ func main() {
 	}, func() int {
 		_, _, dormant := bindingRegistry.InvocationMeasures(context.Background())
 		return dormant
+	}, func() int {
+		return bindingRegistry.SustainedDegradedCount(context.Background())
 	})
 	if err != nil {
 		log.Fatalf("measures registry: %v", err)

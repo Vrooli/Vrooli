@@ -28,6 +28,13 @@ def test_filter_and_aggregate_run_in_kernel():  # [REQ:PRT-P0-003]
     assert "'a': 2" in result["stdout"]
 
 
+def test_group_by_reports_missing_key_and_available_fields():
+    result = SessionKernel().execute("from host.engine import Handle\nHandle([{'failureShape': 'runtimeerror'}]).group_by('missing')")
+    assert not result["ok"]
+    assert "missing" in result["error"]
+    assert "failureShape" in result["error"]
+
+
 def test_namespace_mirrors_manifest_groups(tmp_path):  # [REQ:PRT-P0-001]
     from bindings.namespace import namespace_from_manifest
 
