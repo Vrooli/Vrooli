@@ -11,6 +11,8 @@ import { WhisperProvider } from "./hooks/voice/WhisperProvider";
 import { WebSpeechProvider } from "./hooks/voice/WebSpeechProvider";
 import { PcmVoiceStreamProvider } from "./hooks/voice/PcmVoiceStreamProvider";
 
+// HOST DIFFERENCE: narrow web-console adapter for its API/proto clients and
+// browser fallback providers; lifecycle/orchestration lives in the package.
 export const voiceCoreServices: VoiceCoreServices = {
   PcmVoiceStreamProvider,
   getVoiceStreamConfig,

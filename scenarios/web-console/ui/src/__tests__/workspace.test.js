@@ -1,0 +1,650 @@
+import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { forwardRef } from "react";
+import Workspace from "../components/Workspace";
+import { strings } from "../consts/strings";
+import { useConversationStore } from "../stores/useConversationStore";
+// [REQ:P0-001a] Responsive Pane Grid Layout — layout rendering
+// [REQ:P0-001b] Independent Pane Session Lifecycle — pane lifecycle
+// [REQ:P0-001c] Pane Management Controls — header controls
+// [REQ:P0-006a] Terminal Launch Flow UI — launcher integration
+const mockSession = {
+    id: "sess-test-001",
+    shell: "/bin/bash",
+    created_at: "2026-01-15T14:30:00Z",
+    cols: 80,
+    rows: 24,
+    backend: "standard",
+    survives_restart: false,
+    policy: { mode: "never" },
+    busy: false,
+    origin: "ui",
+    owner: "",
+    display_label: "",
+};
+const conversationEvent = (sessionId, sequence, role = "assistant") => ({
+    id: `${sessionId}-${sequence}`,
+    sessionId,
+    source: "test",
+    role,
+    text: "Test event",
+    speechParagraphs: [],
+    summarized: false,
+    createdAt: "2026-05-14T12:00:00Z",
+    sequence,
+    deliveryState: "delivered",
+    ttsState: "idle",
+    consumptionState: "new",
+});
+// Track hook return values so tests can control pane state
+let mockLaunchSession;
+let mockRemovePane;
+let mockClearError;
+let mockSendToActiveTerminal;
+let mockFocusActiveTerminal;
+let mockHandleExit;
+let mockRegisterTerminalRef;
+const { mockSyncPaneUpdate, mockSyncPaneOrder } = vi.hoisted(() => ({
+    mockSyncPaneUpdate: vi.fn(),
+    mockSyncPaneOrder: vi.fn(),
+}));
+const { mockVoiceInputState } = vi.hoisted(() => ({
+    mockVoiceInputState: {
+        supported: true,
+        backend: "whisper",
+        voiceState: "idle",
+        error: null,
+        audioLevel: 0,
+        voiceActivity: undefined,
+        fallbackNotice: null,
+        partialTranscript: "",
+        voiceMode: "one-shot",
+        segments: [],
+        commandSuggestion: null,
+        wakeWordConfigured: false,
+        passiveListeningActive: false,
+        staleLiveMicLease: false,
+        rejectedAudio: null,
+        speakerVerificationEnabled: false,
+        speakerProfileConfigured: false,
+        isRecording: false,
+        isListening: false,
+        isTranscribing: false,
+        isPreparing: false,
+        isPassive: false,
+        isActive: false,
+        prepareRecording: vi.fn(),
+        startRecording: vi.fn(),
+        stopRecording: vi.fn(),
+        cancelTranscription: vi.fn(),
+        dismissCommandSuggestion: vi.fn(),
+        dismissFallbackNotice: vi.fn(),
+        dismissRejection: vi.fn(),
+        retryWithoutFilter: vi.fn(),
+        enterPassiveMode: vi.fn(),
+        exitPassiveMode: vi.fn(),
+        releaseMicrophone: vi.fn(),
+    },
+}));
+// Shared mutable state to let tests control the hook's return
+const hookState = {
+    panes: [],
+    isHydrated: true,
+    isCreating: false,
+    createError: null,
+};
+const touchControlsState = {
+    needsTouchControls: false,
+};
+vi.mock("../hooks/useSessionManager", () => ({
+    useSessionManager: () => ({
+        panes: hookState.panes,
+        isHydrated: hookState.isHydrated,
+        isCreating: hookState.isCreating,
+        createError: hookState.createError,
+        clearError: mockClearError,
+        launchSession: mockLaunchSession,
+        removePane: mockRemovePane,
+        handleExit: mockHandleExit,
+        sendToActiveTerminal: mockSendToActiveTerminal,
+        focusActiveTerminal: mockFocusActiveTerminal,
+        registerTerminalRef: mockRegisterTerminalRef,
+    }),
+}));
+vi.mock("../hooks/useWorkspaceSync", () => ({
+    useWorkspaceSync: () => ({
+        syncActivePane: vi.fn(),
+        syncPaneOrder: mockSyncPaneOrder,
+        syncPaneUpdate: mockSyncPaneUpdate,
+        syncCreateGroup: vi.fn(),
+        syncUpdateGroup: vi.fn(),
+        syncDeleteGroup: vi.fn(),
+    }),
+}));
+vi.mock("../hooks/useTouchControls", () => ({
+    useTouchControls: () => touchControlsState.needsTouchControls,
+}));
+vi.mock("../audio-integration", () => ({
+    useScenarioVoiceInput: () => mockVoiceInputState,
+    getTTSSummarizeConfig: vi.fn().mockResolvedValue({ level: "moderate" }),
+}));
+// Mock workspace store
+const mockStoreState = {
+    panes: [],
+    columnFractions: [],
+    rowFractions: [],
+    activePane: null,
+    appearanceModalPane: null,
+    isMinimapVisible: true,
+    displayMode: "grid",
+    settingsModalOpen: false,
+    aiModalOpen: false,
+    groups: [],
+    plusButtonBehavior: "launcher",
+    defaultHeaderColor: "transparent",
+    defaultThemeId: "default",
+    defaultFontSize: 14,
+    tabContextMenu: null,
+    viewerCounts: {},
+};
+const mockStoreActions = {
+    addPane: vi.fn(),
+    addPaneToGroup: vi.fn(),
+    removePane: vi.fn(),
+    renamePaneById: vi.fn(),
+    setPaneColor: vi.fn(),
+    setPaneTheme: vi.fn(),
+    setPaneFontSize: vi.fn(),
+    movePaneToIndex: vi.fn(),
+    setColumnFractions: vi.fn(),
+    setRowFractions: vi.fn(),
+    setActivePane: vi.fn(),
+    setAppearanceModalPane: vi.fn(),
+    setMinimapVisible: vi.fn(),
+    setDisplayMode: vi.fn(),
+    setSettingsModalOpen: vi.fn(),
+    setAiModalOpen: vi.fn(),
+    setTabContextMenu: vi.fn(),
+    resetLayout: vi.fn(),
+};
+vi.mock("../stores/useWorkspaceStore", () => {
+    const useWorkspaceStoreMock = (selector) => {
+        const fullState = { ...mockStoreState, ...mockStoreActions };
+        return selector ? selector(fullState) : fullState;
+    };
+    useWorkspaceStoreMock.getState = () => ({ ...mockStoreState, ...mockStoreActions });
+    return { useWorkspaceStore: useWorkspaceStoreMock };
+});
+// Mock child components to isolate Workspace layout logic
+vi.mock("../components/TerminalPane", () => ({
+    default: forwardRef(function MockTerminalPane({ sessionId }, ref) {
+        return (_jsxs("div", { ref: ref, "data-testid": `mock-terminal-${sessionId}`, children: ["Terminal ", sessionId] }));
+    }),
+}));
+vi.mock("../components/TerminalHeader", () => ({
+    default: vi.fn(({ sessionId, name }) => (_jsx("div", { "data-testid": `mock-header-${sessionId}`, children: name }))),
+}));
+vi.mock("../components/GridSplitter", () => ({
+    default: vi.fn(({ axis }) => (_jsx("div", { "data-testid": `mock-splitter-${axis}` }))),
+}));
+vi.mock("../components/SettingsModal", () => ({
+    default: vi.fn(() => null),
+}));
+vi.mock("../components/WorkspaceMinimap", () => ({
+    default: vi.fn(() => _jsx("div", { "data-testid": "mock-minimap" })),
+}));
+vi.mock("../components/TerminalLauncher", () => ({
+    default: vi.fn(({ open, onClose, onLaunch, isCreating: creating }) => open ? (_jsxs("div", { "data-testid": "mock-launcher", children: [_jsx("button", { "data-testid": "mock-launcher-launch", onClick: () => onLaunch({}), children: "Launch" }), _jsx("button", { "data-testid": "mock-launcher-close", onClick: onClose, children: "Close" }), creating && _jsx("span", { children: "creating..." })] })) : null),
+}));
+vi.mock("../components/MobileToolbar", () => ({
+    default: forwardRef(function MockMobileToolbar({ visible = true }, ref) {
+        if (!visible)
+            return null;
+        return _jsx("div", { ref: ref, "data-testid": "mock-mobile-toolbar" });
+    }),
+}));
+vi.mock("../components/AiInput", () => ({
+    default: vi.fn(() => _jsx("div", { "data-testid": "mock-ai-input" })),
+}));
+vi.mock("../components/FloatingToolbar", () => ({
+    default: vi.fn(({ onOpenSettings, onNewTerminal, onOpenLauncher, isCreating: creating }) => (_jsxs("div", { "data-testid": "floating-toolbar", children: [_jsx("button", { "data-testid": "toolbar-settings", onClick: onOpenSettings, children: "Settings" }), _jsx("button", { "data-testid": "toolbar-new", onClick: onNewTerminal, disabled: creating, children: "New" }), _jsx("button", { "data-testid": "toolbar-launcher", onClick: onOpenLauncher, children: "Launcher" })] }))),
+}));
+vi.mock("../components/ErrorBanner", () => ({
+    default: vi.fn(({ error, onRetry }) => (_jsxs("div", { "data-testid": "mock-error-banner", children: [error.message, onRetry && _jsx("button", { "data-testid": "mock-retry", onClick: onRetry, children: "Retry" })] }))),
+}));
+describe("Workspace", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        hookState.panes = [];
+        hookState.isHydrated = true;
+        hookState.isCreating = false;
+        hookState.createError = null;
+        mockVoiceInputState.fallbackNotice = null;
+        mockVoiceInputState.dismissFallbackNotice.mockClear();
+        touchControlsState.needsTouchControls = false;
+        mockStoreState.panes = [];
+        mockStoreState.columnFractions = [];
+        mockStoreState.rowFractions = [];
+        mockStoreState.activePane = null;
+        mockStoreState.isMinimapVisible = true;
+        mockStoreState.displayMode = "grid";
+        mockStoreState.settingsModalOpen = false;
+        mockStoreState.groups = [];
+        mockStoreState.plusButtonBehavior = "launcher";
+        mockStoreState.defaultHeaderColor = "transparent";
+        mockStoreState.defaultThemeId = "default";
+        mockStoreState.defaultFontSize = 14;
+        mockStoreState.tabContextMenu = null;
+        useConversationStore.setState({ sessions: {}, viewModes: {} });
+        mockLaunchSession = vi.fn().mockResolvedValue(mockSession);
+        mockRemovePane = vi.fn();
+        mockClearError = vi.fn();
+        mockSendToActiveTerminal = vi.fn();
+        mockFocusActiveTerminal = vi.fn();
+        mockHandleExit = vi.fn();
+        mockRegisterTerminalRef = vi.fn();
+        mockStoreActions.setTabContextMenu = vi.fn((next) => {
+            mockStoreState.tabContextMenu = next;
+        });
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+    // --- Empty state ---
+    it("renders empty state with 'New Terminal' button when no panes", () => {
+        render(_jsx(Workspace, {}));
+        expect(screen.getByText(strings.app.title)).toBeTruthy();
+        expect(screen.getByText(strings.workspace.tagline)).toBeTruthy();
+        expect(screen.getByTestId("new-terminal-button")).toBeTruthy();
+    });
+    it("opens launcher when 'New Terminal' button is clicked in empty state", () => {
+        render(_jsx(Workspace, {}));
+        fireEvent.click(screen.getByTestId("new-terminal-button"));
+        expect(screen.getByTestId("mock-launcher")).toBeTruthy();
+    });
+    it("shows 'Creating...' text when isCreating in empty state", () => {
+        hookState.isCreating = true;
+        render(_jsx(Workspace, {}));
+        expect(screen.getByText(strings.workspace.creating)).toBeTruthy();
+    });
+    it("shows error banner in empty state when createError exists", () => {
+        hookState.createError = { message: "Connection refused", retry: true };
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId("mock-error-banner")).toBeTruthy();
+        expect(screen.getByText("Connection refused")).toBeTruthy();
+    });
+    it("provides retry handler in empty state when error has retry flag", async () => {
+        hookState.createError = { message: "Connection refused", retry: true };
+        render(_jsx(Workspace, {}));
+        fireEvent.click(screen.getByTestId("mock-retry"));
+        expect(mockClearError).toHaveBeenCalledOnce();
+        await waitFor(() => {
+            expect(mockLaunchSession).toHaveBeenCalledOnce();
+        });
+    });
+    // --- Pane grid state ---
+    it("renders pane grid with terminal when panes exist", () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+        mockStoreState.activePane = mockSession.id;
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId("pane-grid")).toBeTruthy();
+        expect(screen.getByTestId(`mock-terminal-${mockSession.id}`)).toBeTruthy();
+    });
+    it("persists selected appearance defaults when adding a new workspace pane", async () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.defaultHeaderColor = "#ff7a7a";
+        mockStoreState.defaultThemeId = "dracula";
+        mockStoreState.defaultFontSize = 18;
+        render(_jsx(Workspace, {}));
+        await waitFor(() => {
+            expect(mockSyncPaneUpdate).toHaveBeenCalledWith(mockSession.id, {
+                name: "bash",
+                header_color: "#ff7a7a",
+                theme_id: "dracula",
+                font_size: 18,
+                // Creation must carry a position. Omitting sort_order left the pane at
+                // the server's zero value, which sorted it to the top of the list on
+                // the next reload and split whatever group was sitting there.
+                sort_order: 0,
+                supports_messages_view: undefined,
+            });
+        });
+    });
+    it("renders floating toolbar when panes exist", () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId("floating-toolbar")).toBeTruthy();
+    });
+    it("does not render floating toolbar in empty state", () => {
+        render(_jsx(Workspace, {}));
+        expect(screen.queryByTestId("floating-toolbar")).toBeNull();
+    });
+    it("toolbar new button launches empty shell", async () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+        render(_jsx(Workspace, {}));
+        fireEvent.click(screen.getByTestId("toolbar-new"));
+        await waitFor(() => {
+            expect(mockLaunchSession).toHaveBeenCalledOnce();
+        });
+    });
+    it("toolbar launcher button opens launcher dialog", () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+        render(_jsx(Workspace, {}));
+        fireEvent.click(screen.getByTestId("toolbar-launcher"));
+        expect(screen.getByTestId("mock-launcher")).toBeTruthy();
+    });
+    it("shows error banner in pane view when createError exists", () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+        hookState.createError = { message: "Server error", retry: true };
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId("mock-error-banner")).toBeTruthy();
+        expect(screen.getByText("Server error")).toBeTruthy();
+    });
+    it("renders AiInput and MobileToolbar in pane view", () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+        touchControlsState.needsTouchControls = true;
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId("mock-ai-input")).toBeTruthy();
+        expect(screen.getByTestId("mock-mobile-toolbar")).toBeTruthy();
+    });
+    it("hides the mobile toolbar on non-touch desktop viewports", () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+        touchControlsState.needsTouchControls = false;
+        render(_jsx(Workspace, {}));
+        expect(screen.queryByTestId("mock-mobile-toolbar")).toBeNull();
+    });
+    it("keeps touch controls available on wide phone landscape viewports", () => {
+        const originalWidth = window.innerWidth;
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: 844 });
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+        touchControlsState.needsTouchControls = true;
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId("mock-mobile-toolbar")).toBeTruthy();
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+    });
+    it("keeps the terminal/messages toggle aligned to the pane control row", () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.activePane = mockSession.id;
+        mockStoreState.displayMode = "tabs";
+        mockStoreState.panes = [{
+                sessionId: mockSession.id,
+                name: "/bin/bash",
+                headerColor: "transparent",
+                supportsMessagesView: true,
+            }];
+        render(_jsx(Workspace, {}));
+        const toggleShell = screen.getByTitle(strings.workspace.switchToMessagesTitle).parentElement;
+        expect(toggleShell?.className).toContain("end-2");
+        expect(toggleShell?.className).toContain("top-2.5");
+    });
+    it("renders terminal headers for panes", () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId(`mock-header-${mockSession.id}`)).toBeTruthy();
+    });
+    it("renders multiple panes", () => {
+        const session2 = { ...mockSession, id: "sess-test-002" };
+        hookState.panes = [{ session: mockSession }, { session: session2 }];
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" },
+            { sessionId: session2.id, name: "/bin/bash", headerColor: "transparent" },
+        ];
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId("mock-terminal-sess-test-001")).toBeTruthy();
+        expect(screen.getByTestId("mock-terminal-sess-test-002")).toBeTruthy();
+    });
+    it("reserves top safe area once for tabs mode", () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.displayMode = "tabs";
+        mockStoreState.activePane = mockSession.id;
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+        ];
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("--wc-safe-top");
+        expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("wc-chrome-surface");
+        expect(screen.getByTestId("tab-bar").className).not.toContain("--wc-safe-top");
+    });
+    it("renders the voice status notice as a dismissible top-edge banner", () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.displayMode = "tabs";
+        mockStoreState.activePane = mockSession.id;
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+        ];
+        mockVoiceInputState.fallbackNotice = "Waiting for the speech backend to acknowledge the stream.";
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId("voice-status-banner").textContent).toContain("Waiting for the speech backend");
+        expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("bg-amber-500/10");
+        fireEvent.click(screen.getByTestId("voice-status-dismiss"));
+        expect(mockVoiceInputState.dismissFallbackNotice).toHaveBeenCalledTimes(1);
+    });
+    it("does not double-reserve top safe area when parent already owns it", () => {
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.displayMode = "tabs";
+        mockStoreState.activePane = mockSession.id;
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+        ];
+        render(_jsx(Workspace, { topSafeAreaReserved: true }));
+        expect(screen.queryByTestId("workspace-top-edge-fill")).toBeNull();
+        expect(screen.getByTestId("tab-bar")).toBeTruthy();
+    });
+    it("renders sidebar mode as tab-like stacked panes with desktop sidebar", () => {
+        const session2 = { ...mockSession, id: "sess-test-002" };
+        hookState.panes = [{ session: mockSession }, { session: session2 }];
+        mockStoreState.displayMode = "sidebar";
+        mockStoreState.activePane = mockSession.id;
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+            { sessionId: session2.id, name: "Secondary", headerColor: "transparent", supportsMessagesView: false },
+        ];
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId("workspace-sidebar-shell")).toBeTruthy();
+        expect(screen.queryByTestId("tab-bar")).toBeNull();
+        expect(screen.queryByTestId("pane-grid")).toBeNull();
+        expect(screen.getByTestId(`tab-pane-${mockSession.id}`)).toBeTruthy();
+        // Offscreen panes are now UNMOUNTED (warm-set scaling fix), not just hidden,
+        // so the inactive, non-warm pane is absent from the DOM.
+        expect(screen.queryByTestId(`tab-pane-${session2.id}`)).toBeNull();
+    });
+    it("opens and closes the mobile sidebar drawer", () => {
+        const originalWidth = window.innerWidth;
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
+        hookState.panes = [{ session: mockSession }];
+        mockStoreState.displayMode = "sidebar";
+        mockStoreState.activePane = mockSession.id;
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+        ];
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("--wc-safe-top");
+        expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("wc-chrome-surface");
+        expect(screen.getByTestId("workspace-sidebar-topbar").className).toContain("h-10");
+        expect(screen.getByTestId("workspace-sidebar-topbar").className).not.toContain("--wc-safe-top");
+        fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));
+        expect(screen.getByTestId("workspace-sidebar-backdrop")).toBeTruthy();
+        expect(screen.getByTestId("workspace-sidebar-shell").className).toContain("--wc-safe-top");
+        expect(screen.getByTestId("workspace-sidebar-new").parentElement?.className).toContain("border-b");
+        expect(screen.getByTestId("workspace-sidebar-settings").parentElement?.className).toContain("border-b");
+        fireEvent.click(screen.getByTestId("workspace-sidebar-backdrop"));
+        expect(screen.queryByTestId("workspace-sidebar-backdrop")).toBeNull();
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+    });
+    it("activates a mobile sidebar session with one tap", () => {
+        const originalWidth = window.innerWidth;
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
+        const session2 = { ...mockSession, id: "sess-test-002" };
+        hookState.panes = [{ session: mockSession }, { session: session2 }];
+        mockStoreState.displayMode = "sidebar";
+        mockStoreState.activePane = mockSession.id;
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+            { sessionId: session2.id, name: "Secondary", headerColor: "transparent", supportsMessagesView: false },
+        ];
+        render(_jsx(Workspace, {}));
+        fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));
+        fireEvent.click(screen.getByTestId(`sidebar-session-${session2.id}`));
+        expect(mockStoreActions.setActivePane).toHaveBeenCalledTimes(1);
+        expect(mockStoreActions.setActivePane).toHaveBeenCalledWith(session2.id);
+        expect(screen.queryByTestId("workspace-sidebar-backdrop")).toBeNull();
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+    });
+    it("activates a mobile sidebar session on the first touch release", () => {
+        const originalWidth = window.innerWidth;
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
+        const session2 = { ...mockSession, id: "sess-test-002" };
+        hookState.panes = [{ session: mockSession }, { session: session2 }];
+        mockStoreState.displayMode = "sidebar";
+        mockStoreState.activePane = mockSession.id;
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+            { sessionId: session2.id, name: "Secondary", headerColor: "transparent", supportsMessagesView: false },
+        ];
+        render(_jsx(Workspace, {}));
+        fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));
+        const row = screen.getByTestId(`sidebar-session-${session2.id}`);
+        fireEvent.pointerDown(row, { pointerType: "touch", pointerId: 1, button: 0, clientX: 24, clientY: 120 });
+        fireEvent.pointerUp(window, { pointerType: "touch", pointerId: 1, clientX: 24, clientY: 120 });
+        expect(mockStoreActions.setActivePane).toHaveBeenCalledTimes(1);
+        expect(mockStoreActions.setActivePane).toHaveBeenCalledWith(session2.id);
+        expect(screen.queryByTestId("workspace-sidebar-backdrop")).toBeNull();
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+    });
+    it("does not activate or close the mobile sidebar when a touch moves like a swipe", () => {
+        const originalWidth = window.innerWidth;
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
+        const session2 = { ...mockSession, id: "sess-test-002" };
+        hookState.panes = [{ session: mockSession }, { session: session2 }];
+        mockStoreState.displayMode = "sidebar";
+        mockStoreState.activePane = mockSession.id;
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+            { sessionId: session2.id, name: "Secondary", headerColor: "transparent", supportsMessagesView: false },
+        ];
+        render(_jsx(Workspace, {}));
+        fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));
+        const row = screen.getByTestId(`sidebar-session-${session2.id}`);
+        fireEvent.pointerDown(row, { pointerType: "touch", pointerId: 1, button: 0, clientX: 24, clientY: 120 });
+        fireEvent.pointerMove(window, { pointerType: "touch", pointerId: 1, clientX: 24, clientY: 180 });
+        fireEvent.pointerUp(window, { pointerType: "touch", pointerId: 1, clientX: 24, clientY: 180 });
+        fireEvent.click(row);
+        expect(mockStoreActions.setActivePane).not.toHaveBeenCalled();
+        expect(screen.getByTestId("workspace-sidebar-backdrop")).toBeTruthy();
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+    });
+    it("opens the tab context menu on mobile sidebar long press without activating", () => {
+        vi.useFakeTimers();
+        const originalWidth = window.innerWidth;
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
+        const session2 = { ...mockSession, id: "sess-test-002" };
+        hookState.panes = [{ session: mockSession }, { session: session2 }];
+        mockStoreState.displayMode = "sidebar";
+        mockStoreState.activePane = mockSession.id;
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+            { sessionId: session2.id, name: "Secondary", headerColor: "transparent", supportsMessagesView: false },
+        ];
+        render(_jsx(Workspace, {}));
+        fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));
+        const row = screen.getByTestId(`sidebar-session-${session2.id}`);
+        fireEvent.pointerDown(row, { pointerType: "touch", pointerId: 1, button: 0, clientX: 24, clientY: 120 });
+        vi.advanceTimersByTime(500);
+        fireEvent.pointerUp(window, { pointerType: "touch", pointerId: 1, clientX: 24, clientY: 120 });
+        expect(mockStoreActions.setActivePane).not.toHaveBeenCalled();
+        expect(mockStoreActions.setTabContextMenu).toHaveBeenCalledWith({
+            sessionId: session2.id,
+            position: { x: 24, y: 120 },
+        });
+        expect(screen.getByTestId("workspace-sidebar-backdrop")).toBeTruthy();
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+        vi.useRealTimers();
+    });
+    it("opens the tab context menu on mobile sidebar header title long press", () => {
+        vi.useFakeTimers();
+        const originalWidth = window.innerWidth;
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
+        const session2 = { ...mockSession, id: "sess-test-002" };
+        hookState.panes = [{ session: mockSession }, { session: session2 }];
+        mockStoreState.displayMode = "sidebar";
+        mockStoreState.activePane = session2.id;
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+            { sessionId: session2.id, name: "Secondary", headerColor: "transparent", supportsMessagesView: false },
+        ];
+        render(_jsx(Workspace, {}));
+        const title = screen.getByTestId("workspace-sidebar-active-title");
+        expect(title.className).toContain("select-none");
+        fireEvent.pointerDown(title, { pointerType: "touch", pointerId: 1, button: 0, clientX: 120, clientY: 24 });
+        vi.advanceTimersByTime(500);
+        fireEvent.pointerUp(window, { pointerType: "touch", pointerId: 1, clientX: 120, clientY: 24 });
+        expect(mockStoreActions.setTabContextMenu).toHaveBeenCalledWith({
+            sessionId: session2.id,
+            position: { x: 120, y: 24 },
+        });
+        expect(mockStoreActions.setActivePane).not.toHaveBeenCalled();
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+        vi.useRealTimers();
+    });
+    it("opens the tab context menu on sidebar right click", () => {
+        const session2 = { ...mockSession, id: "sess-test-002" };
+        hookState.panes = [{ session: mockSession }, { session: session2 }];
+        mockStoreState.displayMode = "sidebar";
+        mockStoreState.activePane = mockSession.id;
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+            { sessionId: session2.id, name: "Secondary", headerColor: "transparent", supportsMessagesView: false },
+        ];
+        render(_jsx(Workspace, {}));
+        fireEvent.contextMenu(screen.getByTestId(`sidebar-session-${session2.id}`), { clientX: 80, clientY: 40 });
+        expect(mockStoreActions.setTabContextMenu).toHaveBeenCalledWith({
+            sessionId: session2.id,
+            position: { x: 80, y: 40 },
+        });
+        expect(mockStoreActions.setActivePane).not.toHaveBeenCalled();
+    });
+    it("shows total unread messages on the mobile sidebar toggle", () => {
+        const originalWidth = window.innerWidth;
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
+        const session2 = { ...mockSession, id: "sess-test-002" };
+        hookState.panes = [{ session: mockSession }, { session: session2 }];
+        mockStoreState.displayMode = "sidebar";
+        mockStoreState.activePane = mockSession.id;
+        mockStoreState.panes = [
+            { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+            { sessionId: session2.id, name: "Secondary", headerColor: "transparent", supportsMessagesView: true },
+        ];
+        useConversationStore.setState({
+            sessions: {
+                [mockSession.id]: {
+                    events: [
+                        conversationEvent(mockSession.id, 1, "user"),
+                        conversationEvent(mockSession.id, 2),
+                        conversationEvent(mockSession.id, 3),
+                    ],
+                    cursor: { lastSeenSequence: 1, lastListenedSequence: 0 },
+                    hydrated: true,
+                },
+                [session2.id]: {
+                    events: [conversationEvent(session2.id, 4)],
+                    cursor: { lastSeenSequence: 3, lastListenedSequence: 0 },
+                    hydrated: true,
+                },
+            },
+            viewModes: {},
+        });
+        render(_jsx(Workspace, {}));
+        expect(screen.getByTestId("workspace-sidebar-toggle-unread")).toHaveTextContent("3");
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+    });
+});

@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { toErrorInfo, type ErrorInfo } from "../lib/errors";
 import { getWorkspaceLayout, updateWorkspacePane } from "../api/workspace";
 import { createSession, deleteSession, listSessions, type SessionInfo, type BackendID, type PolicyMode, type AgentType } from "../api/sessions";
+import { createRemoteSession } from "../api/remoteSessions";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { orderPanesByGroupBlocks } from "../lib/workspaceNavigation";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
@@ -249,6 +250,7 @@ export function useSessionManager() {
     command?: string;
     backend?: BackendID;
     policy?: { mode: PolicyMode; duration?: string };
+	target?: { id: string; kind: string; label: string };
   }) => {
     const command = opts?.command;
     // Replay guard: if a creation is already in-flight, skip silently.
@@ -257,8 +259,15 @@ export function useSessionManager() {
     setIsCreating(true);
     setCreateError(null);
     try {
-      const session = await createSession({
-        cols: DEFAULT_COLS,
+		const session = opts?.target && opts.target.kind !== "local"
+			? await createRemoteSession({
+				target_id: opts.target.id,
+				cols: DEFAULT_COLS,
+				rows: DEFAULT_ROWS,
+				launch_command: command,
+			})
+			: await createSession({
+			cols: DEFAULT_COLS,
         rows: DEFAULT_ROWS,
         backend: opts?.backend,
         policy: opts?.policy,
@@ -267,7 +276,9 @@ export function useSessionManager() {
         // it runs exactly once. The client no longer types it after connect.
         execute_launch_command: Boolean(command),
         agent_type: agentTypeFromCommand(command),
-      });
+			owner: opts?.target && opts.target.kind !== "local" ? `target:${opts.target.id}` : undefined,
+			display_label: opts?.target?.label,
+			});
       setPanes((prev) => [...prev, { session, supportsMessagesView: supportsMessagesViewForCommand(command) }]);
       return session;
     } catch (err) {

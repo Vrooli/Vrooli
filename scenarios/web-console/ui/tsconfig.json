@@ -28,7 +28,6 @@
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "node"],
     "baseUrl": ".",
     "paths": {
-      "@vrooli/audio-capture-browser": ["../../../packages/audio-capture-browser/src/index.ts"],
       "react": ["./node_modules/@types/react/index.d.ts"],
       "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
       "lucide-react": ["./node_modules/lucide-react/dist/lucide-react.d.ts"]

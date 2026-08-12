@@ -32,6 +32,10 @@ const (
 	CodeNotFound       Code = "not_found"
 	CodeUnresolvable   Code = "unresolvable"
 	CodeInternal       Code = "internal"
+	// CodeStale means the target changed underneath a multi-step read (a
+	// directory mutated between listing pages). The client should restart the
+	// read rather than treat it as a hard failure.
+	CodeStale Code = "stale"
 )
 
 // Error is a typed resolver failure carrying a stable Code plus a user-safe
@@ -63,6 +67,7 @@ type Target struct {
 	CanDownload          bool
 	SupportsRange        bool
 	TextContentAvailable bool
+	ListingAvailable     bool
 	Warnings             []string
 }
 
@@ -141,8 +146,35 @@ func (r *Resolver) Resolve(sessionCwd string, cwdErr error, rawPath string) (*Ta
 			}
 			return nil, newError(CodeInternal, "Failed to stat referenced file")
 		}
+		// A directory is a preview target in its own right: its contents come
+		// from ListDirectory rather than from inline text or a byte stream.
+		// Resolve deliberately does not count entries — that would cost a full
+		// directory read on every resolve. The count arrives with the first
+		// listing page instead, keeping resolve one syscall for every kind.
 		if info.IsDir() {
-			return nil, newError(CodeNotPreviewable, "Directories cannot be previewed")
+			return &Target{
+				InputPath:        rawPath,
+				ResolvedPath:     resolvedPath,
+				Basename:         filepath.Base(resolvedPath),
+				ResolutionBasis:  c.basis,
+				Kind:             KindDirectory,
+				MIMEType:         MIMEDirectory,
+				SizeBytes:        0, // A directory's own byte size is not meaningful.
+				ModTimeUnixNano:  info.ModTime().UnixNano(),
+				CanPreview:       true,
+				CanDownload:      false, // No archive stream in this version.
+				SupportsRange:    false,
+				ListingAvailable: true,
+				// A :line suffix on a directory is meaningless; drop it rather
+				// than failing a reference an agent wrote loosely.
+			}, nil
+		}
+
+		// Reject sockets, FIFOs, and device nodes before anything opens them.
+		// Opening a FIFO blocks until a writer appears, so classification's
+		// content sniff must never reach one.
+		if !info.Mode().IsRegular() {
+			return nil, newError(CodeNotPreviewable, "Special files cannot be previewed")
 		}
 
 		cl := classify(resolvedPath, func() ([]byte, error) {

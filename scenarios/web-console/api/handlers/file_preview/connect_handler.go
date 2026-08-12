@@ -44,6 +44,10 @@ var (
 	// ErrPreviewUnavailable — non-previewable category or too large.
 	// CodeFailedPrecondition.
 	ErrPreviewUnavailable = errors.New("preview unavailable")
+	// ErrStale — the target changed underneath a multi-step read (a directory
+	// mutated between listing pages). CodeAborted, because retrying from the
+	// start is the correct client response.
+	ErrStale = errors.New("target changed")
 )
 
 func (h *connectHandler) Resolve(ctx context.Context, req *connect.Request[filepreviewv1.ResolveRequest]) (*connect.Response[filepreviewv1.ResolveResponse], error) {
@@ -78,6 +82,7 @@ func (h *connectHandler) Resolve(ctx context.Context, req *connect.Request[filep
 		CanDownload:          res.CanDownload,
 		SupportsRange:        res.SupportsRange,
 		TextContentAvailable: res.TextContentAvailable,
+		ListingAvailable:     res.ListingAvailable,
 		BlobUrl:              res.BlobURL,
 		ExpiresUnixNano:      res.ExpiresUnixNano,
 		Warnings:             append([]string(nil), res.Warnings...),
@@ -105,6 +110,52 @@ func (h *connectHandler) GetTextContent(ctx context.Context, req *connect.Reques
 	}), nil
 }
 
+func (h *connectHandler) ListDirectory(ctx context.Context, req *connect.Request[filepreviewv1.ListDirectoryRequest]) (*connect.Response[filepreviewv1.ListDirectoryResponse], error) {
+	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
+	previewID := strings.TrimSpace(req.Msg.GetPreviewId())
+	if sessionID == "" || previewID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id and preview_id are required"))
+	}
+	res, err := h.deps.Service.ListDirectory(ctx, ListInput{
+		SessionID:  sessionID,
+		PreviewID:  previewID,
+		Sort:       sortToString(req.Msg.GetSort()),
+		ShowHidden: req.Msg.GetShowHidden(),
+		PageSize:   int(req.Msg.GetPageSize()),
+		PageToken:  req.Msg.GetPageToken(),
+	})
+	if err != nil {
+		return nil, h.classify(err, "file_preview.ListDirectory")
+	}
+
+	entries := make([]*filepreviewv1.DirectoryEntry, 0, len(res.Entries))
+	for _, e := range res.Entries {
+		entries = append(entries, &filepreviewv1.DirectoryEntry{
+			Name:          e.Name,
+			EntryType:     entryTypeToProto(e.EntryType),
+			PreviewKind:   entryKindToProto(e.Kind),
+			SizeBytes:     e.SizeBytes,
+			MtimeUnixNano: e.ModTimeUnixNano,
+			CanPreview:    e.CanPreview,
+			SymlinkTarget: e.SymlinkTarget,
+			SymlinkBroken: e.SymlinkBroken,
+			Mode:          e.Mode,
+			ChildCount:    e.ChildCount,
+		})
+	}
+
+	return connect.NewResponse(&filepreviewv1.ListDirectoryResponse{
+		ResolvedPath:  res.ResolvedPath,
+		ParentPath:    res.ParentPath,
+		Entries:       entries,
+		TotalEntries:  int32(res.TotalEntries),
+		Truncated:     res.Truncated,
+		NextPageToken: res.NextPageToken,
+		EffectiveSort: sortToProto(res.EffectiveSort),
+		Warnings:      append([]string(nil), res.Warnings...),
+	}), nil
+}
+
 // classify maps the package's sentinel errors to Connect codes.
 func (h *connectHandler) classify(err error, op string) error {
 	switch {
@@ -116,6 +167,8 @@ func (h *connectHandler) classify(err error, op string) error {
 		return connect.NewError(connect.CodePermissionDenied, err)
 	case errors.Is(err, ErrPreviewUnavailable):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, ErrStale):
+		return connect.NewError(connect.CodeAborted, err)
 	default:
 		h.deps.Logger.Printf("%s: %v", op, err)
 		return connect.NewError(connect.CodeInternal, err)
@@ -145,8 +198,71 @@ func kindToProto(kind string) filepreviewv1.PreviewKind {
 		return filepreviewv1.PreviewKind_PREVIEW_KIND_CSV
 	case "diff":
 		return filepreviewv1.PreviewKind_PREVIEW_KIND_DIFF
+	case "directory":
+		return filepreviewv1.PreviewKind_PREVIEW_KIND_DIRECTORY
 	default:
 		return filepreviewv1.PreviewKind_PREVIEW_KIND_UNSUPPORTED
+	}
+}
+
+// entryKindToProto maps a listing entry's kind. Unlike a resolved target, an
+// entry may legitimately have no kind yet: listings classify by extension
+// alone, so an unmapped extension stays UNSPECIFIED ("determined on open")
+// rather than being asserted as UNSUPPORTED.
+func entryKindToProto(kind string) filepreviewv1.PreviewKind {
+	if kind == "" {
+		return filepreviewv1.PreviewKind_PREVIEW_KIND_UNSPECIFIED
+	}
+	return kindToProto(kind)
+}
+
+// entryTypeToProto maps the filepreview.EntryType string form onto the enum.
+func entryTypeToProto(entryType string) filepreviewv1.EntryType {
+	switch entryType {
+	case "file":
+		return filepreviewv1.EntryType_ENTRY_TYPE_FILE
+	case "directory":
+		return filepreviewv1.EntryType_ENTRY_TYPE_DIRECTORY
+	case "symlink":
+		return filepreviewv1.EntryType_ENTRY_TYPE_SYMLINK
+	case "other":
+		return filepreviewv1.EntryType_ENTRY_TYPE_OTHER
+	default:
+		return filepreviewv1.EntryType_ENTRY_TYPE_UNSPECIFIED
+	}
+}
+
+// sortToString maps the proto sort enum onto the filepreview.Sort string form.
+// UNSPECIFIED yields "", which the listing engine normalizes to its default.
+func sortToString(s filepreviewv1.DirectorySort) string {
+	switch s {
+	case filepreviewv1.DirectorySort_DIRECTORY_SORT_DIRS_FIRST_NAME:
+		return "dirs_first_name"
+	case filepreviewv1.DirectorySort_DIRECTORY_SORT_NAME:
+		return "name"
+	case filepreviewv1.DirectorySort_DIRECTORY_SORT_SIZE_DESC:
+		return "size_desc"
+	case filepreviewv1.DirectorySort_DIRECTORY_SORT_MTIME_DESC:
+		return "mtime_desc"
+	default:
+		return ""
+	}
+}
+
+// sortToProto maps the applied sort back onto the enum so the client can see
+// when an expensive sort was downgraded.
+func sortToProto(s string) filepreviewv1.DirectorySort {
+	switch s {
+	case "dirs_first_name":
+		return filepreviewv1.DirectorySort_DIRECTORY_SORT_DIRS_FIRST_NAME
+	case "name":
+		return filepreviewv1.DirectorySort_DIRECTORY_SORT_NAME
+	case "size_desc":
+		return filepreviewv1.DirectorySort_DIRECTORY_SORT_SIZE_DESC
+	case "mtime_desc":
+		return filepreviewv1.DirectorySort_DIRECTORY_SORT_MTIME_DESC
+	default:
+		return filepreviewv1.DirectorySort_DIRECTORY_SORT_UNSPECIFIED
 	}
 }
 

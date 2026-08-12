@@ -37,8 +37,6 @@ const (
 )
 
 var Known = []Def{
-	{ID: "ollama", Name: "Ollama", Description: "Local LLM inference for AI command generation", DependencyKind: DependencyResource, DependencySlug: "ollama", Features: []string{"ai-command-generation"}},
-	{ID: "openrouter", Name: "OpenRouter", Description: "Cloud LLM API for AI command generation", DependencyKind: DependencyResource, DependencySlug: "openrouter", Features: []string{"ai-command-generation"}},
 	{
 		ID: audiotools.CapabilitySlug, Name: "Audio Tools",
 		Description:    "Shared audio capability scenario: STT, TTS, summarization, provider routing, BYOK/LPBS/local tiers, adoptable UI",
@@ -55,6 +53,7 @@ var Known = []Def{
 			audiotools.FeatureSlug(common_v1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_TTS_PARAGRAPH_SPLIT),
 			audiotools.FeatureSlug(common_v1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_AUDIO_PROVIDER_ROUTING),
 		},
+		Platform: capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformDegraded, Reason: "optional audio capability depends on the selected provider and host media path"},
 	},
 }
 

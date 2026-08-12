@@ -9,6 +9,10 @@ This directory is not a copy-paste adoption surface. New adopters must follow
 and use the shared `@vrooli/audio-capture-browser` package with a scenario
 transport adapter.
 
-The remaining files here are web-console's themed API/proto adapters and
-compatibility seams during the shared-package migration. Do not duplicate this
-directory into another scenario.
+The shipped model is deliberately split: `@vrooli/audio-capture-browser`
+owns the protocol, journal, capture lifecycle, state machine, provider
+contract, and shared UI-facing types. This directory contains only
+web-console's same-origin API/proto adapters, health probes, and presentation
+bindings. A local file must either re-export the package or document a genuine
+host difference with `HOST DIFFERENCE`; do not duplicate this directory into
+another scenario.

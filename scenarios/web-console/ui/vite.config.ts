@@ -1,6 +1,5 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { fileURLToPath, URL } from "node:url";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 
 // INTEROP-CRITICAL: base must be './' for tunnel/proxy embedding compatibility.
@@ -8,11 +7,6 @@ import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 export default defineConfig({
   base: './',
   plugins: [react(), stringsCodegen()],
-  resolve: {
-    alias: {
-      "@vrooli/audio-capture-browser": fileURLToPath(new URL("../../../packages/audio-capture-browser/src/index.ts", import.meta.url)),
-    },
-  },
   test: {
     globals: true,
     environment: 'jsdom',

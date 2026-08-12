@@ -4,12 +4,14 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"web-console/internal/events"
 	"web-console/session"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
@@ -131,6 +133,14 @@ type TerminalMessage struct {
 // via the writerDone channel.
 // [REQ:P0-002b] WebSocket I/O Streaming
 func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
+	if remote, ok := s.remoteForRequest(r); ok {
+		s.handleRemoteTerminalWS(w, r, remote)
+		return
+	}
+	if strings.HasPrefix(mux.Vars(r)["id"], "remote:") {
+		writeCatalogError(w, "session_not_found", "Remote session not found")
+		return
+	}
 	sess := s.lookupSession(w, r)
 	if sess == nil {
 		return

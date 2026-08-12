@@ -1,0 +1,39 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-11T14:47:37-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P1-013a",
+      "title": "Target selector and readiness facts",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-013",
+      "category": "ui",
+      "description": "The launcher exposes a target selector, disables non-dispatchable targets, and shows readiness facts or the failing rung.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/terminal-launcher.test.tsx",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-013b",
+      "title": "CLI target vocabulary",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-013",
+      "category": "cli",
+      "description": "The terminal CLI exposes local, Bridge-node, and SSH target names matching the launcher vocabulary.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/domains/terminal/register.go",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    }
+  ]
+}

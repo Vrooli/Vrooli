@@ -3,6 +3,8 @@
 // Calls are made via the same-origin Connect transport to web-console's
 // own AudioAdminService and AudioRuntimeService. The browser never sees
 // audio-tools' host; web-console's API owns the inter-scenario hop.
+// HOST DIFFERENCE: web-console exposes its own health probes and omits swarm's
+// config/client context; capture orchestration remains package-owned.
 
 import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
 import { buildVoiceStreamWsUrl, transcribeAudioWithRetry } from "./api/voice";

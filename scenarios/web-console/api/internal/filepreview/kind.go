@@ -35,8 +35,13 @@ const (
 	KindVideo       Kind = "video"
 	KindCSV         Kind = "csv"
 	KindDiff        Kind = "diff"
+	KindDirectory   Kind = "directory"
 	KindUnsupported Kind = "unsupported"
 )
+
+// MIMEDirectory is the conventional media type reported for a directory
+// target. Directories have no bytes; this only labels the resolved target.
+const MIMEDirectory = "inode/directory"
 
 // textKinds render from bounded UTF-8 content fetched over Connect-RPC.
 var textKinds = map[Kind]bool{
@@ -58,11 +63,22 @@ var blobKinds = map[Kind]bool{
 	KindVideo: true,
 }
 
+// listingKinds render from a bounded, paginated Connect listing rather than
+// from inline text or a byte stream. This is the third and last transport
+// class; a kind belongs to exactly one of the three (or to none, when it is
+// KindUnsupported).
+var listingKinds = map[Kind]bool{
+	KindDirectory: true,
+}
+
 // TextContentAvailable reports whether GetTextContent can serve this kind.
 func (k Kind) TextContentAvailable() bool { return textKinds[k] }
 
 // UsesBlob reports whether the kind renders from the HTTP blob endpoint.
 func (k Kind) UsesBlob() bool { return blobKinds[k] }
+
+// ListingAvailable reports whether ListDirectory can serve this kind.
+func (k Kind) ListingAvailable() bool { return listingKinds[k] }
 
 // CanPreview reports whether the kind has a dedicated renderer (anything but
 // KindUnsupported).
@@ -137,6 +153,16 @@ func classify(path string, sniff func() ([]byte, error)) classification {
 		return classification{kind: k, mimeType: cleanMIME(detected)}
 	}
 	return classification{kind: KindUnsupported, mimeType: cleanMIME(detected)}
+}
+
+// classifyByExtension returns the Kind implied by a name's extension alone,
+// with ok=false when the extension is unmapped. Directory listings use this so
+// rendering a page of entries costs zero file reads; classify still sniffs
+// content when an entry is actually opened. Callers surface an unmapped
+// extension as "kind determined on open" rather than guessing.
+func classifyByExtension(name string) (Kind, bool) {
+	k, ok := extKind[strings.ToLower(filepath.Ext(name))]
+	return k, ok
 }
 
 // mimeForKind resolves the Content-Type for a kind+extension. Kinds with a

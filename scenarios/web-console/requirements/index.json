@@ -18,6 +18,7 @@
     "10-shortcut-profile-management/module.json",
     "11-ai-provider-policy-controls/module.json",
     "12-operational-observability-coverage/module.json"
+    ,"13-remote-terminal-targets/module.json"
   ],
   "modules": [
     {
@@ -91,6 +92,12 @@
       "path": "12-operational-observability-coverage",
       "priority": "P1",
       "title": "Operational Observability Coverage"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-remote-terminal-targets",
+      "priority": "P1",
+      "title": "Remote Terminal Targets"
     }
   ]
 }

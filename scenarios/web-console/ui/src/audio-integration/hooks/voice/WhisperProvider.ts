@@ -8,6 +8,9 @@
 // transient `chunks` buffer into `lastTurn` so the hook can offer a
 // "Transcribe anyway" retry on speaker-verification rejection. The blob is
 // released on `disposeLastTurn()` or on the next `start()`.
+// HOST DIFFERENCE: the HTTP endpoint is web-console's local RPC adapter;
+// capture ownership, error classification, and the provider contract are
+// shared with swarm-manager through @vrooli/audio-capture-browser.
 
 import { transcribeAudioWithRetry } from "../../api/voice";
 import { acquireMicStream, releaseMicLease, type MicLease, type MicReleaseReason } from "./micOwnership";

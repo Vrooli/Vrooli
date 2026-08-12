@@ -65,6 +65,7 @@ func (a *filePreviewAdapter) Resolve(ctx context.Context, in filePreviewH.Resolv
 		CanDownload:          target.CanDownload,
 		SupportsRange:        target.SupportsRange,
 		TextContentAvailable: target.TextContentAvailable,
+		ListingAvailable:     target.ListingAvailable,
 		BlobURL:              filePreviewBlobURL(in.SessionID, previewID),
 		ExpiresUnixNano:      expiry.UnixNano(),
 		Warnings:             target.Warnings,
@@ -95,6 +96,56 @@ func (a *filePreviewAdapter) GetTextContent(_ context.Context, sessionID, previe
 		MIMEType:     entry.MIMEType,
 		Content:      content,
 		Truncated:    truncated,
+	}, nil
+}
+
+// ListDirectory serves one bounded page of a previously-resolved directory.
+// It accepts only the opaque preview id, so a directory handle can never be
+// repointed at another path — the same guarantee the blob route relies on.
+func (a *filePreviewAdapter) ListDirectory(_ context.Context, in filePreviewH.ListInput) (filePreviewH.ListResult, error) {
+	entry, err := a.srv.filePreviews.Lookup(in.SessionID, in.PreviewID)
+	if err != nil {
+		return filePreviewH.ListResult{}, fmt.Errorf("preview %q: %w", sanitizeID(in.PreviewID), filePreviewH.ErrNotFound)
+	}
+	if !entry.ListingAvailable {
+		return filePreviewH.ListResult{}, fmt.Errorf("preview is not a directory: %w", filePreviewH.ErrPreviewUnavailable)
+	}
+
+	page, listErr := a.srv.filePreviewResolver.ListDirectory(entry.ResolvedPath, filepreview.ListOptions{
+		Sort:       filepreview.Sort(in.Sort),
+		ShowHidden: in.ShowHidden,
+		PageSize:   in.PageSize,
+		PageToken:  in.PageToken,
+	})
+	if listErr != nil {
+		return filePreviewH.ListResult{}, mapFilePreviewError(listErr)
+	}
+
+	entries := make([]filePreviewH.ListEntry, 0, len(page.Entries))
+	for _, e := range page.Entries {
+		entries = append(entries, filePreviewH.ListEntry{
+			Name:            e.Name,
+			EntryType:       string(e.Type),
+			Kind:            string(e.Kind),
+			SizeBytes:       e.SizeBytes,
+			ModTimeUnixNano: e.ModTimeUnixNano,
+			CanPreview:      e.CanPreview,
+			SymlinkTarget:   e.SymlinkTarget,
+			SymlinkBroken:   e.SymlinkBroken,
+			Mode:            e.Mode,
+			ChildCount:      e.ChildCount,
+		})
+	}
+
+	return filePreviewH.ListResult{
+		ResolvedPath:  page.ResolvedPath,
+		ParentPath:    page.ParentPath,
+		Entries:       entries,
+		TotalEntries:  page.TotalEntries,
+		Truncated:     page.Truncated,
+		NextPageToken: page.NextPageToken,
+		EffectiveSort: string(page.EffectiveSort),
+		Warnings:      page.Warnings,
 	}, nil
 }
 
@@ -194,6 +245,8 @@ func mapFilePreviewError(err error) error {
 		return fmt.Errorf("%s: %w", fe.Message, filePreviewH.ErrPreviewUnavailable)
 	case filepreview.CodeNotFound, filepreview.CodeUnresolvable:
 		return fmt.Errorf("%s: %w", fe.Message, filePreviewH.ErrNotFound)
+	case filepreview.CodeStale:
+		return fmt.Errorf("%s: %w", fe.Message, filePreviewH.ErrStale)
 	default:
 		return fmt.Errorf("%s", fe.Message)
 	}

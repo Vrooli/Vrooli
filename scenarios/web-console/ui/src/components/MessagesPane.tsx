@@ -1252,6 +1252,10 @@ export default function MessagesPane({
         onClose={filePreview.close}
         onReopen={filePreview.reopen}
         onRendererError={filePreview.reportError}
+        onNavigate={filePreview.navigateTo}
+        onNavigateBack={filePreview.navigateBack}
+        onLoadMore={filePreview.loadMore}
+        onListOptionsChange={filePreview.setListOptions}
       />
 
       <MessagesMermaidViewer

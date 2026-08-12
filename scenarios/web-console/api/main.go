@@ -312,6 +312,10 @@ type Server struct {
 	// to the client in session_ready. Clients use it as the wsGen write
 	// barrier on pending-ack re-enqueue (see useStdinAck).
 	nextWSGen atomic.Int64
+	// remoteSessions contains the short-lived server-side records used by the
+	// Bridge federation adapter. Credentials stay in the server process.
+	remoteSessions      *remoteTerminalRegistry
+	remoteTargetCatalog func() []remoteTerminalTarget
 }
 
 // getSummarizeAutoPolicy returns the cached auto-summarize policy. The
@@ -465,6 +469,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		filePreviews:         filepreview.NewStore(filepreview.DefaultTTL),
 		lastTTSBySource:      make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc:      make(map[string]ttsAckSnapshot),
+		remoteSessions:       &remoteTerminalRegistry{sessions: make(map[string]remoteTerminalSession)},
 		speechProcessor:      audioports.PassthroughSpeechTextProcessor{},
 	}
 	srv.systemContext = intai.DiscoverSystemContext(intai.DefaultLookPath)
@@ -677,6 +682,16 @@ func (s *Server) setupRoutes() {
 		TTSConfig:       s.ttsConfigAdmin,
 		SummarizeConfig: s.summarizeConfigAdmin,
 	}).Mount(s.router)
+
+	// Remote terminal federation is a deliberately small REST/WS exception:
+	// the browser terminal protocol is already JSON-over-WebSocket and the
+	// Bridge edge is binary protobuf-over-WebSocket. The server-side adapter
+	// keeps Bridge credentials out of the browser and publishes only configured
+	// readiness facts.
+	s.router.HandleFunc("/api/v1/remote-sessions/targets", s.handleRemoteTerminalTargets).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/remote-sessions", s.handleRemoteTerminalCreate).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/remote-sessions", s.handleRemoteTerminalList).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/remote-sessions/{id}", s.handleRemoteTerminalDelete).Methods(http.MethodDelete)
 	audioRuntimeH.Module(audioRuntimeH.Deps{
 		STT:      s.sttPort,
 		TTS:      s.ttsPort,

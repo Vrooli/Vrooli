@@ -22,9 +22,19 @@ const optionCardClass =
   "flex w-full items-center gap-3 rounded-md border border-wc-default bg-wc-surface-input px-4 py-3 text-start transition hover:border-wc-accent hover:bg-wc-surface-input/80 disabled:opacity-50";
 
 export interface LaunchOptions {
-  command?: string;
-  backend?: BackendID;
-  policy?: { mode: PolicyMode; duration?: string };
+	command?: string;
+	backend?: BackendID;
+	policy?: { mode: PolicyMode; duration?: string };
+	target?: TerminalTarget;
+}
+
+export interface TerminalTarget {
+  id: string;
+  kind: "local" | "bridge-node" | "ssh" | "attached";
+	label: string;
+	available: boolean;
+	readiness?: string[];
+	failureRung?: string;
 }
 
 interface TerminalLauncherProps {
@@ -35,7 +45,8 @@ interface TerminalLauncherProps {
   isCreating?: boolean;
   defaultBackend?: BackendID;
   defaultPolicy?: ExpirationPolicy;
-  availableBackends?: BackendOption[];
+	availableBackends?: BackendOption[];
+	availableTargets?: TerminalTarget[];
 }
 
 export default function TerminalLauncher({
@@ -46,7 +57,8 @@ export default function TerminalLauncher({
   isCreating = false,
   defaultBackend = "standard",
   defaultPolicy,
-  availableBackends,
+	availableBackends,
+	availableTargets = [],
 }: TerminalLauncherProps) {
   const { t } = useTranslation();
   const [customCommand, setCustomCommand] = useState("");
@@ -55,7 +67,10 @@ export default function TerminalLauncher({
   const [selectedPolicyKey, setSelectedPolicyKey] = useState<string>(
     defaultPolicy ? policyKey(defaultPolicy.mode, defaultPolicy.duration) : "never",
   );
-  const [optionsOpen, setOptionsOpen] = useState(false);
+	const [optionsOpen, setOptionsOpen] = useState(false);
+	const localTarget: TerminalTarget = { id: "local", kind: "local", label: "This machine", available: true };
+	const targets = [localTarget, ...availableTargets];
+	const [selectedTarget, setSelectedTarget] = useState("local");
 
   // Reset selections when defaults change
   useEffect(() => {
@@ -109,12 +124,13 @@ export default function TerminalLauncher({
       // be non-persistent and lost on restart.
       const userChangedBackend = selectedBackend !== defaultBackend;
       return {
-        command,
-        backend: userChangedBackend ? selectedBackend : undefined,
+			command,
+			target: targets.find((target) => target.id === selectedTarget),
+			backend: userChangedBackend ? selectedBackend : undefined,
         policy: parsed ?? undefined,
       };
     },
-    [selectedBackend, selectedPolicyKey, defaultBackend],
+		[selectedBackend, selectedPolicyKey, defaultBackend, selectedTarget, targets],
   );
 
   // Custom command launch is separate because it validates non-empty input
@@ -224,6 +240,25 @@ export default function TerminalLauncher({
             </button>
             {optionsOpen && (
               <div className="space-y-2 rounded-md border border-wc-default bg-wc-surface-base/50 p-3">
+				<div className="space-y-1">
+					<label htmlFor="launcher-target-select" className="text-xs text-wc-text-secondary">Run on</label>
+					<select
+						id="launcher-target-select"
+						data-testid="launcher-target-select"
+						className="h-7 w-full rounded-lg border border-wc-default bg-wc-surface-input px-2 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
+						value={selectedTarget}
+						onChange={(e) => setSelectedTarget(e.target.value)}
+					>
+						{targets.map((target) => (
+							<option key={target.id} value={target.id} disabled={!target.available}>
+								{target.label}{target.available ? "" : ` — ${target.failureRung || "not ready"}`}
+							</option>
+						))}
+					</select>
+					{targets.find((target) => target.id === selectedTarget)?.readiness?.map((fact) => (
+						<div key={fact} className="text-[11px] text-wc-text-faint">✓ {fact}</div>
+					))}
+				</div>
                 {showBackendSelector && (
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-wc-text-secondary">{t(strings.terminalLauncher.backendLabel)}</label>

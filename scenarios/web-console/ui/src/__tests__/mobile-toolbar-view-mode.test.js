@@ -1,0 +1,124 @@
+import { jsx as _jsx } from "react/jsx-runtime";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import MobileToolbar from "../components/MobileToolbar";
+const baseProps = {
+    onInput: vi.fn(() => ({ status: "sent", seq: 1 })),
+    onFocusTerminal: vi.fn(),
+    activeSessionId: "sess-1",
+    voiceSupported: true,
+    voicePreparing: false,
+    voiceRecording: false,
+    voiceTranscribing: false,
+    voiceError: null,
+    voiceLevel: 0,
+    voicePartialTranscript: "",
+    voiceBackend: "browser",
+    onVoiceStart: vi.fn(),
+    onVoiceStop: vi.fn(),
+    onVoiceCancel: vi.fn(),
+    onUploadImage: vi.fn(),
+    isTtsSpeaking: false,
+    onTtsStop: vi.fn(),
+    onSwitchToTerminal: vi.fn(),
+};
+describe("MobileToolbar viewMode", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+    it("hides terminal-specific keys in messages mode", () => {
+        render(_jsx(MobileToolbar, { ...baseProps, viewMode: "messages" }));
+        // Terminal-specific controls should not be present
+        expect(screen.queryByTestId("toolbar-mod-ctrl")).toBeNull();
+        expect(screen.queryByTestId("toolbar-mod-alt")).toBeNull();
+        expect(screen.queryByTestId("toolbar-mod-shift")).toBeNull();
+        expect(screen.queryByTestId(/toolbar-key-/)).toBeNull();
+    });
+    it("keeps input, send, image upload, and mic in messages mode", () => {
+        render(_jsx(MobileToolbar, { ...baseProps, viewMode: "messages" }));
+        expect(screen.getByTestId("mobile-command-input")).toBeInTheDocument();
+        expect(screen.getByTestId("mobile-command-submit")).toBeInTheDocument();
+        expect(screen.queryByTestId("expand-toggle")).toBeNull();
+        expect(screen.getByTestId("toolbar-upload-image")).toBeInTheDocument();
+        // Mic button is present
+        expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "sm");
+    });
+    it("spreads messages-mode action buttons evenly across the row", () => {
+        render(_jsx(MobileToolbar, { ...baseProps, onOpenAi: vi.fn(), viewMode: "messages" }));
+        const row = screen.getByTestId("messages-toolbar-actions");
+        const ai = screen.getByTestId("toolbar-ai");
+        const upload = screen.getByTestId("toolbar-upload-image");
+        const mic = screen.getByTestId("voice-mic-btn");
+        expect(row).toHaveClass("items-stretch");
+        expect(ai).toHaveClass("flex-1");
+        expect(upload).toHaveClass("flex-1");
+        expect(mic.parentElement).toHaveClass("flex-1");
+        expect(mic).toHaveClass("w-full");
+        expect(mic).toHaveAttribute("data-control-size", "sm");
+    });
+    it("shows full toolbar in terminal mode (default)", () => {
+        render(_jsx(MobileToolbar, { ...baseProps }));
+        // Terminal-specific controls should be present
+        expect(screen.getByTestId("toolbar-mod-ctrl")).toBeInTheDocument();
+        expect(screen.getByTestId("toolbar-mod-alt")).toBeInTheDocument();
+        expect(screen.getByTestId("toolbar-mod-shift")).toBeInTheDocument();
+    });
+    it("shows full toolbar when viewMode is explicitly terminal", () => {
+        render(_jsx(MobileToolbar, { ...baseProps, viewMode: "terminal" }));
+        expect(screen.getByTestId("toolbar-mod-ctrl")).toBeInTheDocument();
+    });
+    // --- Feature 3: Auto-switch to terminal on send ---
+    it("calls onSwitchToTerminal when submitting text in messages mode", () => {
+        render(_jsx(MobileToolbar, { ...baseProps, viewMode: "messages" }));
+        const input = screen.getByTestId("mobile-command-input");
+        fireEvent.change(input, { target: { value: "hello" } });
+        fireEvent.click(screen.getByTestId("mobile-command-submit"));
+        expect(baseProps.onInput).toHaveBeenCalledWith("hello", "toolbar-submit");
+        expect(baseProps.onSwitchToTerminal).toHaveBeenCalledTimes(1);
+    });
+    it("calls onSwitchToTerminal when submitting empty input (Enter) in messages mode", () => {
+        render(_jsx(MobileToolbar, { ...baseProps, viewMode: "messages" }));
+        // Empty input — acts as Enter key
+        fireEvent.click(screen.getByTestId("mobile-command-submit"));
+        expect(baseProps.onSwitchToTerminal).toHaveBeenCalledTimes(1);
+    });
+    it("does NOT call onSwitchToTerminal when submitting in terminal mode", () => {
+        render(_jsx(MobileToolbar, { ...baseProps, viewMode: "terminal" }));
+        const input = screen.getByTestId("mobile-command-input");
+        fireEvent.change(input, { target: { value: "hello" } });
+        fireEvent.click(screen.getByTestId("mobile-command-submit"));
+        expect(baseProps.onInput).toHaveBeenCalled();
+        expect(baseProps.onSwitchToTerminal).not.toHaveBeenCalled();
+    });
+    // --- Full-screen composer entry (corner expand icon) ---
+    it("shows the corner expand icon in terminal mode and opens the composer", () => {
+        const onExpandComposer = vi.fn();
+        render(_jsx(MobileToolbar, { ...baseProps, onExpandComposer: onExpandComposer, viewMode: "terminal" }));
+        const expand = screen.getByTestId("expand-toggle");
+        expect(expand).toBeInTheDocument();
+        fireEvent.click(expand);
+        expect(onExpandComposer).toHaveBeenCalledTimes(1);
+    });
+    it("shows the corner expand icon in messages mode and opens the composer", () => {
+        const onExpandComposer = vi.fn();
+        render(_jsx(MobileToolbar, { ...baseProps, onExpandComposer: onExpandComposer, viewMode: "messages" }));
+        const expand = screen.getByTestId("expand-toggle");
+        expect(expand).toBeInTheDocument();
+        fireEvent.click(expand);
+        expect(onExpandComposer).toHaveBeenCalledTimes(1);
+    });
+    it("does not render the expand icon when onExpandComposer is not provided", () => {
+        render(_jsx(MobileToolbar, { ...baseProps, viewMode: "terminal" }));
+        expect(screen.queryByTestId("expand-toggle")).toBeNull();
+    });
+    it("does not error when onSwitchToTerminal is undefined in messages mode", () => {
+        const propsWithoutSwitch = { ...baseProps, onSwitchToTerminal: undefined };
+        render(_jsx(MobileToolbar, { ...propsWithoutSwitch, viewMode: "messages" }));
+        const input = screen.getByTestId("mobile-command-input");
+        fireEvent.change(input, { target: { value: "hello" } });
+        // Should not throw
+        expect(() => {
+            fireEvent.click(screen.getByTestId("mobile-command-submit"));
+        }).not.toThrow();
+    });
+});

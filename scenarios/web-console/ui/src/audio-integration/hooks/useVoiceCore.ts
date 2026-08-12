@@ -6,6 +6,8 @@ import {
 import { voiceCoreServices } from "../voiceCoreServices";
 export { useScenarioVoiceInput, probeWhisperHealth } from "./useScenarioVoiceInput";
 
+// HOST DIFFERENCE: web-console additionally exposes its scenario health probe;
+// capture core and ownership policy remain package-owned.
 export type { VoiceCapabilityProbe };
 
 export type UseVoiceCoreOptions = Omit<AdoptedVoiceInputOptions, "services"> & {

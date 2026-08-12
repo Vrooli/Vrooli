@@ -21,6 +21,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	bindings := map[string]func(cliapp.RunContext) error{
 		"FilePreviewService.Resolve":        h.resolve,
 		"FilePreviewService.GetTextContent": h.text,
+		"FilePreviewService.ListDirectory":  h.list,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

@@ -33,7 +33,8 @@ import { uploadFile } from "../api/uploads";
 import { fetchCapabilities } from "../api/capabilities";
 import { getSessionDefaults } from "../api/settings";
 import { getSession, type BackendOption, type BackendID, type ExpirationPolicy, type SessionOriginName } from "../api/sessions";
-import type { LaunchOptions } from "./TerminalLauncher";
+import { listRemoteTerminalTargets, type RemoteTerminalTarget } from "../api/remoteSessions";
+import type { LaunchOptions, TerminalTarget } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
 import GridSplitter from "./GridSplitter";
 import TerminalLauncher from "./TerminalLauncher";
@@ -113,6 +114,21 @@ interface WorkspaceProps {
  */
 export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProps = {}) {
   const { t } = useTranslation();
+  const [remoteTargets, setRemoteTargets] = useState<RemoteTerminalTarget[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void listRemoteTerminalTargets()
+      .then((targets) => {
+        if (!cancelled) setRemoteTargets(targets);
+      })
+      .catch(() => {
+        if (!cancelled) setRemoteTargets([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const availableTargets: TerminalTarget[] = remoteTargets.map((target) => ({ ...target }));
   const {
     panes: sessionPanes,
     isHydrated,
@@ -1221,6 +1237,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           defaultBackend={defaultBackend}
           defaultPolicy={defaultPolicy}
           availableBackends={availableBackends}
+          availableTargets={availableTargets}
         />
       </div>
     );
@@ -1881,6 +1898,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         defaultBackend={defaultBackend}
         defaultPolicy={defaultPolicy}
         availableBackends={availableBackends}
+        availableTargets={availableTargets}
       />
 
       {/* Settings Modal */}

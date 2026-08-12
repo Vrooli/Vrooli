@@ -37,12 +37,37 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		Description: "Programmatic terminal access (screen reads, input, idle gates)",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
+			{Name: "targets", Description: "List terminal targets accepted by the web launcher", Run: func(args []string) error { return runTargets(args) }},
 			{Name: "screen", Description: "Print the decoded screen of a session (--include-scrollback, --json)", Run: func(args []string) error { return runScreen(core, args) }},
 			{Name: "send-text", Description: "Send literal text to a session: send-text <session-id> <text...>", Run: func(args []string) error { return runSendText(core, args) }},
 			{Name: "send-keys", Description: "Send named keys: send-keys <session-id> Enter Ctrl+C Up", Run: func(args []string) error { return runSendKeys(core, args) }},
 			{Name: "wait-idle", Description: "Block until the session is idle (--quiet-window, --timeout)", Run: func(args []string) error { return runWaitIdle(core, args) }},
 		},
 	}
+}
+
+func runTargets(args []string) error {
+	fs := support.NewFlagSet("terminal targets")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	targets := []struct {
+		ID   string `json:"id"`
+		Kind string `json:"kind"`
+		Name string `json:"name"`
+	}{
+		{ID: "local", Kind: "local", Name: "This machine"},
+		{ID: "bridge-node:<node-id>", Kind: "bridge-node", Name: "Bridge node (replace <node-id>)"},
+		{ID: "ssh:<host>", Kind: "ssh", Name: "SSH host (replace <host>)"},
+	}
+	if *jsonOutput {
+		return json.NewEncoder(os.Stdout).Encode(targets)
+	}
+	for _, target := range targets {
+		fmt.Fprintf(os.Stdout, "%s\t%s\n", target.ID, target.Name)
+	}
+	return nil
 }
 
 func newClient(core *cliapp.ScenarioApp) terminalconnect.TerminalServiceClient {

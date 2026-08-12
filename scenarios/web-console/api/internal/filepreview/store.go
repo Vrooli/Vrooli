@@ -33,6 +33,7 @@ type Entry struct {
 	CanDownload          bool
 	CanPreview           bool
 	TextContentAvailable bool
+	ListingAvailable     bool
 	ExpiresAt            time.Time
 }
 
@@ -83,6 +84,7 @@ func (s *Store) Issue(sessionID string, t *Target) (string, time.Time, error) {
 		CanDownload:          t.CanDownload,
 		CanPreview:           t.CanPreview,
 		TextContentAvailable: t.TextContentAvailable,
+		ListingAvailable:     t.ListingAvailable,
 		ExpiresAt:            expiry,
 	}
 	return id, expiry, nil

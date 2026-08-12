@@ -3,6 +3,8 @@
 // WebSpeechProvider — Browser-native Web Speech API fallback.
 // Provides continuous recognition with interim results. Quality and availability
 // vary by browser. Final fallback when Whisper is entirely unavailable.
+// HOST DIFFERENCE: this keeps web-console's scenario-local Web Speech wiring;
+// the provider contract and state types come from the shared package.
 
 import { acquireMicStream, releaseMicLease, type MicLease } from "./micOwnership";
 import type { LastTurnAudio, TranscriptionProvider } from "./types";

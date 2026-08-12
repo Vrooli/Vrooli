@@ -24,6 +24,7 @@ import (
 type Service interface {
 	Resolve(ctx context.Context, in ResolveInput) (ResolveResult, error)
 	GetTextContent(ctx context.Context, sessionID, previewID string) (TextResult, error)
+	ListDirectory(ctx context.Context, in ListInput) (ListResult, error)
 }
 
 // ResolveInput carries a resolve request.
@@ -51,6 +52,7 @@ type ResolveResult struct {
 	CanDownload          bool
 	SupportsRange        bool
 	TextContentAvailable bool
+	ListingAvailable     bool
 	BlobURL              string
 	ExpiresUnixNano      int64
 	Warnings             []string
@@ -65,6 +67,45 @@ type TextResult struct {
 	Truncated    bool
 	Line         int
 	HasLine      bool
+}
+
+// ListInput carries a directory-listing request. Sort is the string form of
+// filepreview.Sort; the Connect handler maps the proto enum onto it.
+type ListInput struct {
+	SessionID  string
+	PreviewID  string
+	Sort       string
+	ShowHidden bool
+	PageSize   int
+	PageToken  string
+}
+
+// ListEntry is the transport-neutral form of one directory child. Kind is the
+// string form of filepreview.Kind and is empty when the entry's kind is only
+// determined on open.
+type ListEntry struct {
+	Name            string
+	EntryType       string
+	Kind            string
+	SizeBytes       int64
+	ModTimeUnixNano int64
+	CanPreview      bool
+	SymlinkTarget   string
+	SymlinkBroken   bool
+	Mode            string
+	ChildCount      int64
+}
+
+// ListResult is one bounded page of a directory.
+type ListResult struct {
+	ResolvedPath  string
+	ParentPath    string
+	Entries       []ListEntry
+	TotalEntries  int
+	Truncated     bool
+	NextPageToken string
+	EffectiveSort string
+	Warnings      []string
 }
 
 // Module wires the file-preview Connect service into the API server. The blob

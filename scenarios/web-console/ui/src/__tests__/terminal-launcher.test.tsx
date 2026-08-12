@@ -21,7 +21,7 @@ vi.mock("../api/shortcuts", () => ({
 import { shortcutsClient as _shortcutsClient } from "../api/shortcuts";
 const shortcutsClient = asMockedClient(_shortcutsClient);
 
-import TerminalLauncher from "../components/TerminalLauncher";
+import TerminalLauncher, { type TerminalTarget } from "../components/TerminalLauncher";
 
 const testShortcuts: ShortcutEntry[] = [
   { label: "Claude Code", command: "claude --dangerously-skip-permissions", description: "AI coding assistant" },
@@ -215,5 +215,22 @@ describe("TerminalLauncher", () => {
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
     expect(shortcutsClient.getEffective).not.toHaveBeenCalled();
+  });
+
+  it("selects an available remote target and exposes its readiness facts", () => {
+    const targets: TerminalTarget[] = [
+      { id: "node-1", kind: "bridge-node", label: "Mac mini", available: true, readiness: ["heartbeat fresh", "dispatchable"] },
+      { id: "node-2", kind: "bridge-node", label: "Offline host", available: false, failureRung: "live channel" },
+    ];
+    render(
+      <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />,
+    );
+    fireEvent.click(screen.getByTestId("launcher-options-toggle"));
+    const select = screen.getByTestId("launcher-target-select") as HTMLSelectElement;
+    expect(select.options[2]?.disabled).toBe(true);
+    fireEvent.change(select, { target: { value: "node-1" } });
+    expect(screen.getByText("✓ heartbeat fresh")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("launcher-empty-shell"));
+    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ target: expect.objectContaining({ id: "node-1" }) }));
   });
 });

@@ -11,6 +11,8 @@
 // types. The dependency-capability surface carries feature slugs as strings,
 // so this local enum gives UI call sites stable names without crossing the
 // scenario API boundary.
+// HOST DIFFERENCE: this avoids a foreign scenario proto; swarm's dependency
+// registration is wired to the canonical audio-tools enum.
 //
 // Adding a new feature: add the source value in audio-tools, update the
 // server-side capability registration, then add the slug entry below.

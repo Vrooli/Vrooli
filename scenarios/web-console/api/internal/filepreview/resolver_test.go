@@ -169,14 +169,100 @@ func TestResolveAbsolute(t *testing.T) {
 	}
 }
 
-func TestResolveDirectoryRejected(t *testing.T) {
+// A directory is a preview target in its own right, served by ListDirectory
+// rather than by inline text or a byte stream.
+func TestResolveDirectory(t *testing.T) {
 	root := t.TempDir()
 	mustMkdir(t, filepath.Join(root, "adir"))
 	r := newResolver(root)
-	_, err := r.Resolve("", nil, "adir")
-	var fe *Error
-	if !errors.As(err, &fe) || fe.Code != CodeNotPreviewable {
-		t.Fatalf("expected not_previewable, got %v", err)
+
+	target, err := r.Resolve("", nil, "adir")
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if target.Kind != KindDirectory {
+		t.Fatalf("kind = %q, want %q", target.Kind, KindDirectory)
+	}
+	if !target.CanPreview || !target.ListingAvailable {
+		t.Fatalf("canPreview=%t listingAvailable=%t, want both true", target.CanPreview, target.ListingAvailable)
+	}
+	if target.TextContentAvailable || target.SupportsRange || target.CanDownload {
+		t.Fatalf("directory must not be text/range/download capable: text=%t range=%t download=%t",
+			target.TextContentAvailable, target.SupportsRange, target.CanDownload)
+	}
+	if target.MIMEType != MIMEDirectory {
+		t.Fatalf("mime = %q, want %q", target.MIMEType, MIMEDirectory)
+	}
+	if target.Basename != "adir" {
+		t.Fatalf("basename = %q, want %q", target.Basename, "adir")
+	}
+}
+
+// The three transport classes are mutually exclusive: exactly one of them
+// serves any resolvable target.
+func TestKindTransportClassesAreExclusive(t *testing.T) {
+	all := []Kind{
+		KindMarkdown, KindCode, KindText, KindSVG, KindImage, KindPDF,
+		KindAudio, KindVideo, KindCSV, KindDiff, KindDirectory, KindUnsupported,
+	}
+	for _, k := range all {
+		n := 0
+		for _, in := range []bool{k.TextContentAvailable(), k.UsesBlob(), k.ListingAvailable()} {
+			if in {
+				n++
+			}
+		}
+		if k == KindUnsupported {
+			if n != 0 {
+				t.Fatalf("kind %q: unsupported must belong to no transport class, got %d", k, n)
+			}
+			continue
+		}
+		if n != 1 {
+			t.Fatalf("kind %q: belongs to %d transport classes, want exactly 1", k, n)
+		}
+	}
+}
+
+// A directory whose name collides with a file higher in the candidate list
+// must still resolve to the directory. The first existing candidate wins,
+// whatever its type — otherwise a directory under the session cwd would
+// silently resolve to a same-named file under the project root.
+func TestResolveDirectoryUnderCwdBeatsFileUnderRoot(t *testing.T) {
+	root := t.TempDir()
+	cwd := t.TempDir()
+	mustMkdir(t, filepath.Join(cwd, "evidence"))
+	mustWrite(t, filepath.Join(root, "evidence"), "i am a file")
+
+	r := newResolver(root)
+	target, err := r.Resolve(cwd, nil, "evidence")
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if target.Kind != KindDirectory {
+		t.Fatalf("kind = %q, want %q (resolved %q)", target.Kind, KindDirectory, target.ResolvedPath)
+	}
+	if target.ResolutionBasis != "session_cwd" {
+		t.Fatalf("basis = %q, want session_cwd", target.ResolutionBasis)
+	}
+}
+
+// A :line suffix on a directory is meaningless. Drop it rather than failing a
+// reference an agent wrote loosely.
+func TestResolveDirectoryIgnoresLineSuffix(t *testing.T) {
+	root := t.TempDir()
+	mustMkdir(t, filepath.Join(root, "adir"))
+	r := newResolver(root)
+
+	target, err := r.Resolve("", nil, "adir:42")
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if target.Kind != KindDirectory {
+		t.Fatalf("kind = %q, want %q", target.Kind, KindDirectory)
+	}
+	if target.HasLine {
+		t.Fatalf("directory target must not carry a line number, got %d", target.Line)
 	}
 }
 

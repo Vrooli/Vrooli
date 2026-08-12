@@ -3,6 +3,7 @@ import { SessionsService, SessionOrigin } from "@vrooli/proto-types/web-console/
 import { resolveApiBase, buildWsUrl } from "@vrooli/api-base";
 
 import { transport } from "./client";
+import { deleteRemoteSession, listRemoteSessions } from "./remoteSessions";
 
 // sessionsClient is the Connect-Web client for SessionsService. Consumers
 // should prefer the typed wrappers below, which surface the snake_case
@@ -83,6 +84,8 @@ export interface RecoverableSession {
   orphaned_at?: string;
   last_activity_at?: string;
   agent_type?: AgentType;
+	owner?: string;
+	display_label?: string;
   agent_session_id?: string;
   launch_command?: string;
   cwd?: string;
@@ -257,6 +260,8 @@ export async function createSession(opts?: {
   // client typing it after the WebSocket connects.
   execute_launch_command?: boolean;
   agent_type?: AgentType;
+	owner?: string;
+	display_label?: string;
 }): Promise<SessionInfo> {
   const resp = await sessionsClient.create({
     shell: opts?.shell ?? "",
@@ -266,6 +271,8 @@ export async function createSession(opts?: {
     launchCommand: opts?.launch_command ?? "",
     executeLaunchCommand: opts?.execute_launch_command ?? false,
     agentType: opts?.agent_type ?? "",
+		owner: opts?.owner ?? "",
+		displayLabel: opts?.display_label ?? "",
     // First-party UI client: tag provenance explicitly so an origin-less
     // create (which the server normalizes to programmatic) can only come from
     // a non-UI caller.
@@ -298,8 +305,16 @@ export async function listSessionsWithRecovery(): Promise<{
 }> {
   const resp = await sessionsClient.list({});
   const r = resp.recovery;
+  const localSessions = resp.sessions.map(decodeSession);
+  let remoteSessions: SessionInfo[] = [];
+  try {
+    remoteSessions = await listRemoteSessions();
+  } catch {
+    // Remote federation is optional; local hydration remains authoritative
+    // when Bridge is not configured or temporarily unavailable.
+  }
   return {
-    sessions: resp.sessions.map(decodeSession),
+    sessions: [...localSessions, ...remoteSessions],
     recovery: {
       in_progress: r?.inProgress ?? false,
       total: r?.total ?? 0,
@@ -315,11 +330,20 @@ export async function listSessions(): Promise<SessionInfo[]> {
 }
 
 export async function getSession(id: string): Promise<SessionInfo> {
+  if (id.startsWith("remote:")) {
+    const remote = await listRemoteSessions();
+    const found = remote.find((s) => s.id === id);
+    if (found) return found;
+  }
   const resp = await sessionsClient.get({ id });
   return decodeSession(resp.session);
 }
 
 export async function deleteSession(id: string): Promise<void> {
+  if (id.startsWith("remote:")) {
+    await deleteRemoteSession(id);
+    return;
+  }
   await sessionsClient.delete({ id });
 }
 

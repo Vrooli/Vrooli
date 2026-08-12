@@ -141,6 +141,7 @@ export default function AudioPlayerBar({
   return (
     <div
       data-testid="audio-player-bar"
+      data-audio-state="player"
       data-loading={isLoading ? "true" : "false"}
       className="flex items-center gap-1.5 border-t border-wc-default bg-wc-surface-raised py-1.5 ps-[max(0.5rem,var(--wc-safe-left,0px))] pe-[max(0.5rem,var(--wc-safe-right,0px))] text-wc-text-primary animate-in slide-in-from-bottom-2 duration-200"
     >

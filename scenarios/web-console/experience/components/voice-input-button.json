@@ -1,42 +1,24 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
-  "kind": "experience-component",
-  "schemaVersion": "1.1.0",
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library/VoiceInputButton@4.0.0"
+  },
   "component": {
     "id": "voice-input-button",
     "title": "VoiceInputButton",
-    "purpose": "Expose an accessible microphone control whose visual level, timeout, and always-on states communicate capture state.",
-    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/3.0.0/story.json",
-    "prd_refs": ["OT-P0-008"]
+    "purpose": "Expose one fixed-footprint microphone control; consumers own errors and recovery actions."
   },
-  "priorities": [{ "statement": "The control always communicates whether voice input can start, is preparing, is recording, or has failed." }],
   "states": [
     { "id": "idle", "example": "idle", "description": "Ready to start voice input." },
-    { "id": "recording-low", "example": "recording", "description": "Recording with a low audio level." },
-    { "id": "recording-high", "example": "recording", "description": "Recording with a high audio level." },
-    { "id": "timeout", "example": "mode-timeout", "description": "Recording with visible timeout progress." },
-    { "id": "always-on", "example": "mode-always-on", "description": "Always-on listening mode." },
-    { "id": "error", "example": "error", "description": "Terminal connection error." }
+    { "id": "recording", "example": "recording", "description": "Capturing microphone input." },
+    { "id": "error", "example": "error", "description": "Error state without an embedded recovery surface." }
   ],
   "elements": [
-    { "id": "voice-control", "role": "button", "description": "The accessible microphone control." },
-    { "id": "dismiss", "role": "button", "description": "The error dismissal control." }
+    { "id": "voice-control", "role": "button", "description": "The only rendered control." }
   ],
-  "claims": [{
-    "id": "voice-input-action",
-    "type": "element-present",
-    "statement": "The idle specimen exposes a named action to start voice input.",
-    "tier": "machine",
-    "elements": ["voice-control"],
-    "states": ["idle"]
-  }, {
-    "id": "error-dismiss-size-parity",
-    "type": "size-parity",
-    "statement": "The error dismissal control remains aligned to the declared recovery-control height.",
-    "tier": "machine",
-    "elements": ["voice-control", "dismiss"],
-    "states": ["error"],
-    "params": { "tolerance": 2 }
-  }],
-  "bindings": { "elements": { "voice-control": { "testid": "voice-input-control" }, "dismiss": { "testid": "voice-input-error-dismiss" } } }
+  "claims": [
+    { "id": "voice-input-action", "type": "element-present", "statement": "Every state exposes exactly one named microphone control.", "tier": "machine", "elements": ["voice-control"], "states": ["idle", "recording", "error"] }
+  ],
+  "bindings": { "elements": { "voice-control": { "testid": "voice-input-control" } } }
 }

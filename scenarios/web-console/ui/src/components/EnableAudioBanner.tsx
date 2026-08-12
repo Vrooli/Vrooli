@@ -43,6 +43,7 @@ export default function EnableAudioBanner({ onEnable, onDismiss }: EnableAudioBa
   return (
     <div
       data-testid="enable-audio-banner"
+      data-audio-state="enable-audio"
       className="wc-stable-theme flex items-start gap-2 border-b border-amber-500/30 bg-amber-500/10 py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-amber-200"
       role="status"
     >

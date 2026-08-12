@@ -3,6 +3,9 @@
 // Calls web-console's own AudioAdminService + AudioRuntimeService via
 // the same-origin Connect transport. The UI never talks to audio-tools
 // directly; web-console's API owns the inter-scenario hop.
+// HOST DIFFERENCE: web-console's generated TTS proto exposes chunk_index for
+// paragraph cache keys; it stays in this adapter because it is a host RPC
+// field, not browser capture behavior.
 
 import { create } from "@bufbuild/protobuf";
 import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";

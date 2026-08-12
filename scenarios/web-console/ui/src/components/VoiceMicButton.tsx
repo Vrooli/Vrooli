@@ -1,4 +1,4 @@
-import { VoiceInputButton, type ButtonSize } from "../audio-integration/SharedVoiceInputButton";
+import { VoiceInputButton, type ButtonSize } from "../audio-integration/VoiceInputButton";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
 
 export interface VoiceMicButtonProps {
@@ -44,7 +44,6 @@ export default function VoiceMicButton({
   error,
   audioLevel = 0,
   voiceActivity,
-  partialTranscript,
   staleLiveMic,
   backend,
   isTtsSpeaking,
@@ -65,30 +64,30 @@ export default function VoiceMicButton({
 }: VoiceMicButtonProps) {
   const state = !supported ? "unavailable" : isTranscribing ? "transcribing" : isPreparing ? "preparing" : isPassive ? "recovering" : isRecording || isListening ? "recording" : error ? "error" : "idle";
   return (
-    <VoiceInputButton
-      state={state}
-      mode={persistentMode ? "always-on" : "timeout"}
-      level={audioLevel}
-      timeoutProgress={voiceActivity?.autoStopProgress ?? 0}
-      error={error ?? undefined}
-      partialTranscript={partialTranscript}
-      staleLiveMic={staleLiveMic}
-      backend={backend}
-      isTtsSpeaking={isTtsSpeaking}
-      size={size}
-      canExportDiagnostic={canExportDiagnostic}
-      onCancel={onCancel}
-      onExitPassive={onExitPassive}
-      onReleaseMic={onReleaseMic}
-      onTtsStop={onTtsStop}
-      onExportDiagnostic={onExportDiagnostic}
-      wrapperClassName={className}
-      iconClassName={iconClassName}
-      className={buttonClassName}
-      onStart={() => onStart?.()}
-      onStop={onStop}
-      onPrepare={onPrepare}
-      data-testid={testId}
-    />
+    <div className={className} data-voice-backend={backend}>
+      <VoiceInputButton
+        state={state}
+        mode={persistentMode ? "always-on" : "timeout"}
+        level={audioLevel}
+        timeoutProgress={voiceActivity?.autoStopProgress ?? 0}
+        size={size}
+        iconClassName={iconClassName}
+        onExitPassive={onExitPassive}
+        className={buttonClassName}
+        onStart={() => onStart?.()}
+        onStop={onStop}
+        onPrepare={onPrepare}
+        data-testid={testId}
+      />
+      {error && <div role="alert" className="mt-1 text-center text-xs text-wc-error-text">{error}</div>}
+      {(state === "transcribing" && onCancel) || staleLiveMic || (isTtsSpeaking && onTtsStop) || (canExportDiagnostic && onExportDiagnostic) ? (
+        <div role="group" aria-label="Voice recovery actions" className="mt-1 flex flex-wrap justify-center gap-1 text-[10px]">
+          {state === "transcribing" && onCancel && <button type="button" className="rounded border border-wc-default px-1.5 py-0.5 text-wc-text-muted" onClick={onCancel}>Cancel</button>}
+          {staleLiveMic && onReleaseMic && <button type="button" className="rounded border border-wc-accent px-1.5 py-0.5 text-wc-accent" onClick={onReleaseMic}>Release mic</button>}
+          {isTtsSpeaking && onTtsStop && <button type="button" className="rounded border border-wc-accent px-1.5 py-0.5 text-wc-accent" onClick={onTtsStop}>Stop speech</button>}
+          {canExportDiagnostic && onExportDiagnostic && <button type="button" className="rounded border border-wc-default px-1.5 py-0.5 text-wc-text-muted" onClick={() => { onExportDiagnostic(); }}>Export diagnostic</button>}
+        </div>
+      ) : null}
+    </div>
   );
 }

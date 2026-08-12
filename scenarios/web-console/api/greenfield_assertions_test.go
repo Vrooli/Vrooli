@@ -28,10 +28,12 @@ func TestGreenfield_NoRawSetSizeOutsideGatedPaths(t *testing.T) {
 			if !re.MatchString(line) {
 				continue
 			}
-			// Allowed: inside maybeSIGWINCHRecovery or Resize.
+			// Allowed: inside the public Resize path or its locked helper.
+			// The helper is intentionally separate so the lease check remains
+			// outside the mutation block while all PTY sizing stays gated by it.
 			enclosing := findEnclosingFunc(lines, i)
 			switch enclosing {
-			case "maybeSIGWINCHRecovery", "Resize":
+			case "maybeSIGWINCHRecovery", "Resize", "applyResizeLocked":
 				// ok
 			default:
 				t.Errorf("%s:%d SetSize outside gated path (enclosing func=%q): %q",

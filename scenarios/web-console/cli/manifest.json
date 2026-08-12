@@ -233,7 +233,7 @@
     },
     {
       "name": "file-preview",
-      "description": "Resolve local file references into preview targets and read bounded text content",
+      "description": "Resolve local file references into preview targets, read bounded text content, and list directories",
       "commands": [
         {
           "name": "resolve",
@@ -288,6 +288,57 @@
             "kind": "connect-rpc",
             "service": "FilePreviewService",
             "method": "GetTextContent"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "ls",
+          "description": "List one page of a resolved directory preview id",
+          "flags": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Session ID (required)",
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "preview-id",
+              "required": true,
+              "description": "Directory preview id from file-preview resolve (required)"
+            },
+            {
+              "name": "sort",
+              "required": false,
+              "description": "Ordering: dirs_first_name (default), name, size_desc, mtime_desc"
+            },
+            {
+              "name": "show-hidden",
+              "required": false,
+              "description": "Include dot-prefixed entries"
+            },
+            {
+              "name": "page-size",
+              "required": false,
+              "description": "Entries per page (default 200, max 1000)"
+            },
+            {
+              "name": "page-token",
+              "required": false,
+              "description": "Continuation token from a previous page"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FilePreviewService",
+            "method": "ListDirectory"
           },
           "governance": {
             "effect": "read",

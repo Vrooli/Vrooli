@@ -1,0 +1,319 @@
+import { jsx as _jsx } from "react/jsx-runtime";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils/render";
+import IntegrationsPanel from "../components/IntegrationsPanel";
+import { strings } from "../consts/strings";
+import { i18n } from "../i18n";
+vi.mock("@vrooli/api-base", () => ({
+    resolveApiBase: () => "http://localhost:4200/api/v1",
+    buildApiUrl: (path) => `http://localhost:4200/api/v1${path}`,
+    buildWsUrl: (path) => `ws://localhost:4200/api/v1${path}`,
+    createScenarioConnectTransport: () => ({}),
+}));
+const { mockFetchCapabilities, mockRunCapabilityAction } = vi.hoisted(() => ({
+    mockFetchCapabilities: vi.fn(),
+    mockRunCapabilityAction: vi.fn(),
+}));
+vi.mock("../api/capabilities", () => ({
+    fetchCapabilities: mockFetchCapabilities,
+    runCapabilityAction: mockRunCapabilityAction,
+}));
+const mockCapabilities = {
+    capabilities: [
+        {
+            id: "audio-tools",
+            name: "Audio Tools",
+            description: "Shared audio capability scenario",
+            dependencyKind: "scenario",
+            dependencySlug: "audio-tools",
+            features: ["voice-input", "voice-streaming"],
+            status: "available",
+            message: "scenario is healthy",
+            checkedAt: "2026-03-17T00:00:00Z",
+        },
+        {
+            id: "kokoro-tts",
+            name: "Kokoro TTS",
+            description: "Text-to-speech synthesis via Kokoro",
+            dependencyKind: "resource",
+            dependencySlug: "kokoro",
+            features: ["voice-output"],
+            status: "unavailable",
+            message: "resource is not responding",
+        },
+        {
+            id: "ollama",
+            name: "Ollama",
+            description: "Local LLM inference for AI command generation",
+            dependencyKind: "resource",
+            dependencySlug: "ollama",
+            features: ["ai-command-generation"],
+            status: "available",
+        },
+        {
+            id: "openrouter",
+            name: "OpenRouter",
+            description: "Cloud LLM API for AI command generation",
+            dependencyKind: "resource",
+            dependencySlug: "openrouter",
+            features: ["ai-command-generation"],
+            status: "unavailable",
+            message: "OPENROUTER_API_KEY not configured",
+        },
+    ],
+    timestamp: "2026-03-17T00:00:00Z",
+};
+beforeEach(() => {
+    mockFetchCapabilities.mockReset();
+    mockRunCapabilityAction.mockReset();
+});
+describe("IntegrationsPanel", () => {
+    it("shows loading state while fetching", () => {
+        mockFetchCapabilities.mockReturnValue(new Promise(() => { }));
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        expect(screen.getByText(strings.integrationsPanel.checking)).toBeTruthy();
+    });
+    it("shows error state when fetch fails", async () => {
+        await i18n.changeLanguage("en");
+        mockFetchCapabilities.mockRejectedValue(new Error("Server error"));
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        await waitFor(() => {
+            expect(screen.getByText(/Failed to load integrations/)).toBeTruthy();
+        });
+    });
+    it("renders all capability cards", async () => {
+        mockFetchCapabilities.mockResolvedValue(mockCapabilities);
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        await waitFor(() => {
+            expect(screen.getByTestId("cap-card-audio-tools")).toBeTruthy();
+            expect(screen.getByTestId("cap-card-kokoro-tts")).toBeTruthy();
+            expect(screen.getByTestId("cap-card-ollama")).toBeTruthy();
+            expect(screen.getByTestId("cap-card-openrouter")).toBeTruthy();
+        });
+    });
+    it("shows correct active count", async () => {
+        await i18n.changeLanguage("en");
+        mockFetchCapabilities.mockResolvedValue(mockCapabilities);
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        await waitFor(() => {
+            expect(screen.getByText("2/4 active")).toBeTruthy();
+        });
+    });
+    it("shows diagnostic messages", async () => {
+        mockFetchCapabilities.mockResolvedValue(mockCapabilities);
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        await waitFor(() => {
+            expect(screen.getByTestId("cap-message-kokoro-tts")).toBeTruthy();
+            expect(screen.getByText("resource is not responding")).toBeTruthy();
+            expect(screen.getByText("OPENROUTER_API_KEY not configured")).toBeTruthy();
+        });
+    });
+    it("shows typed reason and safe operator command metadata", async () => {
+        mockFetchCapabilities.mockResolvedValue({
+            ...mockCapabilities,
+            capabilities: [
+                {
+                    id: "audio-tools",
+                    name: "Audio Tools",
+                    description: "Shared audio capability scenario",
+                    dependencyKind: "scenario",
+                    dependencySlug: "audio-tools",
+                    features: ["voice-input"],
+                    status: "unavailable",
+                    message: "scenario is installed but stopped",
+                    reasonCode: "scenario_stopped",
+                    actionKind: "scenario_start",
+                    actionLabel: "Start scenario",
+                    operatorCommand: "vrooli scenario start audio-tools --json",
+                },
+            ],
+        });
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        await waitFor(() => {
+            expect(screen.getByTestId("cap-reason-audio-tools").textContent).toContain("scenario_stopped");
+            expect(screen.getByTestId("cap-action-audio-tools").textContent).toContain("Start scenario");
+            expect(screen.getByTestId("cap-command-audio-tools").textContent).toContain("vrooli scenario start audio-tools --json");
+        });
+    });
+    it("runs a supported scenario action and refreshes capabilities", async () => {
+        await i18n.changeLanguage("en");
+        const stopped = {
+            capabilities: [
+                {
+                    id: "audio-tools",
+                    name: "Audio Tools",
+                    description: "Shared audio capability scenario",
+                    dependencyKind: "scenario",
+                    dependencySlug: "audio-tools",
+                    features: ["voice-input"],
+                    status: "unavailable",
+                    message: "scenario is installed but stopped",
+                    reasonCode: "scenario_stopped",
+                    actionKind: "scenario_start",
+                    actionLabel: "Start scenario",
+                    operatorCommand: "vrooli scenario start audio-tools --json",
+                },
+            ],
+            timestamp: "2026-03-17T00:00:00Z",
+        };
+        const stoppedCap = stopped.capabilities[0];
+        if (!stoppedCap)
+            throw new Error("test fixture missing capability");
+        const refreshed = {
+            capabilities: [
+                {
+                    ...stoppedCap,
+                    status: "available",
+                    message: "scenario is healthy",
+                    reasonCode: undefined,
+                    actionKind: undefined,
+                    actionLabel: undefined,
+                    operatorCommand: undefined,
+                },
+            ],
+            timestamp: "2026-03-17T00:01:00Z",
+        };
+        mockFetchCapabilities.mockResolvedValue(refreshed);
+        mockFetchCapabilities.mockResolvedValueOnce(stopped);
+        mockRunCapabilityAction.mockResolvedValue({
+            success: true,
+            status: "healthy",
+            message: "lifecycle action completed",
+            capabilityId: "audio-tools",
+            actionKind: "scenario_start",
+            capabilities: refreshed.capabilities,
+            timestamp: refreshed.timestamp,
+        });
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        const button = await screen.findByTestId("cap-run-action-audio-tools");
+        fireEvent.click(button);
+        await waitFor(() => {
+            expect(mockRunCapabilityAction).toHaveBeenCalledWith("audio-tools", "scenario_start");
+            expect(screen.getByTestId("cap-action-result-audio-tools").textContent).toContain("lifecycle action completed");
+            expect(screen.getByText("scenario is healthy")).toBeTruthy();
+        });
+    });
+    it("shows action failure when the delegated lifecycle call fails", async () => {
+        await i18n.changeLanguage("en");
+        mockFetchCapabilities.mockResolvedValue({
+            capabilities: [
+                {
+                    id: "audio-tools",
+                    name: "Audio Tools",
+                    description: "Shared audio capability scenario",
+                    dependencyKind: "scenario",
+                    dependencySlug: "audio-tools",
+                    features: ["voice-input"],
+                    status: "unavailable",
+                    message: "scenario start failed",
+                    reasonCode: "scenario_start_failed",
+                    actionKind: "scenario_restart",
+                    actionLabel: "Restart scenario",
+                    operatorCommand: "vrooli scenario restart audio-tools --json",
+                },
+            ],
+            timestamp: "2026-03-17T00:00:00Z",
+        });
+        mockRunCapabilityAction.mockRejectedValue(new Error("wait timed out"));
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        const button = await screen.findByTestId("cap-run-action-audio-tools");
+        fireEvent.click(button);
+        await waitFor(() => {
+            expect(screen.getByTestId("cap-action-error-audio-tools").textContent).toContain("wait timed out");
+        });
+    });
+    it("shows unsuccessful lifecycle results returned by the backend", async () => {
+        await i18n.changeLanguage("en");
+        const stopped = {
+            capabilities: [
+                {
+                    id: "audio-tools",
+                    name: "Audio Tools",
+                    description: "Shared audio capability scenario",
+                    dependencyKind: "scenario",
+                    dependencySlug: "audio-tools",
+                    features: ["voice-input"],
+                    status: "unavailable",
+                    message: "scenario is installed but stopped",
+                    reasonCode: "scenario_stopped",
+                    actionKind: "scenario_start",
+                    actionLabel: "Start scenario",
+                    operatorCommand: "vrooli scenario start audio-tools --json",
+                },
+            ],
+            timestamp: "2026-03-17T00:00:00Z",
+        };
+        mockFetchCapabilities.mockResolvedValue(stopped);
+        mockRunCapabilityAction.mockResolvedValue({
+            success: false,
+            status: "failed",
+            message: "lifecycle wait failed: timeout",
+            capabilityId: "audio-tools",
+            actionKind: "scenario_start",
+            capabilities: stopped.capabilities,
+            timestamp: "2026-03-17T00:01:00Z",
+        });
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        const button = await screen.findByTestId("cap-run-action-audio-tools");
+        fireEvent.click(button);
+        await waitFor(() => {
+            const result = screen.getByTestId("cap-action-result-audio-tools");
+            expect(result.textContent).toContain("lifecycle wait failed: timeout");
+            expect(result.className).toContain("text-red-400");
+        });
+    });
+    it("does not show a backend action button for operator-only guidance", async () => {
+        mockFetchCapabilities.mockResolvedValue({
+            capabilities: [
+                {
+                    id: "audio-tools",
+                    name: "Audio Tools",
+                    description: "Shared audio capability scenario",
+                    dependencyKind: "scenario",
+                    dependencySlug: "audio-tools",
+                    features: ["voice-input"],
+                    status: "unavailable",
+                    actionKind: "operator_command",
+                    actionLabel: "Wait for scenario",
+                    operatorCommand: "vrooli scenario wait audio-tools --json",
+                },
+            ],
+            timestamp: "2026-03-17T00:00:00Z",
+        });
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        await waitFor(() => {
+            expect(screen.getByTestId("cap-action-audio-tools").textContent).toContain("Wait for scenario");
+            expect(screen.queryByTestId("cap-run-action-audio-tools")).toBeNull();
+        });
+    });
+    it("shows dependency kind badges", async () => {
+        mockFetchCapabilities.mockResolvedValue(mockCapabilities);
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        await waitFor(() => {
+            // 3 resources (kokoro-tts, ollama, openrouter) + 1 scenario (audio-tools).
+            expect(screen.getAllByText("resource").length).toBe(3);
+            expect(screen.getAllByText("scenario").length).toBe(1);
+        });
+    });
+    it("crosses out features for unavailable capabilities", async () => {
+        mockFetchCapabilities.mockResolvedValue(mockCapabilities);
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        await waitFor(() => {
+            const voiceOutput = screen.getByText("voice-output");
+            expect(voiceOutput.className).toContain("line-through");
+        });
+    });
+    it("does not cross out features for available capabilities", async () => {
+        mockFetchCapabilities.mockResolvedValue(mockCapabilities);
+        renderWithProviders(_jsx(IntegrationsPanel, { open: true }));
+        await waitFor(() => {
+            const voiceInput = screen.getByText("voice-input");
+            expect(voiceInput.className).not.toContain("line-through");
+        });
+    });
+    it("does not fetch when open is false", () => {
+        renderWithProviders(_jsx(IntegrationsPanel, { open: false }));
+        expect(mockFetchCapabilities).not.toHaveBeenCalled();
+    });
+});

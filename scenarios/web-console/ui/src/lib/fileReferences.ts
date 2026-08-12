@@ -51,7 +51,7 @@ const PROSE_PATH_CANDIDATE = /(?:file:\/\/|~|\.{1,2})?\/?[\w.@+-]+(?:\/[\w.@+-]+
 
 const EXTENSION_RE = /\.[A-Za-z0-9]{1,8}$/;
 
-function isStrictProsePath(token: string): boolean {
+function isStrictProsePath(token: string, trailingSlash = false): boolean {
   const withoutLine = token.replace(/:\d+$/, "");
   const anchored = /^(?:file:\/\/|~\/|\.{1,2}\/|\/)/.test(withoutLine);
   const body = withoutLine.replace(/^(?:file:\/\/|~\/|\.{1,2}\/|\/)/, "").replace(/\/$/, "");
@@ -61,7 +61,17 @@ function isStrictProsePath(token: string): boolean {
   if (anchored) {
     return segments.length >= 2 || EXTENSION_RE.test(lastSegment);
   }
-  // Unanchored relative paths need both depth and an extension to qualify.
+  // Unanchored relative paths normally need both depth and an extension —
+  // the guard that keeps `and/or` and `TCP/IP` out of the link layer.
+  //
+  // An explicit trailing slash is the one exception: it is an unambiguous
+  // "this is a directory" signal that running prose never produces by
+  // accident, so `docs/evidence/` qualifies where `docs/evidence` cannot.
+  // Directories are previewable, so without this the same directory would be
+  // a link when written one way and dead text when written another.
+  if (trailingSlash) {
+    return segments.length >= 2;
+  }
   return segments.length >= 2 && EXTENSION_RE.test(lastSegment);
 }
 
@@ -81,7 +91,12 @@ export function looksLikeInlineFileReference(text: string): boolean {
   if (!value || /\s/.test(value) || isExternalHref(value)) return false;
   const matches = matchProseFilePaths(value);
   const only = matches.length === 1 ? matches[0] : undefined;
-  if (only && only.start === 0 && only.end === value.length) {
+  // matchProseFilePaths reports the path without a trailing slash, so a
+  // directory written as `docs/evidence/` matches one character short of the
+  // full token. Compare against the slash-trimmed value so it still counts as
+  // covering the whole chip.
+  const covered = value.replace(/\/+$/, "").length;
+  if (only && only.start === 0 && only.end === covered) {
     return true;
   }
   if (value.includes("/") || value.includes("\\")) return false;
@@ -109,9 +124,12 @@ export function matchProseFilePaths(text: string): ProsePathMatch[] {
 
     // Trim trailing sentence punctuation ("see src/App.tsx.", "…in a/b,").
     while (/[.,;!?]$/.test(token)) token = token.slice(0, -1);
-    // A trailing slash is directory-ish; drop it before validation.
+    // A trailing slash is an explicit directory signal. Remember it, then drop
+    // it so the rest of validation sees a clean token; the match itself
+    // excludes the slash so the preview receives the path without it.
+    const trailingSlash = /\/+$/.test(token);
     token = token.replace(/\/+$/, "");
-    if (!token || !isStrictProsePath(token)) continue;
+    if (!token || !isStrictProsePath(token, trailingSlash)) continue;
 
     matches.push({ start, end: start + token.length, path: token });
   }

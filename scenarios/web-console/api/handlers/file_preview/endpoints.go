@@ -40,7 +40,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Missing or malformed path"},
 			{Status: 403, Code: "permission_denied", Description: "Referenced file is not readable"},
 			{Status: 404, Code: "not_found", Description: "Session or file not found"},
-			{Status: 412, Code: "failed_precondition", Description: "Referenced path is a directory or otherwise not previewable"},
+			{Status: 412, Code: "failed_precondition", Description: "Referenced path is a special file (socket, FIFO, device) or otherwise not previewable"},
 		},
 	},
 	{
@@ -64,6 +64,34 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Missing session_id or preview_id"},
 			{Status: 404, Code: "not_found", Description: "Unknown/expired preview id or missing file"},
 			{Status: 412, Code: "failed_precondition", Description: "Preview kind has no inline text content"},
+		},
+	},
+	{
+		ID:          "file_preview_list_directory",
+		Path:        filepreviewconnect.FilePreviewServiceListDirectoryProcedure,
+		Method:      "POST",
+		Summary:     "List one page of a resolved directory",
+		Description: "Returns a bounded, sorted page of a directory previously resolved by Resolve, keyed by its opaque preview id. Entries are classified from their extension alone so a page costs no file reads. Pages are capped (1000 max, 200 default) and the scan stops at 50000 entries; size and date sorts are limited to 5000 entries and downgrade to a name sort with a warning above that. The continuation token pins the directory mtime, so a directory that changes mid-walk aborts rather than silently skipping entries.",
+		Category:    "file_preview",
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"resolved_path":   "string",
+				"parent_path":     "string",
+				"entries":         "[]DirectoryEntry",
+				"total_entries":   "int32",
+				"truncated":       "bool",
+				"next_page_token": "string",
+				"effective_sort":  "DirectorySort",
+				"warnings":        "[]string",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing session_id/preview_id, or a page token that does not match the requested directory, sort, or filter"},
+			{Status: 403, Code: "permission_denied", Description: "Directory is not readable"},
+			{Status: 404, Code: "not_found", Description: "Unknown/expired preview id or the directory no longer exists"},
+			{Status: 409, Code: "aborted", Description: "Directory changed between pages; the listing must be reloaded"},
+			{Status: 412, Code: "failed_precondition", Description: "Preview id does not name a directory"},
 		},
 	},
 	{

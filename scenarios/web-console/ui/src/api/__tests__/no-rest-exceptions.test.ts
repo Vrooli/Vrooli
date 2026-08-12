@@ -16,6 +16,8 @@ import { fileURLToPath } from "node:url";
 //                  web-console-internal surface that never crosses scenario
 //                  boundaries; all audio synthesis flows through Connect
 //                  against audio-tools)
+//   remoteSessions.ts -> RESTReasonOpsProbe (the browser JSON terminal ↔
+//                  Bridge binary-session federation adapter)
 //
 // See docs/internal/SEAMS.md for the registry. Adding a fourth REST
 // surface requires picking another enumerated RESTReason and updating
@@ -24,7 +26,7 @@ import { fileURLToPath } from "node:url";
 const THIS_FILE = fileURLToPath(import.meta.url);
 const API_DIR = resolve(THIS_FILE, "..", "..");
 
-const ALLOWLIST = new Set(["health.ts", "uploads.ts", "ttsHook.ts"]);
+const ALLOWLIST = new Set(["health.ts", "uploads.ts", "ttsHook.ts", "remoteSessions.ts"]);
 
 function listApiFiles(dir: string): string[] {
   const out: string[] = [];

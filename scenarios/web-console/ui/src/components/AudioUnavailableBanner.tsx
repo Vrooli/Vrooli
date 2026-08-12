@@ -25,6 +25,7 @@ export function AudioUnavailableBanner({ reason, className }: AudioUnavailableBa
     <div
       role="status"
       aria-live="polite"
+      data-audio-state="unavailable"
       className={[
         "flex items-start gap-2 rounded-control border border-app-warning/40 bg-app-warning/10 px-3 py-2 text-sm text-app-warning-foreground",
         className ?? "",

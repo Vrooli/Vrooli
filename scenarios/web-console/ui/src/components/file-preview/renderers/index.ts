@@ -2,6 +2,7 @@ import type { PreviewKind, PreviewRenderer } from "../types";
 import { CodePreview, MarkdownPreview } from "./TextRenderers";
 import { AudioPreview, ImagePreview, PdfPreview, VideoPreview } from "./MediaRenderers";
 import { CsvPreview, DiffPreview } from "./DataRenderers";
+import { DirectoryPreview } from "./DirectoryPreview";
 import { UnsupportedPreview } from "./UnsupportedPreview";
 
 // renderers maps every PreviewKind to its dedicated renderer. The viewer routes
@@ -19,6 +20,7 @@ export const renderers: Record<PreviewKind, PreviewRenderer> = {
   video: VideoPreview,
   csv: CsvPreview,
   diff: DiffPreview,
+  directory: DirectoryPreview,
   unsupported: UnsupportedPreview,
 };
 

@@ -46,6 +46,7 @@ export default function VoiceCommandSuggestion({
   return (
     <div
       data-testid="voice-command-suggestion"
+      data-audio-state="command-suggestion"
       className="flex items-center gap-2 border-t border-wc-default bg-wc-surface-raised px-2 py-1.5 animate-in slide-in-from-bottom-2 duration-200 touch-manipulation select-none"
       onMouseDown={(e) => e.preventDefault()}
     >

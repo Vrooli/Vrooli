@@ -149,6 +149,9 @@ describe("PcmVoiceStreamProvider", () => {
     expect(ws.url).toContain("protocol_version=2");
     expect(ws.url).toMatch(/session_id=[^&]+/);
     captureMocks.captureFrame(new Float32Array([0.1, 0.2]), 48_000);
+    // The shared provider batches short PCM writes to bound journal and wire
+    // overhead. A sub-batch flushes on its 100 ms timer.
+    await new Promise((resolve) => setTimeout(resolve, 120));
     await settle();
 
     expect(captureMocks.journals[0]?.append).toHaveBeenCalledOnce();

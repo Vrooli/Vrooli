@@ -18,6 +18,20 @@ Implementation: [CODE: api/config.go#LoadConfig]
 
 Set these in your environment or `.env` file before starting the API.
 
+### Optional Bridge Federation
+
+The web-console can expose an authenticated Bridge node as a terminal-launcher
+target. All four values are required; if any is absent, the target is shown as
+unavailable and no remote session can be created. Tokens are server-side only.
+
+| Variable | Purpose |
+|----------|---------|
+| `WEB_CONSOLE_BRIDGE_URL` | Base HTTP(S) URL of the vrooli-bridge control plane |
+| `WEB_CONSOLE_BRIDGE_NODE_ID` | Registered Bridge node identity |
+| `WEB_CONSOLE_BRIDGE_OWNER_TOKEN` | Owner bearer token used by the server-side proxy |
+| `WEB_CONSOLE_BRIDGE_REAUTH_TOKEN` | Short-lived owner re-authentication proof |
+| `WEB_CONSOLE_BRIDGE_LABEL` | Optional launcher label; defaults to `Bridge node` |
+
 ### Session & Memory
 
 | Variable | Default | Range | Impact |

@@ -114,6 +114,18 @@ enforce:
 
 ## Responsibility Zones
 
+### Remote terminal federation
+
+`api/remote_terminal.go` is the server-side federation adapter for
+`vrooli-bridge`. It is an intentional REST/WS exception because the browser
+terminal wire protocol is JSON-over-WebSocket while Bridge sessions are binary
+protobuf-over-WebSocket. The browser receives only target readiness facts and
+a short-lived web-console session ID; Bridge owner and re-authentication tokens
+remain server-side in `WEB_CONSOLE_BRIDGE_*` environment variables. The adapter
+translates stdin sequence numbers, stdout, resize, acknowledgements, launch
+commands, and close events. A target is unavailable unless all four Bridge
+credentials/configuration values are present and the URL is valid.
+
 ### 1. Entry / Presentation
 **Owner**: `ui/src/components/`
 - [CODE: ui/src/components/Workspace.tsx] — **Stable core**: pane grid layout, header, empty-state UI. Delegates all session logic to `useSessionManager` hook.

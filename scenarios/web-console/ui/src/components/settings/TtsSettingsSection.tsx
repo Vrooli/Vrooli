@@ -9,6 +9,7 @@ import {
   getTTSConfig,
   updateTTSConfig,
 } from "../../audio-integration";
+import type { TTSVoiceInfo } from "../../audio-integration";
 import { getTTSHookStatus, updateTTSHookConfig } from "../../api/ttsHook";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
@@ -362,7 +363,7 @@ export default function TtsSettingsSection() {
                   void persistVoiceConfig({ defaultVoice: next });
                 }}
               >
-                {ttsVoices.map((voice) => (
+                {ttsVoices.map((voice: TTSVoiceInfo) => (
                   <option key={voice.id} value={voice.id}>{voice.name}</option>
                 ))}
               </select>
@@ -556,7 +557,7 @@ export default function TtsSettingsSection() {
                 onChange={(event) => setTtsVoice(event.target.value)}
               >
                 <option value="">{t(strings.settings.voiceOutputSection.systemDefault)}</option>
-                {ttsVoices.map((voice) => (
+                {ttsVoices.map((voice: TTSVoiceInfo) => (
                   <option key={voice.id} value={voice.id}>{voice.name}</option>
                 ))}
               </select>
