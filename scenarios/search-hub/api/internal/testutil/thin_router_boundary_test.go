@@ -51,6 +51,11 @@ var knownTables = map[string]bool{
 	// descriptors; eval_runs are immutable run records.
 	"eval_suites": true,
 	"eval_runs":   true,
+	// Scheduled validation state (internal/eval/schema.sql). This stores
+	// verdict metadata only; corpus content remains provider-owned.
+	"eval_corpus_validations": true,
+	// Durable provider health policy state (internal/metrics/schema.sql).
+	"provider_demotion_state": true,
 }
 
 // createTableRE matches: CREATE TABLE [IF NOT EXISTS] <name>

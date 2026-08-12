@@ -31,9 +31,10 @@
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Unified cross-provider ranking | Cross-encoder/LLM reranker fuses heterogeneous candidates into one comparable ranked list; rerank-on vs rerank-off MRR reported to justify its cost. Falls back to by-provider grouping + `degraded` flag when the reranker is unavailable.
 - [ ] OT-P1-002 | Measurement backbone | Per-query telemetry (classified types, providers hit, counts, latency p50/p95, zero-result rate, re-query/"again" count); insights surface flags under-utilized providers (registered but never routed-to) and zero-result queries.
-- [x] OT-P1-003 | All live providers federated | cli-health.commands, ui-health.surfaces/.widgets, swarm-manager.records/.backlog/.initiative, prompt-manager.skill/.action, knowledge-observatory.docs (when its cutover lands) registered.
+- [ ] OT-P1-003 | All live providers federated | cli-health.commands, ui-health.surfaces/.widgets, swarm-manager.records/.backlog/.initiative, prompt-manager.skill/.action, knowledge-observatory.docs (when its cutover lands) registered. Code and descriptor coverage exists; live registration/suite certification remains pending.
 - [ ] OT-P1-004 | Gap corpora tracked | Every corpus with no search yet (scenarios, resources, code, contracts, runs, git-provenance, requirements, config, domain-map, metrics) is a `CAPABILITY_GAP` registry stub visible in `providers list`/`status` as the live Track-A checklist.
-- [x] OT-P1-005 | Search UI | Query box, bucket/type facets, expand-search, per-result provenance + provider freshness, loading/error/empty states.
+- [ ] OT-P1-005 | Search UI | Query box, bucket/type facets, expand-search, per-result provenance + provider freshness, loading/error/empty states. Focused UI coverage exists; scenario-level certification remains pending.
+- [ ] OT-P1-006 | Honest provider signals | Provider lifecycle, eval quality/error outcomes, junk-leak withholding, circuit-open quorum, index-age reasons, resolver-cache telemetry, and report-only registry hygiene are exposed through generic descriptors, status, insights, and metrics seams. Code-layer coverage exists; live substrate certification remains pending.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | External-scope providers | The descriptor carries `scope=EXTERNAL` from day one; register paid/external corpora (papers, web) through the identical contract.

@@ -147,29 +147,32 @@ func TestLearningsRoutingRecall(t *testing.T) {
 		t.Skip("resource-ollama unavailable — learnings routing gate requires the local Ollama daemon + classifier model")
 	}
 
-	// Assert on the CLASSIFIER's own type choice, not the routed fan-out: the
-	// router deliberately widens to every type on low confidence (recall over
+	// Assert on the CLASSIFIER's own leaf choice, not the routed fan-out: the
+	// router deliberately widens within sibling leaves on low confidence (recall over
 	// precision), which would both mask a missed inclusion and trip the
 	// exclusion half for reasons unrelated to the learnings description.
-	// Profiles are sorted by type so the rendered prompt is byte-identical
+	// Profiles are sorted by provider id so the rendered prompt is byte-identical
 	// across runs — the corpus loader returns a map, and at temperature 0 the
 	// model's answer is deterministic only for a fixed prompt (production gets
 	// a stable order from the registry's provider_id ordering).
 	seeds := loadProviderCorpus(t)
 	profiles := make([]routing.ProviderProfile, 0, len(seeds))
 	hasLearnings := false
+	idToType := map[string]string{}
 	for _, d := range seeds {
 		profiles = append(profiles, routing.ProviderProfile{
+			ProviderID:  d.GetProviderId(),
 			Type:        d.GetType(),
 			Group:       d.GetProviderGroup(),
 			Description: d.GetDescription(),
 		})
+		idToType[d.GetProviderId()] = d.GetType()
 		if d.GetProviderId() == "web-search.learnings" {
 			hasLearnings = true
 		}
 	}
 	require.True(t, hasLearnings, "the corpus must carry the learnings provider fixture")
-	sort.Slice(profiles, func(i, j int) bool { return profiles[i].Type < profiles[j].Type })
+	sort.Slice(profiles, func(i, j int) bool { return profiles[i].ProviderID < profiles[j].ProviderID })
 
 	classify := func(q string) map[string]struct{} {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -177,8 +180,10 @@ func TestLearningsRoutingRecall(t *testing.T) {
 		res, err := clf.Classify(ctx, q, profiles)
 		require.NoErrorf(t, err, "classify %q", q)
 		out := map[string]struct{}{}
-		for _, typ := range res.Types {
-			out[typ] = struct{}{}
+		for _, providerID := range res.ProviderIDs {
+			if typ := idToType[providerID]; typ != "" {
+				out[typ] = struct{}{}
+			}
 		}
 		return out
 	}

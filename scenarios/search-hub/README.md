@@ -1,218 +1,88 @@
 # Search Hub
 
-Federated AI search router over all registered project (and external) knowledge corpora.
+Search Hub is Vrooli's federated retrieval control plane. It registers
+scenario-owned providers, classifies queries, fans out to eligible corpora,
+reranks results, and records telemetry and evaluation evidence for useful or
+degraded retrieval.
 
-This scenario was generated from the `react-vite` template and packages
-the standard full-stack Vrooli scenario shape:
+## What You Get
 
-- Go API (`api/`)
-- React + TypeScript + Vite UI (`ui/`)
-- CLI wrapper (`cli/`)
-- Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
+- Descriptor-driven provider registration and explicit or automatic routing.
+- Circuit state, graded-empty demotion, decay/probation recovery, and partial
+  results when a federated query reaches its deadline.
+- Immutable eval suites and runs with provider-error outcomes, freshness and
+  quality gates, and junk-leak withholding for automatic routing.
+- Operator surfaces for status, federation, providers, insights, evals, and
+  search maturity validation.
+- Go API, CLI, and UI surfaces connected through generated Connect contracts.
 
-> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
+Search Hub owns routing policy, registry metadata, telemetry, and eval mirrors.
+Provider scenarios own their corpora, indexing, descriptors, and search
+implementations. A provider is never added by teaching Search Hub its name.
 
-## What's In This Scenario
+## Running Search Hub
 
-- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
-  coordinated through generated proto contracts.
-- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
-  metadata, testing config, and CLI install wiring.
-- Domain-first API shape with per-domain service, repository, schema,
-  handler module, mocks, and tests.
-- SQLite by default. Add external resources to `.vrooli/service.json`
-  only when this scenario actually needs them.
-- UI/CLI guardrails for i18n, accessibility, API base resolution,
-  declarative command args, generated Connect clients, and report-shaped
-  output.
-- Baseline PWA branding metadata: web app manifest, standalone-mode
-  mobile tags, and generic placeholder icons ready for scenario-specific
-  replacement.
-- Root-level `DESIGN.md` plus generated UI token assets from the
-  selected design kit.
-- A documentation contract in `docs/manifest.json`, with stubs for
-  domains, flows, data, integrations, monetization, deployment,
-  runbooks, observability, security, performance, and durable
-  decisions.
-
-## Placeholders vs. Durable Scaffolding
-
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
-
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-- The bare-minimum settings surface (currently just locale switching).
-
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
-
-- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
-- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
-- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
-- The feature-folder pattern under `ui/src/features/<name>/`.
-- The proto → API → CLI → UI vertical-slice shape.
-
-**Connect-RPC is the default transport.** Every domain endpoint goes
-through a proto service and generated Connect handlers/clients. If
-you find yourself writing `Path: "/api/v1/..."` as a literal string in
-an `EndpointDescriptor`, stop — use a proto service method instead.
-Codegen rejects literal Paths that lack an explicit `RESTException`
-tag; the four allowed REST reasons (multipart upload, webhook
-receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
-
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
-
-## Running The Scenario
+Use the scenario lifecycle so ports, health checks, and process ownership stay
+consistent:
 
 ```bash
-# Build API + UI, install pnpm deps, install scenario CLI
-make setup   # wraps `vrooli scenario setup`
-
-# Start API + UI in the background
-make start   # wraps `vrooli scenario start`
+make setup
+make start
+make test
+make stop
 ```
 
-See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
+For an operator check:
 
-Run tests with `make test` (which runs `vrooli scenario test`) or invoke
-`test-genie execute search-hub --preset comprehensive` directly for
-finer-grained presets.
+```bash
+search-hub status
+search-hub federation status
+search-hub providers list
+search-hub insights --window 7
+search-hub maturity scan --json
+```
+
+See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) and
+[`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md).
+
+## Search Quality and Failure Semantics
+
+An eval transport failure is recorded as `error` with the provider's message;
+it is not treated as an empty expectation. Such a run is degraded, and a run
+with zero graded cases cannot certify freshness. A fresh non-degraded run can
+still be withheld from automatic routing when a gibberish-tagged case scores
+at or above the strongest real-case score; the run id is reported as evidence.
+
+Transport failures feed the circuit breaker. Only successful, non-degraded
+zero-hit responses feed graded-empty demotion. Demotion decays into probation
+and can recover through a successful probe. Providers marked `fixture` or
+`experimental` remain available to explicit selectors but are excluded from
+automatic routing.
+
+Address resolution uses a short TTL cache and invalidates a failed entry.
+Federated queries enforce a concurrency/timeout budget and return completed
+groups as `partial` when their deadline expires.
 
 ## Documentation Map
 
-| Need | Start Here |
+| Need | Start here |
 |---|---|
-| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
-| Establish UI design language | `DESIGN.md` at this scenario's root |
-| Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
-| Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
-| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
-| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
-| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
-| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
-| Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
-| Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
-| Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
-| Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
-| Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| First local run | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
+| System architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
+| Routing and eval workflows | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md) |
+| CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| Configuration | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
+| Runtime recovery | [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md) |
+| Known problems | [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) |
 
-## Search-quality baselines (eval domain)
+## Customize Safely
 
-The `eval` domain turns search quality into something **measurable, historical,
-and experiment-friendly**. A provider that owns a corpus registers a JSON suite
-of golden retrieval cases (a query + soft expectations); running a suite calls
-that provider's already-registered endpoint (reusing the registry's
-`ResultMapping` — no provider-specific code), labels each case, and stores an
-**immutable, tagged** run. The UI's **Evals** tab shows per-suite run history
-(trend) and side-by-side run compare.
+Provider owners should update their own `.vrooli/search.json`, eval corpus,
+and search implementation. Keep generic policy in Search Hub and add tests at
+the injected seam before changing behavior. Run focused Go tests while
+resources are unavailable, then validate the scenario through its lifecycle.
 
-This is **not** a pass/fail gate: expectations produce soft labels (`met` /
-`below_expectation` / `unexpected_hit` / …), never a non-zero exit. A consumer
-that wants CI enforcement opts in per-run with `evals run … --assert`; the hub
-never imposes it.
-
-**Register a baseline suite** (recipe):
-
-1. Make sure the provider is registered (`search-hub providers register …`); a
-   suite only references a `provider_id` and the runner resolves it at run time.
-2. Author the suite JSON (see `api/internal/eval/seeds/cli-health.commands.primary.json`
-   for the worked example): a `suite_id`, the `provider_id`, and `cases[]` with
-   `query`, `tags` (`strong` / `weak-real` / `gibberish`), and expectations
-   (`expect_ids`, `expect_within_top_k`, `expect_min_score`/`expect_max_score`,
-   or `expect_no_strong_hit` for junk-rejection cases).
-3. Register it: `search-hub evals register --suite @path/to/suite.json` (or ship
-   it under `api/internal/eval/seeds/*.json` to register at boot).
-4. Run it with an experiment tag and inspect the history:
-
-   ```bash
-   search-hub evals run  cli-health.commands.primary --tag rerank-off
-   search-hub evals run  cli-health.commands.primary --tag cross-encoder
-   search-hub evals runs cli-health.commands.primary           # history, newest first
-   search-hub evals compare <run_a> <run_b>                    # per-case A/B delta
-   ```
-
-The CLI mirrors the `EvalService` RPCs (`register` / `list` / `show` / `run` /
-`runs` / `show-run` / `compare`); the same data drives the UI Evals tab. Runs
-snapshot the config that affects results (active reranker leg, embed model,
-indexed count) so a comparison stays meaningful months later.
-
-Search maturity validation is full by default for the target workflow and the
-Test Genie `search` phase: descriptor governance, eval corpus shape, stored run
-freshness/outcomes, and live corpus labels are checked together. Use the target
-maturity workflow when preparing a repair campaign:
-
-```bash
-search-hub maturity scan --json
-search-hub maturity scan --fast --json           # skip live eval proof
-search-hub maturity fix <scenario> --json              # dry-run
-search-hub maturity fix <scenario> --apply --json      # explicit write
-```
-
-Full validation checks that the declared suite is registered and has a latest run
-that is **fresh** (inside the freshness window — a stale run fails,
-`SEARCH_EVAL_RUN_STALE`), **current** (produced under the declared tuning — a run
-whose captured config drifted from the tuning fails, `SEARCH_EVAL_RUN_OUTDATED`),
-**correct in aggregate** (recall over reviewed positives meets `scoring.recall_target`,
-default 0.8 — otherwise `SEARCH_EVAL_RECALL_BELOW_TARGET`), free of **junk leaks**
-(a negative case exceeding its ceiling fails, `SEARCH_EVAL_ASSERT_FAILED`), and
-still resolves reviewed positive labels through the provider's live endpoint. A
-single positive miss is tolerated as long as aggregate recall meets target; a junk
-leak never is. `--fast` is an operator inventory mode only; it skips live proof and
-should not be treated as phase validation.
-
-A plain `search-hub evals run` is a **soft** run — it records a trend sample and
-never fails a build. Certification-grade evidence is what **full validation** reads
-from the latest stored run: freshness, tuning-fingerprint match, aggregate recall,
-junk-leak absence, and live labels. Scan output carries the run id, age, recall vs
-target, met/below counts, and p95 latency so operators can repair a failing suite.
-
-Certification also gates **corpus adequacy** statically (no provider execution):
-a provider fails (`SEARCH_EVAL_CORPUS_INADEQUATE`) unless its declared corpus has
-at least one **reviewed** positive case and at least one junk **negative**
-(`expect_no_strong_hit`) case. Candidate/generated cases are preserved as
-expansion inputs but excluded from the reviewed-positive count (and from
-acceptance recall), so a generated-only corpus cannot certify. Duplicate queries
-(same scope) and single-band difficulty are advisory (`SEARCH_EVAL_CORPUS_THIN`).
-
-Fleet scan discovers the **same target set the Test Genie `search` phase
-considers applicable**: a scenario is search-applicable when it owns
-`.vrooli/search.json` **or** declares a `search` / `ai-search` service capability
-(the union of `service.tags`, `service.capabilities`, and top-level
-`capabilities` in `.vrooli/service.json`, matched case-insensitively). A
-capability-only scenario is not silently skipped — it is validated and fails with
-`SEARCH_CONFIG_MISSING` until it adds a descriptor. Each scan result carries an
-`applicability_reason` (`descriptor`, `capability:<token>`, or
-`descriptor+capability:<token>`) so operators can diff fleet scan against
-`test-genie phases applicability <scenario> --phase search`.
-
-## Working Rules
-
-1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
-2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
-3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
-4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
-5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
-6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
-7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-8. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
-9. **Keep boundaries**: only edit within this scenario's directory.
-
-## pnpm Everywhere
-
-This scenario assumes pnpm. If you run another package manager, convert
-lockfiles yourself before committing. Scripts use `pnpm` directly (no
-`npm` fallbacks) to reduce drift.
-
-## Need Inspiration?
-
-Open `scenarios/browser-automation-studio/` to see the same template
-shape taken to completion.
+Do not hand-edit generated protobuf bindings, approved dependency manifests,
+or Search Hub policy to special-case a provider. Regenerate contracts from
+`packages/proto/schemas/search-hub/` and use the Scenario Dependency Analyzer
+for dependency changes.

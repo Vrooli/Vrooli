@@ -37,3 +37,16 @@ CREATE INDEX IF NOT EXISTS idx_eval_suites_provider ON eval_suites(provider_id);
 CREATE INDEX IF NOT EXISTS idx_eval_runs_suite      ON eval_runs(suite_id);
 CREATE INDEX IF NOT EXISTS idx_eval_runs_tag        ON eval_runs(tag);
 CREATE INDEX IF NOT EXISTS idx_eval_runs_created    ON eval_runs(created_at);
+
+-- Scheduled three-way label validation is retained separately from immutable
+-- eval runs. A provider_error verdict must remain distinguishable from stale
+-- evidence after the scheduler process restarts.
+CREATE TABLE IF NOT EXISTS eval_corpus_validations (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  suite_id    TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  result      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_eval_validations_suite_created
+  ON eval_corpus_validations(suite_id, created_at);

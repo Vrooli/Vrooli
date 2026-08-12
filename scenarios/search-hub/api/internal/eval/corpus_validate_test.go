@@ -61,13 +61,14 @@ func TestValidatorConfirmProbeCanRecoverHardLabel(t *testing.T) {
 	require.Equal(t, []string{"case query", "want"}, resp.GetCases()[0].GetProbedQueries())
 }
 
-func TestValidatorProbeErrorIsInconclusive(t *testing.T) {
+func TestValidatorProbeErrorIsProviderErrorNotStale(t *testing.T) {
 	client := fakeClient{errQuery: map[string]error{"boom": errors.New("provider timeout")}}
 	suite := suiteWith(&evalv1.EvalCase{CaseId: "c", Query: "boom", ExpectIds: []string{"want"}})
 	resp, err := eval.NewValidator(fakeResolver{desc: validationDescriptor()}, client).ValidateCorpus(context.Background(), suite, 5)
 	require.NoError(t, err)
-	require.Equal(t, evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_INCONCLUSIVE, resp.GetCases()[0].GetReferential())
-	require.EqualValues(t, 1, resp.GetRollup().GetInconclusive())
+	require.Equal(t, evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_PROVIDER_ERROR, resp.GetCases()[0].GetReferential())
+	require.EqualValues(t, 1, resp.GetRollup().GetProviderErrors())
+	require.Zero(t, resp.GetRollup().GetStale())
 }
 
 func validationDescriptor() *registryv1.ProviderDescriptor {

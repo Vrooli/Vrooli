@@ -163,4 +163,15 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "failed_precondition", Description: "Provider unregistered / declares no control plane / corpus write-back unavailable"},
 		},
 	},
+	{
+		ID:          "evals_reap_orphan_suites",
+		Path:        evalconnect.EvalServiceReapOrphanSuitesProcedure,
+		Method:      "POST",
+		Summary:     "Audit and explicitly reap orphan evaluation suites",
+		Description: "Lists suites whose provider_id is absent from the live registry. The same operation removes them only when confirm=true; the observed orphan set is returned for auditability.",
+		Category:    "eval",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"confirm": "bool (required for deletion; false is read-only)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"orphan_suites": "array<EvalSuite>", "reaped_suite_ids": "array<string>", "confirmed": "bool"}},
+		Errors:      []module.ErrorDesc{{Status: 501, Code: "unimplemented", Description: "Registry dependency is not configured"}, {Status: 500, Code: "internal", Description: "Orphan audit or deletion failed"}},
+	},
 }

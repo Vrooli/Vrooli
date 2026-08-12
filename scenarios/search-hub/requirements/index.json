@@ -16,7 +16,9 @@
     "08-measurement-backbone/module.json",
     "09-live-provider-federation/module.json",
     "10-gap-corpus-tracking/module.json",
-    "11-search-ui/module.json"
+    "11-search-ui/module.json",
+    "12-honest-provider-signals/module.json",
+    "13-expansion-roadmap/module.json"
   ],
   "modules": [
     { "id": "MOD-P0-001", "path": "01-provider-registry", "priority": "P0", "title": "Provider registry + self-registration" },
@@ -29,6 +31,8 @@
     { "id": "MOD-P1-008", "path": "08-measurement-backbone", "priority": "P1", "title": "Measurement backbone" },
     { "id": "MOD-P1-009", "path": "09-live-provider-federation", "priority": "P1", "title": "All live providers federated" },
     { "id": "MOD-P1-010", "path": "10-gap-corpus-tracking", "priority": "P1", "title": "Gap corpora tracked as stubs" },
-    { "id": "MOD-P1-011", "path": "11-search-ui", "priority": "P1", "title": "Search UI" }
+    { "id": "MOD-P1-011", "path": "11-search-ui", "priority": "P1", "title": "Search UI" },
+    { "id": "MOD-P1-012", "path": "12-honest-provider-signals", "priority": "P1", "title": "Honest provider signals" },
+    { "id": "MOD-P2-013", "path": "13-expansion-roadmap", "priority": "P2", "title": "Search expansion roadmap" }
   ]
 }

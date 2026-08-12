@@ -63,6 +63,8 @@ func (v *Validator) ValidateCorpus(ctx context.Context, suite *evalv1.EvalSuite,
 			out.Rollup.Hard++
 		case evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_STALE:
 			out.Rollup.Stale++
+		case evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_PROVIDER_ERROR:
+			out.Rollup.ProviderErrors++
 		default:
 			out.Rollup.Inconclusive++
 		}
@@ -75,7 +77,7 @@ func (v *Validator) validateCase(ctx context.Context, desc *registryv1.ProviderD
 	opts := SearchCallOptions{Scope: c.GetScope()}
 	hits, err := v.client.Search(ctx, desc, c.GetQuery(), deepK, opts)
 	if err != nil {
-		return inconclusiveCase(c, probes, err)
+		return providerErrorCase(c, probes, err)
 	}
 	ref, rank := classifyHits(hits, c, policy)
 	if ref != evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_STALE {
@@ -86,7 +88,7 @@ func (v *Validator) validateCase(ctx context.Context, desc *registryv1.ProviderD
 		probes = append(probes, id)
 		confirmHits, confirmErr := v.client.Search(ctx, desc, id, deepK, opts)
 		if confirmErr != nil {
-			return inconclusiveCase(c, probes, confirmErr)
+			return providerErrorCase(c, probes, confirmErr)
 		}
 		ref, rank = classifyHits(confirmHits, c, policy)
 		if ref != evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_STALE {
@@ -125,10 +127,10 @@ func searchHitsToResults(hits []*routingv1.SearchHit) []aisearch.SearchResult {
 	return out
 }
 
-func inconclusiveCase(c *evalv1.EvalCase, probes []string, err error) *evalv1.CorpusValidationCase {
+func providerErrorCase(c *evalv1.EvalCase, probes []string, err error) *evalv1.CorpusValidationCase {
 	return &evalv1.CorpusValidationCase{
 		CaseId:        c.GetCaseId(),
-		Referential:   evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_INCONCLUSIVE,
+		Referential:   evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_PROVIDER_ERROR,
 		ProbedQueries: append([]string(nil), probes...),
 		Message:       err.Error(),
 	}

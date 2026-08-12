@@ -1,9 +1,9 @@
 # Architecture — Search Hub
 
-This document is the scenario's system map. It explains the invariant
-shape inherited from the `react-vite` template, then points to the
-specialized documents that own product domains, workflows, data,
-integrations, deployment, operations, and business strategy.
+This document is the scenario's system map. It explains the thin-router
+invariants and points to the specialized documents that own provider
+registration, workflows, data, integrations, deployment, operations, and
+business strategy.
 
 Keep this file high-signal. Do not turn it into a warehouse for every
 domain, endpoint, workflow, or decision. If a concern has a dedicated
@@ -30,8 +30,33 @@ Provider availability state is intentionally equally thin: the router retains
 only a short-lived circuit-breaker count and recovery time per provider ID. A
 repeatedly failing leaf is reported as unavailable without consuming the query
 budget; one half-open recovery probe later returns to the provider's live
-endpoint. It never retains prior hits, so mutable provider data is never shown
-as current while that provider is down.
+endpoint. Graded-empty demotions are checked by a low-rate unattended recovery
+loop (`SEARCH_HUB_ZERO_YIELD_PROBE_INTERVAL`, one minute by default) after
+their decay window, scoped to the demoted provider and recorded as automatic
+recovery evidence. It never retains prior hits, so mutable provider data is
+never shown as current while that provider is down.
+
+### Honest routing signals
+
+Transport errors and successful empty answers are separate signals. Errors open
+the circuit; only a non-degraded, graded-empty response contributes to the
+zero-yield demotion policy. Demotion is persisted, decays into probation, and
+reports its trigger and deadline. The unattended recovery probe is not treated
+as explicit operator traffic: a useful hit clears demotion, while an empty or
+unavailable response restarts the decay window. `fixture` and `experimental`
+provider lifecycle values are explicit-only routing states.
+
+The latest fresh, non-degraded eval run is also a routing-quality gate. A
+provider is withheld from automatic routing when a case tagged `gibberish`
+scores at or above the run's strongest real-case score. This junk-leak verdict
+names the run as evidence; explicit provider selection remains available for
+repair and diagnosis.
+
+Scenario address resolution is cached briefly by scenario and port key, with
+failure invalidation so a re-reported endpoint is reached promptly. Fan-out
+uses a bounded concurrency/timeout budget; completed groups are returned with a
+`partial` marker when the deadline expires rather than being discarded as an
+empty degraded response.
 
 See [`DOMAINS.md`](DOMAINS.md) for the five product domains (`registry`,
 `providers`, `routing`, `rerank`, `metrics`) and the pipeline that
@@ -279,15 +304,17 @@ temporal behavior, update [`FLOWS.md`](FLOWS.md).
 
 ## Architecture Maturity
 
-Generated scenarios start with a mature template shape and starter
-reference domains. Replace this table as the scenario becomes real.
+Search Hub is a production-oriented federation scenario. The table below
+records the current implementation evidence and the remaining certification
+drift; it is not a claim that provider corpora or live resources are owned by
+this scenario.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Reference-ready | Domain-owned notes stack, module registry, per-domain schema, documented seams. | Starter domains must be replaced with scenario-specific capabilities. |
-| UI | Reference-ready | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Real scenarios may need routing/state patterns once multiple screens exist. |
-| CLI | Reference-ready | Domain command groups wrap API calls and render reports. | New domains must add commands intentionally; CLI should remain thin. |
-| Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints. | Scenario-specific stubs must be filled or marked not-applicable. |
+| API | Implemented / live-degraded | Registry, routing, eval, metrics, validation, and health domains are wired through the thin router. | Healthy qdrant/Ollama substrate is still required for a clean fleet certification. |
+| UI | Implemented / focused-tested | Typed operator surfaces cover query, federation, eval, insights, providers, and maturity. | Scenario-level browser certification remains a separate lifecycle gate. |
+| CLI | Implemented | Domain command groups expose status, routing, eval, metrics, and maturity evidence. | Keep provider-specific behavior in provider scenarios. |
+| Docs | Reconciled / evidence-bound | Manifest, architecture, flows, decisions, seams, performance, and problems describe current ownership and failure semantics. | Live maturity remains at 23 blocking findings, equal to the phase baseline. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later

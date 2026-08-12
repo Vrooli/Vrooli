@@ -9,8 +9,10 @@ import (
 	"time"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 
 	internaleval "search-hub/internal/eval"
+	internalregistry "search-hub/internal/registry"
 )
 
 func TestValidateScenarioCleanSearchDescriptor(t *testing.T) {
@@ -42,6 +44,86 @@ func TestValidateScenarioMissingSearchDescriptorFails(t *testing.T) {
 	requireFinding(t, report, CodeConfigMissing)
 	if report.Summary.Status() != "failed" {
 		t.Fatalf("status = %s, want failed", report.Summary.Status())
+	}
+}
+
+func TestMissingSearchDescriptorFloorsEveryMaturityCapability(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "scenarios", "demo", ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	service := New(root)
+	report, err := service.ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	spec := mustLoadSpec(t)
+	assessment, err := BuildMaturityAssessment("demo", report.Findings, *spec)
+	if err != nil {
+		t.Fatalf("BuildMaturityAssessment: %v", err)
+	}
+	levels := map[string]string{}
+	for _, capability := range assessment.GetCapabilities() {
+		levels[capability.GetId()] = capability.GetCurrentLevel()
+	}
+	want := map[string]string{
+		"search_descriptor":       "L0",
+		"search_governance":       "L0",
+		"search_eval_performance": "L0",
+		"search_operability":      "L0",
+	}
+	for capability, expected := range want {
+		if got := levels[capability]; got != expected {
+			t.Errorf("%s current level = %q, want %q (assessment=%#v)", capability, got, expected, assessment)
+		}
+	}
+}
+
+func TestValidateScenarioRegisteredProviderWithoutDescriptorUsesGenericFinding(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "scenarios", "demo", ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	service := New(root)
+	service.RegistryStore = fakeRegistryStore{providers: []*registryv1.ProviderDescriptor{{ProviderId: "demo.docs", ProviderGroup: "demo"}}}
+	report, err := service.ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	requireFinding(t, report, CodeProviderDescriptorMissing)
+}
+
+func TestValidateScenarioReportsOrphanSuiteGenerically(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", cleanSearchConfig("demo"))
+	service := New(root)
+	service.RegistryStore = fakeRegistryStore{providers: []*registryv1.ProviderDescriptor{{ProviderId: "demo.docs", ProviderGroup: "demo"}}}
+	service.EvalStore = fakeEvalStore{suites: map[string]*evalv1.EvalSuite{
+		"retired.primary": evalSuite("retired.primary", "retired.docs"),
+	}}
+	report, err := service.ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	requireFinding(t, report, CodeEvalSuiteOrphaned)
+}
+
+func TestValidateScenarioDoesNotReportPairedSuiteAsOrphan(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", cleanSearchConfig("demo"))
+	service := New(root)
+	service.RegistryStore = fakeRegistryStore{providers: []*registryv1.ProviderDescriptor{{ProviderId: "demo.docs", ProviderGroup: "demo"}}}
+	service.EvalStore = fakeEvalStore{suites: map[string]*evalv1.EvalSuite{
+		"demo.docs.primary": evalSuite("demo.docs.primary", "demo.docs"),
+	}}
+	report, err := service.ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	for _, finding := range report.Findings {
+		if finding.Code == CodeEvalSuiteOrphaned {
+			t.Fatalf("paired suite incorrectly reported as orphan: %#v", finding)
+		}
 	}
 }
 
@@ -413,6 +495,39 @@ func TestValidateScenarioDefaultDoesNotRequireEvalRunHistory(t *testing.T) {
 	}
 	if len(report.EvalEvidence) != 0 {
 		t.Fatalf("default validation should not collect eval evidence: %#v", report.EvalEvidence)
+	}
+}
+
+func TestValidateScenarioReportsUnreportedIndexAge(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", cleanSearchConfig("demo"))
+	service := New(root)
+	service.StatusProbe = fakeStatusProbe{}
+
+	report, err := service.ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	finding := requireFinding(t, report, CodeIndexAgeUnreported)
+	if finding.Severity != SeverityWarning {
+		t.Fatalf("severity = %s, want warning", finding.Severity)
+	}
+}
+
+func TestValidateScenarioAcceptsUsableIndexAge(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", cleanSearchConfig("demo"))
+	service := New(root)
+	service.StatusProbe = fakeStatusProbe{timestamp: time.Date(2026, 8, 12, 7, 0, 0, 0, time.UTC)}
+
+	report, err := service.ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	for _, finding := range report.Findings {
+		if finding.Code == CodeIndexAgeUnreported {
+			t.Fatalf("unexpected index-age finding: %#v", finding)
+		}
 	}
 }
 
@@ -1251,6 +1366,39 @@ type fakeEvalStore struct {
 	err    error
 }
 
+type fakeRegistryStore struct {
+	providers []*registryv1.ProviderDescriptor
+}
+
+func (f fakeRegistryStore) Upsert(context.Context, *registryv1.ProviderDescriptor, string) (bool, string, error) {
+	return false, "", nil
+}
+
+func (f fakeRegistryStore) List(context.Context, internalregistry.ListFilter) ([]*registryv1.ProviderDescriptor, error) {
+	return f.providers, nil
+}
+
+func (f fakeRegistryStore) Get(_ context.Context, id string) (*registryv1.ProviderDescriptor, error) {
+	for _, provider := range f.providers {
+		if provider.GetProviderId() == id {
+			return provider, nil
+		}
+	}
+	return nil, internalregistry.ErrProviderNotFound{ProviderID: id}
+}
+
+func (f fakeRegistryStore) Token(context.Context, string) (string, error) { return "", nil }
+func (f fakeRegistryStore) Delete(context.Context, string) (bool, error)  { return false, nil }
+
+type fakeStatusProbe struct {
+	timestamp time.Time
+	err       error
+}
+
+func (f fakeStatusProbe) ProbeIndexTimestamp(context.Context, *registryv1.ProviderDescriptor) (time.Time, error) {
+	return f.timestamp, f.err
+}
+
 type fakeEvalValidator struct {
 	rollup *evalv1.CorpusValidationRollup
 	err    error
@@ -1275,6 +1423,17 @@ func (f fakeEvalStore) GetSuite(_ context.Context, id string) (*evalv1.EvalSuite
 		return suite, nil
 	}
 	return nil, internaleval.ErrSuiteNotFound{SuiteID: id}
+}
+
+func (f fakeEvalStore) ListSuites(_ context.Context, _ internaleval.ListSuitesFilter) ([]*evalv1.EvalSuite, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	out := make([]*evalv1.EvalSuite, 0, len(f.suites))
+	for _, suite := range f.suites {
+		out = append(out, suite)
+	}
+	return out, nil
 }
 
 func (f fakeEvalStore) ListRuns(_ context.Context, filter internaleval.ListRunsFilter) ([]*evalv1.EvalRun, error) {

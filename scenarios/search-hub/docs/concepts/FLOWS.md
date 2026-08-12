@@ -23,6 +23,24 @@ workflow model.
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests: matrix, traces, declarative spec, checked Quint model, generated artifacts, and production replay. |
+| Federated search | routing/eval | An operator or agent submits a query or eval run. | Eligible provider groups return ranked hits or an honest partial/degraded result. | Breaker, demotion, cache, timeout, and eval state are observable. | Focused routing, breaker, fan-out, and eval tests with injected providers. |
+
+## Federated Search
+
+The routing path has four meaningful failure boundaries:
+
+1. Address resolution is short-lived cached and invalidated on connection
+   failure.
+2. Transport failure opens the provider circuit and never increments the
+   successful-empty demotion counter.
+3. A successful empty response is graded separately; repeated graded empties
+   demote the provider until decay/probation or a successful probe recovers it.
+4. A query deadline preserves completed groups and marks the response partial,
+   including the count of providers that did not answer.
+
+Eval execution follows the same distinction. A provider error produces a case
+outcome of `error`, records the outcome reason, and marks the run degraded;
+`n/a` is reserved for a case with no declared expectation.
 
 ## Flow Details
 

@@ -1,6 +1,7 @@
 package health_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"testing"
 
+	apihealth "github.com/vrooli/api-core/health"
 	"search-hub/handlers/health"
 	"search-hub/internal/clock"
 	"search-hub/internal/module"
@@ -21,6 +23,12 @@ import (
 
 	"github.com/gorilla/mux"
 )
+
+type fakeResourceCheck struct{ err error }
+
+func (f fakeResourceCheck) Check(context.Context) apihealth.CheckResult {
+	return apihealth.CheckResult{Name: "qdrant", Connected: f.err == nil, Error: f.err}
+}
 
 // TestHealthHandler exercises the production /health endpoint through
 // the full middleware stack — exactly as a real HTTP client would hit
@@ -110,4 +118,22 @@ func TestHealthHandler(t *testing.T) {
 			require.Equal(t, int64(1), pinger.Calls.Load(), "Pinger.PingContext call count")
 		})
 	}
+}
+
+func TestHealthHandlerSurfacesProviderResourceFailureAsDegraded(t *testing.T) {
+	h := health.NewHandler(health.Deps{
+		Pinger:         &mocks.FakePinger{},
+		Service:        "search-hub",
+		Version:        "1",
+		ResourceChecks: []apihealth.Checker{fakeResourceCheck{err: errors.New("connection refused")}},
+	})
+	mod := module.Module{Name: "health", Mount: func(r *mux.Router) { r.HandleFunc("/health", h).Methods(http.MethodGet) }}
+	srv := server.New(server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)}, mod)
+	live := httpx.NewLiveServer(t, srv)
+	resp, body := live.Do(t, http.MethodGet, "/health", nil)
+	assertx.AssertStatus(t, resp, http.StatusOK)
+	got := assertx.MustUnmarshalProto[healthv1.Response](t, body)
+	require.Equal(t, "degraded", got.Status)
+	require.True(t, got.Readiness, "optional resource failure should remain ready but degraded")
+	require.Contains(t, got.Dependencies, "qdrant")
 }

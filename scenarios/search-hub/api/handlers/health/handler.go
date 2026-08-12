@@ -22,6 +22,10 @@ type Deps struct {
 	Pinger  database.Pinger
 	Service string
 	Version string
+	// ResourceChecks are optional observations of resources used by registered
+	// providers. They are optional health dependencies: a failed resource makes
+	// Search Hub degraded and names the dependency, never falsely healthy.
+	ResourceChecks []apihealth.Checker
 }
 
 // NewHandler returns a handler that reports overall health, service
@@ -29,10 +33,13 @@ type Deps struct {
 // is registered as Critical: a failed ping flips the response to
 // status="unhealthy" with HTTP 503.
 func NewHandler(d Deps) http.HandlerFunc {
-	return apihealth.New(d.Service).
+	builder := apihealth.New(d.Service).
 		Version(d.Version).
 		Check(apihealth.Func("database", func(ctx context.Context) error {
 			return d.Pinger.PingContext(ctx)
-		}), apihealth.Critical).
-		Handler()
+		}), apihealth.Critical)
+	for _, check := range d.ResourceChecks {
+		builder.Check(check, apihealth.Optional)
+	}
+	return builder.Handler()
 }

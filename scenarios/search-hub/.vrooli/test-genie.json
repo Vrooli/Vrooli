@@ -260,7 +260,7 @@
     "findings": {
       "SEARCH_CONFIG_MISSING": {
         "capability_id": "search_descriptor",
-        "local_level_impact": "L1",
+        "local_level_impact": "L0",
         "global_impact": "capability_gap",
         "dimension": "operational-targets",
         "severity_default": "SEVERITY_ERROR",
@@ -270,6 +270,39 @@
         ],
         "fix_class": "manual",
         "reason": "The provider owner must decide whether the scenario should expose search."
+      },
+      "SEARCH_GOVERNANCE_EVIDENCE_MISSING": {
+        "capability_id": "search_governance",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["ecosystem-fit"],
+        "fix_class": "manual",
+        "reason": "Provider ownership cannot be assessed until the scenario declares its descriptor."
+      },
+      "SEARCH_EVAL_EVIDENCE_MISSING": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["test"],
+        "fix_class": "manual",
+        "reason": "Retrieval quality cannot be assessed until the scenario declares its corpus contract."
+      },
+      "SEARCH_OPERABILITY_EVIDENCE_MISSING": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["ecosystem-fit"],
+        "fix_class": "manual",
+        "reason": "Endpoint and tuning posture cannot be assessed until the scenario declares its descriptor."
       },
       "SEARCH_CONFIG_INVALID": {
         "capability_id": "search_descriptor",
@@ -283,6 +316,17 @@
         ],
         "fix_class": "manual",
         "reason": "Descriptor repair depends on the owning provider's intended corpus."
+      },
+      "SEARCH_PROVIDER_DESCRIPTOR_MISSING": {
+        "capability_id": "search_descriptor",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["ecosystem-fit"],
+        "fix_class": "manual",
+        "reason": "A registered provider without its scenario-owned descriptor cannot be audited."
       },
       "SEARCH_PROVIDER_INVALID": {
         "capability_id": "search_descriptor",
@@ -604,8 +648,8 @@
     "mode": "provider-serial"
   },
   "determinism": {
-    "default": "observational",
-    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+    "default": "file-determined",
+    "inputs": ["**"]
   },
   "dimensions": [
     "operational-targets"

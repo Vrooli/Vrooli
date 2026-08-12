@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "search-hub",
-  "description": "Search Hub CLI surface. Single source of truth for the `providers` domain: schema-validated against cli-manifest/v1 and cross-validated against the RegistryService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Search Hub CLI surface: provider registry, federated query, evaluation, maturity, measures, and the coverage-space denominator contract.",
   "groups": [
     {
       "name": "query",
@@ -85,7 +85,8 @@
             {
               "name": "descriptor",
               "required": true,
-              "description": "ProviderDescriptor as JSON, or @path to a JSON file"
+              "description": "ProviderDescriptor as JSON, or @path to a JSON file",
+              "bind_waiver": "The provider handler intentionally accepts protojson inline or @path input and decodes ProviderDescriptor itself so file-backed descriptors remain supported."
             }
           ],
           "binding": {
@@ -187,6 +188,33 @@
           "architecture": {
             "primitive": "proto_list"
           }
+        },
+        {
+          "name": "repromote",
+          "description": "Clear one provider's graded-empty demotion evidence so automatic routing can probe it again",
+          "positionals": [
+            {
+              "name": "provider_id",
+              "description": "Registered provider leaf id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutingService",
+            "method": "Repromote"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         }
       ]
     },
@@ -234,7 +262,8 @@
           "flags": [
             {
               "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter).",
+              "bind_waiver": "The metrics handler converts the public time-window token into the shared structured TimeWindow RPC message."
             }
           ],
           "binding": {
@@ -280,7 +309,8 @@
           "flags": [
             {
               "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter).",
+              "bind_waiver": "The metrics handler converts the public time-window token into the shared structured TimeWindow RPC message."
             }
           ],
           "binding": {
@@ -326,7 +356,8 @@
           "flags": [
             {
               "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter).",
+              "bind_waiver": "The metrics handler converts the public time-window token into the shared structured TimeWindow RPC message."
             },
             {
               "name": "provider-id",
@@ -384,7 +415,8 @@
             {
               "name": "suite",
               "required": true,
-              "description": "EvalSuite as JSON, or @path to a JSON file"
+              "description": "EvalSuite as JSON, or @path to a JSON file",
+              "bind_waiver": "The eval handler intentionally accepts protojson inline or @path input and decodes EvalSuite itself so file-backed provider corpora remain supported."
             }
           ],
           "binding": {
@@ -477,6 +509,10 @@
               "description": "Per-case fetch depth (0 = a sensible default)"
             },
             {
+              "name": "tier",
+              "description": "Execution tier: provider_direct (default) or federated"
+            },
+            {
               "name": "assert",
               "bool": true,
               "description": "Opt-in CI gate: exit non-zero if any case is below_expectation or unexpected_hit (the run is still stored)",
@@ -549,6 +585,10 @@
             {
               "name": "limit",
               "description": "Cap to the N most recent runs (0 = all)"
+            },
+            {
+              "name": "tier",
+              "description": "Filter by execution tier: provider_direct or federated"
             }
           ],
           "binding": {
@@ -747,6 +787,32 @@
           "architecture": {
             "primitive": "proto_list"
           }
+        },
+        {
+          "name": "reap-orphans",
+          "description": "Audit orphan eval suites; remove them only with explicit --confirm",
+          "flags": [
+            {
+              "name": "confirm",
+              "bool": true,
+              "description": "Confirm deletion of the orphan set observed by this request"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "ReapOrphanSuites"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     },
@@ -909,6 +975,13 @@
       "service": "SearchControlService",
       "method": "WriteCorpus",
       "reason": "Search corpus write-back is consumed programmatically by eval generation/promotion flows; a standalone operator CLI verb would need a separate control-token UX."
+    }
+  ],
+  "exceptions": [
+    {
+      "command": "space",
+      "class": "passthrough",
+      "reason": "The shared spacecli command reads and parses the owner-controlled Answer denominator document; it is not a proto-backed API operation."
     }
   ]
 }

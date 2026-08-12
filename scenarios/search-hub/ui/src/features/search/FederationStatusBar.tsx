@@ -8,8 +8,8 @@ import { fetchFederationStatus } from "../../api/search";
 /**
  * FederationStatusBar surfaces live federation health above the results:
  * classifier/reranker model availability (which gate auto-routing and unified
- * rerank) plus a per-provider reachability chip carrying each leaf's freshness
- * note. It reads RoutingService.Status; a failed probe degrades to a quiet
+ * rerank) plus a per-provider reachability chip carrying each leaf's index-age
+ * evidence. It reads RoutingService.Status; a failed probe degrades to a quiet
  * inline message and never blocks searching.
  */
 export function FederationStatusBar() {
@@ -53,7 +53,7 @@ export function FederationStatusBar() {
           <span
             key={p.providerId}
             data-testid={selectors.search.providerChip({ providerId: p.providerId })}
-            title={p.freshness}
+            title={`reachability: ${p.reachability}; index age: ${p.indexAge}`}
             className={
               "rounded-full border px-2 py-0.5 " +
               (p.reachable

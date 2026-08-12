@@ -71,6 +71,8 @@ func TestRecordAndAggregate(t *testing.T) {
 		QueuedProviderCount:   1,
 		ClassifierLatencyMs:   10,
 		ResolverLatencyMs:     5,
+		ResolverCacheHits:     2,
+		ResolverCacheMisses:   1,
 		FanoutLatencyMs:       150,
 		RerankLatencyMs:       35,
 		RerankCandidateCount:  5,
@@ -94,6 +96,9 @@ func TestRecordAndAggregate(t *testing.T) {
 	require.Equal(t, int64(1), got.RerankedQueries)
 	require.Equal(t, int64(1), got.AutoRoutedExternalQueries)
 	require.Equal(t, int64(1), got.EscalatedQueries)
+	require.Equal(t, int64(2), got.ResolverCacheHits)
+	require.Equal(t, int64(1), got.ResolverCacheMisses)
+	require.InDelta(t, 2.0/3.0, got.ResolverCacheHitRate, 1e-9)
 
 	// Nearest-rank over [100,200,300]: p50 → idx ceil(1.5)-1=1 → 200; p95 → idx 2 → 300.
 	require.Equal(t, int64(200), got.LatencyP50Ms)

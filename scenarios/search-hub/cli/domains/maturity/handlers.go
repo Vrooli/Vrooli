@@ -18,6 +18,8 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry/registry_v1connect"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -38,6 +40,15 @@ type validationClient interface {
 var newValidationClient = func(core *cliapp.ScenarioApp, timeout time.Duration) validationClient {
 	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, timeout)
 	return scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL)
+}
+
+type registryClient interface {
+	ListProviders(context.Context, *connect.Request[registryv1.ListProvidersRequest]) (*connect.Response[registryv1.ListProvidersResponse], error)
+}
+
+var newRegistryClient = func(core *cliapp.ScenarioApp, timeout time.Duration) registryClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, timeout)
+	return registryconnect.NewRegistryServiceClient(httpClient, baseURL)
 }
 
 type handlers struct {
@@ -186,9 +197,19 @@ func (h *handlers) scan(ctx cliapp.RunContext) error {
 		return err
 	}
 	if ctx.JSON() {
-		return cliapp.PrintReportJSON(ctx.Stdout(), report)
+		if err := cliapp.PrintReportJSON(ctx.Stdout(), report); err != nil {
+			return err
+		}
+		return scanExitError(report)
 	}
 	printScanReport(ctx, report)
+	return scanExitError(report)
+}
+
+func scanExitError(report scanReport) error {
+	if report.Summary.Blocking > 0 {
+		return fmt.Errorf("maturity scan found %d blocking finding(s)", report.Summary.Blocking)
+	}
 	return nil
 }
 
@@ -219,6 +240,15 @@ func (h *handlers) scanCall(ctx cliapp.OperationContext) (scanReport, error) {
 	targets, err := discoverTargets(root)
 	if err != nil {
 		return scanReport{}, err
+	}
+	// A registered provider is a maturity target even when its scenario has not
+	// authored a descriptor. The registry read is best-effort so an unavailable
+	// hub still produces the existing honest per-target transport evidence.
+	if h.core != nil {
+		registeredTargets, registryErr := discoverRegisteredTargets(h.core, root, timeout)
+		if registryErr == nil {
+			targets = mergeTargets(targets, registeredTargets)
+		}
 	}
 	report := scanReport{
 		RepoRoot: root,
@@ -256,6 +286,54 @@ func (h *handlers) scanCall(ctx cliapp.OperationContext) (scanReport, error) {
 	report.Fleet.ElapsedMS = time.Since(started).Milliseconds()
 	report.finish()
 	return report, nil
+}
+
+func discoverRegisteredTargets(core *cliapp.ScenarioApp, root string, timeout time.Duration) ([]target, error) {
+	resp, err := newRegistryClient(core, timeout).ListProviders(context.Background(), connect.NewRequest(&registryv1.ListProvidersRequest{}))
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, errors.New("registry returned no providers response")
+	}
+	seen := map[string]bool{}
+	var targets []target
+	for _, provider := range resp.Msg.GetProviders() {
+		group := strings.TrimSpace(provider.GetProviderGroup())
+		if group == "" || seen[group] {
+			continue
+		}
+		path := filepath.Join(root, "scenarios", group)
+		if info, statErr := os.Stat(path); statErr != nil || !info.IsDir() {
+			continue
+		}
+		seen[group] = true
+		targets = append(targets, target{Scenario: group, Path: path, Reason: "registered-provider"})
+	}
+	return targets, nil
+}
+
+func mergeTargets(existing, registered []target) []target {
+	byScenario := make(map[string]target, len(existing)+len(registered))
+	for _, item := range existing {
+		byScenario[item.Scenario] = item
+	}
+	for _, item := range registered {
+		if prior, ok := byScenario[item.Scenario]; ok {
+			if !strings.Contains(prior.Reason, "registered-provider") {
+				prior.Reason += "+registered-provider"
+				byScenario[item.Scenario] = prior
+			}
+			continue
+		}
+		byScenario[item.Scenario] = item
+	}
+	out := make([]target, 0, len(byScenario))
+	for _, item := range byScenario {
+		out = append(out, item)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Scenario < out[j].Scenario })
+	return out
 }
 
 type fleetScanOptions struct {
@@ -589,6 +667,7 @@ func applyAssessment(out *scenarioResult, a *commonv1.MaturityAssessment) {
 			FindingsBySeverity:   copyStringInt32Map(c.GetFindingsBySeverity()),
 		})
 	}
+	advisoryCodes := make(map[string]struct{})
 	for _, f := range a.GetFindings() {
 		cleanRequirement := f.GetMaturity().GetCleanRequirement()
 		advisory := cleanRequirement == commonv1.CleanRequirement_CLEAN_REQUIREMENT_ADVISORY
@@ -615,10 +694,24 @@ func applyAssessment(out *scenarioResult, a *commonv1.MaturityAssessment) {
 		out.Findings = append(out.Findings, item)
 		if item.Advisory {
 			out.AdvisoryFindingCodes = append(out.AdvisoryFindingCodes, item.Code)
+			advisoryCodes[item.Code] = struct{}{}
 		}
 	}
-	out.BlockingFindingCodes = uniqueSorted(out.BlockingFindingCodes)
+	// The provider assessment is the source of truth for finding metadata, but
+	// older or third-party providers can still send contradictory rollups. Do
+	// not let an advisory finding remain in the blocking list, and do not print
+	// a passed scenario while any genuine blocker remains.
+	blocking := out.BlockingFindingCodes[:0]
+	for _, code := range out.BlockingFindingCodes {
+		if _, advisory := advisoryCodes[code]; !advisory {
+			blocking = append(blocking, code)
+		}
+	}
+	out.BlockingFindingCodes = uniqueSorted(blocking)
 	out.AdvisoryFindingCodes = uniqueSorted(out.AdvisoryFindingCodes)
+	if out.Status == "passed" && len(out.BlockingFindingCodes) > 0 {
+		out.Status = "failed"
+	}
 }
 
 func (r *scanReport) add(result scenarioResult) {

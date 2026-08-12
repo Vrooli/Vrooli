@@ -34,14 +34,23 @@ type TelemetrySample struct {
 	RoutingMode           string
 	EligibleProviderCount int
 	SelectedProviderCount int
-	WithheldExternalCount int
-	QueuedProviderCount   int
-	ClassifierLatencyMs   int64
-	ResolverLatencyMs     int64
-	FanoutLatencyMs       int64
-	RerankLatencyMs       int64
-	RerankCandidateCount  int
-	ResponseDegradeReason string
+	// SelectedLeafCount is the number of exact classifier selections before
+	// uncertainty widening; WidenedLeafCount is the number added by sibling
+	// widening or the bounded fallback. FanoutWidthBoundReached records whether
+	// the configured automatic width prevented further widening.
+	SelectedLeafCount       int
+	WidenedLeafCount        int
+	FanoutWidthBoundReached bool
+	WithheldExternalCount   int
+	QueuedProviderCount     int
+	ClassifierLatencyMs     int64
+	ResolverLatencyMs       int64
+	ResolverCacheHits       int64
+	ResolverCacheMisses     int64
+	FanoutLatencyMs         int64
+	RerankLatencyMs         int64
+	RerankCandidateCount    int
+	ResponseDegradeReason   string
 	// AutoRoutedExternal is true when the automatic path folded a SCOPE_EXTERNAL
 	// provider into the fan-out because the query was judged web-shaped
 	// (OT-P2-002). Lets the metrics surface measure the auto-routed-external rate.

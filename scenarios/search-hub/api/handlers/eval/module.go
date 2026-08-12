@@ -13,14 +13,19 @@ package eval
 import (
 	"context"
 	"log"
+	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
 	"search-hub/internal/clock"
+	"search-hub/internal/evalsched"
 	"search-hub/internal/httpc"
 	"search-hub/internal/module"
+	internalrouting "search-hub/internal/routing"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
@@ -28,6 +33,8 @@ import (
 	aisearch "github.com/vrooli/ai-go/search"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	evalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval/eval_v1connect"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
 
 	"search-hub/internal/control"
 	internaleval "search-hub/internal/eval"
@@ -48,6 +55,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 	resolver := internalregistry.NewSQLiteStore(db, clk)
 	client := newHTTPProviderClient(newScenarioResolver(), httpc.NewDefault())
 	runner := internaleval.NewRunner(resolver, client, clk, uuid.NewString)
+	federated := internaleval.NewFederatedRunner(resolver, newRoutingQueryClient(), clk, uuid.NewString)
 	validator := internaleval.NewValidator(resolver, client)
 
 	// One registry-side control client drives BOTH the sweep's index-time tier +
@@ -67,10 +75,21 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Clock: clk,
 	}, sweep.Options{})
 
+	// Evaluation freshness is maintained by the service lifecycle, not by an
+	// operator remembering to run a command. The scheduler discovers suites
+	// from the same store on every cycle and runs both evaluation tiers through
+	// the already-wired production seams.
+	schedulerOpts := evalsched.OptionsFromEnv(logger)
+	schedulerOpts.Validation = validator
+	scheduler := evalsched.New(clk, store, runner, federated, store, schedulerOpts)
+	go scheduler.Run(context.Background())
+
 	connectPath, connectHandler := evalconnect.NewEvalServiceHandler(NewConnectHandler(Deps{
 		Store:     store,
+		Registry:  resolver,
 		Providers: resolver,
 		Runner:    runner,
+		Federated: federated,
 		Validator: validator,
 		Sweeper:   sweeper,
 		// The corpus generator samples the provider through the SAME client the
@@ -91,6 +110,28 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+type routingQueryClient struct {
+	resolver *scenarioResolver
+	http     connect.HTTPClient
+}
+
+func newRoutingQueryClient() internaleval.QueryClient {
+	return &routingQueryClient{resolver: newScenarioResolver(), http: &http.Client{Timeout: 30 * time.Second}}
+}
+
+func (c *routingQueryClient) Query(ctx context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error) {
+	ctx = internalrouting.WithBackgroundEvaluation(ctx)
+	base, err := c.resolver.ResolveScenarioURL(ctx, "search-hub")
+	if err != nil {
+		return nil, err
+	}
+	resp, err := routingconnect.NewRoutingServiceClient(c.http, base).Query(ctx, connect.NewRequest(req))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
 }
 
 // Schema re-exports internaleval.Schema so the modules registry collects both

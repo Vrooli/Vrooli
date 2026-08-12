@@ -3,7 +3,12 @@ package routing_test
 import (
 	"context"
 	"errors"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -12,6 +17,63 @@ import (
 
 	"search-hub/internal/routing"
 )
+
+type statusDoer struct {
+	body        string
+	err         error
+	statusCalls int
+	searchCalls int
+}
+
+type parallelStatusDoer struct {
+	mu        sync.Mutex
+	delay     time.Duration
+	active    int
+	maxActive int
+}
+
+func (d *parallelStatusDoer) Do(req *http.Request) (*http.Response, error) {
+	if !strings.HasSuffix(req.URL.Path, "/status") {
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"results":[]}`)), Header: make(http.Header)}, nil
+	}
+	d.mu.Lock()
+	d.active++
+	if d.active > d.maxActive {
+		d.maxActive = d.active
+	}
+	d.mu.Unlock()
+	time.Sleep(d.delay)
+	d.mu.Lock()
+	d.active--
+	d.mu.Unlock()
+	return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"point_count":1}`)), Header: make(http.Header)}, nil
+}
+
+func (d *statusDoer) Do(req *http.Request) (*http.Response, error) {
+	if strings.HasSuffix(req.URL.Path, "/status") {
+		d.statusCalls++
+	} else {
+		d.searchCalls++
+	}
+	if d.err != nil {
+		return nil, d.err
+	}
+	body := d.body
+	if body == "" {
+		body = `{"results":[]}`
+	}
+	return &http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Header:     make(http.Header),
+	}, nil
+}
+
+func providerWithStatus(body string) *registryv1.ProviderDescriptor {
+	p := cliHealthCommands()
+	p.StatusEndpoint = httpJSON("cli-health", "/status", "{}")
+	return p
+}
 
 // recordingRecorder captures the samples the router emits so telemetry wiring
 // is testable without the metrics store.
@@ -49,6 +111,9 @@ func TestQueryRecordsTelemetry(t *testing.T) {
 	require.Equal(t, "explicit_all", s.RoutingMode)
 	require.Equal(t, 3, s.EligibleProviderCount)
 	require.Equal(t, 3, s.SelectedProviderCount)
+	require.Equal(t, 3, s.SelectedLeafCount)
+	require.Zero(t, s.WidenedLeafCount)
+	require.False(t, s.FanoutWidthBoundReached)
 	require.Zero(t, s.WithheldExternalCount)
 	require.Zero(t, s.QueuedProviderCount)
 	require.Empty(t, s.ResponseDegradeReason)
@@ -120,10 +185,109 @@ func TestStatusReportsProviderHealthAndModels(t *testing.T) {
 	require.False(t, byID["cli-health.commands"].GetDegraded())
 	require.False(t, byID["swarm-manager.records"].GetReachable())
 	require.True(t, byID["swarm-manager.records"].GetDegraded())
-	require.Contains(t, byID["swarm-manager.records"].GetFreshness(), "unreachable")
+	require.Contains(t, byID["swarm-manager.records"].GetReachability(), "unreachable")
 
 	require.True(t, st.GetClassifierAvailable())
 	require.False(t, st.GetRerankerAvailable())
+}
+
+func TestStatusProbesProvidersConcurrently(t *testing.T) {
+	p1 := providerWithStatus("")
+	p1.ProviderId = "cli-health.commands"
+	p2 := providerWithStatus("")
+	p2.ProviderId = "ui-health.surfaces"
+	doer := &parallelStatusDoer{delay: 120 * time.Millisecond}
+	r := routing.NewRouter(routing.Deps{
+		Lister: &fakeLister{providers: []*registryv1.ProviderDescriptor{p1, p2}},
+		Resolver: staticResolver{urls: map[string]string{
+			"cli-health": "http://cli-health.test",
+			"ui-health":  "http://ui-health.test",
+		}},
+		Doer: doer,
+	})
+	start := time.Now()
+	_, err := r.Status(context.Background())
+	require.NoError(t, err)
+	require.Less(t, time.Since(start), 210*time.Millisecond, "status must be bounded by the slowest provider probe")
+	doer.mu.Lock()
+	maxActive := doer.maxActive
+	doer.mu.Unlock()
+	require.Equal(t, 2, maxActive, "both provider probes should overlap")
+}
+
+func TestStatusReportsProbedIndexAgeAndPointCount(t *testing.T) {
+	now := time.Date(2026, 8, 12, 8, 0, 0, 0, time.UTC)
+	doer := &statusDoer{body: `{"last_indexed_at":"2026-08-12T07:30:00Z","point_count":42}`}
+	p := providerWithStatus(doer.body)
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{p}},
+		Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:     doer,
+		Now:      func() time.Time { return now },
+	})
+
+	st, err := r.Status(context.Background())
+	require.NoError(t, err)
+	require.Len(t, st.GetProviders(), 1)
+	h := st.GetProviders()[0]
+	require.Equal(t, "endpoint resolved", h.GetReachability())
+	require.Equal(t, "30m0s", h.GetIndexAge())
+	require.Equal(t, int64(42), h.GetPointCount())
+	require.Equal(t, 1, doer.statusCalls)
+}
+
+func TestStatusReportsExplicitIndexAgeAbsence(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		err  error
+		want string
+	}{
+		{name: "no timestamp is unreported", body: `{"point_count":9}`, want: "unreported: status response has no usable last-index timestamp"},
+		{name: "probe timeout is unreported", err: context.DeadlineExceeded, want: "unreported: status probe failed: context deadline exceeded"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := providerWithStatus(tt.body)
+			r := routing.NewRouter(routing.Deps{
+				Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{p}},
+				Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+				Doer:     &statusDoer{body: tt.body, err: tt.err},
+			})
+			st, err := r.Status(context.Background())
+			require.NoError(t, err)
+			require.Equal(t, tt.want, st.GetProviders()[0].GetIndexAge())
+		})
+	}
+}
+
+func TestStatusReportsMissingStatusEndpointAsNotApplicable(t *testing.T) {
+	p := providerWithStatus("")
+	p.StatusEndpoint = nil
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{p}},
+		Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:     &statusDoer{},
+	})
+
+	st, err := r.Status(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "not_applicable: provider has no status_endpoint", st.GetProviders()[0].GetIndexAge())
+}
+
+func TestStatusProbeDoesNotRunOnQueryPath(t *testing.T) {
+	doer := &statusDoer{}
+	p := providerWithStatus("")
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{p}},
+		Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:     doer,
+	})
+
+	_, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "probe", All: true})
+	require.NoError(t, err)
+	require.Zero(t, doer.statusCalls)
+	require.Equal(t, 1, doer.searchCalls)
 }
 
 func TestStatusNoModelsWiredReportsUnavailable(t *testing.T) {

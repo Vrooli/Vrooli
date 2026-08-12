@@ -47,6 +47,7 @@ func TestClassifierWarmLatencyBudget(t *testing.T) {
 			continue
 		}
 		profiles = append(profiles, routing.ProviderProfile{
+			ProviderID:  d.GetProviderId(),
 			Type:        d.GetType(),
 			Group:       d.GetProviderGroup(),
 			Description: d.GetDescription(),

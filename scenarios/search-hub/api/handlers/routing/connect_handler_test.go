@@ -21,12 +21,14 @@ import (
 // the recorded request. Keeps the handler test off real provider fan-out (that
 // path is covered by internal/routing/router_test.go).
 type fakeRouter struct {
-	out        *routingv1.QueryResponse
-	err        error
-	lastReq    *routingv1.QueryRequest
-	statusOut  *routingv1.StatusResponse
-	statusErr  error
-	statusCall bool
+	out          *routingv1.QueryResponse
+	err          error
+	lastReq      *routingv1.QueryRequest
+	statusOut    *routingv1.StatusResponse
+	statusErr    error
+	statusCall   bool
+	repromoteErr error
+	repromoteID  string
 }
 
 func (f *fakeRouter) Query(_ context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error) {
@@ -37,6 +39,11 @@ func (f *fakeRouter) Query(_ context.Context, req *routingv1.QueryRequest) (*rou
 func (f *fakeRouter) Status(context.Context) (*routingv1.StatusResponse, error) {
 	f.statusCall = true
 	return f.statusOut, f.statusErr
+}
+
+func (f *fakeRouter) RepromoteProvider(_ context.Context, providerID string) error {
+	f.repromoteID = providerID
+	return f.repromoteErr
 }
 
 func newClient(t *testing.T, router handler.Querier) routingconnect.RoutingServiceClient {
@@ -90,7 +97,7 @@ func TestQueryInternalErrorIsOpaque(t *testing.T) {
 func TestStatusReturnsHealth(t *testing.T) {
 	router := &fakeRouter{statusOut: &routingv1.StatusResponse{
 		Providers: []*routingv1.ProviderHealth{
-			{ProviderId: "cli-health.commands", Reachable: true, Freshness: "endpoint resolved"},
+			{ProviderId: "cli-health.commands", Reachable: true, Reachability: "endpoint resolved", IndexAge: "not_applicable: provider has no status_endpoint"},
 		},
 		ClassifierAvailable: true,
 		RerankerAvailable:   false,
@@ -111,6 +118,31 @@ func TestStatusInternalErrorIsOpaque(t *testing.T) {
 	client := newClient(t, router)
 
 	_, err := client.Status(context.Background(), connect.NewRequest(&routingv1.StatusRequest{}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+	require.NotContains(t, err.Error(), "secret", "internal details must not leak to the client")
+}
+
+func TestRepromoteForwardsProviderID(t *testing.T) {
+	router := &fakeRouter{}
+	client := newClient(t, router)
+
+	resp, err := client.Repromote(context.Background(), connect.NewRequest(&routingv1.RepromoteRequest{
+		ProviderId: "dense.docs",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "dense.docs", router.repromoteID)
+	require.Equal(t, "dense.docs", resp.Msg.GetProviderId())
+	require.True(t, resp.Msg.GetReset_())
+}
+
+func TestRepromoteInternalErrorIsOpaque(t *testing.T) {
+	router := &fakeRouter{repromoteErr: errors.New("registry db on fire: /var/lib/secret")}
+	client := newClient(t, router)
+
+	_, err := client.Repromote(context.Background(), connect.NewRequest(&routingv1.RepromoteRequest{
+		ProviderId: "dense.docs",
+	}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
 	require.NotContains(t, err.Error(), "secret", "internal details must not leak to the client")

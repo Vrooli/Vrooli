@@ -94,6 +94,22 @@ func (d routeDoer) Do(req *http.Request) (*http.Response, error) {
 	}, nil
 }
 
+type deadlineDoer struct {
+	slowURL string
+}
+
+func (d deadlineDoer) Do(req *http.Request) (*http.Response, error) {
+	if req.URL.String() == d.slowURL {
+		<-req.Context().Done()
+		return nil, req.Context().Err()
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`{"results":[{"name":"scenario restart","description":"Restart","score":0.9}]}`)),
+		Header:     make(http.Header),
+	}, nil
+}
+
 // --- descriptor fixtures ----------------------------------------------------
 
 func cliHealthCommands() *registryv1.ProviderDescriptor {
@@ -183,6 +199,28 @@ func TestQueryRejectsNoSelector(t *testing.T) {
 	require.ErrorAs(t, err, &routing.ErrInvalidQuery{})
 }
 
+func TestQueryReturnsPartialResultsWhenDeadlineLeavesProviderPending(t *testing.T) {
+	r := routing.NewRouter(routing.Deps{
+		Lister: &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), swarmRecords()}},
+		Resolver: staticResolver{urls: map[string]string{
+			"cli-health":    "http://cli-health.test",
+			"swarm-manager": "http://swarm-manager.test",
+		}},
+		Doer:               deadlineDoer{slowURL: "http://swarm-manager.test/api/v1/search/ai"},
+		Concurrency:        2,
+		PerProviderTimeout: 250 * time.Millisecond,
+		QueryTimeout:       20 * time.Millisecond,
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart", All: true, Explain: true})
+	require.NoError(t, err)
+	require.True(t, resp.GetPartial())
+	require.Equal(t, int32(1), resp.GetPendingProviders())
+	require.Contains(t, resp.GetCorporaSearched(), "cli-health.commands")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "1 provider(s) pending")
+	require.NotEmpty(t, resp.GetGroups()[0].GetHits())
+}
+
 func TestExplicitTypeFanOut(t *testing.T) {
 	lister := &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), swarmRecords()}}
 	resolver := staticResolver{urls: map[string]string{
@@ -263,6 +301,14 @@ func TestUnreachableProviderDegrades(t *testing.T) {
 	require.Len(t, resp.GetGroups(), 1)
 	require.True(t, resp.GetGroups()[0].GetDegraded())
 	require.Contains(t, resp.GetGroups()[0].GetNote(), "unreachable")
+
+	// A resolver-level stopped signal opens the provider breaker immediately;
+	// the next automatic/explicit attempt must fail locally instead of paying
+	// the resolver's full retry/timeout path again.
+	resp, err = r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true})
+	require.NoError(t, err)
+	require.True(t, resp.GetGroups()[0].GetDegraded())
+	require.Contains(t, resp.GetGroups()[0].GetNote(), "circuit unavailable")
 }
 
 func TestProviderCircuitFailsFastAndRecoversWithProbe(t *testing.T) {
@@ -390,6 +436,7 @@ type fakeClassifier struct {
 	called    bool
 	gotQuery  string
 	gotalltyp []string
+	gotIDs    []string
 }
 
 func (f *fakeClassifier) Classify(_ context.Context, query string, profiles []routing.ProviderProfile) (routing.ClassifyResult, error) {
@@ -397,6 +444,7 @@ func (f *fakeClassifier) Classify(_ context.Context, query string, profiles []ro
 	f.gotQuery = query
 	for _, p := range profiles {
 		f.gotalltyp = append(f.gotalltyp, p.Type)
+		f.gotIDs = append(f.gotIDs, p.ProviderID)
 	}
 	return f.result, f.err
 }
@@ -435,7 +483,7 @@ func TestAutoRouteUsesClassifierTypes(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, clf.called)
 	require.Equal(t, "restart a scenario", clf.gotQuery)
-	require.Subset(t, clf.gotalltyp, []string{"command", "component", "record"}, "every active type's description is offered to the classifier")
+	require.ElementsMatch(t, []string{"cli-health.commands", "ui-health.surfaces", "swarm-manager.records"}, clf.gotIDs, "every active leaf is offered to the classifier")
 
 	require.Len(t, resp.GetGroups(), 1, "confident single-type route hits only that provider")
 	require.Equal(t, "cli-health.commands", resp.GetGroups()[0].GetProviderId())
@@ -444,11 +492,11 @@ func TestAutoRouteUsesClassifierTypes(t *testing.T) {
 	joined := strings.Join(resp.GetRoutingExplanation(), "\n")
 	require.Contains(t, joined, "automatic routing via classifier")
 	require.Contains(t, joined, "CLI op")
-	require.Contains(t, joined, "routed to types: command")
+	require.Contains(t, joined, "routed to provider leaves: cli-health.commands")
 	require.Contains(t, joined, "cli-health.commands")
 }
 
-func TestAutoRouteWidensOnLowConfidence(t *testing.T) {
+func TestAutoRouteWidensWithinSelectedLeafScope(t *testing.T) {
 	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.2}}
 	r := routing.NewRouter(routing.Deps{
 		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(), Classifier: clf,
@@ -456,9 +504,9 @@ func TestAutoRouteWidensOnLowConfidence(t *testing.T) {
 
 	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "something vague", Explain: true})
 	require.NoError(t, err)
-	require.Len(t, resp.GetGroups(), 3, "uncertain ⇒ widen to every active provider (recall over precision)")
+	require.Len(t, resp.GetGroups(), 1, "uncertain ⇒ widen within the selected leaf's sibling scope")
 	require.False(t, resp.GetDegraded(), "widening is not degradation")
-	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "widened on uncertainty")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "widened within sibling scope")
 }
 
 func TestAutoRouteClassifierErrorWidensAndFlagsDegraded(t *testing.T) {
@@ -577,6 +625,79 @@ func TestRerankProducesUnifiedRankedList(t *testing.T) {
 	// Groups stay populated for provenance.
 	require.Len(t, resp.GetGroups(), 2)
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranked 2 candidate")
+}
+
+func TestBackgroundEvaluationBypassesModelsAndFansOutExplicitly(t *testing.T) {
+	clf := &fakeClassifier{}
+	rr := &fakeReranker{scoreByID: map[string]float64{}}
+	r := routing.NewRouter(routing.Deps{
+		Lister:     threeProviderLister(),
+		Resolver:   threeProviderResolver(),
+		Doer:       threeProviderDoer(),
+		Classifier: clf,
+		Reranker:   rr,
+	})
+
+	ctx := routing.WithBackgroundEvaluation(context.Background())
+	resp, err := r.Query(ctx, &routingv1.QueryRequest{Query: "restart a scenario", Explain: true})
+	require.NoError(t, err)
+	require.Len(t, resp.GetGroups(), 3)
+	require.False(t, clf.called, "background evaluation must not consume classifier capacity")
+	require.False(t, rr.called, "background evaluation must not consume reranker capacity")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "background evaluation")
+}
+
+func TestBackgroundEvaluationCanScopeToOneProvider(t *testing.T) {
+	r := routing.NewRouter(routing.Deps{
+		Lister:   threeProviderLister(),
+		Resolver: threeProviderResolver(),
+		Doer:     threeProviderDoer(),
+	})
+	ctx := routing.WithBackgroundEvaluationProvider(context.Background(), "cli-health.commands")
+	resp, err := r.Query(ctx, &routingv1.QueryRequest{Query: "restart a scenario"})
+	require.NoError(t, err)
+	require.Len(t, resp.GetGroups(), 1)
+	require.Equal(t, "cli-health.commands", resp.GetGroups()[0].GetProviderId())
+}
+
+func TestRecoveryProbeRunsUnattendedAfterDecayAndRestoresAutomaticRouting(t *testing.T) {
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
+	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.9}}
+	doer := routeDoer{byURL: map[string]cannedResponse{
+		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {
+			status: 200,
+			body:   `{"results":[]}`,
+		},
+	}}
+	r := routing.NewRouter(routing.Deps{
+		Lister:     &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), swarmRecords()}},
+		Resolver:   staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:       doer,
+		Classifier: clf,
+		Now:        func() time.Time { return now },
+	})
+
+	for i := 0; i < 5; i++ {
+		resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "find a command"})
+		require.NoError(t, err)
+		require.False(t, resp.GetDegraded())
+		require.Len(t, resp.GetGroups(), 1)
+		require.Empty(t, resp.GetGroups()[0].GetHits())
+	}
+
+	now = now.Add(16 * time.Minute)
+	doer.byURL["http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search"] = cannedResponse{
+		status: 200,
+		body:   `{"results":[{"name":"recovery command","description":"Recovered","score":0.9}]}`,
+	}
+	recovered, err := r.ProbeProviderRecovery(context.Background(), "cli-health.commands", "find a command")
+	require.NoError(t, err)
+	require.True(t, recovered, "the unattended probe must restore a provider after a graded hit")
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "find a command"})
+	require.NoError(t, err)
+	require.Len(t, resp.GetGroups(), 1, "automatic routing resumes after the background probe")
+	require.Equal(t, "recovery command", resp.GetGroups()[0].GetHits()[0].GetTitle())
 }
 
 func TestRerankDegradesToGroupingOnError(t *testing.T) {

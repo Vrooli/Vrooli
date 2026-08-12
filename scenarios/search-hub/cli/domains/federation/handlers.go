@@ -49,6 +49,7 @@ func (h *handlers) statusReport(_ cliapp.OperationContext, msg *routingv1.Status
 
 	summary := []string{
 		fmt.Sprintf("%d/%d active provider(s) reachable.", reachable, len(msg.GetProviders())),
+		fmt.Sprintf("Circuit-open share: %.1f%% (federation quorum %.1f%%; degraded=%t).", msg.GetCircuitOpenShare()*100, msg.GetCircuitOpenQuorum()*100, msg.GetFederationDegraded()),
 		fmt.Sprintf("Classifier (auto-routing): %s. Reranker (unified ranking): %s.",
 			availability(msg.GetClassifierAvailable()), availability(msg.GetRerankerAvailable())),
 	}
@@ -68,7 +69,27 @@ func (h *handlers) statusReport(_ cliapp.OperationContext, msg *routingv1.Status
 	}
 }
 
-// renderProviderHealth renders each leaf's reachability + freshness note.
+func (h *handlers) repromoteCall(ctx cliapp.OperationContext) (*routingv1.RepromoteResponse, error) {
+	providerID := ctx.Positional("provider_id")
+	resp, err := h.client.Repromote(context.Background(), connect.NewRequest(&routingv1.RepromoteRequest{ProviderId: providerID}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("federation repromote", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no repromotion response")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) repromoteReport(_ cliapp.OperationContext, msg *routingv1.RepromoteResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{
+		Result:  []string{msg.GetMessage()},
+		Changes: []string{fmt.Sprintf("provider=%s reset=%t", msg.GetProviderId(), msg.GetReset_())},
+	}
+}
+
+// renderProviderHealth renders each leaf's reachability and independently
+// reported index age.
 func renderProviderHealth(providers []*routingv1.ProviderHealth) []string {
 	if len(providers) == 0 {
 		return []string{"(no active providers registered — run `providers register`)"}
@@ -80,8 +101,23 @@ func renderProviderHealth(providers []*routingv1.ProviderHealth) []string {
 			marker = "✗"
 		}
 		line := fmt.Sprintf("%s %s", marker, p.GetProviderId())
-		if note := p.GetFreshness(); note != "" {
-			line += " — " + note
+		if note := p.GetReachability(); note != "" {
+			line += " — reachability: " + note
+		}
+		if age := p.GetIndexAge(); age != "" {
+			line += " — index age: " + age
+		}
+		if p.GetDemoted() {
+			line += fmt.Sprintf(" — demoted (%s; routed=%d hits=%d)", p.GetDemotionReason(), p.GetTimesRouted(), p.GetTotalHits())
+		}
+		if p.GetQualityGateOptedOut() {
+			line += " — quality gate opt-out: " + p.GetQualityGateOptOutReason()
+		}
+		if p.GetQualityWithheld() {
+			line += fmt.Sprintf(" — withheld (junk leak; run=%s): %s", p.GetQualityEvidenceRunId(), p.GetQualityWithheldReason())
+		}
+		if !p.GetAutomaticEligible() && p.GetAutomaticExclusionReason() != "" {
+			line += " — automatic: " + p.GetAutomaticExclusionReason()
 		}
 		out = append(out, line)
 	}

@@ -24,20 +24,28 @@ import (
 // queryTimeArms returns the full-factorial query-time candidates built on the
 // incumbent, EXCLUDING the incumbent itself (the orchestrator evaluates the
 // incumbent separately as the baseline). Invalid combinations (blend without
-// rerank — TuningConfig.Validate rejects it) are pruned. Results are de-duped by
+// rerank — TuningConfig.Validate rejects it) are pruned. Hybrid engines also
+// enumerate both legal dense+sparse fusion strategies. Results are de-duped by
 // their canonical tuning so a pinned-knob collision can never double-run an arm.
 func queryTimeArms(incumbent aisearch.TuningConfig) []aisearch.TuningConfig {
 	incumbent = incumbent.WithDefaults()
 	var raw []aisearch.TuningConfig
-	for _, rerank := range []bool{false, true} {
-		for _, blend := range []bool{false, true} {
-			t := incumbent // copy: keeps index-time + pinned fields fixed
-			t.RerankEnabled = rerank
-			t.RerankBlend = blend
-			if t.Validate() != nil { // prunes blend && !rerank
-				continue
+	fusions := []string{incumbent.HybridFusion}
+	if incumbent.Engine == aisearch.EngineHybrid {
+		fusions = []string{aisearch.HybridFusionRRF, aisearch.HybridFusionDBSF}
+	}
+	for _, fusion := range fusions {
+		for _, rerank := range []bool{false, true} {
+			for _, blend := range []bool{false, true} {
+				t := incumbent // copy: keeps index-time + pinned fields fixed
+				t.HybridFusion = fusion
+				t.RerankEnabled = rerank
+				t.RerankBlend = blend
+				if t.Validate() != nil { // prunes blend && !rerank
+					continue
+				}
+				raw = append(raw, t)
 			}
-			raw = append(raw, t)
 		}
 	}
 	return dedupExcluding(raw, incumbent)
@@ -94,6 +102,7 @@ func queryTimeOverrides(t aisearch.TuningConfig) aisearch.SearchOverrides {
 		RerankShortlist: aisearch.OverrideInt(t.RerankShortlist),
 		FloorMaxGap:     aisearch.OverrideFloat(t.Floor.MaxGap),
 		FloorHardFloor:  aisearch.OverrideFloat(t.Floor.HardFloor),
+		HybridFusion:    aisearch.OverrideString(t.HybridFusion),
 	}
 }
 
@@ -112,8 +121,8 @@ func floorRegime(t aisearch.TuningConfig) string {
 // "the same arm" iff every swept and pinned factor matches.
 func canonical(t aisearch.TuningConfig) string {
 	t = t.WithDefaults()
-	return fmt.Sprintf("engine=%s,embed_model=%s,embed_task_prefix=%t,rerank_enabled=%t,rerank_blend=%t,shortlist=%d,floor=%g/%g",
-		t.Engine, t.EmbedModel, t.EmbedTaskPrefix, t.RerankEnabled, t.RerankBlend, t.RerankShortlist, t.Floor.MaxGap, t.Floor.HardFloor)
+	return fmt.Sprintf("engine=%s,embed_model=%s,embed_task_prefix=%t,rerank_enabled=%t,rerank_blend=%t,shortlist=%d,floor=%g/%g,hybrid_fusion=%s",
+		t.Engine, t.EmbedModel, t.EmbedTaskPrefix, t.RerankEnabled, t.RerankBlend, t.RerankShortlist, t.Floor.MaxGap, t.Floor.HardFloor, t.HybridFusion)
 }
 
 // armTag is the stable, human-legible run tag for an arm in a tier.

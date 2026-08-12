@@ -30,7 +30,9 @@ const defaultEvalFreshnessWindow = 30 * 24 * time.Hour
 type Service struct {
 	RepoRoot      string
 	EvalStore     EvalStore
+	RegistryStore internalregistry.Store
 	EvalValidator EvalValidator
+	StatusProbe   StatusProbe
 	Now           func() time.Time
 }
 
@@ -41,6 +43,7 @@ type Options struct {
 
 type EvalStore interface {
 	GetSuite(ctx context.Context, id string) (*evalv1.EvalSuite, error)
+	ListSuites(ctx context.Context, filter internaleval.ListSuitesFilter) ([]*evalv1.EvalSuite, error)
 	ListRuns(ctx context.Context, filter internaleval.ListRunsFilter) ([]*evalv1.EvalRun, error)
 }
 
@@ -66,13 +69,52 @@ func (s *Service) ValidateScenarioWithOptions(ctx context.Context, scenario, pat
 	raw, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			if s.hasRegisteredProvider(ctx, report.Scenario) {
+				report.add(Finding{
+					Code:        CodeProviderDescriptorMissing,
+					Severity:    SeverityError,
+					Title:       "Registered search provider has no descriptor",
+					Message:     "A provider is registered for this scenario, but the scenario has no .vrooli/search.json source of truth; it cannot be audited or re-registered safely.",
+					Location:    ".vrooli/search.json",
+					Remediation: "Add .vrooli/search.json and register its providers through the shared searchregister boot path.",
+				})
+			} else {
+				report.add(Finding{
+					Code:        CodeConfigMissing,
+					Severity:    SeverityError,
+					Title:       "Search descriptor missing",
+					Message:     "The target declares search applicability but has no .vrooli/search.json file.",
+					Location:    ".vrooli/search.json",
+					Remediation: "Add .vrooli/search.json with at least one provider descriptor, or remove the search capability declaration.",
+				})
+			}
+			// A missing descriptor is also missing the evidence needed to score
+			// governance, eval performance, and operability. Emit one finding per
+			// capability so the maturity assessment has an honest L0 floor rather
+			// than treating an empty evidence set as a clean top rung.
 			report.add(Finding{
-				Code:        CodeConfigMissing,
+				Code:        CodeGovernanceEvidenceMissing,
 				Severity:    SeverityError,
-				Title:       "Search descriptor missing",
-				Message:     "The target declares search applicability but has no .vrooli/search.json file.",
+				Title:       "Search governance evidence is unavailable",
+				Message:     "Search Hub cannot assess provider ownership without a search descriptor.",
 				Location:    ".vrooli/search.json",
-				Remediation: "Add .vrooli/search.json with at least one provider descriptor, or remove the search capability declaration.",
+				Remediation: "Add a scenario-owned .vrooli/search.json before claiming search governance maturity.",
+			})
+			report.add(Finding{
+				Code:        CodeEvalEvidenceMissing,
+				Severity:    SeverityError,
+				Title:       "Search eval evidence is unavailable",
+				Message:     "Search Hub cannot assess retrieval quality without a search descriptor and corpus contract.",
+				Location:    ".vrooli/search.json",
+				Remediation: "Add a scenario-owned descriptor with reviewed search eval cases.",
+			})
+			report.add(Finding{
+				Code:        CodeOperabilityEvidenceMissing,
+				Severity:    SeverityError,
+				Title:       "Search operability evidence is unavailable",
+				Message:     "Search Hub cannot assess endpoint and tuning posture without a search descriptor.",
+				Location:    ".vrooli/search.json",
+				Remediation: "Declare the provider's operability class and control posture in .vrooli/search.json.",
 			})
 			report.finish()
 			return report, nil
@@ -93,8 +135,56 @@ func (s *Service) ValidateScenarioWithOptions(ctx context.Context, scenario, pat
 		return report, nil
 	}
 	s.validateConfig(ctx, &report, cfg, opts.withDefaults())
+	s.validateOrphanSuites(ctx, &report)
 	report.finish()
 	return report, nil
+}
+
+func (s *Service) hasRegisteredProvider(ctx context.Context, scenario string) bool {
+	if s.RegistryStore == nil {
+		return false
+	}
+	providers, err := s.RegistryStore.List(ctx, internalregistry.ListFilter{})
+	if err != nil {
+		return false
+	}
+	for _, provider := range providers {
+		if provider.GetProviderGroup() == scenario {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) validateOrphanSuites(ctx context.Context, report *Report) {
+	if s.EvalStore == nil || s.RegistryStore == nil {
+		return
+	}
+	suites, err := s.EvalStore.ListSuites(ctx, internaleval.ListSuitesFilter{})
+	if err != nil {
+		return
+	}
+	providers, err := s.RegistryStore.List(ctx, internalregistry.ListFilter{})
+	if err != nil {
+		return
+	}
+	registered := make(map[string]struct{}, len(providers))
+	for _, provider := range providers {
+		registered[provider.GetProviderId()] = struct{}{}
+	}
+	for _, suite := range suites {
+		if _, ok := registered[suite.GetProviderId()]; ok {
+			continue
+		}
+		report.add(Finding{
+			Code:        CodeEvalSuiteOrphaned,
+			Severity:    SeverityError,
+			Title:       "Evaluation suite has no registered provider",
+			Message:     fmt.Sprintf("suite %q references provider %q, which is absent from the registry.", suite.GetSuiteId(), suite.GetProviderId()),
+			Location:    "EvalService.ListSuites",
+			Remediation: "Register the provider from its scenario-owned .vrooli/search.json or run the explicit orphan-suite reaping command after review.",
+		})
+	}
 }
 
 func (o Options) withDefaults() Options {
@@ -180,14 +270,14 @@ func (s *Service) validateConfig(ctx context.Context, report *Report, cfg search
 				Remediation: "Set provider_group to the owning scenario directory name.",
 			})
 		}
-		validateProviderOperationalPosture(report, providerPath, provider, extras)
+		s.validateProviderOperationalPosture(ctx, report, providerPath, provider, extras)
 		if opts.IncludeEvals {
 			s.validateEvalEvidence(ctx, report, providerPath, provider, extras, opts)
 		}
 	}
 }
 
-func validateProviderOperationalPosture(report *Report, providerPath string, provider *registryv1.ProviderDescriptor, extras providerExtras) {
+func (s *Service) validateProviderOperationalPosture(ctx context.Context, report *Report, providerPath string, provider *registryv1.ProviderDescriptor, extras providerExtras) {
 	if provider.GetState() == registryv1.ProviderState_PROVIDER_STATE_CAPABILITY_GAP {
 		return
 	}
@@ -205,7 +295,7 @@ func validateProviderOperationalPosture(report *Report, providerPath string, pro
 		// Without a class the endpoint posture is undecidable; still validate the
 		// class-independent corpus and tuning below.
 	} else {
-		validateEndpointPosture(report, providerPath, provider, class, extras)
+		s.validateEndpointPosture(ctx, report, providerPath, provider, class, extras)
 	}
 	validateEvalCorpus(report, providerPath, provider, extras)
 	validateTuningBudget(report, providerPath, extras)
@@ -220,7 +310,7 @@ func validateProviderOperationalPosture(report *Report, providerPath string, pro
 //     required (Search Hub must be able to reconcile and re-evaluate the corpus);
 //     a config write-back endpoint is advisory (hybrid-by-construction corpora
 //     legitimately pin their tuning and expose none).
-func validateEndpointPosture(report *Report, providerPath string, provider *registryv1.ProviderDescriptor, class string, extras providerExtras) {
+func (s *Service) validateEndpointPosture(ctx context.Context, report *Report, providerPath string, provider *registryv1.ProviderDescriptor, class string, extras providerExtras) {
 	if class == aisearch.ClassExternal {
 		return
 	}
@@ -233,6 +323,18 @@ func validateEndpointPosture(report *Report, providerPath string, provider *regi
 			Location:    providerPath + ".status_endpoint",
 			Remediation: "Expose a lightweight status endpoint and declare it in .vrooli/search.json.",
 		})
+	} else if s.StatusProbe != nil {
+		lastIndexedAt, err := s.StatusProbe.ProbeIndexTimestamp(ctx, provider)
+		if err == nil && lastIndexedAt.IsZero() {
+			report.add(Finding{
+				Code:        CodeIndexAgeUnreported,
+				Severity:    SeverityWarning,
+				Title:       "Search provider status has no usable index timestamp",
+				Message:     "The declared status endpoint is reachable but does not report when the provider index was last rebuilt, so index age remains not_reported.",
+				Location:    providerPath + ".status_endpoint",
+				Remediation: "Return a last_indexed_at/last_index_at timestamp from the declared status endpoint, or remove the endpoint if index age is not applicable.",
+			})
+		}
 	}
 	if !aisearch.IndexedClass(class) {
 		return
@@ -753,6 +855,17 @@ func (s *Service) validateEvalEvidence(ctx context.Context, report *Report, prov
 			Message:     "Live corpus validation found no reviewed positive labels to prove retrieval quality.",
 			Location:    providerPath + ".tests.suite_id",
 			Remediation: "Add reviewed positive eval cases with expected ids, register the suite, and rerun full search validation.",
+		})
+		return
+	} else if rollup.GetProviderErrors() > 0 {
+		evidence.CorpusStatus = "provider_error"
+		report.add(Finding{
+			Code:        CodeEvalProviderUnavailable,
+			Severity:    SeverityError,
+			Title:       "Search eval provider errored during label validation",
+			Message:     fmt.Sprintf("Corpus validation observed %d provider error(s); labels are not classified as stale.", rollup.GetProviderErrors()),
+			Location:    providerPath + ".tests.suite_id",
+			Remediation: "Repair provider availability or its endpoint contract, then rerun evals validate.",
 		})
 		return
 	} else if rollup.GetStale() > 0 || rollup.GetInconclusive() > 0 {

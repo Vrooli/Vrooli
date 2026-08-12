@@ -49,7 +49,7 @@ func (r *SharedReranker) Rerank(ctx context.Context, query string, candidates []
 	shared := make([]aisearch.RerankCandidate, len(candidates))
 	for i, h := range candidates {
 		shared[i] = aisearch.RerankCandidate{
-			ID:   h.GetId(),
+			ID:   rerankCandidateKey(i, h.GetId()),
 			Text: rerankCandidateText(h),
 		}
 	}
@@ -137,23 +137,45 @@ func applySharedRerank(candidates []*routingv1.SearchHit, scores []aisearch.Rera
 		scoreByID[s.ID] = s.Score
 		scoredByID[s.ID] = true
 	}
-	ranked := make([]*routingv1.SearchHit, len(candidates))
-	copy(ranked, candidates)
-	for _, h := range ranked {
-		if score, ok := scoreByID[h.GetId()]; ok {
+	type rankedHit struct {
+		hit    *routingv1.SearchHit
+		score  float64
+		scored bool
+		order  int
+	}
+	ranked := make([]rankedHit, len(candidates))
+	for i, h := range candidates {
+		score, scored := scoreByID[rerankCandidateKey(i, h.GetId())]
+		if scored {
 			h.RerankScore = score
 		}
+		ranked[i] = rankedHit{hit: h, score: score, scored: scored, order: i}
 	}
 	sort.SliceStable(ranked, func(i, j int) bool {
-		si, sj := scoredByID[ranked[i].GetId()], scoredByID[ranked[j].GetId()]
-		if si != sj {
-			return si
+		if ranked[i].scored != ranked[j].scored {
+			return ranked[i].scored
 		}
-		ri, rj := ranked[i].GetRerankScore(), ranked[j].GetRerankScore()
-		if si && ri != rj {
-			return ri > rj
+		if ranked[i].scored && ranked[i].score != ranked[j].score {
+			return ranked[i].score > ranked[j].score
 		}
-		return ranked[i].GetScore() > ranked[j].GetScore()
+		if ranked[i].hit.GetScore() != ranked[j].hit.GetScore() {
+			return ranked[i].hit.GetScore() > ranked[j].hit.GetScore()
+		}
+		return ranked[i].order < ranked[j].order
 	})
-	return ranked
+	out := make([]*routingv1.SearchHit, len(ranked))
+	for i, item := range ranked {
+		out[i] = item.hit
+	}
+	return out
+}
+
+// rerankCandidateKey is intentionally positional. A provider may return
+// several passages whose document id is the same, and the reranker score is a
+// judgment for one candidate passage, not for the document-id string. The
+// position makes the adapter's contract one-to-one without changing the
+// shared ai-go/search score type or leaking provider-specific identity into
+// that package.
+func rerankCandidateKey(index int, id string) string {
+	return fmt.Sprintf("candidate:%d:%s", index, id)
 }

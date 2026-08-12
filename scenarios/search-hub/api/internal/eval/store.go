@@ -35,6 +35,9 @@ type Store interface {
 	ListSuites(ctx context.Context, filter ListSuitesFilter) ([]*evalv1.EvalSuite, error)
 	// GetSuite returns the suite for id or ErrSuiteNotFound.
 	GetSuite(ctx context.Context, id string) (*evalv1.EvalSuite, error)
+	// DeleteSuite removes a suite and its immutable runs. Callers must establish
+	// orphan status and explicit operator confirmation before invoking it.
+	DeleteSuite(ctx context.Context, id string) error
 
 	// AppendRun stores an immutable run. The run's created_at is stamped by the
 	// store (clock seam) if unset, and run_id must be provided by the caller.
@@ -172,6 +175,23 @@ func (s *sqliteStore) GetSuite(ctx context.Context, id string) (*evalv1.EvalSuit
 	return unmarshalSuite(blob)
 }
 
+func (s *sqliteStore) DeleteSuite(ctx context.Context, id string) error {
+	if strings.TrimSpace(id) == "" {
+		return fmt.Errorf("suite_id required")
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM eval_runs WHERE suite_id = ?`, id); err != nil {
+		return fmt.Errorf("delete suite runs: %w", err)
+	}
+	result, err := s.db.ExecContext(ctx, `DELETE FROM eval_suites WHERE suite_id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("delete suite: %w", err)
+	}
+	if affected, err := result.RowsAffected(); err == nil && affected == 0 {
+		return ErrSuiteNotFound{SuiteID: id}
+	}
+	return nil
+}
+
 func (s *sqliteStore) AppendRun(ctx context.Context, run *evalv1.EvalRun) error {
 	if run == nil {
 		return fmt.Errorf("nil run")
@@ -196,6 +216,32 @@ VALUES (?, ?, ?, ?, ?)`,
 	return nil
 }
 
+// AppendCorpusValidation persists a scheduled live/stale/provider_error
+// rollup. It is deliberately separate from EvalRun: validation is label
+// freshness evidence, not a graded quality run, and must not overwrite history.
+func (s *sqliteStore) AppendCorpusValidation(ctx context.Context, suiteID string, result *evalv1.ValidateCorpusResponse, observedAt time.Time) error {
+	if strings.TrimSpace(suiteID) == "" {
+		return fmt.Errorf("suite_id required")
+	}
+	if result == nil {
+		return fmt.Errorf("validation result required")
+	}
+	blob, err := marshalOpts.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("marshal corpus validation: %w", err)
+	}
+	if observedAt.IsZero() {
+		observedAt = s.clock.Now()
+	}
+	_, err = s.db.ExecContext(ctx, `
+INSERT INTO eval_corpus_validations (suite_id, created_at, result)
+VALUES (?, ?, ?)`, suiteID, observedAt.UTC().Format(timeFormat), string(blob))
+	if err != nil {
+		return fmt.Errorf("insert corpus validation: %w", err)
+	}
+	return nil
+}
+
 func (s *sqliteStore) ListRuns(ctx context.Context, filter ListRunsFilter) ([]*evalv1.EvalRun, error) {
 	clauses := []string{"suite_id = ?"}
 	args := []any{filter.SuiteID}
@@ -207,7 +253,7 @@ func (s *sqliteStore) ListRuns(ctx context.Context, filter ListRunsFilter) ([]*e
 	// run_id as a stable tiebreaker for runs sharing a timestamp.
 	query := "SELECT result FROM eval_runs WHERE " + strings.Join(clauses, " AND ") +
 		" ORDER BY created_at DESC, run_id DESC"
-	if filter.Limit > 0 {
+	if filter.Limit > 0 && strings.TrimSpace(filter.Tier) == "" {
 		query += " LIMIT ?"
 		args = append(args, filter.Limit)
 	}
@@ -228,7 +274,13 @@ func (s *sqliteStore) ListRuns(ctx context.Context, filter ListRunsFilter) ([]*e
 		if uErr != nil {
 			return nil, uErr
 		}
+		if strings.TrimSpace(filter.Tier) != "" && run.GetTier() != filter.Tier {
+			continue
+		}
 		out = append(out, run)
+		if filter.Limit > 0 && len(out) >= filter.Limit {
+			break
+		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate runs: %w", err)

@@ -34,8 +34,10 @@ func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB, clk cloc
 	validator := internalvalidation.New(repoRoot)
 	if db != nil {
 		resolver := internalregistry.NewSQLiteStore(db, clk)
+		validator.RegistryStore = resolver
 		validator.EvalStore = internaleval.NewSQLiteStore(db, clk)
 		validator.EvalValidator = internaleval.NewValidator(resolver, evalH.NewDefaultProviderClient())
+		validator.StatusProbe = evalH.NewDefaultStatusProbe()
 	}
 	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(NewConnectHandler(Deps{
 		Logger:       logger,

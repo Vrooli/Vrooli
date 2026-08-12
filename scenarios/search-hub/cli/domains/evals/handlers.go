@@ -115,6 +115,39 @@ func (h *handlers) listReport(_ cliapp.OperationContext, msg *evalv1.ListSuitesR
 	}
 }
 
+func (h *handlers) reapCall(ctx cliapp.OperationContext) (*evalv1.ReapOrphanSuitesResponse, error) {
+	resp, err := h.client.ReapOrphanSuites(context.Background(), connect.NewRequest(&evalv1.ReapOrphanSuitesRequest{
+		Confirm: ctx.BoolFlag("confirm"),
+	}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("reap orphan suites", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no orphan-suite response")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) reapReport(_ cliapp.OperationContext, msg *evalv1.ReapOrphanSuitesResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.GetOrphanSuites()))
+	for _, suite := range msg.GetOrphanSuites() {
+		results = append(results, fmt.Sprintf("%s [provider=%s]", suite.GetSuiteId(), suite.GetProviderId()))
+	}
+	if !msg.GetConfirmed() {
+		return cliapp.ListReport{
+			Summary:        []string{fmt.Sprintf("Found %d orphan suite(s); nothing was removed.", len(results))},
+			ResultsHeading: "Orphans (dry run)",
+			Results:        results,
+			RetrievalHints: []string{"`evals reap-orphans --confirm` — remove exactly this observed orphan set after review"},
+		}
+	}
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Reaped %d orphan suite(s) after explicit confirmation.", len(msg.GetReapedSuiteIds()))},
+		ResultsHeading: "Reaped suites",
+		Results:        msg.GetReapedSuiteIds(),
+	}
+}
+
 // show prints one suite's cases + expectations.
 func (h *handlers) showCall(ctx cliapp.OperationContext) (*evalv1.GetSuiteResponse, error) {
 	id := ctx.Positional("suite_id")
@@ -159,6 +192,7 @@ func (h *handlers) runCall(ctx cliapp.OperationContext) (*evalv1.RunSuiteRespons
 		SuiteId: id,
 		Tag:     strings.TrimSpace(ctx.Flag("tag")),
 		Limit:   limit,
+		Tier:    strings.TrimSpace(ctx.Flag("tier")),
 	}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError(fmt.Sprintf("run suite %q", id), err, nil)
@@ -171,8 +205,12 @@ func (h *handlers) runCall(ctx cliapp.OperationContext) (*evalv1.RunSuiteRespons
 
 func (h *handlers) runReport(_ cliapp.OperationContext, msg *evalv1.RunSuiteResponse) cliapp.MutationReport {
 	r := msg.GetRun()
+	degraded := ""
+	if r.GetDegraded() {
+		degraded = " degraded: " + emptyDash(r.GetDegradedReason())
+	}
 	return cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Ran %s → run %s (tag %q).", r.GetSuiteId(), r.GetRunId(), r.GetTag())},
+		Result:  []string{fmt.Sprintf("Ran %s → run %s (tier %s, tag %q).%s", r.GetSuiteId(), r.GetRunId(), displayTier(r), r.GetTag(), degraded)},
 		Changes: append([]string{formatAggregate(r), formatConfig(r.GetConfig())}, formatCaseResults(r)...),
 		NextCommand: []string{
 			fmt.Sprintf("`evals runs %s` — see this suite's run history", r.GetSuiteId()),
@@ -410,6 +448,7 @@ func (h *handlers) runsCall(ctx cliapp.OperationContext) (*evalv1.ListRunsRespon
 		SuiteId: id,
 		Tag:     strings.TrimSpace(ctx.Flag("tag")),
 		Limit:   limit,
+		Tier:    strings.TrimSpace(ctx.Flag("tier")),
 	}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError(fmt.Sprintf("list runs for %q", id), err, nil)
@@ -596,8 +635,15 @@ func formatCaseResults(r *evalv1.EvalRun) []string {
 
 func formatRunLine(r *evalv1.EvalRun) string {
 	a := r.GetAggregate()
-	return fmt.Sprintf("%s  tag=%-14s %s  met=%d/%d strong_top1=%.3f gibberish=%.3f",
-		r.GetCreatedAt(), r.GetTag(), r.GetRunId(), a.GetMet(), a.GetCases(), a.GetMeanStrongTop1(), a.GetMaxGibberishScore())
+	return fmt.Sprintf("%s  tier=%-13s degraded=%t tag=%-14s %s  met=%d/%d strong_top1=%.3f gibberish=%.3f",
+		r.GetCreatedAt(), displayTier(r), r.GetDegraded(), r.GetTag(), r.GetRunId(), a.GetMet(), a.GetCases(), a.GetMeanStrongTop1(), a.GetMaxGibberishScore())
+}
+
+func displayTier(r *evalv1.EvalRun) string {
+	if tier := strings.TrimSpace(r.GetTier()); tier != "" {
+		return tier
+	}
+	return "unknown"
 }
 
 func formatDelta(d *evalv1.CaseDelta) string {
@@ -629,6 +675,8 @@ func referentialLabel(r evalv1.ReferentialOutcome) string {
 		return "stale"
 	case evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_INCONCLUSIVE:
 		return "inconclusive"
+	case evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_PROVIDER_ERROR:
+		return "provider_error"
 	default:
 		return "unknown"
 	}

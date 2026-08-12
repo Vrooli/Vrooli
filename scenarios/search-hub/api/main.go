@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	apihealth "github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -31,6 +33,57 @@ import (
 	routingH "search-hub/handlers/routing"
 	validationH "search-hub/handlers/validation"
 )
+
+func envOrDefault(key, fallback string) string {
+	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+		return value
+	}
+	return fallback
+}
+
+type serviceResource struct {
+	Type     string `json:"type"`
+	Required bool   `json:"required"`
+}
+
+// requiredResourceChecks derives readiness dependencies from the scenario
+// manifest. Search Hub observes resource state but does not own remediation;
+// adding a required resource therefore changes one declarative file, not the
+// health handler. Resource-specific health paths are tied to resource type,
+// never to a provider scenario id.
+func requiredResourceChecks(repoRoot string) []apihealth.Checker {
+	raw, err := os.ReadFile(filepath.Join(repoRoot, "scenarios", "search-hub", ".vrooli", "service.json"))
+	if err != nil {
+		log.Printf("health: cannot read service resource manifest: %v", err)
+		return nil
+	}
+	var manifest struct {
+		Dependencies struct {
+			Resources map[string]serviceResource `json:"resources"`
+		} `json:"dependencies"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		log.Printf("health: cannot parse service resource manifest: %v", err)
+		return nil
+	}
+	checks := make([]apihealth.Checker, 0)
+	for name, resource := range manifest.Dependencies.Resources {
+		if !resource.Required {
+			continue
+		}
+		path := "/healthz"
+		if resource.Type == "ollama" {
+			path = "/api/tags"
+		}
+		envKey := strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_URL"
+		fallback := "http://127.0.0.1:6333"
+		if resource.Type == "ollama" {
+			fallback = "http://127.0.0.1:11434"
+		}
+		checks = append(checks, apihealth.HTTP(name, envOrDefault(envKey, fallback)+path))
+	}
+	return checks
+}
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
 // with the canonical pragma string. Resolution order:
@@ -131,13 +184,26 @@ func main() {
 	// injected into the routing module so each federated query records telemetry
 	// (Phase 7), while the routing handler stays free of any metrics-store import.
 	telemetryRecorder := metricsH.Recorder(db, clock.System{}, log.Default())
+	router := routingH.NewRouter(db, clock.System{}, log.Default(), telemetryRecorder)
+	routingH.StartRecoveryProbes(router, log.Default())
+	resourceChecks := requiredResourceChecks(repoRoot)
+	resourceChecks = append(resourceChecks, apihealth.Func("federation", func(ctx context.Context) error {
+		share, breached, err := router.CircuitOpenQuorum(ctx)
+		if err != nil {
+			return err
+		}
+		if breached {
+			return fmt.Errorf("circuit-open share %.1f%% meets federation quorum %.1f%%", share*100, routingH.CircuitOpenQuorumThreshold*100)
+		}
+		return nil
+	}))
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
-		healthH.Module(db, "search-hub-api", "1.0.0"),
+		healthH.Module(db, "search-hub-api", "1.0.0", resourceChecks...),
 		metricsH.Module(db, clock.System{}, log.Default()),
 		registryH.Module(db, clock.System{}, log.Default()),
-		routingH.Module(db, clock.System{}, log.Default(), telemetryRecorder),
+		routingH.ModuleWithRouter(router, log.Default()),
 		evalH.Module(db, clock.System{}, log.Default()),
 		validationH.Module(log.Default(), repoRoot, db, clock.System{}),
 	)

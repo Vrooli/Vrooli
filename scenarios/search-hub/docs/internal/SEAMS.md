@@ -583,6 +583,53 @@ never an independent authority. Each is tagged `// INVARIANT: <name>` at its sit
    `api/internal/eval/seeds/` persist ONLY for providers not yet self-registering
    (swarm-manager.records, ui-health.surfaces) and are deleted as each adopts.
 
+### `routing.Router.Status` provider-health fan-out
+
+The status endpoint is the reachability evidence boundary consumed by operators
+and by Meta-Optimization Manager. It probes registered providers concurrently,
+preserves registry order in the response, and reports typed reachability plus
+the provider-owned index-age signal. `parallelStatusDoer` tests the concurrency
+contract without depending on live providers.
+
+### `evalsched.SuiteSource`, `TierRunner`, and `RunStore`
+
+The scheduler depends on registry-discovered suite metadata, a tier runner for
+direct or federated execution, and durable run storage. These interfaces keep
+the scheduler generic: adding a provider changes registration data, not Search
+Hub policy code. Tests use fake suite sources, tier runners, and stores to cover
+selection, backoff, and run recording deterministically.
+
+### Honest-signal seams added by the failure-expression work
+
+- **Resource-health probe:** `handlers/health` accepts an optional resource
+  checker. Production derives required resources from `.vrooli/service.json`;
+  tests inject healthy, unavailable, and probe-error results without starting
+  qdrant or ollama.
+- **Eval-quality reader:** `internal/routing` reads the latest non-degraded
+  provider eval through an injected reader. The router can withhold junk-leaking
+  providers while explicit selection remains available; tests provide synthetic
+  run evidence.
+- **Demotion state store:** routing receives an optional metrics-store seam for
+  demotion persistence and restoration. The breaker remains testable with a
+  fake clock and does not depend on SQLite in policy tests. The wiring edge
+  starts a low-rate recovery loop; its provider-scoped probes reuse the normal
+  endpoint path, mark results as automatic recovery evidence, and restart the
+  decay window on unavailable or empty responses.
+- **Address resolver clock/cache:** `api-core/discovery` accepts a clock and
+  short-lived address cache. Tests advance time and inject failures to prove
+  expiry and invalidation without sleeping or invoking a live scenario.
+- **Condition readers:** Meta-Optimization Manager reads Search Hub insights
+  and maturity evidence through injected readers. Condition population is
+  derived from live NOW cells, so tests can change coverage membership without
+  maintaining a second population list.
+
+### Provider-file corpus governance boundary
+
+The provider's `.vrooli/search.json` is the corpus source of truth. Search Hub
+may preview repairs or apply a mutation only through an explicitly confirmed,
+provider-owned control endpoint; its eval store is a cache. Orphan cleanup is
+dry-run by default and requires explicit confirmation.
+
 ## Cross-references
 
 - Test fakes lifecycle and naming convention: [`docs/internal/TESTING.md`](TESTING.md).

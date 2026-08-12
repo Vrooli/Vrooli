@@ -34,10 +34,15 @@ CREATE TABLE IF NOT EXISTS query_telemetry (
   routing_mode TEXT NOT NULL DEFAULT '', -- explicit_all|explicit_scoped|automatic|automatic_fallback
   eligible_provider_count INTEGER NOT NULL DEFAULT 0,
   selected_provider_count INTEGER NOT NULL DEFAULT 0,
+  selected_leaf_count INTEGER NOT NULL DEFAULT 0,
+  widened_leaf_count INTEGER NOT NULL DEFAULT 0,
+  fanout_width_bound_reached INTEGER NOT NULL DEFAULT 0,
   withheld_external_count INTEGER NOT NULL DEFAULT 0,
   queued_provider_count INTEGER NOT NULL DEFAULT 0,
   classifier_latency_ms INTEGER NOT NULL DEFAULT 0,
   resolver_latency_ms INTEGER NOT NULL DEFAULT 0,
+  resolver_cache_hits INTEGER NOT NULL DEFAULT 0,
+  resolver_cache_misses INTEGER NOT NULL DEFAULT 0,
   fanout_latency_ms INTEGER NOT NULL DEFAULT 0,
   rerank_latency_ms INTEGER NOT NULL DEFAULT 0,
   rerank_candidate_count INTEGER NOT NULL DEFAULT 0,
@@ -58,3 +63,16 @@ CREATE TABLE IF NOT EXISTS query_telemetry_provider (
 );
 
 CREATE INDEX IF NOT EXISTS idx_query_telemetry_provider_pid ON query_telemetry_provider(provider_id);
+
+-- Durable zero-yield demotion evidence. This is policy state, not corpus data.
+CREATE TABLE IF NOT EXISTS provider_demotion_state (
+  provider_id TEXT PRIMARY KEY,
+  routed INTEGER NOT NULL DEFAULT 0,
+  hits INTEGER NOT NULL DEFAULT 0,
+  empty_streak INTEGER NOT NULL DEFAULT 0,
+  demoted INTEGER NOT NULL DEFAULT 0,
+  probation INTEGER NOT NULL DEFAULT 0,
+  decay_deadline TEXT NOT NULL DEFAULT '',
+  trigger TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL
+);

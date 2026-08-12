@@ -12,6 +12,7 @@ import (
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 
 	internaleval "search-hub/internal/eval"
+	internalregistry "search-hub/internal/registry"
 )
 
 // Runner is the execution seam the handler depends on: it runs a suite against
@@ -50,11 +51,13 @@ type ControlTokenResolver interface {
 
 // Deps wires the seams the Connect eval handler needs.
 type Deps struct {
-	Store internaleval.Store
+	Store    internaleval.Store
+	Registry internalregistry.Store
 	// Providers resolves a suite's provider descriptor (Generate samples the
 	// provider's index; the corpus generator needs its endpoint + facets).
 	Providers internaleval.ProviderResolver
 	Runner    Runner
+	Federated Runner
 	Validator Validator
 	Sweeper   Sweeper
 	// Generator proposes machine-generated cases for a suite (Generate RPC).
@@ -96,6 +99,7 @@ var _ = func() any {
 		Sweep(context.Context, *connect.Request[evalv1.SweepRequest]) (*connect.Response[evalv1.SweepResponse], error)
 		Generate(context.Context, *connect.Request[evalv1.GenerateRequest]) (*connect.Response[evalv1.GenerateResponse], error)
 		PromoteCases(context.Context, *connect.Request[evalv1.PromoteCasesRequest]) (*connect.Response[evalv1.PromoteCasesResponse], error)
+		ReapOrphanSuites(context.Context, *connect.Request[evalv1.ReapOrphanSuitesRequest]) (*connect.Response[evalv1.ReapOrphanSuitesResponse], error)
 	}
 	var _ evalServiceHandler = (*connectHandler)(nil)
 	return nil
@@ -112,6 +116,49 @@ func (h *connectHandler) RegisterSuite(ctx context.Context, req *connect.Request
 		return nil, connectErr
 	}
 	return connect.NewResponse(&evalv1.RegisterSuiteResponse{Suite: suite, Created: created}), nil
+}
+
+// ReapOrphanSuites is deliberately a dry-run unless confirm=true. It computes
+// the orphan set from the live registry at call time, so a provider that came
+// back between an audit and a confirmed run is never deleted accidentally.
+func (h *connectHandler) ReapOrphanSuites(ctx context.Context, req *connect.Request[evalv1.ReapOrphanSuitesRequest]) (*connect.Response[evalv1.ReapOrphanSuitesResponse], error) {
+	if h.deps.Registry == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("registry is not configured"))
+	}
+	suites, err := h.deps.Store.ListSuites(ctx, internaleval.ListSuitesFilter{})
+	if err != nil {
+		return nil, toConnectError(err)
+	}
+	providers, err := h.deps.Registry.List(ctx, internalregistry.ListFilter{})
+	if err != nil {
+		return nil, toConnectError(err)
+	}
+	registered := make(map[string]struct{}, len(providers))
+	for _, provider := range providers {
+		registered[provider.GetProviderId()] = struct{}{}
+	}
+	orphans := make([]*evalv1.EvalSuite, 0)
+	for _, suite := range suites {
+		if _, ok := registered[suite.GetProviderId()]; !ok {
+			orphans = append(orphans, suite)
+		}
+	}
+	resp := &evalv1.ReapOrphanSuitesResponse{OrphanSuites: orphans, Confirmed: req.Msg.GetConfirm()}
+	if !req.Msg.GetConfirm() {
+		return connect.NewResponse(resp), nil
+	}
+	for _, suite := range orphans {
+		// Re-check the provider immediately before mutation to close the audit /
+		// mutation race without introducing a broad delete primitive.
+		if _, getErr := h.deps.Registry.Get(ctx, suite.GetProviderId()); getErr == nil {
+			continue
+		}
+		if err := h.deps.Store.DeleteSuite(ctx, suite.GetSuiteId()); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, errors.New("failed to reap orphan suite"))
+		}
+		resp.ReapedSuiteIds = append(resp.ReapedSuiteIds, suite.GetSuiteId())
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func (h *connectHandler) ListSuites(ctx context.Context, req *connect.Request[evalv1.ListSuitesRequest]) (*connect.Response[evalv1.ListSuitesResponse], error) {
@@ -140,7 +187,14 @@ func (h *connectHandler) RunSuite(ctx context.Context, req *connect.Request[eval
 	if err != nil {
 		return nil, h.logged("eval.RunSuite.getSuite", suiteID, err)
 	}
-	run, err := h.deps.Runner.Run(ctx, suite, req.Msg.GetTag(), req.Msg.GetLimit())
+	runner := h.deps.Runner
+	if req.Msg.GetTier() == "federated" {
+		if h.deps.Federated == nil {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("federated eval tier is not configured"))
+		}
+		runner = h.deps.Federated
+	}
+	run, err := runner.Run(ctx, suite, req.Msg.GetTag(), req.Msg.GetLimit())
 	if err != nil {
 		h.deps.Logger.Printf("eval.RunSuite(%q): %v", suiteID, err)
 		// A failed run is most often an unregistered/unreachable provider — a
@@ -178,6 +232,7 @@ func (h *connectHandler) ListRuns(ctx context.Context, req *connect.Request[eval
 	runs, err := h.deps.Store.ListRuns(ctx, internaleval.ListRunsFilter{
 		SuiteID: req.Msg.GetSuiteId(),
 		Tag:     req.Msg.GetTag(),
+		Tier:    req.Msg.GetTier(),
 		Limit:   int(req.Msg.GetLimit()),
 	})
 	if err != nil {

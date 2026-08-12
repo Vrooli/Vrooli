@@ -4,7 +4,7 @@
  * Three Connect services back the search page:
  *   - RoutingService.Query  — fan out a query and return ranked/grouped hits.
  *   - RoutingService.Status — per-provider reachability + classifier/reranker
- *     availability (provider freshness on results).
+ *     availability (provider reachability and index age on results).
  *   - RegistryService.ListProviders — the ACTIVE leaves, used to build the
  *     type facets (we route on what is actually registered, never a hardcoded
  *     list).

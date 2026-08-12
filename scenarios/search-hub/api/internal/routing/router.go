@@ -44,9 +44,9 @@ const (
 	// defaultPerProviderTimeout bounds a single provider's HTTP round-trip so a
 	// slow or hung leaf never blocks the whole fan-out (Risk: latency/fan-out
 	// cost — partial results return within the bound).
-	defaultPerProviderTimeout = 10 * time.Second
+	defaultPerProviderTimeout = 4 * time.Second
 	// defaultConcurrency caps how many providers are queried at once.
-	defaultConcurrency = 6
+	defaultConcurrency = 8
 	// defaultLimit is the per-provider result cap when the request omits one.
 	defaultLimit = 10
 	// defaultQueryTimeout keeps the server-side routing path comfortably below
@@ -60,15 +60,25 @@ const (
 	defaultRerankTimeout = 10 * time.Second
 	// defaultResponseCushion reserves a small tail of the query budget for
 	// response construction, telemetry stamping, and Connect header write-out.
-	defaultResponseCushion         = 500 * time.Millisecond
-	defaultRerankBreakerFailures   = 3
-	defaultRerankBreakerCooldown   = 60 * time.Second
-	defaultProviderBreakerFailures = 3
-	defaultProviderBreakerCooldown = 30 * time.Second
+	defaultResponseCushion = 500 * time.Millisecond
+	// defaultCircuitOpenQuorum is the share of active leaves whose transport
+	// circuit may be open before Search Hub itself reports federation degraded.
+	// A majority threshold avoids declaring a fleet outage for one isolated leaf
+	// while still making a substrate-wide failure visible to readiness consumers.
+	defaultCircuitOpenQuorum          = 0.50
+	defaultRerankBreakerFailures      = 3
+	defaultRerankBreakerCooldown      = 60 * time.Second
+	defaultProviderBreakerFailures    = 3
+	defaultProviderBreakerCooldown    = 30 * time.Second
+	defaultProviderBreakerMaxCooldown = 5 * time.Minute
 	// maxResponseBytes caps how much of a provider response the router reads,
 	// so a misbehaving leaf cannot exhaust memory.
 	maxResponseBytes = 8 << 20 // 8 MiB
 )
+
+// CircuitOpenQuorumThreshold exposes the generic federation-health policy to
+// the health wiring without exposing provider-specific routing internals.
+const CircuitOpenQuorumThreshold = defaultCircuitOpenQuorum
 
 // ProviderLister is the registry read seam the router depends on. The
 // SQLite-backed registry Store satisfies it in production; tests substitute a
@@ -78,6 +88,25 @@ type ProviderLister interface {
 	List(ctx context.Context, filter internalregistry.ListFilter) ([]*registryv1.ProviderDescriptor, error)
 }
 
+// fanoutWorstCase is the deterministic upper bound used by the budget test:
+// every provider in each concurrency wave consumes its full per-provider
+// timeout. Keeping this calculation beside the defaults makes an accidental
+// timeout/concurrency change fail before it reaches production.
+func fanoutWorstCase(activeProviders, concurrency int, perProviderTimeout time.Duration) time.Duration {
+	if activeProviders <= 0 || concurrency <= 0 || perProviderTimeout <= 0 {
+		return 0
+	}
+	waves := (activeProviders + concurrency - 1) / concurrency
+	return time.Duration(waves) * perProviderTimeout
+}
+
+func nonNegativeDelta(after, before int64) int64 {
+	if after < before {
+		return 0
+	}
+	return after - before
+}
+
 // URLResolver turns a logical scenario_id into the scenario's live API base URL
 // (scheme://host:port) at call-time. Production wraps api-core/discovery's
 // Resolver (which shells out to `vrooli scenario port`); tests inject a static
@@ -85,6 +114,37 @@ type ProviderLister interface {
 // client-side; resolve via the backend" made into a seam.
 type URLResolver interface {
 	ResolveScenarioURL(ctx context.Context, scenarioID string) (baseURL string, err error)
+}
+
+// ResolutionCacheStats is an optional observability seam implemented by
+// resolvers that cache scenario addresses. The router never requires caching
+// for correctness; when available, it records before/after deltas in query
+// telemetry so operators can verify that fan-out cost scales with scenarios.
+type ResolutionCacheStats interface {
+	CacheStats() (hits, misses int64)
+}
+
+func resolutionCacheStats(resolver URLResolver) (hits, misses int64) {
+	if stats, ok := resolver.(ResolutionCacheStats); ok && stats != nil {
+		return stats.CacheStats()
+	}
+	return 0, 0
+}
+
+// EvalQualityEvidence is the router's narrow read model for a provider's
+// latest evaluation. The router consumes gate evidence; it does not own or
+// grade the suite.
+type EvalQualityEvidence struct {
+	RunID             string
+	Fresh             bool
+	Degraded          bool
+	MeanStrongTop1    float64
+	MaxGibberishScore float64
+	GibberishLeak     bool
+}
+
+type EvalQualityReader interface {
+	LatestProviderEval(ctx context.Context, providerID string) (EvalQualityEvidence, error)
 }
 
 // ErrInvalidQuery is the typed sentinel for caller mistakes the router can
@@ -111,6 +171,7 @@ type Deps struct {
 	Classifier         Classifier
 	Reranker           Reranker
 	Recorder           TelemetryRecorder
+	EvalQuality        EvalQualityReader
 	Logger             *log.Logger
 	Concurrency        int
 	PerProviderTimeout time.Duration
@@ -120,6 +181,7 @@ type Deps struct {
 	// ProviderBreaker prevents repeated down providers from spending the query
 	// deadline. It tracks availability only; no provider results are cached.
 	ProviderBreaker RerankBreakerConfig
+	DemotionStore   DemotionStore
 	Now             func() time.Time
 	// AutoRouteExternal gates OT-P2-002: when true, the automatic (classifier)
 	// path may fold SCOPE_EXTERNAL providers back into the fan-out — either
@@ -136,6 +198,13 @@ type Deps struct {
 type RerankBreakerConfig struct {
 	FailureThreshold int
 	Cooldown         time.Duration
+	// ZeroYieldMinimumRoutes controls how many successful empty automatic
+	// responses constitute evidence of an unhelpful corpus. Transport failures
+	// never use this counter.
+	ZeroYieldMinimumRoutes int64
+	// DemotionWindow is the maximum automatic-routing exclusion before a
+	// probationary recovery probe is allowed.
+	DemotionWindow time.Duration
 }
 
 // Router executes federated queries across registered providers.
@@ -186,9 +255,12 @@ func NewRouter(d Deps) *Router {
 			Cooldown:         d.RerankBreaker.Cooldown,
 		}),
 		providerBreakers: newProviderBreakers(rerankBreakerConfig{
-			FailureThreshold: d.ProviderBreaker.FailureThreshold,
-			Cooldown:         d.ProviderBreaker.Cooldown,
-		}),
+			FailureThreshold:       d.ProviderBreaker.FailureThreshold,
+			Cooldown:               d.ProviderBreaker.Cooldown,
+			MaxCooldown:            defaultProviderBreakerMaxCooldown,
+			ZeroYieldMinimumRoutes: d.ProviderBreaker.ZeroYieldMinimumRoutes,
+			DemotionWindow:         d.ProviderBreaker.DemotionWindow,
+		}, d.DemotionStore),
 	}
 }
 
@@ -202,7 +274,9 @@ func NewRouter(d Deps) *Router {
 // It returns an error only for caller mistakes (ErrInvalidQuery) or a registry
 // read failure — never for an individual provider's runtime failure.
 func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error) {
+	r.providerBreakers.restore(ctx)
 	start := r.deps.Now()
+	cacheHitsBefore, cacheMissesBefore := resolutionCacheStats(r.deps.Resolver)
 	qctx := ctx
 	cancelQuery := func() {}
 	if r.deps.QueryTimeout > 0 {
@@ -214,7 +288,8 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	if query == "" {
 		return nil, ErrInvalidQuery{Reason: "query text is required"}
 	}
-	hasExplicit := req.GetAll() || len(nonEmpty(req.GetTypes())) > 0 || strings.TrimSpace(req.GetGroup()) != ""
+	backgroundEvaluation := isBackgroundEvaluation(ctx)
+	hasExplicit := backgroundEvaluation || req.GetAll() || len(nonEmpty(req.GetTypes())) > 0 || strings.TrimSpace(req.GetGroup()) != ""
 	if !hasExplicit && r.deps.Classifier == nil {
 		// No selector and no classifier wired ⇒ reject rather than silently widen.
 		return nil, ErrInvalidQuery{Reason: "no routing target: pass explicit --type <types>, --all, or --group <scenario> (automatic routing requires a classifier)"}
@@ -244,8 +319,23 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		escalated          bool
 		routingMode        string
 		classifierLatency  int64
+		selectedLeafCount  int
+		widenedLeafCount   int
+		fanoutBoundReached bool
+		rerankLatency      int64
+		partial            bool
+		pendingProviders   int
 	)
-	if hasExplicit {
+	if backgroundEvaluation {
+		routingMode = "background_evaluation"
+		providerID := backgroundEvaluationProvider(ctx)
+		for _, provider := range active {
+			if providerID == "" || provider.GetProviderId() == providerID {
+				targets = append(targets, provider)
+			}
+		}
+		selectedLeafCount = len(targets)
+	} else if hasExplicit {
 		if req.GetAll() {
 			routingMode = "explicit_all"
 		} else {
@@ -254,6 +344,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		// Explicit selectors (--all / --type / --group) reach every active
 		// provider, including SCOPE_EXTERNAL ones — the operator asked for them.
 		targets = selectTargets(active, req)
+		selectedLeafCount = len(targets)
 	} else {
 		routingMode = "automatic"
 		// Automatic/classifier routing never auto-hits an external (e.g.
@@ -261,9 +352,13 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		// (AutoRouteExternal) and the classifier judged the query web-shaped.
 		// External providers always stay reachable via the explicit path above.
 		autoCandidates, withheldExternal := partitionByScope(active)
+		var qualityExplain []string
+		autoCandidates, qualityExplain = r.filterAutomatic(qctx, autoCandidates)
+		autoCandidates = r.filterDemoted(autoCandidates)
 		var webShaped bool
 		classifierStarted := r.deps.Now()
-		targets, autoExplain, classifierError, webShaped = r.autoSelect(qctx, autoCandidates, query)
+		targets, autoExplain, classifierError, webShaped, selectedLeafCount, widenedLeafCount, fanoutBoundReached = r.autoSelect(qctx, autoCandidates, query)
+		autoExplain = append(qualityExplain, autoExplain...)
 		classifierLatency = r.deps.Now().Sub(classifierStarted).Milliseconds()
 		if classifierError {
 			routingMode = "automatic_fallback"
@@ -284,7 +379,21 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	}
 
 	fanoutStarted := r.deps.Now()
-	groups := r.fanOut(qctx, targets, query, limit)
+	groups := r.fanOut(qctx, targets, query, limit, hasExplicit)
+	groups = collapseDocumentHits(groups)
+	if qctx.Err() != nil {
+		usable := 0
+		for _, group := range groups {
+			if group.GetDegraded() {
+				pendingProviders++
+				continue
+			}
+			if len(group.GetHits()) > 0 {
+				usable++
+			}
+		}
+		partial = usable > 0 && pendingProviders > 0
+	}
 
 	// OT-P2-002 fallback escalation: if the project corpus returned nothing —
 	// or only hits below the weakness threshold — and the operator opted in,
@@ -293,8 +402,9 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	// did not already auto-route external above).
 	if !hasExplicit && r.deps.AutoRouteExternal && !autoRoutedExternal && len(pendingExternal) > 0 {
 		if weakReason := resultsWeakness(groups, autoExternalThreshold()); weakReason != "" {
-			escalationGroups := r.fanOut(qctx, pendingExternal, query, limit)
+			escalationGroups := r.fanOut(qctx, pendingExternal, query, limit, false)
 			groups = append(groups, escalationGroups...)
+			groups = collapseDocumentHits(groups)
 			targets = append(targets, pendingExternal...)
 			escalated = true
 			autoExplain = append(autoExplain, escalationLine(pendingExternal, weakReason))
@@ -302,15 +412,24 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	}
 	fanoutLatency := r.deps.Now().Sub(fanoutStarted).Milliseconds()
 
-	rerankStarted := r.deps.Now()
-	ranked, reranked, rerankDegraded, rerankExplain := r.maybeRerank(qctx, query, groups)
-	rerankLatency := r.deps.Now().Sub(rerankStarted).Milliseconds()
+	var ranked []*routingv1.SearchHit
+	var reranked, rerankDegraded bool
+	var rerankExplain []string
+	if backgroundEvaluation {
+		rerankExplain = []string{"background evaluation: classifier and reranker bypassed to protect interactive latency"}
+	} else {
+		rerankStarted := r.deps.Now()
+		ranked, reranked, rerankDegraded, rerankExplain = r.maybeRerank(qctx, query, groups)
+		rerankLatency = r.deps.Now().Sub(rerankStarted).Milliseconds()
+	}
 
 	resp := &routingv1.QueryResponse{
-		Ranked:   ranked,
-		Groups:   groups,
-		Reranked: reranked,
-		Degraded: classifierError || rerankDegraded,
+		Ranked:           ranked,
+		Groups:           groups,
+		Reranked:         reranked,
+		Degraded:         classifierError || rerankDegraded,
+		Partial:          partial,
+		PendingProviders: int32(pendingProviders),
 	}
 	for _, g := range groups {
 		resp.CorporaSearched = append(resp.CorporaSearched, g.GetProviderId())
@@ -319,10 +438,16 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		}
 	}
 	if req.GetExplain() {
-		if hasExplicit {
+		if backgroundEvaluation {
+			resp.RoutingExplanation = []string{"background evaluation: explicit bounded fan-out; classifier and reranker bypassed"}
+		} else if hasExplicit {
 			resp.RoutingExplanation = explain(req, targets)
 		} else {
 			resp.RoutingExplanation = append(autoExplain, matchedProvidersLine(targets))
+		}
+		if partial {
+			resp.RoutingExplanation = append(resp.RoutingExplanation,
+				fmt.Sprintf("partial results: query deadline expired with %d provider(s) pending", pendingProviders))
 		}
 		resp.RoutingExplanation = append(resp.RoutingExplanation, rerankExplain...)
 	}
@@ -338,10 +463,16 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		sample.RoutingMode = routingMode
 		sample.EligibleProviderCount = len(active)
 		sample.SelectedProviderCount = len(targets)
+		sample.SelectedLeafCount = selectedLeafCount
+		sample.WidenedLeafCount = widenedLeafCount
+		sample.FanoutWidthBoundReached = fanoutBoundReached
 		sample.WithheldExternalCount = len(pendingExternal)
 		sample.QueuedProviderCount = max(0, len(targets)-r.deps.Concurrency)
 		sample.ClassifierLatencyMs = classifierLatency
 		sample.ResolverLatencyMs = resolverLatency
+		cacheHitsAfter, cacheMissesAfter := resolutionCacheStats(r.deps.Resolver)
+		sample.ResolverCacheHits = nonNegativeDelta(cacheHitsAfter, cacheHitsBefore)
+		sample.ResolverCacheMisses = nonNegativeDelta(cacheMissesAfter, cacheMissesBefore)
 		sample.FanoutLatencyMs = fanoutLatency
 		sample.RerankLatencyMs = rerankLatency
 		sample.RerankCandidateCount = len(fuseGroups(groups))
@@ -349,6 +480,232 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		r.deps.Recorder.Record(qctx, sample)
 	}
 	return resp, nil
+}
+
+func (r *Router) filterDemoted(providers []*registryv1.ProviderDescriptor) []*registryv1.ProviderDescriptor {
+	if r.providerBreakers == nil {
+		return providers
+	}
+	out := make([]*registryv1.ProviderDescriptor, 0, len(providers))
+	for _, p := range providers {
+		if r.providerBreakers.eligibleAutomatic(p.GetProviderId(), r.deps.Now()) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// ProbeProviderRecovery issues one unattended, provider-scoped probe when a
+// demotion's decay window has elapsed. A successful graded hit clears the
+// zero-yield demotion through the normal result recorder; an empty graded
+// response restarts the decay window. Transport/degraded failures are released
+// as probation failures and never become zero-yield evidence.
+func (r *Router) ProbeProviderRecovery(ctx context.Context, providerID, query string) (bool, error) {
+	providerID = strings.TrimSpace(providerID)
+	query = strings.TrimSpace(query)
+	if providerID == "" {
+		return false, ErrInvalidQuery{Reason: "provider_id is required"}
+	}
+	if query == "" {
+		query = DefaultRecoveryProbeQuery
+	}
+	if r.providerBreakers == nil {
+		return false, nil
+	}
+	r.providerBreakers.restore(ctx)
+	if !r.providerBreakers.beginRecoveryProbe(providerID, r.deps.Now()) {
+		return false, nil
+	}
+	probeCtx := WithBackgroundEvaluationProvider(WithRecoveryProbe(ctx), providerID)
+	resp, err := r.Query(probeCtx, &routingv1.QueryRequest{Query: query, Limit: 1})
+	if err != nil {
+		r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), err.Error())
+		return false, err
+	}
+	if resp == nil {
+		r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), "provider returned no response")
+		return false, nil
+	}
+	if resp.GetDegraded() {
+		r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), "provider response degraded")
+		return false, nil
+	}
+	for _, group := range resp.GetGroups() {
+		if group.GetProviderId() == providerID && len(group.GetHits()) > 0 {
+			return true, nil
+		}
+	}
+	r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), "provider returned no recovery group")
+	return false, nil
+}
+
+// RunRecoveryProbes owns the low-rate unattended recovery loop. It is
+// deliberately separate from interactive Query traffic and from eval cadence:
+// a demoted provider is checked shortly after its decay deadline without
+// waiting for a user query or a seven-day suite run.
+func (r *Router) RunRecoveryProbes(ctx context.Context, interval time.Duration, query string) {
+	if interval <= 0 {
+		interval = DefaultRecoveryProbeInterval
+	}
+	if strings.TrimSpace(query) == "" {
+		query = DefaultRecoveryProbeQuery
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			r.recoveryProbeCycle(ctx, query)
+		}
+	}
+}
+
+func (r *Router) recoveryProbeCycle(ctx context.Context, query string) {
+	if r.providerBreakers == nil || r.deps.Lister == nil {
+		return
+	}
+	r.providerBreakers.restore(ctx)
+	providers, err := r.deps.Lister.List(ctx, internalregistry.ListFilter{
+		State: int32(registryv1.ProviderState_PROVIDER_STATE_ACTIVE),
+	})
+	if err != nil {
+		if r.deps.Logger != nil {
+			r.deps.Logger.Printf("recovery probe: list providers: %v", err)
+		}
+		return
+	}
+	for _, provider := range providers {
+		if provider == nil {
+			continue
+		}
+		probeCtx, cancel := context.WithTimeout(ctx, r.deps.PerProviderTimeout+time.Second)
+		_, err := r.ProbeProviderRecovery(probeCtx, provider.GetProviderId(), query)
+		cancel()
+		if err != nil && r.deps.Logger != nil {
+			r.deps.Logger.Printf("recovery probe: provider %q: %v", provider.GetProviderId(), err)
+		}
+	}
+}
+
+// CircuitOpenQuorum reports the share of ACTIVE leaves with an open transport
+// circuit. A cooldown-elapsed recovery probe is not counted open: it is
+// reachable and eligible to prove recovery on the next request.
+func (r *Router) CircuitOpenQuorum(ctx context.Context) (share float64, breached bool, err error) {
+	if r.providerBreakers == nil {
+		return 0, false, nil
+	}
+	r.providerBreakers.restore(ctx)
+	active, err := r.deps.Lister.List(ctx, internalregistry.ListFilter{
+		State: int32(registryv1.ProviderState_PROVIDER_STATE_ACTIVE),
+	})
+	if err != nil {
+		return 0, false, fmt.Errorf("list providers for circuit quorum: %w", err)
+	}
+	if len(active) == 0 {
+		return 0, false, nil
+	}
+	open := 0
+	now := r.deps.Now()
+	for _, provider := range active {
+		isOpen, note := r.providerBreakers.status(provider.GetProviderId(), now)
+		if isOpen && !strings.Contains(note, "recovery probe is due") {
+			open++
+		}
+	}
+	share = float64(open) / float64(len(active))
+	return share, share >= CircuitOpenQuorumThreshold, nil
+}
+
+// RepromoteProvider is the explicit operator escape hatch for a graded-empty
+// demotion. Automatic decay/probation remains the primary recovery path; this
+// command exists for an owner who has repaired or verified a corpus and wants
+// to clear only its zero-yield evidence immediately.
+func (r *Router) RepromoteProvider(ctx context.Context, providerID string) error {
+	providerID = strings.TrimSpace(providerID)
+	if providerID == "" {
+		return ErrInvalidQuery{Reason: "provider_id is required"}
+	}
+	active, err := r.deps.Lister.List(ctx, internalregistry.ListFilter{State: int32(registryv1.ProviderState_PROVIDER_STATE_ACTIVE)})
+	if err != nil {
+		return fmt.Errorf("list providers for repromotion: %w", err)
+	}
+	found := false
+	for _, provider := range active {
+		if provider.GetProviderId() == providerID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("active provider %q not found", providerID)
+	}
+	if !r.providerBreakers.repromote(providerID, r.deps.Now()) {
+		return fmt.Errorf("provider %q has no graded-empty demotion state", providerID)
+	}
+	return nil
+}
+
+// collapseDocumentHits makes the fan-out document-oriented before any shared
+// reranking or response construction. Providers commonly return several
+// passages for one source document; treating those passages as independent
+// response slots wastes the page and lets a later chunk overwrite an earlier
+// reranker judgment. The highest provider-score passage is the representative
+// and merged_count makes the folding observable to consumers.
+func collapseDocumentHits(groups []*routingv1.ProviderResultGroup) []*routingv1.ProviderResultGroup {
+	for _, group := range groups {
+		if group == nil || len(group.GetHits()) < 2 {
+			if group != nil && len(group.GetHits()) == 1 && group.GetHits()[0] != nil && group.GetHits()[0].GetMergedCount() == 0 {
+				group.GetHits()[0].MergedCount = 1
+			}
+			continue
+		}
+		type documentHit struct {
+			hit   *routingv1.SearchHit
+			count int32
+			order int
+		}
+		byDocument := make(map[string]documentHit, len(group.GetHits()))
+		for i, hit := range group.GetHits() {
+			if hit == nil {
+				continue
+			}
+			key := documentKey(hit, i)
+			entry, ok := byDocument[key]
+			if !ok {
+				byDocument[key] = documentHit{hit: hit, count: 1, order: i}
+				continue
+			}
+			entry.count++
+			if hit.GetScore() > entry.hit.GetScore() {
+				entry.hit = hit
+			}
+			byDocument[key] = entry
+		}
+		collapsed := make([]*routingv1.SearchHit, 0, len(byDocument))
+		entries := make([]documentHit, 0, len(byDocument))
+		for _, entry := range byDocument {
+			entry.hit.MergedCount = entry.count
+			entries = append(entries, entry)
+		}
+		sort.SliceStable(entries, func(i, j int) bool { return entries[i].order < entries[j].order })
+		for _, entry := range entries {
+			collapsed = append(collapsed, entry.hit)
+		}
+		group.Hits = collapsed
+	}
+	return groups
+}
+
+func documentKey(hit *routingv1.SearchHit, fallback int) string {
+	if path := strings.TrimSpace(hit.GetPath()); path != "" {
+		return "path:" + path
+	}
+	if id := strings.TrimSpace(hit.GetId()); id != "" {
+		return "id:" + id
+	}
+	return fmt.Sprintf("anonymous:%d", fallback)
 }
 
 // maybeRerank fuses the per-provider groups into one shortlist and reranks it
@@ -420,61 +777,85 @@ func (r *Router) rerankBudget(ctx context.Context) (time.Duration, bool) {
 }
 
 // autoSelect runs the classifier over the active providers' descriptions and
-// returns the leaves to fan out to. It never fails the query: if the classifier
-// errors (model down, unparseable output) it widens to every active provider
-// and reports classifierError=true so the response is flagged degraded. The
-// widen-on-uncertainty policy (low confidence ⇒ broaden) lives in widenPolicy.
-func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDescriptor, query string) (targets []*registryv1.ProviderDescriptor, explain []string, classifierError, webShaped bool) {
-	available := availableTypes(active)
+// returns the leaves to fan out to. It never fails the query: classifier errors
+// use a deterministic bounded fallback and flag the response degraded. The
+// widen-on-uncertainty policy lives in widenPolicy.
+func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDescriptor, query string) (targets []*registryv1.ProviderDescriptor, explain []string, classifierError, webShaped bool, selectedLeafCount, widenedLeafCount int, boundReached bool) {
 	profiles := buildProfiles(active)
 
 	result, err := r.deps.Classifier.Classify(ctx, query, profiles)
 	if err != nil {
-		// Graceful degradation: route to everything and let the operator see the
-		// classifier failed (never a hard error). A failed classify is never
-		// treated as web-shaped — external opt-in requires a positive judgment.
-		r.deps.Logger.Printf("routing.autoSelect: classifier failed, widening to all active providers: %v", err)
-		return providersByType(active, available), []string{
+		// Graceful degradation: route to a bounded deterministic subset and let
+		// the operator see the classifier failed (never a hard error). A failed
+		// classify is never treated as web-shaped.
+		fallbackIDs, _, fallbackBound := widenPolicy(ClassifyResult{}, profiles, maxFanoutWidth())
+		r.deps.Logger.Printf("routing.autoSelect: classifier failed, using bounded fallback: %v", err)
+		return providersByID(active, fallbackIDs), []string{
 			"automatic routing requested (no explicit selector)",
-			fmt.Sprintf("classifier unavailable (%s) — widened to all active providers", oneLine(err.Error())),
-		}, true, false
+			fmt.Sprintf("classifier unavailable (%s) — bounded fallback selected %d provider leaf(s)", oneLine(err.Error()), len(fallbackIDs)),
+		}, true, false, 0, len(fallbackIDs), fallbackBound
 	}
 
-	chosen, widened := widenPolicy(result, available)
-	targets = providersByType(active, chosen)
+	chosen, widened, boundReached := widenPolicy(result, profiles, maxFanoutWidth())
+	targets = providersByID(active, chosen)
+	selectedLeafCount = len(matchedProviderIDs(result.ProviderIDs, profiles))
+	widenedLeafCount = max(0, len(targets)-selectedLeafCount)
 
 	explain = []string{"automatic routing via classifier (no explicit selector)"}
 	if r := strings.TrimSpace(result.Rationale); r != "" {
 		explain = append(explain, "classifier rationale: "+r)
 	}
 	explain = append(explain, fmt.Sprintf("classifier confidence: %.2f", result.Confidence))
-	routed := fmt.Sprintf("routed to types: %s", strings.Join(chosen, ", "))
+	routed := fmt.Sprintf("routed to provider leaves: %s", strings.Join(chosen, ", "))
 	if widened {
-		routed += " (widened on uncertainty — over-fetching for recall)"
+		routed += " (widened within sibling scope for recall)"
+	}
+	if boundReached {
+		routed += fmt.Sprintf(" (bounded at %d leaves)", maxFanoutWidth())
 	}
 	explain = append(explain, routed)
 	// Web-shaped only counts when the classifier is confident enough to justify
 	// reaching a rate-limited/paid external corpus (a higher bar than widening).
 	webShaped = result.WebShaped && result.Confidence >= autoExternalThreshold()
-	return targets, explain, false, webShaped
+	return targets, explain, false, webShaped, selectedLeafCount, widenedLeafCount, boundReached
 }
 
-// providersByType returns the active leaves whose type is in the chosen set,
-// preserving the registry's provider_id order. Leaves without a callable
-// endpoint are skipped defensively.
-func providersByType(active []*registryv1.ProviderDescriptor, types []string) []*registryv1.ProviderDescriptor {
-	want := make(map[string]struct{}, len(types))
-	for _, t := range types {
-		want[t] = struct{}{}
+// providersByID returns the active leaves whose provider ids were selected,
+// preserving the registry's provider_id order.
+func providersByID(active []*registryv1.ProviderDescriptor, ids []string) []*registryv1.ProviderDescriptor {
+	want := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		want[id] = struct{}{}
 	}
 	out := make([]*registryv1.ProviderDescriptor, 0, len(active))
 	for _, p := range active {
 		if p.GetEndpoint() == nil {
 			continue
 		}
-		if _, ok := want[p.GetType()]; ok {
+		if _, ok := want[p.GetProviderId()]; ok {
 			out = append(out, p)
 		}
+	}
+	return out
+}
+
+func matchedProviderIDs(ids []string, profiles []ProviderProfile) []string {
+	known := make(map[string]struct{}, len(profiles))
+	for _, profile := range profiles {
+		known[profile.ProviderID] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(ids))
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if _, ok := known[id]; !ok {
+			continue
+		}
+		if _, duplicate := seen[id]; duplicate {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
 	}
 	return out
 }
@@ -577,6 +958,28 @@ func providerIDs(ps []*registryv1.ProviderDescriptor) []string {
 	return ids
 }
 
+func (r *Router) filterAutomatic(ctx context.Context, providers []*registryv1.ProviderDescriptor) ([]*registryv1.ProviderDescriptor, []string) {
+	filtered := make([]*registryv1.ProviderDescriptor, 0, len(providers))
+	var explain []string
+	for _, provider := range providers {
+		if lifecycle := strings.TrimSpace(provider.GetLifecycle()); lifecycle != "" && lifecycle != "production" {
+			continue
+		}
+		if r.deps.EvalQuality != nil {
+			evidence, err := r.deps.EvalQuality.LatestProviderEval(ctx, provider.GetProviderId())
+			if err == nil && evidence.Fresh && !evidence.Degraded && evidence.GibberishLeak && strings.TrimSpace(provider.GetJunkLeakOptOutReason()) == "" {
+				explain = append(explain, fmt.Sprintf("withheld (junk leak): %s run=%s gibberish=%.3f strong=%.3f", provider.GetProviderId(), evidence.RunID, evidence.MaxGibberishScore, evidence.MeanStrongTop1))
+				continue
+			}
+			if err == nil && evidence.Fresh && !evidence.Degraded && evidence.GibberishLeak && strings.TrimSpace(provider.GetJunkLeakOptOutReason()) != "" {
+				explain = append(explain, fmt.Sprintf("quality gate opted out: %s reason=%s", provider.GetProviderId(), strings.TrimSpace(provider.GetJunkLeakOptOutReason())))
+			}
+		}
+		filtered = append(filtered, provider)
+	}
+	return filtered, explain
+}
+
 // Weakness reasons surfaced in the escalation --explain line so an operator
 // can tell an empty round from a low-scoring one.
 const (
@@ -612,7 +1015,13 @@ func resultsWeakness(groups []*routingv1.ProviderResultGroup, threshold float64)
 
 // fanOut queries every target concurrently (bounded by Concurrency) and returns
 // one group per target, ordered by provider_id for deterministic output.
-func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescriptor, query string, limit int32) []*routingv1.ProviderResultGroup {
+func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescriptor, query string, limit int32, explicit bool) []*routingv1.ProviderResultGroup {
+	if isRecoveryProbe(ctx) {
+		// The provider must be selected explicitly so a demoted leaf can be
+		// tested, but its result is automatic recovery evidence rather than an
+		// operator override.
+		explicit = false
+	}
 	groups := make([]*routingv1.ProviderResultGroup, len(targets))
 	sem := make(chan struct{}, r.deps.Concurrency)
 	var wg sync.WaitGroup
@@ -628,6 +1037,7 @@ func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescr
 			}
 			groups[i] = r.callProvider(ctx, t, query, limit)
 			r.providerBreakers.record(t.GetProviderId(), groups[i].GetDegraded(), r.deps.Now())
+			r.providerBreakers.recordResult(t.GetProviderId(), len(groups[i].GetHits()), groups[i].GetDegraded(), explicit, r.deps.Now())
 		}(i, t)
 	}
 	wg.Wait()
@@ -655,6 +1065,9 @@ func (r *Router) callProvider(ctx context.Context, d *registryv1.ProviderDescrip
 
 	base, err := r.deps.Resolver.ResolveScenarioURL(ctx, hj.GetScenarioId())
 	if err != nil {
+		if isScenarioNotRunning(err) {
+			r.providerBreakers.openImmediately(d.GetProviderId(), r.deps.Now())
+		}
 		return degrade(g, fmt.Sprintf("provider scenario %q unreachable: %s", hj.GetScenarioId(), oneLine(err.Error())))
 	}
 

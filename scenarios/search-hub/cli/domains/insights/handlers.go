@@ -58,6 +58,13 @@ func (h *handlers) insightsReport(ctx cliapp.OperationContext, msg *metricsv1.In
 		fmt.Sprintf("Zero-result: %d (%.1f%%). Degraded: %d. Reranked: %d.",
 			msg.GetZeroResultQueries(), msg.GetZeroResultRate()*100, msg.GetDegradedQueries(), msg.GetRerankedQueries()),
 		fmt.Sprintf("Latency: p50 %dms, p95 %dms.", msg.GetLatencyP50Ms(), msg.GetLatencyP95Ms()),
+		fmt.Sprintf("Address-resolution cache: %.1f%% hit rate (%d hits, %d misses).", msg.GetResolverCacheHitRate()*100, msg.GetResolverCacheHits(), msg.GetResolverCacheMisses()),
+	}
+	if len(msg.GetRetirementCandidates()) > 0 {
+		summary = append(summary, fmt.Sprintf("Retirement candidates: %d (report-only).", len(msg.GetRetirementCandidates())))
+	}
+	if len(msg.GetGroupAdvisories()) > 0 {
+		summary = append(summary, fmt.Sprintf("Concentrated provider groups: %d (report-only).", len(msg.GetGroupAdvisories())))
 	}
 
 	return cliapp.ListReport{

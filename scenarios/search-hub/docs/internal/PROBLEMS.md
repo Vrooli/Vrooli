@@ -49,6 +49,118 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-08-12 — Test Genie self-health timeout remains outside this plan
+
+**Symptom:** The Test Genie `GetSelfHealth` probe can time out, making the
+Validate projection unavailable during a fleet read.
+
+**Root cause:** The timeout belongs to Test Genie's self-health implementation,
+not Search Hub's validation contract.
+
+**Workaround:** Use Search Hub's focused validation and the available condition
+sources; treat an unavailable Test Genie read as unavailable rather than green.
+
+**Real fix:** File and fix the timeout in `scenarios/test-genie` through its
+own workflow.
+
+**Owner:** test-genie.
+
+**Refs:** Plan scope explicitly excludes `scenarios/test-genie/**`.
+
+### 2026-08-12 — Qdrant outage is now visible in Search Hub readiness
+
+**Symptom:** When Qdrant is stopped, Search Hub reports a degraded health
+state and names Qdrant as unavailable instead of claiming readiness. Provider
+evals that depend on the vector substrate return explicit provider errors; they
+must not be recorded as stale evidence.
+
+**Root cause:** The shared runtime currently has Qdrant stopped. Ollama and
+the reranker also report a GPU-revoked degraded mode, so a healthy integration
+baseline cannot be collected until the runtime is restored.
+
+**Workaround:** Keep the degraded signal visible, use focused seam tests for
+health and evaluation behavior, and treat live baseline and retrieval claims
+as non-comparable until the required resources are healthy.
+
+**Real fix:** Restore Qdrant and the model-serving runtime through the owning
+resource lifecycle, then rerun the Search Hub baseline, stopped/running health
+comparison, and provider evaluation probes.
+
+**Owner:** Resource lifecycle / runtime owner.
+
+**Refs:** `scenarios/search-hub/api/handlers/health/`,
+`scenarios/search-hub/api/internal/eval/`, plan Phase 1 and Phase 4.
+
+### 2026-08-12 — Historical eval runs predate explicit error outcomes
+
+**Symptom:** Runs created before the eval-outcome change may contain `n/a`
+cases for provider failures and cannot be compared directly with current runs.
+
+**Root cause:** The old runner had no separate error outcome. Current runs
+persist `error`, `outcome_reason`, and degraded state; historical rows are not
+backfilled.
+
+**Workaround:** Compare runs only within the same outcome-vocabulary boundary,
+and use the tagged `honest-baseline`/`post-runner-fix` runs created after the
+change. Treat old `n/a`-heavy runs as historical context, not quality proof.
+
+**Real fix:** None planned for historical rows; retain them for audit history
+and require consumers to honor the run schema boundary.
+
+**Owner:** Search Hub eval contract.
+
+**Refs:** `scenarios/search-hub/api/internal/eval/runner.go`,
+`scenarios/search-hub/api/internal/eval/store.go`, plan Phase 2.
+
+### 2026-08-12 — Dense providers still need owner-side lexical evidence
+
+**Symptom:** Dense-only providers can miss exact command or identifier queries
+even when their transport and eval plumbing is healthy.
+
+**Root cause:** Retrieval-leg choice and corpus indexing are owned by each
+provider scenario; Search Hub must remain agnostic.
+
+**Workaround:** Use explicit provider selection and the eval/junk-leak gate to
+identify weak providers while owners add a hybrid leg.
+
+**Phase-7 evidence (2026-08-12):** `cli-health.commands` first measured 34/39
+met with dense retrieval (`e1df8e41-bc89-4cef-a5f4-29287befcf4a`). The owner-side
+tuning seam now selects a versioned `-hybrid` sibling collection, so trials do
+not drop the incumbent collection. After adding the owner-side bounded lexical
+rescue and promoting DBSF plus pure reranking, the fresh hybrid run
+`e540a1fe-7e32-4fe3-a2a9-7e7884bcd950` measured 35/39 met: max gibberish fell
+from `0.03177805800756621` to `0.00007197912`, and p95 fell from 105 ms to 95
+ms. The only case delta was `generate-scaffold`, from below-expectation at rank
+5 to met at rank 1. This closes the owner-quality gap for cli-health; other
+dense owners still need their own before/after evidence, and the incumbent
+collections remain protected by versioned migration.
+
+**Real fix:** Provider owners must add and validate a lexical leg with before /
+after recall and gibberish evidence.
+
+**Owner:** Each affected provider scenario.
+
+**Refs:** `docs/concepts/ARCHITECTURE.md`; plan Phase 7.
+
+### 2026-08-12 — Fleet corpus coverage is not fabricated
+
+**Symptom:** Providers with no declared eval suite or below their declared
+minimum remain visible as maturity gaps.
+
+**Root cause:** Search Hub cannot invent reviewed expectations for a corpus it
+does not own.
+
+**Workaround:** Register a reviewed provider-owned suite, use the fixture or
+capability-gap escape where appropriate, and keep automatic routing evidence
+honest until then.
+
+**Real fix:** Owners grow and schedule their suites through Search Hub's eval
+workflow, then re-run full maturity validation.
+
+**Owner:** Provider scenarios and their maintainers.
+
+**Refs:** `search-hub evals`; `packages/searchregister-go`; plan Phase 8.
+
 ### 2026-06-08 — Provider descriptors retired from the binary; providers self-register
 
 **Symptom:** (by design, not a bug) search-hub no longer ships any provider's
@@ -494,6 +606,20 @@ knowledge-observatory}/docs/`; bug `knw-1780935292042898963`; plan §7 Phase 8 +
 §13 DoD.
 
 ## Architecture Drift
+
+### 2026-08-11 — comprehensive maturity suite still has pre-existing debt
+
+**Symptom:** The comprehensive Search Hub validation suite is not fully green; failures include architecture, dependency, UI, logging, workflow, and documentation checks.
+
+**Root cause:** These findings predate the trustworthy-retrieval implementation and are outside the plan's Search Hub retrieval/evidence contract. The fresh run had no failure in the agnosticism, routing, eval, scheduler, governance, or status-evidence areas.
+
+**Workaround:** Treat the plan's focused Go/race/agnosticism checks and live layer-3 evidence as the acceptance gates for this change, while retaining the comprehensive findings in the scenario QA backlog.
+
+**Real fix:** Resolve the existing maturity findings in their owning domains and re-run the comprehensive suite.
+
+**Owner:** scenario-qa / owning domains.
+
+**Refs:** Plan `search-hub-trustworthy-retrieval-and-honest-readiness`; fresh comprehensive validation was recorded during Phase 10.
 
 Use this section for deferred findings from `screaming-architecture-audit`.
 Do not create a standalone architecture-audit report unless the work is

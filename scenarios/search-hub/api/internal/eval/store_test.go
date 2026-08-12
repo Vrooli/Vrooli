@@ -92,6 +92,24 @@ func TestGetSuiteNotFound(t *testing.T) {
 	require.ErrorAs(t, err, &nf)
 }
 
+func TestDeleteSuiteRemovesRunsAndSuite(t *testing.T) {
+	store, _ := newStore(t)
+	ctx := context.Background()
+	require.NoError(t, mustUpsert(t, store, validSuite()))
+	require.NoError(t, store.AppendRun(ctx, &evalv1.EvalRun{RunId: "delete-run", SuiteId: "cli-health.commands.primary"}))
+
+	require.NoError(t, store.DeleteSuite(ctx, "cli-health.commands.primary"))
+	_, err := store.GetSuite(ctx, "cli-health.commands.primary")
+	var suiteNotFound eval.ErrSuiteNotFound
+	require.ErrorAs(t, err, &suiteNotFound)
+	runs, err := store.ListRuns(ctx, eval.ListRunsFilter{SuiteID: "cli-health.commands.primary"})
+	require.NoError(t, err)
+	require.Empty(t, runs)
+
+	err = store.DeleteSuite(ctx, "cli-health.commands.primary")
+	require.ErrorAs(t, err, &suiteNotFound)
+}
+
 func TestListSuitesFilterByProvider(t *testing.T) {
 	store, _ := newStore(t)
 	ctx := context.Background()

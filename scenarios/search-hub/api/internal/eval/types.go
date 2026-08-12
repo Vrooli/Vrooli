@@ -32,6 +32,7 @@ type ListSuitesFilter struct {
 type ListRunsFilter struct {
 	SuiteID string
 	Tag     string // empty = all tags
+	Tier    string // empty = all tiers
 	Limit   int    // <= 0 = all
 }
 

@@ -80,9 +80,10 @@ func NewRunner(resolver ProviderResolver, client ProviderClient, clk clock.Clock
 
 // Run executes every case in suite against the suite's provider and returns a
 // tagged, self-describing EvalRun. It returns an error only when the provider
-// cannot be resolved (the suite references an unregistered provider) — an
-// individual case's search failure degrades to a "n/a" outcome for that case,
-// never the whole run (mirroring the router's graceful degradation).
+// cannot be resolved (the suite references an unregistered provider). An
+// individual provider-call failure is retained as an "error" case and marks
+// the run degraded, so transport failure cannot masquerade as an ungraded
+// or clean quality result.
 //
 // Run is the BASELINE path (no overrides): it evaluates the provider's live
 // configuration. The sweep (Phase 6) re-runs the same suite through RunWith,
@@ -111,6 +112,7 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 
 	results := make([]*evalv1.CaseResult, 0, len(suite.GetCases()))
 	latencies := make([]int64, 0, len(suite.GetCases()))
+	var firstFailure string
 	for _, c := range suite.GetCases() {
 		start := r.clock.Now()
 		caseOpts := opts
@@ -121,8 +123,11 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 		top := toScoredHits(hits)
 		cr := &evalv1.CaseResult{CaseId: c.GetCaseId(), Top: top}
 		if searchErr != nil {
-			// One bad case never sinks the run; record it as n/a with no hits.
-			cr.Outcome = "n/a"
+			cr.Outcome = "error"
+			cr.OutcomeReason = searchErr.Error()
+			if firstFailure == "" {
+				firstFailure = searchErr.Error()
+			}
 			results = append(results, cr)
 			continue
 		}
@@ -138,6 +143,17 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 		Config:    snapshot,
 		Results:   results,
 		Aggregate: aggregate(suite, results, latencies),
+		Tier:      "provider_direct",
+	}
+	if firstFailure != "" {
+		run.Degraded = true
+		run.DegradedReason = firstFailure
+	}
+	if run.GetAggregate().GetGradedCases() == 0 {
+		run.Degraded = true
+		if run.DegradedReason == "" {
+			run.DegradedReason = "run produced zero graded cases"
+		}
 	}
 	return run, nil
 }
@@ -242,8 +258,14 @@ func aggregate(suite *evalv1.EvalSuite, results []*evalv1.CaseResult, latencies 
 		switch cr.GetOutcome() {
 		case "met":
 			agg.Met++
+			agg.GradedCases++
 		case "below_expectation":
 			agg.Below++
+			agg.GradedCases++
+		case "above_expectation", "unexpected_hit", "answered_by_sibling", "misrouted", "thin_margin":
+			// These are evaluated outcomes even though they are not counted as
+			// successful or below-floor positive cases.
+			agg.GradedCases++
 		}
 		tags := tagsByCase[cr.GetCaseId()]
 		if hasTag(tags, "strong") {

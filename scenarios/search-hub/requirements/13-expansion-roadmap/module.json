@@ -1,0 +1,41 @@
+{
+  "module_id": "MOD-P2-013",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "description": "Preserve the future expansion contract for external providers, group-scoped federation, and coverage measurement without claiming those capabilities are shipped.",
+  "requirements": [
+    {
+      "id": "REQ-P2-001",
+      "title": "External provider scope is transportable",
+      "prd_ref": "OT-P2-001",
+      "category": "expansion",
+      "status": "planned",
+      "description": "The provider descriptor carries EXTERNAL scope and the registration contract remains usable for paid or external corpora.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Add an external-scope registration and routing contract test when an external provider is selected." }
+      ]
+    },
+    {
+      "id": "REQ-P2-002",
+      "title": "Group-scoped federation remains explicit",
+      "prd_ref": "OT-P2-002",
+      "category": "expansion",
+      "status": "planned",
+      "description": "A future --group selector can reproduce a scenario's unified search through Search Hub without changing the owning scenario's search surface.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Add a group-scope contract test when the owning scenario exposes the required group search semantics." }
+      ]
+    },
+    {
+      "id": "REQ-P2-003",
+      "title": "Federation coverage is measurable",
+      "prd_ref": "OT-P2-003",
+      "category": "expansion",
+      "status": "planned",
+      "description": "The registry can eventually report registered live leaves divided by the known-corpus denominator as the Track-A adoption gauge.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Add a coverage-measure contract test once the known-corpus denominator is owned by a stable registry." }
+      ]
+    }
+  ]
+}

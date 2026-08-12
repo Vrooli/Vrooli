@@ -24,6 +24,12 @@ import (
 // calibrated and a true cross-encoder, Phase 6, will recalibrate this).
 const defaultWidenThreshold = 0.45
 
+// defaultMaxFanoutWidth bounds automatic routing after the classifier is
+// uncertain. It is intentionally aligned with the router's normal worker
+// budget: widening beyond one bounded wave spends latency without improving
+// the recall signal that the federated eval tier measures.
+const defaultMaxFanoutWidth = 6
+
 // widenThreshold resolves the confidence floor, honoring the env override and
 // falling back to defaultWidenThreshold for an unset/invalid/out-of-range value.
 func widenThreshold() float64 {
@@ -53,12 +59,21 @@ func autoExternalThreshold() float64 {
 	return defaultAutoExternalThreshold
 }
 
-// ProviderProfile is the registry-derived view of one routable leaf type that
-// the classifier reasons over. The router builds these from ACTIVE descriptors
-// and the classifier routes purely on the natural-language Description — never
-// on hardcoded provider knowledge (plan §3.2: "the router routes on
-// descriptions"). Many leaves can share a type; Description then joins theirs.
+func maxFanoutWidth() int {
+	if raw := strings.TrimSpace(os.Getenv("SEARCH_HUB_CLASSIFIER_MAX_FANOUT_WIDTH")); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil && v > 0 && v <= 128 {
+			return v
+		}
+	}
+	return defaultMaxFanoutWidth
+}
+
+// ProviderProfile is the registry-derived view of one routable provider leaf
+// that the classifier reasons over. The router builds these from ACTIVE
+// descriptors and the classifier routes purely on the natural-language
+// Description — never on hardcoded provider knowledge.
 type ProviderProfile struct {
+	ProviderID  string
 	Type        string
 	Group       string
 	Description string
@@ -66,9 +81,14 @@ type ProviderProfile struct {
 
 // ClassifyResult is the classifier's routing decision over a query.
 type ClassifyResult struct {
-	// Types is the ranked set of provider `type` tokens the query should route
-	// to (most-relevant first). It may name types that do not exist; the router
+	// ProviderIDs is the ranked set of provider leaf ids the query should route
+	// to (most-relevant first). It may name ids that do not exist; the router
 	// intersects it with the live registry before fan-out.
+	ProviderIDs []string
+	// Types is retained only for in-process compatibility with callers compiled
+	// against the pre-leaf classifier seam. New classifier responses populate
+	// ProviderIDs; widenPolicy interprets a legacy token as a type only when it
+	// is not an exact provider id.
 	Types []string
 	// Confidence is the classifier's self-reported confidence in [0,1]. Below
 	// classifierWidenThreshold the router widens (see widenPolicy).
@@ -85,7 +105,7 @@ type ClassifyResult struct {
 	WebShaped bool
 }
 
-// Classifier maps a free-text query to the provider `type`s it should route to,
+// Classifier maps a free-text query to provider leaf ids it should route to,
 // reading only the registered provider descriptions. It is a swappable seam
 // (production: local Ollama qwen3:1.7b via OllamaClassifier; tests: a
 // deterministic fake) so the router stays unit-testable without a model.
@@ -101,96 +121,128 @@ type Classifier interface {
 	Available(ctx context.Context) bool
 }
 
-// buildProfiles collapses the active provider descriptors into one profile per
-// distinct type (the classifier routes on types, not individual leaves). When
-// several leaves share a type their descriptions are joined so the classifier
-// sees the full corpus picture for that type. Output is type-sorted for
-// deterministic prompts.
+// buildProfiles emits one profile per active provider leaf. Output is sorted by
+// provider id so prompts stay deterministic and every registrant's description
+// remains available to the classifier without a type-level collapse.
 func buildProfiles(active []*registryv1.ProviderDescriptor) []ProviderProfile {
-	byType := make(map[string]*ProviderProfile)
+	out := make([]ProviderProfile, 0, len(active))
 	for _, p := range active {
 		if p.GetEndpoint() == nil {
 			continue // not callable (defensive; List already filters to ACTIVE)
 		}
-		t := strings.TrimSpace(p.GetType())
-		if t == "" {
+		id := strings.TrimSpace(p.GetProviderId())
+		if id == "" || strings.TrimSpace(p.GetType()) == "" {
 			continue
 		}
-		prof, ok := byType[t]
-		if !ok {
-			byType[t] = &ProviderProfile{Type: t, Group: p.GetProviderGroup(), Description: strings.TrimSpace(p.GetDescription())}
+		out = append(out, ProviderProfile{
+			ProviderID:  id,
+			Type:        strings.TrimSpace(p.GetType()),
+			Group:       strings.TrimSpace(p.GetProviderGroup()),
+			Description: strings.TrimSpace(p.GetDescription()),
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ProviderID < out[j].ProviderID })
+	return out
+}
+
+func availableProviderIDs(profiles []ProviderProfile) []string {
+	ids := make([]string, 0, len(profiles))
+	for _, profile := range profiles {
+		ids = append(ids, profile.ProviderID)
+	}
+	return ids
+}
+
+// widenPolicy turns a raw classifier result into concrete provider leaves.
+// Confident results retain only the selected leaves. Uncertain results add
+// siblings that share the selected leaf's type, bounded by maxWidth; this
+// preserves recall without silently reverting to fleet-wide fan-out.
+func widenPolicy(result ClassifyResult, profiles []ProviderProfile, maxWidth int) (chosen []string, widened, boundReached bool) {
+	if maxWidth <= 0 {
+		maxWidth = defaultMaxFanoutWidth
+	}
+	byID := make(map[string]ProviderProfile, len(profiles))
+	for _, profile := range profiles {
+		byID[profile.ProviderID] = profile
+	}
+	selected := make([]string, 0, len(result.ProviderIDs))
+	seen := make(map[string]struct{}, len(result.ProviderIDs))
+	rawIDs := result.ProviderIDs
+	if len(rawIDs) == 0 {
+		rawIDs = result.Types
+	}
+	for _, id := range rawIDs {
+		id = strings.TrimSpace(id)
+		if _, ok := byID[id]; ok {
+			if _, duplicate := seen[id]; duplicate {
+				continue
+			}
+			seen[id] = struct{}{}
+			selected = append(selected, id)
 			continue
 		}
-		if d := strings.TrimSpace(p.GetDescription()); d != "" {
-			if prof.Description == "" {
-				prof.Description = d
-			} else {
-				prof.Description += " " + d
+		// Legacy type tokens are accepted only as a compatibility bridge. The
+		// production prompt and wire contract use exact provider ids.
+		for _, profile := range profiles {
+			if profile.Type != id {
+				continue
+			}
+			if _, duplicate := seen[profile.ProviderID]; duplicate {
+				continue
+			}
+			seen[profile.ProviderID] = struct{}{}
+			selected = append(selected, profile.ProviderID)
+		}
+	}
+
+	if result.Confidence >= widenThreshold() && len(selected) > 0 {
+		chosen = append([]string(nil), selected...)
+		if len(chosen) > maxWidth {
+			chosen = chosen[:maxWidth]
+			boundReached = true
+		}
+		return chosen, false, boundReached
+	}
+
+	// No usable selection has no sibling anchor. Use a deterministic bounded
+	// fallback so classifier uncertainty and malformed model output cannot turn
+	// into an unbounded route.
+	if len(selected) == 0 {
+		for _, profile := range profiles {
+			selected = append(selected, profile.ProviderID)
+			if len(selected) == maxWidth {
+				break
+			}
+		}
+		return selected, true, len(profiles) > len(selected)
+	}
+
+	chosen = append(chosen, selected...)
+	types := make(map[string]struct{}, len(selected))
+	for _, id := range selected {
+		types[byID[id].Type] = struct{}{}
+	}
+	siblingTotal := len(selected)
+	for _, profile := range profiles {
+		if _, sibling := types[profile.Type]; sibling {
+			if _, already := seen[profile.ProviderID]; !already {
+				siblingTotal++
 			}
 		}
 	}
-	out := make([]ProviderProfile, 0, len(byType))
-	for _, prof := range byType {
-		out = append(out, *prof)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Type < out[j].Type })
-	return out
-}
-
-// availableTypes returns the distinct, type-sorted set of routable types in the
-// active set — the universe the classifier's answer is intersected against and
-// the fallback "widen to everything" set.
-func availableTypes(active []*registryv1.ProviderDescriptor) []string {
-	seen := make(map[string]struct{})
-	out := make([]string, 0, len(active))
-	for _, p := range active {
-		if p.GetEndpoint() == nil {
+	boundReached = siblingTotal > maxWidth
+	for _, profile := range profiles {
+		if _, sibling := types[profile.Type]; !sibling {
 			continue
 		}
-		t := strings.TrimSpace(p.GetType())
-		if t == "" {
+		if _, already := seen[profile.ProviderID]; already {
 			continue
 		}
-		if _, ok := seen[t]; ok {
-			continue
+		chosen = append(chosen, profile.ProviderID)
+		seen[profile.ProviderID] = struct{}{}
+		if len(chosen) == maxWidth {
+			break
 		}
-		seen[t] = struct{}{}
-		out = append(out, t)
 	}
-	sort.Strings(out)
-	return out
-}
-
-// widenPolicy turns a raw ClassifyResult into the concrete type set the router
-// fans out to, applying widen-on-uncertainty. It intersects the classifier's
-// chosen types with what actually exists, then — if the classifier was
-// unconfident or nothing matched — broadens to every available type. It returns
-// the chosen types (type-sorted) and whether widening kicked in (for --explain).
-func widenPolicy(result ClassifyResult, available []string) (chosen []string, widened bool) {
-	avail := make(map[string]struct{}, len(available))
-	for _, t := range available {
-		avail[t] = struct{}{}
-	}
-	seen := make(map[string]struct{})
-	for _, t := range result.Types {
-		t = strings.TrimSpace(t)
-		if t == "" {
-			continue
-		}
-		if _, ok := avail[t]; !ok {
-			continue // classifier named a type no provider serves — drop it
-		}
-		if _, dup := seen[t]; dup {
-			continue
-		}
-		seen[t] = struct{}{}
-		chosen = append(chosen, t)
-	}
-	if result.Confidence < widenThreshold() || len(chosen) == 0 {
-		// Uncertain (or no usable match): over-fetch across every type and let
-		// the reranker (Phase 6) cut the noise. Recall over precision.
-		return append([]string(nil), available...), true
-	}
-	sort.Strings(chosen)
-	return chosen, false
+	return chosen, true, boundReached
 }

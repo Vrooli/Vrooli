@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"sort"
 
@@ -14,6 +15,13 @@ import (
 	internalmetrics "search-hub/internal/metrics"
 	internalregistry "search-hub/internal/registry"
 )
+
+// retirementRouteThreshold is deliberately high enough to distinguish a
+// provider that has never been exercised from one that has repeatedly served
+// no hits. The report is advisory; owners decide whether to retire it.
+const retirementRouteThreshold int64 = 100
+
+const concentratedGroupShare = 0.25
 
 // InsightsReader is the telemetry-aggregation seam the handler depends on.
 // Production wires the SQLite metrics store; tests wire a fake.
@@ -80,16 +88,51 @@ func (h *connectHandler) Insights(ctx context.Context, req *connect.Request[metr
 	}
 
 	resp := &metricsv1.InsightsResponse{
-		TotalQueries:      agg.TotalQueries,
-		ZeroResultQueries: agg.ZeroResultQueries,
-		ZeroResultRate:    rate(agg.ZeroResultQueries, agg.TotalQueries),
-		DegradedQueries:   agg.DegradedQueries,
-		RerankedQueries:   agg.RerankedQueries,
-		LatencyP50Ms:      agg.LatencyP50Ms,
-		LatencyP95Ms:      agg.LatencyP95Ms,
-		Providers:         reconcileUtilization(active, agg.ProviderUsage),
+		TotalQueries:         agg.TotalQueries,
+		ZeroResultQueries:    agg.ZeroResultQueries,
+		ZeroResultRate:       rate(agg.ZeroResultQueries, agg.TotalQueries),
+		DegradedQueries:      agg.DegradedQueries,
+		RerankedQueries:      agg.RerankedQueries,
+		LatencyP50Ms:         agg.LatencyP50Ms,
+		LatencyP95Ms:         agg.LatencyP95Ms,
+		ResolverCacheHits:    agg.ResolverCacheHits,
+		ResolverCacheMisses:  agg.ResolverCacheMisses,
+		ResolverCacheHitRate: agg.ResolverCacheHitRate,
+		Providers:            reconcileUtilization(active, agg.ProviderUsage),
 	}
+	resp.RetirementCandidates, resp.GroupAdvisories = HygieneReports(resp.Providers)
 	return connect.NewResponse(resp), nil
+}
+
+func HygieneReports(providers []*metricsv1.ProviderUtilization) ([]*metricsv1.ProviderRetirementCandidate, []*metricsv1.ProviderGroupAdvisory) {
+	retire := make([]*metricsv1.ProviderRetirementCandidate, 0)
+	groups := make(map[string]int)
+	for _, provider := range providers {
+		if provider == nil {
+			continue
+		}
+		groups[provider.GetProviderGroup()]++
+		if provider.GetTimesRouted() >= retirementRouteThreshold && provider.GetTotalHits() == 0 {
+			retire = append(retire, &metricsv1.ProviderRetirementCandidate{
+				ProviderId: provider.GetProviderId(), TimesRouted: provider.GetTimesRouted(), TotalHits: provider.GetTotalHits(),
+				Reason: fmt.Sprintf("zero lifetime hits across %d routed calls", provider.GetTimesRouted()),
+			})
+		}
+	}
+	sort.Slice(retire, func(i, j int) bool { return retire[i].GetProviderId() < retire[j].GetProviderId() })
+	advisories := make([]*metricsv1.ProviderGroupAdvisory, 0)
+	for group, count := range groups {
+		share := float64(count) / float64(len(providers))
+		if share <= concentratedGroupShare {
+			continue
+		}
+		advisories = append(advisories, &metricsv1.ProviderGroupAdvisory{
+			ProviderGroup: group, ActiveLeaves: int32(count), Share: share,
+			Reason: fmt.Sprintf("provider group holds %.1f%% of active leaves", share*100),
+		})
+	}
+	sort.Slice(advisories, func(i, j int) bool { return advisories[i].GetProviderGroup() < advisories[j].GetProviderGroup() })
+	return retire, advisories
 }
 
 // reconcileUtilization joins the registry's ACTIVE leaves with telemetry usage:

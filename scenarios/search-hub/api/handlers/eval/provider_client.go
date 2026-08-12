@@ -13,6 +13,7 @@ import (
 	internaleval "search-hub/internal/eval"
 	"search-hub/internal/httpc"
 	"search-hub/internal/providers"
+	internalvalidation "search-hub/internal/validation"
 
 	aisearch "github.com/vrooli/ai-go/search"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
@@ -49,6 +50,13 @@ func newHTTPProviderClient(resolver URLResolver, doer httpc.Doer) *httpProviderC
 // NewDefaultProviderClient returns the production provider client used by both
 // eval execution and validation-time live corpus probing.
 func NewDefaultProviderClient() internaleval.ProviderClient {
+	return newHTTPProviderClient(newScenarioResolver(), httpc.NewDefault())
+}
+
+// NewDefaultStatusProbe returns the same descriptor-driven HTTP seam used by
+// eval validation, exposed separately so maturity validation can report an
+// absent index timestamp without importing routing internals.
+func NewDefaultStatusProbe() internalvalidation.StatusProbe {
 	return newHTTPProviderClient(newScenarioResolver(), httpc.NewDefault())
 }
 
@@ -161,6 +169,59 @@ func (c *httpProviderClient) Snapshot(ctx context.Context, d *registryv1.Provide
 		return snap
 	}
 	return parseSnapshot(raw)
+}
+
+func (c *httpProviderClient) ProbeIndexTimestamp(ctx context.Context, d *registryv1.ProviderDescriptor) (time.Time, error) {
+	hj := d.GetStatusEndpoint().GetHttpJson()
+	if hj == nil {
+		return time.Time{}, nil
+	}
+	base, err := c.resolver.ResolveScenarioURL(ctx, hj.GetScenarioId())
+	if err != nil {
+		return time.Time{}, err
+	}
+	body := strings.TrimSpace(hj.GetBodyTemplate())
+	if body == "" {
+		body = "{}"
+	}
+	cctx, cancel := context.WithTimeout(ctx, evalStatusTimeout)
+	defer cancel()
+	url := strings.TrimRight(base, "/") + hj.GetPath()
+	req, err := http.NewRequestWithContext(cctx, providers.HTTPMethod(hj.GetMethod()), url, bytes.NewReader([]byte(body)))
+	if err != nil {
+		return time.Time{}, err
+	}
+	providers.ApplyHeaders(req, hj.GetHeaders())
+	resp, err := c.doer.Do(req)
+	if err != nil {
+		return time.Time{}, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return time.Time{}, fmt.Errorf("status endpoint returned HTTP %d", resp.StatusCode)
+	}
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
+	if err != nil {
+		return time.Time{}, err
+	}
+	return parseIndexTimestamp(raw), nil
+}
+
+func parseIndexTimestamp(raw []byte) time.Time {
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return time.Time{}
+	}
+	for _, key := range []string{"last_indexed_at", "lastIndexedAt", "last_index_at", "lastIndexAt", "index_updated_at", "indexUpdatedAt", "indexed_at", "indexedAt", "last_reindex_at", "lastReindexAt"} {
+		if value, ok := payload[key].(string); ok {
+			for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05Z07:00"} {
+				if timestamp, err := time.Parse(layout, value); err == nil {
+					return timestamp
+				}
+			}
+		}
+	}
+	return time.Time{}
 }
 
 // parseSnapshot maps a status JSON body onto a ConfigSnapshot using a small set

@@ -49,20 +49,25 @@ type Sample struct {
 	// AutoRoutedExternal / Escalated record the OT-P2-002 auto-external decisions
 	// so the Insights surface can report the auto-routed-external and escalation
 	// rates for validation.
-	AutoRoutedExternal    bool
-	Escalated             bool
-	LatencyMs             int64
-	RoutingMode           string
-	EligibleProviderCount int
-	SelectedProviderCount int
-	WithheldExternalCount int
-	QueuedProviderCount   int
-	ClassifierLatencyMs   int64
-	ResolverLatencyMs     int64
-	FanoutLatencyMs       int64
-	RerankLatencyMs       int64
-	RerankCandidateCount  int
-	ResponseDegradeReason string
+	AutoRoutedExternal      bool
+	Escalated               bool
+	LatencyMs               int64
+	RoutingMode             string
+	EligibleProviderCount   int
+	SelectedProviderCount   int
+	SelectedLeafCount       int
+	WidenedLeafCount        int
+	FanoutWidthBoundReached bool
+	WithheldExternalCount   int
+	QueuedProviderCount     int
+	ClassifierLatencyMs     int64
+	ResolverLatencyMs       int64
+	ResolverCacheHits       int64
+	ResolverCacheMisses     int64
+	FanoutLatencyMs         int64
+	RerankLatencyMs         int64
+	RerankCandidateCount    int
+	ResponseDegradeReason   string
 }
 
 // ProviderResult is one provider leg's persisted telemetry.
@@ -110,6 +115,9 @@ type Insights struct {
 	LatencyP50Ms              int64
 	LatencyP95Ms              int64
 	ProviderUsage             []ProviderUsage
+	ResolverCacheHits         int64
+	ResolverCacheMisses       int64
+	ResolverCacheHitRate      float64
 	RoutingBuckets            []RoutingBucket
 }
 
@@ -172,10 +180,15 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		{name: "routing_mode", ddl: "ALTER TABLE query_telemetry ADD COLUMN routing_mode TEXT NOT NULL DEFAULT ''"},
 		{name: "eligible_provider_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN eligible_provider_count INTEGER NOT NULL DEFAULT 0"},
 		{name: "selected_provider_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN selected_provider_count INTEGER NOT NULL DEFAULT 0"},
+		{name: "selected_leaf_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN selected_leaf_count INTEGER NOT NULL DEFAULT 0"},
+		{name: "widened_leaf_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN widened_leaf_count INTEGER NOT NULL DEFAULT 0"},
+		{name: "fanout_width_bound_reached", ddl: "ALTER TABLE query_telemetry ADD COLUMN fanout_width_bound_reached INTEGER NOT NULL DEFAULT 0"},
 		{name: "withheld_external_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN withheld_external_count INTEGER NOT NULL DEFAULT 0"},
 		{name: "queued_provider_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN queued_provider_count INTEGER NOT NULL DEFAULT 0"},
 		{name: "classifier_latency_ms", ddl: "ALTER TABLE query_telemetry ADD COLUMN classifier_latency_ms INTEGER NOT NULL DEFAULT 0"},
 		{name: "resolver_latency_ms", ddl: "ALTER TABLE query_telemetry ADD COLUMN resolver_latency_ms INTEGER NOT NULL DEFAULT 0"},
+		{name: "resolver_cache_hits", ddl: "ALTER TABLE query_telemetry ADD COLUMN resolver_cache_hits INTEGER NOT NULL DEFAULT 0"},
+		{name: "resolver_cache_misses", ddl: "ALTER TABLE query_telemetry ADD COLUMN resolver_cache_misses INTEGER NOT NULL DEFAULT 0"},
 		{name: "fanout_latency_ms", ddl: "ALTER TABLE query_telemetry ADD COLUMN fanout_latency_ms INTEGER NOT NULL DEFAULT 0"},
 		{name: "rerank_latency_ms", ddl: "ALTER TABLE query_telemetry ADD COLUMN rerank_latency_ms INTEGER NOT NULL DEFAULT 0"},
 		{name: "rerank_candidate_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN rerank_candidate_count INTEGER NOT NULL DEFAULT 0"},
@@ -245,14 +258,16 @@ func (s *sqliteStore) Record(ctx context.Context, sample Sample) error {
 	}
 
 	res, err := s.db.ExecContext(ctx, `
-INSERT INTO query_telemetry (query_hash, routed_types, result_count, zero_result, degraded, reranked, auto_routed_external, escalated, latency_ms, routing_mode, eligible_provider_count, selected_provider_count, withheld_external_count, queued_provider_count, classifier_latency_ms, resolver_latency_ms, fanout_latency_ms, rerank_latency_ms, rerank_candidate_count, response_degrade_reason, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+INSERT INTO query_telemetry (query_hash, routed_types, result_count, zero_result, degraded, reranked, auto_routed_external, escalated, latency_ms, routing_mode, eligible_provider_count, selected_provider_count, selected_leaf_count, widened_leaf_count, fanout_width_bound_reached, withheld_external_count, queued_provider_count, classifier_latency_ms, resolver_latency_ms, resolver_cache_hits, resolver_cache_misses, fanout_latency_ms, rerank_latency_ms, rerank_candidate_count, response_degrade_reason, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		sample.QueryHash, strings.Join(sample.RoutedTypes, ","), sample.ResultCount, zero,
 		boolToInt(sample.Degraded), boolToInt(sample.Reranked),
 		boolToInt(sample.AutoRoutedExternal), boolToInt(sample.Escalated), sample.LatencyMs,
 		sample.RoutingMode, sample.EligibleProviderCount, sample.SelectedProviderCount,
+		sample.SelectedLeafCount, sample.WidenedLeafCount, boolToInt(sample.FanoutWidthBoundReached),
 		sample.WithheldExternalCount, sample.QueuedProviderCount, sample.ClassifierLatencyMs,
-		sample.ResolverLatencyMs, sample.FanoutLatencyMs, sample.RerankLatencyMs,
+		sample.ResolverLatencyMs, sample.ResolverCacheHits, sample.ResolverCacheMisses,
+		sample.FanoutLatencyMs, sample.RerankLatencyMs,
 		sample.RerankCandidateCount, sample.ResponseDegradeReason, now)
 	if err != nil {
 		return fmt.Errorf("insert query_telemetry: %w", err)
@@ -296,6 +311,16 @@ FROM query_telemetry`+filter.queryWhere, filter.queryArgs...)
 	if err := row.Scan(&out.TotalQueries, &out.ZeroResultQueries, &out.DegradedQueries, &out.RerankedQueries,
 		&out.AutoRoutedExternalQueries, &out.EscalatedQueries); err != nil {
 		return nil, fmt.Errorf("aggregate query_telemetry: %w", err)
+	}
+	cacheRow := s.db.QueryRowContext(ctx, `
+SELECT COALESCE(SUM(resolver_cache_hits), 0), COALESCE(SUM(resolver_cache_misses), 0)
+FROM query_telemetry`+filter.queryWhere, filter.queryArgs...)
+	if err := cacheRow.Scan(&out.ResolverCacheHits, &out.ResolverCacheMisses); err != nil {
+		return nil, fmt.Errorf("aggregate resolver cache telemetry: %w", err)
+	}
+	cacheLookups := out.ResolverCacheHits + out.ResolverCacheMisses
+	if cacheLookups > 0 {
+		out.ResolverCacheHitRate = float64(out.ResolverCacheHits) / float64(cacheLookups)
 	}
 
 	p50, p95, err := s.latencyPercentiles(ctx, out.TotalQueries, filter.queryWhere, filter.queryArgs)

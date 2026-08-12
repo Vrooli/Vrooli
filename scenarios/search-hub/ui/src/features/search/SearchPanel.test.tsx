@@ -46,7 +46,7 @@ const provider = (providerId: string, type: string) =>
 
 const status = () =>
   create(StatusResponseSchema, {
-    providers: [{ providerId: "cli-health.commands", reachable: true, freshness: "endpoint resolved" }],
+    providers: [{ providerId: "cli-health.commands", reachable: true, reachability: "endpoint resolved", indexAge: "not_reported: provider has no status_endpoint" }],
     classifierAvailable: true,
     rerankerAvailable: true,
   });

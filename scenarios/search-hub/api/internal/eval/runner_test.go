@@ -126,13 +126,30 @@ func TestRunner_SearchErrorDegradesCaseNotRun(t *testing.T) {
 		&evalv1.EvalCase{CaseId: "good", Query: "ok", ExpectIds: []string{"a"}, ExpectMinScore: 0.5},
 	)
 	run, err := newRunner(client).Run(context.Background(), suite, "t", 0)
-	require.NoError(t, err, "a single failing case must not fail the whole run")
+	require.NoError(t, err, "a single failing case must not prevent the run from being persisted")
 	got := map[string]string{}
 	for _, cr := range run.GetResults() {
 		got[cr.GetCaseId()] = cr.GetOutcome()
 	}
-	require.Equal(t, "n/a", got["bad"])
+	require.Equal(t, "error", got["bad"])
 	require.Equal(t, "met", got["good"])
+	require.Equal(t, "provider down", run.GetResults()[0].GetOutcomeReason())
+	require.True(t, run.GetDegraded())
+	require.Equal(t, "provider down", run.GetDegradedReason())
+	require.EqualValues(t, 1, run.GetAggregate().GetGradedCases())
+}
+
+func TestRunner_ZeroGradedCasesDegradesRun(t *testing.T) {
+	run, err := newRunner(fakeClient{byQuery: map[string][]*routingv1.SearchHit{
+		"ungraded": {hit("a", 0.2)},
+	}}).Run(context.Background(), suiteWith(&evalv1.EvalCase{
+		CaseId: "ungraded", Query: "ungraded", Tags: []string{"weak-real"},
+	}), "t", 0)
+	require.NoError(t, err)
+	require.Equal(t, "n/a", run.GetResults()[0].GetOutcome())
+	require.EqualValues(t, 0, run.GetAggregate().GetGradedCases())
+	require.True(t, run.GetDegraded())
+	require.Equal(t, "run produced zero graded cases", run.GetDegradedReason())
 }
 
 func TestRunner_UnresolvedProviderErrors(t *testing.T) {

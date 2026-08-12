@@ -3,6 +3,7 @@ package routing
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -32,6 +33,12 @@ func TestParseClassifierResponse_PlainJSON(t *testing.T) {
 	require.False(t, res.WebShaped, "web_shaped absent defaults to false")
 }
 
+func TestParseClassifierResponse_ExactProviderIDs(t *testing.T) {
+	res, err := parseClassifierResponse([]byte(`{"provider_ids":["source-ledger.scope.team:monetization"],"confidence":0.9}`))
+	require.NoError(t, err)
+	require.Equal(t, []string{"source-ledger.scope.team:monetization"}, res.ProviderIDs)
+}
+
 func TestParseClassifierResponse_WebShaped(t *testing.T) {
 	res, err := parseClassifierResponse([]byte(`{"types":["web"],"confidence":0.8,"web_shaped":true}`))
 	require.NoError(t, err)
@@ -51,7 +58,7 @@ func TestParseClassifierResponse_NoJSON(t *testing.T) {
 }
 
 func TestParseClassifierResponse_SalvagesMalformedTypesArray(t *testing.T) {
-	// The real qwen3:1.7b failure mode: confidence/reason merged into the types
+	// The real qwen3:1.7b failure mode: confidence/reason merged into the provider_ids
 	// array, so strict JSON rejects it. Salvage must still recover the decision.
 	raw := []byte(`{"response":"<think>\n\n</think>\n\n{\"types\":[\"command\",\"confidence\":0.45,\"reason\":\"restart is a CLI op\"]}","eval_count":40}`)
 	res, err := parseClassifierResponse(raw)
@@ -60,48 +67,113 @@ func TestParseClassifierResponse_SalvagesMalformedTypesArray(t *testing.T) {
 	require.InDelta(t, 0.45, res.Confidence, 1e-9, "confidence recovered from the malformed body")
 	require.Equal(t, "restart is a CLI op", res.Rationale)
 	// 'confidence'/'reason' are over-extracted as tokens but widenPolicy drops
-	// them against the live registry — assert they don't crowd out the real type.
-	chosen, _ := widenPolicy(res, []string{"command", "component", "record"})
+	// them against the live registry — assert they don't crowd out the real id.
+	profiles := buildProfiles([]*registryv1.ProviderDescriptor{
+		descWithEndpoint("command", "g", "command", "command"),
+		descWithEndpoint("component", "g", "component", "component"),
+		descWithEndpoint("record", "g", "record", "record"),
+	})
+	chosen, _, _ := widenPolicy(res, profiles, 6)
 	require.Equal(t, []string{"command"}, chosen)
 }
 
 // --- widen policy ----------------------------------------------------------
 
 func TestWidenPolicy_ConfidentNarrows(t *testing.T) {
-	chosen, widened := widenPolicy(
+	profiles := buildProfiles([]*registryv1.ProviderDescriptor{
+		descWithEndpoint("command", "g", "command", "command"),
+		descWithEndpoint("component", "g", "component", "component"),
+		descWithEndpoint("record", "g", "record", "record"),
+	})
+	chosen, widened, bound := widenPolicy(
 		ClassifyResult{Types: []string{"command"}, Confidence: 0.9},
-		[]string{"command", "component", "record"},
+		profiles, 6,
 	)
 	require.Equal(t, []string{"command"}, chosen)
 	require.False(t, widened)
+	require.False(t, bound)
 }
 
 func TestWidenPolicy_LowConfidenceWidens(t *testing.T) {
-	chosen, widened := widenPolicy(
+	profiles := buildProfiles([]*registryv1.ProviderDescriptor{
+		descWithEndpoint("command", "g", "command", "command"),
+		descWithEndpoint("component", "g", "component", "component"),
+		descWithEndpoint("record", "g", "record", "record"),
+	})
+	chosen, widened, bound := widenPolicy(
 		ClassifyResult{Types: []string{"command"}, Confidence: 0.3},
-		[]string{"command", "component", "record"},
+		profiles, 6,
 	)
 	require.True(t, widened, "low confidence over-fetches across every type")
-	require.Equal(t, []string{"command", "component", "record"}, chosen)
+	require.Equal(t, []string{"command"}, chosen)
+	require.False(t, bound)
 }
 
 func TestWidenPolicy_NoUsableMatchWidens(t *testing.T) {
 	// Classifier named a type no provider serves ⇒ nothing intersects ⇒ widen.
-	chosen, widened := widenPolicy(
+	profiles := buildProfiles([]*registryv1.ProviderDescriptor{
+		descWithEndpoint("command", "g", "command", "command"),
+		descWithEndpoint("record", "g", "record", "record"),
+	})
+	chosen, widened, _ := widenPolicy(
 		ClassifyResult{Types: []string{"doc"}, Confidence: 0.95},
-		[]string{"command", "record"},
+		profiles, 6,
 	)
 	require.True(t, widened)
 	require.Equal(t, []string{"command", "record"}, chosen)
 }
 
 func TestWidenPolicy_DropsUnknownButKeepsKnown(t *testing.T) {
-	chosen, widened := widenPolicy(
+	profiles := buildProfiles([]*registryv1.ProviderDescriptor{
+		descWithEndpoint("command", "g", "command", "command"),
+		descWithEndpoint("record", "g", "record", "record"),
+	})
+	chosen, widened, _ := widenPolicy(
 		ClassifyResult{Types: []string{"doc", "command"}, Confidence: 0.8},
-		[]string{"command", "record"},
+		profiles, 6,
 	)
 	require.False(t, widened)
 	require.Equal(t, []string{"command"}, chosen, "unknown 'doc' dropped, known 'command' kept")
+}
+
+func TestWidenPolicyBoundsSiblingLeaves(t *testing.T) {
+	profiles := buildProfiles([]*registryv1.ProviderDescriptor{
+		descWithEndpoint("command-a", "g", "command", "a"),
+		descWithEndpoint("command-b", "g", "command", "b"),
+		descWithEndpoint("command-c", "g", "command", "c"),
+		descWithEndpoint("record", "g", "record", "record"),
+	})
+	chosen, widened, bound := widenPolicy(ClassifyResult{ProviderIDs: []string{"command-a"}, Confidence: 0.1}, profiles, 2)
+	require.Equal(t, []string{"command-a", "command-b"}, chosen)
+	require.True(t, widened)
+	require.True(t, bound)
+}
+
+func TestWidenPolicyBoundsProviderGrowth(t *testing.T) {
+	// Automatic routing must remain bounded as a provider group grows. This is
+	// deliberately much larger than the production bound so the assertion
+	// protects the cost contract rather than merely exercising a small fixture.
+	const providerCount = 1000
+	profiles := make([]ProviderProfile, 0, providerCount)
+	for i := 0; i < providerCount; i++ {
+		id := fmt.Sprintf("command-%04d", i)
+		profiles = append(profiles, ProviderProfile{
+			ProviderID:  id,
+			Type:        "command",
+			Group:       "cli-health",
+			Description: id,
+		})
+	}
+
+	chosen, widened, bound := widenPolicy(
+		ClassifyResult{ProviderIDs: []string{"command-0000"}, Confidence: 0.1},
+		profiles,
+		defaultMaxFanoutWidth,
+	)
+	require.Len(t, chosen, defaultMaxFanoutWidth)
+	require.True(t, widened)
+	require.True(t, bound)
+	require.Equal(t, "command-0000", chosen[0])
 }
 
 // --- profile derivation ----------------------------------------------------
@@ -114,10 +186,12 @@ func TestBuildProfiles_OnePerTypeJoinsDescriptions(t *testing.T) {
 		gapDescriptor("d.gap", "scenario"), // no endpoint ⇒ excluded
 	}
 	profiles := buildProfiles(active)
-	require.Len(t, profiles, 2)
-	require.Equal(t, "command", profiles[0].Type)
-	require.Equal(t, "first second", profiles[0].Description, "shared-type descriptions join")
-	require.Equal(t, "record", profiles[1].Type)
+	require.Len(t, profiles, 3)
+	require.Equal(t, "a.x", profiles[0].ProviderID)
+	require.Equal(t, "first", profiles[0].Description, "leaf descriptions remain unmodified")
+	require.Equal(t, "b.y", profiles[1].ProviderID)
+	require.Equal(t, "second", profiles[1].Description)
+	require.Equal(t, "c.z", profiles[2].ProviderID)
 }
 
 func TestAvailableTypes_DistinctSorted(t *testing.T) {
@@ -126,7 +200,8 @@ func TestAvailableTypes_DistinctSorted(t *testing.T) {
 		descWithEndpoint("b", "g", "command", "d"),
 		descWithEndpoint("c", "g", "command", "d"),
 	}
-	require.Equal(t, []string{"command", "record"}, availableTypes(active))
+	profiles := buildProfiles(active)
+	require.Equal(t, []string{"a", "b", "c"}, availableProviderIDs(profiles))
 }
 
 // --- OllamaClassifier with a seamed runner ---------------------------------
@@ -138,16 +213,48 @@ func TestOllamaClassifier_Classify_UsesRunnerOutput(t *testing.T) {
 		maxTokens: classifierMaxTokens,
 		generate: func(_ context.Context, role, prompt string, _ int) ([]byte, error) {
 			gotRole, gotPrompt = role, prompt
-			return []byte(`{"response":"{\"types\":[\"command\"],\"confidence\":0.9}"}`), nil
+			return []byte(`{"response":"{\"provider_ids\":[\"cli-health.commands\"],\"confidence\":0.9}"}`), nil
 		},
 	}
 	res, err := c.Classify(context.Background(), "restart a scenario",
-		[]ProviderProfile{{Type: "command", Description: "CLI commands"}})
+		[]ProviderProfile{{ProviderID: "cli-health.commands", Type: "command", Group: "cli-health", Description: "CLI commands"}})
 	require.NoError(t, err)
-	require.Equal(t, []string{"command"}, res.Types)
+	require.Equal(t, []string{"cli-health.commands"}, res.ProviderIDs)
 	require.Equal(t, "classify.routing", gotRole)
 	require.Contains(t, gotPrompt, "CLI commands", "the provider description must reach the prompt")
+	require.Contains(t, gotPrompt, "cli-health.commands", "the exact provider id must reach the prompt")
 	require.Contains(t, gotPrompt, "restart a scenario")
+}
+
+func TestOllamaClassifier_ClassifyAddsDescriptionBackedExternalRecall(t *testing.T) {
+	c := &OllamaClassifier{
+		generate: func(context.Context, string, string, int) ([]byte, error) {
+			return []byte(`{"provider_ids":["knowledge-observatory.docs"],"confidence":0.9}`), nil
+		},
+	}
+	profiles := []ProviderProfile{
+		{ProviderID: "knowledge-observatory.docs", Type: "doc", Description: "Project documentation and guides."},
+		{ProviderID: "web-search.learnings", Type: "learning", Description: "Cited findings about the external world, software releases, and current events."},
+	}
+
+	got, err := c.Classify(context.Background(), "key features of Go 1.26", profiles)
+	require.NoError(t, err)
+	require.Contains(t, got.ProviderIDs, "web-search.learnings")
+
+	got, err = c.Classify(context.Background(), "where is the retry logic in this project", profiles)
+	require.NoError(t, err)
+	require.NotContains(t, got.ProviderIDs, "web-search.learnings")
+}
+
+func TestBuildClassifierPromptPrefersEvidenceForImplementationQuestions(t *testing.T) {
+	prompt := buildClassifierPrompt("where is the retry logic for agent runs", []ProviderProfile{
+		{ProviderID: "code-reference.code", Type: "code", Group: "code-reference", Description: "source locations and call paths"},
+		{ProviderID: "source-ledger.agent-memory", Type: "record", Group: "source-ledger", Description: "durable memory of prior implementation decisions"},
+	})
+	require.Contains(t, prompt, "implementation questions")
+	require.Contains(t, prompt, "narrative record or memory corpus")
+	require.Contains(t, prompt, "history, decisions, or prior work")
+	require.Contains(t, prompt, "never route only to skill or record leaves")
 }
 
 func TestOllamaClassifier_Classify_RunnerErrorPropagates(t *testing.T) {
@@ -156,7 +263,7 @@ func TestOllamaClassifier_Classify_RunnerErrorPropagates(t *testing.T) {
 			return nil, errors.New("daemon down")
 		},
 	}
-	_, err := c.Classify(context.Background(), "q", []ProviderProfile{{Type: "command", Description: "d"}})
+	_, err := c.Classify(context.Background(), "q", []ProviderProfile{{ProviderID: "command", Type: "command", Description: "d"}})
 	require.ErrorContains(t, err, "daemon down")
 }
 

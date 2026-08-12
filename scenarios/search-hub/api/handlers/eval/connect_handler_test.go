@@ -12,9 +12,11 @@ import (
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	evalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval/eval_v1connect"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 
 	handler "search-hub/handlers/eval"
 	internaleval "search-hub/internal/eval"
+	internalregistry "search-hub/internal/registry"
 )
 
 // fakeStore is a hand-written eval.Store fake. The real persistence path is
@@ -55,6 +57,14 @@ func (f *fakeStore) GetSuite(_ context.Context, id string) (*evalv1.EvalSuite, e
 		return s, nil
 	}
 	return nil, internaleval.ErrSuiteNotFound{SuiteID: id}
+}
+
+func (f *fakeStore) DeleteSuite(_ context.Context, id string) error {
+	if _, ok := f.suites[id]; !ok {
+		return internaleval.ErrSuiteNotFound{SuiteID: id}
+	}
+	delete(f.suites, id)
+	return nil
 }
 
 func (f *fakeStore) AppendRun(_ context.Context, run *evalv1.EvalRun) error {
@@ -109,6 +119,39 @@ func newClient(t *testing.T, store internaleval.Store, runner handler.Runner) ev
 	return evalconnect.NewEvalServiceClient(server.Client(), server.URL)
 }
 
+func newOrphanClient(t *testing.T, store internaleval.Store, registry *fakeRegistry) evalconnect.EvalServiceClient {
+	t.Helper()
+	logger, _ := connectxtest.NewLogger(t)
+	path, h := evalconnect.NewEvalServiceHandler(handler.NewConnectHandler(handler.Deps{Store: store, Registry: registry, Logger: logger}))
+	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: h})
+	return evalconnect.NewEvalServiceClient(server.Client(), server.URL)
+}
+
+type fakeRegistry struct {
+	providers map[string]*registryv1.ProviderDescriptor
+}
+
+func (f *fakeRegistry) Upsert(context.Context, *registryv1.ProviderDescriptor, string) (bool, string, error) {
+	return false, "", nil
+}
+
+func (f *fakeRegistry) List(context.Context, internalregistry.ListFilter) ([]*registryv1.ProviderDescriptor, error) {
+	out := make([]*registryv1.ProviderDescriptor, 0, len(f.providers))
+	for _, provider := range f.providers {
+		out = append(out, provider)
+	}
+	return out, nil
+}
+
+func (f *fakeRegistry) Get(_ context.Context, id string) (*registryv1.ProviderDescriptor, error) {
+	if provider, ok := f.providers[id]; ok {
+		return provider, nil
+	}
+	return nil, internalregistry.ErrProviderNotFound{ProviderID: id}
+}
+func (f *fakeRegistry) Token(context.Context, string) (string, error) { return "", nil }
+func (f *fakeRegistry) Delete(context.Context, string) (bool, error)  { return false, nil }
+
 func validSuite() *evalv1.EvalSuite {
 	return &evalv1.EvalSuite{
 		SuiteId:    "cli-health.commands.primary",
@@ -126,6 +169,25 @@ func TestRegisterSuiteCreated(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, resp.Msg.GetCreated())
 	require.Equal(t, "cli-health.commands.primary", resp.Msg.GetSuite().GetSuiteId())
+}
+
+func TestReapOrphanSuitesRequiresExplicitConfirmation(t *testing.T) {
+	store := newFakeStore()
+	suite := validSuite()
+	store.suites[suite.GetSuiteId()] = suite
+	registry := &fakeRegistry{providers: map[string]*registryv1.ProviderDescriptor{}}
+	client := newOrphanClient(t, store, registry)
+
+	dryRun, err := client.ReapOrphanSuites(context.Background(), connect.NewRequest(&evalv1.ReapOrphanSuitesRequest{}))
+	require.NoError(t, err)
+	require.Len(t, dryRun.Msg.GetOrphanSuites(), 1)
+	require.Empty(t, dryRun.Msg.GetReapedSuiteIds())
+	require.Contains(t, store.suites, suite.GetSuiteId())
+
+	confirmed, err := client.ReapOrphanSuites(context.Background(), connect.NewRequest(&evalv1.ReapOrphanSuitesRequest{Confirm: true}))
+	require.NoError(t, err)
+	require.Equal(t, []string{suite.GetSuiteId()}, confirmed.Msg.GetReapedSuiteIds())
+	require.NotContains(t, store.suites, suite.GetSuiteId())
 }
 
 func TestRegisterSuiteInvalidArgument(t *testing.T) {

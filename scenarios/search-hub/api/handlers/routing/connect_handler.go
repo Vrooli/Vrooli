@@ -18,6 +18,7 @@ import (
 type Querier interface {
 	Query(ctx context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error)
 	Status(ctx context.Context) (*routingv1.StatusResponse, error)
+	RepromoteProvider(ctx context.Context, providerID string) error
 }
 
 // Deps wires the seams the routing Connect handler needs.
@@ -45,6 +46,7 @@ var _ = func() any {
 	type routingServiceHandler interface {
 		Query(context.Context, *connect.Request[routingv1.QueryRequest]) (*connect.Response[routingv1.QueryResponse], error)
 		Status(context.Context, *connect.Request[routingv1.StatusRequest]) (*connect.Response[routingv1.StatusResponse], error)
+		Repromote(context.Context, *connect.Request[routingv1.RepromoteRequest]) (*connect.Response[routingv1.RepromoteResponse], error)
 	}
 	var _ routingServiceHandler = (*connectHandler)(nil)
 	return nil
@@ -60,6 +62,21 @@ func (h *connectHandler) Query(ctx context.Context, req *connect.Request[routing
 		return nil, connectErr
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) Repromote(ctx context.Context, req *connect.Request[routingv1.RepromoteRequest]) (*connect.Response[routingv1.RepromoteResponse], error) {
+	if err := h.deps.Router.RepromoteProvider(ctx, req.Msg.GetProviderId()); err != nil {
+		connectErr := toConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("routing.Repromote(%q): %v", req.Msg.GetProviderId(), err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&routingv1.RepromoteResponse{
+		ProviderId: req.Msg.GetProviderId(),
+		Reset_:     true,
+		Message:    "graded-empty demotion evidence cleared; automatic routing may probe the provider",
+	}), nil
 }
 
 // Status reports federation health (Phase 7): per-provider reachability plus

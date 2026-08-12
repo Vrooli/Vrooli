@@ -50,8 +50,8 @@ Or check the URL directly:
 vrooli scenario port search-hub UI_PORT
 ```
 
-You should see the example UI rendering live `/health` data and a
-notes pane backed by the local SQLite store.
+You should see the Search Hub operator console rendering live health,
+federation, query, and evaluation surfaces backed by the local API.
 
 ## 4 — Talk to the API
 
@@ -60,8 +60,8 @@ automatically):
 
 ```bash
 search-hub status
-search-hub notes list
-search-hub notes create --title "First note" --body "Hello"
+search-hub providers list
+search-hub query "what does the storage-manager scenario do" --explain
 ```
 
 Or directly via HTTP:
@@ -69,9 +69,7 @@ Or directly via HTTP:
 ```bash
 API_PORT=$(vrooli scenario port search-hub API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.search_hub.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
+curl -s "http://localhost:${API_PORT}/health"
 ```
 
 ## 5 — Run the tests

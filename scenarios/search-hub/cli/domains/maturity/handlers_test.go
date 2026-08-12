@@ -67,8 +67,8 @@ func TestScanReportsMixedMaturityAndGroupsFindings(t *testing.T) {
 	defer restore()
 
 	ctx, out := scanContext(root, true)
-	if err := newHandlers(nil).scan(ctx); err != nil {
-		t.Fatalf("scan: %v", err)
+	if err := newHandlers(nil).scan(ctx); err == nil || !strings.Contains(err.Error(), "1 blocking finding") {
+		t.Fatalf("scan error = %v, want blocking gate", err)
 	}
 
 	var report scanReport
@@ -121,6 +121,76 @@ func TestScanKeepsAdvisoryDebtSeparateFromBlockingMaturity(t *testing.T) {
 	result := findResult(t, report, "advisory")
 	if !result.Findings[0].Advisory || result.Findings[0].Gating {
 		t.Fatalf("finding advisory/gating = %v/%v, want true/false", result.Findings[0].Advisory, result.Findings[0].Gating)
+	}
+}
+
+func TestScanReconcilesContradictoryAssessmentRollups(t *testing.T) {
+	root := makeRepo(t)
+	writeSearchDescriptor(t, root, "contradictory")
+	client := &fakeValidationClient{responses: map[string]*scenariovalidationv1.ValidateScenarioResponse{
+		"contradictory": {
+			Scenario: "contradictory",
+			Status:   scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+			Assessment: &commonv1.MaturityAssessment{
+				Scenario: "contradictory",
+				Local: &commonv1.LocalMaturityAssessment{
+					BlockingFindingCodes: []string{"SEARCH_STATUS_ENDPOINT_MISSING"},
+				},
+				Findings: []*commonv1.AssessmentFinding{{
+					Code:     "SEARCH_STATUS_ENDPOINT_MISSING",
+					Severity: "SEVERITY_WARNING",
+					Maturity: &commonv1.FindingMaturity{CleanRequirement: commonv1.CleanRequirement_CLEAN_REQUIREMENT_ADVISORY},
+				}},
+			},
+		},
+	}}
+	restore := replaceValidationClient(client)
+	defer restore()
+
+	ctx, out := scanContext(root, true)
+	if err := newHandlers(nil).scan(ctx); err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	var report scanReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal scan JSON: %v\n%s", err, out.String())
+	}
+	result := findResult(t, report, "contradictory")
+	if result.Status != "passed" {
+		t.Fatalf("status = %q, want passed after advisory blocker removal", result.Status)
+	}
+	if len(result.BlockingFindingCodes) != 0 {
+		t.Fatalf("blocking codes = %#v, want none", result.BlockingFindingCodes)
+	}
+	if len(result.AdvisoryFindingCodes) != 1 || result.AdvisoryFindingCodes[0] != "SEARCH_STATUS_ENDPOINT_MISSING" {
+		t.Fatalf("advisory codes = %#v, want endpoint finding", result.AdvisoryFindingCodes)
+	}
+}
+
+func TestScanNeverReportsPassedWithARealBlocker(t *testing.T) {
+	root := makeRepo(t)
+	writeSearchDescriptor(t, root, "blocked-status")
+	client := &fakeValidationClient{responses: map[string]*scenariovalidationv1.ValidateScenarioResponse{
+		"blocked-status": {
+			Scenario:   "blocked-status",
+			Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+			Assessment: findingAssessment("blocked-status", "SEARCH_EVAL_CORPUS_MISSING", "SEVERITY_ERROR", commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED),
+		},
+	}}
+	restore := replaceValidationClient(client)
+	defer restore()
+
+	ctx, out := scanContext(root, true)
+	if err := newHandlers(nil).scan(ctx); err == nil {
+		t.Fatal("scan succeeded with a blocking finding")
+	}
+	var report scanReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal scan JSON: %v\n%s", err, out.String())
+	}
+	result := findResult(t, report, "blocked-status")
+	if result.Status != "failed" || len(result.BlockingFindingCodes) != 1 {
+		t.Fatalf("result = %#v, want failed with one blocker", result)
 	}
 }
 
@@ -195,8 +265,8 @@ func TestHumanScanOutputIncludesFindingsAndNextAction(t *testing.T) {
 	defer restore()
 
 	ctx, out := scanContext(root, false)
-	if err := newHandlers(nil).scan(ctx); err != nil {
-		t.Fatalf("scan: %v", err)
+	if err := newHandlers(nil).scan(ctx); err == nil || !strings.Contains(err.Error(), "1 blocking finding") {
+		t.Fatalf("scan error = %v, want blocking gate", err)
 	}
 	got := out.String()
 	for _, want := range []string{"Search maturity scan", "blocked", "SEARCH_EVAL_CORPUS_MISSING", "Resolve blocking"} {
@@ -439,8 +509,8 @@ func TestScanFullModeSurfacesEvidenceAndRepairCommands(t *testing.T) {
 	defer restore()
 
 	ctx, out := scanContext(root, true)
-	if err := newHandlers(nil).scan(ctx); err != nil {
-		t.Fatalf("scan: %v", err)
+	if err := newHandlers(nil).scan(ctx); err == nil || !strings.Contains(err.Error(), "1 blocking finding") {
+		t.Fatalf("scan error = %v, want blocking gate", err)
 	}
 	var report scanReport
 	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
@@ -596,8 +666,8 @@ func TestScanDiscoversCapabilityOnlyScenarioAndFlagsConfigMissing(t *testing.T) 
 	defer restore()
 
 	ctx, out := scanContext(root, true)
-	if err := newHandlers(nil).scan(ctx); err != nil {
-		t.Fatalf("scan: %v", err)
+	if err := newHandlers(nil).scan(ctx); err == nil || !strings.Contains(err.Error(), "1 blocking finding") {
+		t.Fatalf("scan error = %v, want blocking gate", err)
 	}
 	var report scanReport
 	if err := json.Unmarshal(out.Bytes(), &report); err != nil {

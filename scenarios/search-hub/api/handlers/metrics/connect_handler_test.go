@@ -131,3 +131,19 @@ func TestInsightsStoreErrorIsOpaque(t *testing.T) {
 	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
 	require.NotContains(t, err.Error(), "secret")
 }
+
+func TestHygieneReportsRetirementAndConcentration(t *testing.T) {
+	providers := []*metricsv1.ProviderUtilization{
+		{ProviderId: "a.one", ProviderGroup: "a", TimesRouted: 100, TotalHits: 0},
+		{ProviderId: "a.two", ProviderGroup: "a", TimesRouted: 2, TotalHits: 4},
+		{ProviderId: "a.three", ProviderGroup: "a", TimesRouted: 4, TotalHits: 1},
+		{ProviderId: "b.one", ProviderGroup: "b", TimesRouted: 100, TotalHits: 0},
+	}
+	retire, groups := handler.HygieneReports(providers)
+	if len(retire) != 2 || retire[0].GetProviderId() != "a.one" || retire[1].GetProviderId() != "b.one" {
+		t.Fatalf("retirement candidates = %#v", retire)
+	}
+	if len(groups) != 1 || groups[0].GetProviderGroup() != "a" || groups[0].GetActiveLeaves() != 3 {
+		t.Fatalf("group advisories = %#v", groups)
+	}
+}

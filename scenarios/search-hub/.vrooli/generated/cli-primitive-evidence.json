@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "search-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "18418238e8fe334f00cbe0222aeb60356e814dbb1bd08888707df39972167535",
+  "manifest_hash": "4c5a5ff7d8c081f720322cec22f5ed69f30ab4c0387da046fed7bac5f95df1c5",
   "commands": [
     {
       "path": "evals compare",
@@ -35,6 +35,14 @@
       "group": "evals",
       "command": "promote",
       "binding": "EvalService.PromoteCases",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals reap-orphans",
+      "group": "evals",
+      "command": "reap-orphans",
+      "binding": "EvalService.ReapOrphanSuites",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },
@@ -93,6 +101,14 @@
       "binding": "EvalService.ValidateCorpus",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "federation repromote",
+      "group": "federation",
+      "command": "repromote",
+      "binding": "RoutingService.Repromote",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "federation status",

@@ -3,6 +3,7 @@ package routing
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -39,9 +40,11 @@ func TestSharedRerankerMapsHitsToCandidatesAndAppliesScores(t *testing.T) {
 	shared := &stubSharedReranker{
 		name:      "cross",
 		available: true,
-		scores: []aisearch.RerankScore{
-			{ID: "doc-b", Score: 0.91},
-			{ID: "doc-a", Score: 0.20},
+		onRerank: func(s *stubSharedReranker) {
+			s.scores = []aisearch.RerankScore{
+				{ID: s.got[1].ID, Score: 0.91},
+				{ID: s.got[0].ID, Score: 0.20},
+			}
 		},
 	}
 	rr := NewSharedReranker(shared)
@@ -54,24 +57,46 @@ func TestSharedRerankerMapsHitsToCandidatesAndAppliesScores(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, shared.called)
 	require.Equal(t, "restart api", shared.gotQuery)
-	require.Equal(t, []aisearch.RerankCandidate{
-		{ID: "doc-a", Text: "type: doc\ntitle: Restart service\npath: docs/restart.md\nsnippet: Use vrooli scenario restart"},
-		{ID: "doc-b", Text: "type: record\ntitle: API restart fixed\npath: records/api\nsnippet: Prior work record"},
-	}, shared.got)
+	require.Equal(t, []string{"doc-a", "doc-b"}, []string{shared.got[0].ID[strings.LastIndex(shared.got[0].ID, ":")+1:], shared.got[1].ID[strings.LastIndex(shared.got[1].ID, ":")+1:]})
+	require.NotEqual(t, shared.got[0].ID, shared.got[1].ID, "candidate keys must remain unique")
 	require.Equal(t, []string{"doc-b", "doc-a"}, ids(ranked))
 	require.InDelta(t, 0.91, ranked[0].GetRerankScore(), 1e-9)
+}
+
+func TestSharedRerankerScoresDuplicateIDsPerCandidate(t *testing.T) {
+	shared := &stubSharedReranker{
+		name:      "cross",
+		available: true,
+		onRerank: func(s *stubSharedReranker) {
+			s.scores = []aisearch.RerankScore{
+				{ID: s.got[0].ID, Score: 0.20},
+				{ID: s.got[1].ID, Score: 0.80},
+			}
+		},
+	}
+	rr := NewSharedReranker(shared)
+	ranked, err := rr.Rerank(context.Background(), "q", []*routingv1.SearchHit{
+		{Id: "same-doc", Path: "docs/flows.md", Snippet: "first passage", Score: 0.9},
+		{Id: "same-doc", Path: "docs/flows.md", Snippet: "second passage", Score: 0.8},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, ranked, 2)
+	require.Equal(t, "second passage", ranked[0].GetSnippet())
+	require.InDelta(t, 0.80, ranked[0].GetRerankScore(), 1e-9)
+	require.InDelta(t, 0.20, ranked[1].GetRerankScore(), 1e-9)
 }
 
 func TestSharedRerankerChainPrefersCrossEncoder(t *testing.T) {
 	cross := &stubSharedReranker{
 		name:      "cross-encoder:test",
 		available: true,
-		scores:    []aisearch.RerankScore{{ID: "a", Score: 0.9}},
+		onRerank:  scoreCandidate("a", 0.9),
 	}
 	llm := &stubSharedReranker{
 		name:      "llm:test",
 		available: true,
-		scores:    []aisearch.RerankScore{{ID: "b", Score: 0.9}},
+		onRerank:  scoreCandidate("b", 0.9),
 	}
 	rr := NewSharedReranker(aisearch.NewRerankerChain(cross, llm))
 
@@ -89,7 +114,7 @@ func TestSharedRerankerChainFallsBackToLLM(t *testing.T) {
 	llm := &stubSharedReranker{
 		name:      "llm:test",
 		available: true,
-		scores:    []aisearch.RerankScore{{ID: "b", Score: 0.9}},
+		onRerank:  scoreCandidate("b", 0.9),
 	}
 	rr := NewSharedReranker(aisearch.NewRerankerChain(cross, llm))
 
@@ -112,7 +137,7 @@ func TestSharedRerankerRefreshesCachedPrimaryFailure(t *testing.T) {
 	llm := &stubSharedReranker{
 		name:      "llm:test",
 		available: true,
-		scores:    []aisearch.RerankScore{{ID: "b", Score: 0.9}},
+		onRerank:  scoreCandidate("b", 0.9),
 	}
 	rr := NewSharedReranker(aisearch.NewRerankerChain(cross, llm))
 
@@ -129,10 +154,12 @@ func TestSharedRerankerSortsByRerankThenProviderScore(t *testing.T) {
 	shared := &stubSharedReranker{
 		name:      "cross",
 		available: true,
-		scores: []aisearch.RerankScore{
-			{ID: "low", Score: 0.4},
-			{ID: "high", Score: 0.4},
-			{ID: "top", Score: 0.9},
+		onRerank: func(s *stubSharedReranker) {
+			s.scores = []aisearch.RerankScore{
+				{ID: s.got[0].ID, Score: 0.4},
+				{ID: s.got[1].ID, Score: 0.4},
+				{ID: s.got[2].ID, Score: 0.9},
+			}
 		},
 	}
 	rr := NewSharedReranker(shared)
@@ -145,6 +172,18 @@ func TestSharedRerankerSortsByRerankThenProviderScore(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, []string{"top", "high", "low"}, ids(ranked))
+}
+
+func scoreCandidate(id string, score float64) func(*stubSharedReranker) {
+	return func(s *stubSharedReranker) {
+		for _, candidate := range s.got {
+			if strings.HasSuffix(candidate.ID, ":"+id) {
+				s.scores = []aisearch.RerankScore{{ID: candidate.ID, Score: score}}
+				return
+			}
+		}
+		panic("candidate not found: " + id)
+	}
 }
 
 func TestSharedRerankerEmptyChainScoresBecomeUnavailableError(t *testing.T) {

@@ -30,6 +30,21 @@ func TestQueryTimeArms_FullFactorialPrunedAndDeduped(t *testing.T) {
 	}
 }
 
+func TestQueryTimeArms_HybridEnumeratesFusionStrategies(t *testing.T) {
+	inc := aisearch.TuningConfig{Engine: aisearch.EngineHybrid}.WithDefaults()
+	ars := queryTimeArms(inc)
+	if len(ars) != 5 {
+		t.Fatalf("hybrid query-time arms = %d, want 5; got %v", len(ars), tags(ars))
+	}
+	seen := map[string]bool{}
+	for _, arm := range ars {
+		seen[arm.HybridFusion] = true
+	}
+	if !seen[aisearch.HybridFusionRRF] || !seen[aisearch.HybridFusionDBSF] {
+		t.Fatalf("hybrid query-time arms omitted a fusion strategy: %v", seen)
+	}
+}
+
 func TestIndexTimeArms_CoordinateAscentAndDropped(t *testing.T) {
 	// Incumbent: dense, no task prefix. Coordinate-ascent moves ONE index-time
 	// factor at a time → {hybrid}, {prefix=true} = 2 arms. The full index-time
@@ -65,6 +80,7 @@ func TestQueryTimeOverrides_ProjectsAllFields(t *testing.T) {
 		RerankBlend:     true,
 		RerankShortlist: 42,
 		Floor:           aisearch.FloorTuning{MaxGap: 0.1, HardFloor: 0.2},
+		HybridFusion:    aisearch.HybridFusionDBSF,
 	}
 	ov := queryTimeOverrides(t0)
 	if ov.RerankEnabled == nil || !*ov.RerankEnabled {
@@ -81,6 +97,9 @@ func TestQueryTimeOverrides_ProjectsAllFields(t *testing.T) {
 	}
 	if ov.FloorHardFloor == nil || *ov.FloorHardFloor != 0.2 {
 		t.Fatalf("floor_hard_floor not projected")
+	}
+	if ov.HybridFusion == nil || *ov.HybridFusion != aisearch.HybridFusionDBSF {
+		t.Fatalf("hybrid_fusion not projected")
 	}
 }
 

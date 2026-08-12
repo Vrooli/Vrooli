@@ -21,7 +21,7 @@ RPC bindings, governance metadata) is declared in
 `cliapp.LoadFromManifest`, which:
 
 - builds each domain's `SubcommandGroup` from its manifest group
-- wires each command's `binding.method` (e.g. `NotesService.ListNotes`)
+- wires each command's `binding.method` (e.g. `RegistryService.ListProviders`)
   to a handler registered in the domain's `register.go` bindings map
 - fails loudly on missing handlers, dead handlers, or unknown groups
 
@@ -36,11 +36,9 @@ The manifest's `governance` block (`effect`, `run_eligible`,
 to derive action certainty automatically; scenarios that adopt the
 manifest don't need hand-classified action-safety lists.
 
-`binding.kind` is currently `connect-rpc` only. REST-exception
-commands (the canonical example is `notes attach`, which uses
-multipart upload) are appended to the loaded group outside the manifest
-path in the domain's `register.go` and documented in the manifest's
-`omitted[]` array.
+`binding.kind` is `connect-rpc` for API-backed commands. The local `space`
+command is registered by `spacecli` because it reads the owner-controlled
+coverage denominator directly from `docs/spaces/answer-space.md`.
 
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
@@ -103,8 +101,7 @@ Register (upsert) a provider descriptor. Calls the generated Connect-RPC
 contract**: `Result → What Changed → Next Command`.
 
 ```bash
-# Read the descriptor from a file (canonical seeds live under
-# api/internal/providers/seeds/):
+# Read the descriptor from a file (for example, a provider-owned fixture):
 search-hub providers register --descriptor @cli-health.commands.json
 
 # Or pass inline JSON:
@@ -173,6 +170,26 @@ cause was a transport error, its validation deadline, or fleet-deadline
 exhaustion. `--retries` is the number of additional attempts, still constrained
 by the fleet deadline.
 
+### Eval tiers and governance
+
+Registered suites can be run through the provider-direct tier or the federated
+tier. Both tiers use the same provider-owned corpus; the federated tier submits
+through the public router and records whether the suite's provider was actually
+routed. A provider's `search.json` remains the corpus source of truth, so
+mutating operations require an explicit confirmation path and a declared
+provider control endpoint. Preview is the default; orphan cleanup is dry-run
+unless `--confirm` is supplied.
+
+The scheduler discovers suites from the registry and records its decisions and
+backoff state durably. It does not contain provider identifiers or provider-
+specific policy. A new registrant therefore requires descriptor and corpus data,
+not a Search Hub source change.
+
+`maturity scan --json` exits non-zero when blocking findings remain, even though
+it returns the complete per-scenario report. Use `finding_class`, `eval_evidence`,
+and `repair_commands` to distinguish static contract debt from live execution
+evidence that needs an owner.
+
 ### `search-hub maturity fix <scenario> [--apply] [--rule <code,…>] [--json]`
 
 Previews (default) or applies (`--apply`) conservative **mechanical** descriptor
@@ -200,8 +217,22 @@ helpers).
 
 ## Adding a new command
 
-For a new domain, copy the notes command group first, then replace it
-once your real domain is green.
+## Search Maturity Ladder
+
+Search maturity uses four capability ladders: descriptor, governance, eval
+performance, and operability. `L0` means evidence is unavailable or a
+required contract is absent; an empty evidence set never defaults to the top
+rung. Higher rungs require progressively stronger declared and observed
+evidence, and required findings keep a capability below the rung they block.
+
+`maturity scan --json` reports each scenario's current and next level,
+blocking/advisory finding codes, provider availability, and eval evidence. The
+report invariant is strict: advisory findings are not blockers, and a scenario
+with a blocking finding is never reported as passed. Use `maturity scan --fast`
+only for inventory; full validation is the certification path.
+
+For a new domain, copy the smallest existing Search Hub command group and
+keep its handlers as thin typed adapters over the API contract.
 
 For a command inside an existing domain:
 
@@ -245,11 +276,10 @@ For a command inside an existing domain:
 
 ## Command structure principles
 
-- **Subcommand groups** (`notes list`, `notes create`) over flat
-  verbs (`list-notes`, `create-note`). Discoverability via `--help`
-  is the goal.
-- **Positional for required, flags for optional.** `notes get <id>`
-  not `notes get --id <id>`.
+- **Subcommand groups** (`providers list`, `evals run`) over flat
+  verbs. Discoverability via `--help` is the goal.
+- **Positional for required, flags for optional.** Use a positional
+  identifier for resource lookup, not a redundant `--id` flag.
 - **One command per API endpoint.** If you find yourself making two
   endpoint calls, the API is missing a use-case.
 - **Error messages must be actionable.** "API unreachable" is bad;

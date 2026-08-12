@@ -24,6 +24,9 @@ func Normalize(d *registryv1.ProviderDescriptor) {
 	if d.Scope == registryv1.Scope_SCOPE_UNSPECIFIED {
 		d.Scope = registryv1.Scope_SCOPE_PROJECT
 	}
+	if strings.TrimSpace(d.Lifecycle) == "" {
+		d.Lifecycle = "production"
+	}
 }
 
 // Validate enforces the descriptor invariants the router depends on. It assumes
@@ -59,6 +62,11 @@ func Validate(d *registryv1.ProviderDescriptor) error {
 	}
 	if d.Bucket == registryv1.Bucket_BUCKET_UNSPECIFIED {
 		return ErrInvalidDescriptor{Field: "bucket", Reason: "must be one of DO/REUSE/KNOW/STATE"}
+	}
+	switch strings.TrimSpace(d.Lifecycle) {
+	case "production", "fixture", "experimental":
+	default:
+		return ErrInvalidDescriptor{Field: "lifecycle", Reason: "must be production, fixture, or experimental"}
 	}
 
 	switch d.State {
