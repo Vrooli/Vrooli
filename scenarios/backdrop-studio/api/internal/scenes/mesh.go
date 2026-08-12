@@ -224,22 +224,34 @@ func meshPalette(index int) [][3]float64 {
 		// Aurora: the dark-ground hero. Near-black navy through teal and
 		// violet to a cold white.
 		return [][3]float64{
-			{8, 12, 26}, {18, 74, 92}, {36, 122, 138},
-			{92, 78, 168}, {186, 138, 204}, {236, 240, 250},
+			{8, 12, 26},
+			{18, 74, 92},
+			{36, 122, 138},
+			{92, 78, 168},
+			{186, 138, 204},
+			{236, 240, 250},
 		}
 	case 2:
 		// Solar: plum through magenta and orange to gold. The warmest of the
 		// three and the one that survives a heavy posterize.
 		return [][3]float64{
-			{26, 8, 34}, {112, 26, 86}, {198, 54, 84},
-			{236, 118, 52}, {246, 186, 88}, {252, 244, 220},
+			{26, 8, 34},
+			{112, 26, 86},
+			{198, 54, 84},
+			{236, 118, 52},
+			{246, 186, 88},
+			{252, 244, 220},
 		}
 	default:
 		// Ember: scorched umber through burnt orange to a paper cream. The
 		// warm-on-cream register of the reference set.
 		return [][3]float64{
-			{22, 12, 8}, {124, 44, 16}, {206, 88, 28},
-			{238, 146, 62}, {246, 208, 156}, {250, 244, 234},
+			{22, 12, 8},
+			{124, 44, 16},
+			{206, 88, 28},
+			{238, 146, 62},
+			{246, 208, 156},
+			{250, 244, 234},
 		}
 	}
 }

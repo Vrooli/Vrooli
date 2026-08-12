@@ -122,11 +122,11 @@ type fakeGenerator struct {
 // model returns and what the render path now measures. The pixel content is
 // derived from the conditioning bytes so a test can still tell a conditioned
 // render from an unconditioned one.
-func (f *fakeGenerator) Generate(_ context.Context, req imageengine.GenerationRequest) ([]byte, error) {
+func (f *fakeGenerator) Generate(_ context.Context, req imageengine.GenerationRequest) (imageengine.GenerationResult, error) {
 	f.calls++
 	f.last = req
 	if req.Width <= 0 || req.Height <= 0 {
-		return nil, fmt.Errorf("fake generator: geometry is required, got %dx%d", req.Width, req.Height)
+		return imageengine.GenerationResult{}, fmt.Errorf("fake generator: geometry is required, got %dx%d", req.Width, req.Height)
 	}
 	tint := uint8(len(req.Conditioning) % 251)
 	img := image.NewNRGBA(image.Rect(0, 0, req.Width, req.Height))
@@ -137,9 +137,11 @@ func (f *fakeGenerator) Generate(_ context.Context, req imageengine.GenerationRe
 	}
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, img); err != nil {
-		return nil, err
+		return imageengine.GenerationResult{}, err
 	}
-	return buf.Bytes(), nil
+	// A model id, because a real router always chooses one and the release
+	// path refuses a model-backed candidate that cannot name its model.
+	return imageengine.GenerationResult{PNG: buf.Bytes(), ModelID: "fake/local-gpu", Tier: "local-gpu"}, nil
 }
 
 func TestSubmitIsReproducibleAndRequiresSelection(t *testing.T) {

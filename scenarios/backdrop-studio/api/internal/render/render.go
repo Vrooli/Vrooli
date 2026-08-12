@@ -14,10 +14,12 @@ import (
 	// backend really did return JPEG, and the precise message is the finding.
 	_ "image/jpeg"
 	_ "image/png"
+	"strconv"
 	"sync"
 
 	"backdrop-studio/internal/catalog"
 	"backdrop-studio/internal/imageengine"
+	"backdrop-studio/internal/release"
 	"backdrop-studio/internal/scaffold"
 	"backdrop-studio/internal/scenes"
 )
@@ -33,6 +35,15 @@ type Candidate struct {
 	// QualityJSON is the perceptual verdict this candidate passed, carried so an
 	// operator can see the margin rather than only the pass.
 	QualityJSON string
+	// Disclosure facts, recorded at the only moment they exist.
+	//
+	// A model-backed candidate cannot be released without naming the model that
+	// drew it, and the model is chosen by image-tools' router at submit time —
+	// so a release path that asked "which model made this?" later would have
+	// nowhere to look. Negative and Conditioner are here for the same reason:
+	// they are inputs to a reproduction, and a disclosure that cannot be
+	// reproduced is a label rather than a record.
+	Model, Tier, Negative, Conditioner string
 }
 
 type Job struct {
@@ -177,6 +188,8 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 		}
 		conditioningSubmitted := false
 		generationNative := ""
+		generationModel := ""
+		generationTier := ""
 		prompt := ""
 		if style.Generation != nil {
 			prompt = style.Generation.PromptTemplate
@@ -216,12 +229,18 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 			if genErr != nil {
 				return Job{}, fmt.Errorf("render: %s inference capability: %w", style.Strategy, genErr)
 			}
-			if len(generated) == 0 {
+			if len(generated.PNG) == 0 {
 				return Job{}, fmt.Errorf("render: %s inference returned an empty image", style.Strategy)
 			}
+			// The model image-tools actually selected, not one this scenario
+			// asked for. It is carried to the candidate because a synthetic
+			// image released without naming its model cannot be disclosed
+			// honestly, and this is the only moment the fact exists.
+			generationModel = generated.ModelID
+			generationTier = generated.Tier
 			// A model answers in whatever format it likes; the candidate field
 			// is named image_png and every consumer decodes it as one.
-			normalized, convErr := s.normalizePNG(ctx, generated)
+			normalized, convErr := s.normalizePNG(ctx, generated.PNG)
 			if convErr != nil {
 				return Job{}, fmt.Errorf("render: normalize generated source: %w", convErr)
 			}
@@ -277,7 +296,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 		if !verdict.Passed {
 			return Job{}, &QualityRejectedError{StyleID: style.ID, Seed: candidateSeed, Verdict: verdict}
 		}
-		job.Candidates = append(job.Candidates, Candidate{ID: id(jobID, candidateSeed, i), JobID: jobID, Strategy: style.Strategy, ExecutionPath: job.ExecutionPath, PNG: treated, Width: outW, Height: outH, Seed: candidateSeed, TreatmentApplied: len(style.Treatments) > 0, ConditioningSubmitted: conditioningSubmitted, DisclosureRequired: style.Strategy == "guided" || style.Strategy == "synthesized", Prompt: prompt, ProvenanceJSON: provenance(style, req.Surface, candidateSeed, job.ExecutionPath, generationNative, outW, outH), QualityJSON: qualityJSON(verdict)})
+		job.Candidates = append(job.Candidates, Candidate{ID: id(jobID, candidateSeed, i), JobID: jobID, Strategy: style.Strategy, ExecutionPath: job.ExecutionPath, PNG: treated, Width: outW, Height: outH, Seed: candidateSeed, TreatmentApplied: len(style.Treatments) > 0, ConditioningSubmitted: conditioningSubmitted, DisclosureRequired: style.Strategy == "guided" || style.Strategy == "synthesized", Prompt: prompt, Model: generationModel, Tier: generationTier, Negative: generationNegative(style), Conditioner: conditioner, ProvenanceJSON: provenance(style, req.Surface, candidateSeed, job.ExecutionPath, generationNative, generationModel, generationTier, outW, outH), QualityJSON: qualityJSON(verdict)})
 	}
 	s.mu.Lock()
 	s.jobs[jobID] = job
@@ -346,7 +365,7 @@ func quantise(v int) int {
 // backdrop can be reproduced and audited rather than merely trusted. For a
 // model-backed candidate it names both sizes: the geometry the model drew and
 // the geometry that shipped.
-func provenance(style catalog.Style, surface Surface, seed int64, executionPath, generationNative string, width, height int) string {
+func provenance(style catalog.Style, surface Surface, seed int64, executionPath, generationNative, model, tier string, width, height int) string {
 	record := map[string]any{
 		"style_id":       style.ID,
 		"strategy":       style.Strategy,
@@ -358,6 +377,12 @@ func provenance(style catalog.Style, surface Surface, seed int64, executionPath,
 	}
 	if generationNative != "" {
 		record["generation_native_size"] = generationNative
+		if model != "" {
+			record["generation_model"] = model
+		}
+		if tier != "" {
+			record["generation_tier"] = tier
+		}
 		record["generation_steps"] = generationSteps
 		record["generation_cfg_scale"] = generationCFGScale
 		record["generation_quality_policy"] = generationQualityPolicy
@@ -525,4 +550,34 @@ func copyJob(job *Job) Job {
 		out.Candidates[i].PNG = append([]byte(nil), c.PNG...)
 	}
 	return out
+}
+
+// CandidateProvenance resolves one candidate's disclosure facts by id.
+//
+// It satisfies release.ProvenanceSource without this package importing that
+// one: the release path asks "how was this candidate made" and gets the answer
+// from the render that made it, rather than from whoever called the release
+// API. See internal/release/provenance.go for why that distinction matters.
+func (s *Store) CandidateProvenance(candidateID string) (release.Provenance, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, job := range s.jobs {
+		for _, candidate := range job.Candidates {
+			if candidate.ID != candidateID {
+				continue
+			}
+			return release.Provenance{
+				Strategy:    candidate.Strategy,
+				ModelBacked: candidate.DisclosureRequired,
+				Model:       candidate.Model,
+				Tier:        candidate.Tier,
+				Prompt:      candidate.Prompt,
+				Negative:    candidate.Negative,
+				Seed:        strconv.FormatInt(candidate.Seed, 10),
+				Conditioner: candidate.Conditioner,
+				Parameters:  candidate.ProvenanceJSON,
+			}, true
+		}
+	}
+	return release.Provenance{}, false
 }

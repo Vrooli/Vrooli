@@ -25,18 +25,24 @@ type Backdrop struct {
 	ImagePNG                                                []byte
 	AssetStudioRef                                          string
 }
+
+// AssetPublisher hands a released backdrop to the authority that owns
+// provenance and disclosure records. The provenance argument is separate from
+// the request because the request is what the caller asked for and the
+// provenance is what actually happened — see provenance.go.
 type AssetPublisher interface {
-	Publish(context.Context, Request, bool) (string, error)
+	Publish(ctx context.Context, r Request, p Provenance) (string, error)
 }
 type Store struct {
-	mu        sync.RWMutex
-	items     map[string]Backdrop
-	publisher AssetPublisher
+	mu         sync.RWMutex
+	items      map[string]Backdrop
+	publisher  AssetPublisher
+	provenance ProvenanceSource
 }
 
 func NewStore() *Store { return &Store{items: map[string]Backdrop{}} }
-func NewStoreWithPublisher(publisher AssetPublisher) *Store {
-	return &Store{items: map[string]Backdrop{}, publisher: publisher}
+func NewStoreWithPublisher(publisher AssetPublisher, provenance ProvenanceSource) *Store {
+	return &Store{items: map[string]Backdrop{}, publisher: publisher, provenance: provenance}
 }
 
 func (s *Store) Release(r Request) (Backdrop, error) {
@@ -58,11 +64,29 @@ func (s *Store) Release(r Request) (Backdrop, error) {
 	aig := r.Strategy == "guided" || r.Strategy == "synthesized"
 	assetRef := ""
 	if aig {
+		// The refusal below is the behaviour that must survive this capability
+		// landing. When Asset Studio is absent, a model-backed backdrop is not
+		// released at all — it is never quietly downgraded to a procedural
+		// candidate, and its provenance is never invented locally, because both
+		// would produce a synthetic image wearing an honest-looking label.
 		if s.publisher == nil {
-			return Backdrop{}, fmt.Errorf("release: model-backed candidate requires asset-studio publisher capability")
+			return Backdrop{}, fmt.Errorf("release: model-backed candidate requires the asset-studio publisher capability, which is unavailable")
+		}
+		if s.provenance == nil {
+			return Backdrop{}, fmt.Errorf("release: model-backed candidate requires a provenance source, which is unavailable")
+		}
+		p, known := s.provenance.CandidateProvenance(r.CandidateID)
+		if !known {
+			// A candidate this process did not render cannot be disclosed: the
+			// model and prompt exist nowhere else. Refusing is the only honest
+			// answer, and it is a different failure from "asset-studio is down".
+			return Backdrop{}, fmt.Errorf("release: candidate %q has no recorded provenance, so its disclosure cannot be written", r.CandidateID)
+		}
+		if !p.ModelBacked {
+			return Backdrop{}, fmt.Errorf("release: candidate %q is recorded as %s but is being released as model-backed", r.CandidateID, p.Strategy)
 		}
 		var err error
-		assetRef, err = s.publisher.Publish(context.Background(), r, true)
+		assetRef, err = s.publisher.Publish(context.Background(), r, p)
 		if err != nil {
 			return Backdrop{}, fmt.Errorf("release: asset-studio handoff: %w", err)
 		}

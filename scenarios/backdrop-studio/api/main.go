@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -148,7 +149,20 @@ func main() {
 	}
 	imageClient := imageengine.NewClient()
 	renderStore := internalrender.NewStoreWithGenerator(imageClient, imageClient)
-	releaseStore := internalrelease.NewStore()
+	// The release path's asset-studio capability. It resolves lazily so a
+	// scenario that is not running becomes a named missing capability at the
+	// moment of release rather than a startup failure — and so a model-backed
+	// release refuses with that name instead of quietly shipping an
+	// undisclosed synthetic image.
+	assetPublisher := &internalrelease.AssetStudioPublisher{
+		Resolve: func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "asset-studio")
+		},
+	}
+	// The render store is the provenance source: a candidate's model, prompt
+	// and seed are read from the render that produced them, never from the
+	// caller asking for the release.
+	releaseStore := internalrelease.NewStoreWithPublisher(assetPublisher, renderStore)
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
 		log.Fatalf("file storage configuration failed: %v", err)

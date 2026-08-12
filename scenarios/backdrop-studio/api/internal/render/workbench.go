@@ -44,6 +44,82 @@ func ContactSheet(cells []SheetCell, columns int) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// CatalogCell is one style on a catalog contact sheet: the rendered candidate
+// and the line of metadata printed under it.
+type CatalogCell struct {
+	Caption string
+	PNG     []byte
+}
+
+// Catalog sheet layout. The cells are large because the judgement the sheet
+// exists for cannot be made small: every quality failure this scenario has
+// actually shipped — sub-pixel lines, screen moire, speckle — is invisible below
+// roughly a third of delivery resolution. `ContactSheet` above is a different
+// artifact with a different job: it sweeps one style across a parameter grid,
+// where the comparison is between neighbouring cells and the absolute size does
+// not matter.
+const (
+	catalogCellWidth  = 640
+	catalogCellHeight = 320
+	catalogPadding    = 16
+	catalogCaptionH   = 26
+)
+
+// CatalogSheet lays styles out in a grid with a caption under each, so a person
+// can judge the whole catalog in one image.
+//
+// It is here rather than in the test that calls it because it is a view of the
+// catalog, and the studio needs the same view — Phase 10's library page is this
+// layout with links on it.
+func CatalogSheet(cells []CatalogCell, columns int) ([]byte, error) {
+	if len(cells) == 0 || columns <= 0 {
+		return nil, fmt.Errorf("render: catalog sheet requires cells and a positive column count")
+	}
+	rows := (len(cells) + columns - 1) / columns
+	width := columns*(catalogCellWidth+catalogPadding) + catalogPadding
+	height := rows*(catalogCellHeight+catalogCaptionH+catalogPadding) + catalogPadding
+	out := image.NewRGBA(image.Rect(0, 0, width, height))
+	paper := color.RGBA{R: 18, G: 20, B: 26, A: 255}
+	ink := color.RGBA{R: 214, G: 210, B: 198, A: 255}
+	fill(out, out.Bounds(), paper)
+
+	for i, cell := range cells {
+		img, err := png.Decode(bytes.NewReader(cell.PNG))
+		if err != nil {
+			return nil, fmt.Errorf("render: decode catalog cell %d (%s): %w", i, cell.Caption, err)
+		}
+		col, row := i%columns, i/columns
+		x := catalogPadding + col*(catalogCellWidth+catalogPadding)
+		y := catalogPadding + row*(catalogCellHeight+catalogCaptionH+catalogPadding)
+		// Fitted, not filled: a store screenshot is 1080x1920 and a hero is
+		// 1440x720, so cropping every cell to one aspect would hide exactly the
+		// composition decisions a store style is making.
+		drawFitted(out, image.Rect(x, y, x+catalogCellWidth, y+catalogCellHeight), img, paper)
+		drawTextScaled(out, x+2, y+catalogCellHeight+7, cell.Caption, 1, ink)
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, out); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// drawFitted scales an image to fit inside a rectangle without changing its
+// aspect ratio, centring it and filling the remainder with the sheet's ground.
+func drawFitted(dst *image.RGBA, target image.Rectangle, src image.Image, ground color.RGBA) {
+	fill(dst, target, ground)
+	b := src.Bounds()
+	if b.Dx() <= 0 || b.Dy() <= 0 {
+		return
+	}
+	scale := math.Min(float64(target.Dx())/float64(b.Dx()), float64(target.Dy())/float64(b.Dy()))
+	w := int(float64(b.Dx()) * scale)
+	h := int(float64(b.Dy()) * scale)
+	x := target.Min.X + (target.Dx()-w)/2
+	y := target.Min.Y + (target.Dy()-h)/2
+	drawScaled(dst, image.Rect(x, y, x+w, y+h), src)
+}
+
 type PlacementPreview struct {
 	Placement, Viewport string
 	PNG                 []byte

@@ -9,12 +9,15 @@
   at every surface it declares, so the *sizing* half is done. What remains is
   deriving several sizes from one rendered master and rejecting a crop that
   pushes the focal mass into the reserved region.
-- Asset Studio currently exposes metadata/render/release RPCs but no external
-  backdrop byte-ingress RPC. Backdrop Studio therefore owns an injectable
-  publisher seam and refuses model-backed release without it. This keeps
-  provenance and disclosure from being duplicated or fabricated.
-  **Filed 2026-08-12 as `knw-1786507241786326657`** (scenario-qa,
-  `bug-inbox/code-defect/asset-studio-exposes-no-external-byte-ingress-rpc`).
+- ~~Asset Studio exposes no external byte-ingress RPC.~~ **Closed 2026-08-12.**
+  `StudioService.IngestExternalAsset` admits bytes with their producing-scenario
+  provenance, requires no identity record, and refuses a model-backed request
+  that names no model or prompt. Backdrop Studio's publisher seam now calls it
+  instead of refusing. The refusal itself survives and is tested: with
+  asset-studio absent, a model-backed release fails naming the missing
+  capability and produces no fallback asset — and a candidate whose provenance
+  this process did not record is refused too, because its model and prompt exist
+  nowhere else. Filed as `knw-1786507241786326657`; resolved.
 - Tier-3 image treatments remain unbuilt by explicit plan decision: `glitch`,
   `kaleidoscope`, `slit_scan`, `fluted_glass`, `photomosaic`, and `resample`.
 
@@ -43,6 +46,26 @@
 - **`ascii_mosaic` is the only treatment whose cell size is coupled to a
   font.** It blits a 7×13 bitmap face, so `block_size` values far from 7 resample
   the glyph. Legible, but not crisp at extremes.
+- **Six placements have no mockup and silently preview as `full_bleed`.**
+  `render.composePlacement` has cases for `split_panel`, `framed_inset` and
+  `corner_bleed`, and a `default` that everything else falls into — so
+  `device_center`, `caption_above_device`, `caption_below_device`,
+  `caption_only`, `feature_graphic` and `type_mask` all preview as a full-bleed
+  landing page with a headline over it. That is the wrong picture for all six:
+  a store screenshot puts a device in the middle of the frame and a feature
+  graphic has no headline at all.
+
+  The catalog work of 2026-08-12 seeded five styles that declare these
+  placements, and they render correctly *at their surface geometry* — the
+  delivery path takes its size from the surface record and knows nothing about
+  mockups. It is only the preview that is wrong, and it is wrong silently, which
+  is the same class of defect as the subject substitution the procedural lane
+  used to do: the system answers a request it cannot honour with a nearby
+  answer and says nothing.
+
+  This is the baseline for the studio-UX phase, which owns the store-listing
+  mockup. Until then, treat a store or syndication placement preview as
+  decorative rather than as evidence.
 
 ## Open after the 2026-08-12 catalog seeding
 
@@ -240,10 +263,12 @@ one became so.
   Both write paths are covered (`CreateStyle` and `ImportStylePack`). The
   wire-format knowledge lives in `internal/imageengine`, so the catalog asks
   "will the engine take this?" without learning protobuf.
-- **Two seeded styles cannot be released.** `guided-botanical` and
-  `constructivist-figure` are model-backed and blocked on asset-studio byte
-  ingress (`knw-1786507241786326657`). They are seeded deliberately so the lanes
-  have real coverage the moment that lands.
+- ~~Two seeded styles cannot be released.~~ **Unblocked 2026-08-12** by the
+  Asset Studio ingress above; the release path no longer refuses them by
+  design. What still blocks them on this host is generation capacity, which is
+  a different problem with a different answer: local diffusion runs out of
+  device memory at hero aspect, so they are recorded as `SKIP(gpu-capacity)`
+  rather than as passing. See `docs/evidence/catalog/coverage.md`.
 - **Catalog visual evidence is not committed.** The 12 rendered style previews
   produced during seeding came from a throwaway probe and were removed rather
   than shipped, because unreproducible evidence is the defect this repair

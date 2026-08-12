@@ -104,6 +104,32 @@ The generalized conformance verdict accepts an automated measurement without an
 identity version while preserving operator-only identity verdicts. Model-backed
 release paths can therefore record placement fitness through `asset-studio`.
 
+### What this plan added: `StudioService.IngestExternalAsset`
+
+Every other asset in `asset-studio` comes into existence through `CreateRender`,
+which means `asset-studio` produced it. That left a producing scenario two bad
+options — duplicate the disclosure rules locally, or ship model-backed output
+with no disclosure — and Backdrop Studio took a third, refusing to release
+model-backed work at all. Correct, and it meant a working capability shipped
+disabled.
+
+The RPC admits bytes with their producing-scenario provenance and returns an
+asset in `in_review`. Three properties make it usable here:
+
+- **It requires no identity record.** Backdrop Studio binds a scaffold and a
+  palette, not a character. The conditioning field is generic — a scaffold, a
+  reference image set, a trained adapter, or a look — which is what `OT-P0-016`
+  already modelled and this proves.
+- **It refuses unlabelled synthetic media.** A request declaring a model-backed
+  strategy with no model id or no prompt is refused rather than recorded with a
+  gap, because such an image cannot be reproduced or audited.
+- **It is a door into the release path, not around it.** An ingested asset lands
+  in review and runs every check `ReleaseAsset` applies.
+
+The facts on the request come from the *render* that produced the candidate, not
+from whoever called Backdrop Studio's release API — see `SEAMS.md`,
+`release.ProvenanceSource`.
+
 ---
 
 ## `BackdropConsumer` — the inbound surface

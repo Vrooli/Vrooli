@@ -26,7 +26,6 @@ import (
 	"image/color"
 	"image/png"
 	"math"
-	"sort"
 )
 
 // Presets are the scene generators this package can render.
@@ -463,76 +462,6 @@ func drawTerrain(c *canvas, p paramSet, seed int64) {
 		for y := int(top); y < c.h; y++ {
 			g := fbm(float64(x)/(fw*0.01), float64(y)/(fh*0.01), 3, seed+53)
 			c.set(x, y, 6+g*14, 12+g*20, 9+g*14)
-		}
-	}
-}
-
-func drawField(c *canvas, p paramSet, seed int64) {
-	fw, fh := float64(c.w), float64(c.h)
-	focal := p.get("focal_x", 0, 1, 0.5)
-	focalY := p.get("focal_y", 0, 1, 0.46)
-
-	// A non-representational field: layered soft masses over a deep ground,
-	// with a bright core so the tonal range still spans end to end.
-	type blob struct {
-		x, y, r float64
-		col     [3]float64
-	}
-	palette := [][3]float64{
-		{255, 108, 92},
-		{255, 176, 74},
-		{236, 96, 168},
-		{122, 118, 255},
-		{255, 232, 168},
-		{96, 214, 200},
-	}
-	blobs := make([]blob, 0, 22)
-	for i := 0; i < 22; i++ {
-		fi := float64(i)
-		bx := hash2(i, 1, seed)
-		by := hash2(i, 2, seed)
-		br := hash2(i, 3, seed)
-		// pull the mass toward the focal point so the composition has a centre
-		bx = bx*0.72 + focal*0.28
-		by = by*0.72 + focalY*0.28
-		blobs = append(blobs, blob{
-			x: bx * fw, y: by * fh,
-			r:   fh * (0.10 + br*0.38),
-			col: palette[(i+int(fi))%len(palette)],
-		})
-	}
-	sort.SliceStable(blobs, func(a, b int) bool { return blobs[a].r > blobs[b].r })
-
-	for y := 0; y < c.h; y++ {
-		for x := 0; x < c.w; x++ {
-			c.set(x, y, 14, 10, 22)
-		}
-	}
-	for _, b := range blobs {
-		for y := int(b.y - b.r); y <= int(b.y+b.r); y++ {
-			for x := int(b.x - b.r); x <= int(b.x+b.r); x++ {
-				d := math.Hypot(float64(x)-b.x, float64(y)-b.y) / b.r
-				if d >= 1 {
-					continue
-				}
-				a := math.Pow(1-d, 2.2) * 0.72
-				// coherent turbulence breaks the perfect circles
-				a *= 0.65 + 0.7*fbm(float64(x)/(fw*0.05), float64(y)/(fh*0.05), 3, seed+7)
-				c.blend(x, y, b.col[0], b.col[1], b.col[2], a)
-			}
-		}
-	}
-	// a bright core so the field has a white point for ink mapping
-	cx, cy, cr := focal*fw, focalY*fh, fh*0.30
-	for y := int(cy - cr); y <= int(cy+cr); y++ {
-		for x := int(cx - cr); x <= int(cx+cr); x++ {
-			d := math.Hypot(float64(x)-cx, float64(y)-cy) / cr
-			if d < 1 {
-				// Saturate to a solid plateau near the centre rather than falling
-				// off from the very middle, so the field carries a real highlight
-				// area for an ink ramp to map paper into, not a single bright pixel.
-				c.blend(x, y, 255, 248, 236, math.Min(1, math.Pow(1-d, 1.5)*2.2))
-			}
 		}
 	}
 }

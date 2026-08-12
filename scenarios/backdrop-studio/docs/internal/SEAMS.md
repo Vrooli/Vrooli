@@ -228,10 +228,21 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Releasing a selected candidate to Asset Studio |
 | **Interface** | `internal/release/release.go` publisher seam |
-| **Production wiring** | Injected at construction; refuses model-backed release while Asset Studio exposes no external byte ingress. |
-| **Test fake** | `internal/release/release_test.go` substitutes a recording publisher. |
-| **Real run** | Covered once Phase 9 lands the ingress RPC. |
-| **Why it exists** | Provenance and disclosure belong to one authority. The seam lets this scenario refuse rather than fabricate a disclosure record it does not own. |
+| **Production wiring** | `internal/release.AssetStudioPublisher`, resolving asset-studio lazily so an absent scenario is a named missing capability at release time rather than a startup failure. It calls `IngestExternalAsset` then `ReleaseAsset`. |
+| **Test fake** | `internal/release/release_test.go` substitutes a recording publisher and a stub provenance source. |
+| **Real run** | `integration/release_lane_test.go` ingests and releases through the running asset-studio, including a `scaffold` conditioning kind and both unlabelled-synthetic refusals. |
+| **Why it exists** | Provenance and disclosure belong to one authority. The seam lets this scenario refuse rather than fabricate a disclosure record it does not own — and that refusal still fires: with asset-studio absent, a model-backed release fails naming the capability and produces no fallback asset. |
+
+### release.ProvenanceSource (who says how it was made)
+
+| | |
+|---|---|
+| **Seam** | Resolving a candidate's model, prompt and seed at release time |
+| **Interface** | `internal/release/provenance.go` |
+| **Production wiring** | The render store implements it. A candidate's disclosure facts come from the render that produced them. |
+| **Test fake** | A map keyed by candidate id. |
+| **Real run** | The release lane releases a candidate rendered moments earlier in the same process. |
+| **Why it exists** | The alternative is to put model and prompt on the release request, which makes the disclosure an assertion by whoever called the API — so a caller could label a synthetic image as anything, and a caller that forgot a field would turn a compliance record into a shrug. Neither failure is visible afterwards. The caller chooses *what* to release; it does not get to describe how it was made. |
 
 ## Adding a new seam
 

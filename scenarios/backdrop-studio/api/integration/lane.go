@@ -21,6 +21,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	// Registering the PNG decoder is what lets DecodePNG measure a candidate
+	// without every caller remembering to import it.
 	_ "image/png"
 	"io"
 	"net/http"

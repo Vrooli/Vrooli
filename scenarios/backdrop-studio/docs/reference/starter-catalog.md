@@ -65,6 +65,20 @@ Proportions, not a prescription. Scale each slice by the tier being built.
 | Intricate subjects | 2–3 | 4–5 | `synthesized` | Too complex to scaffold; the escape hatch, deliberately the smallest slice |
 | Store-oriented | 2–3 | 4–6 | mixed | Quiet-centre compositions built for a device frame or a feature graphic |
 
+## Where the built catalog stands
+
+Seed v5 satisfies every Tier-1 and Tier-2 rule above, at 40 styles across 18
+surfaces. One slice is short of its suggested proportion and one runs over, both
+for stated reasons. The counted reconciliation — every rule, its requirement, and
+the actual number — is
+[`../evidence/catalog/coverage.md`](../evidence/catalog/coverage.md), and the
+per-style ship verdicts are
+[`../evidence/catalog/verdicts.md`](../evidence/catalog/verdicts.md).
+
+The style list below the coverage rules was always labelled a shape to fill
+rather than approved content, and it stayed that way: what shipped is not the
+table, it is a set built to the same proportions.
+
 ## Open decisions for the operator
 
 1. **Which lineages Vrooli speaks in.** The taxonomy lists ten. A brand does not

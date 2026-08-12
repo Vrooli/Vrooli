@@ -65,8 +65,26 @@ type GenerationRequest struct {
 	Conditioning []byte
 }
 
+// GenerationResult is the image plus the facts needed to disclose it.
+//
+// Generate used to return only bytes, which meant the model that drew the
+// image was known to image-tools, reported on the wire, and then discarded one
+// stack frame later. A synthetic image whose model nobody recorded cannot be
+// honestly labelled, so those two fields are part of the result rather than
+// something a caller reconstructs.
+type GenerationResult struct {
+	PNG []byte
+	// ModelID is the registry model image-tools' selector actually chose. It is
+	// never a model this scenario asked for: routing is image-tools' decision,
+	// and recording a requested model as the used one would be a fabricated
+	// disclosure.
+	ModelID string
+	// Tier is where it ran — "local-gpu", "local-cpu" or "byok-cloud".
+	Tier string
+}
+
 type Generator interface {
-	Generate(context.Context, GenerationRequest) ([]byte, error)
+	Generate(context.Context, GenerationRequest) (GenerationResult, error)
 }
 
 // submitGenerationResponse decodes image-tools' REST submit edge.
@@ -79,6 +97,11 @@ type Generator interface {
 // returned no job id" while generation was in fact working.
 type submitGenerationResponse struct {
 	JobID string `json:"job_id"`
+	// ModelID and Tier arrive on the same submit response as the job id and
+	// were previously dropped. They are the disclosure record's two hardest
+	// facts to reconstruct after the fact.
+	ModelID string `json:"model_id"`
+	Tier    string `json:"tier"`
 }
 type waitGenerationResponse struct {
 	Job struct {
@@ -152,20 +175,20 @@ func (c *Client) Apply(ctx context.Context, input []byte, treatments []string, o
 // call a provider directly, or silently substitute a procedural image. Tests
 // and future image-tools adapters implement Generator to prove the guided and
 // synthesized paths without coupling this scenario to a model backend.
-func (c *Client) Generate(ctx context.Context, req GenerationRequest) ([]byte, error) {
+func (c *Client) Generate(ctx context.Context, req GenerationRequest) (GenerationResult, error) {
 	if strings.TrimSpace(req.Prompt) == "" {
-		return nil, fmt.Errorf("image-tools inference: a prompt is required")
+		return GenerationResult{}, fmt.Errorf("image-tools inference: a prompt is required")
 	}
 	if req.Width <= 0 || req.Height <= 0 {
-		return nil, fmt.Errorf("image-tools inference: generation geometry is required (got %dx%d)", req.Width, req.Height)
+		return GenerationResult{}, fmt.Errorf("image-tools inference: generation geometry is required (got %dx%d)", req.Width, req.Height)
 	}
 	resolve := c.Resolve
 	if resolve == nil {
-		return nil, fmt.Errorf("image-tools inference capability unavailable: URL resolver is not configured")
+		return GenerationResult{}, fmt.Errorf("image-tools inference capability unavailable: URL resolver is not configured")
 	}
 	base, err := resolve(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("image-tools inference capability unavailable: %w", err)
+		return GenerationResult{}, fmt.Errorf("image-tools inference capability unavailable: %w", err)
 	}
 	operation := "text_to_image"
 	if len(req.Conditioning) > 0 {
@@ -197,18 +220,18 @@ func (c *Client) Generate(ctx context.Context, req GenerationRequest) ([]byte, e
 	if len(req.Conditioning) > 0 {
 		part, e := mw.CreateFormFile("file", "scaffold.png")
 		if e != nil {
-			return nil, e
+			return GenerationResult{}, e
 		}
 		if _, e = part.Write(req.Conditioning); e != nil {
-			return nil, e
+			return GenerationResult{}, e
 		}
 	}
 	raw, _ := json.Marshal(params)
 	if err := mw.WriteField("params", string(raw)); err != nil {
-		return nil, err
+		return GenerationResult{}, err
 	}
 	if err := mw.Close(); err != nil {
-		return nil, err
+		return GenerationResult{}, err
 	}
 	client := c.HTTPClient
 	if client == nil {
@@ -216,64 +239,64 @@ func (c *Client) Generate(ctx context.Context, req GenerationRequest) ([]byte, e
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(base, "/")+"/api/v1/ai/"+operation, &body)
 	if err != nil {
-		return nil, err
+		return GenerationResult{}, err
 	}
 	request.Header.Set("Content-Type", mw.FormDataContentType())
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("image-tools inference %s: %w", operation, err)
+		return GenerationResult{}, fmt.Errorf("image-tools inference %s: %w", operation, err)
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		detail, _ := io.ReadAll(io.LimitReader(response.Body, 8<<10))
-		return nil, fmt.Errorf("image-tools inference capability unavailable: %s: %s", response.Status, strings.TrimSpace(string(detail)))
+		return GenerationResult{}, fmt.Errorf("image-tools inference capability unavailable: %s: %s", response.Status, strings.TrimSpace(string(detail)))
 	}
 	var submitted submitGenerationResponse
 	if err := json.NewDecoder(response.Body).Decode(&submitted); err != nil || submitted.JobID == "" {
-		return nil, fmt.Errorf("image-tools inference returned no job id")
+		return GenerationResult{}, fmt.Errorf("image-tools inference returned no job id")
 	}
 	waitBody, _ := json.Marshal(map[string]string{"id": submitted.JobID})
 	waitReq, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(base, "/")+"/vrooli.image_tools.v1.jobs.JobsService/WaitJob", bytes.NewReader(waitBody))
 	if err != nil {
-		return nil, err
+		return GenerationResult{}, err
 	}
 	waitReq.Header.Set("Content-Type", "application/json")
 	waitResp, err := client.Do(waitReq)
 	if err != nil {
-		return nil, fmt.Errorf("image-tools inference wait: %w", err)
+		return GenerationResult{}, fmt.Errorf("image-tools inference wait: %w", err)
 	}
 	defer waitResp.Body.Close()
 	if waitResp.StatusCode < 200 || waitResp.StatusCode >= 300 {
 		detail, _ := io.ReadAll(io.LimitReader(waitResp.Body, 8<<10))
-		return nil, fmt.Errorf("image-tools inference wait failed: %s", strings.TrimSpace(string(detail)))
+		return GenerationResult{}, fmt.Errorf("image-tools inference wait failed: %s", strings.TrimSpace(string(detail)))
 	}
 	var waited waitGenerationResponse
 	if err := json.NewDecoder(waitResp.Body).Decode(&waited); err != nil {
-		return nil, fmt.Errorf("image-tools inference wait response: %w", err)
+		return GenerationResult{}, fmt.Errorf("image-tools inference wait response: %w", err)
 	}
 	if waited.Job.Error != "" {
-		return nil, fmt.Errorf("image-tools inference failed: %s", waited.Job.Error)
+		return GenerationResult{}, fmt.Errorf("image-tools inference failed: %s", waited.Job.Error)
 	}
 	if waited.Job.ResultRef == "" {
-		return nil, fmt.Errorf("image-tools inference completed without a result reference")
+		return GenerationResult{}, fmt.Errorf("image-tools inference completed without a result reference")
 	}
 	resultURL := strings.TrimRight(base, "/") + "/api/v1/blobs/" + strings.TrimLeft(waited.Job.ResultRef, "/")
 	resultResp, err := client.Get(resultURL)
 	if err != nil {
-		return nil, fmt.Errorf("image-tools inference result: %w", err)
+		return GenerationResult{}, fmt.Errorf("image-tools inference result: %w", err)
 	}
 	defer resultResp.Body.Close()
 	if resultResp.StatusCode < 200 || resultResp.StatusCode >= 300 {
-		return nil, fmt.Errorf("image-tools inference result returned %s", resultResp.Status)
+		return GenerationResult{}, fmt.Errorf("image-tools inference result returned %s", resultResp.Status)
 	}
 	output, err := io.ReadAll(resultResp.Body)
 	if err != nil {
-		return nil, err
+		return GenerationResult{}, err
 	}
 	if len(output) == 0 {
-		return nil, fmt.Errorf("image-tools inference returned an empty image")
+		return GenerationResult{}, fmt.Errorf("image-tools inference returned an empty image")
 	}
-	return output, nil
+	return GenerationResult{PNG: output, ModelID: submitted.ModelID, Tier: submitted.Tier}, nil
 }
 
 // ToPNG re-encodes bytes as PNG through image-tools.

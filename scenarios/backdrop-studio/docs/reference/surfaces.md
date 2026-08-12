@@ -65,17 +65,27 @@ previews.
 > committing a PRD target is not the same act (D-012). Nothing here is required
 > to ship, and the list is expected to grow.
 
+> **Reading the `Seeded` column.** It says whether this row exists as a record in
+> `api/internal/catalog/seed/`, and it is the reconciliation this document owes
+> its reader: every row is either seeded, or carries a reason it is not. A row
+> marked *aspirational* is a description of the space, not a gap in the build —
+> seeding a surface nothing renders into is inventory, and this scenario has
+> already paid once for a catalog that named more than it drew.
+>
+> Compare this document against the running install with
+> `backdrop-studio surfaces list --json`.
+
 ### Product · web and marketing — ours to choose
 
-| id | Purpose | Permitted placements |
-|---|---|---|
-| `web.hero` | Landing page hero | `full_bleed`, `split_panel`, `framed_inset`, `corner_bleed` |
-| `web.hero-mobile` | Hero at mobile viewport | `full_bleed`, `framed_inset` |
-| `web.auth-panel` | Sign-in / sign-up side panel | `split_panel`, `full_bleed` |
-| `web.section-band` | Interstitial band between sections | `full_bleed`, `corner_bleed` |
-| `web.pricing-band` | Backdrop behind a pricing table | `full_bleed`, `corner_bleed` |
-| `web.footer-wash` | Quiet closing band | `corner_bleed`, `full_bleed` |
-| `web.error-page` | 404 / 500 | `full_bleed`, `type_mask` |
+| id | Geometry | Purpose | Permitted placements | Seeded |
+|---|---|---|---|---|
+| `web.hero` | 1440x720 | Landing page hero | `full_bleed`, `split_panel`, `framed_inset`, `corner_bleed` | yes (v1) |
+| `web.hero-mobile` | 390x844 | Hero at mobile viewport | `full_bleed`, `framed_inset` | yes (v1) |
+| `web.auth-panel` | 640x900 | Sign-in / sign-up side panel | `split_panel`, `full_bleed` | yes (v1) |
+| `web.section-band` | 1440x420 | Interstitial band between sections | `full_bleed`, `corner_bleed` | yes (v5) |
+| `web.pricing-band` | 1440x520 | Backdrop behind a pricing table | `full_bleed`, `corner_bleed` | yes (v5) |
+| `web.footer-wash` | 1440x360 | Quiet closing band | `corner_bleed`, `full_bleed` | yes (v5) |
+| `web.error-page` | 1440x900 | 404 / 500 | `full_bleed`, `type_mask` | yes (v5) |
 
 ### Product · in-application — ours to choose
 
@@ -83,27 +93,44 @@ The largest latent slice by volume: every scenario in the portfolio has these
 states. Read the admission-test caveat below before building — an empty-state
 *illustration* is focal and out of scope; only the ambient wash behind one is in.
 
-| id | Purpose | Permitted placements |
-|---|---|---|
-| `app.splash` | Desktop or mobile launch screen | `full_bleed` |
-| `app.installer-background` | Installer window or DMG background | `full_bleed`, `corner_bleed` |
-| `app.onboarding-panel` | First-run walkthrough panel | `split_panel`, `framed_inset` |
-| `app.empty-state` | Ambient wash behind an empty view | `framed_inset`, `corner_bleed` |
-| `app.error-state` | Ambient wash behind a failure view | `framed_inset`, `corner_bleed` |
-| `app.cli-banner` | Terminal splash — a genuine fit for `typographic_mosaic` | `caption_only` |
+| id | Geometry | Purpose | Permitted placements | Seeded |
+|---|---|---|---|---|
+| `app.splash` | — | Desktop or mobile launch screen | `full_bleed` | aspirational |
+| `app.installer-background` | — | Installer window or DMG background | `full_bleed`, `corner_bleed` | aspirational |
+| `app.onboarding-panel` | — | First-run walkthrough panel | `split_panel`, `framed_inset` | aspirational |
+| `app.empty-state` | — | Ambient wash behind an empty view | `framed_inset`, `corner_bleed` | aspirational |
+| `app.error-state` | — | Ambient wash behind a failure view | `framed_inset`, `corner_bleed` | aspirational |
+| `app.cli-banner` | — | Terminal splash — a genuine fit for `typographic_mosaic` | `caption_only` | aspirational |
+
+**Why the whole slice is aspirational.** Every geometry here belongs to the
+*consuming* scenario, not to this one: an installer background is whatever size
+that installer's window is, and an empty-state wash is whatever the view is.
+Seeding a guess would put a number in the registry with no authority behind it,
+which is the one thing this registry exists to prevent. These rows land when a
+consumer declares its geometry — and the admission test below is what decides
+whether it should.
 
 ### Social and syndication — platform-shaped
 
 Geometries here are conventions rather than hard requirements, but crops are
 real: assume the centre may be all that survives.
 
-| id | Purpose | Permitted placements |
-|---|---|---|
-| `social.og-card` | Open-graph / link preview | `full_bleed`, `type_mask` |
-| `social.repo-preview` | Repository social preview | `full_bleed`, `caption_only` |
-| `social.profile-banner` | Profile header on a social platform | `full_bleed`, `corner_bleed` |
-| `social.post-card` | Square or portrait feed post | `full_bleed`, `caption_only` |
-| `email.header` | Marketing or transactional email header | `full_bleed`, `caption_only` |
+| id | Geometry | Purpose | Permitted placements | Seeded |
+|---|---|---|---|---|
+| `social.og-card` | 1200x630 | Open-graph / link preview | `full_bleed`, `type_mask` | yes (v5) |
+| `social.repo-preview` | 1280x640 | Repository social preview | `full_bleed`, `caption_only` | yes (v5) |
+| `social.profile-banner` | 1500x500 | Profile header on a social platform | `full_bleed`, `corner_bleed` | yes (v5) |
+| `social.post-card` | 1080x1350 | Portrait feed post | `full_bleed`, `caption_only` | yes (v5) |
+| `email.header` | 600x240 | Marketing or transactional email header | `full_bleed`, `caption_only` | yes (v5) |
+
+Only one of these five has a vendor behind it. `social.repo-preview` cites
+[GitHub's own documentation](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/customizing-your-repositorys-social-media-preview),
+which states 1280x640 recommended and 640x320 minimum. `social.og-card` cites
+the 1.91:1 sharing convention and says so in its `authority` field — the Open
+Graph protocol itself specifies no size, and a record claiming otherwise would be
+a fabricated citation. The remaining three are conventions with no authority to
+cite, and their records say that too. None of them is a submission target, so a
+wrong number here costs a recrop rather than a rejection.
 
 **Email is raster-only.** No CSS, no live export, no web fonts. A style destined
 for `email.header` must survive being a flat image at a fixed width, which rules
@@ -111,26 +138,39 @@ out anything depending on `OT-P2-001` live export.
 
 ### Document and presentation — ours to choose
 
-| id | Purpose | Permitted placements |
-|---|---|---|
-| `deck.title-slide` | Presentation title background | `full_bleed`, `caption_only` |
-| `deck.section-divider` | Slide section break | `full_bleed`, `type_mask` |
-| `doc.cover` | Report or PRD cover | `full_bleed`, `framed_inset` |
-| `doc.section-header` | Chapter or section banner | `corner_bleed`, `caption_only` |
+| id | Geometry | Purpose | Permitted placements | Seeded |
+|---|---|---|---|---|
+| `deck.title-slide` | — | Presentation title background | `full_bleed`, `caption_only` | aspirational |
+| `deck.section-divider` | — | Slide section break | `full_bleed`, `type_mask` | aspirational |
+| `doc.cover` | — | Report or PRD cover | `full_bleed`, `framed_inset` | aspirational |
+| `doc.section-header` | — | Chapter or section banner | `corner_bleed`, `caption_only` | aspirational |
+
+**Why this slice is aspirational.** `document-manager` owns the render toolchain
+these would feed and has none built yet, so a seeded `doc.cover` would be a
+surface with no consumer. The 16:9 and A4 geometries are not in doubt; the
+consumer is.
 
 ### Store · app and extension — externally mandated
 
-| id | Purpose | Permitted placements |
-|---|---|---|
-| `play.feature-graphic` | Play listing banner | `feature_graphic` |
-| `play.phone-screenshot` | Play phone screenshot | `device_center`, `caption_above_device`, `caption_below_device`, `caption_only` |
-| `play.tablet-screenshot` | Play tablet screenshot | same as phone |
-| `appstore.iphone-primary` | App Store screenshot, primary iPhone class | same as phone |
-| `appstore.iphone-secondary` | App Store screenshot, secondary iPhone class | same as phone |
-| `appstore.ipad` | App Store screenshot, iPad class | same as phone |
-| `chrome.marquee` | Chrome Web Store marquee tile | `feature_graphic` |
-| `chrome.small-tile` | Chrome Web Store small promotional tile | `feature_graphic`, `caption_only` |
-| `chrome.screenshot` | Chrome Web Store screenshot | `device_center`, `caption_above_device` |
+| id | Geometry | Purpose | Permitted placements | Seeded |
+|---|---|---|---|---|
+| `play.feature-graphic` | 1024x500 | Play listing banner | `feature_graphic` | yes (v1) |
+| `play.phone-screenshot` | 1080x1920 | Play phone screenshot | `device_center`, `caption_above_device`, `caption_below_device`, `caption_only` | yes (v1) |
+| `play.tablet-screenshot` | 1920x1080 | Play tablet screenshot | same as phone | yes (v1) |
+| `app-store-6.7-screenshot` | 1290x2796 | App Store screenshot, primary iPhone class | same as phone | yes (v1) |
+| `app-store-6.5-screenshot` | 1284x2778 | App Store screenshot, secondary iPhone class | same as phone | yes (v1) |
+| `app-store-12.9-screenshot` | 2048x2732 | App Store screenshot, iPad class | same as phone | yes (v1) |
+| `chrome.marquee` | — | Chrome Web Store marquee tile | `feature_graphic` | aspirational |
+| `chrome.small-tile` | — | Chrome Web Store small promotional tile | `feature_graphic`, `caption_only` | aspirational |
+| `chrome.screenshot` | — | Chrome Web Store screenshot | `device_center`, `caption_above_device` | aspirational |
+
+**The App Store ids name the device class, not the marketing name.** This
+document previously called them `appstore.iphone-primary` and its siblings while
+the seeded records were `app-store-6.7-screenshot` and its siblings, so the two
+disagreed on the identifier an operator would type. The seeded ids win, because
+released assets reference them and a rename would break that reference — and
+because the screen diagonal is the fact Apple's requirement is actually stated
+in, while "primary iPhone class" is a fact that changes every autumn.
 
 Apple and Google both revise their required device classes as hardware ships.
 Treat the class list itself as data too — adding a class must not require a code

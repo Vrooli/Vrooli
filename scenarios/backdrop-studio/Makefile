@@ -61,9 +61,11 @@ integration: ## Render every seeded style through the really running image-tools
 	@printf 'and refuses to judge anything if the API is not built from this tree.\n\n'
 	@cd api && GOWORK=off go test -tags integration -count=1 -timeout 40m ./integration/...
 
-integration-evidence: ## Regenerate docs/evidence/{render-matrix.md,treatments/,perceptual/corpus.json}
+integration-evidence: ## Regenerate docs/evidence/{render-matrix.md,treatments/,perceptual/corpus.json,catalog/,scenes/}
 	@cd api && BACKDROP_STUDIO_WRITE_EVIDENCE=1 GOWORK=off go test -tags integration \
-		-count=1 -timeout 40m -run 'TestRenderMatrixEvidence|TestTreatmentGalleryEvidence|TestPerceptualCorpus' ./integration/...
+		-count=1 -timeout 40m -run 'TestRenderMatrixEvidence|TestTreatmentGalleryEvidence|TestPerceptualCorpus|TestCatalogContactSheetEvidence' ./integration/...
+	@cd api && BACKDROP_STUDIO_WRITE_EVIDENCE=1 GOWORK=off go test \
+		-count=1 -run 'TestGeneratorSheetEvidence' ./internal/scenes/
 
 clean: ## Clean build artifacts
 	@rm -rf ui/dist 2>/dev/null || true

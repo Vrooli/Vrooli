@@ -64,7 +64,7 @@ func TestClientGenerateUsesImageToolsInferenceAndBlocksOnceForResult(t *testing.
 			// names, so this is `job_id`. The fake previously wrote `jobId`,
 			// which is why the suite stayed green while every real
 			// model-backed render failed with "returned no job id".
-			_, _ = w.Write([]byte(`{"job_id":"job-1"}`))
+			_, _ = w.Write([]byte(`{"job_id":"job-1","model_id":"sd-1.5/local-gpu","tier":"local-gpu"}`))
 		case "/vrooli.image_tools.v1.jobs.JobsService/WaitJob":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"job":{"state":"JOB_STATE_SUCCEEDED","resultRef":"out/result.png"}}`))
@@ -78,8 +78,12 @@ func TestClientGenerateUsesImageToolsInferenceAndBlocksOnceForResult(t *testing.
 	client := &Client{HTTPClient: server.Client(), Resolve: func(context.Context) (string, error) { return server.URL, nil }}
 	out, err := client.Generate(context.Background(), GenerationRequest{Width: 512, Height: 320, Prompt: "quiet field", Conditioning: []byte{1, 2}})
 	require.NoError(t, err)
-	require.Equal(t, []byte{9, 8, 7}, out)
+	require.Equal(t, []byte{9, 8, 7}, out.PNG)
 	require.True(t, sawConditioning)
+	// The model the router chose comes back with the bytes. Without it a
+	// model-backed release has no model to disclose and is refused.
+	require.Equal(t, "sd-1.5/local-gpu", out.ModelID)
+	require.Equal(t, "local-gpu", out.Tier)
 }
 
 // TestUnresolvedBrandSlotFailsClosed is the regression gate for the defect that
