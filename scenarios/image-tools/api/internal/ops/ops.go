@@ -26,6 +26,11 @@ type RunResult struct {
 	Mime   string
 	Width  int
 	Height int
+	// ResolvedParams reports the pixel value each relative spatial parameter
+	// resolved to for this input, keyed by the absolute parameter's name. It is
+	// nil when the request sent none. Without it a caller sending `spacing_rel`
+	// cannot learn what actually ran.
+	ResolvedParams map[string]float64
 }
 
 // RunFunc executes one operation end-to-end (decode already done by Execute).
@@ -64,14 +69,14 @@ var registry = func() map[string]Op {
 		{Name: "canvas", Category: CategoryGeometry, Summary: "Pad/extend onto a background canvas", run: pixel(Canvas)},
 		{Name: "adjust", Category: CategoryColor, Summary: "Brightness/contrast/gamma/saturation/hue", run: pixel(Adjust)},
 		{Name: "filter", Category: CategoryColor, Summary: "Grayscale/sepia/invert/blur/sharpen", run: pixel(Filter)},
-		{Name: "duotone", Category: CategoryColor, Summary: "Map luminance onto a deterministic two- or three-ink ramp", run: treatment(treatments.Duotone)},
-		{Name: "posterize", Category: CategoryColor, Summary: "Quantize luminance to a fixed number of levels", run: treatment(treatments.Posterize)},
-		{Name: "halftone", Category: CategoryColor, Summary: "Render luminance on a rotated dot screen", run: treatment(treatments.Halftone)},
+		{Name: "duotone", Category: CategoryColor, Summary: "Map perceptual lightness onto a deterministic two- or three-ink ramp", run: treatment(treatments.Duotone)},
+		{Name: "posterize", Category: CategoryColor, Summary: "Quantize perceptual lightness to a fixed number of levels", run: treatment(treatments.Posterize)},
+		{Name: "halftone", Category: CategoryColor, Summary: "Render perceptual lightness on a rotated dot screen", run: treatment(treatments.Halftone)},
 		{Name: "dither_ordered", Category: CategoryColor, Summary: "Apply a deterministic Bayer ordered dither", run: treatment(treatments.DitherOrdered)},
 		{Name: "dither_diffusion", Category: CategoryColor, Summary: "Apply deterministic Floyd-Steinberg error diffusion", run: treatment(treatments.DitherDiffusion)},
 		{Name: "grain", Category: CategoryColor, Summary: "Add seeded film grain", run: treatment(treatments.Grain)},
 		{Name: "scrim", Category: CategoryColor, Summary: "Apply a directional contrast scrim", run: treatment(treatments.Scrim)},
-		{Name: "line_screen", Category: CategoryColor, Summary: "Render luminance as a line screen", run: tier2("line_screen")},
+		{Name: "line_screen", Category: CategoryColor, Summary: "Render perceptual lightness as a line screen", run: tier2("line_screen")},
 		{Name: "stipple", Category: CategoryColor, Summary: "Render seeded jittered stipple", run: tier2("stipple")},
 		{Name: "engraving", Category: CategoryColor, Summary: "Render tonal value as hatching density", run: tier2("engraving")},
 		{Name: "aberration", Category: CategoryColor, Summary: "Separate color channels at edges", run: tier2("aberration")},
@@ -79,8 +84,8 @@ var registry = func() map[string]Op {
 		{Name: "curve", Category: CategoryColor, Summary: "Apply a deterministic tonal curve", run: tier2("curve")},
 		{Name: "defocus", Category: CategoryColor, Summary: "Apply a deterministic aperture blur", run: tier2("defocus")},
 		{Name: "motion_blur", Category: CategoryColor, Summary: "Blur along a deterministic motion axis", run: tier2("motion_blur")},
-		{Name: "ascii_mosaic", Category: CategoryColor, Summary: "Reduce luminance into an ASCII-like mosaic", run: tier2("ascii_mosaic")},
-		{Name: "pixel_sort", Category: CategoryColor, Summary: "Reorder luminance into deterministic runs", run: tier2("pixel_sort")},
+		{Name: "ascii_mosaic", Category: CategoryColor, Summary: "Rebuild the image as tone-matched ASCII glyphs", run: tier2("ascii_mosaic")},
+		{Name: "pixel_sort", Category: CategoryColor, Summary: "Sort bright runs by lightness along an axis", run: tier2("pixel_sort")},
 		{Name: "displacement", Category: CategoryColor, Summary: "Offset pixels through a deterministic displacement map", run: tier2("displacement")},
 		{Name: "canny", Category: CategoryColor, Summary: "Deterministic Canny edge map (ControlNet conditioning preprocessor)", run: pixel(Canny)},
 		{Name: "convert", Category: CategoryFormat, Summary: "Convert to another image format", run: pixel(convertClone)},
@@ -107,13 +112,13 @@ func Names() []string {
 
 func tier2(name string) RunFunc {
 	return pixel(func(img image.Image, p *Params) (image.Image, error) {
-		return treatments.Tier2(img, name, treatments.Params{Seed: p.Seed})
+		return treatments.Tier2(img, name, treatments.Params{Normalize: p.Normalize, Seed: p.Seed, Angle: p.Angle, Spacing: p.Spacing, Radius: p.Radius, BladeCount: p.BladeCount, Distance: p.Distance, Amplitude: p.Amplitude, Threshold: p.Threshold, Curve: p.Curve, BlockSize: p.BlockSize, Axis: p.Axis})
 	})
 }
 
 func treatment(fn func(image.Image, treatments.Params) (image.Image, error)) RunFunc {
 	return pixel(func(img image.Image, p *Params) (image.Image, error) {
-		return fn(img, treatments.Params{Dark: p.Dark, Light: p.Light, Mid: p.Mid, MidLow: p.MidLow, MidHigh: p.MidHigh, Levels: p.Levels, LPI: p.LPI, Angle: p.Angle, Dot: p.Dot, Seed: p.Seed, Amount: p.Amount, Contrast: p.ContrastMultiplier, ScrimColor: p.ScrimColor, Direction: p.Direction, Opacity: p.Opacity})
+		return fn(img, treatments.Params{Normalize: p.Normalize, Dark: p.Dark, Light: p.Light, Mid: p.Mid, MidLow: p.MidLow, MidHigh: p.MidHigh, Levels: p.Levels, LPI: p.LPI, Angle: p.Angle, Dot: p.Dot, Seed: p.Seed, Amount: p.Amount, Contrast: p.ContrastMultiplier, ScrimColor: p.ScrimColor, Direction: p.Direction, Opacity: p.Opacity})
 	})
 }
 
@@ -148,7 +153,18 @@ func Execute(name string, src []byte, p *Params) (RunResult, error) {
 	if err != nil {
 		return RunResult{}, err
 	}
-	return op.run(RunInput{Bytes: src, Img: img, Meta: meta, Params: p})
+	// Relative spatial parameters resolve here, once, against the decoded
+	// geometry — the first point in the pipeline where the image's size is
+	// known. Resolving inside each treatment instead would mean nine
+	// implementations of one rule.
+	b := img.Bounds()
+	resolved := ResolveSpatialParams(p, b.Dx(), b.Dy())
+	res, err := op.run(RunInput{Bytes: src, Img: img, Meta: meta, Params: p})
+	if err != nil {
+		return RunResult{}, err
+	}
+	res.ResolvedParams = resolved
+	return res, nil
 }
 
 // pixel adapts a pixel transform (image→image) into a RunFunc by encoding the

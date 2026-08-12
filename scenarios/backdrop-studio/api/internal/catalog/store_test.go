@@ -2,8 +2,6 @@ package catalog
 
 import (
 	"context"
-	"sort"
-	"strings"
 	"testing"
 
 	"backdrop-studio/internal/testutil/db"
@@ -27,8 +25,18 @@ func TestSeedIsIdempotentAndCatalogIsQueryable(t *testing.T) {
 
 	surfaces, err := store.ListSurfaces(ctx)
 	require.NoError(t, err)
-	require.Len(t, surfaces, 9)
-	require.Contains(t, []string{"play.feature-graphic", "play.phone-screenshot", "play.tablet-screenshot", "app-store-6.7-screenshot", "app-store-6.5-screenshot", "app-store-12.9-screenshot"}, surfaces[3].ID)
+	require.Len(t, surfaces, seededSurfaceCount(t))
+	// Every surface kind the catalog claims to serve must actually be present.
+	// This replaced an assertion on surfaces[3].ID, which passed only because
+	// the alphabetical position of one store surface happened to be third —
+	// adding an `email` row moved it and failed a test about nothing.
+	kinds := map[string]bool{}
+	for _, s := range surfaces {
+		kinds[s.Kind] = true
+	}
+	for _, kind := range []string{"product", "store", "social", "email"} {
+		require.Truef(t, kinds[kind], "no seeded surface has kind %q, so that delivery lane has nothing to render into", kind)
+	}
 
 	styles, err := store.ListStyles(ctx, "ambient", "horizon", "dither_diffusion", "riso_zine", "full_bleed")
 	require.NoError(t, err)
@@ -50,6 +58,15 @@ func TestSeededStylesCarryTheirOwnParameters(t *testing.T) {
 	require.NotEmpty(t, styles)
 
 	for _, s := range styles {
+		if len(s.Treatments) == 0 {
+			// A `procedural` style ships the scene as drawn, so it has no
+			// treatment to parameterise. Its art direction lives entirely in
+			// the generator parameters, which the distinctness lint checks.
+			require.Equal(t, "procedural", s.Strategy,
+				"style %q declares no treatments but is not a `procedural` style", s.ID)
+			require.NotEmptyf(t, s.Scaffold, "style %q has neither treatments nor a generator binding, so nothing decides what it looks like", s.ID)
+			continue
+		}
 		require.NotEmpty(t, s.TreatmentParams, "style %q names treatments but no parameters", s.ID)
 		for _, op := range s.Treatments {
 			require.Contains(t, s.TreatmentParams, op,
@@ -57,26 +74,14 @@ func TestSeededStylesCarryTheirOwnParameters(t *testing.T) {
 		}
 	}
 
-	// No two styles may be the same style twice: distinctness is a property of
-	// the whole entry — subject plus chain plus parameters — not of any single
-	// op. Several styles legitimately share a duotone config and differ by
-	// subject and companion treatment.
-	seen := map[string]string{}
-	for _, s := range styles {
-		fp := s.Subject + "|" + strings.Join(s.Treatments, ",")
-		keys := make([]string, 0, len(s.TreatmentParams))
-		for k := range s.TreatmentParams {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			fp += "|" + k + "=" + s.TreatmentParams[k]
-		}
-		if prior, dup := seen[fp]; dup {
-			t.Errorf("styles %q and %q are identical in subject, chain and parameters", prior, s.ID)
-		}
-		seen[fp] = s.ID
-	}
+	// Distinctness itself is checked by TestNoTwoSettledStylesRenderTheSamePicture
+	// in distinctness_test.go, not here. This check used to key on subject plus
+	// chain plus parameters, which was right when every style ran a treatment
+	// and wrong once styles could ship a scene untreated: five `procedural`
+	// styles with empty chains all hashed to the same key and were reported as
+	// duplicates when the generator, its palette and its framing were what made
+	// them different. The replacement resolves the generator and canonicalises
+	// the parameter JSON, so it compares what actually decides the pixels.
 
 	// The ops whose whole character is a parameter must vary across the
 	// catalog. Uniformity here was the original defect: every halftone ran at
@@ -133,7 +138,7 @@ func TestCreateStyleRejectsUnknownClosedAxesAndEmptyOpenAxes(t *testing.T) {
 
 	badGeneration := base
 	badGeneration.Generation = &GenerationBlock{PromptTemplate: "bad shape"}
-	require.ErrorContains(t, store.CreateStyle(context.Background(), badGeneration), "cannot carry generation")
+	require.ErrorContains(t, store.CreateStyle(context.Background(), badGeneration), "cannot carry a generation block")
 
 	badRegion := base
 	badRegion.Regions = []Region{{X: .5, Y: .5, Width: .6, Height: .2, Kind: "overlay"}}

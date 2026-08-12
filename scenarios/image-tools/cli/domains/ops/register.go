@@ -90,12 +90,12 @@ func (h *handlers) runCommands() []cliapp.Command {
 			cliapp.Flag{Name: "filter", Description: "grayscale|sepia|invert|blur|sharpen"},
 			cliapp.Flag{Name: "amount", Description: "Sigma for blur/sharpen"},
 		),
-		cmd("duotone", "Map luminance onto a two- or three-ink ramp", h.duotoneParams,
+		cmd("duotone", "Map perceptual lightness onto a two- or three-ink ramp", h.duotoneParams,
 			cliapp.Flag{Name: "dark", Description: "Dark ink hex color"}, cliapp.Flag{Name: "light", Description: "Light ink hex color"}, cliapp.Flag{Name: "mid", Description: "Optional mid ink hex color"}, cliapp.Flag{Name: "mid-low", Description: "Mid ink lower luminance band"}, cliapp.Flag{Name: "mid-high", Description: "Mid ink upper luminance band"}),
-		cmd("posterize", "Quantize luminance to fixed levels", h.posterizeParams,
+		cmd("posterize", "Quantize perceptual lightness to fixed levels", h.posterizeParams,
 			cliapp.Flag{Name: "levels", Description: "Number of levels (2-256)"}, cliapp.Flag{Name: "dark", Description: "Dark ink hex color"}, cliapp.Flag{Name: "light", Description: "Light ink hex color"}),
-		cmd("halftone", "Render luminance on a rotated dot screen", h.halftoneParams,
-			cliapp.Flag{Name: "lpi", Description: "Screen cell size in pixels"}, cliapp.Flag{Name: "angle", Description: "Screen angle"}, cliapp.Flag{Name: "dot", Description: "circle|square"}, cliapp.Flag{Name: "dark", Description: "Dark ink hex color"}, cliapp.Flag{Name: "light", Description: "Light ink hex color"}),
+		cmd("halftone", "Render perceptual lightness on a rotated dot screen", h.halftoneParams,
+			cliapp.Flag{Name: "lpi", Description: "Screen lines across the image width (resolution-independent)"}, cliapp.Flag{Name: "angle", Description: "Screen angle"}, cliapp.Flag{Name: "dot", Description: "circle|square"}, cliapp.Flag{Name: "dark", Description: "Dark ink hex color"}, cliapp.Flag{Name: "light", Description: "Light ink hex color"}),
 		cmd("dither_ordered", "Apply Bayer ordered dither", h.ditherOrderedParams, cliapp.Flag{Name: "dark", Description: "Dark ink hex color"}, cliapp.Flag{Name: "light", Description: "Light ink hex color"}),
 		cmd("dither_diffusion", "Apply Floyd-Steinberg error diffusion", h.ditherDiffusionParams, cliapp.Flag{Name: "dark", Description: "Dark ink hex color"}, cliapp.Flag{Name: "light", Description: "Light ink hex color"}),
 		cmd("grain", "Add seeded film grain", h.grainParams, cliapp.Flag{Name: "seed", Description: "Deterministic seed"}, cliapp.Flag{Name: "amount", Description: "Noise amount 0..1"}, cliapp.Flag{Name: "contrast-multiplier", Description: "Contrast multiplier"}),
@@ -125,8 +125,18 @@ func (h *handlers) runCommands() []cliapp.Command {
 			cliapp.Flag{Name: "auto-orient", Bool: true, Description: "Apply EXIF orientation to pixels"},
 		),
 	}
-	for _, name := range []string{"line_screen", "stipple", "engraving", "aberration", "bloom", "curve", "defocus", "motion_blur", "ascii_mosaic", "pixel_sort", "displacement"} {
-		commands = append(commands, cmd(name, "Apply deterministic tier-2 treatment", func(cliapp.RunContext) *opsv1.OpParams { return &opsv1.OpParams{} }))
-	}
+	commands = append(commands,
+		cmd("line_screen", "Apply a lightness-modulated line screen", h.lineScreenParams, cliapp.Flag{Name: "spacing", Description: "Line spacing in pixels"}, cliapp.Flag{Name: "spacing-rel", Description: "Line spacing as a fraction of the short edge; wins over --spacing"}, cliapp.Flag{Name: "angle", Description: "Screen angle in degrees"}),
+		cmd("stipple", "Apply a seeded jittered stipple screen", h.stippleParams, cliapp.Flag{Name: "spacing", Description: "Stipple spacing in pixels"}, cliapp.Flag{Name: "spacing-rel", Description: "Stipple spacing as a fraction of the short edge; wins over --spacing"}, cliapp.Flag{Name: "seed", Description: "Deterministic seed"}),
+		cmd("engraving", "Render tonal hatching and cross-hatching", h.engravingParams, cliapp.Flag{Name: "spacing", Description: "Hatch spacing in pixels"}, cliapp.Flag{Name: "spacing-rel", Description: "Hatch spacing as a fraction of the short edge; wins over --spacing"}),
+		cmd("aberration", "Separate channels radially at image edges", h.aberrationParams, cliapp.Flag{Name: "amplitude", Description: "Channel separation in pixels"}, cliapp.Flag{Name: "distance-rel", Description: "Channel separation as a fraction of the short edge; wins over --amplitude"}),
+		cmd("bloom", "Lift bright pixels into a soft bloom", h.bloomParams, cliapp.Flag{Name: "radius", Description: "Bloom radius in pixels"}, cliapp.Flag{Name: "radius-rel", Description: "Bloom radius as a fraction of the short edge; wins over --radius"}, cliapp.Flag{Name: "threshold", Description: "Highlight threshold 0..1"}),
+		cmd("curve", "Apply a deterministic tonal curve", h.curveParams, cliapp.Flag{Name: "exponent", Description: "Curve exponent"}),
+		cmd("defocus", "Apply aperture-style defocus blur", h.defocusParams, cliapp.Flag{Name: "radius", Description: "Blur radius in pixels"}, cliapp.Flag{Name: "radius-rel", Description: "Blur radius as a fraction of the short edge; wins over --radius"}, cliapp.Flag{Name: "blade-count", Description: "Aperture blade count"}),
+		cmd("motion_blur", "Blur along a declared motion vector", h.motionBlurParams, cliapp.Flag{Name: "distance", Description: "Blur distance in pixels"}, cliapp.Flag{Name: "distance-rel", Description: "Blur distance as a fraction of the short edge; wins over --distance"}, cliapp.Flag{Name: "angle", Description: "Motion angle in degrees"}),
+		cmd("ascii_mosaic", "Rebuild the image as tone-matched ASCII glyphs", h.asciiMosaicParams, cliapp.Flag{Name: "block-size", Description: "Mosaic block size in pixels"}, cliapp.Flag{Name: "block-size-rel", Description: "Block size as a fraction of the short edge, snapped to the 7px glyph advance"}),
+		cmd("pixel_sort", "Sort bright runs along an axis", h.pixelSortParams, cliapp.Flag{Name: "threshold", Description: "Luminance threshold 0..1"}, cliapp.Flag{Name: "axis", Description: "horizontal|vertical"}),
+		cmd("displacement", "Offset pixels through a deterministic field", h.displacementParams, cliapp.Flag{Name: "amplitude", Description: "Displacement amplitude in pixels"}, cliapp.Flag{Name: "amplitude-rel", Description: "Displacement amplitude as a fraction of the short edge; wins over --amplitude"}, cliapp.Flag{Name: "spacing", Description: "Displacement field wavelength in pixels"}, cliapp.Flag{Name: "spacing-rel", Description: "Field wavelength as a fraction of the short edge; wins over --spacing"}, cliapp.Flag{Name: "seed", Description: "Deterministic seed"}),
+	)
 	return commands
 }

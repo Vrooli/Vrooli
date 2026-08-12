@@ -44,8 +44,19 @@ shipping.
 ```bash
 cd scenarios/backdrop-studio
 make integration          # every seeded style through a really running image-tools
-make integration-evidence # the same run, writing docs/evidence/render-matrix.md
+make integration-evidence # the same run, writing docs/evidence/{render-matrix.md,treatments/,perceptual/corpus.json}
 ```
+
+**What the lane asserts, beyond "it rendered":**
+
+| Assertion | Guards against |
+|---|---|
+| Every seeded style renders, bound and unbound, at two geometries | The twelve-broken-styles failure below |
+| Seam conformance against the real executor | A fake that has drifted from the wire |
+| Every treatment changes its input | A treatment silently doing nothing — this caught `pixel_sort` and `bloom` returning their input untouched on a flat source |
+| The known-bad case still fails the perceptual gate | A loosened threshold, or a reverted mark-width fix, quietly re-admitting the original defect |
+| The repaired style still clears its bar | A gate that rejects everything and therefore looks healthy |
+| Every metric within 0.05 of the recorded corpus | A style drifting toward its floor between releases. Renders are deterministic, so movement is a change in the code or the catalog, never noise |
 
 **Read this before trusting a green unit suite.** On 2026-08-12 twelve of
 sixteen seeded styles were unrenderable while every Go unit test passed. The

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"backdrop-studio/internal/imageengine"
+	"backdrop-studio/internal/scenes"
 )
 
 type Surface struct {
@@ -223,8 +224,17 @@ func validateStyle(v *Style) error {
 	if err := valid("lineage", v.Lineage, map[string]bool{"cyanotype": true, "metaphysical": true, "city_pop": true, "swiss_international": true, "bauhaus": true, "constructivist": true, "art_deco": true, "art_nouveau": true, "ukiyo_e": true, "mid_century_modern": true, "wpa_poster": true, "scientific_plate": true, "op_art": true, "psychedelic": true, "memphis": true, "demoscene": true, "vaporwave": true, "cyberpunk": true, "frutiger_aero": true, "technical_minimalism": true, "solarpunk": true, "neo_brutalist": true, "wabi_sabi": true, "riso_zine": true}); err != nil {
 		return err
 	}
-	if len(v.Treatments) == 0 {
-		return fmt.Errorf("catalog: treatment must contain at least one value")
+	// An empty chain is legal for exactly one strategy, and it is the point of
+	// that strategy: `procedural` ships what the generator drew. A mesh
+	// gradient is finished when the generator finishes — putting a screen over
+	// it would add the mechanical texture the look exists to avoid — so
+	// requiring a treatment would force every such style to declare one it does
+	// not want. Every other strategy must name at least one, because a
+	// `procedural-treated` style with no treatment is a mislabelled
+	// `procedural` one, and a model-backed style with none has no chain to
+	// validate.
+	if len(v.Treatments) == 0 && v.Strategy != "procedural" {
+		return fmt.Errorf("catalog: strategy %q must declare at least one treatment", v.Strategy)
 	}
 	// Restricted to the operations image-tools actually implements. The
 	// previous set also allowed caustics, voronoi, letterpress, l_system and
@@ -273,8 +283,22 @@ func validateStyle(v *Style) error {
 		}
 	}
 	if v.Strategy == "procedural" || v.Strategy == "procedural-treated" {
-		if v.Generation != nil || v.Scaffold != nil {
-			return fmt.Errorf("catalog: strategy %q cannot carry generation or scaffold fields", v.Strategy)
+		// A procedural style may carry a scaffold block, but only the parts of
+		// it that mean something without a model: `preset` selects which scene
+		// generator draws the style — the mechanism that lets four
+		// non-representational generators be four distinct styles rather than
+		// one — and `params_json` tunes it, which the render path has always
+		// passed through. `conditioner` names a ControlNet preprocessor and is
+		// meaningless with no model to condition, so declaring one is a
+		// statement about this style that is not true.
+		//
+		// The previous rule forbade the whole block, which contradicted a
+		// render path that was already reading params_json out of it.
+		if v.Scaffold != nil && v.Scaffold.Conditioner != "" {
+			return fmt.Errorf("catalog: strategy %q cannot declare a scaffold conditioner: there is no model to condition", v.Strategy)
+		}
+		if v.Generation != nil {
+			return fmt.Errorf("catalog: strategy %q cannot carry a generation block", v.Strategy)
 		}
 	}
 	if v.Strategy == "guided" {
@@ -358,6 +382,9 @@ func (s *Store) CreateStyle(ctx context.Context, v Style) error {
 	if err := validateStyle(&v); err != nil {
 		return err
 	}
+	if err := ValidateSubjectCoherence(v); err != nil {
+		return err
+	}
 	return s.insertStyle(ctx, v, OriginOperator, 0)
 }
 
@@ -366,6 +393,36 @@ func styleVersion(v Style) int {
 		return 1
 	}
 	return v.Version
+}
+
+// ValidateSubjectCoherence proves a procedural style names a subject some
+// generator actually depicts.
+//
+// Without it the render lane substituted the nearest scene it had: `interior`
+// rendered an arcade, `cartographic` rendered a terrain, `aquatic` rendered a
+// horizon. The catalog named sixteen art directions and drew four, and nothing
+// anywhere said so.
+//
+// It is deliberately NOT part of validateStyle, which every seed version is
+// checked against as it is applied. A seed version is an immutable historical
+// record; re-judging history by today's rules means every tightening of the
+// rules breaks the ability to bootstrap from scratch. The guarantee that
+// matters is about the catalog someone renders from, not about every state it
+// passed through — so this runs on an operator's write, at the moment they can
+// still choose differently, and over the final seeded state, where a stale row
+// that no later version corrected is a real defect.
+func ValidateSubjectCoherence(v Style) error {
+	if v.Strategy != "procedural" && v.Strategy != "procedural-treated" {
+		return nil
+	}
+	declared := ""
+	if v.Scaffold != nil {
+		declared = v.Scaffold.Preset
+	}
+	if _, err := scenes.ResolvePreset(v.Subject, declared); err != nil {
+		return fmt.Errorf("catalog: style %q: %w", v.ID, err)
+	}
+	return nil
 }
 
 func (s *Store) insertStyle(ctx context.Context, v Style, origin string, seedVersion int) error {

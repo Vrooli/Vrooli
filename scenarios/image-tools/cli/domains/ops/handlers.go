@@ -119,23 +119,73 @@ func (h *handlers) filterParams(ctx cliapp.RunContext) *opsv1.OpParams {
 func (h *handlers) duotoneParams(ctx cliapp.RunContext) *opsv1.OpParams {
 	return &opsv1.OpParams{Op: &opsv1.OpParams_Duotone{Duotone: &opsv1.DuotoneParams{Dark: ctx.Flag("dark"), Light: ctx.Flag("light"), Mid: ctx.Flag("mid"), MidLow: f64(ctx.Flag("mid-low")), MidHigh: f64(ctx.Flag("mid-high"))}}}
 }
+
 func (h *handlers) posterizeParams(ctx cliapp.RunContext) *opsv1.OpParams {
 	return &opsv1.OpParams{Op: &opsv1.OpParams_Posterize{Posterize: &opsv1.PosterizeParams{Levels: i32(ctx.Flag("levels")), Dark: ctx.Flag("dark"), Light: ctx.Flag("light")}}}
 }
+
 func (h *handlers) halftoneParams(ctx cliapp.RunContext) *opsv1.OpParams {
 	return &opsv1.OpParams{Op: &opsv1.OpParams_Halftone{Halftone: &opsv1.HalftoneParams{Lpi: i32(ctx.Flag("lpi")), Angle: f64(ctx.Flag("angle")), Dot: ctx.Flag("dot"), Dark: ctx.Flag("dark"), Light: ctx.Flag("light")}}}
 }
+
 func (h *handlers) ditherOrderedParams(ctx cliapp.RunContext) *opsv1.OpParams {
 	return &opsv1.OpParams{Op: &opsv1.OpParams_DitherOrdered{DitherOrdered: &opsv1.DitherParams{Dark: ctx.Flag("dark"), Light: ctx.Flag("light")}}}
 }
+
 func (h *handlers) ditherDiffusionParams(ctx cliapp.RunContext) *opsv1.OpParams {
 	return &opsv1.OpParams{Op: &opsv1.OpParams_DitherDiffusion{DitherDiffusion: &opsv1.DitherParams{Dark: ctx.Flag("dark"), Light: ctx.Flag("light")}}}
 }
+
 func (h *handlers) grainParams(ctx cliapp.RunContext) *opsv1.OpParams {
 	return &opsv1.OpParams{Op: &opsv1.OpParams_Grain{Grain: &opsv1.GrainParams{Seed: i64(ctx.Flag("seed")), Amount: f64(ctx.Flag("amount")), ContrastMultiplier: f64(ctx.Flag("contrast-multiplier"))}}}
 }
+
 func (h *handlers) scrimParams(ctx cliapp.RunContext) *opsv1.OpParams {
 	return &opsv1.OpParams{Op: &opsv1.OpParams_Scrim{Scrim: &opsv1.ScrimParams{Color: ctx.Flag("color"), Opacity: f64(ctx.Flag("opacity")), Direction: ctx.Flag("direction")}}}
+}
+
+func (h *handlers) lineScreenParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_LineScreen{LineScreen: &opsv1.LineScreenParams{Spacing: f64(ctx.Flag("spacing")), SpacingRel: f64(ctx.Flag("spacing-rel")), Angle: f64(ctx.Flag("angle"))}}}
+}
+
+func (h *handlers) stippleParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Stipple{Stipple: &opsv1.StippleParams{Spacing: f64(ctx.Flag("spacing")), SpacingRel: f64(ctx.Flag("spacing-rel")), Seed: i64(ctx.Flag("seed"))}}}
+}
+
+func (h *handlers) engravingParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Engraving{Engraving: &opsv1.EngravingParams{Spacing: f64(ctx.Flag("spacing")), SpacingRel: f64(ctx.Flag("spacing-rel"))}}}
+}
+
+func (h *handlers) aberrationParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Aberration{Aberration: &opsv1.AberrationParams{Amplitude: f64(ctx.Flag("amplitude")), DistanceRel: f64(ctx.Flag("distance-rel"))}}}
+}
+
+func (h *handlers) bloomParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Bloom{Bloom: &opsv1.BloomParams{Radius: i32(ctx.Flag("radius")), RadiusRel: f64(ctx.Flag("radius-rel")), Threshold: f64(ctx.Flag("threshold"))}}}
+}
+
+func (h *handlers) curveParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Curve{Curve: &opsv1.CurveParams{Exponent: f64(ctx.Flag("exponent"))}}}
+}
+
+func (h *handlers) defocusParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Defocus{Defocus: &opsv1.DefocusParams{Radius: i32(ctx.Flag("radius")), RadiusRel: f64(ctx.Flag("radius-rel")), BladeCount: i32(ctx.Flag("blade-count"))}}}
+}
+
+func (h *handlers) motionBlurParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_MotionBlur{MotionBlur: &opsv1.MotionBlurParams{Distance: i32(ctx.Flag("distance")), DistanceRel: f64(ctx.Flag("distance-rel")), Angle: f64(ctx.Flag("angle"))}}}
+}
+
+func (h *handlers) asciiMosaicParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_AsciiMosaic{AsciiMosaic: &opsv1.AsciiMosaicParams{BlockSize: i32(ctx.Flag("block-size")), BlockSizeRel: f64(ctx.Flag("block-size-rel"))}}}
+}
+
+func (h *handlers) pixelSortParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_PixelSort{PixelSort: &opsv1.PixelSortParams{Threshold: f64(ctx.Flag("threshold")), Axis: ctx.Flag("axis")}}}
+}
+
+func (h *handlers) displacementParams(ctx cliapp.RunContext) *opsv1.OpParams {
+	return &opsv1.OpParams{Op: &opsv1.OpParams_Displacement{Displacement: &opsv1.DisplacementParams{Amplitude: f64(ctx.Flag("amplitude")), AmplitudeRel: f64(ctx.Flag("amplitude-rel")), Spacing: f64(ctx.Flag("spacing")), SpacingRel: f64(ctx.Flag("spacing-rel")), Seed: i64(ctx.Flag("seed"))}}}
 }
 
 func (h *handlers) convertParams(ctx cliapp.RunContext) *opsv1.OpParams {

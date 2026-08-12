@@ -32,6 +32,8 @@ vrooli scenario start image-tools
 | `docs/evidence/baseline/catalog-upgrade-proof.md` | Stated in the file: restore `data/backdrop-studio.db.preaudit`, restart, count. | A pre-plan install reaches the current catalog without losing operator-authored rows. |
 | `docs/evidence/treatments/*.png` | `make integration-evidence` | Every treatment the catalog can name, rendered over one scaffold at `web.hero` geometry through a really running `image-tools`, using the scenario's own default parameters resolved by the real merge. |
 | `docs/evidence/treatments/resolution-proof/` | The exact `backdrop-studio` and `image-tools` commands are stated in that directory's `README.md`. | That an absolute spatial parameter is a different picture at every size (+200.1% screen density across a 3x frame), that the relative form is not (+0.2%), and that halftone's ruling was never the absolute one the plan believed it was. |
+| `docs/evidence/perceptual/corpus.json` | `make integration-evidence` | Where every seeded style sits relative to its perceptual bar. The lane fails when a metric moves more than 0.05, so a style drifting toward its floor is visible before it falls through. |
+| `docs/evidence/perceptual/engraving-repair/` | The `render submit` commands are stated in that directory's `README.md`. | What was actually wrong with `engraved-colonnade`, including the diagnosis that was ruled out by measurement, and the before/after. |
 
 ## Reading a skip
 

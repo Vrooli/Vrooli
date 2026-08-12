@@ -156,15 +156,43 @@ func TestSeededSpatialParametersResolveProportionally(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, surfaces)
 
-	shortest, longest := math.MaxInt, 0
-	for _, s := range surfaces {
-		shortest = min(shortest, min(s.Width, s.Height))
-		longest = max(longest, min(s.Width, s.Height))
+	// The range a style must hold across is the range of surfaces it can
+	// actually be delivered to, which is decided by placement.
+	//
+	// This used to take the smallest and largest short edge over every surface
+	// in the catalog. That was right while the surface set was narrow and
+	// became wrong the moment an email header at 600x240 was seeded: it held
+	// `stipple-massif` — a style that permits only `framed_inset` and
+	// `corner_bleed`, neither of which an email header accepts — to a size it
+	// can never be asked to render at, and would have forced a coarser screen
+	// on every surface it does serve to satisfy one it does not.
+	deliverySpan := func(style catalog.Style) (shortest, longest int) {
+		shortest, longest = math.MaxInt, 0
+		for _, s := range surfaces {
+			if !anyShared(style.Placements, s.Placements) {
+				continue
+			}
+			shortEdge := min(s.Width, s.Height)
+			shortest = min(shortest, shortEdge)
+			longest = max(longest, shortEdge)
+		}
+		return shortest, longest
 	}
-	require.Greater(t, longest, shortest*2, "the catalog must span a real range of geometries for this to mean anything")
+
+	// The catalog as a whole still has to span a real range, or the whole
+	// assertion is vacuous however carefully it is scoped.
+	widest, narrowest := 0, math.MaxInt
+	for _, s := range surfaces {
+		narrowest = min(narrowest, min(s.Width, s.Height))
+		widest = max(widest, min(s.Width, s.Height))
+	}
+	require.Greater(t, widest, narrowest*2, "the catalog must span a real range of geometries for this to mean anything")
 
 	checked := 0
 	for _, style := range styles {
+		shortest, longest := deliverySpan(style)
+		require.NotEqualf(t, math.MaxInt, shortest,
+			"style %q declares placements no seeded surface permits, so it can never be delivered", style.ID)
 		for _, op := range style.Treatments {
 			if _, spatial := absoluteSpatialFields[op]; !spatial {
 				continue
@@ -240,4 +268,17 @@ func TestEverySeededSlotHasADeclaredDefault(t *testing.T) {
 			}
 		}
 	}
+}
+
+// anyShared reports whether two placement lists intersect, which is the test
+// for "can this style be delivered to this surface".
+func anyShared(a, b []string) bool {
+	for _, x := range a {
+		for _, y := range b {
+			if x == y {
+				return true
+			}
+		}
+	}
+	return false
 }

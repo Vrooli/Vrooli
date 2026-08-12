@@ -117,6 +117,88 @@ curl -s "http://localhost:${API_PORT}/api/v1/build" | jq
 `seed_version` is what the binary ships; `applied_seed_version` is what the
 database has. They differ only between an upgrade and the next restart.
 
+## The perceptual quality gate
+
+Every candidate is scored against the source it was made from, after the
+treatment chain and before it becomes a job record. A candidate that fails is
+refused with `FailedPrecondition` naming the metric and the value; a candidate
+that passes carries its scores on `quality_json`, visible in `render get`.
+
+The gate exists because `engraved-colonnade` shipped illegible moire past a
+fully green test suite. The legibility check measures overlay text contrast,
+which high-contrast noise passes easily — contrast is not legibility.
+
+### The metrics
+
+| Metric | Measures | Catches |
+|---|---|---|
+| `subject_survival` | Absolute correlation between the source's and the result's 64x36 low-frequency lightness fields | A treatment that erased the composition it was screening |
+| `tonal_occupancy` | The p2–p98 lightness span the result occupies | A dither or quantiser that collapsed the frame into one flat ink |
+| `frequency_modulation` | Standard deviation of per-block ink coverage across a 16x9 grid, in L\* units | Texture that is equally busy everywhere — noise wearing the costume of a screen |
+| `reserved_quiet` | Texture inside the style's reserved regions relative to the whole frame | A treatment that concentrated its detail exactly where the headline goes |
+
+`subject_survival` takes the *absolute* correlation on purpose: a duotone
+changes every pixel's colour and no pixel's structure, and an inverted print
+preserves the composition just as faithfully. Both must read as survival or
+every legitimate treatment fails.
+
+`reserved_quiet` skips regions marked `decorative` — a decorative region is not
+a place text has to be readable, so measuring it would reject candidates for a
+problem that does not exist.
+
+### Thresholds
+
+Bars are per treatment *family*, because nine screens that fail the same way
+need one number rather than nine. A chain spanning families takes the strictest
+bar on each metric: its output has to be good enough for the most demanding
+thing in it.
+
+| Family | Treatments | survival ≥ | occupancy ≥ | modulation ≥ | quiet ≤ |
+|---|---|---|---|---|---|
+| `screen` | halftone, line_screen, stipple, engraving, ascii_mosaic, dither_ordered, dither_diffusion | 0.60 | 0.40 | 0.030 | 1.60 |
+| `tonal` | duotone, posterize, curve, grain, scrim | 0.80 | 0.40 | 0.030 | 1.60 |
+| `optical` | bloom, defocus, motion_blur, aberration, displacement, pixel_sort | 0.70 | 0.35 | 0.030 | 1.60 |
+
+A style overrides any of these by setting `quality` on its catalog record. A
+positive value replaces the family default; a **negative** value disables that
+one metric, which is how a deliberately extreme style opts out of one bar
+without opting out of all of them. A style that opts out of every metric has no
+gate at all, so a reason belongs beside it in the seed data.
+
+### How the numbers were chosen
+
+Every bar is derived from measurement, not taste. The whole catalog was rendered
+at seed 7 and scored; the observed floors were:
+
+| Metric | Worst observed | Style | Bar |
+|---|---|---|---|
+| `subject_survival` | 0.8585 | `ascii-field` | 0.60 |
+| `tonal_occupancy` | 0.6142 | `cyanotype-arcade` | 0.40 |
+| `frequency_modulation` | 0.0517 | `ascii-field` | 0.030 |
+| `reserved_quiet` | 1.2735 (ceiling) | `riso-horizon` | 1.60 |
+
+The headroom is deliberately wide. These metrics separate *working* from
+*destroyed* by a wide margin — a treatment that erases its subject scores below
+0.2 on survival and near zero on modulation — so a bar placed just under the
+observed floor would police art direction rather than catch defects. The gate's
+job is to make "unusable" impossible to ship, not to enforce a house style.
+
+**Tuning rule.** If a style needs a threshold outside these ranges twice, the
+check is wrong, not the style: record it in `docs/internal/PROBLEMS.md` rather
+than widening the range silently.
+
+### What it does not prove
+
+Automated metrics prove a treatment did not destroy its subject. They do not
+prove an image is beautiful. This gate is necessary and not sufficient, and the
+human verdict on a catalog change remains required.
+
+The corpus at `docs/evidence/perceptual/corpus.json` records where every style
+sits relative to its bar, so a change that quietly moves a style *toward* the
+floor is visible before it falls through. The integration lane fails when a
+metric moves more than 0.05 from its recorded value — renders are deterministic,
+so movement is a change in the code or the catalog, never noise.
+
 ## Build fingerprint
 
 The same endpoint reports `fingerprint`, a content hash over the API's Go

@@ -30,7 +30,22 @@ import (
 )
 
 // Presets are the scene generators this package can render.
-var Presets = []string{"horizon", "arcade", "terrain", "field"}
+//
+// The first four are the legacy set: they depict things. The rest are field
+// generators — most depict nothing, which is what they are good at, and between
+// them they cover the abstract half of the taxonomy without the procedural lane
+// ever having to pretend it can draw a building. `contour` and `nebula` are the
+// exceptions: they depict a map and a sky respectively, and they claim those
+// subjects rather than hiding under the abstract one.
+//
+// See docs/reference/taxonomy.md for which subject reaches which generator, and
+// subjects.go for the rule that a style may only use a generator that depicts
+// what the style says it depicts.
+var Presets = []string{
+	"horizon", "arcade", "terrain", "field",
+	"flow", "voronoi", "reaction", "caustics",
+	"mesh", "contour", "truchet", "attractor", "nebula",
+}
 
 // Request describes one scene render.
 type Request struct {
@@ -86,6 +101,24 @@ func Render(req Request) (Result, error) {
 		drawTerrain(c, p, req.Seed)
 	case "field":
 		drawField(c, p, req.Seed)
+	case "flow":
+		drawFlowField(c, p, req.Seed)
+	case "voronoi":
+		drawVoronoi(c, p, req.Seed)
+	case "reaction":
+		drawReactionDiffusion(c, p, req.Seed)
+	case "caustics":
+		drawCaustics(c, p, req.Seed)
+	case "mesh":
+		drawMeshGradient(c, p, req.Seed)
+	case "contour":
+		drawContour(c, p, req.Seed)
+	case "truchet":
+		drawTruchet(c, p, req.Seed)
+	case "attractor":
+		drawAttractor(c, p, req.Seed)
+	case "nebula":
+		drawNebula(c, p, req.Seed)
 	}
 
 	var buf bytes.Buffer

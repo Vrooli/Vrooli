@@ -74,22 +74,25 @@ func translateParams(operation string, pb *opsv1.OpParams) (*internalops.Params,
 	case "duotone":
 		if v := pb.GetDuotone(); v != nil {
 			p.Dark, p.Light, p.Mid, p.MidLow, p.MidHigh = v.GetDark(), v.GetLight(), v.GetMid(), v.GetMidLow(), v.GetMidHigh()
+			p.Normalize = v.GetNormalize()
 		}
 	case "posterize":
 		if v := pb.GetPosterize(); v != nil {
 			p.Levels, p.Dark, p.Light = int(v.GetLevels()), v.GetDark(), v.GetLight()
+			p.Normalize = v.GetNormalize()
 		}
 	case "halftone":
 		if v := pb.GetHalftone(); v != nil {
 			p.LPI, p.Angle, p.Dot, p.Dark, p.Light = int(v.GetLpi()), v.GetAngle(), v.GetDot(), v.GetDark(), v.GetLight()
+			p.Normalize = v.GetNormalize()
 		}
 	case "dither_ordered":
 		if v := pb.GetDitherOrdered(); v != nil {
-			p.Dark, p.Light = v.GetDark(), v.GetLight()
+			p.Dark, p.Light, p.Normalize = v.GetDark(), v.GetLight(), v.GetNormalize()
 		}
 	case "dither_diffusion":
 		if v := pb.GetDitherDiffusion(); v != nil {
-			p.Dark, p.Light = v.GetDark(), v.GetLight()
+			p.Dark, p.Light, p.Normalize = v.GetDark(), v.GetLight(), v.GetNormalize()
 		}
 	case "grain":
 		if v := pb.GetGrain(); v != nil {
@@ -99,9 +102,64 @@ func translateParams(operation string, pb *opsv1.OpParams) (*internalops.Params,
 		if v := pb.GetScrim(); v != nil {
 			p.ScrimColor, p.Opacity, p.Direction = v.GetColor(), v.GetOpacity(), v.GetDirection()
 		}
-	case "line_screen", "stipple", "engraving", "aberration", "bloom", "curve", "defocus", "motion_blur", "ascii_mosaic", "pixel_sort", "displacement":
-		// Tier-2 operations use deterministic defaults today; their generic
-		// parameter block is intentionally optional and remains forward-compatible.
+	case "line_screen":
+		if v := pb.GetLineScreen(); v != nil {
+			p.Spacing, p.Angle, p.Dark, p.Light, p.Normalize = v.GetSpacing(), v.GetAngle(), v.GetDark(), v.GetLight(), v.GetNormalize()
+			p.SpacingRel = v.GetSpacingRel()
+		}
+	case "stipple":
+		if v := pb.GetStipple(); v != nil {
+			p.Spacing, p.Seed, p.Dark, p.Light, p.Normalize = v.GetSpacing(), v.GetSeed(), v.GetDark(), v.GetLight(), v.GetNormalize()
+			p.SpacingRel = v.GetSpacingRel()
+		}
+	case "engraving":
+		if v := pb.GetEngraving(); v != nil {
+			p.Spacing, p.Dark, p.Light, p.Normalize = v.GetSpacing(), v.GetDark(), v.GetLight(), v.GetNormalize()
+			p.SpacingRel = v.GetSpacingRel()
+		}
+	case "aberration":
+		if v := pb.GetAberration(); v != nil {
+			// The implementation consumes Distance (radial px). Amplitude is
+			// accepted as the older wire name and folded onto the same knob.
+			p.Amplitude, p.Distance = v.GetAmplitude(), int(v.GetDistance())
+			if p.Distance == 0 && v.GetAmplitude() > 0 {
+				p.Distance = int(v.GetAmplitude())
+			}
+			p.DistanceRel = v.GetDistanceRel()
+		}
+	case "bloom":
+		if v := pb.GetBloom(); v != nil {
+			p.Radius, p.Threshold = int(v.GetRadius()), v.GetThreshold()
+			p.RadiusRel = v.GetRadiusRel()
+		}
+	case "curve":
+		if v := pb.GetCurve(); v != nil {
+			p.Curve = v.GetExponent()
+		}
+	case "defocus":
+		if v := pb.GetDefocus(); v != nil {
+			p.Radius, p.BladeCount = int(v.GetRadius()), int(v.GetBladeCount())
+			p.RadiusRel = v.GetRadiusRel()
+		}
+	case "motion_blur":
+		if v := pb.GetMotionBlur(); v != nil {
+			p.Distance, p.Angle = int(v.GetDistance()), v.GetAngle()
+			p.DistanceRel = v.GetDistanceRel()
+		}
+	case "ascii_mosaic":
+		if v := pb.GetAsciiMosaic(); v != nil {
+			p.BlockSize, p.Dark, p.Light, p.Normalize = int(v.GetBlockSize()), v.GetDark(), v.GetLight(), v.GetNormalize()
+			p.BlockSizeRel = v.GetBlockSizeRel()
+		}
+	case "pixel_sort":
+		if v := pb.GetPixelSort(); v != nil {
+			p.Threshold, p.Axis = v.GetThreshold(), v.GetAxis()
+		}
+	case "displacement":
+		if v := pb.GetDisplacement(); v != nil {
+			p.Amplitude, p.Seed, p.Spacing = v.GetAmplitude(), v.GetSeed(), v.GetSpacing()
+			p.SpacingRel, p.AmplitudeRel = v.GetSpacingRel(), v.GetAmplitudeRel()
+		}
 	default:
 		return nil, fmt.Errorf("unknown operation %q", operation)
 	}

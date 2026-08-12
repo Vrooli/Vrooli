@@ -88,7 +88,7 @@ func TestSeedUpgradesAnOlderInstall(t *testing.T) {
 
 	styles, err := store.ListStyles(ctx, "", "", "", "", "")
 	require.NoError(t, err)
-	require.Len(t, styles, 16, "an older install must receive the current catalog")
+	require.Len(t, styles, seededStyleCount(t), "an older install must receive the current catalog")
 
 	upgraded, err := store.GetStyle(ctx, "cyanotype-arcade")
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ func TestSeedUpgradesAnOlderInstall(t *testing.T) {
 
 	surfaces, err := store.ListSurfaces(ctx)
 	require.NoError(t, err)
-	require.Len(t, surfaces, 9)
+	require.Len(t, surfaces, seededSurfaceCount(t))
 
 	applied, err := store.AppliedSeedVersion(ctx)
 	require.NoError(t, err)
@@ -144,7 +144,7 @@ func TestSeedNeverOverwritesOperatorRows(t *testing.T) {
 	// Everything else still arrives.
 	styles, err := store.ListStyles(ctx, "", "", "", "", "")
 	require.NoError(t, err)
-	require.Len(t, styles, 16)
+	require.Len(t, styles, seededStyleCount(t))
 }
 
 // TestEverySeededStyleRendersWithoutABrand is the cold-install contract stated
@@ -223,11 +223,11 @@ func TestSeedMigratesAPrePlanInstall(t *testing.T) {
 
 	styles, err := store.ListStyles(ctx, "", "", "", "", "")
 	require.NoError(t, err)
-	require.Len(t, styles, 17, "16 seeded styles plus the operator's own")
+	require.Len(t, styles, seededStyleCount(t)+1, "every seeded style plus the operator's own")
 
 	surfaces, err := store.ListSurfaces(ctx)
 	require.NoError(t, err)
-	require.Len(t, surfaces, 9, "a 5-surface install must reach the current 9")
+	require.Len(t, surfaces, seededSurfaceCount(t), "a 5-surface install must reach the full shipped set")
 
 	// Rows that predate origin tracking default to 'seed' and are upgraded.
 	upgraded, err := store.GetStyle(ctx, "cyanotype-arcade")
@@ -241,4 +241,38 @@ func TestSeedMigratesAPrePlanInstall(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "My Operator Style", survived.Name)
 	require.Equal(t, 3, survived.Version)
+}
+
+// seededStyleCount is the number of distinct styles the embedded seed versions
+// define between them. It is computed rather than written down: a hardcoded
+// count has to be edited every time the catalog grows, and an assertion whose
+// upkeep is "bump the number until it passes" stops being an assertion.
+func seededStyleCount(t *testing.T) int {
+	t.Helper()
+	seeds, err := LoadSeeds()
+	require.NoError(t, err)
+	ids := map[string]bool{}
+	for _, file := range seeds {
+		for _, style := range file.Styles {
+			ids[style.ID] = true
+		}
+	}
+	return len(ids)
+}
+
+// seededSurfaceCount is derived for the same reason the style count is: a
+// literal here is a number that has to be edited in three test files every time
+// the catalog grows, and the edit that gets missed turns an unrelated failure
+// into a puzzle. The seed data is the authority on how many surfaces ship.
+func seededSurfaceCount(t *testing.T) int {
+	t.Helper()
+	seeds, err := LoadSeeds()
+	require.NoError(t, err)
+	ids := map[string]bool{}
+	for _, file := range seeds {
+		for _, surface := range file.Surfaces {
+			ids[surface.ID] = true
+		}
+	}
+	return len(ids)
 }

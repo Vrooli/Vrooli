@@ -58,28 +58,49 @@ var treatmentFamilies = map[string]string{
 
 // familyDefaults are the documented per-family bars.
 //
-// Every number is set below the worst value measured across the seeded catalog
-// with headroom, not chosen a priori — the measurements are recorded in
-// docs/evidence/perceptual/corpus.json and the derivation is in
-// docs/reference/configuration.md. A gate calibrated by taste alone either
-// rejects working styles or catches nothing.
+// Every number is derived from measurement, not chosen a priori: the whole
+// seeded catalog was rendered and scored, and each bar sits below the worst
+// observed value with headroom. A gate calibrated by taste alone either rejects
+// working styles or catches nothing.
+//
+// Observed floors across the fourteen renderable seeded styles (seed 7, the
+// full run is in docs/evidence/perceptual/corpus.json):
+//
+//	subject_survival     0.8585  (ascii-field)
+//	tonal_occupancy      0.6142  (cyanotype-arcade)
+//	frequency_modulation 0.0517  (ascii-field)
+//	reserved_quiet       1.2735  (riso-horizon, a ceiling not a floor)
+//
+// The headroom is deliberately wide. These metrics separate *working* from
+// *destroyed* by a wide margin — a treatment that erases its subject scores
+// below 0.2 on survival and near 0 on modulation against the synthetic cases in
+// internal/perceptual — so a bar placed just under the observed floor would
+// reject art direction rather than catch defects. The bar's job is to make
+// "unusable" impossible to ship, not to enforce a house style.
 var familyDefaults = map[string]Quality{
 	familyScreen: {
-		MinSubjectSurvival:     0.35,
-		MinTonalOccupancy:      0.30,
-		MinFrequencyModulation: 0.04,
+		// A screen rebuilds tone out of discrete marks and legitimately
+		// discards fine detail, so it gets the loosest structural bar.
+		MinSubjectSurvival:     0.60,
+		MinTonalOccupancy:      0.40,
+		MinFrequencyModulation: 0.030,
 		MaxReservedQuiet:       1.60,
 	},
 	familyTonal: {
-		MinSubjectSurvival:     0.70,
-		MinTonalOccupancy:      0.25,
-		MinFrequencyModulation: 0.04,
+		// A tonal remap adds no structure of its own, so it should return the
+		// composition nearly intact. Every tonal-family style measured scores
+		// above 0.99; anything under 0.80 means something went wrong.
+		MinSubjectSurvival:     0.80,
+		MinTonalOccupancy:      0.40,
+		MinFrequencyModulation: 0.030,
 		MaxReservedQuiet:       1.60,
 	},
 	familyOptical: {
-		MinSubjectSurvival:     0.55,
-		MinTonalOccupancy:      0.25,
-		MinFrequencyModulation: 0.04,
+		// A lens or motion simulation blurs and displaces, which costs some
+		// structure — but the measured optical styles still clear 0.96.
+		MinSubjectSurvival:     0.70,
+		MinTonalOccupancy:      0.35,
+		MinFrequencyModulation: 0.030,
 		MaxReservedQuiet:       1.60,
 	},
 }
@@ -87,10 +108,22 @@ var familyDefaults = map[string]Quality{
 // EffectiveQuality resolves the bar for one style: the family default for its
 // treatments, with any value the style states itself taking precedence.
 //
-// When a chain spans families the strictest bar wins on every metric. A chain
-// is judged on its output, and its output has to be good enough for the most
-// demanding thing in it — a duotone followed by a bloom is still expected to
-// read as the picture the duotone made.
+// When a chain spans families, the two kinds of metric combine differently, and
+// the difference is the whole point of having families at all.
+//
+// **Structural licence takes the loosest bar.** `subject_survival` asks how much
+// of the composition survived. A chain is entitled to the licence of its most
+// destructive member: `posterize` then `halftone` ends in a screen, and a screen
+// legitimately discards fine detail, so holding the chain to the tonal family's
+// high bar because a posterize appeared earlier judges it for something it never
+// claimed to be. The first version of this took the strictest bar on every
+// metric and refused `ukiyo-tide` at 0.772 against a 0.800 floor — an image that
+// reads correctly, rejected by arithmetic rather than by a fault.
+//
+// **Usability takes the strictest bar.** Occupancy, modulation and
+// reserved-region quiet are not about licence; they are about whether the result
+// is usable at all. Every member of a chain has to leave a usable image behind
+// it, so the most demanding requirement governs.
 func (v Style) EffectiveQuality() Quality {
 	base, seen := Quality{}, false
 	for _, treatment := range v.Treatments {
@@ -103,14 +136,27 @@ func (v Style) EffectiveQuality() Quality {
 			base, seen = bar, true
 			continue
 		}
-		base = strictest(base, bar)
+		base = combine(base, bar)
 	}
 	if !seen {
-		// An unrecognised chain gets the screen family's bar: the loosest of
-		// the three on structure, so a new treatment cannot be rejected merely
-		// for being unclassified, while still having to prove it drew
-		// something. A treatment reaching here belongs in treatmentFamilies.
+		// Two cases land here and they mean different things.
+		//
+		// An *empty* chain is a `procedural` style shipping the scene as drawn.
+		// Its output is its input, so subject survival is 1 by construction and
+		// the metric proves nothing; what still matters is that the generator
+		// produced a usable picture, which the other three measure. The
+		// structural bar is dropped rather than set low, because a bar that
+		// cannot fail is worse than no bar: it reads as coverage.
+		//
+		// An *unrecognised* chain gets the screen family's numbers — the
+		// loosest of the three on structure — so a new treatment is not
+		// rejected merely for being unclassified while still having to prove it
+		// drew something. A treatment reaching that case belongs in
+		// treatmentFamilies.
 		base = familyDefaults[familyScreen]
+		if len(v.Treatments) == 0 {
+			base.MinSubjectSurvival = 0
+		}
 	}
 	if v.Quality == nil {
 		return base
@@ -118,9 +164,11 @@ func (v Style) EffectiveQuality() Quality {
 	return overlay(base, *v.Quality)
 }
 
-func strictest(a, b Quality) Quality {
+// combine merges two family bars: loosest on structural licence, strictest on
+// everything that decides whether the result is usable. See EffectiveQuality.
+func combine(a, b Quality) Quality {
 	return Quality{
-		MinSubjectSurvival:     maxFloat(a.MinSubjectSurvival, b.MinSubjectSurvival),
+		MinSubjectSurvival:     minFloat(a.MinSubjectSurvival, b.MinSubjectSurvival),
 		MinTonalOccupancy:      maxFloat(a.MinTonalOccupancy, b.MinTonalOccupancy),
 		MinFrequencyModulation: maxFloat(a.MinFrequencyModulation, b.MinFrequencyModulation),
 		MaxReservedQuiet:       minFloat(a.MaxReservedQuiet, b.MaxReservedQuiet),

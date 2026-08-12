@@ -9,8 +9,10 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"backdrop-studio/internal/catalog"
@@ -53,10 +55,35 @@ func (f *fakeExecutor) Apply(_ context.Context, input []byte, treatments []strin
 	}
 	bounds := src.Bounds()
 	out := image.NewNRGBA(bounds)
+	// A duotone: map each pixel's lightness onto a two-ink ramp.
+	//
+	// The fake used to invert the blue channel, which is not a transform any
+	// treatment performs. On a blue-dominant source — the caustics generator,
+	// say — inverting blue turns dark water bright and compresses the whole
+	// luminance range, so the perceptual gate saw a flattened image and refused
+	// a style that renders correctly through the real wire. A fake that is not
+	// a plausible stand-in for the thing it stands in for makes every test
+	// above it a test of fiction.
+	dark := [3]float64{22, 26, 44}
+	light := [3]float64{240, 236, 220}
+	// Every seeded screening style now requests `normalize`, so the fake models
+	// that too: it stretches the source's p1-p99 lightness onto the full ramp
+	// before mapping. Without it the fake renders a narrower tonal range than
+	// the real pipeline does, and the perceptual gate refuses styles for a
+	// compression the shipped configuration does not have.
+	lo, hi := lightnessPercentiles(src)
+	span := hi - lo
+	if span < 1e-3 {
+		span = 1
+	}
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			r, g, b, a := src.At(x, y).RGBA()
-			out.SetNRGBA(x, y, color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(^b >> 8), A: uint8(a >> 8)})
+			l := (0.2126*float64(r) + 0.7152*float64(g) + 0.0722*float64(b)) / 65535
+			l = math.Pow(l, 1/2.2)
+			l = math.Max(0, math.Min(1, (l-lo)/span))
+			mix := func(i int) uint8 { return uint8(dark[i] + (light[i]-dark[i])*l) }
+			out.SetNRGBA(x, y, color.NRGBA{R: mix(0), G: mix(1), B: mix(2), A: uint8(a >> 8)})
 		}
 	}
 	var buf bytes.Buffer
@@ -516,9 +543,9 @@ func TestEverySeededProceduralStyleRenders(t *testing.T) {
 			if style.Strategy == "procedural" || style.Strategy == "procedural-treated" {
 				procedural++
 				require.Equal(t, deliveryWidth, job.Candidates[0].Width)
-				_, ok := scenePreset(style.Subject)
-				require.True(t, ok,
-					"procedural style %q names subject %q, which has no scene — it would silently render a field",
+				_, presetErr := scenePreset(style)
+				require.NoError(t, presetErr,
+					"procedural style %q names subject %q, which no generator depicts — it used to silently render a field",
 					style.ID, style.Subject)
 			}
 		})
@@ -534,7 +561,7 @@ func TestProceduralStyleWithoutASceneIsRefused(t *testing.T) {
 		Subject: "celestial", Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
 	}
 	_, err := NewStore(&fakeExecutor{}).SubmitWithContext(context.Background(), Request{Style: style, Surface: testSurface, Placement: "full_bleed", Seed: 1, Count: 1})
-	require.ErrorContains(t, err, "has no procedural scene")
+	require.ErrorContains(t, err, "no procedural generator depicts subject")
 }
 
 // TestModelBackedCandidateReachesSurfaceGeometry pins the step that was
@@ -601,4 +628,28 @@ func TestRoutingIsLocalFirst(t *testing.T) {
 	require.Equal(t, "local_only", generator.last.FallbackPolicy)
 	require.Equal(t, "batch", generator.last.Priority, "backdrop renders are not interactive work")
 	require.True(t, generator.last.AllowReclaim, "a shared GPU needs reclaim or diffusion loses the allocation race")
+}
+
+// lightnessPercentiles returns the source's p1 and p99 gamma-corrected
+// lightness, which is the span image-tools' `normalize` stretches onto the ink
+// ramp.
+func lightnessPercentiles(src image.Image) (float64, float64) {
+	b := src.Bounds()
+	step := 1
+	if b.Dx() > 400 {
+		step = b.Dx() / 400
+	}
+	values := make([]float64, 0, 1024)
+	for y := b.Min.Y; y < b.Max.Y; y += step {
+		for x := b.Min.X; x < b.Max.X; x += step {
+			r, g, bb, _ := src.At(x, y).RGBA()
+			l := (0.2126*float64(r) + 0.7152*float64(g) + 0.0722*float64(bb)) / 65535
+			values = append(values, math.Pow(l, 1/2.2))
+		}
+	}
+	if len(values) < 2 {
+		return 0, 1
+	}
+	sort.Float64s(values)
+	return values[len(values)/100], values[len(values)*99/100]
 }

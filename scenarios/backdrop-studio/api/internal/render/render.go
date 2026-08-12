@@ -121,8 +121,8 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 	job := &Job{ID: jobID, StyleID: style.ID, SurfaceID: req.Surface.ID, Status: "completed", Seed: seed, ExecutionPath: expectedPath(style.Strategy)}
 	for i := 0; i < count; i++ {
 		candidateSeed := seed + int64(i)
-		preset, ok := scenePreset(style.Subject)
-		if !ok {
+		preset, presetErr := scenePreset(style)
+		if presetErr != nil {
 			// A procedural lane ships what the generator draws, so a subject
 			// with no scene cannot be honoured — it used to fall through to
 			// "field", meaning a style called Cyanotype Botanical rendered an
@@ -130,8 +130,11 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 			// still use any subject: the model draws it and the scaffold only
 			// supplies composition geometry.
 			if style.Strategy == "procedural" || style.Strategy == "procedural-treated" {
-				return Job{}, fmt.Errorf("render: subject %q has no procedural scene; use a model-backed strategy or a subject with a scene (%v)", style.Subject, scenes.Presets)
+				return Job{}, fmt.Errorf("render: style %q: %w", style.ID, presetErr)
 			}
+			// A model-backed lane may name any subject: the model draws it and
+			// the scaffold only supplies composition geometry, so the scaffold
+			// falls back to the non-representational field rather than failing.
 			preset = "field"
 		}
 		regions := make([]scaffold.Region, 0, len(style.Regions))
@@ -239,9 +242,18 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 			generationNative = fmt.Sprintf("%dx%d", nativeGenW, nativeGenH)
 			input = delivered
 		}
-		treated, err := s.engine.Apply(ctx, input, style.Treatments, style.TreatmentParams, palette)
-		if err != nil {
-			return Job{}, fmt.Errorf("render: treatment chain: %w", err)
+		// A `procedural` style ships what the generator drew. The engine is not
+		// asked to run an empty chain: everywhere else in this system an empty
+		// chain is a caller mistake and `Apply` rightly refuses it, so the
+		// decision that there is nothing to apply belongs here, where it is a
+		// declared property of the style.
+		treated := input
+		if len(style.Treatments) > 0 {
+			applied, err := s.engine.Apply(ctx, input, style.Treatments, style.TreatmentParams, palette)
+			if err != nil {
+				return Job{}, fmt.Errorf("render: treatment chain: %w", err)
+			}
+			treated = applied
 		}
 		// Treatments are same-size transforms, but asserting rather than
 		// assuming is what makes the recorded geometry trustworthy on every
@@ -265,7 +277,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 		if !verdict.Passed {
 			return Job{}, &QualityRejectedError{StyleID: style.ID, Seed: candidateSeed, Verdict: verdict}
 		}
-		job.Candidates = append(job.Candidates, Candidate{ID: id(jobID, candidateSeed, i), JobID: jobID, Strategy: style.Strategy, ExecutionPath: job.ExecutionPath, PNG: treated, Width: outW, Height: outH, Seed: candidateSeed, TreatmentApplied: true, ConditioningSubmitted: conditioningSubmitted, DisclosureRequired: style.Strategy == "guided" || style.Strategy == "synthesized", Prompt: prompt, ProvenanceJSON: provenance(style, req.Surface, candidateSeed, job.ExecutionPath, generationNative, outW, outH), QualityJSON: qualityJSON(verdict)})
+		job.Candidates = append(job.Candidates, Candidate{ID: id(jobID, candidateSeed, i), JobID: jobID, Strategy: style.Strategy, ExecutionPath: job.ExecutionPath, PNG: treated, Width: outW, Height: outH, Seed: candidateSeed, TreatmentApplied: len(style.Treatments) > 0, ConditioningSubmitted: conditioningSubmitted, DisclosureRequired: style.Strategy == "guided" || style.Strategy == "synthesized", Prompt: prompt, ProvenanceJSON: provenance(style, req.Surface, candidateSeed, job.ExecutionPath, generationNative, outW, outH), QualityJSON: qualityJSON(verdict)})
 	}
 	s.mu.Lock()
 	s.jobs[jobID] = job
@@ -387,20 +399,22 @@ func (s *Store) normalizePNG(ctx context.Context, in []byte) ([]byte, error) {
 	return converter.ToPNG(ctx, in)
 }
 
-// scenePreset maps a catalog subject onto a scene generator. Only these
-// subjects can be rendered procedurally; the rest need a model.
-func scenePreset(subject string) (string, bool) {
-	switch subject {
-	case "horizon", "aquatic", "atmospheric":
-		return "horizon", true
-	case "statuary_architecture", "interior":
-		return "arcade", true
-	case "geological", "cartographic":
-		return "terrain", true
-	case "non_representational", "textile_material", "object_metaphor":
-		return "field", true
+// scenePreset resolves the scene generator for a style.
+//
+// The mapping lives in the scenes package, beside the generators that declare
+// what they depict — see scenes.ResolvePreset. It used to live here as a switch
+// that answered every subject with the nearest scene available, which is how
+// sixteen named art directions came to draw four pictures.
+//
+// A style may name its generator through its scaffold binding, which is what
+// lets four non-representational generators be four distinct styles rather than
+// one. The generator must still depict the style's declared subject.
+func scenePreset(style catalog.Style) (string, error) {
+	declared := ""
+	if style.Scaffold != nil {
+		declared = style.Scaffold.Preset
 	}
-	return "", false
+	return scenes.ResolvePreset(style.Subject, declared)
 }
 
 func scaffoldParams(style catalog.Style) string {

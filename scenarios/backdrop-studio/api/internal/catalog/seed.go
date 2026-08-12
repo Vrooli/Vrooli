@@ -128,6 +128,26 @@ func (s *Store) Seed(ctx context.Context) error {
 			return fmt.Errorf("catalog: record seed version %d: %w", file.Version, err)
 		}
 	}
+	// The settled catalog, not each version it passed through, is what anyone
+	// renders from — so subject coherence is judged here, over the final rows.
+	// A style whose subject no generator depicts and which no later seed
+	// version corrected would substitute a different picture under the
+	// requested name, which is the failure this check exists to make impossible.
+	styles, err := s.ListStyles(ctx, "", "", "", "", "")
+	if err != nil {
+		return fmt.Errorf("catalog: read back seeded styles: %w", err)
+	}
+	for _, style := range styles {
+		if style.Origin == OriginOperator {
+			// An operator's row was validated when they wrote it, and refusing
+			// to start over one they can no longer reach would be worse than
+			// carrying it.
+			continue
+		}
+		if err := ValidateSubjectCoherence(style); err != nil {
+			return fmt.Errorf("catalog: the seeded catalog is not coherent after applying every version: %w", err)
+		}
+	}
 	return nil
 }
 

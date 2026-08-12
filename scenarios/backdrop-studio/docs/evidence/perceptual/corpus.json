@@ -1,0 +1,271 @@
+{
+  "note": "Perceptual state of the seeded catalog at seed 7, one entry per style at its first permitted surface. `metrics` is what each style scored; `bar` is the threshold it had to clear. Regenerate with `make integration-evidence`. The lane fails when a metric moves more than 0.05 from its recorded value — deterministic renders do not drift, so movement is a change in the code or the catalog. 3 style(s) were unmeasurable on the recording host and carry no entry.",
+  "entries": [
+    {
+      "style": "ascii-field",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.0517,
+        "reserved_quiet": 0.4242,
+        "subject_survival": 0.8585,
+        "tonal_occupancy": 0.8546
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "city-pop-horizon",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1881,
+        "reserved_quiet": 0.9757,
+        "subject_survival": 0.9905,
+        "tonal_occupancy": 0.8524
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.8,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "cyanotype-arcade",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1093,
+        "reserved_quiet": 0.406,
+        "subject_survival": 0.9633,
+        "tonal_occupancy": 0.6142
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "demoscene-terrain",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.247,
+        "reserved_quiet": 1.0261,
+        "subject_survival": 0.9985,
+        "tonal_occupancy": 0.7729
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "engraved-colonnade",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.156,
+        "reserved_quiet": 0.1458,
+        "subject_survival": 0.9789,
+        "tonal_occupancy": 0.8039
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "glaze-mosaic",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.06,
+        "subject_survival": 0.999,
+        "tonal_occupancy": 0.6806
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "subject_survival": 0.8,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "memphis-weave",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1315,
+        "reserved_quiet": 0.8184,
+        "subject_survival": 0.9518,
+        "tonal_occupancy": 0.7457
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.7,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "riso-horizon",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1356,
+        "reserved_quiet": 1.2735,
+        "subject_survival": 0.9993,
+        "tonal_occupancy": 0.6711
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "silk-drift",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1374,
+        "subject_survival": 0.9994,
+        "tonal_occupancy": 0.8205
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "subject_survival": 0.8,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "solar-bloom-horizon",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1519,
+        "reserved_quiet": 1.1415,
+        "subject_survival": 0.9632,
+        "tonal_occupancy": 0.6452
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.7,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "stipple-massif",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1704,
+        "reserved_quiet": 0.6322,
+        "subject_survival": 0.9186,
+        "tonal_occupancy": 0.8666
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "swiss-contour",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.2505,
+        "reserved_quiet": 0.7308,
+        "subject_survival": 0.9475,
+        "tonal_occupancy": 0.8039
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "technical-field",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1983,
+        "reserved_quiet": 0.9468,
+        "subject_survival": 0.9993,
+        "tonal_occupancy": 0.7577
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.8,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "tidal-caustic",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.0611,
+        "subject_survival": 0.8034,
+        "tonal_occupancy": 0.7431
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "ukiyo-tide",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.0756,
+        "reserved_quiet": 0.9604,
+        "subject_survival": 0.7717,
+        "tonal_occupancy": 0.6624
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "vaporwave-drift",
+      "surface": "web.hero-mobile",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1524,
+        "reserved_quiet": 0.9642,
+        "subject_survival": 0.9496,
+        "tonal_occupancy": 0.8626
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.7,
+        "tonal_occupancy": 0.4
+      }
+    }
+  ]
+}

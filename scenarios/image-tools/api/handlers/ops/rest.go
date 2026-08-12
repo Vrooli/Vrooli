@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"image-tools/internal/httpx"
 	internaljobs "image-tools/internal/jobs"
@@ -212,6 +213,12 @@ func (h *Deps) writeRunResponse(w http.ResponseWriter, output string, job intern
 			w.Header().Set("X-Image-Tools-Width", strconv.Itoa(res.Width))
 			w.Header().Set("X-Image-Tools-Height", strconv.Itoa(res.Height))
 		}
+		// The bytes response has no envelope to carry the resolved relative
+		// parameters, and a caller streaming bytes still needs to know what
+		// ran. Headers are the only channel it has.
+		for name, value := range res.ResolvedParams {
+			w.Header().Set("X-Image-Tools-Resolved-"+http.CanonicalHeaderKey(strings.ReplaceAll(name, "_", "-")), strconv.FormatFloat(value, 'f', -1, 64))
+		}
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(res.Bytes)
 		return
@@ -219,12 +226,13 @@ func (h *Deps) writeRunResponse(w http.ResponseWriter, output string, job intern
 	httpx.WriteProto(w, http.StatusOK, &opsv1.RunOpResponse{
 		JobId: job.ID,
 		Result: &opsv1.OpResult{
-			Ref:       ref,
-			Format:    res.Format,
-			Mime:      res.Mime,
-			Width:     int32(res.Width),
-			Height:    int32(res.Height),
-			SizeBytes: int64(len(res.Bytes)),
+			Ref:            ref,
+			Format:         res.Format,
+			Mime:           res.Mime,
+			Width:          int32(res.Width),
+			Height:         int32(res.Height),
+			SizeBytes:      int64(len(res.Bytes)),
+			ResolvedParams: res.ResolvedParams,
 		},
 	})
 }

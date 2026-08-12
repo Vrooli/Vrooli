@@ -66,6 +66,28 @@ type Params struct {
 	ContrastMultiplier float64 `json:"contrast_multiplier,omitempty"`
 	ScrimColor         string  `json:"scrim_color,omitempty"`
 	Direction          string  `json:"direction,omitempty"`
+	// Normalize auto-levels the source's p1-p99 tonal range onto the full ink
+	// ramp before mapping, so a low-contrast source still uses the whole ramp.
+	// It makes the result depend on whole-image statistics; see treatments.Params.
+	Normalize  bool    `json:"normalize,omitempty"`
+	Spacing    float64 `json:"spacing,omitempty"`
+	Radius     int     `json:"radius,omitempty"`
+	BladeCount int     `json:"blade_count,omitempty"`
+	Distance   int     `json:"distance,omitempty"`
+	Amplitude  float64 `json:"amplitude,omitempty"`
+	Threshold  float64 `json:"threshold,omitempty"`
+	Curve      float64 `json:"curve,omitempty"`
+	BlockSize  int     `json:"block_size,omitempty"`
+
+	// Relative spatial parameters: a fraction of the image's SHORT edge,
+	// resolved to the pixel fields above by ResolveRelative once the image
+	// geometry is known. A relative value wins over its absolute twin. See
+	// relative.go for the conversion and the per-operation minimums.
+	SpacingRel   float64 `json:"spacing_rel,omitempty"`
+	RadiusRel    float64 `json:"radius_rel,omitempty"`
+	DistanceRel  float64 `json:"distance_rel,omitempty"`
+	AmplitudeRel float64 `json:"amplitude_rel,omitempty"`
+	BlockSizeRel float64 `json:"block_size_rel,omitempty"`
 
 	// Canny edge-preprocessor hysteresis bounds on the 0..255 gradient magnitude
 	// (0 = defaults 50 / 150). The ControlNet "canny" preprocessor reads these.

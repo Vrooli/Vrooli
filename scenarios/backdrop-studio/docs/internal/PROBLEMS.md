@@ -71,6 +71,89 @@
 - ~~The placement mockup draws black bars where copy goes.~~ It renders real
   headline, subhead and call-to-action type at the style's declared text colour.
 
+### Found and fixed while making the lanes coherent (2026-08-12)
+
+- **Two test fakes were lying, and both mattered.** The render suite's fake
+  executor inverted the blue channel — a transform no treatment performs, and on
+  a blue-dominant source it turns dark water bright and compresses the luminance
+  range, so the perceptual gate refused styles that render correctly through the
+  real wire. It now maps lightness onto a two-ink ramp with the same p1-p99
+  stretch every seeded style requests. A fake that is not a plausible stand-in
+  for the thing it stands in for makes every test above it a test of fiction.
+- **The perceptual gate's chain rule was wrong.** It took the strictest family
+  bar on every metric, so `posterize` + `halftone` was held to the tonal
+  family's 0.80 survival floor because a posterize appeared earlier in the
+  chain — and refused `ukiyo-tide` at 0.772 for an image that reads correctly.
+  Structural licence now takes the *loosest* bar in a chain (a chain is entitled
+  to the licence of its most destructive member); usability metrics still take
+  the strictest.
+- **Three new generators shipped broken and the existing scene tests caught all
+  three.** Reaction-diffusion rendered blank because the Laplacian stencil was
+  six times the canonical weights and diffusion swamped the reaction; caustics
+  rendered as speckle because the ray displacement scaled by frame size instead
+  of by wavelength; the flow field failed both coherence and
+  resolution-independence because a one-pixel filament is a different fraction
+  of the frame at every size. Each was a real defect, not a threshold quibble.
+- **A structural rule contradicted the render path.** The catalog forbade a
+  procedural style from carrying any scaffold block, while `render.go` had
+  always read `scaffold.params_json` out of one. The rule now forbids only what
+  is genuinely meaningless without a model — a ControlNet `conditioner` — and
+  `scaffold.preset` is how a procedural style selects its generator.
+- **Seed-count assertions were hardcoded.** Three tests asserted "16 styles" and
+  had to be edited every time the catalog grew, which turns an assertion into a
+  number someone bumps until it passes. They now derive the count from the
+  embedded seed versions.
+
+### Found and fixed while building the perceptual gate (2026-08-12)
+
+- **`engraved-colonnade`'s moire was never a composition failure.** The obvious
+  reading — "the treatment destroyed the subject" — is wrong, and it was ruled
+  out with measurement rather than argument. The broken image scores 0.973 on
+  subject survival, essentially the same as the styles that render correctly,
+  and the arcade is plainly visible when the image is reduced to the
+  low-frequency field the metric reads
+  (`docs/evidence/perceptual/engraving-repair/lowfrequency-field-comparison.png`).
+  Correlation was checked at five grid scales on both the tonal and the gradient
+  field; none separated broken from working.
+- **The real defect was a sub-pixel line.** `image-tools`' engraving computed
+  `width := math.Max(0.6, (1-l)*spacing*0.55)`. A 0.6px line cannot be drawn; it
+  rasterises to a dotted trail of aliased fragments, and because 0.6 was a floor
+  rather than a cutoff, those fragments covered the highlights too. 31.8% of the
+  result's ink runs were one or two pixels wide, against 1.5% for the same scene
+  under a line screen. Now: below one whole pixel, no mark — which is what an
+  engraver does with a pale tone.
+- **Screens were being handed a tonal range they could not express.** The
+  procedural scenes deliver a compressed range (the arcade's wall sits at L\*
+  0.85 and its sea at 0.45), so a screen mapped it into a narrow band of mark
+  widths and read as flat texture. Seed v3 turns on `normalize` for every
+  screening treatment. `frequency_modulation` roughly doubled across the
+  affected styles, and `engraved-colonnade` now renders a legible colonnade.
+
+- **`pixel_sort` is a no-op on a horizontally uniform source.** It reorders
+  bright runs *along a row*, so a source built from horizontal bands — which
+  every `horizon` scaffold and scene is — has nothing to reorder, and the
+  operation returns its input byte-for-byte. Not a defect in the treatment, but
+  it means a style pairing `pixel_sort` with a horizon subject renders as if the
+  treatment were absent, silently. Found by the treatment gallery's
+  "a treatment must change its input" assertion. No style currently pairs them;
+  a catalog-write-time check would be the durable fix.
+
+**Measured but deliberately not shipped as a check.** The mark-run statistic
+(fraction of ink runs ≤2px) separates the three arcade cases cleanly — 0.318
+broken, 0.060 and 0.015 working. It is not a gate, because `stipple-massif`
+renders correctly and scores 0.232 on it: a stipple's marks are legitimately
+1–2px dots. Any threshold that fails the broken engraving also fails a working
+stipple. It is recorded as a diagnostic in
+`docs/evidence/perceptual/engraving-repair/README.md`. A future version could
+make it work by measuring ink and paper runs separately, or by measuring mark
+*area* rather than row-run length; neither was in this phase's scope.
+
+**Known limit of the shipped gate.** It scores a candidate against its own
+source, so it cannot see that the source itself is weak. `engraved-colonnade`
+passes today over a flat vector `arcade` scene; the same style over a
+photographic source would be better art and score about the same. Source quality
+is Phase 7's subject, and no metric here substitutes for it.
+
 ### Found and fixed while executing the resolution-relative phase (2026-08-12)
 
 - **`displacement` declared a `spacing` parameter and threw it away.** It was on

@@ -10,6 +10,7 @@ import (
 
 	"backdrop-studio/integration"
 	"backdrop-studio/internal/imageengine"
+	"backdrop-studio/internal/scenes"
 
 	"github.com/stretchr/testify/require"
 )
@@ -52,11 +53,29 @@ const (
 //
 //	make integration-evidence
 func TestTreatmentGalleryEvidence(t *testing.T) {
-	env, _ := newEnvironment(t)
+	// The environment check still runs: it refuses to judge anything against a
+	// stale binary, and the treatments below go through the real image-tools.
+	newEnvironment(t)
 	ctx := context.Background()
 
-	source, err := env.Scaffold(ctx, "horizon", galleryWidth, galleryHeight, gallerySeed)
+	// The source is the scene generator, called in process — not a scaffold.
+	//
+	// A scaffold is conditioning input for a model preprocessor: flat, banded,
+	// and deliberately low in tone. Screening one shows nothing, and two
+	// treatments return it untouched — `pixel_sort` finds no bright run to
+	// reorder and `bloom` finds no highlight to lift. A gallery whose source
+	// cannot exercise its treatments is not evidence.
+	//
+	// The scene generator is what the procedural render lane actually screens,
+	// so it is what the gallery should show. Generating it here rather than
+	// over HTTP costs nothing in fidelity: the source is deterministic from its
+	// seed, and every treatment still makes a real round trip through the
+	// running image-tools, which is what this gallery is evidence of.
+	scene, err := scenes.Render(scenes.Request{
+		Preset: "arcade", Width: galleryWidth, Height: galleryHeight, Seed: gallerySeed,
+	})
 	require.NoError(t, err)
+	source := scene.PNG
 	sw, sh, err := integration.DecodePNG(source)
 	require.NoError(t, err)
 	require.Equal(t, [2]int{galleryWidth, galleryHeight}, [2]int{sw, sh})

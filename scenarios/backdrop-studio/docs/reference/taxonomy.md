@@ -138,26 +138,46 @@ Two kinds of treatment, and the difference decides where the code lives (D-003):
 
 ## Axis 3 · `subject` — what is depicted
 
-Open list. `non_representational` subjects are the ones most readily served by
-the `procedural` strategies, which is why the free tier is not a token gesture —
-the zero-cost lanes cover a genuinely useful part of the space.
+Open list. The `Drawn by` column is the load-bearing part: a procedural style
+may only name a subject some generator actually depicts, and the catalog refuses
+one that does not at write time. Everything marked `model lane` needs a
+model-backed strategy — the procedural lane will not substitute a nearby scene
+for it.
 
-| Value | Definition |
-|---|---|
-| `non_representational` | No subject. Pure field, geometry, or gradient. |
-| `horizon` | Landscape with a dominant eye line. |
-| `statuary_architecture` | Classical figures, columns, arcades, built structure. |
-| `interior` | Enclosed architectural space — halls, stairwells, vaulting. |
-| `botanical` | Plant and organic forms. |
-| `industrial` | Machinery, logistics, infrastructure. |
-| `atmospheric` | Sky, cloud, water, weather. |
-| `celestial` | Astronomical bodies, orbits, deep field. |
-| `aquatic` | Submerged and surface water, marine forms. |
-| `geological` | Strata, minerals, erosion, crystal. |
-| `textile_material` | Weave, fibre, paper, metal, and surface close-up. |
-| `cartographic` | Maps, charts, survey and navigational imagery. |
-| `figure` | The human form, abstracted or partial. Use with care — a recognisable person is identity-bearing and belongs to `asset-studio`. |
-| `object_metaphor` | A physical object standing in for an abstract product idea. |
+That rule is new, and it is the correction to a real defect. The lane used to
+answer every subject with the nearest scene it happened to have: `aquatic`,
+`atmospheric` and `horizon` all rendered the horizon, `interior` rendered the
+arcade, `cartographic` rendered the terrain, and `textile_material` and
+`object_metaphor` rendered the abstract field. Sixteen named art directions drew
+four pictures and nothing anywhere said so.
+
+`non_representational` is where the procedural lane is genuinely strong — seven
+distinct generators, selectable by name through a style's `scaffold.preset` —
+which is why the free tier is not a token gesture.
+
+| Value | Definition | Drawn by |
+|---|---|---|
+| `non_representational` | No subject. Pure field, geometry, or gradient. | procedural — `field`, `flow`, `voronoi`, `reaction`, `mesh`, `truchet`, `attractor` |
+| `horizon` | Landscape with a dominant eye line. | procedural — `horizon` |
+| `statuary_architecture` | Classical figures, columns, arcades, built structure. | procedural — `arcade` |
+| `interior` | Enclosed architectural space — halls, stairwells, vaulting. | model lane |
+| `botanical` | Plant and organic forms. | model lane |
+| `industrial` | Machinery, logistics, infrastructure. | model lane |
+| `atmospheric` | Sky, cloud, water, weather. | procedural — `nebula` |
+| `celestial` | Astronomical bodies, orbits, deep field. | model lane |
+| `aquatic` | Submerged and surface water, marine forms. | procedural — `caustics` |
+| `geological` | Strata, minerals, erosion, crystal. | procedural — `terrain` |
+| `textile_material` | Weave, fibre, paper, metal, and surface close-up. | model lane |
+| `cartographic` | Maps, charts, survey and navigational imagery. | procedural — `contour` |
+| `figure` | The human form, abstracted or partial. Use with care — a recognisable person is identity-bearing and belongs to `asset-studio`. | model lane |
+| `object_metaphor` | A physical object standing in for an abstract product idea. | model lane |
+
+`atmospheric` and `cartographic` moved off the model lane when the `nebula` and
+`contour` generators landed. They are not consolation substitutes: a nebula's
+emission field, dust occlusion and star magnitudes are each modelled, and a
+contour map's lines are genuine level sets that crowd where the ground is steep.
+The distinction that matters is whether the generator depicts the subject or
+merely resembles it, and these do.
 
 ---
 
@@ -331,16 +351,51 @@ tolerance.
 `api/internal/catalog/seed/vN.json` carries a `retune_reasons` entry naming the
 value chosen and why; an operator-authored style is never overwritten by one.
 
-### Generators → `scaffold` presets
+### Generators → `scenes` presets
 
-`mesh_gradient` · `caustics` · `noise_field` · `metaball` · `flow_field` ·
-`voronoi` · `reaction_diffusion` · `cellular_automata` ·
-`wave_function_collapse` · `truchet` · `l_system` · `strange_attractor` ·
-`contour`
+These synthesise rather than filter, so they are content and live in this
+scenario. Each is deterministic from its seed (`SCAF-001`).
 
-These synthesise rather than filter, so they are content and stay here. Each is a
-parameterised preset (`SCAF-004`) and must be deterministic from its seed
-(`SCAF-001`).
+**Built.** The `scenes` package draws these today, one file per generator:
+
+| Preset | Depicts | What it is |
+|---|---|---|
+| `horizon` | `horizon` | Layered landscape with a sky model and a sun |
+| `arcade` | `statuary_architecture` | Colonnade with sea, statue and canopy |
+| `terrain` | `geological` | Ridged-noise elevation with atmospheric depth |
+| `field` | `non_representational` | Soft overlapping colour masses (`noise_field`, `metaball`) |
+| `flow` | `non_representational` | Curl-noise particle advection (`flow_field`) |
+| `voronoi` | `non_representational` | F2−F1 cellular partitioning (`voronoi`) |
+| `reaction` | `non_representational` | Gray-Scott simulation (`reaction_diffusion`) |
+| `caustics` | `aquatic` | Refracted-light accumulation (`caustics`) |
+| `mesh` | `non_representational` | Inverse-distance colour stops, smeared along a turning axis (`mesh_gradient`) |
+| `truchet` | `non_representational` | Two-rotation arc tiling at two scales, lit from a fixed direction (`truchet`) |
+| `attractor` | `non_representational` | De Jong trajectory density plot (`strange_attractor`) |
+| `contour` | `cartographic` | Screen-space-width isolines over a stretched height field (`contour`) |
+| `nebula` | `atmospheric` | Domain-warped emission, multiplied dust lanes, magnitude-distributed stars |
+
+A procedural style selects one through `scaffold.preset`, and the generator must
+depict the style's declared subject — the catalog refuses the pair otherwise.
+
+Three of these carry a `palette` parameter selecting one of two or three
+art-directed ramps. It is a float because scene parameters are a
+`map[string]float64` on the wire; the alternative — one preset per palette —
+would make three generators out of one and overstate how much of the space
+ships.
+
+**Not built.** `cellular_automata`, `wave_function_collapse` and `l_system` are
+vocabulary with no generator behind them. They are listed in Axis 2 because the
+axis is an open description of the space worth covering, not a claim about what
+ships. A style cannot name one: there is no preset to select.
+
+**Every generator must carry tonal depth.** A dither or halftone over a flat
+colour region does nothing — the treatment has no gradient to modulate — so a
+generator that fills areas with flat colour cannot carry the treatments this
+catalog is built on. `TestScenesSpanFullTonalRange` enforces it: p2 luma below
+0.18, p98 above 0.80, and at least half the histogram buckets occupied.
+`TestScenesScaleWithSize` and `TestSceneNoiseIsCoherent` enforce the other two
+standards — features are a fraction of the frame, not a pixel count, and
+neighbouring pixels agree far more often than chance.
 
 ### Why this table exists
 
