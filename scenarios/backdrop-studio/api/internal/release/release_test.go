@@ -2,8 +2,9 @@ package release
 
 import "context"
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestProceduralReleaseDerivesDisclosureAndRequiresAltText(t *testing.T) {
@@ -14,6 +15,7 @@ func TestProceduralReleaseDerivesDisclosureAndRequiresAltText(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, b.AIGenerated)
 }
+
 func TestReleaseRejectsDirectDisclosureAndGeometry(t *testing.T) {
 	s := NewStore()
 	_, err := s.Release(Request{CandidateID: "c", StyleID: "s", Strategy: "guided", Width: 9, Height: 10, ExpectedWidth: 10, ExpectedHeight: 10, AIGeneratedSet: true, AltText: "x", LegibilityPasses: true})
@@ -27,6 +29,7 @@ func (p *fakePublisher) Publish(_ context.Context, _ Request, _ bool) (string, e
 	p.calls++
 	return "asset-123", nil
 }
+
 func TestModelBackedReleaseHandsOffToAssetStudio(t *testing.T) {
 	publisher := &fakePublisher{}
 	b, err := NewStoreWithPublisher(publisher).Release(Request{CandidateID: "c", StyleID: "s", Strategy: "guided", Width: 10, Height: 10, AltText: "a restrained field", LegibilityPasses: true, ContrastRatio: 5, ContrastThreshold: 4.5})

@@ -16,18 +16,21 @@
 
 ## Open after the 2026-08-12 output-quality repair
 
-- **`Normalize` is not on the wire.** `treatments.Params.Normalize` (p1–p99
-  auto-level) is wired through `image-tools/internal/ops` as a JSON field, but
-  `ops.proto` has no matching field, so it cannot be set from the CLI or the
-  Connect edge. Styles that need it cannot request it yet. Adding it means a
-  proto field on each treatment param message plus regeneration.
-- **Every scenario's `api/go.mod` is stale** (`golang.org/x/sys` v0.42.0 vs the
-  required v0.44.0), which makes `go test` refuse to run on any package whose
-  dependency closure touches it. Filed 2026-08-12 as `knw-1786507219127843663`.
-  The repair session validated `internal/render` and friends by backing up
-  `go.mod`/`go.sum`, running with `GOFLAGS=-mod=mod`, and restoring. **That is a
-  diagnostic workaround, not a practice to adopt** — it resolves a different
-  module graph than the one committed.
+- ~~`Normalize` is not on the wire.~~ **Closed 2026-08-12.** `normalize` now
+  exists on every tone-mapping proto message, along with `dark`/`light` on the
+  Tier-2 ink-on-paper screens, `distance` on aberration and `spacing` on
+  displacement. See the correction below — this was not merely a missing
+  convenience, it was breaking renders.
+- ~~Every scenario's `api/go.mod` is stale.~~ **Closed 2026-08-12.** Root cause:
+  `api-core` and `packages/proto` had moved to `golang.org/x/sys v0.44.0` while
+  every consumer still pinned `v0.42.0`, so MVS demanded a version the recorded
+  requirement was below. Repaired through the governed gateway
+  (`scenario-dependency-analyzer deps install`), never `go mod tidy`: 61 blocked
+  modules down to 6. `go test` now runs normally here — the
+  backup/`GOFLAGS=-mod=mod`/restore dance is no longer needed and should not be
+  reintroduced. The 6 remaining are tool gaps and one governance decision, filed
+  as `knw-1786539478410570891`; none of them are in backdrop-studio or
+  image-tools.
 - **`docs/evidence/` is 8.8 MB across 36 PNGs** now that evidence renders at
   delivery resolution. `treatments/grain.png` alone is 2.9 MB because noise does
   not compress. Delivery resolution was the point — a screen cannot be judged at
@@ -37,11 +40,62 @@
   font.** It blits a 7×13 bitmap face, so `block_size` values far from 7 resample
   the glyph. Legible, but not crisp at extremes.
 
+## Open after the 2026-08-12 catalog seeding
+
+- **The catalog is 16 styles across 4 scenes.** Adding a genuinely new *subject*
+  (botanical, celestial, figure, industrial) needs a new scene generator, not a
+  new catalog row — those subjects are only reachable through model-backed
+  strategies today, and `scenePreset` refuses them procedurally rather than
+  silently substituting a field.
+- ~~`TreatmentParams` is unvalidated on write.~~ **Closed 2026-08-12.**
+  `validateStyle` now calls `imageengine.ValidateChain`, which rejects malformed
+  JSON, non-object values, parameters naming an operation the style does not
+  run, and — most importantly — any field image-tools' proto will not accept.
+  Both write paths are covered (`CreateStyle` and `ImportStylePack`). The
+  wire-format knowledge lives in `internal/imageengine`, so the catalog asks
+  "will the engine take this?" without learning protobuf.
+- **Two seeded styles cannot be released.** `guided-botanical` and
+  `constructivist-figure` are model-backed and blocked on asset-studio byte
+  ingress (`knw-1786507241786326657`). They are seeded deliberately so the lanes
+  have real coverage the moment that lands.
+- **Catalog visual evidence is not committed.** The 12 rendered style previews
+  produced during seeding came from a throwaway probe and were removed rather
+  than shipped, because unreproducible evidence is the defect this repair
+  existed to fix. A repeatable path needs a running image-tools, so it belongs
+  in an integration lane, not a unit test.
+
+## Shipped-then-caught: the wire contract (2026-08-12)
+
+The catalog seeded earlier that day requested `normalize` and brand inks on the
+Tier-2 screens. Neither existed on `ops.proto`, and `protojson.Unmarshal`
+**rejects unknown fields** — so eleven of sixteen styles would have failed their
+render with `400 invalid params: unknown field "normalize"`.
+
+Both unit suites stayed green throughout, and that is the lesson worth keeping:
+backdrop-studio tests against a fake executor that never reaches the REST edge,
+and image-tools tests its treatments below the wire. Neither side could see the
+boundary between them. The gate now lives in
+`backdrop-studio/internal/imageengine/wire_contract_test.go`, which resolves
+every seeded style's parameters against a real brand and asserts the exact bytes
+parse as `opsv1.OpParams` — plus `image-tools/handlers/ops/wire_test.go`, which
+pins every parameter the engine accepts.
+
+**Rule for future work here: a parameter is not shipped until it round-trips
+through protojson.** Adding a knob to `treatments.Params` without extending the
+proto produces a loud failure in production and silence in CI.
+
 ## Corrections to the 2026-08-11 audit
 
 The audit that drove this repair got one finding wrong, recorded here so it is
 not re-derived:
 
+- **The placement preview never applied its placement.** `PreviewPlacements`
+  resized the candidate to the viewport and ignored the placement argument
+  entirely, so every placement returned identical pixels. It now composites four
+  real layouts with scrim and copy chrome.
+- **`drawScaled` stretched instead of cover-cropping**, so a 1600x1000 backdrop
+  in a tall split panel rendered a circular sun as an oval. Now scaled by the
+  larger axis ratio and centre-cropped.
 - **"Treatments are not reachable from the CLI" was false.** All 18 were already
   registered in `image-tools/cli/domains/ops/register.go`, with param builders
   and proto messages. `cli/manifest.json` legitimately carries only

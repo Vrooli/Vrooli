@@ -18,7 +18,11 @@ import (
 // must send every treatment to image-tools; Backdrop Studio deliberately has no
 // local pixel implementation.
 type Executor interface {
-	Apply(ctx context.Context, input []byte, treatments []string, palette map[string]string) ([]byte, error)
+	// params carries per-style overrides keyed by op name, merged over the
+	// palette-derived defaults. A style that names an op without parameters
+	// still gets a sensible default; a style that wants a specific screen can
+	// state it.
+	Apply(ctx context.Context, input []byte, treatments []string, params map[string]string, palette map[string]string) ([]byte, error)
 }
 
 // GenerationRequest is the role/profile-based inference contract. Concrete
@@ -63,7 +67,11 @@ func NewClient() *Client {
 	}
 }
 
-func (c *Client) Apply(ctx context.Context, input []byte, treatments []string, palette map[string]string) ([]byte, error) {
+// Apply runs the chain, merging per-style overrides over the palette-derived
+// defaults. Without overrides every style naming "halftone" rendered the same
+// screen at the same line frequency, so the catalog could name an art direction
+// but never express one.
+func (c *Client) Apply(ctx context.Context, input []byte, treatments []string, overrides map[string]string, palette map[string]string) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, fmt.Errorf("image-tools: input image is empty")
 	}
@@ -89,7 +97,7 @@ func (c *Client) Apply(ctx context.Context, input []byte, treatments []string, p
 		if treatment == "" || strings.HasPrefix(treatment, "$brand.") {
 			return nil, fmt.Errorf("image-tools: invalid treatment %q", treatment)
 		}
-		result, err = run(ctx, httpClient, baseURL, treatment, result, paramsFor(treatment, palette))
+		result, err = run(ctx, httpClient, baseURL, treatment, result, mergedParams(treatment, overrides[treatment], palette))
 		if err != nil {
 			return nil, err
 		}
@@ -244,6 +252,55 @@ func run(ctx context.Context, client *http.Client, baseURL, operation string, in
 	return out, nil
 }
 
+// ResolveParams is the exported form of the merge: it produces the exact
+// parameter JSON that would be sent to image-tools for one operation, with
+// $brand.* slots bound against the supplied palette. Callers use it to assert
+// on what will actually go over the wire rather than on the catalog's stored
+// intent.
+func ResolveParams(operation, override string, palette map[string]string) string {
+	return mergedParams(operation, override, palette)
+}
+
+// mergedParams overlays a style's op parameters onto the palette-derived
+// defaults. Overrides may name "$brand.*" slots, which resolve against the
+// active brand here rather than being baked into the catalog — the same
+// mechanism that lets one style render correctly for several brands.
+func mergedParams(operation, override string, palette map[string]string) string {
+	base := paramsFor(operation, palette)
+	if strings.TrimSpace(override) == "" {
+		return base
+	}
+	var baseObj map[string]map[string]any
+	if err := json.Unmarshal([]byte(base), &baseObj); err != nil || baseObj[operation] == nil {
+		baseObj = map[string]map[string]any{operation: {}}
+	}
+	var over map[string]any
+	if err := json.Unmarshal([]byte(override), &over); err != nil {
+		// Unreachable for anything stored through the catalog: ValidateChain
+		// rejects malformed parameters at write time, on both CreateStyle and
+		// ImportStylePack. This is the defence-in-depth branch for parameters
+		// that reached the engine some other way, and it ships the default
+		// rather than failing the render. That is a deliberate trade — the
+		// alternative is a render that dies on a bad character — and it is safe
+		// only because the write path refuses to store this shape.
+		return base
+	}
+	for k, v := range over {
+		if sv, ok := v.(string); ok && strings.HasPrefix(sv, "$brand.") {
+			if resolved, ok := palette[sv]; ok && resolved != "" {
+				baseObj[operation][k] = resolved
+				continue
+			}
+		}
+		baseObj[operation][k] = v
+	}
+	out, err := json.Marshal(baseObj)
+	if err != nil {
+		return base
+	}
+	return string(out)
+}
+
 func paramsFor(operation string, palette map[string]string) string {
 	dark := palette["$brand.primary"]
 	if dark == "" {
@@ -268,7 +325,11 @@ func paramsFor(operation string, palette map[string]string) string {
 		return `{"grain":{"seed":1,"amount":0.12,"contrast_multiplier":1.05}}`
 	case "scrim":
 		return fmt.Sprintf(`{"scrim":{"color":%q,"opacity":0.34,"direction":"top"}}`, dark)
+	case "line_screen", "stipple", "engraving", "ascii_mosaic":
+		// These render ink on paper and honour Dark/Light, so they take the
+		// brand palette like the Tier-1 screens rather than a hardcoded ink.
+		return fmt.Sprintf(`{%q:{"dark":%q,"light":%q}}`, operation, dark, light)
 	default:
-		return `{}`
+		return fmt.Sprintf(`{%q:{}}`, operation)
 	}
 }

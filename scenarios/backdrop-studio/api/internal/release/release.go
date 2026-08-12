@@ -38,6 +38,7 @@ func NewStore() *Store { return &Store{items: map[string]Backdrop{}} }
 func NewStoreWithPublisher(publisher AssetPublisher) *Store {
 	return &Store{items: map[string]Backdrop{}, publisher: publisher}
 }
+
 func (s *Store) Release(r Request) (Backdrop, error) {
 	if r.CandidateID == "" || r.StyleID == "" {
 		return Backdrop{}, fmt.Errorf("release: candidate_id and style_id are required")
@@ -73,6 +74,7 @@ func (s *Store) Release(r Request) (Backdrop, error) {
 	s.mu.Unlock()
 	return b, nil
 }
+
 func (s *Store) Get(id string) (Backdrop, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

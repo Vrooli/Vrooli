@@ -36,7 +36,7 @@ func TestClientApplyRunsTheOrderedImageToolsChain(t *testing.T) {
 	defer server.Close()
 
 	client := &Client{HTTPClient: server.Client(), Resolve: func(context.Context) (string, error) { return server.URL, nil }}
-	out, err := client.Apply(context.Background(), []byte{1, 2}, []string{"duotone", "grain"}, map[string]string{"$brand.primary": "#123456"})
+	out, err := client.Apply(context.Background(), []byte{1, 2}, []string{"duotone", "grain"}, nil, map[string]string{"$brand.primary": "#123456"})
 	require.NoError(t, err)
 	require.Equal(t, []byte{1, 2, 1, 2}, out)
 	require.Equal(t, []string{"/api/v1/ops/duotone", "/api/v1/ops/grain"}, operations)
@@ -44,9 +44,9 @@ func TestClientApplyRunsTheOrderedImageToolsChain(t *testing.T) {
 
 func TestClientApplyRefusesMissingInputsAndUnresolvedTreatmentNames(t *testing.T) {
 	client := &Client{Resolve: func(context.Context) (string, error) { return "http://example.test", nil }}
-	_, err := client.Apply(context.Background(), nil, []string{"grain"}, nil)
+	_, err := client.Apply(context.Background(), nil, []string{"grain"}, nil, nil)
 	require.ErrorContains(t, err, "input image is empty")
-	_, err = client.Apply(context.Background(), []byte{1}, []string{"$brand.primary"}, nil)
+	_, err = client.Apply(context.Background(), []byte{1}, []string{"$brand.primary"}, nil, nil)
 	require.ErrorContains(t, err, "invalid treatment")
 }
 

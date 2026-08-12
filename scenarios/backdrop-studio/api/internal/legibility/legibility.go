@@ -92,12 +92,14 @@ func cropBounds(bounds image.Rectangle, r Region, placement string) (int, int, i
 	}
 	return int(x + r.X*w), int(y * r.Y), max(int(x+(r.X+r.Width)*w), int(x)+1), max(int(y+(r.Y+r.Height)*h), int(y)+1)
 }
+
 func max(a, b int) int {
 	if a > b {
 		return a
 	}
 	return b
 }
+
 func parseHex(v string) (color.RGBA, error) {
 	v = strings.TrimPrefix(strings.TrimSpace(v), "#")
 	if len(v) != 6 {
@@ -106,6 +108,7 @@ func parseHex(v string) (color.RGBA, error) {
 	n, err := strconv.ParseUint(v, 16, 32)
 	return color.RGBA{R: uint8(n >> 16), G: uint8(n >> 8), B: uint8(n), A: 255}, err
 }
+
 func linear(c uint8) float64 {
 	v := float64(c) / 255
 	if v <= .04045 {
@@ -113,16 +116,19 @@ func linear(c uint8) float64 {
 	}
 	return math.Pow((v+.055)/1.055, 2.4)
 }
+
 func luminance(c color.Color) float64 {
 	r, g, b, _ := c.RGBA()
 	return .2126*linear(uint8(r>>8)) + .7152*linear(uint8(g>>8)) + .0722*linear(uint8(b>>8))
 }
+
 func contrast(a, b float64) float64 {
 	if a < b {
 		a, b = b, a
 	}
 	return (a + .05) / (b + .05)
 }
+
 func minimumScrim(current, threshold float64) float64 {
 	if current <= 0 {
 		return 1

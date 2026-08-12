@@ -6,6 +6,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+
+	"backdrop-studio/internal/imageengine"
 )
 
 type Surface struct {
@@ -39,6 +41,14 @@ type Style struct {
 	ContrastThreshold                float64
 	Scaffold                         *ScaffoldBinding
 	Generation                       *GenerationBlock
+	// TreatmentParams carries per-style parameters for the ops named in
+	// Treatments, keyed by op name, each value a JSON object merged over the
+	// palette-derived defaults at render time. Without it every style using
+	// "halftone" produced the same screen at the same line frequency, so the
+	// catalog could name an art direction but never actually express one.
+	// Values may reference "$brand.*" slots, which resolve against the active
+	// brand rather than being baked in.
+	TreatmentParams map[string]string
 }
 
 type Store struct{ db *sql.DB }
@@ -54,6 +64,7 @@ func (s *Store) Seed(ctx context.Context) error {
 	// Keep databases created before lineage was introduced readable while the
 	// canonical schema remains the source for fresh installs.
 	_, _ = s.db.ExecContext(ctx, `ALTER TABLE backdrop_styles ADD COLUMN parent_id TEXT NOT NULL DEFAULT ''`)
+	_, _ = s.db.ExecContext(ctx, `ALTER TABLE backdrop_styles ADD COLUMN treatment_params TEXT NOT NULL DEFAULT '{}'`)
 	var count int
 	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM backdrop_surfaces").Scan(&count); err != nil {
 		return err
@@ -81,22 +92,198 @@ func (s *Store) Seed(ctx context.Context) error {
 		return err
 	}
 	if styles == 0 {
+		// The seeded catalog. Every entry names a subject that maps to a real
+		// scene (or is model-backed), only ops image-tools implements, and —
+		// critically — its own parameters. Without TreatmentParams every style
+		// naming "halftone" produced an identical screen, so the catalog
+		// described fifteen art directions while rendering about four.
+		//
+		// Ink slots stay as $brand.* so one style renders correctly per brand
+		// rather than baking a palette into the catalog.
+		overlay := func(text string) []Region {
+			return []Region{{X: .06, Y: .18, Width: .48, Height: .40, Kind: "overlay", TextColor: text}}
+		}
+		const onDark, onLight = "#ffffff", "#111827"
 		for _, v := range []Style{
-			{ID: "horizon-ink", Name: "Horizon Ink", Version: 1, Role: "ambient", Subject: "horizon", Lineage: "wpa_poster", Treatments: []string{"duotone", "halftone"}, Placements: []string{"full_bleed", "split_panel"}, Strategy: "procedural-treated", Regions: []Region{{X: .08, Y: .12, Width: .48, Height: .28, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "arcade-noir", Name: "Arcade Noir", Version: 1, Role: "ambient", Subject: "statuary_architecture", Lineage: "metaphysical", Treatments: []string{"posterize", "grain"}, Placements: []string{"full_bleed", "corner_bleed"}, Strategy: "procedural", Regions: []Region{{X: .06, Y: .1, Width: .5, Height: .3, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "terrain-riso", Name: "Terrain Riso", Version: 1, Role: "ambient", Subject: "geological", Lineage: "riso_zine", Treatments: []string{"dither_diffusion", "duotone"}, Placements: []string{"full_bleed", "framed_inset"}, Strategy: "procedural-treated", Regions: []Region{{X: .08, Y: .1, Width: .42, Height: .25, Kind: "overlay", TextColor: "#111827"}}, ContrastThreshold: 4.5},
-			{ID: "field-guided", Name: "Field Guided", Version: 1, Role: "ambient", Subject: "non_representational", Lineage: "technical_minimalism", Treatments: []string{"scrim", "grain"}, Placements: []string{"full_bleed"}, Strategy: "guided", Scaffold: &ScaffoldBinding{Preset: "field", Conditioner: "depth"}, Generation: &GenerationBlock{Role: "image.generate.default", Profile: "PROFILE_QUALITY_FIRST", PromptTemplate: "a restrained non-representational colour field"}, Regions: []Region{{X: .08, Y: .1, Width: .5, Height: .3, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "cyanotype-botanical", Name: "Cyanotype Botanical", Version: 1, Role: "ambient", Subject: "botanical", Lineage: "cyanotype", Treatments: []string{"duotone"}, Placements: []string{"full_bleed"}, Strategy: "procedural-treated", Regions: []Region{{X: .06, Y: .08, Width: .42, Height: .28, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "bauhaus-industrial", Name: "Bauhaus Industrial", Version: 1, Role: "ambient", Subject: "industrial", Lineage: "bauhaus", Treatments: []string{"posterize"}, Placements: []string{"split_panel"}, Strategy: "procedural", Regions: []Region{{X: .08, Y: .12, Width: .4, Height: .24, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "op-art-aquatic", Name: "Op Art Aquatic", Version: 1, Role: "ambient", Subject: "aquatic", Lineage: "op_art", Treatments: []string{"halftone"}, Placements: []string{"full_bleed"}, Strategy: "procedural-treated", Regions: []Region{{X: .08, Y: .1, Width: .4, Height: .25, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "swiss-cartographic", Name: "Swiss Cartographic", Version: 1, Role: "ambient", Subject: "cartographic", Lineage: "swiss_international", Treatments: []string{"dither_ordered"}, Placements: []string{"framed_inset"}, Strategy: "procedural", Regions: []Region{{X: .08, Y: .1, Width: .45, Height: .25, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "neo-brutalist-object", Name: "Neo Brutalist Object", Version: 1, Role: "ambient", Subject: "object_metaphor", Lineage: "neo_brutalist", Treatments: []string{"grain"}, Placements: []string{"corner_bleed"}, Strategy: "procedural-treated", Regions: []Region{{X: .08, Y: .1, Width: .45, Height: .25, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "riso-atmosphere", Name: "Riso Atmosphere", Version: 1, Role: "ambient", Subject: "atmospheric", Lineage: "riso_zine", Treatments: []string{"dither_diffusion"}, Placements: []string{"full_bleed"}, Strategy: "procedural-treated", Regions: []Region{{X: .08, Y: .1, Width: .45, Height: .25, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "vaporwave-celestial", Name: "Vaporwave Celestial", Version: 1, Role: "ambient", Subject: "celestial", Lineage: "vaporwave", Treatments: []string{"scrim"}, Placements: []string{"full_bleed"}, Strategy: "guided", Scaffold: &ScaffoldBinding{Preset: "field", Conditioner: "edge"}, Generation: &GenerationBlock{Role: "image.generate.default", Profile: "PROFILE_QUALITY_FIRST", PromptTemplate: "a restrained celestial gradient"}, Regions: []Region{{X: .08, Y: .1, Width: .45, Height: .25, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "scientific-interior", Name: "Scientific Interior", Version: 1, Role: "ambient", Subject: "interior", Lineage: "scientific_plate", Treatments: []string{"posterize"}, Placements: []string{"split_panel"}, Strategy: "procedural", Regions: []Region{{X: .08, Y: .1, Width: .45, Height: .25, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "memphis-textile", Name: "Memphis Textile", Version: 1, Role: "ambient", Subject: "textile_material", Lineage: "memphis", Treatments: []string{"halftone", "grain"}, Placements: []string{"full_bleed"}, Strategy: "procedural-treated", Regions: []Region{{X: .08, Y: .1, Width: .45, Height: .25, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "synthesized-horizon", Name: "Synthesized Horizon", Version: 1, Role: "ambient", Subject: "horizon", Lineage: "solarpunk", Treatments: []string{"scrim", "duotone"}, Placements: []string{"full_bleed"}, Strategy: "synthesized", Generation: &GenerationBlock{Role: "image.generate.default", Profile: "PROFILE_QUALITY_FIRST", PromptTemplate: "an abstract horizon with quiet negative space"}, Regions: []Region{{X: .08, Y: .1, Width: .45, Height: .25, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
-			{ID: "constructivist-figure", Name: "Constructivist Figure", Version: 1, Role: "ambient", Subject: "figure", Lineage: "constructivist", Treatments: []string{"posterize"}, Placements: []string{"framed_inset"}, Strategy: "synthesized", Generation: &GenerationBlock{Role: "image.generate.default", Profile: "PROFILE_QUALITY_FIRST", PromptTemplate: "a non-identifiable constructivist silhouette"}, Regions: []Region{{X: .08, Y: .1, Width: .45, Height: .25, Kind: "overlay", TextColor: "#ffffff"}}, ContrastThreshold: 4.5},
+			// ── architecture: screens over the arcade scene ───────────────
+			{
+				ID: "cyanotype-arcade", Name: "Cyanotype Arcade", Version: 1, Role: "ambient",
+				Subject: "statuary_architecture", Lineage: "cyanotype", Strategy: "procedural-treated",
+				Treatments: []string{"duotone", "halftone"}, Placements: []string{"full_bleed", "split_panel", "framed_inset"},
+				TreatmentParams: map[string]string{
+					"duotone":  `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
+					"halftone": `{"lpi":72,"angle":15,"dot":"circle"}`,
+				},
+				Regions: overlay(onDark), ContrastThreshold: 4.5,
+			},
+			{
+				ID: "engraved-colonnade", Name: "Engraved Colonnade", Version: 1, Role: "ambient",
+				Subject: "statuary_architecture", Lineage: "scientific_plate", Strategy: "procedural-treated",
+				Treatments: []string{"engraving"}, Placements: []string{"framed_inset", "split_panel"},
+				TreatmentParams: map[string]string{
+					"engraving": `{"spacing":7,"dark":"$brand.primary","light":"$brand.background"}`,
+				},
+				Regions: overlay(onLight), ContrastThreshold: 4.5,
+			},
+			{
+				ID: "op-art-interior", Name: "Op Art Interior", Version: 1, Role: "ambient",
+				Subject: "interior", Lineage: "op_art", Strategy: "procedural-treated",
+				Treatments: []string{"line_screen"}, Placements: []string{"full_bleed", "corner_bleed"},
+				TreatmentParams: map[string]string{
+					"line_screen": `{"spacing":6,"angle":45,"dark":"$brand.primary","light":"$brand.background"}`,
+				},
+				Regions: overlay(onDark), ContrastThreshold: 4.5,
+			},
+
+			// ── horizon family ───────────────────────────────────────────
+			{
+				ID: "riso-horizon", Name: "Riso Horizon", Version: 1, Role: "ambient",
+				Subject: "horizon", Lineage: "riso_zine", Strategy: "procedural-treated",
+				Treatments: []string{"dither_diffusion", "grain"}, Placements: []string{"full_bleed", "split_panel"},
+				TreatmentParams: map[string]string{
+					"dither_diffusion": `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
+					"grain":            `{"amount":0.05,"contrast_multiplier":1.0,"seed":11}`,
+				},
+				Regions: overlay(onDark), ContrastThreshold: 4.5,
+			},
+			{
+				ID: "city-pop-horizon", Name: "City Pop Horizon", Version: 1, Role: "ambient",
+				Subject: "horizon", Lineage: "city_pop", Strategy: "procedural-treated",
+				Treatments: []string{"posterize", "grain"}, Placements: []string{"full_bleed", "corner_bleed"},
+				TreatmentParams: map[string]string{
+					"posterize": `{"levels":7,"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
+					"grain":     `{"amount":0.09,"contrast_multiplier":1.10,"seed":4}`,
+				},
+				Regions: overlay(onDark), ContrastThreshold: 4.5,
+			},
+			{
+				ID: "solar-bloom-horizon", Name: "Solar Bloom Horizon", Version: 1, Role: "ambient",
+				Subject: "horizon", Lineage: "solarpunk", Strategy: "procedural-treated",
+				Treatments: []string{"bloom", "grain", "scrim"}, Placements: []string{"full_bleed"},
+				TreatmentParams: map[string]string{
+					"bloom": `{"threshold":0.62,"radius":18}`,
+					"grain": `{"amount":0.06,"contrast_multiplier":1.04,"seed":9}`,
+					"scrim": `{"color":"$brand.primary","opacity":0.55,"direction":"left"}`,
+				},
+				Regions: overlay(onDark), ContrastThreshold: 4.5,
+			},
+			{
+				ID: "ukiyo-tide", Name: "Ukiyo Tide", Version: 1, Role: "ambient",
+				Subject: "aquatic", Lineage: "ukiyo_e", Strategy: "procedural-treated",
+				Treatments: []string{"posterize", "halftone"}, Placements: []string{"full_bleed", "framed_inset"},
+				TreatmentParams: map[string]string{
+					"posterize": `{"levels":4,"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
+					"halftone":  `{"lpi":110,"angle":30,"dot":"circle"}`,
+				},
+				Regions: overlay(onLight), ContrastThreshold: 4.5,
+			},
+
+			// ── terrain family ───────────────────────────────────────────
+			{
+				ID: "demoscene-terrain", Name: "Demoscene Terrain", Version: 1, Role: "ambient",
+				Subject: "geological", Lineage: "demoscene", Strategy: "procedural-treated",
+				Treatments: []string{"dither_ordered"}, Placements: []string{"full_bleed", "split_panel"},
+				TreatmentParams: map[string]string{
+					"dither_ordered": `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
+				},
+				Regions: overlay(onDark), ContrastThreshold: 4.5,
+			},
+			{
+				ID: "stipple-massif", Name: "Stipple Massif", Version: 1, Role: "ambient",
+				Subject: "geological", Lineage: "wpa_poster", Strategy: "procedural-treated",
+				Treatments: []string{"stipple"}, Placements: []string{"framed_inset", "corner_bleed"},
+				TreatmentParams: map[string]string{
+					"stipple": `{"spacing":7,"seed":19,"dark":"$brand.primary","light":"$brand.background"}`,
+				},
+				Regions: overlay(onLight), ContrastThreshold: 4.5,
+			},
+			{
+				ID: "swiss-contour", Name: "Swiss Contour", Version: 1, Role: "ambient",
+				Subject: "cartographic", Lineage: "swiss_international", Strategy: "procedural-treated",
+				Treatments: []string{"posterize", "line_screen"}, Placements: []string{"framed_inset", "split_panel"},
+				TreatmentParams: map[string]string{
+					"posterize":   `{"levels":5,"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
+					"line_screen": `{"spacing":11,"angle":0,"dark":"$brand.primary","light":"$brand.background"}`,
+				},
+				Regions: overlay(onLight), ContrastThreshold: 4.5,
+			},
+
+			// ── field family ─────────────────────────────────────────────
+			{
+				ID: "technical-field", Name: "Technical Field", Version: 1, Role: "ambient",
+				Subject: "non_representational", Lineage: "technical_minimalism", Strategy: "procedural-treated",
+				Treatments: []string{"duotone", "grain"}, Placements: []string{"full_bleed", "split_panel", "corner_bleed"},
+				TreatmentParams: map[string]string{
+					"duotone": `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
+					"grain":   `{"amount":0.04,"contrast_multiplier":1.02,"seed":2}`,
+				},
+				Regions: overlay(onDark), ContrastThreshold: 4.5,
+			},
+			{
+				ID: "ascii-field", Name: "ASCII Field", Version: 1, Role: "ambient",
+				Subject: "non_representational", Lineage: "demoscene", Strategy: "procedural-treated",
+				Treatments: []string{"ascii_mosaic"}, Placements: []string{"full_bleed", "split_panel"},
+				TreatmentParams: map[string]string{
+					"ascii_mosaic": `{"block_size":7,"dark":"$brand.primary","light":"$brand.background"}`,
+				},
+				Regions: overlay(onLight), ContrastThreshold: 4.5,
+			},
+			{
+				ID: "memphis-weave", Name: "Memphis Weave", Version: 1, Role: "ambient",
+				Subject: "textile_material", Lineage: "memphis", Strategy: "procedural-treated",
+				Treatments: []string{"displacement", "posterize"}, Placements: []string{"full_bleed", "corner_bleed"},
+				TreatmentParams: map[string]string{
+					"displacement": `{"amplitude":18,"spacing":26,"seed":5}`,
+					"posterize":    `{"levels":6,"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
+				},
+				Regions: overlay(onDark), ContrastThreshold: 4.5,
+			},
+			{
+				ID: "vaporwave-drift", Name: "Vaporwave Drift", Version: 1, Role: "ambient",
+				Subject: "object_metaphor", Lineage: "vaporwave", Strategy: "procedural-treated",
+				Treatments: []string{"aberration", "bloom", "scrim"}, Placements: []string{"full_bleed"},
+				TreatmentParams: map[string]string{
+					"aberration": `{"distance":9}`,
+					"bloom":      `{"threshold":0.58,"radius":22}`,
+					"scrim":      `{"color":"$brand.primary","opacity":0.42,"direction":"bottom"}`,
+				},
+				Regions: overlay(onDark), ContrastThreshold: 4.5,
+			},
+
+			// ── model-backed lanes ───────────────────────────────────────
+			// These name subjects with no procedural scene, which is exactly
+			// why they are model-backed. Both stay unreleasable until
+			// asset-studio exposes byte ingress (knw-1786507241786326657).
+			{
+				ID: "guided-botanical", Name: "Guided Botanical", Version: 1, Role: "ambient",
+				Subject: "botanical", Lineage: "art_nouveau", Strategy: "guided",
+				Treatments: []string{"duotone", "grain"}, Placements: []string{"full_bleed", "split_panel"},
+				Scaffold: &ScaffoldBinding{Preset: "field", Conditioner: "depth", ParamsJSON: `{"focal_x":0.68,"depth_ramp":0.8}`},
+				Generation: &GenerationBlock{
+					Role: "image.generate.default", Profile: "PROFILE_QUALITY_FIRST",
+					PromptTemplate: "dense botanical forms pressed flat against the picture plane, hard-edged leaves, no visible brushwork, generous empty ground at left",
+					Negative:       "text, watermark, signature, photorealistic skin, lens flare",
+				},
+				TreatmentParams: map[string]string{
+					"duotone": `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
+					"grain":   `{"amount":0.07,"contrast_multiplier":1.05,"seed":3}`,
+				},
+				Regions: overlay(onDark), ContrastThreshold: 4.5,
+			},
+			{
+				ID: "constructivist-figure", Name: "Constructivist Figure", Version: 1, Role: "ambient",
+				Subject: "figure", Lineage: "constructivist", Strategy: "synthesized",
+				Treatments: []string{"posterize"}, Placements: []string{"framed_inset", "split_panel"},
+				Generation: &GenerationBlock{
+					Role: "image.generate.default", Profile: "PROFILE_QUALITY_FIRST",
+					PromptTemplate: "a non-identifiable silhouetted figure in flat geometric planes, steep diagonal composition, large areas of unbroken ground",
+					Negative:       "recognisable face, portrait likeness, text, watermark",
+				},
+				TreatmentParams: map[string]string{
+					"posterize": `{"levels":4,"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
+				},
+				Regions: overlay(onDark), ContrastThreshold: 4.5,
+			},
 		} {
 			if err := s.CreateStyle(ctx, v); err != nil {
 				return err
@@ -159,7 +346,24 @@ func validateStyle(v Style) error {
 	if len(v.Treatments) == 0 {
 		return fmt.Errorf("catalog: treatment must contain at least one value")
 	}
-	validTreatments := map[string]bool{"halftone": true, "line_screen": true, "risograph": true, "stipple": true, "engraving": true, "letterpress": true, "dither_ordered": true, "dither_diffusion": true, "posterize": true, "duotone": true, "tritone": true, "thermal": true, "grain": true, "scrim": true, "bloom": true, "aberration": true, "long_exposure": true, "bokeh": true, "godray": true, "solarization": true, "cross_process": true, "crt_scanline": true, "anaglyph": true, "mesh_gradient": true, "caustics": true, "noise_field": true, "metaball": true, "flow_field": true, "voronoi": true, "reaction_diffusion": true, "cellular_automata": true, "wave_function_collapse": true, "truchet": true, "l_system": true, "strange_attractor": true, "contour": true, "pixel_sort": true, "glitch": true, "displacement": true, "fluted_glass": true, "kaleidoscope": true, "slit_scan": true, "typographic_mosaic": true, "pixel": true, "photomosaic": true}
+	// Restricted to the operations image-tools actually implements. The
+	// previous set also allowed caustics, voronoi, letterpress, l_system and
+	// two dozen others that no engine serves, so a style could validate, be
+	// released, and then fail or silently no-op at render time. A catalog that
+	// accepts a look nothing can produce is worse than a smaller catalog.
+	validTreatments := map[string]bool{
+		// tonal / ink mapping
+		"duotone": true, "posterize": true,
+		// screens
+		"halftone": true, "line_screen": true, "stipple": true, "engraving": true,
+		// quantization
+		"dither_ordered": true, "dither_diffusion": true,
+		// photographic
+		"grain": true, "scrim": true, "bloom": true, "aberration": true,
+		"curve": true, "defocus": true, "motion_blur": true,
+		// symbolic / displacement
+		"ascii_mosaic": true, "pixel_sort": true, "displacement": true,
+	}
 	for _, treatment := range v.Treatments {
 		if err := valid("treatment", treatment, validTreatments); err != nil {
 			return err
@@ -170,6 +374,12 @@ func validateStyle(v Style) error {
 		if err := valid("placement", p, validPlacements); err != nil {
 			return err
 		}
+	}
+	// Parameters are checked against the engine's wire contract here, at the
+	// only moment the author can still fix them. A style whose parameters the
+	// engine will reject used to store cleanly and fail at first render.
+	if err := imageengine.ValidateChain(v.Treatments, v.TreatmentParams); err != nil {
+		return fmt.Errorf("catalog: style %q: %w", v.ID, err)
 	}
 	for i, r := range v.Regions {
 		if r.X < 0 || r.Y < 0 || r.Width <= 0 || r.Height <= 0 || r.X+r.Width > 1 || r.Y+r.Height > 1 {
@@ -220,13 +430,13 @@ func (s *Store) CreateStyle(ctx context.Context, v Style) error {
 		v.Version = 1
 	}
 	raw, _ := json.Marshal(v)
-	_, err := s.db.ExecContext(ctx, `INSERT INTO backdrop_styles(id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,released,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)`, v.ID, v.Name, v.Version, v.Role, v.Subject, v.Lineage, v.Strategy, mustJSON(v.Treatments), mustJSON(v.Placements), mustJSON(v.Regions), v.ContrastThreshold, mustJSON(v.Scaffold), mustJSON(v.Generation), v.ParentID, string(raw))
+	_, err := s.db.ExecContext(ctx, `INSERT INTO backdrop_styles(id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,treatment_params,released,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)`, v.ID, v.Name, v.Version, v.Role, v.Subject, v.Lineage, v.Strategy, mustJSON(v.Treatments), mustJSON(v.Placements), mustJSON(v.Regions), v.ContrastThreshold, mustJSON(v.Scaffold), mustJSON(v.Generation), v.ParentID, mustJSON(v.TreatmentParams), string(raw))
 	return err
 }
 func mustJSON(v any) string { b, _ := json.Marshal(v); return string(b) }
 
 func (s *Store) ListStyles(ctx context.Context, role, subject, treatment, lineage, placement string) ([]Style, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id FROM backdrop_styles ORDER BY id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,treatment_params FROM backdrop_styles ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -234,11 +444,14 @@ func (s *Store) ListStyles(ctx context.Context, role, subject, treatment, lineag
 	var out []Style
 	for rows.Next() {
 		var v Style
-		var ts, ps, rs, scaffold, generation string
-		if err := rows.Scan(&v.ID, &v.Name, &v.Version, &v.Role, &v.Subject, &v.Lineage, &v.Strategy, &ts, &ps, &rs, &v.ContrastThreshold, &scaffold, &generation, &v.ParentID); err != nil {
+		var ts, ps, rs, scaffold, generation, tparams string
+		if err := rows.Scan(&v.ID, &v.Name, &v.Version, &v.Role, &v.Subject, &v.Lineage, &v.Strategy, &ts, &ps, &rs, &v.ContrastThreshold, &scaffold, &generation, &v.ParentID, &tparams); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal([]byte(ts), &v.Treatments)
+		if tparams != "" && tparams != "null" {
+			_ = json.Unmarshal([]byte(tparams), &v.TreatmentParams)
+		}
 		_ = json.Unmarshal([]byte(ps), &v.Placements)
 		_ = json.Unmarshal([]byte(rs), &v.Regions)
 		if scaffold != "null" && scaffold != "" {
@@ -269,6 +482,7 @@ func (s *Store) GetStyle(ctx context.Context, id string) (Style, error) {
 	}
 	return Style{}, fmt.Errorf("catalog: style %q not found", id)
 }
+
 func contains(xs []string, w string) bool {
 	for _, x := range xs {
 		if x == w {
@@ -277,6 +491,7 @@ func contains(xs []string, w string) bool {
 	}
 	return false
 }
+
 func (s *Store) TouchStyle(ctx context.Context, id string) error {
 	var released bool
 	if err := s.db.QueryRowContext(ctx, `SELECT released FROM backdrop_styles WHERE id=?`, id).Scan(&released); err != nil {
@@ -335,6 +550,7 @@ type StylePack struct {
 func ExportStylePack(styles []Style) ([]byte, error) {
 	return json.MarshalIndent(StylePack{Version: 1, Styles: styles}, "", "  ")
 }
+
 func ImportStylePack(data []byte) ([]Style, error) {
 	var pack StylePack
 	if err := json.Unmarshal(data, &pack); err != nil {

@@ -82,16 +82,17 @@ func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, plac
 	job := &Job{ID: jobID, StyleID: style.ID, Status: "completed", Seed: seed, ExecutionPath: expectedPath(style.Strategy)}
 	for i := 0; i < count; i++ {
 		candidateSeed := seed + int64(i)
-		preset := style.Subject
-		switch preset {
-		case "statuary_architecture":
-			preset = "arcade"
-		case "geological":
-			preset = "terrain"
-		case "non_representational":
-			preset = "field"
-		case "horizon":
-		default:
+		preset, ok := scenePreset(style.Subject)
+		if !ok {
+			// A procedural lane ships what the generator draws, so a subject
+			// with no scene cannot be honoured — it used to fall through to
+			// "field", meaning a style called Cyanotype Botanical rendered an
+			// abstract colour field and nothing said so. Model-backed lanes may
+			// still use any subject: the model draws it and the scaffold only
+			// supplies composition geometry.
+			if style.Strategy == "procedural" || style.Strategy == "procedural-treated" {
+				return Job{}, fmt.Errorf("render: subject %q has no procedural scene; use a model-backed strategy or a subject with a scene (%v)", style.Subject, scenes.Presets)
+			}
 			preset = "field"
 		}
 		regions := make([]scaffold.Region, 0, len(style.Regions))
@@ -156,7 +157,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, plac
 			}
 			input = generated
 		}
-		treated, err := s.engine.Apply(ctx, input, style.Treatments, palette)
+		treated, err := s.engine.Apply(ctx, input, style.Treatments, style.TreatmentParams, palette)
 		if err != nil {
 			return Job{}, fmt.Errorf("render: treatment chain: %w", err)
 		}
@@ -166,6 +167,22 @@ func (s *Store) SubmitWithContext(ctx context.Context, style catalog.Style, plac
 	s.jobs[jobID] = job
 	s.mu.Unlock()
 	return copyJob(job), nil
+}
+
+// scenePreset maps a catalog subject onto a scene generator. Only these
+// subjects can be rendered procedurally; the rest need a model.
+func scenePreset(subject string) (string, bool) {
+	switch subject {
+	case "horizon", "aquatic", "atmospheric":
+		return "horizon", true
+	case "statuary_architecture", "interior":
+		return "arcade", true
+	case "geological", "cartographic":
+		return "terrain", true
+	case "non_representational", "textile_material", "object_metaphor":
+		return "field", true
+	}
+	return "", false
 }
 
 func scaffoldParams(style catalog.Style) string {

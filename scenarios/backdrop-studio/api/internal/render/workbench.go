@@ -248,23 +248,36 @@ func drawCopyBlock(dst *image.RGBA, r image.Rectangle) {
 	}
 }
 
-func resizeNearest(src image.Image, w, h int) *image.RGBA {
-	out := image.NewRGBA(image.Rect(0, 0, w, h))
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			sx := src.Bounds().Min.X + x*src.Bounds().Dx()/w
-			sy := src.Bounds().Min.Y + y*src.Bounds().Dy()/h
-			out.Set(x, y, src.At(sx, sy))
-		}
-	}
-	return out
-}
-
 func drawScaled(dst draw.Image, target image.Rectangle, src image.Image) {
+	sb := src.Bounds()
+	if sb.Dx() <= 0 || sb.Dy() <= 0 || target.Dx() <= 0 || target.Dy() <= 0 {
+		return
+	}
+	// Scale so the source covers the target on both axes, then centre it.
+	scale := math.Max(float64(target.Dx())/float64(sb.Dx()), float64(target.Dy())/float64(sb.Dy()))
+	srcW := float64(target.Dx()) / scale
+	srcH := float64(target.Dy()) / scale
+	offX := (float64(sb.Dx()) - srcW) / 2
+	offY := (float64(sb.Dy()) - srcH) / 2
+
 	for y := target.Min.Y; y < target.Max.Y; y++ {
+		fy := offY + float64(y-target.Min.Y)/scale
+		sy := sb.Min.Y + int(fy)
+		if sy < sb.Min.Y {
+			sy = sb.Min.Y
+		}
+		if sy >= sb.Max.Y {
+			sy = sb.Max.Y - 1
+		}
 		for x := target.Min.X; x < target.Max.X; x++ {
-			sx := src.Bounds().Min.X + (x-target.Min.X)*src.Bounds().Dx()/target.Dx()
-			sy := src.Bounds().Min.Y + (y-target.Min.Y)*src.Bounds().Dy()/target.Dy()
+			fx := offX + float64(x-target.Min.X)/scale
+			sx := sb.Min.X + int(fx)
+			if sx < sb.Min.X {
+				sx = sb.Min.X
+			}
+			if sx >= sb.Max.X {
+				sx = sb.Max.X - 1
+			}
 			dst.Set(x, y, src.At(sx, sy))
 		}
 	}

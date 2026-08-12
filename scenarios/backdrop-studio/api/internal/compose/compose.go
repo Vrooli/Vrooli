@@ -12,11 +12,13 @@ import (
 	"backdrop-studio/internal/catalog"
 )
 
-type DeviceArrangement string
-type Region struct {
-	X, Y, Width, Height float64
-	Kind                string
-}
+type (
+	DeviceArrangement string
+	Region            struct {
+		X, Y, Width, Height float64
+		Kind                string
+	}
+)
 
 const (
 	DeviceCenter DeviceArrangement = "device_center"
@@ -110,6 +112,7 @@ func min(a, b int) int {
 	}
 	return b
 }
+
 func max(a, b int) int {
 	if a > b {
 		return a
@@ -128,14 +131,16 @@ type MapPalette map[string]string
 
 func (m MapPalette) ResolveToken(name string) (string, bool) { v, ok := m[name]; return v, ok }
 
-type Operation struct{ Name, ParamsJSON string }
-type Plan struct {
-	StyleID, Strategy     string
-	Operations            []Operation
-	ResolvedSlots         map[string]string
-	ExpectedExecutionPath string
-	Executable            bool
-}
+type (
+	Operation struct{ Name, ParamsJSON string }
+	Plan      struct {
+		StyleID, Strategy     string
+		Operations            []Operation
+		ResolvedSlots         map[string]string
+		ExpectedExecutionPath string
+		Executable            bool
+	}
+)
 
 func Resolve(style catalog.Style, brief Brief, palette BrandPalette, adapter string, adapterCommercialUse bool) (Plan, error) {
 	if style.ID == "" || style.Strategy == "" {
@@ -174,6 +179,7 @@ func Resolve(style catalog.Style, brief Brief, palette BrandPalette, adapter str
 	}
 	return plan, nil
 }
+
 func contains(xs []string, value string) bool {
 	for _, x := range xs {
 		if x == value {

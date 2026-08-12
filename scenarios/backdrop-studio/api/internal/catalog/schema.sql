@@ -7,6 +7,6 @@ CREATE TABLE IF NOT EXISTS backdrop_styles (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, version INTEGER NOT NULL,
   role TEXT NOT NULL, subject TEXT NOT NULL, lineage TEXT NOT NULL,
   strategy TEXT NOT NULL, treatments TEXT NOT NULL, placements TEXT NOT NULL,
-  regions TEXT NOT NULL, contrast_threshold REAL NOT NULL, scaffold TEXT NOT NULL DEFAULT 'null', generation TEXT NOT NULL DEFAULT 'null', parent_id TEXT NOT NULL DEFAULT '', released INTEGER NOT NULL,
+  regions TEXT NOT NULL, contrast_threshold REAL NOT NULL, scaffold TEXT NOT NULL DEFAULT 'null', generation TEXT NOT NULL DEFAULT 'null', parent_id TEXT NOT NULL DEFAULT '', treatment_params TEXT NOT NULL DEFAULT '{}', released INTEGER NOT NULL,
   payload TEXT NOT NULL
 );

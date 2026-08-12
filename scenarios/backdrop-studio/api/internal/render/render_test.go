@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"fmt"
 	"image"
 	"image/color"
@@ -18,11 +19,16 @@ import (
 	"backdrop-studio/internal/scenes"
 
 	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite"
 )
 
-type fakeExecutor struct{ calls int }
+type fakeExecutor struct {
+	calls      int
+	lastParams map[string]string
+}
 
-func (f *fakeExecutor) Apply(_ context.Context, input []byte, treatments []string, _ map[string]string) ([]byte, error) {
+func (f *fakeExecutor) Apply(_ context.Context, input []byte, treatments []string, params, _ map[string]string) ([]byte, error) {
+	f.lastParams = params
 	f.calls++
 	if len(treatments) == 0 {
 		return nil, fmt.Errorf("expected treatment chain")
@@ -317,4 +323,144 @@ func TestPlacementsProduceDistinctLayouts(t *testing.T) {
 		require.Greater(t, widest, b.Dx()/8,
 			"%s/%s has no flat copy bar; the preview is a bare image, not a layout", p.Placement, p.Viewport)
 	}
+}
+
+// TestDrawScaledCoverCropsWithoutDistortion pins the cover-crop at the level
+// the property lives. drawScaled used to map the source onto the target
+// independently per axis, so a 1600x1000 backdrop dropped into a tall panel
+// came out stretched — a circular sun rendered as an oval, which reads as a
+// mistake at a glance.
+//
+// Asserted here rather than through PreviewPlacements because a composed
+// preview draws opaque copy bars over the image, which would clip the measured
+// shape and confuse a distortion failure with a layout overlap.
+func TestDrawScaledCoverCropsWithoutDistortion(t *testing.T) {
+	const w, h = 1600, 1000
+	src := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			src.Set(x, y, color.RGBA{10, 10, 10, 255})
+		}
+	}
+	cx, cy, r := w/2, h/2, 150
+	for y := cy - r; y <= cy+r; y++ {
+		for x := cx - r; x <= cx+r; x++ {
+			dx, dy := float64(x-cx), float64(y-cy)
+			if dx*dx+dy*dy <= float64(r*r) {
+				src.Set(x, y, color.RGBA{255, 255, 255, 255})
+			}
+		}
+	}
+
+	// Targets spanning wider, taller and squarer than the source.
+	for _, tgt := range []image.Point{
+		{X: 1280, Y: 720}, // desktop full bleed
+		{X: 640, Y: 720},  // desktop split panel — much taller than source
+		{X: 390, Y: 844},  // mobile — far taller
+		{X: 1160, Y: 396}, // wide framed inset
+		{X: 500, Y: 500},  // square
+	} {
+		dst := image.NewRGBA(image.Rect(0, 0, tgt.X, tgt.Y))
+		drawScaled(dst, dst.Bounds(), src)
+
+		white := func(x, y int) bool {
+			c := dst.RGBAAt(x, y)
+			return c.R > 200 && c.G > 200 && c.B > 200
+		}
+		maxW, maxH := 0, 0
+		for y := 0; y < tgt.Y; y++ {
+			run := 0
+			for x := 0; x < tgt.X; x++ {
+				if white(x, y) {
+					run++
+					if run > maxW {
+						maxW = run
+					}
+				} else {
+					run = 0
+				}
+			}
+		}
+		for x := 0; x < tgt.X; x++ {
+			run := 0
+			for y := 0; y < tgt.Y; y++ {
+				if white(x, y) {
+					run++
+					if run > maxH {
+						maxH = run
+					}
+				} else {
+					run = 0
+				}
+			}
+		}
+		require.Greater(t, maxW, 8, "%dx%d: circle vanished", tgt.X, tgt.Y)
+		require.Greater(t, maxH, 8, "%dx%d: circle vanished", tgt.X, tgt.Y)
+		ratio := float64(maxW) / float64(maxH)
+		require.InDelta(t, 1.0, ratio, 0.06,
+			"target %dx%d renders a circle at %dx%d (ratio %.2f) — the source is being stretched, not cover-cropped",
+			tgt.X, tgt.Y, maxW, maxH, ratio)
+	}
+}
+
+// TestEverySeededProceduralStyleRenders is the catalog's integrity gate. A
+// style that validates but cannot render is worse than a missing style: the
+// operator picks it, and it fails or silently produces something else.
+//
+// The seeded catalog previously listed subjects like "botanical" and
+// "celestial" on procedural strategies; none had a scene, so all of them fell
+// through to the abstract field generator. Cyanotype Botanical rendered a
+// colour field and nothing said so.
+func TestEverySeededProceduralStyleRenders(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec(catalog.Schema())
+	require.NoError(t, err)
+	store := catalog.NewStore(db)
+	ctx := context.Background()
+	require.NoError(t, store.Seed(ctx))
+	styles, err := store.ListStyles(ctx, "", "", "", "", "")
+	require.NoError(t, err)
+	require.NotEmpty(t, styles)
+
+	exec := &fakeExecutor{}
+	renderStore := NewStoreWithGenerator(exec, &fakeGenerator{})
+	procedural := 0
+	for _, style := range styles {
+		style := style
+		t.Run(style.ID, func(t *testing.T) {
+			job, err := renderStore.Submit(style, style.Placements[0], 7, 1)
+			require.NoError(t, err, "seeded style %q cannot render", style.ID)
+			require.NotEmpty(t, job.Candidates)
+
+			// Every style's parameters must reach the executor, or the catalog
+			// is describing an art direction the engine never receives.
+			for _, op := range style.Treatments {
+				require.Contains(t, exec.lastParams, op,
+					"style %q parameters for %q never reached the executor", style.ID, op)
+			}
+
+			if style.Strategy == "procedural" || style.Strategy == "procedural-treated" {
+				procedural++
+				require.Equal(t, deliveryWidth, job.Candidates[0].Width)
+				_, ok := scenePreset(style.Subject)
+				require.True(t, ok,
+					"procedural style %q names subject %q, which has no scene — it would silently render a field",
+					style.ID, style.Subject)
+			}
+		})
+	}
+	require.Greater(t, procedural, 8, "the catalog should carry a real spread of procedural styles")
+}
+
+// TestProceduralStyleWithoutASceneIsRefused pins the refusal rather than the
+// old silent fallback.
+func TestProceduralStyleWithoutASceneIsRefused(t *testing.T) {
+	style := catalog.Style{
+		ID: "no-scene", Name: "No Scene", Strategy: "procedural-treated",
+		Subject: "celestial", Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
+	}
+	_, err := NewStore(&fakeExecutor{}).Submit(style, "full_bleed", 1, 1)
+	require.ErrorContains(t, err, "has no procedural scene")
 }

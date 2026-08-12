@@ -15,12 +15,14 @@ import (
 func baseStyle() catalog.Style {
 	return catalog.Style{ID: "style", Strategy: "procedural", Treatments: []string{"duotone", "halftone"}, Placements: []string{"full_bleed"}}
 }
+
 func TestResolveIsInspectableAndDoesNotExecute(t *testing.T) {
 	plan, err := Resolve(baseStyle(), Brief{Placement: "full_bleed"}, nil, "", true)
 	require.NoError(t, err)
 	require.Equal(t, "procedural", plan.ExpectedExecutionPath)
 	require.Equal(t, []Operation{{Name: "duotone"}, {Name: "halftone"}}, plan.Operations)
 }
+
 func TestResolveRefusesPaletteAndLicenceBeforeExecution(t *testing.T) {
 	style := baseStyle()
 	style.Treatments = []string{"$brand.primary"}

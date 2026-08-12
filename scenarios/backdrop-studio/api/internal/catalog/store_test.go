@@ -2,6 +2,8 @@ package catalog
 
 import (
 	"context"
+	"sort"
+	"strings"
 	"testing"
 
 	"backdrop-studio/internal/testutil/db"
@@ -28,10 +30,70 @@ func TestSeedIsIdempotentAndCatalogIsQueryable(t *testing.T) {
 	require.Len(t, surfaces, 9)
 	require.Contains(t, []string{"play.feature-graphic", "play.phone-screenshot", "play.tablet-screenshot", "app-store-6.7-screenshot", "app-store-6.5-screenshot", "app-store-12.9-screenshot"}, surfaces[3].ID)
 
-	styles, err := store.ListStyles(ctx, "ambient", "horizon", "duotone", "wpa_poster", "full_bleed")
+	styles, err := store.ListStyles(ctx, "ambient", "horizon", "dither_diffusion", "riso_zine", "full_bleed")
 	require.NoError(t, err)
 	require.Len(t, styles, 1)
-	require.Equal(t, "horizon-ink", styles[0].ID)
+	require.Equal(t, "riso-horizon", styles[0].ID)
+}
+
+// TestSeededStylesCarryTheirOwnParameters guards the reason TreatmentParams
+// exists. Before it, every style naming an op rendered with one hardcoded
+// parameter set, so a catalog of sixteen entries produced about four distinct
+// looks. A style that names an op without saying how it wants that op run is
+// not an art direction, it is a label.
+func TestSeededStylesCarryTheirOwnParameters(t *testing.T) {
+	store := testStore(t)
+	ctx := context.Background()
+	require.NoError(t, store.Seed(ctx))
+	styles, err := store.ListStyles(ctx, "", "", "", "", "")
+	require.NoError(t, err)
+	require.NotEmpty(t, styles)
+
+	for _, s := range styles {
+		require.NotEmpty(t, s.TreatmentParams, "style %q names treatments but no parameters", s.ID)
+		for _, op := range s.Treatments {
+			require.Contains(t, s.TreatmentParams, op,
+				"style %q names treatment %q without parameters for it", s.ID, op)
+		}
+	}
+
+	// No two styles may be the same style twice: distinctness is a property of
+	// the whole entry — subject plus chain plus parameters — not of any single
+	// op. Several styles legitimately share a duotone config and differ by
+	// subject and companion treatment.
+	seen := map[string]string{}
+	for _, s := range styles {
+		fp := s.Subject + "|" + strings.Join(s.Treatments, ",")
+		keys := make([]string, 0, len(s.TreatmentParams))
+		for k := range s.TreatmentParams {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fp += "|" + k + "=" + s.TreatmentParams[k]
+		}
+		if prior, dup := seen[fp]; dup {
+			t.Errorf("styles %q and %q are identical in subject, chain and parameters", prior, s.ID)
+		}
+		seen[fp] = s.ID
+	}
+
+	// The ops whose whole character is a parameter must vary across the
+	// catalog. Uniformity here was the original defect: every halftone ran at
+	// the same line frequency, so every screened style looked the same.
+	for _, op := range []string{"halftone", "posterize", "line_screen"} {
+		configs := map[string]bool{}
+		users := 0
+		for _, s := range styles {
+			if p, ok := s.TreatmentParams[op]; ok {
+				configs[p] = true
+				users++
+			}
+		}
+		if users >= 2 && len(configs) < 2 {
+			t.Errorf("op %q is used by %d styles but configured only one way — the catalog names variety it does not have", op, users)
+		}
+	}
 }
 
 func TestCreateStyleRejectsUnknownClosedAxesAndEmptyOpenAxes(t *testing.T) {
@@ -109,4 +171,63 @@ func TestStylePackRoundTrips(t *testing.T) {
 	styles, err := ImportStylePack(raw)
 	require.NoError(t, err)
 	require.Equal(t, []Style{style}, styles)
+}
+
+// TestCreateStyleRejectsParametersTheEngineWillNotAccept pins validation at the
+// write path, which is the point of doing it at all. Before this, a style whose
+// parameters image-tools would reject stored cleanly, passed every unit suite,
+// and failed at its first real render with a 400 — by which time the author was
+// long gone from the decision.
+func TestCreateStyleRejectsParametersTheEngineWillNotAccept(t *testing.T) {
+	store := testStore(t)
+	ctx := context.Background()
+	base := Style{
+		ID: "probe", Name: "Probe", Role: "ambient", Subject: "horizon", Lineage: "wpa_poster",
+		Strategy: "procedural-treated", Treatments: []string{"duotone"},
+		Placements: []string{"full_bleed"}, ContrastThreshold: 4.5,
+	}
+
+	t.Run("unknown field", func(t *testing.T) {
+		v := base
+		v.TreatmentParams = map[string]string{"duotone": `{"dark":"#111827","nonexistent_knob":true}`}
+		err := store.CreateStyle(ctx, v)
+		require.ErrorContains(t, err, "not accepted by image-tools")
+		require.ErrorContains(t, err, "probe")
+	})
+
+	t.Run("malformed json", func(t *testing.T) {
+		v := base
+		v.TreatmentParams = map[string]string{"duotone": `{"dark":`}
+		require.ErrorContains(t, store.CreateStyle(ctx, v), "must be a JSON object")
+	})
+
+	t.Run("parameters for an operation the style does not run", func(t *testing.T) {
+		v := base
+		v.TreatmentParams = map[string]string{"duotone": `{}`, "halftone": `{"lpi":72}`}
+		require.ErrorContains(t, store.CreateStyle(ctx, v), "does not run")
+	})
+
+	t.Run("valid parameters are accepted", func(t *testing.T) {
+		v := base
+		v.ID = "probe-ok"
+		v.TreatmentParams = map[string]string{"duotone": `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`}
+		require.NoError(t, store.CreateStyle(ctx, v))
+		got, err := store.GetStyle(ctx, "probe-ok")
+		require.NoError(t, err)
+		require.Equal(t, v.TreatmentParams, got.TreatmentParams, "parameters must round-trip through storage")
+	})
+}
+
+// TestImportStylePackRejectsBadParameters pins the other write path. A style
+// pack is the route by which styles arrive from outside this scenario, so it is
+// the one most likely to carry parameters authored against a different engine.
+func TestImportStylePackRejectsBadParameters(t *testing.T) {
+	pack := []byte(`{"version":1,"styles":[{
+		"ID":"imported","Name":"Imported","Version":1,"Role":"ambient","Subject":"horizon",
+		"Lineage":"wpa_poster","Strategy":"procedural-treated","Treatments":["halftone"],
+		"Placements":["full_bleed"],"ContrastThreshold":4.5,
+		"TreatmentParams":{"halftone":"{\"lpi\":72,\"screen_angle\":15}"}
+	}]}`)
+	_, err := ImportStylePack(pack)
+	require.ErrorContains(t, err, "not accepted by image-tools")
 }
