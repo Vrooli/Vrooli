@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"meta-optimization-manager/internal/clock"
-	"meta-optimization-manager/internal/testutil/mocks"
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fakeGen / fakeRunner / fakeRepo are in-memory seams.
@@ -156,10 +156,10 @@ func newSvc(gen TaskGenerator, runner Runner, repo Repository) Service {
 	return newSvcFull(gen, runner, repo,
 		&fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1", TargetDir: "/t"}},
 		&fakeEvaluator{verdict: VerdictPass},
-		mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)))
+		scheduletest.New(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)))
 }
 
-func newSvcFull(gen TaskGenerator, runner Runner, repo Repository, fx FixtureResolver, ev Evaluator, clk clock.Clock) Service {
+func newSvcFull(gen TaskGenerator, runner Runner, repo Repository, fx FixtureResolver, ev Evaluator, clk schedule.Clock) Service {
 	return NewService(Deps{Tasks: gen, Fixtures: fx, Runner: runner, Evaluator: ev, Repo: repo, Clock: clk})
 }
 
@@ -276,7 +276,7 @@ func TestRunTrialsEvaluatorDecidesVerdict(t *testing.T) {
 	repo := &fakeRepo{}
 	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, repo,
 		&fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1"}}, ev,
-		mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)))
+		scheduletest.New(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)))
 
 	runs, err := svc.RunTrials(context.Background(), "", "trial/g1")
 	if err != nil {
@@ -298,7 +298,7 @@ func TestRunTrialsRunnerErrorSkipsEvaluator(t *testing.T) {
 	ev := &fakeEvaluator{verdict: VerdictPass}
 	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, &fakeRepo{},
 		&fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1"}}, ev,
-		mocks.NewFakeClock(time.Now()))
+		scheduletest.New(time.Now()))
 	runs, err := svc.RunTrials(context.Background(), "", "trial/g1")
 	if err != nil {
 		t.Fatalf("run: %v", err)
@@ -315,7 +315,7 @@ func TestRunTrialsMissingFixtureRecordsError(t *testing.T) {
 	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified}}
 	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, &fakeRepo{},
 		&fakeFixtures{missing: map[string]bool{"trial/g1": true}}, &fakeEvaluator{verdict: VerdictPass},
-		mocks.NewFakeClock(time.Now()))
+		scheduletest.New(time.Now()))
 	runs, err := svc.RunTrials(context.Background(), "", "trial/g1")
 	if err != nil {
 		t.Fatalf("run: %v", err)
@@ -329,7 +329,7 @@ func TestRunTrialsMissingFixtureRecordsError(t *testing.T) {
 }
 
 func TestRunTrialsIdempotencyReuse(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
 	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified, Tokens: 100}}
 	ev := &fakeEvaluator{verdict: VerdictPass}
 	repo := &fakeRepo{}
@@ -368,7 +368,7 @@ func TestRunTrialsIdempotencyReuse(t *testing.T) {
 }
 
 func TestRunTrialsIdempotencyWindowExpiry(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
 	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified}}
 	// Seed a prior run OLDER than the idempotency window.
 	repo := &fakeRepo{runs: []TrialRun{{
@@ -387,7 +387,7 @@ func TestRunTrialsIdempotencyWindowExpiry(t *testing.T) {
 }
 
 func TestRunTrialsIdempotencyIgnoresPriorError(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
 	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified}}
 	// A recent prior run that ERRORED must not be reused (retry is reasonable).
 	repo := &fakeRepo{runs: []TrialRun{{

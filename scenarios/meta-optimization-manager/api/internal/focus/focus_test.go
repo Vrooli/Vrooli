@@ -58,6 +58,15 @@ type fakeMaturityReader struct {
 	err          error
 }
 
+type fakeConditionReader struct {
+	report ProgramConditionReport
+	err    error
+}
+
+func (f fakeConditionReader) ReadCondition(context.Context) (ProgramConditionReport, error) {
+	return f.report, f.err
+}
+
 func (f fakeMaturityReader) Maturity(context.Context) ([]MaturityObservation, error) {
 	return f.observations, f.err
 }
@@ -258,6 +267,24 @@ func TestListConditionReturnsConditionEvidenceWhenSiblingSourceFails(t *testing.
 	}
 }
 
+func TestListConditionReportIncludesProgramRuntimeInstrumentation(t *testing.T) {
+	svc := NewService(Deps{
+		Source:          &fakeSource{gaps: []Gap{{ID: "condition/program-runtime/demo/read", Axis: AxisEmpirical, ConditionStatus: "degraded"}}},
+		Repo:            newFakeRepo(),
+		ConditionReader: fakeConditionReader{report: ProgramConditionReport{Healthy: 4, Degraded: 2, Dormant: 1, Uninstrumented: 3, Instrumented: 7, Total: 10}},
+	})
+	report, err := svc.ListConditionReport(context.Background())
+	if err != nil {
+		t.Fatalf("ListConditionReport: %v", err)
+	}
+	if len(report.Gaps) != 1 || report.Gaps[0].ID != "condition/program-runtime/demo/read" {
+		t.Fatalf("gaps=%+v", report.Gaps)
+	}
+	if report.Instrumentation.Degraded != 2 || report.Instrumentation.Instrumented != 7 || report.Instrumentation.Total != 10 {
+		t.Fatalf("instrumentation=%+v", report.Instrumentation)
+	}
+}
+
 type fakeTrialHistory struct {
 	runs []trials.TrialRun
 	err  error
@@ -400,7 +427,7 @@ func TestFocusRanksConditionDegradationAlongsideCoverage(t *testing.T) {
 
 func TestMaturityGapSourceSurfacesBlockingEvidence(t *testing.T) {
 	gaps, err := NewMaturityGapSource(fakeMaturityReader{observations: []MaturityObservation{
-		{Scenario: "search-provider", BlockingCodes: []string{"SEARCH_EVAL_CORPUS_MISSING", "SEARCH_CONFIG_INVALID"}},
+		{Scenario: "search-provider", BlockingCodes: []string{"SEARCH_EVAL_CORPUS_MISSING", "SEARCH_CONFIG_INVALID"}, Findings: []MaturityFinding{{Code: "SEARCH_CONFIG_INVALID", Message: "descriptor is invalid", RepairCommand: "search-hub maturity fix search-provider --apply"}}},
 		{Scenario: "clean-provider"},
 	}}).DerivedGaps(context.Background())
 	if err != nil {
@@ -411,6 +438,9 @@ func TestMaturityGapSourceSurfacesBlockingEvidence(t *testing.T) {
 	}
 	if got := gaps[0].Notes; len(got) != 1 || got[0] != "blocking=SEARCH_CONFIG_INVALID,SEARCH_EVAL_CORPUS_MISSING" {
 		t.Fatalf("notes = %#v, want sorted blocking evidence", got)
+	}
+	if len(gaps[0].MaturityFindings) != 1 || gaps[0].MaturityFindings[0].RepairCommand == "" {
+		t.Fatalf("maturity findings = %#v, want repair evidence", gaps[0].MaturityFindings)
 	}
 }
 

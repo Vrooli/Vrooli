@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"meta-optimization-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -34,7 +34,7 @@ type service struct {
 	runner    Runner
 	evaluator Evaluator
 	repo      Repository
-	clock     clock.Clock
+	clock     schedule.Clock
 }
 
 // Deps wires the trials Service. Repo is optional (nil disables persistence);
@@ -45,13 +45,13 @@ type Deps struct {
 	Runner    Runner
 	Evaluator Evaluator
 	Repo      Repository
-	Clock     clock.Clock
+	Clock     schedule.Clock
 }
 
 // NewService constructs the trials Service.
 func NewService(d Deps) Service {
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		d.Clock = schedule.System()
 	}
 	if d.Runner == nil {
 		d.Runner = NewRunner()

@@ -8,15 +8,18 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
-	"connectrpc.com/connect"
-	"meta-optimization-manager/internal/clock"
 	internalcoverage "meta-optimization-manager/internal/coverage"
 	internalfocus "meta-optimization-manager/internal/focus"
 	"meta-optimization-manager/internal/module"
 	internaltrials "meta-optimization-manager/internal/trials"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -29,6 +32,8 @@ import (
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	metricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics"
 	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics/metrics_v1connect"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry/registry_v1connect"
 )
 
 // Module returns the focus domain's contribution to the API: the generated
@@ -36,7 +41,7 @@ import (
 // live GapSource derived from the owner space docs. The space reader is shared
 // with the coverage domain (the same cross-scenario read seam) — wired here at
 // the production edge, never imported into internal/focus.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	trialsRepo := internaltrials.NewSQLiteRepository(db, clk)
 	spaceReader := internalcoverage.NewSpaceReader()
 	actJoiner := internalcoverage.NewNumeratorJoiner()
@@ -44,9 +49,10 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		resolver: discovery.NewResolver(discovery.ResolverConfig{}),
 		http:     &http.Client{Timeout: 3 * time.Second},
 	}
+	maturityHTTP := &http.Client{Timeout: 30 * time.Second}
 	conditionPopulation := func(ctx context.Context) (map[string]struct{}, error) {
 		population := make(map[string]struct{})
-		for _, projection := range []internalcoverage.Projection{internalcoverage.ProjectionAnswer, internalcoverage.ProjectionValidate, internalcoverage.ProjectionGuide, internalcoverage.ProjectionAct} {
+		for _, projection := range []internalcoverage.Projection{internalcoverage.ProjectionAct} {
 			definition, err := spaceReader.Read(ctx, projection)
 			if err != nil {
 				return nil, err
@@ -69,6 +75,12 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		}
 		return population, nil
 	}
+	programConditionReader := internalfocus.NewProgramRuntimeConditionReader(conditionPopulation)
+	conditionSource := internalfocus.NewMultiGapSource([]internalfocus.NamedGapSource{
+		{Name: "search-hub", Source: internalfocus.NewConditionGapSourceWithPopulation(insights, conditionPopulation)},
+		{Name: "condition/program-runtime", Source: internalfocus.NewProgramRuntimeConditionGapSource(programConditionReader)},
+		{Name: "maturity", Source: internalfocus.NewMaturityGapSource(searchHubMaturityReader{resolver: insights.resolver, http: maturityHTTP})},
+	})
 	svc := internalfocus.NewService(internalfocus.Deps{
 		Source: internalfocus.NewMultiGapSource([]internalfocus.NamedGapSource{
 			{Name: "coverage", Source: internalfocus.NewSpaceGapSourceWithLiveJoin(spaceReader, func(ctx context.Context, p internalcoverage.Projection, def *spacedoc.SpaceDefinition) (map[string]spacedoc.CellStatus, error) {
@@ -83,11 +95,12 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 			{Name: "durability", Source: internalfocus.NewDurabilityGapSource(internalfocus.NewAgentManagerDurabilityReader())},
 			{Name: "program-runtime", Source: internalfocus.NewProgramRuntimeGapSource(internalfocus.NewProgramRuntimeFrictionReader())},
 			{Name: "test-genie", Source: internalfocus.NewTestGenieGapSource()},
-			{Name: "condition", Source: internalfocus.NewConditionGapSourceWithPopulation(insights, conditionPopulation)},
-			{Name: "maturity", Source: internalfocus.NewMaturityGapSource(searchHubMaturityReader{insights: insights, resolver: insights.resolver, http: insights.http})},
+			{Name: "condition", Source: conditionSource},
 		}),
-		Repo:     internalfocus.NewSQLiteRepository(db, clk),
-		Insights: insights,
+		Repo:            internalfocus.NewSQLiteRepository(db, clk),
+		Insights:        insights,
+		ConditionSource: conditionSource,
+		ConditionReader: programConditionReader,
 	})
 	connectPath, connectHandler := focusconnect.NewFocusServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
@@ -103,7 +116,6 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 }
 
 type searchHubMaturityReader struct {
-	insights internalfocus.ProviderInsights
 	resolver interface {
 		ResolveScenarioURLDefault(context.Context, string) (string, error)
 	}
@@ -111,43 +123,133 @@ type searchHubMaturityReader struct {
 }
 
 func (r searchHubMaturityReader) Maturity(ctx context.Context) ([]internalfocus.MaturityObservation, error) {
-	if r.insights == nil {
-		return nil, fmt.Errorf("search-hub insights reader is not configured")
+	if r.resolver == nil || r.http == nil {
+		return nil, fmt.Errorf("search-hub registry reader is not configured")
 	}
-	signals, err := r.insights.Insights(ctx)
-	if err != nil {
-		return nil, err
-	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
 	base, err := r.resolver.ResolveScenarioURLDefault(ctx, "search-hub")
 	if err != nil {
 		return nil, err
 	}
-	client := scenariovalidationconnect.NewScenarioValidationServiceClient(r.http, base)
-	seen := map[string]struct{}{}
-	out := make([]internalfocus.MaturityObservation, 0)
-	for _, signal := range signals {
-		scenario := signal.ProviderGroup
-		if scenario == "" {
-			continue
-		}
-		if _, ok := seen[scenario]; ok {
-			continue
-		}
-		seen[scenario] = struct{}{}
-		resp, callErr := client.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: scenario}))
-		if callErr != nil {
-			return out, callErr
-		}
-		assessment := resp.Msg.GetAssessment()
-		if assessment == nil || assessment.GetLocal() == nil || len(assessment.GetLocal().GetBlockingFindingCodes()) == 0 {
-			continue
-		}
-		out = append(out, internalfocus.MaturityObservation{
-			Scenario:      scenario,
-			BlockingCodes: append([]string(nil), assessment.GetLocal().GetBlockingFindingCodes()...),
-		})
+	registryResp, err := registryconnect.NewRegistryServiceClient(r.http, base).ListMaturityTargets(ctx, connect.NewRequest(&registryv1.ListMaturityTargetsRequest{}))
+	if err != nil {
+		return nil, err
 	}
-	return out, nil
+	providers := make(map[string]struct{}, len(registryResp.Msg.GetTargets()))
+	for _, target := range registryResp.Msg.GetTargets() {
+		if target == nil {
+			continue
+		}
+		if scenario := strings.TrimSpace(target.GetScenario()); scenario != "" {
+			providers[scenario] = struct{}{}
+		}
+	}
+	scenarios := make([]string, 0, len(providers))
+	for scenario := range providers {
+		scenarios = append(scenarios, scenario)
+	}
+	sort.Strings(scenarios)
+	if len(scenarios) == 0 {
+		return nil, nil
+	}
+	client := scenariovalidationconnect.NewScenarioValidationServiceClient(r.http, base)
+	observations := make([]internalfocus.MaturityObservation, len(scenarios))
+	valid := make([]bool, len(scenarios))
+	errs := make([]error, len(scenarios))
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	workers := 6
+	if len(scenarios) < workers {
+		workers = len(scenarios)
+	}
+	for worker := 0; worker < workers; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for index := range jobs {
+				scenario := scenarios[index]
+				resp, callErr := client.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+					Scenario:         scenario,
+					IncludeExecution: true,
+				}))
+				if callErr != nil {
+					errs[index] = callErr
+					continue
+				}
+				assessment := resp.Msg.GetAssessment()
+				if assessment == nil || assessment.GetLocal() == nil || len(assessment.GetLocal().GetBlockingFindingCodes()) == 0 {
+					valid[index] = true
+					continue
+				}
+				blocking := make(map[string]struct{}, len(assessment.GetLocal().GetBlockingFindingCodes()))
+				for _, code := range assessment.GetLocal().GetBlockingFindingCodes() {
+					blocking[code] = struct{}{}
+				}
+				findings := make([]internalfocus.MaturityFinding, 0, len(blocking))
+				for _, finding := range assessment.GetFindings() {
+					if finding == nil {
+						continue
+					}
+					if _, ok := blocking[finding.GetCode()]; !ok {
+						continue
+					}
+					fixClass := strings.TrimSpace(finding.GetFixClass())
+					if fixClass == "" {
+						// Older Search Hub assessments omit the optional field for
+						// execution failures; the actionable fallback is manual.
+						fixClass = "manual"
+					}
+					findings = append(findings, internalfocus.MaturityFinding{
+						Code:          finding.GetCode(),
+						Message:       finding.GetMessage(),
+						Location:      finding.GetLocation(),
+						Remediation:   finding.GetRemediation(),
+						FixClass:      fixClass,
+						RepairCommand: "search-hub maturity fix " + scenario + " --apply",
+					})
+				}
+				seenFindings := make(map[string]struct{}, len(findings))
+				for _, finding := range findings {
+					seenFindings[finding.Code] = struct{}{}
+				}
+				for _, code := range assessment.GetLocal().GetBlockingFindingCodes() {
+					if _, ok := seenFindings[code]; ok {
+						continue
+					}
+					// Preserve the repair path even if an older Search Hub response
+					// exposes only the blocking code and omits its finding detail.
+					findings = append(findings, internalfocus.MaturityFinding{
+						Code:          code,
+						FixClass:      "manual",
+						RepairCommand: "search-hub maturity fix " + scenario + " --apply",
+					})
+				}
+				observations[index] = internalfocus.MaturityObservation{
+					Scenario:      scenario,
+					BlockingCodes: append([]string(nil), assessment.GetLocal().GetBlockingFindingCodes()...),
+					Findings:      findings,
+				}
+				valid[index] = true
+			}
+		}()
+	}
+	for index := range scenarios {
+		jobs <- index
+	}
+	close(jobs)
+	wg.Wait()
+	out := make([]internalfocus.MaturityObservation, 0, len(scenarios))
+	var firstErr error
+	for index := range scenarios {
+		if errs[index] != nil && firstErr == nil {
+			firstErr = fmt.Errorf("validate maturity target %q: %w", scenarios[index], errs[index])
+		}
+		if valid[index] && len(observations[index].BlockingCodes) > 0 {
+			out = append(out, observations[index])
+		}
+	}
+	return out, firstErr
 }
 
 // searchHubInsightsReader is the production transport seam for the focus

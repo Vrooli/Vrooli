@@ -50,6 +50,23 @@ func TestEveryCellResolvesAgainstLiveRegistry(t *testing.T) { // [REQ:PRT-P1-009
 	}
 }
 
+func TestProjectControlPlaneCellsUseGovernedOperations(t *testing.T) {
+	registry, definition := liveActDefinition(t)
+	verdicts := Audit(context.Background(), registry, definition)
+	want := map[string]bool{"A2": true, "A5": true, "A6": true, "A11": true, "A13": true}
+	for _, verdict := range verdicts {
+		if !want[verdict.GetId()] {
+			continue
+		}
+		if len(verdict.GetUnresolvedOperations()) != 0 {
+			t.Errorf("%s unresolved operations=%v reasons=%v", verdict.GetId(), verdict.GetUnresolvedOperations(), verdict.GetReasons())
+		}
+		if len(verdict.GetResolvedOperations()) == 0 {
+			t.Errorf("%s resolved no governed operations", verdict.GetId())
+		}
+	}
+}
+
 func TestConfidenceReflectsAuditCoverage(t *testing.T) { // [REQ:PRT-P1-009]
 	full := []*bindingsv1.ActCellVerdict{{Audited: true}, {Audited: true}}
 	if got := Confidence(full); got != spacedoc.ConfidencePartial {

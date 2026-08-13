@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"meta-optimization-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // snapTimeFormat matches the notes domain (RFC3339Nano sorts lexicographically
@@ -26,11 +26,11 @@ type SQLExecutor interface {
 
 type sqliteSnapshots struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteSnapshotRepository constructs the production SnapshotRepository.
-func NewSQLiteSnapshotRepository(db SQLExecutor, clk clock.Clock) SnapshotRepository {
+func NewSQLiteSnapshotRepository(db SQLExecutor, clk schedule.Clock) SnapshotRepository {
 	return &sqliteSnapshots{db: db, clock: clk}
 }
 

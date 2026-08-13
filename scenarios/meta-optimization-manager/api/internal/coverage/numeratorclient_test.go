@@ -212,7 +212,7 @@ func TestProviderReachableUsesTypedBoolAndReason(t *testing.T) {
 	}{
 		{name: "endpoint resolved", health: &routingv1.ProviderHealth{Reachable: true, Reachability: "endpoint resolved"}, want: true},
 		{name: "explicit reachable", health: &routingv1.ProviderHealth{Reachable: true, Reachability: "reachable"}, want: true},
-		{name: "degraded", health: &routingv1.ProviderHealth{Reachable: true, Degraded: true, Reachability: "endpoint resolved"}, want: false},
+		{name: "probe due but reachable", health: &routingv1.ProviderHealth{Reachable: true, Degraded: true, Reachability: "circuit_cooldown_elapsed_probe_due"}, want: true},
 		{name: "unreachable reason", health: &routingv1.ProviderHealth{Reachable: true, Reachability: "provider unreachable"}, want: false},
 	}
 	for _, tc := range cases {
@@ -389,6 +389,7 @@ type fakeEval struct {
 	evalconnect.UnimplementedEvalServiceHandler
 	suites []*evalv1.EvalSuite
 	runs   map[string][]*evalv1.EvalRun
+	delay  map[string]time.Duration
 	err    error
 }
 
@@ -399,9 +400,16 @@ func (f fakeEval) ListSuites(context.Context, *connect.Request[evalv1.ListSuites
 	return connect.NewResponse(&evalv1.ListSuitesResponse{Suites: f.suites}), nil
 }
 
-func (f fakeEval) ListRuns(_ context.Context, req *connect.Request[evalv1.ListRunsRequest]) (*connect.Response[evalv1.ListRunsResponse], error) {
+func (f fakeEval) ListRuns(ctx context.Context, req *connect.Request[evalv1.ListRunsRequest]) (*connect.Response[evalv1.ListRunsResponse], error) {
 	if f.err != nil {
 		return nil, f.err
+	}
+	if delay := f.delay[req.Msg.GetSuiteId()]; delay > 0 {
+		select {
+		case <-time.After(delay):
+		case <-ctx.Done():
+			return nil, connect.NewError(connect.CodeDeadlineExceeded, ctx.Err())
+		}
 	}
 	return connect.NewResponse(&evalv1.ListRunsResponse{Runs: f.runs[req.Msg.GetSuiteId()]}), nil
 }
@@ -427,7 +435,9 @@ func TestJoinAnswerEndToEnd(t *testing.T) {
 		suites: []*evalv1.EvalSuite{{SuiteId: "ui-suite", ProviderId: "ui-health.surfaces"}},
 		runs: map[string][]*evalv1.EvalRun{"ui-suite": {{
 			RunId: "run-1", CreatedAt: created, Tier: "provider_direct",
-			Config:    &evalv1.ConfigSnapshot{IndexedCount: 1},
+			// IndexedCount is intentionally omitted: it is optional telemetry,
+			// not a quality gate for a graded evaluation.
+			Config:    &evalv1.ConfigSnapshot{},
 			Aggregate: &evalv1.EvalAggregate{Cases: 1, Met: 1, GradedCases: 1},
 		}}},
 	})
@@ -441,6 +451,9 @@ func TestJoinAnswerEndToEnd(t *testing.T) {
 	}
 	if res.Statuses["1"] != spacedoc.StatusNow {
 		t.Errorf("cell1 (live provider) = %v, want now", res.Statuses["1"])
+	}
+	if !strings.Contains(fmt.Sprint(res.Evidence), "indexed_count not reported") {
+		t.Errorf("evidence = %v, want instrumentation note for missing indexed_count", res.Evidence)
 	}
 }
 
@@ -472,6 +485,94 @@ func TestJoinAnswerEvalFreshDoesNotHoldForUngradedEmptyRun(t *testing.T) {
 	}
 	if !strings.Contains(fmt.Sprint(res.Evidence), "graded_cases=0") {
 		t.Fatalf("evidence = %v, want graded_cases=0", res.Evidence)
+	}
+}
+
+func TestFreshEvalByProviderDoesNotMixSuiteVerdictAndEvidence(t *testing.T) {
+	mux := http.NewServeMux()
+	path, handler := evalconnect.NewEvalServiceHandler(fakeEval{
+		suites: []*evalv1.EvalSuite{
+			{SuiteId: "failing-suite", ProviderId: "provider.one"},
+			{SuiteId: "passing-suite", ProviderId: "provider.one"},
+		},
+		delay: map[string]time.Duration{
+			// Force the failing suite to complete first. The old merge kept
+			// that verdict and then replaced its evidence with the later
+			// passing suite, reproducing the production symptom.
+			"passing-suite": 20 * time.Millisecond,
+		},
+		runs: map[string][]*evalv1.EvalRun{
+			"failing-suite": {{
+				RunId: "failing-run", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+				Config:    &evalv1.ConfigSnapshot{IndexedCount: 1},
+				Aggregate: &evalv1.EvalAggregate{Cases: 1, Met: 0, GradedCases: 1},
+			}},
+			"passing-suite": {{
+				RunId: "passing-run", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+				Config:    &evalv1.ConfigSnapshot{IndexedCount: 1},
+				Aggregate: &evalv1.EvalAggregate{Cases: 1, Met: 1, GradedCases: 1},
+			}},
+		},
+	})
+	mux.Handle(path, handler)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := evalconnect.NewEvalServiceClient(srv.Client(), srv.URL)
+	got, err := newJoinerFor(srv.URL, time.Second).freshEvalByProvider(context.Background(), client, []*evalv1.EvalSuite{
+		{SuiteId: "failing-suite", ProviderId: "provider.one"},
+		{SuiteId: "passing-suite", ProviderId: "provider.one"},
+	})
+	if err != nil {
+		t.Fatalf("freshEvalByProvider() error = %v", err)
+	}
+	result := got["provider.one"]
+	if result.Fresh {
+		t.Fatal("provider with a failing suite must not be fresh")
+	}
+	if !strings.Contains(result.Evidence, "failing-run") {
+		t.Fatalf("evidence = %q, want the suite that decided the failing verdict", result.Evidence)
+	}
+	if strings.Contains(result.Evidence, "passing-run") {
+		t.Fatalf("evidence = %q, must not describe a different suite than the verdict", result.Evidence)
+	}
+}
+
+func TestFreshEvalByProviderWorstSuiteWinsAcrossCompletionOrders(t *testing.T) {
+	orders := []struct {
+		name  string
+		delay map[string]time.Duration
+	}{
+		{name: "failing completes first", delay: map[string]time.Duration{"passing-suite": 20 * time.Millisecond}},
+		{name: "passing completes first", delay: map[string]time.Duration{"failing-suite": 20 * time.Millisecond}},
+	}
+	for _, order := range orders {
+		t.Run(order.name, func(t *testing.T) {
+			mux := http.NewServeMux()
+			path, handler := evalconnect.NewEvalServiceHandler(fakeEval{
+				delay: order.delay,
+				runs: map[string][]*evalv1.EvalRun{
+					"failing-suite": {{RunId: "failing-run", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Config: &evalv1.ConfigSnapshot{IndexedCount: 1}, Aggregate: &evalv1.EvalAggregate{Cases: 1, Met: 0, GradedCases: 1}}},
+					"passing-suite": {{RunId: "passing-run", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Config: &evalv1.ConfigSnapshot{IndexedCount: 1}, Aggregate: &evalv1.EvalAggregate{Cases: 1, Met: 1, GradedCases: 1}}},
+				},
+			})
+			mux.Handle(path, handler)
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+
+			client := evalconnect.NewEvalServiceClient(srv.Client(), srv.URL)
+			got, err := newJoinerFor(srv.URL, time.Second).freshEvalByProvider(context.Background(), client, []*evalv1.EvalSuite{
+				{SuiteId: "failing-suite", ProviderId: "provider.one"},
+				{SuiteId: "passing-suite", ProviderId: "provider.one"},
+			})
+			if err != nil {
+				t.Fatalf("freshEvalByProvider() error = %v", err)
+			}
+			result := got["provider.one"]
+			if result.Fresh || !strings.Contains(result.Evidence, "failing-run") {
+				t.Fatalf("result = %+v, want failing verdict and matching evidence", result)
+			}
+		})
 	}
 }
 
@@ -638,9 +739,10 @@ func TestGetStatusRunsProjectionsConcurrently(t *testing.T) {
 	if len(st.Projections) != len(AllProjections) {
 		t.Fatalf("projections=%d, want %d", len(st.Projections), len(AllProjections))
 	}
-	// Serial would be len(AllProjections)*delay; concurrent is ~1*delay. Allow
-	// generous slack.
-	if elapsed > 2*delay {
+	// Answer is deliberately read twice for the uncached determinism check, so
+	// the concurrent ceiling is ~2*delay. Serial would be 5*delay; allow one
+	// delay of scheduling slack without masking a serial implementation.
+	if elapsed > 3*delay {
 		t.Errorf("projections not concurrent: %s for %dx%s reads", elapsed, len(AllProjections), delay)
 	}
 }

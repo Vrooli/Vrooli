@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
-	"program-runtime/internal/testutil/db"
 )
 
 type fakePublisher struct {

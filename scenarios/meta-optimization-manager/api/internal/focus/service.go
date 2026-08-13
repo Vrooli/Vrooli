@@ -18,26 +18,31 @@ type Service interface {
 	GetGap(ctx context.Context, id string) (Gap, error)
 	AddGapNote(ctx context.Context, id, approach string) (Gap, error)
 	ListCondition(ctx context.Context) ([]Gap, error)
+	ListConditionReport(ctx context.Context) (ConditionReport, error)
 	ExplainCondition(ctx context.Context, providerID string) (Gap, error)
 }
 
 type service struct {
-	source   GapSource
-	repo     Repository
-	insights ProviderInsights
+	source          GapSource
+	conditionSource GapSource
+	repo            Repository
+	insights        ProviderInsights
+	conditionReader ProgramConditionReader
 }
 
 // Deps wires the focus Service. Repo is optional (nil disables persistence; the
 // service still surfaces live-derived gaps but AddGapNote then errors).
 type Deps struct {
-	Source   GapSource
-	Repo     Repository
-	Insights ProviderInsights
+	Source          GapSource
+	ConditionSource GapSource
+	Repo            Repository
+	Insights        ProviderInsights
+	ConditionReader ProgramConditionReader
 }
 
 // NewService constructs the focus Service.
 func NewService(d Deps) Service {
-	return &service{source: d.Source, repo: d.Repo, insights: d.Insights}
+	return &service{source: d.Source, conditionSource: d.ConditionSource, repo: d.Repo, insights: d.Insights, conditionReader: d.ConditionReader}
 }
 
 var _ Service = (*service)(nil)
@@ -141,7 +146,17 @@ func (s *service) ListGaps(ctx context.Context, filter GapFilter) ([]Gap, error)
 }
 
 func (s *service) ListCondition(ctx context.Context) ([]Gap, error) {
-	gaps, _ := s.allGaps(ctx)
+	report, err := s.ListConditionReport(ctx)
+	return report.Gaps, err
+}
+
+func (s *service) ListConditionReport(ctx context.Context) (ConditionReport, error) {
+	var gaps []Gap
+	if s.conditionSource != nil {
+		gaps, _ = s.conditionSource.DerivedGaps(ctx)
+	} else {
+		gaps, _ = s.allGaps(ctx)
+	}
 	var out []Gap
 	for _, gap := range gaps {
 		if gap.Axis == AxisEmpirical && (strings.HasPrefix(gap.ID, "condition/") || strings.HasPrefix(gap.ID, "source/condition/") || strings.HasPrefix(gap.ID, "source/maturity/")) {
@@ -152,7 +167,19 @@ func (s *service) ListCondition(ctx context.Context) ([]Gap, error) {
 	// unavailable while Search Hub condition evidence is still usable; do not
 	// turn that partial result into a transport error. A condition/maturity
 	// source failure is retained as its own source/<name>/availability gap above.
-	return out, nil
+	report := ConditionReport{Gaps: out}
+	if s.conditionReader != nil {
+		condition, err := s.conditionReader.ReadCondition(ctx)
+		if err == nil {
+			report.Instrumentation = ConditionInstrumentation{
+				Healthy: condition.Healthy, Degraded: condition.Degraded,
+				Dormant: condition.Dormant, Uninstrumented: condition.Uninstrumented,
+				Unavailable: condition.Unavailable, Instrumented: condition.Instrumented,
+				Total: condition.Total, FilteredOut: condition.FilteredOut,
+			}
+		}
+	}
+	return report, nil
 }
 
 func (s *service) ExplainCondition(ctx context.Context, providerID string) (Gap, error) {
@@ -160,7 +187,29 @@ func (s *service) ExplainCondition(ctx context.Context, providerID string) (Gap,
 	if providerID == "" {
 		return Gap{}, fmt.Errorf("condition: provider id required")
 	}
-	gap, err := s.GetGap(ctx, "condition/"+providerID)
+	id := providerID
+	if !strings.HasPrefix(id, "condition/") {
+		id = "condition/" + id
+	}
+	var gap Gap
+	var err error
+	if s.conditionSource != nil {
+		var gaps []Gap
+		gaps, err = s.conditionSource.DerivedGaps(ctx)
+		for _, candidate := range gaps {
+			if candidate.ID == id {
+				gap = candidate
+				break
+			}
+		}
+		if gap.ID != "" {
+			err = nil
+		} else if err == nil {
+			err = fmt.Errorf("focus: gap %q not found", id)
+		}
+	} else {
+		gap, err = s.GetGap(ctx, id)
+	}
 	if err != nil {
 		return Gap{}, err
 	}

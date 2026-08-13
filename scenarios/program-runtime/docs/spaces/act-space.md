@@ -15,11 +15,9 @@
 
 > **Condition** — every cell that resolves `NOW` here puts its **bindings** into the Condition
 > population, and `program-runtime` owes each binding's serving, freshness, and exercise signals as
-> declared Measures. A registry that reports a four-digit binding count with no invocation data is
-> a supply claim carrying no condition evidence: only invocation distinguishes a binding that is
-> genuinely callable from one that merely resolves. Per-binding invocation outcome is the
-> highest-leverage unbuilt signal in the model, and it is gated on durable retention of the program
-> corpus. The model and the required signals are in
+> declared Measures. The binding condition RPC reads the durable invocation ledger, so a registry
+> that reports a four-digit binding count with no invocation data is honestly reported as dormant
+> or uninstrumented rather than healthy. The model and the required signals are in
 > `meta-optimization-manager/docs/concepts/CONDITION-MODEL.md`.
 
 ## Purpose
@@ -69,20 +67,20 @@ gap in the acting surface even when the underlying capability plainly exists.
 |---|---|---|---|---|
 | **Discover** | | | | |
 | A1 | Find a capability by intent | `search-hub`, `prompt-manager` | COVERED | The Recall→Discover reflex; both expose Connect services. |
-| A2 | Enumerate the fleet (scenarios, resources) with state | `vrooli` project CLI | PARTIAL | `cli/v1/scenario_list.proto` exists; verify the manifest binding vs. a local command. |
+| A2 | Enumerate the fleet (scenarios, resources) with state | `vrooli/scenario/list` | PARTIAL | The root project manifest binds the shared `cli/v1` list RPC; the remaining partial status reflects the resource-enumeration boundary. |
 | A3 | Read a unit's command contract (commands, args, governance) | `cli-health` | NOW | The 58 manifest-bearing scenarios are checked against the shared proto binding ladder; the live registry supports this contract, while scenarios without manifests remain an explicit fleet coverage boundary. |
 | A4 | Resolve a unit's API base URL / port | `api-core/discovery` | PARTIAL | Library-level today, not an invocable operation; a program needs this as a call. |
 | **Inspect** | | | | |
-| A5 | Read lifecycle status for a unit | `vrooli` project CLI | COVERED | `scenario.status.show` is already a seed Action. |
-| A6 | Read logs for a running unit | `vrooli` project CLI | PARTIAL | **Audited.** The owner is a project CLI rather than a manifest-backed scenario; the authored partial status is retained. |
+| A5 | Read lifecycle status for a unit | `vrooli/scenario/status` | COVERED | The root project manifest binds the typed lifecycle-status RPC. |
+| A6 | Read logs for a running unit | `vrooli/scenario/logs` | PARTIAL | The root project manifest binds the typed logs RPC; the partial status reflects that log availability varies by process and runtime. |
 | A7 | Read health / freshness verdicts | `*-health` fleet, `structure-health` | PARTIAL | **Audited.** At least one health binding resolves; the fleet taxonomy remains partial where individual owners are absent. |
 | A8 | Read test run results, verdicts, and diffs | `test-genie` | COVERED | `runs.proto` is a bound service; `runs compare` exists. |
 | A9 | Read the dependency graph (forward + reverse) | `scenario-dependency-analyzer` | COVERED | `graph.proto`. |
 | A10 | Read code facts, symbols, call graph | `code-facts`, `symbol-search`, `go-code-graph`, `typescript-code-graph` | PARTIAL | **Audited.** Some named owners resolve while `symbol-search` has no governed binding; the live result is partial. |
 | **Operate** | | | | |
-| A11 | Start / stop / restart a unit | `vrooli` project CLI | COVERED | The governed lifecycle path; running binaries directly is forbidden. |
+| A11 | Start / stop / restart a unit | `vrooli/scenario/start`, `vrooli/scenario/stop`, `vrooli/scenario/restart` | COVERED | The governed lifecycle path; running binaries directly is forbidden. |
 | A12 | Run a test suite and await the verdict | `test-genie` | COVERED | Server-owned runs; `runs wait` is the blocking primitive. |
-| A13 | Run setup / build / regenerate artifacts | `vrooli` project CLI | PARTIAL | **Audited.** This is a project-CLI capability without a manifest-backed owner; effect classification remains the governing gap. |
+| A13 | Run setup / build / regenerate artifacts | `vrooli/scenario/setup` | PARTIAL | The root project manifest binds typed setup; the partial status remains because setup is intentionally a project lifecycle operation rather than a scenario-owned build API. |
 | A14 | Install or govern a dependency | `scenario-dependency-analyzer` | COVERED | The only sanctioned path; raw package managers are forbidden. |
 | **Knowledge** | | | | |
 | A15 | Query durable memory / work records | `vrooli-memory` | COVERED | |
@@ -130,15 +128,16 @@ manifests were present in the registry input, while 117 scenario targets were
 enumerated. This is an evidence-backed ceiling for the manifest-bound surface,
 not a claim that every manifest-bearing scenario is currently reachable.
 
-## Post-sweep condition snapshot — 2026-08-12
+## Post-sweep condition snapshot — 2026-08-13
 
-The operator read-effect sweep examined **1,168** registry bindings: **632**
-were eligible, **536** were skipped by effect, reachability, scenario filter,
+The operator read-effect sweep examined **1,188** registry bindings: **632**
+were eligible, **556** were skipped by effect, reachability, scenario filter,
 or required-argument constraints, and all 632 eligible bindings were attempted.
 The ledger recorded **276 successes** and **356 failures** under explicit
-`PROVENANCE_OPERATOR` provenance. The condition projection now reports **639 of
-1,168 bindings instrumented**, with **302 DEGRADED**, **866 UNINSTRUMENTED**,
-and **0 sustained-degradation promotions**. The zero promotion count is
+`PROVENANCE_OPERATOR` provenance. The condition projection now reports **641 of
+1,188 bindings instrumented**, with **79 DEGRADED**, **68 DORMANT**, and
+**932 filtered out** because their owners do not back an Act `NOW` cell. The
+zero promotion count is
 expected: this sweep is a point-in-time exercise and has not spanned the
 seven-day sustained window. Act cell coverage remains **14 NOW / 13 IN-REACH /
 1 MISSING**; condition reports beside coverage and does not change those cell

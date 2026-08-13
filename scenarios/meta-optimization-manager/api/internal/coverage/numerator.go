@@ -70,6 +70,8 @@ type answerProviderEvidence struct {
 	Active               bool
 	Reachable            bool
 	FreshEval            bool
+	EvalAvailable        bool
+	Condition            ConditionVerdict
 	ReachabilityEvidence string
 	EvalEvidence         string
 }
@@ -115,10 +117,14 @@ func recomputeAnswer(cells []spacedoc.Cell, providers []answerProviderEvidence) 
 			}
 			continue
 		}
+		evalVerdict := verdict(matched.FreshEval)
+		if !matched.EvalAvailable {
+			evalVerdict = "unavailable"
+		}
 		evidence[c.ID] = []SignalEvidence{
 			{Signal: "active", Verdict: verdict(matched.Active), Evidence: matched.ProviderID + " is " + boolWord(matched.Active, "ACTIVE", "not ACTIVE")},
 			{Signal: "reachable", Verdict: verdict(matched.Reachable), Evidence: matched.ReachabilityEvidence},
-			{Signal: "eval_fresh", Verdict: verdict(matched.FreshEval), Evidence: matched.EvalEvidence},
+			{Signal: "eval_fresh", Verdict: evalVerdict, Evidence: matched.EvalEvidence},
 		}
 		if matched.Active && matched.Reachable && matched.FreshEval {
 			out[c.ID] = spacedoc.StatusNow

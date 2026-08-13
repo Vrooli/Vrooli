@@ -8,6 +8,8 @@ work lands, not while work is still speculative.
 
 ## Progress Log
 
+| 2026-08-13 | codex | done | **Act condition completed end-to-end.** Focus now consumes the typed program-runtime binding-condition RPC alongside Search Hub condition evidence, emits per-binding `condition/program-runtime/<binding-id>` findings with degraded-over-dormant ranking, filters the board to live Act `NOW` owners, and returns verdict distribution plus instrumented/total/filtered counts. Live snapshot: 641/1,188 instrumented, 79 degraded, 68 dormant, 932 filtered; independent source degradation and typed client tests pass. |
+
 | 2026-08-12 | codex | done | **Condition axis surfaced end-to-end.** Focus now reads Search Hub's owner-measured condition source derived from live `NOW` Answer cells, ranks condition findings beside coverage gaps, exposes `condition status` / `condition explain-leg`, and the operator console renders condition findings beside the existing focus and gaps views. Focused API, ranking, CLI, UI, strings, and type checks pass; full API validation retains one workspace-artifact trial failure documented in `PROBLEMS.md`/the plan ledger. |
 
 | 2026-08-11 | codex | done | **Trustworthy retrieval and honest readiness plan completed.** Coverage numerator joins now consume typed Search Hub registry, routing reachability, and fresh eval evidence; Answer NOW is emitted only when all three signals hold, with per-cell evidence and method-versioned snapshots. Unavailable owners and unresolved capability gaps remain honest. Focus/list/status agree live; coverage and race tests pass. Comprehensive validation retains only documented pre-existing scenario debt. |

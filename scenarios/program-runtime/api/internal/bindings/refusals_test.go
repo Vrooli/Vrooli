@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
-	"program-runtime/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func TestRefusalRepositoryPersistsGovernanceFailure(t *testing.T) { // [REQ:PRT-P1-007]

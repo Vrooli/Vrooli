@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
-	"program-runtime/internal/testutil/db"
 )
 
 func newProgramsTestDB(t *testing.T) *sql.DB {

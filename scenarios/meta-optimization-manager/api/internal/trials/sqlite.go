@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"meta-optimization-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 const runTimeFormat = time.RFC3339Nano
@@ -23,11 +23,11 @@ type SQLExecutor interface {
 
 type sqliteRepo struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production trials Repository.
-func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
+func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepo{db: db, clock: clk}
 }
 

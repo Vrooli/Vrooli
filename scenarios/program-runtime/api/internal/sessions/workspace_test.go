@@ -2,26 +2,27 @@ package sessions
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
+	"errors"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/workspace"
+	workspaceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/workspace/workspaceconnect"
 )
 
-func TestDiscoveryWorkspaceResolverResolvesWorkspaceRoot(t *testing.T) {
+func TestTypedWorkspaceResolverResolvesWorkspaceRoot(t *testing.T) {
 	root := t.TempDir()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/sandboxes/sandbox-123/workspace" {
-			t.Fatalf("path=%q", r.URL.Path)
-		}
-		_ = json.NewEncoder(w).Encode(map[string]string{"path": root})
-	}))
+	serverPath, serverHandler := workspaceconnect.NewWorkspaceSandboxServiceHandler(fakeWorkspaceService{root: root})
+	if serverPath == "" || serverHandler == nil {
+		t.Fatal("generated workspace handler was not constructed")
+	}
+	server := httptest.NewServer(serverHandler)
 	defer server.Close()
 
-	resolver := NewDiscoveryWorkspaceResolver(discovery.NewStaticResolver(server.URL), server.Client())
+	resolver := NewTypedWorkspaceResolver(discovery.NewStaticResolver(server.URL), server.Client())
 	got, err := resolver.Resolve(context.Background(), "sandbox-123")
 	if err != nil {
 		t.Fatal(err)
@@ -31,11 +32,29 @@ func TestDiscoveryWorkspaceResolverResolvesWorkspaceRoot(t *testing.T) {
 	}
 }
 
-func TestDiscoveryWorkspaceResolverLocalFallbackValidatesPath(t *testing.T) {
+func TestTypedWorkspaceResolverLocalFallbackValidatesPath(t *testing.T) {
 	root := filepath.Clean(t.TempDir())
-	resolver := NewDiscoveryWorkspaceResolver(nil, nil)
+	resolver := NewTypedWorkspaceResolver(nil, nil)
 	got, err := resolver.Resolve(context.Background(), root)
 	if err != nil || got != root {
 		t.Fatalf("resolved=%q err=%v want=%q", got, err, root)
 	}
+}
+
+type fakeWorkspaceService struct{ root string }
+
+func (f fakeWorkspaceService) ResolveWorkspace(_ context.Context, req *connect.Request[workspacev1.ResolveWorkspaceRequest]) (*connect.Response[workspacev1.ResolveWorkspaceResponse], error) {
+	return connect.NewResponse(&workspacev1.ResolveWorkspaceResponse{Success: true, SandboxId: req.Msg.GetSandboxId(), WorkspaceRoot: f.root, IsolationMode: "copy"}), nil
+}
+
+func (fakeWorkspaceService) CreateSandbox(context.Context, *connect.Request[workspacev1.CreateSandboxRequest]) (*connect.Response[workspacev1.CreateSandboxResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("not implemented"))
+}
+
+func (fakeWorkspaceService) GetSandboxDiff(context.Context, *connect.Request[workspacev1.GetSandboxDiffRequest]) (*connect.Response[workspacev1.GetSandboxDiffResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("not implemented"))
+}
+
+func (fakeWorkspaceService) PromoteSandbox(context.Context, *connect.Request[workspacev1.PromoteSandboxRequest]) (*connect.Response[workspacev1.PromoteSandboxResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("not implemented"))
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/spacedoc"
 )
 
@@ -61,6 +62,16 @@ type staticJoiner struct{ res JoinResult }
 
 func (j staticJoiner) Join(context.Context, Projection, []spacedoc.Cell) JoinResult { return j.res }
 
+type alternatingJoiner struct{ calls int }
+
+func (j *alternatingJoiner) Join(_ context.Context, _ Projection, _ []spacedoc.Cell) JoinResult {
+	j.calls++
+	if j.calls%2 == 0 {
+		return JoinResult{Available: true, Statuses: map[string]spacedoc.CellStatus{"1": spacedoc.StatusNow}}
+	}
+	return JoinResult{Available: true, Statuses: map[string]spacedoc.CellStatus{"1": spacedoc.StatusInReach}}
+}
+
 func TestGetStatusComputesCounts(t *testing.T) {
 	svc := NewService(Deps{
 		Reader: fakeReader{defs: map[Projection]*spacedoc.SpaceDefinition{ProjectionAnswer: answerDef()}},
@@ -83,6 +94,28 @@ func TestGetStatusComputesCounts(t *testing.T) {
 	}
 	if !pc.Available || pc.DenominatorConfidence != spacedoc.ConfidencePartial {
 		t.Errorf("avail/conf: %+v", pc)
+	}
+	if !st.DeterminismChecked || !st.Deterministic || st.DeterminismEvidence == "" {
+		t.Errorf("determinism self-check = checked:%t deterministic:%t evidence:%q", st.DeterminismChecked, st.Deterministic, st.DeterminismEvidence)
+	}
+}
+
+func TestGetStatusSurfacesAnswerDeterminismMismatch(t *testing.T) {
+	joiner := &alternatingJoiner{}
+	svc := NewService(Deps{
+		Reader: fakeReader{defs: map[Projection]*spacedoc.SpaceDefinition{ProjectionAnswer: answerDef()}},
+		Joiner: joiner,
+		Clock:  fixedClock{},
+	})
+	status, err := svc.GetStatus(context.Background(), ProjectionAnswer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !status.DeterminismChecked || status.Deterministic {
+		t.Fatalf("determinism = checked:%t deterministic:%t evidence:%q, want checked mismatch", status.DeterminismChecked, status.Deterministic, status.DeterminismEvidence)
+	}
+	if !strings.Contains(status.DeterminismEvidence, "disagreed") {
+		t.Fatalf("determinism evidence = %q, want disagreement", status.DeterminismEvidence)
 	}
 }
 
@@ -368,4 +401,7 @@ func TestProviderTokens(t *testing.T) {
 
 type fixedClock struct{}
 
-func (fixedClock) Now() time.Time { return time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC) }
+func (fixedClock) Now() time.Time                            { return time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC) }
+func (fixedClock) NewTimer(d time.Duration) schedule.Timer   { return schedule.System().NewTimer(d) }
+func (fixedClock) NewTicker(d time.Duration) schedule.Ticker { return schedule.System().NewTicker(d) }
+func (fixedClock) Sleep(time.Duration)                       {}

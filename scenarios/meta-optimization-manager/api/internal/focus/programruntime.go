@@ -9,6 +9,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
+	bindingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings/bindings_v1connect"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	programsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs/programs_v1connect"
 )
@@ -36,11 +38,35 @@ type ProgramFrictionReport struct {
 	Unresolved []ProgramUnresolvedObservation
 }
 
+type ProgramConditionObservation struct {
+	BindingID string
+	Scenario  string
+	Status    string
+	Verdict   string
+	Reason    string
+}
+
+type ProgramConditionReport struct {
+	Conditions     []ProgramConditionObservation
+	Healthy        int
+	Degraded       int
+	Dormant        int
+	Uninstrumented int
+	Unavailable    int
+	Instrumented   int
+	Total          int
+	FilteredOut    int
+}
+
 // ProgramFrictionReader is deliberately declared by the consumer. The focus
 // domain reads a bounded, typed projection and never imports program-runtime's
 // persistence or governance implementation.
 type ProgramFrictionReader interface {
 	ReadFriction(context.Context) (ProgramFrictionReport, error)
+}
+
+type ProgramConditionReader interface {
+	ReadCondition(context.Context) (ProgramConditionReport, error)
 }
 
 type programRuntimeGapSource struct{ reader ProgramFrictionReader }
@@ -100,9 +126,11 @@ func (s *programRuntimeGapSource) DerivedGaps(ctx context.Context) ([]Gap, error
 }
 
 type programRuntimeFrictionReader struct {
-	resolver scenarioURLResolver
-	http     connect.HTTPClient
-	deadline time.Duration
+	resolver            scenarioURLResolver
+	http                connect.HTTPClient
+	deadline            time.Duration
+	conditionPopulation func(context.Context) (map[string]struct{}, error)
+	populationDeadline  time.Duration
 }
 
 func NewProgramRuntimeFrictionReader() ProgramFrictionReader {
@@ -111,6 +139,68 @@ func NewProgramRuntimeFrictionReader() ProgramFrictionReader {
 		http:     &http.Client{Timeout: programRuntimeReadDeadline},
 		deadline: programRuntimeReadDeadline,
 	}
+}
+
+func NewProgramRuntimeConditionReader(population ...func(context.Context) (map[string]struct{}, error)) ProgramConditionReader {
+	var conditionPopulation func(context.Context) (map[string]struct{}, error)
+	if len(population) > 0 {
+		conditionPopulation = population[0]
+	}
+	return &programRuntimeFrictionReader{
+		resolver:            discovery.NewResolver(discovery.ResolverConfig{}),
+		http:                &http.Client{Timeout: programRuntimeReadDeadline},
+		deadline:            programRuntimeReadDeadline,
+		conditionPopulation: conditionPopulation,
+		populationDeadline:  15 * time.Second,
+	}
+}
+
+type programRuntimeConditionGapSource struct{ reader ProgramConditionReader }
+
+func NewProgramRuntimeConditionGapSource(reader ProgramConditionReader) GapSource {
+	return &programRuntimeConditionGapSource{reader: reader}
+}
+
+func (*programRuntimeConditionGapSource) Axis() Axis { return AxisEmpirical }
+
+func (s *programRuntimeConditionGapSource) DerivedGaps(ctx context.Context) ([]Gap, error) {
+	if s == nil || s.reader == nil {
+		return nil, fmt.Errorf("program-runtime condition reader is not configured")
+	}
+	report, err := s.reader.ReadCondition(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read program-runtime condition: %w", err)
+	}
+	out := make([]Gap, 0, len(report.Conditions))
+	for _, condition := range report.Conditions {
+		status := strings.ToLower(strings.TrimSpace(condition.Status))
+		if status == "" || status == "healthy" {
+			continue
+		}
+		if condition.BindingID == "" {
+			continue
+		}
+		recurrence := 1
+		if status == "degraded" {
+			recurrence = 100
+		}
+		note := condition.Reason
+		if note == "" {
+			note = condition.Verdict
+		}
+		out = append(out, Gap{
+			ID:              "condition/program-runtime/" + condition.BindingID,
+			Axis:            AxisEmpirical,
+			Title:           "program-runtime binding condition is " + status,
+			ConditionStatus: status,
+			EvidenceSource:  "program-runtime",
+			EvidenceLocator: "program-runtime://bindings/" + condition.BindingID,
+			Recurrence:      recurrence,
+			Notes:           []string{note},
+			ProviderIDs:     []string{condition.Scenario},
+		})
+	}
+	return out, nil
 }
 
 func (r *programRuntimeFrictionReader) ReadFriction(ctx context.Context) (ProgramFrictionReport, error) {
@@ -133,6 +223,9 @@ func (r *programRuntimeFrictionReader) ReadFriction(ctx context.Context) (Progra
 	if err != nil {
 		return ProgramFrictionReport{}, fmt.Errorf("mine unresolved bindings: %w", err)
 	}
+	if failures == nil || failures.Msg == nil || refusals == nil || refusals.Msg == nil || unresolved == nil || unresolved.Msg == nil {
+		return ProgramFrictionReport{}, fmt.Errorf("program-runtime returned an empty friction response")
+	}
 	report := ProgramFrictionReport{}
 	for _, shape := range failures.Msg.GetShapes() {
 		report.Failures = append(report.Failures, ProgramFailureObservation{Shape: shape.GetShape(), Count: int(shape.GetCount()), FirstSeen: shape.GetFirstSeen(), LastSeen: shape.GetLastSeen(), SampleProgramID: shape.GetSampleProgramId()})
@@ -142,6 +235,73 @@ func (r *programRuntimeFrictionReader) ReadFriction(ctx context.Context) (Progra
 	}
 	for _, shape := range unresolved.Msg.GetShapes() {
 		report.Unresolved = append(report.Unresolved, ProgramUnresolvedObservation{AttemptedName: shape.GetAttemptedName(), Count: int(shape.GetCount()), LastSeen: shape.GetLastSeen()})
+	}
+	return report, nil
+}
+
+func (r *programRuntimeFrictionReader) ReadCondition(ctx context.Context) (ProgramConditionReport, error) {
+	rpcCtx, cancel := context.WithTimeout(ctx, r.deadline)
+	defer cancel()
+	base, err := r.resolver.ResolveScenarioURLDefault(rpcCtx, "program-runtime")
+	if err != nil {
+		return ProgramConditionReport{}, fmt.Errorf("resolve program-runtime: %w", err)
+	}
+	client := bindingsconnect.NewBindingConditionServiceClient(r.http, base)
+	response, err := client.GetBindingCondition(rpcCtx, connect.NewRequest(&bindingsv1.GetBindingConditionRequest{WindowSeconds: int64((24 * time.Hour) / time.Second)}))
+	if err != nil {
+		return ProgramConditionReport{}, fmt.Errorf("get binding condition: %w", err)
+	}
+	if response == nil || response.Msg == nil {
+		return ProgramConditionReport{}, fmt.Errorf("program-runtime returned an empty condition response")
+	}
+	report := ProgramConditionReport{
+		Instrumented: int(response.Msg.GetInstrumentedBindings()),
+		Total:        int(response.Msg.GetTotalBindings()),
+	}
+	allowed := map[string]struct{}(nil)
+	if r.conditionPopulation != nil {
+		populationCtx := ctx
+		if r.populationDeadline > 0 {
+			var populationCancel context.CancelFunc
+			populationCtx, populationCancel = context.WithTimeout(ctx, r.populationDeadline)
+			defer populationCancel()
+		}
+		allowed, err = r.conditionPopulation(populationCtx)
+		if err != nil {
+			return ProgramConditionReport{}, fmt.Errorf("read condition population: %w", err)
+		}
+	}
+	for _, condition := range response.Msg.GetConditions() {
+		if condition == nil {
+			continue
+		}
+		if allowed != nil {
+			if _, ok := allowed[strings.ToLower(strings.TrimSpace(condition.GetScenario()))]; !ok {
+				report.FilteredOut++
+				continue
+			}
+		}
+		status := strings.ToLower(strings.TrimPrefix(condition.GetStatus().String(), "CONDITION_STATUS_"))
+		observation := ProgramConditionObservation{
+			BindingID: condition.GetBindingId(),
+			Scenario:  condition.GetScenario(),
+			Status:    status,
+			Verdict:   condition.GetVerdict(),
+			Reason:    condition.GetSustainedDegradationReason(),
+		}
+		report.Conditions = append(report.Conditions, observation)
+		switch status {
+		case "healthy":
+			report.Healthy++
+		case "degraded":
+			report.Degraded++
+		case "dormant":
+			report.Dormant++
+		case "uninstrumented":
+			report.Uninstrumented++
+		case "unavailable":
+			report.Unavailable++
+		}
 	}
 	return report, nil
 }

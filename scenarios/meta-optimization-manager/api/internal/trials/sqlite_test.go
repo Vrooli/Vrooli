@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"meta-optimization-manager/internal/testutil/db"
-	"meta-optimization-manager/internal/testutil/mocks"
+	db "github.com/vrooli/api-core/databasetest"
 	internaltrials "meta-optimization-manager/internal/trials"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func TestTrialsRepositoryRecordAndQuery(t *testing.T) {
@@ -15,7 +16,7 @@ func TestTrialsRepositoryRecordAndQuery(t *testing.T) {
 	if _, err := h.Exec(internaltrials.Schema()); err != nil {
 		t.Fatalf("schema: %v", err)
 	}
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
 	repo := internaltrials.NewSQLiteRepository(h, clk)
 	ctx := context.Background()
 
@@ -59,7 +60,7 @@ func TestTrialsRepositoryGetMissing(t *testing.T) {
 	if _, err := h.Exec(internaltrials.Schema()); err != nil {
 		t.Fatalf("schema: %v", err)
 	}
-	repo := internaltrials.NewSQLiteRepository(h, mocks.NewFakeClock(time.Now()))
+	repo := internaltrials.NewSQLiteRepository(h, scheduletest.New(time.Now()))
 	if _, ok, err := repo.GetRun(context.Background(), "nope"); ok || err != nil {
 		t.Fatalf("expected miss, got ok=%v err=%v", ok, err)
 	}

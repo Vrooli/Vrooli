@@ -6,9 +6,10 @@ package coverage
 import (
 	"log"
 
-	"meta-optimization-manager/internal/clock"
 	internalcoverage "meta-optimization-manager/internal/coverage"
 	"meta-optimization-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -20,7 +21,7 @@ import (
 // Module returns the coverage domain's contribution to the API: the generated
 // CoverageService Connect-RPC handler, backed by the production seams (live
 // space-reader + numerator-joiner) and the short-TTL SQLite snapshot cache.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	svc := internalcoverage.NewService(internalcoverage.Deps{
 		Snapshots: internalcoverage.NewSQLiteSnapshotRepository(db, clk),
 		Clock:     clk,

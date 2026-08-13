@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	internalfocus "meta-optimization-manager/internal/focus"
-	"meta-optimization-manager/internal/testutil/db"
-	"meta-optimization-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/vrooli/api-core/spacedoc"
 )
@@ -17,7 +18,7 @@ func TestGapsRepositoryRoundTrip(t *testing.T) {
 	if _, err := h.Exec(internalfocus.Schema()); err != nil {
 		t.Fatalf("schema: %v", err)
 	}
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
 	repo := internalfocus.NewSQLiteRepository(h, clk)
 	ctx := context.Background()
 
@@ -63,7 +64,7 @@ func TestGapsRepositoryGetMissing(t *testing.T) {
 	if _, err := h.Exec(internalfocus.Schema()); err != nil {
 		t.Fatalf("schema: %v", err)
 	}
-	repo := internalfocus.NewSQLiteRepository(h, mocks.NewFakeClock(time.Now()))
+	repo := internalfocus.NewSQLiteRepository(h, scheduletest.New(time.Now()))
 	if _, ok, err := repo.Get(context.Background(), "nope"); ok || err != nil {
 		t.Fatalf("expected miss, got ok=%v err=%v", ok, err)
 	}

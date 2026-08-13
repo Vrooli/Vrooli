@@ -182,8 +182,8 @@ Legend: **●** declared and live · **◐** partially present · **○** not de
 | Serving | per-provider degradation rate | ● `metrics provider-degradation-rate`, scoped by provider id |
 | Serving | per-provider failure rate | ◐ fleet-level `degraded-query-rate` exists; per-provider failure distinct from degradation does not |
 | Serving | per-provider latency p50/p95 | ◐ `metrics federated-latency` is federation-level, not per-leg |
-| Freshness | provider index age | ○ |
-| Exercise | per-provider invocation count, distinct callers, last-invoked | ○ |
+| Freshness | provider index age | ● Search Hub descriptors and status probes expose parsed age or an explicit unavailable reason |
+| Exercise | per-provider invocation count, distinct callers, last-invoked | ● Search Hub telemetry records provider selection and bounded routing outcomes |
 
 `search-hub` is the reference implementation of the Serving family. `provider-degradation-rate` — a per-leg signal owned by the projection owner, scoped by contributor id — is the shape every other owner should copy.
 
@@ -220,7 +220,7 @@ Guide currently has the **least** condition visibility of the four and the most 
 
 **Per-binding invocation outcome is the highest-leverage Act condition measure.** It is simultaneously the Act condition signal and the friction evidence the improvement loop wants, and it is the only instrument that can distinguish the bindings that are genuinely callable from the ones that merely resolve.
 
-Note the dependency: `program-runtime`'s existing `programs.mine` measure is structurally incapable of returning a non-empty result while its corpus is process memory. **Durable retention of the program corpus is a precondition for Act condition measurement**, not an independent durability preference.
+The binding condition RPC now reads the durable invocation ledger directly. Program corpus retention remains useful friction evidence, but it is not a prerequisite for Act condition measurement.
 
 ### Fleet-wide exercise
 
@@ -263,7 +263,7 @@ The surface being four scenarios rather than the whole fleet is what makes this 
 
 ## Current State
 
-Recorded as of 2026-08-12, as data. This section is the measured distance from the model above and is expected to change; the model is not expected to change with it.
+Recorded as of 2026-08-13, as data. This section is the measured distance from the model above and is expected to change; the model is not expected to change with it.
 
 | Fact | Value |
 |---|---|
@@ -273,9 +273,9 @@ Recorded as of 2026-08-12, as data. This section is the measured distance from t
 | Projection owners whose numerator publishes condition beside coverage | 1 of 4 (`test-genie`) |
 | Projection owners with any freshness signal | 0 of 4 |
 | Projection owners with any exercise signal | 1 of 4 (`program-runtime`) |
-| `program-runtime` condition snapshot | 639 of 1,168 bindings instrumented; 302 degraded; 0 sustained promotions |
-| Condition source registered on the board | Search Hub insight source is live for Answer focus; its population is filtered to provider legs backing live `NOW` cells; maturity blockers are a separate Search Hub evidence source |
-| Condition read surface | `FocusService.ListCondition` and `FocusService.ExplainCondition` plus CLI `focus condition status` / `focus condition explain-leg` |
+| `program-runtime` condition snapshot | 641 of 1,188 bindings instrumented; 79 degraded; 68 dormant; 932 filtered out because their owners do not back a live Act `NOW` cell |
+| Condition source registered on the board | Typed program-runtime binding-condition legs and Search Hub insight legs are filtered to owners backing live Act `NOW` cells; maturity blockers remain a separate Search Hub evidence source |
+| Condition read surface | `FocusService.ListCondition` and `FocusService.ExplainCondition` plus CLI `condition status` / `condition explain-leg` |
 | Overall instrumentation coverage | not yet a fleet percentage; missing owner signals remain `UNINSTRUMENTED`, never healthy |
 
 Two scenarios outside the projection owners already demonstrate the target shape and are worth copying rather than reinventing:
@@ -289,8 +289,7 @@ These are known blockers on the model above. They are recorded so the gap is sch
 
 1. **Fleet-wide Exercise needs a counting surface.** `vrooli-events` exposes `events query` by type, source, and correlation id, but no aggregate or count operation. It also ships no `cli/manifest.json` and declares no measures of its own, so it is neither bindable nor measurable today. The single cheapest signal in this model is blocked on its owner growing a counting surface.
 2. **Exercise attribution is bounded by agent identity.** Only verified `agent-manager` identity claims may set a receipt's subject and agent correlation. `exercise.invocations` and `exercise.last_invoked_at` are unaffected, but `exercise.distinct_callers` degrades to a count of *attributable* callers and must report the unattributed remainder rather than silently undercounting.
-3. **Act condition needs a durable program corpus.** Stated above under the Act table.
-4. **Owner-wide condition measure federation remains open.** Test-genie now publishes its phase condition and the focus source publishes fleet evidence; freshness and exercise measures for every owner remain future work.
+3. **Owner-wide condition measure federation remains open.** Test-genie now publishes its phase condition and the focus source publishes fleet evidence; freshness and exercise measures for every owner remain future work.
 
 ## Governing Principles
 

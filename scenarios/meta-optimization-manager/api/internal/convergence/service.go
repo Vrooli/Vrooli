@@ -3,7 +3,7 @@ package convergence
 import (
 	"context"
 
-	"meta-optimization-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Service is the convergence application surface.
@@ -18,7 +18,7 @@ type service struct {
 	fitness FitnessScanner
 	refs    ReferenceScanner
 	repo    Repository
-	clock   clock.Clock
+	clock   schedule.Clock
 }
 
 // Deps wires the convergence Service. Repo is optional (nil disables the trend).
@@ -26,13 +26,13 @@ type Deps struct {
 	Fitness    FitnessScanner
 	References ReferenceScanner
 	Repo       Repository
-	Clock      clock.Clock
+	Clock      schedule.Clock
 }
 
 // NewService constructs the convergence Service, defaulting the production seams.
 func NewService(d Deps) Service {
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		d.Clock = schedule.System()
 	}
 	if d.Fitness == nil {
 		d.Fitness = NewFitnessScanner()

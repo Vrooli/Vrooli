@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -231,6 +232,20 @@ func (j *apiNumeratorJoiner) joinAnswer(ctx context.Context, base string, cells 
 	}
 	providerEvidence := answerEvidence(providers, status, fresh)
 	statuses, evidence := recomputeAnswer(cells, providerEvidence)
+	conditions := make(map[string]ConditionVerdict)
+	for _, cell := range cells {
+		for _, token := range providerTokens(cell.Owner) {
+			for _, provider := range providerEvidence {
+				if matchesProviderToken(token, provider.ProviderID) && provider.Condition != "" {
+					conditions[cell.ID] = provider.Condition
+					break
+				}
+			}
+			if _, ok := conditions[cell.ID]; ok {
+				break
+			}
+		}
+	}
 	known := make(map[string]bool, len(providers.GetProviders()))
 	for _, provider := range providers.GetProviders() {
 		if provider == nil {
@@ -248,21 +263,27 @@ func (j *apiNumeratorJoiner) joinAnswer(ctx context.Context, base string, cells 
 			}
 		}
 	}
-	return JoinResult{Available: true, Statuses: statuses, Evidence: evidence, OwnerResolved: resolved}
+	return JoinResult{Available: true, Statuses: statuses, Evidence: evidence, Conditions: conditions, OwnerResolved: resolved}
 }
 
 func ownerForAnswer() string { return "search-hub" }
 
 type evalFreshness struct {
-	Fresh    bool
-	Evidence string
+	Fresh     bool
+	Available bool
+	Evidence  string
+}
+
+type evalSuiteFreshness struct {
+	ProviderID string
+	SuiteID    string
+	Freshness  evalFreshness
+	Err        error
 }
 
 func (j *apiNumeratorJoiner) freshEvalByProvider(ctx context.Context, client evalconnect.EvalServiceClient, suites []*evalv1.EvalSuite) (map[string]evalFreshness, error) {
-	out := make(map[string]evalFreshness, len(suites))
-	var mu sync.Mutex
+	results := make(chan evalSuiteFreshness, len(suites))
 	var wg sync.WaitGroup
-	var firstErr error
 	for _, suite := range suites {
 		if suite == nil || strings.TrimSpace(suite.GetProviderId()) == "" {
 			continue
@@ -273,16 +294,11 @@ func (j *apiNumeratorJoiner) freshEvalByProvider(ctx context.Context, client eva
 			defer wg.Done()
 			resp, err := client.ListRuns(ctx, connect.NewRequest(&evalv1.ListRunsRequest{SuiteId: suite.GetSuiteId(), Limit: 20}))
 			if err != nil {
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = err
-				}
-				mu.Unlock()
+				results <- evalSuiteFreshness{ProviderID: suite.GetProviderId(), SuiteID: suite.GetSuiteId(), Err: err}
 				return
 			}
-			freshRun := ""
-			evidence := ""
-			current := evalFreshness{}
+			current := evalFreshness{Available: true, Evidence: "no graded eval run in the last 30d (graded_cases=0)"}
+			var unavailableReason string
 			for _, run := range resp.Msg.GetRuns() {
 				if run == nil {
 					continue
@@ -293,39 +309,107 @@ func (j *apiNumeratorJoiner) freshEvalByProvider(ctx context.Context, client eva
 				}
 				age := time.Since(at)
 				if age >= 0 && age <= answerEvalFreshnessWindow {
-					freshRun = run.GetRunId()
-					if run.GetDegraded() {
-						evidence = fmt.Sprintf("latest eval run %s degraded: %s", freshRun, run.GetDegradedReason())
-						break
+					graded := gradedCases(run)
+					if graded == 0 {
+						if reason := strings.TrimSpace(run.GetUnavailableReason()); reason != "" {
+							unavailableReason = reason
+						} else if len(run.GetUnavailableCases()) > 0 {
+							unavailableReason = run.GetUnavailableCases()[0].GetReason()
+						} else if run.GetDegraded() {
+							unavailableReason = run.GetDegradedReason()
+						}
+						continue
 					}
-					graded := run.GetAggregate().GetGradedCases()
 					indexed := run.GetConfig().GetIndexedCount()
 					passRate := 0.0
 					if graded > 0 {
-						passRate = float64(run.GetAggregate().GetMet()) / float64(graded)
+						passRate = float64(runMetCases(run)) / float64(graded)
 					}
-					evidence = fmt.Sprintf("latest eval run %s pass_rate=%.2f graded_cases=%d indexed_count=%d", freshRun, passRate, graded, indexed)
-					if graded > 0 && indexed > 0 && passRate >= answerEvalMinimumPassRate {
+					current.Evidence = fmt.Sprintf("suite %s: latest graded eval run %s pass_rate=%.2f graded_cases=%d indexed_count=%d", suite.GetSuiteId(), run.GetRunId(), passRate, graded, indexed)
+					if graded > 0 && passRate >= answerEvalMinimumPassRate {
 						current.Fresh = true
+					}
+					if indexed == 0 {
+						current.Evidence += " (instrumentation note: indexed_count not reported)"
 					}
 					break
 				}
 			}
-			mu.Lock()
-			if prior := out[suite.GetProviderId()]; prior.Evidence != "" {
-				current = prior
+			if !current.Fresh && unavailableReason != "" {
+				current.Available = false
+				current.Evidence = fmt.Sprintf("UNAVAILABLE: suite %s has no graded eval run in the last 30d; reason: %s", suite.GetSuiteId(), unavailableReason)
 			}
-			if freshRun != "" {
-				current.Evidence = evidence
-			} else if current.Evidence == "" {
-				current.Evidence = "no non-degraded eval run in the last 30d"
-			}
-			out[suite.GetProviderId()] = current
-			mu.Unlock()
+			results <- evalSuiteFreshness{ProviderID: suite.GetProviderId(), SuiteID: suite.GetSuiteId(), Freshness: current}
 		}()
 	}
 	wg.Wait()
-	return out, firstErr
+	close(results)
+
+	byProvider := make(map[string][]evalSuiteFreshness, len(suites))
+	for result := range results {
+		if result.Err != nil {
+			return nil, result.Err
+		}
+		byProvider[result.ProviderID] = append(byProvider[result.ProviderID], result)
+	}
+
+	out := make(map[string]evalFreshness, len(byProvider))
+	for providerID, providerResults := range byProvider {
+		sort.Slice(providerResults, func(i, k int) bool {
+			return providerResults[i].SuiteID < providerResults[k].SuiteID
+		})
+		aggregate := evalFreshness{Fresh: true, Available: true}
+		for _, result := range providerResults {
+			if !result.Freshness.Available {
+				aggregate = result.Freshness
+				break
+			}
+			if !result.Freshness.Fresh {
+				// Worst-suite-wins: the first failing suite in stable suite
+				// order decides both the verdict and the evidence.
+				aggregate = result.Freshness
+				break
+			}
+			// If every suite is fresh, the final suite is the deterministic
+			// deciding evidence for the all-suites fold.
+			aggregate.Evidence = result.Freshness.Evidence
+		}
+		out[providerID] = aggregate
+	}
+	return out, nil
+}
+
+func gradedCases(run *evalv1.EvalRun) int32 {
+	if run == nil {
+		return 0
+	}
+	if value := run.GetAggregate().GetGradedCases(); value > 0 {
+		return value
+	}
+	var count int32
+	for _, result := range run.GetResults() {
+		switch result.GetOutcome() {
+		case "met", "below_expectation", "above_expectation", "unexpected_hit", "answered_by_sibling", "misrouted", "thin_margin":
+			count++
+		}
+	}
+	return count
+}
+
+func runMetCases(run *evalv1.EvalRun) int32 {
+	if run == nil {
+		return 0
+	}
+	if run.GetAggregate().GetGradedCases() > 0 {
+		return run.GetAggregate().GetMet()
+	}
+	var count int32
+	for _, result := range run.GetResults() {
+		if result.GetOutcome() == "met" {
+			count++
+		}
+	}
+	return count
 }
 
 func answerEvidence(resp *registryv1.ListProvidersResponse, status *routingv1.StatusResponse, fresh map[string]evalFreshness) []answerProviderEvidence {
@@ -353,18 +437,22 @@ func answerEvidence(resp *registryv1.ListProvidersResponse, status *routingv1.St
 			reach = providerReachable(health)
 			reachEvidence = fmt.Sprintf("%s reachability=%q reachable=%t degraded=%t", id, health.GetReachability(), health.GetReachable(), health.GetDegraded())
 		}
+		condition := ConditionOK
+		if !ok || !health.GetReachable() || health.GetDegraded() {
+			condition = ConditionDegraded
+		}
 		eval := fresh[id]
 		if eval.Evidence == "" {
-			eval.Evidence = "no non-degraded eval run in the last 30d"
+			eval.Evidence = "no graded eval run in the last 30d (graded_cases=0)"
 		}
 		active := provider.GetState() != registryv1.ProviderState_PROVIDER_STATE_CAPABILITY_GAP
-		out = append(out, answerProviderEvidence{ProviderID: id, Active: active, Reachable: reach, FreshEval: eval.Fresh, ReachabilityEvidence: reachEvidence, EvalEvidence: eval.Evidence})
+		out = append(out, answerProviderEvidence{ProviderID: id, Active: active, Reachable: reach, FreshEval: eval.Fresh, EvalAvailable: eval.Available, Condition: condition, ReachabilityEvidence: reachEvidence, EvalEvidence: eval.Evidence})
 	}
 	return out
 }
 
 func providerReachable(health *routingv1.ProviderHealth) bool {
-	if !health.GetReachable() || health.GetDegraded() {
+	if !health.GetReachable() {
 		return false
 	}
 	// The status contract deliberately carries a human-readable reason, not a

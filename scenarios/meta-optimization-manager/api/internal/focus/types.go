@@ -78,9 +78,39 @@ type Gap struct {
 	EvidenceLocator    string
 	Recurrence         int
 	AvailabilityReason string
+	ConditionStatus    string
+	MaturityFindings   []MaturityFinding
 	Notes              []string
 	Approaches         []string
 	FollowUps          []string
+}
+
+// MaturityFinding is the actionable evidence returned by Search Hub for one
+// blocking maturity rule. Keeping the finding as a structured value prevents
+// the focus board from reducing a repairable defect to an opaque code.
+type MaturityFinding struct {
+	Code          string
+	Message       string
+	Location      string
+	Remediation   string
+	FixClass      string
+	RepairCommand string
+}
+
+type ConditionInstrumentation struct {
+	Healthy        int
+	Degraded       int
+	Dormant        int
+	Uninstrumented int
+	Unavailable    int
+	Instrumented   int
+	Total          int
+	FilteredOut    int
+}
+
+type ConditionReport struct {
+	Gaps            []Gap
+	Instrumentation ConditionInstrumentation
 }
 
 // FocusItem is a ranked next-best gap: the gap plus its impact × importance
@@ -116,6 +146,7 @@ type ProviderInsights interface {
 type MaturityObservation struct {
 	Scenario      string
 	BlockingCodes []string
+	Findings      []MaturityFinding
 }
 
 // MaturityReader reads Search Hub's per-scenario maturity evidence. It is

@@ -138,9 +138,14 @@ func (h *handlers) conditionStatus(ctx cliapp.RunContext) error {
 	}
 	results := make([]string, 0)
 	for _, gap := range resp.Msg.GetGaps() {
-		results = append(results, fmt.Sprintf("%s provider=%s recurrence=%d %s", gap.GetId(), strings.Join(gap.GetProviderIds(), ","), gap.GetRecurrence(), gap.GetTitle()))
+		results = append(results, fmt.Sprintf("%s status=%s provider=%s recurrence=%d %s", gap.GetId(), gap.GetConditionStatus(), strings.Join(gap.GetProviderIds(), ","), gap.GetRecurrence(), gap.GetTitle()))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("%d observed condition finding(s).", len(results))}, ResultsHeading: "Condition", Results: results, RetrievalHints: []string{"`condition explain-leg <provider-id>` — trace one leg"}})
+	instrumentation := resp.Msg.GetInstrumentation()
+	summary := []string{
+		fmt.Sprintf("%d observed condition finding(s).", len(results)),
+		fmt.Sprintf("Verdicts: healthy=%d degraded=%d dormant=%d uninstrumented=%d unavailable=%d; instrumented=%d total=%d.", instrumentation.GetHealthy(), instrumentation.GetDegraded(), instrumentation.GetDormant(), instrumentation.GetUninstrumented(), instrumentation.GetUnavailable(), instrumentation.GetInstrumented(), instrumentation.GetTotal()),
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: summary, ResultsHeading: "Condition", Results: results, RetrievalHints: []string{"`condition explain-leg <provider-id>` — trace one leg"}})
 }
 
 func (h *handlers) conditionExplain(ctx cliapp.RunContext) error {
@@ -153,14 +158,18 @@ func (h *handlers) conditionExplain(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no condition finding")
 	}
 	gap := resp.Msg.Gap
-	results := []string{fmt.Sprintf("%s provider=%s recurrence=%d %s", gap.GetId(), strings.Join(gap.GetProviderIds(), ","), gap.GetRecurrence(), gap.GetTitle())}
+	results := []string{fmt.Sprintf("%s status=%s provider=%s recurrence=%d %s", gap.GetId(), gap.GetConditionStatus(), strings.Join(gap.GetProviderIds(), ","), gap.GetRecurrence(), gap.GetTitle())}
 	results = append(results, gap.GetNotes()...)
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{"Condition evidence for " + provider + "."}, ResultsHeading: "Condition leg", Results: results})
 }
 
 func formatFocusItem(it *focusv1.FocusItem) string {
 	g := it.GetGap()
-	return fmt.Sprintf("[%.2f] %s [%s/%s] %s — %s", it.GetPriorityScore(), g.GetId(), axisLabel(g.GetAxis()), statusLabel(g.GetStatus()), g.GetTitle(), focusEvidence(g, it.GetRationale()))
+	result := fmt.Sprintf("[%.2f] %s [%s/%s] %s — %s", it.GetPriorityScore(), g.GetId(), axisLabel(g.GetAxis()), statusLabel(g.GetStatus()), g.GetTitle(), focusEvidence(g, it.GetRationale()))
+	if command := firstRepairCommand(g); command != "" {
+		result += " — repair: " + command
+	}
+	return result
 }
 
 func formatGap(g *focusv1.Gap) string {
@@ -189,7 +198,30 @@ func gapDetail(g *focusv1.Gap) []string {
 	for _, f := range g.GetFollowUps() {
 		out = append(out, "  → follow-up: "+f)
 	}
+	for _, finding := range g.GetMaturityFindings() {
+		if finding.GetMessage() != "" {
+			out = append(out, "  ! maturity: "+finding.GetMessage())
+		}
+		if finding.GetLocation() != "" {
+			out = append(out, "    location: "+finding.GetLocation())
+		}
+		if finding.GetRemediation() != "" {
+			out = append(out, "    remediation: "+finding.GetRemediation())
+		}
+		if finding.GetRepairCommand() != "" {
+			out = append(out, "    repair: "+finding.GetRepairCommand())
+		}
+	}
 	return out
+}
+
+func firstRepairCommand(g *focusv1.Gap) string {
+	for _, finding := range g.GetMaturityFindings() {
+		if command := strings.TrimSpace(finding.GetRepairCommand()); command != "" {
+			return command
+		}
+	}
+	return ""
 }
 
 func focusEvidence(g *focusv1.Gap, rationale string) string {

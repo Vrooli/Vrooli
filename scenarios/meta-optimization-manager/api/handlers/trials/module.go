@@ -6,10 +6,11 @@ package trials
 import (
 	"log"
 
-	"meta-optimization-manager/internal/clock"
 	internalcoverage "meta-optimization-manager/internal/coverage"
 	"meta-optimization-manager/internal/module"
 	internaltrials "meta-optimization-manager/internal/trials"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -23,7 +24,7 @@ import (
 // (sharing the coverage domain's space reader), the committed fixture corpus,
 // the agent-manager sandboxed-spawn runner, the MoM-owned Evaluator, and the
 // SQLite trials history + gate registry.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	svc := internaltrials.NewService(internaltrials.Deps{
 		Tasks:     internaltrials.NewTaskGenerator(internalcoverage.NewSpaceReader()),
 		Fixtures:  internaltrials.NewFixtureResolver(),

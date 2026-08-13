@@ -87,12 +87,17 @@ func (h *connectHandler) AddGapNote(ctx context.Context, req *connect.Request[fo
 }
 
 func (h *connectHandler) ListCondition(ctx context.Context, _ *connect.Request[focusv1.ListConditionRequest]) (*connect.Response[focusv1.ListConditionResponse], error) {
-	gaps, err := h.deps.Service.ListCondition(ctx)
+	report, err := h.deps.Service.ListConditionReport(ctx)
 	if err != nil {
 		h.deps.Logger.Printf("focus.ListCondition: %v", err)
 	}
-	resp := &focusv1.ListConditionResponse{Gaps: make([]*focusv1.Gap, 0, len(gaps))}
-	for _, gap := range gaps {
+	resp := &focusv1.ListConditionResponse{Gaps: make([]*focusv1.Gap, 0, len(report.Gaps)), Instrumentation: &focusv1.ConditionInstrumentation{
+		Healthy: int32(report.Instrumentation.Healthy), Degraded: int32(report.Instrumentation.Degraded),
+		Dormant: int32(report.Instrumentation.Dormant), Uninstrumented: int32(report.Instrumentation.Uninstrumented),
+		Unavailable: int32(report.Instrumentation.Unavailable), Instrumented: int32(report.Instrumentation.Instrumented),
+		Total: int32(report.Instrumentation.Total), FilteredOut: int32(report.Instrumentation.FilteredOut),
+	}}
+	for _, gap := range report.Gaps {
 		resp.Gaps = append(resp.Gaps, gapToProto(gap))
 	}
 	return connect.NewResponse(resp), err
@@ -124,5 +129,22 @@ func gapToProto(g internalfocus.Gap) *focusv1.Gap {
 		EvidenceLocator:    g.EvidenceLocator,
 		AvailabilityReason: g.AvailabilityReason,
 		ProviderIds:        g.ProviderIDs,
+		ConditionStatus:    g.ConditionStatus,
+		MaturityFindings:   maturityFindingsToProto(g.MaturityFindings),
 	}
+}
+
+func maturityFindingsToProto(findings []internalfocus.MaturityFinding) []*focusv1.MaturityFinding {
+	out := make([]*focusv1.MaturityFinding, 0, len(findings))
+	for _, finding := range findings {
+		out = append(out, &focusv1.MaturityFinding{
+			Code:          finding.Code,
+			Message:       finding.Message,
+			Location:      finding.Location,
+			Remediation:   finding.Remediation,
+			FixClass:      finding.FixClass,
+			RepairCommand: finding.RepairCommand,
+		})
+	}
+	return out
 }

@@ -108,7 +108,7 @@
       "commands": [
         {
           "name": "status",
-          "description": "Show observed condition findings sourced from Search Hub telemetry",
+          "description": "Show observed condition findings sourced from owner telemetry",
           "binding": {"kind": "connect-rpc", "service": "FocusService", "method": "ListCondition"},
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
         },

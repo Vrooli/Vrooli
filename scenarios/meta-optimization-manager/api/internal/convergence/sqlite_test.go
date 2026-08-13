@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	internalconv "meta-optimization-manager/internal/convergence"
-	"meta-optimization-manager/internal/testutil/db"
 )
 
 func TestRepositorySaveAndTrend(t *testing.T) {

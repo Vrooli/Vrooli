@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"meta-optimization-manager/internal/testutil/mocks"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fakeFitness / fakeRefs / fakeRepo are in-memory seams for service tests.
@@ -58,7 +58,7 @@ func (r *fakeRepo) Trend(_ context.Context, _ string) ([]FitnessTrendPoint, erro
 }
 
 func newSvc(f FitnessScanner, refs ReferenceScanner, repo Repository) Service {
-	return NewService(Deps{Fitness: f, References: refs, Repo: repo, Clock: mocks.NewFakeClock(time.Date(2026, 6, 24, 0, 0, 0, 0, time.UTC))})
+	return NewService(Deps{Fitness: f, References: refs, Repo: repo, Clock: scheduletest.New(time.Date(2026, 6, 24, 0, 0, 0, 0, time.UTC))})
 }
 
 func TestStatusComputesAndPersists(t *testing.T) {

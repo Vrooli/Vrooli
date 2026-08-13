@@ -118,14 +118,22 @@ func (s *maturityGapSource) DerivedGaps(ctx context.Context) ([]Gap, error) {
 		}
 		codes := append([]string(nil), observation.BlockingCodes...)
 		sort.Strings(codes)
+		findings := append([]MaturityFinding(nil), observation.Findings...)
+		sort.SliceStable(findings, func(i, j int) bool {
+			if findings[i].Code != findings[j].Code {
+				return findings[i].Code < findings[j].Code
+			}
+			return findings[i].RepairCommand < findings[j].RepairCommand
+		})
 		out = append(out, Gap{
-			ID:              "condition/maturity/" + scenario,
-			Axis:            AxisEmpirical,
-			Title:           "search maturity has blocking findings",
-			EvidenceSource:  "search-hub",
-			EvidenceLocator: "search-hub://maturity/" + scenario,
-			Recurrence:      len(codes),
-			Notes:           []string{"blocking=" + strings.Join(codes, ",")},
+			ID:               "condition/maturity/" + scenario,
+			Axis:             AxisEmpirical,
+			Title:            "search maturity has blocking findings",
+			EvidenceSource:   "search-hub",
+			EvidenceLocator:  "search-hub://maturity/" + scenario,
+			Recurrence:       len(codes),
+			MaturityFindings: findings,
+			Notes:            []string{"blocking=" + strings.Join(codes, ",")},
 		})
 	}
 	return out, nil

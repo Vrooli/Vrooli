@@ -129,7 +129,10 @@ and its ratio/confidence are omitted. Every Answer cell exposes the three
 verdicts in `explain-cell`, so a headline can be audited to evidence rather than
 inferred from a boolean provider match.
 
-The method is versioned as `answer-active-reachable-fresh-eval-v1`. Changing the
+The method is versioned as `answer-active-reachable-fresh-eval-v2`. Each uncached
+Answer read computes the join twice and exposes whether the effective coverage
+matched; a mismatch is evidence of a determinism defect, not a reason to choose
+one sample. Changing the
 signals or freshness window requires a new method version, snapshot invalidation,
 focused join tests, and a live evidence record.
 

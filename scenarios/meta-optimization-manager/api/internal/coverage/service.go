@@ -3,11 +3,12 @@ package coverage
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
 
-	"meta-optimization-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/spacedoc"
 )
@@ -18,7 +19,7 @@ import (
 // gap for long.
 const snapshotTTL = 30 * time.Second
 
-const coverageMethodVersion = "answer-active-reachable-fresh-eval-v1"
+const coverageMethodVersion = "answer-active-reachable-fresh-eval-v2"
 
 // TrendProvider supplies the latest empirical trials trend for the scoreboard.
 // The trials domain (Phase 4) implements it; until then GetStatus surfaces no
@@ -40,7 +41,7 @@ type service struct {
 	joiner    NumeratorJoiner
 	snaps     SnapshotRepository
 	trend     TrendProvider
-	clock     clock.Clock
+	clock     schedule.Clock
 	adherence AdherenceReader
 }
 
@@ -50,7 +51,7 @@ type Deps struct {
 	Joiner    NumeratorJoiner
 	Snapshots SnapshotRepository
 	Trend     TrendProvider
-	Clock     clock.Clock
+	Clock     schedule.Clock
 	Adherence AdherenceReader
 }
 
@@ -63,7 +64,7 @@ func NewService(d Deps) Service {
 		d.Joiner = NewNumeratorJoiner()
 	}
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		d.Clock = schedule.System()
 	}
 	return &service{reader: d.Reader, joiner: d.Joiner, snaps: d.Snapshots, trend: d.Trend, clock: d.Clock, adherence: d.Adherence}
 }
@@ -104,7 +105,20 @@ func (s *service) GetStatus(ctx context.Context, projection Projection) (Status,
 		wg.Add(1)
 		go func(i int, p Projection) {
 			defer wg.Done()
-			out.Projections[i] = s.coverageFor(ctx, p)
+			first := s.coverageFor(ctx, p)
+			if p != ProjectionAnswer {
+				out.Projections[i] = first
+				return
+			}
+			second := s.coverageFor(ctx, p)
+			out.Projections[i] = first
+			out.DeterminismChecked = true
+			out.Deterministic = reflect.DeepEqual(first, second)
+			if out.Deterministic {
+				out.DeterminismEvidence = "two uncached Answer joins produced identical effective coverage"
+			} else {
+				out.DeterminismEvidence = fmt.Sprintf("uncached Answer joins disagreed: first=%+v second=%+v", first, second)
+			}
 		}(i, p)
 	}
 	wg.Wait()

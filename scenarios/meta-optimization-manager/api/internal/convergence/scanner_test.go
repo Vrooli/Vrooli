@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"meta-optimization-manager/internal/testutil/mocks"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // writeFile is a tiny test helper.
@@ -86,7 +86,7 @@ func TestReferenceScannerUsesGeneratedGoldenTemplatePathForBreadth(t *testing.T)
 	writeFile(t, filepath.Join(root, "templates", "scenarios", "react-vite", "api", "handlers", "golden", "handler.go"), "package golden\n")
 	writeFile(t, filepath.Join(root, "templates", "scenarios", "react-vite", "api", "internal", "runs", "service.go"), "package runs\n")
 
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC))
 	sc := NewReferenceScannerWithDeps(root, clk, nil)
 	got, err := sc.Scan(context.Background())
 	if err != nil {

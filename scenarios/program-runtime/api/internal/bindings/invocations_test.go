@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
-	"program-runtime/internal/testutil/db"
 )
 
 func newInvocationTestDB(t *testing.T) *sql.DB {

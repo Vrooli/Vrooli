@@ -121,6 +121,16 @@ const (
 // unusable, which would place Act above Guide.
 func importanceWeight(g Gap) float64 {
 	if g.Axis == AxisEmpirical {
+		if strings.HasPrefix(g.ID, "condition/") {
+			switch strings.ToLower(strings.TrimSpace(g.ConditionStatus)) {
+			case "degraded":
+				return 0.95
+			case "dormant":
+				return 0.25
+			case "uninstrumented", "unavailable":
+				return 0.15
+			}
+		}
 		recurrence := g.Recurrence
 		if recurrence < 1 {
 			recurrence = 1
@@ -158,6 +168,9 @@ func importanceWeight(g Gap) float64 {
 
 func importanceReason(g Gap) string {
 	if g.Axis == AxisEmpirical {
+		if strings.HasPrefix(g.ID, "condition/") && g.ConditionStatus != "" {
+			return fmt.Sprintf("condition — status=%s, source=%s", g.ConditionStatus, g.EvidenceSource)
+		}
 		source := g.EvidenceSource
 		if source == "" {
 			source = "unknown source"

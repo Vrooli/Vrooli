@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"program-runtime/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Cross-domain obligations that no single product domain owns: declared measure coverage, the broader operator console, and future kernel adapters.",
-    "last_validated_at": "2026-08-12T02:40:00-04:00",
+    "last_validated_at": "2026-08-13T00:24:48-04:00",
     "module": "platform",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -52,7 +52,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "notes": "No validation target exists: the broader sessions and program-history operator surface remains planned. The binding registry surface is separately earned by PRT-P1-007."
         },
         {
@@ -79,7 +79,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "notes": "No validation target exists: no non-Python kernel has been admitted and no measured capability argument justifies alternate adapters."
         },
         {

@@ -2,16 +2,17 @@ package sessions
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/workspace"
+	workspaceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/workspace/workspaceconnect"
 )
 
 var ErrInvalidWorkspace = errors.New("invalid sandbox workspace")
@@ -31,25 +32,25 @@ func (*localWorkspaceResolver) Resolve(ctx context.Context, id string) (string, 
 	return validateWorkspacePath(ctx, id)
 }
 
-// DiscoveryWorkspaceResolver uses workspace-sandbox's current REST endpoint.
-// The endpoint is intentionally kept behind this one-method seam because the
-// scenario does not yet publish a shared typed workspace-resolution API.
-type DiscoveryWorkspaceResolver struct {
+// TypedWorkspaceResolver resolves workspace roots through workspace-sandbox's
+// generated Connect client. The path is validated again locally so a typed
+// response never weakens the kernel's independent containment check.
+type TypedWorkspaceResolver struct {
 	resolver *discovery.Resolver
 	client   *http.Client
 }
 
-func NewDiscoveryWorkspaceResolver(resolver *discovery.Resolver, client *http.Client) *DiscoveryWorkspaceResolver {
+func NewTypedWorkspaceResolver(resolver *discovery.Resolver, client *http.Client) *TypedWorkspaceResolver {
 	if resolver == nil {
 		resolver = discovery.NewResolver(discovery.ResolverConfig{})
 	}
 	if client == nil {
 		client = http.DefaultClient
 	}
-	return &DiscoveryWorkspaceResolver{resolver: resolver, client: client}
+	return &TypedWorkspaceResolver{resolver: resolver, client: client}
 }
 
-func (r *DiscoveryWorkspaceResolver) Resolve(ctx context.Context, id string) (string, error) {
+func (r *TypedWorkspaceResolver) Resolve(ctx context.Context, id string) (string, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return "", fmt.Errorf("%w: identifier is empty", ErrInvalidWorkspace)
@@ -66,26 +67,15 @@ func (r *DiscoveryWorkspaceResolver) Resolve(ctx context.Context, id string) (st
 	if err != nil {
 		return "", fmt.Errorf("%w %q: workspace-sandbox unavailable: %v", ErrInvalidWorkspace, id, err)
 	}
-	endpoint := strings.TrimRight(base, "/") + "/api/v1/sandboxes/" + url.PathEscape(id) + "/workspace"
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return "", fmt.Errorf("%w %q: create workspace request: %v", ErrInvalidWorkspace, id, err)
-	}
-	response, err := r.client.Do(request)
+	client := workspaceconnect.NewWorkspaceSandboxServiceClient(r.client, strings.TrimRight(base, "/"))
+	response, err := client.ResolveWorkspace(ctx, connect.NewRequest(&workspacev1.ResolveWorkspaceRequest{SandboxId: id}))
 	if err != nil {
 		return "", fmt.Errorf("%w %q: resolve workspace: %v", ErrInvalidWorkspace, id, err)
 	}
-	defer response.Body.Close()
-	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return "", fmt.Errorf("%w %q: workspace-sandbox returned HTTP %d", ErrInvalidWorkspace, id, response.StatusCode)
+	if !response.Msg.GetSuccess() {
+		return "", fmt.Errorf("%w %q: workspace-sandbox returned unsuccessful response", ErrInvalidWorkspace, id)
 	}
-	var payload struct {
-		Path string `json:"path"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
-		return "", fmt.Errorf("%w %q: decode workspace response: %v", ErrInvalidWorkspace, id, err)
-	}
-	return validateWorkspacePath(ctx, payload.Path)
+	return validateWorkspacePath(ctx, response.Msg.GetWorkspaceRoot())
 }
 
 func validateWorkspacePath(ctx context.Context, path string) (string, error) {

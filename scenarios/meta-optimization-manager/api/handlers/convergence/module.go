@@ -7,9 +7,10 @@ package convergence
 import (
 	"log"
 
-	"meta-optimization-manager/internal/clock"
 	internalconv "meta-optimization-manager/internal/convergence"
 	"meta-optimization-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -21,7 +22,7 @@ import (
 // Module returns the convergence domain's contribution to the API: the generated
 // ConvergenceService Connect-RPC handler, backed by the live filesystem fitness
 // scanner + reference scanner and the SQLite fitness-audit index.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	svc := internalconv.NewService(internalconv.Deps{
 		Repo:  internalconv.NewSQLiteRepository(db),
 		Clock: clk,

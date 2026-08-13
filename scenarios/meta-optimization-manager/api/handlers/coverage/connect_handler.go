@@ -37,8 +37,11 @@ func (h *connectHandler) GetStatus(ctx context.Context, req *connect.Request[cov
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	resp := &coveragev1.GetStatusResponse{
-		Projections: make([]*coveragev1.ProjectionCoverage, 0, len(status.Projections)),
-		ComputedAt:  timestamppb.New(status.ComputedAt),
+		Projections:         make([]*coveragev1.ProjectionCoverage, 0, len(status.Projections)),
+		ComputedAt:          timestamppb.New(status.ComputedAt),
+		DeterminismChecked:  status.DeterminismChecked,
+		Deterministic:       status.Deterministic,
+		DeterminismEvidence: status.DeterminismEvidence,
 	}
 	for _, pc := range status.Projections {
 		resp.Projections = append(resp.Projections, &coveragev1.ProjectionCoverage{

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"meta-optimization-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/spacedoc"
 )
@@ -28,11 +28,11 @@ type SQLExecutor interface {
 
 type sqliteRepo struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production gaps Repository.
-func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
+func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepo{db: db, clock: clk}
 }
 

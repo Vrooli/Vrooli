@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -40,8 +41,9 @@ type AgentFindingObservation struct {
 }
 
 type AgentFindingReport struct {
-	Findings            []AgentFindingObservation
-	DroppedUnattributed int
+	Findings             []AgentFindingObservation
+	DroppedUnattributed  int
+	EpisodeFetchFailures int
 }
 
 // AgentFindingReader is the read-only seam for agent-manager's observed run
@@ -138,6 +140,16 @@ func (s *agentManagerGapSource) DerivedGaps(ctx context.Context) ([]Gap, error) 
 			AvailabilityReason: fmt.Sprintf("dropped %d finding observation(s) because run attribution was unknown", report.DroppedUnattributed),
 		})
 	}
+	if report.EpisodeFetchFailures > 0 {
+		out = append(out, Gap{
+			ID:                 "source/agent-manager/episode-fetch",
+			Axis:               AxisEmpirical,
+			Title:              "agent-manager episode evidence was partially unavailable",
+			Global:             true,
+			EvidenceSource:     "agent-manager",
+			AvailabilityReason: fmt.Sprintf("skipped %d run episode fetch(es) within the bounded readiness read", report.EpisodeFetchFailures),
+		})
+	}
 	return out, nil
 }
 
@@ -204,23 +216,56 @@ func (r *agentManagerFindingReader) ReadFindings(ctx context.Context) (AgentFind
 		return AgentFindingReport{}, err
 	}
 	report := AgentFindingReport{}
-	for _, run := range runs {
+	// Episode reads are independent. A bounded worker pool keeps one slow or
+	// corrupt historical run from consuming the entire source deadline and
+	// erasing otherwise useful empirical evidence.
+	type episodeResult struct {
+		run  *agentdomain.Run
+		resp *connect.Response[agentdomain.GetEpisodesResponse]
+		err  error
+	}
+	results := make(chan episodeResult, len(runs))
+	jobs := make(chan *agentdomain.Run)
+	workerCount := 12
+	if len(runs) < workerCount {
+		workerCount = len(runs)
+	}
+	var workers sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			for run := range jobs {
+				runID := strings.TrimSpace(run.GetId())
+				if runID == "" {
+					continue
+				}
+				resp, err := episodesClient.GetEpisodes(ctx, connect.NewRequest(&agentdomain.GetEpisodesRequest{RunId: runID}))
+				results <- episodeResult{run: run, resp: resp, err: err}
+			}
+		}()
+	}
+	go func() {
+		for _, run := range runs {
+			jobs <- run
+		}
+		close(jobs)
+		workers.Wait()
+		close(results)
+	}()
+
+	for result := range results {
+		run := result.run
 		runID := strings.TrimSpace(run.GetId())
-		if runID == "" {
+		if result.err != nil || result.resp == nil || result.resp.Msg == nil {
+			report.EpisodeFetchFailures++
 			continue
-		}
-		resp, err := episodesClient.GetEpisodes(ctx, connect.NewRequest(&agentdomain.GetEpisodesRequest{RunId: runID}))
-		if err != nil {
-			return AgentFindingReport{}, fmt.Errorf("get episodes for run %s: %w", runID, err)
-		}
-		if resp == nil || resp.Msg == nil {
-			return AgentFindingReport{}, fmt.Errorf("agent-manager returned no episodes response for run %s", runID)
 		}
 		at := time.Time{}
 		if createdAt := run.GetCreatedAt(); createdAt != nil {
 			at = createdAt.AsTime()
 		}
-		for _, episode := range resp.Msg.GetEpisodes() {
+		for _, episode := range result.resp.Msg.GetEpisodes() {
 			if !knownAttribution(episode) {
 				report.DroppedUnattributed++
 				continue
@@ -248,24 +293,18 @@ func (r *agentManagerFindingReader) ReadFindings(ctx context.Context) (AgentFind
 }
 
 func listAgentRuns(ctx context.Context, client agentManagerRunClient) ([]*agentdomain.Run, error) {
-	const pageSize int32 = 5000
-	var out []*agentdomain.Run
-	var offset int32
-	for {
-		resp, err := client.ListRuns(ctx, connect.NewRequest(&agentapi.ListRunsRequest{Limit: proto.Int32(pageSize), Offset: proto.Int32(offset)}))
-		if err != nil {
-			return nil, fmt.Errorf("list agent-manager runs: %w", err)
-		}
-		if resp == nil || resp.Msg == nil {
-			return nil, fmt.Errorf("agent-manager returned no runs response")
-		}
-		page := resp.Msg.GetRuns()
-		out = append(out, page...)
-		if !resp.Msg.GetHasMore() || len(page) == 0 {
-			return out, nil
-		}
-		offset += int32(len(page))
+	// Focus is a readiness projection, not an archival export. Read the most
+	// recent bounded window so the source remains responsive as run history
+	// grows; durable history remains available through agent-manager itself.
+	const pageSize int32 = 100
+	resp, err := client.ListRuns(ctx, connect.NewRequest(&agentapi.ListRunsRequest{Limit: proto.Int32(pageSize)}))
+	if err != nil {
+		return nil, fmt.Errorf("list agent-manager runs: %w", err)
 	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("agent-manager returned no runs response")
+	}
+	return resp.Msg.GetRuns(), nil
 }
 
 func knownAttribution(episode *agentdomain.FrictionEpisode) bool {

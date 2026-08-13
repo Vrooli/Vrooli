@@ -218,7 +218,7 @@ func main() {
 	if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 		runner.SetDiscoveryURL(fmt.Sprintf("http://127.0.0.1:%s/internal/program-runtime/bindings/resolve-intent", port))
 	}
-	workspaceResolver := sessions.NewDiscoveryWorkspaceResolver(discovery.NewResolver(discovery.ResolverConfig{}), http.DefaultClient)
+	workspaceResolver := sessions.NewTypedWorkspaceResolver(discovery.NewResolver(discovery.ResolverConfig{}), http.DefaultClient)
 	sessionManager := sessions.NewManager(sessions.Options{Store: db.Primary(), WallBudget: envDurationMillis("PROGRAM_RUNTIME_WALL_BUDGET_MILLIS"), CPUBudget: envDurationMillis("PROGRAM_RUNTIME_CPU_BUDGET_MILLIS"), InferenceCeilingMicros: envInt64("PROGRAM_RUNTIME_INFERENCE_CEILING_MICROS"), DelegationCeilingMicros: envInt64("PROGRAM_RUNTIME_DELEGATION_CEILING_MICROS"), WorkspaceResolver: workspaceResolver, OnWorkspaceResolved: runner.SetSessionWorkspace, OnReclaimed: func(id string) { runner.KillSession(id); runner.ClearSessionWorkspace(id) }})
 	programService := programs.NewService(programs.Options{Store: db.Primary(), Runner: runner, RecordMemory: func(id string, bytes int64) { _ = sessionManager.SetMemoryBytes(context.Background(), id, bytes) }, ExecutionBudget: func(id string) (programs.ExecutionLimits, error) {
 		budget, err := sessionManager.ExecutionBudget(context.Background(), id)

@@ -41,6 +41,9 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 		results = append(results, formatProjection(pc))
 	}
 	summary := []string{fmt.Sprintf("Readiness across %d projection(s).", len(resp.Msg.Projections))}
+	if resp.Msg.GetDeterminismChecked() {
+		summary = append(summary, fmt.Sprintf("Answer determinism: %t (%s)", resp.Msg.GetDeterministic(), resp.Msg.GetDeterminismEvidence()))
+	}
 	if t := resp.Msg.GetLatestTrialTrend(); t != nil {
 		summary = append(summary, fmt.Sprintf("Latest trial trend: success=%.0f%% tokens=%d.", t.GetSuccessRate()*100, t.GetMedianTokens()))
 	}

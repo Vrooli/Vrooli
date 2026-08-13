@@ -7,12 +7,17 @@ import (
 )
 
 type fakeProgramFrictionReader struct {
-	report ProgramFrictionReport
-	err    error
+	report    ProgramFrictionReport
+	condition ProgramConditionReport
+	err       error
 }
 
 func (r fakeProgramFrictionReader) ReadFriction(context.Context) (ProgramFrictionReport, error) {
 	return r.report, r.err
+}
+
+func (r fakeProgramFrictionReader) ReadCondition(context.Context) (ProgramConditionReport, error) {
+	return r.condition, r.err
 }
 
 func TestProgramRuntimeGapSourceRanksDurableFrictionShapes(t *testing.T) {
@@ -32,6 +37,23 @@ func TestProgramRuntimeGapSourceRanksDurableFrictionShapes(t *testing.T) {
 	}
 	if gaps[1].EvidenceSource != "program-runtime" || gaps[2].Recurrence != 4 {
 		t.Fatalf("friction gaps=%+v", gaps)
+	}
+}
+
+func TestProgramRuntimeConditionGapSourceRanksDegradedAboveDormant(t *testing.T) {
+	gaps, err := NewProgramRuntimeConditionGapSource(fakeProgramFrictionReader{condition: ProgramConditionReport{Conditions: []ProgramConditionObservation{
+		{BindingID: "demo/read", Scenario: "demo", Status: "dormant", Reason: "no invocation"},
+		{BindingID: "demo/write", Scenario: "demo", Status: "degraded", Reason: "failure majority"},
+		{BindingID: "demo/list", Scenario: "demo", Status: "healthy"},
+	}}}).DerivedGaps(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(gaps) != 2 || gaps[0].ConditionStatus != "dormant" || gaps[1].ConditionStatus != "degraded" {
+		t.Fatalf("condition gaps=%+v", gaps)
+	}
+	if importanceWeight(gaps[1]) <= importanceWeight(gaps[0]) {
+		t.Fatalf("degraded condition should outrank dormant: degraded=%v dormant=%v", importanceWeight(gaps[1]), importanceWeight(gaps[0]))
 	}
 }
 

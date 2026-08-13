@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"meta-optimization-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -26,18 +26,18 @@ type ReferenceScanner interface {
 
 type fsReferenceScanner struct {
 	root  string
-	clock clock.Clock
+	clock schedule.Clock
 	run   CommandRunner
 }
 
 // NewReferenceScanner returns the production ReferenceScanner.
-func NewReferenceScanner(clk clock.Clock) ReferenceScanner {
+func NewReferenceScanner(clk schedule.Clock) ReferenceScanner {
 	return &fsReferenceScanner{clock: clk, run: execRunner}
 }
 
 // NewReferenceScannerWithDeps returns a scanner with injected root/clock/runner
 // (tests point root at a fixture and fake the runner).
-func NewReferenceScannerWithDeps(root string, clk clock.Clock, run CommandRunner) ReferenceScanner {
+func NewReferenceScannerWithDeps(root string, clk schedule.Clock, run CommandRunner) ReferenceScanner {
 	return &fsReferenceScanner{root: root, clock: clk, run: run}
 }
 

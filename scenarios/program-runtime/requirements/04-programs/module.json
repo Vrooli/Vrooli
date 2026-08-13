@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Accept a program, execute it in its session, return only what it materializes, and retain the corpus. Owns handles, inference and delegation callables, and provenance.",
-    "last_validated_at": "2026-08-11T17:07:52-04:00",
+    "last_validated_at": "2026-08-13T00:24:48-04:00",
     "module": "programs",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -171,7 +171,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "notes": "No validation target exists: MineFailures reports recurring failure shapes, but no scenario-owned surface proposes skill or action candidates with call-site evidence."
         },
         {

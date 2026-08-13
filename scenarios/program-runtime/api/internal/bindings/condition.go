@@ -75,7 +75,10 @@ func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, w
 		}
 		response.TotalBindings++
 		metadata := freshnessMetadata{generationMtime: r.generationMtime}
-		metadata.sourcePath = filepath.Join("scenarios", binding.GetScenario(), "cli", "manifest.json")
+		metadata.sourcePath = r.manifestPaths[binding.GetScenario()]
+		if metadata.sourcePath == "" {
+			metadata.sourcePath = filepath.Join("scenarios", binding.GetScenario(), "cli", "manifest.json")
+		}
 		metadata.sourceMtime = r.manifestMtimes[binding.GetScenario()]
 		condition := conditionForWithFreshness(binding, byBinding[binding.GetId()], sustainedByBinding[binding.GetId()], metadata)
 		if len(byBinding[binding.GetId()]) > 0 {

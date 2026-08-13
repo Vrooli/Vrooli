@@ -43,6 +43,43 @@ func TestProjectsManifestBoundMethods(t *testing.T) {
 	}
 }
 
+func TestProjectManifestBindsControlPlaneMethods(t *testing.T) {
+	r, err := Load(repoRoot(t))
+	require.NoError(t, err)
+	bindings := r.List("vrooli", "scenario")
+	require.Len(t, bindings, 7)
+	want := map[string]struct{}{
+		"ListScenarios": {}, "GetScenarioStatus": {}, "GetScenarioLogs": {},
+		"StartScenario": {}, "StopScenario": {}, "RestartScenario": {}, "SetupScenario": {},
+	}
+	for _, binding := range bindings {
+		delete(want, binding.GetMethod())
+	}
+	if len(want) != 0 {
+		t.Fatalf("project manifest missing methods: %v", want)
+	}
+}
+
+func TestProjectControlPlaneBindingsAreOwnedBySharedCLIContracts(t *testing.T) {
+	r, err := Load(repoRoot(t))
+	require.NoError(t, err)
+	doctor := r.Doctor("vrooli")
+	require.Equal(t, int32(7), doctor.GetBindings())
+	require.Zero(t, doctor.GetMisroutes())
+	require.Zero(t, doctor.GetFieldCollisions())
+	require.Zero(t, doctor.GetControlFlagsBound())
+	require.Zero(t, doctor.GetRequiredFieldsUnpopulated())
+	require.Empty(t, doctor.GetIssues())
+}
+
+func TestResolveTargetURLDefaultUsesProjectPort(t *testing.T) {
+	t.Setenv("VROOLI_API_PORT", "18092")
+	t.Setenv("VROOLI_API_HOST", "localhost")
+	got, err := ResolveTargetURLDefault(context.Background(), "vrooli")
+	require.NoError(t, err)
+	require.Equal(t, "http://localhost:18092", got)
+}
+
 func TestRegistryRefreshesOnManifestGenerationChange(t *testing.T) {
 	root := repoRoot(t)
 	dir := t.TempDir()

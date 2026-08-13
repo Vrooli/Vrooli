@@ -8,10 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
-	"meta-optimization-manager/internal/clock"
 	"meta-optimization-manager/internal/modules"
 	"meta-optimization-manager/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -117,12 +119,12 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "meta-optimization-manager-api", "1.0.0"),
-		coverageH.Module(db, clock.System{}, log.Default()),
-		focusH.Module(db, clock.System{}, log.Default()),
-		convergenceH.Module(db, clock.System{}, log.Default()),
-		trialsH.Module(db, clock.System{}, log.Default()),
+		coverageH.Module(db, schedule.System(), log.Default()),
+		focusH.Module(db, schedule.System(), log.Default()),
+		convergenceH.Module(db, schedule.System(), log.Default()),
+		trialsH.Module(db, schedule.System(), log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -140,7 +142,11 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		// Focus can perform a bounded, concurrent fleet maturity read. Its
+		// response must outlive the per-target validation budget rather than
+		// being truncated by the server's short default write deadline.
+		WriteTimeout: 2 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

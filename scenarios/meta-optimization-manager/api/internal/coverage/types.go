@@ -150,6 +150,12 @@ type Status struct {
 	// CoverageMethodVersion prevents a cached pre-join snapshot from being
 	// presented as comparable with the stricter three-signal Answer numerator.
 	CoverageMethodVersion string
+	// DeterminismChecked reports that an uncached Answer read was computed twice.
+	// Deterministic is false when the two effective joins disagree; the evidence
+	// explains the mismatch without changing either result.
+	DeterminismChecked  bool
+	Deterministic       bool
+	DeterminismEvidence string
 }
 
 // Severity grades a base-document-integrity issue.

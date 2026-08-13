@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"program-runtime/internal/modules"
-	"program-runtime/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 

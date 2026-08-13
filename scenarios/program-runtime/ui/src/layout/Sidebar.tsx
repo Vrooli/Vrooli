@@ -1,3 +1,13 @@
+/**
+ * @vrooliComponentSource local:ProgramRuntimeSidebar
+ * @vrooliComponentVersion 1.0.0
+ * @vrooliComponentAdoption program-runtime:layout-sidebar
+ * @vrooliComponentAppliedAt 2026-08-13T00:00:00Z
+ *
+ * Desktop-only navigation intentionally composes SidebarShell. BottomNav is
+ * the governed mobile navigation counterpart; this persistent rail needs
+ * vertical links and therefore keeps its own explicit local composition.
+ */
 import { NavLink } from "react-router-dom";
 
 import { SidebarShell } from "../components/ui/sidebar-shell";

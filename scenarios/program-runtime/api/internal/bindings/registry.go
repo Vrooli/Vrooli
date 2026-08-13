@@ -63,6 +63,7 @@ type Registry struct {
 	artifactMtime     time.Time
 	generationMtime   time.Time
 	manifestMtimes    map[string]time.Time
+	manifestPaths     map[string]string
 	resolver          ReachabilityResolver
 	manifestCount     int
 	totalScenarios    int
@@ -103,12 +104,21 @@ func Load(repoRoot string) (*Registry, error) {
 	}
 	manifestPaths := make([]string, 0)
 	for _, target := range targets {
-		if target.Kind != repocontract.TargetKindScenario {
+		if target.Kind != repocontract.TargetKindScenario && target.Kind != repocontract.TargetKindProject {
 			continue
 		}
-		path, err := repocontract.ScenarioCLIManifestPath(repoRoot, target.ID)
-		if err != nil {
-			return nil, fmt.Errorf("resolve CLI manifest for %s: %w", target.ID, err)
+		var path string
+		if target.Kind == repocontract.TargetKindProject {
+			rel, relErr := repocontract.ScenarioCLIManifestRel(repoRoot)
+			if relErr != nil {
+				return nil, fmt.Errorf("resolve project CLI manifest: %w", relErr)
+			}
+			path = filepath.Join(repoRoot, filepath.FromSlash(rel))
+		} else {
+			path, err = repocontract.ScenarioCLIManifestPath(repoRoot, target.ID)
+			if err != nil {
+				return nil, fmt.Errorf("resolve CLI manifest for %s: %w", target.ID, err)
+			}
 		}
 		manifestPaths = append(manifestPaths, path)
 	}
@@ -213,10 +223,11 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 		byID:              make(map[string]*bindingsv1.Binding),
 		operation:         make(map[string][]*bindingsv1.Binding),
 		semantic:          make(map[string]semanticCounts),
-		resolver:          discovery.ResolveScenarioURLDefault,
+		resolver:          ResolveTargetURLDefault,
 		totalScenarios:    len(manifestPaths),
 		reachabilityCache: make(map[string]reachabilityStatus),
 		manifestMtimes:    make(map[string]time.Time),
+		manifestPaths:     make(map[string]string),
 	}
 	if info, statErr := os.Stat(descriptorPath); statErr == nil {
 		r.generationMtime = info.ModTime()
@@ -224,8 +235,14 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 	for _, path := range manifestPaths {
 		if info, statErr := os.Stat(path); statErr == nil && !info.IsDir() {
 			r.manifestCount++
-			scenario := filepath.Base(filepath.Dir(filepath.Dir(path)))
+			scenario := manifestScenarioPath(descriptorPath, path)
 			r.manifestMtimes[scenario] = info.ModTime()
+			repoRoot := filepath.Clean(filepath.Join(filepath.Dir(descriptorPath), "../../../.."))
+			if relative, relErr := filepath.Rel(repoRoot, path); relErr == nil {
+				r.manifestPaths[scenario] = filepath.ToSlash(relative)
+			} else {
+				r.manifestPaths[scenario] = filepath.ToSlash(path)
+			}
 		}
 	}
 	r.artifactMtime = snapshot.ArtifactMTime
@@ -246,7 +263,7 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 	}
 	for _, path := range manifestPaths {
 		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-			name := filepath.Base(filepath.Dir(filepath.Dir(path)))
+			name := manifestScenarioPath(descriptorPath, path)
 			r.addUnbound(&bindingsv1.UnboundCapability{Scenario: name, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_NO_MANIFEST, Detail: "scenario has no CLI manifest"})
 		}
 	}
@@ -258,6 +275,31 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 		return r.unbound[i].GetCommand() < r.unbound[j].GetCommand()
 	})
 	return r, nil
+}
+
+// ResolveTargetURLDefault resolves scenario targets through the normal
+// discovery contract and resolves the repository project through its stable
+// VROOLI_API_PORT contract. The project is not a scenario runtime, so asking
+// `vrooli scenario port vrooli API_PORT` would be both misleading and
+// platform-dependent. The environment override is injected by project
+// lifecycle setup; 8092 is the service manifest's documented fallback.
+func ResolveTargetURLDefault(ctx context.Context, target string) (string, error) {
+	if target != "vrooli" {
+		return discovery.ResolveScenarioURLDefault(ctx, target)
+	}
+	port := strings.TrimSpace(os.Getenv("VROOLI_API_PORT"))
+	if port == "" {
+		port = "8092"
+	}
+	number, err := strconv.Atoi(port)
+	if err != nil || number < 1 || number > 65535 {
+		return "", fmt.Errorf("invalid VROOLI_API_PORT %q", port)
+	}
+	host := strings.TrimSpace(os.Getenv("VROOLI_API_HOST"))
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	return fmt.Sprintf("http://%s:%d", host, number), nil
 }
 
 func (r *Registry) active() *Registry {
@@ -547,6 +589,21 @@ func (r *Registry) addManifest(path string, serviceMethods map[string][]methodIn
 	return nil, nil
 }
 
+// manifestScenarioPath provides the stable owner name for freshness metadata
+// and missing-manifest diagnostics. Scenario manifests follow the conventional
+// scenarios/<name>/cli path; the project manifest is deliberately different
+// and is governed as the control-plane target "vrooli".
+func manifestScenarioPath(descriptorPath, manifestPath string) string {
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(descriptorPath), "../../../.."))
+	if rel, err := repocontract.ScenarioCLIManifestRel(repoRoot); err == nil {
+		if filepath.Clean(manifestPath) == filepath.Join(repoRoot, filepath.FromSlash(rel)) {
+			return "vrooli"
+		}
+	}
+	clean := filepath.Clean(manifestPath)
+	return filepath.Base(filepath.Dir(filepath.Dir(clean)))
+}
+
 func manifestScenario(path string, data []byte) string {
 	var header struct {
 		Name string `json:"name"`
@@ -587,6 +644,14 @@ func resolveMethod(scenario, key string, methods map[string][]methodInfo, shared
 	candidates := methods[key]
 	var own, shared []methodInfo
 	for _, candidate := range candidates {
+		// The repository project owns the root control-plane manifest, while
+		// its cli/v1 contracts intentionally live in the shared proto package.
+		// Keep this exception narrow to the project target and this contract;
+		// scenario manifests still require an explicit shared-proto declaration.
+		if scenario == "vrooli" && strings.HasPrefix(filepath.ToSlash(candidate.source), "cli/v1/") {
+			shared = append(shared, candidate)
+			continue
+		}
 		if strings.HasPrefix(filepath.ToSlash(candidate.source), scenario+"/") {
 			own = append(own, candidate)
 			continue
@@ -719,7 +784,7 @@ func (r *Registry) SetReachabilityResolver(resolver ReachabilityResolver) {
 		return
 	}
 	if resolver == nil {
-		r.resolver = discovery.ResolveScenarioURLDefault
+		r.resolver = ResolveTargetURLDefault
 		return
 	}
 	r.resolver = resolver
@@ -998,6 +1063,9 @@ func resolvedPath(argumentName string, path []protoreflect.FieldDescriptor) stri
 
 func (r *Registry) sourceBelongsTo(scenario, source string) bool {
 	path := filepath.ToSlash(source)
+	if scenario == "vrooli" && strings.HasPrefix(path, "cli/v1/") {
+		return true
+	}
 	for _, prefix := range []string{
 		scenario + "/",
 		"schemas/" + scenario + "/",
@@ -1442,6 +1510,10 @@ func (r *Registry) resolveActOperation(operation string) (resolved, complete boo
 	}
 	resolvedCount := 0
 	for _, token := range tokens {
+		if matches := r.ResolveOperation(token); len(matches) > 0 {
+			resolvedCount++
+			continue
+		}
 		matches := r.scenarioBindings(token)
 		if len(matches) > 0 {
 			resolvedCount++
