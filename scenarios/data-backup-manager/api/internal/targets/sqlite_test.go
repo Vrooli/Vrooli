@@ -13,7 +13,8 @@ import (
 	"data-backup-manager/internal/sources"
 	"data-backup-manager/internal/targets"
 	"data-backup-manager/internal/testutil/db"
-	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // newSchemaDB returns a fresh sqlite handle with system + targets schema
@@ -36,7 +37,7 @@ func newSchemaDB(t *testing.T) *sql.DB {
 // constraint, update-in-place, list ordering, and delete.
 func TestSQLiteRepository_UpsertRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	repo := targets.NewSQLiteRepository(newSchemaDB(t), clk)
 
 	created, err := repo.Create(ctx, targets.Target{
@@ -113,7 +114,7 @@ func TestSQLiteRepository_UpsertRoundTrip(t *testing.T) {
 // constraint is the backstop).
 func TestSQLiteRepository_UniqueOwnerName(t *testing.T) {
 	ctx := context.Background()
-	repo := targets.NewSQLiteRepository(newSchemaDB(t), mocks.NewFakeClock(time.Time{}))
+	repo := targets.NewSQLiteRepository(newSchemaDB(t), scheduletest.New(time.Time{}))
 	base := targets.Target{Owner: "o", Name: "n", SourceKind: sources.KindFilesystem, Locator: "p"}
 	if _, err := repo.Create(ctx, base); err != nil {
 		t.Fatalf("first create: %v", err)

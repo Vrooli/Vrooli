@@ -7,8 +7,9 @@ package brands
 import (
 	"log"
 
-	"brand-manager/internal/clock"
 	"brand-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -24,7 +25,7 @@ import (
 //
 // Adding a domain means copying this file into handlers/<dom>/module.go and
 // pointing it at <dom>'s proto-generated handler and service.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	repo := internalbrands.NewSQLiteRepository(db, clk)
 	versions := internalbrands.NewSQLiteVersionRepository(db, clk)
 	svc := internalbrands.NewService(repo, versions, logger)

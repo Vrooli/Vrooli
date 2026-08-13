@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"content-desk/internal/clock"
 	"content-desk/internal/modules"
 	"content-desk/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -156,7 +157,7 @@ func main() {
 	fileRoots := filerouting.New(primaryFileRoots)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		artifactsH.Module(db),
 		campaignsH.Module(db),
 		claimsH.Module(db),

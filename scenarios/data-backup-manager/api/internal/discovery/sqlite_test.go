@@ -11,7 +11,8 @@ import (
 	localdb "data-backup-manager/internal/database"
 	"data-backup-manager/internal/discovery"
 	"data-backup-manager/internal/testutil/db"
-	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // newDismissalDB returns a fresh sqlite handle with the discovery schema applied.
@@ -29,7 +30,7 @@ func newDismissalDB(t *testing.T) *sql.DB {
 
 func TestSQLiteDismissalStore_RoundTripAndIdempotency(t *testing.T) {
 	ctx := context.Background()
-	clk := mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	store := discovery.NewSQLiteDismissalStore(newDismissalDB(t), clk)
 
 	dismissed, err := store.IsDismissed(ctx, "abc")

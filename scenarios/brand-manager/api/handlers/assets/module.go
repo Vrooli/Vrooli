@@ -9,8 +9,9 @@ import (
 	"errors"
 	"log"
 
-	"brand-manager/internal/clock"
 	"brand-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -27,7 +28,7 @@ import (
 // filesystem blob store rooted at blobBaseDir. The service confirms a brand
 // exists via a thin adapter over the brands domain (the composition root is the
 // only place the two domains meet).
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, blobBaseDir string) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, blobBaseDir string) module.Module {
 	repo := internalassets.NewSQLiteRepository(db, clk)
 	blobs := internalassets.NewFSBlobStore(blobBaseDir)
 	resolver := brandResolver{brands: internalbrands.NewSQLiteRepository(db, clk)}

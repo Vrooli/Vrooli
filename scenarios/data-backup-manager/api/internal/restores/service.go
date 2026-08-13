@@ -12,9 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/sources"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Service is the application surface the restores handler depends on.
@@ -57,7 +58,7 @@ type Deps struct {
 	Destinations DestinationLookup
 	Engine       engine.KopiaEngine
 	Sources      *sources.Registry
-	Clock        clock.Clock
+	Clock        schedule.Clock
 	// ScratchRoot is the base directory scratch verify dirs are created under.
 	// Empty uses the OS temp dir.
 	ScratchRoot string

@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"data-backup-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // RunTrigger fires a run for a given plan id. The runs service implements this.
@@ -47,7 +47,7 @@ type PlanSource interface {
 
 // Scheduler is the in-process backup scheduler.
 type Scheduler struct {
-	clk     clock.Clock
+	clk     schedule.Clock
 	source  PlanSource
 	trigger RunTrigger
 
@@ -56,7 +56,7 @@ type Scheduler struct {
 }
 
 // New constructs a Scheduler.
-func New(clk clock.Clock, source PlanSource, trigger RunTrigger) *Scheduler {
+func New(clk schedule.Clock, source PlanSource, trigger RunTrigger) *Scheduler {
 	return &Scheduler{
 		clk:      clk,
 		source:   source,

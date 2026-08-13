@@ -6,9 +6,10 @@ import (
 	"testing"
 
 	"architecture-cartographer/internal/apply"
-	"architecture-cartographer/internal/clock"
 	localdb "architecture-cartographer/internal/database"
 	"architecture-cartographer/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 
 	apidb "github.com/vrooli/api-core/database"
 )
@@ -27,7 +28,7 @@ func newSchemaDB(t *testing.T) *sql.DB {
 
 func TestSQLiteRepository_SaveAndGetPlan(t *testing.T) {
 	d := newSchemaDB(t)
-	repo := apply.NewSQLiteRepository(d, clock.System{})
+	repo := apply.NewSQLiteRepository(d, schedule.System())
 
 	saved, err := repo.SavePlan(context.Background(), apply.Plan{
 		Scenario: "demo",
@@ -52,7 +53,7 @@ func TestSQLiteRepository_SaveAndGetPlan(t *testing.T) {
 
 func TestSQLiteRepository_BaselineMissingReturnsEmpty(t *testing.T) {
 	d := newSchemaDB(t)
-	repo := apply.NewSQLiteRepository(d, clock.System{})
+	repo := apply.NewSQLiteRepository(d, schedule.System())
 	b, err := repo.GetBaseline(context.Background(), "demo")
 	if err != nil {
 		t.Fatalf("GetBaseline: %v", err)

@@ -5,8 +5,9 @@ import (
 
 	"github.com/vrooli/api-core/database"
 
-	"development-toolchain-validator/internal/clock"
 	"development-toolchain-validator/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -20,13 +21,13 @@ import (
 // callers pass a real SubprocessRunner via ModuleWithRunner so the
 // regenerate RPC can shell out to vrooli scenario generate; tests use
 // ModuleWithRunner with an in-memory fake runner.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	return ModuleWithRunner(db, clk, internalgolden.NewSubprocessRunner("", ""), logger)
 }
 
 // ModuleWithRunner is the explicit-injection variant. Used by tests to
 // supply a deterministic RegeneratorRunner.
-func ModuleWithRunner(db *database.RoutedDB, clk clock.Clock, runner internalgolden.RegeneratorRunner, logger *log.Logger) module.Module {
+func ModuleWithRunner(db *database.RoutedDB, clk schedule.Clock, runner internalgolden.RegeneratorRunner, logger *log.Logger) module.Module {
 	repo := internalgolden.NewSQLiteRepository(db, clk)
 	svc := internalgolden.NewService(repo, clk, runner)
 	connectPath, connectHandler := goldenconnect.NewGoldenServiceHandler(NewConnectHandler(Deps{

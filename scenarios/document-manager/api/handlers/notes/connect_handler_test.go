@@ -21,7 +21,8 @@ import (
 
 	internalnotes "document-manager/internal/notes"
 	mocks "document-manager/internal/notes/mocks"
-	clockmocks "document-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newNotesClient(t *testing.T, fake *mocks.FakeService, logger *log.Logger) notesconnect.NotesServiceClient {
@@ -29,7 +30,7 @@ func newNotesClient(t *testing.T, fake *mocks.FakeService, logger *log.Logger) n
 	return newNotesClientWithClock(t, fake, logger, nil)
 }
 
-func newNotesClientWithClock(t *testing.T, fake *mocks.FakeService, logger *log.Logger, clk *clockmocks.FakeClock) notesconnect.NotesServiceClient {
+func newNotesClientWithClock(t *testing.T, fake *mocks.FakeService, logger *log.Logger, clk *scheduletest.FakeClock) notesconnect.NotesServiceClient {
 	t.Helper()
 	if logger == nil {
 		logger, _ = connectxtest.NewLogger(t)
@@ -100,7 +101,7 @@ func TestConnectHandlerCountResolvesWindow(t *testing.T) {
 	// Wednesday 2026-05-06 12:00 UTC; start of that ISO week is Monday 2026-05-04 00:00.
 	now := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
 	fake := &mocks.FakeService{CountOut: 7}
-	client := newNotesClientWithClock(t, fake, nil, clockmocks.NewFakeClock(now))
+	client := newNotesClientWithClock(t, fake, nil, scheduletest.New(now))
 
 	resp, err := client.CountNotes(context.Background(), connect.NewRequest(&notesv1.CountNotesRequest{
 		Window: &measuresv1.TimeWindow{Window: &measuresv1.TimeWindow_Token{Token: measuresv1.TimeWindowToken_TIME_WINDOW_TOKEN_THIS_WEEK}},
@@ -115,7 +116,7 @@ func TestConnectHandlerCountResolvesWindow(t *testing.T) {
 func TestConnectHandlerCountDefaultsToThisWeekWhenUnset(t *testing.T) {
 	now := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
 	fake := &mocks.FakeService{CountOut: 3}
-	client := newNotesClientWithClock(t, fake, nil, clockmocks.NewFakeClock(now))
+	client := newNotesClientWithClock(t, fake, nil, scheduletest.New(now))
 
 	// No Window set: the handler defaults to this_week rather than erroring.
 	resp, err := client.CountNotes(context.Background(), connect.NewRequest(&notesv1.CountNotesRequest{}))

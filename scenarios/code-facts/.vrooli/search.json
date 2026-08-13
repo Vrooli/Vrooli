@@ -1,0 +1,106 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "providers": [
+    {
+      "provider_id": "code-facts.code",
+      "provider_group": "code-facts",
+      "bucket": "BUCKET_KNOW",
+      "type": "code",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Lexical code evidence for Vrooli symbols, files, packages, and architecture-owned file domains. Use for exact identifiers, function/type names, file locations, package ownership, and where implementation lives. Results preserve analyzer, evidence status, source range, and query-time callers/references.",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/vrooli.code_facts.v1.facts.CodeFactsService/Search",
+          "method": "HTTP_METHOD_POST",
+      "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"target\":{\"kind\":\"TARGET_KIND_PROJECT\"},\"families\":[\"FACT_FAMILY_SYMBOLS\"],\"expand_edges\":true}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "score_field": "score",
+        "snippet_field": "text",
+        "title_field": "title",
+        "path_field": "path"
+      },
+      "tuning": {"engine": "bm25", "floor": {"hard_floor": 0, "max_gap": 0}},
+      "performance": {"p95_ms": 4000, "degraded_rate_max": 0.2, "minimum_samples": 2, "telemetry_required": true},
+      "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 50},
+      "tests": {"minimum": {"reviewed_positive": 12, "negative": 3}, "suite_id": "code-facts.code.primary", "name": "Code identifier and location retrieval", "cases": [
+        {"id": "retry-symbol", "query": "retry", "expect_ids": ["code-facts:lexical:packages/api-base/src/server/health.ts:110"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "identifier", "strong"]},
+        {"id": "database-symbol", "query": "database", "expect_ids": ["code-facts:lexical:packages/api-base/src/__tests__/server/health.test.ts:72"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "location", "weak"]},
+        {"id": "connection-symbol", "query": "connection", "expect_ids": ["code-facts:lexical:packages/api-base/src/__tests__/e2e/host-scenario/api-routing.test.ts:143"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "location", "hard"]},
+        {"id": "health-symbol", "query": "health", "expect_ids": ["code-facts:lexical:packages/agent-policy/policy.go:119"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "identifier", "strong"]},
+        {"id": "api-symbol", "query": "api", "expect_ids": ["code-facts:lexical:packages/ai-go/search/config.go:44"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "location", "weak"]},
+        {"id": "endpoint-symbol", "query": "endpoint", "expect_ids": ["code-facts:lexical:packages/ai-go/openrouter/policy/policy.go:4"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "identifier", "hard"]},
+        {"id": "proto-symbol", "query": "proto", "expect_ids": ["code-facts:lexical:packages/ai-go/search/override.go:105"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "location", "strong"]},
+        {"id": "service-symbol", "query": "service", "expect_ids": ["code-facts:lexical:packages/ai-go/search/blend_test.go:101"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "identifier", "weak"]},
+        {"id": "search-symbol", "query": "Search", "expect_ids": ["code-facts:lexical:packages/ai-go/search/binding.go:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "identifier", "hard"]},
+        {"id": "code-facts-symbol", "query": "CodeFactsService", "expect_ids": ["code-facts:lexical:packages/proto/gen/go/code-facts/v1/facts/facts.pb.go:2908"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "identifier", "strong"]},
+        {"id": "provider-symbol", "query": "provider", "expect_ids": ["code-facts:lexical:packages/agent-policy/policy.go:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "location", "weak"]},
+        {"id": "classifier-symbol", "query": "classifier", "expect_ids": ["code-facts:lexical:packages/agent-policy/classifier.go:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "behavior", "hard"]},
+        {"id": "code-negative-1", "query": "zxqv impossible symbol", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
+        {"id": "code-negative-2", "query": "qzvplm missing implementation", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
+        {"id": "code-negative-3", "query": "nonsense-unowned-identifier", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]}
+      ]}
+    },
+    {
+      "provider_id": "code-facts.contracts",
+      "provider_group": "code-facts",
+      "bucket": "BUCKET_KNOW",
+      "type": "contract",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Generated-proto and service-contract evidence across Vrooli: RPC messages, adoption, endpoint conformance, and generated client/server wiring. Use for which service owns a contract, whether a proto is adopted, and how a message reaches an API surface.",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/vrooli.code_facts.v1.facts.CodeFactsService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"target\":{\"kind\":\"TARGET_KIND_PROJECT\"},\"families\":[\"FACT_FAMILY_PROTO_ADOPTION\",\"FACT_FAMILY_ENDPOINT_PROOFS\"]}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {"results_path": "results", "id_field": "id", "score_field": "score", "snippet_field": "text", "title_field": "title", "path_field": "path"},
+      "tuning": {"engine": "bm25", "floor": {"hard_floor": 0, "max_gap": 0}},
+      "performance": {"p95_ms": 4000, "degraded_rate_max": 0.2, "minimum_samples": 2, "telemetry_required": true},
+      "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 50},
+      "tests": {"minimum": {"reviewed_positive": 12, "negative": 3}, "suite_id": "code-facts.contracts.primary", "name": "Contract and proto adoption retrieval", "cases": [
+        {"id": "proto-adoption", "query": "proto", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "strong"]},
+        {"id": "adoption-contract", "query": "adoption", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/domain/run.proto:193"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "weak"]},
+        {"id": "generated-contract", "query": "generated", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:533"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "hard"]},
+        {"id": "rpc-contract", "query": "RPC", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:102"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "strong"]},
+        {"id": "message-contract", "query": "message", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1000"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "weak"]},
+        {"id": "schema-contract", "query": "schema", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "hard"]},
+        {"id": "endpoint-contract", "query": "endpoint", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1146"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "strong"]},
+        {"id": "conformance-contract", "query": "conformance", "expect_ids": ["code-facts:lexical:packages/proto/schemas/ai-gateway/v1/conformance/conformance.proto:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "weak"]},
+        {"id": "service-contract", "query": "service", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "hard"]},
+        {"id": "contract-contract", "query": "contract", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1112"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "strong"]},
+        {"id": "response-contract", "query": "response", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1009"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "weak"]},
+        {"id": "request-contract", "query": "request", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1000"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "hard"]},
+        {"id": "contract-negative-1", "query": "zxqv impossible rpc", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
+        {"id": "contract-negative-2", "query": "qzvplm missing schema", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
+        {"id": "contract-negative-3", "query": "nonsense-unowned-contract", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]}
+      ]}
+    }
+  ]
+}

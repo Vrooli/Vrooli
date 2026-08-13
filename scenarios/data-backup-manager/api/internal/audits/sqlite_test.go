@@ -10,7 +10,8 @@ import (
 	"data-backup-manager/internal/audits"
 	localdb "data-backup-manager/internal/database"
 	"data-backup-manager/internal/testutil/db"
-	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	apidb "github.com/vrooli/api-core/database"
 )
@@ -28,7 +29,7 @@ func newAuditsDB(t *testing.T) *sql.DB {
 }
 
 func TestRepository_RoundTripWithInventories(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
 	repo := audits.NewSQLiteRepository(newAuditsDB(t), clk)
 	ctx := context.Background()
 
@@ -86,7 +87,7 @@ func TestRepository_RoundTripWithInventories(t *testing.T) {
 }
 
 func TestRepository_ListNewestFirstAndFilter(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
 	repo := audits.NewSQLiteRepository(newAuditsDB(t), clk)
 	ctx := context.Background()
 
@@ -114,7 +115,7 @@ func TestRepository_ListNewestFirstAndFilter(t *testing.T) {
 }
 
 func TestRepository_GetUnknownReturnsNotFound(t *testing.T) {
-	repo := audits.NewSQLiteRepository(newAuditsDB(t), mocks.NewFakeClock(time.Time{}))
+	repo := audits.NewSQLiteRepository(newAuditsDB(t), scheduletest.New(time.Time{}))
 	_, err := repo.GetAudit(context.Background(), "nope")
 	var nf audits.ErrAuditNotFound
 	if !asAuditErr(err, &nf) {

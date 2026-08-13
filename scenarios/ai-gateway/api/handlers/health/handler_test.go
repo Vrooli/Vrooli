@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"ai-gateway/handlers/health"
-	"ai-gateway/internal/clock"
 	"ai-gateway/internal/module"
 	"ai-gateway/internal/server"
 	"ai-gateway/internal/testutil/assertx"
 	"ai-gateway/internal/testutil/httpx"
 	"ai-gateway/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
@@ -86,7 +87,7 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)

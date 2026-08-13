@@ -11,9 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"scenario-completeness-scoring/internal/clock"
 	"scenario-completeness-scoring/internal/modules"
 	"scenario-completeness-scoring/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -188,7 +189,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "scenario-completeness-scoring-api", "1.0.0"),
 		scoringH.Module(scorer, snapshots, log.Default()),
 		measuresH.Module(snapshots, time.Now),

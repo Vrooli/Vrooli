@@ -59,6 +59,12 @@ func NewHandler(d Deps) http.HandlerFunc {
 				for key, value := range metrics {
 					resp.Metrics[key] = value
 				}
+				if value, ok := metrics["last_indexed_at"].(string); ok {
+					resp.LastIndexedAt = value
+				}
+				if value, ok := metrics["indexed_count"].(int64); ok {
+					resp.IndexedCount = value
+				}
 			}
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -78,6 +84,8 @@ type healthResponse struct {
 	UptimeSeconds float64                     `json:"uptime_seconds,omitempty"`
 	Dependencies  map[string]dependencyStatus `json:"dependencies,omitempty"`
 	Metrics       map[string]any              `json:"metrics,omitempty"`
+	LastIndexedAt string                      `json:"last_indexed_at,omitempty"`
+	IndexedCount  int64                       `json:"indexed_count,omitempty"`
 }
 
 type dependencyStatus struct {

@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"scenario-to-android/handlers/health"
-	"scenario-to-android/internal/clock"
 	"scenario-to-android/internal/module"
 	"scenario-to-android/internal/server"
 	"scenario-to-android/internal/testutil/assertx"
 	"scenario-to-android/internal/testutil/httpx"
 	"scenario-to-android/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-android/v1/shared"
@@ -86,7 +87,7 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)

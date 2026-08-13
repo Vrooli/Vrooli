@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"testing"
 
-	"scenario-authenticator/internal/clock"
 	"scenario-authenticator/internal/module"
 	"scenario-authenticator/internal/server"
 	"scenario-authenticator/internal/testutil/httpx"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -91,7 +92,7 @@ func TestServer_NewRequiresClock(t *testing.T) {
 
 func newTestDeps() server.Deps {
 	return server.Deps{
-		Clock:  clock.System{},
+		Clock:  schedule.System(),
 		Logger: log.New(io.Discard, "", 0),
 	}
 }

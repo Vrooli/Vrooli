@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/sources"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Service is the application surface the audits handler depends on.
@@ -47,7 +48,7 @@ type Deps struct {
 	Engine       engine.KopiaEngine
 	Sources      *sources.Registry
 	SQLite       SQLiteChecker
-	Clock        clock.Clock
+	Clock        schedule.Clock
 	// ScratchRoot is the base directory scratch restore/capture dirs are created
 	// under. Empty uses the OS temp dir.
 	ScratchRoot string

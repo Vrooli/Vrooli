@@ -18,7 +18,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			{
 				Name:        "export",
-				Description: "Export a scenario dependency DAG",
+				Description: "Export a target dependency DAG",
 				Run: func(args []string) error {
 					return runExport(core, args)
 				},
@@ -43,15 +43,15 @@ func runExport(core *cliapp.ScenarioApp, args []string) error {
 	}
 	positionals := fs.Args()
 	if len(positionals) != 1 {
-		return fmt.Errorf("usage: %s dag export <scenario> [--recursive=false] [--output file] [--json]", support.AppName)
+		return fmt.Errorf("usage: %s dag export <target> [--recursive=false] [--output file] [--json]", support.AppName)
 	}
-	scenario := positionals[0]
+	target := positionals[0]
 	query := support.BuildQuery(map[string]string{
 		"recursive": support.BoolWord(recursive, "true", "false"),
 		"format":    "json",
 		"refresh":   support.BoolWord(refresh, "true", ""),
 	})
-	body, err := core.Get("/scenarios/"+scenario+"/dag/export", query)
+	body, err := core.Get("/scenarios/"+target+"/dag/export", query)
 	if err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func runExport(core *cliapp.ScenarioApp, args []string) error {
 			return fmt.Errorf("write dag output: %w", err)
 		}
 		report := cliapp.MutationReport{
-			Result:  []string{fmt.Sprintf("Exported DAG for %s.", scenario)},
+			Result:  []string{fmt.Sprintf("Exported DAG for %s.", target)},
 			Changes: []string{fmt.Sprintf("Wrote %s", outputPath)},
 			NextCommand: []string{
 				fmt.Sprintf("jq '.' %s", outputPath),
@@ -84,15 +84,15 @@ func runExport(core *cliapp.ScenarioApp, args []string) error {
 	}
 	report := cliapp.ListReport{
 		Summary: []string{
-			fmt.Sprintf("Scenario: %s", scenario),
+			fmt.Sprintf("Target: %s", target),
 			fmt.Sprintf("Recursive export: %t", recursive),
 			fmt.Sprintf("Root dependency count: %d", len(dag)),
 		},
 		ResultsHeading: "Dependency Tree",
 		Results:        lines,
 		RetrievalHints: []string{
-			fmt.Sprintf("%s dag export %s --json", support.AppName, scenario),
-			fmt.Sprintf("%s deployment %s", support.AppName, scenario),
+			fmt.Sprintf("%s dag export %s --json", support.AppName, target),
+			fmt.Sprintf("%s deployment %s", support.AppName, target),
 		},
 	}
 	if gaps := support.Map(resp["metadata_gaps"]); gaps != nil && support.Int(gaps["total_gaps"]) > 0 {

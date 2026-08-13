@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"brand-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -28,18 +28,18 @@ type SQLExecutor interface {
 // substitute fakes without reaching inside the struct.
 type sqliteRepository struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production brand Repository.
-func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
+func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
 // NewSQLiteVersionRepository constructs the production VersionRepository. Backed
 // by the same struct; the distinct method names (CreateVersion/ListVersions)
 // avoid a collision with the brand Repository's Create/List.
-func NewSQLiteVersionRepository(db SQLExecutor, clk clock.Clock) VersionRepository {
+func NewSQLiteVersionRepository(db SQLExecutor, clk schedule.Clock) VersionRepository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

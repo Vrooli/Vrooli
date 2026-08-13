@@ -12,7 +12,8 @@ import (
 	"architecture-cartographer/internal/domains"
 	domainsmocks "architecture-cartographer/internal/domains/mocks"
 	graphmocks "architecture-cartographer/internal/graph/mocks"
-	"architecture-cartographer/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // TestRun_NoLadderRungs_ReportsMissingAuthority models the LPBS-shaped
@@ -24,7 +25,7 @@ func TestRun_NoLadderRungs_ReportsMissingAuthority(t *testing.T) {
 	g := &graphmocks.FakeService{Snapshots: nil, FromCache: false}
 	d := &domainsmocks.FakeService{Err: domains.ErrNoAuthority{Scenario: "demo"}}
 	c := &conflictsmocks.FakeService{}
-	svc := audit.NewService(g, d, c, nil, nil, nil, mocks.NewFakeClock(time.Time{}))
+	svc := audit.NewService(g, d, c, nil, nil, nil, scheduletest.New(time.Time{}))
 
 	rep, err := svc.Run(context.Background(), audit.RunInput{Scenario: "demo"})
 	if err != nil {
@@ -49,7 +50,7 @@ func TestRun_NoLadderRungs_AllowLowBypasses(t *testing.T) {
 	g := &graphmocks.FakeService{Snapshots: nil, FromCache: false}
 	d := &domainsmocks.FakeService{Err: domains.ErrNoAuthority{Scenario: "demo"}}
 	c := &conflictsmocks.FakeService{}
-	svc := audit.NewService(g, d, c, nil, nil, nil, mocks.NewFakeClock(time.Time{}))
+	svc := audit.NewService(g, d, c, nil, nil, nil, scheduletest.New(time.Time{}))
 
 	rep, err := svc.Run(context.Background(), audit.RunInput{
 		Scenario: "demo", AllowLowAuthority: true,
@@ -72,7 +73,7 @@ func TestRun_NoLadderRungs_FindingsStillFlipOutcome(t *testing.T) {
 	c := &conflictsmocks.FakeService{Conflicts: []conflicts.Conflict{{
 		Type: "cycle", Severity: conflicts.SeverityError, Locations: []string{"a"},
 	}}}
-	svc := audit.NewService(g, d, c, nil, nil, nil, mocks.NewFakeClock(time.Time{}))
+	svc := audit.NewService(g, d, c, nil, nil, nil, scheduletest.New(time.Time{}))
 
 	rep, err := svc.Run(context.Background(), audit.RunInput{Scenario: "demo"})
 	if err != nil {

@@ -6,15 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"architecture-cartographer/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // newRetentionService wires the real service over a real database.
 func newRetentionService(t *testing.T) (Service, func(scenario, hash string, at time.Time, size int)) {
 	t.Helper()
 	db, _ := newRetentionDB(t)
-	repo := NewSQLiteRepository(db, clock.System{})
-	svc := NewService(repo, clock.System{})
+	repo := NewSQLiteRepository(db, schedule.System())
+	svc := NewService(repo, schedule.System())
 	insert := func(scenario, hash string, at time.Time, size int) {
 		insertSnapshot(t, db, scenario, hash, at, size)
 	}

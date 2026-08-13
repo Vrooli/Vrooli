@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"data-backup-manager/handlers/health"
-	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/module"
 	"data-backup-manager/internal/server"
 	"data-backup-manager/internal/testutil/assertx"
 	"data-backup-manager/internal/testutil/httpx"
 	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/health"
@@ -86,7 +87,7 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)

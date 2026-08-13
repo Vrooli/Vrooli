@@ -5,12 +5,13 @@ import (
 	"errors"
 	"testing"
 
-	"architecture-cartographer/internal/clock"
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/graph/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
-func newClock() clock.Clock { return clock.System{} }
+func newClock() schedule.Clock { return schedule.System() }
 
 func newAdapter(lang graph.Language, raw graph.RawGraph) *mocks.FakeCodeGraphAdapter {
 	return &mocks.FakeCodeGraphAdapter{

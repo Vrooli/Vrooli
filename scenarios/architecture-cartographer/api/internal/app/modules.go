@@ -5,12 +5,13 @@ import (
 	"architecture-cartographer/internal/apply"
 	"architecture-cartographer/internal/audit"
 	"architecture-cartographer/internal/campaign"
-	"architecture-cartographer/internal/clock"
 	"architecture-cartographer/internal/config"
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/module"
 	"architecture-cartographer/internal/suppressions"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
@@ -27,7 +28,7 @@ import (
 )
 
 func Modules(db *database.RoutedDB, repoRoot string, cfg config.Config) []module.Module {
-	clk := clock.System{}
+	clk := schedule.System()
 	primary := db.Primary()
 	resolver := discovery.NewResolver(discovery.ResolverConfig{})
 

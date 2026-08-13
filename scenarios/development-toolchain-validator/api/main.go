@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"development-toolchain-validator/internal/clock"
 	"development-toolchain-validator/internal/modules"
 	"development-toolchain-validator/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -154,36 +155,36 @@ func main() {
 	// the loop immediately on new queued runs.
 	vrunRepo := vrun.NewSQLiteRepository(db)
 	vrRepo := vr.NewSQLiteRepository(db)
-	vrService := vr.NewService(vrRepo, clock.System{})
+	vrService := vr.NewService(vrRepo, schedule.System())
 	worker := vrun.NewWorker(vrun.WorkerDeps{
 		Repo:     vrunRepo,
 		Records:  vrService,
 		AgentMgr: agentClient,
-		Tools:    devtools.New(devtools.Options{Clock: clock.System{}}),
+		Tools:    devtools.New(devtools.Options{Clock: schedule.System()}),
 		Sandbox:  workspacesandbox.New(workspacesandbox.Options{}),
 		Goldens: vrun.GoldenMaterializerFromRepo{
-			Repo:   golden.NewSQLiteRepository(db, clock.System{}),
+			Repo:   golden.NewSQLiteRepository(db, schedule.System()),
 			Runner: golden.NewSubprocessRunner("vrooli", ""),
 		},
-		Manifests: vrun.ManifestSourceFromRepo{Repo: manifest.NewSQLiteRepository(db, clock.System{})},
+		Manifests: vrun.ManifestSourceFromRepo{Repo: manifest.NewSQLiteRepository(db, schedule.System())},
 		Skills:    promptmanager.NewSkillContentRESTAdapter(promptmanager.Options{}),
-		Clock:     clock.System{},
+		Clock:     schedule.System(),
 		Logger:    log.Default(),
 	}, vrun.WorkerConfig{})
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	go worker.Run(workerCtx)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "development-toolchain-validator-api", "1.0.0"),
-		goldenH.Module(db, clock.System{}, log.Default()),
-		manifestH.Module(db, clock.System{}, log.Default()),
-		reportH.Module(db, clock.System{}, skillCatalogSource, log.Default()),
-		skillCatalogH.Module(db, clock.System{}, skillCatalogSource, log.Default()),
-		stalenessH.Module(db, clock.System{}, log.Default()),
-		validationRecordH.Module(db, clock.System{}, log.Default()),
+		goldenH.Module(db, schedule.System(), log.Default()),
+		manifestH.Module(db, schedule.System(), log.Default()),
+		reportH.Module(db, schedule.System(), skillCatalogSource, log.Default()),
+		skillCatalogH.Module(db, schedule.System(), skillCatalogSource, log.Default()),
+		stalenessH.Module(db, schedule.System(), log.Default()),
+		validationRecordH.Module(db, schedule.System(), log.Default()),
 		validationRunH.Module(validationRunH.ModuleDeps{
-			DB: db, Clock: clock.System{}, Logger: log.Default(),
+			DB: db, Clock: schedule.System(), Logger: log.Default(),
 			Notify: worker.Notify,
 		}),
 	)

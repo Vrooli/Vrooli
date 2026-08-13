@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"ai-gateway/internal/clock"
 	inference "ai-gateway/internal/inference"
 	"ai-gateway/internal/modules"
 	"ai-gateway/internal/providers"
 	"ai-gateway/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -196,7 +197,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "ai-gateway-api", "1.0.0"),
 		conformanceH.Module(log.Default(), repoRoot()),
 		gatewayH.Module(),

@@ -8,7 +8,7 @@ import (
 
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/shared"
 
-	"portal/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 type definition struct {
@@ -19,7 +19,7 @@ type definition struct {
 }
 
 type Service struct {
-	clock clock.Clock
+	clock schedule.Clock
 	store *Store
 
 	mu            sync.Mutex
@@ -30,7 +30,7 @@ type Service struct {
 }
 
 type Config struct {
-	Clock      clock.Clock
+	Clock      schedule.Clock
 	Store      *Store
 	Probes     map[IntegrationID]Probe
 	WindowSize int
@@ -39,7 +39,7 @@ type Config struct {
 func NewService(cfg Config) *Service {
 	clk := cfg.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	probes := cfg.Probes
 	if probes == nil {

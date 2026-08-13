@@ -12,6 +12,8 @@ import (
 	"data-backup-manager/internal/sources"
 	sourcesmocks "data-backup-manager/internal/sources/mocks"
 	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // TestTriggerRun_AsyncLifecycleIsPersisted proves the async contract end to end
@@ -23,7 +25,7 @@ import (
 func TestTriggerRun_AsyncLifecycleIsPersisted(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	repo := runs.NewSQLiteRepository(newRunsDB(t), mocks.NewFakeClock(time.Time{}))
+	repo := runs.NewSQLiteRepository(newRunsDB(t), scheduletest.New(time.Time{}))
 
 	eng := &mocks.FakeKopiaEngine{}
 	capt := &sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}
@@ -53,7 +55,7 @@ func TestTriggerRun_AsyncLifecycleIsPersisted(t *testing.T) {
 		Destinations: &runsmocks.FakeDestinationLookup{Destinations: map[string]runs.DestinationForRun{"dst-1": {ID: "dst-1", Name: "nightly"}}},
 		Engine:       eng,
 		Sources:      registry,
-		Clock:        mocks.NewFakeClock(time.Time{}),
+		Clock:        scheduletest.New(time.Time{}),
 		StagingRoot:  t.TempDir(),
 		BaseContext:  ctx,
 		Executor:     runs.NewAsyncExecutor(1),
@@ -138,7 +140,7 @@ func waitTerminal(t *testing.T, repo runs.Repository, id string) runs.Run {
 func TestTriggerRun_BoundedConcurrentFanOut(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	repo := runs.NewSQLiteRepository(newRunsDB(t), mocks.NewFakeClock(time.Time{}))
+	repo := runs.NewSQLiteRepository(newRunsDB(t), scheduletest.New(time.Time{}))
 
 	const limit = 3
 	eng := &mocks.FakeKopiaEngine{}
@@ -184,7 +186,7 @@ func TestTriggerRun_BoundedConcurrentFanOut(t *testing.T) {
 		Destinations:      &runsmocks.FakeDestinationLookup{Destinations: map[string]runs.DestinationForRun{"dst-1": {ID: "dst-1", Name: "nightly"}}},
 		Engine:            eng,
 		Sources:           registry,
-		Clock:             mocks.NewFakeClock(time.Time{}),
+		Clock:             scheduletest.New(time.Time{}),
 		StagingRoot:       t.TempDir(),
 		BaseContext:       ctx,
 		TargetConcurrency: limit,
@@ -224,7 +226,7 @@ func TestTriggerRun_BoundedConcurrentFanOut(t *testing.T) {
 // already-terminal runs untouched.
 func TestReconcile_ClosesOrphanedRuns(t *testing.T) {
 	ctx := context.Background()
-	repo := runs.NewSQLiteRepository(newRunsDB(t), mocks.NewFakeClock(time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC)))
+	repo := runs.NewSQLiteRepository(newRunsDB(t), scheduletest.New(time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC)))
 
 	// Two orphans (pending + capturing) and one already-completed run.
 	mustCreate(t, repo, "orphan-pending", "plan-x", runs.RunPending)
@@ -233,7 +235,7 @@ func TestReconcile_ClosesOrphanedRuns(t *testing.T) {
 
 	svc := runs.NewService(runs.Deps{
 		Repo:     repo,
-		Clock:    mocks.NewFakeClock(time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC)),
+		Clock:    scheduletest.New(time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC)),
 		Executor: runsmocks.NewSyncExecutor(),
 	})
 

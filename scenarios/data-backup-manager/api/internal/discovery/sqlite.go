@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"data-backup-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // SQLExecutor is the narrow database surface the sqlite dismissal store depends
@@ -31,11 +31,11 @@ ON CONFLICT(id) DO NOTHING
 
 type sqliteDismissalStore struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteDismissalStore constructs the production DismissalStore.
-func NewSQLiteDismissalStore(db SQLExecutor, clk clock.Clock) DismissalStore {
+func NewSQLiteDismissalStore(db SQLExecutor, clk schedule.Clock) DismissalStore {
 	return &sqliteDismissalStore{db: db, clock: clk}
 }
 

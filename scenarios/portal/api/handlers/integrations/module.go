@@ -7,9 +7,10 @@ import (
 
 	integrationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/integrations/integrations_v1connect"
 
-	"portal/internal/clock"
 	"portal/internal/integrations/registry"
 	"portal/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func Module(registryService *registry.Service) module.Module {
@@ -23,7 +24,7 @@ func Module(registryService *registry.Service) module.Module {
 	}
 }
 
-func NewRegistry(db *database.RoutedDB, clk clock.Clock) *registry.Service {
+func NewRegistry(db *database.RoutedDB, clk schedule.Clock) *registry.Service {
 	return registry.NewService(registry.Config{
 		Clock: clk,
 		Store: registry.NewStore(db),

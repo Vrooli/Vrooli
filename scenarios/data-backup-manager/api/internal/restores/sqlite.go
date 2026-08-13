@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"data-backup-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -22,11 +22,11 @@ type SQLExecutor interface {
 
 type sqliteRepository struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
+func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

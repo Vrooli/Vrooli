@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"document-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -30,19 +30,19 @@ type SQLExecutor interface {
 // fake without reaching inside the struct (seam-discovery §4).
 type sqliteRepository struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository. db is the
 // connection pool opened in main.go (*database.RoutedDB in production,
 // *sql.DB in unit tests via testutil/db.NewSQLite); clk supplies
 // CreatedAt/UpdatedAt timestamps so tests can advance time
-// deterministically via mocks.FakeClock.
-func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
+// deterministically via scheduletest.FakeClock.
+func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
-func NewSQLiteAttachmentsRepository(db SQLExecutor, clk clock.Clock) AttachmentsRepository {
+func NewSQLiteAttachmentsRepository(db SQLExecutor, clk schedule.Clock) AttachmentsRepository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

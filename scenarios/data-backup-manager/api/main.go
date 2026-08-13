@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/modules"
 	"data-backup-manager/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -179,7 +180,7 @@ func run(ctx context.Context) error {
 	// and the storage root the manager protects (a destination must not point
 	// under it — the separate-root rule). SCENARIO_DATA_DIR is set by the
 	// lifecycle; empty in bare dev runs, which makes the rule permissive.
-	clk := clock.System{}
+	clk := schedule.System()
 	logger := log.Default()
 	kopia := engine.NewKopiaCLI()
 	protectedRoot, _ := lookupEnvTrimmed("SCENARIO_DATA_DIR")

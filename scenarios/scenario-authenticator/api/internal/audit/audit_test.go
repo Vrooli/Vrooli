@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"testing"
 
-	"scenario-authenticator/internal/clock"
 	dbtest "scenario-authenticator/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 
 	apidb "github.com/vrooli/api-core/database"
 )
@@ -17,7 +18,7 @@ func newLogger(t *testing.T) (Logger, *sql.DB) {
 	if err := apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(Schema)); err != nil {
 		t.Fatalf("ensure schemas: %v", err)
 	}
-	return NewSQLiteLogger(d, clock.System{}), d
+	return NewSQLiteLogger(d, schedule.System()), d
 }
 
 func TestLogAndList(t *testing.T) {

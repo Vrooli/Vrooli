@@ -31,6 +31,7 @@ func RegisterHTTPRoutes(api gin.IRoutes, reporter Reporter) {
 	api.GET("/scenarios/:scenario/deployment", handler.GetDeploymentReport)
 	api.GET("/scenarios/:scenario/bundle/manifest", handler.GetBundleManifest)
 	api.GET("/scenarios/:scenario/dag/export", handler.ExportDAG)
+	api.GET("/targets/:target/dag/export", handler.ExportTargetDAG)
 }
 
 // GetDeploymentReport returns the computed deployment readiness report.
@@ -46,6 +47,10 @@ func (h *HTTPHandler) GetDeploymentReport(c *gin.Context) {
 // ExportDAG returns a JSON dependency DAG derived from the deployment report.
 func (h *HTTPHandler) ExportDAG(c *gin.Context) {
 	scenarioName := c.Param("scenario")
+	if strings.Contains(scenarioName, ":") {
+		h.exportTargetDAG(c, scenarioName)
+		return
+	}
 	recursive := c.DefaultQuery("recursive", "true") == "true"
 	format := c.DefaultQuery("format", "json")
 
@@ -76,6 +81,32 @@ func (h *HTTPHandler) ExportDAG(c *gin.Context) {
 		response["metadata_gaps"] = report.MetadataGaps
 	}
 
+	c.JSON(http.StatusOK, response)
+}
+
+// ExportTargetDAG is the target-aware form of the DAG export. The legacy
+// /scenarios/:scenario route remains supported for bare scenario slugs.
+func (h *HTTPHandler) ExportTargetDAG(c *gin.Context) {
+	h.exportTargetDAG(c, c.Param("target"))
+}
+
+func (h *HTTPHandler) exportTargetDAG(c *gin.Context, expression string) {
+	reporter, ok := h.reporter.(interface {
+		ExportTargetDAG(string, bool, bool) (*types.TargetDAGResponse, error)
+	})
+	if !ok {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "target DAG export is unavailable"})
+		return
+	}
+	if c.DefaultQuery("format", "json") != "json" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only JSON format is currently supported"})
+		return
+	}
+	response, err := reporter.ExportTargetDAG(expression, c.DefaultQuery("recursive", "true") == "true", parseRefresh(c))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, response)
 }
 

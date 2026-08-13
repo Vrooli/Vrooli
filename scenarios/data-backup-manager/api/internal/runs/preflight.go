@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/preflight"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 type preflightTargets struct{ lookup TargetLookup }
@@ -29,7 +30,7 @@ func (a preflightDestinations) DestinationForRun(ctx context.Context, id string)
 }
 
 func (s *service) runPreflight(ctx context.Context, plan PlanForRun) preflight.Result {
-	var clk clock.Clock = s.deps.Clock
+	var clk schedule.Clock = s.deps.Clock
 	result := preflight.Check(ctx, preflight.Input{
 		Plan:             preflight.Plan{TargetIDs: plan.TargetIDs, DestinationIDs: plan.DestinationIDs},
 		Targets:          preflightTargets{lookup: s.deps.Targets},

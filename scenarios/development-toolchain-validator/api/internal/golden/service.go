@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"development-toolchain-validator/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // RegeneratorRunner is the seam Service.Regenerate uses to invoke
@@ -53,12 +53,12 @@ type Service interface {
 
 type service struct {
 	repo  Repository
-	clock clock.Clock
+	clock schedule.Clock
 	regen RegeneratorRunner
 }
 
 // NewService constructs the production Service.
-func NewService(repo Repository, clk clock.Clock, regen RegeneratorRunner) Service {
+func NewService(repo Repository, clk schedule.Clock, regen RegeneratorRunner) Service {
 	return &service{repo: repo, clock: clk, regen: regen}
 }
 

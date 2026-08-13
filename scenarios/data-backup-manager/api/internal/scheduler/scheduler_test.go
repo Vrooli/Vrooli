@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"data-backup-manager/internal/scheduler"
-	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fakePlanSource is a simple in-test stub that returns a fixed set of plans.
@@ -38,7 +39,7 @@ func TestScheduler_FiresAndManualTrigger(t *testing.T) {
 	ctx := context.Background()
 
 	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	clk := mocks.NewFakeClock(t0)
+	clk := scheduletest.New(t0)
 
 	source := &fakePlanSource{
 		plans: []scheduler.DuePlan{
@@ -99,7 +100,7 @@ func TestScheduler_FiresAndManualTrigger(t *testing.T) {
 func TestScheduler_NextFire(t *testing.T) {
 	ctx := context.Background()
 	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	clk := mocks.NewFakeClock(t0)
+	clk := scheduletest.New(t0)
 	source := &fakePlanSource{plans: []scheduler.DuePlan{{ID: "plan-abc", Schedule: "1h", Enabled: true}}}
 	sched := scheduler.New(clk, source, &fakeRunTrigger{})
 
@@ -131,7 +132,7 @@ func TestScheduler_NextFire(t *testing.T) {
 // TestScheduler_DisabledPlanSkipped proves disabled plans are never auto-fired.
 func TestScheduler_DisabledPlanSkipped(t *testing.T) {
 	ctx := context.Background()
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	source := &fakePlanSource{
 		plans: []scheduler.DuePlan{
 			{ID: "plan-off", Schedule: "1h", Enabled: false},
@@ -151,7 +152,7 @@ func TestScheduler_DisabledPlanSkipped(t *testing.T) {
 // TestScheduler_EmptyScheduleSkipped proves manual-only plans are skipped by Tick.
 func TestScheduler_EmptyScheduleSkipped(t *testing.T) {
 	ctx := context.Background()
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	source := &fakePlanSource{
 		plans: []scheduler.DuePlan{
 			{ID: "plan-manual", Schedule: "", Enabled: true},

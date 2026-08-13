@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"testing"
 
-	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/module"
 	"data-backup-manager/internal/server"
 	"data-backup-manager/internal/testutil/httpx"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -92,7 +93,7 @@ func TestServer_NewRequiresClock(t *testing.T) {
 
 func newTestDeps() server.Deps {
 	return server.Deps{
-		Clock:  clock.System{},
+		Clock:  schedule.System(),
 		Logger: log.New(io.Discard, "", 0),
 	}
 }

@@ -382,6 +382,18 @@ type DeploymentDependencyNode struct {
 	Metadata     map[string]interface{}        `json:"metadata,omitempty"`
 }
 
+// TargetDAGResponse is the target-aware dependency export. TargetKind is
+// explicit so consumers cannot mistake package/resource graphs for scenario
+// graphs.
+type TargetDAGResponse struct {
+	TargetKind  string                     `json:"target_kind"`
+	TargetID    string                     `json:"target_id"`
+	TargetRoot  string                     `json:"target_root"`
+	Recursive   bool                       `json:"recursive"`
+	GeneratedAt time.Time                  `json:"generated_at"`
+	DAG         []DeploymentDependencyNode `json:"dag"`
+}
+
 // TierSupportSummary summarizes tier fitness info.
 type TierSupportSummary struct {
 	Supported    *bool                   `json:"supported,omitempty"`

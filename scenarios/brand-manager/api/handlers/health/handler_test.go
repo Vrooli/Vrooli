@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"brand-manager/handlers/health"
-	"brand-manager/internal/clock"
 	"brand-manager/internal/module"
 	"brand-manager/internal/server"
 	"brand-manager/internal/testutil/assertx"
 	"brand-manager/internal/testutil/httpx"
 	"brand-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/shared"
@@ -86,7 +87,7 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)

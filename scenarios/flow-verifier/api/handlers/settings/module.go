@@ -8,9 +8,10 @@ import (
 	"database/sql"
 	"log"
 
-	"flow-verifier/internal/clock"
 	"flow-verifier/internal/module"
 	"flow-verifier/internal/settings"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -21,7 +22,7 @@ import (
 // Module returns the settings domain's Connect-RPC contribution. The
 // caller is expected to have applied modules.AllSchemas to the same
 // *sql.DB; this handler does not run migrations.
-func Module(db *sql.DB, clk clock.Clock) module.Module {
+func Module(db *sql.DB, clk schedule.Clock) module.Module {
 	svc := settings.NewService(settings.NewSQLiteRepository(db, clk))
 	return ModuleWithService(svc, log.Default())
 }

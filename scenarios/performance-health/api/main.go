@@ -11,10 +11,11 @@ import (
 	"time"
 
 	internalbudgets "performance-health/internal/budgets"
-	"performance-health/internal/clock"
 	"performance-health/internal/modules"
 	"performance-health/internal/server"
 	"performance-health/internal/trend"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -157,7 +158,7 @@ func main() {
 	)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: logger},
+		server.Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, "performance-health-api", "1.0.0"),
 		analysisH.Module(logger, repoRoot, trendStore),
 		auditH.Module(logger, repoRoot),

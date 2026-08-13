@@ -5,8 +5,9 @@ import (
 	"errors"
 	"strings"
 
-	"development-toolchain-validator/internal/clock"
 	vr "development-toolchain-validator/internal/validation_record"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -22,7 +23,7 @@ type Service interface {
 
 type service struct {
 	repo  Repository
-	clock clock.Clock
+	clock schedule.Clock
 
 	// Notify is called whenever a new run is queued so the worker can
 	// pick it up promptly. May be nil; the worker also polls periodically.
@@ -30,7 +31,7 @@ type service struct {
 }
 
 // NewService constructs the production Service. Notify is optional.
-func NewService(repo Repository, clk clock.Clock, notify func()) Service {
+func NewService(repo Repository, clk schedule.Clock, notify func()) Service {
 	return &service{repo: repo, clock: clk, Notify: notify}
 }
 

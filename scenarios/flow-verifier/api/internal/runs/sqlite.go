@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"flow-verifier/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -18,7 +18,7 @@ const runTimeFormat = time.RFC3339Nano
 
 type sqliteRepository struct {
 	db    *sql.DB
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository. db is the
@@ -28,7 +28,7 @@ type sqliteRepository struct {
 // migration so existing dev databases pick up failure_reason /
 // missing_artifacts without a separate migration tool — additive only,
 // no data movement.
-func NewSQLiteRepository(db *sql.DB, clk clock.Clock) Repository {
+func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
 	_ = ensureRunColumns(context.Background(), db)
 	return &sqliteRepository{db: db, clock: clk}
 }

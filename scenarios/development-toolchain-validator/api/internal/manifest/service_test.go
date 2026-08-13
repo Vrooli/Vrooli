@@ -8,15 +8,16 @@ import (
 
 	manifest "development-toolchain-validator/internal/manifest"
 	mmocks "development-toolchain-validator/internal/manifest/mocks"
-	"development-toolchain-validator/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
 
-func newSvc(t *testing.T) (manifest.Service, *mmocks.FakeRepository, *mocks.FakeClock) {
+func newSvc(t *testing.T) (manifest.Service, *mmocks.FakeRepository, *scheduletest.FakeClock) {
 	t.Helper()
 	repo := mmocks.NewFakeRepository()
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
 	return manifest.NewService(repo, clk), repo, clk
 }
 

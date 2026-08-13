@@ -6,17 +6,18 @@ import (
 	"testing"
 	"time"
 
-	"development-toolchain-validator/internal/testutil/mocks"
 	vr "development-toolchain-validator/internal/validation_record"
 	vrmocks "development-toolchain-validator/internal/validation_record/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
 
-func newSvc(t *testing.T) (vr.Service, *vrmocks.FakeRepository, *mocks.FakeClock) {
+func newSvc(t *testing.T) (vr.Service, *vrmocks.FakeRepository, *scheduletest.FakeClock) {
 	t.Helper()
 	repo := vrmocks.NewFakeRepository()
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
 	return vr.NewService(repo, clk), repo, clk
 }
 

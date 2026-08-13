@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"log"
+	"path/filepath"
 
 	"scenario-dependency-analyzer/internal/deployment"
 	types "scenario-dependency-analyzer/internal/types"
@@ -37,4 +38,11 @@ func (d *deploymentService) GetDeploymentReport(name string, refresh bool) (*typ
 	}
 
 	return report, nil
+}
+
+func (d *deploymentService) ExportTargetDAG(expression string, recursive bool, refresh bool) (*types.TargetDAGResponse, error) {
+	if d == nil || d.workspace == nil {
+		return nil, fmt.Errorf("deployment workspace unavailable")
+	}
+	return deployment.BuildTargetDAG(filepath.Dir(d.workspace.root), expression, recursive, refresh)
 }

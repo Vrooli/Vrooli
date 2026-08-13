@@ -12,17 +12,18 @@ import (
 	internalchat "portal/internal/chat"
 	localdb "portal/internal/database"
 	"portal/internal/testutil/db"
-	"portal/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
-func newRepo(t *testing.T) (internalchat.Repository, *sql.DB, *mocks.FakeClock) {
+func newRepo(t *testing.T) (internalchat.Repository, *sql.DB, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(internalchat.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC))
 	return internalchat.NewSQLiteRepository(d, clk), d, clk
 }
 

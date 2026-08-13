@@ -14,7 +14,8 @@ import (
 	localdb "portal/internal/database"
 	internalsearch "portal/internal/search"
 	"portal/internal/testutil/db"
-	"portal/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 type fakeHub struct {
@@ -35,7 +36,7 @@ func newSearchFixture(t *testing.T, hub internalsearch.HubClient) (*internalsear
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(internalchat.Schema),
 	))
-	repo := internalchat.NewSQLiteRepository(d, mocks.NewFakeClock(time.Date(2026, 7, 6, 10, 0, 0, 0, time.UTC)))
+	repo := internalchat.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 7, 6, 10, 0, 0, 0, time.UTC)))
 	chatService := internalchat.NewService(repo)
 	return internalsearch.NewService(internalsearch.Config{Chat: chatService, Hub: hub}), chatService, d
 }

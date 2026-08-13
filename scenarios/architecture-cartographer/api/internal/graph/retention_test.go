@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"architecture-cartographer/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/retention"
 	_ "modernc.org/sqlite"
@@ -101,7 +101,7 @@ func snapshotCount(t *testing.T, db *sql.DB, scenario string) int {
 // 77.2 GB and filled the host disk.
 func TestPruneSnapshots_BoundsRepeatedExtraction(t *testing.T) {
 	db, _ := newRetentionDB(t)
-	repo := NewSQLiteRepository(db, clock.System{}).(*sqliteRepository)
+	repo := NewSQLiteRepository(db, schedule.System()).(*sqliteRepository)
 	ctx := context.Background()
 	policy := RetentionPolicy{KeepPerScenario: 3}
 
@@ -126,7 +126,7 @@ func TestPruneSnapshots_BoundsRepeatedExtraction(t *testing.T) {
 // a reader would consider current.
 func TestPruneSnapshots_KeepsNewestRemovesOldest(t *testing.T) {
 	db, _ := newRetentionDB(t)
-	repo := NewSQLiteRepository(db, clock.System{}).(*sqliteRepository)
+	repo := NewSQLiteRepository(db, schedule.System()).(*sqliteRepository)
 	ctx := context.Background()
 
 	base := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
@@ -168,7 +168,7 @@ func TestPruneSnapshots_KeepsNewestRemovesOldest(t *testing.T) {
 // another's history.
 func TestPruneSnapshots_IsPerScenario(t *testing.T) {
 	db, _ := newRetentionDB(t)
-	repo := NewSQLiteRepository(db, clock.System{}).(*sqliteRepository)
+	repo := NewSQLiteRepository(db, schedule.System()).(*sqliteRepository)
 	ctx := context.Background()
 
 	base := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
@@ -204,7 +204,7 @@ func TestPruneSnapshots_IsPerScenario(t *testing.T) {
 // 752,620 analytics rows the incident cleanup verified intact.
 func TestPruneSnapshots_LeavesOtherTablesAlone(t *testing.T) {
 	db, _ := newRetentionDB(t)
-	repo := NewSQLiteRepository(db, clock.System{}).(*sqliteRepository)
+	repo := NewSQLiteRepository(db, schedule.System()).(*sqliteRepository)
 	ctx := context.Background()
 
 	for i := 0; i < 25; i++ {
@@ -234,7 +234,7 @@ func TestPruneSnapshots_LeavesOtherTablesAlone(t *testing.T) {
 // cannot be used to empty the table.
 func TestPruneSnapshots_ZeroKeepFallsBackToDefault(t *testing.T) {
 	db, _ := newRetentionDB(t)
-	repo := NewSQLiteRepository(db, clock.System{}).(*sqliteRepository)
+	repo := NewSQLiteRepository(db, schedule.System()).(*sqliteRepository)
 	ctx := context.Background()
 
 	base := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
@@ -257,7 +257,7 @@ func TestPruneSnapshots_ZeroKeepFallsBackToDefault(t *testing.T) {
 // batch still removes everything beyond the floor.
 func TestPruneSnapshots_BatchesLargeDeletes(t *testing.T) {
 	db, _ := newRetentionDB(t)
-	repo := NewSQLiteRepository(db, clock.System{}).(*sqliteRepository)
+	repo := NewSQLiteRepository(db, schedule.System()).(*sqliteRepository)
 	ctx := context.Background()
 
 	base := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
@@ -292,7 +292,7 @@ func TestPruneSnapshots_ReturnsPagesToFilesystem(t *testing.T) {
 		t.Fatalf("enable incremental auto-vacuum: %v", err)
 	}
 
-	repo := NewSQLiteRepository(db, clock.System{}).(*sqliteRepository)
+	repo := NewSQLiteRepository(db, schedule.System()).(*sqliteRepository)
 
 	// Write enough payload that the file growth is unambiguous.
 	base := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
@@ -330,7 +330,7 @@ func TestPruneSnapshots_ReturnsPagesToFilesystem(t *testing.T) {
 // non-destructive and reports zero at the floor.
 func TestReclaimableSnapshotBytes_ReportsWithoutDeleting(t *testing.T) {
 	db, _ := newRetentionDB(t)
-	repo := NewSQLiteRepository(db, clock.System{}).(*sqliteRepository)
+	repo := NewSQLiteRepository(db, schedule.System()).(*sqliteRepository)
 	ctx := context.Background()
 	policy := RetentionPolicy{KeepPerScenario: 3}
 

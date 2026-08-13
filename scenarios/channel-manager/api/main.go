@@ -10,9 +10,10 @@ import (
 	"strings"
 
 	core "channel-manager/internal/channelmanager"
-	"channel-manager/internal/clock"
 	"channel-manager/internal/modules"
 	"channel-manager/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -175,7 +176,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "channel-manager-api", "1.0.0"),
 		channelManagerH.Module(channelService, channelStore),
 	)

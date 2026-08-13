@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"development-toolchain-validator/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // SkillCatalogSource is the outbound seam that fetches the canonical
@@ -44,11 +44,11 @@ type SyncResult struct {
 type service struct {
 	repo   Repository
 	source SkillCatalogSource
-	clock  clock.Clock
+	clock  schedule.Clock
 }
 
 // NewService constructs the production Service.
-func NewService(repo Repository, source SkillCatalogSource, clk clock.Clock) Service {
+func NewService(repo Repository, source SkillCatalogSource, clk schedule.Clock) Service {
 	return &service{repo: repo, source: source, clock: clk}
 }
 

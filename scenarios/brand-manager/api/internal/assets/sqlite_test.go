@@ -7,7 +7,8 @@ import (
 
 	"brand-manager/internal/assets"
 	"brand-manager/internal/testutil/db"
-	"brand-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -16,14 +17,14 @@ import (
 	localdb "brand-manager/internal/database"
 )
 
-func newSchemaRepo(t *testing.T) (assets.Repository, *mocks.FakeClock) {
+func newSchemaRepo(t *testing.T) (assets.Repository, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(assets.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	return assets.NewSQLiteRepository(d, clk), clk
 }
 

@@ -12,7 +12,8 @@ import (
 	localdb "data-backup-manager/internal/database"
 	"data-backup-manager/internal/destinations"
 	"data-backup-manager/internal/testutil/db"
-	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // newDestSchemaDB returns a fresh sqlite handle with system + destinations schema
@@ -34,7 +35,7 @@ func newDestSchemaDB(t *testing.T) *sql.DB {
 // the unique name constraint.
 func TestSQLiteRepository_RoundTrip(t *testing.T) {
 	ctx := context.Background()
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	repo := destinations.NewSQLiteRepository(newDestSchemaDB(t), clk)
 
 	created, err := repo.Create(ctx, destinations.Destination{
@@ -121,7 +122,7 @@ func TestSQLiteRepository_RoundTrip(t *testing.T) {
 // constraint is the backstop).
 func TestSQLiteRepository_UniqueNameConstraint(t *testing.T) {
 	ctx := context.Background()
-	repo := destinations.NewSQLiteRepository(newDestSchemaDB(t), mocks.NewFakeClock(time.Time{}))
+	repo := destinations.NewSQLiteRepository(newDestSchemaDB(t), scheduletest.New(time.Time{}))
 	base := destinations.Destination{
 		Name:        "dup",
 		BackendKind: destinations.BackendFilesystem,

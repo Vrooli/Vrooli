@@ -10,6 +10,8 @@ import (
 	"data-backup-manager/internal/sources"
 	sourcesmocks "data-backup-manager/internal/sources/mocks"
 	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // TestVerifyTarget_AsyncLifecycleIsPersisted proves the async contract with the
@@ -21,7 +23,7 @@ func TestVerifyTarget_AsyncLifecycleIsPersisted(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	repo := restores.NewSQLiteRepository(newRestoresDB(t), mocks.NewFakeClock(time.Time{}))
+	repo := restores.NewSQLiteRepository(newRestoresDB(t), scheduletest.New(time.Time{}))
 	eng := &mocks.FakeKopiaEngine{}
 	capt := &sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}
 
@@ -39,7 +41,7 @@ func TestVerifyTarget_AsyncLifecycleIsPersisted(t *testing.T) {
 		Destinations: &restoresmocks.FakeDestinationLookup{Destinations: map[string]restores.DestinationForRestore{"dst-1": {ID: "dst-1", Name: "nightly"}}},
 		Engine:       eng,
 		Sources:      sources.NewRegistry(capt),
-		Clock:        mocks.NewFakeClock(time.Time{}),
+		Clock:        scheduletest.New(time.Time{}),
 		ScratchRoot:  t.TempDir(),
 		BaseContext:  ctx,
 		Executor:     restores.NewAsyncExecutor(1),
@@ -77,7 +79,7 @@ func TestVerifyTarget_AsyncLifecycleIsPersisted(t *testing.T) {
 // crash is closed as failed (fail-not-resume) and never falsely verified.
 func TestReconcile_FailsOrphanedRestores(t *testing.T) {
 	ctx := context.Background()
-	repo := restores.NewSQLiteRepository(newRestoresDB(t), mocks.NewFakeClock(time.Time{}))
+	repo := restores.NewSQLiteRepository(newRestoresDB(t), scheduletest.New(time.Time{}))
 
 	orphan, err := repo.CreateRestore(ctx, restores.Restore{
 		TargetID: "t1", DestinationID: "dst-1", SnapshotID: "snap-1",
@@ -89,7 +91,7 @@ func TestReconcile_FailsOrphanedRestores(t *testing.T) {
 
 	svc := restores.NewService(restores.Deps{
 		Repo:     repo,
-		Clock:    mocks.NewFakeClock(time.Time{}),
+		Clock:    scheduletest.New(time.Time{}),
 		Executor: restoresmocks.NewSyncExecutor(),
 	})
 	if err := svc.Reconcile(ctx); err != nil {

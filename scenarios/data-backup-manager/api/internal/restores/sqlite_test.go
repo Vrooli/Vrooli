@@ -11,7 +11,8 @@ import (
 	localdb "data-backup-manager/internal/database"
 	"data-backup-manager/internal/restores"
 	"data-backup-manager/internal/testutil/db"
-	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newRestoresDB(t *testing.T) *sql.DB {
@@ -30,7 +31,7 @@ func newRestoresDB(t *testing.T) *sql.DB {
 // list with a restore record and a verify record.
 func TestSQLiteRepository_RoundTrip(t *testing.T) {
 	ctx := context.Background()
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	repo := restores.NewSQLiteRepository(newRestoresDB(t), clk)
 
 	verifiedAt := clk.Now().UTC().Add(time.Minute)
@@ -106,7 +107,7 @@ func TestSQLiteRepository_RoundTrip(t *testing.T) {
 // has only been backed up (never verified) is absent from the result.
 func TestLastVerifiedByTarget(t *testing.T) {
 	ctx := context.Background()
-	clk := mocks.NewFakeClock(time.Unix(1700000000, 0).UTC())
+	clk := scheduletest.New(time.Unix(1700000000, 0).UTC())
 	repo := restores.NewSQLiteRepository(newRestoresDB(t), clk)
 
 	base := clk.Now().UTC()

@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"testing"
 
-	"architecture-cartographer/internal/clock"
 	"architecture-cartographer/internal/conflicts"
 	localdb "architecture-cartographer/internal/database"
 	"architecture-cartographer/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 
 	apidb "github.com/vrooli/api-core/database"
 )
@@ -27,7 +28,7 @@ func newSchemaDB(t *testing.T) *sql.DB {
 
 func TestSQLiteRepository_UpsertAndGet(t *testing.T) {
 	d := newSchemaDB(t)
-	repo := conflicts.NewSQLiteRepository(d, clock.System{})
+	repo := conflicts.NewSQLiteRepository(d, schedule.System())
 
 	c := conflicts.Conflict{
 		Scenario:  "demo",
@@ -51,7 +52,7 @@ func TestSQLiteRepository_UpsertAndGet(t *testing.T) {
 
 func TestSQLiteRepository_ListFiltersByType(t *testing.T) {
 	d := newSchemaDB(t)
-	repo := conflicts.NewSQLiteRepository(d, clock.System{})
+	repo := conflicts.NewSQLiteRepository(d, schedule.System())
 
 	for _, typ := range []string{"cycle", "mislocated_file"} {
 		if _, err := repo.UpsertConflict(context.Background(), conflicts.Conflict{

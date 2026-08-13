@@ -8,15 +8,16 @@ import (
 
 	skillcatalog "development-toolchain-validator/internal/skill_catalog"
 	scmocks "development-toolchain-validator/internal/skill_catalog/mocks"
-	"development-toolchain-validator/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
 
-func newSvc(t *testing.T, source skillcatalog.SkillCatalogSource) (skillcatalog.Service, *scmocks.FakeRepository, *mocks.FakeClock) {
+func newSvc(t *testing.T, source skillcatalog.SkillCatalogSource) (skillcatalog.Service, *scmocks.FakeRepository, *scheduletest.FakeClock) {
 	t.Helper()
 	repo := scmocks.NewFakeRepository()
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
 	return skillcatalog.NewService(repo, source, clk), repo, clk
 }
 

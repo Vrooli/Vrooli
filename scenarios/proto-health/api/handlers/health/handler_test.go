@@ -11,12 +11,13 @@ import (
 	"testing"
 
 	"proto-health/handlers/health"
-	"proto-health/internal/clock"
 	"proto-health/internal/module"
 	"proto-health/internal/server"
 	"proto-health/internal/testutil/assertx"
 	"proto-health/internal/testutil/httpx"
 	"proto-health/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
@@ -91,7 +92,7 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)
@@ -130,7 +131,7 @@ func TestHealthHandlerRefreshesDescriptorWithoutRestart(t *testing.T) {
 		Version:          "1.0.0",
 		DescriptorSource: source,
 	})
-	apiServer := server.New(server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)}, module.Module{
+	apiServer := server.New(server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)}, module.Module{
 		Name: "health",
 		Mount: func(r *mux.Router) {
 			r.HandleFunc("/health", h).Methods(http.MethodGet)

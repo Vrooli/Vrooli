@@ -12,22 +12,29 @@ import (
 	"strings"
 	"time"
 
-	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/failures"
 	"data-backup-manager/internal/sources"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
-type Plan struct{ TargetIDs, DestinationIDs []string }
-type Target struct {
-	ID      string
-	Kind    sources.SourceKind
-	Locator string
-}
-type Destination struct{ ID, Name string }
-type TargetLookup interface {
-	TargetForRun(context.Context, string) (Target, error)
-}
+type (
+	Plan   struct{ TargetIDs, DestinationIDs []string }
+	Target struct {
+		ID      string
+		Kind    sources.SourceKind
+		Locator string
+	}
+)
+
+type (
+	Destination  struct{ ID, Name string }
+	TargetLookup interface {
+		TargetForRun(context.Context, string) (Target, error)
+	}
+)
+
 type DestinationLookup interface {
 	DestinationForRun(context.Context, string) (Destination, error)
 }
@@ -38,7 +45,7 @@ type Input struct {
 	Destinations     DestinationLookup
 	Engine           engine.KopiaEngine
 	Sources          *sources.Registry
-	Clock            clock.Clock
+	Clock            schedule.Clock
 	CheckSourcePaths bool
 }
 

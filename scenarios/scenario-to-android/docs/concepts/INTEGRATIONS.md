@@ -49,6 +49,22 @@ Use this document to answer:
 | `secrets-manager` | required | Holds signing identity so no key material exists in the repository. | Reference-only; material never returned into this scenario. |
 | `hello-mobile` | required (fixture) | The ramp must be provable without depending on any product scenario's correctness. | Generated and driven like any other scenario. |
 
+## Backdrop listing assets
+
+This scenario owns journey capture and the Play submission relationship. For
+imagery, it supplies a captured screenshot and a Backdrop Studio surface id to
+`ComposeDeviceFrame`; Backdrop Studio returns PNG bytes at the surface's exact
+geometry plus the reserved device-frame region. This client never captures
+screenshots and never reimplements treatment or surface rules. Publishing stays
+owned by the existing listing pipeline.
+
+| Input | Contract |
+|---|---|
+| `surface_id` | Backdrop Studio surface identifier, such as `play_phone_screenshot`. |
+| `screenshot_png` | Screenshot captured by this scenario's journey/device seam. |
+| `arrangement` | `device_center`, `caption_above_device`, `caption_below_device`, or `caption_only`. |
+| Output | Composed PNG, exact `width`/`height`, and an occlusion region. |
+
 ## Third-Party Services
 
 | Service | Status | Reason | Contract |

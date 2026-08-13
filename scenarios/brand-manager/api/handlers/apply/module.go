@@ -15,8 +15,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"brand-manager/internal/clock"
 	"brand-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -36,7 +37,7 @@ import (
 // that contains scenario source trees apply writes into; assetsBlobDir is the
 // assets storage root (shared with the assets module) so apply reads the same
 // uploaded/generated image bytes.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, scenariosRoot, assetsBlobDir string) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, scenariosRoot, assetsBlobDir string) module.Module {
 	brandsRepo := internalbrands.NewSQLiteRepository(db, clk)
 	brandsSvc := internalbrands.NewService(
 		brandsRepo,

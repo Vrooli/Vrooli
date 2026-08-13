@@ -7,25 +7,25 @@ import (
 	"strings"
 	"time"
 
-	"network-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 type Service struct {
 	repo   Repository
 	runner ProbeRunner
-	clock  clock.Clock
+	clock  schedule.Clock
 }
 
 type Config struct {
 	Repo   Repository
 	Runner ProbeRunner
-	Clock  clock.Clock
+	Clock  schedule.Clock
 }
 
 func NewService(cfg Config) *Service {
 	s := &Service{repo: cfg.Repo, runner: cfg.Runner, clock: cfg.Clock}
 	if s.clock == nil {
-		s.clock = clock.System{}
+		s.clock = schedule.System()
 	}
 	if s.runner == nil {
 		s.runner = RealProbeRunner{}

@@ -15,4 +15,8 @@
   not prevent endpoint-level `proven` status.
 - Cache keys must be deterministic and inspectable.
 - CLI JSON output must match API response shapes.
-- The generated `notes` domain is not product vocabulary.
+- Search results are provenance-preserving pointers into the authoritative
+  `DescribeCodeFacts` report; lexical ranking must never discard evidence
+  status, analyzer, or source path.
+- Page size and page token affect transport shape only; the cached report and
+  its fact ordering remain unchanged.

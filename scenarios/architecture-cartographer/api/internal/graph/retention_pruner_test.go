@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"architecture-cartographer/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/retention"
 )
@@ -22,7 +22,7 @@ func manifestBudget() retention.Budget {
 func newPrunerFixture(t *testing.T) (*SnapshotPruner, *sql.DB) {
 	t.Helper()
 	db, _ := newRetentionDB(t)
-	repo := NewSQLiteRepository(db, clock.System{}).(*sqliteRepository)
+	repo := NewSQLiteRepository(db, schedule.System()).(*sqliteRepository)
 	return NewSnapshotPruner(repo, RetentionPolicy{}), db
 }
 

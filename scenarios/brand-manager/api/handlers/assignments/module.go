@@ -9,8 +9,9 @@ import (
 	"errors"
 	"log"
 
-	"brand-manager/internal/clock"
 	"brand-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -26,7 +27,7 @@ import (
 // generated Connect-RPC AssignmentsService handler over the sqlite-backed
 // service. The service resolves brand versions via a thin adapter over the
 // brands domain (the composition root is the only place the two domains meet).
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	repo := internalassignments.NewSQLiteRepository(db, clk)
 	resolver := brandResolver{brands: internalbrands.NewSQLiteRepository(db, clk)}
 	svc := internalassignments.NewService(repo, resolver, logger)

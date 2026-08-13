@@ -10,13 +10,22 @@
       "description": "Third-party dependency/package selection and governance — which package to use for a purpose (for example \"a React forms library\", \"a Go HTTP router\", \"image resizing\"), the approved version ranges, and which packages are denied or vulnerable. Route here for 'what dependency/package/library should I use for X' and 'is package Y approved'. Do NOT route here for prior-work records, CLI commands, skills, docs, or scenario status.",
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
-      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
           "scenario_id": "scenario-dependency-analyzer",
           "path": "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/SearchApprovedDependencies",
           "method": "HTTP_METHOD_POST",
           "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
           "headers": {
             "Content-Type": "application/json"
           }
@@ -65,12 +74,19 @@
           "hard_floor": 0.65
         }
       },
+      "scoring": {},
+      "performance": {
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.05,
+        "telemetry_required": true,
+        "minimum_samples": 8
+      },
       "tests": {
         "name": "scenario-dependency-analyzer dependencies — governance corpus",
         "description": "RANK-CENTRIC golden corpus for the dependency governance index: a purpose query should surface the approved package recorded for that purpose.",
         "cases": [
-      {
-        "id": "connect-rpc",
+          {
+            "id": "connect-rpc",
             "query": "connect rpc client and server",
             "tags": [
               "strong",
@@ -82,64 +98,113 @@
               "@connectrpc/connect",
               "connectrpc.com/connect"
             ],
-        "expect_within_top_k": 5
-      },
-      {
-        "id": "http-middleware",
-        "query": "Go HTTP middleware for CORS logging and request handling",
-        "tags": ["strong", "go", "http", "package-governance", "reviewed-live"],
-        "expect_ids": ["github.com/gorilla/handlers"],
-        "expect_within_top_k": 5,
-        "note": "Live verified 2026-07-12: the approved HTTP middleware record is the first dependency hit."
-      },
-      {
-        "id": "sqlite-persistence",
-        "query": "pure Go SQLite driver without CGO for local persistence",
-        "tags": ["strong", "go", "storage", "package-governance", "reviewed-live"],
-        "expect_ids": ["modernc.org/sqlite"],
-        "expect_within_top_k": 5,
-        "note": "Live verified 2026-07-12 against the modernc SQLite governance record."
-      },
-      {
-        "id": "sqlmock-testing",
-        "query": "mock SQL database driver for Go unit tests",
-        "tags": ["weak-real", "go", "testing", "package-governance", "reviewed-live"],
-        "expect_ids": ["github.com/DATA-DOG/go-sqlmock"],
-        "expect_within_top_k": 5,
-        "note": "Live verified 2026-07-12 against the focused SQL mock dependency record."
-      },
-      {
-        "id": "container-integration-tests",
-        "query": "run Go integration tests against real containers",
-        "tags": ["hard", "go", "testing", "integration", "package-governance", "reviewed-live"],
-        "expect_ids": ["github.com/testcontainers/testcontainers-go"],
-        "expect_within_top_k": 5,
-        "note": "Live verified 2026-07-12: Testcontainers is returned for real-service integration testing."
-      },
-      {
-        "id": "go-module-tools",
-        "query": "official Go module-aware tooling library",
-        "tags": ["weak", "go", "tooling", "package-governance", "reviewed-live"],
-        "expect_ids": ["golang.org/x/mod"],
-        "expect_within_top_k": 5,
-        "note": "Live verified 2026-07-12 against the Go module tooling dependency record."
-      },
-      {
-        "id": "browser-connect-client",
-        "query": "TypeScript browser client for Connect RPC APIs",
-        "tags": ["strong", "typescript", "rpc", "package-governance", "reviewed-live"],
-        "expect_ids": ["@connectrpc/connect-web"],
-        "expect_within_top_k": 5,
-        "note": "Reviewed companion to the Go Connect RPC case; the stable browser package is a distinct governed surface."
-      },
-      {
-        "id": "gibberish-1",
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "http-middleware",
+            "query": "Go HTTP middleware for CORS logging and request handling",
+            "tags": [
+              "strong",
+              "go",
+              "http",
+              "package-governance",
+              "reviewed-live"
+            ],
+            "expect_ids": [
+              "github.com/gorilla/handlers"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Live verified 2026-07-12: the approved HTTP middleware record is the first dependency hit."
+          },
+          {
+            "id": "sqlite-persistence",
+            "query": "pure Go SQLite driver without CGO for local persistence",
+            "tags": [
+              "strong",
+              "go",
+              "storage",
+              "package-governance",
+              "reviewed-live"
+            ],
+            "expect_ids": [
+              "modernc.org/sqlite"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Live verified 2026-07-12 against the modernc SQLite governance record."
+          },
+          {
+            "id": "sqlmock-testing",
+            "query": "mock SQL database driver for Go unit tests",
+            "tags": [
+              "weak-real",
+              "go",
+              "testing",
+              "package-governance",
+              "reviewed-live"
+            ],
+            "expect_ids": [
+              "github.com/DATA-DOG/go-sqlmock"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Live verified 2026-07-12 against the focused SQL mock dependency record."
+          },
+          {
+            "id": "container-integration-tests",
+            "query": "run Go integration tests against real containers",
+            "tags": [
+              "hard",
+              "go",
+              "testing",
+              "integration",
+              "package-governance",
+              "reviewed-live"
+            ],
+            "expect_ids": [
+              "github.com/testcontainers/testcontainers-go"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Live verified 2026-07-12: Testcontainers is returned for real-service integration testing."
+          },
+          {
+            "id": "go-module-tools",
+            "query": "official Go module-aware tooling library",
+            "tags": [
+              "weak",
+              "go",
+              "tooling",
+              "package-governance",
+              "reviewed-live"
+            ],
+            "expect_ids": [
+              "golang.org/x/mod"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Live verified 2026-07-12 against the Go module tooling dependency record."
+          },
+          {
+            "id": "browser-connect-client",
+            "query": "TypeScript browser client for Connect RPC APIs",
+            "tags": [
+              "strong",
+              "typescript",
+              "rpc",
+              "package-governance",
+              "reviewed-live"
+            ],
+            "expect_ids": [
+              "@connectrpc/connect-web"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Reviewed companion to the Go Connect RPC case; the stable browser package is a distinct governed surface."
+          },
+          {
+            "id": "gibberish-1",
             "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
             "tags": [
               "gibberish"
             ],
-            "expect_no_strong_hit": true,
             "expect_max_score": 0.65,
+            "expect_no_strong_hit": true,
             "note": "Junk rejection: nonsense must not surface a confident hit."
           }
         ],
@@ -155,16 +220,10 @@
               "min_reviewed_positive": 1
             }
           ]
-        }
-      },
-      "status_endpoint": {
-        "http_json": {
-          "scenario_id": "scenario-dependency-analyzer",
-          "path": "/health",
-          "method": "HTTP_METHOD_GET",
-          "headers": {
-            "Content-Type": "application/json"
-          }
+        },
+        "minimum": {
+          "reviewed_positive": 1,
+          "negative": 1
         }
       }
     },
@@ -176,13 +235,22 @@
       "description": "Scenario connection graph — what a scenario depends on and what depends on it (its reverse dependents). Route here for 'what does X depend on', 'what depends on X', 'X's dependencies / dependents', and the cross-scenario dependency/connection graph. Do NOT route here for a scenario's purpose, anatomy, responsibilities, or internal domains — that is architecture-cartographer's domain-map. Connection-only.",
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
-      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
           "scenario_id": "scenario-dependency-analyzer",
           "path": "/vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService/SearchInterfaceGraph",
           "method": "HTTP_METHOD_POST",
           "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
           "headers": {
             "Content-Type": "application/json"
           }
@@ -237,6 +305,12 @@
         "mrr_at": 3,
         "deep_k": 50
       },
+      "performance": {
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.05,
+        "telemetry_required": true,
+        "minimum_samples": 8
+      },
       "tests": {
         "name": "scenario-dependency-analyzer scenarios — connection corpus",
         "description": "RANK-CENTRIC golden corpus for the scenario-connection index: a connection query should surface the scenario whose dependency/dependent record matches. Expanded to the engine adequacy floor in Phase 5.",
@@ -252,7 +326,7 @@
               "plan-manager"
             ],
             "expect_within_top_k": 5,
-            "note": "Headline: NL connection intent -> the scenario's connection record."
+            "note": "Headline: NL connection intent -\u003e the scenario's connection record."
           },
           {
             "id": "swarm-manager-depends",
@@ -401,16 +475,10 @@
               "min_reviewed_positive": 3
             }
           ]
-        }
-      },
-      "status_endpoint": {
-        "http_json": {
-          "scenario_id": "scenario-dependency-analyzer",
-          "path": "/health",
-          "method": "HTTP_METHOD_GET",
-          "headers": {
-            "Content-Type": "application/json"
-          }
+        },
+        "minimum": {
+          "reviewed_positive": 1,
+          "negative": 1
         }
       }
     },
@@ -422,13 +490,22 @@
       "description": "Local resource usage — which scenarios use a given local resource (postgres, redis, qdrant, ollama, vault, minio, ...). Route here for 'which scenarios use postgres', 'what uses qdrant', 'who uses resource Y'. Do NOT route here for third-party package/dependency selection (that is the dependency leaf) or scenario-to-scenario connections (that is the scenarios leaf).",
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
-      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
           "scenario_id": "scenario-dependency-analyzer",
           "path": "/vrooli.scenario_dependency_analyzer.v1.resource_usage.ResourceUsageService/SearchResourceUsage",
           "method": "HTTP_METHOD_POST",
           "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
           "headers": {
             "Content-Type": "application/json"
           }
@@ -483,6 +560,12 @@
         "mrr_at": 3,
         "deep_k": 50
       },
+      "performance": {
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.05,
+        "telemetry_required": true,
+        "minimum_samples": 8
+      },
       "tests": {
         "name": "scenario-dependency-analyzer resources — usage corpus",
         "description": "RANK-CENTRIC golden corpus for the resource-usage index: a usage query should surface the resource whose consuming-scenarios record matches. Expanded to the engine adequacy floor in Phase 5.",
@@ -498,7 +581,7 @@
               "postgres"
             ],
             "expect_within_top_k": 5,
-            "note": "Headline: resource-usage intent -> the resource's usage record."
+            "note": "Headline: resource-usage intent -\u003e the resource's usage record."
           },
           {
             "id": "use-qdrant",
@@ -644,16 +727,10 @@
               "min_reviewed_positive": 3
             }
           ]
-        }
-      },
-      "status_endpoint": {
-        "http_json": {
-          "scenario_id": "scenario-dependency-analyzer",
-          "path": "/health",
-          "method": "HTTP_METHOD_GET",
-          "headers": {
-            "Content-Type": "application/json"
-          }
+        },
+        "minimum": {
+          "reviewed_positive": 1,
+          "negative": 1
         }
       }
     }

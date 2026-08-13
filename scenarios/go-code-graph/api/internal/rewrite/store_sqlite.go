@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"go-code-graph/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // SQLiteStore is the production PlanStore implementation (REQ-P1-002).
@@ -19,15 +19,15 @@ import (
 // hand the same instance to both fields without juggling two handles.
 type SQLiteStore struct {
 	db    *sql.DB
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteStore wires the production store against db. The clock seam
 // supplies created_at / applied_at timestamps; production wires
-// clock.System{} from main.go, tests inject a FakeClock.
-func NewSQLiteStore(db *sql.DB, c clock.Clock) *SQLiteStore {
+// schedule.System() from main.go, tests inject a FakeClock.
+func NewSQLiteStore(db *sql.DB, c schedule.Clock) *SQLiteStore {
 	if c == nil {
-		c = clock.System{}
+		c = schedule.System()
 	}
 	return &SQLiteStore{db: db, clock: c}
 }

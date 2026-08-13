@@ -5,6 +5,7 @@ The CLI is a thin wrapper over `CodeFactsService`. Human output is summarized; `
 | Command | Purpose |
 |---|---|
 | `code-facts facts describe <target> --include <families> --json` | Return selected fact families. |
+| `code-facts facts search <query> --target <target> --limit <n> --json` | Search indexed node evidence while preserving provenance. |
 | `code-facts facts surfaces <target> --json` | Inspect target context and surfaces. |
 | `code-facts facts proto-adoption <target> --json` | Inspect proto adoption evidence. |
 | `code-facts facts endpoint-proof <target> --endpoint <id> --json` | Inspect endpoint proof evidence. |

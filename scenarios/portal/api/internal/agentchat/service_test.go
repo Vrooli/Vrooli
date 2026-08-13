@@ -14,7 +14,8 @@ import (
 	localdb "portal/internal/database"
 	"portal/internal/integrations/agentmanager"
 	"portal/internal/testutil/db"
-	"portal/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 type fakeAgentManager struct {
@@ -44,7 +45,7 @@ func newChatService(t *testing.T) (*internalchat.Service, *sql.DB) {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(internalchat.Schema),
 	))
-	repo := internalchat.NewSQLiteRepository(d, mocks.NewFakeClock(time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)))
+	repo := internalchat.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)))
 	return internalchat.NewService(repo), d
 }
 

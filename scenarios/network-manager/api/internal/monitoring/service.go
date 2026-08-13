@@ -9,8 +9,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"network-manager/internal/clock"
 	"network-manager/internal/snapshot"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 type SnapshotService interface {
@@ -21,19 +22,19 @@ type SnapshotService interface {
 type Service struct {
 	repo      Repository
 	snapshots SnapshotService
-	clock     clock.Clock
+	clock     schedule.Clock
 }
 
 type Config struct {
 	Repo      Repository
 	Snapshots SnapshotService
-	Clock     clock.Clock
+	Clock     schedule.Clock
 }
 
 func NewService(cfg Config) *Service {
 	s := &Service{repo: cfg.Repo, snapshots: cfg.Snapshots, clock: cfg.Clock}
 	if s.clock == nil {
-		s.clock = clock.System{}
+		s.clock = schedule.System()
 	}
 	return s
 }

@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"scenario-authenticator/internal/authorization"
-	"scenario-authenticator/internal/clock"
 	dbtest "scenario-authenticator/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 
 	apidb "github.com/vrooli/api-core/database"
 )
@@ -24,7 +25,7 @@ func newSchemaDB(t *testing.T) *sql.DB {
 
 func newRepo(t *testing.T) (Repository, *sql.DB) {
 	d := newSchemaDB(t)
-	return NewSQLiteRepository(d, clock.System{}), d
+	return NewSQLiteRepository(d, schedule.System()), d
 }
 
 // TestSchemaIdempotentAndSeedsDefaultRealm boots the schema twice (no drift
@@ -35,7 +36,7 @@ func TestSchemaIdempotentAndSeedsDefaultRealm(t *testing.T) {
 	if err := apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(Schema)); err != nil {
 		t.Fatalf("second EnsureSchemas: %v", err)
 	}
-	repo := NewSQLiteRepository(d, clock.System{})
+	repo := NewSQLiteRepository(d, schedule.System())
 	aud, err := repo.RealmAudience(context.Background(), "default")
 	if err != nil {
 		t.Fatalf("realm audience: %v", err)

@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"architecture-cartographer/internal/clock"
 	localdb "architecture-cartographer/internal/database"
 	testdb "architecture-cartographer/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 
 	apidb "github.com/vrooli/api-core/database"
 	campaignv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/campaign"
@@ -22,7 +23,7 @@ func newTestService(t *testing.T) Service {
 	); err != nil {
 		t.Fatalf("ensure schemas: %v", err)
 	}
-	return NewService(NewSQLiteRepository(d, clock.System{}))
+	return NewService(NewSQLiteRepository(d, schedule.System()))
 }
 
 func pf(scenario, code string, sev architecturev1.FindingSeverity, locs ...string) *architecturev1.ArchitectureFinding {

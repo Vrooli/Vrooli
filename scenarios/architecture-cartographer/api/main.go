@@ -12,13 +12,14 @@ import (
 	"architecture-cartographer/internal/aisearch"
 	"architecture-cartographer/internal/app"
 	"architecture-cartographer/internal/audit"
-	"architecture-cartographer/internal/clock"
 	"architecture-cartographer/internal/config"
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/module"
 	"architecture-cartographer/internal/modules"
 	"architecture-cartographer/internal/observability"
 	"architecture-cartographer/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	aisearchpkg "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/apihttp"
@@ -69,7 +70,7 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
-	clk := clock.System{}
+	clk := schedule.System()
 	logger := log.Default()
 	repoRoot, repoErr := repocontract.FindRepoRootFromEnvOrCWD()
 	if repoErr != nil {
@@ -154,7 +155,7 @@ type searchBundle struct {
 // the in-process domain derivation, the tuned engine (from search.json), the
 // reconcile sync loop, the token-gated control plane, and the search-hub
 // self-registration. Every failure degrades gracefully.
-func searchModules(logger *log.Logger, clk clock.Clock, cfg config.Config, repoRoot string) searchBundle {
+func searchModules(logger *log.Logger, clk schedule.Clock, cfg config.Config, repoRoot string) searchBundle {
 	searchJSONPath := filepath.Join(repoRoot, "scenarios", "architecture-cartographer", ".vrooli", "search.json")
 
 	searchCfg := aisearchpkg.LoadConfig("ARCHITECTURE_CARTOGRAPHER")
@@ -264,7 +265,7 @@ func loadSearchTuning(logger *log.Logger, path, providerID string) aisearchpkg.T
 // reports which bound bound it; the pruner registered here owns which rows die.
 // A budget naming a pruner nothing registered fails at construction rather than
 // silently falling back to a generic age rule.
-func startRetention(db *database.RoutedDB, clk clock.Clock, logger *slog.Logger) (*retention.Manager, error) {
+func startRetention(db *database.RoutedDB, clk schedule.Clock, logger *slog.Logger) (*retention.Manager, error) {
 	registry := retention.NewRegistry()
 	pruner := graph.NewSnapshotPruner(
 		graph.NewSQLiteRepository(db.Primary(), clk),

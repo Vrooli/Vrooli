@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	sessioncore "github.com/vrooli/vrooli/packages/session-core"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/manifest"
 
@@ -28,9 +29,11 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		// Allow connections from any origin for development
-		// In production, this should be more restrictive
-		return true
+		origin := strings.TrimSpace(r.Header.Get("Origin"))
+		// Non-browser clients do not send Origin. Browser clients must be
+		// same-origin; deployment credentials are never exposed to arbitrary
+		// websites through a cross-origin terminal socket.
+		return origin == "" || sessioncore.SameOrigin(origin, r.Host)
 	},
 }
 

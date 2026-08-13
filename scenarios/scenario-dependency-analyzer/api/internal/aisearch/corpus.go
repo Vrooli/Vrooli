@@ -18,6 +18,11 @@ const envPrefix = "SDA"
 // []SourceBinding model). New corpora (.scenarios, .resources) register here.
 type CorpusID string
 
+// HybridCollectionSuffix keeps a sparse-vector schema separate from an
+// incumbent dense collection. Changing engine shape must never delete a live
+// collection merely to make a new tuning fit.
+const HybridCollectionSuffix = "-hybrid"
+
 const (
 	// CorpusDependencies is the original dependency-governance corpus
 	// (scenario-dependency-analyzer.dependencies). It backs the SemanticRanker
@@ -54,6 +59,17 @@ type corpusSpec struct {
 	source       pkg.Source
 	rerankText   pkg.RerankTextFunc
 	textFallback pkg.TextFallbackFunc
+}
+
+func collectionForTuning(base string, tuning pkg.TuningConfig) string {
+	base = strings.TrimSpace(base)
+	if base == "" {
+		return base
+	}
+	if tuning.WithDefaults().Engine != pkg.EngineHybrid || strings.HasSuffix(base, HybridCollectionSuffix) {
+		return base
+	}
+	return base + HybridCollectionSuffix
 }
 
 // Sources carries the per-corpus data providers Start binds. A nil field omits

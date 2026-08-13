@@ -8,8 +8,9 @@ import (
 
 	"github.com/vrooli/api-core/database"
 
-	"development-toolchain-validator/internal/clock"
 	"development-toolchain-validator/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -24,7 +25,7 @@ import (
 // the worker uses is the one the handler reads from.
 type ModuleDeps struct {
 	DB     *database.RoutedDB
-	Clock  clock.Clock
+	Clock  schedule.Clock
 	Logger *log.Logger
 	Notify func()
 }

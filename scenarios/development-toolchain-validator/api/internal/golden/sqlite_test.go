@@ -8,7 +8,8 @@ import (
 
 	"development-toolchain-validator/internal/golden"
 	"development-toolchain-validator/internal/testutil/db"
-	"development-toolchain-validator/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -17,14 +18,14 @@ import (
 	localdb "development-toolchain-validator/internal/database"
 )
 
-func newRepo(t *testing.T) (golden.Repository, *mocks.FakeClock) {
+func newRepo(t *testing.T) (golden.Repository, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(golden.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	return golden.NewSQLiteRepository(d, clk), clk
 }
 
@@ -80,7 +81,7 @@ CREATE TABLE goldens (
 	require.NoError(t, golden.EnsureColumns(ctx, d))
 	require.NoError(t, golden.EnsureColumns(ctx, d))
 
-	repo := golden.NewSQLiteRepository(d, mocks.NewFakeClock(time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)))
+	repo := golden.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)))
 	got, err := repo.Get(ctx, "reference-react-vite")
 	require.NoError(t, err)
 	require.Equal(t, ".vrooli/generated-goldens/reference-react-vite", got.Path)

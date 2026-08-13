@@ -9,13 +9,14 @@ import (
 
 	"portal/internal/agentchat"
 	internalchat "portal/internal/chat"
-	"portal/internal/clock"
 	"portal/internal/completion"
 	"portal/internal/module"
 	internalsearch "portal/internal/search"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
-func Module(db *database.RoutedDB, clk clock.Clock, searchService *internalsearch.Service) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, searchService *internalsearch.Service) module.Module {
 	repo := internalchat.NewSQLiteRepository(db, clk)
 	chatService := internalchat.NewService(repo)
 	openRouter, _ := completion.NewOpenRouterStreamerFromEnv()

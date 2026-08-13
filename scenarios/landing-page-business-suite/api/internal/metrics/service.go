@@ -12,12 +12,12 @@ import (
 	"strings"
 	"time"
 
-	"landing-page-business-suite-api/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 type Service struct {
 	db    Store
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // Store is the persistence boundary for metrics ingestion and reporting.
@@ -42,11 +42,11 @@ func (e *ValidationError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Field, e.Reason)
 }
 
-func NewService(db Store) *Service { return NewServiceWithClock(db, clock.System{}) }
+func NewService(db Store) *Service { return NewServiceWithClock(db, schedule.System()) }
 
-func NewServiceWithClock(db Store, serviceClock clock.Clock) *Service {
+func NewServiceWithClock(db Store, serviceClock schedule.Clock) *Service {
 	if serviceClock == nil {
-		serviceClock = clock.System{}
+		serviceClock = schedule.System()
 	}
 	return &Service{db: db, clock: serviceClock}
 }

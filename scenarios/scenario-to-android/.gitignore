@@ -30,6 +30,10 @@
 /ui/node_modules/
 /ui/.vite/
 
+# Android fixture build output
+/fixtures/hello-mobile/.gradle/
+/fixtures/hello-mobile/app/build/
+
 # Local runtime state (databases, uploads, logs)
 /data/
 /logs/

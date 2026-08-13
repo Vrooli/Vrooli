@@ -14,11 +14,12 @@ import (
 	"scenario-authenticator/internal/accounts"
 	"scenario-authenticator/internal/audit"
 	"scenario-authenticator/internal/authcrypto"
-	"scenario-authenticator/internal/clock"
 	"scenario-authenticator/internal/realm"
 	"scenario-authenticator/internal/redisstate"
 	intsessions "scenario-authenticator/internal/sessions"
 	dbtest "scenario-authenticator/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func newSvc(t *testing.T) *accounts.Service {
@@ -30,7 +31,7 @@ func newSvc(t *testing.T) *accounts.Service {
 	}
 	priv, _ := rsa.GenerateKey(rand.Reader, 2048)
 	signer := authcrypto.NewSigner(authcrypto.NewKeysFromPair(priv, &priv.PublicKey), authcrypto.SignerConfig{Issuer: realm.Issuer})
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := accounts.NewService(accounts.ServiceConfig{
 		Repo: accounts.NewSQLiteRepository(d, clk), Signer: signer,
 		Sessions: intsessions.NewManager(redisstate.NewMemory(), nil),

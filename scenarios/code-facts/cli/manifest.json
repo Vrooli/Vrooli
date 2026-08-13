@@ -8,13 +8,30 @@
       "description": "Describe code targets and proof evidence",
       "commands": [
         {
+          "name": "search",
+          "description": "Search symbols, file domains, and contract evidence",
+          "positionals": [
+            {"name": "query", "required": true, "description": "Identifier or implementation question"},
+            {"name": "target", "required": false, "description": "Optional target path or scenario/project/package/control-plane prefix", "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."}
+          ],
+          "flags": [
+            {"name": "include", "description": "Comma-separated families; defaults to symbols,file_domain,proto_adoption", "bind": {"field": "families"}},
+            {"name": "limit", "default": "10", "description": "Maximum result count"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "Search"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
           "name": "describe",
           "description": "Describe selected code fact families for a target",
+          "architecture": {"primitive": "proto_list"},
           "positionals": [
             {
               "name": "target",
               "required": true,
-              "description": "Target path or scenario:<name>"
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
             }
           ],
           "flags": [
@@ -47,11 +64,13 @@
         {
           "name": "surfaces",
           "description": "List target surfaces",
+          "architecture": {"primitive": "proto_list"},
           "positionals": [
             {
               "name": "target",
               "required": true,
-              "description": "Target path or scenario:<name>"
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
             }
           ],
           "flags": [
@@ -80,11 +99,13 @@
         {
           "name": "proto-adoption",
           "description": "Check proto adoption evidence",
+          "architecture": {"primitive": "proto_list"},
           "positionals": [
             {
               "name": "target",
               "required": true,
-              "description": "Target path or scenario:<name>"
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
             }
           ],
           "flags": [
@@ -120,11 +141,13 @@
         {
           "name": "endpoint-proof",
           "description": "Check endpoint implementation evidence",
+          "architecture": {"primitive": "proto_list"},
           "positionals": [
             {
               "name": "target",
               "required": true,
-              "description": "Target path or scenario:<name>"
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
             }
           ],
           "flags": [
@@ -166,11 +189,13 @@
         {
           "name": "status",
           "description": "Get cache status for a target",
+          "architecture": {"primitive": "proto_list"},
           "positionals": [
             {
               "name": "target",
               "required": true,
-              "description": "Target path or scenario:<name>"
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
             }
           ],
           "binding": {
@@ -209,11 +234,13 @@
         {
           "name": "inspect",
           "description": "Inspect cache entries for a target",
+          "architecture": {"primitive": "proto_list"},
           "positionals": [
             {
               "name": "target",
               "required": true,
-              "description": "Target path or scenario:<name>"
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
             }
           ],
           "flags": [
@@ -238,11 +265,13 @@
         {
           "name": "clear",
           "description": "Clear cache entries for a target or all targets",
+          "architecture": {"primitive": "proto_mutation"},
           "positionals": [
             {
               "name": "target",
               "required": false,
-              "description": "Target path or scenario:<name>"
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
             }
           ],
           "flags": [

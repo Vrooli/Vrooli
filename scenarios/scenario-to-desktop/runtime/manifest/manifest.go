@@ -22,6 +22,10 @@ type Manifest struct {
 	Swaps         []Swap     `json:"swaps,omitempty"`
 	Secrets       []Secret   `json:"secrets,omitempty"`
 	Services      []Service  `json:"services"`
+	// CatalogRequirements are immutable catalog paths the bundled application
+	// needs in order to boot every declared capability. Packaging validation
+	// fails before launch when one is absent.
+	CatalogRequirements []string `json:"catalog_requirements,omitempty"`
 }
 
 // InvalidIPCHostError identifies a manifest that would expose the authenticated

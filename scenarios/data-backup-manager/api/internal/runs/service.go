@@ -10,11 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/failures"
 	"data-backup-manager/internal/preflight"
 	"data-backup-manager/internal/sources"
+
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/storage"
 )
 
@@ -63,7 +64,7 @@ type Deps struct {
 	NextSchedule NextScheduleSource
 	Sources      *sources.Registry
 	Events       EventSink
-	Clock        clock.Clock
+	Clock        schedule.Clock
 	Logger       *log.Logger
 	// StagingRoot is the base directory capture artifacts are staged under
 	// before snapshotting. Empty uses the OS temp dir. Each run gets a

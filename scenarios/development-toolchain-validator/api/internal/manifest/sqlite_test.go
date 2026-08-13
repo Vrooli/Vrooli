@@ -8,7 +8,8 @@ import (
 
 	manifest "development-toolchain-validator/internal/manifest"
 	"development-toolchain-validator/internal/testutil/db"
-	"development-toolchain-validator/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -17,14 +18,14 @@ import (
 	localdb "development-toolchain-validator/internal/database"
 )
 
-func newRepo(t *testing.T) (manifest.Repository, *mocks.FakeClock) {
+func newRepo(t *testing.T) (manifest.Repository, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(manifest.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
 	return manifest.NewSQLiteRepository(d, clk), clk
 }
 

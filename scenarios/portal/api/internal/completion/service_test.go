@@ -14,7 +14,8 @@ import (
 	localdb "portal/internal/database"
 	"portal/internal/integrations/openrouter"
 	"portal/internal/testutil/db"
-	"portal/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 type fakeSkills struct {
@@ -55,7 +56,7 @@ func newCompletionService(t *testing.T, streamer completion.OpenRouterStreamer, 
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(internalchat.Schema),
 	))
-	repo := internalchat.NewSQLiteRepository(d, mocks.NewFakeClock(time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC)))
+	repo := internalchat.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC)))
 	chatService := internalchat.NewService(repo)
 	return completion.NewService(completion.Config{
 		Chat:          chatService,

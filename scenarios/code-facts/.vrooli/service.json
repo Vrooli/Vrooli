@@ -213,13 +213,20 @@
   "dependencies": {
     "resources": {},
     "scenarios": {
-      "architecture-cartographer": {
+    "architecture-cartographer": {
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
         "description": "Code-facts can query Architecture Cartographer for file-domain facts when a target needs domain partitioning beyond local source discovery.",
-        "degraded_behavior": "File-domain facts fall back to local source and import evidence when Architecture Cartographer is unavailable."
-      },
+      "degraded_behavior": "File-domain facts fall back to local source and import evidence when Architecture Cartographer is unavailable."
+    },
+    "search-hub": {
+      "enabled": true,
+      "required": false,
+      "startup_policy": "try_start",
+      "description": "Code-facts registers its code and contract search leaves with Search Hub when the local gateway is available.",
+      "degraded_behavior": "Code Facts remains queryable directly when Search Hub is unavailable; registration retries on the next lifecycle start."
+    },
       "go-code-graph": {
         "enabled": true,
         "required": false,

@@ -10,7 +10,8 @@ import (
 
 	domainmonitoring "network-manager/internal/monitoring"
 	domainsnapshot "network-manager/internal/snapshot"
-	"network-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	monitoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/monitoring"
 )
@@ -24,7 +25,7 @@ func TestHandlerUpsertMonitoringScheduleMapsProto(t *testing.T) {
 		Snapshots: &fakeSnapshotService{snapshots: map[string]domainsnapshot.Snapshot{
 			"baseline-1": {ID: "baseline-1", Status: "baseline", Profile: "home"},
 		}},
-		Clock: mocks.NewFakeClock(now),
+		Clock: scheduletest.New(now),
 	})
 	h := handler{service: service}
 
@@ -53,7 +54,7 @@ type fakeRepository struct {
 
 func (r *fakeRepository) ListSchedules(_ context.Context, includeDisabled bool) ([]domainmonitoring.Schedule, error) {
 	out := []domainmonitoring.Schedule{}
-	for _, schedule := range r.schedule {
+	for _, schedule := range r.clock {
 		if includeDisabled || schedule.Enabled {
 			out = append(out, schedule)
 		}
@@ -62,7 +63,7 @@ func (r *fakeRepository) ListSchedules(_ context.Context, includeDisabled bool) 
 }
 
 func (r *fakeRepository) GetSchedule(_ context.Context, id string) (domainmonitoring.Schedule, error) {
-	schedule, ok := r.schedule[id]
+	schedule, ok := r.clock[id]
 	if !ok {
 		return domainmonitoring.Schedule{}, domainmonitoring.ErrNotFound
 	}
@@ -73,7 +74,7 @@ func (r *fakeRepository) UpsertSchedule(_ context.Context, schedule domainmonito
 	if schedule.ID == "" {
 		schedule.ID = "schedule-1"
 	}
-	r.schedule[schedule.ID] = schedule
+	r.clock[schedule.ID] = schedule
 	return schedule, nil
 }
 

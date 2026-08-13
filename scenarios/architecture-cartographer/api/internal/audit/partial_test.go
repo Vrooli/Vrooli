@@ -12,7 +12,8 @@ import (
 	domainsmocks "architecture-cartographer/internal/domains/mocks"
 	"architecture-cartographer/internal/graph"
 	graphmocks "architecture-cartographer/internal/graph/mocks"
-	"architecture-cartographer/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // TestRun_SkippedAdaptersFlipCleanToPartial proves that when graph
@@ -36,7 +37,7 @@ func TestRun_SkippedAdaptersFlipCleanToPartial(t *testing.T) {
 		AuthorityConfidence: domains.ConfidenceHigh,
 	}}
 	c := &conflictsmocks.FakeService{}
-	svc := audit.NewService(g, d, c, nil, nil, nil, mocks.NewFakeClock(time.Time{}))
+	svc := audit.NewService(g, d, c, nil, nil, nil, scheduletest.New(time.Time{}))
 
 	rep, err := svc.Run(context.Background(), audit.RunInput{Scenario: "demo"})
 	if err != nil {
@@ -65,7 +66,7 @@ func TestRun_SkippedAdaptersStillFindingsOnReal(t *testing.T) {
 		AuthorityConfidence: domains.ConfidenceHigh,
 	}}
 	cmock := &conflictsmocks.FakeService{}
-	svc := audit.NewService(g, d, cmock, nil, nil, nil, mocks.NewFakeClock(time.Time{}))
+	svc := audit.NewService(g, d, cmock, nil, nil, nil, scheduletest.New(time.Time{}))
 
 	rep, err := svc.Run(context.Background(), audit.RunInput{Scenario: "demo"})
 	if err != nil {

@@ -5,13 +5,14 @@ import (
 	"log"
 	"os"
 
-	"flow-verifier/internal/clock"
 	localdb "flow-verifier/internal/database"
 	"flow-verifier/internal/flows"
 	"flow-verifier/internal/modules"
 	"flow-verifier/internal/runs"
 	"flow-verifier/internal/scenarios"
 	"flow-verifier/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
@@ -81,18 +82,18 @@ func main() {
 	// Artifacts service is constructed once and shared with the
 	// scenarios handler so the streaming GenerateScenarioArtifacts
 	// RPC and the per-flow artifacts RPCs see the same generator.
-	runsSvc := runs.NewService(runs.NewSQLiteRepository(db, clock.System{}))
+	runsSvc := runs.NewService(runs.NewSQLiteRepository(db, schedule.System()))
 	artifactsSvc := artifactsH.NewService(runsSvc)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "flow-verifier-api", "1.0.0"),
 		flowsH.Module(scenariosSvc),
 		scenariosH.Module(scenariosSvc, artifactsSvc),
-		verificationsH.Module(db, clock.System{}),
+		verificationsH.Module(db, schedule.System()),
 		artifactsH.ModuleWithDeps(artifactsSvc, scenariosSvc, log.Default()),
-		runsH.Module(db, clock.System{}),
-		settingsH.Module(db, clock.System{}),
+		runsH.Module(db, schedule.System()),
+		settingsH.Module(db, schedule.System()),
 	)
 
 	if err := apiserver.Run(apiserver.Config{

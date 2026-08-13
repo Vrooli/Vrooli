@@ -24,7 +24,9 @@ import (
 )
 
 // Clock abstracts time operations to enable deterministic testing.
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	Now() time.Time
 }
 

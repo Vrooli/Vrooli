@@ -1,20 +1,19 @@
 # Error Handling
 
-The template uses one error path for proto-typed operations and one
-documented exception path for multipart REST.
+Code Facts uses one error path for proto-typed operations and one documented
+exception path for the operational health probe.
 
 ## Proto-Typed Operations
 
 Proto-typed UI, CLI, and inter-scenario calls use Connect-RPC. Errors
 move through three layers:
 
-1. Domain/service code returns typed sentinels such as
-   `notes.ErrInvalidNote` or `notes.ErrNoteNotFound`.
-2. The API transport edge maps those sentinels to `connect.Error`
-   values in `internal/<domain>/service_error_mapping.go`.
-3. The UI receives `ConnectError`, maps `ConnectError.code` to an
-   `errors.<code>` i18n key with `ui/src/lib/errorMessage.ts`, and
-   renders localized copy.
+1. Target resolution, family validation, and analyzer code return ordinary
+   errors or typed provider-condition errors.
+2. The API transport edge maps invalid requests to `connect.CodeInvalidArgument`
+   and preserves provider conditions inside the typed report.
+3. The CLI and UI consume the same Connect response shape; warnings and
+   evidence are rendered instead of being converted into false success.
 
 The CLI uses the same `connect.Error` values through cli-core. Human
 output is English for now; future CLI i18n should use the same code
@@ -22,11 +21,12 @@ names as the UI catalog instead of string-matching messages.
 
 ## Sentinel Mapping
 
-| Domain error | Connect code | UI i18n key |
+| Condition | Connect/report behavior | Consumer behavior |
 |---|---|---|
-| `ErrInvalidNote` | `invalid_argument` | `errors.invalid_argument` |
-| `ErrNoteNotFound` | `not_found` | `errors.not_found` |
-| Unknown service/repository error | `internal` | `errors.internal` |
+| Invalid target or page token | `invalid_argument` | Fix request before retrying |
+| Provider unavailable in non-strict mode | successful report with `unknown` evidence | Surface warning and preserve partial facts |
+| Unsupported family/kind | successful report with `unsupported` evidence | Do not claim coverage |
+| Unexpected analyzer/storage failure | `internal` | Retry or investigate service health |
 
 When you add a domain, keep the mapping file next to that domain's
 service layer. The handler should call the mapper instead of switching

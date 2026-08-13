@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
@@ -233,7 +234,7 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	// narrow, read-only manifest catalog so manifest-driven applications (such
 	// as Vrooli Onboarding) remain functional without copying a working tree or
 	// any operator configuration into the artifact.
-	catalogCopied, err := p.stageManifestCatalog(paths.appAbs, bundleDir)
+	catalogCopied, err := p.stageManifestCatalogForRequirements(paths.appAbs, bundleDir, m.CatalogRequirements)
 	if err != nil {
 		return nil, err
 	}
@@ -275,12 +276,22 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	}, nil
 }
 
-// stageManifestCatalog copies only declarative service and resource manifests
-// from a repository-shaped scenario path. It intentionally excludes every
-// config directory, generated file, and secret-bearing operator state.
+// stageManifestCatalog copies only declarative manifests from a repository-
+// shaped scenario path. It intentionally excludes every config directory,
+// generated file, executable, and secret-bearing operator state. The internal
+// tool and safeguard catalogs are included because onboarding resolves host
+// requirements from those declarations while running without VROOLI_ROOT.
 // Synthetic and standalone scenarios have no repository catalog and simply
 // receive no catalog.
 func (p *DefaultPackager) stageManifestCatalog(appPath, bundleDir string) ([]string, error) {
+	return p.stageManifestCatalogForRequirements(appPath, bundleDir, nil)
+}
+
+// stageManifestCatalogForRequirements stages either the complete declarative
+// catalog (legacy callers pass no requirements) or the exact union selected by
+// the bundle manifest. A category root such as catalog/scenarios permits all
+// entries in that category; catalog/scenarios/foo permits only foo.
+func (p *DefaultPackager) stageManifestCatalogForRequirements(appPath, bundleDir string, requirements []string) ([]string, error) {
 	scenariosRoot := filepath.Dir(appPath)
 	if filepath.Base(scenariosRoot) != "scenarios" {
 		return nil, nil
@@ -295,10 +306,23 @@ func (p *DefaultPackager) stageManifestCatalog(appPath, bundleDir string) ([]str
 	for _, root := range []struct {
 		source string
 		file   string
+		dest   string
 	}{
-		{source: scenariosRoot, file: filepath.Join(".vrooli", "service.json")},
-		{source: resourcesRoot, file: "resource.json"},
+		{source: scenariosRoot, file: filepath.Join(".vrooli", "service.json"), dest: "scenarios"},
+		{source: resourcesRoot, file: "resource.json", dest: "resources"},
+		{source: filepath.Join(repoRoot, "internal", "tools"), file: "tool.json", dest: filepath.Join("internal", "tools")},
+		{source: filepath.Join(repoRoot, "internal", "safeguards"), file: "safeguard.json", dest: filepath.Join("internal", "safeguards")},
 	} {
+		allowed, unrestricted := catalogRequirementFilter(requirements, root.dest)
+		if len(requirements) > 0 && !unrestricted && len(allowed) == 0 {
+			continue
+		}
+		if info, err := os.Stat(root.source); err != nil || !info.IsDir() {
+			if err != nil && !os.IsNotExist(err) {
+				return nil, fmt.Errorf("stat manifest catalog %s: %w", root.source, err)
+			}
+			continue
+		}
 		entries, err := os.ReadDir(root.source)
 		if err != nil {
 			return nil, fmt.Errorf("read manifest catalog %s: %w", root.source, err)
@@ -307,13 +331,16 @@ func (p *DefaultPackager) stageManifestCatalog(appPath, bundleDir string) ([]str
 			if !entry.IsDir() {
 				continue
 			}
+			if !unrestricted && !allowed[entry.Name()] {
+				continue
+			}
 			src := filepath.Join(root.source, entry.Name(), root.file)
 			if _, err := os.Stat(src); os.IsNotExist(err) {
 				continue
 			} else if err != nil {
 				return nil, fmt.Errorf("stat manifest catalog entry %s: %w", src, err)
 			}
-			dst := filepath.Join(bundleDir, "catalog", filepath.Base(root.source), entry.Name(), root.file)
+			dst := filepath.Join(bundleDir, "catalog", root.dest, entry.Name(), root.file)
 			if err := p.fileOps.CopyFile(src, dst); err != nil {
 				return nil, fmt.Errorf("copy manifest catalog entry %s: %w", src, err)
 			}
@@ -321,6 +348,28 @@ func (p *DefaultPackager) stageManifestCatalog(appPath, bundleDir string) ([]str
 		}
 	}
 	return copied, nil
+}
+
+func catalogRequirementFilter(requirements []string, category string) (map[string]bool, bool) {
+	if len(requirements) == 0 {
+		return nil, true
+	}
+	root := filepath.Join("catalog", filepath.FromSlash(category))
+	allowed := map[string]bool{}
+	for _, raw := range requirements {
+		requirement := filepath.Clean(filepath.FromSlash(raw))
+		if requirement == root {
+			return nil, true
+		}
+		prefix := root + string(filepath.Separator)
+		if strings.HasPrefix(requirement, prefix) {
+			name := strings.TrimPrefix(requirement, prefix)
+			if name != "" && !strings.ContainsRune(name, filepath.Separator) {
+				allowed[name] = true
+			}
+		}
+	}
+	return allowed, false
 }
 
 // stageServiceBinaries resolves or compiles binaries for a single service across all requested platforms,

@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"connectrpc.com/connect"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit"
@@ -39,7 +40,13 @@ func NewCartographerFileDomainProvider(resolver URLResolver, httpClient connect.
 }
 
 func (p *cartographerFileDomainProvider) DescribeFileDomains(ctx context.Context, target *factsv1.TargetContext) ([]*factsv1.GenericFact, []*factsv1.Evidence, []*factsv1.Warning, error) {
-	if target == nil || !target.GetScenarioAware() || strings.TrimSpace(target.GetScenario()) == "" {
+	if target == nil {
+		return nil, nil, []*factsv1.Warning{providerWarning("architecture-cartographer", "scenario_required", "FILE_DOMAIN facts require a scenario-aware target.", factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED)}, nil
+	}
+	if !target.GetScenarioAware() && (target.GetResolvedKind() == factsv1.TargetKind_TARGET_KIND_PROJECT || target.GetResolvedKind() == factsv1.TargetKind_TARGET_KIND_REPO) {
+		return p.describeProjectFileDomains(ctx, target)
+	}
+	if !target.GetScenarioAware() || strings.TrimSpace(target.GetScenario()) == "" {
 		return nil, nil, []*factsv1.Warning{providerWarning("architecture-cartographer", "scenario_required", "FILE_DOMAIN facts require a scenario-aware target.", factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED)}, nil
 	}
 	if p.resolver == nil {
@@ -67,19 +74,7 @@ func (p *cartographerFileDomainProvider) DescribeFileDomains(ctx context.Context
 		return nil, nil, nil, err
 	}
 	client := signalsconnect.NewSignalsServiceClient(p.httpClient, baseURL)
-	facts := make([]*factsv1.GenericFact, 0, len(files))
-	var warnings []*factsv1.Warning
-	for _, file := range files {
-		resp, scoreErr := client.ScoreChunk(ctx, connect.NewRequest(&signalsv1.ScoreChunkRequest{
-			Scenario: target.GetScenario(),
-			RepoPath: file,
-		}))
-		if scoreErr != nil {
-			warnings = append(warnings, providerWarning("architecture-cartographer.signals", "file_unscored", fmt.Sprintf("%s: %v", file, scoreErr), factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN))
-			continue
-		}
-		facts = append(facts, fileDomainFact(file, authorityConfidence, resp.Msg.GetVerdict()))
-	}
+	facts, warnings := p.scoreFiles(ctx, client, target.GetScenario(), files, authorityConfidence)
 	evidence := []*factsv1.Evidence{{
 		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
 		Confidence: 1,
@@ -88,6 +83,120 @@ func (p *cartographerFileDomainProvider) DescribeFileDomains(ctx context.Context
 	}}
 	sort.SliceStable(facts, func(i, j int) bool { return facts[i].GetSubject() < facts[j].GetSubject() })
 	return facts, evidence, warnings, nil
+}
+
+func (p *cartographerFileDomainProvider) describeProjectFileDomains(ctx context.Context, target *factsv1.TargetContext) ([]*factsv1.GenericFact, []*factsv1.Evidence, []*factsv1.Warning, error) {
+	root := target.GetRootPath()
+	if len(target.GetRootPaths()) > 0 {
+		for _, candidate := range target.GetRootPaths() {
+			if filepath.Base(candidate) == "scenarios" {
+				root = filepath.Dir(candidate)
+				break
+			}
+		}
+	}
+	scenariosRoot := filepath.Join(root, "scenarios")
+	entries, err := os.ReadDir(scenariosRoot)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("list project scenarios for FILE_DOMAIN: %w", err)
+	}
+	type result struct {
+		facts    []*factsv1.GenericFact
+		evidence []*factsv1.Evidence
+		warnings []*factsv1.Warning
+	}
+	results := make([]result, len(entries))
+	sem := make(chan struct{}, 8)
+	var wg sync.WaitGroup
+	for i, entry := range entries {
+		if !entry.IsDir() || !hasServiceManifest(filepath.Join(scenariosRoot, entry.Name())) {
+			continue
+		}
+		i, name := i, entry.Name()
+		select {
+		case <-ctx.Done():
+			return nil, nil, nil, ctx.Err()
+		case sem <- struct{}{}:
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			child := &factsv1.TargetContext{RootPath: filepath.Join(scenariosRoot, name), Scenario: name, ScenarioAware: true, ResolvedKind: factsv1.TargetKind_TARGET_KIND_SCENARIO}
+			facts, evidence, warnings, err := p.DescribeFileDomains(ctx, child)
+			if err != nil {
+				results[i].warnings = []*factsv1.Warning{providerWarning("architecture-cartographer", "scenario_failed", fmt.Sprintf("%s: %v", name, err), factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN)}
+				return
+			}
+			for _, fact := range facts {
+				fact.Id = name + ":" + fact.GetId()
+				if fact.Attributes == nil {
+					fact.Attributes = map[string]string{}
+				}
+				fact.Attributes["scenario"] = name
+			}
+			results[i] = result{facts: facts, evidence: evidence, warnings: warnings}
+		}()
+	}
+	wg.Wait()
+	var facts []*factsv1.GenericFact
+	var evidence []*factsv1.Evidence
+	var warnings []*factsv1.Warning
+	for _, item := range results {
+		facts = append(facts, item.facts...)
+		evidence = append(evidence, item.evidence...)
+		warnings = append(warnings, item.warnings...)
+	}
+	sort.SliceStable(facts, func(i, j int) bool { return facts[i].GetId() < facts[j].GetId() })
+	return facts, evidence, warnings, nil
+}
+
+func (p *cartographerFileDomainProvider) scoreFiles(ctx context.Context, client signalsconnect.SignalsServiceClient, scenario string, files []string, authorityConfidence string) ([]*factsv1.GenericFact, []*factsv1.Warning) {
+	facts := make([]*factsv1.GenericFact, len(files))
+	warnings := make([]*factsv1.Warning, 0)
+	sem := make(chan struct{}, 16)
+	var wg sync.WaitGroup
+	var warningMu sync.Mutex
+	addWarning := func(warning *factsv1.Warning) {
+		warningMu.Lock()
+		defer warningMu.Unlock()
+		warnings = append(warnings, warning)
+	}
+	for i, file := range files {
+		i, file := i, file
+		select {
+		case <-ctx.Done():
+			addWarning(providerWarning("architecture-cartographer.signals", "context_cancelled", ctx.Err().Error(), factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN))
+			continue
+		case sem <- struct{}{}:
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			resp, err := client.ScoreChunk(ctx, connect.NewRequest(&signalsv1.ScoreChunkRequest{Scenario: scenario, RepoPath: file}))
+			if err != nil {
+				addWarning(providerWarning("architecture-cartographer.signals", "file_unscored", fmt.Sprintf("%s: %v", file, err), factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN))
+				return
+			}
+			facts[i] = fileDomainFact(file, authorityConfidence, resp.Msg.GetVerdict())
+		}()
+	}
+	wg.Wait()
+	compact := facts[:0]
+	for _, fact := range facts {
+		if fact != nil {
+			compact = append(compact, fact)
+		}
+	}
+	sort.SliceStable(compact, func(i, j int) bool { return compact[i].GetSubject() < compact[j].GetSubject() })
+	sort.SliceStable(warnings, func(i, j int) bool {
+		if warnings[i].GetCode() != warnings[j].GetCode() {
+			return warnings[i].GetCode() < warnings[j].GetCode()
+		}
+		return warnings[i].GetMessage() < warnings[j].GetMessage()
+	})
+	return compact, warnings
 }
 
 func fileDomainFact(path string, authorityConfidence string, verdict *sharedv1.Verdict) *factsv1.GenericFact {

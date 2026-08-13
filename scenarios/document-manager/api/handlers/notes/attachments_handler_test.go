@@ -12,9 +12,10 @@ import (
 	"testing"
 
 	"document-manager/handlers/notes"
-	"document-manager/internal/clock"
 	"document-manager/internal/testutil/assertx"
 	"document-manager/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -117,8 +118,8 @@ func newAttachmentsRouter(t *testing.T) (*mux.Router, *trackingBlobStore, string
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(internalnotes.Schema),
 	))
-	repo := internalnotes.NewSQLiteRepository(d, clock.System{})
-	attachmentRepo := internalnotes.NewSQLiteAttachmentsRepository(d, clock.System{})
+	repo := internalnotes.NewSQLiteRepository(d, schedule.System())
+	attachmentRepo := internalnotes.NewSQLiteAttachmentsRepository(d, schedule.System())
 	created, err := repo.Create(context.Background(), internalnotes.Note{Title: "upload target"})
 	require.NoError(t, err)
 

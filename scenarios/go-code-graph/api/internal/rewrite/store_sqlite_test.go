@@ -11,7 +11,8 @@ import (
 
 	intrewrite "go-code-graph/internal/rewrite"
 	"go-code-graph/internal/testutil/db"
-	"go-code-graph/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // newSchemaDB returns a connected SQLite handle with the rewrite
@@ -23,7 +24,7 @@ func newSchemaDB(t *testing.T) *intrewrite.SQLiteStore {
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(intrewrite.Schema),
 	))
-	return intrewrite.NewSQLiteStore(d, mocks.NewFakeClock(time.Unix(1717900000, 0).UTC()))
+	return intrewrite.NewSQLiteStore(d, scheduletest.New(time.Unix(1717900000, 0).UTC()))
 }
 
 func TestSQLiteStore_RoundTrip(t *testing.T) {

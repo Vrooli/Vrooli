@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"go-code-graph/handlers/health"
-	"go-code-graph/internal/clock"
 	"go-code-graph/internal/module"
 	"go-code-graph/internal/server"
 	"go-code-graph/internal/testutil/assertx"
 	"go-code-graph/internal/testutil/httpx"
 	"go-code-graph/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/health"
@@ -86,7 +87,7 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)

@@ -118,7 +118,9 @@ type Locator interface {
 }
 
 // Clock is the slim time seam for expiry evaluation.
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	Now() time.Time
 }
 

@@ -6,9 +6,10 @@ import (
 	"testing"
 
 	"architecture-cartographer/internal/analytics"
-	"architecture-cartographer/internal/clock"
 	localdb "architecture-cartographer/internal/database"
 	"architecture-cartographer/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 
 	apidb "github.com/vrooli/api-core/database"
 )
@@ -27,7 +28,7 @@ func newSchemaDB(t *testing.T) *sql.DB {
 
 func TestSQLiteRepository_AppendAndListEvent(t *testing.T) {
 	d := newSchemaDB(t)
-	repo := analytics.NewSQLiteRepository(d, clock.System{})
+	repo := analytics.NewSQLiteRepository(d, schedule.System())
 
 	ev, err := repo.AppendEvent(context.Background(), analytics.Event{
 		Scenario: "demo",
@@ -51,7 +52,7 @@ func TestSQLiteRepository_AppendAndListEvent(t *testing.T) {
 
 func TestSQLiteRepository_StatsSuppressesLowN(t *testing.T) {
 	d := newSchemaDB(t)
-	repo := analytics.NewSQLiteRepository(d, clock.System{})
+	repo := analytics.NewSQLiteRepository(d, schedule.System())
 	for i := 0; i < 3; i++ {
 		if _, err := repo.AppendEvent(context.Background(), analytics.Event{
 			Scenario: "demo", Kind: analytics.EventKindVerdictProduced,
@@ -70,7 +71,7 @@ func TestSQLiteRepository_StatsSuppressesLowN(t *testing.T) {
 
 func TestSQLiteRepository_AppendOverride(t *testing.T) {
 	d := newSchemaDB(t)
-	repo := analytics.NewSQLiteRepository(d, clock.System{})
+	repo := analytics.NewSQLiteRepository(d, schedule.System())
 	got, err := repo.AppendOverride(context.Background(), analytics.Override{
 		Scenario:      "demo",
 		ChunkID:       "c1",

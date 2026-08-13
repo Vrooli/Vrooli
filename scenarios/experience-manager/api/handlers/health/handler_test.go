@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"experience-manager/handlers/health"
-	"experience-manager/internal/clock"
 	"experience-manager/internal/module"
 	"experience-manager/internal/server"
 	"experience-manager/internal/testutil/assertx"
 	"experience-manager/internal/testutil/httpx"
 	"experience-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/shared"
@@ -86,7 +87,7 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)

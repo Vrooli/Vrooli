@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"development-toolchain-validator/internal/golden"
-	"development-toolchain-validator/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -20,12 +21,12 @@ type fakeRepo struct {
 	mu      sync.Mutex
 	byID    map[string]golden.Golden
 	bySlug  map[string]string
-	clock   *mocks.FakeClock
+	clock   *scheduletest.FakeClock
 	nextID  int
 	failOps map[string]error
 }
 
-func newFakeRepo(clk *mocks.FakeClock) *fakeRepo {
+func newFakeRepo(clk *scheduletest.FakeClock) *fakeRepo {
 	return &fakeRepo{
 		byID:    make(map[string]golden.Golden),
 		bySlug:  make(map[string]string),
@@ -125,9 +126,9 @@ func (f *fakeRunner) Regenerate(_ context.Context, in golden.RegenerateRunnerInp
 	return f.out, nil
 }
 
-func newSvc(t *testing.T) (golden.Service, *fakeRepo, *mocks.FakeClock, *fakeRunner) {
+func newSvc(t *testing.T) (golden.Service, *fakeRepo, *scheduletest.FakeClock, *fakeRunner) {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	repo := newFakeRepo(clk)
 	runner := &fakeRunner{}
 	return golden.NewService(repo, clk, runner), repo, clk, runner

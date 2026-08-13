@@ -48,6 +48,11 @@ func Start(ctx context.Context, sources Sources) *Service {
 	if !cfg.SyncDisabled {
 		loop := pkg.NewSyncLoopFunc(envPrefix, svc.Reconciler, cfg)
 		go loop.Start(ctx)
+		go func() {
+			if _, _, err := loop.RunOnce(ctx); err != nil {
+				log.Printf("[scenario-dependency-analyzer/aisearch] initial search reconcile failed (continuing degraded): %v", err)
+			}
+		}()
 	}
 
 	return svc

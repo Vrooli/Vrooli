@@ -20,14 +20,14 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-	"landing-page-business-suite/cli/internal/clock"
 )
 
 type Dependencies struct {
 	Core  func() *cliapp.ScenarioApp
-	Clock clock.Clock
+	Clock schedule.Clock
 }
 
 // adminConnectHTTPClient adds the persisted admin session to generated Connect
@@ -63,7 +63,7 @@ func (d Dependencies) AdminConnectHTTPClient() (connect.HTTPClient, string, erro
 
 func (d Dependencies) Now() time.Time {
 	if d.Clock == nil {
-		return clock.System{}.Now()
+		return schedule.System().Now()
 	}
 	return d.Clock.Now()
 }

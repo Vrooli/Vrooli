@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"brand-manager/internal/clock"
 	"brand-manager/internal/modules"
 	"brand-manager/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -181,28 +182,28 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "brand-manager-api", "1.0.0"),
-		assetsH.Module(db, clock.System{}, log.Default(), assetsDir),
-		assignmentsH.Module(db, clock.System{}, log.Default()),
-		brandsH.Module(db, clock.System{}, log.Default()),
+		assetsH.Module(db, schedule.System(), log.Default(), assetsDir),
+		assignmentsH.Module(db, schedule.System(), log.Default()),
+		brandsH.Module(db, schedule.System(), log.Default()),
 		// Generation owns no table; it composes the brands + assets domains
 		// behind two adapters and writes generated images into the same assets
 		// tree (hence assetsDir). The provider chain is built from the
 		// environment (OLLAMA_ROLE, OPENROUTER_API_KEY, …).
-		generationH.Module(db, clock.System{}, log.Default(), assetsDir),
+		generationH.Module(db, schedule.System(), log.Default(), assetsDir),
 		// Apply owns no table; it composes the brands + assets + assignments
 		// domains and writes brand files into a target scenario's source tree
 		// (scenariosDir) using the same assets blob root (assetsDir) for image
 		// bytes.
-		applyH.Module(db, clock.System{}, log.Default(), scenariosBaseDir(), assetsDir),
+		applyH.Module(db, schedule.System(), log.Default(), scenariosBaseDir(), assetsDir),
 		// Discovery owns no table; it scans a scenario's source tree
 		// (scenariosDir) for branding state and imports the inferred draft as a
 		// new brand through the brands domain.
-		discoveryH.Module(db, clock.System{}, log.Default(), scenariosBaseDir()),
+		discoveryH.Module(db, schedule.System(), log.Default(), scenariosBaseDir()),
 		// Design owns no table; it composes the brands domain behind one adapter
 		// and renders a brand into a canonical DESIGN.md document (read-only).
-		designH.Module(db, clock.System{}, log.Default()),
+		designH.Module(db, schedule.System(), log.Default()),
 		// Branding validation: the served ScenarioValidationService test-genie's
 		// `branding` delegated phase calls. brand-manager both authors and
 		// validates branding, so the provider lives in this one scenario.

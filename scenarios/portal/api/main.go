@@ -9,10 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"portal/internal/clock"
 	"portal/internal/modules"
 	internalsearch "portal/internal/search"
 	"portal/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -118,7 +119,7 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
-	clk := clock.System{}
+	clk := schedule.System()
 	integrationRegistry := integrationsH.NewRegistry(db, clk)
 	chatRepo := internalchat.NewSQLiteRepository(db, clk)
 	chatService := internalchat.NewService(chatRepo)

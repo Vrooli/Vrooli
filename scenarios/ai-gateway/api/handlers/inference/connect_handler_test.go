@@ -10,15 +10,16 @@ import (
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
 
 	handler "ai-gateway/handlers/inference"
-	"ai-gateway/internal/clock"
 	"ai-gateway/internal/inference"
 	"ai-gateway/internal/server"
 	"ai-gateway/internal/testutil/httpx"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func TestRunIsReachableThroughGeneratedConnectClient(t *testing.T) {
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		handler.Module(handler.Deps{Service: inference.NewService(nil)}),
 	)
 	live := httpx.NewLiveServer(t, srv)

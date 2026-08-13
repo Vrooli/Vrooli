@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/destinations"
 	"data-backup-manager/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // TestEnsureColumns_AdditiveAndIdempotent proves the migration adds
@@ -42,7 +43,7 @@ func TestEnsureColumns_AdditiveAndIdempotent(t *testing.T) {
 		t.Fatalf("EnsureColumns (idempotent): %v", err)
 	}
 
-	repo := destinations.NewSQLiteRepository(d, clock.System{})
+	repo := destinations.NewSQLiteRepository(d, schedule.System())
 	got, err := repo.GetByID(ctx, "legacy")
 	if err != nil {
 		t.Fatalf("GetByID legacy: %v", err)

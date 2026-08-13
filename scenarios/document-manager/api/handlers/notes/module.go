@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"log"
 
-	"document-manager/internal/clock"
 	"document-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/blobstore"
@@ -29,7 +30,7 @@ import (
 // Adding a real domain to a scenario means copying this file into
 // handlers/<dom>/module.go and pointing it at <dom>'s proto-generated handler
 // and service. The center (server.New) does not change.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	blobs, err := defaultBlobStore()
 	if err != nil {
 		logger.Fatalf("notes attachments storage: %v", err)
@@ -40,7 +41,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 // ModuleWithBlobStore is the explicit-injection variant used by tests
 // (typically with blobstore.NewMemoryBlobStore()) and by callers that
 // want to swap the blob backend.
-func ModuleWithBlobStore(db *database.RoutedDB, clk clock.Clock, blobs blobstore.BlobStore, logger *log.Logger) module.Module {
+func ModuleWithBlobStore(db *database.RoutedDB, clk schedule.Clock, blobs blobstore.BlobStore, logger *log.Logger) module.Module {
 	repo := internalnotes.NewSQLiteRepository(db, clk)
 	attachmentsRepo := internalnotes.NewSQLiteAttachmentsRepository(db, clk)
 	svc := internalnotes.NewService(repo)

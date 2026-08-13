@@ -10,10 +10,11 @@ import (
 	"time"
 
 	"cli-health/internal/aisearch"
-	"cli-health/internal/clock"
 	"cli-health/internal/commandref"
 	"cli-health/internal/modules"
 	"cli-health/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	aisearchpkg "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/database"
@@ -227,7 +228,7 @@ func main() {
 	})
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: logger},
+		server.Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, "cli-health-api", "1.0.0"),
 		validationH.Module(logger, repoRoot, externalCLINames(discovery.ListExternalCLIs())),
 		commandH.Module(logger, commandref.Service{Discovery: discovery, Schemas: manifestscan.NewDescriptorSchemaReader(repoRoot)}),

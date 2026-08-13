@@ -15,10 +15,11 @@ import (
 	"log"
 
 	"flow-verifier/internal/artifacts"
-	"flow-verifier/internal/clock"
 	"flow-verifier/internal/module"
 	"flow-verifier/internal/pipeline"
 	"flow-verifier/internal/runs"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -27,7 +28,7 @@ import (
 )
 
 // Module returns the artifacts domain's Connect-RPC contribution.
-func Module(db *sql.DB, clk clock.Clock, scenariosSvc ScenariosService) module.Module {
+func Module(db *sql.DB, clk schedule.Clock, scenariosSvc ScenariosService) module.Module {
 	runsSvc := runs.NewService(runs.NewSQLiteRepository(db, clk))
 	svc := NewService(runsSvc)
 	return ModuleWithDeps(svc, scenariosSvc, log.Default())

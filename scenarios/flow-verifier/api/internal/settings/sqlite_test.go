@@ -7,7 +7,8 @@ import (
 
 	"flow-verifier/internal/settings"
 	"flow-verifier/internal/testutil/db"
-	"flow-verifier/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -16,14 +17,14 @@ import (
 	localdb "flow-verifier/internal/database"
 )
 
-func newRepo(t *testing.T) (settings.Repository, *mocks.FakeClock) {
+func newRepo(t *testing.T) (settings.Repository, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(settings.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 12, 0, 0, 0, time.UTC))
 	return settings.NewSQLiteRepository(d, clk), clk
 }
 

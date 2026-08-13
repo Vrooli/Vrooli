@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"architecture-cartographer/internal/clock"
 	localdb "architecture-cartographer/internal/database"
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 
 	apidb "github.com/vrooli/api-core/database"
 )
@@ -52,7 +53,7 @@ CREATE TABLE graph_snapshots (
 		t.Fatalf("EnsureSchemas after graph migration: %v", err)
 	}
 
-	repo := graph.NewSQLiteRepository(d, clock.System{})
+	repo := graph.NewSQLiteRepository(d, schedule.System())
 	if _, err := repo.SaveSnapshot(context.Background(), graph.GraphSnapshot{
 		Scenario:          "demo",
 		ContentHash:       "h1",
@@ -77,7 +78,7 @@ func TestMigrateSchema_AllowsFreshDatabaseBeforeSchemaCreation(t *testing.T) {
 
 func TestSQLiteRepository_SaveAndGetSnapshot(t *testing.T) {
 	d := newSchemaDB(t)
-	repo := graph.NewSQLiteRepository(d, clock.System{})
+	repo := graph.NewSQLiteRepository(d, schedule.System())
 
 	snap := graph.GraphSnapshot{
 		Scenario:          "demo",
@@ -114,7 +115,7 @@ func TestSQLiteRepository_SaveAndGetSnapshot(t *testing.T) {
 
 func TestSQLiteRepository_FindBySourceFingerprint(t *testing.T) {
 	d := newSchemaDB(t)
-	repo := graph.NewSQLiteRepository(d, clock.System{})
+	repo := graph.NewSQLiteRepository(d, schedule.System())
 	if _, err := repo.SaveSnapshot(context.Background(), graph.GraphSnapshot{
 		Scenario: "demo", ContentHash: "h1", SourceFingerprint: "src:demo",
 	}); err != nil {
@@ -138,7 +139,7 @@ func TestSQLiteRepository_FindBySourceFingerprint(t *testing.T) {
 
 func TestSQLiteRepository_LatestSnapshotMetaDoesNotDecodePayload(t *testing.T) {
 	d := newSchemaDB(t)
-	repo := graph.NewSQLiteRepository(d, clock.System{})
+	repo := graph.NewSQLiteRepository(d, schedule.System())
 	_, err := d.ExecContext(context.Background(), `
 INSERT INTO graph_snapshots (id, scenario, content_hash, source_fingerprint, payload, extracted_at, extraction_ms)
 VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -162,7 +163,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)`,
 
 func TestSQLiteRepository_FindByHashAndClear(t *testing.T) {
 	d := newSchemaDB(t)
-	repo := graph.NewSQLiteRepository(d, clock.System{})
+	repo := graph.NewSQLiteRepository(d, schedule.System())
 	if _, err := repo.SaveSnapshot(context.Background(), graph.GraphSnapshot{
 		Scenario: "demo", ContentHash: "h1",
 	}); err != nil {

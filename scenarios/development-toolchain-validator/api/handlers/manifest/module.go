@@ -9,8 +9,9 @@ import (
 
 	"github.com/vrooli/api-core/database"
 
-	"development-toolchain-validator/internal/clock"
 	"development-toolchain-validator/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -21,7 +22,7 @@ import (
 )
 
 // Module returns the manifest domain's contribution to the API.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	repo := internalmanifest.NewSQLiteRepository(db, clk)
 	svc := internalmanifest.NewService(repo, clk)
 	connectPath, connectHandler := manifestconnect.NewManifestServiceHandler(NewConnectHandler(Deps{

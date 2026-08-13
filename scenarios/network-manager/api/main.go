@@ -9,10 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"network-manager/internal/clock"
 	"network-manager/internal/modules"
 	"network-manager/internal/resolver"
 	"network-manager/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -126,7 +127,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "network-manager-api", "1.0.0"),
 		adaptersH.Module(db),
 		homeintegrationH.Module(db),

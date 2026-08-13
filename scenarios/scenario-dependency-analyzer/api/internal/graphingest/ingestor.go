@@ -41,7 +41,9 @@ type Persister interface {
 }
 
 // Clock is the time seam for deterministic tests.
-type Clock interface{ Now() time.Time }
+type Clock = TimeSource
+
+type TimeSource interface{ Now() time.Time }
 
 type systemClock struct{}
 

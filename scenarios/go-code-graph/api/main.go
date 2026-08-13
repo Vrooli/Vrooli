@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"go-code-graph/internal/clock"
 	"go-code-graph/internal/modules"
 	"go-code-graph/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -113,11 +114,11 @@ func main() {
 	graphSvc := intgraph.NewService(loader, pathMutex)
 
 	executor := intrewrite.NewFSExecutor()
-	planStore := intrewrite.NewSQLiteStore(db.Primary(), clock.System{})
+	planStore := intrewrite.NewSQLiteStore(db.Primary(), schedule.System())
 	rewriteSvc := intrewrite.NewServiceWithLog(planStore, executor, pathMutex, planStore)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "go-code-graph-api", "1.0.0"),
 		graphH.Module(graphSvc, rewriteSvc, log.Default()),
 		rewriteH.Module(rewriteSvc, log.Default()),

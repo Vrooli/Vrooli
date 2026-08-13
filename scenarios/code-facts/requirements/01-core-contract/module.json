@@ -15,7 +15,7 @@
       "prd_ref": "OT-P0-001",
       "category": "target",
       "criticality": "P0",
-      "description": "Resolve path, scenario, module, and project targets into a canonical root, target kind, optional scenario context, language filter, and evidence-backed diagnostics.",
+      "description": "Resolve path, scenario, project, repo, package, and control-plane targets into a canonical root, target kind, optional scenario context, language filter, and evidence-backed diagnostics; reject deferred kinds with typed errors.",
       "tags": [
         "target",
         "resolution"

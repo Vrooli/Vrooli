@@ -10,9 +10,10 @@ import (
 	"strings"
 
 	"scenario-to-android/internal/capabilities"
-	"scenario-to-android/internal/clock"
 	"scenario-to-android/internal/modules"
 	"scenario-to-android/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -150,7 +151,7 @@ func main() {
 	fileRoots := filerouting.New(primaryFileRoots)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "scenario-to-android-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 	)

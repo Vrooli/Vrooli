@@ -942,6 +942,21 @@ func sourceFingerprint(target *factsv1.TargetContext, units []*factsv1.ParseUnit
 	return fileStatSignature(target.GetRootPath(), sourceFiles(roots)), fileStatSignature(target.GetRootPath(), keys(configs))
 }
 
+func sourceFingerprintForUnit(unit *factsv1.ParseUnit) (sourceHash string, configHash string) {
+	if unit == nil {
+		return "", ""
+	}
+	root := filepath.Clean(unit.GetRootPath())
+	if root == "." || root == "" {
+		return "", ""
+	}
+	configs := map[string]bool{}
+	if unit.GetConfigPath() != "" {
+		configs[unit.GetConfigPath()] = true
+	}
+	return fileStatSignature(root, sourceFiles(map[string]bool{root: true})), fileStatSignature(root, keys(configs))
+}
+
 func sourceFiles(roots map[string]bool) []string {
 	seen := map[string]bool{}
 	for root := range roots {

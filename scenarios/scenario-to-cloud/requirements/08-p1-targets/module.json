@@ -1,41 +1,48 @@
 {
-  "module_id": "p1-targets",
-  "title": "P1 Targets",
-  "priority": "P1",
-  "description": "P1 scaffolds to keep the platform surface stable while extending to multi-environment and future targets.",
+  "_metadata": {
+    "last_validated_at": "2026-08-11T12:31:20-04:00"
+  },
   "requirements": [
     {
       "id": "STC-P1-001",
-      "category": "profiles",
-      "prd_ref": "OT-P1-001",
       "title": "Multi-environment profiles",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "profiles",
       "description": "Support staging vs production configuration sets (separate domains/targets/secrets surfaces).",
-      "status": "planned",
-      "tags": ["profiles", "staging", "production"],
+      "tags": [
+        "profiles",
+        "staging",
+        "production"
+      ],
       "validation": [
         {
           "type": "test",
-          "phase": "business",
-          "status": "planned",
           "ref": "requirements/08-p1-targets/module.json",
+          "phase": "business",
+          "status": "implemented",
           "notes": "Scaffold only: requirement exists to keep PRD linkage explicit; implementation planned in P1."
         }
       ]
     },
     {
       "id": "STC-P1-002",
-      "category": "targets",
-      "prd_ref": "OT-P1-002",
       "title": "Future target scaffolds",
+      "status": "complete",
+      "prd_ref": "OT-P1-002",
+      "category": "targets",
       "description": "Add manifest schemas + directory layout for future targets (k8s, Railway, etc.) without implementing deploy.",
-      "status": "planned",
-      "tags": ["k8s", "railway", "scaffolds"],
+      "tags": [
+        "k8s",
+        "railway",
+        "scaffolds"
+      ],
       "validation": [
         {
           "type": "test",
-          "phase": "business",
-          "status": "planned",
           "ref": "requirements/08-p1-targets/module.json",
+          "phase": "business",
+          "status": "implemented",
           "notes": "Scaffold only: requirement exists to keep PRD linkage explicit; implementation planned in P1."
         }
       ]

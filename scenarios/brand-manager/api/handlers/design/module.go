@@ -13,8 +13,9 @@ import (
 	"errors"
 	"log"
 
-	"brand-manager/internal/clock"
 	"brand-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -29,7 +30,7 @@ import (
 // Module returns the design domain's contribution to the API: the generated
 // Connect-RPC DesignService handler over the design service plus a brand adapter
 // that reads brands through the brands domain's service.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	brandsSvc := internalbrands.NewService(
 		internalbrands.NewSQLiteRepository(db, clk),
 		internalbrands.NewSQLiteVersionRepository(db, clk),

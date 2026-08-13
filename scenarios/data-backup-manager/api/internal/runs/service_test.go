@@ -18,6 +18,8 @@ import (
 	sourcesmocks "data-backup-manager/internal/sources/mocks"
 	"data-backup-manager/internal/testutil/db"
 	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newRunsDB(t *testing.T) *sql.DB {
@@ -36,7 +38,7 @@ func newRunsDB(t *testing.T) *sql.DB {
 // every other seam. Returns the service and the fakes the test asserts on.
 func buildService(t *testing.T, plan runs.PlanForRun, targets map[string]runs.TargetForRun, blockFn func(string, int64) (bool, string, error)) (runs.Service, *mocks.FakeKopiaEngine, *runsmocks.FakeEventSink, *sourcesmocks.FakeCapturer) {
 	t.Helper()
-	repo := runs.NewSQLiteRepository(newRunsDB(t), mocks.NewFakeClock(time.Time{}))
+	repo := runs.NewSQLiteRepository(newRunsDB(t), scheduletest.New(time.Time{}))
 	eng := &mocks.FakeKopiaEngine{}
 	capt := &sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}
 	registry := sources.NewRegistry(capt)
@@ -51,7 +53,7 @@ func buildService(t *testing.T, plan runs.PlanForRun, targets map[string]runs.Ta
 		Engine:       eng,
 		Sources:      registry,
 		Events:       events,
-		Clock:        mocks.NewFakeClock(time.Time{}),
+		Clock:        scheduletest.New(time.Time{}),
 		StagingRoot:  t.TempDir(),
 		// Inline executor: TriggerRun runs the job to completion synchronously so
 		// the test can GetRun the terminal run without polling.
@@ -76,7 +78,7 @@ func (r *failFirstStatusRepo) UpdateRunStatus(ctx context.Context, id string, st
 
 func TestRun_StatusTransitionFailureIsVisibleAndStopsCapture(t *testing.T) {
 	ctx := context.Background()
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	base := runs.NewSQLiteRepository(newRunsDB(t), clk)
 	repo := &failFirstStatusRepo{Repository: base, err: errors.New("catalog is unavailable")}
 	eng := &mocks.FakeKopiaEngine{}
@@ -299,7 +301,7 @@ func TestListTargetStatus_DefaultsToActiveCatalogTargets(t *testing.T) {
 	svc := runs.NewService(runs.Deps{
 		Repo:          repo,
 		ActiveTargets: &runsmocks.FakeActiveTargetLookup{TargetIDs: []string{"current-target"}},
-		Clock:         mocks.NewFakeClock(now),
+		Clock:         scheduletest.New(now),
 		Executor:      runsmocks.NewSyncExecutor(),
 	})
 	statuses, err := svc.ListTargetStatus(ctx, nil)
@@ -354,7 +356,7 @@ func TestListTargetStatus_NextScheduledAt(t *testing.T) {
 		Repo:          repo,
 		ActiveTargets: &runsmocks.FakeActiveTargetLookup{TargetIDs: []string{"scheduled-target", "manual-target"}},
 		NextSchedule:  fakeNextSchedule{byTarget: map[string]time.Time{"scheduled-target": nextFire}},
-		Clock:         mocks.NewFakeClock(now),
+		Clock:         scheduletest.New(now),
 		Executor:      runsmocks.NewSyncExecutor(),
 	})
 

@@ -53,6 +53,10 @@ func (s *Supervisor) ValidateBundle() *api.BundleValidationResult {
 		})
 		return result
 	}
+	for _, catalogError := range validateCatalogRequirements(s.opts.BundlePath, s.fs, s.opts.Manifest.CatalogRequirements) {
+		result.Valid = false
+		result.Errors = append(result.Errors, catalogError)
+	}
 
 	// Check all service binaries exist.
 	for _, svc := range s.opts.Manifest.Services {
@@ -61,6 +65,22 @@ func (s *Supervisor) ValidateBundle() *api.BundleValidationResult {
 	}
 
 	return result
+}
+
+func validateCatalogRequirements(bundlePath string, fs FileSystem, requirements []string) []api.BundleError {
+	var errors []api.BundleError
+	for _, required := range requirements {
+		required = strings.TrimSpace(required)
+		if required == "" {
+			continue
+		}
+		path := manifest.ResolvePath(bundlePath, required)
+		info, err := fs.Stat(path)
+		if err != nil || !info.IsDir() {
+			errors = append(errors, api.BundleError{Code: "catalog_missing", Path: required, Message: fmt.Sprintf("declared catalog path missing from bundle: %s", required)})
+		}
+	}
+	return errors
 }
 
 // validateServiceBinaries checks that the binary for a service exists.

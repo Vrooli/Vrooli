@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"architecture-cartographer/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // TestPayloadCodec_RoundTripIsByteExact is the correctness bar for compression:
@@ -101,7 +101,7 @@ func TestPayloadCodec_RejectsCorruptCompressedData(t *testing.T) {
 // row and a newly written row live in the same table and both read correctly.
 func TestSnapshotStorage_MixedEncodingsCoexist(t *testing.T) {
 	db, _ := newRetentionDB(t)
-	repo := NewSQLiteRepository(db, clock.System{})
+	repo := NewSQLiteRepository(db, schedule.System())
 	ctx := context.Background()
 
 	// A legacy row: raw JSON, empty codec, written the way the old code did.
@@ -172,7 +172,7 @@ func TestSnapshotStorage_MixedEncodingsCoexist(t *testing.T) {
 // genuinely smaller than the JSON they encode.
 func TestSnapshotStorage_CompressionShrinksStoredRows(t *testing.T) {
 	db, _ := newRetentionDB(t)
-	repo := NewSQLiteRepository(db, clock.System{})
+	repo := NewSQLiteRepository(db, schedule.System())
 	ctx := context.Background()
 
 	// A snapshot shaped like a real one: many similar file records.
@@ -222,7 +222,7 @@ func TestPayloadCodecMigration_IsIdempotent(t *testing.T) {
 	db, _ := newRetentionDB(t)
 	ctx := context.Background()
 
-	repo := NewSQLiteRepository(db, clock.System{}).(*sqliteRepository)
+	repo := NewSQLiteRepository(db, schedule.System()).(*sqliteRepository)
 	for i := 0; i < 3; i++ {
 		repo.sourceFingerprintReady.Store(false)
 		if err := repo.ensureSourceFingerprintColumn(ctx); err != nil {

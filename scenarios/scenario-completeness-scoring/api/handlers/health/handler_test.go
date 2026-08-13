@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"scenario-completeness-scoring/handlers/health"
-	"scenario-completeness-scoring/internal/clock"
 	"scenario-completeness-scoring/internal/module"
 	"scenario-completeness-scoring/internal/server"
 	"scenario-completeness-scoring/internal/testutil/assertx"
 	"scenario-completeness-scoring/internal/testutil/httpx"
 	"scenario-completeness-scoring/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/health"
@@ -86,7 +87,7 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)

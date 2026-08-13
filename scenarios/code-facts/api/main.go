@@ -11,9 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"code-facts/internal/clock"
 	"code-facts/internal/modules"
+	"code-facts/internal/registration"
 	"code-facts/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -149,7 +151,7 @@ func main() {
 	}()
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "code-facts-api", "1.0.0", func(ctx context.Context) (map[string]any, error) {
 			return factsH.CacheMetrics(ctx, db.Primary(), cacheMaxBytes)
 		}),
@@ -163,6 +165,7 @@ func main() {
 	devrouting.Register(rootMux, db)
 
 	rootMux.Handle("/", srv.Handler())
+	go registration.Register(ctx, searchDescriptorPath(), log.Default())
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
@@ -175,4 +178,16 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func searchDescriptorPath() string {
+	if path := strings.TrimSpace(os.Getenv("CODE_FACTS_SEARCH_FILE")); path != "" {
+		return path
+	}
+	for _, path := range []string{filepath.Join("..", ".vrooli", "search.json"), filepath.Join(".vrooli", "search.json")} {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	return filepath.Join("..", ".vrooli", "search.json")
 }

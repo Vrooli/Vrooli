@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"development-toolchain-validator/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Service is the application-layer surface the manifest handlers depend
@@ -21,11 +21,11 @@ type Service interface {
 
 type service struct {
 	repo  Repository
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewService constructs the production Service.
-func NewService(repo Repository, clk clock.Clock) Service {
+func NewService(repo Repository, clk schedule.Clock) Service {
 	return &service{repo: repo, clock: clk}
 }
 

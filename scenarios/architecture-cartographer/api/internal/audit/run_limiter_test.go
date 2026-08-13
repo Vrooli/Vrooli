@@ -11,7 +11,8 @@ import (
 	"architecture-cartographer/internal/domains"
 	domainsmocks "architecture-cartographer/internal/domains/mocks"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func TestRunLimiter_CancellationWhileQueuedReturnsPromptly(t *testing.T) {
@@ -22,7 +23,7 @@ func TestRunLimiter_CancellationWhileQueuedReturnsPromptly(t *testing.T) {
 	}}
 	c := &conflictsmocks.FakeService{}
 	limiter := audit.NewRunLimiter(1)
-	svc := audit.NewService(g, d, c, nil, nil, nil, mocks.NewFakeClock(time.Time{}), audit.WithRunLimiter(limiter))
+	svc := audit.NewService(g, d, c, nil, nil, nil, scheduletest.New(time.Time{}), audit.WithRunLimiter(limiter))
 
 	firstDone := make(chan error, 1)
 	go func() {

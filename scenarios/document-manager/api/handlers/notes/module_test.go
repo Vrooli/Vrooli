@@ -17,10 +17,11 @@ import (
 	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/notes/notes_v1connect"
 
 	"document-manager/handlers/notes"
-	"document-manager/internal/clock"
 	localdb "document-manager/internal/database"
 	internalnotes "document-manager/internal/notes"
 	"document-manager/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func TestModule_Shape(t *testing.T) {
@@ -30,7 +31,7 @@ func TestModule_Shape(t *testing.T) {
 		apidb.SchemaProviderFunc(internalnotes.Schema),
 	))
 
-	m := notes.ModuleWithBlobStore(apidb.NewFromPrimary(d), clock.System{}, blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
+	m := notes.ModuleWithBlobStore(apidb.NewFromPrimary(d), schedule.System(), blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
 
 	require.Equal(t, "notes", m.Name)
 	require.NotNil(t, m.Mount, "Mount closure must be set")
@@ -46,7 +47,7 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 		apidb.SchemaProviderFunc(internalnotes.Schema),
 	))
 
-	m := notes.ModuleWithBlobStore(apidb.NewFromPrimary(d), clock.System{}, blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
+	m := notes.ModuleWithBlobStore(apidb.NewFromPrimary(d), schedule.System(), blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
 	r := mux.NewRouter()
 	m.Mount(r)
 

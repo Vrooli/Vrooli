@@ -8,20 +8,20 @@ import (
 	"fmt"
 	"time"
 
-	"flow-verifier/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 const settingsTimeFormat = time.RFC3339Nano
 
 type sqliteRepository struct {
 	db    *sql.DB
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository. db is the
 // connection pool opened in main.go; clk supplies UpdatedAt on Upsert
 // so tests can advance time deterministically.
-func NewSQLiteRepository(db *sql.DB, clk clock.Clock) Repository {
+func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

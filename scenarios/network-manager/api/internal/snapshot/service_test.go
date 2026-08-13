@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	testmocks "network-manager/internal/testutil/mocks"
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -64,7 +64,7 @@ func (r *fakeRepo) Count(context.Context) (int, error) {
 func TestServiceRunPersistsFirstSnapshotAsBaseline(t *testing.T) {
 	// [REQ:NM-P0-001] First real snapshot is persisted as the baseline anchor.
 	repo := &fakeRepo{}
-	clk := testmocks.NewFakeClock(time.Date(2026, 6, 23, 16, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 23, 16, 0, 0, 0, time.UTC))
 	svc := NewService(Config{Repo: repo, Clock: clk, Runner: fakeRunner{results: []ProbeResult{
 		{Name: "dns_lookup_latency", Value: "18", Unit: "ms", Status: "healthy"},
 		{Name: "throughput_availability", Value: "unavailable", Unit: "status", Status: "unavailable", Finding: "Throughput unavailable until approved."},

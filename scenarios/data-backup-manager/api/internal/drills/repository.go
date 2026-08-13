@@ -29,4 +29,6 @@ type RestoreRunner interface {
 	GetRestore(ctx context.Context, restoreID string) (Restore, error)
 }
 
-type Clock interface{ Now() time.Time }
+type Clock = TimeSource
+
+type TimeSource interface{ Now() time.Time }

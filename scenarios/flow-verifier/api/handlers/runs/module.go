@@ -8,9 +8,10 @@ import (
 	"database/sql"
 	"log"
 
-	"flow-verifier/internal/clock"
 	"flow-verifier/internal/module"
 	"flow-verifier/internal/runs"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -19,7 +20,7 @@ import (
 )
 
 // Module returns the runs domain's Connect-RPC contribution.
-func Module(db *sql.DB, clk clock.Clock) module.Module {
+func Module(db *sql.DB, clk schedule.Clock) module.Module {
 	svc := runs.NewService(runs.NewSQLiteRepository(db, clk))
 	return ModuleWithService(svc, log.Default())
 }

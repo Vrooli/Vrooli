@@ -7,13 +7,13 @@ import (
 
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/shared"
 
-	"portal/internal/testutil/mocks"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func TestServiceStatusProbesAndEvaluatesMode(t *testing.T) {
 	t.Parallel()
 
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC))
 	service := NewService(Config{
 		Clock:      clk,
 		WindowSize: 4,

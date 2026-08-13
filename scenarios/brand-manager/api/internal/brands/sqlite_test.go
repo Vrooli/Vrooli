@@ -7,7 +7,8 @@ import (
 
 	"brand-manager/internal/brands"
 	"brand-manager/internal/testutil/db"
-	"brand-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -19,7 +20,7 @@ import (
 type sqliteRepos struct {
 	repo     brands.Repository
 	versions brands.VersionRepository
-	clock    *mocks.FakeClock
+	clock    *scheduletest.FakeClock
 }
 
 func newSchemaDB(t *testing.T) *sqliteRepos {
@@ -29,7 +30,7 @@ func newSchemaDB(t *testing.T) *sqliteRepos {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(brands.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	return &sqliteRepos{
 		repo:     brands.NewSQLiteRepository(d, clk),
 		versions: brands.NewSQLiteVersionRepository(d, clk),

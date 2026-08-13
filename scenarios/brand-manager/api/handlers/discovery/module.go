@@ -12,8 +12,9 @@ import (
 	"context"
 	"log"
 
-	"brand-manager/internal/clock"
 	"brand-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -29,7 +30,7 @@ import (
 // Connect-RPC DiscoveryService handler over the discovery service plus a brand
 // adapter and a filesystem scanner. scenariosRoot is the directory that contains
 // scenario source trees discovery scans for branding state.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, scenariosRoot string) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, scenariosRoot string) module.Module {
 	brandsSvc := internalbrands.NewService(
 		internalbrands.NewSQLiteRepository(db, clk),
 		internalbrands.NewSQLiteVersionRepository(db, clk),

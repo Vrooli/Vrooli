@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"scenario-authenticator/internal/clock"
 	"scenario-authenticator/internal/modules"
 	"scenario-authenticator/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -22,8 +23,6 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
-	"github.com/vrooli/api-core/trustposture"
-	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect"
 	authH "scenario-authenticator/handlers/auth"
 	healthH "scenario-authenticator/handlers/health"
 	jwksH "scenario-authenticator/handlers/jwks"
@@ -37,6 +36,9 @@ import (
 	"scenario-authenticator/internal/realm"
 	"scenario-authenticator/internal/redisstate"
 	"scenario-authenticator/internal/sessions"
+
+	"github.com/vrooli/api-core/trustposture"
+	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -157,7 +159,7 @@ func main() {
 	// and break every relying party). Redis is REQUIRED hot state (sessions,
 	// refresh-family revocation, blacklist are security controls); a failed
 	// connection is boot-fatal, never a silent degrade.
-	clk := clock.System{}
+	clk := schedule.System()
 	keyDir, err := authcrypto.ResolveKeyDir()
 	if err != nil {
 		log.Fatalf("resolve signing key directory: %v", err)
@@ -250,7 +252,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "scenario-authenticator-api", "1.0.0"),
 		authH.Module(authService, log.Default()),
 		sessionsH.Module(authService, log.Default()),

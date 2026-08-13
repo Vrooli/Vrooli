@@ -69,12 +69,18 @@ func New(specs []corpusSpec, deps pkg.EngineDeps, parallelism, maxEmbedsPerTick 
 
 	for _, spec := range specs {
 		d := deps
-		d.Collection = spec.collection
+		collection := collectionForTuning(spec.collection, spec.tuning)
+		d.Collection = collection
 		te := pkg.NewServiceForTuning(spec.tuning, d)
 		if shared == nil {
 			shared = te.Embedder
 		}
-		bindings = append(bindings, pkg.NewDenseBinding(spec.kind, spec.idPrefix, te.VectorStore, spec.source))
+		if te.SparseEncoder != nil {
+			bindings = append(bindings, pkg.NewHybridBinding(spec.kind, spec.idPrefix, te.VectorStore, spec.source,
+				pkg.NewIdentityChunker(), pkg.NewIdentityComposer(), te.SparseEncoder))
+		} else {
+			bindings = append(bindings, pkg.NewDenseBinding(spec.kind, spec.idPrefix, te.VectorStore, spec.source))
+		}
 		builts = append(builts, built{spec: spec, te: te})
 	}
 
@@ -94,6 +100,7 @@ func New(specs []corpusSpec, deps pkg.EngineDeps, parallelism, maxEmbedsPerTick 
 			t = t.WithDefaults()
 			base := pkg.ServiceOptions{
 				Embedder:      shared,
+				SparseEncoder: b.te.SparseEncoder,
 				VectorStore:   b.te.VectorStore,
 				Reranker:      b.te.Reranker,
 				Reconciler:    rec,

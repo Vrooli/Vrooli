@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -25,7 +27,7 @@ func TestDescribeDiscoversGenericGoModule(t *testing.T) {
 	writeFile(t, filepath.Join(root, "main.go"), "package main\n")
 
 	report, err := NewService().Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{
-		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_MODULE, Path: root},
+		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root},
 		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SURFACES, factsv1.FactFamily_FACT_FAMILY_PARSE_UNITS},
 	})
 	if err != nil {
@@ -194,6 +196,53 @@ func TestDescribeFleetImportsRejectsInvalidLimit(t *testing.T) {
 	}
 }
 
+func TestSearchReturnsLexicalNodeEvidenceWithProvenance(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/search\n\ngo 1.25\n")
+	provider := fakeProvider{
+		language: "go", analyzer: "go-code-graph",
+		result: &GraphResult{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{{
+			Id: "symbol:retry", Name: "RetryProvider", Path: "internal/retry.go", Attributes: map[string]string{"kind": "GO_NODE_KIND_FUNC"},
+		}}}},
+	}
+	response, err := NewService(WithBroker(NewBroker(provider))).Search(context.Background(), &factsv1.SearchRequest{
+		Query: "retry provider", Limit: 5, Target: &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.GetResults()) != 1 || response.GetResults()[0].GetPath() != "internal/retry.go" || response.GetResults()[0].GetAnalyzer() != "go-code-graph" {
+		t.Fatalf("search results = %#v, want one provenance-preserving retry hit", response.GetResults())
+	}
+}
+
+func TestSearchExpandsAuthoritativeGraphEdgesOnDemand(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/search-edges\n\ngo 1.25\n")
+	provider := fakeProvider{
+		language: "go", analyzer: "go-code-graph",
+		result: &GraphResult{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+			{Id: "symbol:retry", Name: "RetryProvider", Path: "internal/retry.go", Attributes: map[string]string{"kind": "GO_NODE_KIND_FUNC"}},
+			{Id: "call:retry", Name: "RetryProvider", Path: "internal/worker.go", Attributes: map[string]string{"kind": "GO_NODE_KIND_CALL", "callee": "RetryProvider", "enclosing_symbol": "Worker.Run"}},
+		}}},
+	}
+	response, err := NewService(WithBroker(NewBroker(provider))).Search(context.Background(), &factsv1.SearchRequest{
+		Query: "retry", Limit: 5, ExpandEdges: true,
+		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root},
+		Families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SYMBOLS},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.GetResults()) != 1 {
+		t.Fatalf("search results = %#v, want one node hit", response.GetResults())
+	}
+	expansions := response.GetResults()[0].GetEdgeExpansions()
+	if len(expansions) != 1 || expansions[0].GetFamily() != factsv1.FactFamily_FACT_FAMILY_CALLS || expansions[0].GetPath() != "internal/worker.go" {
+		t.Fatalf("edge expansions = %#v, want the authoritative RetryProvider call", expansions)
+	}
+}
+
 func TestDescribeScenarioReportsUnknownSidecarUnsupported(t *testing.T) {
 	repo, _ := writeScenarioFixture(t, "sidecar-demo")
 	writeFile(t, filepath.Join(repo, "scenarios", "sidecar-demo", "sidecar", "README.md"), "# custom runtime\n")
@@ -318,6 +367,37 @@ func TestDescribePathInsideScenarioSurface(t *testing.T) {
 	requireParseUnit(t, report.GetParseUnits(), "go", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN)
 }
 
+func TestDescribeAndListSurfacesAgreeAcrossScenarioShapes(t *testing.T) {
+	for _, name := range []string{"api-only", "cli-only", "ui-only"} {
+		t.Run(name, func(t *testing.T) {
+			repo, _ := writeScenarioFixture(t, name)
+			target := &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: name, RepoRoot: repo}
+			described, err := NewService().Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{
+				Target: target, Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SURFACES},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			listed, err := NewService().Surfaces(context.Background(), &factsv1.ListSurfacesRequest{Target: target})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, want := surfaceIDs(described.GetSurfaces()), surfaceIDs(listed.GetSurfaces()); !reflect.DeepEqual(got, want) {
+				t.Fatalf("Describe surfaces = %v, ListSurfaces = %v", got, want)
+			}
+		})
+	}
+}
+
+func surfaceIDs(surfaces []*factsv1.Surface) []string {
+	ids := make([]string, 0, len(surfaces))
+	for _, surface := range surfaces {
+		ids = append(ids, surface.GetId())
+	}
+	sort.Strings(ids)
+	return ids
+}
+
 func TestDescribeNormalizesGoProviderFacts(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/generic\n\ngo 1.25\n")
@@ -348,7 +428,7 @@ func TestDescribeNormalizesGoProviderFacts(t *testing.T) {
 	}
 
 	report, err := NewService(WithBroker(NewBroker(provider))).Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{
-		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_MODULE, Path: root},
+		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root},
 		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
 	})
 	if err != nil {
@@ -388,7 +468,7 @@ func TestDescribeMapsGoRouteRegistrationFactsToCalls(t *testing.T) {
 	}
 
 	report, err := NewService(WithBroker(NewBroker(provider))).Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{
-		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_MODULE, Path: root},
+		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root},
 		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_CALLS},
 	})
 	if err != nil {
@@ -538,7 +618,7 @@ func TestDescribeProviderUnavailableIsTypedWarning(t *testing.T) {
 	}
 
 	report, err := NewService(WithBroker(NewBroker(provider))).Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{
-		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_MODULE, Path: root},
+		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root},
 		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
 	})
 	if err != nil {
@@ -559,7 +639,7 @@ func TestDescribeProviderUnavailableStrictReturnsError(t *testing.T) {
 	}
 
 	_, err := NewService(WithBroker(NewBroker(provider))).Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{
-		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_MODULE, Path: root, Strict: true},
+		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root, Strict: true},
 		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
 	})
 	if err == nil {
@@ -655,7 +735,7 @@ func TestDescribeCachesRepeatedSelectiveFactRequest(t *testing.T) {
 	}}
 	svc := NewService(WithBroker(NewBroker(provider)))
 	req := &factsv1.DescribeCodeFactsRequest{
-		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_MODULE, Path: root},
+		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root},
 		Include:  []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
 		UseCache: true,
 	}
@@ -708,7 +788,7 @@ func TestDescribeCacheInvalidatesWhenSourceChanges(t *testing.T) {
 	}}
 	svc := NewService(WithBroker(NewBroker(provider)))
 	req := &factsv1.DescribeCodeFactsRequest{
-		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_MODULE, Path: root},
+		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root},
 		Include:  []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
 		UseCache: true,
 	}
@@ -994,7 +1074,7 @@ func TestClearCacheDryRunDoesNotDeleteEntries(t *testing.T) {
 		result:   &GraphResult{GraphHash: "graph-one", Graph: &commonv1.CodeGraph{}},
 	}}
 	svc := NewService(WithBroker(NewBroker(provider)))
-	target := &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_MODULE, Path: root}
+	target := &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root}
 	if _, err := svc.Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{
 		Target: target, Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS}, UseCache: true,
 	}); err != nil {

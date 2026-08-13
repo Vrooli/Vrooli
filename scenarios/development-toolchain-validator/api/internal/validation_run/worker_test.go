@@ -10,11 +10,12 @@ import (
 
 	manifest "development-toolchain-validator/internal/manifest"
 	"development-toolchain-validator/internal/testutil/db"
-	"development-toolchain-validator/internal/testutil/mocks"
 	vr "development-toolchain-validator/internal/validation_record"
 	vrmocks "development-toolchain-validator/internal/validation_record/mocks"
 	vrun "development-toolchain-validator/internal/validation_run"
 	vrunmocks "development-toolchain-validator/internal/validation_run/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -32,7 +33,7 @@ func newWorkerDeps(t *testing.T) (vrun.WorkerDeps, vrun.Repository, *vrmocks.Fak
 	))
 	repo := vrun.NewSQLiteRepository(d)
 	vrRepo := vrmocks.NewFakeRepository()
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
 	return vrun.WorkerDeps{
 		Repo:     repo,
 		Records:  vr.NewService(vrRepo, clk),

@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"development-toolchain-validator/internal/testutil/db"
-	"development-toolchain-validator/internal/testutil/mocks"
 	vr "development-toolchain-validator/internal/validation_record"
 	vrun "development-toolchain-validator/internal/validation_run"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -18,14 +19,14 @@ import (
 	localdb "development-toolchain-validator/internal/database"
 )
 
-func newSvc(t *testing.T) (vrun.Service, vrun.Repository, *mocks.FakeClock) {
+func newSvc(t *testing.T) (vrun.Service, vrun.Repository, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(vrun.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
 	repo := vrun.NewSQLiteRepository(d)
 	return vrun.NewService(repo, clk, nil), repo, clk
 }
@@ -71,7 +72,7 @@ func TestStart_NotifiesWorker(t *testing.T) {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(vrun.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
 	called := false
 	svc := vrun.NewService(vrun.NewSQLiteRepository(d), clk, func() { called = true })
 	_, err := svc.Start(context.Background(), vrun.StartInput{

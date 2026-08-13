@@ -3,11 +3,12 @@ package destinations
 import (
 	"log"
 
-	"data-backup-manager/internal/clock"
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/module"
 	"data-backup-manager/internal/sysmounts"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -22,7 +23,7 @@ import (
 // generated DestinationsService Connect-RPC handler. Production callers use
 // this entry point; it constructs the repository → service → handler chain
 // internally so per-domain dependencies never appear on server.Deps.
-func Module(db *database.RoutedDB, clk clock.Clock, eng engine.KopiaEngine, protectedRoot string, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, eng engine.KopiaEngine, protectedRoot string, logger *log.Logger) module.Module {
 	repo := internaldestinations.NewSQLiteRepository(db, clk)
 	svc := internaldestinations.NewService(repo, eng, &internaldestinations.FSBundleWriter{}, protectedRoot)
 	readinessSvc := destinationreadiness.NewService(

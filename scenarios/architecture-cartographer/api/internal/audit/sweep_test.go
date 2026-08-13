@@ -10,7 +10,8 @@ import (
 	"architecture-cartographer/internal/domains"
 	domainsmocks "architecture-cartographer/internal/domains/mocks"
 	graphmocks "architecture-cartographer/internal/graph/mocks"
-	"architecture-cartographer/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fakeLister returns the configured list of scenario names verbatim.
@@ -29,7 +30,7 @@ func TestRunAll_AllowLowAuthorityScenarios_SilencesOnlyListed(t *testing.T) {
 	d := &domainsmocks.FakeService{Err: domains.ErrNoAuthority{Scenario: ""}}
 	c := &conflictsmocks.FakeService{}
 	lister := &fakeLister{names: []string{"a", "b"}}
-	svc := audit.NewService(g, d, c, nil, nil, lister, mocks.NewFakeClock(time.Time{}))
+	svc := audit.NewService(g, d, c, nil, nil, lister, scheduletest.New(time.Time{}))
 
 	sweep, err := svc.RunAll(context.Background(), audit.RunAllInput{
 		AllowLowAuthorityScenarios: []string{"a"},
@@ -59,7 +60,7 @@ func TestRunAll_GlobalAllowLowAuthorityOverridesAll(t *testing.T) {
 	d := &domainsmocks.FakeService{Err: domains.ErrNoAuthority{Scenario: ""}}
 	c := &conflictsmocks.FakeService{}
 	lister := &fakeLister{names: []string{"a", "b"}}
-	svc := audit.NewService(g, d, c, nil, nil, lister, mocks.NewFakeClock(time.Time{}))
+	svc := audit.NewService(g, d, c, nil, nil, lister, scheduletest.New(time.Time{}))
 
 	sweep, err := svc.RunAll(context.Background(), audit.RunAllInput{
 		AllowLowAuthority: true,

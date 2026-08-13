@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"architecture-cartographer/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Service is the application-layer surface for graph operations.
@@ -56,19 +56,19 @@ type ExtractGraphInput struct {
 type service struct {
 	repo          Repository
 	adapters      []CodeGraphAdapter
-	clock         clock.Clock
+	clock         schedule.Clock
 	fingerprinter SourceFingerprinter
 }
 
 // NewService constructs the production Service. Adapters in priority
 // order; the first adapter that supports the requested language wins.
-func NewService(repo Repository, clk clock.Clock, adapters ...CodeGraphAdapter) Service {
+func NewService(repo Repository, clk schedule.Clock, adapters ...CodeGraphAdapter) Service {
 	return &service{repo: repo, adapters: adapters, clock: clk}
 }
 
 // NewServiceWithFingerprinter constructs a Service that can check the
 // source-fingerprint cache before invoking language graph adapters.
-func NewServiceWithFingerprinter(repo Repository, clk clock.Clock, fingerprinter SourceFingerprinter, adapters ...CodeGraphAdapter) Service {
+func NewServiceWithFingerprinter(repo Repository, clk schedule.Clock, fingerprinter SourceFingerprinter, adapters ...CodeGraphAdapter) Service {
 	return &service{repo: repo, adapters: adapters, clock: clk, fingerprinter: fingerprinter}
 }
 

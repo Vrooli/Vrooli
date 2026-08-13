@@ -15,6 +15,8 @@ import (
 	"data-backup-manager/internal/sources"
 	sourcesmocks "data-backup-manager/internal/sources/mocks"
 	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 const (
@@ -93,7 +95,7 @@ func newAuditHarnessWithRemoveAll(t *testing.T, removeAll func(string) error) *a
 		}},
 		Engine:      h.engine,
 		Sources:     sources.NewRegistry(h.capturer),
-		Clock:       mocks.NewFakeClock(time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:       scheduletest.New(time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)),
 		ScratchRoot: h.scratch,
 		Executor:    auditsmocks.NewSyncExecutor(),
 		RemoveAll:   removeAll,

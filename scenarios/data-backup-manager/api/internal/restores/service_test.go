@@ -14,6 +14,8 @@ import (
 	"data-backup-manager/internal/sources"
 	sourcesmocks "data-backup-manager/internal/sources/mocks"
 	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // buildRestoreService wires the restore service against a real sqlite repo plus
@@ -41,7 +43,7 @@ func buildRestoreService(t *testing.T) (restores.Service, *mocks.FakeKopiaEngine
 	registry := sources.NewRegistry(capturerSlice...)
 
 	eng := &mocks.FakeKopiaEngine{}
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 
 	targets := map[string]restores.TargetForRestore{}
 	for _, k := range allKinds {
@@ -171,7 +173,7 @@ func TestRestoreTarget_RestoresSnapshotArtifactToFinalLocation(t *testing.T) {
 	}
 
 	svc := restores.NewService(restores.Deps{
-		Repo: restores.NewSQLiteRepository(newRestoresDB(t), mocks.NewFakeClock(time.Time{})),
+		Repo: restores.NewSQLiteRepository(newRestoresDB(t), scheduletest.New(time.Time{})),
 		Targets: &restoresmocks.FakeTargetLookup{
 			Targets: map[string]restores.TargetForRestore{
 				"tgt-fs": {ID: "tgt-fs", Kind: sources.KindFilesystem, Locator: "source-locator"},
@@ -184,7 +186,7 @@ func TestRestoreTarget_RestoresSnapshotArtifactToFinalLocation(t *testing.T) {
 		},
 		Engine:      eng,
 		Sources:     sources.NewRegistry(fsCapturer),
-		Clock:       mocks.NewFakeClock(time.Time{}),
+		Clock:       scheduletest.New(time.Time{}),
 		ScratchRoot: scratchRoot,
 		Executor:    restoresmocks.NewSyncExecutor(),
 	})
@@ -222,7 +224,7 @@ func TestRestoreTarget_RefusesNonEmptyTarget(t *testing.T) {
 
 	eng := &mocks.FakeKopiaEngine{}
 	svc := restores.NewService(restores.Deps{
-		Repo: restores.NewSQLiteRepository(newRestoresDB(t), mocks.NewFakeClock(time.Time{})),
+		Repo: restores.NewSQLiteRepository(newRestoresDB(t), scheduletest.New(time.Time{})),
 		Targets: &restoresmocks.FakeTargetLookup{
 			Targets: map[string]restores.TargetForRestore{
 				"tgt-fs": {ID: "tgt-fs", Kind: sources.KindFilesystem, Locator: "source-locator"},
@@ -233,7 +235,7 @@ func TestRestoreTarget_RefusesNonEmptyTarget(t *testing.T) {
 		},
 		Engine:      eng,
 		Sources:     sources.NewRegistry(&sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}),
-		Clock:       mocks.NewFakeClock(time.Time{}),
+		Clock:       scheduletest.New(time.Time{}),
 		ScratchRoot: t.TempDir(),
 	})
 
@@ -253,7 +255,7 @@ func TestRestoreTarget_RefusesNonEmptyTarget(t *testing.T) {
 
 func TestVerifyTarget_CleanupFailureIsRecorded(t *testing.T) {
 	cleanupErr := errors.New("scratch directory is busy")
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	svc := restores.NewService(restores.Deps{
 		Repo: restores.NewSQLiteRepository(newRestoresDB(t), clk),
 		Destinations: &restoresmocks.FakeDestinationLookup{

@@ -9,11 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"architecture-cartographer/internal/clock"
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/suppressions"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Service is the application-layer surface for the audit domain.
@@ -35,7 +36,7 @@ type service struct {
 	verdicts     conflicts.VerdictProvider
 	suppressions SuppressionLoader
 	scenarios    ScenarioLister
-	clock        clock.Clock
+	clock        schedule.Clock
 	limiter      *RunLimiter
 }
 
@@ -56,7 +57,7 @@ func WithMaxConcurrentRuns(max int) Option {
 // (the mislocated_file detector skips when no provider is wired —
 // see conflicts.DetectInput.VerdictProvider). scenarios may be nil
 // when the caller never invokes RunAll.
-func NewService(g graph.Service, d domains.Service, c conflicts.Service, verdicts conflicts.VerdictProvider, sup SuppressionLoader, scenarios ScenarioLister, clk clock.Clock, opts ...Option) Service {
+func NewService(g graph.Service, d domains.Service, c conflicts.Service, verdicts conflicts.VerdictProvider, sup SuppressionLoader, scenarios ScenarioLister, clk schedule.Clock, opts ...Option) Service {
 	s := &service{graph: g, domains: d, conflicts: c, verdicts: verdicts, suppressions: sup, scenarios: scenarios, clock: clk}
 	for _, opt := range opts {
 		opt(s)

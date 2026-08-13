@@ -3,6 +3,7 @@ package facts
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	internalfacts "code-facts/internal/facts"
 )
@@ -32,11 +33,16 @@ func CacheMetrics(ctx context.Context, db *sql.DB, maxBytes int64) (map[string]a
 	if stats.BudgetBytes > 0 {
 		utilization = float64(stats.TotalPayloadBytes) / float64(stats.BudgetBytes)
 	}
-	return map[string]any{
+	metrics := map[string]any{
 		"cache_total_rows":          stats.TotalRows,
 		"cache_total_payload_bytes": stats.TotalPayloadBytes,
 		"cache_budget_bytes":        stats.BudgetBytes,
 		"cache_utilization":         utilization,
 		"cache_last_sweep_at_unix":  stats.LastSweepAtUnix,
-	}, nil
+		"indexed_count":             stats.TotalRows,
+	}
+	if stats.LastSweepAtUnix > 0 {
+		metrics["last_indexed_at"] = time.Unix(stats.LastSweepAtUnix, 0).UTC().Format(time.RFC3339)
+	}
+	return metrics, nil
 }

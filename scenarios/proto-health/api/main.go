@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"proto-health/internal/clock"
 	"proto-health/internal/modules"
 	"proto-health/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -129,7 +130,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "proto-health-api", "1.0.0", descriptorSource),
 		impactH.Module(log.Default(), repoRoot, descriptorSource),
 		validationH.Module(log.Default(), repoRoot, descriptorSource),

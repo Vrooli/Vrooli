@@ -17,8 +17,8 @@ Use this document to answer:
 
 | Data | Sensitivity | Owner | Notes |
 |---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
+| Source paths, symbols, and route metadata | internal | Code Facts maintainers | Derived from the local repository; do not expose outside the trusted project boundary. |
+| Cache payloads | internal | Code Facts maintainers | May contain source-derived facts and paths; governed by local cache retention. |
 
 ## Auth And Authorization
 
@@ -37,7 +37,8 @@ authorization belongs at the API/service layer.
 
 | Risk | Impact | Mitigation | Status |
 |---|---|---|---|
-| Unsafe file upload handling | Malicious or oversized upload could affect storage. | Multipart handler validates metadata and BlobStore seam isolates bytes. | template-reference |
+| Untrusted target traversal | A caller could request files outside the repository. | Resolver normalizes and validates target roots; analyzers receive bounded roots only. | active |
+| Source-derived metadata disclosure | Internal paths or symbols could leave the trusted project. | Search Hub is a local capability; registration and status are local-only. | active |
 | Missing auth for product data | User/customer data could be exposed if added without access control. | Add API-layer auth before storing protected data. | deferred |
 
 ## Security Gaps

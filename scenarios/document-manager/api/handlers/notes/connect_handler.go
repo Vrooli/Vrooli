@@ -4,8 +4,9 @@ import (
 	"context"
 	"log"
 
-	"document-manager/internal/clock"
 	"document-manager/internal/notes"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"connectrpc.com/connect"
 
@@ -17,7 +18,7 @@ type Deps struct {
 	Service notes.Service
 	// Clock anchors the CountNotes measure's relative time-window resolution
 	// (e.g. "this_week"). Explicit so tests resolve windows deterministically.
-	Clock  clock.Clock
+	Clock  schedule.Clock
 	Logger *log.Logger
 }
 
@@ -30,7 +31,7 @@ func NewConnectHandler(d Deps) *connectHandler {
 		d.Logger = log.Default()
 	}
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		d.Clock = schedule.System()
 	}
 	return &connectHandler{deps: d}
 }

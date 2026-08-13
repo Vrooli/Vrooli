@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"time"
 
-	"scenario-authenticator/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -73,11 +73,11 @@ type Filter struct {
 
 type sqliteLogger struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteLogger constructs the production Logger.
-func NewSQLiteLogger(db SQLExecutor, clk clock.Clock) Logger {
+func NewSQLiteLogger(db SQLExecutor, clk schedule.Clock) Logger {
 	return &sqliteLogger{db: db, clock: clk}
 }
 

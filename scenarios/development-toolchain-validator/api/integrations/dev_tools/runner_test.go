@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"development-toolchain-validator/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // fakeCommandRunner returns queued CommandResults in order and records
@@ -36,7 +36,7 @@ func (f *fakeCommandRunner) run(_ context.Context, _ string, args ...string) (Co
 func newRunner(t *testing.T, fake *fakeCommandRunner, expectationsDir string) *Runner {
 	t.Helper()
 	return New(Options{
-		Clock:           clock.System{},
+		Clock:           schedule.System(),
 		CommandRunner:   fake.run,
 		ExpectationsDir: expectationsDir,
 	})

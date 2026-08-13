@@ -13,11 +13,13 @@ import (
 	"data-backup-manager/internal/sources"
 	sourcesmocks "data-backup-manager/internal/sources/mocks"
 	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newVerifyService(t *testing.T, scratchRoot string, eng *mocks.FakeKopiaEngine) restores.Service {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	capt := &sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}
 	registry := sources.NewRegistry(capt)
 	return restores.NewService(restores.Deps{

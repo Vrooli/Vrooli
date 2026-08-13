@@ -8,7 +8,7 @@
   "source": "validation-provider",
   "timeout": "120s",
   "phaseClass": "architecture",
-  "runtimeClass": "static",
+  "runtimeClass": "execution",
   "validation": {"contract": "scenario-validation/v1", "capabilitySubset": ["portability"]},
   "targets": {"kinds": ["scenario"], "selection": "enumerate"},
   "applicability": {"default": "applies"},

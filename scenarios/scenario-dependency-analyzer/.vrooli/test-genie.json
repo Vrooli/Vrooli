@@ -12,6 +12,10 @@
   "validation": {
     "contract": "scenario-validation/v1"
   },
+  "targets": {
+    "kinds": ["scenario", "package", "resource"],
+    "selection": "enumerate"
+  },
   "applicability": {
     "default": "not_applicable",
     "all": [
@@ -733,8 +737,8 @@
     "mode": "provider-serial"
   },
   "determinism": {
-    "default": "observational",
-    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+    "default": "file-determined",
+    "inputs": ["**"]
   },
   "dimensions": [
     "dependency-accuracy"

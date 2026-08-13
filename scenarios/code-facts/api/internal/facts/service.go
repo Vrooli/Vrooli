@@ -8,8 +8,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
@@ -18,6 +20,7 @@ type Service struct {
 	broker      *Broker
 	cache       CacheRepository
 	fileDomains FileDomainProvider
+	projectIdx  *lexicalProjectIndex
 }
 
 type ServiceOption func(*Service)
@@ -29,6 +32,10 @@ func NewService(opts ...ServiceOption) *Service {
 	}
 	if s.cache == nil {
 		s.cache = NewMemoryCacheRepository()
+	}
+	if root, err := resolveRepoRoot(""); err == nil {
+		s.projectIdx = newLexicalProjectIndex(root)
+		go s.projectIdx.build()
 	}
 	return s
 }
@@ -70,7 +77,10 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 		}
 		if ok {
 			report.Cache = entry.metadata("hit", "report cache reused for identical target, options, source/config hashes, and analyzer versions")
-			return report, nil
+			if report.TotalFacts == 0 {
+				report.TotalFacts = int32(len(report.GetFacts()))
+			}
+			return pageReport(report, req.GetPageSize(), req.GetPageToken())
 		}
 	}
 
@@ -124,9 +134,422 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 		report.Facts = append(report.Facts, unsupportedFact(family))
 		report.Warnings = append(report.Warnings, unsupportedWarning(family))
 	}
+	report.TotalFacts = int32(len(report.GetFacts()))
 	if err := s.cache.PutReport(ctx, reportPlan, report); err != nil {
 		return nil, err
 	}
+	return pageReport(report, req.GetPageSize(), req.GetPageToken())
+}
+
+// pageReport keeps the cache entry whole while allowing callers to consume a
+// large report in bounded responses. Tokens are deliberately opaque to the
+// caller but encode only a validated decimal offset, so pagination remains
+// deterministic and stateless across requests.
+func pageReport(report *factsv1.CodeFactsReport, pageSize int32, pageToken string) (*factsv1.CodeFactsReport, error) {
+	if report == nil || pageSize <= 0 {
+		return report, nil
+	}
+	offset := 0
+	if strings.TrimSpace(pageToken) != "" {
+		parsed, err := strconv.Atoi(pageToken)
+		if err != nil || parsed < 0 {
+			return nil, fmt.Errorf("invalid page_token %q", pageToken)
+		}
+		offset = parsed
+	}
+	facts := report.GetFacts()
+	if offset > len(facts) {
+		return nil, fmt.Errorf("page_token offset %d exceeds total facts %d", offset, len(facts))
+	}
+	end := offset + int(pageSize)
+	if end > len(facts) {
+		end = len(facts)
+	}
+	report.Facts = facts[offset:end]
+	if end < len(facts) {
+		report.NextPageToken = strconv.Itoa(end)
+	} else {
+		report.NextPageToken = ""
+	}
+	return report, nil
+}
+
+// Search performs a bounded lexical search over node-oriented evidence. It is
+// the deliberately small query surface used by Search Hub: callers receive
+// identifiers and provenance, while DescribeCodeFacts remains the authoritative
+// detail endpoint. No graph edge family is embedded in this response.
+func (s *Service) Search(ctx context.Context, req *factsv1.SearchRequest) (*factsv1.SearchResponse, error) {
+	query := strings.TrimSpace(req.GetQuery())
+	if query == "" {
+		return nil, fmt.Errorf("query is required")
+	}
+	limit := int(req.GetLimit())
+	if limit <= 0 || limit > 100 {
+		limit = 10
+	}
+	target := req.GetTarget()
+	if target == nil {
+		target = &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PROJECT}
+	}
+	families := req.GetFamilies()
+	if len(families) == 0 {
+		families = []factsv1.FactFamily{
+			factsv1.FactFamily_FACT_FAMILY_SYMBOLS,
+			factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
+		}
+	}
+	report, err := s.searchReport(ctx, target, families, query)
+	if err != nil {
+		return nil, err
+	}
+	terms := strings.Fields(strings.ToLower(query))
+	hits := make([]*factsv1.SearchHit, 0, len(report.GetFacts()))
+	for _, fact := range report.GetFacts() {
+		if fact == nil || len(terms) == 0 {
+			continue
+		}
+		attrs := fact.GetAttributes()
+		corpus := strings.ToLower(strings.Join([]string{
+			fact.GetId(), fact.GetSubject(), fact.GetKind(), attrs["name"], attrs["path"], attrs["qualified_name"], attrs["route_path"], attrs["import_path"],
+		}, " "))
+		matched := 0
+		for _, term := range terms {
+			if strings.Contains(corpus, term) {
+				matched++
+			}
+		}
+		if matched == 0 {
+			continue
+		}
+		path := attrs["path"]
+		status := factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN
+		message := fact.GetSubject()
+		if evidence := fact.GetEvidence(); len(evidence) > 0 {
+			status = evidence[0].GetStatus()
+			if evidence[0].GetRange() != nil && path == "" {
+				path = evidence[0].GetRange().GetFile()
+			}
+			if strings.TrimSpace(evidence[0].GetMessage()) != "" {
+				message = evidence[0].GetMessage()
+			}
+		}
+		hits = append(hits, &factsv1.SearchHit{
+			Id:             fact.GetId(),
+			Title:          fact.GetSubject(),
+			Text:           message,
+			Score:          float64(matched) / float64(len(terms)),
+			Path:           path,
+			Analyzer:       attrs["analyzer"],
+			EvidenceStatus: status,
+			FactKind:       fact.GetKind(),
+		})
+	}
+	sort.SliceStable(hits, func(i, j int) bool {
+		if hits[i].GetScore() != hits[j].GetScore() {
+			return hits[i].GetScore() > hits[j].GetScore()
+		}
+		return hits[i].GetId() < hits[j].GetId()
+	})
+	if len(hits) > limit {
+		hits = hits[:limit]
+	}
+	if req.GetExpandEdges() {
+		// Expand only the top-ranked node. This is the useful explanation for
+		// an answer and keeps one cold graph lookup from multiplying by the
+		// provider's result limit.
+		if len(hits) > 0 {
+			hits[0].EdgeExpansions = s.expandEdges(ctx, target, hits[0], req.GetQuery())
+		}
+	}
+	return &factsv1.SearchResponse{Results: hits}, nil
+}
+
+// expandEdges resolves graph relationships only after a node hit has been
+// selected. This keeps the Search Hub corpus small while preserving the
+// authoritative graph evidence for callers that need callers or references.
+func (s *Service) expandEdges(ctx context.Context, target *factsv1.CodeTarget, hit *factsv1.SearchHit, query string) []*factsv1.SearchExpansion {
+	edgeTarget := target
+	if target.GetKind() == factsv1.TargetKind_TARGET_KIND_PROJECT || target.GetKind() == factsv1.TargetKind_TARGET_KIND_REPO {
+		// Resolve only the hit's source file for a fleet search. A whole-scenario
+		// graph expansion defeats the provider deadline and is unnecessary for
+		// returning the local callers/references that explain this hit.
+		if root, err := resolveRepoRoot(target.GetRepoRoot()); err == nil && !filepath.IsAbs(filepath.FromSlash(hit.GetPath())) {
+			edgeTarget = &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: filepath.Join(root, filepath.FromSlash(hit.GetPath()))}
+		}
+	}
+	edgeCtx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+	defer cancel()
+	report, err := s.Describe(edgeCtx, &factsv1.DescribeCodeFactsRequest{
+		Target: edgeTarget,
+		Include: []factsv1.FactFamily{
+			factsv1.FactFamily_FACT_FAMILY_REFERENCES,
+			factsv1.FactFamily_FACT_FAMILY_CALLS,
+		},
+		UseCache: true,
+	})
+	if err != nil {
+		return s.lexicalEdgeExpansions(hit, query)
+	}
+	terms := strings.Fields(strings.ToLower(query + " " + hit.GetTitle()))
+	expansions := make([]*factsv1.SearchExpansion, 0, 5)
+	seen := make(map[string]struct{})
+	for _, fact := range report.GetFacts() {
+		if fact == nil || (fact.GetFamily() != factsv1.FactFamily_FACT_FAMILY_REFERENCES && fact.GetFamily() != factsv1.FactFamily_FACT_FAMILY_CALLS) {
+			continue
+		}
+		corpus := strings.ToLower(strings.Join([]string{
+			fact.GetId(), fact.GetSubject(), fact.GetKind(), fact.GetAttributes()["name"], fact.GetAttributes()["path"], fact.GetAttributes()["qualified_name"],
+		}, " "))
+		matched := false
+		for _, term := range terms {
+			if term != "" && strings.Contains(corpus, term) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		if _, ok := seen[fact.GetId()]; ok {
+			continue
+		}
+		seen[fact.GetId()] = struct{}{}
+		path := fact.GetAttributes()["path"]
+		status := factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN
+		analyzer := fact.GetAttributes()["analyzer"]
+		if evidence := fact.GetEvidence(); len(evidence) > 0 {
+			status = evidence[0].GetStatus()
+			if analyzer == "" {
+				analyzer = evidence[0].GetAnalyzer()
+			}
+			if path == "" && evidence[0].GetRange() != nil {
+				path = evidence[0].GetRange().GetFile()
+			}
+		}
+		text := fact.GetSubject()
+		if len(fact.GetEvidence()) > 0 && fact.GetEvidence()[0].GetMessage() != "" {
+			text = fact.GetEvidence()[0].GetMessage()
+		}
+		expansions = append(expansions, &factsv1.SearchExpansion{
+			Id: fact.GetId(), Title: fact.GetSubject(), Text: text, Path: path,
+			Analyzer: analyzer, EvidenceStatus: status, FactKind: fact.GetKind(), Family: fact.GetFamily(),
+		})
+		if len(expansions) == 5 {
+			break
+		}
+	}
+	return expansions
+}
+
+// lexicalEdgeExpansions is an explicit, lower-confidence fallback for a cold
+// analyzer graph. It keeps Search Hub useful inside its provider deadline and
+// never presents lexical relationships as analyzer-backed graph evidence.
+func (s *Service) lexicalEdgeExpansions(hit *factsv1.SearchHit, query string) []*factsv1.SearchExpansion {
+	if s.projectIdx == nil {
+		return nil
+	}
+	terms := strings.Fields(strings.ToLower(query + " " + hit.GetTitle()))
+	s.projectIdx.mu.RLock()
+	facts := append([]*factsv1.GenericFact(nil), s.projectIdx.facts...)
+	s.projectIdx.mu.RUnlock()
+	result := make([]*factsv1.SearchExpansion, 0, 5)
+	seen := make(map[string]struct{})
+	for _, fact := range facts {
+		path := fact.GetAttributes()["path"]
+		if path == "" || path == hit.GetPath() {
+			continue
+		}
+		corpus := strings.ToLower(fact.GetSubject() + " " + path)
+		matched := false
+		for _, term := range terms {
+			if term != "" && strings.Contains(corpus, term) {
+				matched = true
+				break
+			}
+		}
+		if !matched || fact.GetFamily() != factsv1.FactFamily_FACT_FAMILY_SYMBOLS {
+			continue
+		}
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		seen[path] = struct{}{}
+		result = append(result, &factsv1.SearchExpansion{
+			Id: fact.GetId(), Title: fact.GetSubject(), Text: "Lexical relationship candidate; confirm with Describe for graph evidence.",
+			Path: path, Analyzer: "code-facts.lexical", EvidenceStatus: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
+			FactKind: "lexical_reference", Family: factsv1.FactFamily_FACT_FAMILY_REFERENCES,
+		})
+		if len(result) == 5 {
+			break
+		}
+	}
+	return result
+}
+
+func (s *Service) searchReport(ctx context.Context, target *factsv1.CodeTarget, families []factsv1.FactFamily, query string) (*factsv1.CodeFactsReport, error) {
+	if target.GetKind() != factsv1.TargetKind_TARGET_KIND_PROJECT && target.GetKind() != factsv1.TargetKind_TARGET_KIND_REPO {
+		return s.Describe(ctx, &factsv1.DescribeCodeFactsRequest{Target: target, Include: families, UseCache: true})
+	}
+	repoRoot, err := resolveRepoRoot(target.GetRepoRoot())
+	if err != nil {
+		return nil, err
+	}
+	if s.projectIdx != nil && filepath.Clean(s.projectIdx.root) == filepath.Clean(repoRoot) {
+		return s.projectIdx.report(target, families, query), nil
+	}
+	return lexicalProjectReport(ctx, repoRoot, target, families, query)
+}
+
+type lexicalProjectIndex struct {
+	root  string
+	mu    sync.RWMutex
+	facts []*factsv1.GenericFact
+}
+
+func newLexicalProjectIndex(root string) *lexicalProjectIndex {
+	return &lexicalProjectIndex{root: root}
+}
+
+func (idx *lexicalProjectIndex) build() {
+	for _, root := range []string{filepath.Join(idx.root, "scenarios"), filepath.Join(idx.root, "packages")} {
+		_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if entry.IsDir() {
+				if path != root && shouldPruneDir(entry.Name()) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			switch filepath.Ext(path) {
+			case ".go", ".ts", ".tsx", ".proto":
+			default:
+				return nil
+			}
+			payload, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+			rel, _ := filepath.Rel(idx.root, path)
+			for lineNumber, line := range strings.Split(string(payload), "\n") {
+				subject := strings.TrimSpace(line)
+				if subject == "" {
+					continue
+				}
+				family := factsv1.FactFamily_FACT_FAMILY_SYMBOLS
+				if filepath.Ext(path) == ".proto" {
+					family = factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION
+				}
+				fact := lexicalFact(filepath.ToSlash(rel), lineNumber+1, subject, family)
+				idx.mu.Lock()
+				idx.facts = append(idx.facts, fact)
+				idx.mu.Unlock()
+			}
+			return nil
+		})
+	}
+}
+
+func (idx *lexicalProjectIndex) report(target *factsv1.CodeTarget, families []factsv1.FactFamily, query string) *factsv1.CodeFactsReport {
+	terms := strings.Fields(strings.ToLower(strings.TrimSpace(query)))
+	idx.mu.RLock()
+	facts := append([]*factsv1.GenericFact(nil), idx.facts...)
+	idx.mu.RUnlock()
+	report := &factsv1.CodeFactsReport{Target: &factsv1.TargetContext{Requested: target, ResolvedKind: target.GetKind(), RootPath: idx.root, RootPaths: []string{filepath.Join(idx.root, "scenarios"), filepath.Join(idx.root, "packages")}}}
+	for _, fact := range facts {
+		if !hasFamily(families, fact.GetFamily()) {
+			continue
+		}
+		corpus := strings.ToLower(fact.GetSubject() + " " + fact.GetAttributes()["path"])
+		matched := true
+		for _, term := range terms {
+			if !strings.Contains(corpus, term) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			report.Facts = append(report.Facts, fact)
+		}
+	}
+	return report
+}
+
+func lexicalFact(path string, line int, subject string, family factsv1.FactFamily) *factsv1.GenericFact {
+	return &factsv1.GenericFact{
+		Id: "code-facts:lexical:" + path + ":" + strconv.Itoa(line), Family: family, Kind: "lexical_source", Subject: subject,
+		Attributes: map[string]string{"path": path, "line": strconv.Itoa(line), "analyzer": "code-facts.lexical"},
+		Evidence:   []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, Confidence: 0.7, Analyzer: "code-facts.lexical", Message: "Matched source text in the bounded project lexical index.", Range: &factsv1.SourceRange{File: path, StartLine: int32(line), EndLine: int32(line)}}},
+	}
+}
+
+// lexicalProjectReport is the bounded lexical leg for fleet search. It reads
+// source lines directly instead of invoking one graph provider per module;
+// this keeps identifier-shaped Search Hub queries inside the provider timeout
+// while preserving source paths and an explicit evidence condition. Describe
+// remains the authoritative graph-backed detail endpoint for callers that need
+// references, calls, or analyzer-specific facts.
+func lexicalProjectReport(ctx context.Context, repoRoot string, target *factsv1.CodeTarget, families []factsv1.FactFamily, query string) (*factsv1.CodeFactsReport, error) {
+	terms := strings.Fields(strings.ToLower(strings.TrimSpace(query)))
+	report := &factsv1.CodeFactsReport{Target: &factsv1.TargetContext{Requested: target, ResolvedKind: target.GetKind(), RootPath: repoRoot, RootPaths: []string{filepath.Join(repoRoot, "scenarios"), filepath.Join(repoRoot, "packages")}}}
+	allowed := map[string]bool{".go": true, ".ts": true, ".tsx": true, ".proto": true}
+	roots := []string{filepath.Join(repoRoot, "scenarios"), filepath.Join(repoRoot, "packages")}
+	for _, root := range roots {
+		err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if entry.IsDir() {
+				if path != root && shouldPruneDir(entry.Name()) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !allowed[filepath.Ext(path)] {
+				return nil
+			}
+			payload, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+			for lineNumber, line := range strings.Split(string(payload), "\n") {
+				lower := strings.ToLower(line + " " + path)
+				matched := true
+				for _, term := range terms {
+					if !strings.Contains(lower, term) {
+						matched = false
+						break
+					}
+				}
+				if !matched {
+					continue
+				}
+				rel, _ := filepath.Rel(repoRoot, path)
+				family := factsv1.FactFamily_FACT_FAMILY_SYMBOLS
+				if filepath.Ext(path) == ".proto" {
+					family = factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION
+				}
+				if !hasFamily(families, family) {
+					continue
+				}
+				subject := strings.TrimSpace(line)
+				report.Facts = append(report.Facts, &factsv1.GenericFact{
+					Id: "code-facts:lexical:" + filepath.ToSlash(rel) + ":" + strconv.Itoa(lineNumber+1), Family: family, Kind: "lexical_source", Subject: subject,
+					Attributes: map[string]string{"path": filepath.ToSlash(rel), "line": strconv.Itoa(lineNumber + 1), "analyzer": "code-facts.lexical"},
+					Evidence:   []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, Confidence: 0.7, Analyzer: "code-facts.lexical", Message: "Matched source text in the bounded project lexical index.", Range: &factsv1.SourceRange{File: filepath.ToSlash(rel), StartLine: int32(lineNumber + 1), EndLine: int32(lineNumber + 1)}}},
+				})
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	sort.SliceStable(report.Facts, func(i, j int) bool { return report.Facts[i].GetId() < report.Facts[j].GetId() })
 	return report, nil
 }
 
@@ -379,7 +802,7 @@ func validateTarget(target *factsv1.CodeTarget) error {
 		return fmt.Errorf("target is required")
 	}
 	switch target.GetKind() {
-	case factsv1.TargetKind_TARGET_KIND_PATH, factsv1.TargetKind_TARGET_KIND_MODULE, factsv1.TargetKind_TARGET_KIND_PROJECT, factsv1.TargetKind_TARGET_KIND_REPO:
+	case factsv1.TargetKind_TARGET_KIND_PATH:
 		if strings.TrimSpace(target.GetPath()) == "" {
 			return fmt.Errorf("target.path is required for %s", target.GetKind())
 		}
@@ -387,8 +810,18 @@ func validateTarget(target *factsv1.CodeTarget) error {
 		if strings.TrimSpace(target.GetScenario()) == "" {
 			return fmt.Errorf("target.scenario is required for scenario targets")
 		}
-	default:
+	case factsv1.TargetKind_TARGET_KIND_PROJECT, factsv1.TargetKind_TARGET_KIND_REPO, factsv1.TargetKind_TARGET_KIND_CONTROL_PLANE:
+		// These kinds resolve from repo_root (or the governed process root).
+	case factsv1.TargetKind_TARGET_KIND_PACKAGE:
+		if strings.TrimSpace(target.GetPackageName()) == "" {
+			return fmt.Errorf("target.package_name is required for package targets")
+		}
+	case factsv1.TargetKind_TARGET_KIND_UNSPECIFIED:
 		return fmt.Errorf("target.kind is required")
+	case factsv1.TargetKind_TARGET_KIND_MODULE, factsv1.TargetKind_TARGET_KIND_RESOURCE, factsv1.TargetKind_TARGET_KIND_TOOL, factsv1.TargetKind_TARGET_KIND_SAFEGUARD, factsv1.TargetKind_TARGET_KIND_DOCS, factsv1.TargetKind_TARGET_KIND_TEAM:
+		return fmt.Errorf("target kind %s is unsupported", target.GetKind())
+	default:
+		return fmt.Errorf("target kind %s is unsupported", target.GetKind())
 	}
 	return nil
 }
@@ -421,7 +854,11 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 			}
 			return nil, nil, nil, "", unavailable
 		}
-		graphPlan := graphCachePlan(target, unit, provider, sourceHash, configHash)
+		// Graph entries are scoped to one parse unit. A fleet/report-wide source
+		// hash would invalidate every language surface when one file changes,
+		// defeating the cache's purpose for incremental edits.
+		unitSourceHash, unitConfigHash := sourceFingerprintForUnit(unit)
+		graphPlan := graphCachePlan(target, unit, provider, unitSourceHash, unitConfigHash)
 		var result *GraphResult
 		if useCache {
 			cached, entry, ok, err := s.cache.GetGraph(ctx, graphPlan.Key)
@@ -473,11 +910,36 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 		}
 		graphHashes = append(graphHashes, result.GraphHash)
 		unitFacts, unitWarnings, unitEvidence := normalizeGraphFacts(unit, provider, result, include)
+		qualifyFleetFacts(target, unit, unitFacts)
 		facts = append(facts, unitFacts...)
 		warnings = append(warnings, unitWarnings...)
 		evidence = append(evidence, unitEvidence...)
 	}
 	return facts, warnings, evidence, strings.Join(graphHashes, ","), nil
+}
+
+func qualifyFleetFacts(target *factsv1.TargetContext, unit *factsv1.ParseUnit, facts []*factsv1.GenericFact) {
+	requested := target.GetRequested().GetKind()
+	if requested != factsv1.TargetKind_TARGET_KIND_PROJECT && requested != factsv1.TargetKind_TARGET_KIND_REPO && requested != factsv1.TargetKind_TARGET_KIND_CONTROL_PLANE {
+		return
+	}
+	root := filepath.Clean(unit.GetRootPath())
+	label := scenarioFromPath(root, target.GetRootPath())
+	if label == "" {
+		label = filepath.ToSlash(root)
+	}
+	for _, fact := range facts {
+		if fact == nil {
+			continue
+		}
+		fact.Id = label + ":" + fact.GetId()
+		if fact.Attributes == nil {
+			fact.Attributes = map[string]string{}
+		}
+		fact.Attributes["target_root"] = root
+		fact.Attributes["target_qualified"] = "true"
+		fact.Attributes["target_label"] = label
+	}
 }
 
 func (s *Service) analyzeForProof(ctx context.Context, targetReq *factsv1.CodeTarget, target *factsv1.TargetContext, include []factsv1.FactFamily, useCache bool, languageFilter ...[]string) (proofInput, error) {

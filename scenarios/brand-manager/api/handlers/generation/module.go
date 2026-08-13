@@ -13,8 +13,9 @@ import (
 	"errors"
 	"log"
 
-	"brand-manager/internal/clock"
 	"brand-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -32,7 +33,7 @@ import (
 // Connect-RPC GenerationService handler over the provider chain (built from the
 // environment) plus brand/asset adapters. blobBaseDir is the assets storage root
 // (shared with the assets module) so generated images land beside uploaded ones.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, blobBaseDir string) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, blobBaseDir string) module.Module {
 	brandsSvc := internalbrands.NewService(
 		internalbrands.NewSQLiteRepository(db, clk),
 		internalbrands.NewSQLiteVersionRepository(db, clk),

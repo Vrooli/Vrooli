@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"content-desk/handlers/health"
-	"content-desk/internal/clock"
 	"content-desk/internal/module"
 	"content-desk/internal/server"
 	"content-desk/internal/testutil/assertx"
 	"content-desk/internal/testutil/httpx"
 	"content-desk/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/shared"
@@ -86,7 +87,7 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)

@@ -12,6 +12,7 @@
   "validation": {
     "contract": "scenario-validation/v1"
   },
+  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
   "applicability": {
     "default": "applies"
   },

@@ -9,9 +9,11 @@ import (
 )
 
 // Clock is the slim time seam so derivation timestamps are deterministic
-// in tests. Mirrors internal/clock.Clock without importing it (this
+// in tests. Mirrors internal/schedule.Clock without importing it (this
 // package stays dependency-light).
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	Now() time.Time
 }
 

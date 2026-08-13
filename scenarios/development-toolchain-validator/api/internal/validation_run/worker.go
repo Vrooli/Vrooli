@@ -6,9 +6,10 @@ import (
 	"log"
 	"time"
 
-	"development-toolchain-validator/internal/clock"
 	manifest "development-toolchain-validator/internal/manifest"
 	vr "development-toolchain-validator/internal/validation_record"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // WorkerConfig groups the worker's tunables.
@@ -40,7 +41,7 @@ type WorkerDeps struct {
 	Goldens   GoldenMaterializer
 	Manifests ManifestSource
 	Skills    SkillContentSource // optional; nil tolerated
-	Clock     clock.Clock
+	Clock     schedule.Clock
 	Logger    *log.Logger
 }
 

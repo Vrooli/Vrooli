@@ -2,7 +2,6 @@ package app
 
 import (
 	"architecture-cartographer/internal/analytics"
-	"architecture-cartographer/internal/clock"
 	"architecture-cartographer/internal/config"
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/conflicts/detectors/convergencedrift"
@@ -18,11 +17,13 @@ import (
 	"architecture-cartographer/internal/conflicts/detectors/surfacecoherence"
 	mislocatedresolver "architecture-cartographer/internal/conflicts/resolvers/mislocatedfile"
 	"architecture-cartographer/internal/signals/boundaries"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func ConflictsService(
 	primary conflicts.SQLExecutor,
-	clk clock.Clock,
+	clk schedule.Clock,
 	cfg config.Config,
 	boundaryCfg boundaries.Config,
 	analyticsSvc analytics.Service,

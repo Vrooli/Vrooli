@@ -10,12 +10,14 @@ import (
 
 	"development-toolchain-validator/internal/golden"
 	"development-toolchain-validator/internal/testutil/db"
-	"development-toolchain-validator/internal/testutil/mocks"
 	vrun "development-toolchain-validator/internal/validation_run"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
 	localdb "development-toolchain-validator/internal/database"
+
 	apidb "github.com/vrooli/api-core/database"
 )
 
@@ -44,7 +46,7 @@ func TestGoldenMaterializerFromRepo_GeneratesAndCleansEphemeralPath(t *testing.T
 	))
 	require.NoError(t, golden.EnsureColumns(ctx, d))
 
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	repo := golden.NewSQLiteRepository(d, clk)
 	_, err := repo.Create(ctx, golden.Golden{
 		Slug:                  "reference-react-vite",

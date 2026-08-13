@@ -8,13 +8,14 @@ import (
 
 	"github.com/vrooli/api-core/database"
 
-	"development-toolchain-validator/internal/clock"
 	manifest "development-toolchain-validator/internal/manifest"
 	"development-toolchain-validator/internal/module"
 	reportdom "development-toolchain-validator/internal/report"
 	skillcatalog "development-toolchain-validator/internal/skill_catalog"
 	staleness "development-toolchain-validator/internal/staleness"
 	vr "development-toolchain-validator/internal/validation_record"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -29,7 +30,7 @@ import (
 // Like staleness, the service composes reads from peer domains;
 // repositories are constructed inline against the shared *database.RoutedDB so we
 // don't invert through services.
-func Module(db *database.RoutedDB, clk clock.Clock, source skillcatalog.SkillCatalogSource, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, source skillcatalog.SkillCatalogSource, logger *log.Logger) module.Module {
 	skillRepo := skillcatalog.NewSQLiteRepository(db, clk)
 	skillSvc := skillcatalog.NewService(skillRepo, source, clk)
 	manifestRepo := manifest.NewSQLiteRepository(db, clk)

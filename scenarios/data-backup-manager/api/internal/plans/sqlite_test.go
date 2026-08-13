@@ -12,7 +12,8 @@ import (
 	localdb "data-backup-manager/internal/database"
 	"data-backup-manager/internal/plans"
 	testdb "data-backup-manager/internal/testutil/db"
-	"data-backup-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // newPlansDB returns a fresh sqlite handle with system + plans schema applied.
@@ -32,7 +33,7 @@ func newPlansDB(t *testing.T) *sql.DB {
 // reload: create plan with 2 targets + 2 destinations; reload; assert lists.
 func TestSQLiteRepository_MembershipRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	repo := plans.NewSQLiteRepository(newPlansDB(t), clk)
 
 	created, err := repo.Create(ctx, plans.Plan{
@@ -99,7 +100,7 @@ func TestSQLiteRepository_MembershipRoundTrip(t *testing.T) {
 // membership lists.
 func TestSQLiteRepository_UpdateReplacesMembers(t *testing.T) {
 	ctx := context.Background()
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	repo := plans.NewSQLiteRepository(newPlansDB(t), clk)
 
 	p, err := repo.Create(ctx, plans.Plan{

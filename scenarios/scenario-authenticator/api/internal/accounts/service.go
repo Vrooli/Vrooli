@@ -9,9 +9,10 @@ import (
 	"scenario-authenticator/internal/audit"
 	"scenario-authenticator/internal/authcrypto"
 	"scenario-authenticator/internal/authorization"
-	"scenario-authenticator/internal/clock"
 	"scenario-authenticator/internal/realm"
 	"scenario-authenticator/internal/sessions"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Lockout defaults: after N consecutive failed logins, lock the account for a
@@ -90,7 +91,7 @@ type Service struct {
 	machineBindings  MachineBindingStore
 	breakGlass       BreakGlassProvisioner
 	breakGlassIssuer BreakGlassIssuer
-	clock            clock.Clock
+	clock            schedule.Clock
 	lockThreshold    int
 	lockDuration     time.Duration
 }
@@ -105,7 +106,7 @@ type ServiceConfig struct {
 	MachineBindings  MachineBindingStore
 	BreakGlass       BreakGlassProvisioner
 	BreakGlassIssuer BreakGlassIssuer
-	Clock            clock.Clock
+	Clock            schedule.Clock
 	LockThreshold    int
 	LockDuration     time.Duration
 }
@@ -113,7 +114,7 @@ type ServiceConfig struct {
 // NewService constructs the orchestrator.
 func NewService(cfg ServiceConfig) *Service {
 	if cfg.Clock == nil {
-		cfg.Clock = clock.System{}
+		cfg.Clock = schedule.System()
 	}
 	if cfg.LockThreshold <= 0 {
 		cfg.LockThreshold = defaultLockThreshold

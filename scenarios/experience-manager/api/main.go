@@ -10,10 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"experience-manager/internal/clock"
 	"experience-manager/internal/modules"
 	"experience-manager/internal/reconcile"
 	"experience-manager/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -139,7 +140,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "experience-manager-api", "1.0.0"),
 		capabilitiesH.Module(repoRoot()),
 		studioH.Module(log.Default(), repoRoot(), studioH.WithDatabase(db)),

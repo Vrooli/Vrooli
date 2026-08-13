@@ -10,9 +10,10 @@ import (
 	"testing"
 
 	"code-facts/handlers/health"
-	"code-facts/internal/clock"
 	"code-facts/internal/server"
 	"code-facts/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // TestNewLiveServer_RoutesRegistered confirms the harness wires the
@@ -77,7 +78,7 @@ func newHarnessServer(t *testing.T, service string) *server.Server {
 	t.Helper()
 	mod := health.Module(&mocks.FakePinger{}, service, "0.0.1", nil)
 	return server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+		server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
 		mod,
 	)
 }

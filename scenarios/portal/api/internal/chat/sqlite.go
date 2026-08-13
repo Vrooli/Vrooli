@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"portal/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -23,12 +23,12 @@ type SQLExecutor interface {
 
 type sqliteRepository struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
-func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
+func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &sqliteRepository{db: db, clock: clk}
 }

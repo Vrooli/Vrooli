@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"network-manager/internal/testutil/mocks"
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +16,7 @@ func TestServiceDefaultsAreMinimal(t *testing.T) {
 	// query visibility and short household retention.
 	now := time.Date(2026, 6, 23, 20, 0, 0, 0, time.UTC)
 	repo := &fakeRepository{}
-	service := NewService(Config{Repo: repo, Clock: mocks.NewFakeClock(now)})
+	service := NewService(Config{Repo: repo, Clock: scheduletest.New(now)})
 
 	retention, err := service.GetRetention(context.Background())
 	require.NoError(t, err)
@@ -35,7 +35,7 @@ func TestServiceDefaultsAreMinimal(t *testing.T) {
 func TestServiceUpdateValidation(t *testing.T) {
 	// [REQ:NM-P0-008] Household query-log retention must stay deliberately
 	// short unless audit mode is explicitly selected.
-	service := NewService(Config{Repo: &fakeRepository{}, Clock: mocks.NewFakeClock(time.Date(2026, 6, 23, 20, 0, 0, 0, time.UTC))})
+	service := NewService(Config{Repo: &fakeRepository{}, Clock: scheduletest.New(time.Date(2026, 6, 23, 20, 0, 0, 0, time.UTC))})
 
 	_, err := service.UpdateRetention(context.Background(), RetentionSettings{
 		QueryLogDays:   14,
@@ -69,7 +69,7 @@ func TestServiceSweepUsesRetentionSettings(t *testing.T) {
 			UpdatedAt:      now,
 		},
 	}
-	service := NewService(Config{Repo: repo, Clock: mocks.NewFakeClock(now)})
+	service := NewService(Config{Repo: repo, Clock: scheduletest.New(now)})
 
 	result, err := service.Sweep(context.Background())
 	require.NoError(t, err)

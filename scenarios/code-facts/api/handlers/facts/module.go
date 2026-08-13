@@ -44,6 +44,19 @@ func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64) module.Module {
 
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "facts_search",
+		Path:        factsconnect.CodeFactsServiceSearchProcedure,
+		Method:      "POST",
+		Summary:     "Search code evidence",
+		Description: "Runs a bounded lexical search over symbols, file domains, and contract facts while preserving analyzer and source-range provenance.",
+		Category:    "facts",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"query": "string (required)", "limit": "int32 (default 10)", "target": "CodeTarget (optional; defaults to project)",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"results": "array<SearchHit>"}},
+		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query is empty or target is invalid"}},
+	},
+	{
 		ID:          "facts_describe",
 		Path:        factsconnect.CodeFactsServiceDescribeCodeFactsProcedure,
 		Method:      "POST",

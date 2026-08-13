@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"business-health/internal/clock"
 	"business-health/internal/modules"
 	"business-health/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -224,7 +225,7 @@ func main() {
 	hinter := aisearch.NewWizardHinter(aiService)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: logger},
+		server.Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, "business-health-api", "1.0.0"),
 		validationH.Module(logger, root, scenarioDir, engine),
 		wizardH.Module(logger, root, filepath.Join(scenarioDir, "data"), engine, hinter),

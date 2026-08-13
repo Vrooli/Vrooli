@@ -120,6 +120,23 @@ func findSurface(surfaces []*factsv1.Surface, id string) *factsv1.Surface {
 }
 
 func discoverParseUnits(target *factsv1.TargetContext) []*factsv1.ParseUnit {
+	if roots := target.GetRootPaths(); len(roots) > 0 {
+		var units []*factsv1.ParseUnit
+		for _, root := range roots {
+			child := &factsv1.TargetContext{
+				RootPath:      root,
+				Scenario:      scenarioFromPath(root, filepath.Dir(filepath.Dir(root))),
+				ScenarioAware: hasServiceManifest(root),
+			}
+			units = append(units, discoverParseUnitsAtRoot(child)...)
+		}
+		sort.SliceStable(units, func(i, j int) bool { return units[i].GetId() < units[j].GetId() })
+		return dedupeParseUnits(units)
+	}
+	return discoverParseUnitsAtRoot(target)
+}
+
+func discoverParseUnitsAtRoot(target *factsv1.TargetContext) []*factsv1.ParseUnit {
 	root := target.GetRootPath()
 	if isFile(root) {
 		if filepath.Base(root) == "tsconfig.json" {
@@ -308,10 +325,18 @@ func dependencyManifest(root string) (string, string) {
 		name     string
 		language string
 	}{
-		{"pnpm-lock.yaml", "node"}, {"package-lock.json", "node"}, {"npm-shrinkwrap.json", "node"},
-		{"yarn.lock", "node"}, {"bun.lock", "node"}, {"bun.lockb", "node"},
-		{"requirements.txt", "python"}, {"Pipfile.lock", "python"}, {"poetry.lock", "python"}, {"pyproject.toml", "python"},
-		{"Cargo.lock", "rust"}, {"Cargo.toml", "rust"},
+		{"pnpm-lock.yaml", "node"},
+		{"package-lock.json", "node"},
+		{"npm-shrinkwrap.json", "node"},
+		{"yarn.lock", "node"},
+		{"bun.lock", "node"},
+		{"bun.lockb", "node"},
+		{"requirements.txt", "python"},
+		{"Pipfile.lock", "python"},
+		{"poetry.lock", "python"},
+		{"pyproject.toml", "python"},
+		{"Cargo.lock", "rust"},
+		{"Cargo.toml", "rust"},
 	}
 	for _, manifest := range manifests {
 		path := filepath.Join(root, manifest.name)

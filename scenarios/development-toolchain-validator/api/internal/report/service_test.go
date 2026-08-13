@@ -9,9 +9,10 @@ import (
 	report "development-toolchain-validator/internal/report"
 	skillcatalog "development-toolchain-validator/internal/skill_catalog"
 	staleness "development-toolchain-validator/internal/staleness"
-	"development-toolchain-validator/internal/testutil/mocks"
 	vr "development-toolchain-validator/internal/validation_record"
 	vrmocks "development-toolchain-validator/internal/validation_record/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -42,7 +43,7 @@ func (f *fakeStaleSrc) ListStale(context.Context) ([]staleness.Entry, error) {
 
 func newSvc(t *testing.T, skills []skillcatalog.Skill, manifests []manifest.Manifest, stale []staleness.Entry, records []vr.AppendInput) report.Service {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
 	recordsRepo := vrmocks.NewFakeRepository()
 	recordsSvc := vr.NewService(recordsRepo, clk)
 	for _, in := range records {

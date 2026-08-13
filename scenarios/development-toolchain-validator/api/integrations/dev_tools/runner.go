@@ -22,8 +22,9 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 
-	"development-toolchain-validator/internal/clock"
 	vrun "development-toolchain-validator/internal/validation_run"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // CommandResult captures one tool process execution.
@@ -40,7 +41,7 @@ type CommandResult struct {
 
 // Options configures the dev-tool runner.
 type Options struct {
-	Clock clock.Clock
+	Clock schedule.Clock
 
 	// CommandRunner is the seam used to exec a tool command. nil defaults
 	// to a real exec.CommandContext capturing stdout/stderr separately.
@@ -64,7 +65,7 @@ type Runner struct {
 // New constructs a Runner with the given options.
 func New(opts Options) *Runner {
 	if opts.Clock == nil {
-		opts.Clock = clock.System{}
+		opts.Clock = schedule.System()
 	}
 	if opts.CommandRunner == nil {
 		opts.CommandRunner = defaultCommandRunner

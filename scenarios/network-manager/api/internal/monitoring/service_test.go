@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"network-manager/internal/snapshot"
-	"network-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +18,7 @@ func TestServiceScheduleRequiresBaselineSnapshot(t *testing.T) {
 	service := NewService(Config{
 		Repo:      newFakeRepository(),
 		Snapshots: &fakeSnapshotService{},
-		Clock:     mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)),
+		Clock:     scheduletest.New(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)),
 	})
 
 	_, err := service.UpsertSchedule(context.Background(), Schedule{Name: "watch", BaselineSnapshotID: "missing"})
@@ -52,7 +53,7 @@ func TestServiceRunCheckDetectsAndPersistsRegressions(t *testing.T) {
 			},
 		},
 	}
-	service := NewService(Config{Repo: repo, Snapshots: snapshots, Clock: mocks.NewFakeClock(now)})
+	service := NewService(Config{Repo: repo, Snapshots: snapshots, Clock: scheduletest.New(now)})
 	schedule, err := service.UpsertSchedule(context.Background(), Schedule{
 		Name:                 "Home baseline watch",
 		BaselineSnapshotID:   "baseline-1",
@@ -87,7 +88,7 @@ func TestServiceDisabledRunIsAdvisory(t *testing.T) {
 		UpdatedAt:          now,
 	}
 	snapshots := &fakeSnapshotService{byID: map[string]snapshot.Snapshot{"baseline-1": {ID: "baseline-1"}}}
-	service := NewService(Config{Repo: repo, Snapshots: snapshots, Clock: mocks.NewFakeClock(now)})
+	service := NewService(Config{Repo: repo, Snapshots: snapshots, Clock: scheduletest.New(now)})
 
 	run, err := service.RunCheck(context.Background(), "schedule-1", false)
 	require.NoError(t, err)

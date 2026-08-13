@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"measures-health/internal/clock"
 	"measures-health/internal/modules"
 	"measures-health/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -131,7 +132,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "measures-health-api", "1.0.0"),
 		validationH.Module(repoRoot, runs, log.Default()),
 		searchH.Module(repoRoot, log.Default()),

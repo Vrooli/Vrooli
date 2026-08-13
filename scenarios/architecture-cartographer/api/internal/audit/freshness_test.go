@@ -11,7 +11,8 @@ import (
 	domainsmocks "architecture-cartographer/internal/domains/mocks"
 	"architecture-cartographer/internal/graph"
 	graphmocks "architecture-cartographer/internal/graph/mocks"
-	"architecture-cartographer/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // runFreshness exercises Service.Run with a graph fake configured to
@@ -36,7 +37,7 @@ func runFreshness(t *testing.T, snaps []graph.GraphSnapshot, fromCache bool) aud
 		AuthorityConfidence: "low",
 	}}
 	c := &conflictsmocks.FakeService{}
-	svc := audit.NewService(g, d, c, nil, nil, nil, mocks.NewFakeClock(time.Time{}))
+	svc := audit.NewService(g, d, c, nil, nil, nil, scheduletest.New(time.Time{}))
 	rep, err := svc.Run(context.Background(), audit.RunInput{Scenario: "demo"})
 	if err != nil {
 		t.Fatalf("Run: %v", err)

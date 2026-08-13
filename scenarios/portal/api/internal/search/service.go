@@ -14,8 +14,9 @@ import (
 	"github.com/vrooli/api-core/discovery"
 
 	internalchat "portal/internal/chat"
-	"portal/internal/clock"
 	"portal/internal/integrations/registry"
+
+	"github.com/vrooli/api-core/schedule"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
@@ -57,20 +58,20 @@ type Service struct {
 	chat     *internalchat.Service
 	hub      HubClient
 	registry *registry.Service
-	clock    clock.Clock
+	clock    schedule.Clock
 }
 
 type Config struct {
 	Chat     *internalchat.Service
 	Hub      HubClient
 	Registry *registry.Service
-	Clock    clock.Clock
+	Clock    schedule.Clock
 }
 
 func NewService(cfg Config) *Service {
 	clk := cfg.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	hub := cfg.Hub
 	if hub == nil {

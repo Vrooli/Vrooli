@@ -13,7 +13,9 @@ const (
 )
 
 // Clock is the time seam, keeping the breaker and sweeper deterministic in tests.
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	Now() time.Time
 }
 
