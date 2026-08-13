@@ -218,7 +218,7 @@ describe("API client endpoint wrappers", () => {
       { checkId: "b", status: "warning", message: "", timestamp: "", duration: 0 },
       { checkId: "c", status: "critical", message: "", timestamp: "", duration: 0 },
     ] as HealthResult[];
-    expect(Object.keys(api.groupChecksByStatus(checks))).toHaveLength(3);
+    expect(Object.keys(api.groupChecksByStatus(checks))).toHaveLength(4);
     expect(api.sortChecksBySeverity(checks)[0]?.status).toBe("critical");
     expect(api.overallStatusFromSummary({ total: 1, ok: 0, warning: 1, critical: 0 })).toBe("warning");
     expect(api.overallStatusFromSummary({ total: 1, ok: 1, warning: 0, critical: 0 })).toBe("ok");

@@ -26,10 +26,12 @@ type Target struct {
 	Running   bool
 }
 
-type VerifyFunc func(context.Context, string, string) (sharedresources.GPUAccessState, string)
-type TargetsFunc func(context.Context) ([]Target, error)
-type RestartFunc func(context.Context, string) error
-type HostFunc func(context.Context) (sharedhost.Snapshot, error)
+type (
+	VerifyFunc  func(context.Context, string, string) (sharedresources.GPUAccessState, string)
+	TargetsFunc func(context.Context) ([]Target, error)
+	RestartFunc func(context.Context, string) error
+	HostFunc    func(context.Context) (sharedhost.Snapshot, error)
+)
 
 type Check struct {
 	verify  VerifyFunc
@@ -66,6 +68,7 @@ func (c *Check) Title() string { return "Resource Container GPU Access" }
 func (c *Check) Description() string {
 	return "Verifies that every running NVIDIA GPU resource container can open its GPU device"
 }
+
 func (c *Check) Importance() string {
 	return "A green host GPU does not prove a container can use it; revoked access silently moves inference to CPU"
 }

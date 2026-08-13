@@ -145,3 +145,30 @@ func TestGenerateRefusesNotApplicableCandidate(t *testing.T) {
 		t.Fatal("expected not_applicable candidate to be refused")
 	}
 }
+
+func TestGenerateUsesSecondEvidenceKeyedGenerator(t *testing.T) {
+	stateRoot := t.TempDir()
+	t.Setenv("VROOLI_STATE_ROOT", stateRoot)
+	service, err := NewService()
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	incident := incidents.Incident{
+		ID:            "inc_runtime",
+		EvidenceItems: []incidents.EvidenceItem{{Kind: "runtime_not_callable", Data: map[string]any{"service": "demo-runtime"}}},
+		RemediationCandidates: []incidents.RemediationCandidate{{
+			ID: "operator-runtime-restart", TemplateID: "operator-runtime-restart", Title: "Review runtime restart", Applicability: "applicable",
+		}},
+	}
+	response, err := service.Generate(incident, "operator-runtime-restart")
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(response.Artifact.Path, "metadata.json"))
+	if err != nil {
+		t.Fatalf("read metadata: %v", err)
+	}
+	if !strings.Contains(string(data), "demo-runtime") {
+		t.Fatalf("metadata does not contain generated runtime evidence: %s", data)
+	}
+}

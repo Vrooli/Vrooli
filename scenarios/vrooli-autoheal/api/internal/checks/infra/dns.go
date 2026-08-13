@@ -168,13 +168,6 @@ func (c *DNSCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryA
 			Available:   isLinux && hasSystemd,
 		},
 		{
-			ID:          "flush-cache",
-			Name:        "Flush DNS Cache",
-			Description: "Flush the DNS resolver cache",
-			Dangerous:   false,
-			Available:   isLinux && hasSystemd,
-		},
-		{
 			ID:          "test-external",
 			Name:        "Test External DNS",
 			Description: "Test DNS resolution using the configured external resolver",
@@ -198,7 +191,8 @@ func (c *DNSCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 
 	switch actionID {
 	case "restart-resolved":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "systemd-resolved")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "systemd-resolved")
+		result.Elevation = &outcome
 		result.Output = string(output)
 
 		if err != nil {
@@ -211,22 +205,6 @@ func (c *DNSCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 
 		// Verify DNS resolution works after restart
 		return c.verifyRecovery(ctx, result, "restart-resolved", start)
-
-	case "flush-cache":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "resolvectl", "flush-caches")
-		result.Duration = time.Since(start)
-		result.Output = string(output)
-
-		if err != nil {
-			result.Success = false
-			result.Error = err.Error()
-			result.Message = "Failed to flush DNS cache"
-			return result
-		}
-
-		result.Success = true
-		result.Message = "Flushed DNS cache"
-		return result
 
 	case "test-external":
 		// Test DNS resolution using the configured external DNS server. When no

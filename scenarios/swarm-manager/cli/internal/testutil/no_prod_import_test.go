@@ -28,7 +28,7 @@ func TestNoProductionImports(t *testing.T) {
 
 		for _, imp := range file.Imports {
 			importPath := strings.Trim(imp.Path.Value, `"`)
-			if strings.HasPrefix(importPath, "swarm-manager/cli/internal/testutil") {
+			if strings.HasPrefix(importPath, testutil "github.com/vrooli/cli-core/cliapptest") {
 				violations = append(violations, rel+" imports "+importPath)
 			}
 		}
@@ -38,7 +38,7 @@ func TestNoProductionImports(t *testing.T) {
 		return
 	}
 
-	t.Errorf("production code must not import swarm-manager/cli/internal/testutil")
+	t.Errorf("github.com/vrooli/cli-core/cliapptest")
 	for _, violation := range violations {
 		t.Errorf("  %s", violation)
 	}

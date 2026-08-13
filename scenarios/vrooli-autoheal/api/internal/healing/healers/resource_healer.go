@@ -4,7 +4,6 @@ package healers
 
 import (
 	"context"
-	"strings"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing/strategies"
@@ -38,19 +37,9 @@ func (h *ResourceHealer) Actions(lastResult *checks.Result) []checks.RecoveryAct
 	isStopped := false
 
 	if lastResult != nil {
-		output, ok := lastResult.Details["output"].(string)
-		if ok {
-			lowerOutput := strings.ToLower(output)
-			// Check negative patterns first
-			if strings.Contains(lowerOutput, "not running") ||
-				strings.Contains(lowerOutput, "stopped") ||
-				strings.Contains(lowerOutput, "exited") {
-				isStopped = true
-			} else if strings.Contains(lowerOutput, "running") ||
-				strings.Contains(lowerOutput, "healthy") ||
-				strings.Contains(lowerOutput, "started") {
-				isRunning = true
-			}
+		if running, ok := lastResult.Details["running"].(bool); ok {
+			isRunning = running
+			isStopped = !running
 		}
 		if lastResult.Status == checks.StatusOK {
 			isRunning = true
@@ -148,11 +137,6 @@ func resourceCompanionDown(lastResult *checks.Result) bool {
 	if lastResult == nil {
 		return false
 	}
-	if statusText, ok := lastResult.Details["statusText"].(string); ok && strings.Contains(strings.ToLower(statusText), "companion down") {
-		return true
-	}
-	if output, ok := lastResult.Details["output"].(string); ok && strings.Contains(strings.ToLower(output), "companion down") {
-		return true
-	}
-	return strings.Contains(strings.ToLower(lastResult.Message), "companion down")
+	companion, _ := lastResult.Details["companionDown"].(bool)
+	return companion
 }

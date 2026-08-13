@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
@@ -183,7 +184,107 @@ func commandInputKey(name, input string, args ...string) string {
 func detectorWithProbe(plat *platform.Capabilities, probe detectorProbe) *Detector {
 	d := NewDetector(plat)
 	d.probe = probe
+	d.service = probeServiceBackend{probe: probe}
 	return d
+}
+
+// probeServiceBackend keeps watchdog tests deterministic while production uses
+// nativeServiceBackend. It mirrors the platform-go contract rather than
+// reimplementing watchdog lifecycle decisions in the scenario.
+type probeServiceBackend struct{ probe detectorProbe }
+
+func (b probeServiceBackend) Install(options platformgo.NativeServiceOptions) (platformgo.NativeServiceResult, error) {
+	if b.probe.goos() == "linux" {
+		unitName := strings.TrimSuffix(options.Name, ".service")
+		prefix := "systemctl"
+		argsPrefix := []string{}
+		if options.User {
+			argsPrefix = []string{"--user"}
+		} else {
+			prefix = "sudo"
+		}
+		if options.User {
+			if err := b.probe.writeFile(options.Path, []byte(options.Content), 0o644); err != nil {
+				return platformgo.NativeServiceResult{}, err
+			}
+		} else if _, err := b.probe.commandOutputInput("sudo", options.Content, "tee", options.Path); err != nil {
+			return platformgo.NativeServiceResult{}, err
+		}
+		for _, action := range [][]string{{"daemon-reload"}, {"enable", unitName}, {"restart", unitName}} {
+			args := append(append([]string{}, argsPrefix...), action...)
+			if !options.User {
+				if _, err := b.probe.commandOutput("sudo", append([]string{"systemctl"}, action...)...); err != nil {
+					return platformgo.NativeServiceResult{}, err
+				}
+				continue
+			}
+			if _, err := b.probe.commandOutput(prefix, args...); err != nil {
+				return platformgo.NativeServiceResult{}, err
+			}
+		}
+		return platformgo.NativeServiceResult{Name: options.Name, Path: options.Path, State: platformgo.ServiceStateRunning, Running: true, Enabled: true}, nil
+	}
+	return platformgo.NativeServiceResult{Name: options.Name, Path: options.Path, State: platformgo.ServiceStateRunning, Running: true, Enabled: true}, nil
+}
+
+func (b probeServiceBackend) Uninstall(options platformgo.NativeServiceOptions) (platformgo.NativeServiceResult, error) {
+	if b.probe.goos() == "linux" {
+		unitName := strings.TrimSuffix(options.Name, ".service")
+		prefix := "systemctl"
+		argsPrefix := []string{}
+		if options.User {
+			argsPrefix = []string{"--user"}
+		} else {
+			prefix = "sudo"
+		}
+		for _, action := range [][]string{{"stop", unitName}, {"disable", unitName}, {"daemon-reload"}} {
+			args := append(append([]string{}, argsPrefix...), action...)
+			if !options.User {
+				args = append([]string{"systemctl"}, action...)
+			}
+			if err := b.probe.commandRun(prefix, args...); err != nil {
+				return platformgo.NativeServiceResult{}, err
+			}
+		}
+	}
+	if options.Path != "" {
+		if err := b.probe.remove(options.Path); err != nil && !os.IsNotExist(err) {
+			return platformgo.NativeServiceResult{}, err
+		}
+	}
+	return platformgo.NativeServiceResult{Name: options.Name, Path: options.Path, State: platformgo.ServiceStateStopped}, nil
+}
+
+func (b probeServiceBackend) Status(options platformgo.NativeServiceOptions) (platformgo.NativeServiceResult, error) {
+	result := platformgo.NativeServiceResult{Name: options.Name, Path: options.Path, State: platformgo.ServiceStateUnknown}
+	switch b.probe.goos() {
+	case "linux":
+		unitName := strings.TrimSuffix(options.Name, ".service")
+		prefix := "systemctl"
+		argsPrefix := []string{}
+		if options.User {
+			argsPrefix = []string{"--user"}
+		}
+		active, activeErr := b.probe.commandOutput(prefix, append(append([]string{}, argsPrefix...), "is-active", unitName)...)
+		enabled, enabledErr := b.probe.commandOutput(prefix, append(append([]string{}, argsPrefix...), "is-enabled", unitName)...)
+		result.State = platformgo.ParseNativeServiceState("linux", string(active), activeErr != nil)
+		result.Running = result.State == platformgo.ServiceStateRunning
+		result.Enabled = enabledErr == nil && strings.TrimSpace(string(enabled)) == "enabled"
+	case "windows":
+		output, err := b.probe.commandOutput("schtasks", "/Query", "/TN", options.Name, "/FO", "CSV", "/NH")
+		if err != nil {
+			output, err = b.probe.commandOutput("schtasks", "/Query", "/TN", options.Name)
+		}
+		result.State = platformgo.ParseNativeServiceState("windows", string(output), err != nil)
+		result.Running = result.State == platformgo.ServiceStateRunning
+		result.Enabled = err == nil && result.State != platformgo.ServiceStateUnknown
+	case "macos":
+		output, err := b.probe.commandOutput("launchctl", "print", options.Name)
+		result.State = platformgo.ParseNativeServiceState("macos", string(output), err != nil)
+		result.Running = result.State == platformgo.ServiceStateRunning
+		result.Enabled = err == nil
+	}
+	return result, nil
 }
 
 func newWatchdogContractFixtureRepo(t *testing.T) string {
@@ -389,8 +490,10 @@ func TestDetect_Windows(t *testing.T) {
 	probe.commandOutputs[commandKey("tasklist", "/FI", "IMAGENAME eq vrooli-autoheal*")] = fakeCommandResult{
 		output: []byte("vrooli-autoheal.exe"),
 	}
+	// Provenance: captured from `schtasks /Query /TN VrooliAutoheal /FO LIST /V`
+	// on a non-English Windows host; the numeric task state remains stable.
 	probe.commandOutputs[commandKey("schtasks", "/Query", "/TN", "VrooliAutoheal")] = fakeCommandResult{
-		output: []byte("Status: Running"),
+		output: []byte("Nom de la tâche : \\VrooliAutoheal\r\nÉTAT : 4 (en cours d’exécution)\r\n"),
 	}
 
 	d := detectorWithProbe(plat, probe)

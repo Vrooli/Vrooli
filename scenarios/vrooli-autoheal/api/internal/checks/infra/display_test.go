@@ -8,13 +8,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
+
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // setMockResponse is a helper to set a response on the mock executor
-func setMockResponse(m *checks.MockExecutor, key string, output []byte, err error) {
-	m.Responses[key] = checks.MockResponse{Output: output, Error: err}
+func setMockResponse(m *testutil.MockExecutor, key string, output []byte, err error) {
+	m.Responses[key] = testutil.MockResponse{Output: output, Error: err}
 }
 
 // displayTestCaps returns platform capabilities for display tests
@@ -26,7 +28,7 @@ func displayTestCaps() *platform.Capabilities {
 	}
 }
 
-func newDisplayManagerCheckForTest(mockExec *checks.MockExecutor) *DisplayManagerCheck {
+func newDisplayManagerCheckForTest(mockExec *testutil.MockExecutor) *DisplayManagerCheck {
 	return NewDisplayManagerCheck(
 		displayTestCaps(),
 		WithDisplayExecutor(mockExec),
@@ -85,7 +87,7 @@ func TestDisplayManagerCheckRunHeadless(t *testing.T) {
 		IsHeadlessServer: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	check := NewDisplayManagerCheck(headlessCaps, WithDisplayExecutor(mockExec))
 
 	result := check.Run(context.Background())
@@ -105,7 +107,7 @@ func TestDisplayManagerCheckRunHeadless(t *testing.T) {
 // TestDisplayManagerCheckRunNoDisplayManager verifies behavior when no DM is detected
 // [REQ:INFRA-DISPLAY-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckRunNoDisplayManager(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Return multi-user.target (not graphical)
 	setMockResponse(mockExec, "systemctl get-default", []byte("multi-user.target\n"), nil)
 	// All DMs not enabled
@@ -127,7 +129,7 @@ func TestDisplayManagerCheckRunNoDisplayManager(t *testing.T) {
 // TestDisplayManagerCheckRunGDMActive verifies behavior when GDM is running
 // [REQ:INFRA-DISPLAY-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckRunGDMActive(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Graphical target is default
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	// GDM is active
@@ -162,7 +164,7 @@ func TestDisplayManagerCheckRunGDMActive(t *testing.T) {
 // TestDisplayManagerCheckRunDMNotActive verifies behavior when DM is not running
 // [REQ:INFRA-DISPLAY-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckRunDMNotActive(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Graphical target is default
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	// GDM exists but is not active
@@ -190,7 +192,7 @@ func TestDisplayManagerCheckRunDMNotActive(t *testing.T) {
 // TestDisplayManagerCheckRunWithX11 verifies X11 responsiveness checking
 // [REQ:INFRA-DISPLAY-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckRunWithX11(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Graphical target and GDM active
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
@@ -227,7 +229,7 @@ func TestDisplayManagerCheckRunWithX11(t *testing.T) {
 // TestDisplayManagerCheckRunWithX11Unresponsive verifies warning when X11 is unresponsive
 // [REQ:INFRA-DISPLAY-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckRunWithX11Unresponsive(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Graphical target and GDM active
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
@@ -298,7 +300,7 @@ func TestDisplayManagerCheckRecoveryActions(t *testing.T) {
 // TestDisplayManagerCheckExecuteActionStatus verifies status action execution
 // [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckExecuteActionStatus(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Set up GDM as active display manager
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
@@ -330,7 +332,7 @@ func TestDisplayManagerCheckExecuteActionStatus(t *testing.T) {
 // TestDisplayManagerCheckExecuteActionLogs verifies logs action execution
 // [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckExecuteActionLogs(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Set up GDM as active display manager
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
@@ -356,7 +358,8 @@ func TestDisplayManagerCheckExecuteActionLogs(t *testing.T) {
 // TestDisplayManagerCheckExecuteActionRestart verifies restart action execution
 // [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckExecuteActionRestart(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	allowRecoveryGrant(t)
+	mockExec := testutil.NewMockExecutor()
 	// Set up GDM as active display manager
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
@@ -366,7 +369,7 @@ func TestDisplayManagerCheckExecuteActionRestart(t *testing.T) {
 		}
 	}
 	// Restart command
-	setMockResponse(mockExec, "sudo systemctl restart gdm", []byte(""), nil)
+	setMockResponse(mockExec, "sudo -n /usr/bin/systemctl restart gdm", []byte(""), nil)
 	// gnome-shell is running after restart (for verification)
 	// The test machine has auto-login for alice, so mock the user-specific check
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
@@ -386,7 +389,8 @@ func TestDisplayManagerCheckExecuteActionRestart(t *testing.T) {
 // TestDisplayManagerCheckExecuteActionRestartFails verifies restart failure handling
 // [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckExecuteActionRestartFails(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	allowRecoveryGrant(t)
+	mockExec := testutil.NewMockExecutor()
 	// Set up GDM as active display manager
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
@@ -396,7 +400,7 @@ func TestDisplayManagerCheckExecuteActionRestartFails(t *testing.T) {
 		}
 	}
 	// Restart command fails
-	setMockResponse(mockExec, "sudo systemctl restart gdm", []byte("Failed to restart gdm.service: Access denied\n"), errors.New("exit status 1"))
+	setMockResponse(mockExec, "sudo -n /usr/bin/systemctl restart gdm", []byte("Failed to restart gdm.service: Access denied\n"), errors.New("exit status 1"))
 
 	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.ExecuteAction(context.Background(), "restart")
@@ -412,7 +416,7 @@ func TestDisplayManagerCheckExecuteActionRestartFails(t *testing.T) {
 // TestDisplayManagerCheckExecuteActionUnknown verifies unknown action handling
 // [REQ:HEAL-ACTION-001]
 func TestDisplayManagerCheckExecuteActionUnknown(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
 	for _, dm := range supportedDisplayManagers {
@@ -447,7 +451,7 @@ func TestDisplayManagerCheckUsesInjectedCaps(t *testing.T) {
 // TestDisplayManagerCheckWithLightDM verifies detection of LightDM
 // [REQ:INFRA-DISPLAY-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckWithLightDM(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Graphical target is default
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	// GDM is not active, but LightDM is
@@ -477,7 +481,7 @@ func TestDisplayManagerCheckWithLightDM(t *testing.T) {
 // direct source of a false green during a total RDP outage.
 // [REQ:INFRA-DISPLAY-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckMakesNoRDPClaims(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// GDM is active
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
@@ -528,7 +532,7 @@ func TestDisplayManagerCheckMakesNoRDPClaims(t *testing.T) {
 // any consumer of that session.
 // [REQ:INFRA-DISPLAY-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckNoSessionForAutoLoginUser(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
 	for _, dm := range supportedDisplayManagers {
@@ -561,7 +565,7 @@ func TestDisplayManagerCheckNoSessionForAutoLoginUser(t *testing.T) {
 // TestDisplayManagerCheckDiagnoseAction verifies diagnose action execution
 // [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckDiagnoseAction(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Set up GDM as active display manager
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)

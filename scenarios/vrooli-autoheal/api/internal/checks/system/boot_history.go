@@ -51,7 +51,7 @@ func WithBootHistoryNow(now func() time.Time) BootHistoryCheckOption {
 // NewBootHistoryCheck builds a BootHistoryCheck.
 func NewBootHistoryCheck(opts ...BootHistoryCheckOption) *BootHistoryCheck {
 	c := &BootHistoryCheck{
-		reader:     journal.NewReader(checks.DefaultExecutor),
+		reader:     journal.NewPlatformReader(),
 		now:        time.Now,
 		uncleanWin: 24 * time.Hour,
 	}

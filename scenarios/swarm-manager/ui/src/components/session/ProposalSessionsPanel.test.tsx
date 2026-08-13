@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../test-utils/render";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { selectors } from "../../consts/selectors";
 import { agentSessionStoreInitialState, useAgentSessionStore } from "../../stores";
 import { ProposalSessionsPanel } from "./ProposalSessionsPanel";

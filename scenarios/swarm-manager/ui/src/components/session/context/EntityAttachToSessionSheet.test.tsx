@@ -9,7 +9,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../test-utils/render";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { EntityAttachToSessionSheet } from "./EntityAttachToSessionSheet";
 import { selectors } from "../../../consts/selectors";
 import { agentSessionStoreInitialState, useAgentSessionStore } from "../../../stores";
@@ -99,7 +99,7 @@ describe("EntityAttachToSessionSheet", () => {
     expect(specific).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("drafting with a suggestion selected stages the context and seeds the composer draft", async () => {
+  it("stages the context and leaves the composer empty for a card that needs nothing typed", async () => {
     renderSheet();
 
     const cards = screen.getAllByTestId(selectors.agentSessions.entityAttachSuggestion);
@@ -110,12 +110,25 @@ describe("EntityAttachToSessionSheet", () => {
     await waitFor(() => {
       expect(peekStagedContextForSession("sess-new")).toEqual([BACKLOG_OPTION]);
     });
-    // The card's menu label is not the message. The draft carries the card's
-    // prompt: prose that names the entity and states the answer wanted.
+    // The item is staged as a visible context chip and the job instruction is
+    // server-owned, so this card has nothing left to ask the operator for. The
+    // card's menu label must never become the message.
     const draft = readSessionDraft("sess-new");
-    expect(draft).not.toBe('Plan follow-up work for "Fix flaky stats test".');
-    expect(draft).toContain('"Fix flaky stats test"');
-    expect(draft.length).toBeGreaterThan(120);
+    expect(draft).toBe("");
+  });
+
+  it("seeds the composer with the card's opener when it does need the operator's material", async () => {
+    renderSheet();
+
+    const cards = screen.getAllByTestId(selectors.agentSessions.entityAttachSuggestion);
+    const idea = cards.find((card) => card.textContent?.includes("Turn an idea into goals and backlog items."));
+    expect(idea).toBeDefined();
+    await userEvent.click(idea!);
+    await userEvent.click(screen.getByTestId(selectors.agentSessions.entityAttachQuickStart));
+
+    await waitFor(() => {
+      expect(readSessionDraft("sess-new")).toBe("Here is the idea:\n\n");
+    });
   });
 
   it("drafting without a suggestion leaves the composer draft empty", async () => {
@@ -155,11 +168,14 @@ describe("EntityAttachToSessionSheet", () => {
       expect(create).toHaveBeenCalledWith({
         title: "Proposal for Goal Alpha",
         target: { type: "goal", ref: "goal-alpha", name: "Goal Alpha" },
+        // The lens is a server-owned job, not composer prose. Its instruction —
+        // including "return a mutation_list envelope and never apply it" —
+        // lives in the job catalog and reaches the agent in the job band.
+        starterJobId: "proposal-identify-missing",
       });
     });
-    const draft = readSessionDraft("sess-new");
-    expect(draft).not.toBe('Identify missing work for "Goal Alpha".');
-    expect(draft).toContain('"Goal Alpha"');
-    expect(draft.length).toBeGreaterThan(120);
+    // The goal is staged as context and the lens needs nothing typed, so the
+    // operator opens onto a clean composer rather than someone else's prose.
+    expect(readSessionDraft("sess-new")).toBe("");
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { AppShell } from "./shared/ui/composites/app-shell";
-import { expectNoA11yViolations, renderWithProviders } from "./test-utils";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
+import { renderWithProviders } from "./test-utils/renderWithProviders";
 
 describe("AppShell accessibility", () => {
   it("has no axe-core violations", async () => {

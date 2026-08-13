@@ -176,7 +176,8 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 
 	switch actionID {
 	case "restart":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "docker")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "docker")
+		result.Elevation = &outcome
 		result.Output = string(output)
 
 		if err != nil {
@@ -191,7 +192,8 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 		return c.verifyRecovery(ctx, result, "restart", start)
 
 	case "start":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "start", "docker")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "start", "docker")
+		result.Elevation = &outcome
 		result.Output = string(output)
 
 		if err != nil {

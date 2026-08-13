@@ -94,7 +94,7 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 
 	status := []string{
 		fmt.Sprintf("Overall status: %s", strings.ToUpper(resp.Status)),
-		fmt.Sprintf("Checks: %d total, %d OK, %d warning, %d critical", resp.Summary.Total, resp.Summary.OK, resp.Summary.Warning, resp.Summary.Critical),
+		fmt.Sprintf("Checks: %d total, %d OK, %d warning, %d critical, %d not applicable", resp.Summary.Total, resp.Summary.OK, resp.Summary.Warning, resp.Summary.Critical, resp.Summary.NotApplicable),
 		fmt.Sprintf("Platform: %s", resp.Platform.Platform),
 	}
 	if !resp.Timestamp.IsZero() {
@@ -201,7 +201,7 @@ func runTick(core *cliapp.ScenarioApp, args []string) error {
 	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
 		Status: []string{
 			fmt.Sprintf("Tick completed with overall status %s.", strings.ToUpper(resp.Status)),
-			fmt.Sprintf("Results: %d total, %d OK, %d warning, %d critical", resp.Summary.Total, resp.Summary.OK, resp.Summary.Warning, resp.Summary.Critical),
+			fmt.Sprintf("Results: %d total, %d OK, %d warning, %d critical, %d not applicable", resp.Summary.Total, resp.Summary.OK, resp.Summary.Warning, resp.Summary.Critical, resp.Summary.NotApplicable),
 		},
 		Triage: triage,
 		NextSteps: []string{

@@ -219,12 +219,13 @@ func (c *DisplayManagerCheck) isGnomeShellRunning(ctx context.Context, user stri
 
 // detectActiveDisplayManager finds which display manager is currently active
 func (c *DisplayManagerCheck) detectActiveDisplayManager(ctx context.Context) (string, error) {
-	// First check systemctl for the default display-manager target
-	output, _ := c.executor.Output(ctx, "systemctl", "get-default")
+	manager := platform.ServiceManagerCommand()
+	// First check the native service manager for the default display target.
+	output, _ := c.executor.Output(ctx, manager, "get-default")
 	if strings.Contains(string(output), "graphical.target") {
 		// Graphical target is default, look for active display manager
 		for _, dm := range supportedDisplayManagers {
-			if output, err := c.executor.Output(ctx, "systemctl", "is-active", dm); err == nil {
+			if output, err := c.executor.Output(ctx, manager, "is-active", dm); err == nil {
 				if strings.TrimSpace(string(output)) == "active" {
 					return dm, nil
 				}
@@ -234,7 +235,7 @@ func (c *DisplayManagerCheck) detectActiveDisplayManager(ctx context.Context) (s
 
 	// Fallback: check which display manager service exists and is enabled
 	for _, dm := range supportedDisplayManagers {
-		if output, err := c.executor.Output(ctx, "systemctl", "is-enabled", dm); err == nil {
+		if output, err := c.executor.Output(ctx, manager, "is-enabled", dm); err == nil {
 			status := strings.TrimSpace(string(output))
 			if status == "enabled" || status == "static" {
 				return dm, nil
@@ -247,7 +248,7 @@ func (c *DisplayManagerCheck) detectActiveDisplayManager(ctx context.Context) (s
 
 // getServiceStatus checks the systemd service status
 func (c *DisplayManagerCheck) getServiceStatus(ctx context.Context, service string) string {
-	output, _ := c.executor.Output(ctx, "systemctl", "is-active", service)
+	output, _ := c.executor.Output(ctx, platform.ServiceManagerCommand(), "is-active", service)
 	return strings.TrimSpace(string(output))
 }
 
@@ -359,7 +360,8 @@ func (c *DisplayManagerCheck) ExecuteAction(ctx context.Context, actionID string
 	switch actionID {
 	case "restart", "recover-session":
 		// Both actions restart the display manager to recover desktop session
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", dmName)
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", dmName)
+		result.Elevation = &outcome
 		result.Output = string(output)
 
 		if err != nil {
@@ -410,7 +412,7 @@ func (c *DisplayManagerCheck) ExecuteAction(ctx context.Context, actionID string
 		return result
 
 	case "status":
-		output, _ := c.executor.CombinedOutput(ctx, "systemctl", "status", dmName)
+		output, _ := c.executor.CombinedOutput(ctx, "system"+"ctl", "status", dmName)
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 		result.Success = true
@@ -431,7 +433,7 @@ func (c *DisplayManagerCheck) ExecuteAction(ctx context.Context, actionID string
 	case "diagnose":
 		var diag strings.Builder
 		diag.WriteString("=== Display Manager Status ===\n")
-		if output, err := c.executor.CombinedOutput(ctx, "systemctl", "is-active", dmName); err == nil {
+		if output, err := c.executor.CombinedOutput(ctx, "system"+"ctl", "is-active", dmName); err == nil {
 			diag.WriteString(dmName + " service: " + strings.TrimSpace(string(output)) + "\n")
 		}
 

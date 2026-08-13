@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	clitest "swarm-manager/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 func TestCmdCapturesList_RendersAndTruncates(t *testing.T) {

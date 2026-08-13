@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
+
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
@@ -62,12 +63,12 @@ func cmdKey(args []string) string {
 
 // newKernelCollector builds a Linux HostCollector wired to a MockExecutor and
 // the given cursor store, with deterministic time.
-func newKernelCollector(t *testing.T, cursors CursorStore) (*HostCollector, *checks.MockExecutor) {
+func newKernelCollector(t *testing.T, cursors CursorStore) (*HostCollector, *testutil.MockExecutor) {
 	t.Helper()
-	mock := checks.NewMockExecutor()
+	mock := testutil.NewMockExecutor()
 	// journalctl --version (Available) and --list-boots succeed by default
 	// where individually keyed; the per-test responses fill in the rest.
-	mock.Responses = map[string]checks.MockResponse{}
+	mock.Responses = map[string]testutil.MockResponse{}
 	reader := journal.NewReader(mock)
 	c := NewHostCollectorWithCursors(&platform.Capabilities{Platform: platform.Linux}, mock, reader, cursors)
 	now := time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)
@@ -75,12 +76,31 @@ func newKernelCollector(t *testing.T, cursors CursorStore) (*HostCollector, *che
 	return c, mock
 }
 
+func TestCollectPortableHostLogsUsesStructuredReader(t *testing.T) {
+	mock := testutil.NewMockExecutor()
+	mock.Responses = map[string]testutil.MockResponse{
+		"journalctl --version":                 {Output: []byte("systemd 257")},
+		"journalctl --no-pager -o json -n 500": {Output: []byte(`{"__REALTIME_TIMESTAMP":"1782302400000000","SYSLOG_IDENTIFIER":"Microsoft-Windows-WHEA-Logger","SYSLOG_PID":"17","MESSAGE":"corrected hardware error","_HOSTNAME":"WIN-HOST","_PID":"4"}` + "\n")},
+	}
+	reader := journal.NewReader(mock)
+	c := NewHostCollector(&platform.Capabilities{Platform: platform.Windows}, mock, reader)
+	c.now = func() time.Time { return time.Date(2026, 6, 24, 12, 1, 0, 0, time.UTC) }
+
+	events, statuses := c.Collect(context.Background())
+	if len(events) != 1 || events[0].Source != "windows-eventlog" || events[0].Title != "Microsoft-Windows-WHEA-Logger" {
+		t.Fatalf("portable events = %#v, statuses = %#v", events, statuses)
+	}
+	if len(statuses) != 1 || statuses[0].Status != SourceOK || statuses[0].Capabilities["eventCount"] != 1 {
+		t.Fatalf("portable statuses = %#v", statuses)
+	}
+}
+
 func TestCollectKernelSignalsColdStartBoundedRescan(t *testing.T) {
 	cursors := NewMemoryCursorStore()
 	c, mock := newKernelCollector(t, cursors)
 	// Cold start, no cursor: collector issues a bounded -n rescan of boot 0
 	// with --show-cursor and persists the newest cursor.
-	mock.Responses[cmdKey(kernelGrepArgs("0", "", true, currentBootRescanTail))] = checks.MockResponse{Output: []byte(
+	mock.Responses[cmdKey(kernelGrepArgs("0", "", true, currentBootRescanTail))] = testutil.MockResponse{Output: []byte(
 		`{"__CURSOR":"s=z;i=10","__REALTIME_TIMESTAMP":"1750766400000000","MESSAGE":"NVRM: Xid error"}` + "\n",
 	)}
 
@@ -105,12 +125,12 @@ func TestCollectKernelSignalsSecondRunReadsOnlyDelta(t *testing.T) {
 	// With a valid cursor for the current boot, the collector reads ONLY the
 	// delta via --after-cursor (no bounded -n rescan). Returning the delta key
 	// but NOT the bounded-rescan key proves the incremental path was taken.
-	mock.Responses[cmdKey(kernelGrepArgs("0", "s=z;i=10", true, 0))] = checks.MockResponse{Output: []byte(
+	mock.Responses[cmdKey(kernelGrepArgs("0", "s=z;i=10", true, 0))] = testutil.MockResponse{Output: []byte(
 		`{"__CURSOR":"s=z;i=11","__REALTIME_TIMESTAMP":"1750766460000000","MESSAGE":"amdgpu: ring timeout"}` + "\n",
 	)}
 	// If the collector wrongly issued a bounded rescan, this would surface a
 	// second event and we'd catch it.
-	mock.Responses[cmdKey(kernelGrepArgs("0", "", true, currentBootRescanTail))] = checks.MockResponse{Output: []byte(
+	mock.Responses[cmdKey(kernelGrepArgs("0", "", true, currentBootRescanTail))] = testutil.MockResponse{Output: []byte(
 		`{"__CURSOR":"s=z;i=99","__REALTIME_TIMESTAMP":"1750766400000000","MESSAGE":"NVRM: should-not-appear"}` + "\n",
 	)}
 
@@ -135,11 +155,11 @@ func TestCollectKernelSignalsCursorInvalidationFallsBack(t *testing.T) {
 	// The incremental read errors (journalctl: "Failed to seek to cursor") —
 	// simulating vacuum/rotation. The collector MUST fall back to a bounded
 	// rescan and re-emit the events rather than silently dropping them.
-	mock.Responses[cmdKey(kernelGrepArgs("0", "s=stale;i=1", true, 0))] = checks.MockResponse{
+	mock.Responses[cmdKey(kernelGrepArgs("0", "s=stale;i=1", true, 0))] = testutil.MockResponse{
 		Output: []byte("Failed to seek to cursor"),
 		Error:  errors.New("exit status 1"),
 	}
-	mock.Responses[cmdKey(kernelGrepArgs("0", "", true, currentBootRescanTail))] = checks.MockResponse{Output: []byte(
+	mock.Responses[cmdKey(kernelGrepArgs("0", "", true, currentBootRescanTail))] = testutil.MockResponse{Output: []byte(
 		`{"__CURSOR":"s=fresh;i=5","__REALTIME_TIMESTAMP":"1750766400000000","MESSAGE":"machine check event"}` + "\n",
 	)}
 
@@ -160,8 +180,8 @@ func TestCollectKernelSignalsFailedRescanLeavesCursorUntouched(t *testing.T) {
 
 	// Both the incremental read and the bounded fallback fail. The cursor must
 	// NOT advance (no silent event loss): the next ingest retries the window.
-	mock.Responses[cmdKey(kernelGrepArgs("0", "s=keep;i=7", true, 0))] = checks.MockResponse{Error: errors.New("exit status 1")}
-	mock.Responses[cmdKey(kernelGrepArgs("0", "", true, currentBootRescanTail))] = checks.MockResponse{Error: errors.New("exit status 1")}
+	mock.Responses[cmdKey(kernelGrepArgs("0", "s=keep;i=7", true, 0))] = testutil.MockResponse{Error: errors.New("exit status 1")}
+	mock.Responses[cmdKey(kernelGrepArgs("0", "", true, currentBootRescanTail))] = testutil.MockResponse{Error: errors.New("exit status 1")}
 
 	events := c.collectCurrentBootKernelSignals(context.Background(), journal.BootRecord{Index: 0, BootID: "cur"})
 	if len(events) != 0 {
@@ -178,7 +198,7 @@ func TestCollectHistoricalBootScannedOnce(t *testing.T) {
 	c, mock := newKernelCollector(t, cursors)
 	hist := journal.BootRecord{Index: -1, BootID: "old"}
 
-	mock.Responses[cmdKey(kernelGrepArgs("old", "", false, currentBootRescanTail))] = checks.MockResponse{Output: []byte(
+	mock.Responses[cmdKey(kernelGrepArgs("old", "", false, currentBootRescanTail))] = testutil.MockResponse{Output: []byte(
 		`{"__CURSOR":"s=o;i=1","__REALTIME_TIMESTAMP":"1750000000000000","MESSAGE":"NVRM: Xid 79"}` + "\n",
 	)}
 
@@ -211,7 +231,7 @@ func TestCollectHistoricalBootNotMarkedOnFailure(t *testing.T) {
 	// journalctl exits 1 for a successful no-match query. A non-empty output
 	// makes this mock represent an actual command failure, which is the case
 	// this test is intended to protect.
-	mock.Responses[cmdKey(kernelGrepArgs("flaky", "", false, currentBootRescanTail))] = checks.MockResponse{Output: []byte("partial output"), Error: errors.New("permission denied")}
+	mock.Responses[cmdKey(kernelGrepArgs("flaky", "", false, currentBootRescanTail))] = testutil.MockResponse{Output: []byte("partial output"), Error: errors.New("permission denied")}
 
 	c.collectHistoricalBootKernelSignals(context.Background(), hist)
 	if scanned, _ := cursors.IsBootScanned(context.Background(), kernelSignalSourceKey, "flaky"); scanned {

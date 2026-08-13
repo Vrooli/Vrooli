@@ -12,8 +12,10 @@ import (
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 )
 
-var keyringInspectOutput = autohealKeyringInspect
-var keyringRepairOutput = autohealKeyringRepair
+var (
+	keyringInspectOutput = autohealKeyringInspect
+	keyringRepairOutput  = autohealKeyringRepair
+)
 
 func autohealCredentialClient() (credentialclient.Client, error) {
 	authority, err := credentialauthority.Default()

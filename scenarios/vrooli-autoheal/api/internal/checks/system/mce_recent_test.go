@@ -5,11 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
+
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
-func newMCEWithMock(installed bool) (*MCERecentCheck, *checks.MockExecutor) {
-	mock := checks.NewMockExecutor()
+func newMCEWithMock(installed bool) (*MCERecentCheck, *testutil.MockExecutor) {
+	mock := testutil.NewMockExecutor()
 	probe := func(ctx context.Context, _ checks.CommandExecutor) (string, bool) {
 		if !installed {
 			return "", false
@@ -37,7 +39,7 @@ func TestMCEWarningWhenRasdaemonMissing(t *testing.T) {
 
 func TestMCEOKWhenNoErrors(t *testing.T) {
 	c, mock := newMCEWithMock(true)
-	mock.DefaultResponse = checks.MockResponse{Output: []byte(
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte(
 		"  0 Corrected errors\n  0 Uncorrected errors\n",
 	)}
 	r := c.Run(context.Background())
@@ -48,7 +50,7 @@ func TestMCEOKWhenNoErrors(t *testing.T) {
 
 func TestMCEWarningOnExcessCorrected(t *testing.T) {
 	c, mock := newMCEWithMock(true)
-	mock.DefaultResponse = checks.MockResponse{Output: []byte(
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte(
 		"  17 Corrected errors\n  0 Uncorrected errors\n",
 	)}
 	r := c.Run(context.Background())
@@ -62,7 +64,7 @@ func TestMCEWarningOnExcessCorrected(t *testing.T) {
 
 func TestMCECriticalOnUncorrected(t *testing.T) {
 	c, mock := newMCEWithMock(true)
-	mock.DefaultResponse = checks.MockResponse{Output: []byte(
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte(
 		"  0 Corrected errors\n  3 Uncorrected errors\n",
 	)}
 	r := c.Run(context.Background())
@@ -76,7 +78,7 @@ func TestMCECriticalOnUncorrected(t *testing.T) {
 
 func TestMCEWarningOnCommandError(t *testing.T) {
 	c, mock := newMCEWithMock(true)
-	mock.DefaultResponse = checks.MockResponse{Error: errors.New("permission denied")}
+	mock.DefaultResponse = testutil.MockResponse{Error: errors.New("permission denied")}
 	r := c.Run(context.Background())
 	if r.Status != checks.StatusWarning {
 		t.Errorf("Status = %s, want WARNING on error", r.Status)
@@ -97,7 +99,7 @@ func TestMCERecoveryActionsAreDiagnostic(t *testing.T) {
 }
 
 func TestMCEExecuteUnknownAction(t *testing.T) {
-	c := NewMCERecentCheck(WithMCEExecutor(checks.NewMockExecutor()))
+	c := NewMCERecentCheck(WithMCEExecutor(testutil.NewMockExecutor()))
 	r := c.ExecuteAction(context.Background(), "destroy-data")
 	if r.Success {
 		t.Error("unknown action should fail")

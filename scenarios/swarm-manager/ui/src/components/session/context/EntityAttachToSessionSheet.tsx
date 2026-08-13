@@ -17,7 +17,8 @@ import {
   SESSION_KIND_LABELS,
 } from "../session-view-model";
 import { SessionSummaryCard } from "../session-summary-card";
-import { attachStarterSuggestions } from "../session-starter-suggestions";
+import { attachStarterSuggestions, composerSeedForOpener } from "../session-starter-suggestions";
+import { writeSessionDraft } from "../session-draft-storage";
 import { CONTEXT_TYPE_LABELS, compatibleSessionKindsForContextType, sessionKindAllowsContextType } from "./session-context-config";
 import { stageContextForSession } from "./pending-session-context";
 import { type SessionContextOption } from "./session-context-refs";
@@ -135,6 +136,12 @@ function EntityAttachToSessionSheetContent({
         })
         : await createSession({ kind: selectedKind, title: titleForQuickStart(option), starterJobId: selectedSuggestion?.jobId });
       stageContextForSession(session.id, option);
+      // Seed the new session's composer the same way the empty-session cards
+      // do, so a card that needs the operator's own material asks for it here
+      // too rather than opening onto a blank box.
+      if (selectedSuggestion?.opener) {
+        writeSessionDraft(session.id, composerSeedForOpener(selectedSuggestion.opener));
+      }
       onClose();
       navigate(sessionDetailPath(session.id));
     } catch (err) {

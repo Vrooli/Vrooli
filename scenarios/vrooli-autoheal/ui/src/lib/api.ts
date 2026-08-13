@@ -4,10 +4,10 @@ import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 
-export type HealthStatus = "ok" | "warning" | "critical";
+export type HealthStatus = "ok" | "warning" | "critical" | "not-applicable";
 
 // AI_CHECK: REACT_STABILITY_AUTOHEAL=1 | LAST: 2026-02-18
-const HEALTH_STATUSES: ReadonlySet<HealthStatus> = new Set(["ok", "warning", "critical"]);
+const HEALTH_STATUSES: ReadonlySet<HealthStatus> = new Set(["ok", "warning", "critical", "not-applicable"]);
 
 export function isHealthStatus(value: unknown): value is HealthStatus {
   return typeof value === "string" && HEALTH_STATUSES.has(value as HealthStatus);
@@ -63,6 +63,7 @@ export interface HealthSummary {
   ok: number;
   warning: number;
   critical: number;
+  notApplicable?: number;
 }
 
 export interface StatusResponse {
@@ -324,6 +325,7 @@ export interface TimelineResponse {
     ok: number;
     warning: number;
     critical: number;
+    notApplicable?: number;
   };
 }
 
@@ -703,6 +705,7 @@ export const STATUS_SEVERITY: Record<HealthStatus, number> = {
   critical: 2,
   warning: 1,
   ok: 0,
+  "not-applicable": -1,
 };
 
 /**
@@ -716,11 +719,13 @@ export function groupChecksByStatus<T extends HealthResult>(checks: T[]): {
   critical: T[];
   warning: T[];
   ok: T[];
+  notApplicable: T[];
 } {
   return {
     critical: checks.filter((c) => c.status === "critical"),
     warning: checks.filter((c) => c.status === "warning"),
     ok: checks.filter((c) => c.status === "ok"),
+    notApplicable: checks.filter((c) => c.status === "not-applicable"),
   };
 }
 

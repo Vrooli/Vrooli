@@ -216,12 +216,13 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
       let ok = 0;
       let warning = 0;
       let critical = 0;
-      for (const event of sorted) {
+      const applicable = sorted.filter((event) => event.status !== "not-applicable");
+      for (const event of applicable) {
         if (event.status === "ok") ok += 1;
         else if (event.status === "warning") warning += 1;
         else if (event.status === "critical") critical += 1;
       }
-      const total = sorted.length;
+      const total = applicable.length;
 
       checkTrends.push({
         checkId,
@@ -230,7 +231,7 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
         warning,
         critical,
         uptimePercent: total > 0 ? (ok / total) * 100 : 100,
-        currentStatus: normalizeHealthStatus(sorted[0]?.status, "ok"),
+        currentStatus: normalizeHealthStatus(sorted[0]?.status, "not-applicable"),
         recentStatuses: sorted.length > 0
           ? sorted.slice(0, 12).map((e) => normalizeHealthStatus(e.status, "ok"))
           : EMPTY_STATUSES,

@@ -320,7 +320,7 @@ describe("SessionDetailsPage", () => {
     });
   });
 
-  it("shows starter suggestions, selects a server-declared job, and keeps the composer empty", async () => {
+  it("shows starter suggestions, selects a server-declared job, and seeds the composer opener", async () => {
     const startSession = vi.fn().mockResolvedValue({ ...DRAFT_SESSION, status: "running", runId: "run-draft" });
     storeMock.useAgentSessionStore.setState({ sessions: [DRAFT_SESSION], startSession });
 
@@ -333,20 +333,83 @@ describe("SessionDetailsPage", () => {
     await userEvent.click(screen.getByRole("button", { name: new RegExp(planCard.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") }));
 
     expect(planCard.jobId).toBe("meta-plan");
-    expect(screen.getByTestId("agent-session-composer")).toHaveValue("");
-    expect(screen.getByTestId("agent-session-composer")).toHaveAttribute("placeholder", expect.stringContaining("selected job"));
+    // The card seeds a short invitation in the operator's voice — enough to
+    // show the click landed and say what is expected — while the detailed
+    // framing stays server-side in the job band.
+    expect(screen.getByTestId("agent-session-composer")).toHaveValue("Here is the idea:\n\n");
 
     fireEvent.keyDown(screen.getByTestId("agent-session-composer"), { key: "Enter", ctrlKey: true });
 
     await waitFor(() => {
       expect(startSession).toHaveBeenCalledWith({
         sessionId: "sess_draft",
+        // Sent unanswered, the invitation is dropped rather than delivered as a
+        // dangling colon. The job carries the intent on its own.
         message: "",
         contextRefs: [{ type: "startup_brief", ref: "startup_brief/meta_orchestration" }],
         autoContextPolicy: "none",
         starterJobId: planCard.jobId,
       });
     });
+  });
+
+  it("sends what the operator typed under the opener, invitation and all", async () => {
+    const startSession = vi.fn().mockResolvedValue({ ...DRAFT_SESSION, status: "running", runId: "run-draft" });
+    storeMock.useAgentSessionStore.setState({ sessions: [DRAFT_SESSION], startSession });
+
+    renderPage("/sessions/sess_draft");
+
+    const planCard = starterSuggestionsForKind("meta_orchestration").find((card) => card.id === "meta-plan")!;
+    await userEvent.click(
+      screen.getByRole("button", { name: new RegExp(planCard.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") }),
+    );
+
+    const composer = screen.getByTestId("agent-session-composer");
+    fireEvent.change(composer, { target: { value: "Here is the idea:\n\nA session inbox for captures." } });
+    fireEvent.keyDown(composer, { key: "Enter", ctrlKey: true });
+
+    await waitFor(() => {
+      expect(startSession).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Here is the idea:\n\nA session inbox for captures." }),
+      );
+    });
+  });
+
+  it("replaces an unanswered opener when the operator switches cards", async () => {
+    storeMock.useAgentSessionStore.setState({ sessions: [DRAFT_SESSION] });
+
+    renderPage("/sessions/sess_draft");
+
+    const cards = starterSuggestionsForKind("meta_orchestration");
+    const plan = cards.find((card) => card.id === "meta-plan")!;
+    const existing = cards.find((card) => card.id === "meta-existing")!;
+    const nameOf = (label: string) => new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+
+    await userEvent.click(screen.getByRole("button", { name: nameOf(plan.label) }));
+    expect(screen.getByTestId("agent-session-composer")).toHaveValue("Here is the idea:\n\n");
+
+    await userEvent.click(screen.getByRole("button", { name: nameOf(existing.label) }));
+    expect(screen.getByTestId("agent-session-composer")).toHaveValue("What I am trying to work out:\n\n");
+  });
+
+  it("leaves the operator's own words alone when they switch cards after typing", async () => {
+    storeMock.useAgentSessionStore.setState({ sessions: [DRAFT_SESSION] });
+
+    renderPage("/sessions/sess_draft");
+
+    const cards = starterSuggestionsForKind("meta_orchestration");
+    const plan = cards.find((card) => card.id === "meta-plan")!;
+    const existing = cards.find((card) => card.id === "meta-existing")!;
+    const nameOf = (label: string) => new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+
+    await userEvent.click(screen.getByRole("button", { name: nameOf(plan.label) }));
+    const composer = screen.getByTestId("agent-session-composer");
+    fireEvent.change(composer, { target: { value: "Here is the idea:\n\nA session inbox for captures." } });
+
+    // Switching the job must not discard writing the operator has done.
+    await userEvent.click(screen.getByRole("button", { name: nameOf(existing.label) }));
+    expect(screen.getByTestId("agent-session-composer")).toHaveValue("Here is the idea:\n\nA session inbox for captures.");
+    expect(screen.getByRole("button", { name: nameOf(existing.label) })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("marks the chosen starter card as selected and lets a second click clear it", async () => {

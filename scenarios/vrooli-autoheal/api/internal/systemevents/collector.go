@@ -5,9 +5,12 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -94,12 +97,61 @@ func (c *HostCollector) Collect(ctx context.Context) ([]Event, []SourceStatus) {
 	case platform.Linux:
 		return c.collectLinux(ctx)
 	case platform.Windows:
-		return nil, []SourceStatus{c.status("windows-eventlog", SourceUnsupported, "Windows event-log timeline ingestion is not implemented in this build")}
+		return c.collectPortableHostLogs(ctx, "windows-eventlog")
 	case platform.MacOS:
-		return nil, []SourceStatus{c.status("macos-unified-log", SourceUnsupported, "macOS timeline ingestion is not implemented in this build")}
+		return c.collectPortableHostLogs(ctx, "macos-unified-log")
 	default:
 		return nil, []SourceStatus{c.status("host-system-events", SourceUnsupported, "system event timeline ingestion is unsupported on this platform")}
 	}
+}
+
+func (c *HostCollector) collectPortableHostLogs(ctx context.Context, source string) ([]Event, []SourceStatus) {
+	if c.journal == nil {
+		return nil, []SourceStatus{c.status(source, SourceUnsupported, "host-log reader unavailable")}
+	}
+	logs, err := c.journal.QueryLogs(ctx, journal.QueryOpts{Tail: currentBootRescanTail})
+	if err != nil {
+		return nil, []SourceStatus{c.status(source, SourceDegraded, err.Error())}
+	}
+	events := make([]Event, 0, len(logs))
+	for _, entry := range logs {
+		if strings.TrimSpace(entry.Message) == "" {
+			continue
+		}
+		occurredAt := entry.Timestamp
+		if occurredAt.IsZero() {
+			occurredAt = c.now()
+		}
+		details := map[string]any{
+			"provider":  entry.Identifier,
+			"eventId":   entry.EventID,
+			"processId": entry.PID,
+			"raw":       entry.Raw,
+		}
+		events = append(events, Event{
+			OccurredAt: occurredAt,
+			Source:     source,
+			Platform:   string(c.platform.Platform),
+			Category:   "system",
+			Severity:   SeverityInfo,
+			Title:      portableLogTitle(entry),
+			Summary:    entry.Message,
+			BootID:     entry.BootID,
+			Details:    details,
+		})
+	}
+	return events, []SourceStatus{c.statusWithCount(source, SourceOK, len(events), "")}
+}
+
+func portableLogTitle(entry journal.LogEntry) string {
+	provider := strings.TrimSpace(entry.Identifier)
+	if provider == "" {
+		provider = "Host log"
+	}
+	if eventID := strings.TrimSpace(entry.EventID); eventID != "" {
+		return fmt.Sprintf("%s event %s", provider, eventID)
+	}
+	return provider
 }
 
 func (c *HostCollector) collectLinux(ctx context.Context) ([]Event, []SourceStatus) {
@@ -117,19 +169,113 @@ func (c *HostCollector) collectLinux(ctx context.Context) ([]Event, []SourceStat
 func (c *HostCollector) collectLinuxPackageLogs() ([]Event, []SourceStatus) {
 	var events []Event
 	var statuses []SourceStatus
-	if aptEvents, err := c.collectAPTLogs(); err == nil {
-		events = append(events, aptEvents...)
-		statuses = append(statuses, c.statusWithCount("apt-history", SourceOK, len(aptEvents), ""))
-	} else {
-		statuses = append(statuses, c.status("apt-history", SourceDegraded, err.Error()))
-	}
-	if dpkgEvents, err := c.collectDPKGLogs(); err == nil {
-		events = append(events, dpkgEvents...)
-		statuses = append(statuses, c.statusWithCount("dpkg-log", SourceOK, len(dpkgEvents), ""))
-	} else {
-		statuses = append(statuses, c.status("dpkg-log", SourceDegraded, err.Error()))
+	manager := detectedPackageManager()
+	switch manager {
+	case "dpkg":
+		if aptEvents, err := c.collectAPTLogs(); err == nil {
+			events = append(events, aptEvents...)
+			statuses = append(statuses, c.statusWithCount("apt-history", SourceOK, len(aptEvents), ""))
+		} else {
+			statuses = append(statuses, c.status("apt-history", SourceDegraded, err.Error()))
+		}
+		if dpkgEvents, err := c.collectDPKGLogs(); err == nil {
+			events = append(events, dpkgEvents...)
+			statuses = append(statuses, c.statusWithCount("dpkg-log", SourceOK, len(dpkgEvents), ""))
+		} else {
+			statuses = append(statuses, c.status("dpkg-log", SourceDegraded, err.Error()))
+		}
+	case "dnf", "rpm":
+		adapter := "rpm"
+		if manager == "dnf" {
+			adapter = "dnf"
+		}
+		adapterEvents, err := c.collectRPMFamilyLogs(adapter)
+		if err != nil {
+			statuses = append(statuses, c.status(adapter+"-log", SourceUnsupported, err.Error()))
+		} else {
+			events = append(events, adapterEvents...)
+			statuses = append(statuses, c.statusWithCount(adapter+"-log", SourceOK, len(adapterEvents), ""))
+		}
+	case "pacman":
+		adapterEvents, err := c.collectPacmanLogs()
+		if err != nil {
+			statuses = append(statuses, c.status("pacman-log", SourceUnsupported, err.Error()))
+		} else {
+			events = append(events, adapterEvents...)
+			statuses = append(statuses, c.statusWithCount("pacman-log", SourceOK, len(adapterEvents), ""))
+		}
+	default:
+		statuses = append(statuses, c.status("package-manager", SourceUnsupported, "no supported Linux package manager was detected"))
 	}
 	return events, statuses
+}
+
+func detectedPackageManager() string {
+	for _, candidate := range []string{"apt-get", "dnf", "pacman", "rpm"} {
+		if _, err := exec.LookPath(candidate); err != nil {
+			continue
+		}
+		switch candidate {
+		case "apt-get":
+			return "dpkg"
+		default:
+			return candidate
+		}
+	}
+	return ""
+}
+
+func (c *HostCollector) collectRPMFamilyLogs(manager string) ([]Event, error) {
+	patterns := []string{"/var/log/dnf.log*", "/var/log/yum.log*"}
+	if manager == "rpm" {
+		patterns = []string{"/var/log/yum.log*"}
+	}
+	return c.collectGenericPackageLogs(manager, patterns)
+}
+
+func (c *HostCollector) collectPacmanLogs() ([]Event, error) {
+	return c.collectGenericPackageLogs("pacman", []string{"/var/log/pacman.log*"})
+}
+
+func (c *HostCollector) collectGenericPackageLogs(source string, patterns []string) ([]Event, error) {
+	var events []Event
+	var matched bool
+	for _, pattern := range patterns {
+		paths, err := c.logPaths(pattern)
+		if err != nil {
+			continue
+		}
+		matched = true
+		for _, path := range paths {
+			content, err := c.readMaybeGzip(path)
+			if err != nil {
+				continue
+			}
+			events = append(events, parseGenericPackageLog(source, content)...)
+		}
+	}
+	if !matched {
+		return nil, fmt.Errorf("no %s package log matched", source)
+	}
+	return events, nil
+}
+
+func parseGenericPackageLog(source string, content []byte) []Event {
+	var events []Event
+	for _, line := range strings.Split(string(content), "\n") {
+		line = strings.TrimSpace(line)
+		lower := strings.ToLower(line)
+		if line == "" || !(strings.Contains(lower, "install") || strings.Contains(lower, "upgrade") || strings.Contains(lower, "remove")) {
+			continue
+		}
+		events = append(events, Event{Fingerprint: packageEventFingerprint(source + "|" + line), OccurredAt: time.Now().UTC(), Source: source + "-log", Platform: string(platform.Linux), Category: "package", Severity: SeverityInfo, Title: "Package manager change", Summary: line, Details: map[string]any{"manager": source}})
+	}
+	return events
+}
+
+func packageEventFingerprint(value string) string {
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:16])
 }
 
 func (c *HostCollector) collectAPTLogs() ([]Event, error) {

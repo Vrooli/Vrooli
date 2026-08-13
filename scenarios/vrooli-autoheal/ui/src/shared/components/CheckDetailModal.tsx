@@ -4,7 +4,7 @@ import { memo, Profiler, useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, Download, Clock, AlertCircle, CheckCircle, AlertTriangle, Info, BookOpen, CheckCircle2, XCircle, Zap, Loader2 } from "lucide-react";
 import {
-  fetchCheckHistory, type HistoryEntry, type SubCheck, type CheckHistoryResponse,
+  fetchCheckHistory, type HealthStatus, type HistoryEntry, type SubCheck, type CheckHistoryResponse,
   fetchConfig, fetchDefaults, setCheckAutoHeal, fetchCheckActions, executeAction,
   type ActionResult, type RecoveryAction, normalizeHealthStatus
 } from "../../lib/api";
@@ -76,7 +76,7 @@ function SubCheckRow({ subCheck }: { subCheck: SubCheck }) {
 interface HistoryRowView {
   key: string;
   message: string;
-  status: "ok" | "warning" | "critical";
+  status: HealthStatus;
   timestampLabel: string;
   relativeLabel: string;
 }

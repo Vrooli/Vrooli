@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
 )
 
 func TestOrphanCheckNonLinuxIsNotApplicable(t *testing.T) {
@@ -99,7 +100,7 @@ func TestOrphanCheckRunWithCoreJSON(t *testing.T) {
 		},
 		{
 			name:           "command error",
-			err:            checks.ErrCommandNotFound,
+			err:            testutil.ErrCommandNotFound,
 			expectedStatus: checks.StatusCritical,
 			expectedMsg:    "Failed to read orphan process status",
 		},
@@ -107,8 +108,8 @@ func TestOrphanCheckRunWithCoreJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor := checks.NewMockExecutor()
-			executor.Responses["vrooli orphans --json"] = checks.MockResponse{
+			executor := testutil.NewMockExecutor()
+			executor.Responses["vrooli orphans --json"] = testutil.MockResponse{
 				Output: []byte(tt.output),
 				Error:  tt.err,
 			}
@@ -131,8 +132,8 @@ func TestOrphanCheckRunWithCoreJSON(t *testing.T) {
 }
 
 func TestOrphanCheckExecuteActionList(t *testing.T) {
-	executor := checks.NewMockExecutor()
-	executor.Responses["vrooli orphans --json"] = checks.MockResponse{
+	executor := testutil.NewMockExecutor()
+	executor.Responses["vrooli orphans --json"] = testutil.MockResponse{
 		Output: []byte(`{"success":true,"orphans":[{"pid":100,"ppid":1,"command":"alpha"}]}`),
 	}
 
@@ -144,14 +145,14 @@ func TestOrphanCheckExecuteActionList(t *testing.T) {
 	if result.Message != "Found 1 orphan processes" {
 		t.Fatalf("Message = %q", result.Message)
 	}
-	if !strings.Contains(result.Output, "alpha") {
+	if !containsText(result.Output, "alpha") {
 		t.Fatalf("Output = %q, want diagnostic JSON to include the orphan command alpha", result.Output)
 	}
 }
 
 func TestOrphanCheckExecuteActionKillDelegatesToCoreCleanup(t *testing.T) {
-	executor := checks.NewMockExecutor()
-	executor.Responses["vrooli cleanup orphans --json"] = checks.MockResponse{
+	executor := testutil.NewMockExecutor()
+	executor.Responses["vrooli cleanup orphans --json"] = testutil.MockResponse{
 		Output: []byte(`{"success":true,"data":{"stopped":[{"name":"100","message":"alpha"}],"failed":[],"message":"Stopped 1 processes (0 failed)"}}`),
 	}
 

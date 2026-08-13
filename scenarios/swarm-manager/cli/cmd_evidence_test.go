@@ -7,9 +7,9 @@ import (
 
 	"connectrpc.com/connect"
 
+	clitest "github.com/vrooli/cli-core/cliapptest"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
-	clitest "swarm-manager/cli/internal/testutil"
 )
 
 type stubEvidenceHandler struct {

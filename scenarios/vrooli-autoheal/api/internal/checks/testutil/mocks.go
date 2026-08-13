@@ -1,6 +1,6 @@
-// Package checks provides mock implementations for testing
+// Package testutil provides mock implementations for scenario tests.
 // [REQ:TEST-SEAM-001] Mock implementations for testing
-package checks
+package testutil
 
 import (
 	"bytes"
@@ -10,6 +10,8 @@ import (
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 // MockExecutor is a test implementation of CommandExecutor.
@@ -43,6 +45,10 @@ func commandKey(name string, args []string) string {
 	}
 	return key
 }
+
+// CommandKey exposes the deterministic command key for tests in sibling
+// packages without keeping the mock implementation in production checks.
+func CommandKey(name string, args []string) string { return commandKey(name, args) }
 
 // Output returns the mock response for the command.
 func (m *MockExecutor) Output(ctx context.Context, name string, args ...string) ([]byte, error) {
@@ -165,6 +171,9 @@ type MockConn struct {
 	closed bool
 }
 
+// Closed reports whether Close was called.
+func (c *MockConn) Closed() bool { return c.closed }
+
 func (c *MockConn) Read(b []byte) (n int, err error)   { return 0, io.EOF }
 func (c *MockConn) Write(b []byte) (n int, err error)  { return len(b), nil }
 func (c *MockConn) Close() error                       { c.closed = true; return nil }
@@ -200,12 +209,12 @@ type MockFileSystemReader struct {
 
 // MockStatfsResponse represents a statfs response.
 type MockStatfsResponse struct {
-	Result *StatfsResult
+	Result *checks.StatfsResult
 	Error  error
 }
 
 // Statfs returns mock filesystem statistics.
-func (m *MockFileSystemReader) Statfs(path string) (*StatfsResult, error) {
+func (m *MockFileSystemReader) Statfs(path string) (*checks.StatfsResult, error) {
 	m.Calls = append(m.Calls, path)
 	if resp, ok := m.Responses[path]; ok {
 		return resp.Result, resp.Error
@@ -218,7 +227,7 @@ func NewMockFileSystemReader() *MockFileSystemReader {
 	return &MockFileSystemReader{
 		Responses: make(map[string]MockStatfsResponse),
 		DefaultResponse: MockStatfsResponse{
-			Result: &StatfsResult{
+			Result: &checks.StatfsResult{
 				Blocks: 1000000,
 				Bfree:  500000,
 				Bavail: 450000,
@@ -233,11 +242,11 @@ func NewMockFileSystemReader() *MockFileSystemReader {
 // MockProcReader is a test implementation of ProcReader.
 type MockProcReader struct {
 	// MemInfo is the memory info to return
-	MemInfo *MemInfo
+	MemInfo *checks.MemInfo
 	// MemInfoError is the error to return from ReadMeminfo
 	MemInfoError error
 	// Processes is the list of processes to return
-	Processes []ProcessInfo
+	Processes []checks.ProcessInfo
 	// ProcessesError is the error to return from ListProcesses
 	ProcessesError error
 	// Calls tracks which methods were called
@@ -245,7 +254,7 @@ type MockProcReader struct {
 }
 
 // ReadMeminfo returns mock memory information.
-func (m *MockProcReader) ReadMeminfo() (*MemInfo, error) {
+func (m *MockProcReader) ReadMeminfo() (*checks.MemInfo, error) {
 	m.Calls = append(m.Calls, "ReadMeminfo")
 	if m.MemInfoError != nil {
 		return nil, m.MemInfoError
@@ -254,14 +263,14 @@ func (m *MockProcReader) ReadMeminfo() (*MemInfo, error) {
 		return m.MemInfo, nil
 	}
 	// Default: 8GB swap, 2GB used
-	return &MemInfo{
+	return &checks.MemInfo{
 		SwapTotal: 8388608, // 8GB in KB
 		SwapFree:  6291456, // 6GB in KB
 	}, nil
 }
 
 // ListProcesses returns mock process information.
-func (m *MockProcReader) ListProcesses() ([]ProcessInfo, error) {
+func (m *MockProcReader) ListProcesses() ([]checks.ProcessInfo, error) {
 	m.Calls = append(m.Calls, "ListProcesses")
 	if m.ProcessesError != nil {
 		return nil, m.ProcessesError
@@ -270,7 +279,7 @@ func (m *MockProcReader) ListProcesses() ([]ProcessInfo, error) {
 		return m.Processes, nil
 	}
 	// Default: no processes
-	return []ProcessInfo{}, nil
+	return []checks.ProcessInfo{}, nil
 }
 
 // NewMockProcReader creates a new MockProcReader.
@@ -281,7 +290,7 @@ func NewMockProcReader() *MockProcReader {
 // MockPortReader is a test implementation of PortReader.
 type MockPortReader struct {
 	// PortInfo is the port info to return
-	PortInfo *PortInfo
+	PortInfo *checks.PortInfo
 	// Error is the error to return
 	Error error
 	// Calls tracks method invocations
@@ -289,7 +298,7 @@ type MockPortReader struct {
 }
 
 // ReadPortStats returns mock port statistics.
-func (m *MockPortReader) ReadPortStats() (*PortInfo, error) {
+func (m *MockPortReader) ReadPortStats() (*checks.PortInfo, error) {
 	m.Calls++
 	if m.Error != nil {
 		return nil, m.Error
@@ -298,7 +307,7 @@ func (m *MockPortReader) ReadPortStats() (*PortInfo, error) {
 		return m.PortInfo, nil
 	}
 	// Default: healthy port usage
-	return &PortInfo{
+	return &checks.PortInfo{
 		UsedPorts:   1000,
 		TotalPorts:  28232,
 		UsedPercent: 3,

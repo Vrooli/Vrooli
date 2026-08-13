@@ -160,7 +160,7 @@ func (c *PstoreEvidenceCheck) Run(ctx context.Context) (r checks.Result) {
 		r.Details["coverageGapReason"] = "pstore_export_manifest_missing"
 		r.Details["recommendations"] = []string{
 			"run project setup with sudo to apply the pstore_observability safeguard",
-			"check systemctl status vrooli-pstore-collector.service",
+			"check the native service-manager status for vrooli-pstore-collector.service",
 		}
 		return r
 	}

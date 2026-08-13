@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	integration "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/vrooli"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -29,6 +30,7 @@ type VrooliStrategy struct {
 	entityType VrooliEntityType
 	entityName string
 	executor   checks.CommandExecutor
+	client     *integration.Client
 }
 
 // NewVrooliStrategy creates a new Vrooli CLI strategy.
@@ -40,6 +42,7 @@ func NewVrooliStrategy(entityType VrooliEntityType, entityName string, executor 
 		entityType: entityType,
 		entityName: entityName,
 		executor:   executor,
+		client:     integration.NewClient(executor),
 	}
 }
 
@@ -385,24 +388,16 @@ func (v *VrooliStrategy) CleanRestart(ctx context.Context, checkID string) check
 
 // IsRunning checks if the entity is currently running by checking status.
 func (v *VrooliStrategy) IsRunning(ctx context.Context) bool {
-	output, err := v.executor.CombinedOutput(ctx, "vrooli", string(v.entityType), "status", v.entityName)
-	if err != nil {
+	switch v.entityType {
+	case VrooliResource:
+		status, _, err := v.client.ResourceStatus(ctx, v.entityName)
+		return err == nil && status.Success && status.Running
+	case VrooliScenario:
+		status, _, err := v.client.ScenarioStatus(ctx, v.entityName)
+		return err == nil && status.Success && strings.EqualFold(status.Scenario.Status, "running")
+	default:
 		return false
 	}
-	lower := strings.ToLower(string(output))
-
-	// Check for negative patterns first
-	if strings.Contains(lower, "not running") ||
-		strings.Contains(lower, "stopped") ||
-		strings.Contains(lower, "exited") ||
-		strings.Contains(lower, "failed") {
-		return false
-	}
-
-	// Check for positive patterns
-	return strings.Contains(lower, "running") ||
-		strings.Contains(lower, "healthy") ||
-		strings.Contains(lower, "started")
 }
 
 // ExtractPorts extracts port numbers from CLI output.

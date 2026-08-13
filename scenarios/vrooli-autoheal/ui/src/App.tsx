@@ -30,18 +30,21 @@ function loadCollapsedState(): CollapsedGroups {
         typeof parsed === "object" &&
         "critical" in parsed &&
         "warning" in parsed &&
-        "ok" in parsed
+        "ok" in parsed &&
+        "notApplicable" in parsed
       ) {
         const candidate = parsed as Record<string, unknown>;
         if (
           typeof candidate.critical === "boolean" &&
           typeof candidate.warning === "boolean" &&
-          typeof candidate.ok === "boolean"
+          typeof candidate.ok === "boolean" &&
+          typeof candidate.notApplicable === "boolean"
         ) {
           return {
             critical: candidate.critical,
             warning: candidate.warning,
             ok: candidate.ok,
+            notApplicable: candidate.notApplicable,
           };
         }
       }
@@ -50,7 +53,7 @@ function loadCollapsedState(): CollapsedGroups {
     // Ignore parse errors
   }
 
-  return { critical: false, warning: false, ok: true };
+  return { critical: false, warning: false, ok: true, notApplicable: true };
 }
 
 export default function App() {

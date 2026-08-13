@@ -78,8 +78,7 @@ func (c *StaleLockCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	claims, output, err := c.client.ListRegistryClaims(ctx)
-	result.Details["output"] = string(output)
+	claims, _, err := c.client.ListRegistryClaims(ctx)
 	if err != nil {
 		result.Status = checks.StatusCritical
 		result.Message = "Failed to read registry claims"

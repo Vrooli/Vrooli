@@ -355,7 +355,8 @@ func loggingMiddleware(next http.Handler) http.Handler {
 func initializeSchema(db interface {
 	database.SchemaExecer
 	database.SchemaQuerier
-}) error {
+},
+) error {
 	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(persistence.Schema)); err != nil {
 		return fmt.Errorf("failed to execute schema: %w", err)
 	}
@@ -379,7 +380,8 @@ func initializeSchema(db interface {
 func migrateHealthResultStatusContract(db interface {
 	database.SchemaExecer
 	database.SchemaQuerier
-}) error {
+},
+) error {
 	var createSQL string
 	rows, err := db.QueryContext(context.Background(), `SELECT sql FROM sqlite_master WHERE type='table' AND name='health_results'`)
 	if err != nil {
@@ -432,7 +434,8 @@ COMMIT;`)
 func migrateActionLogsAddTimedOut(db interface {
 	database.SchemaExecer
 	database.SchemaQuerier
-}) error {
+},
+) error {
 	rows, err := db.QueryContext(context.Background(), `PRAGMA table_info(action_logs)`)
 	if err != nil {
 		return err

@@ -128,7 +128,7 @@ flowchart TD
     C -->|No| G[Use cron fallback]
 
     F --> H[systemctl enable]
-    D --> I[launchctl load]
+    D --> I[launchctl bootstrap]
     E --> J[Register-ScheduledTask]
     G --> K[Add crontab entry]
 

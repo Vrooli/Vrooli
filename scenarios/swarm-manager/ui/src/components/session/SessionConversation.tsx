@@ -24,6 +24,8 @@ import { SessionContextPicker } from "./context/SessionContextPicker";
 import { useStarterContextCounts } from "./context/useStarterContextCounts";
 import { countForStarterCard, type StarterContextFilterKey } from "./context/starter-context-filters";
 import {
+  composerSeedForOpener,
+  isUnfilledOpener,
   starterCardBadgeSpec,
   starterSuggestionsForKind,
   type StarterSuggestion,
@@ -57,7 +59,7 @@ interface SessionConversationProps {
   pendingMessage?: ChatMessageView;
   onRetryPendingMessage?: () => void;
   onEditPendingMessage?: () => void;
-  onStarterJobChange?: (jobId: string | undefined) => void;
+  onStarterJobChange?: (jobId: string | undefined, opener?: string) => void;
   starterJobId?: string;
 }
 
@@ -120,6 +122,25 @@ export function SessionConversation({
     return pendingMessage ? [...confirmed, pendingMessage] : confirmed;
   }, [sortedMessages, pendingMessage]);
 
+  /**
+   * Choosing a starter card selects its server-owned job, and — when the card
+   * needs the operator's own material — seeds the composer with its opener.
+   *
+   * The seed goes through `replaceText` rather than a controlled set so it
+   * lands on the browser's undo stack: a mis-clicked card is one Ctrl+Z away,
+   * and the caret ends up on the blank line below the invitation.
+   *
+   * The composer is only ours to overwrite while it is empty or still holds an
+   * unfilled invitation. Once the operator has typed, switching cards changes
+   * the job and leaves their words alone.
+   */
+  const handleChooseJob = (jobId: string, opener?: string) => {
+    const clearing = jobId === starterJobId;
+    onStarterJobChange?.(clearing ? undefined : jobId, clearing ? undefined : opener);
+    if (draft.trim() !== "" && !isUnfilledOpener(sessionKind, draft)) return;
+    composerRef.current?.replaceText(clearing || !opener ? "" : composerSeedForOpener(opener));
+  };
+
   const openContextPicker = (
     initialType: AgentSessionContextType | null = null,
     filterKey: StarterContextFilterKey | null = null,
@@ -175,7 +196,7 @@ export function SessionConversation({
           selectedJobId={starterJobId}
           // Re-clicking the selected card clears it. Without a way back out,
           // the only escape from a mis-clicked job was to abandon the draft.
-          onChooseJob={(jobId) => onStarterJobChange?.(jobId === starterJobId ? undefined : jobId)}
+          onChooseJob={handleChooseJob}
           onRequestContext={(type, filterKey) => openContextPicker(type, filterKey)}
           onRequestImage={() => setImagePickerRequestKey((value) => value + 1)}
           className={cn("flex-1 p-3", variant === "mobile" && "px-3 pb-40")}
@@ -466,12 +487,13 @@ export function SessionStarterSuggestions({
   pendingContext: SessionContextOption[];
   pendingAttachmentCount: number;
   selectedJobId?: string;
-  onChooseJob: (jobId: string) => void;
+  onChooseJob: (jobId: string, opener?: string) => void;
   onRequestContext: (type: AgentSessionContextType, filterKey?: StarterContextFilterKey) => void;
   onRequestImage: () => void;
   className?: string;
 }) {
   const suggestions = starterSuggestionsForKind(sessionKind);
+  const selectedSuggestion = suggestions.find((item) => (item.jobId ?? item.id) === selectedJobId);
   const { optionsByType, executions, backlogItems, loading } = useStarterContextCounts(sessionKind);
 
   return (
@@ -480,9 +502,11 @@ export function SessionStarterSuggestions({
         <div className="px-1 pb-1">
           <h3 className="text-sm font-medium text-slate-200">Start this session</h3>
           <p className="mt-0.5 text-xs leading-5 text-slate-400">
-            {selectedJobId
-              ? "Job selected. Send it as-is, or add your own context first."
-              : "Pick a starting job, or just type your own message below."}
+            {!selectedJobId
+              ? "Pick a starting job, or just type your own message below."
+              : selectedSuggestion?.opener
+                ? "Job selected. Finish the line in the composer below."
+                : "Job selected. Send it as-is, or add your own context first."}
           </p>
         </div>
         {suggestions.map((suggestion) => {
@@ -515,7 +539,7 @@ export function SessionStarterSuggestions({
                   onRequestImage();
                   return;
                 }
-                onChooseJob(suggestion.jobId ?? suggestion.id);
+                onChooseJob(suggestion.jobId ?? suggestion.id, suggestion.opener);
               }}
               className={cn(
                 "group flex w-full items-start gap-3 rounded-md border px-3 py-3 text-left transition-colors",

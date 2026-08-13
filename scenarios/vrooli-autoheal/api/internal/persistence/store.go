@@ -7,8 +7,8 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
 )
@@ -35,6 +35,7 @@ type storeDB interface {
 func NewStore(db storeDB) *Store {
 	store := &Store{db: db}
 	_ = store.ensureIncidentContractColumns(context.Background())
+	_ = store.ensureHostInventorySnapshotColumns(context.Background())
 	return store
 }
 

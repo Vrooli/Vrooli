@@ -4,6 +4,7 @@ package checks
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/elevation"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reporoot"
 )
 
@@ -25,6 +27,44 @@ type CommandExecutor interface {
 	CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error)
 	// Run executes the command without capturing output.
 	Run(ctx context.Context, name string, args ...string) error
+}
+
+// RunPrivilegedService delegates service recovery to the typed elevation
+// broker. The caller receives the broker outcome even when the command was
+// refused, allowing the API to show the exact operator command.
+func RunPrivilegedService(ctx context.Context, executor CommandExecutor, action elevation.Action, unit string) ([]byte, elevation.Outcome, error) {
+	outcome, output, err := elevation.Run(ctx, executor, action, unit)
+	if err == nil && outcome.State != elevation.Granted {
+		err = fmt.Errorf("service action refused: %s", outcome.Reason)
+	}
+	return output, outcome, err
+}
+
+// RunAuthorizedService is the compact form for checks whose existing action
+// contract only needs output and error. The elevation decision is still typed
+// and centralized; callers that expose action metadata should use
+// RunPrivilegedService to retain the full outcome.
+func RunAuthorizedService(ctx context.Context, executor CommandExecutor, verb, unit string) ([]byte, error) {
+	output, _, err := RunAuthorizedServiceWithOutcome(ctx, executor, verb, unit)
+	return output, err
+}
+
+// RunAuthorizedServiceWithOutcome is the action-facing form. It preserves the
+// typed elevation state so API callers can distinguish granted recovery from a
+// setup-required or unsupported action.
+func RunAuthorizedServiceWithOutcome(ctx context.Context, executor CommandExecutor, verb, unit string) ([]byte, elevation.Outcome, error) {
+	var action elevation.Action
+	switch verb {
+	case "start":
+		action = elevation.ServiceStart
+	case "restart":
+		action = elevation.ServiceRestart
+	case "stop":
+		action = elevation.ServiceStop
+	default:
+		return nil, elevation.Outcome{State: elevation.Refused, Reason: fmt.Sprintf("service action %q requires an operator-supported native backend", verb)}, fmt.Errorf("service action %q requires an operator-supported native backend", verb)
+	}
+	return RunPrivilegedService(ctx, executor, action, unit)
 }
 
 // RealExecutor is the production implementation of CommandExecutor.

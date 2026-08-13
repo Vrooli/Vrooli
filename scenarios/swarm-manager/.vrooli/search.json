@@ -3,7 +3,35 @@
   "version": "1.0.0",
   "providers": [
     {
-      "provider_id": "swarm-manager.records",
+      "provider_id": "swarm-manager.initiative",
+      "lifecycle": "production",
+      "provider_group": "swarm-manager",
+      "bucket": "BUCKET_STATE",
+      "type": "initiative",
+      "description": "Swarm-manager initiatives represented by the backlog and goal corpus; use this leaf to find the roadmap ownership and outcome behind a theme.",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "swarm-manager",
+          "path": "/api/v1/search/ai",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"entity\":\"both\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "payload.title",
+        "snippet_field": "payload.status",
+        "score_field": "score",
+        "path_field": "payload.name",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "scope": "SCOPE_PROJECT"
+    },
+    {
+    "provider_id": "swarm-manager.records",
+    "lifecycle": "fixture",
       "provider_group": "swarm-manager",
       "bucket": "BUCKET_KNOW",
       "type": "record",

@@ -8,18 +8,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
 )
 
-func newReaderWithMock(t *testing.T) (*Reader, *checks.MockExecutor) {
+func newReaderWithMock(t *testing.T) (*Reader, *testutil.MockExecutor) {
 	t.Helper()
-	mock := checks.NewMockExecutor()
+	mock := testutil.NewMockExecutor()
 	return NewReader(mock), mock
 }
 
 func TestAvailableTrueWhenJournalctlPresent(t *testing.T) {
 	r, mock := newReaderWithMock(t)
-	mock.DefaultResponse = checks.MockResponse{Output: []byte("systemd 254\n")}
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte("systemd 254\n")}
 	if !r.Available(context.Background()) {
 		t.Fatal("Available = false, want true")
 	}
@@ -27,7 +27,7 @@ func TestAvailableTrueWhenJournalctlPresent(t *testing.T) {
 
 func TestAvailableFalseWhenCommandFails(t *testing.T) {
 	r, mock := newReaderWithMock(t)
-	mock.DefaultResponse = checks.MockResponse{Error: errors.New("exec: \"journalctl\": executable file not found in $PATH")}
+	mock.DefaultResponse = testutil.MockResponse{Error: errors.New("exec: \"journalctl\": executable file not found in $PATH")}
 	if r.Available(context.Background()) {
 		t.Fatal("Available = true, want false on missing journalctl")
 	}
@@ -117,7 +117,7 @@ func TestBuildArgsOmitsCursorFlagsWhenUnset(t *testing.T) {
 
 func TestQueryLogsParsesCursor(t *testing.T) {
 	r, mock := newReaderWithMock(t)
-	mock.DefaultResponse = checks.MockResponse{Output: []byte(strings.Join([]string{
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte(strings.Join([]string{
 		`{"__CURSOR":"s=aaa;i=1","__REALTIME_TIMESTAMP":"1714900000000000","MESSAGE":"first"}`,
 		`{"__CURSOR":"s=aaa;i=2","__REALTIME_TIMESTAMP":"1714900001000000","MESSAGE":"second"}`,
 	}, "\n"))}
@@ -136,7 +136,7 @@ func TestQueryLogsParsesCursor(t *testing.T) {
 
 func TestQueryLogsParsesJSON(t *testing.T) {
 	r, mock := newReaderWithMock(t)
-	mock.DefaultResponse = checks.MockResponse{Output: []byte(strings.Join([]string{
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte(strings.Join([]string{
 		`{"__REALTIME_TIMESTAMP":"1714900000000000","_HOSTNAME":"vrooli","_SYSTEMD_UNIT":"docker.service","SYSLOG_IDENTIFIER":"dockerd","_PID":"1234","PRIORITY":"3","_BOOT_ID":"abc","MESSAGE":"failed to pull"}`,
 		`{"__REALTIME_TIMESTAMP":"1714900001000000","_HOSTNAME":"vrooli","_SYSTEMD_UNIT":"docker.service","PRIORITY":"6","MESSAGE":"started"}`,
 		``,
@@ -163,7 +163,7 @@ func TestQueryLogsParsesJSON(t *testing.T) {
 func TestQueryLogsBinaryMessageDecodes(t *testing.T) {
 	r, mock := newReaderWithMock(t)
 	// "hi" as a byte array — journald's encoding for binary log messages.
-	mock.DefaultResponse = checks.MockResponse{Output: []byte(
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte(
 		`{"__REALTIME_TIMESTAMP":"1714900000000000","MESSAGE":[104,105]}` + "\n",
 	)}
 	entries, err := r.QueryLogs(context.Background(), QueryOpts{})
@@ -177,7 +177,7 @@ func TestQueryLogsBinaryMessageDecodes(t *testing.T) {
 
 func TestQueryLogsErrorPropagated(t *testing.T) {
 	r, mock := newReaderWithMock(t)
-	mock.DefaultResponse = checks.MockResponse{Output: []byte("oops"), Error: errors.New("exit status 1")}
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte("oops"), Error: errors.New("exit status 1")}
 	_, err := r.QueryLogs(context.Background(), QueryOpts{Unit: []string{"x"}})
 	if err == nil {
 		t.Fatal("expected error")
@@ -190,7 +190,7 @@ func TestQueryLogsErrorPropagated(t *testing.T) {
 
 func TestQueryLogsEmptyExitOneMeansNoMatches(t *testing.T) {
 	r, mock := newReaderWithMock(t)
-	mock.DefaultResponse = checks.MockResponse{Error: errors.New("exit status 1")}
+	mock.DefaultResponse = testutil.MockResponse{Error: errors.New("exit status 1")}
 	entries, err := r.QueryLogs(context.Background(), QueryOpts{Kernel: true, Grep: "pm_runtime_work .* hogged CPU"})
 	if err != nil {
 		t.Fatalf("QueryLogs: %v", err)
@@ -204,7 +204,7 @@ func TestQueryLogsFallsBackToTextOnJSONFailure(t *testing.T) {
 	r, mock := newReaderWithMock(t)
 	jsonKey := "journalctl --no-pager -o json -u docker"
 	textKey := "journalctl --no-pager -o short-iso -u docker"
-	mock.Responses = map[string]checks.MockResponse{
+	mock.Responses = map[string]testutil.MockResponse{
 		jsonKey: {Output: []byte("not json at all\nstill not json\n")},
 		textKey: {Output: []byte("2026-05-07T10:15:23+0000 vrooli dockerd[1234]: hello world\n")},
 	}
@@ -222,7 +222,7 @@ func TestQueryLogsFallsBackToTextOnJSONFailure(t *testing.T) {
 
 func TestQueryLogsMalformedLineKeptAsRaw(t *testing.T) {
 	r, mock := newReaderWithMock(t)
-	mock.DefaultResponse = checks.MockResponse{Output: []byte(strings.Join([]string{
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte(strings.Join([]string{
 		`{"__REALTIME_TIMESTAMP":"1714900000000000","MESSAGE":"good"}`,
 		`{not valid json`,
 		`{"__REALTIME_TIMESTAMP":"1714900001000000","MESSAGE":"also good"}`,
@@ -241,7 +241,7 @@ func TestQueryLogsMalformedLineKeptAsRaw(t *testing.T) {
 
 func TestQueryLogsEmptyOutput(t *testing.T) {
 	r, mock := newReaderWithMock(t)
-	mock.DefaultResponse = checks.MockResponse{Output: []byte("")}
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte("")}
 	entries, err := r.QueryLogs(context.Background(), QueryOpts{})
 	if err != nil {
 		t.Fatalf("empty output: %v", err)
@@ -253,7 +253,7 @@ func TestQueryLogsEmptyOutput(t *testing.T) {
 
 func TestTailPassesArgvUnchanged(t *testing.T) {
 	r, mock := newReaderWithMock(t)
-	mock.DefaultResponse = checks.MockResponse{Output: []byte("raw bytes")}
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte("raw bytes")}
 	out, err := r.Tail(context.Background(), QueryOpts{Unit: []string{"cloudflared"}, Tail: 100})
 	if err != nil {
 		t.Fatalf("Tail: %v", err)
@@ -272,7 +272,7 @@ func TestTailPassesArgvUnchanged(t *testing.T) {
 
 func TestListBootsParsesJSON(t *testing.T) {
 	r, mock := newReaderWithMock(t)
-	mock.DefaultResponse = checks.MockResponse{Output: []byte(
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte(
 		`[{"index":-1,"boot_id":"abc","first_entry":1714900000000000,"last_entry":1714903600000000},` +
 			`{"index":0,"boot_id":"def","first_entry":1714903700000000,"last_entry":1714907300000000}]`,
 	)}
@@ -295,7 +295,7 @@ func TestListBootsFallsBackToText(t *testing.T) {
 	r, mock := newReaderWithMock(t)
 	jsonKey := "journalctl --list-boots --no-pager -o json"
 	textKey := "journalctl --list-boots --no-pager"
-	mock.Responses = map[string]checks.MockResponse{
+	mock.Responses = map[string]testutil.MockResponse{
 		jsonKey: {Output: []byte("the table is not json")},
 		textKey: {Output: []byte(strings.Join([]string{
 			"-2 1111aaaa Mon 2026-05-05 09:00:00 UTC—Mon 2026-05-05 11:00:00 UTC",
@@ -320,7 +320,7 @@ func TestListBootsFallsBackToText(t *testing.T) {
 
 func TestListBootsErrorWhenBothFormatsFail(t *testing.T) {
 	r, mock := newReaderWithMock(t)
-	mock.DefaultResponse = checks.MockResponse{Error: errors.New("permission denied")}
+	mock.DefaultResponse = testutil.MockResponse{Error: errors.New("permission denied")}
 	if _, err := r.ListBoots(context.Background()); err == nil {
 		t.Fatal("expected error when both formats fail")
 	}

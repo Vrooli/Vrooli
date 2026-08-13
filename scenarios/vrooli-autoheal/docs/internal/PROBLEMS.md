@@ -3,10 +3,12 @@
 ## Open Issues
 
 ### P0 Blockers
-_None at initialization - scenario scaffold only_
+- Host-level recovery grant application still requires an operator-authenticated `sudo vrooli setup`; the existing `/etc/sudoers.d/vrooli-autoheal` is stale, mode `0644`, and does not match the managed wildcard-free grant.
 
 ### P1 Issues
-_None at initialization_
+- The UI dependency/test-utils gate is not green in the current checkout; Go and platform seam suites are green.
+- The full 24-hour data-retention soak remains outstanding.
+- Test Genie storage/workflow evidence is unavailable while `storage-manager` fails its own API build at `internal/validation/hygiene_common.go:19`.
 
 ### P2 Minor Issues
 _None at initialization_
@@ -31,10 +33,10 @@ _None at initialization_
 **Rationale**: CLI already handles authentication, port discovery, and error handling; reduces code duplication
 **Trade-offs**: Slightly higher latency than direct calls; dependency on vrooli CLI being installed
 
-### ADR-002: In-memory state with PostgreSQL persistence
-**Decision**: Keep current health state in memory, persist history to PostgreSQL
-**Rationale**: Fast status queries, survives process restarts, supports UI history views
-**Trade-offs**: State lost on restart (acceptable - will rebuild on next tick)
+### ADR-002: In-memory state with SQLite persistence
+**Decision**: Keep current health state in memory and persist structured history to SQLite.
+**Rationale**: Fast local status queries, durable history across restarts, no separate database resource required.
+**Trade-offs**: SQLite write volume and retention must be bounded for small hosts; snapshots are fingerprint-deduplicated.
 
 ### ADR-003: OS watchdog keeps autoheal running
 **Decision**: Install OS-level service (systemd/launchd/Windows) that monitors autoheal itself

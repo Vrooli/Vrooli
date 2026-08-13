@@ -47,6 +47,7 @@ func (c *CredentialRecoveryCheck) Platforms() []platform.Type { return nil }
 func (c *CredentialRecoveryCheck) Description() string {
 	return "Reports whether a verified recovery bundle covers configured credentials"
 }
+
 func (c *CredentialRecoveryCheck) Importance() string {
 	return "A missing or stale recovery bundle can make operator credentials irrecoverable"
 }

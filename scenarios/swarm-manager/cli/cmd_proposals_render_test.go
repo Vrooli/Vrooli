@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	clitest "swarm-manager/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 // `proposals get` is the fallback surface when the UI is unavailable, and it

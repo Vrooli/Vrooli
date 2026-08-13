@@ -162,7 +162,8 @@ func (c *NetworkCheck) ExecuteAction(ctx context.Context, actionID string) check
 
 	switch actionID {
 	case "restart-network-manager":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "NetworkManager")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "NetworkManager")
+		result.Elevation = &outcome
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 
@@ -177,7 +178,8 @@ func (c *NetworkCheck) ExecuteAction(ctx context.Context, actionID string) check
 		return c.verifyRecovery(ctx, result, "NetworkManager restart", start)
 
 	case "restart-systemd-networkd":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "systemd-networkd")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "systemd-networkd")
+		result.Elevation = &outcome
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 
@@ -191,7 +193,7 @@ func (c *NetworkCheck) ExecuteAction(ctx context.Context, actionID string) check
 		return c.verifyRecovery(ctx, result, "systemd-networkd restart", start)
 
 	case "flush-arp-cache":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "ip", "neigh", "flush", "all")
+		output, err := c.executor.CombinedOutput(ctx, "ip", "neigh", "flush", "all")
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 

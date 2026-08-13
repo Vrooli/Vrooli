@@ -11,7 +11,9 @@ import (
 // time.After directly can only be exercised by sleeping for its real
 // interval, which is why the schedulers in this package take a Clock and wait
 // through it instead.
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	Now() time.Time
 	Since(t time.Time) time.Duration
 	After(d time.Duration) <-chan time.Time

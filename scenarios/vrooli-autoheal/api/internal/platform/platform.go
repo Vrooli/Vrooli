@@ -101,10 +101,5 @@ func detectPlatform() Type {
 	}
 }
 
-func detectWSL() bool             { return detect().IsWSL }
-func detectDocker() bool          { return detect().HasDocker }
-func detectSystemd() bool         { return detect().SupportsSystemd }
-func detectLaunchd() bool         { return detect().SupportsLaunchd }
-func detectWindowsServices() bool { return detect().SupportsWindowsSvc }
-func detectHeadless() bool        { return detect().IsHeadlessServer }
-func detectCloudflared() bool     { return detect().SupportsCloudflared }
+func detectWSL() bool     { return detect().IsWSL }
+func detectSystemd() bool { return detect().SupportsSystemd }

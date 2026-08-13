@@ -62,7 +62,7 @@ func NewService(store Store, plat *platform.Capabilities) *Service {
 	return &Service{
 		store: store,
 		collectors: []Collector{
-			NewHostCollectorWithCursors(plat, checks.DefaultExecutor, journal.NewReader(checks.DefaultExecutor), store),
+			NewHostCollectorWithCursors(plat, checks.DefaultExecutor, journal.NewPlatformReader(), store),
 		},
 		now:      func() time.Time { return time.Now().UTC() },
 		interval: DefaultIngestInterval,

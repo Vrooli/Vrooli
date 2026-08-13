@@ -216,16 +216,9 @@ func memInfoFromSnapshot(snap sharedhost.Snapshot) *checks.MemInfo {
 // [REQ:HEAL-ACTION-001]
 func (c *MemoryCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
 	isLinux := runtime.GOOS == "linux"
-	isCritical := lastResult != nil && lastResult.Status == checks.StatusCritical
+	_ = lastResult
 
 	return []checks.RecoveryAction{
-		{
-			ID:          "drop-caches",
-			Name:        "Drop Caches",
-			Description: "Drop filesystem caches to free memory (safe operation)",
-			Dangerous:   false,
-			Available:   isLinux && isCritical,
-		},
 		{
 			ID:          "top-memory",
 			Name:        "Top Memory Users",
@@ -261,9 +254,6 @@ func (c *MemoryCheck) ExecuteAction(ctx context.Context, actionID string) checks
 	}
 
 	switch actionID {
-	case "drop-caches":
-		return c.executeDropCaches(ctx, start)
-
 	case "top-memory":
 		return c.executeTopMemory(ctx, start)
 
@@ -279,56 +269,6 @@ func (c *MemoryCheck) ExecuteAction(ctx context.Context, actionID string) checks
 		result.Duration = time.Since(start)
 		return result
 	}
-}
-
-// executeDropCaches drops filesystem caches to free memory
-func (c *MemoryCheck) executeDropCaches(ctx context.Context, start time.Time) checks.ActionResult {
-	result := checks.ActionResult{
-		ActionID:  "drop-caches",
-		CheckID:   c.ID(),
-		Timestamp: start,
-	}
-
-	var outputBuilder strings.Builder
-
-	// Get memory before
-	outputBuilder.WriteString("=== Memory Before ===\n")
-	beforeOutput, _ := c.executor.Output(ctx, "free", "-h")
-	outputBuilder.Write(beforeOutput)
-	outputBuilder.WriteString("\n")
-
-	// Sync filesystem to disk first
-	outputBuilder.WriteString("=== Syncing Filesystem ===\n")
-	if err := c.executor.Run(ctx, "sync"); err != nil {
-		outputBuilder.WriteString(fmt.Sprintf("Warning: sync failed: %v\n", err))
-	} else {
-		outputBuilder.WriteString("Sync completed\n")
-	}
-
-	// Drop caches (3 = drop page cache, dentries, and inodes)
-	outputBuilder.WriteString("\n=== Dropping Caches ===\n")
-	output, err := c.executor.CombinedOutput(ctx, "sudo", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches")
-	if err != nil {
-		result.Duration = time.Since(start)
-		result.Output = outputBuilder.String()
-		result.Success = false
-		result.Error = err.Error()
-		result.Message = "Failed to drop caches (may require sudo)"
-		return result
-	}
-	outputBuilder.Write(output)
-	outputBuilder.WriteString("Caches dropped successfully\n")
-
-	// Get memory after
-	outputBuilder.WriteString("\n=== Memory After ===\n")
-	afterOutput, _ := c.executor.Output(ctx, "free", "-h")
-	outputBuilder.Write(afterOutput)
-
-	result.Duration = time.Since(start)
-	result.Output = outputBuilder.String()
-	result.Success = true
-	result.Message = "Filesystem caches dropped successfully"
-	return result
 }
 
 // executeTopMemory shows the top memory-consuming processes

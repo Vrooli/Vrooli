@@ -1,8 +1,8 @@
 {
   "$schema": "../../test-genie/schemas/testing.schema.json",
   "_metadata": {
-    "description": "Sample testing configuration for React + Vite template",
-    "last_updated": "2025-11-08T00:00:00Z"
+    "description": "Vrooli Autoheal API, CLI, UI, platform-seam, and scenario-owned integration testing configuration",
+    "last_updated": "2026-08-13T00:00:00Z"
   },
   "version": "1.0.0",
   "lint": {

@@ -258,13 +258,6 @@ func (c *GPUCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryA
 			Dangerous:   false,
 			Available:   hasGPU,
 		},
-		{
-			ID:          "gpu-reset",
-			Name:        "Reset GPU",
-			Description: "Reset GPU to recover from errors (requires root, may interrupt workloads)",
-			Dangerous:   true,
-			Available:   hasGPU,
-		},
 	}
 }
 
@@ -284,9 +277,6 @@ func (c *GPUCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 
 	case "gpu-processes":
 		return c.executeGPUProcesses(ctx, start)
-
-	case "gpu-reset":
-		return c.executeGPUReset(ctx, start)
 
 	default:
 		result.Success = false
@@ -366,37 +356,6 @@ func (c *GPUCheck) executeGPUProcesses(ctx context.Context, start time.Time) che
 	result.Output = outputBuilder.String()
 	result.Success = true
 	result.Message = "GPU processes listed"
-	return result
-}
-
-// executeGPUReset attempts to reset the GPU
-func (c *GPUCheck) executeGPUReset(ctx context.Context, start time.Time) checks.ActionResult {
-	result := checks.ActionResult{
-		ActionID:  "gpu-reset",
-		CheckID:   c.ID(),
-		Timestamp: start,
-	}
-
-	var outputBuilder strings.Builder
-	outputBuilder.WriteString("=== GPU Reset ===\n\n")
-
-	// Try nvidia-smi --gpu-reset (requires root)
-	output, err := c.executor.CombinedOutput(ctx, "sudo", "nvidia-smi", "--gpu-reset")
-	outputBuilder.Write(output)
-
-	if err != nil {
-		result.Duration = time.Since(start)
-		result.Output = outputBuilder.String()
-		result.Success = false
-		result.Error = err.Error()
-		result.Message = "GPU reset failed (may require root privileges or GPU to be idle)"
-		return result
-	}
-
-	result.Duration = time.Since(start)
-	result.Output = outputBuilder.String()
-	result.Success = true
-	result.Message = "GPU reset completed"
 	return result
 }
 

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
@@ -17,7 +17,7 @@ type inventoryCheck struct {
 	description string
 	importance  string
 	run         func(hostinventory.HostInventory) checks.Result
-	collector   hostinventory.Collector
+	collector   hostinventory.IntegrityCollector
 }
 
 func (c *inventoryCheck) ID() string                 { return c.id }
@@ -57,9 +57,9 @@ func (c *inventoryCheck) Run(ctx context.Context) checks.Result {
 	return result
 }
 
-func NewChecks(collector hostinventory.Collector) []checks.Check {
+func NewChecks(collector hostinventory.IntegrityCollector) []checks.Check {
 	if collector == nil {
-		collector = hostinventory.NewCachedCollector(hostinventory.NewCollector(hostinventory.CollectorOptions{}), 30*time.Second)
+		collector = hostinventory.NewCachedIntegrityCollector(hostinventory.NewIntegrityCollector(hostinventory.IntegrityCollectorOptions{}), 30*time.Second)
 	}
 	return []checks.Check{
 		NewKernelModuleDriftCheck(collector),
@@ -92,6 +92,18 @@ func okResult(message string, inv hostinventory.HostInventory) checks.Result {
 		Status:  checks.StatusOK,
 		Message: message,
 		Details: baseDetails(inv, nil, nil),
+	}
+}
+
+func naResult(message, mechanism string, inv hostinventory.HostInventory) checks.Result {
+	return checks.Result{
+		Status:  checks.StatusNotApplicable,
+		Message: message,
+		Details: map[string]any{
+			"platform":  inv.Platform,
+			"mechanism": mechanism,
+			"reason":    "host inventory probe is unsupported on this platform",
+		},
 	}
 }
 

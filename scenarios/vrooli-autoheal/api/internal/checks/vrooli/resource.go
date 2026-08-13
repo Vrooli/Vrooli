@@ -5,7 +5,6 @@ package vrooli
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
@@ -123,8 +122,7 @@ func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	status, output, err := c.client.ResourceStatus(ctx, c.resourceName)
-	result.Details["output"] = string(output)
+	status, _, err := c.client.ResourceStatus(ctx, c.resourceName)
 	if err != nil {
 		result.Status = checks.StatusCritical
 		result.Message = c.resourceName + " resource is not healthy"
@@ -135,6 +133,7 @@ func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 	result.Details["installed"] = status.Installed
 	result.Details["running"] = status.Running
 	result.Details["statusText"] = status.NormalizedStatus()
+	result.Details["companionDown"] = status.HasCompanionDownSignal()
 	if status.Healthy != nil {
 		result.Details["healthy"] = *status.Healthy
 	}
@@ -313,13 +312,8 @@ func companionDown(lastResult *checks.Result) bool {
 	if lastResult == nil {
 		return false
 	}
-	if statusText, ok := lastResult.Details["statusText"].(string); ok && strings.Contains(strings.ToLower(statusText), "companion down") {
-		return true
-	}
-	if output, ok := lastResult.Details["output"].(string); ok && strings.Contains(strings.ToLower(output), "companion down") {
-		return true
-	}
-	return strings.Contains(strings.ToLower(lastResult.Message), "companion down")
+	companion, _ := lastResult.Details["companionDown"].(bool)
+	return companion
 }
 
 // verifyRecovery checks that the resource is actually healthy after a start/restart action

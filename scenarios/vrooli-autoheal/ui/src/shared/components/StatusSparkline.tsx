@@ -23,7 +23,9 @@ function StatusSparklineImpl({ statuses, maxBars = 12, barHeight = 16 }: StatusS
               ? "bg-accent-success"
               : status === "warning"
               ? "bg-accent-warning"
-              : "bg-accent-danger"
+              : status === "critical"
+              ? "bg-accent-danger"
+              : "bg-text-muted/50"
           }`}
           style={{
             height: barHeight,

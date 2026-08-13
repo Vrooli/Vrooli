@@ -167,6 +167,34 @@ func TestUpsertFromCheckResultDoesNotAutoResolveCrashArtifactIncident(t *testing
 	}
 }
 
+func TestHealIncidentLifecyclePreservesErrorAndResolvesMatchingAction(t *testing.T) {
+	store := &memoryStore{}
+	service := NewService(store)
+	const lastError = "Runtime error: start qdrant: managed-service health check did not pass before startup timeout"
+	if err := service.OpenHealIncident(context.Background(), "resource-qdrant", "start", lastError, 3); err != nil {
+		t.Fatalf("OpenHealIncident() error = %v", err)
+	}
+	if len(store.inputs) != 1 {
+		t.Fatalf("upsert count = %d, want one", len(store.inputs))
+	}
+	input := store.inputs[0]
+	if input.SourceCheckID != "resource-qdrant" || input.Evidence["actionId"] != "start" || input.Evidence["lastError"] != lastError {
+		t.Fatalf("incident input lost identity/error: %+v", input)
+	}
+
+	store.list = []Incident{{
+		ID: "inc_qdrant", Type: TypeAutohealFailure, Status: StatusOpen,
+		SourceCheckIDs: []string{"resource-qdrant"},
+		Evidence:       map[string]any{"actionId": "start"},
+	}}
+	if err := service.ResolveHealIncident(context.Background(), "resource-qdrant", "start"); err != nil {
+		t.Fatalf("ResolveHealIncident() error = %v", err)
+	}
+	if len(store.updateIDs) != 1 || store.updateIDs[0] != "inc_qdrant" || store.updates[0] != StatusResolved {
+		t.Fatalf("updates = %#v/%#v, want inc_qdrant/resolved", store.updateIDs, store.updates)
+	}
+}
+
 func TestUpsertFromCheckResultUsesLatestUncleanBootForFingerprint(t *testing.T) {
 	store := &memoryStore{}
 	service := NewService(store)

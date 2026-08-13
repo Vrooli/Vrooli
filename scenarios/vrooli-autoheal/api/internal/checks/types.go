@@ -6,6 +6,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/elevation"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
@@ -85,13 +86,14 @@ type Info struct {
 
 // Summary provides an aggregate health summary
 type Summary struct {
-	Status     Status    `json:"status"`
-	TotalCount int       `json:"totalCount"`
-	OkCount    int       `json:"okCount"`
-	WarnCount  int       `json:"warningCount"`
-	CritCount  int       `json:"criticalCount"`
-	Checks     []Result  `json:"checks"`
-	Timestamp  time.Time `json:"timestamp"`
+	Status             Status    `json:"status"`
+	TotalCount         int       `json:"totalCount"`
+	OkCount            int       `json:"okCount"`
+	WarnCount          int       `json:"warningCount"`
+	CritCount          int       `json:"criticalCount"`
+	NotApplicableCount int       `json:"notApplicableCount"`
+	Checks             []Result  `json:"checks"`
+	Timestamp          time.Time `json:"timestamp"`
 }
 
 // WorstStatus returns the most severe status between two statuses.
@@ -136,6 +138,8 @@ func ComputeSummary(results []Result) Summary {
 			summary.WarnCount++
 		case StatusCritical:
 			summary.CritCount++
+		case StatusNotApplicable:
+			summary.NotApplicableCount++
 		}
 	}
 
@@ -156,15 +160,16 @@ type RecoveryAction struct {
 // ActionResult represents the outcome of executing a recovery action
 // [REQ:HEAL-ACTION-001]
 type ActionResult struct {
-	ActionID  string        `json:"actionId"`
-	CheckID   string        `json:"checkId"`
-	Success   bool          `json:"success"`
-	TimedOut  bool          `json:"timedOut,omitempty"` // True when the action exceeded its per-action timeout. Distinct from Success=false so callers can retry quickly instead of cooling down on the exponential failure backoff.
-	Message   string        `json:"message"`
-	Output    string        `json:"output,omitempty"` // Command output if any
-	Error     string        `json:"error,omitempty"`  // Error message if failed
-	Timestamp time.Time     `json:"timestamp"`
-	Duration  time.Duration `json:"duration"`
+	ActionID  string             `json:"actionId"`
+	CheckID   string             `json:"checkId"`
+	Success   bool               `json:"success"`
+	TimedOut  bool               `json:"timedOut,omitempty"` // True when the action exceeded its per-action timeout. Distinct from Success=false so callers can retry quickly instead of cooling down on the exponential failure backoff.
+	Message   string             `json:"message"`
+	Output    string             `json:"output,omitempty"` // Command output if any
+	Error     string             `json:"error,omitempty"`  // Error message if failed
+	Timestamp time.Time          `json:"timestamp"`
+	Duration  time.Duration      `json:"duration"`
+	Elevation *elevation.Outcome `json:"elevation,omitempty"`
 }
 
 // HealableCheck extends Check with recovery action capabilities

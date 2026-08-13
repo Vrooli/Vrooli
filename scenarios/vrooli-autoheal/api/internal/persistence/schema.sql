@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS host_inventory_snapshots (
     boot_id TEXT,
     kernel_release TEXT,
     fingerprint TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
     inventory_json TEXT NOT NULL
 );
 

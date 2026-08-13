@@ -6,6 +6,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
+
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
@@ -17,7 +19,7 @@ import (
 // TestDNSCheckRunWithMock_Successful tests successful DNS resolution
 // [REQ:INFRA-DNS-001] [REQ:TEST-SEAM-001]
 func TestDNSCheckRunWithMock_Successful(t *testing.T) {
-	mockResolver := checks.NewMockDNSResolver()
+	mockResolver := testutil.NewMockDNSResolver()
 	mockResolver.Responses["google.com"] = []string{"142.250.80.46", "142.250.80.78"}
 
 	check := NewDNSCheck("google.com", testCaps(), WithDNSResolver(mockResolver))
@@ -44,8 +46,8 @@ func TestDNSCheckRunWithMock_Successful(t *testing.T) {
 
 // TestDNSCheckRunWithMock_Failed tests failed DNS resolution
 func TestDNSCheckRunWithMock_Failed(t *testing.T) {
-	mockResolver := checks.NewMockDNSResolver()
-	mockResolver.Errors["nonexistent.invalid"] = checks.ErrDNSLookupFailed
+	mockResolver := testutil.NewMockDNSResolver()
+	mockResolver.Errors["nonexistent.invalid"] = testutil.ErrDNSLookupFailed
 
 	check := NewDNSCheck("nonexistent.invalid", testCaps(), WithDNSResolver(mockResolver))
 	result := check.Run(context.Background())
@@ -63,7 +65,7 @@ func TestDNSCheckRunWithMock_Failed(t *testing.T) {
 
 // TestDNSCheckRunWithMock_MultipleAddresses tests resolution returning multiple IPs
 func TestDNSCheckRunWithMock_MultipleAddresses(t *testing.T) {
-	mockResolver := checks.NewMockDNSResolver()
+	mockResolver := testutil.NewMockDNSResolver()
 	mockResolver.Responses["cdn.example.com"] = []string{
 		"192.168.1.1", "192.168.1.2", "192.168.1.3",
 		"192.168.1.4", "192.168.1.5",
@@ -110,7 +112,7 @@ func TestDNSCheckRunWithMock_DifferentDomains(t *testing.T) {
 			name:           "nonexistent domain fails",
 			domain:         "does.not.exist.example",
 			addresses:      nil,
-			err:            checks.ErrDNSLookupFailed,
+			err:            testutil.ErrDNSLookupFailed,
 			expectedStatus: checks.StatusCritical,
 			expectedMsg:    "DNS resolution failed",
 		},
@@ -118,7 +120,7 @@ func TestDNSCheckRunWithMock_DifferentDomains(t *testing.T) {
 			name:           "timeout error",
 			domain:         "slow.example.com",
 			addresses:      nil,
-			err:            checks.ErrTimeout,
+			err:            testutil.ErrTimeout,
 			expectedStatus: checks.StatusCritical,
 			expectedMsg:    "DNS resolution failed",
 		},
@@ -126,7 +128,7 @@ func TestDNSCheckRunWithMock_DifferentDomains(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockResolver := checks.NewMockDNSResolver()
+			mockResolver := testutil.NewMockDNSResolver()
 			if tt.err != nil {
 				mockResolver.Errors[tt.domain] = tt.err
 			} else {
@@ -151,7 +153,7 @@ func TestDNSCheckRunWithMock_DifferentDomains(t *testing.T) {
 
 // TestDNSCheckRunWithMock_DefaultResolver tests that default resolver is used
 func TestDNSCheckRunWithMock_DefaultResolver(t *testing.T) {
-	mockResolver := checks.NewMockDNSResolver()
+	mockResolver := testutil.NewMockDNSResolver()
 	mockResolver.DefaultAddresses = []string{"1.2.3.4"}
 
 	check := NewDNSCheck("any.domain.com", testCaps(), WithDNSResolver(mockResolver))
@@ -180,11 +182,7 @@ func TestDNSCheckRecoveryActions(t *testing.T) {
 				Platform:        platform.Linux,
 				SupportsSystemd: true,
 			},
-			expectAvailable: map[string]bool{
-				"restart-resolved": true,
-				"flush-cache":      true,
-				"test-external":    true,
-			},
+			expectAvailable: map[string]bool{"restart-resolved": true, "test-external": true},
 		},
 		{
 			name: "linux without systemd",
@@ -192,11 +190,7 @@ func TestDNSCheckRecoveryActions(t *testing.T) {
 				Platform:        platform.Linux,
 				SupportsSystemd: false,
 			},
-			expectAvailable: map[string]bool{
-				"restart-resolved": false,
-				"flush-cache":      false,
-				"test-external":    true,
-			},
+			expectAvailable: map[string]bool{"restart-resolved": false, "test-external": true},
 		},
 		{
 			name: "macos",
@@ -204,20 +198,12 @@ func TestDNSCheckRecoveryActions(t *testing.T) {
 				Platform:        platform.MacOS,
 				SupportsSystemd: false,
 			},
-			expectAvailable: map[string]bool{
-				"restart-resolved": false,
-				"flush-cache":      false,
-				"test-external":    true,
-			},
+			expectAvailable: map[string]bool{"restart-resolved": false, "test-external": true},
 		},
 		{
-			name: "nil caps",
-			caps: nil,
-			expectAvailable: map[string]bool{
-				"restart-resolved": false,
-				"flush-cache":      false,
-				"test-external":    true,
-			},
+			name:            "nil caps",
+			caps:            nil,
+			expectAvailable: map[string]bool{"restart-resolved": false, "test-external": true},
 		},
 	}
 
@@ -248,13 +234,14 @@ func TestDNSCheckRecoveryActions(t *testing.T) {
 // TestDNSCheckExecuteAction_RestartResolved tests restart-resolved action
 // [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 func TestDNSCheckExecuteAction_RestartResolved(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo systemctl restart systemd-resolved"] = checks.MockResponse{
+	allowRecoveryGrant(t)
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["sudo -n /usr/bin/systemctl restart systemd-resolved"] = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
 
-	mockResolver := checks.NewMockDNSResolver()
+	mockResolver := testutil.NewMockDNSResolver()
 	mockResolver.DefaultAddresses = []string{"142.250.80.46"} // Success after restart
 
 	check := NewDNSCheck("google.com", testCaps(),
@@ -279,10 +266,11 @@ func TestDNSCheckExecuteAction_RestartResolved(t *testing.T) {
 
 // TestDNSCheckExecuteAction_RestartResolved_Failed tests restart failure
 func TestDNSCheckExecuteAction_RestartResolved_Failed(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo systemctl restart systemd-resolved"] = checks.MockResponse{
+	allowRecoveryGrant(t)
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["sudo -n /usr/bin/systemctl restart systemd-resolved"] = testutil.MockResponse{
 		Output: []byte("Failed to restart"),
-		Error:  checks.ErrPermissionDenied,
+		Error:  testutil.ErrPermissionDenied,
 	}
 
 	check := NewDNSCheck("google.com", testCaps(), WithDNSExecutor(mockExec))
@@ -293,44 +281,6 @@ func TestDNSCheckExecuteAction_RestartResolved_Failed(t *testing.T) {
 	}
 	if result.Message != "Failed to restart systemd-resolved" {
 		t.Errorf("Message = %q, want %q", result.Message, "Failed to restart systemd-resolved")
-	}
-}
-
-// TestDNSCheckExecuteAction_FlushCache tests flush-cache action
-func TestDNSCheckExecuteAction_FlushCache(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo resolvectl flush-caches"] = checks.MockResponse{
-		Output: []byte(""),
-		Error:  nil,
-	}
-
-	check := NewDNSCheck("google.com", testCaps(), WithDNSExecutor(mockExec))
-	result := check.ExecuteAction(context.Background(), "flush-cache")
-
-	if !result.Success {
-		t.Errorf("Success = %v, want true", result.Success)
-	}
-	if result.Message != "Flushed DNS cache" {
-		t.Errorf("Message = %q, want %q", result.Message, "Flushed DNS cache")
-	}
-}
-
-// TestDNSCheckExecuteAction_FlushCache_Failed tests flush failure
-func TestDNSCheckExecuteAction_FlushCache_Failed(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo resolvectl flush-caches"] = checks.MockResponse{
-		Output: []byte("Command not found"),
-		Error:  checks.ErrCommandNotFound,
-	}
-
-	check := NewDNSCheck("google.com", testCaps(), WithDNSExecutor(mockExec))
-	result := check.ExecuteAction(context.Background(), "flush-cache")
-
-	if result.Success {
-		t.Error("Success should be false for failed flush")
-	}
-	if result.Message != "Failed to flush DNS cache" {
-		t.Errorf("Message = %q, want %q", result.Message, "Failed to flush DNS cache")
 	}
 }
 
@@ -353,7 +303,7 @@ func TestDNSCheckExecuteAction_TestExternal(t *testing.T) {
 		{
 			name:          "external DNS fails",
 			cmdOutput:     "Connection timed out",
-			cmdError:      checks.ErrTimeout,
+			cmdError:      testutil.ErrTimeout,
 			expectSuccess: false,
 			expectMsg:     "External DNS test failed - possible network issue",
 		},
@@ -361,8 +311,8 @@ func TestDNSCheckExecuteAction_TestExternal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockExec := checks.NewMockExecutor()
-			mockExec.Responses["nslookup google.com resolver.test"] = checks.MockResponse{
+			mockExec := testutil.NewMockExecutor()
+			mockExec.Responses["nslookup google.com resolver.test"] = testutil.MockResponse{
 				Output: []byte(tt.cmdOutput),
 				Error:  tt.cmdError,
 			}
@@ -400,8 +350,8 @@ func TestDNSCheckHealable(t *testing.T) {
 	check := NewDNSCheck("google.com", testCaps())
 	actions := check.RecoveryActions(nil)
 
-	if len(actions) != 3 {
-		t.Errorf("Expected 3 recovery actions, got %d", len(actions))
+	if len(actions) != 2 {
+		t.Errorf("Expected 2 recovery actions, got %d", len(actions))
 	}
 
 	// Verify action IDs
@@ -409,7 +359,7 @@ func TestDNSCheckHealable(t *testing.T) {
 	for _, a := range actions {
 		actionIDs[a.ID] = true
 	}
-	expectedActions := []string{"restart-resolved", "flush-cache", "test-external"}
+	expectedActions := []string{"restart-resolved", "test-external"}
 	for _, expected := range expectedActions {
 		if !actionIDs[expected] {
 			t.Errorf("DNSCheck should have %s action", expected)
@@ -419,7 +369,7 @@ func TestDNSCheckHealable(t *testing.T) {
 
 // TestDNSCheckResolverInjection verifies resolver is properly injected
 func TestDNSCheckResolverInjection(t *testing.T) {
-	mockResolver := checks.NewMockDNSResolver()
+	mockResolver := testutil.NewMockDNSResolver()
 	check := NewDNSCheck("google.com", testCaps(), WithDNSResolver(mockResolver))
 
 	if check.resolver != mockResolver {
@@ -429,7 +379,7 @@ func TestDNSCheckResolverInjection(t *testing.T) {
 
 // TestDNSCheckExecutorInjection verifies executor is properly injected
 func TestDNSCheckExecutorInjection(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	check := NewDNSCheck("google.com", testCaps(), WithDNSExecutor(mockExec))
 
 	if check.executor != mockExec {

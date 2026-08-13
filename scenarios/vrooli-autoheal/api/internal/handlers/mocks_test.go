@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
@@ -348,7 +348,7 @@ func (fakeHostCollector) Collect(ctx context.Context) (hostinventory.HostInvento
 			Release:           "test-kernel",
 			ModuleTreePresent: true,
 		},
-		ProbeStatus: map[string]hostinventory.ProbeState{"test": hostinventory.ProbeOK},
+		ProbeStatus: map[string]hostinventory.IntegrityProbeState{"test": hostinventory.IntegrityProbeOK},
 		Fingerprint: "test-fingerprint",
 	}, nil
 }

@@ -2,6 +2,10 @@ package langrecover
 
 import "strings"
 
+func containsText(haystack, needle string) bool {
+	return strings.Index(haystack, needle) >= 0
+}
+
 // GoSignature classifies a Go build-failure log into a healable category.
 type GoSignature int
 
@@ -25,15 +29,15 @@ func DetectGoSignature(output string) GoSignature {
 		return GoSignatureNone
 	}
 	lower := strings.ToLower(output)
-	if strings.Contains(lower, "no required module provides package") ||
-		strings.Contains(lower, "inconsistent vendoring") ||
-		strings.Contains(lower, "updates to go.mod needed") {
+	if containsText(lower, "no required module provides package") ||
+		containsText(lower, "inconsistent vendoring") ||
+		containsText(lower, "updates to go.mod needed") {
 		// "updates to go.mod needed" is emitted by `go build` when go.mod is
 		// out of sync with imports — only `go mod tidy` resolves it, since
 		// the dependency graph itself needs updating.
 		return GoSignatureMissingModule
 	}
-	if strings.Contains(lower, "missing go.sum entry") {
+	if containsText(lower, "missing go.sum entry") {
 		return GoSignatureMissingSum
 	}
 	return GoSignatureNone
@@ -60,13 +64,13 @@ func DetectPnpmSignature(output string) PnpmSignature {
 		return PnpmSignatureNone
 	}
 	lower := strings.ToLower(output)
-	if strings.Contains(lower, "err_pnpm_outdated_lockfile") {
+	if containsText(lower, "err_pnpm_outdated_lockfile") {
 		return PnpmSignatureOutdatedLockfile
 	}
-	if strings.Contains(lower, "err_pnpm_linking_failed") {
+	if containsText(lower, "err_pnpm_linking_failed") {
 		return PnpmSignatureLinkingFailed
 	}
-	if strings.Contains(lower, "enoent") && strings.Contains(lower, "node_modules") {
+	if containsText(lower, "enoent") && containsText(lower, "node_modules") {
 		return PnpmSignatureLinkingFailed
 	}
 	return PnpmSignatureNone

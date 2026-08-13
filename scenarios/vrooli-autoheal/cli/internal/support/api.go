@@ -15,10 +15,11 @@ type PlatformInfo struct {
 }
 
 type Summary struct {
-	Total    int `json:"total"`
-	OK       int `json:"ok"`
-	Warning  int `json:"warning"`
-	Critical int `json:"critical"`
+	Total         int `json:"total"`
+	OK            int `json:"ok"`
+	Warning       int `json:"warning"`
+	Critical      int `json:"critical"`
+	NotApplicable int `json:"notApplicable"`
 }
 
 type CheckResult struct {

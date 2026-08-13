@@ -1,11 +1,11 @@
 package host
 
 import (
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 )
 
-func NewCapabilityDriftCheck(collector hostinventory.Collector) checks.Check {
+func NewCapabilityDriftCheck(collector hostinventory.IntegrityCollector) checks.Check {
 	return &inventoryCheck{
 		id:          "host-capability-drift",
 		title:       "Host Capability Drift",
@@ -17,6 +17,9 @@ func NewCapabilityDriftCheck(collector hostinventory.Collector) checks.Check {
 }
 
 func runCapabilityDrift(inv hostinventory.HostInventory) checks.Result {
+	if inv.ProbeStatus["host"] == hostinventory.IntegrityProbeUnsupported {
+		return naResult("Host capability drift is not applicable on this platform", "native host inventory capability probes", inv)
+	}
 	var evidence []map[string]any
 	critical := 0
 	warning := 0

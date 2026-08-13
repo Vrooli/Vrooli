@@ -125,7 +125,6 @@ func TestSystemdDetection(t *testing.T) {
 	if runtime.GOOS != "linux" && hasSystemd {
 		t.Errorf("detectSystemd() = true on non-Linux platform %s", runtime.GOOS)
 	}
-
 }
 
 // TestPlatformType verifies Type constants are correct

@@ -36,6 +36,26 @@ func TestBuildVrooliCmd_InjectsNoStaleCheck(t *testing.T) {
 	_ = runtime.GOOS
 }
 
+func TestInstallExecutableReplacesTargetAtomically(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "installed-loop")
+	if err := os.WriteFile(target, []byte("old"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := installExecutable(target); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() == 0 {
+		t.Fatal("installed executable is empty")
+	}
+	if info.Mode().Perm() != 0o755 {
+		t.Fatalf("installed executable mode = %o, want 755", info.Mode().Perm())
+	}
+}
+
 func TestValidateLocalEndpoint(t *testing.T) {
 	tests := []struct {
 		name string

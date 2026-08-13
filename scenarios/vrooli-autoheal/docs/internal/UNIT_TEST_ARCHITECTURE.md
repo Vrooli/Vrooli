@@ -10,7 +10,7 @@
 - [x] Test utilities package exists (`api/internal/testutil`, `ui/src/test-utils`)
 
 ## Mock Organization Status
-- [~] Centralized mock packages partially in place (`api/internal/checks/mocks.go`, `api/internal/checks/registry_mocks_test.go`, `api/internal/checks/system/mocks_test.go`, `api/internal/handlers/mocks_test.go`, `api/internal/bootstrap/mocks_test.go`, `api/internal/healing/mocks_test.go`, `ui/src/test-utils/mocks/checkMetadataContext.ts`)
+- [~] Centralized mock packages partially in place (`api/internal/checks/mocks_test.go`, `api/internal/checks/registry_mocks_test.go`, `api/internal/checks/system/mocks_test.go`, `api/internal/handlers/mocks_test.go`, `api/internal/bootstrap/mocks_test.go`, `api/internal/healing/mocks_test.go`, `ui/src/test-utils/mocks/checkMetadataContext.ts`)
 - [~] Mock factory/builder patterns partially in place (UI API payload factories now centralized in `ui/src/test-utils/factories/api.ts`; Go fixtures still ad-hoc in several suites)
 - [~] No inline mock definitions in test files (major inline API mocks removed from checks/system and checks/registry; several test-local doubles still remain in infra/watchdog tests)
 

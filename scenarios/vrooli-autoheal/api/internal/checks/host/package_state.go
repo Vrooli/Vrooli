@@ -1,11 +1,11 @@
 package host
 
 import (
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 )
 
-func NewPackageStateCheck(collector hostinventory.Collector) checks.Check {
+func NewPackageStateCheck(collector hostinventory.IntegrityCollector) checks.Check {
 	return &inventoryCheck{
 		id:          "host-package-state",
 		title:       "Host Package State",
@@ -17,6 +17,9 @@ func NewPackageStateCheck(collector hostinventory.Collector) checks.Check {
 }
 
 func runPackageState(inv hostinventory.HostInventory) checks.Result {
+	if inv.ProbeStatus["host"] == hostinventory.IntegrityProbeUnsupported {
+		return naResult("Host package state is not applicable on this platform", "native package-manager adapter", inv)
+	}
 	var evidence []map[string]any
 	warning := 0
 	if inv.Packages.Manager == "" {

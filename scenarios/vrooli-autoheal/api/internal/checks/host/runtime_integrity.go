@@ -3,11 +3,11 @@ package host
 import (
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 )
 
-func NewRuntimeIntegrityCheck(collector hostinventory.Collector) checks.Check {
+func NewRuntimeIntegrityCheck(collector hostinventory.IntegrityCollector) checks.Check {
 	return &inventoryCheck{
 		id:          "host-runtime-integrity",
 		title:       "Host Runtime Integrity",
@@ -19,6 +19,9 @@ func NewRuntimeIntegrityCheck(collector hostinventory.Collector) checks.Check {
 }
 
 func runRuntimeIntegrity(inv hostinventory.HostInventory) checks.Result {
+	if inv.ProbeStatus["host"] == hostinventory.IntegrityProbeUnsupported {
+		return naResult("Host runtime integrity is not applicable on this platform", "native runtime and device inventory", inv)
+	}
 	var evidence []map[string]any
 	critical := 0
 	warning := 0

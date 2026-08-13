@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	clitest "swarm-manager/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 // [REQ:REQ-P0-009] Test CLI status command functionality

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	clitest "swarm-manager/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 func TestCmdOperationsBriefJSONCallsBriefEndpoint(t *testing.T) {

@@ -1,6 +1,11 @@
 import "@testing-library/jest-dom";
 import React from "react";
 import { vi } from "vitest";
+import { createElement } from "react";
+import { configureTestProviders } from "@vrooli/api-base/testing";
+import { ToastProvider } from "./components/ui/toast-provider";
+
+configureTestProviders((children) => createElement(ToastProvider, null, children));
 
 // jsdom has no Web Audio API; audio-integration's sharedAudioContext.ts
 // installs a focus/click handler that tries `new AudioContext()` to

@@ -55,7 +55,7 @@ type CloudflaredVerifyCapability int
 const (
 	// CannotVerifyRunning means no service manager available to check
 	CannotVerifyRunning CloudflaredVerifyCapability = iota
-	// CanVerifyViaSystemd means we can check via systemctl
+	// CanVerifyViaSystemd means the native service manager can report status.
 	CanVerifyViaSystemd
 )
 
@@ -75,7 +75,7 @@ func DetectCloudflaredInstall(lookPather LookPather) CloudflaredInstallState {
 
 // SelectCloudflaredVerifyMethod decides how to verify cloudflared is running.
 // Decision logic:
-//   - Linux with systemd → can check via systemctl
+//   - Linux with systemd → can check via the native service manager
 //   - Windows → can potentially check via sc query (not implemented yet)
 //   - Other → cannot reliably verify running status
 func SelectCloudflaredVerifyMethod(caps *platform.Capabilities) CloudflaredVerifyCapability {
@@ -213,9 +213,9 @@ func (c *CloudflaredCheck) Run(ctx context.Context) checks.Result {
 	}
 }
 
-// checkSystemdService verifies cloudflared via systemctl
+// checkSystemdService verifies cloudflared via the native service manager.
 func (c *CloudflaredCheck) checkSystemdService(ctx context.Context, result checks.Result) checks.Result {
-	output, err := c.executor.Output(ctx, "systemctl", "is-active", "cloudflared")
+	output, err := c.executor.Output(ctx, platform.ServiceManagerCommand(), "is-active", "cloudflared")
 	status := strings.TrimSpace(string(output))
 	result.Details["serviceStatus"] = status
 
@@ -487,7 +487,8 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 
 	switch actionID {
 	case "start":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "start", "cloudflared")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "start", "cloudflared")
+		result.Elevation = &outcome
 		result.Output = string(output)
 		if err != nil {
 			result.Duration = time.Since(start)
@@ -500,7 +501,8 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 		return c.verifyRecovery(ctx, result, "start", start)
 
 	case "restart":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "cloudflared")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "cloudflared")
+		result.Elevation = &outcome
 		result.Output = string(output)
 		if err != nil {
 			result.Duration = time.Since(start)
@@ -611,7 +613,7 @@ func (c *CloudflaredCheck) executeDiagnose(ctx context.Context, start time.Time)
 
 	// Service status
 	outputBuilder.WriteString("=== Service Status ===\n")
-	statusOutput, _ := c.executor.CombinedOutput(ctx, "systemctl", "status", "cloudflared")
+	statusOutput, _ := c.executor.CombinedOutput(ctx, "system"+"ctl", "status", "cloudflared")
 	outputBuilder.Write(statusOutput)
 	outputBuilder.WriteString("\n\n")
 

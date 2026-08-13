@@ -26,6 +26,34 @@
     "version": "0.0.1",
     "type": "business-application",
     "category": "infrastructure",
+    "capabilities": [
+      "autoheal-health-monitoring",
+      "autoheal-host-integrity",
+      "autoheal-service-recovery",
+      "autoheal-watchdog"
+    ],
+    "platform_capabilities": {
+      "autoheal-health-monitoring": {
+        "linux": {"status": "supported", "mechanism": "native-go-checks-and-vrooli-cli"},
+        "macos": {"status": "partial", "mechanism": "typed-vrooli-status-and-platform-go-log-backend"},
+        "windows": {"status": "partial", "mechanism": "typed-vrooli-status-and-platform-go-log-backend"}
+      },
+      "autoheal-host-integrity": {
+        "linux": {"status": "supported", "mechanism": "control-plane-hostinventory"},
+        "macos": {"status": "unsupported", "mechanism": "hostinventory-probe-boundary-reports-not-applicable"},
+        "windows": {"status": "unsupported", "mechanism": "hostinventory-probe-boundary-reports-not-applicable"}
+      },
+      "autoheal-service-recovery": {
+        "linux": {"status": "supported", "mechanism": "platform-go-native-service-backend-and-setup-grant"},
+        "macos": {"status": "partial", "mechanism": "platform-go-launchd-backend"},
+        "windows": {"status": "partial", "mechanism": "platform-go-scheduled-task-backend"}
+      },
+      "autoheal-watchdog": {
+        "linux": {"status": "supported", "mechanism": "platform-go-systemd-backend"},
+        "macos": {"status": "partial", "mechanism": "platform-go-launchd-backend"},
+        "windows": {"status": "partial", "mechanism": "platform-go-scheduled-task-backend"}
+      }
+    },
     "tags": [
       "vrooli-helper",
       "emergency-response",
@@ -132,8 +160,8 @@
         },
         {
           "name": "build-loop",
-          "run": "cd cli/loop && go build -o ../vrooli-autoheal-loop.new . && sync -f ../vrooli-autoheal-loop.new && mv -f ../vrooli-autoheal-loop.new ../vrooli-autoheal-loop && sync -f ../vrooli-autoheal-loop",
-          "description": "Compile cross-platform Go loop binary for watchdog. Atomic install (write .new, sync, rename, sync) mirrors root Makefile atomic_install — prevents zero-byte stub on crash mid-write."
+          "run": "cd cli/loop && go build -o ../vrooli-autoheal-loop.new . && ../vrooli-autoheal-loop.new --install-self ../vrooli-autoheal-loop",
+          "description": "Compile the cross-platform Go loop binary and use its Go atomic installer to replace the watchdog executable."
         },
         {
           "name": "install-ui-deps",
@@ -218,6 +246,127 @@
         "macos",
         "windows"
       ]
+    },
+    {
+      "name": "vrooli",
+      "required": false,
+      "reason": "Structured scenario, resource, registry, and supervisor status is the authoritative monitoring input",
+      "when": ["setup"],
+      "platforms": ["linux", "macos", "windows"]
+    },
+    {
+      "name": "journalctl",
+      "required": false,
+      "reason": "Linux journal evidence backend; absent on other platforms is reported as unsupported",
+      "when": ["develop"],
+      "platforms": ["linux"]
+    },
+    {
+      "name": "systemctl",
+      "required": false,
+      "reason": "Linux service observation and recovery backend; setup grants cover fixed recovery units",
+      "when": ["develop"],
+      "platforms": ["linux"]
+    },
+    {
+      "name": "docker",
+      "required": false,
+      "reason": "Docker resource health is monitored when Docker is installed",
+      "when": ["develop"],
+      "platforms": ["linux", "macos", "windows"]
+    },
+    {
+      "name": "timedatectl",
+      "required": false,
+      "reason": "Linux clock synchronization observation; unsupported elsewhere",
+      "when": ["develop"],
+      "platforms": ["linux"]
+    },
+    {
+      "name": "resolvectl",
+      "required": false,
+      "reason": "Linux resolver observation; unsupported elsewhere",
+      "when": ["develop"],
+      "platforms": ["linux"]
+    },
+    {
+      "name": "apt-get",
+      "required": false,
+      "reason": "Optional Debian/Ubuntu package-event and remediation evidence",
+      "when": ["develop"],
+      "platforms": ["linux"]
+    },
+    {
+      "name": "apt-cache",
+      "required": false,
+      "reason": "Optional Debian/Ubuntu package candidate evidence",
+      "when": ["develop"],
+      "platforms": ["linux"]
+    },
+    {
+      "name": "dpkg-query",
+      "required": false,
+      "reason": "Optional Debian/Ubuntu package state evidence",
+      "when": ["develop"],
+      "platforms": ["linux"]
+    },
+    {
+      "name": "rpm",
+      "required": false,
+      "reason": "Optional Fedora/RHEL package state evidence",
+      "when": ["develop"],
+      "platforms": ["linux"]
+    },
+    {
+      "name": "dnf",
+      "required": false,
+      "reason": "Optional Fedora/RHEL package-event evidence",
+      "when": ["develop"],
+      "platforms": ["linux"]
+    },
+    {
+      "name": "pacman",
+      "required": false,
+      "reason": "Optional Arch package state evidence",
+      "when": ["develop"],
+      "platforms": ["linux"]
+    },
+    {
+      "name": "launchctl",
+      "required": false,
+      "reason": "macOS watchdog lifecycle backend",
+      "when": ["develop"],
+      "platforms": ["macos"]
+    },
+    {
+      "name": "log",
+      "required": false,
+      "reason": "macOS unified-log backend",
+      "when": ["develop"],
+      "platforms": ["macos"]
+    },
+    {
+      "name": "schtasks",
+      "required": false,
+      "reason": "Windows scheduled-task watchdog backend",
+      "when": ["develop"],
+      "platforms": ["windows"]
+    },
+    {
+      "name": "powershell.exe",
+      "required": false,
+      "reason": "Windows event-log backend",
+      "when": ["develop"],
+      "platforms": ["windows"]
+    }
+  ],
+  "hostSafeguards": [
+    {
+      "name": "autoheal_recovery_privileges",
+      "required": false,
+      "reason": "Setup-provisioned Linux grant for fixed autoheal service recovery actions; unsupported on macOS and Windows",
+      "when": ["setup"],
+      "platforms": ["linux", "macos", "windows"]
     }
   ],
   "dependencies": {

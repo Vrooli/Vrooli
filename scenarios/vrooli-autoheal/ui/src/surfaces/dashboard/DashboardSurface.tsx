@@ -1,4 +1,4 @@
-import { Activity, AlertCircle, AlertTriangle, CheckCircle, ChevronDown, ChevronRight, HardDrive } from "lucide-react";
+import { Activity, AlertCircle, AlertTriangle, CheckCircle, ChevronDown, ChevronRight, HardDrive, HelpCircle } from "lucide-react";
 import { memo, Profiler } from "react";
 import { CheckCard, EventsTimeline, PlatformInfo, SummaryCard, SystemProtection, UptimeStats } from "./components";
 import { Card } from "../../shared/ui/primitives";
@@ -18,6 +18,7 @@ export interface CollapsedGroups {
   critical: boolean;
   warning: boolean;
   ok: boolean;
+  notApplicable: boolean;
 }
 
 type GroupKey = keyof CollapsedGroups;
@@ -48,6 +49,12 @@ const GROUP_CONFIG: Record<
     icon: CheckCircle,
     headerClass: "bg-accent-success/10 text-accent-success hover:bg-accent-success/20",
     countClass: "text-accent-success/80",
+  },
+  notApplicable: {
+    title: "Not Applicable",
+    icon: HelpCircle,
+    headerClass: "bg-surface-overlay/60 text-text-muted hover:bg-surface-overlay",
+    countClass: "text-text-muted",
   },
 };
 
@@ -110,6 +117,7 @@ interface DashboardSurfaceProps {
     critical: EnrichedCheck[];
     warning: EnrichedCheck[];
     ok: EnrichedCheck[];
+    notApplicable: EnrichedCheck[];
   };
   collapsedGroups: CollapsedGroups;
   onToggleGroup: (group: keyof CollapsedGroups) => void;
@@ -160,6 +168,12 @@ function DashboardSurfaceImpl({
           value={data?.summary.critical || 0}
           icon={AlertCircle}
           tone="danger"
+        />
+        <SummaryCard
+          title="Not Applicable"
+          value={data?.summary.notApplicable || 0}
+          icon={HelpCircle}
+          tone="neutral"
         />
       </div>
 

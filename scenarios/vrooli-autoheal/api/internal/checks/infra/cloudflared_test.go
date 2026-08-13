@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
+
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
@@ -23,18 +25,18 @@ func TestCloudflaredCheckRunWithMock_ServiceActive(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Service is active
-	mockExec.Responses["systemctl is-active cloudflared"] = checks.MockResponse{
+	mockExec.Responses["systemctl is-active cloudflared"] = testutil.MockResponse{
 		Output: []byte("active"),
 		Error:  nil,
 	}
-	mockExec.Responses["vrooli scenario port app-monitor UI_PORT"] = checks.MockResponse{
+	mockExec.Responses["vrooli scenario port app-monitor UI_PORT"] = testutil.MockResponse{
 		Output: []byte(""),
-		Error:  checks.ErrCommandNotFound,
+		Error:  testutil.ErrCommandNotFound,
 	}
 	// No errors in logs (use default response)
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
@@ -61,10 +63,10 @@ func TestCloudflaredCheckRunWithMock_ServiceInactive(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["systemctl is-active cloudflared"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["systemctl is-active cloudflared"] = testutil.MockResponse{
 		Output: []byte("inactive"),
-		Error:  checks.ErrConnectionRefused,
+		Error:  testutil.ErrConnectionRefused,
 	}
 
 	check := NewCloudflaredCheck(caps, WithCloudflaredExecutor(mockExec))
@@ -85,7 +87,7 @@ func TestCloudflaredCheckRunWithMock_NoSystemd(t *testing.T) {
 		SupportsSystemd: false,
 	}
 
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	check := NewCloudflaredCheck(caps, WithCloudflaredExecutor(mockExec))
 	result := check.Run(context.Background())
 
@@ -106,16 +108,16 @@ func TestCloudflaredCheckRunWithMock_HighErrorRate(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Service is active
-	mockExec.Responses["systemctl is-active cloudflared"] = checks.MockResponse{
+	mockExec.Responses["systemctl is-active cloudflared"] = testutil.MockResponse{
 		Output: []byte("active"),
 		Error:  nil,
 	}
 	// Return logs with many ERR entries (more than threshold of 10)
 	errLogs := "ERR: error1\nERR: error2\nERR: error3\nERR: error4\nERR: error5\n" +
 		"ERR: error6\nERR: error7\nERR: error8\nERR: error9\nERR: error10\nERR: error11\n"
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte(errLogs),
 		Error:  nil,
 	}
@@ -222,24 +224,25 @@ func TestCloudflaredCheckRecoveryActionsAllSafe(t *testing.T) {
 
 // TestCloudflaredCheckExecuteAction_Start tests the start action
 func TestCloudflaredCheckExecuteAction_Start(t *testing.T) {
+	allowRecoveryGrant(t)
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Start command succeeds
-	mockExec.Responses["sudo systemctl start cloudflared"] = checks.MockResponse{
+	mockExec.Responses["sudo -n /usr/bin/systemctl start cloudflared"] = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
 	// Verification: service is now active
-	mockExec.Responses["systemctl is-active cloudflared"] = checks.MockResponse{
+	mockExec.Responses["systemctl is-active cloudflared"] = testutil.MockResponse{
 		Output: []byte("active"),
 		Error:  nil,
 	}
 	// No errors in logs
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
@@ -264,21 +267,22 @@ func TestCloudflaredCheckExecuteAction_Start(t *testing.T) {
 
 // TestCloudflaredCheckExecuteAction_Restart tests the restart action
 func TestCloudflaredCheckExecuteAction_Restart(t *testing.T) {
+	allowRecoveryGrant(t)
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo systemctl restart cloudflared"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["sudo -n /usr/bin/systemctl restart cloudflared"] = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
-	mockExec.Responses["systemctl is-active cloudflared"] = checks.MockResponse{
+	mockExec.Responses["systemctl is-active cloudflared"] = testutil.MockResponse{
 		Output: []byte("active"),
 		Error:  nil,
 	}
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
@@ -305,8 +309,8 @@ func TestCloudflaredCheckExecuteAction_Logs(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["journalctl --no-pager -o short-iso -u cloudflared -n 100"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["journalctl --no-pager -o short-iso -u cloudflared -n 100"] = testutil.MockResponse{
 		Output: []byte("Jun 01 12:00:00 server cloudflared[1234]: Tunnel established\nJun 01 12:01:00 server cloudflared[1234]: Connection healthy"),
 		Error:  nil,
 	}
@@ -333,16 +337,16 @@ func TestCloudflaredCheckExecuteAction_Diagnose(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["systemctl status cloudflared"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["systemctl status cloudflared"] = testutil.MockResponse{
 		Output: []byte("● cloudflared.service - cloudflared\n   Active: active (running)"),
 		Error:  nil,
 	}
-	mockExec.Responses["cloudflared tunnel info"] = checks.MockResponse{
+	mockExec.Responses["cloudflared tunnel info"] = testutil.MockResponse{
 		Output: []byte("Tunnel ID: abc123\nConnections: 4"),
 		Error:  nil,
 	}
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
@@ -381,15 +385,16 @@ func TestCloudflaredCheckExecuteAction_UnknownAction(t *testing.T) {
 
 // TestCloudflaredCheckExecuteAction_StartFailure tests start action failure
 func TestCloudflaredCheckExecuteAction_StartFailure(t *testing.T) {
+	allowRecoveryGrant(t)
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo systemctl start cloudflared"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["sudo -n /usr/bin/systemctl start cloudflared"] = testutil.MockResponse{
 		Output: []byte("Failed to start cloudflared.service: Unit cloudflared.service not found."),
-		Error:  checks.ErrCommandNotFound,
+		Error:  testutil.ErrCommandNotFound,
 	}
 
 	check := NewCloudflaredCheck(caps, WithCloudflaredExecutor(mockExec))
@@ -493,8 +498,8 @@ func TestCloudflaredCheckCountRecentErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockExec := checks.NewMockExecutor()
-			mockExec.DefaultResponse = checks.MockResponse{
+			mockExec := testutil.NewMockExecutor()
+			mockExec.DefaultResponse = testutil.MockResponse{
 				Output: []byte(tt.logOutput),
 				Error:  nil,
 			}
@@ -515,14 +520,14 @@ func TestCloudflaredCheckRunWithMock_OriginUnreachableNoiseDoesNotTriggerWarning
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["systemctl is-active cloudflared"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["systemctl is-active cloudflared"] = testutil.MockResponse{
 		Output: []byte("active"),
 		Error:  nil,
 	}
-	mockExec.Responses["vrooli scenario port app-monitor UI_PORT"] = checks.MockResponse{
+	mockExec.Responses["vrooli scenario port app-monitor UI_PORT"] = testutil.MockResponse{
 		Output: []byte(""),
-		Error:  checks.ErrCommandNotFound,
+		Error:  testutil.ErrCommandNotFound,
 	}
 
 	noiseLine := "2026-02-19T06:06:28Z ERR Request failed error=\"Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp 127.0.0.1:36236: connect: connection refused\""
@@ -530,7 +535,7 @@ func TestCloudflaredCheckRunWithMock_OriginUnreachableNoiseDoesNotTriggerWarning
 	for i := 0; i < 30; i++ {
 		logs += noiseLine + "\n"
 	}
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte(logs),
 		Error:  nil,
 	}
@@ -556,7 +561,7 @@ func TestCloudflaredCheckRunWithMock_OriginUnreachableNoiseDoesNotTriggerWarning
 
 // TestCloudflaredCheckExecutorInjection verifies executor is properly injected
 func TestCloudflaredCheckExecutorInjection(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	check := NewCloudflaredCheck(testCaps(), WithCloudflaredExecutor(mockExec))
 
 	if check.executor != mockExec {
@@ -581,25 +586,25 @@ func TestCloudflaredCheckRun_AutoDetectsAppMonitorPort(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["systemctl is-active cloudflared"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["systemctl is-active cloudflared"] = testutil.MockResponse{
 		Output: []byte("active"),
 		Error:  nil,
 	}
-	mockExec.Responses["vrooli scenario port app-monitor UI_PORT"] = checks.MockResponse{
+	mockExec.Responses["vrooli scenario port app-monitor UI_PORT"] = testutil.MockResponse{
 		Output: []byte("UI_PORT=35000\n"),
 		Error:  nil,
 	}
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
 
-	mockHTTP := checks.NewMockHTTPClient()
-	mockHTTP.DefaultResponse = checks.MockHTTPResponse{
-		Error: checks.ErrConnectionRefused,
+	mockHTTP := testutil.NewMockHTTPClient()
+	mockHTTP.DefaultResponse = testutil.MockHTTPResponse{
+		Error: testutil.ErrConnectionRefused,
 	}
-	mockHTTP.Responses["http://127.0.0.1:35000/"] = checks.MockHTTPResponse{
+	mockHTTP.Responses["http://127.0.0.1:35000/"] = testutil.MockHTTPResponse{
 		StatusCode: 200,
 		Body:       "ok",
 	}
@@ -632,23 +637,23 @@ func TestCloudflaredCheckRun_SkipsLocalProbeWhenNoPort(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["systemctl is-active cloudflared"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["systemctl is-active cloudflared"] = testutil.MockResponse{
 		Output: []byte("active"),
 		Error:  nil,
 	}
-	mockExec.Responses["vrooli scenario port app-monitor UI_PORT"] = checks.MockResponse{
+	mockExec.Responses["vrooli scenario port app-monitor UI_PORT"] = testutil.MockResponse{
 		Output: []byte(""),
-		Error:  checks.ErrCommandNotFound,
+		Error:  testutil.ErrCommandNotFound,
 	}
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
 
-	mockHTTP := checks.NewMockHTTPClient()
-	mockHTTP.DefaultResponse = checks.MockHTTPResponse{
-		Error: checks.ErrConnectionRefused,
+	mockHTTP := testutil.NewMockHTTPClient()
+	mockHTTP.DefaultResponse = testutil.MockHTTPResponse{
+		Error: testutil.ErrConnectionRefused,
 	}
 
 	check := NewCloudflaredCheck(caps,

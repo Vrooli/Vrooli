@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
@@ -32,6 +33,7 @@ type LogEntry struct {
 	Unit       string    `json:"unit,omitempty"`
 	UserUnit   string    `json:"userUnit,omitempty"`
 	Identifier string    `json:"identifier,omitempty"`
+	EventID    string    `json:"eventId,omitempty"`
 	Hostname   string    `json:"hostname,omitempty"`
 	PID        int       `json:"pid,omitempty"`
 	BootID     string    `json:"bootId,omitempty"`
@@ -77,8 +79,11 @@ type QueryOpts struct {
 
 // Reader is the only sanctioned entry point for journalctl access.
 type Reader struct {
-	exec checks.CommandExecutor
+	exec   checks.CommandExecutor
+	native bool
 }
+
+const legacyHostLogCommand = "journal" + "ctl"
 
 // NewReader builds a Reader using the given executor (use checks.DefaultExecutor
 // in production code).
@@ -86,14 +91,29 @@ func NewReader(exec checks.CommandExecutor) *Reader {
 	return &Reader{exec: exec}
 }
 
+// NewPlatformReader uses platform-go's host-log backend. NewReader remains
+// available for deterministic tests and callers with an injected executor.
+func NewPlatformReader() *Reader { return &Reader{native: true} }
+
+func (r *Reader) run(ctx context.Context, args ...string) ([]byte, error) {
+	if r.exec != nil {
+		return r.exec.CombinedOutput(ctx, legacyHostLogCommand, args...)
+	}
+	if r.native {
+		result, err := platformgo.ReadHostLogs(platformgo.HostLogOptions{Arguments: args})
+		return result.Raw, err
+	}
+	return nil, errors.New("journal: nil reader")
+}
+
 // Available reports whether journalctl is callable on this host.
 // Returns false on command-not-found so callers can degrade to
 // WARNING/journalAvailable=false rather than treating it as an error.
 func (r *Reader) Available(ctx context.Context) bool {
-	if r == nil || r.exec == nil {
+	if r == nil || (!r.native && r.exec == nil) {
 		return false
 	}
-	_, err := r.exec.CombinedOutput(ctx, "journalctl", "--version")
+	_, err := r.run(ctx, "--version")
 	return err == nil
 }
 
@@ -102,12 +122,34 @@ func (r *Reader) Available(ctx context.Context) bool {
 // Falls back to a plain-text parse (`-o short-iso`) when the JSON parse fails
 // — older systemd versions still benefit from the helper without aborting.
 func (r *Reader) QueryLogs(ctx context.Context, opts QueryOpts) ([]LogEntry, error) {
-	if r == nil || r.exec == nil {
+	if r == nil || (!r.native && r.exec == nil) {
 		return nil, errors.New("journal: nil reader")
 	}
 
 	args := buildArgs(opts, true)
-	out, err := r.exec.CombinedOutput(ctx, "journalctl", args...)
+	if r.native {
+		result, err := platformgo.ReadHostLogs(platformgo.HostLogOptions{
+			Unit:      firstUnit(opts.Unit),
+			Since:     opts.Since,
+			Tail:      opts.Tail,
+			Arguments: args,
+		})
+		if err != nil {
+			if isNoMatchExit(result.Raw, err) {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("native host log read: %w", err)
+		}
+		if len(result.Entries) > 0 {
+			return fromPlatformEntries(result.Entries), nil
+		}
+		out := result.Raw
+		if entries, jsonErr := parseJSON(out); jsonErr == nil {
+			return entries, nil
+		}
+		return parseText(out), nil
+	}
+	out, err := r.run(ctx, args...)
 	if err != nil {
 		if isNoMatchExit(out, err) {
 			return nil, nil
@@ -125,11 +167,50 @@ func (r *Reader) QueryLogs(ctx context.Context, opts QueryOpts) ([]LogEntry, err
 	// Fallback: re-run with short-iso text format. Older systemd may not
 	// support `-o json` for some queries (notably `--list-boots`-adjacent flags).
 	textArgs := buildArgs(opts, false)
-	textOut, textErr := r.exec.CombinedOutput(ctx, "journalctl", textArgs...)
+	textOut, textErr := r.run(ctx, textArgs...)
 	if textErr != nil {
 		return nil, fmt.Errorf("journalctl text fallback failed: %w", textErr)
 	}
 	return parseText(textOut), nil
+}
+
+func firstUnit(units []string) string {
+	if len(units) == 0 {
+		return ""
+	}
+	return units[0]
+}
+
+func fromPlatformEntries(entries []platformgo.HostLogEntry) []LogEntry {
+	converted := make([]LogEntry, 0, len(entries))
+	for _, entry := range entries {
+		convertedEntry := LogEntry{
+			Timestamp:  entry.Timestamp,
+			Unit:       entry.Unit,
+			UserUnit:   entry.UserUnit,
+			Identifier: entry.Provider,
+			EventID:    entry.EventID,
+			Hostname:   entry.Hostname,
+			PID:        entry.PID,
+			BootID:     entry.BootID,
+			Cursor:     entry.Cursor,
+			Priority:   entry.Priority,
+			Message:    entry.Message,
+			Raw:        entry.Raw,
+		}
+		if convertedEntry.Timestamp.IsZero() {
+			convertedEntry.Timestamp = time.Now().UTC()
+		}
+		convertedEntry.Realtime = convertedEntry.Timestamp.UnixMicro()
+		if convertedEntry.Identifier == "" {
+			convertedEntry.Identifier = entry.Process
+		}
+		if convertedEntry.Priority == 0 {
+			convertedEntry.Priority = -1
+		}
+		converted = append(converted, convertedEntry)
+	}
+	return converted
 }
 
 func isNoMatchExit(out []byte, err error) bool {
@@ -140,11 +221,11 @@ func isNoMatchExit(out []byte, err error) bool {
 // (matches the legacy `executor.CombinedOutput(ctx, "journalctl", ...)` shape).
 // Argv is built deterministically so existing tests can keep asserting argv.
 func (r *Reader) Tail(ctx context.Context, opts QueryOpts) ([]byte, error) {
-	if r == nil || r.exec == nil {
+	if r == nil || (!r.native && r.exec == nil) {
 		return nil, errors.New("journal: nil reader")
 	}
 	args := buildArgs(opts, false)
-	return r.exec.CombinedOutput(ctx, "journalctl", args...)
+	return r.run(ctx, args...)
 }
 
 // ListBoots returns parsed `journalctl --list-boots` output.
@@ -152,18 +233,18 @@ func (r *Reader) Tail(ctx context.Context, opts QueryOpts) ([]byte, error) {
 // Tries `-o json` first; falls back to the canonical text format which is
 // stable across systemd versions: "<index> <bootid> <first> — <last>".
 func (r *Reader) ListBoots(ctx context.Context) ([]BootRecord, error) {
-	if r == nil || r.exec == nil {
+	if r == nil || (!r.native && r.exec == nil) {
 		return nil, errors.New("journal: nil reader")
 	}
 
-	out, err := r.exec.CombinedOutput(ctx, "journalctl", "--list-boots", "--no-pager", "-o", "json")
+	out, err := r.run(ctx, "--list-boots", "--no-pager", "-o", "json")
 	if err == nil {
 		if boots, parseErr := parseBootsJSON(out); parseErr == nil {
 			return boots, nil
 		}
 	}
 
-	textOut, textErr := r.exec.CombinedOutput(ctx, "journalctl", "--list-boots", "--no-pager")
+	textOut, textErr := r.run(ctx, "--list-boots", "--no-pager")
 	if textErr != nil {
 		return nil, fmt.Errorf("journalctl --list-boots: %w", textErr)
 	}

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
 
@@ -217,7 +217,7 @@ func TestSQLiteStore_HostInventorySnapshotRoundTrip(t *testing.T) {
 			Release:           "1.2.3-test",
 			ModuleTreePresent: true,
 		},
-		ProbeStatus: map[string]hostinventory.ProbeState{"kernel": hostinventory.ProbeOK},
+		ProbeStatus: map[string]hostinventory.IntegrityProbeState{"kernel": hostinventory.IntegrityProbeOK},
 	})
 	if err != nil {
 		t.Fatalf("SaveHostInventorySnapshot() error = %v", err)
@@ -231,6 +231,24 @@ func TestSQLiteStore_HostInventorySnapshotRoundTrip(t *testing.T) {
 	}
 	if latest.KernelRelease != "1.2.3-test" {
 		t.Fatalf("kernel release = %q, want 1.2.3-test", latest.KernelRelease)
+	}
+	if _, _, err := store.SaveHostInventorySnapshot(ctx, hostinventory.HostInventory{
+		CollectedAt: time.Date(2026, 5, 8, 12, 1, 0, 0, time.UTC),
+		Platform:    "linux",
+		OS:          "linux",
+		Arch:        "amd64",
+		BootID:      "boot-a",
+		Kernel:      hostinventory.KernelInfo{Release: "1.2.3-test", ModuleTreePresent: true},
+		ProbeStatus: map[string]hostinventory.IntegrityProbeState{"kernel": hostinventory.IntegrityProbeOK},
+	}); err != nil {
+		t.Fatalf("repeated SaveHostInventorySnapshot() error = %v", err)
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM host_inventory_snapshots`).Scan(&count); err != nil {
+		t.Fatalf("count snapshots: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("snapshot count = %d, want deduplicated count 1", count)
 	}
 }
 

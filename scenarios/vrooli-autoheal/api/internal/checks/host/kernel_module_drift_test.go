@@ -3,8 +3,8 @@ package host
 import (
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 )
 
 func TestKernelModuleDriftCriticalWhenRunningModuleTreeMissing(t *testing.T) {
@@ -14,7 +14,7 @@ func TestKernelModuleDriftCriticalWhenRunningModuleTreeMissing(t *testing.T) {
 			Release:           "1.2.3-test",
 			ModuleTreePresent: false,
 		},
-		ProbeStatus: map[string]hostinventory.ProbeState{},
+		ProbeStatus: map[string]hostinventory.IntegrityProbeState{},
 	})
 
 	if result.Status != checks.StatusCritical {
@@ -25,14 +25,40 @@ func TestKernelModuleDriftCriticalWhenRunningModuleTreeMissing(t *testing.T) {
 	}
 }
 
-func TestKernelModuleDriftOKForUnsupportedPlatform(t *testing.T) {
+func TestKernelModuleDriftNotApplicableForUnsupportedPlatform(t *testing.T) {
 	result := runKernelModuleDrift(hostinventory.HostInventory{
 		Platform:    "darwin",
-		ProbeStatus: map[string]hostinventory.ProbeState{},
+		ProbeStatus: map[string]hostinventory.IntegrityProbeState{},
 	})
 
-	if result.Status != checks.StatusOK {
-		t.Fatalf("status = %s, want ok for unsupported platform", result.Status)
+	if result.Status != checks.StatusNotApplicable {
+		t.Fatalf("status = %s, want not-applicable for unsupported platform", result.Status)
+	}
+}
+
+func TestHostChecksNotApplicableWhenInventoryProbeIsUnsupported(t *testing.T) {
+	inv := hostinventory.HostInventory{Platform: "darwin", ProbeStatus: map[string]hostinventory.IntegrityProbeState{"host": hostinventory.IntegrityProbeUnsupported}}
+	cases := []struct {
+		name string
+		run  func(hostinventory.HostInventory) checks.Result
+	}{
+		{"capability-drift", runCapabilityDrift},
+		{"device-driver-binding", runDeviceDriverBinding},
+		{"kernel-error-signals", runKernelErrorSignals},
+		{"kernel-module-drift", runKernelModuleDrift},
+		{"package-state", runPackageState},
+		{"runtime-integrity", runRuntimeIntegrity},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.run(inv)
+			if result.Status != checks.StatusNotApplicable {
+				t.Fatalf("status = %s, want not-applicable", result.Status)
+			}
+			if result.Details["mechanism"] == nil {
+				t.Fatal("not-applicable result did not name a mechanism")
+			}
+		})
 	}
 }
 
@@ -44,7 +70,7 @@ func TestRuntimeIntegrityCriticalForFailingAcceleratorRuntime(t *testing.T) {
 			Path:  "/usr/bin/nvidia-smi",
 			Error: "driver unavailable",
 		}},
-		ProbeStatus: map[string]hostinventory.ProbeState{},
+		ProbeStatus: map[string]hostinventory.IntegrityProbeState{},
 	})
 
 	if result.Status != checks.StatusCritical {
@@ -74,7 +100,7 @@ func TestKernelModuleDriftCriticalForMissingNVIDIAModulePackageWithCandidate(t *
 				Applicability: "applicable",
 			}},
 		},
-		ProbeStatus: map[string]hostinventory.ProbeState{},
+		ProbeStatus: map[string]hostinventory.IntegrityProbeState{},
 	})
 
 	if result.Status != checks.StatusCritical {

@@ -26,6 +26,7 @@ import { optionsToRefs } from "../components/session/context/session-context-opt
 import { sessionOption, startupBriefOption, type SessionContextOption } from "../components/session/context/session-context-refs";
 import { clearStagedContextForSession, mergeContextOptions, peekStagedContextForSession } from "../components/session/context/pending-session-context";
 import { readSessionDraft, writeSessionDraft } from "../components/session/session-draft-storage";
+import { isUnfilledOpener } from "../components/session/session-starter-suggestions";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
 import { type ActionMenuItem } from "../components/ui/action-menu";
 import { nodeIdForSessionArtifact } from "../components/session/session-artifact-routing";
@@ -210,7 +211,10 @@ export function SessionDetailsPage() {
 
   const handleSend = useCallback(() => {
     if (!session || pendingSend) return;
-    const message = draft.trim();
+    // An invitation the operator never answered is worse than no message at
+    // all: "Here is the idea:" with nothing after it reads as truncation. The
+    // selected job already carries the intent, so send empty instead.
+    const message = isUnfilledOpener(session.kind, draft) ? "" : draft.trim();
     if (!message && sessionAttachments.attachments.length === 0 && pendingContext.length === 0 && !starterJobId) return;
     const send: PendingSend = {
       id: `pending-${session.id}-${session.messages.length}`,

@@ -6,13 +6,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	hostchecks "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/host"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/infra"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/resourcegpu"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/system"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/vrooli"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 )
@@ -194,7 +194,7 @@ func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
 		system.NewMCERecentCheck(),      // Recent hardware errors via rasdaemon
 		system.NewPMRuntimeHogCheck(),   // Kernel pm_runtime CPU hogs
 	}
-	collector := hostinventory.NewCachedCollector(hostinventory.NewCollector(hostinventory.CollectorOptions{}), 30*time.Second)
+	collector := hostinventory.NewCachedIntegrityCollector(hostinventory.NewIntegrityCollector(hostinventory.IntegrityCollectorOptions{}), 30*time.Second)
 	systemChecks = append(systemChecks, hostchecks.NewChecks(collector)...)
 	systemChecks = append(systemChecks, resourcegpu.New())
 	return systemChecks

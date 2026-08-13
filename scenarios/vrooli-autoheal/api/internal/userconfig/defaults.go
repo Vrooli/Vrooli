@@ -73,12 +73,21 @@ func DefaultMonitoring() MonitoringConfig {
 			// runtime recovery controller; its liveness is therefore explicit.
 			"system-monitor":   {Critical: true},
 			"template-manager": {Critical: true},
+			"search-hub":       {Critical: true},
 			// Non-critical scenarios - will report StatusWarning when stopped
 			"browser-automation-studio": {Critical: false},
 			"test-genie":                {Critical: false},
 			"deployment-manager":        {Critical: false},
 			"git-control-tower":         {Critical: false},
 			"tidiness-manager":          {Critical: false},
+			"architecture-cartographer": {Critical: false},
+			"cli-health":                {Critical: false},
+			"ui-health":                 {Critical: false},
+			"business-health":           {Critical: false},
+			"code-facts":                {Critical: false},
+			"measures-health":           {Critical: false},
+			"source-ledger":             {Critical: false},
+			"web-search":                {Critical: false},
 		},
 		Resources: []string{
 			"postgres",
@@ -87,6 +96,7 @@ func DefaultMonitoring() MonitoringConfig {
 			"qdrant",
 			"searxng",
 			"whisper",
+			"reranker",
 		},
 	}
 	ensureMandatoryCoreScenarios(&monitoring)

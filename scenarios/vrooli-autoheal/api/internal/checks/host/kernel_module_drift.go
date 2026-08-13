@@ -1,11 +1,11 @@
 package host
 
 import (
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 )
 
-func NewKernelModuleDriftCheck(collector hostinventory.Collector) checks.Check {
+func NewKernelModuleDriftCheck(collector hostinventory.IntegrityCollector) checks.Check {
 	return &inventoryCheck{
 		id:          "host-kernel-module-drift",
 		title:       "Host Kernel Module Drift",
@@ -21,7 +21,7 @@ func runKernelModuleDrift(inv hostinventory.HostInventory) checks.Result {
 	critical := 0
 	warning := 0
 	if inv.Platform != "linux" {
-		return okResult("Kernel/module drift check is not applicable on this platform", inv)
+		return naResult("Kernel/module drift is not applicable on this platform", "native kernel module inventory", inv)
 	}
 	if inv.Kernel.Release != "" && !inv.Kernel.ModuleTreePresent {
 		critical++

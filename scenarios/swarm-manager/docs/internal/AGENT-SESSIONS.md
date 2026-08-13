@@ -182,24 +182,36 @@ Two deliberate differences from the shared `swarm-manager/default` execute profi
 
 The key is read from `SWARM_MANAGER_SESSION_PROFILE_KEY` rather than the shared `AGENT_MANAGER_PROFILE_KEY`, so overriding the execute profile cannot silently re-grant write access to every conversation.
 
-## Starter Prompts
+## Starter Cards
 
-A starter card carries two strings, defined in `ui/src/components/session/session-starter-suggestions.ts`:
+A starter card's text is split by **audience**, not by length. Three readers consume a card, and each gets its own string in its own home:
 
-| Field | Job |
-|---|---|
-| `label` | Menu text. Terse and scannable, read while choosing, never sent. |
-| `prompt` | Composer seed. Prose in the operator's voice that states the situation, states the intent, names the shape of answer wanted, and — where the card needs the operator's own material — ends with an invitation and a blank line for it. |
+| String | Reader | Lives in | Reaches the agent as |
+|---|---|---|---|
+| `label` | The operator, while choosing | `ui/src/components/session/session-starter-suggestions.ts` | Nothing — it is menu text. |
+| `opener` | The operator, while typing | same file | Their own message, if they send it. |
+| job text | The agent | `api/internal/agentsessions/starter_jobs.go` | The stable `starter-job` prompt band. |
 
-These are incompatible jobs and one string cannot do both. When the label doubled as the prompt, `"Turn this idea into goals and backlog items."` was sent as a complete message with no idea attached and no signal that the operator was expected to supply one.
+The job instruction is agent-directed and identical every time that card is used, so it belongs server-side in a band the provider can cache. The opener is operator-voiced and operator-editable, so it belongs in the composer, where it can be rewritten or deleted.
+
+This replaced a single `prompt` field that tried to be all three. When the label doubled as the prompt, `"Turn this idea into goals and backlog items."` was sent as a complete message with no idea attached. When that was fixed by moving the framing server-side, the composer was left empty instead, and clicking a card produced no visible change at all — so the card read as a dead control. An opener is the smallest thing that fixes both: it shows the click landed, and it says what the operator is expected to supply.
+
+**A card without an opener is send-ready by design.** "Review active goals and recommend the top next action" needs nothing from the operator; seeding it would invent a requirement it does not have and turn a one-click send into a chore. The presence of `opener` *is* the taxonomy for which cards want the operator's own material.
+
+Seeding behavior, shared by the empty-session cards and the attach-to-session sheet:
+
+- The seed is `opener` followed by a blank line (`composerSeedForOpener`), and it is applied through the composer's `replaceText` handle so it lands on the browser's undo stack — a mis-clicked card is one Ctrl+Z away, and the caret ends on the blank line.
+- Choosing a different card replaces the composer **only while it is empty or still holds an unfilled invitation** (`isUnfilledOpener`). Once the operator has typed, switching cards changes the job and leaves their words alone.
+- Sending an unanswered invitation sends an empty message instead. A bare `Here is the idea:` with nothing after it reads as truncation; the selected job already carries the intent.
+- `isUnfilledOpener` is derived from the card catalog rather than remembered in React state, because composer drafts are persisted per session and survive a reload — a remembered flag would be lost exactly when the check still matters.
 
 Rules enforced by `session-starter-suggestions.test.ts`:
 
-- Every card defines both, and never reuses one as the other.
-- Labels stay under 80 characters; prompts exceed 120, because a one-liner cannot state situation, intent, and desired output.
-- A prompt may say "the attached …" only when the card has a non-optional requirement, because a card with only optional requirements seeds its prompt immediately and would be referring to nothing.
-- A prompt ending in an invitation must end with `:\n\n`, so the slot is where the operator types.
-- Send-ready cards must not trail off in a colon.
+- Every card has a label and a `jobId`; labels stay under 80 characters.
+- Openers stay at 60 characters or fewer and end in a colon — anything long enough to state a situation is job text wearing the wrong hat.
+- **No opener may contain an agent-directed imperative** (`recommend`, `return`, `propose`, `review`, …). This is the guard that stops the two audiences re-merging.
+- The known send-ready cards (`operations-review`, `operations-sweep-staleness`) must have no opener, and the known material-seeking cards must have one.
+- Proposal lenses carry no opener: the entity is staged as a visible context chip and the mutation-list contract is server-owned.
 
 ## Identity And Attribution
 
@@ -325,8 +337,10 @@ is only safe after backup/restore and API-read verification.
 - Prefer extending shared proposal/apply seams over introducing mode-specific UI or handler branches.
 - Register a new prompt section in `prompt_sections.go` with its volatility scope. Never emit a section the registry does not name, and never place a volatile section above a stable one.
 - Keep the skill as the home of methodology and the startup brief as the home of current state. A brief that carries procedure, or a prompt that restates the skill, splits the attention budget and drifts.
-- When adding a starter card, give it a stable `id`/`jobId` and a human label. The server must know
-  the job before it can compose the prompt; the tests reject cards that bypass that contract.
+- When adding a starter card, give it a stable `id`/`jobId` and a human label, and register its job
+  text in `starter_jobs.go`. The server must know the job before it can compose the prompt; the tests
+  reject cards that bypass that contract. Add an `opener` only if the card needs the operator's own
+  material, and keep it operator-voiced — instructions to the agent belong in the job text.
 
 ## Operator surface details
 

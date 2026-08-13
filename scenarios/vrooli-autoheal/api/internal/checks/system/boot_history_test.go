@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
+
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
 )
@@ -13,25 +15,25 @@ import (
 // We cheat: instead of reimplementing journal arg parsing, we use the
 // MockExecutor and craft the JSON output journal.Reader expects.
 func newBootHistoryWithMock(avail bool, boots []journal.BootRecord, bootErr error, logsByBoot map[string]string) *BootHistoryCheck {
-	mock := checks.NewMockExecutor()
+	mock := testutil.NewMockExecutor()
 	if avail {
-		mock.Responses["journalctl --version"] = checks.MockResponse{Output: []byte("systemd 254\n")}
+		mock.Responses["journalctl --version"] = testutil.MockResponse{Output: []byte("systemd 254\n")}
 	} else {
-		mock.Responses["journalctl --version"] = checks.MockResponse{Error: errors.New("not found")}
+		mock.Responses["journalctl --version"] = testutil.MockResponse{Error: errors.New("not found")}
 	}
 
 	if bootErr != nil {
-		mock.Responses["journalctl --list-boots --no-pager -o json"] = checks.MockResponse{Error: bootErr}
-		mock.Responses["journalctl --list-boots --no-pager"] = checks.MockResponse{Error: bootErr}
+		mock.Responses["journalctl --list-boots --no-pager -o json"] = testutil.MockResponse{Error: bootErr}
+		mock.Responses["journalctl --list-boots --no-pager"] = testutil.MockResponse{Error: bootErr}
 	} else if boots != nil {
-		mock.Responses["journalctl --list-boots --no-pager -o json"] = checks.MockResponse{
+		mock.Responses["journalctl --list-boots --no-pager -o json"] = testutil.MockResponse{
 			Output: encodeBootsJSON(boots),
 		}
 	}
 
-	mock.DefaultResponse = checks.MockResponse{Output: []byte("")}
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte("")}
 	for bootID, raw := range logsByBoot {
-		mock.Responses["journalctl --no-pager -o json -b "+bootID+" -n 200 -r"] = checks.MockResponse{
+		mock.Responses["journalctl --no-pager -o json -b "+bootID+" -n 200 -r"] = testutil.MockResponse{
 			Output: []byte(raw),
 		}
 	}

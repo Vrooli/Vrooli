@@ -16,6 +16,7 @@ function getUptimeColor(percentage: number): string {
 function getUptimeBarClass(status: HealthStatus): string {
   if (status === "ok") return "h-full bg-accent-success";
   if (status === "warning") return "h-4 bg-accent-warning";
+  if (status === "not-applicable") return "h-3 bg-text-muted/50";
   return "h-5 bg-accent-danger";
 }
 

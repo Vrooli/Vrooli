@@ -204,7 +204,7 @@ func TestRecoverGo_MissingSum_EscalatesToTidyWhenDownloadDoesNotChangeSum(t *tes
 	if !res.ModifiedTrackedFiles {
 		t.Fatalf("ModifiedTrackedFiles should be true after tidy rewrites go.sum")
 	}
-	if !strings.Contains(res.Command, "go mod tidy") {
+	if !containsText(res.Command, "go mod tidy") {
 		t.Fatalf("expected Command to record escalation, got %q", res.Command)
 	}
 }
@@ -333,7 +333,7 @@ func TestRecoverPnpm_LinkingFailedRemovesNodeModules(t *testing.T) {
 	if res.Command != "pnpm install --ignore-workspace" {
 		t.Fatalf("unexpected command: %q", res.Command)
 	}
-	if !strings.Contains(res.Output, "rm -rf node_modules") {
+	if !containsText(res.Output, "rm -rf node_modules") {
 		t.Fatalf("expected rm marker in output, got %q", res.Output)
 	}
 }

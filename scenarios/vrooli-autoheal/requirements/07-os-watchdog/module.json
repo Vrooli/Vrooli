@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-05T18:33:30-04:00"
+    "last_validated_at": "2026-08-13T06:49:36-04:00"
   },
   "requirements": [
     {
@@ -16,7 +16,7 @@
           "ref": "api/internal/watchdog/watchdog_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Covered by Go watchdog tests (api/internal/watchdog)"
+          "notes": "Covered by Go watchdog tests (api/internal/watchdog). Evidence tier: fixture-verified plus build-verified; no Windows host execution is claimed."
         }
       ]
     },
@@ -67,7 +67,7 @@
           "ref": "api/internal/watchdog/watchdog_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Covered by Go watchdog tests (api/internal/watchdog)"
+          "notes": "Covered by Go watchdog tests (api/internal/watchdog). Evidence tier: fixture-verified plus build-verified; no Windows host execution is claimed."
         }
       ]
     },
@@ -84,7 +84,7 @@
           "ref": "api/internal/watchdog/watchdog_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Covered by Go watchdog tests (api/internal/watchdog)"
+          "notes": "Covered by Go watchdog tests (api/internal/watchdog). Evidence tier: fixture-verified plus build-verified; no macOS host execution is claimed."
         }
       ]
     },

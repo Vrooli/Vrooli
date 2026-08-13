@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
 )
 
 func TestStaleLockCheckInterface(t *testing.T) {
@@ -73,7 +74,7 @@ func TestStaleLockCheckRunWithCoreJSON(t *testing.T) {
 		},
 		{
 			name:           "command error",
-			err:            checks.ErrCommandNotFound,
+			err:            testutil.ErrCommandNotFound,
 			expectedStatus: checks.StatusCritical,
 			expectedMsg:    "Failed to read registry claims",
 		},
@@ -81,8 +82,8 @@ func TestStaleLockCheckRunWithCoreJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor := checks.NewMockExecutor()
-			executor.Responses["vrooli locks --json"] = checks.MockResponse{
+			executor := testutil.NewMockExecutor()
+			executor.Responses["vrooli locks --json"] = testutil.MockResponse{
 				Output: []byte(tt.output),
 				Error:  tt.err,
 			}
@@ -105,8 +106,8 @@ func TestStaleLockCheckRunWithCoreJSON(t *testing.T) {
 }
 
 func TestStaleLockCheckExecuteActionList(t *testing.T) {
-	executor := checks.NewMockExecutor()
-	executor.Responses["vrooli locks --json"] = checks.MockResponse{
+	executor := testutil.NewMockExecutor()
+	executor.Responses["vrooli locks --json"] = testutil.MockResponse{
 		Output: []byte(`{"success":true,"registry_claims":[{"port":17701,"scenario":"alpha","recommendation_code":"port-ok"},{"port":17702,"scenario":"beta","reconciliation":"stale_claim","recommendation_code":"stale-claim-expire"}]}`),
 	}
 
@@ -118,14 +119,14 @@ func TestStaleLockCheckExecuteActionList(t *testing.T) {
 	if result.Message != "Found 1 stale registry claims out of 2 total" {
 		t.Fatalf("Message = %q", result.Message)
 	}
-	if !strings.Contains(result.Output, "stale-claim-expire") {
+	if !containsText(result.Output, "stale-claim-expire") {
 		t.Fatalf("Output = %q, want diagnostic JSON to include the stale claim recommendation", result.Output)
 	}
 }
 
 func TestStaleLockCheckExecuteActionCleanDelegatesToCoreCleanup(t *testing.T) {
-	executor := checks.NewMockExecutor()
-	executor.Responses["vrooli cleanup locks --json"] = checks.MockResponse{
+	executor := testutil.NewMockExecutor()
+	executor.Responses["vrooli cleanup locks --json"] = testutil.MockResponse{
 		Output: []byte(`{"success":true,"data":{"stopped":[{"name":"8081","message":"Removed stale lock"}],"failed":[],"message":"Stopped 1 processes (0 failed)"}}`),
 	}
 
@@ -144,8 +145,8 @@ func TestStaleLockCheckExecuteActionCleanDelegatesToCoreCleanup(t *testing.T) {
 }
 
 func TestDiagnosePortDelegatesToCoreCommand(t *testing.T) {
-	executor := checks.NewMockExecutor()
-	executor.Responses["vrooli diagnose-port 8080 alpha --json"] = checks.MockResponse{
+	executor := testutil.NewMockExecutor()
+	executor.Responses["vrooli diagnose-port 8080 alpha --json"] = testutil.MockResponse{
 		Output: []byte(`{"success":true,"diagnostic":{"port":8080,"scenario":"alpha","in_use":true,"listener_inspection":{"available":true},"host_orphan_count":2,"recommendations":["Inspect listener"]}}`),
 	}
 

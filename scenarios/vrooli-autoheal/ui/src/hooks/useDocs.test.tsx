@@ -32,11 +32,16 @@ describe("documentation query hooks", () => {
   });
 
   it("loads content, handles missing content, and leaves null paths disabled", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ content: "# Guide" }) }).mockResolvedValueOnce({ ok: true, json: async () => ({}) }));
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ content: "# Guide" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: true, json: async () => null }));
     const loaded = renderHook(() => useDocContent("guide.md"), { wrapper });
     await waitFor(() => expect(loaded.result.current.data).toBe("# Guide"));
     const missing = renderHook(() => useDocContent("missing.md"), { wrapper });
     await waitFor(() => expect(missing.result.current.data).toBe(""));
+    const invalid = renderHook(() => useDocContent("invalid.md"), { wrapper });
+    await waitFor(() => expect(invalid.result.current.data).toBe(""));
     const disabled = renderHook(() => useDocContent(null), { wrapper });
     expect(disabled.result.current.fetchStatus).toBe("idle");
   });

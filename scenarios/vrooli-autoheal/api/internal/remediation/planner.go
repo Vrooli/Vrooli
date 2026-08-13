@@ -33,6 +33,19 @@ type OutcomeRequest struct {
 	Note   string `json:"note,omitempty"`
 }
 
+type generatedArtifact struct {
+	Script   string
+	Readme   string
+	Metadata map[string]any
+}
+
+type artifactGenerator func(incidents.Incident, incidents.RemediationCandidate) (generatedArtifact, error)
+
+var artifactGenerators = map[string]artifactGenerator{
+	"ubuntu-nvidia-kernel-module-mismatch": generateNVIDIAArtifact,
+	"operator-runtime-restart":             generateRuntimeRestartArtifact,
+}
+
 func NewService() (*Service, error) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
 	if err != nil {
@@ -53,10 +66,11 @@ func (s *Service) Generate(incident incidents.Incident, remediationID string) (*
 	if candidate.Applicability != "applicable" {
 		return nil, fmt.Errorf("remediation candidate %q is %s", remediationID, candidate.Applicability)
 	}
-	if candidate.ID != "ubuntu-nvidia-kernel-module-mismatch" {
-		return nil, fmt.Errorf("remediation candidate %q has no generator", remediationID)
+	generator, ok := artifactGenerators[candidate.TemplateID]
+	if !ok {
+		return nil, fmt.Errorf("remediation candidate %q has no generator for template %q", remediationID, candidate.TemplateID)
 	}
-	facts, err := nvidiaFacts(incident)
+	generated, err := generator(incident, candidate)
 	if err != nil {
 		return nil, err
 	}
@@ -79,19 +93,18 @@ func (s *Service) Generate(incident incidents.Incident, remediationID string) (*
 		"templateId":            candidate.TemplateID,
 		"templateVersion":       "1",
 		"platformApplicability": candidate.Applicability,
-		"expectedPackage":       facts.ExpectedPackage,
-		"runningKernel":         facts.RunningKernel,
-		"commands":              []string{"apt-get update", "apt-get -s install <expected package>", "apt-get install <expected package>"},
-		"preflightCommands":     []string{"uname -r", "apt-cache policy <expected package>", "dpkg-query -W <expected package>"},
 		"postChecks":            candidate.PostChecks,
 		"operatorApproval":      "required",
+	}
+	for key, value := range generated.Metadata {
+		metadata[key] = value
 	}
 	metadataJSON, _ := json.MarshalIndent(metadata, "", "  ")
 	postChecksJSON, _ := json.MarshalIndent(candidate.PostChecks, "", "  ")
 	writes := map[string][]byte{
-		files["remediation.sh"]:   []byte(scriptForNVIDIAModule(candidate, facts)),
+		files["remediation.sh"]:   []byte(generated.Script),
 		files["metadata.json"]:    metadataJSON,
-		files["README.md"]:        []byte(readmeForCandidate(incident, candidate, facts)),
+		files["README.md"]:        []byte(generated.Readme),
 		files["post-checks.json"]: postChecksJSON,
 	}
 	for path, data := range writes {
@@ -139,6 +152,49 @@ func (s *Service) Outcome(incident incidents.Incident, remediationID string, req
 type nvidiaModuleFacts struct {
 	ExpectedPackage string
 	RunningKernel   string
+}
+
+func generateNVIDIAArtifact(incident incidents.Incident, candidate incidents.RemediationCandidate) (generatedArtifact, error) {
+	facts, err := nvidiaFacts(incident)
+	if err != nil {
+		return generatedArtifact{}, err
+	}
+	return generatedArtifact{
+		Script: scriptForNVIDIAModule(candidate, facts),
+		Readme: readmeForCandidate(incident, candidate, facts),
+		Metadata: map[string]any{
+			"expectedPackage":   facts.ExpectedPackage,
+			"runningKernel":     facts.RunningKernel,
+			"commands":          []string{"apt-get update", "apt-get -s install <expected package>", "apt-get install <expected package>"},
+			"preflightCommands": []string{"uname -r", "apt-cache policy <expected package>", "dpkg-query -W <expected package>"},
+		},
+	}, nil
+}
+
+func generateRuntimeRestartArtifact(incident incidents.Incident, candidate incidents.RemediationCandidate) (generatedArtifact, error) {
+	service := "<service-name>"
+	for _, item := range incident.EvidenceItems {
+		if item.Kind != "runtime_not_callable" {
+			continue
+		}
+		if value := strings.TrimSpace(fmt.Sprintf("%v", item.Data["service"])); value != "" && value != "<nil>" {
+			service = value
+		}
+	}
+	if service == "<service-name>" {
+		return generatedArtifact{}, fmt.Errorf("incident does not contain a runtime service name")
+	}
+	readme := fmt.Sprintf("# %s\n\nIncident: %s\n\nThis operator-reviewed artifact does not execute automatically. Inspect the service before choosing a platform-native restart command.\n", candidate.Title, incident.ID)
+	script := fmt.Sprintf("#!/usr/bin/env bash\nset -euo pipefail\nSERVICE=%q\nprintf 'Inspecting %s before restart.\n' \"${SERVICE}\"\nprintf 'Run the approved platform-native restart action manually after review.\n'\n", service, service)
+	return generatedArtifact{
+		Script: script,
+		Readme: readme,
+		Metadata: map[string]any{
+			"service":           service,
+			"commands":          []string{"inspect service state", "review platform-native restart action"},
+			"preflightCommands": []string{"confirm service identity", "confirm operator approval"},
+		},
+	}, nil
 }
 
 func nvidiaFacts(incident incidents.Incident) (nvidiaModuleFacts, error) {

@@ -1,11 +1,11 @@
 package host
 
 import (
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 )
 
-func NewDeviceDriverBindingCheck(collector hostinventory.Collector) checks.Check {
+func NewDeviceDriverBindingCheck(collector hostinventory.IntegrityCollector) checks.Check {
 	return &inventoryCheck{
 		id:          "host-device-driver-binding",
 		title:       "Host Device Driver Binding",
@@ -17,6 +17,9 @@ func NewDeviceDriverBindingCheck(collector hostinventory.Collector) checks.Check
 }
 
 func runDeviceDriverBinding(inv hostinventory.HostInventory) checks.Result {
+	if inv.ProbeStatus["host"] == hostinventory.IntegrityProbeUnsupported {
+		return naResult("Host device-driver binding is not applicable on this platform", "native device and driver inventory", inv)
+	}
 	var evidence []map[string]any
 	warning := 0
 	for _, device := range inv.Devices {

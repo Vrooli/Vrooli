@@ -3,6 +3,7 @@ package strategies
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -370,7 +371,7 @@ func TestVrooliStrategy_IsRunning(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.output, func(t *testing.T) {
 				exec := &mockExecutor{
-					combinedOutputResult: []byte(tc.output),
+					outputResult: []byte(fmt.Sprintf(`{"success":true,"name":"postgres","installed":true,"running":%t,"healthy":%t,"status":"%s"}`, tc.expected, tc.expected, tc.output)),
 				}
 				strategy := NewVrooliStrategy(VrooliResource, "postgres", exec)
 
@@ -384,7 +385,7 @@ func TestVrooliStrategy_IsRunning(t *testing.T) {
 
 	t.Run("command fails", func(t *testing.T) {
 		exec := &mockExecutor{
-			combinedOutputErr: errors.New("command failed"),
+			outputErr: errors.New("command failed"),
 		}
 		strategy := NewVrooliStrategy(VrooliResource, "postgres", exec)
 

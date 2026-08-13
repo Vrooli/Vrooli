@@ -333,20 +333,6 @@ func (c *DiskCheck) RecoveryActions(lastResult *checks.Result) []checks.Recovery
 			Available: true,
 		},
 		{
-			ID:          "clean-apt-cache",
-			Name:        "Clean APT Cache",
-			Description: "Remove cached package files from apt",
-			Dangerous:   false,
-			Available:   isLinux,
-		},
-		{
-			ID:          "clean-journal",
-			Name:        "Clean System Journals",
-			Description: "Vacuum old journal logs (keeps last 100MB)",
-			Dangerous:   false,
-			Available:   isLinux,
-		},
-		{
 			ID:          "clean-docker",
 			Name:        "Clean Docker Resources",
 			Description: "Remove unused Docker images, containers, and volumes",
@@ -383,38 +369,6 @@ func (c *DiskCheck) ExecuteAction(ctx context.Context, actionID string) checks.A
 	switch actionID {
 	case requestCleanupActionID:
 		return c.executeRequestCleanup(ctx, start)
-
-	case "clean-apt-cache":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "apt-get", "clean")
-		result.Duration = time.Since(start)
-		result.Output = string(output)
-
-		if err != nil {
-			result.Success = false
-			result.Error = err.Error()
-			result.Message = "Failed to clean APT cache"
-			return result
-		}
-
-		result.Success = true
-		result.Message = "APT cache cleaned successfully"
-		return result
-
-	case "clean-journal":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "journalctl", "--vacuum-size=100M")
-		result.Duration = time.Since(start)
-		result.Output = string(output)
-
-		if err != nil {
-			result.Success = false
-			result.Error = err.Error()
-			result.Message = "Failed to vacuum journal logs"
-			return result
-		}
-
-		result.Success = true
-		result.Message = "Journal logs vacuumed successfully"
-		return result
 
 	case "clean-docker":
 		output, err := c.executor.CombinedOutput(ctx, "docker", "system", "prune", "-af", "--volumes")

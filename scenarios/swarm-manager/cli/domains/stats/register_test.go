@@ -3,7 +3,7 @@ package stats
 import (
 	"testing"
 
-	"swarm-manager/cli/internal/testutil"
+	testutil "github.com/vrooli/cli-core/cliapptest"
 )
 
 func TestRegister(t *testing.T) {

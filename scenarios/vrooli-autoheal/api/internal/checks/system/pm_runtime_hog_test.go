@@ -6,29 +6,31 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
+
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
 )
 
-func newPMRuntimeWithMock(avail bool, count int, queryErr error) (*PMRuntimeHogCheck, *checks.MockExecutor) {
-	mock := checks.NewMockExecutor()
+func newPMRuntimeWithMock(avail bool, count int, queryErr error) (*PMRuntimeHogCheck, *testutil.MockExecutor) {
+	mock := testutil.NewMockExecutor()
 	if avail {
-		mock.Responses["journalctl --version"] = checks.MockResponse{Output: []byte("systemd 254\n")}
+		mock.Responses["journalctl --version"] = testutil.MockResponse{Output: []byte("systemd 254\n")}
 	} else {
-		mock.Responses["journalctl --version"] = checks.MockResponse{Error: errors.New("not found")}
+		mock.Responses["journalctl --version"] = testutil.MockResponse{Error: errors.New("not found")}
 	}
 
 	queryKey := "journalctl --no-pager -o json -k --since -300 seconds -g pm_runtime_work .* hogged CPU -n 1000"
 	if queryErr != nil {
-		mock.Responses[queryKey] = checks.MockResponse{Error: queryErr}
+		mock.Responses[queryKey] = testutil.MockResponse{Error: queryErr}
 	} else {
 		var lines []string
 		for i := 0; i < count; i++ {
 			lines = append(lines, `{"__REALTIME_TIMESTAMP":"1714900000000000","MESSAGE":"pm_runtime_work hogged CPU"}`)
 		}
-		mock.Responses[queryKey] = checks.MockResponse{Output: []byte(strings.Join(lines, "\n"))}
+		mock.Responses[queryKey] = testutil.MockResponse{Output: []byte(strings.Join(lines, "\n"))}
 	}
-	mock.DefaultResponse = checks.MockResponse{Output: []byte("")}
+	mock.DefaultResponse = testutil.MockResponse{Output: []byte("")}
 
 	c := NewPMRuntimeHogCheck(
 		WithPMRuntimeExecutor(mock),
@@ -56,7 +58,7 @@ func TestPMRuntimeOKBelowWarn(t *testing.T) {
 func TestPMRuntimeEmptyJournalGrepExitOneIsOK(t *testing.T) {
 	c, mock := newPMRuntimeWithMock(true, 0, nil)
 	queryKey := "journalctl --no-pager -o json -k --since -300 seconds -g pm_runtime_work .* hogged CPU -n 1000"
-	mock.Responses[queryKey] = checks.MockResponse{Error: errors.New("exit status 1")}
+	mock.Responses[queryKey] = testutil.MockResponse{Error: errors.New("exit status 1")}
 
 	r := c.Run(context.Background())
 	if r.Status != checks.StatusOK {

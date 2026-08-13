@@ -280,12 +280,13 @@ describe('App', () => {
     ] as const;
 
     for (const { error, message } of cases) {
-      vi.mocked(api.runTick).mockRejectedValueOnce(error);
-      renderWithProviders(<App />);
-      await waitFor(() => expect(screen.getByTestId(selectors.runTickButton)).toBeInTheDocument());
-      fireEvent.click(screen.getByTestId(selectors.runTickButton));
-      await waitFor(() => expect(screen.getByText(message)).toBeInTheDocument());
       cleanup();
+      vi.mocked(api.runTick).mockRejectedValueOnce(error);
+      const rendered = renderWithProviders(<App />);
+      await waitFor(() => expect(rendered.getByTestId(selectors.runTickButton)).toBeInTheDocument());
+      fireEvent.click(rendered.getByTestId(selectors.runTickButton));
+      await waitFor(() => expect(screen.getByText(message)).toBeInTheDocument());
+      rendered.unmount();
     }
   });
 

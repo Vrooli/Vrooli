@@ -83,8 +83,7 @@ func (c *OrphanCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 
-	orphans, output, err := c.client.ListOrphans(ctx)
-	result.Details["output"] = string(output)
+	orphans, _, err := c.client.ListOrphans(ctx)
 	if err != nil {
 		result.Status = checks.StatusCritical
 		result.Message = "Failed to read orphan process status"

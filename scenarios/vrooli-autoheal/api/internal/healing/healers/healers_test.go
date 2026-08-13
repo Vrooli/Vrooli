@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/elevation"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing"
 )
 
@@ -97,10 +98,8 @@ func TestResourceHealer_Actions(t *testing.T) {
 
 	t.Run("companion down result", func(t *testing.T) {
 		result := &checks.Result{
-			Status: checks.StatusCritical,
-			Details: map[string]interface{}{
-				"statusText": "running; activity-edge companion down (port 8090) - STT unavailable, capacity reporting blind",
-			},
+			Status:  checks.StatusCritical,
+			Details: map[string]interface{}{"companionDown": true},
 		}
 		actions := h.Actions(result)
 		if len(actions) == 0 || actions[0].ID != "respawn-companion" {
@@ -334,6 +333,8 @@ func TestSystemdHealer_Actions(t *testing.T) {
 }
 
 func TestSystemdHealer_Execute(t *testing.T) {
+	restore := elevation.SetGrantPathForTest("test-vrooli-autoheal-grant", func() bool { return true })
+	t.Cleanup(restore)
 	exec := &mockExecutor{combinedOutputResult: []byte("ok")}
 	h := NewSystemdHealer("infra-cloudflared", "cloudflared", exec)
 

@@ -106,7 +106,7 @@ The installer creates `~/Library/LaunchAgents/com.vrooli.autoheal.plist`:
 
 ```bash
 # Load (start)
-launchctl load ~/Library/LaunchAgents/com.vrooli.autoheal.plist
+launchctl bootstrap user/$(id -u) ~/Library/LaunchAgents/com.vrooli.autoheal.plist
 
 # Unload (stop)
 launchctl unload ~/Library/LaunchAgents/com.vrooli.autoheal.plist

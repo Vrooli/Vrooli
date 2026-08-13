@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/elevation"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
@@ -108,7 +109,7 @@ func (c *ResolvedCheck) Run(ctx context.Context) checks.Result {
 	case "inactive", "dead":
 		result.Status = checks.StatusCritical
 		result.Message = "systemd-resolved is not running"
-		result.Details["recommendation"] = "Run: sudo systemctl start systemd-resolved"
+		result.Details["recommendation"] = "Run the declared native service-manager start action for systemd-resolved"
 		return result
 
 	case "failed":
@@ -131,7 +132,7 @@ func (c *ResolvedCheck) Run(ctx context.Context) checks.Result {
 
 // serviceExists checks if systemd-resolved service exists
 func (c *ResolvedCheck) serviceExists(ctx context.Context) bool {
-	output, err := c.executor.Output(ctx, "systemctl", "list-unit-files", "systemd-resolved.service")
+	output, err := c.executor.Output(ctx, platform.ServiceManagerCommand(), "list-unit-files", "systemd-resolved.service")
 	if err != nil {
 		return false
 	}
@@ -140,7 +141,7 @@ func (c *ResolvedCheck) serviceExists(ctx context.Context) bool {
 
 // getServiceStatus returns the current service status
 func (c *ResolvedCheck) getServiceStatus(ctx context.Context) string {
-	output, _ := c.executor.Output(ctx, "systemctl", "is-active", "systemd-resolved")
+	output, _ := c.executor.Output(ctx, platform.ServiceManagerCommand(), "is-active", "systemd-resolved")
 	return strings.TrimSpace(string(output))
 }
 
@@ -201,13 +202,6 @@ func (c *ResolvedCheck) RecoveryActions(lastResult *checks.Result) []checks.Reco
 			Available:   true,
 		},
 		{
-			ID:          "flush-cache",
-			Name:        "Flush DNS Cache",
-			Description: "Flush the DNS resolver cache",
-			Dangerous:   false,
-			Available:   isRunning,
-		},
-		{
 			ID:          "logs",
 			Name:        "View Logs",
 			Description: "View recent systemd-resolved logs",
@@ -228,19 +222,17 @@ func (c *ResolvedCheck) ExecuteAction(ctx context.Context, actionID string) chec
 
 	var output []byte
 	var err error
+	var outcome elevation.Outcome
 	needsVerification := false
 	switch actionID {
 	case "start":
-		output, err = c.executor.CombinedOutput(ctx, "sudo", "systemctl", "start", "systemd-resolved")
+		output, outcome, err = checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "start", "systemd-resolved")
 		result.Message = "Starting systemd-resolved service"
 		needsVerification = true
 	case "restart":
-		output, err = c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "systemd-resolved")
+		output, outcome, err = checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "systemd-resolved")
 		result.Message = "Restarting systemd-resolved service"
 		needsVerification = true
-	case "flush-cache":
-		output, err = c.executor.CombinedOutput(ctx, "sudo", "resolvectl", "flush-caches")
-		result.Message = "Flushing DNS cache"
 	case "logs":
 		output, err = journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
 			Unit: []string{"systemd-resolved"},
@@ -253,6 +245,7 @@ func (c *ResolvedCheck) ExecuteAction(ctx context.Context, actionID string) chec
 		result.Duration = time.Since(start)
 		return result
 	}
+	result.Elevation = &outcome
 
 	result.Output = string(output)
 

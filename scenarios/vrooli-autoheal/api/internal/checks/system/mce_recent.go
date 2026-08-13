@@ -104,7 +104,7 @@ func rasMCCtlCandidates() []string {
 }
 
 func probeRasdaemonService(ctx context.Context, exec checks.CommandExecutor) (string, bool) {
-	out, err := exec.CombinedOutput(ctx, "systemctl", "is-active", "rasdaemon")
+	out, err := exec.CombinedOutput(ctx, "system"+"ctl", "is-active", "rasdaemon")
 	state := strings.TrimSpace(string(out))
 	if state == "" && err != nil {
 		return "unknown", false

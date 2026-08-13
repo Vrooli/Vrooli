@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	clitest "github.com/vrooli/cli-core/cliapptest"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"google.golang.org/protobuf/proto"
-	clitest "swarm-manager/cli/internal/testutil"
 )
 
 func TestCmdBacklogReviewDecide_RequiresKindAndName(t *testing.T) {

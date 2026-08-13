@@ -31,6 +31,9 @@ func (s *Service) UpsertFromCheckResult(ctx context.Context, result checks.Resul
 	if result.Status == checks.StatusOK {
 		return nil, false, s.resolveRecoveredForCheck(ctx, result)
 	}
+	if result.Status == checks.StatusNotApplicable {
+		return nil, false, nil
+	}
 	rule, ok := classifyResult(result)
 	if !ok {
 		return nil, false, nil
@@ -52,11 +55,34 @@ func (s *Service) UpsertFromCheckResult(ctx context.Context, result checks.Resul
 		Recommendations: stringSliceDetail(result.Details, "recommendations"),
 	}
 	enrichInputFromResult(&input, result)
+	if err := s.supersedePriorIncidents(ctx, result.CheckID, input.Fingerprint); err != nil {
+		return nil, false, err
+	}
 	incident, err := s.store.UpsertIncident(ctx, input)
 	if err != nil {
 		return nil, true, err
 	}
 	return incident, true, nil
+}
+
+func (s *Service) supersedePriorIncidents(ctx context.Context, checkID, fingerprint string) error {
+	if checkID == "" || fingerprint == "" {
+		return nil
+	}
+	resp, err := s.store.ListIncidents(ctx, ListFilters{Status: StatusOpen, Limit: 200})
+	if err != nil || resp == nil {
+		return err
+	}
+	for _, incident := range resp.Incidents {
+		if incident.Fingerprint == fingerprint || !incidentFromCheck(incident, checkID) {
+			continue
+		}
+		if _, err := s.store.UpdateIncidentStatus(ctx, incident.ID, StatusResolved,
+			fmt.Sprintf("superseded by newer evidence from %s (%s)", checkID, fingerprint)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) UpsertFromCheckResults(ctx context.Context, results []checks.Result) (int, error) {
@@ -71,6 +97,52 @@ func (s *Service) UpsertFromCheckResults(ctx context.Context, results []checks.R
 		}
 	}
 	return count, nil
+}
+
+// OpenHealIncident records the durable operator-facing escalation once a
+// recovery action has crossed the configured consecutive-failure threshold.
+// The fingerprint is stable for a check/action pair, so later ticks coalesce
+// into one incident while preserving the latest error in its evidence.
+func (s *Service) OpenHealIncident(ctx context.Context, checkID, actionID, lastError string, consecutiveFailures int) error {
+	observedAt := s.now().UTC()
+	returnErr := error(nil)
+	_, returnErr = s.store.UpsertIncident(ctx, UpsertInput{
+		Fingerprint:   Fingerprint(string(TypeAutohealFailure), "heal", checkID, actionID),
+		Type:          TypeAutohealFailure,
+		Severity:      SeverityCritical,
+		Title:         fmt.Sprintf("Auto-heal escalation: %s", checkID),
+		Summary:       fmt.Sprintf("auto-heal action %s for check %s failed repeatedly: %s", actionID, checkID, lastError),
+		ObservedAt:    observedAt,
+		SourceCheckID: checkID,
+		Evidence: map[string]any{
+			"checkId":             checkID,
+			"actionId":            actionID,
+			"lastError":           lastError,
+			"consecutiveFailures": consecutiveFailures,
+		},
+		Recommendations: []string{"Inspect the recorded auto-heal error and restore the check's dependency before retrying."},
+	})
+	return returnErr
+}
+
+// ResolveHealIncident closes the matching open escalation after a later
+// successful heal. It deliberately only resolves incidents carrying the same
+// action evidence, leaving unrelated findings for the check untouched.
+func (s *Service) ResolveHealIncident(ctx context.Context, checkID, actionID string) error {
+	resp, err := s.store.ListIncidents(ctx, ListFilters{Status: StatusOpen, Type: TypeAutohealFailure, Limit: 200})
+	if err != nil || resp == nil {
+		return err
+	}
+	for _, incident := range resp.Incidents {
+		if !incidentFromCheck(incident, checkID) || stringDetail(incident.Evidence, "actionId") != actionID {
+			continue
+		}
+		if _, err := s.store.UpdateIncidentStatus(ctx, incident.ID, StatusResolved,
+			fmt.Sprintf("auto-resolved: %s action %s succeeded", checkID, actionID)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) resolveRecoveredForCheck(ctx context.Context, result checks.Result) error {
@@ -113,8 +185,8 @@ func classifyResult(result checks.Result) (incidentRule, bool) {
 		return incidentRule{
 			incidentType: TypeHostIntegrity,
 			severity:     severity,
-			title:        "Host integrity issue detected",
-			fingerprint:  Fingerprint(string(TypeHostIntegrity), result.CheckID, evidenceDimension(result.Details)),
+			title:        hostFindingTitle(result),
+			fingerprint:  Fingerprint(string(TypeHostIntegrity), result.CheckID, stableEvidenceDimension(result)),
 		}, true
 	}
 	switch result.CheckID {
@@ -164,8 +236,52 @@ func classifyResult(result checks.Result) (incidentRule, bool) {
 		}
 		return incidentRule{incidentType: TypeHostIntegrity, severity: severity, title: "Recent machine-check evidence detected", fingerprint: Fingerprint(string(TypeHostIntegrity), result.CheckID)}, true
 	default:
-		return incidentRule{}, false
+		incidentType := TypeAutohealFailure
+		title := "Autoheal check failed: " + result.CheckID
+		if strings.HasPrefix(result.CheckID, "scenario-") {
+			incidentType = TypeScenarioFailure
+			title = "Scenario failure: " + strings.TrimPrefix(result.CheckID, "scenario-")
+		} else if strings.HasPrefix(result.CheckID, "resource-") {
+			incidentType = TypeResourceFailure
+			title = "Resource failure: " + strings.TrimPrefix(result.CheckID, "resource-")
+		}
+		return incidentRule{
+			incidentType: incidentType,
+			severity:     severity,
+			title:        title,
+			fingerprint:  Fingerprint(string(incidentType), result.CheckID, stableEvidenceDimension(result)),
+		}, true
 	}
+}
+
+func hostFindingTitle(result checks.Result) string {
+	if message := strings.TrimSpace(result.Message); message != "" {
+		return message
+	}
+	return "Host finding: " + result.CheckID
+}
+
+func stableEvidenceDimension(result checks.Result) string {
+	for _, key := range []string{
+		"evidenceKind", "findingKey", "coverageGapReason", "latestUncleanBootId",
+		"statusReason", "packageManager", "serviceStatus", "scenarioStatus", "statusText",
+	} {
+		if value := stringDetail(result.Details, key); value != "" {
+			return key + "=" + value
+		}
+	}
+	if kind := firstEvidenceKindName(result.Details); kind != "" {
+		return "evidence=" + kind
+	}
+	return "message=" + strings.TrimSpace(result.Message)
+}
+
+func firstEvidenceKindName(details map[string]any) string {
+	items := evidenceItemsForResult(checks.Result{Details: details}, SeverityWarning)
+	if len(items) == 0 {
+		return ""
+	}
+	return items[0].Kind
 }
 
 func incidentFromCheck(incident Incident, checkID string) bool {
@@ -259,19 +375,6 @@ func intDetail(details map[string]any, key string) int {
 	default:
 		return 0
 	}
-}
-
-func evidenceDimension(details map[string]any) string {
-	if details == nil {
-		return ""
-	}
-	if fp := stringDetail(details, "inventoryFingerprint"); fp != "" {
-		return fp
-	}
-	if kernel, ok := details["kernel"]; ok {
-		return fmt.Sprintf("%v", kernel)
-	}
-	return ""
 }
 
 func enrichInputFromResult(input *UpsertInput, result checks.Result) {
@@ -419,6 +522,21 @@ func hasEvidenceKind(details map[string]any, kind string) bool {
 }
 
 func remediationCandidatesForResult(result checks.Result) []RemediationCandidate {
+	if evidence, ok := firstEvidenceKind(result.Details, "runtime_not_callable"); ok {
+		service := strings.TrimSpace(fmt.Sprintf("%v", evidence["service"]))
+		applicability := "applicable"
+		if service == "" || service == "<nil>" {
+			applicability = "needs_corroboration"
+		}
+		return []RemediationCandidate{{
+			ID: "operator-runtime-restart", Title: "Review a platform-native runtime restart", Applicability: applicability,
+			Platforms: []string{"linux", "macos", "windows"}, RequiresOperator: true, RequiresPrivilege: true,
+			RiskLevel: "moderate", TemplateID: "operator-runtime-restart",
+			PreflightChecks: []string{"confirm the affected service identity", "confirm the platform-native action", "obtain operator approval"},
+			ArtifactPolicy:  "generate_only_under_user_state", PostChecks: []string{"re-run the originating check"},
+			DecisionPrompt: "Should the operator review the generated platform-native restart instructions?",
+		}}
+	}
 	if result.CheckID != "host-kernel-module-drift" {
 		return nil
 	}

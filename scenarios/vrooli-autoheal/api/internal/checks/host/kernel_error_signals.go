@@ -1,11 +1,11 @@
 package host
 
 import (
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostinventory"
 )
 
-func NewKernelErrorSignalsCheck(collector hostinventory.Collector) checks.Check {
+func NewKernelErrorSignalsCheck(collector hostinventory.IntegrityCollector) checks.Check {
 	return &inventoryCheck{
 		id:          "host-kernel-error-signals",
 		title:       "Host Kernel Error Signals",
@@ -17,6 +17,9 @@ func NewKernelErrorSignalsCheck(collector hostinventory.Collector) checks.Check 
 }
 
 func runKernelErrorSignals(inv hostinventory.HostInventory) checks.Result {
+	if inv.ProbeStatus["host"] == hostinventory.IntegrityProbeUnsupported {
+		return naResult("Host kernel error signals are not applicable on this platform", "native kernel event/log backend", inv)
+	}
 	var evidence []map[string]any
 	critical := 0
 	warning := 0

@@ -41,7 +41,7 @@ vrooli-autoheal loop --interval-seconds=60
 ## Architecture
 
 ```
-vrooli-autoheal/
+literal:vrooli-autoheal/
 ├── api/           # Go API server (health registry, status endpoints)
 ├── cli/           # CLI wrapper (vrooli-autoheal binary)
 ├── ui/            # React dashboard (Vite + TypeScript)
