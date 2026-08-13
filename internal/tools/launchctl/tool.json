@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "launchctl",
+  "description": "macOS launchd service lifecycle command.",
+  "commands": ["launchctl"],
+  "versionArgs": ["version"],
+  "platforms": ["macos"],
+  "manual": true,
+  "installHint": "Provided by macOS.",
+  "bundling": "host-required",
+  "capability": "service-resource-limits",
+  "capability_role": "peer"
+}

@@ -111,7 +111,9 @@ func TestInstallReusesPackageDataForUpdateMigration(t *testing.T) {
 }
 
 func TestActuateScreenrecordRequiresAndFillsOutputSink(t *testing.T) {
-	runner := &processRunner{scriptedRunner: &scriptedRunner{responses: map[string][]byte{}}, process: &scriptedProcess{}}
+	runner := &processRunner{scriptedRunner: &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell dumpsys power": []byte("mStayOn=false\n"),
+	}}, process: &scriptedProcess{}}
 	adapter := NewWithRunner(runner, "serial-1")
 	handle, err := adapter.StartRecording(context.Background(), strategy.ClaimAnimation)
 	require.NoError(t, err)
@@ -122,6 +124,9 @@ func TestActuateScreenrecordRequiresAndFillsOutputSink(t *testing.T) {
 	require.Equal(t, []byte("ftyp-video"), artifact.Bytes)
 	require.Equal(t, strategy.ClaimAnimation, artifact.ClaimClass)
 	require.False(t, runner.process.signaled)
+	require.Contains(t, strings.Join(runner.calls, "\n"), "shell svc power stayon true")
+	require.Contains(t, strings.Join(runner.calls, "\n"), "shell svc power stayon false")
+	require.Contains(t, strings.Join(runner.calls, "\n"), "shell input keyevent 224")
 }
 
 func TestActuateConformanceControlsUseBoundedAndroidVerbs(t *testing.T) {

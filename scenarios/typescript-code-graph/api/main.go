@@ -10,12 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"typescript-code-graph/internal/clock"
 	intgraph "typescript-code-graph/internal/graph"
 	"typescript-code-graph/internal/modules"
 	intrewrite "typescript-code-graph/internal/rewrite"
 	"typescript-code-graph/internal/server"
 	"typescript-code-graph/internal/sidecar"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -174,7 +175,7 @@ func main() {
 	rewriteSvc := intrewrite.NewService(rewriteStore, supervisor, pathMu)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "typescript-code-graph-api", "1.0.0",
 			healthH.FuncProvider(func() string { return string(supervisor.Status()) })),
 		graphH.Module(graphSvc, rewriteSvc, log.Default()),

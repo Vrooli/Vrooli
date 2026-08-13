@@ -1,4 +1,4 @@
-// Package testutil provides shared CLI test scaffolding.
+// Package cliapptest provides shared CLI test scaffolding.
 //
 // This package is test-only — production CLI code must not import it. The
 // contract is enforced by no_prod_import_test.go (an AST guardrail mirroring
@@ -30,7 +30,7 @@
 //   - A canned-response helper for table-driven endpoint tests.
 //
 // Resist over-generalising. Add helpers when the third caller appears.
-package testutil
+package cliapptest
 
 import (
 	"net/http"

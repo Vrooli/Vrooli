@@ -819,12 +819,27 @@ func BuildValidationResponse(
 		}
 		detail = packed
 	}
+	// A provider that reaches this shared response builder has produced a
+	// structured assessment. Preserve that provider judgment in the shared
+	// failure taxonomy instead of letting the harness mislabel it as SYSTEM.
+	// Providers with a more specific cause can still override this field at
+	// their handler boundary; the fallback here is deliberately only for the
+	// common maturity-assessment failure path.
+	failureClassification := ""
+	switch status {
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED:
+		failureClassification = "maturity_contract"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR:
+		failureClassification = "maturity_contract"
+	}
 	return &scenariovalidationv1.ValidateScenarioResponse{
-		Scenario:     scenario,
-		Status:       status,
-		Assessment:   a,
-		NativeDetail: detail,
-		Metrics:      metrics,
+		Scenario:              scenario,
+		Status:                status,
+		FailureClassification: failureClassification,
+		Assessment:            a,
+		NativeDetail:          detail,
+		Metrics:               metrics,
 	}, nil
 }
 

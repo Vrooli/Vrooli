@@ -39,3 +39,15 @@ func TestClaimClassAssessmentReportsDegradedRates(t *testing.T) { // [REQ:DVC-P0
 		})
 	}
 }
+
+func TestAssessVideoContentRejectsUniformBlackBody(t *testing.T) {
+	assessment := AssessVideoContent(VideoContentAssessment{SampledFrames: 12, AverageLuma: 16, MaximumLuma: 16})
+	require.False(t, assessment.Verified)
+	require.Contains(t, assessment.Reason, "uniformly near black")
+}
+
+func TestAssessVideoContentAcceptsVisibleBody(t *testing.T) {
+	assessment := AssessVideoContent(VideoContentAssessment{SampledFrames: 12, AverageLuma: 42, MaximumLuma: 180})
+	require.True(t, assessment.Verified)
+	require.Empty(t, assessment.Reason)
+}

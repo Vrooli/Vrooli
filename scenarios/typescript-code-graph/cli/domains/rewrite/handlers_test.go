@@ -18,7 +18,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
 
-	clitest "typescript-code-graph/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 type fakeService struct {

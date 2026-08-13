@@ -19,10 +19,12 @@ type Finding struct {
 	Remediation string
 }
 
-var personalPathPattern = regexp.MustCompile(`(?:^|[^A-Za-z0-9._-])(?:/home|/Users)/[A-Za-z0-9._-]+(?:/|[[:space:]"']|$)`)
-var operatorIdentityPattern = regexp.MustCompile(`(?i)\b(?:matthalloran8|matt(?:hew)?[[:space:]_-]*halloran)\b`)
-var runtimeHomeJoinPattern = regexp.MustCompile(`filepath\.Join\([^,)]*(?i:home)[^,)]*,\s*"\.vrooli"`)
-var homeSubpathPattern = regexp.MustCompile(`"[~/][^"]*\.vrooli/`)
+var (
+	personalPathPattern     = regexp.MustCompile(`(?:^|[^A-Za-z0-9._-])(?:/home|/Users)/[A-Za-z0-9._-]+(?:/|[[:space:]"']|$)`)
+	operatorIdentityPattern = regexp.MustCompile(`(?i)\b(?:matthalloran8|matt(?:hew)?[[:space:]_-]*halloran)\b`)
+	runtimeHomeJoinPattern  = regexp.MustCompile(`filepath\.Join\([^,)]*(?i:home)[^,)]*,\s*"\.vrooli"`)
+	homeSubpathPattern      = regexp.MustCompile(`"[~/][^"]*\.vrooli/`)
+)
 
 var adoptionPatterns = []struct {
 	name    string
@@ -106,135 +108,6 @@ func Scan(root string) ([]Finding, error) {
 		return out[i].Location < out[j].Location
 	})
 	return out, nil
-}
-
-func scanPersonalPaths(files []scannedFile) []Finding {
-	var out []Finding
-	for _, file := range files {
-		rel, data := file.rel, file.data
-		if !under(rel, []string{"cmd", "internal", "packages", "resources", "scenarios", "templates", "docs", ".vrooli"}) {
-			continue
-		}
-		if !scannable(rel) || isBinary(data) || skipPersonal(rel) {
-			continue
-		}
-		for line, text := range strings.Split(string(data), "\n") {
-			if personalPathPattern.MatchString(text) || operatorIdentityPattern.MatchString(text) {
-				out = append(out, Finding{"QUALITY_PERSONAL_ABSOLUTE_PATHS", "personal absolute path or operator identity found", relLine(rel, line+1), "Use repository-relative/configured paths and remove operator-specific identities."})
-			}
-		}
-	}
-	return out
-}
-
-func scanRuntimeHome(files []scannedFile) []Finding {
-	var out []Finding
-	for _, file := range files {
-		rel, data := file.rel, file.data
-		if !under(rel, []string{"cmd", "internal", "packages"}) {
-			continue
-		}
-		if filepath.Ext(rel) != ".go" || strings.HasSuffix(rel, "_test.go") || strings.HasPrefix(rel, "packages/repo-contract-go/") || strings.HasPrefix(rel, "internal/repocontractmeta/") {
-			continue
-		}
-		for line, text := range strings.Split(string(data), "\n") {
-			if strings.Contains(text, "repo-contract:project-config") || strings.HasPrefix(strings.TrimSpace(text), "//") {
-				continue
-			}
-			if runtimeHomeJoinPattern.MatchString(text) || homeSubpathPattern.MatchString(text) {
-				out = append(out, Finding{"QUALITY_NO_RUNTIME_HOME_LITERALS", "runtime-home literal drift", relLine(rel, line+1), "Use config.VrooliPath or repository runtime-home helpers; annotate genuine project-config joins with // repo-contract:project-config."})
-			}
-		}
-	}
-	return out
-}
-
-func scanAdoption(files []scannedFile) []Finding {
-	var out []Finding
-	for _, file := range files {
-		rel, data := file.rel, file.data
-		if !under(rel, []string{"cmd", "internal", "packages", "scenarios"}) {
-			continue
-		}
-		if filepath.Ext(rel) != ".go" || strings.HasSuffix(rel, "_test.go") || strings.HasPrefix(rel, "packages/repo-contract-go/") || strings.HasPrefix(rel, "internal/repocontract/") {
-			continue
-		}
-		text := string(data)
-		for _, rule := range adoptionPatterns {
-			if rule.pattern.MatchString(text) && !(rule.name == "ad_hoc_repo_root_detector" && strings.Contains(text, "repocontract.")) {
-				out = append(out, Finding{"QUALITY_ADOPTION_RULES_ALIGNMENT", "repository contract adoption violation: " + rule.name, rel, "Use shared repository-contract helpers instead of local path or root detection."})
-			}
-		}
-	}
-	return out
-}
-
-func scanHostInventory(files []scannedFile) []Finding {
-	var out []Finding
-	for _, file := range files {
-		rel, data := file.rel, file.data
-		if !under(rel, []string{"cmd", "internal", "packages", "resources", "scenarios"}) {
-			continue
-		}
-		if !isHostScannable(rel) || strings.HasSuffix(rel, "_test.go") || strings.Contains(rel, "/testdata/") || strings.Contains(rel, "/tests/") || strings.HasPrefix(rel, "internal/hostinventory/") || strings.Contains(rel, "/gen/") || strings.Contains(rel, "/generated/") {
-			continue
-		}
-		lines := strings.Split(string(data), "\n")
-		for line, text := range lines {
-			if strings.HasPrefix(strings.TrimSpace(text), "//") || strings.Contains(text, "hostinventory:remote-snapshot-parser") {
-				continue
-			}
-			for _, rule := range hostPatterns {
-				if rule.pattern.MatchString(text) {
-					out = append(out, Finding{"QUALITY_HOST_INVENTORY_AUTHORITY", "host-inventory authority violation: " + rule.name, relLine(rel, line+1), "Use internal/hostinventory, or annotate a reviewed remote snapshot parser with hostinventory:remote-snapshot-parser."})
-				}
-			}
-		}
-	}
-	return out
-}
-
-type scannedFile struct {
-	rel  string
-	data []byte
-}
-
-func collectFiles(root string, topLevels []string) []scannedFile {
-	var files []scannedFile
-	for _, top := range topLevels {
-		base := filepath.Join(root, filepath.FromSlash(top))
-		_ = filepath.WalkDir(base, func(path string, entry os.DirEntry, err error) error {
-			if err != nil {
-				if os.IsNotExist(err) {
-					return filepath.SkipDir
-				}
-				return err
-			}
-			rel, relErr := filepath.Rel(root, path)
-			if relErr != nil {
-				return relErr
-			}
-			rel = filepath.ToSlash(rel)
-			if entry.IsDir() {
-				if skipDir(rel) {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if entry.Type()&os.ModeSymlink != 0 {
-				return nil
-			}
-			if !scannable(rel) {
-				return nil
-			}
-			data, readErr := os.ReadFile(path)
-			if readErr == nil {
-				files = append(files, scannedFile{rel: rel, data: data})
-			}
-			return nil
-		})
-	}
-	return files
 }
 
 func walkFiles(root string, topLevels []string, visit func(string, []byte)) {

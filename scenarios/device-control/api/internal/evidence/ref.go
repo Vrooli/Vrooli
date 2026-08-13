@@ -24,6 +24,7 @@ type Reference struct {
 	MinimumUsefulFPS  float64     `json:"minimum_useful_fps,omitempty"`
 	Disposition       Disposition `json:"disposition,omitempty"`
 	DispositionReason string      `json:"disposition_reason,omitempty"`
+	ContentVerified   bool        `json:"content_verified,omitempty"`
 }
 
 // EvidenceSink is the producer boundary for evidence references. Callers must
@@ -63,6 +64,13 @@ func NewClaimedVideoReference(id string, raw []byte, redaction Result, method st
 	if redaction.Policy != DefaultPolicy {
 		return Reference{}, fmt.Errorf("capture redaction policy does not match the producer policy")
 	}
+	content, err := ValidateVideoContent(raw)
+	if err != nil {
+		return Reference{}, err
+	}
+	if !content.Verified {
+		return Reference{}, fmt.Errorf("video content verification failed: %s", content.Reason)
+	}
 	ref, err := newReference(id, raw, redaction, "video", method, fps)
 	if err != nil {
 		return Reference{}, err
@@ -72,6 +80,7 @@ func NewClaimedVideoReference(id string, raw []byte, redaction Result, method st
 	ref.MinimumUsefulFPS = a.MinimumUsefulFPS
 	ref.Disposition = a.Disposition
 	ref.DispositionReason = a.Reason
+	ref.ContentVerified = true
 	return ref, nil
 }
 

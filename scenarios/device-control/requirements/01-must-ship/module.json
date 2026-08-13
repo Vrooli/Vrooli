@@ -261,6 +261,12 @@
           "ref": "api/internal/evidence/recording_test.go::TestClaimClassAssessmentReportsDegradedRates",
           "status": "complete",
           "notes": "Claim-class thresholds are table-tested; an animation recording below 15 fps is degraded and cannot pass."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/evidence/recording_test.go::TestAssessVideoContentRejectsUniformBlackBody",
+          "status": "complete",
+          "notes": "Decoded recording content is sampled outside status/navigation bands; a uniformly near-black body is refused before an EvidenceRef is persisted. Live Galaxy A03s flow 8f60f7cb-57c2-4739-ae88-eb3074035fb4 failed at recording-stop with the named black-body reason and emitted no evidence."
         }
       ]
     }

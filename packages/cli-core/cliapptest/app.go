@@ -1,10 +1,8 @@
-package testutil
+package cliapptest
 
 import (
 	"net/http"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -48,7 +46,9 @@ func NewTestApp(tb testing.TB, handler http.Handler, opts ...TestAppOption) *cli
 		DefaultAPIBase: srv.URL,
 		AllowAnonymous: true,
 	})
-	require.NoError(tb, err)
+	if err != nil {
+		tb.Fatalf("create standard scenario app: %v", err)
+	}
 	return core
 }
 

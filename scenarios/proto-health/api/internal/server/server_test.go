@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"testing"
 
+	httpx "github.com/vrooli/api-core/servertest"
 	"proto-health/internal/module"
 	"proto-health/internal/server"
-	"proto-health/internal/testutil/httpx"
 
 	"github.com/vrooli/api-core/schedule"
 

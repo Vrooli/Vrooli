@@ -17,19 +17,20 @@ import (
 )
 
 const (
-	RuleTSConfigStrict        = "TS_CONFIG_STRICT"
-	RuleESLintSafetyRules     = "ESLINT_SAFETY_RULES"
-	RuleTSDangerousPatterns   = "TS_DANGEROUS_PATTERNS"
-	RuleESLintTypedConfig     = "ESLINT_TYPED_CONFIG"
-	RuleNodeBuildTypecheck    = "NODE_BUILD_TYPECHECK"
-	RuleUILazyChunkRecovery   = "UI_LAZY_CHUNK_RECOVERY"
-	RuleTestingConfigStrict   = "TESTING_CONFIG_LINT_STRICT"
-	RuleGoModPresent          = "GO_MOD_PRESENT_FOR_API_OR_CLI"
-	RuleGoLintConfigPresent   = "GO_LINT_CONFIG_PRESENT"
-	RuleGoLintRequiredLinters = "GO_LINT_REQUIRED_LINTERS"
-	RuleGoDangerousPatterns   = "GO_DANGEROUS_PATTERNS"
-	RuleMakefileQualityGates  = "MAKEFILE_QUALITY_GATES"
-	RuleShellSyntaxLint       = "SHELL_SYNTAX_LINT"
+	RuleTSConfigStrict            = "TS_CONFIG_STRICT"
+	RuleESLintSafetyRules         = "ESLINT_SAFETY_RULES"
+	RuleTSDangerousPatterns       = "TS_DANGEROUS_PATTERNS"
+	RuleESLintTypedConfig         = "ESLINT_TYPED_CONFIG"
+	RuleNodeBuildTypecheck        = "NODE_BUILD_TYPECHECK"
+	RuleUILazyChunkRecovery       = "UI_LAZY_CHUNK_RECOVERY"
+	RuleTestingConfigStrict       = "TESTING_CONFIG_LINT_STRICT"
+	RuleGoModPresent              = "GO_MOD_PRESENT_FOR_API_OR_CLI"
+	RuleGoLintConfigPresent       = "GO_LINT_CONFIG_PRESENT"
+	RuleGoLintRequiredLinters     = "GO_LINT_REQUIRED_LINTERS"
+	RuleGoDangerousPatterns       = "GO_DANGEROUS_PATTERNS"
+	RuleScenarioPrivilegeBoundary = "SCENARIO_PRIVILEGE_BOUNDARY"
+	RuleMakefileQualityGates      = "MAKEFILE_QUALITY_GATES"
+	RuleShellSyntaxLint           = "SHELL_SYNTAX_LINT"
 
 	// RuleCoverageGap marks a discovered surface for which no quality contract
 	// pack applies. It is an informational honesty signal, not a registry
@@ -119,6 +120,7 @@ func Registry() []Rule {
 		{ID: RuleGoLintConfigPresent, Title: "Go lint config present", Category: "go", Severity: "error", FixClass: FixClassAutofix, ContractID: "go-static-quality", Applies: Applicability{Language: "go"}, Evaluate: evalGoLintConfigPresent},
 		{ID: RuleGoLintRequiredLinters, Title: "Go lint required linters", Category: "go", Severity: "error", FixClass: FixClassAutofix, ContractID: "go-static-quality", Applies: Applicability{Language: "go"}, Evaluate: evalGoLintRequiredLinters},
 		{ID: RuleGoDangerousPatterns, Title: "Go dangerous patterns", Category: "go", Severity: "warning", FixClass: FixClassDetectionOnly, FixReason: "Source suppressions require a written reason, not automated source edits.", ContractID: "go-static-quality", Applies: Applicability{Language: "go"}, Evaluate: evalGoDangerousPatterns},
+		{ID: RuleScenarioPrivilegeBoundary, Title: "Runtime privilege boundary", Category: "go", Severity: "critical", FixClass: FixClassDetectionOnly, FixReason: "Elevation must be provisioned at setup, not spawned at runtime. Automated source edits cannot decide which grant covers a command.", ContractID: "go-static-quality", Applies: Applicability{Language: "go"}, WhyItMatters: "`vrooli setup` is the single consent and elevation boundary. A scenario that spawns sudo at runtime either prompts a process with no terminal and fails silently, or requires an operator to hold standing root for a long-lived service. `docs/architecture/PRIVILEGE_BROKER.md` rejects direct scenario sudo for both reasons.", Remediation: "Move the privileged command into a safeguard that provisions a grant during `sudo vrooli setup`, following `internal/safeguards/cloudflared-recovery-privileges/handler.go`, or add a typed action to the privilege broker registry in `internal/privilegebroker/policy.go`. Then call the granted argv, or return a typed needs-elevation result naming the operator command.", Evaluate: evalScenarioPrivilegeBoundary},
 		{ID: RuleMakefileQualityGates, Title: "Makefile quality gates", Category: "scenario", Severity: "warning", FixClass: FixClassAutofix, ContractID: "scenario-quality-gates", Applies: Applicability{SurfaceKind: "scenario", Scenario: true}, Evaluate: evalMakefile},
 		{ID: RuleShellSyntaxLint, Title: "Shell script syntax lint", Category: "shell", Severity: "warning", FixClass: FixClassDetectionOnly, FixReason: "Shell syntax fixes require human intent; quality-health detects, it does not rewrite scripts.", ContractID: "scenario-quality-gates", Applies: Applicability{SurfaceKind: "scenario", Scenario: true}, WhyItMatters: "A shell script that fails `bash -n` is broken before it runs; CLI scaffolding silently breaking is a common, undetected regression. quality-health owns shell *syntax* lint (unit-health owns bats *testing*).", Remediation: "Run `bash -n <script>` and `shellcheck <script>` locally and fix the reported syntax errors.", Evaluate: evalShellSyntax},
 	}

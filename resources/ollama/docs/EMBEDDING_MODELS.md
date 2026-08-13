@@ -32,6 +32,11 @@ Embedding dimensions must match the target Qdrant collection. The
 | `conversation_history` | 1536 | ⚠️ **NEEDS MODEL** | Chat context |
 | `document_chunks` | 1536 | ⚠️ **NEEDS MODEL** | Document RAG |
 
+`mxbai-embed-large:latest` is available as an optional 1024-dimensional model for
+shadow migrations and experiments. It is deliberately not the default role. Existing
+768-dimensional collections must be reindexed into a suffixed shadow collection and
+evaluated before any provider pointer is changed.
+
 ### Missing Models for 1536-Dimensional Collections
 
 Currently, there are no local Ollama models that produce 1536 dimensions. Options:

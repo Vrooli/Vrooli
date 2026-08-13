@@ -49,6 +49,37 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-08-13 — Galaxy A03s native screenrecord can capture a black display body
+
+**Symptom:** `adb screenrecord` can return a valid H.264/MP4 file while the
+decoded display body is uniformly near black. During the reproduced run,
+`screencap` showed the visible launcher and the power probe reported awake, but
+the recording body measured YAVG=16 and YMAX=16. A separate attempt recorded
+zero frames when SurfaceFlinger reported the display power mode off.
+
+**Root cause:** The Samsung Android 13 image's native screenrecord path is not
+currently correlated with the actual display composition. `mWakefulness=Awake`
+and the power-manager state are insufficient evidence that screenrecord can
+capture visible pixels.
+
+**Workaround:** Device Control now samples decoded recording content outside
+the status/navigation bands and fails the recording before publishing an
+evidence reference when the body is uniformly near black. Use `device state`
+and `screencap` as separate diagnostics; do not treat a valid MP4 container as
+proof of a visible recording.
+
+**Real fix:** Repair or replace the Android native capture path on this image,
+or add an explicit screenshot-backed fallback that is labelled synthesized and
+subject to its claim-class threshold. The fallback must remain within the
+Device Control evidence path and must not silently relabel a degraded capture
+as native.
+
+**Owner:** device-control strategy owner.
+
+**Refs:** `api/internal/evidence/recording.go`,
+`api/strategy/androidadb/androidadb.go`,
+`DVC-P0-012`, live flow `8f60f7cb-57c2-4739-ae88-eb3074035fb4`.
+
 ### 2026-08-10 — Experience floor errors are inherited from the template shell
 
 **Symptom:** `experience-manager spec validate device-control` reports FAILED.

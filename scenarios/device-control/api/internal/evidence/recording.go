@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -48,6 +49,86 @@ type Assessment struct {
 	MinimumUsefulFPS float64     `json:"minimum_useful_fps"`
 	Disposition      Disposition `json:"disposition"`
 	Reason           string      `json:"reason,omitempty"`
+}
+
+// VideoContentAssessment describes whether the decoded body of a recording
+// contains visible content. Status-bar and navigation bands are excluded.
+type VideoContentAssessment struct {
+	SampledFrames int     `json:"sampled_frames"`
+	AverageLuma   float64 `json:"average_luma"`
+	MaximumLuma   float64 `json:"maximum_luma"`
+	Verified      bool    `json:"verified"`
+	Reason        string  `json:"reason,omitempty"`
+}
+
+var videoLumaPattern = regexp.MustCompile(`lavfi\.signalstats\.YAVG=([0-9]+(?:\.[0-9]+)?)`)
+var videoMaxLumaPattern = regexp.MustCompile(`lavfi\.signalstats\.YMAX=([0-9]+(?:\.[0-9]+)?)`)
+
+// AssessVideoContent rejects a recording whose entire sampled body stays at
+// Android's legal-range black level. A valid MP4 container is not useful
+// evidence when its device surface is blank.
+func AssessVideoContent(stats VideoContentAssessment) VideoContentAssessment {
+	if stats.SampledFrames == 0 {
+		stats.Verified = false
+		stats.Reason = "video contains no decodable frames"
+		return stats
+	}
+	if stats.AverageLuma <= 18 && stats.MaximumLuma <= 32 {
+		stats.Verified = false
+		stats.Reason = fmt.Sprintf("video body is uniformly near black (average luma %.2f, maximum luma %.2f)", stats.AverageLuma, stats.MaximumLuma)
+		return stats
+	}
+	stats.Verified = true
+	return stats
+}
+
+// ValidateVideoContent samples decoded body frames before a video becomes an
+// EvidenceRef. The status/navigation bands are excluded because they can be
+// visible even when the actual device surface is blank.
+func ValidateVideoContent(raw []byte) (VideoContentAssessment, error) {
+	if !isMP4(raw) {
+		return VideoContentAssessment{}, fmt.Errorf("validate video content: unsupported video format")
+	}
+	file, err := os.CreateTemp("", "device-control-content-*.mp4")
+	if err != nil {
+		return VideoContentAssessment{}, fmt.Errorf("create content measurement input: %w", err)
+	}
+	path := file.Name()
+	defer os.Remove(path)
+	if err := file.Chmod(0o600); err != nil {
+		_ = file.Close()
+		return VideoContentAssessment{}, fmt.Errorf("protect content measurement input: %w", err)
+	}
+	if _, err := file.Write(raw); err != nil {
+		_ = file.Close()
+		return VideoContentAssessment{}, fmt.Errorf("write content measurement input: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return VideoContentAssessment{}, fmt.Errorf("close content measurement input: %w", err)
+	}
+	output, err := exec.Command("ffmpeg", "-v", "error", "-i", path, "-vf", "crop=iw:ih*0.8:0:ih*0.1,signalstats,metadata=print:file=-", "-frames:v", "12", "-f", "null", "-").CombinedOutput()
+	if err != nil {
+		return VideoContentAssessment{}, fmt.Errorf("decode video content: %w (%s)", err, strings.TrimSpace(string(output)))
+	}
+	averages := videoLumaPattern.FindAllStringSubmatch(string(output), -1)
+	maximums := videoMaxLumaPattern.FindAllStringSubmatch(string(output), -1)
+	stats := VideoContentAssessment{}
+	for i := 0; i < len(averages) && i < len(maximums); i++ {
+		average, averageErr := strconv.ParseFloat(averages[i][1], 64)
+		maximum, maximumErr := strconv.ParseFloat(maximums[i][1], 64)
+		if averageErr != nil || maximumErr != nil {
+			continue
+		}
+		stats.SampledFrames++
+		stats.AverageLuma += average
+		if maximum > stats.MaximumLuma {
+			stats.MaximumLuma = maximum
+		}
+	}
+	if stats.SampledFrames > 0 {
+		stats.AverageLuma /= float64(stats.SampledFrames)
+	}
+	return AssessVideoContent(stats), nil
 }
 
 // MeasureVideo derives the delivered frame rate from the encoded artifact.

@@ -31,6 +31,17 @@ exactly one of four words.
 reported — inventing a disposition for work that did not happen is how a
 release gate ends up counting silence as success.
 
+### Video container validity versus visible content
+
+An MP4 can decode successfully while showing a blank device surface. Native
+recordings are therefore checked in two stages: `ffprobe` must find frames and
+measure their duration, then a bounded `ffmpeg` sample must contain non-black
+content in the body of the display after the status and navigation bands are
+excluded. A uniformly near-black body fails the recording step with a named
+reason and is withheld from the evidence store. This catches a sleeping,
+locked, protected, or otherwise broken capture path without exposing frame
+content in the error.
+
 ### `unavailable` versus `unsupported`
 
 This is the distinction that gets confused, and the one that matters most.

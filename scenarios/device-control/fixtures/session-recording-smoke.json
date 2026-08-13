@@ -15,6 +15,12 @@
       "timeout_ms": 10000
     },
     {
+      "id": "screen-unlock-confirm",
+      "kind": "key",
+      "target": "KEYCODE_ENTER",
+      "timeout_ms": 10000
+    },
+    {
       "id": "recording-start",
       "kind": "recording-start",
       "required_capabilities": ["native-recording"],

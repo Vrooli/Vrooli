@@ -60,6 +60,7 @@ func TestRegistryDerivesSurfaceAndScenarioApplicability(t *testing.T) {
 		rules.RuleGoLintConfigPresent,
 		rules.RuleGoLintRequiredLinters,
 		rules.RuleGoDangerousPatterns,
+		rules.RuleScenarioPrivilegeBoundary,
 	}, ids(goRules))
 
 	scenarioRules := rules.ScenarioRules()

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "dnf",
+  "description": "Fedora and RHEL package-event command used by host evidence.",
+  "commands": ["dnf"],
+  "versionArgs": ["--version"],
+  "platforms": ["linux"],
+  "manual": true,
+  "installHint": "Provided by Fedora and RHEL-family Linux distributions.",
+  "bundling": "host-required",
+  "capability": "package-management",
+  "capability_role": "peer"
+}

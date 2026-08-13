@@ -1,4 +1,4 @@
-package testutil
+package cliapptest
 
 import (
 	"io"

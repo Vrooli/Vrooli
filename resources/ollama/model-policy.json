@@ -161,6 +161,36 @@
         }
       }
     },
+    "mxbai-embed-large:latest": {
+      "family": "mxbai-embed-large",
+      "tags": ["latest"],
+      "capabilities": ["embedding"],
+      "modalities": {"input": ["text"], "output": ["vector"]},
+      "context_window_tokens": 512,
+      "embedding_dimensions": 1024,
+      "disk_size_gb_estimate": 0.7,
+      "ram_gb_estimate": 1.5,
+      "vram_gb_estimate": 1.5,
+      "default_eligible": false,
+      "use_case_notes": "Optional 1024-dimensional embedding model for shadow migrations and provider-specific experiments.",
+      "caveats": ["Do not use for existing 768-dimensional collections without a shadow reindex and evaluated cutover."],
+      "provenance": {
+        "identity": {
+          "source_kind": "ollama_show",
+          "confidence": "measured",
+          "source": "live Ollama model inventory",
+          "observed_at": "2026-08-13",
+          "sample_count": 1
+        },
+        "embedding_dimensions": {
+          "source_kind": "ollama_show",
+          "confidence": "measured",
+          "source": "live Ollama embedding probe",
+          "observed_at": "2026-08-13",
+          "sample_count": 1
+        }
+      }
+    },
     "qwen3.5:4b": {
       "family": "qwen",
       "tags": ["3.5", "4b"],

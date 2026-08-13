@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"typescript-code-graph/internal/modules"
-	"typescript-code-graph/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 

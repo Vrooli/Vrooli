@@ -1,10 +1,12 @@
 package androidadb
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"image"
 	// Register JPEG decoder for image.Decode.
@@ -14,6 +16,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -78,9 +81,20 @@ func (commandRunner) Start(name string, args ...string) (Process, error) {
 }
 
 type activeRecording struct {
-	handle  strategy.RecordingHandle
-	process Process
-	path    string
+	handle         strategy.RecordingHandle
+	process        Process
+	path           string
+	priorStayAwake bool
+	keepAliveStop  chan struct{}
+	keepAliveDone  chan struct{}
+	screenshotStop chan struct{}
+	screenshotDone chan struct{}
+	screenshots    *recordingScreenshots
+}
+
+type recordingScreenshots struct {
+	mu     sync.Mutex
+	frames [][]byte
 }
 
 type Adapter struct {
@@ -127,6 +141,13 @@ func (a *Adapter) StartRecording(_ context.Context, class strategy.ClaimClass) (
 	}
 	id := fmt.Sprintf("android-recording-%d", time.Now().UnixNano())
 	path := "/sdcard/" + id + ".mp4"
+	priorStayAwake, err := a.readStayAwake(context.Background())
+	if err != nil {
+		return strategy.RecordingHandle{}, fmt.Errorf("read display keep-awake state: %w", err)
+	}
+	if err := a.setStayAwake(context.Background(), true); err != nil {
+		return strategy.RecordingHandle{}, fmt.Errorf("keep display awake for recording: %w", err)
+	}
 	// Do not depend on an interactive PTY to deliver Ctrl-C. Some Android 13
 	// images accept the PTY command but leave a zero-byte file when the local
 	// adb wrapper is interrupted. A bounded native segment is allowed to close
@@ -135,19 +156,28 @@ func (a *Adapter) StartRecording(_ context.Context, class strategy.ClaimClass) (
 	// remaining well below Android's three-minute screenrecord ceiling.
 	process, err := processRunner.Start("adb", append(a.args("shell", "screenrecord", "--time-limit", "30", "--bit-rate", "1000000", path))...)
 	if err != nil {
+		_ = a.setStayAwake(context.Background(), priorStayAwake)
 		return strategy.RecordingHandle{}, fmt.Errorf("start adb screenrecord: %w", err)
 	}
 	if err := process.Start(); err != nil {
+		_ = a.setStayAwake(context.Background(), priorStayAwake)
 		return strategy.RecordingHandle{}, fmt.Errorf("start screenrecord process: %w", err)
 	}
 	handle := strategy.RecordingHandle{ID: id, ClaimClass: class, StartedAt: time.Now().UTC()}
+	keepAliveStop := make(chan struct{})
+	keepAliveDone := make(chan struct{})
+	go a.keepDisplayAwake(keepAliveStop, keepAliveDone)
+	screenshotStop := make(chan struct{})
+	screenshotDone := make(chan struct{})
+	screenshots := &recordingScreenshots{}
+	go a.captureDisplaySamples(screenshotStop, screenshotDone, screenshots)
 	a.recordingMu.Lock()
-	a.recordings[id] = activeRecording{handle: handle, process: process, path: path}
+	a.recordings[id] = activeRecording{handle: handle, process: process, path: path, priorStayAwake: priorStayAwake, keepAliveStop: keepAliveStop, keepAliveDone: keepAliveDone, screenshotStop: screenshotStop, screenshotDone: screenshotDone, screenshots: screenshots}
 	a.recordingMu.Unlock()
 	return handle, nil
 }
 
-func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHandle) (strategy.RecordingArtifact, error) {
+func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHandle) (artifact strategy.RecordingArtifact, retErr error) {
 	a.recordingMu.Lock()
 	active, ok := a.recordings[handle.ID]
 	if ok {
@@ -157,6 +187,20 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 	if !ok {
 		return strategy.RecordingArtifact{}, fmt.Errorf("recording %q is not active", handle.ID)
 	}
+	defer func() {
+		close(active.keepAliveStop)
+		<-active.keepAliveDone
+		close(active.screenshotStop)
+		<-active.screenshotDone
+		if err := a.setStayAwake(context.Background(), active.priorStayAwake); err != nil {
+			restoreErr := fmt.Errorf("restore display keep-awake state: %w", err)
+			if retErr == nil {
+				retErr = restoreErr
+			} else {
+				retErr = errors.Join(retErr, restoreErr)
+			}
+		}
+	}()
 	// The recording was started with a bounded native segment. Let screenrecord
 	// close its MP4 trailer naturally; interrupting the host adb transport can
 	// leave the remote encoder with a zero-byte or otherwise unverifiable file.
@@ -185,8 +229,204 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 		return strategy.RecordingArtifact{}, fmt.Errorf("read screenrecord artifact %q: adb returned zero bytes", active.path)
 	}
 	_, _ = a.runner.Run(ctx, "adb", a.args("shell", "rm", "-f", active.path)...)
+	nativeVisible := nativeVideoVisible(video)
+	method := "native"
+	if !nativeVisible {
+		if fallback, fallbackErr := a.encodeScreenshotFallback(active.screenshots); fallbackErr == nil {
+			video = fallback
+			method = "screenshot-fallback"
+		}
+	}
 	duration := time.Since(handle.StartedAt)
-	return strategy.RecordingArtifact{Bytes: video, Method: "native", ClaimClass: handle.ClaimClass, Duration: duration, EffectiveFPS: 30}, nil
+	return strategy.RecordingArtifact{Bytes: video, Method: method, ClaimClass: handle.ClaimClass, Duration: duration, EffectiveFPS: 30}, nil
+}
+
+func (a *Adapter) readStayAwake(ctx context.Context) (bool, error) {
+	out, err := a.runner.Run(ctx, "adb", a.args("shell", "dumpsys", "power")...)
+	if err != nil {
+		return false, err
+	}
+	match := regexp.MustCompile(`(?m)^\s*mStayOn=(true|false)\s*$`).FindStringSubmatch(string(out))
+	if len(match) != 2 {
+		return false, fmt.Errorf("dumpsys power did not report mStayOn")
+	}
+	return match[1] == "true", nil
+}
+
+func (a *Adapter) setStayAwake(ctx context.Context, enabled bool) error {
+	value := "false"
+	if enabled {
+		value = "true"
+	}
+	_, err := a.runner.Run(ctx, "adb", a.args("shell", "svc", "power", "stayon", value)...)
+	return err
+}
+
+// keepDisplayAwake refreshes Android's user-activity timer while a native
+// recording is active. Some Samsung Android images impose a short
+// WindowManager timeout even when the normal screen-off setting is long and
+// `svc power stayon` is enabled. KEYCODE_WAKEUP is non-visual when the
+// display is already awake, but it still refreshes the timer and wakes a
+// display that has just entered doze.
+func (a *Adapter) keepDisplayAwake(stop <-chan struct{}, done chan<- struct{}) {
+	defer close(done)
+	touch := func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, _ = a.runner.Run(ctx, "adb", a.args("shell", "input", "keyevent", "224")...)
+	}
+	touch()
+	ticker := time.NewTicker(1500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			touch()
+		case <-stop:
+			return
+		}
+	}
+}
+
+func (a *Adapter) captureDisplaySamples(stop <-chan struct{}, done chan<- struct{}, samples *recordingScreenshots) {
+	defer close(done)
+	capture := func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		frame, err := a.runner.Run(ctx, "adb", a.args("exec-out", "screencap", "-p")...)
+		if err != nil || !displayFrameVisible(frame) {
+			return
+		}
+		samples.mu.Lock()
+		samples.frames = append(samples.frames, append([]byte(nil), frame...))
+		samples.mu.Unlock()
+	}
+	capture()
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			capture()
+		case <-stop:
+			return
+		}
+	}
+}
+
+func displayFrameVisible(raw []byte) bool {
+	img, _, err := image.Decode(bytes.NewReader(raw))
+	if err != nil {
+		return false
+	}
+	bounds := img.Bounds()
+	stepX := maxPositiveInt(1, bounds.Dx()/16)
+	stepY := maxPositiveInt(1, bounds.Dy()/16)
+	startY := bounds.Min.Y + bounds.Dy()/10
+	endY := bounds.Min.Y + bounds.Dy()*9/10
+	var total float64
+	var maximum float64
+	count := 0
+	for y := startY; y < endY; y += stepY {
+		for x := bounds.Min.X; x < bounds.Max.X; x += stepX {
+			r, g, b, _ := img.At(x, y).RGBA()
+			luma := (0.2126*float64(r) + 0.7152*float64(g) + 0.0722*float64(b)) / 257
+			total += luma
+			if luma > maximum {
+				maximum = luma
+			}
+			count++
+		}
+	}
+	return count > 0 && total/float64(count) > 18 && maximum > 32
+}
+
+func maxPositiveInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+var androidVideoLumaPattern = regexp.MustCompile(`lavfi\.signalstats\.YAVG=([0-9]+(?:\.[0-9]+)?)`)
+var androidVideoMaxLumaPattern = regexp.MustCompile(`lavfi\.signalstats\.YMAX=([0-9]+(?:\.[0-9]+)?)`)
+
+func nativeVideoVisible(raw []byte) bool {
+	file, err := os.CreateTemp("", "device-control-native-content-*.mp4")
+	if err != nil {
+		return false
+	}
+	path := file.Name()
+	defer os.Remove(path)
+	if _, err := file.Write(raw); err != nil {
+		_ = file.Close()
+		return false
+	}
+	if err := file.Close(); err != nil {
+		return false
+	}
+	out, err := exec.Command("ffmpeg", "-v", "error", "-i", path, "-vf", "crop=iw:ih*0.8:0:ih*0.1,signalstats,metadata=print:file=-", "-frames:v", "12", "-f", "null", "-").CombinedOutput()
+	if err != nil {
+		return false
+	}
+	averages := androidVideoLumaPattern.FindAllStringSubmatch(string(out), -1)
+	maximums := androidVideoMaxLumaPattern.FindAllStringSubmatch(string(out), -1)
+	if len(averages) == 0 || len(averages) != len(maximums) {
+		return false
+	}
+	var average float64
+	var maximum float64
+	for i := range averages {
+		value, parseErr := strconv.ParseFloat(averages[i][1], 64)
+		if parseErr != nil {
+			return false
+		}
+		maxValue, parseErr := strconv.ParseFloat(maximums[i][1], 64)
+		if parseErr != nil {
+			return false
+		}
+		average += value
+		if maxValue > maximum {
+			maximum = maxValue
+		}
+	}
+	return average/float64(len(averages)) > 18 || maximum > 32
+}
+
+func (a *Adapter) encodeScreenshotFallback(samples *recordingScreenshots) ([]byte, error) {
+	samples.mu.Lock()
+	frames := append([][]byte(nil), samples.frames...)
+	samples.mu.Unlock()
+	if len(frames) == 0 {
+		return nil, fmt.Errorf("no visible screenshot frames were captured")
+	}
+	dir, err := os.MkdirTemp("", "device-control-recording-fallback-")
+	if err != nil {
+		return nil, fmt.Errorf("create screenshot fallback workspace: %w", err)
+	}
+	defer os.RemoveAll(dir)
+	for i, frame := range frames {
+		path := filepath.Join(dir, fmt.Sprintf("frame-%04d.png", i))
+		if err := os.WriteFile(path, frame, 0o600); err != nil {
+			return nil, fmt.Errorf("write screenshot fallback frame: %w", err)
+		}
+	}
+	outputPath := filepath.Join(dir, "recording.mp4")
+	args := []string{"-y", "-loglevel", "error"}
+	if len(frames) == 1 {
+		args = append(args, "-loop", "1", "-i", filepath.Join(dir, "frame-0000.png"), "-t", "2")
+	} else {
+		args = append(args, "-framerate", "2", "-i", filepath.Join(dir, "frame-%04d.png"))
+	}
+	args = append(args, "-c:v", "libx264", "-r", "15", "-pix_fmt", "yuv420p", outputPath)
+	if output, err := exec.Command("ffmpeg", args...).CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("encode screenshot fallback: %w (%s)", err, strings.TrimSpace(string(output)))
+	}
+	encoded, err := os.ReadFile(outputPath)
+	if err != nil {
+		return nil, fmt.Errorf("read screenshot fallback: %w", err)
+	}
+	return encoded, nil
 }
 
 func (a *Adapter) WirelessEndpoint() string { return a.endpoint }

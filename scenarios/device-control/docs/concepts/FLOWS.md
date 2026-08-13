@@ -65,8 +65,11 @@ explicit non-portable escape hatch.
 
 Session-scoped recordings carry a claim class (`static`, `transition`, or
 `animation`) and a measured effective frame rate. A recording below its class
-minimum is `degraded`, never silently treated as passed. Device state changes
-are owned by the lease and restored in reverse order when a session ends.
+minimum is `degraded`, never silently treated as passed. Before publication,
+the producer also decodes a bounded sample outside the status/navigation bands
+and rejects a uniformly near-black body. A valid MP4 container is not proof
+that the device surface was captured. Device state changes are owned by the
+lease and restored in reverse order when a session ends.
 
 ## Flow Details
 

@@ -1,12 +1,9 @@
-package testutil_test
+package cliapptest
 
 import (
 	"net/http"
+	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/require"
-
-	clitest "quality-health/cli/internal/testutil"
 )
 
 // TestNewTestApp_ResolvesAPIBaseToTestServer pins the canonical
@@ -21,11 +18,17 @@ func TestNewTestApp_ResolvesAPIBaseToTestServer(t *testing.T) {
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	})
 
-	app := clitest.NewTestApp(t, handler)
+	app := NewTestApp(t, handler)
 	body, err := app.Get("/probe", nil)
-	require.NoError(t, err)
-	require.Equal(t, 1, hits, "test server should have received exactly one request")
-	require.Contains(t, string(body), "ok")
+	if err != nil {
+		t.Fatalf("app.Get: %v", err)
+	}
+	if hits != 1 {
+		t.Fatalf("test server hits = %d, want 1", hits)
+	}
+	if !strings.Contains(string(body), "ok") {
+		t.Fatalf("body = %q, want ok", body)
+	}
 }
 
 // TestNewTestApp_OptionsOverrideDefaults proves the With* helpers
@@ -38,11 +41,12 @@ func TestNewTestApp_OptionsOverrideDefaults(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	app := clitest.NewTestApp(t, handler,
-		clitest.WithAppName("custom"),
-		clitest.WithAppVersion("9.9.9"),
-		clitest.WithAppDescription("custom test"),
+	app := NewTestApp(t, handler,
+		WithAppName("custom"),
+		WithAppVersion("9.9.9"),
+		WithAppDescription("custom test"),
 	)
-	require.NotNil(t, app)
-	require.NotNil(t, app.CLI, "CLI must be wired so app.Run is callable")
+	if app == nil || app.CLI == nil {
+		t.Fatal("CLI must be wired so app.Run is callable")
+	}
 }
