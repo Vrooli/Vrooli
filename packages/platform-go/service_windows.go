@@ -3,15 +3,131 @@
 package platform
 
 import (
+	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/mgr"
 )
+
+func nativeTask(options NativeServiceOptions, action string) ([]byte, error) {
+	args := []string{action, "/TN", options.Name}
+	if action == "/Create" {
+		args = append(args, "/XML", options.Path, "/F")
+	} else if action == "/Query" {
+		args = append(args, "/FO", "CSV", "/NH")
+	}
+	return exec.Command("schtasks", args...).CombinedOutput()
+}
+
+func installNativeService(options NativeServiceOptions) (NativeServiceResult, error) {
+	if options.Name == "" || options.Path == "" {
+		return NativeServiceResult{}, fmt.Errorf("platform: task name and path are required")
+	}
+	if err := os.WriteFile(options.Path, []byte(options.Content), 0o600); err != nil {
+		return NativeServiceResult{}, err
+	}
+	if output, err := nativeTask(options, "/Create"); err != nil {
+		return NativeServiceResult{}, fmt.Errorf("platform: create task: %w: %s", err, output)
+	}
+	_, _ = nativeTask(options, "/Run")
+	return NativeServiceResult{Name: options.Name, Path: options.Path, Scope: "machine", Running: true, Enabled: true}, nil
+}
+
+func uninstallNativeService(options NativeServiceOptions) (NativeServiceResult, error) {
+	output, err := nativeTask(options, "/Delete")
+	if err != nil && !strings.Contains(strings.ToLower(string(output)), "does not exist") {
+		return NativeServiceResult{}, err
+	}
+	return NativeServiceResult{Name: options.Name, Path: options.Path, Scope: "machine"}, nil
+}
+
+func startNativeService(options NativeServiceOptions) error {
+	_, err := nativeTask(options, "/Run")
+	return err
+}
+
+func stopNativeService(options NativeServiceOptions) error {
+	_, err := nativeTask(options, "/End")
+	return err
+}
+
+func restartNativeService(options NativeServiceOptions) error {
+	_ = stopNativeService(options)
+	return startNativeService(options)
+}
+
+func nativeServiceStatus(options NativeServiceOptions) (NativeServiceResult, error) {
+	output, err := nativeTask(options, "/Query")
+	state := parseSchtasksState(string(output), err)
+	return NativeServiceResult{Name: options.Name, Path: options.Path, Scope: "machine", Running: state == ServiceStateRunning, Enabled: err == nil, State: state, Evidence: ServiceEvidence{Source: "schtasks /Query /FO CSV", RawState: strings.TrimSpace(string(output))}}, nil
+}
+
+func parseSchtasksState(raw string, commandErr error) ServiceState {
+	// `/FO LIST` exposes a numeric STATE code before the localized display
+	// label. Prefer that code so a non-English host cannot turn a running task
+	// into an unknown state merely because its renderer says something other
+	// than "Running".
+	for _, line := range strings.Split(raw, "\n") {
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		fields := strings.Fields(parts[1])
+		if len(fields) == 0 {
+			continue
+		}
+		code := strings.TrimSpace(fields[0])
+		switch code {
+		case "4":
+			return ServiceStateRunning
+		case "1", "2", "3", "5":
+			return ServiceStateStopped
+		}
+	}
+
+	reader := csv.NewReader(strings.NewReader(raw))
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil || len(record) < 3 {
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(record[2])) {
+		case "running":
+			return ServiceStateRunning
+		case "ready", "disabled":
+			return ServiceStateStopped
+		}
+	}
+	if commandErr != nil && strings.Contains(strings.ToLower(raw), "does not exist") {
+		return ServiceStateStopped
+	}
+	return ServiceStateUnknown
+}
+
+func nativeServiceLogs(NativeServiceOptions, int) ([]byte, error) {
+	return nil, fmt.Errorf("platform: Windows scheduled tasks do not expose service logs")
+}
+
+func readHostLogs(options HostLogOptions) (HostLogResult, error) {
+	command := "Get-WinEvent -FilterHashtable @{LogName='System'} | Select-Object TimeCreated,ProviderName,Id,Message,MachineName,Level,ProcessId | ConvertTo-Json -Depth 4 -Compress"
+	if options.Tail > 0 {
+		command = fmt.Sprintf("Get-WinEvent -FilterHashtable @{LogName='System'} | Select-Object -First %d TimeCreated,ProviderName,Id,Message,MachineName,Level,ProcessId | ConvertTo-Json -Depth 4 -Compress", options.Tail)
+	}
+	args := []string{"-NoProfile", "-NonInteractive", "-Command", command}
+	out, err := exec.Command("powershell.exe", args...).CombinedOutput()
+	return HostLogResult{Source: "Get-WinEvent", Raw: out, Entries: ParseWindowsEventJSON(out), Evidence: ServiceEvidence{Source: "Get-WinEvent", Detail: strings.TrimSpace(string(out))}}, err
+}
 
 const runtimeSupervisorService = "VrooliRuntimeSupervisor"
 

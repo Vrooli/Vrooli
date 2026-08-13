@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "schtasks",
+  "description": "Windows scheduled-task lifecycle command.",
+  "commands": ["schtasks"],
+  "versionArgs": ["/Query", "/?"],
+  "platforms": ["windows"],
+  "manual": true,
+  "installHint": "Provided by Windows.",
+  "bundling": "host-required",
+  "capability": "service-resource-limits",
+  "capability_role": "peer"
+}

@@ -10,6 +10,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // validateDSNMatchesDriver rejects DSNs whose scheme is clearly meant for
@@ -43,19 +45,11 @@ const DefaultLeaseTTL = 90 * time.Second
 //
 // seam: ambient time. The interface is single-method to keep substitution
 // trivial.
-type Clock interface {
-	Now() time.Time
-}
+type Clock = schedule.Clock
 
 // systemClock is the default Clock backed by time.Now.
-type systemClock struct{}
-
-// Now reports the current wall-clock time.
-func (systemClock) Now() time.Time { return time.Now() }
-
-// SystemClock returns the default time.Now-backed Clock. Convenience for
-// callers that want to be explicit about which clock they're injecting.
-func SystemClock() Clock { return systemClock{} }
+// SystemClock returns the default time.Now-backed Clock.
+func SystemClock() Clock { return schedule.System() }
 
 // RoutedDB wraps a primary *sql.DB pool with an optional, runtime-installable
 // test pool. Per-request routing is driven by IsTestMode(ctx): when the
@@ -149,7 +143,7 @@ func Open(ctx context.Context, cfg Config) (*RoutedDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &RoutedDB{primary: primary, cfg: cfg, clock: systemClock{}}, nil
+	return &RoutedDB{primary: primary, cfg: cfg, clock: schedule.System()}, nil
 }
 
 // OpenWithClock is Open with an explicit clock seam. Tests pass a fake
@@ -160,7 +154,7 @@ func OpenWithClock(ctx context.Context, cfg Config, clock Clock) (*RoutedDB, err
 		return nil, err
 	}
 	if clock == nil {
-		clock = systemClock{}
+		clock = schedule.System()
 	}
 	return &RoutedDB{primary: primary, cfg: cfg, clock: clock}, nil
 }
@@ -172,7 +166,7 @@ func OpenWithClock(ctx context.Context, cfg Config, clock Clock) (*RoutedDB, err
 // RoutedDB has no test pool until InstallTestPool is called, so it behaves
 // exactly like the wrapped handle until then.
 func NewFromPrimary(primary *sql.DB) *RoutedDB {
-	return &RoutedDB{primary: primary, cfg: Config{}, clock: systemClock{}}
+	return &RoutedDB{primary: primary, cfg: Config{}, clock: schedule.System()}
 }
 
 // MustOpen is like Open but panics on error. Useful for main().
@@ -188,7 +182,7 @@ func MustOpen(ctx context.Context, cfg Config) *RoutedDB {
 // should pass the clock via OpenWithClock.
 func (r *RoutedDB) SetClock(clock Clock) {
 	if clock == nil {
-		clock = systemClock{}
+		clock = schedule.System()
 	}
 	r.mu.Lock()
 	r.clock = clock

@@ -15,16 +15,13 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/storage"
 )
 
 const DefaultLeaseTTL = database.DefaultLeaseTTL
 
-type Clock interface{ Now() time.Time }
-
-type systemClock struct{}
-
-func (systemClock) Now() time.Time { return time.Now() }
+type Clock = schedule.Clock
 
 // LeaseStatsSnapshot reports the write-routing evidence for one lease.
 // Callers must invoke RecordWrite after a successful filesystem mutation.
@@ -55,12 +52,12 @@ type RoutedRoots struct {
 }
 
 func New(primary storage.Paths) *RoutedRoots {
-	return &RoutedRoots{primary: primary, clock: systemClock{}}
+	return &RoutedRoots{primary: primary, clock: schedule.System()}
 }
 
 func (r *RoutedRoots) SetClock(clock Clock) {
 	if clock == nil {
-		clock = systemClock{}
+		clock = schedule.System()
 	}
 	r.mu.Lock()
 	r.clock = clock

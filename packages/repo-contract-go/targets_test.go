@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestEnumerateCanonicalTargets(t *testing.T) {

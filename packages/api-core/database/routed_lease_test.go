@@ -10,6 +10,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // fakeClock is a minimal Clock fake for lease-TTL tests.
@@ -29,6 +30,9 @@ func (c *fakeClock) Advance(d time.Duration) {
 	defer c.mu.Unlock()
 	c.now = c.now.Add(d)
 }
+func (c *fakeClock) NewTimer(d time.Duration) schedule.Timer   { return schedule.System().NewTimer(d) }
+func (c *fakeClock) NewTicker(d time.Duration) schedule.Ticker { return schedule.System().NewTicker(d) }
+func (c *fakeClock) Sleep(d time.Duration)                     { c.Advance(d) }
 
 func openWithClock(t *testing.T, clock database.Clock) *database.RoutedDB {
 	t.Helper()

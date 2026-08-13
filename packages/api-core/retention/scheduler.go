@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // DefaultInterval is the cycle period used when a scheduler is configured
@@ -30,35 +32,15 @@ const DefaultBatchPause = 25 * time.Millisecond
 
 // Timer is the subset of time.Timer the scheduler needs, so tests can drive
 // cycles without sleeping.
-type Timer interface {
-	// C returns the channel the timer fires on.
-	C() <-chan time.Time
-	// Stop halts the timer and reports whether it had not yet fired.
-	Stop() bool
-}
+type Timer = schedule.Timer
 
 // Clock supplies the current time and timers. Injecting it is what makes the
 // age-bound behavior testable without waiting out a real horizon.
-type Clock interface {
-	Now() time.Time
-	NewTimer(d time.Duration) Timer
-}
+type Clock = schedule.Clock
 
 // realClock is the production Clock.
-type realClock struct{}
-
-func (realClock) Now() time.Time { return time.Now() }
-
-func (realClock) NewTimer(d time.Duration) Timer { return &realTimer{t: time.NewTimer(d)} }
-
-type realTimer struct{ t *time.Timer }
-
-func (r *realTimer) C() <-chan time.Time { return r.t.C }
-
-func (r *realTimer) Stop() bool { return r.t.Stop() }
-
 // SystemClock is the production Clock implementation.
-func SystemClock() Clock { return realClock{} }
+func SystemClock() Clock { return schedule.System() }
 
 // SchedulerConfig configures a retention scheduler.
 type SchedulerConfig struct {

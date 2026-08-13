@@ -8,12 +8,16 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/storage"
 )
 
 type fakeClock struct{ now time.Time }
 
-func (c *fakeClock) Now() time.Time { return c.now }
+func (c *fakeClock) Now() time.Time                            { return c.now }
+func (c *fakeClock) NewTimer(d time.Duration) schedule.Timer   { return schedule.System().NewTimer(d) }
+func (c *fakeClock) NewTicker(d time.Duration) schedule.Ticker { return schedule.System().NewTicker(d) }
+func (c *fakeClock) Sleep(d time.Duration)                     { c.now = c.now.Add(d) }
 
 func testPaths(root string) storage.Paths {
 	return storage.Paths{ConfigDir: filepath.Join(root, "config"), DataDir: filepath.Join(root, "data"), CacheDir: filepath.Join(root, "cache"), LogsDir: filepath.Join(root, "logs"), StateDir: filepath.Join(root, "state")}

@@ -10,6 +10,103 @@ import (
 	"strings"
 )
 
+func nativeLaunchctl(options NativeServiceOptions, action string) ([]byte, error) {
+	domain := launchdDomain(os.Getuid())
+	target := domain + "/" + options.Name
+	args := []string{action}
+	switch action {
+	case "bootstrap":
+		args = append(args, domain, options.Path)
+	case "bootout":
+		args = append(args, target)
+	case "print":
+		args = append(args, target)
+	default:
+		args = append(args, options.Name)
+	}
+	return exec.Command("launchctl", args...).CombinedOutput()
+}
+
+func installNativeService(options NativeServiceOptions) (NativeServiceResult, error) {
+	if options.Name == "" || options.Path == "" {
+		return NativeServiceResult{}, fmt.Errorf("platform: service name and path are required")
+	}
+	if err := os.MkdirAll(filepath.Dir(options.Path), 0o755); err != nil {
+		return NativeServiceResult{}, err
+	}
+	if err := os.WriteFile(options.Path, []byte(options.Content), 0o644); err != nil {
+		return NativeServiceResult{}, err
+	}
+	if output, err := nativeLaunchctl(options, "bootstrap"); err != nil && !strings.Contains(strings.ToLower(string(output)), "already bootstrapped") {
+		return NativeServiceResult{}, fmt.Errorf("platform: launchctl bootstrap: %w: %s", err, output)
+	}
+	return NativeServiceResult{Name: options.Name, Path: options.Path, Scope: "user", Running: true, Enabled: true, State: ServiceStateRunning, Evidence: ServiceEvidence{Source: "launchctl", RawState: "running"}}, nil
+}
+
+func uninstallNativeService(options NativeServiceOptions) (NativeServiceResult, error) {
+	_, _ = nativeLaunchctl(options, "bootout")
+	if options.Path != "" {
+		if err := os.Remove(options.Path); err != nil && !os.IsNotExist(err) {
+			return NativeServiceResult{}, err
+		}
+	}
+	return NativeServiceResult{Name: options.Name, Path: options.Path, Scope: "user", State: ServiceStateStopped, Evidence: ServiceEvidence{Source: "launchctl", RawState: "stopped"}}, nil
+}
+
+func startNativeService(options NativeServiceOptions) error {
+	_, err := nativeLaunchctl(options, "start")
+	return err
+}
+
+func stopNativeService(options NativeServiceOptions) error {
+	_, err := nativeLaunchctl(options, "stop")
+	return err
+}
+
+func restartNativeService(options NativeServiceOptions) error {
+	_ = stopNativeService(options)
+	return startNativeService(options)
+}
+
+func nativeServiceStatus(options NativeServiceOptions) (NativeServiceResult, error) {
+	output, err := nativeLaunchctl(options, "print")
+	state := parseLaunchctlState(string(output), err)
+	return NativeServiceResult{Name: options.Name, Path: options.Path, Scope: "user", Running: state == ServiceStateRunning, Enabled: options.Path != "", State: state, Evidence: ServiceEvidence{Source: "launchctl", RawState: strings.TrimSpace(string(output))}}, nil
+}
+
+func parseLaunchctlState(raw string, commandErr error) ServiceState {
+	lower := strings.ToLower(raw)
+	if strings.Contains(lower, "state = running") || strings.Contains(lower, "state = active") {
+		return ServiceStateRunning
+	}
+	if strings.Contains(lower, "state = exited") || strings.Contains(lower, "state = stopped") || strings.Contains(lower, "could not find service") {
+		return ServiceStateStopped
+	}
+	if commandErr != nil {
+		return ServiceStateUnknown
+	}
+	return ServiceStateUnknown
+}
+
+func nativeServiceLogs(options NativeServiceOptions, tail int) ([]byte, error) {
+	return os.ReadFile(filepath.Join(filepath.Dir(options.Path), "..", "Logs", options.Name+".log"))
+}
+
+func readHostLogs(options HostLogOptions) (HostLogResult, error) {
+	args := []string{"show", "--style", "ndjson"}
+	if options.Since != "" {
+		args = append(args, "--last", options.Since)
+	}
+	if options.Unit != "" {
+		args = append(args, "--predicate", fmt.Sprintf("process == '%s'", options.Unit))
+	}
+	if options.Tail > 0 {
+		args = append(args, "--last", fmt.Sprintf("%d", options.Tail))
+	}
+	out, err := exec.Command("log", args...).CombinedOutput()
+	return HostLogResult{Source: "log show", Raw: out, Entries: ParseMacOSNDJSON(out), Evidence: ServiceEvidence{Source: "log show", Detail: strings.TrimSpace(string(out))}}, err
+}
+
 func installService(options ServiceInstallOptions) (ServiceInstallResult, error) {
 	if !options.User {
 		return ServiceInstallResult{}, fmt.Errorf("platform: system service install requires explicit broker support")

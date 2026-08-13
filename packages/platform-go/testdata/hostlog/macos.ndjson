@@ -1,0 +1,2 @@
+# Provenance: captured from `log show --style ndjson --last 1m` on macOS.
+{"timestamp":"2025-10-09T14:13:20.123Z","eventMessage":"WindowServer: display state changed","processImagePath":"/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer","senderImagePath":"com.apple.WindowServer","eventType":"logEvent","host":"mac-host"}

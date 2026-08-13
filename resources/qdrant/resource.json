@@ -49,6 +49,18 @@
           "pruner": "builtin"
         },
         "rationale": "The resource health probe appends diagnostics outside the snapshot directory."
+      },
+      "managed_service_state": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "subpath": "managed-service.json",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "The control-plane supervisor owns this small runtime identity record and rewrites it during managed-service lifecycle transitions."
+        },
+        "rationale": "The managed-service supervisor persists ownership and process identity under the resource state namespace."
       }
     }
   },
@@ -289,14 +301,20 @@
   },
   "orchestration": {
     "startup_order": 850,
-    "startup_timeout_seconds": 25,
-    "startup_time_estimate": "5-15s",
+    "startup_timeout_seconds": 90,
+    "startup_time_estimate": "measured warm start 26-28s with 22 collections; budgeted to 90s with growth headroom",
+    "startup_budget": {
+      "kind": "qdrant_collection_count",
+      "base_seconds": 30,
+      "per_unit_seconds": 2,
+      "max_seconds": 600
+    },
     "dependencies": [],
     "recovery_attempts": 3,
     "priority": "high"
   },
   "lifecycle": {
-    "start_timeout_seconds": 25,
+    "start_timeout_seconds": 90,
     "stop_timeout_seconds": 30,
     "retries": 3
   },

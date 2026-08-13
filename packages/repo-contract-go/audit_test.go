@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // TestNoManifestPathLiteralJoins enforces the Phase 1 drift-impossibility

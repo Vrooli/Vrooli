@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func TestTransitionMatrix(t *testing.T) {
@@ -183,7 +185,10 @@ func TestProviderPolicyDoesNotLeakIntoLifecyclePackage(t *testing.T) {
 
 type fixedClock struct{}
 
-func (fixedClock) Now() time.Time { return time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC) }
+func (fixedClock) Now() time.Time                            { return time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC) }
+func (fixedClock) NewTimer(d time.Duration) schedule.Timer   { return schedule.System().NewTimer(d) }
+func (fixedClock) NewTicker(d time.Duration) schedule.Ticker { return schedule.System().NewTicker(d) }
+func (fixedClock) Sleep(time.Duration)                       {}
 
 type sequenceIDs struct{}
 

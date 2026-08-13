@@ -1,0 +1,152 @@
+package repocontracttest
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+)
+
+const (
+	projectConfigDir        = ".vrooli"
+	contractFilename        = "repo-contract.json"
+	serviceManifestFilename = "service.json"
+	serviceManifestPathname = projectConfigDir + "/" + serviceManifestFilename
+	resourceManifestPath    = "resource.json"
+)
+
+type RepoFixture struct {
+	Root        string
+	Home        string
+	ScenarioDir string
+}
+
+func NewRepoFixture(t *testing.T, opts ...RepoFixtureOption) RepoFixture {
+	t.Helper()
+	fixture := RepoFixture{
+		Root:        t.TempDir(),
+		Home:        t.TempDir(),
+		ScenarioDir: "scenarios",
+	}
+	for _, opt := range opts {
+		opt(&fixture)
+	}
+	return fixture
+}
+
+type RepoFixtureOption func(*RepoFixture)
+
+func WithScenarioDir(name string) RepoFixtureOption {
+	return func(fixture *RepoFixture) {
+		if strings.TrimSpace(name) != "" {
+			fixture.ScenarioDir = name
+		}
+	}
+}
+
+func (fixture RepoFixture) WriteRepoContract(t *testing.T) {
+	t.Helper()
+	WriteRepoContract(t, fixture.Root, fixture.ScenarioDir)
+}
+
+func (fixture RepoFixture) WriteScenarioStub(t *testing.T, name string) {
+	t.Helper()
+	WriteScenarioStub(t, fixture.Root, fixture.ScenarioDir, name)
+}
+
+func (fixture RepoFixture) WriteResourceStub(t *testing.T, name string) {
+	t.Helper()
+	WriteResourceStub(t, fixture.Root, name)
+}
+
+func ProjectRoot(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
+}
+
+func WriteRepoContract(t *testing.T, root, scenarioDir string) {
+	t.Helper()
+	projectRoot := ProjectRoot(t)
+	contractPath := filepath.Join(projectRoot, projectConfigDir, contractFilename)
+	data, err := os.ReadFile(contractPath)
+	if err != nil {
+		t.Fatalf("read live repo contract: %v", err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("unmarshal live repo contract: %v", err)
+	}
+
+	layout := ensureObject(doc, "layout")
+	layout["scenario_dir"] = scenarioDir
+
+	rootDoc := ensureObject(doc, "root")
+	markers := ensureObject(rootDoc, "markers")
+	requiredDirs, _ := markers["required_dirs"].([]any)
+	if len(requiredDirs) > 0 {
+		updated := make([]any, 0, len(requiredDirs))
+		for _, value := range requiredDirs {
+			text, _ := value.(string)
+			if text == "scenarios" {
+				text = scenarioDir
+			}
+			updated = append(updated, text)
+		}
+		markers["required_dirs"] = updated
+	}
+
+	sandbox := ensureObject(doc, "sandbox")
+	sandbox["scenario_scope_prefix"] = scenarioDir + "/"
+
+	dirsToCreate := []string{".vrooli", scenarioDir, "resources", "packages", "cmd", "internal"}
+	if rootMarkers, ok := rootDoc["markers"].(map[string]any); ok {
+		if values, ok := rootMarkers["required_dirs"].([]any); ok && len(values) > 0 {
+			dirsToCreate = dirsToCreate[:0]
+			for _, value := range values {
+				text, _ := value.(string)
+				if strings.TrimSpace(text) != "" {
+					dirsToCreate = append(dirsToCreate, text)
+				}
+			}
+		}
+	}
+
+	for _, dir := range dirsToCreate {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	WriteFile(t, filepath.Join(root, "go.mod"), "module test\n")
+	WriteJSON(t, filepath.Join(root, projectConfigDir, contractFilename), doc)
+}
+
+func WriteScenarioStub(t *testing.T, root, scenarioDir, name string) {
+	t.Helper()
+	WriteJSON(t, filepath.Join(root, scenarioDir, name, serviceManifestPathname), map[string]any{
+		"service": map[string]any{
+			"name": name,
+		},
+	})
+}
+
+func WriteResourceStub(t *testing.T, root, name string) {
+	t.Helper()
+	WriteJSON(t, filepath.Join(root, "resources", name, resourceManifestPath), map[string]any{
+		"name": name,
+	})
+}
+
+func ensureObject(parent map[string]any, key string) map[string]any {
+	if value, ok := parent[key].(map[string]any); ok {
+		return value
+	}
+	created := map[string]any{}
+	parent[key] = created
+	return created
+}

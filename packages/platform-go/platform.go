@@ -4,6 +4,7 @@
 package platform
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // ErrLockUnavailable indicates that a non-blocking lock attempt found another
@@ -167,3 +169,122 @@ func SupportsService(user bool) bool { return supportsService(user) }
 // ServiceStartHint returns the native operator command for starting the
 // installed supervisor service, or an empty string when no native hint exists.
 func ServiceStartHint() string { return serviceStartHint() }
+
+// ServiceManagerCommand returns the native service-manager executable name
+// for the current target. Callers should use the unit-addressable service
+// methods for lifecycle work; this value is retained for injected command
+// adapters and operator-facing diagnostics.
+func ServiceManagerCommand() string { return serviceManagerCommand() }
+
+// ServiceManagerCommandPath returns the absolute command path used by a
+// setup-provisioned privilege grant on the current target, when one exists.
+func ServiceManagerCommandPath() string { return serviceManagerCommandPath() }
+
+// NativeServiceOptions describes a service owned by a caller. The platform
+// backend owns the lifecycle verbs and file placement; callers provide only
+// the platform-neutral identity and rendered service definition.
+type NativeServiceOptions struct {
+	Name       string
+	Path       string
+	Content    string
+	User       bool
+	Executable string
+	Args       []string
+}
+
+type ServiceState string
+
+const (
+	ServiceStateUnknown ServiceState = "unknown"
+	ServiceStateRunning ServiceState = "running"
+	ServiceStateStopped ServiceState = "stopped"
+	ServiceStateFailed  ServiceState = "failed"
+)
+
+type ServiceEvidence struct {
+	Source   string `json:"source,omitempty"`
+	RawState string `json:"raw_state,omitempty"`
+	Detail   string `json:"detail,omitempty"`
+	ExitCode int    `json:"exit_code,omitempty"`
+}
+
+type NativeServiceResult struct {
+	Name     string          `json:"name"`
+	Path     string          `json:"path,omitempty"`
+	Scope    string          `json:"scope,omitempty"`
+	Running  bool            `json:"running"`
+	Enabled  bool            `json:"enabled"`
+	State    ServiceState    `json:"state"`
+	Evidence ServiceEvidence `json:"evidence,omitempty"`
+}
+
+func InstallNativeService(options NativeServiceOptions) (NativeServiceResult, error) {
+	return installNativeService(options)
+}
+
+func UninstallNativeService(options NativeServiceOptions) (NativeServiceResult, error) {
+	return uninstallNativeService(options)
+}
+
+func StartNativeService(options NativeServiceOptions) error   { return startNativeService(options) }
+func StopNativeService(options NativeServiceOptions) error    { return stopNativeService(options) }
+func RestartNativeService(options NativeServiceOptions) error { return restartNativeService(options) }
+func NativeServiceStatus(options NativeServiceOptions) (NativeServiceResult, error) {
+	return nativeServiceStatus(options)
+}
+
+func NativeServiceLogs(options NativeServiceOptions, tail int) ([]byte, error) {
+	return nativeServiceLogs(options, tail)
+}
+
+type HostLogOptions struct {
+	Unit      string
+	Since     string
+	Tail      int
+	Arguments []string
+}
+
+type HostLogResult struct {
+	Source   string          `json:"source"`
+	Raw      []byte          `json:"-"`
+	Entries  []HostLogEntry  `json:"entries,omitempty"`
+	Evidence ServiceEvidence `json:"evidence"`
+}
+
+// HostLogEntry is the platform-neutral subset of an operating-system log
+// record consumed by scenario collectors. Platform backends populate the
+// fields they can prove and preserve the original record in Raw.
+type HostLogEntry struct {
+	Timestamp time.Time `json:"timestamp"`
+	Message   string    `json:"message"`
+	Process   string    `json:"process,omitempty"`
+	Provider  string    `json:"provider,omitempty"`
+	EventID   string    `json:"event_id,omitempty"`
+	Unit      string    `json:"unit,omitempty"`
+	UserUnit  string    `json:"user_unit,omitempty"`
+	Hostname  string    `json:"hostname,omitempty"`
+	BootID    string    `json:"boot_id,omitempty"`
+	Cursor    string    `json:"cursor,omitempty"`
+	Priority  int       `json:"priority,omitempty"`
+	PID       int       `json:"pid,omitempty"`
+	Raw       string    `json:"raw,omitempty"`
+}
+
+func ReadHostLogs(options HostLogOptions) (HostLogResult, error) {
+	return readHostLogs(options)
+}
+
+// ReadHostLogEntries is the context-shaped seam for callers that need typed
+// records. The current native backends are bounded command invocations; the
+// context is retained in the public contract so a future backend can honor
+// cancellation without changing scenario callers.
+func ReadHostLogEntries(ctx context.Context, options HostLogOptions) ([]HostLogEntry, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	result, err := ReadHostLogs(options)
+	if err != nil {
+		return nil, err
+	}
+	return result.Entries, nil
+}

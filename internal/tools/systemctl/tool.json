@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "systemctl",
+  "description": "Linux systemd service controller used by the native service backend.",
+  "commands": ["systemctl"],
+  "versionArgs": ["--version"],
+  "platforms": ["linux"],
+  "manual": true,
+  "installHint": "Provided by the Linux systemd package.",
+  "bundling": "host-required",
+  "capability": "service-resource-limits",
+  "capability_role": "primary"
+}

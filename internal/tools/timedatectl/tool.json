@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "timedatectl",
+  "description": "Linux clock and time-synchronization status tool.",
+  "commands": ["timedatectl"],
+  "versionArgs": ["--version"],
+  "platforms": ["linux"],
+  "manual": true,
+  "installHint": "Provided by the Linux systemd package.",
+  "bundling": "host-required",
+  "capability": "clock-accuracy",
+  "capability_role": "primary"
+}

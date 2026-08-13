@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Transition is pure and exhaustively restricts legal lifecycle moves.
@@ -58,11 +60,14 @@ func invalid(event Event, state State, detail string) error {
 }
 
 type (
-	Clock     interface{ Now() time.Time }
+	Clock     = schedule.Clock
 	RealClock struct{}
 )
 
-func (RealClock) Now() time.Time { return time.Now().UTC() }
+func (RealClock) Now() time.Time                            { return schedule.System().Now().UTC() }
+func (RealClock) NewTimer(d time.Duration) schedule.Timer   { return schedule.System().NewTimer(d) }
+func (RealClock) NewTicker(d time.Duration) schedule.Ticker { return schedule.System().NewTicker(d) }
+func (RealClock) Sleep(d time.Duration)                     { schedule.System().Sleep(d) }
 
 type IDSource interface{ NewID() string }
 
@@ -200,5 +205,5 @@ func (c Coordinator) now() time.Time {
 	if c.Clock != nil {
 		return c.Clock.Now().UTC()
 	}
-	return time.Now().UTC()
+	return schedule.System().Now().UTC()
 }

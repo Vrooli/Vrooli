@@ -163,6 +163,7 @@ type Builder struct {
 	service   string
 	version   string
 	checks    []checkerEntry
+	metrics   []metricEntry
 	timeout   time.Duration
 	startTime time.Time
 
@@ -173,6 +174,11 @@ type Builder struct {
 type checkerEntry struct {
 	checker     Checker
 	criticality Criticality
+}
+
+type metricEntry struct {
+	name  string
+	value func(time.Time) any
 }
 
 // Handler creates an http.HandlerFunc for the /health endpoint.
@@ -236,6 +242,19 @@ func (b *Builder) Check(c Checker, criticality Criticality) *Builder {
 	return b
 }
 
+// Metric adds a deterministic, handler-owned metric to the health response.
+// The callback receives the response timestamp so derived freshness signals
+// share one clock reading with the health envelope. This is useful for
+// providers whose corpus is materialized live rather than by a background
+// vector reconciler.
+func (b *Builder) Metric(name string, value func(time.Time) any) *Builder {
+	if name == "" || value == nil {
+		return b
+	}
+	b.metrics = append(b.metrics, metricEntry{name: name, value: value})
+	return b
+}
+
 // Timeout sets the maximum duration for all health checks.
 // Default is 5 seconds.
 func (b *Builder) Timeout(d time.Duration) *Builder {
@@ -271,6 +290,9 @@ func (b *Builder) buildResponse(ctx context.Context) Response {
 		Version:       b.version,
 		UptimeSeconds: now.Sub(b.startTime).Seconds(),
 		Metrics:       b.collectMetrics(now),
+	}
+	for _, metric := range b.metrics {
+		resp.Metrics[metric.name] = metric.value(now)
 	}
 
 	if len(b.checks) > 0 {

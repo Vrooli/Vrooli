@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "pacman",
+  "description": "Arch Linux package-state command used by host evidence.",
+  "commands": ["pacman"],
+  "versionArgs": ["--version"],
+  "platforms": ["linux"],
+  "manual": true,
+  "installHint": "Provided by Arch Linux.",
+  "bundling": "host-required",
+  "capability": "package-management",
+  "capability_role": "peer"
+}

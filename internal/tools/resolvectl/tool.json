@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "resolvectl",
+  "description": "Linux systemd-resolved diagnostic command.",
+  "commands": ["resolvectl"],
+  "versionArgs": ["--version"],
+  "platforms": ["linux"],
+  "manual": true,
+  "installHint": "Provided by the Linux systemd-resolved package.",
+  "bundling": "host-required",
+  "capability": "network-host-config",
+  "capability_role": "primary"
+}

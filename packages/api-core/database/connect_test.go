@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/retry"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // ============================================================================
@@ -376,7 +377,7 @@ func TestConnect_BuildsDSNFromEnv(t *testing.T) {
 		},
 		Retry: &retry.Config{
 			MaxAttempts: 1,
-			Sleeper:     func(d time.Duration) {},
+			Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 		},
 	}
 
@@ -405,7 +406,7 @@ func TestConnect_UsesExplicitDSN(t *testing.T) {
 		},
 		Retry: &retry.Config{
 			MaxAttempts: 1,
-			Sleeper:     func(d time.Duration) {},
+			Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 		},
 	}
 
@@ -444,7 +445,7 @@ func TestConnect_RetriesOnPingFailure(t *testing.T) {
 		Retry: &retry.Config{
 			MaxAttempts: 5,
 			BaseDelay:   time.Millisecond,
-			Sleeper:     func(d time.Duration) {},
+			Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 		},
 	}
 
@@ -479,7 +480,7 @@ func TestConnect_UnknownDriverDoesNotRetry(t *testing.T) {
 		DSN:    "ignored",
 		Retry: &retry.Config{
 			MaxAttempts: 5,
-			Sleeper:     func(time.Duration) { t.Fatal("unknown driver must not sleep") },
+			Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) { t.Fatal("unknown driver must not sleep") }),
 		},
 		Opener: func(driver, dsn string) (*sql.DB, error) {
 			attempts++
@@ -514,7 +515,7 @@ func TestConnect_LogsRetries(t *testing.T) {
 		Retry: &retry.Config{
 			MaxAttempts: 3,
 			BaseDelay:   time.Millisecond,
-			Sleeper:     func(d time.Duration) {},
+			Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 		},
 		Logger: func(format string, args ...interface{}) {
 			logs = append(logs, format)
@@ -541,7 +542,7 @@ func TestConnect_DefaultsToPostgres(t *testing.T) {
 		},
 		Retry: &retry.Config{
 			MaxAttempts: 1,
-			Sleeper:     func(d time.Duration) {},
+			Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 		},
 	}
 

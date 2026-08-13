@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // fakeClock drives scheduler cycles without sleeping, so a 15-minute interval
@@ -27,6 +29,7 @@ func (t *fakeTimer) Stop() bool {
 	t.stopped = true
 	return true
 }
+func (t *fakeTimer) Reset(time.Duration) bool { t.stopped = false; return true }
 
 func newFakeClock(start time.Time) *fakeClock { return &fakeClock{now: start} }
 
@@ -44,6 +47,8 @@ func (c *fakeClock) NewTimer(d time.Duration) Timer {
 	c.asked = append(c.asked, d)
 	return t
 }
+func (c *fakeClock) NewTicker(d time.Duration) schedule.Ticker { return schedule.System().NewTicker(d) }
+func (c *fakeClock) Sleep(d time.Duration)                     { c.now = c.now.Add(d) }
 
 // fire advances the clock and fires the most recently created timer, blocking
 // until one exists so the test never races scheduler startup.

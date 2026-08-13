@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "rpm",
+  "description": "RPM package-state query used by host inventory.",
+  "commands": ["rpm"],
+  "versionArgs": ["--version"],
+  "platforms": ["linux"],
+  "manual": true,
+  "installHint": "Provided by RPM-based Linux distributions.",
+  "bundling": "host-required",
+  "capability": "package-management",
+  "capability_role": "peer"
+}
