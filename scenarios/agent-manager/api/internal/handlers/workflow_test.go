@@ -27,6 +27,7 @@ func TestWorkflowExecutionProjectionRedactsPayloadsByDefault(t *testing.T) {
 	execution := &domain.WorkflowExecution{
 		ID: uuid.New(), Owner: "example", WorkflowKey: "example/review", DefinitionDigest: "sha256:test",
 		Status: domain.WorkflowExecutionSucceeded, Input: json.RawMessage(`{"secret":"prompt"}`), Output: json.RawMessage(`{"secret":"result"}`),
+		BudgetUsage:    domain.WorkflowBudgetUsage{ChargeMicroUSD: 42, ChargeMeasured: true},
 		EdgeTraversals: map[string]int{}, CreatedAt: time.Now(), UpdatedAt: time.Now(),
 	}
 	redacted := workflowExecutionToProto(execution, false)
@@ -36,6 +37,17 @@ func TestWorkflowExecutionProjectionRedactsPayloadsByDefault(t *testing.T) {
 	authorized := workflowExecutionToProto(execution, true)
 	if authorized.Input == nil || authorized.Output == nil {
 		t.Fatalf("authorized projection omitted payloads: input=%v output=%v", authorized.Input, authorized.Output)
+	}
+	if receipt := authorized.GetChargeReceipt(); receipt == nil || !receipt.GetMeasured() || receipt.GetAmountMicroUsd() != 42 || receipt.GetCurrency() != "USD" {
+		t.Fatalf("charge receipt=%v", receipt)
+	}
+}
+
+func TestWorkflowExecutionProjectionPublishesUnmeasuredChargeReceipt(t *testing.T) {
+	execution := &domain.WorkflowExecution{ID: uuid.New(), Status: domain.WorkflowExecutionFailed, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	receipt := workflowExecutionToProto(execution, false).GetChargeReceipt()
+	if receipt == nil || receipt.GetMeasured() || receipt.AmountMicroUsd != nil || receipt.GetMeteringBasis() != "unmeasured" {
+		t.Fatalf("unmeasured receipt=%v", receipt)
 	}
 }
 

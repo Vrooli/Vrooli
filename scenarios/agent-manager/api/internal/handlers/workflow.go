@@ -458,6 +458,18 @@ func workflowExecutionToProto(x *domain.WorkflowExecution, includePayloads bool)
 		edges[key] = int32(value)
 	}
 	out := &domainpb.WorkflowExecution{Id: x.ID.String(), Owner: x.Owner, WorkflowKey: x.WorkflowKey, DefinitionDigest: x.DefinitionDigest, Status: status, CurrentNodeId: x.CurrentNodeID, BudgetUsage: &domainpb.WorkflowBudgetUsage{Turns: int32(x.BudgetUsage.Turns), Tokens: int32(x.BudgetUsage.Tokens), CostUsd: x.BudgetUsage.CostUSD, NodeAttempts: int32(x.BudgetUsage.NodeAttempts), Children: int32(x.BudgetUsage.Children), Retries: int32(x.BudgetUsage.Retries)}, EdgeTraversals: edges, Version: x.Version, IdempotencyKey: x.IdempotencyKey, Depth: int32(x.Depth), CreatedAt: timestamppb.New(x.CreatedAt), UpdatedAt: timestamppb.New(x.UpdatedAt)}
+	if x.Status.Terminal() {
+		receipt := &domainpb.ChargeReceipt{Currency: "USD", MeteringBasis: "agent-manager.run.billing.metered_charge_micro_usd", Measured: x.BudgetUsage.ChargeMeasured}
+		if x.BudgetUsage.ChargeMeasured {
+			amount := x.BudgetUsage.ChargeMicroUSD
+			receipt.AmountMicroUsd = &amount
+			receipt.Note = "per-execution metered charge from child-run billing"
+		} else {
+			receipt.MeteringBasis = "unmeasured"
+			receipt.Note = "agent-manager could not attribute a metered charge to this execution"
+		}
+		out.ChargeReceipt = receipt
+	}
 	if includePayloads {
 		out.Input = toValue(x.Input)
 		out.Output = toValue(x.Output)

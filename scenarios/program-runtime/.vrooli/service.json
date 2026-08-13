@@ -81,6 +81,24 @@
       "range": "20000-24999"
     }
   },
+  "hostTools": [
+    {
+      "name": "uv",
+      "required": true,
+      "reason": "Provision the pinned, isolated CPython environment used by the program-runtime kernel.",
+      "when": [
+        "setup",
+        "develop",
+        "test"
+      ],
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "notes": "If uv is unavailable, the kernel fails closed with an install remediation and never falls back to host python3."
+    }
+  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {

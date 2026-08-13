@@ -168,7 +168,7 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 				return x, inspectErr
 			}
 			terminal, failed, result = state.Terminal, state.Failed, state.Result
-			usage = domain.WorkflowBudgetUsage{Turns: state.Turns, Tokens: state.Tokens, ChargeMicroUSD: state.ChargeMicroUSD}
+			usage = domain.WorkflowBudgetUsage{Turns: state.Turns, Tokens: state.Tokens, ChargeMicroUSD: state.ChargeMicroUSD, ChargeMeasured: state.ChargeMeasured}
 		}
 		if !terminal {
 			continue
@@ -183,6 +183,7 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 		x.BudgetUsage.Turns += usage.Turns
 		x.BudgetUsage.Tokens += usage.Tokens
 		x.BudgetUsage.ChargeMicroUSD += usage.ChargeMicroUSD
+		x.BudgetUsage.ChargeMeasured = x.BudgetUsage.ChargeMeasured || usage.ChargeMeasured
 		x.BudgetUsage.NodeAttempts += usage.NodeAttempts
 		x.BudgetUsage.Children += usage.Children
 		x.BudgetUsage.Retries += usage.Retries

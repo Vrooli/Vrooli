@@ -19,13 +19,7 @@ Each workflow JSON must include:
 }
 ```
 
-Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, run from the scenario directory:
-
-```bash
-test-genie registry build
-```
-
-This regenerates `bas/registry.json`, which is tracked so other agents can see which files exist, which requirements they validate, and what fixtures they depend on. (Only `bas/cases/**` are executed by the Playbooks phase — `flows/` and `actions/` are reusable building blocks.)
+Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, refresh the tracked `bas/registry.json` with the Test Genie registry builder from the scenario directory. The registry lets other agents see which files exist, which requirements they validate, and what fixtures they depend on. (Only `bas/cases/**` are executed by the Playbooks phase — `flows/` and `actions/` are reusable building blocks.)
 
 ## Performance-capture flows (`intent: "performance"`)
 
@@ -41,7 +35,7 @@ can span it. The loop:
 # 2. Drive it inside a profile-mode perf trace:
 performance-health audit run "<scenario>" --workflow "<slug>"
 # 3. Analyze the returned trace, then optionally set a per-flow budget:
-performance-health analysis analyze --trace <key>
+performance-health analysis analyze --trace "<key>"
 performance-health budget set --flow <slug> --lcp-max-ms 2500 --ratchet
 ```
 

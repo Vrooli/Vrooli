@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -35,11 +36,55 @@ func (h *handlers) submit(ctx cliapp.OperationContext) (*programsv1.SubmitProgra
 	if err != nil {
 		return nil, err
 	}
-	r, e := h.client.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{SessionId: ctx.Flag("session-id"), Source: source, Provenance: provenance, IncludeMaterialized: ctx.BoolFlag("include-materialized")}))
+	async := ctx.BoolFlag("async")
+	waitTimeout, err := parseWaitTimeout(ctx.Flag("wait-timeout"))
+	if err != nil {
+		return nil, err
+	}
+	if waitTimeout > 0 {
+		async = true
+	}
+	r, e := h.client.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{SessionId: ctx.Flag("session-id"), Source: source, Provenance: provenance, IncludeMaterialized: ctx.BoolFlag("include-materialized"), Async: async}))
 	if e != nil {
 		return nil, cliapp.WrapAPIError("submit program", e, nil)
 	}
+	if waitTimeout > 0 && r.Msg.GetProgram() != nil {
+		return h.wait(context.Background(), r.Msg.GetProgram().GetId(), waitTimeout)
+	}
 	return r.Msg, nil
+}
+
+func (h *handlers) wait(parent context.Context, id string, timeout time.Duration) (*programsv1.SubmitProgramResponse, error) {
+	ctx, cancel := context.WithTimeout(parent, timeout)
+	defer cancel()
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		result, err := h.client.GetProgram(ctx, connect.NewRequest(&programsv1.GetProgramRequest{Id: id}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("wait for program", err, nil)
+		}
+		status := result.Msg.GetProgram().GetStatus()
+		if status == programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED || status == programsv1.ProgramStatus_PROGRAM_STATUS_FAILED || status == programsv1.ProgramStatus_PROGRAM_STATUS_CANCELLED {
+			return &programsv1.SubmitProgramResponse{Program: result.Msg.GetProgram()}, nil
+		}
+		select {
+		case <-ctx.Done():
+			return &programsv1.SubmitProgramResponse{Program: result.Msg.GetProgram()}, nil
+		case <-ticker.C:
+		}
+	}
+}
+
+func parseWaitTimeout(value string) (time.Duration, error) {
+	if strings.TrimSpace(value) == "" {
+		return 0, nil
+	}
+	duration, err := time.ParseDuration(strings.TrimSpace(value))
+	if err != nil || duration <= 0 {
+		return 0, fmt.Errorf("wait-timeout must be a positive duration such as 30s")
+	}
+	return duration, nil
 }
 
 func programSource(source, sourceFile string) (string, error) {

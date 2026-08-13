@@ -12,6 +12,7 @@ require (
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/measures-go v0.0.0
+	github.com/vrooli/pyenv-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -60,3 +61,5 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
+
+replace github.com/vrooli/pyenv-go => ../../../packages/pyenv-go

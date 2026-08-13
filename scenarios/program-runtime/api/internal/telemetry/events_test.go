@@ -24,8 +24,8 @@ func TestEmitsSubmissionInvocationAndFailureEvents(t *testing.T) { // [REQ:PRT-P
 		t.Fatal(err)
 	}
 	events := store.List(program.GetSessionId(), telemetryv1.EventKind_EVENT_KIND_UNSPECIFIED)
-	if len(events) != 3 {
-		t.Fatalf("events=%d, want submission, invocation, and failure", len(events))
+	if len(events) != 5 {
+		t.Fatalf("events=%d, want submission, accepted, running, invocation, and failure", len(events))
 	}
 	seen := map[telemetryv1.EventKind]bool{}
 	for _, event := range events {

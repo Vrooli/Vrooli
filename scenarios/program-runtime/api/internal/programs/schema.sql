@@ -12,7 +12,9 @@ CREATE TABLE IF NOT EXISTS programs (
   output_limit_bytes INTEGER NOT NULL DEFAULT 0,
   failure_detail TEXT NOT NULL DEFAULT '',
   failure_shape TEXT NOT NULL DEFAULT '',
-  failure_location TEXT NOT NULL DEFAULT ''
+  failure_location TEXT NOT NULL DEFAULT '',
+  wall_time_millis INTEGER NOT NULL DEFAULT 0,
+  cpu_time_millis INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_programs_session ON programs(session_id);

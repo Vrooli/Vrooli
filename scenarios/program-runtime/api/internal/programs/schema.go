@@ -23,7 +23,7 @@ func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
 		return fmt.Errorf("inspect programs schema: %w", err)
 	}
 	defer rows.Close()
-	found := false
+	found := map[string]bool{}
 	for rows.Next() {
 		var cid int
 		var name, columnType string
@@ -32,18 +32,23 @@ func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
 		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
 			return fmt.Errorf("scan programs schema: %w", err)
 		}
-		if name == "agent_bytes" {
-			found = true
-		}
+		found[name] = true
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("read programs schema: %w", err)
 	}
-	if found {
-		return nil
+	columns := []struct{ name, definition string }{
+		{"agent_bytes", "INTEGER NOT NULL DEFAULT 0"},
+		{"wall_time_millis", "INTEGER NOT NULL DEFAULT 0"},
+		{"cpu_time_millis", "INTEGER NOT NULL DEFAULT 0"},
 	}
-	if _, err := db.ExecContext(ctx, "ALTER TABLE programs ADD COLUMN agent_bytes INTEGER NOT NULL DEFAULT 0"); err != nil {
-		return fmt.Errorf("add programs.agent_bytes: %w", err)
+	for _, column := range columns {
+		if found[column.name] {
+			continue
+		}
+		if _, err := db.ExecContext(ctx, "ALTER TABLE programs ADD COLUMN "+column.name+" "+column.definition); err != nil {
+			return fmt.Errorf("add programs.%s: %w", column.name, err)
+		}
 	}
 	return nil
 }

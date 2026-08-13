@@ -10,6 +10,7 @@
   "orderHint": 24,
   "timeout": "45s",
   "validation": {"contract": "scenario-validation/v1"},
+  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
   "applicability": {
     "default": "not_applicable",
     "any": [

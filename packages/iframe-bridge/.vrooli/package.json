@@ -14,10 +14,16 @@
       "adoption_modes": ["file_dependency"]
     },
     "lifecycle": {
-      "build": [
-        {
-          "name": "build",
-          "run": ["pnpm", "build"]
+    "build": [
+      {
+        "name": "install",
+        "run": ["pnpm", "install", "--frozen-lockfile", "--ignore-workspace"],
+        "outputs": ["node_modules/.modules.yaml"]
+      },
+      {
+        "name": "build",
+          "run": ["pnpm", "build"],
+          "outputs": ["dist/**"]
         }
       ]
     },

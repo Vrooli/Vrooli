@@ -117,7 +117,7 @@
     {
       "id": "PRT-P1-011",
       "title": "Per-session delegated-run spend ceiling",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-011",
       "category": "sessions.budgets.delegated_runs",
       "criticality": "P1",
@@ -132,8 +132,8 @@
         {
           "type": "manual",
           "phase": "acceptance",
-          "status": "not_implemented",
-          "notes": "Re-verified 2026-08-11 during Phase 10: agent-manager's delegated workflow response contains execution status, evidence, and observations but no per-run charge field. Program Runtime records delegation spend as explicitly unmeasured with a durable note; completion remains blocked on the named upstream charge contract."
+          "status": "implemented",
+          "notes": "Target `api/internal/sessions/manager_test.go::TestDelegationSpendReceiptAccumulatesAndCeilingRejects` (tagged [REQ:PRT-P1-011]). Agent Manager publishes a terminal per-execution ChargeReceipt with currency, metering basis, and measured/unmeasured semantics; Program Runtime records measured receipts and atomically refuses a charge that would cross the delegated-run ceiling with delegated_run_spend_exceeded."
         }
       ]
     },

@@ -271,6 +271,93 @@ func AgentBridge(manager *sessions.Manager, delegator programs.Delegator) http.H
 	})
 }
 
+// AgentStartBridge launches delegated work without waiting for terminal state.
+// The execution identity is persisted before it is returned to the kernel.
+func AgentStartBridge(manager *sessions.Manager, delegator programs.Delegator) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var request programs.DelegationRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("decode delegation request: %v", err))
+			return
+		}
+		if _, err := manager.Get(r.Context(), request.SessionID); err != nil {
+			writeBridgeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		asyncDelegator, ok := delegator.(programs.AsyncDelegator)
+		if !ok {
+			writeBridgeError(w, http.StatusServiceUnavailable, "asynchronous agent-manager delegation is not configured")
+			return
+		}
+		result, err := asyncDelegator.Start(r.Context(), request)
+		if err != nil {
+			writeBridgeError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		executionID, _ := result["execution_id"].(string)
+		if err := manager.SaveDelegation(r.Context(), &sessions.Delegation{SessionID: request.SessionID, ExecutionID: executionID, Owner: request.Owner, WorkflowKey: request.WorkflowKey, CreatedAt: time.Now().UTC(), LastStatus: fmt.Sprint(result["status"])}); err != nil {
+			writeBridgeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(result)
+	})
+}
+
+// AgentCollectBridge enforces session ownership before collecting a bounded
+// delegated result. A wait of zero is a non-blocking status/result read.
+func AgentCollectBridge(manager *sessions.Manager, delegator programs.Delegator) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var request struct {
+			SessionID   string `json:"session_id"`
+			ExecutionID string `json:"execution_id"`
+			WaitSeconds int    `json:"wait_seconds"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("decode collect request: %v", err))
+			return
+		}
+		if _, err := manager.GetDelegation(r.Context(), request.SessionID, request.ExecutionID); err != nil {
+			status := http.StatusNotFound
+			if errors.Is(err, sessions.ErrDelegationNotOwned) {
+				status = http.StatusForbidden
+			}
+			writeBridgeError(w, status, err.Error())
+			return
+		}
+		asyncDelegator, ok := delegator.(programs.AsyncDelegator)
+		if !ok {
+			writeBridgeError(w, http.StatusServiceUnavailable, "asynchronous agent-manager delegation is not configured")
+			return
+		}
+		result, err := asyncDelegator.Collect(r.Context(), request.SessionID, request.ExecutionID, request.WaitSeconds)
+		if err != nil {
+			writeBridgeError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		cost, measured, note := programs.DelegationCharge(result)
+		if err := manager.RecordDelegationUsage(r.Context(), request.SessionID, cost, measured, note); err != nil {
+			var exceeded *sessions.SpendExceededError
+			if errors.As(err, &exceeded) {
+				writeBridgeError(w, http.StatusTooManyRequests, err.Error())
+				return
+			}
+			writeBridgeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(result)
+	})
+}
+
 func mapKeys(values map[string]struct{}) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {

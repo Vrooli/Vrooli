@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"syscall"
+	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -15,12 +16,17 @@ func configureProcessGroup(cmd *exec.Cmd) error {
 	return nil
 }
 
-func applyProcessLimits(pid int) error {
-	limits := []struct {
+func applyProcessLimits(pid int, executionLimits ExecutionLimits) error {
+	cpuSeconds := uint64(125)
+	if executionLimits.CPU > 0 {
+		cpuSeconds = uint64((executionLimits.CPU + time.Second - 1) / time.Second)
+		cpuSeconds += 5 // small backstop margin for supervisor accounting latency
+	}
+	resourceLimits := []struct {
 		resource int
 		value    uint64
-	}{{unix.RLIMIT_AS, 1 << 30}, {unix.RLIMIT_CPU, 125}, {unix.RLIMIT_FSIZE, 64 << 20}, {unix.RLIMIT_NOFILE, 256}}
-	for _, limit := range limits {
+	}{{unix.RLIMIT_AS, 1 << 30}, {unix.RLIMIT_CPU, cpuSeconds}, {unix.RLIMIT_FSIZE, 64 << 20}, {unix.RLIMIT_NOFILE, 256}}
+	for _, limit := range resourceLimits {
 		r := &unix.Rlimit{Cur: limit.value, Max: limit.value}
 		if err := unix.Prlimit(pid, limit.resource, r, nil); err != nil {
 			return fmt.Errorf("apply kernel resource limit %d: %w", limit.resource, err)

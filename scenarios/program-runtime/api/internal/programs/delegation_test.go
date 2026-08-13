@@ -32,7 +32,7 @@ func TestSpawnsAgentManagerRunAndCollectsEvidence(t *testing.T) { // [REQ:PRT-P1
 			}
 			_, _ = w.Write([]byte(`{"execution":{"id":"` + executionID + `","status":"succeeded"}}`))
 		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/result"):
-			_, _ = w.Write([]byte(`{"execution":{"id":"` + executionID + `","status":"succeeded","output":{"summary":"delegated evidence"},"observations":[{"kind":"run","status":"succeeded"}]}}`))
+			_, _ = w.Write([]byte(`{"execution":{"id":"` + executionID + `","status":"succeeded","output":{"summary":"delegated evidence"},"observations":[{"kind":"run","status":"succeeded"}],"charge_receipt":{"amount_micro_usd":42,"currency":"USD","metering_basis":"agent-manager.run.billing.metered_charge_micro_usd","measured":true,"note":"metered child charge"}}}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -51,6 +51,9 @@ func TestSpawnsAgentManagerRunAndCollectsEvidence(t *testing.T) { // [REQ:PRT-P1
 	if result["execution_id"] != executionID || result["status"] != "succeeded" {
 		t.Fatalf("result=%v", result)
 	}
+	if cost, measured, note := DelegationCharge(result); cost != 42 || !measured || note != "metered child charge" {
+		t.Fatalf("receipt cost=%d measured=%t note=%q result=%v", cost, measured, note, result)
+	}
 	evidence, ok := result["evidence"].(map[string]any)
 	if !ok || evidence["summary"] != "delegated evidence" {
 		t.Fatalf("evidence=%v", result["evidence"])
@@ -67,6 +70,21 @@ func TestDelegationChargeIsExplicitWhenAbsent(t *testing.T) {
 func TestDelegationChargeReadsMicroUsd(t *testing.T) {
 	cost, measured, note := DelegationCharge(map[string]any{"execution": map[string]any{"total_charge_micro_usd": float64(42)}})
 	if cost != 42 || !measured || !strings.Contains(note, "explicit") {
+		t.Fatalf("charge=%d measured=%t note=%q", cost, measured, note)
+	}
+}
+
+func TestDelegationChargeHonorsExplicitUnmeasuredReceipt(t *testing.T) {
+	cost, measured, note := DelegationCharge(map[string]any{
+		"charge_receipt": map[string]any{
+			"currency":         "USD",
+			"metering_basis":   "unmeasured",
+			"measured":         false,
+			"note":             "billing basis unavailable",
+			"amount_micro_usd": 0,
+		},
+	})
+	if cost != 0 || measured || note != "billing basis unavailable" {
 		t.Fatalf("charge=%d measured=%t note=%q", cost, measured, note)
 	}
 }

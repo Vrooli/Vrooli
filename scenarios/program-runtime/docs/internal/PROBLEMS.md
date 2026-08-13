@@ -81,34 +81,6 @@ workspace-sandbox.
 `docs/concepts/INTEGRATIONS.md`, scenario-qa bug intake
 `workspace-sandbox-lacks-a-typed-workspace-root-resolver`.
 
-### 2026-08-11 — agent-manager delegation has no per-run charge receipt
-
-**Symptom:** A delegated program run can complete successfully, but Program
-Runtime cannot attribute a monetary charge to that session from the response
-it receives.
-
-**Root cause:** The current agent-manager workflow execution and explicit
-result response shape contains execution status, output evidence, and
-observations, but no per-run `total_charge_micro_usd`, `charge_micro_usd`, or
-equivalent receipt. Aggregate `MeasuresService.RunCost` is not a safe substitute
-for attributing one delegated run.
-
-**Workaround:** Phase 10 stores delegation spend as zero only with
-`delegation_spend_measured=false` and a durable explanatory note. A configured
-delegation ceiling is enforced when a future response provides an explicit
-charge; PRT-P1-011 remains planned/waived.
-
-**Real fix:** Agent-manager should publish a stable per-execution charge
-receipt in its delegated-run result contract, including the currency unit and
-whether the amount is metered or estimated.
-
-**Owner:** agent-manager.
-
-**Refs:** `api/internal/programs/delegator.go`,
-`api/handlers/bindings/module.go`,
-`packages/proto/schemas/agent-manager/v1/measures/measures.proto`,
-`requirements/03-sessions/module.json`.
-
 ### 2026-08-07 — CLI renderer received the wrong protobuf type
 
 **Symptom:** Migrated `ai-gateway` commands failed in human mode because a

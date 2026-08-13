@@ -110,6 +110,28 @@ func TestEnforcesWallClockAndMemoryCeilings(t *testing.T) { // [REQ:PRT-P1-005]
 	}
 }
 
+func TestExecutionBudgetReportsCeilingAndConsumedValue(t *testing.T) {
+	m := NewManager(Options{WallBudget: 100 * time.Millisecond, CPUBudget: time.Second})
+	s, err := m.Create(testContext, "budget", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.ChargeExecution(testContext, s.ID, 75*time.Millisecond, 0); err != nil {
+		t.Fatal(err)
+	}
+	budget, err := m.ExecutionBudget(testContext, s.ID)
+	if err != nil || budget.WallConsumed != 75*time.Millisecond {
+		t.Fatalf("budget=%+v err=%v", budget, err)
+	}
+	err = m.ChargeExecution(testContext, s.ID, 30*time.Millisecond, 0)
+	if err == nil || !strings.Contains(err.Error(), "wall-clock budget exhausted") || !strings.Contains(err.Error(), "ceiling=100ms") || !strings.Contains(err.Error(), "consumed=105ms") {
+		t.Fatalf("budget exhaustion error=%v", err)
+	}
+	if _, err := m.Get(testContext, s.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("session after budget exhaustion err=%v", err)
+	}
+}
+
 func TestNamedSessionSurvivesAcrossAgentRuns(t *testing.T) { // [REQ:PRT-P2-003]
 	m := NewManager(Options{})
 	s, _ := m.Create(testContext, "investigation", "", []string{"network:internal"})
@@ -156,6 +178,48 @@ func TestSessionWithoutInferenceCeilingRemainsUnlimited(t *testing.T) { // [REQ:
 	}
 	if err := m.EnsureInferenceAvailable(testContext, s.ID); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDelegationSpendReceiptAccumulatesAndCeilingRejects(t *testing.T) { // [REQ:PRT-P1-011]
+	m := NewManager(Options{})
+	s, err := m.CreateWithBudgets(testContext, "delegated-meter", "", nil, 0, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.RecordDelegationUsage(testContext, s.ID, 1, true, "metered child charge"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.RecordDelegationUsage(testContext, s.ID, 1, true, "second child charge"); err == nil || !strings.Contains(err.Error(), "delegated_run_spend_exceeded") {
+		t.Fatalf("second delegated charge error=%v", err)
+	}
+	got, err := m.Get(testContext, s.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.DelegationCostMicros != 1 || !got.DelegationSpendMeasured || got.DelegationSpendNote != "metered child charge" {
+		t.Fatalf("delegation spend=%+v", got)
+	}
+}
+
+func TestDelegationIdentityIsPersistedAndSessionScoped(t *testing.T) {
+	db := newSessionTestDB(t)
+	first := NewManager(Options{Store: db})
+	s, err := first.Create(testContext, "delegation-owner", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	delegation := &Delegation{SessionID: s.ID, ExecutionID: "execution-1", Owner: "owner", WorkflowKey: "owner/workflow", CreatedAt: time.Now().UTC(), LastStatus: "running"}
+	if err := first.SaveDelegation(testContext, delegation); err != nil {
+		t.Fatal(err)
+	}
+	second := NewManager(Options{Store: db})
+	got, err := second.GetDelegation(testContext, s.ID, delegation.ExecutionID)
+	if err != nil || got.WorkflowKey != delegation.WorkflowKey {
+		t.Fatalf("delegation=%+v err=%v", got, err)
+	}
+	if _, err := second.GetDelegation(testContext, "sess_other", delegation.ExecutionID); !errors.Is(err, ErrDelegationNotOwned) {
+		t.Fatalf("cross-session lookup err=%v", err)
 	}
 }
 

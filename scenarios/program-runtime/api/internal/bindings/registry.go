@@ -61,6 +61,8 @@ type Registry struct {
 	semantic          map[string]semanticCounts
 	recorder          InvocationRecorder
 	artifactMtime     time.Time
+	generationMtime   time.Time
+	manifestMtimes    map[string]time.Time
 	resolver          ReachabilityResolver
 	manifestCount     int
 	totalScenarios    int
@@ -214,10 +216,16 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 		resolver:          discovery.ResolveScenarioURLDefault,
 		totalScenarios:    len(manifestPaths),
 		reachabilityCache: make(map[string]reachabilityStatus),
+		manifestMtimes:    make(map[string]time.Time),
+	}
+	if info, statErr := os.Stat(descriptorPath); statErr == nil {
+		r.generationMtime = info.ModTime()
 	}
 	for _, path := range manifestPaths {
 		if info, statErr := os.Stat(path); statErr == nil && !info.IsDir() {
 			r.manifestCount++
+			scenario := filepath.Base(filepath.Dir(filepath.Dir(path)))
+			r.manifestMtimes[scenario] = info.ModTime()
 		}
 	}
 	r.artifactMtime = snapshot.ArtifactMTime
@@ -358,7 +366,10 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 			}
 		}
 		usageInput, usageOutput, usageCost := invocationUsage(result)
-		r.RecordInvocation(ctx, Invocation{BindingID: id, TargetScenario: target, SessionID: metadata.SessionID, ProgramID: metadata.ProgramID, Provenance: metadata.Provenance, Outcome: outcome, Reason: reason, LatencyMS: time.Since(started).Milliseconds(), UsageInputTokens: usageInput, UsageOutputTokens: usageOutput, UsageCostMicros: usageCost, OccurredAt: time.Now().UTC()})
+		invocation := Invocation{BindingID: id, TargetScenario: target, SessionID: metadata.SessionID, ProgramID: metadata.ProgramID, Provenance: metadata.Provenance, Outcome: outcome, Reason: reason, LatencyMS: time.Since(started).Milliseconds(), UsageInputTokens: usageInput, UsageOutputTokens: usageOutput, UsageCostMicros: usageCost, OccurredAt: time.Now().UTC()}
+		invocation.Origin = invocationOrigin(invocation)
+		invocation.InvocationClass = classifyInvocation(invocation)
+		r.RecordInvocation(ctx, invocation)
 	}()
 	binding, ok := r.byID[id]
 	if !ok {
@@ -1335,7 +1346,7 @@ func (r *Registry) Sweep(ctx context.Context, scenario, effect string, dryRun bo
 				semaphore <- struct{}{}
 				defer func() { <-semaphore }()
 				started := time.Now()
-				_, err := r.Execute(ctx, item.id, item.args, nil, false, InvocationMetadata{ProgramID: "sweep", Provenance: "PROVENANCE_OPERATOR"}, &http.Client{Timeout: 2 * time.Second})
+				_, err := r.Execute(ctx, item.id, item.args, nil, false, InvocationMetadata{ProgramID: "sweep", Provenance: "PROVENANCE_OPERATOR"}, &http.Client{Timeout: 15 * time.Second})
 				item.result.Attempted = true
 				item.result.LatencyMs = time.Since(started).Milliseconds()
 				if err != nil {

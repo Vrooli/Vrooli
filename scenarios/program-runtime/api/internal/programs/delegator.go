@@ -14,10 +14,28 @@ import (
 )
 
 // DelegationCharge extracts only an explicitly per-run monetary charge. The
-// agent-manager response currently exposes workflow evidence but not a charge
-// field, so absence is returned as measured=false and is never converted into
-// a misleading zero-cost observation.
+// charge receipt is authoritative; an explicit unmeasured receipt remains
+// measured=false and is never converted into a misleading zero-cost
+// observation. Legacy flat fields remain accepted for compatibility with older
+// agent-manager deployments, but are not inferred from aggregate measures.
 func DelegationCharge(result map[string]any) (costMicros int64, measured bool, note string) {
+	if receipt, ok := findObject(result, "charge_receipt", "chargeReceipt"); ok {
+		note, _ := receipt["note"].(string)
+		if measured, _ := findBool(receipt, "measured"); !measured {
+			if strings.TrimSpace(note) == "" {
+				note = "agent-manager explicitly marked delegation charge as unmeasured"
+			}
+			return 0, false, note
+		}
+		value, ok := findNumberShallow(receipt, "amount_micro_usd", "amountMicroUsd")
+		if !ok {
+			return 0, false, "agent-manager charge receipt was marked measured but omitted amount_micro_usd"
+		}
+		if strings.TrimSpace(note) == "" {
+			note = "agent-manager returned an explicit per-run metered charge"
+		}
+		return value, true, note
+	}
 	if value, ok := findNumber(result, "total_charge_micro_usd", "totalChargeMicroUsd", "charge_micro_usd", "chargeMicroUsd"); ok {
 		return value, true, "agent-manager returned an explicit per-run charge"
 	}
@@ -25,6 +43,41 @@ func DelegationCharge(result map[string]any) (costMicros int64, measured bool, n
 		return value, true, "agent-manager returned an explicit per-run cost"
 	}
 	return 0, false, "agent-manager delegation result contained no per-run charge field"
+}
+
+func findObject(value map[string]any, keys ...string) (map[string]any, bool) {
+	for _, key := range keys {
+		if object, ok := value[key].(map[string]any); ok {
+			return object, true
+		}
+	}
+	return nil, false
+}
+
+func findBool(value map[string]any, keys ...string) (bool, bool) {
+	for _, key := range keys {
+		if candidate, ok := value[key]; ok {
+			boolean, ok := candidate.(bool)
+			return boolean, ok
+		}
+	}
+	return false, false
+}
+
+func findNumberShallow(value map[string]any, keys ...string) (int64, bool) {
+	for _, key := range keys {
+		if candidate, ok := value[key]; ok {
+			switch number := candidate.(type) {
+			case float64:
+				return int64(number), true
+			case int64:
+				return number, true
+			case int:
+				return int64(number), true
+			}
+		}
+	}
+	return 0, false
 }
 
 func findNumber(value any, keys ...string) (int64, bool) {
@@ -66,17 +119,27 @@ type HTTPDelegator struct {
 }
 
 func NewHTTPDelegator(baseURL string) *HTTPDelegator {
-	return &HTTPDelegator{baseURL: strings.TrimRight(strings.TrimSpace(baseURL), "/"), client: &http.Client{Timeout: 45 * time.Second}}
+	return &HTTPDelegator{baseURL: strings.TrimRight(strings.TrimSpace(baseURL), "/"), client: &http.Client{}}
 }
 
 func NewDiscoveryDelegator(client *http.Client) *HTTPDelegator {
 	if client == nil {
-		client = &http.Client{Timeout: 45 * time.Second}
+		client = &http.Client{}
 	}
 	return &HTTPDelegator{client: client}
 }
 
 func (d *HTTPDelegator) Delegate(ctx context.Context, request DelegationRequest) (map[string]any, error) {
+	started, err := d.Start(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	executionID, _ := started["execution_id"].(string)
+	return d.Collect(ctx, request.SessionID, executionID, 30)
+}
+
+// Start launches a workflow and returns before it reaches a terminal state.
+func (d *HTTPDelegator) Start(ctx context.Context, request DelegationRequest) (map[string]any, error) {
 	if strings.TrimSpace(request.SessionID) == "" {
 		return nil, fmt.Errorf("delegation session_id is required")
 	}
@@ -122,18 +185,38 @@ func (d *HTTPDelegator) Delegate(ctx context.Context, request DelegationRequest)
 		return nil, fmt.Errorf("start delegated run: response did not contain execution id")
 	}
 
-	wait, err := d.post(ctx, base+"/api/v1/workflow-executions/"+executionID+"/wait", map[string]any{
-		"executionId":    executionID,
-		"timeoutSeconds": 30,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("wait delegated run %s: %w", executionID, err)
-	}
-	waitExecution, _ := wait["execution"].(map[string]any)
-	if waitExecution == nil {
-		waitExecution = execution
-	}
+	return map[string]any{
+		"execution_id": executionID,
+		"status": valueOr(execution, "status", ""),
+	}, nil
+}
 
+// Collect optionally waits for a bounded number of seconds, then returns the
+// current explicit result projection. A zero wait performs a status read.
+func (d *HTTPDelegator) Collect(ctx context.Context, sessionID, executionID string, waitSeconds int) (map[string]any, error) {
+	if strings.TrimSpace(sessionID) == "" || strings.TrimSpace(executionID) == "" {
+		return nil, fmt.Errorf("delegation session_id and execution_id are required")
+	}
+	base := d.baseURL
+	if base == "" {
+		var err error
+		base, err = discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
+		if err != nil {
+			return nil, fmt.Errorf("resolve agent-manager: %w", err)
+		}
+		base = strings.TrimRight(base, "/")
+	}
+	waitExecution := map[string]any{}
+	if waitSeconds > 0 {
+		if waitSeconds > 300 {
+			waitSeconds = 300
+		}
+		wait, err := d.post(ctx, base+"/api/v1/workflow-executions/"+executionID+"/wait", map[string]any{"executionId": executionID, "timeoutSeconds": waitSeconds})
+		if err != nil {
+			return nil, fmt.Errorf("wait delegated run %s: %w", executionID, err)
+		}
+		waitExecution, _ = wait["execution"].(map[string]any)
+	}
 	result, err := d.get(ctx, base+"/api/v1/workflow-executions/"+executionID+"/result?explicitly_authorized=true")
 	if err != nil {
 		return nil, fmt.Errorf("collect delegated run %s evidence: %w", executionID, err)
@@ -144,9 +227,10 @@ func (d *HTTPDelegator) Delegate(ctx context.Context, request DelegationRequest)
 	}
 	return map[string]any{
 		"execution_id": executionID,
-		"status":       valueOr(resultExecution, "status", valueOr(waitExecution, "status", "")),
-		"evidence":     resultExecution["output"],
+		"status": valueOr(resultExecution, "status", ""),
+		"evidence": resultExecution["output"],
 		"observations": resultExecution["observations"],
+		"charge_receipt": valueOr(resultExecution, "charge_receipt", valueOr(resultExecution, "chargeReceipt", nil)),
 	}, nil
 }
 

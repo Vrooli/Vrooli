@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,9 +34,10 @@ func NewRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db}
 
 func (r *sqliteRepository) Save(ctx context.Context, p *programsv1.Program) error {
 	_, err := r.db.ExecContext(ctx, `INSERT INTO programs
- (id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, failure_location)
- VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.GetId(), p.GetSessionId(), p.GetSource(), strconv.Itoa(int(p.GetProvenance())), p.GetStatus(), p.GetCreatedAt(), p.GetCreatedAt(), p.GetStdout(), p.GetContextBytes(), p.GetAgentBytes(), p.GetOutputLimitBytes(), p.GetFailureDetail(), p.GetFailureShape(), failureLocation(p.GetFailureDetail()))
+	 (id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, failure_location, wall_time_millis, cpu_time_millis)
+	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	 ON CONFLICT(id) DO UPDATE SET status=excluded.status, completed_at=excluded.completed_at, stdout=excluded.stdout, context_bytes=excluded.context_bytes, agent_bytes=excluded.agent_bytes, output_limit_bytes=excluded.output_limit_bytes, failure_detail=excluded.failure_detail, failure_shape=excluded.failure_shape, failure_location=excluded.failure_location, wall_time_millis=excluded.wall_time_millis, cpu_time_millis=excluded.cpu_time_millis`,
+		p.GetId(), p.GetSessionId(), p.GetSource(), strconv.Itoa(int(p.GetProvenance())), statusName(p.GetStatus()), p.GetCreatedAt(), p.GetCompletedAt(), p.GetStdout(), p.GetContextBytes(), p.GetAgentBytes(), p.GetOutputLimitBytes(), p.GetFailureDetail(), p.GetFailureShape(), failureLocation(p.GetFailureDetail()), p.GetWallTimeMillis(), p.GetCpuTimeMillis())
 	if err != nil {
 		return fmt.Errorf("save program %q: %w", p.GetId(), err)
 	}
@@ -43,7 +45,7 @@ func (r *sqliteRepository) Save(ctx context.Context, p *programsv1.Program) erro
 }
 
 func (r *sqliteRepository) Get(ctx context.Context, id string) (*programsv1.Program, error) {
-	p, err := r.scan(r.db.QueryRowContext(ctx, `SELECT id, session_id, source, provenance, status, created_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape FROM programs WHERE id = ?`, id))
+	p, err := r.scan(r.db.QueryRowContext(ctx, `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis FROM programs WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrProgramNotFound
 	}
@@ -54,7 +56,7 @@ func (r *sqliteRepository) Get(ctx context.Context, id string) (*programsv1.Prog
 }
 
 func (r *sqliteRepository) List(ctx context.Context, sessionID string, includeOperator bool) ([]*programsv1.Program, error) {
-	query := `SELECT id, session_id, source, provenance, status, created_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape FROM programs WHERE 1=1`
+	query := `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis FROM programs WHERE 1=1`
 	args := make([]any, 0, 2)
 	if sessionID != "" {
 		query += ` AND session_id = ?`
@@ -152,15 +154,52 @@ type rowScanner interface{ Scan(...any) error }
 func (r *sqliteRepository) scan(row rowScanner) (*programsv1.Program, error) {
 	var p programsv1.Program
 	var provenance string
-	if err := row.Scan(&p.Id, &p.SessionId, &p.Source, &provenance, &p.Status, &p.CreatedAt, &p.Stdout, &p.ContextBytes, &p.AgentBytes, &p.OutputLimitBytes, &p.FailureDetail, &p.FailureShape); err != nil {
+	var status, completedAt string
+	if err := row.Scan(&p.Id, &p.SessionId, &p.Source, &provenance, &status, &p.CreatedAt, &completedAt, &p.Stdout, &p.ContextBytes, &p.AgentBytes, &p.OutputLimitBytes, &p.FailureDetail, &p.FailureShape, &p.WallTimeMillis, &p.CpuTimeMillis); err != nil {
 		return nil, err
 	}
+	p.Status = parseStatus(status)
+	p.CompletedAt = completedAt
 	value, err := strconv.Atoi(provenance)
 	if err != nil {
 		return nil, fmt.Errorf("parse program provenance: %w", err)
 	}
 	p.Provenance = programsv1.Provenance(value)
 	return &p, nil
+}
+
+func statusName(status programsv1.ProgramStatus) string {
+	switch status {
+	case programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED:
+		return "accepted"
+	case programsv1.ProgramStatus_PROGRAM_STATUS_RUNNING:
+		return "running"
+	case programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED:
+		return "succeeded"
+	case programsv1.ProgramStatus_PROGRAM_STATUS_FAILED:
+		return "failed"
+	case programsv1.ProgramStatus_PROGRAM_STATUS_CANCELLED:
+		return "cancelled"
+	default:
+		return "unspecified"
+	}
+}
+
+func parseStatus(value string) programsv1.ProgramStatus {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "accepted":
+		return programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED
+	case "running":
+		return programsv1.ProgramStatus_PROGRAM_STATUS_RUNNING
+	case "succeeded":
+		return programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED
+	case "failed":
+		return programsv1.ProgramStatus_PROGRAM_STATUS_FAILED
+	case "cancelled", "canceled":
+		return programsv1.ProgramStatus_PROGRAM_STATUS_CANCELLED
+	default:
+		return programsv1.ProgramStatus_PROGRAM_STATUS_UNSPECIFIED
+	}
 }
 
 type memoryRepository struct {
@@ -218,7 +257,7 @@ func (r *memoryRepository) MineFailures(ctx context.Context, includeOperator boo
 	}
 	counts := map[string]*aggregate{}
 	for _, p := range list {
-		if p.GetStatus() == "failed" && p.GetFailureShape() != "" && (since.IsZero() || p.GetCreatedAt() >= since.UTC().Format(time.RFC3339Nano)) {
+		if p.GetStatus() == programsv1.ProgramStatus_PROGRAM_STATUS_FAILED && p.GetFailureShape() != "" && (since.IsZero() || p.GetCreatedAt() >= since.UTC().Format(time.RFC3339Nano)) {
 			item := counts[p.GetFailureShape()]
 			if item == nil {
 				item = &aggregate{first: p.GetCreatedAt(), last: p.GetCreatedAt(), sample: p.GetId()}

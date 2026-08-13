@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -24,6 +25,12 @@ const (
 type conditionBand struct {
 	failureRate     float64
 	degradationRate float64
+}
+
+type freshnessMetadata struct {
+	sourcePath      string
+	sourceMtime     time.Time
+	generationMtime time.Time
 }
 
 // Calibrated 2026-08-12 from 639 instrumented bindings after the operator
@@ -67,7 +74,10 @@ func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, w
 			continue
 		}
 		response.TotalBindings++
-		condition := conditionForWithSustained(binding, byBinding[binding.GetId()], sustainedByBinding[binding.GetId()], r.artifactMtime)
+		metadata := freshnessMetadata{generationMtime: r.generationMtime}
+		metadata.sourcePath = filepath.Join("scenarios", binding.GetScenario(), "cli", "manifest.json")
+		metadata.sourceMtime = r.manifestMtimes[binding.GetScenario()]
+		condition := conditionForWithFreshness(binding, byBinding[binding.GetId()], sustainedByBinding[binding.GetId()], metadata)
 		if len(byBinding[binding.GetId()]) > 0 {
 			response.InstrumentedBindings++
 		}
@@ -105,9 +115,12 @@ func (r *Registry) InvocationMeasures(ctx context.Context) (total, failureRatePe
 	seen := make(map[string]struct{})
 	failed := 0
 	for _, row := range rows {
+		if row.InvocationClass == "probe_invalid_argument" || row.InvocationClass == "probe_timeout" {
+			continue
+		}
 		total++
 		seen[row.BindingID] = struct{}{}
-		if row.Outcome == "failed" {
+		if row.InvocationClass == "target_failed" || row.InvocationClass == "target_unavailable" {
 			failed++
 		}
 	}
@@ -129,6 +142,48 @@ func conditionFor(binding interface {
 	return conditionForWithSustained(binding, rows, rows, artifactMtime)
 }
 
+func conditionForWithFreshness(binding interface {
+	GetId() string
+	GetScenario() string
+}, rows, sustainedRows []Invocation, metadata freshnessMetadata,
+) *bindingsv1.BindingCondition {
+	condition := conditionForWithSustained(binding, rows, sustainedRows, metadata.generationMtime)
+	freshness := condition.Freshness
+	freshness.SourcePath = metadata.sourcePath
+	freshness.SourceMtime = formatFreshnessTime(metadata.sourceMtime)
+	freshness.GenerationMtime = formatFreshnessTime(metadata.generationMtime)
+	switch {
+	case metadata.generationMtime.IsZero():
+		freshness.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED
+		freshness.Family.Reason = "freshness generation timestamp unavailable"
+		freshness.DriftStatus = freshness.Family.Status
+		freshness.DriftReason = freshness.Family.Reason
+	case metadata.sourceMtime.IsZero():
+		freshness.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED
+		freshness.Family.Reason = fmt.Sprintf("freshness source timestamp unavailable: %s", metadata.sourcePath)
+		freshness.DriftStatus = freshness.Family.Status
+		freshness.DriftReason = freshness.Family.Reason
+	case metadata.sourceMtime.After(metadata.generationMtime):
+		freshness.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED
+		freshness.Family.Reason = fmt.Sprintf("freshness source newer than generation: %s source=%s generation=%s", metadata.sourcePath, formatFreshnessTime(metadata.sourceMtime), formatFreshnessTime(metadata.generationMtime))
+		freshness.DriftStatus = freshness.Family.Status
+		freshness.DriftReason = freshness.Family.Reason
+	default:
+		freshness.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY
+		freshness.Family.Reason = fmt.Sprintf("freshness generation covers %s", metadata.sourcePath)
+		freshness.DriftStatus = freshness.Family.Status
+		freshness.DriftReason = freshness.Family.Reason
+	}
+	return condition
+}
+
+func formatFreshnessTime(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339Nano)
+}
+
 func conditionForWithSustained(binding interface {
 	GetId() string
 	GetScenario() string
@@ -139,16 +194,37 @@ func conditionForWithSustained(binding interface {
 	exercise := &bindingsv1.ExerciseCondition{Family: &bindingsv1.ConditionFamily{Status: bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT, Reason: "exercise.invocations=0"}}
 	callers := map[string]struct{}{}
 	latencies := make([]int64, 0, len(rows))
+	servingRows := make([]Invocation, 0, len(rows))
 	failed, refused := 0, 0
 	var latest time.Time
 	for _, row := range rows {
-		exercise.Invocations++
-		caller := row.SessionID
-		if caller == "" {
-			caller = row.ProgramID
+		if row.InvocationClass == "" {
+			row.InvocationClass = classifyInvocation(row)
 		}
-		if caller != "" {
-			callers[caller] = struct{}{}
+		if row.InvocationClass == "probe_invalid_argument" || row.InvocationClass == "probe_timeout" {
+			serving.ProbeInvocations++
+			continue
+		}
+		servingRows = append(servingRows, row)
+		if row.Origin == "synthetic" {
+			serving.SyntheticInvocations++
+		} else {
+			serving.OrganicInvocations++
+		}
+		if row.Origin == "organic" {
+			exercise.Invocations++
+			caller := row.SessionID
+			if caller == "" {
+				caller = row.ProgramID
+			}
+			if caller != "" {
+				callers[caller] = struct{}{}
+			}
+			if row.OccurredAt.After(latest) {
+				latest = row.OccurredAt
+			}
+		} else {
+			exercise.SyntheticInvocations++
 		}
 		latencies = append(latencies, row.LatencyMS)
 		if row.Outcome == "failed" {
@@ -157,16 +233,13 @@ func conditionForWithSustained(binding interface {
 		if row.Outcome == "refused" {
 			refused++
 		}
-		if row.OccurredAt.After(latest) {
-			latest = row.OccurredAt
-		}
 	}
 	sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
-	if len(rows) > 0 {
-		exercise.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY
-		exercise.Family.Reason = "exercise.invocations>0"
-		serving.FailureRate = float64(failed) / float64(len(rows))
-		serving.DegradationRate = float64(refused) / float64(len(rows))
+	if len(servingRows) > 0 {
+		serving.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY
+		serving.Family.Reason = "serving observations measured"
+		serving.FailureRate = float64(failed) / float64(len(servingRows))
+		serving.DegradationRate = float64(refused) / float64(len(servingRows))
 		serving.LatencyP50Ms = nearestRank(latencies, 0.50)
 		serving.LatencyP95Ms = nearestRank(latencies, 0.95)
 		if serving.FailureRate > conditionBands.failureRate {
@@ -177,6 +250,10 @@ func conditionForWithSustained(binding interface {
 			serving.Family.Reason = fmt.Sprintf("serving.degradation_rate=%.4f", serving.DegradationRate)
 		}
 	}
+	if exercise.Invocations > 0 {
+		exercise.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY
+		exercise.Family.Reason = "exercise.invocations>0"
+	}
 	if serving.Family.Status == bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED && sustainedDegradation(sustainedRows) {
 		condition.SustainedDegradation = true
 		condition.SustainedDegradationReason = fmt.Sprintf("serving degraded across the %s sustained window", conditionSustainedWindow)
@@ -185,7 +262,7 @@ func conditionForWithSustained(binding interface {
 	if !latest.IsZero() {
 		exercise.LastInvokedAt = latest.UTC().Format(time.RFC3339Nano)
 	}
-	freshness := &bindingsv1.FreshnessCondition{Family: &bindingsv1.ConditionFamily{Status: bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, Reason: "freshness.drift is not instrumented"}, DriftStatus: bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, DriftReason: "declaration-versus-reality drift is not instrumented"}
+	freshness := &bindingsv1.FreshnessCondition{Family: &bindingsv1.ConditionFamily{Status: bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, Reason: "freshness source metadata unavailable"}, DriftStatus: bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, DriftReason: "freshness source metadata unavailable"}
 	if !artifactMtime.IsZero() {
 		age := time.Since(artifactMtime)
 		if age < 0 {
@@ -197,7 +274,7 @@ func conditionForWithSustained(binding interface {
 	condition.Freshness = freshness
 	condition.Exercise = exercise
 	switch {
-	case len(rows) == 0:
+	case serving.Family.Status == bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED:
 		condition.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT
 		condition.Verdict = "DORMANT: exercise.invocations=0"
 	case serving.Family.Status == bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED:

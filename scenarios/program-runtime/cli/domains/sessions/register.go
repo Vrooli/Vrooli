@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -40,11 +42,30 @@ func (h *handlers) create(ctx cliapp.OperationContext) (*sessionsv1.CreateSessio
 	if err != nil {
 		return nil, err
 	}
-	r, e := h.client.CreateSession(context.Background(), connect.NewRequest(&sessionsv1.CreateSessionRequest{Name: ctx.Flag("name"), SandboxWorkspace: ctx.Flag("sandbox-workspace"), Grants: cliutil.ParseCSV(ctx.Flag("grants")), InferenceCeilingMicros: inferenceCeiling, DelegationCeilingMicros: delegationCeiling}))
+	wallBudget, err := parseBudget(ctx.Flag("wall-budget"))
+	if err != nil {
+		return nil, err
+	}
+	cpuBudget, err := parseBudget(ctx.Flag("cpu-budget"))
+	if err != nil {
+		return nil, err
+	}
+	r, e := h.client.CreateSession(context.Background(), connect.NewRequest(&sessionsv1.CreateSessionRequest{Name: ctx.Flag("name"), SandboxWorkspace: ctx.Flag("sandbox-workspace"), Grants: cliutil.ParseCSV(ctx.Flag("grants")), InferenceCeilingMicros: inferenceCeiling, DelegationCeilingMicros: delegationCeiling, WallBudgetMillis: wallBudget, CpuBudgetMillis: cpuBudget}))
 	if e != nil {
 		return nil, cliapp.WrapAPIError("create session", e, nil)
 	}
 	return r.Msg, nil
+}
+
+func parseBudget(value string) (int64, error) {
+	if strings.TrimSpace(value) == "" {
+		return 0, nil
+	}
+	duration, err := time.ParseDuration(strings.TrimSpace(value))
+	if err != nil || duration <= 0 {
+		return 0, fmt.Errorf("execution budget must be a positive duration such as 30s")
+	}
+	return duration.Milliseconds(), nil
 }
 
 func parseCeiling(value string) (int64, error) {

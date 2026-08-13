@@ -16,7 +16,7 @@ that touches the API).
 The CLI's command surface (groups, commands, positionals, flags,
 RPC bindings, governance metadata) is declared in
 [`cli/manifest.json`](../../cli/manifest.json) and validated against the
-project CLI-manifest schema (`path:.vrooli/schemas/cli-manifest.schema.json`)
+project CLI-manifest schema (`path:../../.vrooli/schemas/cli-manifest.schema.json`)
 (schema id `cli-manifest/v1`). The manifest is loaded at startup by
 `cliapp.LoadFromManifestPrimitives`, which:
 

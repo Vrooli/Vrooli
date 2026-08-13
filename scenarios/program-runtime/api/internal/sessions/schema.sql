@@ -13,7 +13,11 @@ CREATE TABLE IF NOT EXISTS sessions (
   inference_ceiling_micros INTEGER NOT NULL DEFAULT 0,
   delegation_ceiling_micros INTEGER NOT NULL DEFAULT 0,
   delegation_spend_measured INTEGER NOT NULL DEFAULT 0,
-  delegation_spend_note TEXT NOT NULL DEFAULT ''
+  delegation_spend_note TEXT NOT NULL DEFAULT '',
+  wall_budget_millis INTEGER NOT NULL DEFAULT 14400000,
+  wall_consumed_millis INTEGER NOT NULL DEFAULT 0,
+  cpu_budget_millis INTEGER NOT NULL DEFAULT 14400000,
+  cpu_consumed_millis INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_last_activity ON sessions(last_activity_at);
@@ -35,3 +39,14 @@ CREATE TABLE IF NOT EXISTS reclamation_reasons (
 
 CREATE INDEX IF NOT EXISTS idx_reclamation_reasons_session ON reclamation_reasons(session_id);
 CREATE INDEX IF NOT EXISTS idx_reclamation_reasons_time ON reclamation_reasons(reclaimed_at);
+
+CREATE TABLE IF NOT EXISTS session_delegations (
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  execution_id TEXT PRIMARY KEY,
+  owner TEXT NOT NULL,
+  workflow_key TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  last_status TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_delegations_session ON session_delegations(session_id, created_at);

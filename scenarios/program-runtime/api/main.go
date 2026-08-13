@@ -13,13 +13,14 @@ import (
 
 	"program-runtime/internal/bindings"
 	"program-runtime/internal/capabilities"
-	"program-runtime/internal/clock"
 	"program-runtime/internal/modules"
 	"program-runtime/internal/programs"
 	"program-runtime/internal/retention"
 	"program-runtime/internal/server"
 	"program-runtime/internal/sessions"
 	"program-runtime/internal/telemetry"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -29,7 +30,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
-	"github.com/vrooli/repo-contract-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 
 	bindingsH "program-runtime/handlers/bindings"
@@ -157,6 +158,12 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	if err := sessions.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("session schema compatibility failed: %v", err)
+	}
+	if err := bindings.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("binding schema compatibility failed: %v", err)
+	}
 	if err := programs.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("program schema compatibility failed: %v", err)
 	}
@@ -212,8 +219,16 @@ func main() {
 		runner.SetDiscoveryURL(fmt.Sprintf("http://127.0.0.1:%s/internal/program-runtime/bindings/resolve-intent", port))
 	}
 	workspaceResolver := sessions.NewDiscoveryWorkspaceResolver(discovery.NewResolver(discovery.ResolverConfig{}), http.DefaultClient)
-	sessionManager := sessions.NewManager(sessions.Options{Store: db.Primary(), InferenceCeilingMicros: envInt64("PROGRAM_RUNTIME_INFERENCE_CEILING_MICROS"), DelegationCeilingMicros: envInt64("PROGRAM_RUNTIME_DELEGATION_CEILING_MICROS"), WorkspaceResolver: workspaceResolver, OnWorkspaceResolved: runner.SetSessionWorkspace, OnReclaimed: func(id string) { runner.KillSession(id); runner.ClearSessionWorkspace(id) }})
-	programService := programs.NewService(programs.Options{Store: db.Primary(), Runner: runner, RecordMemory: func(id string, bytes int64) { _ = sessionManager.SetMemoryBytes(context.Background(), id, bytes) }, ValidateSession: func(id string) bool { _, err := sessionManager.Get(context.Background(), id); return err == nil }, Events: telemetryStore})
+	sessionManager := sessions.NewManager(sessions.Options{Store: db.Primary(), WallBudget: envDurationMillis("PROGRAM_RUNTIME_WALL_BUDGET_MILLIS"), CPUBudget: envDurationMillis("PROGRAM_RUNTIME_CPU_BUDGET_MILLIS"), InferenceCeilingMicros: envInt64("PROGRAM_RUNTIME_INFERENCE_CEILING_MICROS"), DelegationCeilingMicros: envInt64("PROGRAM_RUNTIME_DELEGATION_CEILING_MICROS"), WorkspaceResolver: workspaceResolver, OnWorkspaceResolved: runner.SetSessionWorkspace, OnReclaimed: func(id string) { runner.KillSession(id); runner.ClearSessionWorkspace(id) }})
+	programService := programs.NewService(programs.Options{Store: db.Primary(), Runner: runner, RecordMemory: func(id string, bytes int64) { _ = sessionManager.SetMemoryBytes(context.Background(), id, bytes) }, ExecutionBudget: func(id string) (programs.ExecutionLimits, error) {
+		budget, err := sessionManager.ExecutionBudget(context.Background(), id)
+		if err != nil {
+			return programs.ExecutionLimits{}, err
+		}
+		return programs.ExecutionLimits{Wall: budget.WallBudget - budget.WallConsumed, CPU: budget.CPUBudget - budget.CPUConsumed}, nil
+	}, ChargeExecution: func(id string, wall, cpu time.Duration) error {
+		return sessionManager.ChargeExecution(context.Background(), id, wall, cpu)
+	}, ValidateSession: func(id string) bool { _, err := sessionManager.Get(context.Background(), id); return err == nil }, Events: telemetryStore})
 	reclamationStop := make(chan struct{})
 	reclamationDone := make(chan struct{})
 	go func() {
@@ -231,7 +246,7 @@ func main() {
 	}()
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.ModuleWithDescriptor(db, "program-runtime-api", "1.0.0", bindingRegistry.SkippedManifestCount, bindingRegistry.SnapshotMetadata),
 		capsH.Module(capabilities.NewRegistry()),
 		bindingsH.Module(bindingRegistry),
@@ -249,10 +264,12 @@ func main() {
 	rootMux.Handle("/internal/program-runtime/bindings/describe", bindingsH.DescribeBridge(bindingRegistry, sessionManager))
 	rootMux.Handle("/internal/program-runtime/bindings/resolve-intent", bindingsH.IntentBridge(bindingRegistry))
 	rootMux.Handle("/internal/program-runtime/agent/execute", bindingsH.AgentBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
+	rootMux.Handle("/internal/program-runtime/agent/start", bindingsH.AgentStartBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
+	rootMux.Handle("/internal/program-runtime/agent/collect", bindingsH.AgentCollectBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 
 	// /measures is the measures-go serve substrate consumed by measures-health.
 	// Declarations and execution stay typed and owned by this scenario.
-	runtimeMeasures, err := measuresH.Handler(clock.System{}, func() int {
+	runtimeMeasures, err := measuresH.Handler(schedule.System(), func() int {
 		return len(sessionManager.List(context.Background()))
 	}, func() int {
 		return len(programService.MineFailures(context.Background(), false))
@@ -302,4 +319,12 @@ func envInt64(name string) int64 {
 		return 0
 	}
 	return value
+}
+
+func envDurationMillis(name string) time.Duration {
+	value := envInt64(name)
+	if value == 0 {
+		return 0
+	}
+	return time.Duration(value) * time.Millisecond
 }

@@ -13,6 +13,25 @@ import (
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
+// validUTF8 protects the protobuf boundary from historical/imported data that
+// may contain arbitrary bytes. Protobuf string fields must contain UTF-8;
+// replacing malformed sequences keeps read surfaces available without
+// discarding otherwise valid content.
+func validUTF8(value string) string {
+	return strings.ToValidUTF8(value, "\uFFFD")
+}
+
+func validUTF8Slice(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make([]string, len(values))
+	for i, value := range values {
+		result[i] = validUTF8(value)
+	}
+	return result
+}
+
 // =============================================================================
 // AGENT PROFILE
 // =============================================================================
@@ -210,36 +229,36 @@ func RunToProto(r *domain.Run) *pb.Run {
 	run := &pb.Run{
 		Id:                    UUIDToString(r.ID),
 		TaskId:                UUIDToString(r.TaskID),
-		Tag:                   r.Tag,
-		Label:                 r.Label,
-		LabelSource:           string(r.LabelSource),
-		SessionId:             r.SessionID,
+		Tag:                   validUTF8(r.Tag),
+		Label:                 validUTF8(r.Label),
+		LabelSource:           validUTF8(string(r.LabelSource)),
+		SessionId:             validUTF8(r.SessionID),
 		RunMode:               RunModeToProto(r.RunMode),
 		ExecutionMode:         ExecutionModeToProto(r.ExecutionMode),
-		WebConsoleSessionId:   r.WebConsoleSessionID,
-		WebConsoleSessionUrl:  r.WebConsoleSessionURL,
+		WebConsoleSessionId:   validUTF8(r.WebConsoleSessionID),
+		WebConsoleSessionUrl:  validUTF8(r.WebConsoleSessionURL),
 		Status:                RunStatusToProto(r.Status),
 		Phase:                 RunPhaseToProto(r.Phase),
 		ProgressPercent:       int32(r.ProgressPercent),
-		IdempotencyKey:        r.IdempotencyKey,
-		ErrorMsg:              r.ErrorMsg,
+		IdempotencyKey:        validUTF8(r.IdempotencyKey),
+		ErrorMsg:              validUTF8(r.ErrorMsg),
 		ApprovalState:         ApprovalStateToProto(r.ApprovalState),
-		ApprovedBy:            r.ApprovedBy,
-		DiffPath:              r.DiffPath,
-		LogPath:               r.LogPath,
+		ApprovedBy:            validUTF8(r.ApprovedBy),
+		DiffPath:              validUTF8(r.DiffPath),
+		LogPath:               validUTF8(r.LogPath),
 		ChangedFiles:          int32(r.ChangedFiles),
 		TotalSizeBytes:        r.TotalSizeBytes,
-		CommitHash:            r.CommitHash,
-		PromptPreview:         r.PromptPreview,
-		RequestedModel:        r.RequestedModel,
-		ActualModel:           r.ActualModel,
+		CommitHash:            validUTF8(r.CommitHash),
+		PromptPreview:         validUTF8(r.PromptPreview),
+		RequestedModel:        validUTF8(r.RequestedModel),
+		ActualModel:           validUTF8(r.ActualModel),
 		FinalizationStatus:    RunFinalizationStatusToProto(r.FinalizationStatus),
-		FinalizationError:     r.FinalizationError,
+		FinalizationError:     validUTF8(r.FinalizationError),
 		CreatedAt:             TimestampToProto(r.CreatedAt),
 		UpdatedAt:             TimestampToProto(r.UpdatedAt),
-		ImportSourceHarness:   r.ImportSourceHarness,
-		ImportSourceSessionId: r.ImportSourceSessionID,
-		GoalId:                r.GoalID,
+		ImportSourceHarness:   validUTF8(r.ImportSourceHarness),
+		ImportSourceSessionId: validUTF8(r.ImportSourceSessionID),
+		GoalId:                validUTF8(r.GoalID),
 	}
 
 	if r.AgentProfileID != nil {
@@ -285,10 +304,10 @@ func RunToProto(r *domain.Run) *pb.Run {
 
 	if r.Summary != nil {
 		run.Summary = &pb.RunSummary{
-			Description:   r.Summary.Description,
-			FilesModified: r.Summary.FilesModified,
-			FilesCreated:  r.Summary.FilesCreated,
-			FilesDeleted:  r.Summary.FilesDeleted,
+			Description:   validUTF8(r.Summary.Description),
+			FilesModified: validUTF8Slice(r.Summary.FilesModified),
+			FilesCreated:  validUTF8Slice(r.Summary.FilesCreated),
+			FilesDeleted:  validUTF8Slice(r.Summary.FilesDeleted),
 			TokensUsed:    int32(r.Summary.TokensUsed),
 			TurnsUsed:     int32(r.Summary.TurnsUsed),
 			CostEstimate:  r.Summary.CostEstimate,
@@ -298,7 +317,7 @@ func RunToProto(r *domain.Run) *pb.Run {
 	if r.Result != nil {
 		run.Result = RunResultToProto(r.Result)
 	}
-	run.Subject = append([]string(nil), r.Subject...)
+	run.Subject = validUTF8Slice(r.Subject)
 
 	if r.ResolvedConfig != nil {
 		run.ResolvedConfig = RunConfigToProto(r.ResolvedConfig)
@@ -311,13 +330,13 @@ func RunToProto(r *domain.Run) *pb.Run {
 			CanStop:                    r.Actions.CanStop,
 			CanRetry:                   r.Actions.CanRetry,
 			CanContinue:                r.Actions.CanContinue,
-			CanContinueReason:          r.Actions.CanContinueReason,
+			CanContinueReason:          validUTF8(r.Actions.CanContinueReason),
 			CanApprove:                 r.Actions.CanApprove,
 			CanReject:                  r.Actions.CanReject,
 			CanReview:                  r.Actions.CanReview,
 			CanResumeFromFailure:       r.Actions.CanResumeFromFailure,
-			CanResumeFromFailureReason: r.Actions.CanResumeFromFailureReason,
-			FinalizationWarning:        r.Actions.FinalizationWarning,
+			CanResumeFromFailureReason: validUTF8(r.Actions.CanResumeFromFailureReason),
+			FinalizationWarning:        validUTF8(r.Actions.FinalizationWarning),
 			CanRetryFinalization:       r.Actions.CanRetryFinalization,
 		}
 	}
@@ -332,8 +351,8 @@ func AwaitHandleToProto(h *domain.AwaitHandle) *pb.AwaitHandle {
 		return nil
 	}
 	out := &pb.AwaitHandle{
-		Producer:     h.Producer,
-		Key:          h.Key,
+		Producer:     validUTF8(h.Producer),
+		Key:          validUTF8(h.Key),
 		RegisteredAt: TimestampToProto(h.RegisteredAt),
 	}
 	if h.Deadline != nil {
@@ -999,28 +1018,28 @@ func RunResultToProto(result *domain.RunResult) *pb.RunResult {
 	candidates := make([]*pb.FinalOutputCandidate, 0, len(result.Candidates))
 	for _, candidate := range result.Candidates {
 		candidates = append(candidates, &pb.FinalOutputCandidate{
-			Id: candidate.ID, EventId: candidate.EventID, Sequence: candidate.Sequence,
-			Content: candidate.Content, MessageId: candidate.MessageID,
-			ConversationId: candidate.ConversationID, TurnId: candidate.TurnID,
-			ProviderOrigin: candidate.ProviderOrigin, CompletionReason: candidate.CompletionReason,
-			Terminal: candidate.Terminal, ParentMessageId: candidate.ParentMessageID,
-			ProviderEventType: candidate.ProviderEventType, RawEvidenceRef: candidate.RawEvidenceRef,
+			Id: validUTF8(candidate.ID), EventId: validUTF8(candidate.EventID), Sequence: candidate.Sequence,
+			Content: validUTF8(candidate.Content), MessageId: validUTF8(candidate.MessageID),
+			ConversationId: validUTF8(candidate.ConversationID), TurnId: validUTF8(candidate.TurnID),
+			ProviderOrigin: validUTF8(candidate.ProviderOrigin), CompletionReason: validUTF8(candidate.CompletionReason),
+			Terminal: candidate.Terminal, ParentMessageId: validUTF8(candidate.ParentMessageID),
+			ProviderEventType: validUTF8(candidate.ProviderEventType), RawEvidenceRef: validUTF8(candidate.RawEvidenceRef),
 			EvidenceTier: int32(candidate.EvidenceTier),
 		})
 	}
 	return &pb.RunResult{
-		FinalOutput: result.FinalOutput,
+		FinalOutput: validUTF8(result.FinalOutput),
 		Selection: &pb.FinalOutputSelection{
 			Status:              FinalOutputSelectionStatusToProto(result.Selection.Status),
-			SelectedCandidateId: result.Selection.SelectedCandidateID,
-			Rule:                result.Selection.Rule,
-			AlgorithmVersion:    result.Selection.AlgorithmVersion,
-			Evidence:            result.Selection.Evidence,
+			SelectedCandidateId: validUTF8(result.Selection.SelectedCandidateID),
+			Rule:                validUTF8(result.Selection.Rule),
+			AlgorithmVersion:    validUTF8(result.Selection.AlgorithmVersion),
+			Evidence:            validUTF8Slice(result.Selection.Evidence),
 		},
 		Candidates:     candidates,
 		Success:        result.Success,
 		ExitCode:       int32(result.ExitCode),
-		TerminalReason: result.TerminalReason,
+		TerminalReason: validUTF8(result.TerminalReason),
 		Structured:     StructuredResultToProto(result.Structured),
 	}
 }
@@ -1031,19 +1050,19 @@ func StructuredResultToProto(result *domain.StructuredResult) *pb.StructuredResu
 	}
 	diagnostics := make([]*pb.StructuredDiagnostic, 0, len(result.Diagnostics))
 	for _, diagnostic := range result.Diagnostics {
-		diagnostics = append(diagnostics, &pb.StructuredDiagnostic{Code: diagnostic.Code, Path: diagnostic.Path, Message: diagnostic.Message})
+		diagnostics = append(diagnostics, &pb.StructuredDiagnostic{Code: validUTF8(diagnostic.Code), Path: validUTF8(diagnostic.Path), Message: validUTF8(diagnostic.Message)})
 	}
 	var extractor *pb.StructuredExtractionProvenance
 	if result.Extractor != nil {
 		extractor = &pb.StructuredExtractionProvenance{
-			RoleRef: result.Extractor.RoleRef, Provider: result.Extractor.Provider, Model: result.Extractor.Model,
+			RoleRef: validUTF8(result.Extractor.RoleRef), Provider: validUTF8(result.Extractor.Provider), Model: validUTF8(result.Extractor.Model),
 			PolicySnapshot: ExecutionPolicySnapshotToProto(result.Extractor.PolicySnapshot),
 		}
 	}
 	return &pb.StructuredResult{
 		Status: StructuredResultStatusToProto(result.Status), SpecKind: ResultSpecKindToProto(result.SpecKind),
-		SchemaDigest: result.SchemaDigest, Value: append([]byte(nil), result.Value...), Method: result.Method,
-		SourceCandidateId: result.SourceCandidateID, Extractor: extractor, Diagnostics: diagnostics,
+		SchemaDigest: validUTF8(result.SchemaDigest), Value: append([]byte(nil), result.Value...), Method: validUTF8(result.Method),
+		SourceCandidateId: validUTF8(result.SourceCandidateID), Extractor: extractor, Diagnostics: diagnostics,
 	}
 }
 

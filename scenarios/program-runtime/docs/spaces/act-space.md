@@ -91,7 +91,7 @@ gap in the acting surface even when the underlying capability plainly exists.
 | A18 | Read & write requirements / PoRs | `prompt-manager`, per-scenario `requirements/` | PARTIAL | **Audited.** Prompt Manager is present but has no resolved governed binding for this compound owner; filesystem-shaped requirements remain partial. |
 | **Delegate & infer** | | | | |
 | A19 | Typed inference — classify / extract / judge | `ai-gateway` | NOW | `program-runtime` exposes governed `vrooli.ai.classify`, `vrooli.ai.extract`, and `vrooli.ai.judge` facades over ai-gateway's locally validated inference RPC and catalog roles; the live cell explanation confirms the status. |
-| A20 | Spawn a delegated agent run and collect its evidence | `agent-manager` | COVERED | Already consumed programmatically by MoM's `trials` domain. |
+| A20 | Spawn a delegated agent run and collect its evidence | `agent-manager` | COVERED | Program Runtime owns a non-blocking `agent.start`/`agent.collect` path with session-scoped execution identities. |
 | A21 | Read run transcripts, events, and friction findings | `agent-manager` | PARTIAL | Reachable, but ~65% of runs have unknown ownership, so results are not yet trustworthy. |
 | **Change** | | | | |
 | A22 | Create an isolated workspace over the repo | `workspace-sandbox` | COVERED | Copy-on-write; safety from accidents, not from adversaries. |

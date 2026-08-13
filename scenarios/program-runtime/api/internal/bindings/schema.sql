@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS binding_invocations (
   usage_input_tokens INTEGER NOT NULL DEFAULT 0,
   usage_output_tokens INTEGER NOT NULL DEFAULT 0,
   usage_cost_micros INTEGER NOT NULL DEFAULT 0,
+  origin TEXT NOT NULL DEFAULT 'organic',
+  invocation_class TEXT NOT NULL DEFAULT 'success',
   occurred_at TEXT NOT NULL
 );
 

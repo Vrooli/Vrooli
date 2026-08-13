@@ -29,8 +29,25 @@ type Repository interface {
 	SetMemoryBytes(context.Context, string, int64) error
 	RecordInferenceUsage(context.Context, string, int64, int64) error
 	RecordDelegationUsage(context.Context, string, int64, bool, string) error
+	SaveDelegation(context.Context, *Delegation) error
+	GetDelegation(context.Context, string, string) (*Delegation, error)
+	RecordExecutionUsage(context.Context, string, time.Duration, time.Duration, time.Time) error
 	Reclaim(context.Context, string, string, time.Time) error
 }
+
+type Delegation struct {
+	SessionID   string
+	ExecutionID string
+	Owner       string
+	WorkflowKey string
+	CreatedAt   time.Time
+	LastStatus  string
+}
+
+var (
+	ErrDelegationNotFound = errors.New("delegation not found")
+	ErrDelegationNotOwned = errors.New("delegation does not belong to session")
+)
 
 type sqliteRepository struct{ db SQLExecutor }
 
@@ -38,8 +55,8 @@ func NewRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db}
 
 func (r *sqliteRepository) Create(ctx context.Context, s *Session) error {
 	_, err := r.db.ExecContext(ctx, `INSERT INTO sessions
-	 (id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason, inference_cost_micros, inference_tokens, delegation_cost_micros, inference_ceiling_micros, delegation_ceiling_micros, delegation_spend_measured, delegation_spend_note)
-	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, s.ID, s.Name, s.State, formatTime(s.CreatedAt), formatTime(s.LastActivityAt), s.SandboxWorkspace, s.MemoryBytes, s.ReclaimedReason, s.InferenceCostMicros, s.InferenceTokens, s.DelegationCostMicros, s.InferenceCeilingMicros, s.DelegationCeilingMicros, boolInt(s.DelegationSpendMeasured), s.DelegationSpendNote)
+	 (id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason, inference_cost_micros, inference_tokens, delegation_cost_micros, inference_ceiling_micros, delegation_ceiling_micros, delegation_spend_measured, delegation_spend_note, wall_budget_millis, wall_consumed_millis, cpu_budget_millis, cpu_consumed_millis)
+	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, s.ID, s.Name, s.State, formatTime(s.CreatedAt), formatTime(s.LastActivityAt), s.SandboxWorkspace, s.MemoryBytes, s.ReclaimedReason, s.InferenceCostMicros, s.InferenceTokens, s.DelegationCostMicros, s.InferenceCeilingMicros, s.DelegationCeilingMicros, boolInt(s.DelegationSpendMeasured), s.DelegationSpendNote, durationMillis(s.WallBudget), durationMillis(s.WallConsumed), durationMillis(s.CPUBudget), durationMillis(s.CPUConsumed))
 	if err != nil {
 		return fmt.Errorf("create session %q: %w", s.ID, err)
 	}
@@ -52,7 +69,7 @@ func (r *sqliteRepository) Create(ctx context.Context, s *Session) error {
 }
 
 func (r *sqliteRepository) Get(ctx context.Context, id string) (*Session, error) {
-	s, err := r.scanSession(r.db.QueryRowContext(ctx, `SELECT id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason, inference_cost_micros, inference_tokens, delegation_cost_micros, inference_ceiling_micros, delegation_ceiling_micros, delegation_spend_measured, delegation_spend_note FROM sessions WHERE id = ?`, id))
+	s, err := r.scanSession(r.db.QueryRowContext(ctx, `SELECT id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason, inference_cost_micros, inference_tokens, delegation_cost_micros, inference_ceiling_micros, delegation_ceiling_micros, delegation_spend_measured, delegation_spend_note, wall_budget_millis, wall_consumed_millis, cpu_budget_millis, cpu_consumed_millis FROM sessions WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -66,7 +83,7 @@ func (r *sqliteRepository) Get(ctx context.Context, id string) (*Session, error)
 }
 
 func (r *sqliteRepository) List(ctx context.Context) ([]*Session, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason, inference_cost_micros, inference_tokens, delegation_cost_micros, inference_ceiling_micros, delegation_ceiling_micros, delegation_spend_measured, delegation_spend_note FROM sessions ORDER BY created_at, id`)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason, inference_cost_micros, inference_tokens, delegation_cost_micros, inference_ceiling_micros, delegation_ceiling_micros, delegation_spend_measured, delegation_spend_note, wall_budget_millis, wall_consumed_millis, cpu_budget_millis, cpu_consumed_millis FROM sessions ORDER BY created_at, id`)
 	if err != nil {
 		return nil, fmt.Errorf("list sessions: %w", err)
 	}
@@ -177,7 +194,7 @@ func (r *sqliteRepository) RecordInferenceUsage(ctx context.Context, id string, 
 }
 
 func (r *sqliteRepository) RecordDelegationUsage(ctx context.Context, id string, costMicros int64, measured bool, note string) error {
-	result, err := r.db.ExecContext(ctx, `UPDATE sessions SET delegation_cost_micros = delegation_cost_micros + ?, delegation_spend_measured = ?, delegation_spend_note = ?, last_activity_at = ? WHERE id = ? AND (? = 0 OR delegation_ceiling_micros = 0 OR delegation_cost_micros < delegation_ceiling_micros)`, costMicros, boolInt(measured), note, formatTime(time.Now().UTC()), id, boolInt(measured))
+	result, err := r.db.ExecContext(ctx, `UPDATE sessions SET delegation_cost_micros = delegation_cost_micros + ?, delegation_spend_measured = ?, delegation_spend_note = ?, last_activity_at = ? WHERE id = ? AND (? = 0 OR delegation_ceiling_micros = 0 OR delegation_cost_micros + ? <= delegation_ceiling_micros)`, costMicros, boolInt(measured), note, formatTime(time.Now().UTC()), id, boolInt(measured), costMicros)
 	if err != nil {
 		return fmt.Errorf("record delegation usage for %q: %w", id, err)
 	}
@@ -187,6 +204,45 @@ func (r *sqliteRepository) RecordDelegationUsage(ctx context.Context, id string,
 			return getErr
 		}
 		return &SpendExceededError{Kind: "delegated_run", Ceiling: s.DelegationCeilingMicros, Accumulated: s.DelegationCostMicros}
+	}
+	return nil
+}
+
+func (r *sqliteRepository) SaveDelegation(ctx context.Context, delegation *Delegation) error {
+	if delegation == nil || delegation.SessionID == "" || delegation.ExecutionID == "" {
+		return errors.New("session and execution identifiers are required")
+	}
+	_, err := r.db.ExecContext(ctx, `INSERT INTO session_delegations (session_id, execution_id, owner, workflow_key, created_at, last_status) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(execution_id) DO UPDATE SET last_status=excluded.last_status`, delegation.SessionID, delegation.ExecutionID, delegation.Owner, delegation.WorkflowKey, formatTime(delegation.CreatedAt), delegation.LastStatus)
+	return err
+}
+
+func (r *sqliteRepository) GetDelegation(ctx context.Context, sessionID, executionID string) (*Delegation, error) {
+	var d Delegation
+	var created string
+	err := r.db.QueryRowContext(ctx, `SELECT session_id, execution_id, owner, workflow_key, created_at, last_status FROM session_delegations WHERE execution_id = ?`, executionID).Scan(&d.SessionID, &d.ExecutionID, &d.Owner, &d.WorkflowKey, &created, &d.LastStatus)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrDelegationNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	d.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
+	if err != nil {
+		return nil, err
+	}
+	if d.SessionID != sessionID {
+		return nil, ErrDelegationNotOwned
+	}
+	return &d, nil
+}
+
+func (r *sqliteRepository) RecordExecutionUsage(ctx context.Context, id string, wall, cpu time.Duration, now time.Time) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE sessions SET wall_consumed_millis = wall_consumed_millis + ?, cpu_consumed_millis = cpu_consumed_millis + ?, last_activity_at = ? WHERE id = ?`, durationMillis(wall), durationMillis(cpu), formatTime(now), id)
+	if err != nil {
+		return fmt.Errorf("record execution usage for %q: %w", id, err)
+	}
+	if affected, _ := result.RowsAffected(); affected == 0 {
+		return ErrNotFound
 	}
 	return nil
 }
@@ -214,9 +270,14 @@ func (r *sqliteRepository) scanSession(row rowScanner) (*Session, error) {
 	var s Session
 	var created, activity string
 	var measured int64
-	if err := row.Scan(&s.ID, &s.Name, &s.State, &created, &activity, &s.SandboxWorkspace, &s.MemoryBytes, &s.ReclaimedReason, &s.InferenceCostMicros, &s.InferenceTokens, &s.DelegationCostMicros, &s.InferenceCeilingMicros, &s.DelegationCeilingMicros, &measured, &s.DelegationSpendNote); err != nil {
+	var wallBudget, wallConsumed, cpuBudget, cpuConsumed int64
+	if err := row.Scan(&s.ID, &s.Name, &s.State, &created, &activity, &s.SandboxWorkspace, &s.MemoryBytes, &s.ReclaimedReason, &s.InferenceCostMicros, &s.InferenceTokens, &s.DelegationCostMicros, &s.InferenceCeilingMicros, &s.DelegationCeilingMicros, &measured, &s.DelegationSpendNote, &wallBudget, &wallConsumed, &cpuBudget, &cpuConsumed); err != nil {
 		return nil, err
 	}
+	s.WallBudget = time.Duration(wallBudget) * time.Millisecond
+	s.WallConsumed = time.Duration(wallConsumed) * time.Millisecond
+	s.CPUBudget = time.Duration(cpuBudget) * time.Millisecond
+	s.CPUConsumed = time.Duration(cpuConsumed) * time.Millisecond
 	s.DelegationSpendMeasured = measured != 0
 	var err error
 	if s.CreatedAt, err = time.Parse(time.RFC3339Nano, created); err != nil {
@@ -247,6 +308,8 @@ func (r *sqliteRepository) loadGrants(ctx context.Context, s *Session) error {
 
 func formatTime(value time.Time) string { return value.UTC().Format(time.RFC3339Nano) }
 
+func durationMillis(value time.Duration) int64 { return value.Milliseconds() }
+
 func boolInt(value bool) int {
 	if value {
 		return 1
@@ -260,10 +323,11 @@ type memoryRepository struct {
 	mu       sync.RWMutex
 	sessions map[string]*Session
 	reasons  []string
+	delegations map[string]*Delegation
 }
 
 func newMemoryRepository() *memoryRepository {
-	return &memoryRepository{sessions: make(map[string]*Session)}
+	return &memoryRepository{sessions: make(map[string]*Session), delegations: make(map[string]*Delegation)}
 }
 
 func (r *memoryRepository) Create(_ context.Context, s *Session) error {
@@ -296,13 +360,57 @@ func (r *memoryRepository) RecordDelegationUsage(_ context.Context, id string, c
 	if !ok {
 		return ErrNotFound
 	}
-	if measured && s.DelegationCeilingMicros > 0 && s.DelegationCostMicros >= s.DelegationCeilingMicros {
+	if measured && s.DelegationCeilingMicros > 0 && s.DelegationCostMicros+costMicros > s.DelegationCeilingMicros {
 		return &SpendExceededError{Kind: "delegated_run", Ceiling: s.DelegationCeilingMicros, Accumulated: s.DelegationCostMicros}
 	}
 	s.DelegationCostMicros += costMicros
 	s.DelegationSpendMeasured = measured
 	s.DelegationSpendNote = note
 	s.LastActivityAt = time.Now().UTC()
+	return nil
+}
+
+func (r *memoryRepository) SaveDelegation(_ context.Context, delegation *Delegation) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.sessions[delegation.SessionID]; !ok {
+		return ErrNotFound
+	}
+	r.delegations[delegation.ExecutionID] = cloneDelegation(delegation)
+	return nil
+}
+
+func (r *memoryRepository) GetDelegation(_ context.Context, sessionID, executionID string) (*Delegation, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	delegation, ok := r.delegations[executionID]
+	if !ok {
+		return nil, ErrDelegationNotFound
+	}
+	if delegation.SessionID != sessionID {
+		return nil, ErrDelegationNotOwned
+	}
+	return cloneDelegation(delegation), nil
+}
+
+func cloneDelegation(delegation *Delegation) *Delegation {
+	if delegation == nil {
+		return nil
+	}
+	copy := *delegation
+	return &copy
+}
+
+func (r *memoryRepository) RecordExecutionUsage(_ context.Context, id string, wall, cpu time.Duration, now time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	s, ok := r.sessions[id]
+	if !ok {
+		return ErrNotFound
+	}
+	s.WallConsumed += wall
+	s.CPUConsumed += cpu
+	s.LastActivityAt = now
 	return nil
 }
 

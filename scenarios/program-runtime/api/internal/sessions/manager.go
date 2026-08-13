@@ -23,6 +23,28 @@ var (
 	ErrKernelStart   = errors.New("kernel failed to start")
 )
 
+const (
+	defaultWallBudget = 4 * time.Hour
+	defaultCPUBudget  = 4 * time.Hour
+)
+
+type ExecutionBudget struct {
+	WallBudget   time.Duration
+	WallConsumed time.Duration
+	CPUBudget    time.Duration
+	CPUConsumed  time.Duration
+}
+
+type ExecutionBudgetExceededError struct {
+	Kind     string
+	Ceiling  time.Duration
+	Consumed time.Duration
+}
+
+func (e *ExecutionBudgetExceededError) Error() string {
+	return fmt.Sprintf("%s budget exhausted: ceiling=%s consumed=%s", e.Kind, e.Ceiling, e.Consumed)
+}
+
 // SpendExceededError identifies the ceiling that prevented a new metered
 // operation from starting.
 type SpendExceededError struct {
@@ -46,6 +68,8 @@ type Options struct {
 	Store                   SQLExecutor
 	IdleTimeout             time.Duration
 	WallTimeout             time.Duration
+	WallBudget              time.Duration
+	CPUBudget               time.Duration
 	MemoryLimit             int64
 	MaxSessions             int
 	InferenceCeilingMicros  int64
@@ -79,6 +103,10 @@ type Session struct {
 	DelegationCeilingMicros int64
 	DelegationSpendMeasured bool
 	DelegationSpendNote     string
+	WallBudget              time.Duration
+	WallConsumed            time.Duration
+	CPUBudget               time.Duration
+	CPUConsumed             time.Duration
 	Kernel                  Kernel
 }
 
@@ -99,6 +127,12 @@ func NewManager(options Options) *Manager {
 	if options.WallTimeout <= 0 {
 		options.WallTimeout = 4 * time.Hour
 	}
+	if options.WallBudget <= 0 {
+		options.WallBudget = defaultWallBudget
+	}
+	if options.CPUBudget <= 0 {
+		options.CPUBudget = defaultCPUBudget
+	}
 	repo := Repository(newMemoryRepository())
 	if options.Store != nil {
 		repo = NewRepository(options.Store)
@@ -114,6 +148,10 @@ func (m *Manager) Create(ctx context.Context, name, sandbox string, grants []str
 }
 
 func (m *Manager) CreateWithBudgets(ctx context.Context, name, sandbox string, grants []string, inferenceCeilingMicros, delegationCeilingMicros int64) (*Session, error) {
+	return m.CreateWithExecutionBudgets(ctx, name, sandbox, grants, inferenceCeilingMicros, delegationCeilingMicros, 0, 0)
+}
+
+func (m *Manager) CreateWithExecutionBudgets(ctx context.Context, name, sandbox string, grants []string, inferenceCeilingMicros, delegationCeilingMicros, wallBudgetMillis, cpuBudgetMillis int64) (*Session, error) {
 	if m.options.MaxSessions > 0 {
 		current, err := m.repo.List(ctx)
 		if err != nil {
@@ -139,7 +177,15 @@ func (m *Manager) CreateWithBudgets(ctx context.Context, name, sandbox string, g
 	if delegationCeilingMicros <= 0 {
 		delegationCeilingMicros = m.options.DelegationCeilingMicros
 	}
-	s := &Session{ID: id, Name: strings.TrimSpace(name), State: "running", CreatedAt: now, LastActivityAt: now, Grants: grantSet(grants), SandboxWorkspace: workspace, InferenceCeilingMicros: inferenceCeilingMicros, DelegationCeilingMicros: delegationCeilingMicros}
+	wallBudget := m.options.WallBudget
+	if wallBudgetMillis > 0 {
+		wallBudget = time.Duration(wallBudgetMillis) * time.Millisecond
+	}
+	cpuBudget := m.options.CPUBudget
+	if cpuBudgetMillis > 0 {
+		cpuBudget = time.Duration(cpuBudgetMillis) * time.Millisecond
+	}
+	s := &Session{ID: id, Name: strings.TrimSpace(name), State: "running", CreatedAt: now, LastActivityAt: now, Grants: grantSet(grants), SandboxWorkspace: workspace, InferenceCeilingMicros: inferenceCeilingMicros, DelegationCeilingMicros: delegationCeilingMicros, WallBudget: wallBudget, CPUBudget: cpuBudget}
 	if m.options.KernelFactory != nil {
 		kernel, err := m.options.KernelFactory(id)
 		if err != nil {
@@ -176,6 +222,23 @@ func (m *Manager) RecordInferenceUsage(ctx context.Context, id string, costMicro
 
 func (m *Manager) RecordDelegationUsage(ctx context.Context, id string, costMicros int64, measured bool, note string) error {
 	return m.repo.RecordDelegationUsage(ctx, id, costMicros, measured, note)
+}
+
+func (m *Manager) SaveDelegation(ctx context.Context, delegation *Delegation) error {
+	if delegation == nil || delegation.SessionID == "" || delegation.ExecutionID == "" {
+		return errors.New("session and execution identifiers are required")
+	}
+	if _, err := m.Get(ctx, delegation.SessionID); err != nil {
+		return err
+	}
+	return m.repo.SaveDelegation(ctx, delegation)
+}
+
+func (m *Manager) GetDelegation(ctx context.Context, sessionID, executionID string) (*Delegation, error) {
+	if strings.TrimSpace(sessionID) == "" || strings.TrimSpace(executionID) == "" {
+		return nil, errors.New("session_id and execution_id are required")
+	}
+	return m.repo.GetDelegation(ctx, sessionID, executionID)
 }
 
 func (m *Manager) Get(ctx context.Context, id string) (*Session, error) {
@@ -225,6 +288,47 @@ func (m *Manager) HasGrant(ctx context.Context, id, grant string) bool {
 
 func (m *Manager) Touch(ctx context.Context, id string) error {
 	return m.repo.Touch(ctx, id, m.options.Clock.Now().UTC())
+}
+
+func (m *Manager) ExecutionBudget(ctx context.Context, id string) (ExecutionBudget, error) {
+	s, err := m.repo.Get(ctx, id)
+	if err != nil {
+		return ExecutionBudget{}, err
+	}
+	if s.WallBudget > 0 && s.WallConsumed >= s.WallBudget {
+		return ExecutionBudget{}, &ExecutionBudgetExceededError{Kind: "wall-clock", Ceiling: s.WallBudget, Consumed: s.WallConsumed}
+	}
+	if s.CPUBudget > 0 && s.CPUConsumed >= s.CPUBudget {
+		return ExecutionBudget{}, &ExecutionBudgetExceededError{Kind: "cpu", Ceiling: s.CPUBudget, Consumed: s.CPUConsumed}
+	}
+	return ExecutionBudget{WallBudget: s.WallBudget, WallConsumed: s.WallConsumed, CPUBudget: s.CPUBudget, CPUConsumed: s.CPUConsumed}, nil
+}
+
+func (m *Manager) ChargeExecution(ctx context.Context, id string, wall, cpu time.Duration) error {
+	if wall < 0 {
+		wall = 0
+	}
+	if cpu < 0 {
+		cpu = 0
+	}
+	if err := m.repo.RecordExecutionUsage(ctx, id, wall, cpu, m.options.Clock.Now().UTC()); err != nil {
+		return err
+	}
+	s, err := m.repo.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if s.WallBudget > 0 && s.WallConsumed >= s.WallBudget {
+		reason := (&ExecutionBudgetExceededError{Kind: "wall-clock", Ceiling: s.WallBudget, Consumed: s.WallConsumed}).Error()
+		_ = m.reclaim(ctx, id, reason)
+		return errors.New(reason)
+	}
+	if s.CPUBudget > 0 && s.CPUConsumed >= s.CPUBudget {
+		reason := (&ExecutionBudgetExceededError{Kind: "cpu", Ceiling: s.CPUBudget, Consumed: s.CPUConsumed}).Error()
+		_ = m.reclaim(ctx, id, reason)
+		return errors.New(reason)
+	}
+	return nil
 }
 
 func (m *Manager) SetMemoryBytes(ctx context.Context, id string, bytes int64) error {

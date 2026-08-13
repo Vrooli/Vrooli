@@ -53,6 +53,7 @@ type (
 		Tokens         int
 		CostUSD        float64
 		ChargeMicroUSD int64
+		ChargeMeasured bool
 	}
 	ChildLauncher interface {
 		StartFresh(context.Context, ChildRequest) (ChildState, error)
@@ -739,6 +740,7 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 	x.BudgetUsage.Turns += state.Turns
 	x.BudgetUsage.Tokens += state.Tokens
 	x.BudgetUsage.ChargeMicroUSD += state.ChargeMicroUSD
+	x.BudgetUsage.ChargeMeasured = x.BudgetUsage.ChargeMeasured || state.ChargeMeasured
 	entries := []*domain.WorkflowJournalEntry{}
 	if state.Result != nil {
 		active.RawOutput = state.Result.FinalOutput
@@ -985,6 +987,7 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 	x.BudgetUsage.Turns += state.BudgetUsage.Turns
 	x.BudgetUsage.Tokens += state.BudgetUsage.Tokens
 	x.BudgetUsage.ChargeMicroUSD += state.BudgetUsage.ChargeMicroUSD
+	x.BudgetUsage.ChargeMeasured = x.BudgetUsage.ChargeMeasured || state.BudgetUsage.ChargeMeasured
 	x.BudgetUsage.NodeAttempts += state.BudgetUsage.NodeAttempts
 	x.BudgetUsage.Children += state.BudgetUsage.Children
 	x.BudgetUsage.Retries += state.BudgetUsage.Retries

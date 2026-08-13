@@ -5,15 +5,15 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/vrooli/api-core/schedule"
 	measures "github.com/vrooli/measures-go"
-	"program-runtime/internal/clock"
 )
 
 // Handler exposes the scenario-owned measure declarations. Collectors are
 // supplied by the owning services so measure reads cannot drift from the
 // source-of-truth state. The zero-value fallback keeps isolated handler tests
 // deterministic when no service wiring is needed.
-func Handler(clk clock.Clock, collectors ...func() int) (http.Handler, error) {
+func Handler(clk schedule.Clock, collectors ...func() int) (http.Handler, error) {
 	reg := measures.NewRegistry(measures.WithClock(clk.Now))
 	for i, declaration := range declarations() {
 		decl := declaration

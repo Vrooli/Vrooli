@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -498,8 +499,6 @@ func (h *Handler) GetAuditTranscript(w http.ResponseWriter, r *http.Request) {
 //   - applies_investigation_run_id: Filter apply runs linked to an investigation run ID
 func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	req := apipb.ListRunsRequest{}
-	var investigatesRunID *uuid.UUID
-	var appliesInvestigationRunID *uuid.UUID
 
 	// Parse status filter
 	if statusStr := queryFirst(r, "status"); statusStr != "" {
@@ -536,21 +535,33 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	if tagPrefix := queryFirst(r, "tag_prefix", "tagPrefix"); tagPrefix != "" {
 		req.TagPrefix = &tagPrefix
 	}
-	if investigatesRunIDStr := queryFirst(r, "investigates_run_id", "investigatesRunId"); investigatesRunIDStr != "" {
-		parsed, err := uuid.Parse(investigatesRunIDStr)
+
+	var investigatesRunID *uuid.UUID
+	if value := queryFirst(r, "investigates_run_id", "investigatesRunId"); value != "" {
+		parsed, err := uuid.Parse(value)
 		if err != nil {
 			writeSimpleError(w, r, "investigates_run_id", "invalid UUID format")
 			return
 		}
 		investigatesRunID = &parsed
 	}
-	if appliesInvestigationRunIDStr := queryFirst(r, "applies_investigation_run_id", "appliesInvestigationRunId"); appliesInvestigationRunIDStr != "" {
-		parsed, err := uuid.Parse(appliesInvestigationRunIDStr)
+
+	var appliesInvestigationRunID *uuid.UUID
+	if value := queryFirst(r, "applies_investigation_run_id", "appliesInvestigationRunId"); value != "" {
+		parsed, err := uuid.Parse(value)
 		if err != nil {
 			writeSimpleError(w, r, "applies_investigation_run_id", "invalid UUID format")
 			return
 		}
 		appliesInvestigationRunID = &parsed
+	}
+
+	// A missing limit used to reach SQLite as an unbounded projection. Keep
+	// the public default bounded so CLI and Connect callers have identical,
+	// predictable behavior.
+	if req.Limit == nil {
+		limit := int32(defaultRunListLimit)
+		req.Limit = &limit
 	}
 
 	if limit, limitProvided, err := parseQueryIntStrict(r, "limit"); err != nil {
@@ -576,43 +587,56 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	response, err := h.listRunsProto(r.Context(), &req, investigatesRunID, appliesInvestigationRunID)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeProtoJSON(w, http.StatusOK, response)
+}
+
+const defaultRunListLimit = 100
+
+func (h *Handler) listRunsProto(ctx context.Context, req *apipb.ListRunsRequest, investigatesRunID, appliesInvestigationRunID *uuid.UUID) (*apipb.ListRunsResponse, error) {
 	opts := orchestration.RunListOptions{}
-	if req.Status != nil {
+	if req.GetStatus() != domainpb.RunStatus_RUN_STATUS_UNSPECIFIED {
 		status := protoconv.RunStatusFromProto(req.GetStatus())
-		if status != "" {
-			opts.Status = &status
-		}
+		opts.Status = &status
 	}
 	if req.TaskId != nil {
-		taskID, _ := uuid.Parse(req.GetTaskId())
+		taskID, err := uuid.Parse(req.GetTaskId())
+		if err != nil {
+			return nil, domain.NewValidationError("task_id", "invalid UUID format")
+		}
 		opts.TaskID = &taskID
 	}
 	if req.AgentProfileId != nil {
-		profileID, _ := uuid.Parse(req.GetAgentProfileId())
+		profileID, err := uuid.Parse(req.GetAgentProfileId())
+		if err != nil {
+			return nil, domain.NewValidationError("agent_profile_id", "invalid UUID format")
+		}
 		opts.AgentProfileID = &profileID
 	}
 	if req.TagPrefix != nil {
 		opts.TagPrefix = req.GetTagPrefix()
 	}
+	opts.InvestigatesRunID = investigatesRunID
+	opts.AppliesInvestigationRunID = appliesInvestigationRunID
 	if req.Limit != nil {
 		opts.Limit = int(req.GetLimit())
+	}
+	if opts.Limit == 0 {
+		opts.Limit = defaultRunListLimit
 	}
 	if req.Offset != nil {
 		opts.Offset = int(req.GetOffset())
 	}
-	opts.InvestigatesRunID = investigatesRunID
-	opts.AppliesInvestigationRunID = appliesInvestigationRunID
 
-	runs, err := h.svc.ListRuns(r.Context(), opts)
+	runs, err := h.svc.ListRuns(ctx, opts)
 	if err != nil {
-		writeError(w, r, err)
-		return
+		return nil, err
 	}
-
-	writeProtoJSON(w, http.StatusOK, &apipb.ListRunsResponse{
-		Runs:  protoconv.RunsToProto(runs),
-		Total: int32(len(runs)),
-	})
+	return &apipb.ListRunsResponse{Runs: protoconv.RunsToProto(runs), Total: int32(len(runs)), HasMore: int32(len(runs)) == int32(opts.Limit)}, nil
 }
 
 // DeleteRun permanently removes a run.

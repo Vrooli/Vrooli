@@ -72,6 +72,38 @@ func TestBindingConditionReportsDormantAndNotHealthy(t *testing.T) { // [REQ:PRT
 	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, response.Conditions[0].Freshness.Family.Status)
 }
 
+func TestBindingConditionExcludesProbeFailuresFromServingRate(t *testing.T) {
+	now := time.Now().UTC()
+	binding := &bindingsv1.Binding{Id: "demo/read/probe", Scenario: "demo"}
+	condition := conditionForWithSustained(binding, []Invocation{
+		{BindingID: binding.Id, Origin: "synthetic", InvocationClass: "probe_invalid_argument", Outcome: "failed", OccurredAt: now},
+		{BindingID: binding.Id, Origin: "organic", InvocationClass: "success", Outcome: "success", OccurredAt: now},
+	}, nil, time.Time{})
+	require.Equal(t, float64(0), condition.Serving.FailureRate)
+	require.Equal(t, int64(1), condition.Serving.ProbeInvocations)
+	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY, condition.Serving.Family.Status)
+	require.Equal(t, int64(1), condition.Exercise.Invocations)
+}
+
+func TestBindingConditionNeverRollsHealthyFromUninstrumentedServing(t *testing.T) {
+	binding := &bindingsv1.Binding{Id: "demo/read/probe-only", Scenario: "demo"}
+	condition := conditionForWithSustained(binding, []Invocation{{BindingID: binding.Id, Origin: "synthetic", InvocationClass: "probe_timeout", Outcome: "failed"}}, nil, time.Time{})
+	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, condition.Serving.Family.Status)
+	require.NotEqual(t, bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY, condition.Status)
+}
+
+func TestBindingFreshnessNamesManifestWhenSourceIsNewer(t *testing.T) {
+	now := time.Now().UTC()
+	binding := &bindingsv1.Binding{Id: "demo/read/fresh", Scenario: "demo"}
+	condition := conditionForWithFreshness(binding, nil, nil, freshnessMetadata{
+		sourcePath: "scenarios/demo/cli/manifest.json", sourceMtime: now, generationMtime: now.Add(-time.Minute),
+	})
+	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED, condition.Freshness.Family.Status)
+	require.Contains(t, condition.Freshness.Family.Reason, "scenarios/demo/cli/manifest.json")
+	require.Contains(t, condition.Freshness.Family.Reason, "source=")
+	require.Contains(t, condition.Freshness.Family.Reason, "generation=")
+}
+
 func TestBindingConditionPromotesOnlySustainedDegradation(t *testing.T) { // [REQ:PRT-P1-008]
 	now := time.Now().UTC()
 	binding := &bindingsv1.Binding{Id: "demo/read/flaky", Scenario: "demo"}

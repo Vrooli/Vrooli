@@ -140,6 +140,7 @@ func childStateFromRun(run *domain.Run) workflowruntime.ChildState {
 		state.CostUSD = run.Summary.CostEstimate // historical compatibility field
 		if run.Billing.EffectiveBasis() == domain.ChargeBasisMetered {
 			state.ChargeMicroUSD = int64(run.Summary.CostEstimate*1_000_000 + 0.5)
+			state.ChargeMeasured = true
 		}
 	}
 	switch run.Status {

@@ -32,10 +32,12 @@ import (
 	"agent-manager/internal/storage"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/cli-core/agentpolicy"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
 	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -116,6 +118,8 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.WithTranscriptImporter(deps.TranscriptImporter),
 	)
 	handler.SetWebSocketHub(deps.WebSocketHub)
+	apiPath, apiHandler := apiconnect.NewAgentManagerServiceHandler(handlers.NewAgentManagerConnectHandler(handler))
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: apiPath, Handler: apiHandler})
 	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)
 	router.PathPrefix(strings.TrimRight(episodesPath, "/")).Handler(episodesHandler)
 	router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")

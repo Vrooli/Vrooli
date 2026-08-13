@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 )
 
 func TestKernelAgentBytesStayBoundedAcrossResultSizes(t *testing.T) { // [REQ:PRT-P0-003]
@@ -15,7 +14,6 @@ func TestKernelAgentBytesStayBoundedAcrossResultSizes(t *testing.T) { // [REQ:PR
 	}
 	engine := filepath.Join(filepath.Dir(file), "..", "..", "..", "kernel", "host", "engine.py")
 	runner := NewSubprocessRunner(engine)
-	runner.SubmissionDeadline = 90 * time.Second
 	defer runner.KillSession("scaling")
 
 	counts := []int{10, 1000, 100000, 10000000}

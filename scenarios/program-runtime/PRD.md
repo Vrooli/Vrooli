@@ -50,7 +50,7 @@ The problem it removes is arity and materialization. An agent that needs to insp
 - [x] OT-P1-004 | Sandbox composition | The Program Runtime SHOULD bind a session to a workspace-sandbox workspace so filesystem effects are isolated and reviewable.
 - [x] OT-P1-005 | Bounded session lifecycle | The Program Runtime SHOULD enforce idle reclamation and wall-clock and memory ceilings per session, and SHOULD report the reason when it reclaims a session.
 - [x] OT-P1-010 | Per-session inference spend ceiling | The Program Runtime SHOULD enforce a configurable per-session ceiling over ai-gateway `Usage.cost_micros`, input tokens, and output tokens, and SHOULD report `inference_spend_exceeded` when the ceiling reclaims or refuses work.
-- [ ] OT-P1-011 | Per-session delegated-run spend ceiling | The Program Runtime SHOULD enforce a separate configurable per-session ceiling over agent-manager delegated-run spend, and SHOULD report `delegated_run_spend_exceeded` when that ceiling reclaims or refuses work.
+- [x] OT-P1-011 | Per-session delegated-run spend ceiling | The Program Runtime SHOULD enforce a separate configurable per-session ceiling over agent-manager delegated-run spend, and SHOULD report `delegated_run_spend_exceeded` when that ceiling reclaims or refuses work.
 - [x] OT-P1-006 | Queryable program corpus | The Program Runtime SHOULD retain submitted program source and failure detail as a queryable corpus so recurring failure shapes are derivable mechanically.
 - [x] OT-P1-007 | Binding registry inspection surface | The Program Runtime SHOULD provide an operator surface that browses the resolved callable namespace and, for every fleet capability that is unbound, states which of the declared unbound reasons applies. This is promoted out of OT-P2-001 because it is the only operator surface that carries information before any program has run, and because it renders the same registry state the Act numerator computes.
 - [x] OT-P1-008 | Program provenance | The Program Runtime SHOULD record whether a program was submitted by an agent or by a human operator, and SHOULD exclude operator-submitted programs from corpus mining by default, so the corpus keeps measuring what agents attempt rather than what operators experiment with.
@@ -92,7 +92,7 @@ Scenario-language independence is structural, not a convention: transport is Con
 | Scenario | Why |
 |---|---|
 | `ai-gateway` | Typed inference inside programs. The typed Connect/CLI surface, schema gate, role catalog, batch operation, and usage accounting are now available; program-runtime bindings remain owned by OT-P1-002 implementation work. |
-| `agent-manager` | Delegated agent runs spawned from a program. Its delegated workflow result still lacks a per-run charge receipt, so delegated spend remains explicitly unmeasured. |
+| `agent-manager` | Delegated agent runs spawned from a program. Terminal workflow results publish a per-execution charge receipt; provider runs without an attributable metered basis remain explicitly unmeasured. |
 | `vrooli-events` | Telemetry through the shared event bus. This scenario can prove emission and delivery; it cannot make anything consume them. |
 | `search-hub` | In-kernel capability discovery. |
 | `workspace-sandbox` | Optional filesystem isolation for a session. |
@@ -103,7 +103,7 @@ Scenario-language independence is structural, not a convention: transport is Con
 
 | Obligation | Owner | What it unblocks | Consequence if it stalls |
 |---|---|---|---|
-| Publish a per-run delegated charge receipt | `agent-manager` | PRT-P1-011 delegated-run spend ceiling | Delegated spend remains explicitly unmeasured; Program Runtime must not fabricate a zero-cost value |
+| Publish a per-run delegated charge receipt | `agent-manager` | PRT-P1-011 delegated-run spend ceiling | Receipt contract is live; provider executions without metered attribution remain explicitly unmeasured and do not fabricate zero cost |
 | Raise `cli/manifest.json` coverage beyond 63 of 117 scenarios | fleet-wide; surfaced by `cli-health` and ranked by `meta-optimization-manager` `focus next` | The ceiling on the entire Act surface | Act coverage remains capped by the current manifest-bearing fleet surface no matter how complete this scenario is |
 
 **Operational risks.**

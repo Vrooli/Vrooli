@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "3952bd7c8ca93c35fb08f67ed3ff88844cde2b8c15143a7419fd892edfd598f2",
+  "manifest_hash": "b885704192cfeef4579b19d0fd8005baa9fb863d128aa591ffe777578666b8c5",
   "commands": [
     {
       "path": "bindings act",

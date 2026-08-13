@@ -44,6 +44,10 @@ type WorkflowBudgetUsage struct {
 	// ChargeMicroUSD is authoritative metered charge only. Unpriced usage and
 	// historical estimates cannot exhaust a monetary budget.
 	ChargeMicroUSD int64 `json:"chargeMicroUsd"`
+	// ChargeMeasured is true only when the workflow's child-run billing basis
+	// was explicitly metered. It is persisted with the execution so the API
+	// can publish an honest receipt after restart.
+	ChargeMeasured bool `json:"chargeMeasured"`
 	// CostUSD is retained for readable historical workflow records.
 	CostUSD      float64 `json:"costUsd"`
 	NodeAttempts int     `json:"nodeAttempts"`

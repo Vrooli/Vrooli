@@ -10,9 +10,26 @@ import (
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+func TestRunToProtoReplacesMalformedUTF8AtTransportBoundary(t *testing.T) {
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        uuid.New(),
+		PromptPreview: string([]byte{'o', 'k', 0xff}),
+		Subject:       []string{string([]byte{'s', 0xfe})},
+		Summary:       &domain.RunSummary{Description: string([]byte{'d', 0xfd})},
+		Actions:       &domain.RunActions{CanContinueReason: string([]byte{'a', 0xfc})},
+		Result:        &domain.RunResult{FinalOutput: string([]byte{'r', 0xfb})},
+	}
+
+	if _, err := proto.Marshal(RunToProto(run)); err != nil {
+		t.Fatalf("RunToProto must produce a protobuf-safe message: %v", err)
+	}
+}
 
 // =============================================================================
 // RUNNER TYPE TESTS

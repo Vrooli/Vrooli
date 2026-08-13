@@ -1,9 +1,8 @@
 """Small, isolated Python execution host for one program-runtime session.
 
 The host deliberately exposes bounded handles instead of printing result rows.
-An IPython adapter can be layered on this stable protocol when the host
-requirement is available; the standard-library engine keeps development and
-health checks deterministic on minimal installations.
+The standard-library engine keeps the session protocol deterministic and
+portable; data shaping remains inside bounded Handle operations.
 """
 from __future__ import annotations
 
@@ -16,7 +15,9 @@ import concurrent.futures
 import io
 import json
 import os
+import queue
 import sys
+import threading
 import traceback
 import urllib.error
 import urllib.request
@@ -65,27 +66,82 @@ class Handle:
     def filter(self, predicate) -> "Handle":
         return Handle((row for row in self._rows if predicate(row)), self.label)
 
+    def map(self, transform) -> "Handle":
+        return Handle((transform(row) for row in self._rows), f"{self.label}.map")
+
+    def select(self, *fields: str) -> "Handle":
+        names = _field_names(fields)
+        return Handle(({name: _field(row, name, "select") for name in names} for row in self._rows), f"{self.label}.select")
+
+    def sort(self, key: str, reverse: bool = False) -> "Handle":
+        return Handle(sorted(self._rows, key=lambda row: _field(row, key, "sort"), reverse=reverse), f"{self.label}.sort")
+
+    def unique(self, key: str | None = None) -> "Handle":
+        seen: set[Any] = set()
+        unique_rows = []
+        for row in self._rows:
+            value = _field(row, key, "unique") if key else row
+            try:
+                marker = value if hash(value) is not None else repr(value)
+            except TypeError:
+                marker = repr(value)
+            if marker not in seen:
+                seen.add(marker)
+                unique_rows.append(row)
+        return Handle(unique_rows, f"{self.label}.unique")
+
+    def agg(self, key: str, operation: str) -> int | float:
+        values = [_field(row, key, "agg") for row in self._rows]
+        if not values:
+            raise ValueError("agg requires at least one row")
+        operation = operation.lower().strip()
+        if operation == "sum":
+            return sum(values)
+        if operation == "min":
+            return min(values)
+        if operation == "max":
+            return max(values)
+        if operation == "mean":
+            return sum(values) / len(values)
+        raise ValueError("agg operation must be one of: sum, min, max, mean")
+
+    def join(self, other: "Handle", key: str) -> "Handle":
+        if not isinstance(other, Handle):
+            raise TypeError("join requires another Handle")
+        if len(self._rows) * max(1, len(other._rows)) > 100_000_000:
+            raise MemoryError("join exceeds bounded comparison budget of 100000000 row pairs")
+        right = {}
+        for row in other._rows:
+            right.setdefault(_field(row, key, "join"), []).append(row)
+        joined = []
+        for left in self._rows:
+            for match in right.get(_field(left, key, "join"), []):
+                if isinstance(left, dict) and isinstance(match, dict):
+                    row = dict(left)
+                    row.update(match)
+                    joined.append(row)
+                else:
+                    joined.append((left, match))
+        return Handle(joined, f"{self.label}.join")
+
     def group_by(self, key: str) -> dict[Any, int]:
         if not self._rows:
             return {}
         counts: dict[Any, int] = {}
         for row in self._rows:
-            if isinstance(row, dict):
-                if key not in row:
-                    available = ", ".join(sorted(str(name) for name in row)) or "<none>"
-                    raise KeyError(f"group_by key {key!r} is missing; available keys: {available}")
-                value = row[key]
-            else:
-                try:
-                    value = getattr(row, key)
-                except AttributeError as exc:
-                    available = ", ".join(sorted(vars(row))) if hasattr(row, "__dict__") else "<unknown>"
-                    raise KeyError(f"group_by key {key!r} is missing; available keys: {available}") from exc
+            value = _field(row, key, "group_by")
             counts[value] = counts.get(value, 0) + 1
         return counts
 
     def materialize(self, limit: int | None = None) -> list[Any]:
         return list(self._rows if limit is None else self._rows[: max(0, limit)])
+
+    def __getitem__(self, item: int | slice) -> Any:
+        if isinstance(item, slice):
+            return Handle(self._rows[item], f"{self.label}[slice]")
+        if isinstance(item, int):
+            return self._rows[item]
+        raise TypeError("Handle indices must be integers or slices")
 
     def __await__(self):
         async def return_self():
@@ -259,6 +315,28 @@ def _is_scenario_map(value: Any) -> bool:
     return isinstance(value, dict) and any(isinstance(child, dict) for child in value.values())
 
 
+def _field_names(fields: tuple[str, ...]) -> tuple[str, ...]:
+    if not fields:
+        raise ValueError("select requires at least one field")
+    names = tuple(str(field) for field in fields)
+    if any(not name for name in names):
+        raise ValueError("select field names must not be empty")
+    return names
+
+
+def _field(row: Any, key: str, operation: str) -> Any:
+    if isinstance(row, dict):
+        if key in row:
+            return row[key]
+        available = ", ".join(sorted(str(name) for name in row)) or "<none>"
+    else:
+        try:
+            return getattr(row, key)
+        except AttributeError:
+            available = ", ".join(sorted(vars(row))) if hasattr(row, "__dict__") else "<unknown>"
+    raise KeyError(f"{operation} key {key!r} is missing; available keys: {available}")
+
+
 class _NamespaceScenario:
     def __init__(self, scenario: str, groups: dict[str, Any], invocations: list[dict[str, str]]) -> None:
         self._scenario = scenario
@@ -348,14 +426,12 @@ class _DelegationSurface:
         self._bridge_url = bridge_url
         self._invocations = invocations
 
-    def run(self, **kwargs: Any) -> Handle:
-        request = dict(kwargs)
-        request["session_id"] = self._session_id
+    def _request(self, endpoint: str, request: dict[str, Any], timeout: float) -> dict[str, Any]:
         body = json.dumps(request).encode()
-        http_request = urllib.request.Request(self._bridge_url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+        http_request = urllib.request.Request(endpoint, data=body, headers={"Content-Type": "application/json"}, method="POST")
         try:
-            with urllib.request.urlopen(http_request, timeout=45) as response:
-                payload = json.loads(response.read().decode())
+            with urllib.request.urlopen(http_request, timeout=timeout) as response:
+                return json.loads(response.read().decode())
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode(errors="replace")
             try:
@@ -365,8 +441,29 @@ class _DelegationSurface:
             raise RuntimeError(str(detail)) from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             raise RuntimeError(f"agent-manager delegation unavailable: {exc}") from exc
-        self._invocations.append({"binding_id": "agent/delegate", "effect": "write"})
-        return Handle([payload], "agent/delegate")
+
+    def start(self, **kwargs: Any) -> Handle:
+        request = dict(kwargs)
+        request["session_id"] = self._session_id
+        payload = self._request(self._bridge_url.rsplit("/", 1)[0] + "/start", request, 15)
+        self._invocations.append({"binding_id": "agent/start", "effect": "write"})
+        return Handle([payload], "agent/start")
+
+    def collect(self, handle: Handle, wait_seconds: int = 0) -> Handle:
+        if not isinstance(handle, Handle):
+            raise TypeError("agent.collect requires a delegation Handle")
+        rows = handle.head(1)
+        if not rows or not isinstance(rows[0], dict) or not rows[0].get("execution_id"):
+            raise ValueError("agent.collect requires a Handle returned by agent.start")
+        seconds = max(0, min(int(wait_seconds), 300))
+        request = {"session_id": self._session_id, "execution_id": rows[0]["execution_id"], "wait_seconds": seconds}
+        payload = self._request(self._bridge_url.rsplit("/", 1)[0] + "/collect", request, max(15, seconds + 15))
+        self._invocations.append({"binding_id": "agent/collect", "effect": "read"})
+        return Handle([payload], "agent/collect")
+
+    def run(self, **kwargs: Any) -> Handle:
+        started = self.start(**kwargs)
+        return self.collect(started, 30)
 
 
 class _NamespaceGroup:
@@ -438,6 +535,18 @@ class BridgeBinding:
         return Handle(rows, self.binding_id)
 
 
+class _ProgressBuffer(io.StringIO):
+    def __init__(self, on_write) -> None:
+        super().__init__()
+        self._on_write = on_write
+
+    def write(self, value: str) -> int:
+        written = super().write(value)
+        if self._on_write is not None:
+            self._on_write(self.getvalue())
+        return written
+
+
 class SessionKernel:
     def __init__(self, bindings: dict[str, Any] | None = None, session_id: str = "", bridge_url: str = "", agent_bridge_url: str = "", discovery_url: str = "") -> None:
         self.invocations: list[dict[str, str]] = []
@@ -460,11 +569,15 @@ class SessionKernel:
             reachability = {scenario: {"reachable": True, "reason": ""} for scenario in bindings}
         self.globals: dict[str, Any] = {
             "__name__": "program_runtime_session",
+            # Handle is the public bounded-result constructor available to
+            # submitted programs; the host module is intentionally not on the
+            # isolated interpreter's import path.
+            "Handle": Handle,
             "vrooli": Namespace(bindings, self.invocations, session_id, agent_bridge_url, bridge_url, discovery_url, reachability),
         }
 
-    def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "") -> dict[str, Any]:
-        output = io.StringIO()
+    def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", progress=None) -> dict[str, Any]:
+        output = _ProgressBuffer(progress)
         self.invocations.clear()
         context_token = _INVOCATION_CONTEXT.set({"program_id": program_id, "provenance": provenance})
         try:
@@ -486,12 +599,12 @@ class SessionKernel:
             raw_stdout = output.getvalue()
             limit = MATERIALIZED_OUTPUT_LIMIT if include_materialized else DEFAULT_OUTPUT_LIMIT
             agent_stdout = _bounded_text(raw_stdout, limit)
-            return {"ok": True, "stdout": agent_stdout, "context_bytes": len(raw_stdout.encode()), "agent_bytes": len(agent_stdout.encode()), "output_limit_bytes": limit, "invocations": list(self.invocations)}
+            return {"type": "result", "ok": True, "stdout": agent_stdout, "context_bytes": len(raw_stdout.encode()), "agent_bytes": len(agent_stdout.encode()), "output_limit_bytes": limit, "invocations": list(self.invocations)}
         except Exception as exc:  # noqa: BLE001 - wire the program failure, never crash the host
             raw_stdout = output.getvalue()
             limit = MATERIALIZED_OUTPUT_LIMIT if include_materialized else DEFAULT_OUTPUT_LIMIT
             agent_stdout = _bounded_text(raw_stdout, limit)
-            return {"ok": False, "stdout": agent_stdout, "context_bytes": len(raw_stdout.encode()), "agent_bytes": len(agent_stdout.encode()), "output_limit_bytes": limit, "error": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc(limit=4), "invocations": list(self.invocations)}
+            return {"type": "result", "ok": False, "stdout": agent_stdout, "context_bytes": len(raw_stdout.encode()), "agent_bytes": len(agent_stdout.encode()), "output_limit_bytes": limit, "error": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc(limit=4), "invocations": list(self.invocations)}
         finally:
             _INVOCATION_CONTEXT.reset(context_token)
 
@@ -501,10 +614,23 @@ MATERIALIZED_OUTPUT_LIMIT = 65536
 
 
 def _bounded_text(value: str, limit: int) -> str:
-    if len(value.encode()) <= limit:
+    if limit < 1:
+        return ""
+    encoded = value.encode("utf-8")
+    if len(encoded) <= limit:
         return value
     suffix = "…"
-    return value[: max(0, limit - len(suffix.encode()))] + suffix
+    suffix_bytes = suffix.encode("utf-8")
+    if len(suffix_bytes) >= limit:
+        return encoded[:limit].decode("utf-8", errors="ignore")
+    prefix = encoded[: limit - len(suffix_bytes)].decode("utf-8", errors="ignore")
+    return prefix + suffix
+
+
+def _output_response(raw_stdout: str, include_materialized: bool, response_type: str) -> dict[str, Any]:
+    limit = MATERIALIZED_OUTPUT_LIMIT if include_materialized else DEFAULT_OUTPUT_LIMIT
+    agent_stdout = _bounded_text(raw_stdout, limit)
+    return {"type": response_type, "ok": True, "stdout": agent_stdout, "context_bytes": len(raw_stdout.encode()), "agent_bytes": len(agent_stdout.encode()), "output_limit_bytes": limit}
 
 
 def serve() -> None:
@@ -522,16 +648,50 @@ def serve() -> None:
         except json.JSONDecodeError:
             bindings = []
     kernel = SessionKernel(bindings, os.environ.get("PROGRAM_RUNTIME_SESSION_ID", ""), os.environ.get("PROGRAM_RUNTIME_BRIDGE_URL", ""), os.environ.get("PROGRAM_RUNTIME_AGENT_BRIDGE_URL", ""), os.environ.get("PROGRAM_RUNTIME_DISCOVERY_URL", ""))
+    protocol_stdout = sys.stdout
+
+    def send(response: dict[str, Any]) -> None:
+        protocol_stdout.write(json.dumps(response, separators=(",", ":")) + "\n")
+        protocol_stdout.flush()
+
     for line in sys.stdin:
         if not line.strip():
             continue
         try:
             request = json.loads(line)
-            response = kernel.execute(str(request.get("source", "")), bool(request.get("include_materialized", False)), str(request.get("program_id", "")), str(request.get("provenance", "")))
+            include_materialized = bool(request.get("include_materialized", False))
+            updates: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=1)
+
+            def progress(raw_stdout: str) -> None:
+                response = _output_response(raw_stdout, include_materialized, "progress")
+                try:
+                    updates.put_nowait(response)
+                except queue.Full:
+                    try:
+                        updates.get_nowait()
+                    except queue.Empty:
+                        pass
+                    try:
+                        updates.put_nowait(response)
+                    except queue.Full:
+                        pass
+
+            result: dict[str, Any] = {}
+
+            def run() -> None:
+                result.update(kernel.execute(str(request.get("source", "")), include_materialized, str(request.get("program_id", "")), str(request.get("provenance", "")), progress))
+
+            worker = threading.Thread(target=run, name="program-runtime-kernel", daemon=True)
+            worker.start()
+            while worker.is_alive() or not updates.empty():
+                try:
+                    send(updates.get(timeout=0.1))
+                except queue.Empty:
+                    pass
+            send(result)
+            continue
         except Exception as exc:  # malformed transport input is a request failure
-            response = {"ok": False, "error": f"protocol error: {exc}"}
-        sys.stdout.write(json.dumps(response, separators=(",", ":")) + "\n")
-        sys.stdout.flush()
+            send({"type": "result", "ok": False, "error": f"protocol error: {exc}"})
 
 
 if __name__ == "__main__":

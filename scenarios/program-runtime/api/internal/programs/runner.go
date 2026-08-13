@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,6 +13,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/pyenv-go"
+	"program-runtime/internal/pydeps"
 )
 
 type kernelProcess struct {
@@ -45,6 +47,11 @@ type Delegator interface {
 	Delegate(context.Context, DelegationRequest) (map[string]any, error)
 }
 
+type AsyncDelegator interface {
+	Start(context.Context, DelegationRequest) (map[string]any, error)
+	Collect(context.Context, string, string, int) (map[string]any, error)
+}
+
 type DelegationRequest struct {
 	SessionID        string         `json:"session_id"`
 	Owner            string         `json:"owner"`
@@ -55,23 +62,23 @@ type DelegationRequest struct {
 }
 
 type SubprocessRunner struct {
-	path               string
-	bindings           []BindingSpec
-	bridgeURL          string
-	agentBridgeURL     string
-	discoveryURL       string
-	scratchRoot        string
-	workspaces         map[string]string
-	mu                 sync.Mutex
-	processes          map[string]*kernelProcess
-	locks              map[string]*sync.Mutex
-	SubmissionDeadline time.Duration
-	bindingProvider    func() []BindingSpec
+	path            string
+	bindings        []BindingSpec
+	bridgeURL       string
+	agentBridgeURL  string
+	discoveryURL    string
+	scratchRoot     string
+	workspaces      map[string]string
+	mu              sync.Mutex
+	processes       map[string]*kernelProcess
+	locks           map[string]*sync.Mutex
+	sessionLimits   map[string]ExecutionLimits
+	bindingProvider func() []BindingSpec
 }
 
-// DeadlineExceededError is returned when the supervisor kills a kernel after
-// the configured submission limit. The session namespace is intentionally
-// considered lost because the next submission gets a fresh interpreter.
+// DeadlineExceededError is retained for callers that still classify legacy
+// runner errors. Current execution deadlines come from the session budget and
+// are reported by the service as named budget exhaustion.
 type DeadlineExceededError struct{ Limit time.Duration }
 
 func (e *DeadlineExceededError) Error() string {
@@ -79,6 +86,10 @@ func (e *DeadlineExceededError) Error() string {
 }
 
 type MemorySampler interface{ MemoryBytes(string) (int64, bool) }
+
+type ProgressRunner interface {
+	ExecuteWithMetadataAndLimitsAndProgress(context.Context, string, string, string, string, bool, ExecutionLimits, func(Result)) (Result, error)
+}
 
 func NewSubprocessRunner(path string) *SubprocessRunner {
 	return NewSubprocessRunnerWithBindings(path, nil, "")
@@ -93,7 +104,7 @@ func NewSubprocessRunnerWithBindings(path string, bindings []BindingSpec, bridge
 	if scratchRoot == "" {
 		scratchRoot = os.TempDir()
 	}
-	return &SubprocessRunner{path: path, bindings: append([]BindingSpec(nil), bindings...), bridgeURL: strings.TrimSpace(bridgeURL), agentBridgeURL: agentURL, scratchRoot: scratchRoot, processes: make(map[string]*kernelProcess), locks: make(map[string]*sync.Mutex), workspaces: make(map[string]string), SubmissionDeadline: 120 * time.Second}
+	return &SubprocessRunner{path: path, bindings: append([]BindingSpec(nil), bindings...), bridgeURL: strings.TrimSpace(bridgeURL), agentBridgeURL: agentURL, scratchRoot: scratchRoot, processes: make(map[string]*kernelProcess), locks: make(map[string]*sync.Mutex), workspaces: make(map[string]string), sessionLimits: make(map[string]ExecutionLimits)}
 }
 
 // SetBindings replaces the binding projection used by kernels created after
@@ -159,7 +170,7 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 	if err != nil {
 		return nil, err
 	}
-	cmd := exec.Command(python, "-u", r.path)
+	cmd := exec.Command(python, "-I", "-u", r.path)
 	workingDir := r.workspaces[sessionID]
 	cleanupWorkingDir := false
 	if workingDir == "" {
@@ -228,7 +239,7 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 		}
 		return nil, fmt.Errorf("start kernel: %w", err)
 	}
-	if err := applyProcessLimits(cmd.Process.Pid); err != nil {
+	if err := applyProcessLimits(cmd.Process.Pid, r.sessionLimits[sessionID]); err != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
 		return nil, err
@@ -248,7 +259,22 @@ func (r *SubprocessRunner) ExecuteWithMetadata(ctx context.Context, sessionID, p
 	return r.execute(ctx, sessionID, programID, provenance, source, includeMaterialized)
 }
 
+func (r *SubprocessRunner) ExecuteWithMetadataAndLimits(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool, limits ExecutionLimits) (Result, error) {
+	return r.ExecuteWithMetadataAndLimitsAndProgress(ctx, sessionID, programID, provenance, source, includeMaterialized, limits, nil)
+}
+
+func (r *SubprocessRunner) ExecuteWithMetadataAndLimitsAndProgress(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool, limits ExecutionLimits, progress func(Result)) (Result, error) {
+	r.mu.Lock()
+	r.sessionLimits[sessionID] = limits
+	r.mu.Unlock()
+	return r.executeWithProgress(ctx, sessionID, programID, provenance, source, includeMaterialized, progress)
+}
+
 func (r *SubprocessRunner) execute(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool) (Result, error) {
+	return r.executeWithProgress(ctx, sessionID, programID, provenance, source, includeMaterialized, nil)
+}
+
+func (r *SubprocessRunner) executeWithProgress(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool, progress func(Result)) (Result, error) {
 	lock := r.lockFor(sessionID)
 	lock.Lock()
 	defer lock.Unlock()
@@ -270,7 +296,8 @@ func (r *SubprocessRunner) execute(ctx context.Context, sessionID, programID, pr
 		r.killProcess(sessionID, p)
 		return Result{}, fmt.Errorf("flush program: %w", err)
 	}
-	var response struct {
+	type kernelResponse struct {
+		Type             string       `json:"type"`
 		OK               bool         `json:"ok"`
 		Stdout           string       `json:"stdout"`
 		Error            string       `json:"error"`
@@ -279,35 +306,48 @@ func (r *SubprocessRunner) execute(ctx context.Context, sessionID, programID, pr
 		OutputLimitBytes int64        `json:"output_limit_bytes"`
 		Invocations      []Invocation `json:"invocations"`
 	}
-	decoded := make(chan error, 1)
-	go func() { decoded <- json.NewDecoder(p.stdout).Decode(&response) }()
-	deadline := r.SubmissionDeadline
-	if deadline <= 0 {
-		deadline = 120 * time.Second
+	type decodedResponse struct {
+		response kernelResponse
+		err      error
 	}
-	timer := time.NewTimer(deadline)
-	defer timer.Stop()
-	select {
-	case decodeErr := <-decoded:
-		if decodeErr != nil {
+	responses := make(chan decodedResponse, 4)
+	go func() {
+		decoder := json.NewDecoder(p.stdout)
+		for {
+			var response kernelResponse
+			if err := decoder.Decode(&response); err != nil {
+				responses <- decodedResponse{err: err}
+				return
+			}
+			responses <- decodedResponse{response: response}
+			if response.Type == "result" || response.Type == "" {
+				return
+			}
+		}
+	}()
+	for {
+		select {
+		case decoded := <-responses:
+			if decoded.err != nil {
+				r.killProcess(sessionID, p)
+				return Result{}, fmt.Errorf("read kernel response: %w", decoded.err)
+			}
+			result := Result{Stdout: decoded.response.Stdout, ContextBytes: decoded.response.ContextBytes, AgentBytes: decoded.response.AgentBytes, OutputLimitBytes: decoded.response.OutputLimitBytes, Invocations: decoded.response.Invocations}
+			if decoded.response.Type == "progress" {
+				if progress != nil {
+					progress(result)
+				}
+				continue
+			}
+			if !decoded.response.OK {
+				return result, fmt.Errorf("%s", decoded.response.Error)
+			}
+			return result, nil
+		case <-ctx.Done():
 			r.killProcess(sessionID, p)
-			return Result{}, fmt.Errorf("read kernel response: %w", decodeErr)
+			return Result{}, ctx.Err()
 		}
-	case <-ctx.Done():
-		r.killProcess(sessionID, p)
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return Result{}, &DeadlineExceededError{Limit: deadline}
-		}
-		return Result{}, ctx.Err()
-	case <-timer.C:
-		r.killProcess(sessionID, p)
-		return Result{}, &DeadlineExceededError{Limit: deadline}
 	}
-	result := Result{Stdout: response.Stdout, ContextBytes: response.ContextBytes, AgentBytes: response.AgentBytes, OutputLimitBytes: response.OutputLimitBytes, Invocations: response.Invocations}
-	if !response.OK {
-		return result, fmt.Errorf("%s", response.Error)
-	}
-	return result, nil
 }
 
 func (r *SubprocessRunner) KillSession(sessionID string) {
@@ -324,6 +364,7 @@ func (r *SubprocessRunner) killProcess(sessionID string, p *kernelProcess) {
 	if current := r.processes[sessionID]; current == p {
 		delete(r.processes, sessionID)
 	}
+	delete(r.sessionLimits, sessionID)
 	r.mu.Unlock()
 	if p.bindingPath != "" {
 		_ = os.Remove(p.bindingPath)
@@ -338,7 +379,7 @@ func (r *SubprocessRunner) killProcess(sessionID string, p *kernelProcess) {
 }
 
 func allowlistedEnvironment() []string {
-	keys := []string{"PATH", "HOME", "LANG", "PYTHONPATH", "PROGRAM_RUNTIME_BINDINGS_FILE", "PROGRAM_RUNTIME_SESSION_ID", "PROGRAM_RUNTIME_BRIDGE_URL", "PROGRAM_RUNTIME_AGENT_BRIDGE_URL"}
+	keys := []string{"PATH", "HOME", "LANG"}
 	env := make([]string, 0, len(keys))
 	for _, key := range keys {
 		if value, ok := os.LookupEnv(key); ok {
@@ -371,6 +412,16 @@ func (r *SubprocessRunner) MemoryBytes(sessionID string) (int64, bool) {
 	return processMemoryBytes(p.command.Process.Pid)
 }
 
+func (r *SubprocessRunner) CPUTime(sessionID string) (time.Duration, bool) {
+	r.mu.Lock()
+	p := r.processes[sessionID]
+	r.mu.Unlock()
+	if p == nil || p.command.Process == nil {
+		return 0, false
+	}
+	return processCPUTime(p.command.Process.Pid)
+}
+
 func processMemoryBytes(pid int) (int64, bool) {
 	if runtime.GOOS != "linux" {
 		return 0, false
@@ -390,13 +441,48 @@ func processMemoryBytes(pid int) (int64, bool) {
 	return pages * int64(os.Getpagesize()), true
 }
 
-func pythonInterpreter() (string, error) {
-	for _, candidate := range []string{"python3", "python"} {
-		if path, err := exec.LookPath(candidate); err == nil {
-			return path, nil
-		}
+func processCPUTime(pid int) (time.Duration, bool) {
+	if runtime.GOOS != "linux" {
+		return 0, false
 	}
-	return "", errors.New("python interpreter not found (tried python3 and python)")
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
+	if err != nil {
+		return 0, false
+	}
+	fields := strings.Fields(string(data))
+	if len(fields) < 15 {
+		return 0, false
+	}
+	user, err := strconv.ParseInt(fields[13], 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	system, err := strconv.ParseInt(fields[14], 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return time.Duration((user + system) * int64(time.Second) / 100), true
+}
+
+func pythonInterpreter() (string, error) {
+	root := strings.TrimSpace(os.Getenv("SCENARIO_DATA_DIR"))
+	if root == "" {
+		root = os.TempDir()
+	}
+	lockPath, err := pydeps.Materialize(filepath.Join(root, "program-runtime", "python"))
+	if err != nil {
+		return "", fmt.Errorf("kernel unavailable: materialize Python lock: %w", err)
+	}
+	interp, err := pyenv.Ensure(context.Background(), pyenv.Spec{
+		VenvDir:    filepath.Join(root, "program-runtime", "python", "venv"),
+		LockFile:   lockPath,
+		BasePython: "3.12",
+		UV:         "uv",
+	}, nil)
+	if err != nil {
+		return "", fmt.Errorf("kernel unavailable: uv-managed Python 3.12 environment is not ready; run `vrooli host install uv`: %w", err)
+	}
+	return interp.Python, nil
 }
 
 func (r *SubprocessRunner) Close() error {

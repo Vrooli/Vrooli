@@ -20,7 +20,7 @@ Use this document to answer:
 | API health | responsive under lifecycle health timeout | `/health` check | active |
 | UI health | responsive under lifecycle health timeout | `/health` check | active |
 | Per-session inference spend | configured cost and token ceilings from ai-gateway `Usage` | session budget ledger; `cost_micros`, input tokens, output tokens | planned (`OT-P1-010`) |
-| Per-session delegated-run spend | separate configured ceiling for agent-manager work | delegated-run usage ledger; reclamation/refusal reason | planned (`OT-P1-011`) |
+| Per-session delegated-run spend | separate configured ceiling for agent-manager work | delegated-run usage ledger; reclamation/refusal reason | complete (`OT-P1-011`) |
 | Agent-facing program result | constant bounded response, independent of source result cardinality | real-kernel scaling test | active |
 
 ## Current Measurements
