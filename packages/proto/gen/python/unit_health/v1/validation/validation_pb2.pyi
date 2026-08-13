@@ -22,7 +22,7 @@ class ValidateScenarioRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., workspaces: _Optional[_Iterable[str]] = ..., include_execution: _Optional[bool] = ..., use_cache: _Optional[bool] = ...) -> None: ...
 
 class ValidateScenarioResponse(_message.Message):
-    __slots__ = ("run_id", "status", "summary", "scenario", "target_kind", "target_path", "degraded_reason", "surfaces", "workspaces", "plan", "command_results", "coverage", "findings", "diagnostics", "maturity", "counts", "next_steps", "assessment", "artifacts", "projection_checks")
+    __slots__ = ("run_id", "status", "summary", "scenario", "target_kind", "target_path", "degraded_reason", "surfaces", "workspaces", "plan", "command_results", "coverage", "findings", "diagnostics", "maturity", "counts", "next_steps", "assessment", "artifacts", "projection_checks", "suppressed_findings")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
@@ -43,6 +43,7 @@ class ValidateScenarioResponse(_message.Message):
     ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
     PROJECTION_CHECKS_FIELD_NUMBER: _ClassVar[int]
+    SUPPRESSED_FINDINGS_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     status: str
     summary: str
@@ -63,7 +64,8 @@ class ValidateScenarioResponse(_message.Message):
     assessment: _maturity_pb2.MaturityAssessment
     artifacts: _containers.RepeatedCompositeFieldContainer[Artifact]
     projection_checks: _containers.RepeatedCompositeFieldContainer[ProjectionCheck]
-    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., summary: _Optional[str] = ..., scenario: _Optional[str] = ..., target_kind: _Optional[str] = ..., target_path: _Optional[str] = ..., degraded_reason: _Optional[str] = ..., surfaces: _Optional[_Iterable[_Union[TestSurface, _Mapping]]] = ..., workspaces: _Optional[_Iterable[_Union[TestWorkspace, _Mapping]]] = ..., plan: _Optional[_Union[ExecutionPlan, _Mapping]] = ..., command_results: _Optional[_Iterable[_Union[CommandResult, _Mapping]]] = ..., coverage: _Optional[_Iterable[_Union[CoverageTarget, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[ValidationFinding, _Mapping]]] = ..., diagnostics: _Optional[_Iterable[_Union[Diagnostic, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., counts: _Optional[_Union[ValidationCounts, _Mapping]] = ..., next_steps: _Optional[_Iterable[str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[Artifact, _Mapping]]] = ..., projection_checks: _Optional[_Iterable[_Union[ProjectionCheck, _Mapping]]] = ...) -> None: ...
+    suppressed_findings: _containers.RepeatedCompositeFieldContainer[ValidationFinding]
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., summary: _Optional[str] = ..., scenario: _Optional[str] = ..., target_kind: _Optional[str] = ..., target_path: _Optional[str] = ..., degraded_reason: _Optional[str] = ..., surfaces: _Optional[_Iterable[_Union[TestSurface, _Mapping]]] = ..., workspaces: _Optional[_Iterable[_Union[TestWorkspace, _Mapping]]] = ..., plan: _Optional[_Union[ExecutionPlan, _Mapping]] = ..., command_results: _Optional[_Iterable[_Union[CommandResult, _Mapping]]] = ..., coverage: _Optional[_Iterable[_Union[CoverageTarget, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[ValidationFinding, _Mapping]]] = ..., diagnostics: _Optional[_Iterable[_Union[Diagnostic, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., counts: _Optional[_Union[ValidationCounts, _Mapping]] = ..., next_steps: _Optional[_Iterable[str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[Artifact, _Mapping]]] = ..., projection_checks: _Optional[_Iterable[_Union[ProjectionCheck, _Mapping]]] = ..., suppressed_findings: _Optional[_Iterable[_Union[ValidationFinding, _Mapping]]] = ...) -> None: ...
 
 class ProjectionCheck(_message.Message):
     __slots__ = ("id", "workspace_id", "surface_id", "key", "owner", "file_path", "policy_value", "native_value", "status", "remediation", "finding_code")
@@ -282,17 +284,19 @@ class MaturitySummary(_message.Message):
     def __init__(self, rung: _Optional[int] = ..., label: _Optional[str] = ..., rationale: _Optional[str] = ...) -> None: ...
 
 class ValidationCounts(_message.Message):
-    __slots__ = ("errors", "warnings", "infos", "surfaces", "workspaces", "coverage_targets")
+    __slots__ = ("errors", "warnings", "infos", "surfaces", "workspaces", "coverage_targets", "suppressed_findings")
     ERRORS_FIELD_NUMBER: _ClassVar[int]
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
     INFOS_FIELD_NUMBER: _ClassVar[int]
     SURFACES_FIELD_NUMBER: _ClassVar[int]
     WORKSPACES_FIELD_NUMBER: _ClassVar[int]
     COVERAGE_TARGETS_FIELD_NUMBER: _ClassVar[int]
+    SUPPRESSED_FINDINGS_FIELD_NUMBER: _ClassVar[int]
     errors: int
     warnings: int
     infos: int
     surfaces: int
     workspaces: int
     coverage_targets: int
-    def __init__(self, errors: _Optional[int] = ..., warnings: _Optional[int] = ..., infos: _Optional[int] = ..., surfaces: _Optional[int] = ..., workspaces: _Optional[int] = ..., coverage_targets: _Optional[int] = ...) -> None: ...
+    suppressed_findings: int
+    def __init__(self, errors: _Optional[int] = ..., warnings: _Optional[int] = ..., infos: _Optional[int] = ..., surfaces: _Optional[int] = ..., workspaces: _Optional[int] = ..., coverage_targets: _Optional[int] = ..., suppressed_findings: _Optional[int] = ...) -> None: ...

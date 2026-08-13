@@ -138,8 +138,12 @@ type ValidateScenarioResponse struct {
 	// evidence Unit Health observed, including passing rows so operators can see
 	// which parts of the testing contract are actually enforced.
 	ProjectionChecks []*ProjectionCheck `protobuf:"bytes,20,rep,name=projection_checks,json=projectionChecks,proto3" json:"projection_checks,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Findings suppressed by a validated unit-policy waiver. Suppression is
+	// visible and separate from active findings so operators can audit every
+	// exception without counting it as an active maturity failure.
+	SuppressedFindings []*ValidationFinding `protobuf:"bytes,21,rep,name=suppressed_findings,json=suppressedFindings,proto3" json:"suppressed_findings,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ValidateScenarioResponse) Reset() {
@@ -308,6 +312,13 @@ func (x *ValidateScenarioResponse) GetArtifacts() []*Artifact {
 func (x *ValidateScenarioResponse) GetProjectionChecks() []*ProjectionCheck {
 	if x != nil {
 		return x.ProjectionChecks
+	}
+	return nil
+}
+
+func (x *ValidateScenarioResponse) GetSuppressedFindings() []*ValidationFinding {
+	if x != nil {
+		return x.SuppressedFindings
 	}
 	return nil
 }
@@ -1423,15 +1434,16 @@ func (x *MaturitySummary) GetRationale() string {
 }
 
 type ValidationCounts struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Errors          int32                  `protobuf:"varint,1,opt,name=errors,proto3" json:"errors,omitempty"`
-	Warnings        int32                  `protobuf:"varint,2,opt,name=warnings,proto3" json:"warnings,omitempty"`
-	Infos           int32                  `protobuf:"varint,3,opt,name=infos,proto3" json:"infos,omitempty"`
-	Surfaces        int32                  `protobuf:"varint,4,opt,name=surfaces,proto3" json:"surfaces,omitempty"`
-	Workspaces      int32                  `protobuf:"varint,5,opt,name=workspaces,proto3" json:"workspaces,omitempty"`
-	CoverageTargets int32                  `protobuf:"varint,6,opt,name=coverage_targets,json=coverageTargets,proto3" json:"coverage_targets,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Errors             int32                  `protobuf:"varint,1,opt,name=errors,proto3" json:"errors,omitempty"`
+	Warnings           int32                  `protobuf:"varint,2,opt,name=warnings,proto3" json:"warnings,omitempty"`
+	Infos              int32                  `protobuf:"varint,3,opt,name=infos,proto3" json:"infos,omitempty"`
+	Surfaces           int32                  `protobuf:"varint,4,opt,name=surfaces,proto3" json:"surfaces,omitempty"`
+	Workspaces         int32                  `protobuf:"varint,5,opt,name=workspaces,proto3" json:"workspaces,omitempty"`
+	CoverageTargets    int32                  `protobuf:"varint,6,opt,name=coverage_targets,json=coverageTargets,proto3" json:"coverage_targets,omitempty"`
+	SuppressedFindings int32                  `protobuf:"varint,7,opt,name=suppressed_findings,json=suppressedFindings,proto3" json:"suppressed_findings,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ValidationCounts) Reset() {
@@ -1506,6 +1518,13 @@ func (x *ValidationCounts) GetCoverageTargets() int32 {
 	return 0
 }
 
+func (x *ValidationCounts) GetSuppressedFindings() int32 {
+	if x != nil {
+		return x.SuppressedFindings
+	}
+	return 0
+}
+
 var File_unit_health_v1_validation_validation_proto protoreflect.FileDescriptor
 
 const file_unit_health_v1_validation_validation_proto_rawDesc = "" +
@@ -1518,7 +1537,8 @@ const file_unit_health_v1_validation_validation_proto_rawDesc = "" +
 	"workspaces\x18\x03 \x03(\tR\n" +
 	"workspaces\x12+\n" +
 	"\x11include_execution\x18\x04 \x01(\bR\x10includeExecution\x12\x1b\n" +
-	"\tuse_cache\x18\x05 \x01(\bR\buseCache\"\xb7\t\n" +
+	"\tuse_cache\x18\x05 \x01(\bR\buseCache\"\x9d\n" +
+	"\n" +
 	"\x18ValidateScenarioResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
@@ -1547,7 +1567,8 @@ const file_unit_health_v1_validation_validation_proto_rawDesc = "" +
 	"assessment\x18\x12 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
 	"assessment\x12H\n" +
 	"\tartifacts\x18\x13 \x03(\v2*.vrooli.unit_health.v1.validation.ArtifactR\tartifacts\x12^\n" +
-	"\x11projection_checks\x18\x14 \x03(\v21.vrooli.unit_health.v1.validation.ProjectionCheckR\x10projectionChecks\"\xcb\x02\n" +
+	"\x11projection_checks\x18\x14 \x03(\v21.vrooli.unit_health.v1.validation.ProjectionCheckR\x10projectionChecks\x12d\n" +
+	"\x13suppressed_findings\x18\x15 \x03(\v23.vrooli.unit_health.v1.validation.ValidationFindingR\x12suppressedFindings\"\xcb\x02\n" +
 	"\x0fProjectionCheck\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x1d\n" +
@@ -1657,7 +1678,7 @@ const file_unit_health_v1_validation_validation_proto_rawDesc = "" +
 	"\x0fMaturitySummary\x12\x12\n" +
 	"\x04rung\x18\x01 \x01(\x05R\x04rung\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1c\n" +
-	"\trationale\x18\x03 \x01(\tR\trationale\"\xc3\x01\n" +
+	"\trationale\x18\x03 \x01(\tR\trationale\"\xf4\x01\n" +
 	"\x10ValidationCounts\x12\x16\n" +
 	"\x06errors\x18\x01 \x01(\x05R\x06errors\x12\x1a\n" +
 	"\bwarnings\x18\x02 \x01(\x05R\bwarnings\x12\x14\n" +
@@ -1666,7 +1687,8 @@ const file_unit_health_v1_validation_validation_proto_rawDesc = "" +
 	"\n" +
 	"workspaces\x18\x05 \x01(\x05R\n" +
 	"workspaces\x12)\n" +
-	"\x10coverage_targets\x18\x06 \x01(\x05R\x0fcoverageTargets2\x9f\x01\n" +
+	"\x10coverage_targets\x18\x06 \x01(\x05R\x0fcoverageTargets\x12/\n" +
+	"\x13suppressed_findings\x18\a \x01(\x05R\x12suppressedFindings2\x9f\x01\n" +
 	"\x11ValidationService\x12\x89\x01\n" +
 	"\x10ValidateScenario\x129.vrooli.unit_health.v1.validation.ValidateScenarioRequest\x1a:.vrooli.unit_health.v1.validation.ValidateScenarioResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation;validation_v1b\x06proto3"
 
@@ -1713,14 +1735,15 @@ var file_unit_health_v1_validation_validation_proto_depIdxs = []int32{
 	14, // 9: vrooli.unit_health.v1.validation.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
 	3,  // 10: vrooli.unit_health.v1.validation.ValidateScenarioResponse.artifacts:type_name -> vrooli.unit_health.v1.validation.Artifact
 	2,  // 11: vrooli.unit_health.v1.validation.ValidateScenarioResponse.projection_checks:type_name -> vrooli.unit_health.v1.validation.ProjectionCheck
-	7,  // 12: vrooli.unit_health.v1.validation.ExecutionPlan.commands:type_name -> vrooli.unit_health.v1.validation.PlannedCommand
-	0,  // 13: vrooli.unit_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.unit_health.v1.validation.ValidateScenarioRequest
-	1,  // 14: vrooli.unit_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.unit_health.v1.validation.ValidateScenarioResponse
-	14, // [14:15] is the sub-list for method output_type
-	13, // [13:14] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	10, // 12: vrooli.unit_health.v1.validation.ValidateScenarioResponse.suppressed_findings:type_name -> vrooli.unit_health.v1.validation.ValidationFinding
+	7,  // 13: vrooli.unit_health.v1.validation.ExecutionPlan.commands:type_name -> vrooli.unit_health.v1.validation.PlannedCommand
+	0,  // 14: vrooli.unit_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.unit_health.v1.validation.ValidateScenarioRequest
+	1,  // 15: vrooli.unit_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.unit_health.v1.validation.ValidateScenarioResponse
+	15, // [15:16] is the sub-list for method output_type
+	14, // [14:15] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_unit_health_v1_validation_validation_proto_init() }

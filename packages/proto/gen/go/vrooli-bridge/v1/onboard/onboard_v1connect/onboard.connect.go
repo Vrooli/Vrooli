@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// OnboardServicePreflightOnboardingProcedure is the fully-qualified name of the OnboardService's
+	// PreflightOnboarding RPC.
+	OnboardServicePreflightOnboardingProcedure = "/vrooli.vrooli_bridge.v1.onboard.OnboardService/PreflightOnboarding"
 	// OnboardServiceStartOnboardingProcedure is the fully-qualified name of the OnboardService's
 	// StartOnboarding RPC.
 	OnboardServiceStartOnboardingProcedure = "/vrooli.vrooli_bridge.v1.onboard.OnboardService/StartOnboarding"
@@ -55,6 +58,11 @@ const (
 
 // OnboardServiceClient is a client for the vrooli.vrooli_bridge.v1.onboard.OnboardService service.
 type OnboardServiceClient interface {
+	// PreflightOnboarding resolves the durable Machine and decides whether the
+	// canonical connect command may proceed without a password. It may create a
+	// new empty Machine intent for a genuinely new target, but never mutates the
+	// remote host and never accepts an empty password as proof of trust.
+	PreflightOnboarding(context.Context, *connect.Request[onboard.PreflightOnboardingRequest]) (*connect.Response[onboard.PreflightOnboardingResponse], error)
 	// StartOnboarding validates the request, creates a durable onboarding op, and
 	// kicks off the server-owned orchestration (SSH first-touch → push script →
 	// remote bootstrap → verify online). Owner-gated. The owner's SSH password is
@@ -99,6 +107,12 @@ func NewOnboardServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 	baseURL = strings.TrimRight(baseURL, "/")
 	onboardServiceMethods := onboard.File_vrooli_bridge_v1_onboard_onboard_proto.Services().ByName("OnboardService").Methods()
 	return &onboardServiceClient{
+		preflightOnboarding: connect.NewClient[onboard.PreflightOnboardingRequest, onboard.PreflightOnboardingResponse](
+			httpClient,
+			baseURL+OnboardServicePreflightOnboardingProcedure,
+			connect.WithSchema(onboardServiceMethods.ByName("PreflightOnboarding")),
+			connect.WithClientOptions(opts...),
+		),
 		startOnboarding: connect.NewClient[onboard.StartOnboardingRequest, onboard.StartOnboardingResponse](
 			httpClient,
 			baseURL+OnboardServiceStartOnboardingProcedure,
@@ -140,12 +154,18 @@ func NewOnboardServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // onboardServiceClient implements OnboardServiceClient.
 type onboardServiceClient struct {
+	preflightOnboarding    *connect.Client[onboard.PreflightOnboardingRequest, onboard.PreflightOnboardingResponse]
 	startOnboarding        *connect.Client[onboard.StartOnboardingRequest, onboard.StartOnboardingResponse]
 	getOnboarding          *connect.Client[onboard.GetOnboardingRequest, onboard.GetOnboardingResponse]
 	listOnboardings        *connect.Client[onboard.ListOnboardingsRequest, onboard.ListOnboardingsResponse]
 	waitOnboarding         *connect.Client[onboard.WaitOnboardingRequest, onboard.WaitOnboardingResponse]
 	cancelOnboarding       *connect.Client[onboard.CancelOnboardingRequest, onboard.CancelOnboardingResponse]
 	removeFailedOnboarding *connect.Client[onboard.RemoveFailedOnboardingRequest, onboard.RemoveFailedOnboardingResponse]
+}
+
+// PreflightOnboarding calls vrooli.vrooli_bridge.v1.onboard.OnboardService.PreflightOnboarding.
+func (c *onboardServiceClient) PreflightOnboarding(ctx context.Context, req *connect.Request[onboard.PreflightOnboardingRequest]) (*connect.Response[onboard.PreflightOnboardingResponse], error) {
+	return c.preflightOnboarding.CallUnary(ctx, req)
 }
 
 // StartOnboarding calls vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding.
@@ -182,6 +202,11 @@ func (c *onboardServiceClient) RemoveFailedOnboarding(ctx context.Context, req *
 // OnboardServiceHandler is an implementation of the vrooli.vrooli_bridge.v1.onboard.OnboardService
 // service.
 type OnboardServiceHandler interface {
+	// PreflightOnboarding resolves the durable Machine and decides whether the
+	// canonical connect command may proceed without a password. It may create a
+	// new empty Machine intent for a genuinely new target, but never mutates the
+	// remote host and never accepts an empty password as proof of trust.
+	PreflightOnboarding(context.Context, *connect.Request[onboard.PreflightOnboardingRequest]) (*connect.Response[onboard.PreflightOnboardingResponse], error)
 	// StartOnboarding validates the request, creates a durable onboarding op, and
 	// kicks off the server-owned orchestration (SSH first-touch → push script →
 	// remote bootstrap → verify online). Owner-gated. The owner's SSH password is
@@ -221,6 +246,12 @@ type OnboardServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewOnboardServiceHandler(svc OnboardServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	onboardServiceMethods := onboard.File_vrooli_bridge_v1_onboard_onboard_proto.Services().ByName("OnboardService").Methods()
+	onboardServicePreflightOnboardingHandler := connect.NewUnaryHandler(
+		OnboardServicePreflightOnboardingProcedure,
+		svc.PreflightOnboarding,
+		connect.WithSchema(onboardServiceMethods.ByName("PreflightOnboarding")),
+		connect.WithHandlerOptions(opts...),
+	)
 	onboardServiceStartOnboardingHandler := connect.NewUnaryHandler(
 		OnboardServiceStartOnboardingProcedure,
 		svc.StartOnboarding,
@@ -259,6 +290,8 @@ func NewOnboardServiceHandler(svc OnboardServiceHandler, opts ...connect.Handler
 	)
 	return "/vrooli.vrooli_bridge.v1.onboard.OnboardService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case OnboardServicePreflightOnboardingProcedure:
+			onboardServicePreflightOnboardingHandler.ServeHTTP(w, r)
 		case OnboardServiceStartOnboardingProcedure:
 			onboardServiceStartOnboardingHandler.ServeHTTP(w, r)
 		case OnboardServiceGetOnboardingProcedure:
@@ -279,6 +312,10 @@ func NewOnboardServiceHandler(svc OnboardServiceHandler, opts ...connect.Handler
 
 // UnimplementedOnboardServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedOnboardServiceHandler struct{}
+
+func (UnimplementedOnboardServiceHandler) PreflightOnboarding(context.Context, *connect.Request[onboard.PreflightOnboardingRequest]) (*connect.Response[onboard.PreflightOnboardingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.onboard.OnboardService.PreflightOnboarding is not implemented"))
+}
 
 func (UnimplementedOnboardServiceHandler) StartOnboarding(context.Context, *connect.Request[onboard.StartOnboardingRequest]) (*connect.Response[onboard.StartOnboardingResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding is not implemented"))

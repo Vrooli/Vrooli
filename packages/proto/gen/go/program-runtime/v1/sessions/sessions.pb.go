@@ -38,6 +38,10 @@ type Session struct {
 	DelegationCeilingMicros int64                  `protobuf:"varint,13,opt,name=delegation_ceiling_micros,json=delegationCeilingMicros,proto3" json:"delegation_ceiling_micros,omitempty"`
 	DelegationSpendMeasured bool                   `protobuf:"varint,14,opt,name=delegation_spend_measured,json=delegationSpendMeasured,proto3" json:"delegation_spend_measured,omitempty"`
 	DelegationSpendNote     string                 `protobuf:"bytes,15,opt,name=delegation_spend_note,json=delegationSpendNote,proto3" json:"delegation_spend_note,omitempty"`
+	WallBudgetMillis        int64                  `protobuf:"varint,16,opt,name=wall_budget_millis,json=wallBudgetMillis,proto3" json:"wall_budget_millis,omitempty"`
+	WallConsumedMillis      int64                  `protobuf:"varint,17,opt,name=wall_consumed_millis,json=wallConsumedMillis,proto3" json:"wall_consumed_millis,omitempty"`
+	CpuBudgetMillis         int64                  `protobuf:"varint,18,opt,name=cpu_budget_millis,json=cpuBudgetMillis,proto3" json:"cpu_budget_millis,omitempty"`
+	CpuConsumedMillis       int64                  `protobuf:"varint,19,opt,name=cpu_consumed_millis,json=cpuConsumedMillis,proto3" json:"cpu_consumed_millis,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -177,6 +181,34 @@ func (x *Session) GetDelegationSpendNote() string {
 	return ""
 }
 
+func (x *Session) GetWallBudgetMillis() int64 {
+	if x != nil {
+		return x.WallBudgetMillis
+	}
+	return 0
+}
+
+func (x *Session) GetWallConsumedMillis() int64 {
+	if x != nil {
+		return x.WallConsumedMillis
+	}
+	return 0
+}
+
+func (x *Session) GetCpuBudgetMillis() int64 {
+	if x != nil {
+		return x.CpuBudgetMillis
+	}
+	return 0
+}
+
+func (x *Session) GetCpuConsumedMillis() int64 {
+	if x != nil {
+		return x.CpuConsumedMillis
+	}
+	return 0
+}
+
 type CreateSessionRequest struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	Grants                  []string               `protobuf:"bytes,1,rep,name=grants,proto3" json:"grants,omitempty"`
@@ -184,6 +216,8 @@ type CreateSessionRequest struct {
 	Name                    string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	InferenceCeilingMicros  int64                  `protobuf:"varint,4,opt,name=inference_ceiling_micros,json=inferenceCeilingMicros,proto3" json:"inference_ceiling_micros,omitempty"`
 	DelegationCeilingMicros int64                  `protobuf:"varint,5,opt,name=delegation_ceiling_micros,json=delegationCeilingMicros,proto3" json:"delegation_ceiling_micros,omitempty"`
+	WallBudgetMillis        int64                  `protobuf:"varint,6,opt,name=wall_budget_millis,json=wallBudgetMillis,proto3" json:"wall_budget_millis,omitempty"`
+	CpuBudgetMillis         int64                  `protobuf:"varint,7,opt,name=cpu_budget_millis,json=cpuBudgetMillis,proto3" json:"cpu_budget_millis,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -249,6 +283,20 @@ func (x *CreateSessionRequest) GetInferenceCeilingMicros() int64 {
 func (x *CreateSessionRequest) GetDelegationCeilingMicros() int64 {
 	if x != nil {
 		return x.DelegationCeilingMicros
+	}
+	return 0
+}
+
+func (x *CreateSessionRequest) GetWallBudgetMillis() int64 {
+	if x != nil {
+		return x.WallBudgetMillis
+	}
+	return 0
+}
+
+func (x *CreateSessionRequest) GetCpuBudgetMillis() int64 {
+	if x != nil {
+		return x.CpuBudgetMillis
 	}
 	return 0
 }
@@ -669,7 +717,7 @@ var File_program_runtime_v1_sessions_sessions_proto protoreflect.FileDescriptor
 
 const file_program_runtime_v1_sessions_sessions_proto_rawDesc = "" +
 	"\n" +
-	"*program-runtime/v1/sessions/sessions.proto\x12\"vrooli.program_runtime.v1.sessions\"\xf7\x04\n" +
+	"*program-runtime/v1/sessions/sessions.proto\x12\"vrooli.program_runtime.v1.sessions\"\xb3\x06\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x1d\n" +
@@ -687,13 +735,19 @@ const file_program_runtime_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x18inference_ceiling_micros\x18\f \x01(\x03R\x16inferenceCeilingMicros\x12:\n" +
 	"\x19delegation_ceiling_micros\x18\r \x01(\x03R\x17delegationCeilingMicros\x12:\n" +
 	"\x19delegation_spend_measured\x18\x0e \x01(\bR\x17delegationSpendMeasured\x122\n" +
-	"\x15delegation_spend_note\x18\x0f \x01(\tR\x13delegationSpendNote\"\xe5\x01\n" +
+	"\x15delegation_spend_note\x18\x0f \x01(\tR\x13delegationSpendNote\x12,\n" +
+	"\x12wall_budget_millis\x18\x10 \x01(\x03R\x10wallBudgetMillis\x120\n" +
+	"\x14wall_consumed_millis\x18\x11 \x01(\x03R\x12wallConsumedMillis\x12*\n" +
+	"\x11cpu_budget_millis\x18\x12 \x01(\x03R\x0fcpuBudgetMillis\x12.\n" +
+	"\x13cpu_consumed_millis\x18\x13 \x01(\x03R\x11cpuConsumedMillis\"\xbf\x02\n" +
 	"\x14CreateSessionRequest\x12\x16\n" +
 	"\x06grants\x18\x01 \x03(\tR\x06grants\x12+\n" +
 	"\x11sandbox_workspace\x18\x02 \x01(\tR\x10sandboxWorkspace\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x128\n" +
 	"\x18inference_ceiling_micros\x18\x04 \x01(\x03R\x16inferenceCeilingMicros\x12:\n" +
-	"\x19delegation_ceiling_micros\x18\x05 \x01(\x03R\x17delegationCeilingMicros\"^\n" +
+	"\x19delegation_ceiling_micros\x18\x05 \x01(\x03R\x17delegationCeilingMicros\x12,\n" +
+	"\x12wall_budget_millis\x18\x06 \x01(\x03R\x10wallBudgetMillis\x12*\n" +
+	"\x11cpu_budget_millis\x18\a \x01(\x03R\x0fcpuBudgetMillis\"^\n" +
 	"\x15CreateSessionResponse\x12E\n" +
 	"\asession\x18\x01 \x01(\v2+.vrooli.program_runtime.v1.sessions.SessionR\asession\"#\n" +
 	"\x11GetSessionRequest\x12\x0e\n" +

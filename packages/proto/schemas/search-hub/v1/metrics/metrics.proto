@@ -36,6 +36,9 @@ message InsightsRequest {
   // Optional: restrict aggregates to telemetry recorded in the last N days.
   // 0 (the default) means all-time.
   int32 window_days = 1;
+  // Optional duration window such as 15m or 2h. A bare integer is interpreted
+  // as days by the server for compatibility with window_days.
+  string window = 2;
 }
 
 // Per-provider routing utilization over the window. `times_routed` counts the
@@ -55,6 +58,8 @@ message ProviderUtilization {
   int64 degraded_count = 9;
   double degradation_rate = 10;
   repeated ProviderDegradationReason degradation_reasons = 11;
+  // The reranker leg most recently observed for this provider in the window.
+  string active_reranker_leg = 12;
 }
 
 message ProviderDegradationReason {
@@ -99,4 +104,16 @@ message InsightsResponse {
   int64 resolver_cache_hits = 11;
   int64 resolver_cache_misses = 12;
   double resolver_cache_hit_rate = 13;
+  // Auditable bounds and evidence quality for the aggregate.
+  string window_from = 14;
+  string window_to = 15;
+  int64 sample_count = 16;
+  int64 minimum_sample_count = 17;
+  bool sample_sufficient = 18;
+  // Rolling recent-N latency percentiles, labelled separately from the
+  // requested window so an operator can compare current behaviour with the
+  // full window without confusing the two populations.
+  int64 recent_sample_count = 19;
+  int64 recent_latency_p50_ms = 20;
+  int64 recent_latency_p95_ms = 21;
 }

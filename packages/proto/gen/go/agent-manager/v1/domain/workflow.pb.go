@@ -453,6 +453,86 @@ func (x *WorkflowBudgetUsage) GetRetries() int32 {
 	return 0
 }
 
+// ChargeReceipt is the per-execution billing projection exposed to an
+// authorized result consumer. An absent amount with measured=false is an
+// explicit statement that this execution could not be attributed to a
+// metered charge; it must not be interpreted as zero cost.
+type ChargeReceipt struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	AmountMicroUsd *int64                 `protobuf:"varint,1,opt,name=amount_micro_usd,json=amountMicroUsd,proto3,oneof" json:"amount_micro_usd,omitempty"`
+	Currency       string                 `protobuf:"bytes,2,opt,name=currency,proto3" json:"currency,omitempty"`
+	MeteringBasis  string                 `protobuf:"bytes,3,opt,name=metering_basis,json=meteringBasis,proto3" json:"metering_basis,omitempty"`
+	Measured       bool                   `protobuf:"varint,4,opt,name=measured,proto3" json:"measured,omitempty"`
+	Note           string                 `protobuf:"bytes,5,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ChargeReceipt) Reset() {
+	*x = ChargeReceipt{}
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChargeReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChargeReceipt) ProtoMessage() {}
+
+func (x *ChargeReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChargeReceipt.ProtoReflect.Descriptor instead.
+func (*ChargeReceipt) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ChargeReceipt) GetAmountMicroUsd() int64 {
+	if x != nil && x.AmountMicroUsd != nil {
+		return *x.AmountMicroUsd
+	}
+	return 0
+}
+
+func (x *ChargeReceipt) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *ChargeReceipt) GetMeteringBasis() string {
+	if x != nil {
+		return x.MeteringBasis
+	}
+	return ""
+}
+
+func (x *ChargeReceipt) GetMeasured() bool {
+	if x != nil {
+		return x.Measured
+	}
+	return false
+}
+
+func (x *ChargeReceipt) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
 type WorkflowExecution struct {
 	state             protoimpl.MessageState  `protogen:"open.v1"`
 	Id                string                  `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -476,14 +556,17 @@ type WorkflowExecution struct {
 	Depth             int32                   `protobuf:"varint,19,opt,name=depth,proto3" json:"depth,omitempty"`
 	// Platform-owned receipt evidence aggregated over child runs. It remains
 	// separate from workflow output and preserves each receipt's run/node/attempt.
-	Observations  *ReceiptObservations `protobuf:"bytes,20,opt,name=observations,proto3" json:"observations,omitempty"`
+	Observations *ReceiptObservations `protobuf:"bytes,20,opt,name=observations,proto3" json:"observations,omitempty"`
+	// Present on terminal executions, including an explicit unmeasured marker
+	// when the child billing basis cannot be attributed to this execution.
+	ChargeReceipt *ChargeReceipt `protobuf:"bytes,21,opt,name=charge_receipt,json=chargeReceipt,proto3" json:"charge_receipt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkflowExecution) Reset() {
 	*x = WorkflowExecution{}
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -495,7 +578,7 @@ func (x *WorkflowExecution) String() string {
 func (*WorkflowExecution) ProtoMessage() {}
 
 func (x *WorkflowExecution) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -508,7 +591,7 @@ func (x *WorkflowExecution) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowExecution.ProtoReflect.Descriptor instead.
 func (*WorkflowExecution) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{4}
+	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *WorkflowExecution) GetId() string {
@@ -651,6 +734,13 @@ func (x *WorkflowExecution) GetObservations() *ReceiptObservations {
 	return nil
 }
 
+func (x *WorkflowExecution) GetChargeReceipt() *ChargeReceipt {
+	if x != nil {
+		return x.ChargeReceipt
+	}
+	return nil
+}
+
 // WorkflowNodeAttempt is the durable, per-node execution identity. Prompt
 // snapshots are deliberately excluded from this operator-facing contract.
 type WorkflowNodeAttempt struct {
@@ -685,7 +775,7 @@ type WorkflowNodeAttempt struct {
 
 func (x *WorkflowNodeAttempt) Reset() {
 	*x = WorkflowNodeAttempt{}
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -697,7 +787,7 @@ func (x *WorkflowNodeAttempt) String() string {
 func (*WorkflowNodeAttempt) ProtoMessage() {}
 
 func (x *WorkflowNodeAttempt) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -710,7 +800,7 @@ func (x *WorkflowNodeAttempt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowNodeAttempt.ProtoReflect.Descriptor instead.
 func (*WorkflowNodeAttempt) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{5}
+	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *WorkflowNodeAttempt) GetId() string {
@@ -880,7 +970,7 @@ type WorkflowJournalEntry struct {
 
 func (x *WorkflowJournalEntry) Reset() {
 	*x = WorkflowJournalEntry{}
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -892,7 +982,7 @@ func (x *WorkflowJournalEntry) String() string {
 func (*WorkflowJournalEntry) ProtoMessage() {}
 
 func (x *WorkflowJournalEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_workflow_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -905,7 +995,7 @@ func (x *WorkflowJournalEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowJournalEntry.ProtoReflect.Descriptor instead.
 func (*WorkflowJournalEntry) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{6}
+	return file_agent_manager_v1_domain_workflow_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *WorkflowJournalEntry) GetId() string {
@@ -1012,7 +1102,14 @@ const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\bcost_usd\x18\x03 \x01(\x01R\acostUsd\x12#\n" +
 	"\rnode_attempts\x18\x04 \x01(\x05R\fnodeAttempts\x12\x1a\n" +
 	"\bchildren\x18\x05 \x01(\x05R\bchildren\x12\x18\n" +
-	"\aretries\x18\x06 \x01(\x05R\aretries\"\xc1\b\n" +
+	"\aretries\x18\x06 \x01(\x05R\aretries\"\xc6\x01\n" +
+	"\rChargeReceipt\x12-\n" +
+	"\x10amount_micro_usd\x18\x01 \x01(\x03H\x00R\x0eamountMicroUsd\x88\x01\x01\x12\x1a\n" +
+	"\bcurrency\x18\x02 \x01(\tR\bcurrency\x12%\n" +
+	"\x0emetering_basis\x18\x03 \x01(\tR\rmeteringBasis\x12\x1a\n" +
+	"\bmeasured\x18\x04 \x01(\bR\bmeasured\x12\x12\n" +
+	"\x04note\x18\x05 \x01(\tR\x04noteB\x13\n" +
+	"\x11_amount_micro_usd\"\x89\t\n" +
 	"\x11WorkflowExecution\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12!\n" +
@@ -1036,7 +1133,8 @@ const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\bended_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\x12*\n" +
 	"\x11parent_attempt_id\x18\x12 \x01(\tR\x0fparentAttemptId\x12\x14\n" +
 	"\x05depth\x18\x13 \x01(\x05R\x05depth\x12I\n" +
-	"\fobservations\x18\x14 \x01(\v2%.agent_manager.v1.ReceiptObservationsR\fobservations\x1aA\n" +
+	"\fobservations\x18\x14 \x01(\v2%.agent_manager.v1.ReceiptObservationsR\fobservations\x12F\n" +
+	"\x0echarge_receipt\x18\x15 \x01(\v2\x1f.agent_manager.v1.ChargeReceiptR\rchargeReceipt\x1aA\n" +
 	"\x13EdgeTraversalsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xc4\x06\n" +
@@ -1106,45 +1204,47 @@ func file_agent_manager_v1_domain_workflow_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_manager_v1_domain_workflow_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_agent_manager_v1_domain_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_agent_manager_v1_domain_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_agent_manager_v1_domain_workflow_proto_goTypes = []any{
 	(WorkflowExecutionStatus)(0),   // 0: agent_manager.v1.WorkflowExecutionStatus
 	(*WorkflowRevision)(nil),       // 1: agent_manager.v1.WorkflowRevision
 	(*WorkflowDiagnostic)(nil),     // 2: agent_manager.v1.WorkflowDiagnostic
 	(*WorkflowTerminalReason)(nil), // 3: agent_manager.v1.WorkflowTerminalReason
 	(*WorkflowBudgetUsage)(nil),    // 4: agent_manager.v1.WorkflowBudgetUsage
-	(*WorkflowExecution)(nil),      // 5: agent_manager.v1.WorkflowExecution
-	(*WorkflowNodeAttempt)(nil),    // 6: agent_manager.v1.WorkflowNodeAttempt
-	(*WorkflowJournalEntry)(nil),   // 7: agent_manager.v1.WorkflowJournalEntry
-	nil,                            // 8: agent_manager.v1.WorkflowExecution.EdgeTraversalsEntry
-	(*structpb.Struct)(nil),        // 9: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),  // 10: google.protobuf.Timestamp
-	(*structpb.Value)(nil),         // 11: google.protobuf.Value
-	(*ReceiptObservations)(nil),    // 12: agent_manager.v1.ReceiptObservations
+	(*ChargeReceipt)(nil),          // 5: agent_manager.v1.ChargeReceipt
+	(*WorkflowExecution)(nil),      // 6: agent_manager.v1.WorkflowExecution
+	(*WorkflowNodeAttempt)(nil),    // 7: agent_manager.v1.WorkflowNodeAttempt
+	(*WorkflowJournalEntry)(nil),   // 8: agent_manager.v1.WorkflowJournalEntry
+	nil,                            // 9: agent_manager.v1.WorkflowExecution.EdgeTraversalsEntry
+	(*structpb.Struct)(nil),        // 10: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),  // 11: google.protobuf.Timestamp
+	(*structpb.Value)(nil),         // 12: google.protobuf.Value
+	(*ReceiptObservations)(nil),    // 13: agent_manager.v1.ReceiptObservations
 }
 var file_agent_manager_v1_domain_workflow_proto_depIdxs = []int32{
-	9,  // 0: agent_manager.v1.WorkflowRevision.definition:type_name -> google.protobuf.Struct
-	10, // 1: agent_manager.v1.WorkflowRevision.source_updated_at:type_name -> google.protobuf.Timestamp
-	10, // 2: agent_manager.v1.WorkflowRevision.created_at:type_name -> google.protobuf.Timestamp
+	10, // 0: agent_manager.v1.WorkflowRevision.definition:type_name -> google.protobuf.Struct
+	11, // 1: agent_manager.v1.WorkflowRevision.source_updated_at:type_name -> google.protobuf.Timestamp
+	11, // 2: agent_manager.v1.WorkflowRevision.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 3: agent_manager.v1.WorkflowExecution.status:type_name -> agent_manager.v1.WorkflowExecutionStatus
-	11, // 4: agent_manager.v1.WorkflowExecution.input:type_name -> google.protobuf.Value
-	11, // 5: agent_manager.v1.WorkflowExecution.output:type_name -> google.protobuf.Value
+	12, // 4: agent_manager.v1.WorkflowExecution.input:type_name -> google.protobuf.Value
+	12, // 5: agent_manager.v1.WorkflowExecution.output:type_name -> google.protobuf.Value
 	3,  // 6: agent_manager.v1.WorkflowExecution.terminal_reason:type_name -> agent_manager.v1.WorkflowTerminalReason
 	4,  // 7: agent_manager.v1.WorkflowExecution.budget_usage:type_name -> agent_manager.v1.WorkflowBudgetUsage
-	8,  // 8: agent_manager.v1.WorkflowExecution.edge_traversals:type_name -> agent_manager.v1.WorkflowExecution.EdgeTraversalsEntry
-	10, // 9: agent_manager.v1.WorkflowExecution.created_at:type_name -> google.protobuf.Timestamp
-	10, // 10: agent_manager.v1.WorkflowExecution.updated_at:type_name -> google.protobuf.Timestamp
-	10, // 11: agent_manager.v1.WorkflowExecution.ended_at:type_name -> google.protobuf.Timestamp
-	12, // 12: agent_manager.v1.WorkflowExecution.observations:type_name -> agent_manager.v1.ReceiptObservations
-	10, // 13: agent_manager.v1.WorkflowNodeAttempt.created_at:type_name -> google.protobuf.Timestamp
-	10, // 14: agent_manager.v1.WorkflowNodeAttempt.updated_at:type_name -> google.protobuf.Timestamp
-	10, // 15: agent_manager.v1.WorkflowNodeAttempt.completed_at:type_name -> google.protobuf.Timestamp
-	10, // 16: agent_manager.v1.WorkflowJournalEntry.created_at:type_name -> google.protobuf.Timestamp
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	9,  // 8: agent_manager.v1.WorkflowExecution.edge_traversals:type_name -> agent_manager.v1.WorkflowExecution.EdgeTraversalsEntry
+	11, // 9: agent_manager.v1.WorkflowExecution.created_at:type_name -> google.protobuf.Timestamp
+	11, // 10: agent_manager.v1.WorkflowExecution.updated_at:type_name -> google.protobuf.Timestamp
+	11, // 11: agent_manager.v1.WorkflowExecution.ended_at:type_name -> google.protobuf.Timestamp
+	13, // 12: agent_manager.v1.WorkflowExecution.observations:type_name -> agent_manager.v1.ReceiptObservations
+	5,  // 13: agent_manager.v1.WorkflowExecution.charge_receipt:type_name -> agent_manager.v1.ChargeReceipt
+	11, // 14: agent_manager.v1.WorkflowNodeAttempt.created_at:type_name -> google.protobuf.Timestamp
+	11, // 15: agent_manager.v1.WorkflowNodeAttempt.updated_at:type_name -> google.protobuf.Timestamp
+	11, // 16: agent_manager.v1.WorkflowNodeAttempt.completed_at:type_name -> google.protobuf.Timestamp
+	11, // 17: agent_manager.v1.WorkflowJournalEntry.created_at:type_name -> google.protobuf.Timestamp
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_workflow_proto_init() }
@@ -1153,13 +1253,14 @@ func file_agent_manager_v1_domain_workflow_proto_init() {
 		return
 	}
 	file_agent_manager_v1_domain_run_proto_init()
+	file_agent_manager_v1_domain_workflow_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_workflow_proto_rawDesc), len(file_agent_manager_v1_domain_workflow_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

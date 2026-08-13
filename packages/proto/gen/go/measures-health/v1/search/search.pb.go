@@ -353,7 +353,9 @@ type StatusResponse struct {
 	// Number of measures currently indexed across all scenarios.
 	IndexedCount int32 `protobuf:"varint,4,opt,name=indexed_count,json=indexedCount,proto3" json:"indexed_count,omitempty"`
 	// Which matcher the provider is serving with ("lexical" | "ai").
-	Matcher       string `protobuf:"bytes,5,opt,name=matcher,proto3" json:"matcher,omitempty"`
+	Matcher string `protobuf:"bytes,5,opt,name=matcher,proto3" json:"matcher,omitempty"`
+	// RFC3339 timestamp at which the measure declarations were materialized.
+	LastIndexedAt string `protobuf:"bytes,6,opt,name=last_indexed_at,json=lastIndexedAt,proto3" json:"last_indexed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -423,6 +425,13 @@ func (x *StatusResponse) GetMatcher() string {
 	return ""
 }
 
+func (x *StatusResponse) GetLastIndexedAt() string {
+	if x != nil {
+		return x.LastIndexedAt
+	}
+	return ""
+}
+
 var File_measures_health_v1_search_search_proto protoreflect.FileDescriptor
 
 const file_measures_health_v1_search_search_proto_rawDesc = "" +
@@ -454,13 +463,14 @@ const file_measures_health_v1_search_search_proto_rawDesc = "" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x0f\n" +
-	"\rStatusRequest\"\x9d\x01\n" +
+	"\rStatusRequest\"\xc5\x01\n" +
 	"\x0eStatusResponse\x12\x1c\n" +
 	"\tavailable\x18\x01 \x01(\bR\tavailable\x12\x16\n" +
 	"\x06ollama\x18\x02 \x01(\bR\x06ollama\x12\x16\n" +
 	"\x06qdrant\x18\x03 \x01(\bR\x06qdrant\x12#\n" +
 	"\rindexed_count\x18\x04 \x01(\x05R\findexedCount\x12\x18\n" +
-	"\amatcher\x18\x05 \x01(\tR\amatcher2\xe9\x01\n" +
+	"\amatcher\x18\x05 \x01(\tR\amatcher\x12&\n" +
+	"\x0flast_indexed_at\x18\x06 \x01(\tR\rlastIndexedAt2\xe9\x01\n" +
 	"\rSearchService\x12k\n" +
 	"\x06Search\x12/.vrooli.measures_health.v1.search.SearchRequest\x1a0.vrooli.measures_health.v1.search.SearchResponse\x12k\n" +
 	"\x06Status\x12/.vrooli.measures_health.v1.search.StatusRequest\x1a0.vrooli.measures_health.v1.search.StatusResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/search;search_v1b\x06proto3"

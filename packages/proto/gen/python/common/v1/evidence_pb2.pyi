@@ -67,15 +67,17 @@ class EvidenceRef(_message.Message):
     def __init__(self, producer: _Optional[str] = ..., artifact_id: _Optional[str] = ..., kind: _Optional[str] = ..., checksum: _Optional[str] = ..., size_bytes: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class TargetVerdict(_message.Message):
-    __slots__ = ("target", "disposition", "refs", "run_id", "detail")
+    __slots__ = ("target", "disposition", "refs", "run_id", "detail", "evidence_class")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     DISPOSITION_FIELD_NUMBER: _ClassVar[int]
     REFS_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_CLASS_FIELD_NUMBER: _ClassVar[int]
     target: EvidenceTarget
     disposition: Disposition
     refs: _containers.RepeatedCompositeFieldContainer[EvidenceRef]
     run_id: str
     detail: str
-    def __init__(self, target: _Optional[_Union[EvidenceTarget, _Mapping]] = ..., disposition: _Optional[_Union[Disposition, str]] = ..., refs: _Optional[_Iterable[_Union[EvidenceRef, _Mapping]]] = ..., run_id: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+    evidence_class: str
+    def __init__(self, target: _Optional[_Union[EvidenceTarget, _Mapping]] = ..., disposition: _Optional[_Union[Disposition, str]] = ..., refs: _Optional[_Iterable[_Union[EvidenceRef, _Mapping]]] = ..., run_id: _Optional[str] = ..., detail: _Optional[str] = ..., evidence_class: _Optional[str] = ...) -> None: ...

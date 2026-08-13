@@ -1,0 +1,102 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Position",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Answer 'where do I stand' in one screen — runway, goal verdicts, and whether any figure is missing an input it needed.",
+    "prd_refs": [
+      "OT-P1-001",
+      "OT-P1-002",
+      "OT-P1-004"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Runway and each goal verdict, with the sustain window's progress"
+    },
+    {
+      "statement": "Whether this position is partial, and which adapter is missing"
+    },
+    {
+      "statement": "Change since the last reading"
+    },
+    {
+      "statement": "Everything else, ranked below the three above"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The surface at rest with data present — the state a journey step assumes when it names none."
+    },
+    {
+      "id": "idle",
+      "description": "Nothing in flight; the surface is at rest and its controls are usable."
+    },
+    {
+      "id": "pending",
+      "description": "A user-triggered operation is in flight and its outcome is not yet known."
+    },
+    {
+      "id": "success",
+      "description": "An operation completed; the result is announced, not merely rendered."
+    },
+    {
+      "id": "loading",
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival."
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control is disabled and says why."
+    },
+    {
+      "id": "syncing",
+      "description": "A background read is refreshing data the user is already looking at."
+    },
+    {
+      "id": "refreshing",
+      "description": "A user-requested re-read of data already on screen."
+    },
+    {
+      "id": "empty",
+      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded."
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing source could not be read; what is missing is named."
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown."
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified."
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated."
+    },
+    {
+      "id": "retrying",
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The caller's role does not permit this; what role would is stated."
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; queued or read-only behavior is explained."
+    },
+    {
+      "id": "position-partial",
+      "description": "At least one contributing adapter is unavailable. The figure is shown with the gap named; it is never silently completed with a zero."
+    }
+  ]
+}

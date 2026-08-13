@@ -28,16 +28,22 @@ class RunFlowRequest(_message.Message):
     def __init__(self, flow: _Optional[_Union[Flow, _Mapping]] = ..., device_id: _Optional[str] = ..., actor: _Optional[str] = ..., lease_token: _Optional[str] = ...) -> None: ...
 
 class Flow(_message.Message):
-    __slots__ = ("id", "name", "steps", "allow_unredacted_capture")
+    __slots__ = ("id", "name", "steps", "allow_unredacted_capture", "transport", "require_unlocked", "auth_profile_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     STEPS_FIELD_NUMBER: _ClassVar[int]
     ALLOW_UNREDACTED_CAPTURE_FIELD_NUMBER: _ClassVar[int]
+    TRANSPORT_FIELD_NUMBER: _ClassVar[int]
+    REQUIRE_UNLOCKED_FIELD_NUMBER: _ClassVar[int]
+    AUTH_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     steps: _containers.RepeatedCompositeFieldContainer[Step]
     allow_unredacted_capture: bool
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., steps: _Optional[_Iterable[_Union[Step, _Mapping]]] = ..., allow_unredacted_capture: _Optional[bool] = ...) -> None: ...
+    transport: str
+    require_unlocked: bool
+    auth_profile_id: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., steps: _Optional[_Iterable[_Union[Step, _Mapping]]] = ..., allow_unredacted_capture: _Optional[bool] = ..., transport: _Optional[str] = ..., require_unlocked: _Optional[bool] = ..., auth_profile_id: _Optional[str] = ...) -> None: ...
 
 class Step(_message.Message):
     __slots__ = ("id", "kind", "required_capabilities", "target", "timeout_ms", "arguments")
@@ -66,18 +72,24 @@ class CapabilityGapReport(_message.Message):
     def __init__(self, runnable: _Optional[bool] = ..., gaps: _Optional[_Iterable[str]] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RunResult(_message.Message):
-    __slots__ = ("run_id", "disposition", "chapters", "resolutions", "evidence")
+    __slots__ = ("run_id", "disposition", "chapters", "resolutions", "evidence", "incomplete", "disconnect_reason", "disconnect_step")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     DISPOSITION_FIELD_NUMBER: _ClassVar[int]
     CHAPTERS_FIELD_NUMBER: _ClassVar[int]
     RESOLUTIONS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    INCOMPLETE_FIELD_NUMBER: _ClassVar[int]
+    DISCONNECT_REASON_FIELD_NUMBER: _ClassVar[int]
+    DISCONNECT_STEP_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     disposition: str
     chapters: _containers.RepeatedCompositeFieldContainer[Chapter]
     resolutions: _containers.RepeatedCompositeFieldContainer[Resolution]
     evidence: _containers.RepeatedCompositeFieldContainer[EvidenceReference]
-    def __init__(self, run_id: _Optional[str] = ..., disposition: _Optional[str] = ..., chapters: _Optional[_Iterable[_Union[Chapter, _Mapping]]] = ..., resolutions: _Optional[_Iterable[_Union[Resolution, _Mapping]]] = ..., evidence: _Optional[_Iterable[_Union[EvidenceReference, _Mapping]]] = ...) -> None: ...
+    incomplete: bool
+    disconnect_reason: str
+    disconnect_step: str
+    def __init__(self, run_id: _Optional[str] = ..., disposition: _Optional[str] = ..., chapters: _Optional[_Iterable[_Union[Chapter, _Mapping]]] = ..., resolutions: _Optional[_Iterable[_Union[Resolution, _Mapping]]] = ..., evidence: _Optional[_Iterable[_Union[EvidenceReference, _Mapping]]] = ..., incomplete: _Optional[bool] = ..., disconnect_reason: _Optional[str] = ..., disconnect_step: _Optional[str] = ...) -> None: ...
 
 class Chapter(_message.Message):
     __slots__ = ("id", "title", "disposition", "message")
@@ -102,7 +114,7 @@ class Resolution(_message.Message):
     def __init__(self, target: _Optional[str] = ..., rung: _Optional[str] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class EvidenceReference(_message.Message):
-    __slots__ = ("id", "sha256", "size_bytes", "created_at", "redaction_verified", "recording_method", "effective_fps", "producer", "kind", "applied_rules", "opted_out")
+    __slots__ = ("id", "sha256", "size_bytes", "created_at", "redaction_verified", "recording_method", "effective_fps", "producer", "kind", "applied_rules", "opted_out", "claim_class", "minimum_useful_fps", "disposition", "disposition_reason")
     ID_FIELD_NUMBER: _ClassVar[int]
     SHA256_FIELD_NUMBER: _ClassVar[int]
     SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
@@ -114,6 +126,10 @@ class EvidenceReference(_message.Message):
     KIND_FIELD_NUMBER: _ClassVar[int]
     APPLIED_RULES_FIELD_NUMBER: _ClassVar[int]
     OPTED_OUT_FIELD_NUMBER: _ClassVar[int]
+    CLAIM_CLASS_FIELD_NUMBER: _ClassVar[int]
+    MINIMUM_USEFUL_FPS_FIELD_NUMBER: _ClassVar[int]
+    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    DISPOSITION_REASON_FIELD_NUMBER: _ClassVar[int]
     id: str
     sha256: str
     size_bytes: int
@@ -125,4 +141,8 @@ class EvidenceReference(_message.Message):
     kind: str
     applied_rules: _containers.RepeatedScalarFieldContainer[str]
     opted_out: bool
-    def __init__(self, id: _Optional[str] = ..., sha256: _Optional[str] = ..., size_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., redaction_verified: _Optional[bool] = ..., recording_method: _Optional[str] = ..., effective_fps: _Optional[float] = ..., producer: _Optional[str] = ..., kind: _Optional[str] = ..., applied_rules: _Optional[_Iterable[str]] = ..., opted_out: _Optional[bool] = ...) -> None: ...
+    claim_class: str
+    minimum_useful_fps: float
+    disposition: str
+    disposition_reason: str
+    def __init__(self, id: _Optional[str] = ..., sha256: _Optional[str] = ..., size_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., redaction_verified: _Optional[bool] = ..., recording_method: _Optional[str] = ..., effective_fps: _Optional[float] = ..., producer: _Optional[str] = ..., kind: _Optional[str] = ..., applied_rules: _Optional[_Iterable[str]] = ..., opted_out: _Optional[bool] = ..., claim_class: _Optional[str] = ..., minimum_useful_fps: _Optional[float] = ..., disposition: _Optional[str] = ..., disposition_reason: _Optional[str] = ...) -> None: ...

@@ -39,9 +39,11 @@ class StatusRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class StatusResponse(_message.Message):
-    __slots__ = ("available", "indexed_count")
+    __slots__ = ("available", "indexed_count", "last_indexed_at")
     AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     INDEXED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    LAST_INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
     available: bool
     indexed_count: int
-    def __init__(self, available: _Optional[bool] = ..., indexed_count: _Optional[int] = ...) -> None: ...
+    last_indexed_at: str
+    def __init__(self, available: _Optional[bool] = ..., indexed_count: _Optional[int] = ..., last_indexed_at: _Optional[str] = ...) -> None: ...

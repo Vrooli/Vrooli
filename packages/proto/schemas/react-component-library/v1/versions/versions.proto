@@ -40,10 +40,15 @@ message Version {
   // Optional human note attached by the recorder (e.g. "auto-recorded
   // on save"). Empty by default.
   string changelog_md = 5;
-  google.protobuf.Timestamp recorded_at = 6;
+  // Deprecated compatibility field. Use created_at for the first-seen time.
+  google.protobuf.Timestamp recorded_at = 6 [deprecated = true];
   string status = 8;
   string source_path = 9;
   google.protobuf.Timestamp released_at = 10;
+	google.protobuf.Timestamp created_at = 11;
+	// CSS custom properties referenced by the version but not defined by its
+	// own source files. Derived at catalog index time.
+	repeated string required_tokens = 12;
 }
 
 message ListVersionsRequest {

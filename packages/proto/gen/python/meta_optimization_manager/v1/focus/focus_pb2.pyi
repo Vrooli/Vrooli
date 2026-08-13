@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Gap(_message.Message):
-    __slots__ = ("id", "projection", "title", "status", "source_cell_id", "notes", "approaches", "follow_ups", "axis", "recurrence", "evidence_source", "evidence_locator", "availability_reason", "provider_ids")
+    __slots__ = ("id", "projection", "title", "status", "source_cell_id", "notes", "approaches", "follow_ups", "axis", "recurrence", "evidence_source", "evidence_locator", "availability_reason", "provider_ids", "condition_status", "maturity_findings")
     ID_FIELD_NUMBER: _ClassVar[int]
     PROJECTION_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -24,6 +24,8 @@ class Gap(_message.Message):
     EVIDENCE_LOCATOR_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_REASON_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_IDS_FIELD_NUMBER: _ClassVar[int]
+    CONDITION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    MATURITY_FINDINGS_FIELD_NUMBER: _ClassVar[int]
     id: str
     projection: _model_pb2.Projection
     title: str
@@ -38,7 +40,25 @@ class Gap(_message.Message):
     evidence_locator: str
     availability_reason: str
     provider_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., title: _Optional[str] = ..., status: _Optional[_Union[_model_pb2.CellStatus, str]] = ..., source_cell_id: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., approaches: _Optional[_Iterable[str]] = ..., follow_ups: _Optional[_Iterable[str]] = ..., axis: _Optional[_Union[_model_pb2.GapAxis, str]] = ..., recurrence: _Optional[int] = ..., evidence_source: _Optional[str] = ..., evidence_locator: _Optional[str] = ..., availability_reason: _Optional[str] = ..., provider_ids: _Optional[_Iterable[str]] = ..., **kwargs) -> None: ...
+    condition_status: str
+    maturity_findings: _containers.RepeatedCompositeFieldContainer[MaturityFinding]
+    def __init__(self, id: _Optional[str] = ..., projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., title: _Optional[str] = ..., status: _Optional[_Union[_model_pb2.CellStatus, str]] = ..., source_cell_id: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., approaches: _Optional[_Iterable[str]] = ..., follow_ups: _Optional[_Iterable[str]] = ..., axis: _Optional[_Union[_model_pb2.GapAxis, str]] = ..., recurrence: _Optional[int] = ..., evidence_source: _Optional[str] = ..., evidence_locator: _Optional[str] = ..., availability_reason: _Optional[str] = ..., provider_ids: _Optional[_Iterable[str]] = ..., condition_status: _Optional[str] = ..., maturity_findings: _Optional[_Iterable[_Union[MaturityFinding, _Mapping]]] = ..., **kwargs) -> None: ...
+
+class MaturityFinding(_message.Message):
+    __slots__ = ("code", "message", "location", "remediation", "fix_class", "repair_command")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    LOCATION_FIELD_NUMBER: _ClassVar[int]
+    REMEDIATION_FIELD_NUMBER: _ClassVar[int]
+    FIX_CLASS_FIELD_NUMBER: _ClassVar[int]
+    REPAIR_COMMAND_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    message: str
+    location: str
+    remediation: str
+    fix_class: str
+    repair_command: str
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., location: _Optional[str] = ..., remediation: _Optional[str] = ..., fix_class: _Optional[str] = ..., repair_command: _Optional[str] = ...) -> None: ...
 
 class FocusItem(_message.Message):
     __slots__ = ("gap", "impact", "importance", "priority_score", "rationale")
@@ -119,10 +139,32 @@ class ListConditionRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class ListConditionResponse(_message.Message):
-    __slots__ = ("gaps",)
+    __slots__ = ("gaps", "instrumentation")
     GAPS_FIELD_NUMBER: _ClassVar[int]
+    INSTRUMENTATION_FIELD_NUMBER: _ClassVar[int]
     gaps: _containers.RepeatedCompositeFieldContainer[Gap]
-    def __init__(self, gaps: _Optional[_Iterable[_Union[Gap, _Mapping]]] = ...) -> None: ...
+    instrumentation: ConditionInstrumentation
+    def __init__(self, gaps: _Optional[_Iterable[_Union[Gap, _Mapping]]] = ..., instrumentation: _Optional[_Union[ConditionInstrumentation, _Mapping]] = ...) -> None: ...
+
+class ConditionInstrumentation(_message.Message):
+    __slots__ = ("healthy", "degraded", "dormant", "uninstrumented", "unavailable", "instrumented", "total", "filtered_out")
+    HEALTHY_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    DORMANT_FIELD_NUMBER: _ClassVar[int]
+    UNINSTRUMENTED_FIELD_NUMBER: _ClassVar[int]
+    UNAVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    INSTRUMENTED_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    FILTERED_OUT_FIELD_NUMBER: _ClassVar[int]
+    healthy: int
+    degraded: int
+    dormant: int
+    uninstrumented: int
+    unavailable: int
+    instrumented: int
+    total: int
+    filtered_out: int
+    def __init__(self, healthy: _Optional[int] = ..., degraded: _Optional[int] = ..., dormant: _Optional[int] = ..., uninstrumented: _Optional[int] = ..., unavailable: _Optional[int] = ..., instrumented: _Optional[int] = ..., total: _Optional[int] = ..., filtered_out: _Optional[int] = ...) -> None: ...
 
 class ExplainConditionRequest(_message.Message):
     __slots__ = ("provider_id",)

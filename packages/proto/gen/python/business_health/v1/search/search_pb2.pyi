@@ -63,7 +63,7 @@ class StatusRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class StatusResponse(_message.Message):
-    __slots__ = ("available", "ollama_up", "qdrant_up", "reranker_up", "indexed", "collection", "detail")
+    __slots__ = ("available", "ollama_up", "qdrant_up", "reranker_up", "indexed", "collection", "detail", "last_reconcile_at")
     AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     OLLAMA_UP_FIELD_NUMBER: _ClassVar[int]
     QDRANT_UP_FIELD_NUMBER: _ClassVar[int]
@@ -71,6 +71,7 @@ class StatusResponse(_message.Message):
     INDEXED_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
+    LAST_RECONCILE_AT_FIELD_NUMBER: _ClassVar[int]
     available: bool
     ollama_up: bool
     qdrant_up: bool
@@ -78,4 +79,5 @@ class StatusResponse(_message.Message):
     indexed: int
     collection: str
     detail: str
-    def __init__(self, available: _Optional[bool] = ..., ollama_up: _Optional[bool] = ..., qdrant_up: _Optional[bool] = ..., reranker_up: _Optional[bool] = ..., indexed: _Optional[int] = ..., collection: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+    last_reconcile_at: str
+    def __init__(self, available: _Optional[bool] = ..., ollama_up: _Optional[bool] = ..., qdrant_up: _Optional[bool] = ..., reranker_up: _Optional[bool] = ..., indexed: _Optional[int] = ..., collection: _Optional[str] = ..., detail: _Optional[str] = ..., last_reconcile_at: _Optional[str] = ...) -> None: ...

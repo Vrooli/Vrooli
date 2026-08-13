@@ -23,6 +23,11 @@ service CodeFactsService {
   // of being omitted.
   rpc DescribeCodeFacts(DescribeCodeFactsRequest) returns (CodeFactsReport) {}
 
+  // Search returns a lexical, provenance-preserving view over node facts. It
+  // is intentionally separate from DescribeCodeFacts so the Search Hub leaf
+  // never needs to ship a full fleet report to answer one identifier query.
+  rpc Search(SearchRequest) returns (SearchResponse) {}
+
   // DescribeFleetImports returns IMPORTS facts for many or all scenarios.
   // It stays language-level: import_path attributes are not resolved to
   // owning scenarios here.
@@ -57,6 +62,13 @@ enum TargetKind {
   TARGET_KIND_REPO = 3;
   TARGET_KIND_MODULE = 4;
   TARGET_KIND_PROJECT = 5;
+  TARGET_KIND_CONTROL_PLANE = 6;
+  TARGET_KIND_PACKAGE = 7;
+  TARGET_KIND_RESOURCE = 8;
+  TARGET_KIND_TOOL = 9;
+  TARGET_KIND_SAFEGUARD = 10;
+  TARGET_KIND_DOCS = 11;
+  TARGET_KIND_TEAM = 12;
 }
 
 enum FactFamily {
@@ -116,6 +128,7 @@ message CodeTarget {
   string repo_root = 4;
   repeated string language_filter = 5;
   bool strict = 6;
+  string package_name = 7;
 }
 
 message DescribeCodeFactsRequest {
@@ -126,6 +139,49 @@ message DescribeCodeFactsRequest {
   repeated string widget_ids = 5;
   int32 max_depth = 6;
   bool use_cache = 7;
+  // Optional page size for large reports. Zero preserves the historical
+  // single-response behavior.
+  int32 page_size = 8;
+  // Decimal fact offset returned by the previous response's next_page_token.
+  string page_token = 9;
+}
+
+message SearchRequest {
+  string query = 1;
+  int32 limit = 2;
+  CodeTarget target = 3;
+  repeated FactFamily families = 4;
+  // Expand matching node hits with graph edges resolved from the authoritative
+  // Describe path at query time. Edges are never embedded in the Search Hub
+  // corpus.
+  bool expand_edges = 5;
+}
+
+message SearchHit {
+  string id = 1;
+  string title = 2;
+  string text = 3;
+  double score = 4;
+  string path = 5;
+  string analyzer = 6;
+  EvidenceStatus evidence_status = 7;
+  string fact_kind = 8;
+  repeated SearchExpansion edge_expansions = 9;
+}
+
+message SearchExpansion {
+  string id = 1;
+  string title = 2;
+  string text = 3;
+  string path = 4;
+  string analyzer = 5;
+  EvidenceStatus evidence_status = 6;
+  string fact_kind = 7;
+  FactFamily family = 8;
+}
+
+message SearchResponse {
+  repeated SearchHit results = 1;
 }
 
 message DescribeFleetImportsRequest {
@@ -184,6 +240,7 @@ message TargetContext {
   string root_path = 3;
   string scenario = 4;
   bool scenario_aware = 5;
+  repeated string root_paths = 6;
 }
 
 message SourceRange {
@@ -290,6 +347,8 @@ message CodeFactsReport {
   repeated Evidence evidence = 5;
   repeated Warning warnings = 6;
   CacheMetadata cache = 7;
+  string next_page_token = 8;
+  int32 total_facts = 9;
 }
 
 message ListSurfacesResponse {

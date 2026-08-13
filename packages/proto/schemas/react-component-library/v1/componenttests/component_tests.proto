@@ -67,6 +67,7 @@ message GetComponentTestReportResponse {
 message ListComponentTestReportsRequest {
   string component_id = 1;
   int32 limit = 2;
+  string version = 3;
 }
 message ListComponentTestReportsResponse {
   repeated ComponentTestReport reports = 1;

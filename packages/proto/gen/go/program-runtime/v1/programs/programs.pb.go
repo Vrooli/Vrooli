@@ -70,13 +70,71 @@ func (Provenance) EnumDescriptor() ([]byte, []int) {
 	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{0}
 }
 
+type ProgramStatus int32
+
+const (
+	ProgramStatus_PROGRAM_STATUS_UNSPECIFIED ProgramStatus = 0
+	ProgramStatus_PROGRAM_STATUS_ACCEPTED    ProgramStatus = 1
+	ProgramStatus_PROGRAM_STATUS_RUNNING     ProgramStatus = 2
+	ProgramStatus_PROGRAM_STATUS_SUCCEEDED   ProgramStatus = 3
+	ProgramStatus_PROGRAM_STATUS_FAILED      ProgramStatus = 4
+	ProgramStatus_PROGRAM_STATUS_CANCELLED   ProgramStatus = 5
+)
+
+// Enum value maps for ProgramStatus.
+var (
+	ProgramStatus_name = map[int32]string{
+		0: "PROGRAM_STATUS_UNSPECIFIED",
+		1: "PROGRAM_STATUS_ACCEPTED",
+		2: "PROGRAM_STATUS_RUNNING",
+		3: "PROGRAM_STATUS_SUCCEEDED",
+		4: "PROGRAM_STATUS_FAILED",
+		5: "PROGRAM_STATUS_CANCELLED",
+	}
+	ProgramStatus_value = map[string]int32{
+		"PROGRAM_STATUS_UNSPECIFIED": 0,
+		"PROGRAM_STATUS_ACCEPTED":    1,
+		"PROGRAM_STATUS_RUNNING":     2,
+		"PROGRAM_STATUS_SUCCEEDED":   3,
+		"PROGRAM_STATUS_FAILED":      4,
+		"PROGRAM_STATUS_CANCELLED":   5,
+	}
+)
+
+func (x ProgramStatus) Enum() *ProgramStatus {
+	p := new(ProgramStatus)
+	*p = x
+	return p
+}
+
+func (x ProgramStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ProgramStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_program_runtime_v1_programs_programs_proto_enumTypes[1].Descriptor()
+}
+
+func (ProgramStatus) Type() protoreflect.EnumType {
+	return &file_program_runtime_v1_programs_programs_proto_enumTypes[1]
+}
+
+func (x ProgramStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ProgramStatus.Descriptor instead.
+func (ProgramStatus) EnumDescriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{1}
+}
+
 type Program struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	SessionId        string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	Source           string                 `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
 	Provenance       Provenance             `protobuf:"varint,4,opt,name=provenance,proto3,enum=vrooli.program_runtime.v1.programs.Provenance" json:"provenance,omitempty"`
-	Status           string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Status           ProgramStatus          `protobuf:"varint,5,opt,name=status,proto3,enum=vrooli.program_runtime.v1.programs.ProgramStatus" json:"status,omitempty"`
 	Stdout           string                 `protobuf:"bytes,6,opt,name=stdout,proto3" json:"stdout,omitempty"`
 	FailureDetail    string                 `protobuf:"bytes,7,opt,name=failure_detail,json=failureDetail,proto3" json:"failure_detail,omitempty"`
 	FailureShape     string                 `protobuf:"bytes,8,opt,name=failure_shape,json=failureShape,proto3" json:"failure_shape,omitempty"`
@@ -84,6 +142,9 @@ type Program struct {
 	CreatedAt        string                 `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	OutputLimitBytes int64                  `protobuf:"varint,11,opt,name=output_limit_bytes,json=outputLimitBytes,proto3" json:"output_limit_bytes,omitempty"`
 	AgentBytes       int64                  `protobuf:"varint,12,opt,name=agent_bytes,json=agentBytes,proto3" json:"agent_bytes,omitempty"`
+	CompletedAt      string                 `protobuf:"bytes,13,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	WallTimeMillis   int64                  `protobuf:"varint,14,opt,name=wall_time_millis,json=wallTimeMillis,proto3" json:"wall_time_millis,omitempty"`
+	CpuTimeMillis    int64                  `protobuf:"varint,15,opt,name=cpu_time_millis,json=cpuTimeMillis,proto3" json:"cpu_time_millis,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -146,11 +207,11 @@ func (x *Program) GetProvenance() Provenance {
 	return Provenance_PROVENANCE_UNSPECIFIED
 }
 
-func (x *Program) GetStatus() string {
+func (x *Program) GetStatus() ProgramStatus {
 	if x != nil {
 		return x.Status
 	}
-	return ""
+	return ProgramStatus_PROGRAM_STATUS_UNSPECIFIED
 }
 
 func (x *Program) GetStdout() string {
@@ -202,12 +263,34 @@ func (x *Program) GetAgentBytes() int64 {
 	return 0
 }
 
+func (x *Program) GetCompletedAt() string {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return ""
+}
+
+func (x *Program) GetWallTimeMillis() int64 {
+	if x != nil {
+		return x.WallTimeMillis
+	}
+	return 0
+}
+
+func (x *Program) GetCpuTimeMillis() int64 {
+	if x != nil {
+		return x.CpuTimeMillis
+	}
+	return 0
+}
+
 type SubmitProgramRequest struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	SessionId           string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	Source              string                 `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
 	Provenance          Provenance             `protobuf:"varint,3,opt,name=provenance,proto3,enum=vrooli.program_runtime.v1.programs.Provenance" json:"provenance,omitempty"`
 	IncludeMaterialized bool                   `protobuf:"varint,4,opt,name=include_materialized,json=includeMaterialized,proto3" json:"include_materialized,omitempty"`
+	Async               bool                   `protobuf:"varint,5,opt,name=async,proto3" json:"async,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -266,6 +349,13 @@ func (x *SubmitProgramRequest) GetProvenance() Provenance {
 func (x *SubmitProgramRequest) GetIncludeMaterialized() bool {
 	if x != nil {
 		return x.IncludeMaterialized
+	}
+	return false
+}
+
+func (x *SubmitProgramRequest) GetAsync() bool {
+	if x != nil {
+		return x.Async
 	}
 	return false
 }
@@ -986,7 +1076,7 @@ var File_program_runtime_v1_programs_programs_proto protoreflect.FileDescriptor
 
 const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\n" +
-	"*program-runtime/v1/programs/programs.proto\x12\"vrooli.program_runtime.v1.programs\"\xaf\x03\n" +
+	"*program-runtime/v1/programs/programs.proto\x12\"vrooli.program_runtime.v1.programs\"\xd7\x04\n" +
 	"\aProgram\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -994,8 +1084,8 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x06source\x18\x03 \x01(\tR\x06source\x12N\n" +
 	"\n" +
 	"provenance\x18\x04 \x01(\x0e2..vrooli.program_runtime.v1.programs.ProvenanceR\n" +
-	"provenance\x12\x16\n" +
-	"\x06status\x18\x05 \x01(\tR\x06status\x12\x16\n" +
+	"provenance\x12I\n" +
+	"\x06status\x18\x05 \x01(\x0e21.vrooli.program_runtime.v1.programs.ProgramStatusR\x06status\x12\x16\n" +
 	"\x06stdout\x18\x06 \x01(\tR\x06stdout\x12%\n" +
 	"\x0efailure_detail\x18\a \x01(\tR\rfailureDetail\x12#\n" +
 	"\rfailure_shape\x18\b \x01(\tR\ffailureShape\x12#\n" +
@@ -1005,7 +1095,10 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	" \x01(\tR\tcreatedAt\x12,\n" +
 	"\x12output_limit_bytes\x18\v \x01(\x03R\x10outputLimitBytes\x12\x1f\n" +
 	"\vagent_bytes\x18\f \x01(\x03R\n" +
-	"agentBytes\"\xd0\x01\n" +
+	"agentBytes\x12!\n" +
+	"\fcompleted_at\x18\r \x01(\tR\vcompletedAt\x12(\n" +
+	"\x10wall_time_millis\x18\x0e \x01(\x03R\x0ewallTimeMillis\x12&\n" +
+	"\x0fcpu_time_millis\x18\x0f \x01(\x03R\rcpuTimeMillis\"\xe6\x01\n" +
 	"\x14SubmitProgramRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x16\n" +
@@ -1013,7 +1106,8 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\n" +
 	"provenance\x18\x03 \x01(\x0e2..vrooli.program_runtime.v1.programs.ProvenanceR\n" +
 	"provenance\x121\n" +
-	"\x14include_materialized\x18\x04 \x01(\bR\x13includeMaterialized\"^\n" +
+	"\x14include_materialized\x18\x04 \x01(\bR\x13includeMaterialized\x12\x14\n" +
+	"\x05async\x18\x05 \x01(\bR\x05async\"^\n" +
 	"\x15SubmitProgramResponse\x12E\n" +
 	"\aprogram\x18\x01 \x01(\v2+.vrooli.program_runtime.v1.programs.ProgramR\aprogram\"#\n" +
 	"\x11GetProgramRequest\x12\x0e\n" +
@@ -1061,7 +1155,14 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"Provenance\x12\x1a\n" +
 	"\x16PROVENANCE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10PROVENANCE_AGENT\x10\x01\x12\x17\n" +
-	"\x13PROVENANCE_OPERATOR\x10\x022\xc2\x06\n" +
+	"\x13PROVENANCE_OPERATOR\x10\x02*\xbf\x01\n" +
+	"\rProgramStatus\x12\x1e\n" +
+	"\x1aPROGRAM_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17PROGRAM_STATUS_ACCEPTED\x10\x01\x12\x1a\n" +
+	"\x16PROGRAM_STATUS_RUNNING\x10\x02\x12\x1c\n" +
+	"\x18PROGRAM_STATUS_SUCCEEDED\x10\x03\x12\x19\n" +
+	"\x15PROGRAM_STATUS_FAILED\x10\x04\x12\x1c\n" +
+	"\x18PROGRAM_STATUS_CANCELLED\x10\x052\xc2\x06\n" +
 	"\x0eProgramService\x12\x84\x01\n" +
 	"\rSubmitProgram\x128.vrooli.program_runtime.v1.programs.SubmitProgramRequest\x1a9.vrooli.program_runtime.v1.programs.SubmitProgramResponse\x12{\n" +
 	"\n" +
@@ -1083,53 +1184,55 @@ func file_program_runtime_v1_programs_programs_proto_rawDescGZIP() []byte {
 	return file_program_runtime_v1_programs_programs_proto_rawDescData
 }
 
-var file_program_runtime_v1_programs_programs_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_program_runtime_v1_programs_programs_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_program_runtime_v1_programs_programs_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_program_runtime_v1_programs_programs_proto_goTypes = []any{
 	(Provenance)(0),                        // 0: vrooli.program_runtime.v1.programs.Provenance
-	(*Program)(nil),                        // 1: vrooli.program_runtime.v1.programs.Program
-	(*SubmitProgramRequest)(nil),           // 2: vrooli.program_runtime.v1.programs.SubmitProgramRequest
-	(*SubmitProgramResponse)(nil),          // 3: vrooli.program_runtime.v1.programs.SubmitProgramResponse
-	(*GetProgramRequest)(nil),              // 4: vrooli.program_runtime.v1.programs.GetProgramRequest
-	(*GetProgramResponse)(nil),             // 5: vrooli.program_runtime.v1.programs.GetProgramResponse
-	(*ListProgramsRequest)(nil),            // 6: vrooli.program_runtime.v1.programs.ListProgramsRequest
-	(*ListProgramsResponse)(nil),           // 7: vrooli.program_runtime.v1.programs.ListProgramsResponse
-	(*MineFailuresRequest)(nil),            // 8: vrooli.program_runtime.v1.programs.MineFailuresRequest
-	(*FailureShape)(nil),                   // 9: vrooli.program_runtime.v1.programs.FailureShape
-	(*MineFailuresResponse)(nil),           // 10: vrooli.program_runtime.v1.programs.MineFailuresResponse
-	(*MineRefusalsRequest)(nil),            // 11: vrooli.program_runtime.v1.programs.MineRefusalsRequest
-	(*RefusalShape)(nil),                   // 12: vrooli.program_runtime.v1.programs.RefusalShape
-	(*MineRefusalsResponse)(nil),           // 13: vrooli.program_runtime.v1.programs.MineRefusalsResponse
-	(*MineUnresolvedBindingsRequest)(nil),  // 14: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
-	(*UnresolvedBindingShape)(nil),         // 15: vrooli.program_runtime.v1.programs.UnresolvedBindingShape
-	(*MineUnresolvedBindingsResponse)(nil), // 16: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
+	(ProgramStatus)(0),                     // 1: vrooli.program_runtime.v1.programs.ProgramStatus
+	(*Program)(nil),                        // 2: vrooli.program_runtime.v1.programs.Program
+	(*SubmitProgramRequest)(nil),           // 3: vrooli.program_runtime.v1.programs.SubmitProgramRequest
+	(*SubmitProgramResponse)(nil),          // 4: vrooli.program_runtime.v1.programs.SubmitProgramResponse
+	(*GetProgramRequest)(nil),              // 5: vrooli.program_runtime.v1.programs.GetProgramRequest
+	(*GetProgramResponse)(nil),             // 6: vrooli.program_runtime.v1.programs.GetProgramResponse
+	(*ListProgramsRequest)(nil),            // 7: vrooli.program_runtime.v1.programs.ListProgramsRequest
+	(*ListProgramsResponse)(nil),           // 8: vrooli.program_runtime.v1.programs.ListProgramsResponse
+	(*MineFailuresRequest)(nil),            // 9: vrooli.program_runtime.v1.programs.MineFailuresRequest
+	(*FailureShape)(nil),                   // 10: vrooli.program_runtime.v1.programs.FailureShape
+	(*MineFailuresResponse)(nil),           // 11: vrooli.program_runtime.v1.programs.MineFailuresResponse
+	(*MineRefusalsRequest)(nil),            // 12: vrooli.program_runtime.v1.programs.MineRefusalsRequest
+	(*RefusalShape)(nil),                   // 13: vrooli.program_runtime.v1.programs.RefusalShape
+	(*MineRefusalsResponse)(nil),           // 14: vrooli.program_runtime.v1.programs.MineRefusalsResponse
+	(*MineUnresolvedBindingsRequest)(nil),  // 15: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
+	(*UnresolvedBindingShape)(nil),         // 16: vrooli.program_runtime.v1.programs.UnresolvedBindingShape
+	(*MineUnresolvedBindingsResponse)(nil), // 17: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
 }
 var file_program_runtime_v1_programs_programs_proto_depIdxs = []int32{
 	0,  // 0: vrooli.program_runtime.v1.programs.Program.provenance:type_name -> vrooli.program_runtime.v1.programs.Provenance
-	0,  // 1: vrooli.program_runtime.v1.programs.SubmitProgramRequest.provenance:type_name -> vrooli.program_runtime.v1.programs.Provenance
-	1,  // 2: vrooli.program_runtime.v1.programs.SubmitProgramResponse.program:type_name -> vrooli.program_runtime.v1.programs.Program
-	1,  // 3: vrooli.program_runtime.v1.programs.GetProgramResponse.program:type_name -> vrooli.program_runtime.v1.programs.Program
-	1,  // 4: vrooli.program_runtime.v1.programs.ListProgramsResponse.programs:type_name -> vrooli.program_runtime.v1.programs.Program
-	9,  // 5: vrooli.program_runtime.v1.programs.MineFailuresResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.FailureShape
-	12, // 6: vrooli.program_runtime.v1.programs.MineRefusalsResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.RefusalShape
-	15, // 7: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.UnresolvedBindingShape
-	2,  // 8: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:input_type -> vrooli.program_runtime.v1.programs.SubmitProgramRequest
-	4,  // 9: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:input_type -> vrooli.program_runtime.v1.programs.GetProgramRequest
-	6,  // 10: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:input_type -> vrooli.program_runtime.v1.programs.ListProgramsRequest
-	8,  // 11: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:input_type -> vrooli.program_runtime.v1.programs.MineFailuresRequest
-	11, // 12: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:input_type -> vrooli.program_runtime.v1.programs.MineRefusalsRequest
-	14, // 13: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:input_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
-	3,  // 14: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:output_type -> vrooli.program_runtime.v1.programs.SubmitProgramResponse
-	5,  // 15: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:output_type -> vrooli.program_runtime.v1.programs.GetProgramResponse
-	7,  // 16: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:output_type -> vrooli.program_runtime.v1.programs.ListProgramsResponse
-	10, // 17: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:output_type -> vrooli.program_runtime.v1.programs.MineFailuresResponse
-	13, // 18: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:output_type -> vrooli.program_runtime.v1.programs.MineRefusalsResponse
-	16, // 19: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:output_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
-	14, // [14:20] is the sub-list for method output_type
-	8,  // [8:14] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	1,  // 1: vrooli.program_runtime.v1.programs.Program.status:type_name -> vrooli.program_runtime.v1.programs.ProgramStatus
+	0,  // 2: vrooli.program_runtime.v1.programs.SubmitProgramRequest.provenance:type_name -> vrooli.program_runtime.v1.programs.Provenance
+	2,  // 3: vrooli.program_runtime.v1.programs.SubmitProgramResponse.program:type_name -> vrooli.program_runtime.v1.programs.Program
+	2,  // 4: vrooli.program_runtime.v1.programs.GetProgramResponse.program:type_name -> vrooli.program_runtime.v1.programs.Program
+	2,  // 5: vrooli.program_runtime.v1.programs.ListProgramsResponse.programs:type_name -> vrooli.program_runtime.v1.programs.Program
+	10, // 6: vrooli.program_runtime.v1.programs.MineFailuresResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.FailureShape
+	13, // 7: vrooli.program_runtime.v1.programs.MineRefusalsResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.RefusalShape
+	16, // 8: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.UnresolvedBindingShape
+	3,  // 9: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:input_type -> vrooli.program_runtime.v1.programs.SubmitProgramRequest
+	5,  // 10: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:input_type -> vrooli.program_runtime.v1.programs.GetProgramRequest
+	7,  // 11: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:input_type -> vrooli.program_runtime.v1.programs.ListProgramsRequest
+	9,  // 12: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:input_type -> vrooli.program_runtime.v1.programs.MineFailuresRequest
+	12, // 13: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:input_type -> vrooli.program_runtime.v1.programs.MineRefusalsRequest
+	15, // 14: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:input_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
+	4,  // 15: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:output_type -> vrooli.program_runtime.v1.programs.SubmitProgramResponse
+	6,  // 16: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:output_type -> vrooli.program_runtime.v1.programs.GetProgramResponse
+	8,  // 17: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:output_type -> vrooli.program_runtime.v1.programs.ListProgramsResponse
+	11, // 18: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:output_type -> vrooli.program_runtime.v1.programs.MineFailuresResponse
+	14, // 19: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:output_type -> vrooli.program_runtime.v1.programs.MineRefusalsResponse
+	17, // 20: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:output_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_program_runtime_v1_programs_programs_proto_init() }
@@ -1142,7 +1245,7 @@ func file_program_runtime_v1_programs_programs_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_program_runtime_v1_programs_programs_proto_rawDesc), len(file_program_runtime_v1_programs_programs_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,

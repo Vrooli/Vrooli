@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "learn-from-a-refusal",
+    "title": "An operator learns why a transition was refused",
+    "purpose": "A refusal has to teach. The error names the rule and the transitions that would be legal from here, so nobody has to read documentation to understand the state machine.",
+    "prd_refs": [
+      "OT-P0-002"
+    ]
+  },
+  "steps": [
+    {
+      "page": "offers",
+      "intent": "Attempt a transition that the lifecycle forbids"
+    },
+    {
+      "page": "offers",
+      "state": "transition-refused",
+      "intent": "Read which rule refused it and which transitions are legal from this state"
+    },
+    {
+      "page": "offers",
+      "intent": "Confirm the offer's state is unchanged after the refusal"
+    }
+  ]
+}

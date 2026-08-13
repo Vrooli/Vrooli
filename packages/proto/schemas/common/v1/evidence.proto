@@ -53,4 +53,8 @@ message TargetVerdict {
   repeated EvidenceRef refs = 3;
   string run_id = 4;
   string detail = 5;
+  // Structural provenance used by release gates. This must not be inferred
+  // from free-form detail text because advisory strategies are not
+  // promotable to release evidence.
+  string evidence_class = 6;
 }

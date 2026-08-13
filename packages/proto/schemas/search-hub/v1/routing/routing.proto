@@ -53,6 +53,9 @@ message QueryRequest {
   // The provider's control token (registry.RegisterProviderResponse). Required
   // for `overrides` to be honored; unused for ordinary public search.
   string control_token = 8;
+  // Optional query-time corpus facet passed through {{scope_value}} to scoped
+  // providers such as source-ledger's collapsed leaf.
+  string scope = 9;
 }
 
 // Per-request override of QUERY-TIME tuning factors only — index-time factors
@@ -187,6 +190,10 @@ message QueryResponse {
   bool partial = 8;
   // Number of provider groups that did not complete before the deadline.
   int32 pending_providers = 9;
+  // Active reranker leg that produced the ranked list (or "none").
+  string reranker_leg = 10;
+  // Stable reason for routing-path degradation, e.g. routing_index_unavailable.
+  string routing_degrade_reason = 11;
 }
 
 message StatusRequest {}
@@ -246,4 +253,6 @@ message StatusResponse {
   double circuit_open_share = 4;
   double circuit_open_quorum = 5;
   bool federation_degraded = 6;
+  // Current shared reranker leg (cross-encoder, LLM fallback, or none).
+  string reranker_leg = 7;
 }

@@ -1,0 +1,121 @@
+{
+  "_metadata": {
+    "module": "console",
+    "description": "The operator console and the obligations that only appear once there are users.",
+    "prd_ref": "PRD.md",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "UI-001",
+      "title": "Console covers every perceivable state",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "ui",
+      "criticality": "P2",
+      "description": "Graph view, offer detail and promotion actions each render loading, empty, partial, stale and error states. Status is never colour-only: every status chip carries a text label and the graph view has a table equivalent.",
+      "tags": [
+        "ui",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Feature tests assert each state renders with its documented selector."
+        },
+        {
+          "type": "business",
+          "status": "planned",
+          "notes": "BAS case walks the console and asserts the accessible names of status controls."
+        }
+      ]
+    },
+    {
+      "id": "UI-002",
+      "title": "Promotion is an explicit operator action",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "ui",
+      "criticality": "P2",
+      "description": "The console's promotion control states what will change before it is used and shows the proposing actor and rationale where a proposal exists.",
+      "tags": [
+        "ui",
+        "policy"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "The control is absent or disabled for a non-operator role."
+        }
+      ]
+    },
+    {
+      "id": "COMP-001",
+      "title": "Per-offer compliance obligations carry review dates",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "domain",
+      "criticality": "P2",
+      "description": "Offers carry the legal and platform obligations they incur — disclosure requirements, marketplace terms, tax treatment — each with a review date. The source catalog records these as prose per revenue line, where nothing surfaces them before a launch.",
+      "tags": [
+        "domain",
+        "compliance"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "An obligation past its review date surfaces on the offer and on the board."
+        }
+      ]
+    },
+    {
+      "id": "BOOK-001",
+      "title": "Offer books are scoped independently",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "domain",
+      "criticality": "P2",
+      "description": "More than one offer graph can exist in one instance, each queried independently. This is what makes the scenario usable by an operator whose business is not this one.",
+      "tags": [
+        "domain",
+        "multi-tenant"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A query scoped to one book never returns nodes from another."
+        }
+      ]
+    },
+    {
+      "id": "GATE-007",
+      "title": "Triggers can read another scenario's live state",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "integration",
+      "criticality": "P2",
+      "description": "A trigger clause may name a fact served by another scenario rather than one an operator supplied, so a condition like 'the dependency scenario is deployable' evaluates itself. Deferred to P2 deliberately: it needs the fact-source contract to be stable, and an unavailable source must evaluate to unknown rather than false, which the P0 evaluation rule already establishes.",
+      "tags": [
+        "integration",
+        "gate"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A scenario-sourced fact resolves through a faked client; an unavailable source yields unknown, never false."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Evaluation over a mixed operator/scenario fact set records the source of each fact consulted."
+        }
+      ]
+    }
+  ]
+}

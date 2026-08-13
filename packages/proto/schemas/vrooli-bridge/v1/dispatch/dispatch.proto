@@ -57,6 +57,12 @@ message DispatchJobRequest {
   // Wall-clock budget after which the node aborts the run. 0 uses the server
   // default dispatch timeout.
   int64 timeout_seconds = 5;
+
+  // Optional device scope for verbs that reach an attached device through the
+  // target host. Bridge stores only the short-lived authorization record; the
+  // device-control scenario remains the authority for lease semantics.
+  string device_id = 6;
+  string lease_token = 7;
 }
 
 message DispatchJobResponse {

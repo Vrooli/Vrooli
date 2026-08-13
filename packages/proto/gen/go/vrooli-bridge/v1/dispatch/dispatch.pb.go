@@ -34,8 +34,13 @@ type DispatchJobRequest struct {
 	// Wall-clock budget after which the node aborts the run. 0 uses the server
 	// default dispatch timeout.
 	TimeoutSeconds int64 `protobuf:"varint,5,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Optional device scope for verbs that reach an attached device through the
+	// target host. Bridge stores only the short-lived authorization record; the
+	// device-control scenario remains the authority for lease semantics.
+	DeviceId      string `protobuf:"bytes,6,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	LeaseToken    string `protobuf:"bytes,7,opt,name=lease_token,json=leaseToken,proto3" json:"lease_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DispatchJobRequest) Reset() {
@@ -101,6 +106,20 @@ func (x *DispatchJobRequest) GetTimeoutSeconds() int64 {
 		return x.TimeoutSeconds
 	}
 	return 0
+}
+
+func (x *DispatchJobRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *DispatchJobRequest) GetLeaseToken() string {
+	if x != nil {
+		return x.LeaseToken
+	}
+	return ""
 }
 
 type DispatchJobResponse struct {
@@ -207,13 +226,16 @@ var File_vrooli_bridge_v1_dispatch_dispatch_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_dispatch_dispatch_proto_rawDesc = "" +
 	"\n" +
-	"(vrooli-bridge/v1/dispatch/dispatch.proto\x12 vrooli.vrooli_bridge.v1.dispatch\"\x9a\x01\n" +
+	"(vrooli-bridge/v1/dispatch/dispatch.proto\x12 vrooli.vrooli_bridge.v1.dispatch\"\xd8\x01\n" +
 	"\x12DispatchJobRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04verb\x18\x03 \x01(\tR\x04verb\x12\x12\n" +
 	"\x04args\x18\x04 \x03(\tR\x04args\x12'\n" +
-	"\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\"\xba\x01\n" +
+	"\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\x12\x1b\n" +
+	"\tdevice_id\x18\x06 \x01(\tR\bdeviceId\x12\x1f\n" +
+	"\vlease_token\x18\a \x01(\tR\n" +
+	"leaseToken\"\xba\x01\n" +
 	"\x13DispatchJobResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12\x17\n" +

@@ -12,12 +12,27 @@ class Provenance(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PROVENANCE_UNSPECIFIED: _ClassVar[Provenance]
     PROVENANCE_AGENT: _ClassVar[Provenance]
     PROVENANCE_OPERATOR: _ClassVar[Provenance]
+
+class ProgramStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PROGRAM_STATUS_UNSPECIFIED: _ClassVar[ProgramStatus]
+    PROGRAM_STATUS_ACCEPTED: _ClassVar[ProgramStatus]
+    PROGRAM_STATUS_RUNNING: _ClassVar[ProgramStatus]
+    PROGRAM_STATUS_SUCCEEDED: _ClassVar[ProgramStatus]
+    PROGRAM_STATUS_FAILED: _ClassVar[ProgramStatus]
+    PROGRAM_STATUS_CANCELLED: _ClassVar[ProgramStatus]
 PROVENANCE_UNSPECIFIED: Provenance
 PROVENANCE_AGENT: Provenance
 PROVENANCE_OPERATOR: Provenance
+PROGRAM_STATUS_UNSPECIFIED: ProgramStatus
+PROGRAM_STATUS_ACCEPTED: ProgramStatus
+PROGRAM_STATUS_RUNNING: ProgramStatus
+PROGRAM_STATUS_SUCCEEDED: ProgramStatus
+PROGRAM_STATUS_FAILED: ProgramStatus
+PROGRAM_STATUS_CANCELLED: ProgramStatus
 
 class Program(_message.Message):
-    __slots__ = ("id", "session_id", "source", "provenance", "status", "stdout", "failure_detail", "failure_shape", "context_bytes", "created_at", "output_limit_bytes", "agent_bytes")
+    __slots__ = ("id", "session_id", "source", "provenance", "status", "stdout", "failure_detail", "failure_shape", "context_bytes", "created_at", "output_limit_bytes", "agent_bytes", "completed_at", "wall_time_millis", "cpu_time_millis")
     ID_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
@@ -30,11 +45,14 @@ class Program(_message.Message):
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_LIMIT_BYTES_FIELD_NUMBER: _ClassVar[int]
     AGENT_BYTES_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    WALL_TIME_MILLIS_FIELD_NUMBER: _ClassVar[int]
+    CPU_TIME_MILLIS_FIELD_NUMBER: _ClassVar[int]
     id: str
     session_id: str
     source: str
     provenance: Provenance
-    status: str
+    status: ProgramStatus
     stdout: str
     failure_detail: str
     failure_shape: str
@@ -42,7 +60,10 @@ class Program(_message.Message):
     created_at: str
     output_limit_bytes: int
     agent_bytes: int
-    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., source: _Optional[str] = ..., provenance: _Optional[_Union[Provenance, str]] = ..., status: _Optional[str] = ..., stdout: _Optional[str] = ..., failure_detail: _Optional[str] = ..., failure_shape: _Optional[str] = ..., context_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., output_limit_bytes: _Optional[int] = ..., agent_bytes: _Optional[int] = ...) -> None: ...
+    completed_at: str
+    wall_time_millis: int
+    cpu_time_millis: int
+    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., source: _Optional[str] = ..., provenance: _Optional[_Union[Provenance, str]] = ..., status: _Optional[_Union[ProgramStatus, str]] = ..., stdout: _Optional[str] = ..., failure_detail: _Optional[str] = ..., failure_shape: _Optional[str] = ..., context_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., output_limit_bytes: _Optional[int] = ..., agent_bytes: _Optional[int] = ..., completed_at: _Optional[str] = ..., wall_time_millis: _Optional[int] = ..., cpu_time_millis: _Optional[int] = ...) -> None: ...
 
 class SubmitProgramRequest(_message.Message):
     __slots__ = ("session_id", "source", "provenance", "include_materialized")
@@ -50,11 +71,12 @@ class SubmitProgramRequest(_message.Message):
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     PROVENANCE_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_MATERIALIZED_FIELD_NUMBER: _ClassVar[int]
+    ASYNC_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     source: str
     provenance: Provenance
     include_materialized: bool
-    def __init__(self, session_id: _Optional[str] = ..., source: _Optional[str] = ..., provenance: _Optional[_Union[Provenance, str]] = ..., include_materialized: _Optional[bool] = ...) -> None: ...
+    def __init__(self, session_id: _Optional[str] = ..., source: _Optional[str] = ..., provenance: _Optional[_Union[Provenance, str]] = ..., include_materialized: _Optional[bool] = ..., **kwargs) -> None: ...
 
 class SubmitProgramResponse(_message.Message):
     __slots__ = ("program",)

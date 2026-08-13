@@ -93,6 +93,11 @@ message EvalRun {
   string tier = 10;
   bool degraded = 11;
   string degraded_reason = 12;
+  // Cases excluded because the provider or serving substrate was unavailable.
+  // These are evidence about availability, never retrieval quality.
+  repeated UnavailableCase unavailable_cases = 13;
+  // Human-readable run-level reason when no quality case was gradeable.
+  string unavailable_reason = 14;
 }
 
 // Captured from the provider's status probe at run time so a historical
@@ -130,13 +135,20 @@ message CaseResult {
   int32 expected_rank = 3;
   double observed_top_score = 4;
   // "met" | "below_expectation" | "above_expectation" | "unexpected_hit" |
-  // "error" | "n/a". "error" means the provider call failed; "n/a" means
+  // "error" | "unavailable" | "n/a". "unavailable" means an infrastructure
+  // failure prevented a quality observation; "error" means a non-infrastructure
+  // provider/corpus error; "n/a" means
   // the case ran but had no grading expectations.
   string outcome = 5;
   string expected_provider_id = 6;
   bool provider_routed = 7;
   double margin = 8;
   string outcome_reason = 9;
+}
+
+message UnavailableCase {
+  string case_id = 1;
+  string reason = 2;
 }
 
 message ScoredHit {
@@ -159,6 +171,10 @@ message EvalAggregate {
   // graded; keeping this denominator explicit prevents an empty run from
   // masquerading as a clean zero-miss result.
   int32 graded_cases = 7;
+  // Infrastructure-excluded cases; never part of the quality denominator.
+  int32 unavailable_cases = 8;
+  // met / graded_cases when graded_cases is non-zero, otherwise zero.
+  double pass_rate = 9;
 }
 
 service EvalService {

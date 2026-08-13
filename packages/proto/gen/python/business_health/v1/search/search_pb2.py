@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&business-health/v1/search/search.proto\x12 vrooli.business_health.v1.search\"w\n\rSearchRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12:\n\x04mode\x18\x03 \x01(\x0e\x32&.vrooli.business_health.v1.search.ModeR\x04mode\"\xbc\x01\n\x0eSearchResponse\x12\x45\n\x07results\x18\x01 \x03(\x0b\x32+.vrooli.business_health.v1.search.IntentHitR\x07results\x12:\n\x04mode\x18\x02 \x01(\x0e\x32&.vrooli.business_health.v1.search.ModeR\x04mode\x12\'\n\x0f\x64\x65graded_reason\x18\x03 \x01(\tR\x0e\x64\x65gradedReason\"\xd6\x01\n\tIntentHit\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x12\n\x04type\x18\x03 \x01(\tR\x04type\x12\x14\n\x05title\x18\x04 \x01(\tR\x05title\x12\x18\n\x07snippet\x18\x05 \x01(\tR\x07snippet\x12\x16\n\x06\x61nchor\x18\x06 \x01(\tR\x06\x61nchor\x12\x17\n\x07prd_ref\x18\x07 \x01(\tR\x06prdRef\x12\x14\n\x05score\x18\x08 \x01(\x02R\x05score\x12\x12\n\x04weak\x18\t \x01(\x08R\x04weak\"\x0f\n\rStatusRequest\"\xdb\x01\n\x0eStatusResponse\x12\x1c\n\tavailable\x18\x01 \x01(\x08R\tavailable\x12\x1b\n\tollama_up\x18\x02 \x01(\x08R\x08ollamaUp\x12\x1b\n\tqdrant_up\x18\x03 \x01(\x08R\x08qdrantUp\x12\x1f\n\x0breranker_up\x18\x04 \x01(\x08R\nrerankerUp\x12\x18\n\x07indexed\x18\x05 \x01(\x03R\x07indexed\x12\x1e\n\ncollection\x18\x06 \x01(\tR\ncollection\x12\x16\n\x06\x64\x65tail\x18\x07 \x01(\tR\x06\x64\x65tail*8\n\x04Mode\x12\x14\n\x10MODE_UNSPECIFIED\x10\x00\x12\x0b\n\x07MODE_AI\x10\x01\x12\r\n\tMODE_TEXT\x10\x02\x32\xe9\x01\n\rSearchService\x12k\n\x06Search\x12/.vrooli.business_health.v1.search.SearchRequest\x1a\x30.vrooli.business_health.v1.search.SearchResponse\x12k\n\x06Status\x12/.vrooli.business_health.v1.search.StatusRequest\x1a\x30.vrooli.business_health.v1.search.StatusResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/business-health/v1/search;search_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&business-health/v1/search/search.proto\x12 vrooli.business_health.v1.search\"w\n\rSearchRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12:\n\x04mode\x18\x03 \x01(\x0e\x32&.vrooli.business_health.v1.search.ModeR\x04mode\"\xbc\x01\n\x0eSearchResponse\x12\x45\n\x07results\x18\x01 \x03(\x0b\x32+.vrooli.business_health.v1.search.IntentHitR\x07results\x12:\n\x04mode\x18\x02 \x01(\x0e\x32&.vrooli.business_health.v1.search.ModeR\x04mode\x12\'\n\x0f\x64\x65graded_reason\x18\x03 \x01(\tR\x0e\x64\x65gradedReason\"\xd6\x01\n\tIntentHit\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x12\n\x04type\x18\x03 \x01(\tR\x04type\x12\x14\n\x05title\x18\x04 \x01(\tR\x05title\x12\x18\n\x07snippet\x18\x05 \x01(\tR\x07snippet\x12\x16\n\x06\x61nchor\x18\x06 \x01(\tR\x06\x61nchor\x12\x17\n\x07prd_ref\x18\x07 \x01(\tR\x06prdRef\x12\x14\n\x05score\x18\x08 \x01(\x02R\x05score\x12\x12\n\x04weak\x18\t \x01(\x08R\x04weak\"\x0f\n\rStatusRequest\"\x87\x02\n\x0eStatusResponse\x12\x1c\n\tavailable\x18\x01 \x01(\x08R\tavailable\x12\x1b\n\tollama_up\x18\x02 \x01(\x08R\x08ollamaUp\x12\x1b\n\tqdrant_up\x18\x03 \x01(\x08R\x08qdrantUp\x12\x1f\n\x0breranker_up\x18\x04 \x01(\x08R\nrerankerUp\x12\x18\n\x07indexed\x18\x05 \x01(\x03R\x07indexed\x12\x1e\n\ncollection\x18\x06 \x01(\tR\ncollection\x12\x16\n\x06\x64\x65tail\x18\x07 \x01(\tR\x06\x64\x65tail\x12*\n\x11last_reconcile_at\x18\x08 \x01(\tR\x0flastReconcileAt*8\n\x04Mode\x12\x14\n\x10MODE_UNSPECIFIED\x10\x00\x12\x0b\n\x07MODE_AI\x10\x01\x12\r\n\tMODE_TEXT\x10\x02\x32\xe9\x01\n\rSearchService\x12k\n\x06Search\x12/.vrooli.business_health.v1.search.SearchRequest\x1a\x30.vrooli.business_health.v1.search.SearchResponse\x12k\n\x06Status\x12/.vrooli.business_health.v1.search.StatusRequest\x1a\x30.vrooli.business_health.v1.search.StatusResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/business-health/v1/search;search_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,8 +32,8 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'business_health.v1.search.s
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZRgithub.com/vrooli/vrooli/packages/proto/gen/go/business-health/v1/search;search_v1'
-  _globals['_MODE']._serialized_start=844
-  _globals['_MODE']._serialized_end=900
+  _globals['_MODE']._serialized_start=888
+  _globals['_MODE']._serialized_end=944
   _globals['_SEARCHREQUEST']._serialized_start=76
   _globals['_SEARCHREQUEST']._serialized_end=195
   _globals['_SEARCHRESPONSE']._serialized_start=198
@@ -43,7 +43,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_STATUSREQUEST']._serialized_start=605
   _globals['_STATUSREQUEST']._serialized_end=620
   _globals['_STATUSRESPONSE']._serialized_start=623
-  _globals['_STATUSRESPONSE']._serialized_end=842
-  _globals['_SEARCHSERVICE']._serialized_start=903
-  _globals['_SEARCHSERVICE']._serialized_end=1136
+  _globals['_STATUSRESPONSE']._serialized_end=886
+  _globals['_SEARCHSERVICE']._serialized_start=947
+  _globals['_SEARCHSERVICE']._serialized_end=1180
 # @@protoc_insertion_point(module_scope)

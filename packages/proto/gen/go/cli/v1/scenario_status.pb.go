@@ -1844,6 +1844,76 @@ func (x *ScenarioSetupSteps) GetSkipped() int32 {
 	return 0
 }
 
+// ScenarioLogsResponse is the bounded tail returned by the control plane.
+// The service never exposes an unbounded log stream through this unary API.
+type ScenarioLogsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Scenario      string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Logs          string                 `protobuf:"bytes,3,opt,name=logs,proto3" json:"logs,omitempty"`
+	TailLines     int32                  `protobuf:"varint,4,opt,name=tail_lines,json=tailLines,proto3" json:"tail_lines,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioLogsResponse) Reset() {
+	*x = ScenarioLogsResponse{}
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioLogsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioLogsResponse) ProtoMessage() {}
+
+func (x *ScenarioLogsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioLogsResponse.ProtoReflect.Descriptor instead.
+func (*ScenarioLogsResponse) Descriptor() ([]byte, []int) {
+	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ScenarioLogsResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *ScenarioLogsResponse) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ScenarioLogsResponse) GetLogs() string {
+	if x != nil {
+		return x.Logs
+	}
+	return ""
+}
+
+func (x *ScenarioLogsResponse) GetTailLines() int32 {
+	if x != nil {
+		return x.TailLines
+	}
+	return 0
+}
+
 // ScenarioBatchResponse is the envelope of the lifecycle batch report
 // (cliout.WriteSuccessJSON under the "data" key).
 type ScenarioBatchResponse struct {
@@ -1858,7 +1928,7 @@ type ScenarioBatchResponse struct {
 
 func (x *ScenarioBatchResponse) Reset() {
 	*x = ScenarioBatchResponse{}
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[19]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1870,7 +1940,7 @@ func (x *ScenarioBatchResponse) String() string {
 func (*ScenarioBatchResponse) ProtoMessage() {}
 
 func (x *ScenarioBatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[19]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1883,7 +1953,7 @@ func (x *ScenarioBatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioBatchResponse.ProtoReflect.Descriptor instead.
 func (*ScenarioBatchResponse) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{19}
+	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ScenarioBatchResponse) GetSuccess() bool {
@@ -1917,7 +1987,7 @@ type ScenarioBatchData struct {
 
 func (x *ScenarioBatchData) Reset() {
 	*x = ScenarioBatchData{}
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[20]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1929,7 +1999,7 @@ func (x *ScenarioBatchData) String() string {
 func (*ScenarioBatchData) ProtoMessage() {}
 
 func (x *ScenarioBatchData) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[20]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1942,7 +2012,7 @@ func (x *ScenarioBatchData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioBatchData.ProtoReflect.Descriptor instead.
 func (*ScenarioBatchData) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{20}
+	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ScenarioBatchData) GetStarted() []*ScenarioLifecycleItem {
@@ -1979,7 +2049,7 @@ type ScenarioBatchFailure struct {
 
 func (x *ScenarioBatchFailure) Reset() {
 	*x = ScenarioBatchFailure{}
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[21]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1991,7 +2061,7 @@ func (x *ScenarioBatchFailure) String() string {
 func (*ScenarioBatchFailure) ProtoMessage() {}
 
 func (x *ScenarioBatchFailure) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[21]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2004,7 +2074,7 @@ func (x *ScenarioBatchFailure) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioBatchFailure.ProtoReflect.Descriptor instead.
 func (*ScenarioBatchFailure) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{21}
+	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ScenarioBatchFailure) GetName() string {
@@ -2035,7 +2105,7 @@ type ScenarioLifecycleResponse struct {
 
 func (x *ScenarioLifecycleResponse) Reset() {
 	*x = ScenarioLifecycleResponse{}
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[22]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2047,7 +2117,7 @@ func (x *ScenarioLifecycleResponse) String() string {
 func (*ScenarioLifecycleResponse) ProtoMessage() {}
 
 func (x *ScenarioLifecycleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[22]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2060,7 +2130,7 @@ func (x *ScenarioLifecycleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioLifecycleResponse.ProtoReflect.Descriptor instead.
 func (*ScenarioLifecycleResponse) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{22}
+	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ScenarioLifecycleResponse) GetSuccess() bool {
@@ -2108,7 +2178,7 @@ type ScenarioLifecycleItem struct {
 
 func (x *ScenarioLifecycleItem) Reset() {
 	*x = ScenarioLifecycleItem{}
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[23]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2120,7 +2190,7 @@ func (x *ScenarioLifecycleItem) String() string {
 func (*ScenarioLifecycleItem) ProtoMessage() {}
 
 func (x *ScenarioLifecycleItem) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[23]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2133,7 +2203,7 @@ func (x *ScenarioLifecycleItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioLifecycleItem.ProtoReflect.Descriptor instead.
 func (*ScenarioLifecycleItem) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{23}
+	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ScenarioLifecycleItem) GetName() string {
@@ -2228,7 +2298,7 @@ type ScenarioWaitResponse struct {
 
 func (x *ScenarioWaitResponse) Reset() {
 	*x = ScenarioWaitResponse{}
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[24]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2240,7 +2310,7 @@ func (x *ScenarioWaitResponse) String() string {
 func (*ScenarioWaitResponse) ProtoMessage() {}
 
 func (x *ScenarioWaitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[24]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2253,7 +2323,7 @@ func (x *ScenarioWaitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioWaitResponse.ProtoReflect.Descriptor instead.
 func (*ScenarioWaitResponse) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{24}
+	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ScenarioWaitResponse) GetSuccess() bool {
@@ -2325,7 +2395,7 @@ type ScenarioEndpoint struct {
 
 func (x *ScenarioEndpoint) Reset() {
 	*x = ScenarioEndpoint{}
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[25]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2337,7 +2407,7 @@ func (x *ScenarioEndpoint) String() string {
 func (*ScenarioEndpoint) ProtoMessage() {}
 
 func (x *ScenarioEndpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[25]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2350,7 +2420,7 @@ func (x *ScenarioEndpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioEndpoint.ProtoReflect.Descriptor instead.
 func (*ScenarioEndpoint) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{25}
+	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ScenarioEndpoint) GetName() string {
@@ -2403,7 +2473,7 @@ type ScenarioEnvValidationResponse struct {
 
 func (x *ScenarioEnvValidationResponse) Reset() {
 	*x = ScenarioEnvValidationResponse{}
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[26]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2415,7 +2485,7 @@ func (x *ScenarioEnvValidationResponse) String() string {
 func (*ScenarioEnvValidationResponse) ProtoMessage() {}
 
 func (x *ScenarioEnvValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[26]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2428,7 +2498,7 @@ func (x *ScenarioEnvValidationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioEnvValidationResponse.ProtoReflect.Descriptor instead.
 func (*ScenarioEnvValidationResponse) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{26}
+	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ScenarioEnvValidationResponse) GetSuccess() bool {
@@ -2465,7 +2535,7 @@ type ScenarioEnvValidationReport struct {
 
 func (x *ScenarioEnvValidationReport) Reset() {
 	*x = ScenarioEnvValidationReport{}
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[27]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2477,7 +2547,7 @@ func (x *ScenarioEnvValidationReport) String() string {
 func (*ScenarioEnvValidationReport) ProtoMessage() {}
 
 func (x *ScenarioEnvValidationReport) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[27]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2490,7 +2560,7 @@ func (x *ScenarioEnvValidationReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioEnvValidationReport.ProtoReflect.Descriptor instead.
 func (*ScenarioEnvValidationReport) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{27}
+	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ScenarioEnvValidationReport) GetScenario() string {
@@ -2541,7 +2611,7 @@ type ScenarioValidationIssue struct {
 
 func (x *ScenarioValidationIssue) Reset() {
 	*x = ScenarioValidationIssue{}
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[28]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2553,7 +2623,7 @@ func (x *ScenarioValidationIssue) String() string {
 func (*ScenarioValidationIssue) ProtoMessage() {}
 
 func (x *ScenarioValidationIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[28]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2566,7 +2636,7 @@ func (x *ScenarioValidationIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioValidationIssue.ProtoReflect.Descriptor instead.
 func (*ScenarioValidationIssue) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{28}
+	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ScenarioValidationIssue) GetSeverity() string {
@@ -2601,7 +2671,7 @@ type ScenarioResourceReport struct {
 
 func (x *ScenarioResourceReport) Reset() {
 	*x = ScenarioResourceReport{}
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[29]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2613,7 +2683,7 @@ func (x *ScenarioResourceReport) String() string {
 func (*ScenarioResourceReport) ProtoMessage() {}
 
 func (x *ScenarioResourceReport) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_status_proto_msgTypes[29]
+	mi := &file_cli_v1_scenario_status_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2626,7 +2696,7 @@ func (x *ScenarioResourceReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioResourceReport.ProtoReflect.Descriptor instead.
 func (*ScenarioResourceReport) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{29}
+	return file_cli_v1_scenario_status_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ScenarioResourceReport) GetName() string {
@@ -2831,7 +2901,13 @@ const file_cli_v1_scenario_status_proto_rawDesc = "" +
 	"\x05steps\x18\x05 \x01(\v2!.vrooli.cli.v1.ScenarioSetupStepsR\x05steps\"J\n" +
 	"\x12ScenarioSetupSteps\x12\x1a\n" +
 	"\bexecuted\x18\x01 \x01(\x05R\bexecuted\x12\x18\n" +
-	"\askipped\x18\x02 \x01(\x05R\askipped\"g\n" +
+	"\askipped\x18\x02 \x01(\x05R\askipped\"\x7f\n" +
+	"\x14ScenarioLogsResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1a\n" +
+	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x12\n" +
+	"\x04logs\x18\x03 \x01(\tR\x04logs\x12\x1d\n" +
+	"\n" +
+	"tail_lines\x18\x04 \x01(\x05R\ttailLines\"g\n" +
 	"\x15ScenarioBatchResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x124\n" +
 	"\x04data\x18\x02 \x01(\v2 .vrooli.cli.v1.ScenarioBatchDataR\x04data\"\xaa\x01\n" +
@@ -2909,7 +2985,7 @@ func file_cli_v1_scenario_status_proto_rawDescGZIP() []byte {
 	return file_cli_v1_scenario_status_proto_rawDescData
 }
 
-var file_cli_v1_scenario_status_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_cli_v1_scenario_status_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_cli_v1_scenario_status_proto_goTypes = []any{
 	(*ScenarioStatusListResponse)(nil),    // 0: vrooli.cli.v1.ScenarioStatusListResponse
 	(*ScenarioStatusSummary)(nil),         // 1: vrooli.cli.v1.ScenarioStatusSummary
@@ -2930,34 +3006,35 @@ var file_cli_v1_scenario_status_proto_goTypes = []any{
 	(*ScenarioPortList)(nil),              // 16: vrooli.cli.v1.ScenarioPortList
 	(*ScenarioSetupResponse)(nil),         // 17: vrooli.cli.v1.ScenarioSetupResponse
 	(*ScenarioSetupSteps)(nil),            // 18: vrooli.cli.v1.ScenarioSetupSteps
-	(*ScenarioBatchResponse)(nil),         // 19: vrooli.cli.v1.ScenarioBatchResponse
-	(*ScenarioBatchData)(nil),             // 20: vrooli.cli.v1.ScenarioBatchData
-	(*ScenarioBatchFailure)(nil),          // 21: vrooli.cli.v1.ScenarioBatchFailure
-	(*ScenarioLifecycleResponse)(nil),     // 22: vrooli.cli.v1.ScenarioLifecycleResponse
-	(*ScenarioLifecycleItem)(nil),         // 23: vrooli.cli.v1.ScenarioLifecycleItem
-	(*ScenarioWaitResponse)(nil),          // 24: vrooli.cli.v1.ScenarioWaitResponse
-	(*ScenarioEndpoint)(nil),              // 25: vrooli.cli.v1.ScenarioEndpoint
-	(*ScenarioEnvValidationResponse)(nil), // 26: vrooli.cli.v1.ScenarioEnvValidationResponse
-	(*ScenarioEnvValidationReport)(nil),   // 27: vrooli.cli.v1.ScenarioEnvValidationReport
-	(*ScenarioValidationIssue)(nil),       // 28: vrooli.cli.v1.ScenarioValidationIssue
-	(*ScenarioResourceReport)(nil),        // 29: vrooli.cli.v1.ScenarioResourceReport
-	nil,                                   // 30: vrooli.cli.v1.ScenarioStatusItem.PortsEntry
-	nil,                                   // 31: vrooli.cli.v1.ScenarioRuntimeData.PortsEntry
-	nil,                                   // 32: vrooli.cli.v1.ScenarioPortList.MetadataEntry
-	nil,                                   // 33: vrooli.cli.v1.ScenarioLifecycleItem.PortsEntry
-	nil,                                   // 34: vrooli.cli.v1.ScenarioEnvValidationReport.ValuesEntry
-	nil,                                   // 35: vrooli.cli.v1.ScenarioResourceReport.ValuesEntry
-	(*DiscoveryFailure)(nil),              // 36: vrooli.cli.v1.DiscoveryFailure
-	(*ScenarioPort)(nil),                  // 37: vrooli.cli.v1.ScenarioPort
-	(*structpb.Value)(nil),                // 38: google.protobuf.Value
+	(*ScenarioLogsResponse)(nil),          // 19: vrooli.cli.v1.ScenarioLogsResponse
+	(*ScenarioBatchResponse)(nil),         // 20: vrooli.cli.v1.ScenarioBatchResponse
+	(*ScenarioBatchData)(nil),             // 21: vrooli.cli.v1.ScenarioBatchData
+	(*ScenarioBatchFailure)(nil),          // 22: vrooli.cli.v1.ScenarioBatchFailure
+	(*ScenarioLifecycleResponse)(nil),     // 23: vrooli.cli.v1.ScenarioLifecycleResponse
+	(*ScenarioLifecycleItem)(nil),         // 24: vrooli.cli.v1.ScenarioLifecycleItem
+	(*ScenarioWaitResponse)(nil),          // 25: vrooli.cli.v1.ScenarioWaitResponse
+	(*ScenarioEndpoint)(nil),              // 26: vrooli.cli.v1.ScenarioEndpoint
+	(*ScenarioEnvValidationResponse)(nil), // 27: vrooli.cli.v1.ScenarioEnvValidationResponse
+	(*ScenarioEnvValidationReport)(nil),   // 28: vrooli.cli.v1.ScenarioEnvValidationReport
+	(*ScenarioValidationIssue)(nil),       // 29: vrooli.cli.v1.ScenarioValidationIssue
+	(*ScenarioResourceReport)(nil),        // 30: vrooli.cli.v1.ScenarioResourceReport
+	nil,                                   // 31: vrooli.cli.v1.ScenarioStatusItem.PortsEntry
+	nil,                                   // 32: vrooli.cli.v1.ScenarioRuntimeData.PortsEntry
+	nil,                                   // 33: vrooli.cli.v1.ScenarioPortList.MetadataEntry
+	nil,                                   // 34: vrooli.cli.v1.ScenarioLifecycleItem.PortsEntry
+	nil,                                   // 35: vrooli.cli.v1.ScenarioEnvValidationReport.ValuesEntry
+	nil,                                   // 36: vrooli.cli.v1.ScenarioResourceReport.ValuesEntry
+	(*DiscoveryFailure)(nil),              // 37: vrooli.cli.v1.DiscoveryFailure
+	(*ScenarioPort)(nil),                  // 38: vrooli.cli.v1.ScenarioPort
+	(*structpb.Value)(nil),                // 39: google.protobuf.Value
 }
 var file_cli_v1_scenario_status_proto_depIdxs = []int32{
 	1,  // 0: vrooli.cli.v1.ScenarioStatusListResponse.summary:type_name -> vrooli.cli.v1.ScenarioStatusSummary
 	2,  // 1: vrooli.cli.v1.ScenarioStatusListResponse.scenarios:type_name -> vrooli.cli.v1.ScenarioStatusItem
-	36, // 2: vrooli.cli.v1.ScenarioStatusListResponse.discovery_failures:type_name -> vrooli.cli.v1.DiscoveryFailure
-	30, // 3: vrooli.cli.v1.ScenarioStatusItem.ports:type_name -> vrooli.cli.v1.ScenarioStatusItem.PortsEntry
-	37, // 4: vrooli.cli.v1.ScenarioStatusItem.port_bindings:type_name -> vrooli.cli.v1.ScenarioPort
-	38, // 5: vrooli.cli.v1.ScenarioStatusItem.health_status:type_name -> google.protobuf.Value
+	37, // 2: vrooli.cli.v1.ScenarioStatusListResponse.discovery_failures:type_name -> vrooli.cli.v1.DiscoveryFailure
+	31, // 3: vrooli.cli.v1.ScenarioStatusItem.ports:type_name -> vrooli.cli.v1.ScenarioStatusItem.PortsEntry
+	38, // 4: vrooli.cli.v1.ScenarioStatusItem.port_bindings:type_name -> vrooli.cli.v1.ScenarioPort
+	39, // 5: vrooli.cli.v1.ScenarioStatusItem.health_status:type_name -> google.protobuf.Value
 	3,  // 6: vrooli.cli.v1.ScenarioStatusItem.start_operation:type_name -> vrooli.cli.v1.ScenarioStartOperation
 	4,  // 7: vrooli.cli.v1.ScenarioStartOperation.steps:type_name -> vrooli.cli.v1.ScenarioStartOperationStep
 	2,  // 8: vrooli.cli.v1.ScenarioStatusSingle.scenario:type_name -> vrooli.cli.v1.ScenarioStatusItem
@@ -2970,25 +3047,25 @@ var file_cli_v1_scenario_status_proto_depIdxs = []int32{
 	10, // 15: vrooli.cli.v1.ScenarioInfoData.generation:type_name -> vrooli.cli.v1.ScenarioGenerationMetadata
 	11, // 16: vrooli.cli.v1.ScenarioGenerationMetadata.template:type_name -> vrooli.cli.v1.ScenarioGenerationTemplate
 	12, // 17: vrooli.cli.v1.ScenarioGenerationMetadata.design:type_name -> vrooli.cli.v1.ScenarioGenerationDesign
-	31, // 18: vrooli.cli.v1.ScenarioRuntimeData.ports:type_name -> vrooli.cli.v1.ScenarioRuntimeData.PortsEntry
+	32, // 18: vrooli.cli.v1.ScenarioRuntimeData.ports:type_name -> vrooli.cli.v1.ScenarioRuntimeData.PortsEntry
 	14, // 19: vrooli.cli.v1.ScenarioRuntimeData.process_records:type_name -> vrooli.cli.v1.ScenarioProcessRecord
-	37, // 20: vrooli.cli.v1.ScenarioRuntimeData.list_ports:type_name -> vrooli.cli.v1.ScenarioPort
-	37, // 21: vrooli.cli.v1.ScenarioPortList.ports:type_name -> vrooli.cli.v1.ScenarioPort
-	32, // 22: vrooli.cli.v1.ScenarioPortList.metadata:type_name -> vrooli.cli.v1.ScenarioPortList.MetadataEntry
+	38, // 20: vrooli.cli.v1.ScenarioRuntimeData.list_ports:type_name -> vrooli.cli.v1.ScenarioPort
+	38, // 21: vrooli.cli.v1.ScenarioPortList.ports:type_name -> vrooli.cli.v1.ScenarioPort
+	33, // 22: vrooli.cli.v1.ScenarioPortList.metadata:type_name -> vrooli.cli.v1.ScenarioPortList.MetadataEntry
 	18, // 23: vrooli.cli.v1.ScenarioSetupResponse.steps:type_name -> vrooli.cli.v1.ScenarioSetupSteps
-	20, // 24: vrooli.cli.v1.ScenarioBatchResponse.data:type_name -> vrooli.cli.v1.ScenarioBatchData
-	23, // 25: vrooli.cli.v1.ScenarioBatchData.started:type_name -> vrooli.cli.v1.ScenarioLifecycleItem
-	21, // 26: vrooli.cli.v1.ScenarioBatchData.failed:type_name -> vrooli.cli.v1.ScenarioBatchFailure
-	23, // 27: vrooli.cli.v1.ScenarioLifecycleResponse.scenarios:type_name -> vrooli.cli.v1.ScenarioLifecycleItem
-	33, // 28: vrooli.cli.v1.ScenarioLifecycleItem.ports:type_name -> vrooli.cli.v1.ScenarioLifecycleItem.PortsEntry
-	25, // 29: vrooli.cli.v1.ScenarioLifecycleItem.endpoints:type_name -> vrooli.cli.v1.ScenarioEndpoint
+	21, // 24: vrooli.cli.v1.ScenarioBatchResponse.data:type_name -> vrooli.cli.v1.ScenarioBatchData
+	24, // 25: vrooli.cli.v1.ScenarioBatchData.started:type_name -> vrooli.cli.v1.ScenarioLifecycleItem
+	22, // 26: vrooli.cli.v1.ScenarioBatchData.failed:type_name -> vrooli.cli.v1.ScenarioBatchFailure
+	24, // 27: vrooli.cli.v1.ScenarioLifecycleResponse.scenarios:type_name -> vrooli.cli.v1.ScenarioLifecycleItem
+	34, // 28: vrooli.cli.v1.ScenarioLifecycleItem.ports:type_name -> vrooli.cli.v1.ScenarioLifecycleItem.PortsEntry
+	26, // 29: vrooli.cli.v1.ScenarioLifecycleItem.endpoints:type_name -> vrooli.cli.v1.ScenarioEndpoint
 	3,  // 30: vrooli.cli.v1.ScenarioLifecycleItem.operation:type_name -> vrooli.cli.v1.ScenarioStartOperation
 	3,  // 31: vrooli.cli.v1.ScenarioWaitResponse.operation:type_name -> vrooli.cli.v1.ScenarioStartOperation
-	27, // 32: vrooli.cli.v1.ScenarioEnvValidationResponse.report:type_name -> vrooli.cli.v1.ScenarioEnvValidationReport
-	34, // 33: vrooli.cli.v1.ScenarioEnvValidationReport.values:type_name -> vrooli.cli.v1.ScenarioEnvValidationReport.ValuesEntry
-	28, // 34: vrooli.cli.v1.ScenarioEnvValidationReport.issues:type_name -> vrooli.cli.v1.ScenarioValidationIssue
-	29, // 35: vrooli.cli.v1.ScenarioEnvValidationReport.resource_reports:type_name -> vrooli.cli.v1.ScenarioResourceReport
-	35, // 36: vrooli.cli.v1.ScenarioResourceReport.values:type_name -> vrooli.cli.v1.ScenarioResourceReport.ValuesEntry
+	28, // 32: vrooli.cli.v1.ScenarioEnvValidationResponse.report:type_name -> vrooli.cli.v1.ScenarioEnvValidationReport
+	35, // 33: vrooli.cli.v1.ScenarioEnvValidationReport.values:type_name -> vrooli.cli.v1.ScenarioEnvValidationReport.ValuesEntry
+	29, // 34: vrooli.cli.v1.ScenarioEnvValidationReport.issues:type_name -> vrooli.cli.v1.ScenarioValidationIssue
+	30, // 35: vrooli.cli.v1.ScenarioEnvValidationReport.resource_reports:type_name -> vrooli.cli.v1.ScenarioResourceReport
+	36, // 36: vrooli.cli.v1.ScenarioResourceReport.values:type_name -> vrooli.cli.v1.ScenarioResourceReport.ValuesEntry
 	37, // [37:37] is the sub-list for method output_type
 	37, // [37:37] is the sub-list for method input_type
 	37, // [37:37] is the sub-list for extension type_name
@@ -3009,7 +3086,7 @@ func file_cli_v1_scenario_status_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_scenario_status_proto_rawDesc), len(file_cli_v1_scenario_status_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   36,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

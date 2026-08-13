@@ -1340,14 +1340,17 @@ func (x *ConditionFamily) GetReason() string {
 }
 
 type ServingCondition struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Family          *ConditionFamily       `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
-	FailureRate     float64                `protobuf:"fixed64,2,opt,name=failure_rate,json=failureRate,proto3" json:"failure_rate,omitempty"`
-	DegradationRate float64                `protobuf:"fixed64,3,opt,name=degradation_rate,json=degradationRate,proto3" json:"degradation_rate,omitempty"`
-	LatencyP50Ms    int64                  `protobuf:"varint,4,opt,name=latency_p50_ms,json=latencyP50Ms,proto3" json:"latency_p50_ms,omitempty"`
-	LatencyP95Ms    int64                  `protobuf:"varint,5,opt,name=latency_p95_ms,json=latencyP95Ms,proto3" json:"latency_p95_ms,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Family               *ConditionFamily       `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
+	FailureRate          float64                `protobuf:"fixed64,2,opt,name=failure_rate,json=failureRate,proto3" json:"failure_rate,omitempty"`
+	DegradationRate      float64                `protobuf:"fixed64,3,opt,name=degradation_rate,json=degradationRate,proto3" json:"degradation_rate,omitempty"`
+	LatencyP50Ms         int64                  `protobuf:"varint,4,opt,name=latency_p50_ms,json=latencyP50Ms,proto3" json:"latency_p50_ms,omitempty"`
+	LatencyP95Ms         int64                  `protobuf:"varint,5,opt,name=latency_p95_ms,json=latencyP95Ms,proto3" json:"latency_p95_ms,omitempty"`
+	ProbeInvocations     int64                  `protobuf:"varint,6,opt,name=probe_invocations,json=probeInvocations,proto3" json:"probe_invocations,omitempty"`
+	OrganicInvocations   int64                  `protobuf:"varint,7,opt,name=organic_invocations,json=organicInvocations,proto3" json:"organic_invocations,omitempty"`
+	SyntheticInvocations int64                  `protobuf:"varint,8,opt,name=synthetic_invocations,json=syntheticInvocations,proto3" json:"synthetic_invocations,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ServingCondition) Reset() {
@@ -1415,14 +1418,38 @@ func (x *ServingCondition) GetLatencyP95Ms() int64 {
 	return 0
 }
 
+func (x *ServingCondition) GetProbeInvocations() int64 {
+	if x != nil {
+		return x.ProbeInvocations
+	}
+	return 0
+}
+
+func (x *ServingCondition) GetOrganicInvocations() int64 {
+	if x != nil {
+		return x.OrganicInvocations
+	}
+	return 0
+}
+
+func (x *ServingCondition) GetSyntheticInvocations() int64 {
+	if x != nil {
+		return x.SyntheticInvocations
+	}
+	return 0
+}
+
 type FreshnessCondition struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Family        *ConditionFamily       `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
-	AgeSeconds    int64                  `protobuf:"varint,2,opt,name=age_seconds,json=ageSeconds,proto3" json:"age_seconds,omitempty"`
-	DriftStatus   ConditionStatus        `protobuf:"varint,3,opt,name=drift_status,json=driftStatus,proto3,enum=vrooli.program_runtime.v1.bindings.ConditionStatus" json:"drift_status,omitempty"`
-	DriftReason   string                 `protobuf:"bytes,4,opt,name=drift_reason,json=driftReason,proto3" json:"drift_reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Family          *ConditionFamily       `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
+	AgeSeconds      int64                  `protobuf:"varint,2,opt,name=age_seconds,json=ageSeconds,proto3" json:"age_seconds,omitempty"`
+	DriftStatus     ConditionStatus        `protobuf:"varint,3,opt,name=drift_status,json=driftStatus,proto3,enum=vrooli.program_runtime.v1.bindings.ConditionStatus" json:"drift_status,omitempty"`
+	DriftReason     string                 `protobuf:"bytes,4,opt,name=drift_reason,json=driftReason,proto3" json:"drift_reason,omitempty"`
+	SourcePath      string                 `protobuf:"bytes,5,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
+	SourceMtime     string                 `protobuf:"bytes,6,opt,name=source_mtime,json=sourceMtime,proto3" json:"source_mtime,omitempty"`
+	GenerationMtime string                 `protobuf:"bytes,7,opt,name=generation_mtime,json=generationMtime,proto3" json:"generation_mtime,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *FreshnessCondition) Reset() {
@@ -1483,14 +1510,36 @@ func (x *FreshnessCondition) GetDriftReason() string {
 	return ""
 }
 
+func (x *FreshnessCondition) GetSourcePath() string {
+	if x != nil {
+		return x.SourcePath
+	}
+	return ""
+}
+
+func (x *FreshnessCondition) GetSourceMtime() string {
+	if x != nil {
+		return x.SourceMtime
+	}
+	return ""
+}
+
+func (x *FreshnessCondition) GetGenerationMtime() string {
+	if x != nil {
+		return x.GenerationMtime
+	}
+	return ""
+}
+
 type ExerciseCondition struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Family          *ConditionFamily       `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
-	Invocations     int64                  `protobuf:"varint,2,opt,name=invocations,proto3" json:"invocations,omitempty"`
-	DistinctCallers int64                  `protobuf:"varint,3,opt,name=distinct_callers,json=distinctCallers,proto3" json:"distinct_callers,omitempty"`
-	LastInvokedAt   string                 `protobuf:"bytes,4,opt,name=last_invoked_at,json=lastInvokedAt,proto3" json:"last_invoked_at,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Family               *ConditionFamily       `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
+	Invocations          int64                  `protobuf:"varint,2,opt,name=invocations,proto3" json:"invocations,omitempty"`
+	DistinctCallers      int64                  `protobuf:"varint,3,opt,name=distinct_callers,json=distinctCallers,proto3" json:"distinct_callers,omitempty"`
+	LastInvokedAt        string                 `protobuf:"bytes,4,opt,name=last_invoked_at,json=lastInvokedAt,proto3" json:"last_invoked_at,omitempty"`
+	SyntheticInvocations int64                  `protobuf:"varint,5,opt,name=synthetic_invocations,json=syntheticInvocations,proto3" json:"synthetic_invocations,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ExerciseCondition) Reset() {
@@ -1549,6 +1598,13 @@ func (x *ExerciseCondition) GetLastInvokedAt() string {
 		return x.LastInvokedAt
 	}
 	return ""
+}
+
+func (x *ExerciseCondition) GetSyntheticInvocations() int64 {
+	if x != nil {
+		return x.SyntheticInvocations
+	}
+	return 0
 }
 
 type BindingCondition struct {
@@ -2460,24 +2516,32 @@ const file_program_runtime_v1_bindings_bindings_proto_rawDesc = "" +
 	"\x17reachability_checked_at\x18\x13 \x01(\tR\x15reachabilityCheckedAt\"v\n" +
 	"\x0fConditionFamily\x12K\n" +
 	"\x06status\x18\x01 \x01(\x0e23.vrooli.program_runtime.v1.bindings.ConditionStatusR\x06status\x12\x16\n" +
-	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xf9\x01\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\x8c\x03\n" +
 	"\x10ServingCondition\x12K\n" +
 	"\x06family\x18\x01 \x01(\v23.vrooli.program_runtime.v1.bindings.ConditionFamilyR\x06family\x12!\n" +
 	"\ffailure_rate\x18\x02 \x01(\x01R\vfailureRate\x12)\n" +
 	"\x10degradation_rate\x18\x03 \x01(\x01R\x0fdegradationRate\x12$\n" +
 	"\x0elatency_p50_ms\x18\x04 \x01(\x03R\flatencyP50Ms\x12$\n" +
-	"\x0elatency_p95_ms\x18\x05 \x01(\x03R\flatencyP95Ms\"\xfd\x01\n" +
+	"\x0elatency_p95_ms\x18\x05 \x01(\x03R\flatencyP95Ms\x12+\n" +
+	"\x11probe_invocations\x18\x06 \x01(\x03R\x10probeInvocations\x12/\n" +
+	"\x13organic_invocations\x18\a \x01(\x03R\x12organicInvocations\x123\n" +
+	"\x15synthetic_invocations\x18\b \x01(\x03R\x14syntheticInvocations\"\xec\x02\n" +
 	"\x12FreshnessCondition\x12K\n" +
 	"\x06family\x18\x01 \x01(\v23.vrooli.program_runtime.v1.bindings.ConditionFamilyR\x06family\x12\x1f\n" +
 	"\vage_seconds\x18\x02 \x01(\x03R\n" +
 	"ageSeconds\x12V\n" +
 	"\fdrift_status\x18\x03 \x01(\x0e23.vrooli.program_runtime.v1.bindings.ConditionStatusR\vdriftStatus\x12!\n" +
-	"\fdrift_reason\x18\x04 \x01(\tR\vdriftReason\"\xd5\x01\n" +
+	"\fdrift_reason\x18\x04 \x01(\tR\vdriftReason\x12\x1f\n" +
+	"\vsource_path\x18\x05 \x01(\tR\n" +
+	"sourcePath\x12!\n" +
+	"\fsource_mtime\x18\x06 \x01(\tR\vsourceMtime\x12)\n" +
+	"\x10generation_mtime\x18\a \x01(\tR\x0fgenerationMtime\"\x8a\x02\n" +
 	"\x11ExerciseCondition\x12K\n" +
 	"\x06family\x18\x01 \x01(\v23.vrooli.program_runtime.v1.bindings.ConditionFamilyR\x06family\x12 \n" +
 	"\vinvocations\x18\x02 \x01(\x03R\vinvocations\x12)\n" +
 	"\x10distinct_callers\x18\x03 \x01(\x03R\x0fdistinctCallers\x12&\n" +
-	"\x0flast_invoked_at\x18\x04 \x01(\tR\rlastInvokedAt\"\xa4\x04\n" +
+	"\x0flast_invoked_at\x18\x04 \x01(\tR\rlastInvokedAt\x123\n" +
+	"\x15synthetic_invocations\x18\x05 \x01(\x03R\x14syntheticInvocations\"\xa4\x04\n" +
 	"\x10BindingCondition\x12\x1d\n" +
 	"\n" +
 	"binding_id\x18\x01 \x01(\tR\tbindingId\x12\x1a\n" +

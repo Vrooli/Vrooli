@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&backdrop-studio/v1/shared/shared.proto\x12 vrooli.backdrop_studio.v1.shared\"\x8d\x01\n\x0eReservedRegion\x12\x0c\n\x01x\x18\x01 \x01(\x01R\x01x\x12\x0c\n\x01y\x18\x02 \x01(\x01R\x01y\x12\x14\n\x05width\x18\x03 \x01(\x01R\x05width\x12\x16\n\x06height\x18\x04 \x01(\x01R\x06height\x12\x12\n\x04kind\x18\x05 \x01(\tR\x04kind\x12\x1d\n\ntext_color\x18\x06 \x01(\tR\ttextColor\"l\n\x0fScaffoldBinding\x12\x16\n\x06preset\x18\x01 \x01(\tR\x06preset\x12 \n\x0b\x63onditioner\x18\x02 \x01(\tR\x0b\x63onditioner\x12\x1f\n\x0bparams_json\x18\x03 \x01(\tR\nparamsJson\"\xca\x01\n\x0fGenerationBlock\x12\'\n\x0fprompt_template\x18\x03 \x01(\tR\x0epromptTemplate\x12\x1a\n\x08negative\x18\x04 \x01(\tR\x08negative\x12\x14\n\x05model\x18\x05 \x01(\tR\x05model\x12!\n\x0cprovider_url\x18\x06 \x01(\tR\x0bproviderUrl\x12\x1e\n\ncredential\x18\x07 \x01(\tR\ncredentialJ\x04\x08\x01\x10\x02J\x04\x08\x02\x10\x03R\x04roleR\x07profile\"\x86\x04\n\x05Style\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n\x07version\x18\x03 \x01(\x05R\x07version\x12\x12\n\x04role\x18\x04 \x01(\tR\x04role\x12\x18\n\x07subject\x18\x05 \x01(\tR\x07subject\x12\x1e\n\ntreatments\x18\x06 \x03(\tR\ntreatments\x12\x18\n\x07lineage\x18\x07 \x01(\tR\x07lineage\x12\x1e\n\nplacements\x18\x08 \x03(\tR\nplacements\x12\x1a\n\x08strategy\x18\t \x01(\tR\x08strategy\x12J\n\x07regions\x18\n \x03(\x0b\x32\x30.vrooli.backdrop_studio.v1.shared.ReservedRegionR\x07regions\x12-\n\x12\x63ontrast_threshold\x18\x0b \x01(\x01R\x11\x63ontrastThreshold\x12M\n\x08scaffold\x18\x0c \x01(\x0b\x32\x31.vrooli.backdrop_studio.v1.shared.ScaffoldBindingR\x08scaffold\x12Q\n\ngeneration\x18\r \x01(\x0b\x32\x31.vrooli.backdrop_studio.v1.shared.GenerationBlockR\ngenerationBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared;shared_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&backdrop-studio/v1/shared/shared.proto\x12 vrooli.backdrop_studio.v1.shared\"\x8d\x01\n\x0eReservedRegion\x12\x0c\n\x01x\x18\x01 \x01(\x01R\x01x\x12\x0c\n\x01y\x18\x02 \x01(\x01R\x01y\x12\x14\n\x05width\x18\x03 \x01(\x01R\x05width\x12\x16\n\x06height\x18\x04 \x01(\x01R\x06height\x12\x12\n\x04kind\x18\x05 \x01(\tR\x04kind\x12\x1d\n\ntext_color\x18\x06 \x01(\tR\ttextColor\"l\n\x0fScaffoldBinding\x12\x16\n\x06preset\x18\x01 \x01(\tR\x06preset\x12 \n\x0b\x63onditioner\x18\x02 \x01(\tR\x0b\x63onditioner\x12\x1f\n\x0bparams_json\x18\x03 \x01(\tR\nparamsJson\"\xca\x01\n\x0fGenerationBlock\x12\'\n\x0fprompt_template\x18\x03 \x01(\tR\x0epromptTemplate\x12\x1a\n\x08negative\x18\x04 \x01(\tR\x08negative\x12\x14\n\x05model\x18\x05 \x01(\tR\x05model\x12!\n\x0cprovider_url\x18\x06 \x01(\tR\x0bproviderUrl\x12\x1e\n\ncredential\x18\x07 \x01(\tR\ncredentialJ\x04\x08\x01\x10\x02J\x04\x08\x02\x10\x03R\x04roleR\x07profile\"\xb3\x02\n\rRoutingRecord\x12R\n\rdeclared_tier\x18\x01 \x01(\x0e\x32-.vrooli.backdrop_studio.v1.shared.QualityTierR\x0c\x64\x65\x63laredTier\x12\x1f\n\x0bserved_lane\x18\x02 \x01(\tR\nservedLane\x12\x19\n\x08model_id\x18\x03 \x01(\tR\x07modelId\x12%\n\x0e\x65xecution_tier\x18\x04 \x01(\tR\rexecutionTier\x12\x19\n\x08\x63ost_usd\x18\x05 \x01(\x01R\x07\x63ostUsd\x12\'\n\x0f\x61ttempted_lanes\x18\x06 \x03(\tR\x0e\x61ttemptedLanes\x12\'\n\x0f\x61ttempt_details\x18\x07 \x03(\tR\x0e\x61ttemptDetails\"\xa2\x07\n\x05Style\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n\x07version\x18\x03 \x01(\x05R\x07version\x12\x12\n\x04role\x18\x04 \x01(\tR\x04role\x12\x18\n\x07subject\x18\x05 \x01(\tR\x07subject\x12\x1e\n\ntreatments\x18\x06 \x03(\tR\ntreatments\x12\x18\n\x07lineage\x18\x07 \x01(\tR\x07lineage\x12\x1e\n\nplacements\x18\x08 \x03(\tR\nplacements\x12\x1a\n\x08strategy\x18\t \x01(\tR\x08strategy\x12J\n\x07regions\x18\n \x03(\x0b\x32\x30.vrooli.backdrop_studio.v1.shared.ReservedRegionR\x07regions\x12-\n\x12\x63ontrast_threshold\x18\x0b \x01(\x01R\x11\x63ontrastThreshold\x12M\n\x08scaffold\x18\x0c \x01(\x0b\x32\x31.vrooli.backdrop_studio.v1.shared.ScaffoldBindingR\x08scaffold\x12Q\n\ngeneration\x18\r \x01(\x0b\x32\x31.vrooli.backdrop_studio.v1.shared.GenerationBlockR\ngeneration\x12g\n\x10treatment_params\x18\x0e \x03(\x0b\x32<.vrooli.backdrop_studio.v1.shared.Style.TreatmentParamsEntryR\x0ftreatmentParams\x12\x45\n\x04inks\x18\x0f \x03(\x0b\x32\x31.vrooli.backdrop_studio.v1.shared.Style.InksEntryR\x04inks\x12\x1b\n\tparent_id\x18\x10 \x01(\tR\x08parentId\x12P\n\x0cquality_tier\x18\x11 \x01(\x0e\x32-.vrooli.backdrop_studio.v1.shared.QualityTierR\x0bqualityTier\x1a\x42\n\x14TreatmentParamsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\x1a\x37\n\tInksEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01*\x87\x01\n\x0bQualityTier\x12\x1c\n\x18QUALITY_TIER_UNSPECIFIED\x10\x00\x12\x1b\n\x17QUALITY_TIER_PROCEDURAL\x10\x01\x12\x1c\n\x18QUALITY_TIER_LOCAL_MODEL\x10\x02\x12\x1f\n\x1bQUALITY_TIER_FRONTIER_MODEL\x10\x03\x42TZRgithub.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared;shared_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,12 +32,24 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'backdrop_studio.v1.shared.s
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZRgithub.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared;shared_v1'
+  _globals['_STYLE_TREATMENTPARAMSENTRY']._loaded_options = None
+  _globals['_STYLE_TREATMENTPARAMSENTRY']._serialized_options = b'8\001'
+  _globals['_STYLE_INKSENTRY']._loaded_options = None
+  _globals['_STYLE_INKSENTRY']._serialized_options = b'8\001'
+  _globals['_QUALITYTIER']._serialized_start=1779
+  _globals['_QUALITYTIER']._serialized_end=1914
   _globals['_RESERVEDREGION']._serialized_start=77
   _globals['_RESERVEDREGION']._serialized_end=218
   _globals['_SCAFFOLDBINDING']._serialized_start=220
   _globals['_SCAFFOLDBINDING']._serialized_end=328
   _globals['_GENERATIONBLOCK']._serialized_start=331
   _globals['_GENERATIONBLOCK']._serialized_end=533
-  _globals['_STYLE']._serialized_start=536
-  _globals['_STYLE']._serialized_end=1054
+  _globals['_ROUTINGRECORD']._serialized_start=536
+  _globals['_ROUTINGRECORD']._serialized_end=843
+  _globals['_STYLE']._serialized_start=846
+  _globals['_STYLE']._serialized_end=1776
+  _globals['_STYLE_TREATMENTPARAMSENTRY']._serialized_start=1653
+  _globals['_STYLE_TREATMENTPARAMSENTRY']._serialized_end=1719
+  _globals['_STYLE_INKSENTRY']._serialized_start=1721
+  _globals['_STYLE_INKSENTRY']._serialized_end=1776
 # @@protoc_insertion_point(module_scope)

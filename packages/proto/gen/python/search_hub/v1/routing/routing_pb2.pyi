@@ -12,7 +12,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class QueryRequest(_message.Message):
-    __slots__ = ("query", "types", "all", "limit", "group", "explain", "overrides", "control_token")
+    __slots__ = ("query", "types", "all", "limit", "group", "explain", "overrides", "control_token", "scope")
     QUERY_FIELD_NUMBER: _ClassVar[int]
     TYPES_FIELD_NUMBER: _ClassVar[int]
     ALL_FIELD_NUMBER: _ClassVar[int]
@@ -21,6 +21,7 @@ class QueryRequest(_message.Message):
     EXPLAIN_FIELD_NUMBER: _ClassVar[int]
     OVERRIDES_FIELD_NUMBER: _ClassVar[int]
     CONTROL_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     query: str
     types: _containers.RepeatedScalarFieldContainer[str]
     all: bool
@@ -29,7 +30,8 @@ class QueryRequest(_message.Message):
     explain: bool
     overrides: SearchOverrides
     control_token: str
-    def __init__(self, query: _Optional[str] = ..., types: _Optional[_Iterable[str]] = ..., all: _Optional[bool] = ..., limit: _Optional[int] = ..., group: _Optional[str] = ..., explain: _Optional[bool] = ..., overrides: _Optional[_Union[SearchOverrides, _Mapping]] = ..., control_token: _Optional[str] = ...) -> None: ...
+    scope: str
+    def __init__(self, query: _Optional[str] = ..., types: _Optional[_Iterable[str]] = ..., all: _Optional[bool] = ..., limit: _Optional[int] = ..., group: _Optional[str] = ..., explain: _Optional[bool] = ..., overrides: _Optional[_Union[SearchOverrides, _Mapping]] = ..., control_token: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class SearchOverrides(_message.Message):
     __slots__ = ("rerank_enabled", "rerank_blend", "rerank_shortlist", "floor_max_gap", "floor_hard_floor", "hybrid_fusion")
@@ -123,7 +125,7 @@ class ProviderResultGroup(_message.Message):
     def __init__(self, provider_id: _Optional[str] = ..., hits: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., count: _Optional[int] = ..., degraded: _Optional[bool] = ..., note: _Optional[str] = ..., latency_ms: _Optional[int] = ...) -> None: ...
 
 class QueryResponse(_message.Message):
-    __slots__ = ("ranked", "groups", "corpora_searched", "routing_explanation", "reranked", "degraded", "latency_ms", "partial", "pending_providers")
+    __slots__ = ("ranked", "groups", "corpora_searched", "routing_explanation", "reranked", "degraded", "latency_ms", "partial", "pending_providers", "reranker_leg", "routing_degrade_reason")
     RANKED_FIELD_NUMBER: _ClassVar[int]
     GROUPS_FIELD_NUMBER: _ClassVar[int]
     CORPORA_SEARCHED_FIELD_NUMBER: _ClassVar[int]
@@ -133,6 +135,8 @@ class QueryResponse(_message.Message):
     LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
     PARTIAL_FIELD_NUMBER: _ClassVar[int]
     PENDING_PROVIDERS_FIELD_NUMBER: _ClassVar[int]
+    RERANKER_LEG_FIELD_NUMBER: _ClassVar[int]
+    ROUTING_DEGRADE_REASON_FIELD_NUMBER: _ClassVar[int]
     ranked: _containers.RepeatedCompositeFieldContainer[SearchHit]
     groups: _containers.RepeatedCompositeFieldContainer[ProviderResultGroup]
     corpora_searched: _containers.RepeatedScalarFieldContainer[str]
@@ -142,7 +146,9 @@ class QueryResponse(_message.Message):
     latency_ms: int
     partial: bool
     pending_providers: int
-    def __init__(self, ranked: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., groups: _Optional[_Iterable[_Union[ProviderResultGroup, _Mapping]]] = ..., corpora_searched: _Optional[_Iterable[str]] = ..., routing_explanation: _Optional[_Iterable[str]] = ..., reranked: _Optional[bool] = ..., degraded: _Optional[bool] = ..., latency_ms: _Optional[int] = ..., partial: _Optional[bool] = ..., pending_providers: _Optional[int] = ...) -> None: ...
+    reranker_leg: str
+    routing_degrade_reason: str
+    def __init__(self, ranked: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., groups: _Optional[_Iterable[_Union[ProviderResultGroup, _Mapping]]] = ..., corpora_searched: _Optional[_Iterable[str]] = ..., routing_explanation: _Optional[_Iterable[str]] = ..., reranked: _Optional[bool] = ..., degraded: _Optional[bool] = ..., latency_ms: _Optional[int] = ..., partial: _Optional[bool] = ..., pending_providers: _Optional[int] = ..., reranker_leg: _Optional[str] = ..., routing_degrade_reason: _Optional[str] = ...) -> None: ...
 
 class StatusRequest(_message.Message):
     __slots__ = ()
@@ -207,17 +213,19 @@ class ProviderHealth(_message.Message):
     def __init__(self, provider_id: _Optional[str] = ..., reachable: _Optional[bool] = ..., point_count: _Optional[int] = ..., degraded: _Optional[bool] = ..., demoted: _Optional[bool] = ..., demotion_reason: _Optional[str] = ..., times_routed: _Optional[int] = ..., total_hits: _Optional[int] = ..., reachability: _Optional[str] = ..., index_age: _Optional[str] = ..., automatic_eligible: _Optional[bool] = ..., automatic_exclusion_reason: _Optional[str] = ..., circuit_state: _Optional[str] = ..., quality_withheld: _Optional[bool] = ..., quality_withheld_reason: _Optional[str] = ..., quality_evidence_run_id: _Optional[str] = ..., quality_gate_opted_out: _Optional[bool] = ..., quality_gate_opt_out_reason: _Optional[str] = ..., last_indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class StatusResponse(_message.Message):
-    __slots__ = ("providers", "classifier_available", "reranker_available", "circuit_open_share", "circuit_open_quorum", "federation_degraded")
+    __slots__ = ("providers", "classifier_available", "reranker_available", "circuit_open_share", "circuit_open_quorum", "federation_degraded", "reranker_leg")
     PROVIDERS_FIELD_NUMBER: _ClassVar[int]
     CLASSIFIER_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     RERANKER_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     CIRCUIT_OPEN_SHARE_FIELD_NUMBER: _ClassVar[int]
     CIRCUIT_OPEN_QUORUM_FIELD_NUMBER: _ClassVar[int]
     FEDERATION_DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    RERANKER_LEG_FIELD_NUMBER: _ClassVar[int]
     providers: _containers.RepeatedCompositeFieldContainer[ProviderHealth]
     classifier_available: bool
     reranker_available: bool
     circuit_open_share: float
     circuit_open_quorum: float
     federation_degraded: bool
-    def __init__(self, providers: _Optional[_Iterable[_Union[ProviderHealth, _Mapping]]] = ..., classifier_available: _Optional[bool] = ..., reranker_available: _Optional[bool] = ..., circuit_open_share: _Optional[float] = ..., circuit_open_quorum: _Optional[float] = ..., federation_degraded: _Optional[bool] = ...) -> None: ...
+    reranker_leg: str
+    def __init__(self, providers: _Optional[_Iterable[_Union[ProviderHealth, _Mapping]]] = ..., classifier_available: _Optional[bool] = ..., reranker_available: _Optional[bool] = ..., circuit_open_share: _Optional[float] = ..., circuit_open_quorum: _Optional[float] = ..., federation_degraded: _Optional[bool] = ..., reranker_leg: _Optional[str] = ...) -> None: ...

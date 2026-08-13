@@ -2,13 +2,13 @@
 // @generated from file backdrop-studio/v1/shared/shared.proto (package vrooli.backdrop_studio.v1.shared, syntax proto3)
 /* eslint-disable */
 
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
 
 /**
  * Describes the file backdrop-studio/v1/shared/shared.proto.
  */
 export const file_backdrop_studio_v1_shared_shared = /*@__PURE__*/
-  fileDesc("CiZiYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkL3NoYXJlZC5wcm90bxIgdnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQiZwoOUmVzZXJ2ZWRSZWdpb24SCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoARIMCgRraW5kGAUgASgJEhIKCnRleHRfY29sb3IYBiABKAkiSwoPU2NhZmZvbGRCaW5kaW5nEg4KBnByZXNldBgBIAEoCRITCgtjb25kaXRpb25lchgCIAEoCRITCgtwYXJhbXNfanNvbhgDIAEoCSKQAQoPR2VuZXJhdGlvbkJsb2NrEhcKD3Byb21wdF90ZW1wbGF0ZRgDIAEoCRIQCghuZWdhdGl2ZRgEIAEoCRINCgVtb2RlbBgFIAEoCRIUCgxwcm92aWRlcl91cmwYBiABKAkSEgoKY3JlZGVudGlhbBgHIAEoCUoECAEQAkoECAIQA1IEcm9sZVIHcHJvZmlsZSKHAwoFU3R5bGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgFEgwKBHJvbGUYBCABKAkSDwoHc3ViamVjdBgFIAEoCRISCgp0cmVhdG1lbnRzGAYgAygJEg8KB2xpbmVhZ2UYByABKAkSEgoKcGxhY2VtZW50cxgIIAMoCRIQCghzdHJhdGVneRgJIAEoCRJBCgdyZWdpb25zGAogAygLMjAudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuUmVzZXJ2ZWRSZWdpb24SGgoSY29udHJhc3RfdGhyZXNob2xkGAsgASgBEkMKCHNjYWZmb2xkGAwgASgLMjEudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuU2NhZmZvbGRCaW5kaW5nEkUKCmdlbmVyYXRpb24YDSABKAsyMS52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5HZW5lcmF0aW9uQmxvY2tCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9iYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("CiZiYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkL3NoYXJlZC5wcm90bxIgdnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQiZwoOUmVzZXJ2ZWRSZWdpb24SCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoARIMCgRraW5kGAUgASgJEhIKCnRleHRfY29sb3IYBiABKAkiSwoPU2NhZmZvbGRCaW5kaW5nEg4KBnByZXNldBgBIAEoCRITCgtjb25kaXRpb25lchgCIAEoCRITCgtwYXJhbXNfanNvbhgDIAEoCSKQAQoPR2VuZXJhdGlvbkJsb2NrEhcKD3Byb21wdF90ZW1wbGF0ZRgDIAEoCRIQCghuZWdhdGl2ZRgEIAEoCRINCgVtb2RlbBgFIAEoCRIUCgxwcm92aWRlcl91cmwYBiABKAkSEgoKY3JlZGVudGlhbBgHIAEoCUoECAEQAkoECAIQA1IEcm9sZVIHcHJvZmlsZSLYAQoNUm91dGluZ1JlY29yZBJECg1kZWNsYXJlZF90aWVyGAEgASgOMi0udnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuUXVhbGl0eVRpZXISEwoLc2VydmVkX2xhbmUYAiABKAkSEAoIbW9kZWxfaWQYAyABKAkSFgoOZXhlY3V0aW9uX3RpZXIYBCABKAkSEAoIY29zdF91c2QYBSABKAESFwoPYXR0ZW1wdGVkX2xhbmVzGAYgAygJEhcKD2F0dGVtcHRfZGV0YWlscxgHIAMoCSLdBQoFU3R5bGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgFEgwKBHJvbGUYBCABKAkSDwoHc3ViamVjdBgFIAEoCRISCgp0cmVhdG1lbnRzGAYgAygJEg8KB2xpbmVhZ2UYByABKAkSEgoKcGxhY2VtZW50cxgIIAMoCRIQCghzdHJhdGVneRgJIAEoCRJBCgdyZWdpb25zGAogAygLMjAudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuUmVzZXJ2ZWRSZWdpb24SGgoSY29udHJhc3RfdGhyZXNob2xkGAsgASgBEkMKCHNjYWZmb2xkGAwgASgLMjEudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuU2NhZmZvbGRCaW5kaW5nEkUKCmdlbmVyYXRpb24YDSABKAsyMS52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5HZW5lcmF0aW9uQmxvY2sSVgoQdHJlYXRtZW50X3BhcmFtcxgOIAMoCzI8LnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEuc2hhcmVkLlN0eWxlLlRyZWF0bWVudFBhcmFtc0VudHJ5Ej8KBGlua3MYDyADKAsyMS52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5TdHlsZS5JbmtzRW50cnkSEQoJcGFyZW50X2lkGBAgASgJEkMKDHF1YWxpdHlfdGllchgRIAEoDjItLnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEuc2hhcmVkLlF1YWxpdHlUaWVyGjYKFFRyZWF0bWVudFBhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaKwoJSW5rc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEqhwEKC1F1YWxpdHlUaWVyEhwKGFFVQUxJVFlfVElFUl9VTlNQRUNJRklFRBAAEhsKF1FVQUxJVFlfVElFUl9QUk9DRURVUkFMEAESHAoYUVVBTElUWV9USUVSX0xPQ0FMX01PREVMEAISHwobUVVBTElUWV9USUVSX0ZST05USUVSX01PREVMEANCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9iYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
 
 /**
  * Describes the message vrooli.backdrop_studio.v1.shared.ReservedRegion.
@@ -32,9 +32,43 @@ export const GenerationBlockSchema = /*@__PURE__*/
   messageDesc(file_backdrop_studio_v1_shared_shared, 2);
 
 /**
+ * Describes the message vrooli.backdrop_studio.v1.shared.RoutingRecord.
+ * Use `create(RoutingRecordSchema)` to create a new message.
+ */
+export const RoutingRecordSchema = /*@__PURE__*/
+  messageDesc(file_backdrop_studio_v1_shared_shared, 3);
+
+/**
  * Describes the message vrooli.backdrop_studio.v1.shared.Style.
  * Use `create(StyleSchema)` to create a new message.
  */
 export const StyleSchema = /*@__PURE__*/
-  messageDesc(file_backdrop_studio_v1_shared_shared, 3);
+  messageDesc(file_backdrop_studio_v1_shared_shared, 4);
+
+/**
+ * Describes the enum vrooli.backdrop_studio.v1.shared.QualityTier.
+ */
+export const QualityTierSchema = /*@__PURE__*/
+  enumDesc(file_backdrop_studio_v1_shared_shared, 0);
+
+/**
+ * QualityTier is the quality bar a style's SOURCE must meet, which the
+ * capability router resolves to a serving lane.
+ *
+ * It lives on the style because the style is the only place that knows. A
+ * Truchet tiling never needs a diffusion model; a Mediterranean colonnade with
+ * a statue and a sea behind it always does, and no amount of screening will
+ * make three flat tonal zones into that picture. A global configuration switch
+ * was rejected for exactly this reason: it forces one cost profile onto a
+ * catalog whose styles have genuinely different needs.
+ *
+ * The tier is a floor, not an instruction. The router serves it with the
+ * cheapest lane that meets it and refuses by name when none does — it never
+ * downgrades silently, because a frontier-tier style served by a local model is
+ * a picture wearing a label it did not earn.
+ *
+ * @generated from enum vrooli.backdrop_studio.v1.shared.QualityTier
+ */
+export const QualityTier = /*@__PURE__*/
+  tsEnum(QualityTierSchema);
 

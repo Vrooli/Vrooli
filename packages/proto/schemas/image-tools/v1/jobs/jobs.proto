@@ -120,6 +120,19 @@ message Job {
 
   // Server time the job reached a terminal state; unset until terminal.
   google.protobuf.Timestamp finished_at = 12;
+
+  // result_meta is the backend's own record of the run, keyed by the backend's
+  // vocabulary: "model" (what actually served it), "backend", "tier",
+  // "cost_usd" (what the route cost, always written by the BYOK/gateway path
+  // even when zero), and "warnings".
+  //
+  // It exists because these facts are learned only while the job runs and were
+  // previously discarded one stack frame after they were assembled — so a
+  // caller could be billed for a cloud generation with no record of the charge
+  // anywhere in the system. Present only on a succeeded job, and only for
+  // backends that report it: an empty map means "nobody reported", which is a
+  // different fact from a reported zero.
+  map<string, string> result_meta = 13;
 }
 
 // ProgressEvent is one progress update streamed by WatchJob.

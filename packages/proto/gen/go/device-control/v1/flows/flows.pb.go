@@ -148,8 +148,12 @@ type Flow struct {
 	Name                   string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Steps                  []*Step                `protobuf:"bytes,3,rep,name=steps,proto3" json:"steps,omitempty"`
 	AllowUnredactedCapture bool                   `protobuf:"varint,4,opt,name=allow_unredacted_capture,json=allowUnredactedCapture,proto3" json:"allow_unredacted_capture,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// usb is the default; wireless must be explicitly requested after promotion.
+	Transport       string `protobuf:"bytes,5,opt,name=transport,proto3" json:"transport,omitempty"`
+	RequireUnlocked bool   `protobuf:"varint,6,opt,name=require_unlocked,json=requireUnlocked,proto3" json:"require_unlocked,omitempty"`
+	AuthProfileId   string `protobuf:"bytes,7,opt,name=auth_profile_id,json=authProfileId,proto3" json:"auth_profile_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Flow) Reset() {
@@ -208,6 +212,27 @@ func (x *Flow) GetAllowUnredactedCapture() bool {
 		return x.AllowUnredactedCapture
 	}
 	return false
+}
+
+func (x *Flow) GetTransport() string {
+	if x != nil {
+		return x.Transport
+	}
+	return ""
+}
+
+func (x *Flow) GetRequireUnlocked() bool {
+	if x != nil {
+		return x.RequireUnlocked
+	}
+	return false
+}
+
+func (x *Flow) GetAuthProfileId() string {
+	if x != nil {
+		return x.AuthProfileId
+	}
+	return ""
 }
 
 type Step struct {
@@ -355,14 +380,17 @@ func (x *CapabilityGapReport) GetWarnings() []string {
 }
 
 type RunResult struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Disposition   string                 `protobuf:"bytes,2,opt,name=disposition,proto3" json:"disposition,omitempty"`
-	Chapters      []*Chapter             `protobuf:"bytes,3,rep,name=chapters,proto3" json:"chapters,omitempty"`
-	Resolutions   []*Resolution          `protobuf:"bytes,4,rep,name=resolutions,proto3" json:"resolutions,omitempty"`
-	Evidence      []*EvidenceReference   `protobuf:"bytes,5,rep,name=evidence,proto3" json:"evidence,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RunId            string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Disposition      string                 `protobuf:"bytes,2,opt,name=disposition,proto3" json:"disposition,omitempty"`
+	Chapters         []*Chapter             `protobuf:"bytes,3,rep,name=chapters,proto3" json:"chapters,omitempty"`
+	Resolutions      []*Resolution          `protobuf:"bytes,4,rep,name=resolutions,proto3" json:"resolutions,omitempty"`
+	Evidence         []*EvidenceReference   `protobuf:"bytes,5,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	Incomplete       bool                   `protobuf:"varint,6,opt,name=incomplete,proto3" json:"incomplete,omitempty"`
+	DisconnectReason string                 `protobuf:"bytes,7,opt,name=disconnect_reason,json=disconnectReason,proto3" json:"disconnect_reason,omitempty"`
+	DisconnectStep   string                 `protobuf:"bytes,8,opt,name=disconnect_step,json=disconnectStep,proto3" json:"disconnect_step,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RunResult) Reset() {
@@ -428,6 +456,27 @@ func (x *RunResult) GetEvidence() []*EvidenceReference {
 		return x.Evidence
 	}
 	return nil
+}
+
+func (x *RunResult) GetIncomplete() bool {
+	if x != nil {
+		return x.Incomplete
+	}
+	return false
+}
+
+func (x *RunResult) GetDisconnectReason() string {
+	if x != nil {
+		return x.DisconnectReason
+	}
+	return ""
+}
+
+func (x *RunResult) GetDisconnectStep() string {
+	if x != nil {
+		return x.DisconnectStep
+	}
+	return ""
 }
 
 type Chapter struct {
@@ -571,6 +620,10 @@ type EvidenceReference struct {
 	Kind              string                 `protobuf:"bytes,9,opt,name=kind,proto3" json:"kind,omitempty"`
 	AppliedRules      []string               `protobuf:"bytes,10,rep,name=applied_rules,json=appliedRules,proto3" json:"applied_rules,omitempty"`
 	OptedOut          bool                   `protobuf:"varint,11,opt,name=opted_out,json=optedOut,proto3" json:"opted_out,omitempty"`
+	ClaimClass        string                 `protobuf:"bytes,12,opt,name=claim_class,json=claimClass,proto3" json:"claim_class,omitempty"`
+	MinimumUsefulFps  float64                `protobuf:"fixed64,13,opt,name=minimum_useful_fps,json=minimumUsefulFps,proto3" json:"minimum_useful_fps,omitempty"`
+	Disposition       string                 `protobuf:"bytes,14,opt,name=disposition,proto3" json:"disposition,omitempty"`
+	DispositionReason string                 `protobuf:"bytes,15,opt,name=disposition_reason,json=dispositionReason,proto3" json:"disposition_reason,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -682,6 +735,34 @@ func (x *EvidenceReference) GetOptedOut() bool {
 	return false
 }
 
+func (x *EvidenceReference) GetClaimClass() string {
+	if x != nil {
+		return x.ClaimClass
+	}
+	return ""
+}
+
+func (x *EvidenceReference) GetMinimumUsefulFps() float64 {
+	if x != nil {
+		return x.MinimumUsefulFps
+	}
+	return 0
+}
+
+func (x *EvidenceReference) GetDisposition() string {
+	if x != nil {
+		return x.Disposition
+	}
+	return ""
+}
+
+func (x *EvidenceReference) GetDispositionReason() string {
+	if x != nil {
+		return x.DispositionReason
+	}
+	return ""
+}
+
 var File_device_control_v1_flows_flows_proto protoreflect.FileDescriptor
 
 const file_device_control_v1_flows_flows_proto_rawDesc = "" +
@@ -696,12 +777,15 @@ const file_device_control_v1_flows_flows_proto_rawDesc = "" +
 	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\x12\x14\n" +
 	"\x05actor\x18\x03 \x01(\tR\x05actor\x12\x1f\n" +
 	"\vlease_token\x18\x04 \x01(\tR\n" +
-	"leaseToken\"\xa0\x01\n" +
+	"leaseToken\"\x91\x02\n" +
 	"\x04Flow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12:\n" +
 	"\x05steps\x18\x03 \x03(\v2$.vrooli.device_control.v1.flows.StepR\x05steps\x128\n" +
-	"\x18allow_unredacted_capture\x18\x04 \x01(\bR\x16allowUnredactedCapture\"\xcd\x01\n" +
+	"\x18allow_unredacted_capture\x18\x04 \x01(\bR\x16allowUnredactedCapture\x12\x1c\n" +
+	"\ttransport\x18\x05 \x01(\tR\ttransport\x12)\n" +
+	"\x10require_unlocked\x18\x06 \x01(\bR\x0frequireUnlocked\x12&\n" +
+	"\x0fauth_profile_id\x18\a \x01(\tR\rauthProfileId\"\xcd\x01\n" +
 	"\x04Step\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x123\n" +
@@ -713,13 +797,18 @@ const file_device_control_v1_flows_flows_proto_rawDesc = "" +
 	"\x13CapabilityGapReport\x12\x1a\n" +
 	"\brunnable\x18\x01 \x01(\bR\brunnable\x12\x12\n" +
 	"\x04gaps\x18\x02 \x03(\tR\x04gaps\x12\x1a\n" +
-	"\bwarnings\x18\x03 \x03(\tR\bwarnings\"\xa6\x02\n" +
+	"\bwarnings\x18\x03 \x03(\tR\bwarnings\"\x9c\x03\n" +
 	"\tRunResult\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12 \n" +
 	"\vdisposition\x18\x02 \x01(\tR\vdisposition\x12C\n" +
 	"\bchapters\x18\x03 \x03(\v2'.vrooli.device_control.v1.flows.ChapterR\bchapters\x12L\n" +
 	"\vresolutions\x18\x04 \x03(\v2*.vrooli.device_control.v1.flows.ResolutionR\vresolutions\x12M\n" +
-	"\bevidence\x18\x05 \x03(\v21.vrooli.device_control.v1.flows.EvidenceReferenceR\bevidence\"k\n" +
+	"\bevidence\x18\x05 \x03(\v21.vrooli.device_control.v1.flows.EvidenceReferenceR\bevidence\x12\x1e\n" +
+	"\n" +
+	"incomplete\x18\x06 \x01(\bR\n" +
+	"incomplete\x12+\n" +
+	"\x11disconnect_reason\x18\a \x01(\tR\x10disconnectReason\x12'\n" +
+	"\x0fdisconnect_step\x18\b \x01(\tR\x0edisconnectStep\"k\n" +
 	"\aChapter\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
@@ -731,7 +820,7 @@ const file_device_control_v1_flows_flows_proto_rawDesc = "" +
 	"\x04rung\x18\x02 \x01(\tR\x04rung\x12\x1e\n" +
 	"\n" +
 	"confidence\x18\x03 \x01(\x01R\n" +
-	"confidence\"\xea\x02\n" +
+	"confidence\"\x8a\x04\n" +
 	"\x11EvidenceReference\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06sha256\x18\x02 \x01(\tR\x06sha256\x12\x1d\n" +
@@ -746,7 +835,12 @@ const file_device_control_v1_flows_flows_proto_rawDesc = "" +
 	"\x04kind\x18\t \x01(\tR\x04kind\x12#\n" +
 	"\rapplied_rules\x18\n" +
 	" \x03(\tR\fappliedRules\x12\x1b\n" +
-	"\topted_out\x18\v \x01(\bR\boptedOut2\xed\x01\n" +
+	"\topted_out\x18\v \x01(\bR\boptedOut\x12\x1f\n" +
+	"\vclaim_class\x18\f \x01(\tR\n" +
+	"claimClass\x12,\n" +
+	"\x12minimum_useful_fps\x18\r \x01(\x01R\x10minimumUsefulFps\x12 \n" +
+	"\vdisposition\x18\x0e \x01(\tR\vdisposition\x12-\n" +
+	"\x12disposition_reason\x18\x0f \x01(\tR\x11dispositionReason2\xed\x01\n" +
 	"\vFlowService\x12x\n" +
 	"\fValidateFlow\x123.vrooli.device_control.v1.flows.ValidateFlowRequest\x1a3.vrooli.device_control.v1.flows.CapabilityGapReport\x12d\n" +
 	"\aRunFlow\x12..vrooli.device_control.v1.flows.RunFlowRequest\x1a).vrooli.device_control.v1.flows.RunResultBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows;flows_v1b\x06proto3"

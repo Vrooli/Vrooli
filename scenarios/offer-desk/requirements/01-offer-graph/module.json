@@ -1,0 +1,106 @@
+{
+  "_metadata": {
+    "module": "offer-graph",
+    "description": "The typed offer graph and the lifecycle the API enforces on it.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "GRAPH-001",
+      "title": "Typed nodes share one status vocabulary",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "Offers, variants, channels and revenue lines are node kinds in one graph, each carrying exactly one status from a closed vocabulary. The source documents used four separate vocabularies across four file families; a single vocabulary is what makes a cross-kind board possible.",
+      "tags": [
+        "domain",
+        "schema"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Table-driven test asserts every node kind accepts only the closed status set and rejects an unknown value."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Create one node of each kind over Connect-RPC and read them back through a single list call."
+        }
+      ]
+    },
+    {
+      "id": "GRAPH-002",
+      "title": "Typed edges connect node kinds",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "Edges are typed and directional: a channel feeds a revenue line, an offer is sold at a variant, a deliverable belongs to an offer. An untyped or self-referential edge is rejected at write time.",
+      "tags": [
+        "domain",
+        "schema"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Reject an edge whose kind pair is not in the allowed matrix; reject a self-edge."
+        }
+      ]
+    },
+    {
+      "id": "GRAPH-003",
+      "title": "Illegal transitions are refused",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "The lifecycle is a state machine owned by the service. A transition outside the declared adjacency is refused with an error naming the rule and the transitions that would be legal from the current state. Prose that merely describes a lifecycle cannot refuse anything, which is the defect this replaces.",
+      "tags": [
+        "policy",
+        "state-machine"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Exhaustive matrix over (from,to): every illegal pair returns a typed refusal; every legal pair succeeds."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "A refused transition leaves the stored state unchanged."
+        }
+      ]
+    },
+    {
+      "id": "GRAPH-004",
+      "title": "Status changes are audited append-only",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "Every transition writes an audit entry carrying actor, timestamp, prior status, new status and reason. Entries are append-only; a correction is a new entry, never an edit. This replaces what version control was providing before the state moved into a database.",
+      "tags": [
+        "storage",
+        "audit"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "An update writes exactly one audit row with the prior value preserved."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "No API path can delete or mutate an existing audit row."
+        }
+      ]
+    }
+  ]
+}

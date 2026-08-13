@@ -2,15 +2,15 @@
 // @generated from file backdrop-studio/v1/shared/shared.proto (package vrooli.backdrop_studio.v1.shared, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file backdrop-studio/v1/shared/shared.proto.
  */
 export const file_backdrop_studio_v1_shared_shared: GenFile = /*@__PURE__*/
-  fileDesc("CiZiYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkL3NoYXJlZC5wcm90bxIgdnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQiZwoOUmVzZXJ2ZWRSZWdpb24SCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoARIMCgRraW5kGAUgASgJEhIKCnRleHRfY29sb3IYBiABKAkiSwoPU2NhZmZvbGRCaW5kaW5nEg4KBnByZXNldBgBIAEoCRITCgtjb25kaXRpb25lchgCIAEoCRITCgtwYXJhbXNfanNvbhgDIAEoCSKQAQoPR2VuZXJhdGlvbkJsb2NrEhcKD3Byb21wdF90ZW1wbGF0ZRgDIAEoCRIQCghuZWdhdGl2ZRgEIAEoCRINCgVtb2RlbBgFIAEoCRIUCgxwcm92aWRlcl91cmwYBiABKAkSEgoKY3JlZGVudGlhbBgHIAEoCUoECAEQAkoECAIQA1IEcm9sZVIHcHJvZmlsZSKHAwoFU3R5bGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgFEgwKBHJvbGUYBCABKAkSDwoHc3ViamVjdBgFIAEoCRISCgp0cmVhdG1lbnRzGAYgAygJEg8KB2xpbmVhZ2UYByABKAkSEgoKcGxhY2VtZW50cxgIIAMoCRIQCghzdHJhdGVneRgJIAEoCRJBCgdyZWdpb25zGAogAygLMjAudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuUmVzZXJ2ZWRSZWdpb24SGgoSY29udHJhc3RfdGhyZXNob2xkGAsgASgBEkMKCHNjYWZmb2xkGAwgASgLMjEudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuU2NhZmZvbGRCaW5kaW5nEkUKCmdlbmVyYXRpb24YDSABKAsyMS52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5HZW5lcmF0aW9uQmxvY2tCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9iYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("CiZiYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkL3NoYXJlZC5wcm90bxIgdnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQiZwoOUmVzZXJ2ZWRSZWdpb24SCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoARIMCgRraW5kGAUgASgJEhIKCnRleHRfY29sb3IYBiABKAkiSwoPU2NhZmZvbGRCaW5kaW5nEg4KBnByZXNldBgBIAEoCRITCgtjb25kaXRpb25lchgCIAEoCRITCgtwYXJhbXNfanNvbhgDIAEoCSKQAQoPR2VuZXJhdGlvbkJsb2NrEhcKD3Byb21wdF90ZW1wbGF0ZRgDIAEoCRIQCghuZWdhdGl2ZRgEIAEoCRINCgVtb2RlbBgFIAEoCRIUCgxwcm92aWRlcl91cmwYBiABKAkSEgoKY3JlZGVudGlhbBgHIAEoCUoECAEQAkoECAIQA1IEcm9sZVIHcHJvZmlsZSLYAQoNUm91dGluZ1JlY29yZBJECg1kZWNsYXJlZF90aWVyGAEgASgOMi0udnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuUXVhbGl0eVRpZXISEwoLc2VydmVkX2xhbmUYAiABKAkSEAoIbW9kZWxfaWQYAyABKAkSFgoOZXhlY3V0aW9uX3RpZXIYBCABKAkSEAoIY29zdF91c2QYBSABKAESFwoPYXR0ZW1wdGVkX2xhbmVzGAYgAygJEhcKD2F0dGVtcHRfZGV0YWlscxgHIAMoCSLdBQoFU3R5bGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgFEgwKBHJvbGUYBCABKAkSDwoHc3ViamVjdBgFIAEoCRISCgp0cmVhdG1lbnRzGAYgAygJEg8KB2xpbmVhZ2UYByABKAkSEgoKcGxhY2VtZW50cxgIIAMoCRIQCghzdHJhdGVneRgJIAEoCRJBCgdyZWdpb25zGAogAygLMjAudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuUmVzZXJ2ZWRSZWdpb24SGgoSY29udHJhc3RfdGhyZXNob2xkGAsgASgBEkMKCHNjYWZmb2xkGAwgASgLMjEudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuU2NhZmZvbGRCaW5kaW5nEkUKCmdlbmVyYXRpb24YDSABKAsyMS52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5HZW5lcmF0aW9uQmxvY2sSVgoQdHJlYXRtZW50X3BhcmFtcxgOIAMoCzI8LnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEuc2hhcmVkLlN0eWxlLlRyZWF0bWVudFBhcmFtc0VudHJ5Ej8KBGlua3MYDyADKAsyMS52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5TdHlsZS5JbmtzRW50cnkSEQoJcGFyZW50X2lkGBAgASgJEkMKDHF1YWxpdHlfdGllchgRIAEoDjItLnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEuc2hhcmVkLlF1YWxpdHlUaWVyGjYKFFRyZWF0bWVudFBhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaKwoJSW5rc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEqhwEKC1F1YWxpdHlUaWVyEhwKGFFVQUxJVFlfVElFUl9VTlNQRUNJRklFRBAAEhsKF1FVQUxJVFlfVElFUl9QUk9DRURVUkFMEAESHAoYUVVBTElUWV9USUVSX0xPQ0FMX01PREVMEAISHwobUVVBTElUWV9USUVSX0ZST05USUVSX01PREVMEANCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9iYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.backdrop_studio.v1.shared.ReservedRegion
@@ -131,6 +131,82 @@ export const GenerationBlockSchema: GenMessage<GenerationBlock> = /*@__PURE__*/
   messageDesc(file_backdrop_studio_v1_shared_shared, 2);
 
 /**
+ * RoutingRecord is what actually served one candidate.
+ *
+ * Every field here answers a question that has no other source after the fact.
+ * Which lane drew it decides whether the picture can be reproduced offline;
+ * which model decides whether it can be disclosed honestly; what it cost
+ * decides whether the catalog is affordable to render. The previous code
+ * carried the routing policy as two constants in a Go file, so none of the
+ * three was answerable from a candidate — and the constants' predecessor had
+ * quietly billed every render to a cloud provider with nothing recording it.
+ *
+ * @generated from message vrooli.backdrop_studio.v1.shared.RoutingRecord
+ */
+export type RoutingRecord = Message<"vrooli.backdrop_studio.v1.shared.RoutingRecord"> & {
+  /**
+   * The tier the style declared.
+   *
+   * @generated from field: vrooli.backdrop_studio.v1.shared.QualityTier declared_tier = 1;
+   */
+  declaredTier: QualityTier;
+
+  /**
+   * The lane that served it: "procedural", "local_model" or "frontier_model".
+   *
+   * @generated from field: string served_lane = 2;
+   */
+  servedLane: string;
+
+  /**
+   * The registry model image-tools' selector chose. Empty on the procedural
+   * lane, which uses no model. Never a model this scenario asked for: routing
+   * is image-tools' decision and recording a request as a result would be a
+   * fabricated disclosure.
+   *
+   * @generated from field: string model_id = 3;
+   */
+  modelId: string;
+
+  /**
+   * Where it ran: "local-gpu", "local-cpu" or "byok-cloud".
+   *
+   * @generated from field: string execution_tier = 4;
+   */
+  executionTier: string;
+
+  /**
+   * Reported cost in USD. Zero on a free lane, and zero is a measurement there
+   * rather than a missing value.
+   *
+   * @generated from field: double cost_usd = 5;
+   */
+  costUsd: number;
+
+  /**
+   * Lanes tried and rejected before the served one, in order, so an operator
+   * can see the escalation rather than only its result.
+   *
+   * @generated from field: repeated string attempted_lanes = 6;
+   */
+  attemptedLanes: string[];
+
+  /**
+   * Why each attempted lane did not serve, aligned with attempted_lanes.
+   *
+   * @generated from field: repeated string attempt_details = 7;
+   */
+  attemptDetails: string[];
+};
+
+/**
+ * Describes the message vrooli.backdrop_studio.v1.shared.RoutingRecord.
+ * Use `create(RoutingRecordSchema)` to create a new message.
+ */
+export const RoutingRecordSchema: GenMessage<RoutingRecord> = /*@__PURE__*/
+  messageDesc(file_backdrop_studio_v1_shared_shared, 3);
+
+/**
  * @generated from message vrooli.backdrop_studio.v1.shared.Style
  */
 export type Style = Message<"vrooli.backdrop_studio.v1.shared.Style"> & {
@@ -198,6 +274,53 @@ export type Style = Message<"vrooli.backdrop_studio.v1.shared.Style"> & {
    * @generated from field: vrooli.backdrop_studio.v1.shared.GenerationBlock generation = 13;
    */
   generation?: GenerationBlock | undefined;
+
+  /**
+   * treatment_params carries the per-style parameters for each named
+   * treatment, keyed by operation name, each value a JSON object.
+   *
+   * They were absent from this message while being the field that decides what
+   * a style actually looks like: two styles naming `halftone` differ only by
+   * their line frequency, angle and inks, so a catalog that ships the chain and
+   * withholds the parameters describes a look it cannot distinguish. Nothing
+   * outside the API could see them — the studio's style page had the chain, the
+   * regions and the prompt, and no way to answer "at what ruling?".
+   *
+   * @generated from field: map<string, string> treatment_params = 14;
+   */
+  treatmentParams: { [key: string]: string };
+
+  /**
+   * inks are the style's own defaults for the "$brand.*" slots its parameters
+   * reference. They are what let a style render on a cold install with no brand
+   * bound, so an operator reading a style needs to see them to understand what
+   * binding a brand would change.
+   *
+   * @generated from field: map<string, string> inks = 15;
+   */
+  inks: { [key: string]: string };
+
+  /**
+   * parent_id records the style this one was forked from.
+   *
+   * Lineage is what makes a fork reviewable: a style that differs from its
+   * parent on exactly one axis is a comparison, while the same style with no
+   * recorded parent is just another entry someone has to work out from scratch.
+   * The store has tracked it since the catalog was written; it was simply never
+   * on the wire, so the studio could offer a fork it could not record.
+   *
+   * @generated from field: string parent_id = 16;
+   */
+  parentId: string;
+
+  /**
+   * quality_tier is the bar this style's source must meet. See QualityTier:
+   * the router resolves it to the cheapest lane that meets it, records what
+   * served, and refuses by name when nothing does.
+   *
+   * @generated from field: vrooli.backdrop_studio.v1.shared.QualityTier quality_tier = 17;
+   */
+  qualityTier: QualityTier;
 };
 
 /**
@@ -205,5 +328,61 @@ export type Style = Message<"vrooli.backdrop_studio.v1.shared.Style"> & {
  * Use `create(StyleSchema)` to create a new message.
  */
 export const StyleSchema: GenMessage<Style> = /*@__PURE__*/
-  messageDesc(file_backdrop_studio_v1_shared_shared, 3);
+  messageDesc(file_backdrop_studio_v1_shared_shared, 4);
+
+/**
+ * QualityTier is the quality bar a style's SOURCE must meet, which the
+ * capability router resolves to a serving lane.
+ *
+ * It lives on the style because the style is the only place that knows. A
+ * Truchet tiling never needs a diffusion model; a Mediterranean colonnade with
+ * a statue and a sea behind it always does, and no amount of screening will
+ * make three flat tonal zones into that picture. A global configuration switch
+ * was rejected for exactly this reason: it forces one cost profile onto a
+ * catalog whose styles have genuinely different needs.
+ *
+ * The tier is a floor, not an instruction. The router serves it with the
+ * cheapest lane that meets it and refuses by name when none does — it never
+ * downgrades silently, because a frontier-tier style served by a local model is
+ * a picture wearing a label it did not earn.
+ *
+ * @generated from enum vrooli.backdrop_studio.v1.shared.QualityTier
+ */
+export enum QualityTier {
+  /**
+   * Unspecified means the style predates the tier and is served procedurally,
+   * which is what every style in seed versions 1 through 7 actually was.
+   *
+   * @generated from enum value: QUALITY_TIER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Drawn in-process by a generator. Free, offline, deterministic.
+   *
+   * @generated from enum value: QUALITY_TIER_PROCEDURAL = 1;
+   */
+  PROCEDURAL = 1,
+
+  /**
+   * Needs a diffusion model; the installed local model set is enough.
+   *
+   * @generated from enum value: QUALITY_TIER_LOCAL_MODEL = 2;
+   */
+  LOCAL_MODEL = 2,
+
+  /**
+   * Needs a current frontier image model, reached through image-tools' BYOK
+   * rung and its ai-gateway client. Opt-in per style, because it costs money.
+   *
+   * @generated from enum value: QUALITY_TIER_FRONTIER_MODEL = 3;
+   */
+  FRONTIER_MODEL = 3,
+}
+
+/**
+ * Describes the enum vrooli.backdrop_studio.v1.shared.QualityTier.
+ */
+export const QualityTierSchema: GenEnum<QualityTier> = /*@__PURE__*/
+  enumDesc(file_backdrop_studio_v1_shared_shared, 0);
 

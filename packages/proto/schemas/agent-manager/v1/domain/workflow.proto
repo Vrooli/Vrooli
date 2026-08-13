@@ -65,6 +65,18 @@ message WorkflowBudgetUsage {
   int32 retries = 6;
 }
 
+// ChargeReceipt is the per-execution billing projection exposed to an
+// authorized result consumer. An absent amount with measured=false is an
+// explicit statement that this execution could not be attributed to a
+// metered charge; it must not be interpreted as zero cost.
+message ChargeReceipt {
+  optional int64 amount_micro_usd = 1;
+  string currency = 2;
+  string metering_basis = 3;
+  bool measured = 4;
+  string note = 5;
+}
+
 message WorkflowExecution {
   string id = 1;
   string owner = 2;
@@ -88,6 +100,9 @@ message WorkflowExecution {
   // Platform-owned receipt evidence aggregated over child runs. It remains
   // separate from workflow output and preserves each receipt's run/node/attempt.
   ReceiptObservations observations = 20;
+  // Present on terminal executions, including an explicit unmeasured marker
+  // when the child billing basis cannot be attributed to this execution.
+  ChargeReceipt charge_receipt = 21;
 }
 
 // WorkflowNodeAttempt is the durable, per-node execution identity. Prompt

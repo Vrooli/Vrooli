@@ -91,13 +91,20 @@ type Version struct {
 	ContentSha256 string `protobuf:"bytes,4,opt,name=content_sha256,json=contentSha256,proto3" json:"content_sha256,omitempty"`
 	// Optional human note attached by the recorder (e.g. "auto-recorded
 	// on save"). Empty by default.
-	ChangelogMd   string                 `protobuf:"bytes,5,opt,name=changelog_md,json=changelogMd,proto3" json:"changelog_md,omitempty"`
-	RecordedAt    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
-	Status        string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
-	SourcePath    string                 `protobuf:"bytes,9,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
-	ReleasedAt    *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=released_at,json=releasedAt,proto3" json:"released_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ChangelogMd string `protobuf:"bytes,5,opt,name=changelog_md,json=changelogMd,proto3" json:"changelog_md,omitempty"`
+	// Deprecated compatibility field. Use created_at for the first-seen time.
+	//
+	// Deprecated: Marked as deprecated in react-component-library/v1/versions/versions.proto.
+	RecordedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
+	Status     string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	SourcePath string                 `protobuf:"bytes,9,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
+	ReleasedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=released_at,json=releasedAt,proto3" json:"released_at,omitempty"`
+	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// CSS custom properties referenced by the version but not defined by its
+	// own source files. Derived at catalog index time.
+	RequiredTokens []string `protobuf:"bytes,12,rep,name=required_tokens,json=requiredTokens,proto3" json:"required_tokens,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Version) Reset() {
@@ -172,6 +179,7 @@ func (x *Version) GetChangelogMd() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in react-component-library/v1/versions/versions.proto.
 func (x *Version) GetRecordedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.RecordedAt
@@ -196,6 +204,20 @@ func (x *Version) GetSourcePath() string {
 func (x *Version) GetReleasedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ReleasedAt
+	}
+	return nil
+}
+
+func (x *Version) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Version) GetRequiredTokens() []string {
+	if x != nil {
+		return x.RequiredTokens
 	}
 	return nil
 }
@@ -675,7 +697,7 @@ var File_react_component_library_v1_versions_versions_proto protoreflect.FileDes
 
 const file_react_component_library_v1_versions_versions_proto_rawDesc = "" +
 	"\n" +
-	"2react-component-library/v1/versions/versions.proto\x12*vrooli.react_component_library.v1.versions\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf2\x02\n" +
+	"2react-component-library/v1/versions/versions.proto\x12*vrooli.react_component_library.v1.versions\x1a\x1fgoogle/protobuf/timestamp.proto\"\xda\x03\n" +
 	"\aVersion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fcomponent_id\x18\x02 \x01(\tR\vcomponentId\x12\x1d\n" +
@@ -683,15 +705,18 @@ const file_react_component_library_v1_versions_versions_proto_rawDesc = "" +
 	"library_id\x18\a \x01(\tR\tlibraryId\x12\x18\n" +
 	"\aversion\x18\x03 \x01(\tR\aversion\x12%\n" +
 	"\x0econtent_sha256\x18\x04 \x01(\tR\rcontentSha256\x12!\n" +
-	"\fchangelog_md\x18\x05 \x01(\tR\vchangelogMd\x12;\n" +
-	"\vrecorded_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"\fchangelog_md\x18\x05 \x01(\tR\vchangelogMd\x12?\n" +
+	"\vrecorded_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampB\x02\x18\x01R\n" +
 	"recordedAt\x12\x16\n" +
 	"\x06status\x18\b \x01(\tR\x06status\x12\x1f\n" +
 	"\vsource_path\x18\t \x01(\tR\n" +
 	"sourcePath\x12;\n" +
 	"\vreleased_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"releasedAt\"N\n" +
+	"releasedAt\x129\n" +
+	"\n" +
+	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12'\n" +
+	"\x0frequired_tokens\x18\f \x03(\tR\x0erequiredTokens\"N\n" +
 	"\x13ListVersionsRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"g\n" +
@@ -765,23 +790,24 @@ var file_react_component_library_v1_versions_versions_proto_goTypes = []any{
 var file_react_component_library_v1_versions_versions_proto_depIdxs = []int32{
 	10, // 0: vrooli.react_component_library.v1.versions.Version.recorded_at:type_name -> google.protobuf.Timestamp
 	10, // 1: vrooli.react_component_library.v1.versions.Version.released_at:type_name -> google.protobuf.Timestamp
-	1,  // 2: vrooli.react_component_library.v1.versions.ListVersionsResponse.versions:type_name -> vrooli.react_component_library.v1.versions.Version
-	1,  // 3: vrooli.react_component_library.v1.versions.GetVersionResponse.version:type_name -> vrooli.react_component_library.v1.versions.Version
-	0,  // 4: vrooli.react_component_library.v1.versions.DiffCell.op:type_name -> vrooli.react_component_library.v1.versions.DiffOp
-	6,  // 5: vrooli.react_component_library.v1.versions.DiffRow.left:type_name -> vrooli.react_component_library.v1.versions.DiffCell
-	6,  // 6: vrooli.react_component_library.v1.versions.DiffRow.right:type_name -> vrooli.react_component_library.v1.versions.DiffCell
-	7,  // 7: vrooli.react_component_library.v1.versions.DiffVersionsResponse.rows:type_name -> vrooli.react_component_library.v1.versions.DiffRow
-	2,  // 8: vrooli.react_component_library.v1.versions.VersionsService.ListVersions:input_type -> vrooli.react_component_library.v1.versions.ListVersionsRequest
-	4,  // 9: vrooli.react_component_library.v1.versions.VersionsService.GetVersion:input_type -> vrooli.react_component_library.v1.versions.GetVersionRequest
-	8,  // 10: vrooli.react_component_library.v1.versions.VersionsService.DiffVersions:input_type -> vrooli.react_component_library.v1.versions.DiffVersionsRequest
-	3,  // 11: vrooli.react_component_library.v1.versions.VersionsService.ListVersions:output_type -> vrooli.react_component_library.v1.versions.ListVersionsResponse
-	5,  // 12: vrooli.react_component_library.v1.versions.VersionsService.GetVersion:output_type -> vrooli.react_component_library.v1.versions.GetVersionResponse
-	9,  // 13: vrooli.react_component_library.v1.versions.VersionsService.DiffVersions:output_type -> vrooli.react_component_library.v1.versions.DiffVersionsResponse
-	11, // [11:14] is the sub-list for method output_type
-	8,  // [8:11] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	10, // 2: vrooli.react_component_library.v1.versions.Version.created_at:type_name -> google.protobuf.Timestamp
+	1,  // 3: vrooli.react_component_library.v1.versions.ListVersionsResponse.versions:type_name -> vrooli.react_component_library.v1.versions.Version
+	1,  // 4: vrooli.react_component_library.v1.versions.GetVersionResponse.version:type_name -> vrooli.react_component_library.v1.versions.Version
+	0,  // 5: vrooli.react_component_library.v1.versions.DiffCell.op:type_name -> vrooli.react_component_library.v1.versions.DiffOp
+	6,  // 6: vrooli.react_component_library.v1.versions.DiffRow.left:type_name -> vrooli.react_component_library.v1.versions.DiffCell
+	6,  // 7: vrooli.react_component_library.v1.versions.DiffRow.right:type_name -> vrooli.react_component_library.v1.versions.DiffCell
+	7,  // 8: vrooli.react_component_library.v1.versions.DiffVersionsResponse.rows:type_name -> vrooli.react_component_library.v1.versions.DiffRow
+	2,  // 9: vrooli.react_component_library.v1.versions.VersionsService.ListVersions:input_type -> vrooli.react_component_library.v1.versions.ListVersionsRequest
+	4,  // 10: vrooli.react_component_library.v1.versions.VersionsService.GetVersion:input_type -> vrooli.react_component_library.v1.versions.GetVersionRequest
+	8,  // 11: vrooli.react_component_library.v1.versions.VersionsService.DiffVersions:input_type -> vrooli.react_component_library.v1.versions.DiffVersionsRequest
+	3,  // 12: vrooli.react_component_library.v1.versions.VersionsService.ListVersions:output_type -> vrooli.react_component_library.v1.versions.ListVersionsResponse
+	5,  // 13: vrooli.react_component_library.v1.versions.VersionsService.GetVersion:output_type -> vrooli.react_component_library.v1.versions.GetVersionResponse
+	9,  // 14: vrooli.react_component_library.v1.versions.VersionsService.DiffVersions:output_type -> vrooli.react_component_library.v1.versions.DiffVersionsResponse
+	12, // [12:15] is the sub-list for method output_type
+	9,  // [9:12] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_react_component_library_v1_versions_versions_proto_init() }

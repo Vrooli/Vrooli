@@ -484,6 +484,15 @@ message ScenarioSetupSteps {
   int32 skipped = 2;
 }
 
+// ScenarioLogsResponse is the bounded tail returned by the control plane.
+// The service never exposes an unbounded log stream through this unary API.
+message ScenarioLogsResponse {
+  bool success = 1;
+  string scenario = 2;
+  string logs = 3;
+  int32 tail_lines = 4;
+}
+
 // -----------------------------------------------------------------------------
 // lifecycle batch report (`scenario stop-all` / multi-scenario start/stop)
 // -----------------------------------------------------------------------------

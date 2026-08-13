@@ -39,6 +39,12 @@ const (
 	// RegistryServiceListProvidersProcedure is the fully-qualified name of the RegistryService's
 	// ListProviders RPC.
 	RegistryServiceListProvidersProcedure = "/vrooli.search_hub.v1.registry.RegistryService/ListProviders"
+	// RegistryServiceExecuteEmbeddingMigrationProcedure is the fully-qualified name of the
+	// RegistryService's ExecuteEmbeddingMigration RPC.
+	RegistryServiceExecuteEmbeddingMigrationProcedure = "/vrooli.search_hub.v1.registry.RegistryService/ExecuteEmbeddingMigration"
+	// RegistryServiceListMaturityTargetsProcedure is the fully-qualified name of the RegistryService's
+	// ListMaturityTargets RPC.
+	RegistryServiceListMaturityTargetsProcedure = "/vrooli.search_hub.v1.registry.RegistryService/ListMaturityTargets"
 	// RegistryServiceDeregisterProviderProcedure is the fully-qualified name of the RegistryService's
 	// DeregisterProvider RPC.
 	RegistryServiceDeregisterProviderProcedure = "/vrooli.search_hub.v1.registry.RegistryService/DeregisterProvider"
@@ -48,6 +54,15 @@ const (
 type RegistryServiceClient interface {
 	RegisterProvider(context.Context, *connect.Request[registry.RegisterProviderRequest]) (*connect.Response[registry.RegisterProviderResponse], error)
 	ListProviders(context.Context, *connect.Request[registry.ListProvidersRequest]) (*connect.Response[registry.ListProvidersResponse], error)
+	// Execute an authenticated provider-owned embedding migration action through
+	// the descriptor's declared reindex endpoint. Search Hub retains the control
+	// token; operator CLIs never receive it.
+	ExecuteEmbeddingMigration(context.Context, *connect.Request[registry.ExecuteEmbeddingMigrationRequest]) (*connect.Response[registry.ExecuteEmbeddingMigrationResponse], error)
+	// ListMaturityTargets returns the descriptor/capability target set used by
+	// Search Hub's maturity scan. It is intentionally separate from provider
+	// registration: a scenario can be a scan target before it owns a registered
+	// provider leaf.
+	ListMaturityTargets(context.Context, *connect.Request[registry.ListMaturityTargetsRequest]) (*connect.Response[registry.ListMaturityTargetsResponse], error)
 	DeregisterProvider(context.Context, *connect.Request[registry.DeregisterProviderRequest]) (*connect.Response[registry.DeregisterProviderResponse], error)
 }
 
@@ -75,6 +90,18 @@ func NewRegistryServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(registryServiceMethods.ByName("ListProviders")),
 			connect.WithClientOptions(opts...),
 		),
+		executeEmbeddingMigration: connect.NewClient[registry.ExecuteEmbeddingMigrationRequest, registry.ExecuteEmbeddingMigrationResponse](
+			httpClient,
+			baseURL+RegistryServiceExecuteEmbeddingMigrationProcedure,
+			connect.WithSchema(registryServiceMethods.ByName("ExecuteEmbeddingMigration")),
+			connect.WithClientOptions(opts...),
+		),
+		listMaturityTargets: connect.NewClient[registry.ListMaturityTargetsRequest, registry.ListMaturityTargetsResponse](
+			httpClient,
+			baseURL+RegistryServiceListMaturityTargetsProcedure,
+			connect.WithSchema(registryServiceMethods.ByName("ListMaturityTargets")),
+			connect.WithClientOptions(opts...),
+		),
 		deregisterProvider: connect.NewClient[registry.DeregisterProviderRequest, registry.DeregisterProviderResponse](
 			httpClient,
 			baseURL+RegistryServiceDeregisterProviderProcedure,
@@ -86,9 +113,11 @@ func NewRegistryServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // registryServiceClient implements RegistryServiceClient.
 type registryServiceClient struct {
-	registerProvider   *connect.Client[registry.RegisterProviderRequest, registry.RegisterProviderResponse]
-	listProviders      *connect.Client[registry.ListProvidersRequest, registry.ListProvidersResponse]
-	deregisterProvider *connect.Client[registry.DeregisterProviderRequest, registry.DeregisterProviderResponse]
+	registerProvider          *connect.Client[registry.RegisterProviderRequest, registry.RegisterProviderResponse]
+	listProviders             *connect.Client[registry.ListProvidersRequest, registry.ListProvidersResponse]
+	executeEmbeddingMigration *connect.Client[registry.ExecuteEmbeddingMigrationRequest, registry.ExecuteEmbeddingMigrationResponse]
+	listMaturityTargets       *connect.Client[registry.ListMaturityTargetsRequest, registry.ListMaturityTargetsResponse]
+	deregisterProvider        *connect.Client[registry.DeregisterProviderRequest, registry.DeregisterProviderResponse]
 }
 
 // RegisterProvider calls vrooli.search_hub.v1.registry.RegistryService.RegisterProvider.
@@ -101,6 +130,17 @@ func (c *registryServiceClient) ListProviders(ctx context.Context, req *connect.
 	return c.listProviders.CallUnary(ctx, req)
 }
 
+// ExecuteEmbeddingMigration calls
+// vrooli.search_hub.v1.registry.RegistryService.ExecuteEmbeddingMigration.
+func (c *registryServiceClient) ExecuteEmbeddingMigration(ctx context.Context, req *connect.Request[registry.ExecuteEmbeddingMigrationRequest]) (*connect.Response[registry.ExecuteEmbeddingMigrationResponse], error) {
+	return c.executeEmbeddingMigration.CallUnary(ctx, req)
+}
+
+// ListMaturityTargets calls vrooli.search_hub.v1.registry.RegistryService.ListMaturityTargets.
+func (c *registryServiceClient) ListMaturityTargets(ctx context.Context, req *connect.Request[registry.ListMaturityTargetsRequest]) (*connect.Response[registry.ListMaturityTargetsResponse], error) {
+	return c.listMaturityTargets.CallUnary(ctx, req)
+}
+
 // DeregisterProvider calls vrooli.search_hub.v1.registry.RegistryService.DeregisterProvider.
 func (c *registryServiceClient) DeregisterProvider(ctx context.Context, req *connect.Request[registry.DeregisterProviderRequest]) (*connect.Response[registry.DeregisterProviderResponse], error) {
 	return c.deregisterProvider.CallUnary(ctx, req)
@@ -111,6 +151,15 @@ func (c *registryServiceClient) DeregisterProvider(ctx context.Context, req *con
 type RegistryServiceHandler interface {
 	RegisterProvider(context.Context, *connect.Request[registry.RegisterProviderRequest]) (*connect.Response[registry.RegisterProviderResponse], error)
 	ListProviders(context.Context, *connect.Request[registry.ListProvidersRequest]) (*connect.Response[registry.ListProvidersResponse], error)
+	// Execute an authenticated provider-owned embedding migration action through
+	// the descriptor's declared reindex endpoint. Search Hub retains the control
+	// token; operator CLIs never receive it.
+	ExecuteEmbeddingMigration(context.Context, *connect.Request[registry.ExecuteEmbeddingMigrationRequest]) (*connect.Response[registry.ExecuteEmbeddingMigrationResponse], error)
+	// ListMaturityTargets returns the descriptor/capability target set used by
+	// Search Hub's maturity scan. It is intentionally separate from provider
+	// registration: a scenario can be a scan target before it owns a registered
+	// provider leaf.
+	ListMaturityTargets(context.Context, *connect.Request[registry.ListMaturityTargetsRequest]) (*connect.Response[registry.ListMaturityTargetsResponse], error)
 	DeregisterProvider(context.Context, *connect.Request[registry.DeregisterProviderRequest]) (*connect.Response[registry.DeregisterProviderResponse], error)
 }
 
@@ -133,6 +182,18 @@ func NewRegistryServiceHandler(svc RegistryServiceHandler, opts ...connect.Handl
 		connect.WithSchema(registryServiceMethods.ByName("ListProviders")),
 		connect.WithHandlerOptions(opts...),
 	)
+	registryServiceExecuteEmbeddingMigrationHandler := connect.NewUnaryHandler(
+		RegistryServiceExecuteEmbeddingMigrationProcedure,
+		svc.ExecuteEmbeddingMigration,
+		connect.WithSchema(registryServiceMethods.ByName("ExecuteEmbeddingMigration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	registryServiceListMaturityTargetsHandler := connect.NewUnaryHandler(
+		RegistryServiceListMaturityTargetsProcedure,
+		svc.ListMaturityTargets,
+		connect.WithSchema(registryServiceMethods.ByName("ListMaturityTargets")),
+		connect.WithHandlerOptions(opts...),
+	)
 	registryServiceDeregisterProviderHandler := connect.NewUnaryHandler(
 		RegistryServiceDeregisterProviderProcedure,
 		svc.DeregisterProvider,
@@ -145,6 +206,10 @@ func NewRegistryServiceHandler(svc RegistryServiceHandler, opts ...connect.Handl
 			registryServiceRegisterProviderHandler.ServeHTTP(w, r)
 		case RegistryServiceListProvidersProcedure:
 			registryServiceListProvidersHandler.ServeHTTP(w, r)
+		case RegistryServiceExecuteEmbeddingMigrationProcedure:
+			registryServiceExecuteEmbeddingMigrationHandler.ServeHTTP(w, r)
+		case RegistryServiceListMaturityTargetsProcedure:
+			registryServiceListMaturityTargetsHandler.ServeHTTP(w, r)
 		case RegistryServiceDeregisterProviderProcedure:
 			registryServiceDeregisterProviderHandler.ServeHTTP(w, r)
 		default:
@@ -162,6 +227,14 @@ func (UnimplementedRegistryServiceHandler) RegisterProvider(context.Context, *co
 
 func (UnimplementedRegistryServiceHandler) ListProviders(context.Context, *connect.Request[registry.ListProvidersRequest]) (*connect.Response[registry.ListProvidersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.registry.RegistryService.ListProviders is not implemented"))
+}
+
+func (UnimplementedRegistryServiceHandler) ExecuteEmbeddingMigration(context.Context, *connect.Request[registry.ExecuteEmbeddingMigrationRequest]) (*connect.Response[registry.ExecuteEmbeddingMigrationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.registry.RegistryService.ExecuteEmbeddingMigration is not implemented"))
+}
+
+func (UnimplementedRegistryServiceHandler) ListMaturityTargets(context.Context, *connect.Request[registry.ListMaturityTargetsRequest]) (*connect.Response[registry.ListMaturityTargetsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.registry.RegistryService.ListMaturityTargets is not implemented"))
 }
 
 func (UnimplementedRegistryServiceHandler) DeregisterProvider(context.Context, *connect.Request[registry.DeregisterProviderRequest]) (*connect.Response[registry.DeregisterProviderResponse], error) {

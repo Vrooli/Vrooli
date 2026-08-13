@@ -124,4 +124,6 @@ message StatusResponse {
   int32 indexed_count = 4;
   // Which matcher the provider is serving with ("lexical" | "ai").
   string matcher = 5;
+  // RFC3339 timestamp at which the measure declarations were materialized.
+  string last_indexed_at = 6;
 }

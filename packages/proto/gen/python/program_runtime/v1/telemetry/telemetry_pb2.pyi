@@ -16,6 +16,9 @@ class EventKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BINDING_REFUSED: _ClassVar[EventKind]
     SESSION_RECLAIMED: _ClassVar[EventKind]
     BINDING_INVOKED: _ClassVar[EventKind]
+    PROGRAM_ACCEPTED: _ClassVar[EventKind]
+    PROGRAM_RUNNING: _ClassVar[EventKind]
+    PROGRAM_CANCELLED: _ClassVar[EventKind]
 EVENT_KIND_UNSPECIFIED: EventKind
 PROGRAM_SUBMITTED: EventKind
 PROGRAM_SUCCEEDED: EventKind
@@ -23,6 +26,9 @@ PROGRAM_FAILED: EventKind
 BINDING_REFUSED: EventKind
 SESSION_RECLAIMED: EventKind
 BINDING_INVOKED: EventKind
+PROGRAM_ACCEPTED: EventKind
+PROGRAM_RUNNING: EventKind
+PROGRAM_CANCELLED: EventKind
 
 class ProgramEvent(_message.Message):
     __slots__ = ("event_id", "occurred_at", "kind", "program_id", "session_id", "binding_id", "effect", "provenance", "failure_shape", "context_bytes", "reason", "failure_location")

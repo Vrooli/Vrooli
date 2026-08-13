@@ -29,4 +29,6 @@ message StatusRequest {}
 message StatusResponse {
   bool available = 1;
   int32 indexed_count = 2;
+  // RFC3339 timestamp of the live corpus materialization observed by Status.
+  string last_indexed_at = 3;
 }

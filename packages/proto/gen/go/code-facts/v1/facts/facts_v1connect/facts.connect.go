@@ -36,6 +36,8 @@ const (
 	// CodeFactsServiceDescribeCodeFactsProcedure is the fully-qualified name of the CodeFactsService's
 	// DescribeCodeFacts RPC.
 	CodeFactsServiceDescribeCodeFactsProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/DescribeCodeFacts"
+	// CodeFactsServiceSearchProcedure is the fully-qualified name of the CodeFactsService's Search RPC.
+	CodeFactsServiceSearchProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/Search"
 	// CodeFactsServiceDescribeFleetImportsProcedure is the fully-qualified name of the
 	// CodeFactsService's DescribeFleetImports RPC.
 	CodeFactsServiceDescribeFleetImportsProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/DescribeFleetImports"
@@ -65,6 +67,10 @@ type CodeFactsServiceClient interface {
 	// families. Unsupported families are represented with typed evidence instead
 	// of being omitted.
 	DescribeCodeFacts(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error)
+	// Search returns a lexical, provenance-preserving view over node facts. It
+	// is intentionally separate from DescribeCodeFacts so the Search Hub leaf
+	// never needs to ship a full fleet report to answer one identifier query.
+	Search(context.Context, *connect.Request[facts.SearchRequest]) (*connect.Response[facts.SearchResponse], error)
 	// DescribeFleetImports returns IMPORTS facts for many or all scenarios.
 	// It stays language-level: import_path attributes are not resolved to
 	// owning scenarios here.
@@ -101,6 +107,12 @@ func NewCodeFactsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+CodeFactsServiceDescribeCodeFactsProcedure,
 			connect.WithSchema(codeFactsServiceMethods.ByName("DescribeCodeFacts")),
+			connect.WithClientOptions(opts...),
+		),
+		search: connect.NewClient[facts.SearchRequest, facts.SearchResponse](
+			httpClient,
+			baseURL+CodeFactsServiceSearchProcedure,
+			connect.WithSchema(codeFactsServiceMethods.ByName("Search")),
 			connect.WithClientOptions(opts...),
 		),
 		describeFleetImports: connect.NewClient[facts.DescribeFleetImportsRequest, facts.DescribeFleetImportsResponse](
@@ -151,6 +163,7 @@ func NewCodeFactsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 // codeFactsServiceClient implements CodeFactsServiceClient.
 type codeFactsServiceClient struct {
 	describeCodeFacts    *connect.Client[facts.DescribeCodeFactsRequest, facts.CodeFactsReport]
+	search               *connect.Client[facts.SearchRequest, facts.SearchResponse]
 	describeFleetImports *connect.Client[facts.DescribeFleetImportsRequest, facts.DescribeFleetImportsResponse]
 	listSurfaces         *connect.Client[facts.ListSurfacesRequest, facts.ListSurfacesResponse]
 	checkProtoAdoption   *connect.Client[facts.CheckProtoAdoptionRequest, facts.ProofReport]
@@ -163,6 +176,11 @@ type codeFactsServiceClient struct {
 // DescribeCodeFacts calls vrooli.code_facts.v1.facts.CodeFactsService.DescribeCodeFacts.
 func (c *codeFactsServiceClient) DescribeCodeFacts(ctx context.Context, req *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
 	return c.describeCodeFacts.CallUnary(ctx, req)
+}
+
+// Search calls vrooli.code_facts.v1.facts.CodeFactsService.Search.
+func (c *codeFactsServiceClient) Search(ctx context.Context, req *connect.Request[facts.SearchRequest]) (*connect.Response[facts.SearchResponse], error) {
+	return c.search.CallUnary(ctx, req)
 }
 
 // DescribeFleetImports calls vrooli.code_facts.v1.facts.CodeFactsService.DescribeFleetImports.
@@ -207,6 +225,10 @@ type CodeFactsServiceHandler interface {
 	// families. Unsupported families are represented with typed evidence instead
 	// of being omitted.
 	DescribeCodeFacts(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error)
+	// Search returns a lexical, provenance-preserving view over node facts. It
+	// is intentionally separate from DescribeCodeFacts so the Search Hub leaf
+	// never needs to ship a full fleet report to answer one identifier query.
+	Search(context.Context, *connect.Request[facts.SearchRequest]) (*connect.Response[facts.SearchResponse], error)
 	// DescribeFleetImports returns IMPORTS facts for many or all scenarios.
 	// It stays language-level: import_path attributes are not resolved to
 	// owning scenarios here.
@@ -239,6 +261,12 @@ func NewCodeFactsServiceHandler(svc CodeFactsServiceHandler, opts ...connect.Han
 		CodeFactsServiceDescribeCodeFactsProcedure,
 		svc.DescribeCodeFacts,
 		connect.WithSchema(codeFactsServiceMethods.ByName("DescribeCodeFacts")),
+		connect.WithHandlerOptions(opts...),
+	)
+	codeFactsServiceSearchHandler := connect.NewUnaryHandler(
+		CodeFactsServiceSearchProcedure,
+		svc.Search,
+		connect.WithSchema(codeFactsServiceMethods.ByName("Search")),
 		connect.WithHandlerOptions(opts...),
 	)
 	codeFactsServiceDescribeFleetImportsHandler := connect.NewUnaryHandler(
@@ -287,6 +315,8 @@ func NewCodeFactsServiceHandler(svc CodeFactsServiceHandler, opts ...connect.Han
 		switch r.URL.Path {
 		case CodeFactsServiceDescribeCodeFactsProcedure:
 			codeFactsServiceDescribeCodeFactsHandler.ServeHTTP(w, r)
+		case CodeFactsServiceSearchProcedure:
+			codeFactsServiceSearchHandler.ServeHTTP(w, r)
 		case CodeFactsServiceDescribeFleetImportsProcedure:
 			codeFactsServiceDescribeFleetImportsHandler.ServeHTTP(w, r)
 		case CodeFactsServiceListSurfacesProcedure:
@@ -312,6 +342,10 @@ type UnimplementedCodeFactsServiceHandler struct{}
 
 func (UnimplementedCodeFactsServiceHandler) DescribeCodeFacts(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.code_facts.v1.facts.CodeFactsService.DescribeCodeFacts is not implemented"))
+}
+
+func (UnimplementedCodeFactsServiceHandler) Search(context.Context, *connect.Request[facts.SearchRequest]) (*connect.Response[facts.SearchResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.code_facts.v1.facts.CodeFactsService.Search is not implemented"))
 }
 
 func (UnimplementedCodeFactsServiceHandler) DescribeFleetImports(context.Context, *connect.Request[facts.DescribeFleetImportsRequest]) (*connect.Response[facts.DescribeFleetImportsResponse], error) {

@@ -450,7 +450,11 @@ type Candidate struct {
 	// candidate that exists has passed — a failing one is refused rather than
 	// recorded — so this is the evidence of *how well* it passed, and the margin
 	// it cleared each bar by. Without it "the gate is green" is unfalsifiable.
-	QualityJson   string `protobuf:"bytes,14,opt,name=quality_json,json=qualityJson,proto3" json:"quality_json,omitempty"`
+	QualityJson string `protobuf:"bytes,14,opt,name=quality_json,json=qualityJson,proto3" json:"quality_json,omitempty"`
+	// routing is the lane, model and cost that produced this candidate. It is on
+	// the candidate rather than the job because a job may render several
+	// candidates and a retry can escalate one of them further than the others.
+	Routing       *shared.RoutingRecord `protobuf:"bytes,15,opt,name=routing,proto3" json:"routing,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -583,6 +587,13 @@ func (x *Candidate) GetQualityJson() string {
 	return ""
 }
 
+func (x *Candidate) GetRouting() *shared.RoutingRecord {
+	if x != nil {
+		return x.Routing
+	}
+	return nil
+}
+
 var File_backdrop_studio_v1_render_render_proto protoreflect.FileDescriptor
 
 const file_backdrop_studio_v1_render_render_proto_rawDesc = "" +
@@ -625,7 +636,7 @@ const file_backdrop_studio_v1_render_render_proto_rawDesc = "" +
 	"\vselected_by\x18\b \x01(\tR\n" +
 	"selectedBy\x12\x1d\n" +
 	"\n" +
-	"surface_id\x18\t \x01(\tR\tsurfaceId\"\xcd\x03\n" +
+	"surface_id\x18\t \x01(\tR\tsurfaceId\"\x98\x04\n" +
 	"\tCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06job_id\x18\x02 \x01(\tR\x05jobId\x12\x1b\n" +
@@ -641,7 +652,8 @@ const file_backdrop_studio_v1_render_render_proto_rawDesc = "" +
 	"\x13disclosure_required\x18\v \x01(\bR\x12disclosureRequired\x12\x16\n" +
 	"\x06prompt\x18\f \x01(\tR\x06prompt\x12'\n" +
 	"\x0fprovenance_json\x18\r \x01(\tR\x0eprovenanceJson\x12!\n" +
-	"\fquality_json\x18\x0e \x01(\tR\vqualityJson2\xdf\x03\n" +
+	"\fquality_json\x18\x0e \x01(\tR\vqualityJson\x12I\n" +
+	"\arouting\x18\x0f \x01(\v2/.vrooli.backdrop_studio.v1.shared.RoutingRecordR\arouting2\xdf\x03\n" +
 	"\rRenderService\x12f\n" +
 	"\x06Submit\x12/.vrooli.backdrop_studio.v1.render.SubmitRequest\x1a+.vrooli.backdrop_studio.v1.render.RenderJob\x12f\n" +
 	"\x06GetJob\x12/.vrooli.backdrop_studio.v1.render.GetJobRequest\x1a+.vrooli.backdrop_studio.v1.render.RenderJob\x12\x83\x01\n" +
@@ -671,25 +683,27 @@ var file_backdrop_studio_v1_render_render_proto_goTypes = []any{
 	(*Candidate)(nil),              // 6: vrooli.backdrop_studio.v1.render.Candidate
 	nil,                            // 7: vrooli.backdrop_studio.v1.render.SubmitRequest.BrandTokensEntry
 	(*shared.Style)(nil),           // 8: vrooli.backdrop_studio.v1.shared.Style
+	(*shared.RoutingRecord)(nil),   // 9: vrooli.backdrop_studio.v1.shared.RoutingRecord
 }
 var file_backdrop_studio_v1_render_render_proto_depIdxs = []int32{
 	8, // 0: vrooli.backdrop_studio.v1.render.SubmitRequest.style:type_name -> vrooli.backdrop_studio.v1.shared.Style
 	7, // 1: vrooli.backdrop_studio.v1.render.SubmitRequest.brand_tokens:type_name -> vrooli.backdrop_studio.v1.render.SubmitRequest.BrandTokensEntry
 	6, // 2: vrooli.backdrop_studio.v1.render.ListCandidatesResponse.candidates:type_name -> vrooli.backdrop_studio.v1.render.Candidate
 	6, // 3: vrooli.backdrop_studio.v1.render.RenderJob.candidates:type_name -> vrooli.backdrop_studio.v1.render.Candidate
-	0, // 4: vrooli.backdrop_studio.v1.render.RenderService.Submit:input_type -> vrooli.backdrop_studio.v1.render.SubmitRequest
-	1, // 5: vrooli.backdrop_studio.v1.render.RenderService.GetJob:input_type -> vrooli.backdrop_studio.v1.render.GetJobRequest
-	2, // 6: vrooli.backdrop_studio.v1.render.RenderService.ListCandidates:input_type -> vrooli.backdrop_studio.v1.render.ListCandidatesRequest
-	4, // 7: vrooli.backdrop_studio.v1.render.RenderService.SelectCandidate:input_type -> vrooli.backdrop_studio.v1.render.SelectCandidateRequest
-	5, // 8: vrooli.backdrop_studio.v1.render.RenderService.Submit:output_type -> vrooli.backdrop_studio.v1.render.RenderJob
-	5, // 9: vrooli.backdrop_studio.v1.render.RenderService.GetJob:output_type -> vrooli.backdrop_studio.v1.render.RenderJob
-	3, // 10: vrooli.backdrop_studio.v1.render.RenderService.ListCandidates:output_type -> vrooli.backdrop_studio.v1.render.ListCandidatesResponse
-	5, // 11: vrooli.backdrop_studio.v1.render.RenderService.SelectCandidate:output_type -> vrooli.backdrop_studio.v1.render.RenderJob
-	8, // [8:12] is the sub-list for method output_type
-	4, // [4:8] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	9, // 4: vrooli.backdrop_studio.v1.render.Candidate.routing:type_name -> vrooli.backdrop_studio.v1.shared.RoutingRecord
+	0, // 5: vrooli.backdrop_studio.v1.render.RenderService.Submit:input_type -> vrooli.backdrop_studio.v1.render.SubmitRequest
+	1, // 6: vrooli.backdrop_studio.v1.render.RenderService.GetJob:input_type -> vrooli.backdrop_studio.v1.render.GetJobRequest
+	2, // 7: vrooli.backdrop_studio.v1.render.RenderService.ListCandidates:input_type -> vrooli.backdrop_studio.v1.render.ListCandidatesRequest
+	4, // 8: vrooli.backdrop_studio.v1.render.RenderService.SelectCandidate:input_type -> vrooli.backdrop_studio.v1.render.SelectCandidateRequest
+	5, // 9: vrooli.backdrop_studio.v1.render.RenderService.Submit:output_type -> vrooli.backdrop_studio.v1.render.RenderJob
+	5, // 10: vrooli.backdrop_studio.v1.render.RenderService.GetJob:output_type -> vrooli.backdrop_studio.v1.render.RenderJob
+	3, // 11: vrooli.backdrop_studio.v1.render.RenderService.ListCandidates:output_type -> vrooli.backdrop_studio.v1.render.ListCandidatesResponse
+	5, // 12: vrooli.backdrop_studio.v1.render.RenderService.SelectCandidate:output_type -> vrooli.backdrop_studio.v1.render.RenderJob
+	9, // [9:13] is the sub-list for method output_type
+	5, // [5:9] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_backdrop_studio_v1_render_render_proto_init() }

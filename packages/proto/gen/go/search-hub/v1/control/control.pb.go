@@ -32,9 +32,19 @@ type ReindexRequest struct {
 	Scope  string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
 	DryRun bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	// Required: the provider's control token. Rejected on mismatch.
-	ControlToken  string `protobuf:"bytes,3,opt,name=control_token,json=controlToken,proto3" json:"control_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ControlToken string `protobuf:"bytes,3,opt,name=control_token,json=controlToken,proto3" json:"control_token,omitempty"`
+	// Optional migration action. Empty preserves the ordinary full-corpus
+	// reconcile contract. Shadow builds and pointer changes remain provider-owned
+	// operations behind the same authenticated endpoint.
+	Action                       string `protobuf:"bytes,4,opt,name=action,proto3" json:"action,omitempty"`
+	ShadowCollection             string `protobuf:"bytes,5,opt,name=shadow_collection,json=shadowCollection,proto3" json:"shadow_collection,omitempty"`
+	RollbackCollection           string `protobuf:"bytes,6,opt,name=rollback_collection,json=rollbackCollection,proto3" json:"rollback_collection,omitempty"`
+	EmbeddingModel               string `protobuf:"bytes,7,opt,name=embedding_model,json=embeddingModel,proto3" json:"embedding_model,omitempty"`
+	EmbeddingRole                string `protobuf:"bytes,8,opt,name=embedding_role,json=embeddingRole,proto3" json:"embedding_role,omitempty"`
+	EmbeddingDimensions          int32  `protobuf:"varint,9,opt,name=embedding_dimensions,json=embeddingDimensions,proto3" json:"embedding_dimensions,omitempty"`
+	EmbeddingPolicySchemaVersion string `protobuf:"bytes,10,opt,name=embedding_policy_schema_version,json=embeddingPolicySchemaVersion,proto3" json:"embedding_policy_schema_version,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *ReindexRequest) Reset() {
@@ -84,6 +94,55 @@ func (x *ReindexRequest) GetDryRun() bool {
 func (x *ReindexRequest) GetControlToken() string {
 	if x != nil {
 		return x.ControlToken
+	}
+	return ""
+}
+
+func (x *ReindexRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *ReindexRequest) GetShadowCollection() string {
+	if x != nil {
+		return x.ShadowCollection
+	}
+	return ""
+}
+
+func (x *ReindexRequest) GetRollbackCollection() string {
+	if x != nil {
+		return x.RollbackCollection
+	}
+	return ""
+}
+
+func (x *ReindexRequest) GetEmbeddingModel() string {
+	if x != nil {
+		return x.EmbeddingModel
+	}
+	return ""
+}
+
+func (x *ReindexRequest) GetEmbeddingRole() string {
+	if x != nil {
+		return x.EmbeddingRole
+	}
+	return ""
+}
+
+func (x *ReindexRequest) GetEmbeddingDimensions() int32 {
+	if x != nil {
+		return x.EmbeddingDimensions
+	}
+	return 0
+}
+
+func (x *ReindexRequest) GetEmbeddingPolicySchemaVersion() string {
+	if x != nil {
+		return x.EmbeddingPolicySchemaVersion
 	}
 	return ""
 }
@@ -683,11 +742,19 @@ var File_search_hub_v1_control_control_proto protoreflect.FileDescriptor
 
 const file_search_hub_v1_control_control_proto_rawDesc = "" +
 	"\n" +
-	"#search-hub/v1/control/control.proto\x12\x1cvrooli.search_hub.v1.control\x1a\x1dsearch-hub/v1/eval/eval.proto\x1a%search-hub/v1/registry/registry.proto\"d\n" +
+	"#search-hub/v1/control/control.proto\x12\x1cvrooli.search_hub.v1.control\x1a\x1dsearch-hub/v1/eval/eval.proto\x1a%search-hub/v1/registry/registry.proto\"\xa4\x03\n" +
 	"\x0eReindexRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12#\n" +
-	"\rcontrol_token\x18\x03 \x01(\tR\fcontrolToken\"\x93\x01\n" +
+	"\rcontrol_token\x18\x03 \x01(\tR\fcontrolToken\x12\x16\n" +
+	"\x06action\x18\x04 \x01(\tR\x06action\x12+\n" +
+	"\x11shadow_collection\x18\x05 \x01(\tR\x10shadowCollection\x12/\n" +
+	"\x13rollback_collection\x18\x06 \x01(\tR\x12rollbackCollection\x12'\n" +
+	"\x0fembedding_model\x18\a \x01(\tR\x0eembeddingModel\x12%\n" +
+	"\x0eembedding_role\x18\b \x01(\tR\rembeddingRole\x121\n" +
+	"\x14embedding_dimensions\x18\t \x01(\x05R\x13embeddingDimensions\x12E\n" +
+	"\x1fembedding_policy_schema_version\x18\n" +
+	" \x01(\tR\x1cembeddingPolicySchemaVersion\"\x93\x01\n" +
 	"\x0fReindexResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12'\n" +
 	"\x0fplanned_upserts\x18\x02 \x01(\x05R\x0eplannedUpserts\x12'\n" +

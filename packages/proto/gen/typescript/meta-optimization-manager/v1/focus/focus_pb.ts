@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file meta-optimization-manager/v1/focus/focus.proto.
  */
 export const file_meta_optimization_manager_v1_focus_focus: GenFile = /*@__PURE__*/
-  fileDesc("Ci5tZXRhLW9wdGltaXphdGlvbi1tYW5hZ2VyL3YxL2ZvY3VzL2ZvY3VzLnByb3RvEil2cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cyLQAwoDR2FwEgoKAmlkGAEgASgJEkoKCnByb2plY3Rpb24YAiABKA4yNi52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5zaGFyZWQuUHJvamVjdGlvbhINCgV0aXRsZRgDIAEoCRJGCgZzdGF0dXMYBCABKA4yNi52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5zaGFyZWQuQ2VsbFN0YXR1cxIWCg5zb3VyY2VfY2VsbF9pZBgFIAEoCRIOCgZnbG9iYWwYBiABKAgSDQoFbm90ZXMYByADKAkSEgoKYXBwcm9hY2hlcxgIIAMoCRISCgpmb2xsb3dfdXBzGAkgAygJEkEKBGF4aXMYCiABKA4yMy52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5zaGFyZWQuR2FwQXhpcxISCgpyZWN1cnJlbmNlGAsgASgFEhcKD2V2aWRlbmNlX3NvdXJjZRgMIAEoCRIYChBldmlkZW5jZV9sb2NhdG9yGA0gASgJEhsKE2F2YWlsYWJpbGl0eV9yZWFzb24YDiABKAkSFAoMcHJvdmlkZXJfaWRzGA8gAygJIpcBCglGb2N1c0l0ZW0SOwoDZ2FwGAEgASgLMi4udnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuR2FwEg4KBmltcGFjdBgCIAEoARISCgppbXBvcnRhbmNlGAMgASgBEhYKDnByaW9yaXR5X3Njb3JlGAQgASgBEhEKCXJhdGlvbmFsZRgFIAEoCSJsCg9HZXRGb2N1c1JlcXVlc3QSDQoFbGltaXQYASABKAUSSgoKcHJvamVjdGlvbhgCIAEoDjI2LnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLnNoYXJlZC5Qcm9qZWN0aW9uIoIBChBHZXRGb2N1c1Jlc3BvbnNlEkMKBWl0ZW1zGAEgAygLMjQudnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuRm9jdXNJdGVtEhAKCGRlZ3JhZGVkGAIgASgIEhcKD2RlZ3JhZGVkX3JlYXNvbhgDIAEoCSK2AQoPTGlzdEdhcHNSZXF1ZXN0EkoKCnByb2plY3Rpb24YASABKA4yNi52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5zaGFyZWQuUHJvamVjdGlvbhIPCgdjZWxsX2lkGAIgASgJEkYKBnN0YXR1cxgDIAEoDjI2LnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLnNoYXJlZC5DZWxsU3RhdHVzIlAKEExpc3RHYXBzUmVzcG9uc2USPAoEZ2FwcxgBIAMoCzIuLnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkdhcCIbCg1HZXRHYXBSZXF1ZXN0EgoKAmlkGAEgASgJIk0KDkdldEdhcFJlc3BvbnNlEjsKA2dhcBgBIAEoCzIuLnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkdhcCIxChFBZGRHYXBOb3RlUmVxdWVzdBIKCgJpZBgBIAEoCRIQCghhcHByb2FjaBgCIAEoCSJRChJBZGRHYXBOb3RlUmVzcG9uc2USOwoDZ2FwGAEgASgLMi4udnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuR2FwIhYKFExpc3RDb25kaXRpb25SZXF1ZXN0IlUKFUxpc3RDb25kaXRpb25SZXNwb25zZRI8CgRnYXBzGAEgAygLMi4udnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuR2FwIi4KF0V4cGxhaW5Db25kaXRpb25SZXF1ZXN0EhMKC3Byb3ZpZGVyX2lkGAEgASgJIlcKGEV4cGxhaW5Db25kaXRpb25SZXNwb25zZRI7CgNnYXAYASABKAsyLi52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cy5HYXAy2AYKDEZvY3VzU2VydmljZRKDAQoIR2V0Rm9jdXMSOi52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cy5HZXRGb2N1c1JlcXVlc3QaOy52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cy5HZXRGb2N1c1Jlc3BvbnNlEoMBCghMaXN0R2FwcxI6LnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkxpc3RHYXBzUmVxdWVzdBo7LnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkxpc3RHYXBzUmVzcG9uc2USfQoGR2V0R2FwEjgudnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuR2V0R2FwUmVxdWVzdBo5LnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkdldEdhcFJlc3BvbnNlEokBCgpBZGRHYXBOb3RlEjwudnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuQWRkR2FwTm90ZVJlcXVlc3QaPS52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cy5BZGRHYXBOb3RlUmVzcG9uc2USkgEKDUxpc3RDb25kaXRpb24SPy52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cy5MaXN0Q29uZGl0aW9uUmVxdWVzdBpALnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkxpc3RDb25kaXRpb25SZXNwb25zZRKbAQoQRXhwbGFpbkNvbmRpdGlvbhJCLnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkV4cGxhaW5Db25kaXRpb25SZXF1ZXN0GkMudnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuRXhwbGFpbkNvbmRpdGlvblJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbWV0YS1vcHRpbWl6YXRpb24tbWFuYWdlci92MS9mb2N1cztmb2N1c192MWIGcHJvdG8z", [file_meta_optimization_manager_v1_shared_model]);
+  fileDesc("Ci5tZXRhLW9wdGltaXphdGlvbi1tYW5hZ2VyL3YxL2ZvY3VzL2ZvY3VzLnByb3RvEil2cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cyLBBAoDR2FwEgoKAmlkGAEgASgJEkoKCnByb2plY3Rpb24YAiABKA4yNi52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5zaGFyZWQuUHJvamVjdGlvbhINCgV0aXRsZRgDIAEoCRJGCgZzdGF0dXMYBCABKA4yNi52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5zaGFyZWQuQ2VsbFN0YXR1cxIWCg5zb3VyY2VfY2VsbF9pZBgFIAEoCRIOCgZnbG9iYWwYBiABKAgSDQoFbm90ZXMYByADKAkSEgoKYXBwcm9hY2hlcxgIIAMoCRISCgpmb2xsb3dfdXBzGAkgAygJEkEKBGF4aXMYCiABKA4yMy52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5zaGFyZWQuR2FwQXhpcxISCgpyZWN1cnJlbmNlGAsgASgFEhcKD2V2aWRlbmNlX3NvdXJjZRgMIAEoCRIYChBldmlkZW5jZV9sb2NhdG9yGA0gASgJEhsKE2F2YWlsYWJpbGl0eV9yZWFzb24YDiABKAkSFAoMcHJvdmlkZXJfaWRzGA8gAygJEhgKEGNvbmRpdGlvbl9zdGF0dXMYECABKAkSVQoRbWF0dXJpdHlfZmluZGluZ3MYESADKAsyOi52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cy5NYXR1cml0eUZpbmRpbmciggEKD01hdHVyaXR5RmluZGluZxIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEAoIbG9jYXRpb24YAyABKAkSEwoLcmVtZWRpYXRpb24YBCABKAkSEQoJZml4X2NsYXNzGAUgASgJEhYKDnJlcGFpcl9jb21tYW5kGAYgASgJIpcBCglGb2N1c0l0ZW0SOwoDZ2FwGAEgASgLMi4udnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuR2FwEg4KBmltcGFjdBgCIAEoARISCgppbXBvcnRhbmNlGAMgASgBEhYKDnByaW9yaXR5X3Njb3JlGAQgASgBEhEKCXJhdGlvbmFsZRgFIAEoCSJsCg9HZXRGb2N1c1JlcXVlc3QSDQoFbGltaXQYASABKAUSSgoKcHJvamVjdGlvbhgCIAEoDjI2LnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLnNoYXJlZC5Qcm9qZWN0aW9uIoIBChBHZXRGb2N1c1Jlc3BvbnNlEkMKBWl0ZW1zGAEgAygLMjQudnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuRm9jdXNJdGVtEhAKCGRlZ3JhZGVkGAIgASgIEhcKD2RlZ3JhZGVkX3JlYXNvbhgDIAEoCSK2AQoPTGlzdEdhcHNSZXF1ZXN0EkoKCnByb2plY3Rpb24YASABKA4yNi52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5zaGFyZWQuUHJvamVjdGlvbhIPCgdjZWxsX2lkGAIgASgJEkYKBnN0YXR1cxgDIAEoDjI2LnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLnNoYXJlZC5DZWxsU3RhdHVzIlAKEExpc3RHYXBzUmVzcG9uc2USPAoEZ2FwcxgBIAMoCzIuLnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkdhcCIbCg1HZXRHYXBSZXF1ZXN0EgoKAmlkGAEgASgJIk0KDkdldEdhcFJlc3BvbnNlEjsKA2dhcBgBIAEoCzIuLnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkdhcCIxChFBZGRHYXBOb3RlUmVxdWVzdBIKCgJpZBgBIAEoCRIQCghhcHByb2FjaBgCIAEoCSJRChJBZGRHYXBOb3RlUmVzcG9uc2USOwoDZ2FwGAEgASgLMi4udnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuR2FwIhYKFExpc3RDb25kaXRpb25SZXF1ZXN0IrMBChVMaXN0Q29uZGl0aW9uUmVzcG9uc2USPAoEZ2FwcxgBIAMoCzIuLnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkdhcBJcCg9pbnN0cnVtZW50YXRpb24YAiABKAsyQy52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cy5Db25kaXRpb25JbnN0cnVtZW50YXRpb24itgEKGENvbmRpdGlvbkluc3RydW1lbnRhdGlvbhIPCgdoZWFsdGh5GAEgASgFEhAKCGRlZ3JhZGVkGAIgASgFEg8KB2Rvcm1hbnQYAyABKAUSFgoOdW5pbnN0cnVtZW50ZWQYBCABKAUSEwoLdW5hdmFpbGFibGUYBSABKAUSFAoMaW5zdHJ1bWVudGVkGAYgASgFEg0KBXRvdGFsGAcgASgFEhQKDGZpbHRlcmVkX291dBgIIAEoBSIuChdFeHBsYWluQ29uZGl0aW9uUmVxdWVzdBITCgtwcm92aWRlcl9pZBgBIAEoCSJXChhFeHBsYWluQ29uZGl0aW9uUmVzcG9uc2USOwoDZ2FwGAEgASgLMi4udnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuR2FwMtgGCgxGb2N1c1NlcnZpY2USgwEKCEdldEZvY3VzEjoudnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuR2V0Rm9jdXNSZXF1ZXN0GjsudnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuR2V0Rm9jdXNSZXNwb25zZRKDAQoITGlzdEdhcHMSOi52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cy5MaXN0R2Fwc1JlcXVlc3QaOy52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cy5MaXN0R2Fwc1Jlc3BvbnNlEn0KBkdldEdhcBI4LnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkdldEdhcFJlcXVlc3QaOS52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cy5HZXRHYXBSZXNwb25zZRKJAQoKQWRkR2FwTm90ZRI8LnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkFkZEdhcE5vdGVSZXF1ZXN0Gj0udnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuQWRkR2FwTm90ZVJlc3BvbnNlEpIBCg1MaXN0Q29uZGl0aW9uEj8udnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuZm9jdXMuTGlzdENvbmRpdGlvblJlcXVlc3QaQC52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cy5MaXN0Q29uZGl0aW9uUmVzcG9uc2USmwEKEEV4cGxhaW5Db25kaXRpb24SQi52cm9vbGkubWV0YV9vcHRpbWl6YXRpb25fbWFuYWdlci52MS5mb2N1cy5FeHBsYWluQ29uZGl0aW9uUmVxdWVzdBpDLnZyb29saS5tZXRhX29wdGltaXphdGlvbl9tYW5hZ2VyLnYxLmZvY3VzLkV4cGxhaW5Db25kaXRpb25SZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL21ldGEtb3B0aW1pemF0aW9uLW1hbmFnZXIvdjEvZm9jdXM7Zm9jdXNfdjFiBnByb3RvMw", [file_meta_optimization_manager_v1_shared_model]);
 
 /**
  * Gap is one known gap with its qualitative context.
@@ -120,6 +120,20 @@ export type Gap = Message<"vrooli.meta_optimization_manager.v1.focus.Gap"> & {
    * @generated from field: repeated string provider_ids = 15;
    */
   providerIds: string[];
+
+  /**
+   * observed condition verdict for empirical condition gaps
+   *
+   * @generated from field: string condition_status = 16;
+   */
+  conditionStatus: string;
+
+  /**
+   * structured blocking evidence from Search Hub
+   *
+   * @generated from field: repeated vrooli.meta_optimization_manager.v1.focus.MaturityFinding maturity_findings = 17;
+   */
+  maturityFindings: MaturityFinding[];
 };
 
 /**
@@ -128,6 +142,51 @@ export type Gap = Message<"vrooli.meta_optimization_manager.v1.focus.Gap"> & {
  */
 export const GapSchema: GenMessage<Gap> = /*@__PURE__*/
   messageDesc(file_meta_optimization_manager_v1_focus_focus, 0);
+
+/**
+ * MaturityFinding is one blocking Search Hub rule with enough context to
+ * understand and execute its repair from the focus board.
+ *
+ * @generated from message vrooli.meta_optimization_manager.v1.focus.MaturityFinding
+ */
+export type MaturityFinding = Message<"vrooli.meta_optimization_manager.v1.focus.MaturityFinding"> & {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
+
+  /**
+   * @generated from field: string location = 3;
+   */
+  location: string;
+
+  /**
+   * @generated from field: string remediation = 4;
+   */
+  remediation: string;
+
+  /**
+   * @generated from field: string fix_class = 5;
+   */
+  fixClass: string;
+
+  /**
+   * @generated from field: string repair_command = 6;
+   */
+  repairCommand: string;
+};
+
+/**
+ * Describes the message vrooli.meta_optimization_manager.v1.focus.MaturityFinding.
+ * Use `create(MaturityFindingSchema)` to create a new message.
+ */
+export const MaturityFindingSchema: GenMessage<MaturityFinding> = /*@__PURE__*/
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 1);
 
 /**
  * FocusItem is a ranked next-best gap.
@@ -168,7 +227,7 @@ export type FocusItem = Message<"vrooli.meta_optimization_manager.v1.focus.Focus
  * Use `create(FocusItemSchema)` to create a new message.
  */
 export const FocusItemSchema: GenMessage<FocusItem> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 1);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 2);
 
 /**
  * @generated from message vrooli.meta_optimization_manager.v1.focus.GetFocusRequest
@@ -194,7 +253,7 @@ export type GetFocusRequest = Message<"vrooli.meta_optimization_manager.v1.focus
  * Use `create(GetFocusRequestSchema)` to create a new message.
  */
 export const GetFocusRequestSchema: GenMessage<GetFocusRequest> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 2);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 3);
 
 /**
  * @generated from message vrooli.meta_optimization_manager.v1.focus.GetFocusResponse
@@ -225,7 +284,7 @@ export type GetFocusResponse = Message<"vrooli.meta_optimization_manager.v1.focu
  * Use `create(GetFocusResponseSchema)` to create a new message.
  */
 export const GetFocusResponseSchema: GenMessage<GetFocusResponse> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 3);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 4);
 
 /**
  * @generated from message vrooli.meta_optimization_manager.v1.focus.ListGapsRequest
@@ -258,7 +317,7 @@ export type ListGapsRequest = Message<"vrooli.meta_optimization_manager.v1.focus
  * Use `create(ListGapsRequestSchema)` to create a new message.
  */
 export const ListGapsRequestSchema: GenMessage<ListGapsRequest> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 4);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 5);
 
 /**
  * @generated from message vrooli.meta_optimization_manager.v1.focus.ListGapsResponse
@@ -275,7 +334,7 @@ export type ListGapsResponse = Message<"vrooli.meta_optimization_manager.v1.focu
  * Use `create(ListGapsResponseSchema)` to create a new message.
  */
 export const ListGapsResponseSchema: GenMessage<ListGapsResponse> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 5);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 6);
 
 /**
  * @generated from message vrooli.meta_optimization_manager.v1.focus.GetGapRequest
@@ -292,7 +351,7 @@ export type GetGapRequest = Message<"vrooli.meta_optimization_manager.v1.focus.G
  * Use `create(GetGapRequestSchema)` to create a new message.
  */
 export const GetGapRequestSchema: GenMessage<GetGapRequest> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 6);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 7);
 
 /**
  * @generated from message vrooli.meta_optimization_manager.v1.focus.GetGapResponse
@@ -309,7 +368,7 @@ export type GetGapResponse = Message<"vrooli.meta_optimization_manager.v1.focus.
  * Use `create(GetGapResponseSchema)` to create a new message.
  */
 export const GetGapResponseSchema: GenMessage<GetGapResponse> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 7);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 8);
 
 /**
  * @generated from message vrooli.meta_optimization_manager.v1.focus.AddGapNoteRequest
@@ -333,7 +392,7 @@ export type AddGapNoteRequest = Message<"vrooli.meta_optimization_manager.v1.foc
  * Use `create(AddGapNoteRequestSchema)` to create a new message.
  */
 export const AddGapNoteRequestSchema: GenMessage<AddGapNoteRequest> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 8);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 9);
 
 /**
  * @generated from message vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse
@@ -352,7 +411,7 @@ export type AddGapNoteResponse = Message<"vrooli.meta_optimization_manager.v1.fo
  * Use `create(AddGapNoteResponseSchema)` to create a new message.
  */
 export const AddGapNoteResponseSchema: GenMessage<AddGapNoteResponse> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 9);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 10);
 
 /**
  * @generated from message vrooli.meta_optimization_manager.v1.focus.ListConditionRequest
@@ -365,7 +424,7 @@ export type ListConditionRequest = Message<"vrooli.meta_optimization_manager.v1.
  * Use `create(ListConditionRequestSchema)` to create a new message.
  */
 export const ListConditionRequestSchema: GenMessage<ListConditionRequest> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 10);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 11);
 
 /**
  * @generated from message vrooli.meta_optimization_manager.v1.focus.ListConditionResponse
@@ -375,6 +434,11 @@ export type ListConditionResponse = Message<"vrooli.meta_optimization_manager.v1
    * @generated from field: repeated vrooli.meta_optimization_manager.v1.focus.Gap gaps = 1;
    */
   gaps: Gap[];
+
+  /**
+   * @generated from field: vrooli.meta_optimization_manager.v1.focus.ConditionInstrumentation instrumentation = 2;
+   */
+  instrumentation?: ConditionInstrumentation | undefined;
 };
 
 /**
@@ -382,7 +446,62 @@ export type ListConditionResponse = Message<"vrooli.meta_optimization_manager.v1
  * Use `create(ListConditionResponseSchema)` to create a new message.
  */
 export const ListConditionResponseSchema: GenMessage<ListConditionResponse> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 11);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 12);
+
+/**
+ * @generated from message vrooli.meta_optimization_manager.v1.focus.ConditionInstrumentation
+ */
+export type ConditionInstrumentation = Message<"vrooli.meta_optimization_manager.v1.focus.ConditionInstrumentation"> & {
+  /**
+   * @generated from field: int32 healthy = 1;
+   */
+  healthy: number;
+
+  /**
+   * @generated from field: int32 degraded = 2;
+   */
+  degraded: number;
+
+  /**
+   * @generated from field: int32 dormant = 3;
+   */
+  dormant: number;
+
+  /**
+   * @generated from field: int32 uninstrumented = 4;
+   */
+  uninstrumented: number;
+
+  /**
+   * @generated from field: int32 unavailable = 5;
+   */
+  unavailable: number;
+
+  /**
+   * @generated from field: int32 instrumented = 6;
+   */
+  instrumented: number;
+
+  /**
+   * @generated from field: int32 total = 7;
+   */
+  total: number;
+
+  /**
+   * Runtime condition legs excluded because their owner does not currently
+   * back a live NOW cell in the coverage population.
+   *
+   * @generated from field: int32 filtered_out = 8;
+   */
+  filteredOut: number;
+};
+
+/**
+ * Describes the message vrooli.meta_optimization_manager.v1.focus.ConditionInstrumentation.
+ * Use `create(ConditionInstrumentationSchema)` to create a new message.
+ */
+export const ConditionInstrumentationSchema: GenMessage<ConditionInstrumentation> = /*@__PURE__*/
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 13);
 
 /**
  * @generated from message vrooli.meta_optimization_manager.v1.focus.ExplainConditionRequest
@@ -399,7 +518,7 @@ export type ExplainConditionRequest = Message<"vrooli.meta_optimization_manager.
  * Use `create(ExplainConditionRequestSchema)` to create a new message.
  */
 export const ExplainConditionRequestSchema: GenMessage<ExplainConditionRequest> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 12);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 14);
 
 /**
  * @generated from message vrooli.meta_optimization_manager.v1.focus.ExplainConditionResponse
@@ -416,7 +535,7 @@ export type ExplainConditionResponse = Message<"vrooli.meta_optimization_manager
  * Use `create(ExplainConditionResponseSchema)` to create a new message.
  */
 export const ExplainConditionResponseSchema: GenMessage<ExplainConditionResponse> = /*@__PURE__*/
-  messageDesc(file_meta_optimization_manager_v1_focus_focus, 13);
+  messageDesc(file_meta_optimization_manager_v1_focus_focus, 15);
 
 /**
  * @generated from service vrooli.meta_optimization_manager.v1.focus.FocusService

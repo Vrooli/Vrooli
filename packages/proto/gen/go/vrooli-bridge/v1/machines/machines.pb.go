@@ -1099,6 +1099,9 @@ type MachineTrust struct {
 	HostKeyFingerprint   string                 `protobuf:"bytes,2,opt,name=host_key_fingerprint,json=hostKeyFingerprint,proto3" json:"host_key_fingerprint,omitempty"`
 	HostKeyState         string                 `protobuf:"bytes,3,opt,name=host_key_state,json=hostKeyState,proto3" json:"host_key_state,omitempty"`
 	UpdatedAt            *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SshUser              string                 `protobuf:"bytes,5,opt,name=ssh_user,json=sshUser,proto3" json:"ssh_user,omitempty"`
+	SshPort              int32                  `protobuf:"varint,6,opt,name=ssh_port,json=sshPort,proto3" json:"ssh_port,omitempty"`
+	ConnectionState      string                 `protobuf:"bytes,7,opt,name=connection_state,json=connectionState,proto3" json:"connection_state,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -1159,6 +1162,27 @@ func (x *MachineTrust) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *MachineTrust) GetSshUser() string {
+	if x != nil {
+		return x.SshUser
+	}
+	return ""
+}
+
+func (x *MachineTrust) GetSshPort() int32 {
+	if x != nil {
+		return x.SshPort
+	}
+	return 0
+}
+
+func (x *MachineTrust) GetConnectionState() string {
+	if x != nil {
+		return x.ConnectionState
+	}
+	return ""
 }
 
 type GetMachineTrustRequest struct {
@@ -2265,13 +2289,16 @@ const file_vrooli_bridge_v1_machines_machines_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\"\\\n" +
 	"\x15RemoveMachineResponse\x12C\n" +
-	"\amachine\x18\x01 \x01(\v2).vrooli.vrooli_bridge.v1.machines.MachineR\amachine\"\xd7\x01\n" +
+	"\amachine\x18\x01 \x01(\v2).vrooli.vrooli_bridge.v1.machines.MachineR\amachine\"\xb8\x02\n" +
 	"\fMachineTrust\x124\n" +
 	"\x16client_key_fingerprint\x18\x01 \x01(\tR\x14clientKeyFingerprint\x120\n" +
 	"\x14host_key_fingerprint\x18\x02 \x01(\tR\x12hostKeyFingerprint\x12$\n" +
 	"\x0ehost_key_state\x18\x03 \x01(\tR\fhostKeyState\x129\n" +
 	"\n" +
-	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"7\n" +
+	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x19\n" +
+	"\bssh_user\x18\x05 \x01(\tR\asshUser\x12\x19\n" +
+	"\bssh_port\x18\x06 \x01(\x05R\asshPort\x12)\n" +
+	"\x10connection_state\x18\a \x01(\tR\x0fconnectionState\"7\n" +
 	"\x16GetMachineTrustRequest\x12\x1d\n" +
 	"\n" +
 	"machine_id\x18\x01 \x01(\tR\tmachineId\"_\n" +

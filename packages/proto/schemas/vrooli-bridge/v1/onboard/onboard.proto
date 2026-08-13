@@ -133,6 +133,18 @@ enum OnboardingStepStatus {
   ONBOARDING_STEP_STATUS_FAILED = 4;
 }
 
+// ConnectDecision is the server-owned answer to the question "may this target
+// be reconnected without a password?". The CLI must not infer this from a
+// hostname or from an empty credential.
+enum ConnectDecision {
+  CONNECT_DECISION_UNSPECIFIED = 0;
+  CONNECT_DECISION_RECONNECT = 1;
+  CONNECT_DECISION_FIRST_TOUCH = 2;
+  CONNECT_DECISION_RECOVERY_REQUIRED = 3;
+  CONNECT_DECISION_AMBIGUOUS = 4;
+  CONNECT_DECISION_HOST_KEY_REVIEW = 5;
+}
+
 // OnboardingOp is the durable, server-owned record of one StartOnboarding.
 message OnboardingOp {
   // Server-owned op id, assigned at StartOnboarding.
@@ -243,6 +255,12 @@ message OnboardingStepEvent {
 }
 
 service OnboardService {
+  // PreflightOnboarding resolves the durable Machine and decides whether the
+  // canonical connect command may proceed without a password. It may create a
+  // new empty Machine intent for a genuinely new target, but never mutates the
+  // remote host and never accepts an empty password as proof of trust.
+  rpc PreflightOnboarding(PreflightOnboardingRequest) returns (PreflightOnboardingResponse);
+
   // StartOnboarding validates the request, creates a durable onboarding op, and
   // kicks off the server-owned orchestration (SSH first-touch → push script →
   // remote bootstrap → verify online). Owner-gated. The owner's SSH password is
@@ -278,6 +296,25 @@ service OnboardService {
   // its diagnostic history. It is deliberately unavailable for live, cancelled,
   // or successful operations and never contacts the remote host. Owner-gated.
   rpc RemoveFailedOnboarding(RemoveFailedOnboardingRequest) returns (RemoveFailedOnboardingResponse);
+}
+
+message PreflightOnboardingRequest {
+  string host = 1;
+  int32 port = 2;
+  string user = 3;
+  string machine_id = 4;
+}
+
+message PreflightOnboardingResponse {
+  ConnectDecision decision = 1;
+  string machine_id = 2;
+  string host = 3;
+  int32 port = 4;
+  string user = 5;
+  string client_key_fingerprint = 6;
+  string host_key_fingerprint = 7;
+  bool password_required = 8;
+  string message = 9;
 }
 
 message StartOnboardingRequest {

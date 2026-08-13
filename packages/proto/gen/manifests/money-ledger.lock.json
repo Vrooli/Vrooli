@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "money-ledger",
+  "input_digest": "sha256:ba77a3aaf708aec11722cc9de696a6eb3ba37e5872244da366e8e96994672282",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/money-ledger/v1/notes/attachments.proto",
+    "schemas/money-ledger/v1/notes/notes.proto",
+    "schemas/money-ledger/v1/shared/errors.proto",
+    "schemas/money-ledger/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/money-ledger/v1/notes/attachments.pb.go": "sha256:17ed1166e4d8519c59a9f20ef57d75c4d096a6b5b149cbd32ea5d435ab9486c5",
+    "gen/go/money-ledger/v1/notes/notes.pb.go": "sha256:218d736bb97a564b46df90f939705c7835eafc53ed1df0479da8943e53bad34f",
+    "gen/go/money-ledger/v1/notes/notes_v1connect/notes.connect.go": "sha256:89ef84f5548db030d8798bc73ce3eb6fc98c3c9a7eabe28a722f975cdf4c5a60",
+    "gen/go/money-ledger/v1/shared/errors.pb.go": "sha256:21eefbf506af5da79bf1d146d4ee658db7c7c9da05027093591acc3918d26cd9",
+    "gen/go/money-ledger/v1/shared/health.pb.go": "sha256:8c2932973d17afd43f36477e63f187d381a69a8182bb70530e8d592a2e7ed1ac",
+    "gen/python/money_ledger/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/money_ledger/v1/notes/attachments_pb2.py": "sha256:386a82f7647fb69b71205313991ea5e5f161f406ecafe1a51a3371a55213c862",
+    "gen/python/money_ledger/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/money_ledger/v1/notes/notes_pb2.py": "sha256:0b90808d5e7631f9d3431bb86b30b5ecb4de28cee7a3a2714baeadc57595030c",
+    "gen/python/money_ledger/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/money_ledger/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/money_ledger/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/money_ledger/v1/shared/errors_pb2.py": "sha256:6f897095b14d07ab4ba38ba6bf01f55a8fef7d2506ccb1238c4c9a511229d788",
+    "gen/python/money_ledger/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/money_ledger/v1/shared/health_pb2.py": "sha256:de1607f5125038c68fec13d43f65c4235054eebd8ca80ccd6f7cf2de5c24f8d4",
+    "gen/python/money_ledger/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/money_ledger/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/money-ledger/v1/notes/attachments_pb.js": "sha256:a9f8a93af373a682e747746a81428f506bb32a513574c73078283fc6aaa26f07",
+    "gen/typescript/js/money-ledger/v1/notes/notes_pb.js": "sha256:9957b1c3d9886f8d37a833cca606c3d9385ef09c98592b2f59e5740b51a16378",
+    "gen/typescript/js/money-ledger/v1/shared/errors_pb.js": "sha256:6d5db901557373cd90f55bb7c763ceca5eed68b16f5e02ef2e5663a97b19d22f",
+    "gen/typescript/js/money-ledger/v1/shared/health_pb.js": "sha256:1717f9af1c95e07ccac65c0097be925c1928e2e62f14041ff903184b4a09acb9",
+    "gen/typescript/money-ledger/v1/notes/attachments_pb.ts": "sha256:ac406e39c212de7e6f4ef0d06a3866f8e2264ef6ad2ceb65d6b8e8c5cafd662d",
+    "gen/typescript/money-ledger/v1/notes/notes_pb.ts": "sha256:049b549f5957da2f611bcbbf71fdc66e47ee7be4346718d6ca768cd3b61774d8",
+    "gen/typescript/money-ledger/v1/shared/errors_pb.ts": "sha256:f0a471ca87de70115ec0757ab8fd246eab70f36978c4dbc8ff528de92c9fcf47",
+    "gen/typescript/money-ledger/v1/shared/health_pb.ts": "sha256:3be7c4d2e7e82655725e07860d85f10d6e460f0621ff5f941c0088e30f9683cc"
+  }
+}

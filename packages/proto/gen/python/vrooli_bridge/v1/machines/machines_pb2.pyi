@@ -190,16 +190,22 @@ class RemoveMachineResponse(_message.Message):
     def __init__(self, machine: _Optional[_Union[Machine, _Mapping]] = ...) -> None: ...
 
 class MachineTrust(_message.Message):
-    __slots__ = ("client_key_fingerprint", "host_key_fingerprint", "host_key_state", "updated_at")
+    __slots__ = ("client_key_fingerprint", "host_key_fingerprint", "host_key_state", "updated_at", "ssh_user", "ssh_port", "connection_state")
     CLIENT_KEY_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
     HOST_KEY_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
     HOST_KEY_STATE_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    SSH_USER_FIELD_NUMBER: _ClassVar[int]
+    SSH_PORT_FIELD_NUMBER: _ClassVar[int]
+    CONNECTION_STATE_FIELD_NUMBER: _ClassVar[int]
     client_key_fingerprint: str
     host_key_fingerprint: str
     host_key_state: str
     updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, client_key_fingerprint: _Optional[str] = ..., host_key_fingerprint: _Optional[str] = ..., host_key_state: _Optional[str] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    ssh_user: str
+    ssh_port: int
+    connection_state: str
+    def __init__(self, client_key_fingerprint: _Optional[str] = ..., host_key_fingerprint: _Optional[str] = ..., host_key_state: _Optional[str] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ssh_user: _Optional[str] = ..., ssh_port: _Optional[int] = ..., connection_state: _Optional[str] = ...) -> None: ...
 
 class GetMachineTrustRequest(_message.Message):
     __slots__ = ("machine_id",)

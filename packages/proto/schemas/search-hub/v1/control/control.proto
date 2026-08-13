@@ -79,6 +79,16 @@ message ReindexRequest {
   bool dry_run = 2;
   // Required: the provider's control token. Rejected on mismatch.
   string control_token = 3;
+  // Optional migration action. Empty preserves the ordinary full-corpus
+  // reconcile contract. Shadow builds and pointer changes remain provider-owned
+  // operations behind the same authenticated endpoint.
+  string action = 4;
+  string shadow_collection = 5;
+  string rollback_collection = 6;
+  string embedding_model = 7;
+  string embedding_role = 8;
+  int32 embedding_dimensions = 9;
+  string embedding_policy_schema_version = 10;
 }
 
 // ReindexResponse returns the assigned job_id plus the planned upsert/delete

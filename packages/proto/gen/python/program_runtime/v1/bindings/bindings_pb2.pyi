@@ -265,42 +265,56 @@ class ConditionFamily(_message.Message):
     def __init__(self, status: _Optional[_Union[ConditionStatus, str]] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class ServingCondition(_message.Message):
-    __slots__ = ("family", "failure_rate", "degradation_rate", "latency_p50_ms", "latency_p95_ms")
+    __slots__ = ("family", "failure_rate", "degradation_rate", "latency_p50_ms", "latency_p95_ms", "probe_invocations", "organic_invocations", "synthetic_invocations")
     FAMILY_FIELD_NUMBER: _ClassVar[int]
     FAILURE_RATE_FIELD_NUMBER: _ClassVar[int]
     DEGRADATION_RATE_FIELD_NUMBER: _ClassVar[int]
     LATENCY_P50_MS_FIELD_NUMBER: _ClassVar[int]
     LATENCY_P95_MS_FIELD_NUMBER: _ClassVar[int]
+    PROBE_INVOCATIONS_FIELD_NUMBER: _ClassVar[int]
+    ORGANIC_INVOCATIONS_FIELD_NUMBER: _ClassVar[int]
+    SYNTHETIC_INVOCATIONS_FIELD_NUMBER: _ClassVar[int]
     family: ConditionFamily
     failure_rate: float
     degradation_rate: float
     latency_p50_ms: int
     latency_p95_ms: int
-    def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., failure_rate: _Optional[float] = ..., degradation_rate: _Optional[float] = ..., latency_p50_ms: _Optional[int] = ..., latency_p95_ms: _Optional[int] = ...) -> None: ...
+    probe_invocations: int
+    organic_invocations: int
+    synthetic_invocations: int
+    def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., failure_rate: _Optional[float] = ..., degradation_rate: _Optional[float] = ..., latency_p50_ms: _Optional[int] = ..., latency_p95_ms: _Optional[int] = ..., probe_invocations: _Optional[int] = ..., organic_invocations: _Optional[int] = ..., synthetic_invocations: _Optional[int] = ...) -> None: ...
 
 class FreshnessCondition(_message.Message):
-    __slots__ = ("family", "age_seconds", "drift_status", "drift_reason")
+    __slots__ = ("family", "age_seconds", "drift_status", "drift_reason", "source_path", "source_mtime", "generation_mtime")
     FAMILY_FIELD_NUMBER: _ClassVar[int]
     AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
     DRIFT_STATUS_FIELD_NUMBER: _ClassVar[int]
     DRIFT_REASON_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_MTIME_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_MTIME_FIELD_NUMBER: _ClassVar[int]
     family: ConditionFamily
     age_seconds: int
     drift_status: ConditionStatus
     drift_reason: str
-    def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., age_seconds: _Optional[int] = ..., drift_status: _Optional[_Union[ConditionStatus, str]] = ..., drift_reason: _Optional[str] = ...) -> None: ...
+    source_path: str
+    source_mtime: str
+    generation_mtime: str
+    def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., age_seconds: _Optional[int] = ..., drift_status: _Optional[_Union[ConditionStatus, str]] = ..., drift_reason: _Optional[str] = ..., source_path: _Optional[str] = ..., source_mtime: _Optional[str] = ..., generation_mtime: _Optional[str] = ...) -> None: ...
 
 class ExerciseCondition(_message.Message):
-    __slots__ = ("family", "invocations", "distinct_callers", "last_invoked_at")
+    __slots__ = ("family", "invocations", "distinct_callers", "last_invoked_at", "synthetic_invocations")
     FAMILY_FIELD_NUMBER: _ClassVar[int]
     INVOCATIONS_FIELD_NUMBER: _ClassVar[int]
     DISTINCT_CALLERS_FIELD_NUMBER: _ClassVar[int]
     LAST_INVOKED_AT_FIELD_NUMBER: _ClassVar[int]
+    SYNTHETIC_INVOCATIONS_FIELD_NUMBER: _ClassVar[int]
     family: ConditionFamily
     invocations: int
     distinct_callers: int
     last_invoked_at: str
-    def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., invocations: _Optional[int] = ..., distinct_callers: _Optional[int] = ..., last_invoked_at: _Optional[str] = ...) -> None: ...
+    synthetic_invocations: int
+    def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., invocations: _Optional[int] = ..., distinct_callers: _Optional[int] = ..., last_invoked_at: _Optional[str] = ..., synthetic_invocations: _Optional[int] = ...) -> None: ...
 
 class BindingCondition(_message.Message):
     __slots__ = ("binding_id", "scenario", "status", "verdict", "serving", "freshness", "exercise", "sustained_degradation", "sustained_degradation_reason")

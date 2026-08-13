@@ -574,6 +574,7 @@ type ListComponentTestReportsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ComponentId   string                 `protobuf:"bytes,1,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
 	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -620,6 +621,13 @@ func (x *ListComponentTestReportsRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListComponentTestReportsRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
 }
 
 type ListComponentTestReportsResponse struct {
@@ -708,10 +716,11 @@ const file_react_component_library_v1_componenttests_component_tests_proto_rawDe
 	"\x1dGetComponentTestReportRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x7f\n" +
 	"\x1eGetComponentTestReportResponse\x12]\n" +
-	"\x06report\x18\x01 \x01(\v2E.vrooli.react_component_library.v1.componenttests.ComponentTestReportR\x06report\"Z\n" +
+	"\x06report\x18\x01 \x01(\v2E.vrooli.react_component_library.v1.componenttests.ComponentTestReportR\x06report\"t\n" +
 	"\x1fListComponentTestReportsRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\"\x83\x01\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\"\x83\x01\n" +
 	" ListComponentTestReportsResponse\x12_\n" +
 	"\areports\x18\x01 \x03(\v2E.vrooli.react_component_library.v1.componenttests.ComponentTestReportR\areports2\xf7\x05\n" +
 	"\x15ComponentTestsService\x12\xa9\x01\n" +

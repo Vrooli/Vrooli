@@ -346,16 +346,18 @@ func (*StatusRequest) Descriptor() ([]byte, []int) {
 }
 
 type StatusResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Available     bool                   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
-	OllamaUp      bool                   `protobuf:"varint,2,opt,name=ollama_up,json=ollamaUp,proto3" json:"ollama_up,omitempty"`
-	QdrantUp      bool                   `protobuf:"varint,3,opt,name=qdrant_up,json=qdrantUp,proto3" json:"qdrant_up,omitempty"`
-	RerankerUp    bool                   `protobuf:"varint,4,opt,name=reranker_up,json=rerankerUp,proto3" json:"reranker_up,omitempty"`
-	Indexed       int64                  `protobuf:"varint,5,opt,name=indexed,proto3" json:"indexed,omitempty"`
-	Collection    string                 `protobuf:"bytes,6,opt,name=collection,proto3" json:"collection,omitempty"`
-	Detail        string                 `protobuf:"bytes,7,opt,name=detail,proto3" json:"detail,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Available  bool                   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
+	OllamaUp   bool                   `protobuf:"varint,2,opt,name=ollama_up,json=ollamaUp,proto3" json:"ollama_up,omitempty"`
+	QdrantUp   bool                   `protobuf:"varint,3,opt,name=qdrant_up,json=qdrantUp,proto3" json:"qdrant_up,omitempty"`
+	RerankerUp bool                   `protobuf:"varint,4,opt,name=reranker_up,json=rerankerUp,proto3" json:"reranker_up,omitempty"`
+	Indexed    int64                  `protobuf:"varint,5,opt,name=indexed,proto3" json:"indexed,omitempty"`
+	Collection string                 `protobuf:"bytes,6,opt,name=collection,proto3" json:"collection,omitempty"`
+	Detail     string                 `protobuf:"bytes,7,opt,name=detail,proto3" json:"detail,omitempty"`
+	// RFC3339 timestamp of the most recent corpus reconcile.
+	LastReconcileAt string `protobuf:"bytes,8,opt,name=last_reconcile_at,json=lastReconcileAt,proto3" json:"last_reconcile_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StatusResponse) Reset() {
@@ -437,6 +439,13 @@ func (x *StatusResponse) GetDetail() string {
 	return ""
 }
 
+func (x *StatusResponse) GetLastReconcileAt() string {
+	if x != nil {
+		return x.LastReconcileAt
+	}
+	return ""
+}
+
 var File_business_health_v1_search_search_proto protoreflect.FileDescriptor
 
 const file_business_health_v1_search_search_proto_rawDesc = "" +
@@ -460,7 +469,7 @@ const file_business_health_v1_search_search_proto_rawDesc = "" +
 	"\aprd_ref\x18\a \x01(\tR\x06prdRef\x12\x14\n" +
 	"\x05score\x18\b \x01(\x02R\x05score\x12\x12\n" +
 	"\x04weak\x18\t \x01(\bR\x04weak\"\x0f\n" +
-	"\rStatusRequest\"\xdb\x01\n" +
+	"\rStatusRequest\"\x87\x02\n" +
 	"\x0eStatusResponse\x12\x1c\n" +
 	"\tavailable\x18\x01 \x01(\bR\tavailable\x12\x1b\n" +
 	"\tollama_up\x18\x02 \x01(\bR\bollamaUp\x12\x1b\n" +
@@ -471,7 +480,8 @@ const file_business_health_v1_search_search_proto_rawDesc = "" +
 	"\n" +
 	"collection\x18\x06 \x01(\tR\n" +
 	"collection\x12\x16\n" +
-	"\x06detail\x18\a \x01(\tR\x06detail*8\n" +
+	"\x06detail\x18\a \x01(\tR\x06detail\x12*\n" +
+	"\x11last_reconcile_at\x18\b \x01(\tR\x0flastReconcileAt*8\n" +
 	"\x04Mode\x12\x14\n" +
 	"\x10MODE_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aMODE_AI\x10\x01\x12\r\n" +

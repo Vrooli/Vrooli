@@ -306,12 +306,16 @@ func (x *EvidenceRef) GetCreatedAt() *timestamppb.Timestamp {
 
 // TargetVerdict is the producer's evidence-backed result for one target.
 type TargetVerdict struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Target        *EvidenceTarget        `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
-	Disposition   Disposition            `protobuf:"varint,2,opt,name=disposition,proto3,enum=common.v1.Disposition" json:"disposition,omitempty"`
-	Refs          []*EvidenceRef         `protobuf:"bytes,3,rep,name=refs,proto3" json:"refs,omitempty"`
-	RunId         string                 `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Detail        string                 `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Target      *EvidenceTarget        `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Disposition Disposition            `protobuf:"varint,2,opt,name=disposition,proto3,enum=common.v1.Disposition" json:"disposition,omitempty"`
+	Refs        []*EvidenceRef         `protobuf:"bytes,3,rep,name=refs,proto3" json:"refs,omitempty"`
+	RunId       string                 `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Detail      string                 `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	// Structural provenance used by release gates. This must not be inferred
+	// from free-form detail text because advisory strategies are not
+	// promotable to release evidence.
+	EvidenceClass string `protobuf:"bytes,6,opt,name=evidence_class,json=evidenceClass,proto3" json:"evidence_class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -381,6 +385,13 @@ func (x *TargetVerdict) GetDetail() string {
 	return ""
 }
 
+func (x *TargetVerdict) GetEvidenceClass() string {
+	if x != nil {
+		return x.EvidenceClass
+	}
+	return ""
+}
+
 var File_common_v1_evidence_proto protoreflect.FileDescriptor
 
 const file_common_v1_evidence_proto_rawDesc = "" +
@@ -405,13 +416,14 @@ const file_common_v1_evidence_proto_rawDesc = "" +
 	"\n" +
 	"size_bytes\x18\x05 \x01(\x03R\tsizeBytes\x129\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xd7\x01\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xfe\x01\n" +
 	"\rTargetVerdict\x121\n" +
 	"\x06target\x18\x01 \x01(\v2\x19.common.v1.EvidenceTargetR\x06target\x128\n" +
 	"\vdisposition\x18\x02 \x01(\x0e2\x16.common.v1.DispositionR\vdisposition\x12*\n" +
 	"\x04refs\x18\x03 \x03(\v2\x16.common.v1.EvidenceRefR\x04refs\x12\x15\n" +
 	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12\x16\n" +
-	"\x06detail\x18\x05 \x01(\tR\x06detail*s\n" +
+	"\x06detail\x18\x05 \x01(\tR\x06detail\x12%\n" +
+	"\x0eevidence_class\x18\x06 \x01(\tR\revidenceClass*s\n" +
 	"\n" +
 	"DeviceKind\x12\x1b\n" +
 	"\x17DEVICE_KIND_UNSPECIFIED\x10\x00\x12\x14\n" +

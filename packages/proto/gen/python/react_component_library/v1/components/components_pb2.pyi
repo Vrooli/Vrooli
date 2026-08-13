@@ -72,14 +72,26 @@ class AssetDependency(_message.Message):
     def __init__(self, library_id: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
 
 class AssetMetrics(_message.Message):
-    __slots__ = ("direct_adoption_count", "version_count", "effective_adoption_count")
+    __slots__ = ("direct_adoption_count", "version_count", "effective_adoption_count", "version_adoptions")
     DIRECT_ADOPTION_COUNT_FIELD_NUMBER: _ClassVar[int]
     VERSION_COUNT_FIELD_NUMBER: _ClassVar[int]
     EFFECTIVE_ADOPTION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    VERSION_ADOPTIONS_FIELD_NUMBER: _ClassVar[int]
     direct_adoption_count: int
     version_count: int
     effective_adoption_count: int
-    def __init__(self, direct_adoption_count: _Optional[int] = ..., version_count: _Optional[int] = ..., effective_adoption_count: _Optional[int] = ...) -> None: ...
+    version_adoptions: _containers.RepeatedCompositeFieldContainer[VersionAdoptionMetric]
+    def __init__(self, direct_adoption_count: _Optional[int] = ..., version_count: _Optional[int] = ..., effective_adoption_count: _Optional[int] = ..., version_adoptions: _Optional[_Iterable[_Union[VersionAdoptionMetric, _Mapping]]] = ...) -> None: ...
+
+class VersionAdoptionMetric(_message.Message):
+    __slots__ = ("version", "current_count", "peak_count")
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PEAK_COUNT_FIELD_NUMBER: _ClassVar[int]
+    version: str
+    current_count: int
+    peak_count: int
+    def __init__(self, version: _Optional[str] = ..., current_count: _Optional[int] = ..., peak_count: _Optional[int] = ...) -> None: ...
 
 class Component(_message.Message):
     __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles", "category", "asset_kind", "dependencies", "metrics")

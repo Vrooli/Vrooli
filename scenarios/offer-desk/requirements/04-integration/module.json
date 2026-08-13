@@ -1,0 +1,106 @@
+{
+  "_metadata": {
+    "module": "integration",
+    "description": "Reading actuals, serving the fleet contract, and the ranked board.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "INT-001",
+      "title": "Deliverable membership is validated against reality",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "Membership rows naming a deliverable that does not exist are reported as findings. In the source catalog this mapping was a hand-curated JSON file with no validation, which is how it drifted.",
+      "tags": [
+        "integration",
+        "validation"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A membership naming an absent deliverable yields a finding; a valid one does not."
+        }
+      ]
+    },
+    {
+      "id": "INT-002",
+      "title": "Actuals join degrades honestly",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "Money Ledger is read over a typed client with a short deadline. When it is unavailable the response marks the actuals unavailable with a stated reason. Reporting zero earnings for an unreachable ledger would be indistinguishable from an offer that genuinely earned nothing.",
+      "tags": [
+        "integration",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A faked unavailable ledger yields an availability entry, never a zero amount."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "A slow ledger is bounded by the deadline and does not stall the response."
+        }
+      ]
+    },
+    {
+      "id": "INT-003",
+      "title": "The board ranks across independent sources",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "service",
+      "criticality": "P1",
+      "description": "One surface returns fired triggers, blocked offers, and active offers with no earnings, each entry naming its source. A source that cannot be read becomes a visible availability entry while healthy sources continue to rank.",
+      "tags": [
+        "service",
+        "board"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "With one source faked unavailable, the board still ranks the others and reports the degradation."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Board ordering is deterministic for a fixed input set."
+        }
+      ]
+    },
+    {
+      "id": "INT-004",
+      "title": "The projection verb serves obligation cells",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "contract",
+      "criticality": "P1",
+      "description": "`space --projection offers --json` returns the owning team's obligation cells with a denominator confidence, under the shared fleet contract, so a consuming board reads this scenario rather than re-deriving it.",
+      "tags": [
+        "contract",
+        "fleet"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "The verb emits the declared schema including confidence and rationale."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Output parses against the shared projection contract."
+        }
+      ]
+    }
+  ]
+}

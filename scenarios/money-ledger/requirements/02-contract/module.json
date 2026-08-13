@@ -1,0 +1,131 @@
+{
+  "_metadata": {
+    "module": "contract",
+    "description": "The single inbound contract every money source satisfies.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CTR-001",
+      "title": "One contract admits every event",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "There is exactly one typed inbound path into the journal, and every source uses it. No adapter, and no internal caller, has a privileged path. This is the decision the whole scenario's generality rests on: standardising the shape of a money event is what makes any upstream pluggable without requiring anyone else to conform to an API.",
+      "tags": [
+        "contract",
+        "architecture"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Architecture test asserts the journal writer is reachable only through the contract type."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Two different adapters produce byte-identical journal shapes for equivalent events."
+        }
+      ]
+    },
+    {
+      "id": "CTR-002",
+      "title": "Every event carries provenance and basis",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "An event records its adapter, external id, fetch time, and a basis of `authoritative`, `derived`, or `operator-asserted`. Basis is what lets a hand-typed cash sale sit in the same journal as a settled charge without the two being treated as equally trustworthy.",
+      "tags": [
+        "contract",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "An event missing any provenance field is rejected; each basis value round-trips."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "A position response can attribute every contributing figure to a basis."
+        }
+      ]
+    },
+    {
+      "id": "CTR-003",
+      "title": "Manual and file adapters are ordinary adapters",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "adapter",
+      "criticality": "P0",
+      "description": "Operator entry and file import implement the same contract as any API-backed source and receive no special handling. Several real revenue sources — resale on marketplaces hostile to automation, consulting, cash — have no API at all, so a design where manual entry is a fallback fails for exactly those sources.",
+      "tags": [
+        "adapter",
+        "boundary"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "The manual and file adapters satisfy the same interface as an API adapter, asserted structurally."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "A file import and an API sync produce equivalent journal entries for equivalent input."
+        }
+      ]
+    },
+    {
+      "id": "CTR-004",
+      "title": "Ingestion is idempotent",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "adapter",
+      "criticality": "P0",
+      "description": "Re-running an adapter over an overlapping window creates no duplicates, keyed on adapter plus external id. Adapters retry, backfill, and overlap by nature; without this the journal silently inflates and every downstream figure is wrong.",
+      "tags": [
+        "adapter",
+        "integrity"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Ingesting the same payload twice yields one posting set."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Overlapping windows across two runs produce no duplicate entries."
+        }
+      ]
+    },
+    {
+      "id": "CTR-005",
+      "title": "Adapters may only emit events",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "An adapter cannot write a balance, alter a goal, or reach any domain other than ingestion. Keeping adapters to one verb is what stops the most volatile part of the system from becoming the part that owns state.",
+      "tags": [
+        "architecture",
+        "boundary"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Architecture test asserts no adapter package imports a non-ingestion domain."
+        }
+      ]
+    }
+  ]
+}

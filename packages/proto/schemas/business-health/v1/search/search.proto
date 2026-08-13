@@ -79,4 +79,6 @@ message StatusResponse {
   int64 indexed = 5;
   string collection = 6;
   string detail = 7;
+  // RFC3339 timestamp of the most recent corpus reconcile.
+  string last_reconcile_at = 8;
 }

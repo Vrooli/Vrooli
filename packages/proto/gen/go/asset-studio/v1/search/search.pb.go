@@ -230,9 +230,11 @@ func (*StatusRequest) Descriptor() ([]byte, []int) {
 }
 
 type StatusResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Available     bool                   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
-	IndexedCount  int32                  `protobuf:"varint,2,opt,name=indexed_count,json=indexedCount,proto3" json:"indexed_count,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Available    bool                   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
+	IndexedCount int32                  `protobuf:"varint,2,opt,name=indexed_count,json=indexedCount,proto3" json:"indexed_count,omitempty"`
+	// RFC3339 timestamp of the live corpus materialization observed by Status.
+	LastIndexedAt string `protobuf:"bytes,3,opt,name=last_indexed_at,json=lastIndexedAt,proto3" json:"last_indexed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -281,6 +283,13 @@ func (x *StatusResponse) GetIndexedCount() int32 {
 	return 0
 }
 
+func (x *StatusResponse) GetLastIndexedAt() string {
+	if x != nil {
+		return x.LastIndexedAt
+	}
+	return ""
+}
+
 var File_asset_studio_v1_search_search_proto protoreflect.FileDescriptor
 
 const file_asset_studio_v1_search_search_proto_rawDesc = "" +
@@ -297,10 +306,11 @@ const file_asset_studio_v1_search_search_proto_rawDesc = "" +
 	"\x04kind\x18\x05 \x01(\tR\x04kind\"W\n" +
 	"\x0eSearchResponse\x12E\n" +
 	"\aresults\x18\x01 \x03(\v2+.vrooli.asset_studio.v1.search.SearchResultR\aresults\"\x0f\n" +
-	"\rStatusRequest\"S\n" +
+	"\rStatusRequest\"{\n" +
 	"\x0eStatusResponse\x12\x1c\n" +
 	"\tavailable\x18\x01 \x01(\bR\tavailable\x12#\n" +
-	"\rindexed_count\x18\x02 \x01(\x05R\findexedCount2\xdd\x01\n" +
+	"\rindexed_count\x18\x02 \x01(\x05R\findexedCount\x12&\n" +
+	"\x0flast_indexed_at\x18\x03 \x01(\tR\rlastIndexedAt2\xdd\x01\n" +
 	"\rSearchService\x12e\n" +
 	"\x06Search\x12,.vrooli.asset_studio.v1.search.SearchRequest\x1a-.vrooli.asset_studio.v1.search.SearchResponse\x12e\n" +
 	"\x06Status\x12,.vrooli.asset_studio.v1.search.StatusRequest\x1a-.vrooli.asset_studio.v1.search.StatusResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/search;search_v1b\x06proto3"

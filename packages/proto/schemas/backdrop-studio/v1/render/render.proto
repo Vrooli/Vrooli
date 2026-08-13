@@ -86,4 +86,8 @@ message Candidate {
   // recorded — so this is the evidence of *how well* it passed, and the margin
   // it cleared each bar by. Without it "the gate is green" is unfalsifiable.
   string quality_json = 14;
+  // routing is the lane, model and cost that produced this candidate. It is on
+  // the candidate rather than the job because a job may render several
+  // candidates and a retry can escalate one of them further than the others.
+  shared.RoutingRecord routing = 15;
 }

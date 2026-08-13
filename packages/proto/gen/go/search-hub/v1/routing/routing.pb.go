@@ -43,7 +43,10 @@ type QueryRequest struct {
 	Overrides *SearchOverrides `protobuf:"bytes,7,opt,name=overrides,proto3" json:"overrides,omitempty"`
 	// The provider's control token (registry.RegisterProviderResponse). Required
 	// for `overrides` to be honored; unused for ordinary public search.
-	ControlToken  string `protobuf:"bytes,8,opt,name=control_token,json=controlToken,proto3" json:"control_token,omitempty"`
+	ControlToken string `protobuf:"bytes,8,opt,name=control_token,json=controlToken,proto3" json:"control_token,omitempty"`
+	// Optional query-time corpus facet passed through {{scope_value}} to scoped
+	// providers such as source-ledger's collapsed leaf.
+	Scope         string `protobuf:"bytes,9,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -130,6 +133,13 @@ func (x *QueryRequest) GetOverrides() *SearchOverrides {
 func (x *QueryRequest) GetControlToken() string {
 	if x != nil {
 		return x.ControlToken
+	}
+	return ""
+}
+
+func (x *QueryRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
 	}
 	return ""
 }
@@ -637,8 +647,12 @@ type QueryResponse struct {
 	Partial bool `protobuf:"varint,8,opt,name=partial,proto3" json:"partial,omitempty"`
 	// Number of provider groups that did not complete before the deadline.
 	PendingProviders int32 `protobuf:"varint,9,opt,name=pending_providers,json=pendingProviders,proto3" json:"pending_providers,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Active reranker leg that produced the ranked list (or "none").
+	RerankerLeg string `protobuf:"bytes,10,opt,name=reranker_leg,json=rerankerLeg,proto3" json:"reranker_leg,omitempty"`
+	// Stable reason for routing-path degradation, e.g. routing_index_unavailable.
+	RoutingDegradeReason string `protobuf:"bytes,11,opt,name=routing_degrade_reason,json=routingDegradeReason,proto3" json:"routing_degrade_reason,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *QueryResponse) Reset() {
@@ -732,6 +746,20 @@ func (x *QueryResponse) GetPendingProviders() int32 {
 		return x.PendingProviders
 	}
 	return 0
+}
+
+func (x *QueryResponse) GetRerankerLeg() string {
+	if x != nil {
+		return x.RerankerLeg
+	}
+	return ""
+}
+
+func (x *QueryResponse) GetRoutingDegradeReason() string {
+	if x != nil {
+		return x.RoutingDegradeReason
+	}
+	return ""
 }
 
 type StatusRequest struct {
@@ -1085,8 +1113,10 @@ type StatusResponse struct {
 	CircuitOpenShare   float64 `protobuf:"fixed64,4,opt,name=circuit_open_share,json=circuitOpenShare,proto3" json:"circuit_open_share,omitempty"`
 	CircuitOpenQuorum  float64 `protobuf:"fixed64,5,opt,name=circuit_open_quorum,json=circuitOpenQuorum,proto3" json:"circuit_open_quorum,omitempty"`
 	FederationDegraded bool    `protobuf:"varint,6,opt,name=federation_degraded,json=federationDegraded,proto3" json:"federation_degraded,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Current shared reranker leg (cross-encoder, LLM fallback, or none).
+	RerankerLeg   string `protobuf:"bytes,7,opt,name=reranker_leg,json=rerankerLeg,proto3" json:"reranker_leg,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StatusResponse) Reset() {
@@ -1161,11 +1191,18 @@ func (x *StatusResponse) GetFederationDegraded() bool {
 	return false
 }
 
+func (x *StatusResponse) GetRerankerLeg() string {
+	if x != nil {
+		return x.RerankerLeg
+	}
+	return ""
+}
+
 var File_search_hub_v1_routing_routing_proto protoreflect.FileDescriptor
 
 const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\n" +
-	"#search-hub/v1/routing/routing.proto\x12\x1cvrooli.search_hub.v1.routing\x1a\x1bcommon/v1/attestation.proto\x1a\x1acommon/v1/confidence.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x84\x02\n" +
+	"#search-hub/v1/routing/routing.proto\x12\x1cvrooli.search_hub.v1.routing\x1a\x1bcommon/v1/attestation.proto\x1a\x1acommon/v1/confidence.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9a\x02\n" +
 	"\fQueryRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05types\x18\x02 \x03(\tR\x05types\x12\x10\n" +
@@ -1174,7 +1211,8 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\x05group\x18\x05 \x01(\tR\x05group\x12\x18\n" +
 	"\aexplain\x18\x06 \x01(\bR\aexplain\x12K\n" +
 	"\toverrides\x18\a \x01(\v2-.vrooli.search_hub.v1.routing.SearchOverridesR\toverrides\x12#\n" +
-	"\rcontrol_token\x18\b \x01(\tR\fcontrolToken\"\x89\x03\n" +
+	"\rcontrol_token\x18\b \x01(\tR\fcontrolToken\x12\x14\n" +
+	"\x05scope\x18\t \x01(\tR\x05scope\"\x89\x03\n" +
 	"\x0fSearchOverrides\x12*\n" +
 	"\x0ererank_enabled\x18\x01 \x01(\bH\x00R\rrerankEnabled\x88\x01\x01\x12&\n" +
 	"\frerank_blend\x18\x02 \x01(\bH\x01R\vrerankBlend\x88\x01\x01\x12.\n" +
@@ -1231,7 +1269,7 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\bdegraded\x18\x04 \x01(\bR\bdegraded\x12\x12\n" +
 	"\x04note\x18\x05 \x01(\tR\x04note\x12\x1d\n" +
 	"\n" +
-	"latency_ms\x18\x06 \x01(\x03R\tlatencyMs\"\x95\x03\n" +
+	"latency_ms\x18\x06 \x01(\x03R\tlatencyMs\"\xee\x03\n" +
 	"\rQueryResponse\x12?\n" +
 	"\x06ranked\x18\x01 \x03(\v2'.vrooli.search_hub.v1.routing.SearchHitR\x06ranked\x12I\n" +
 	"\x06groups\x18\x02 \x03(\v21.vrooli.search_hub.v1.routing.ProviderResultGroupR\x06groups\x12)\n" +
@@ -1242,7 +1280,10 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\n" +
 	"latency_ms\x18\a \x01(\x03R\tlatencyMs\x12\x18\n" +
 	"\apartial\x18\b \x01(\bR\apartial\x12+\n" +
-	"\x11pending_providers\x18\t \x01(\x05R\x10pendingProviders\"\x0f\n" +
+	"\x11pending_providers\x18\t \x01(\x05R\x10pendingProviders\x12!\n" +
+	"\freranker_leg\x18\n" +
+	" \x01(\tR\vrerankerLeg\x124\n" +
+	"\x16routing_degrade_reason\x18\v \x01(\tR\x14routingDegradeReason\"\x0f\n" +
 	"\rStatusRequest\"3\n" +
 	"\x10RepromoteRequest\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
@@ -1275,14 +1316,15 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\x17quality_evidence_run_id\x18\x11 \x01(\tR\x14qualityEvidenceRunId\x123\n" +
 	"\x16quality_gate_opted_out\x18\x12 \x01(\bR\x13qualityGateOptedOut\x12<\n" +
 	"\x1bquality_gate_opt_out_reason\x18\x13 \x01(\tR\x17qualityGateOptOutReason\x12B\n" +
-	"\x0flast_indexed_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\rlastIndexedAtJ\x04\b\x03\x10\x04\"\xcd\x02\n" +
+	"\x0flast_indexed_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\rlastIndexedAtJ\x04\b\x03\x10\x04\"\xf0\x02\n" +
 	"\x0eStatusResponse\x12J\n" +
 	"\tproviders\x18\x01 \x03(\v2,.vrooli.search_hub.v1.routing.ProviderHealthR\tproviders\x121\n" +
 	"\x14classifier_available\x18\x02 \x01(\bR\x13classifierAvailable\x12-\n" +
 	"\x12reranker_available\x18\x03 \x01(\bR\x11rerankerAvailable\x12,\n" +
 	"\x12circuit_open_share\x18\x04 \x01(\x01R\x10circuitOpenShare\x12.\n" +
 	"\x13circuit_open_quorum\x18\x05 \x01(\x01R\x11circuitOpenQuorum\x12/\n" +
-	"\x13federation_degraded\x18\x06 \x01(\bR\x12federationDegraded2\xc5\x02\n" +
+	"\x13federation_degraded\x18\x06 \x01(\bR\x12federationDegraded\x12!\n" +
+	"\freranker_leg\x18\a \x01(\tR\vrerankerLeg2\xc5\x02\n" +
 	"\x0eRoutingService\x12`\n" +
 	"\x05Query\x12*.vrooli.search_hub.v1.routing.QueryRequest\x1a+.vrooli.search_hub.v1.routing.QueryResponse\x12c\n" +
 	"\x06Status\x12+.vrooli.search_hub.v1.routing.StatusRequest\x1a,.vrooli.search_hub.v1.routing.StatusResponse\x12l\n" +

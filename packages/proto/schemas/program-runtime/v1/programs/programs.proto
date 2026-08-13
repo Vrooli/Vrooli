@@ -10,12 +10,21 @@ enum Provenance {
   PROVENANCE_OPERATOR = 2;
 }
 
+enum ProgramStatus {
+  PROGRAM_STATUS_UNSPECIFIED = 0;
+  PROGRAM_STATUS_ACCEPTED = 1;
+  PROGRAM_STATUS_RUNNING = 2;
+  PROGRAM_STATUS_SUCCEEDED = 3;
+  PROGRAM_STATUS_FAILED = 4;
+  PROGRAM_STATUS_CANCELLED = 5;
+}
+
 message Program {
   string id = 1;
   string session_id = 2;
   string source = 3;
   Provenance provenance = 4;
-  string status = 5;
+  ProgramStatus status = 5;
   string stdout = 6;
   string failure_detail = 7;
   string failure_shape = 8;
@@ -23,6 +32,9 @@ message Program {
   string created_at = 10;
   int64 output_limit_bytes = 11;
   int64 agent_bytes = 12;
+  string completed_at = 13;
+  int64 wall_time_millis = 14;
+  int64 cpu_time_millis = 15;
 }
 
 message SubmitProgramRequest {
@@ -30,6 +42,7 @@ message SubmitProgramRequest {
   string source = 2;
   Provenance provenance = 3;
   bool include_materialized = 4;
+  bool async = 5;
 }
 message SubmitProgramResponse {
   Program program = 1;

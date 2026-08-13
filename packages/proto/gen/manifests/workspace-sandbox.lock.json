@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "scenario": "workspace-sandbox",
-  "input_digest": "sha256:c89e06beb4ab299b75897b831b666b7b5572ff76dd13239b51f8993331c6a7d8",
+  "input_digest": "sha256:287abd4565623698150184c79bf23c77dbdedcae0c36c2c6a7bd28c348d782ec",
   "input_files": [
-    "schemas/workspace-sandbox/v1/domain/applied_change.proto"
+    "schemas/workspace-sandbox/v1/domain/applied_change.proto",
+    "schemas/workspace-sandbox/v1/workspace/workspace.proto"
   ],
   "toolchain": {
     "buf": "1.37.0",
@@ -17,12 +18,19 @@
   },
   "outputs": {
     "gen/go/workspace-sandbox/v1/domain/applied_change.pb.go": "sha256:f5bb929192bb766d0536304d3aeaf6b1f1f750e9587015eb8f6af2738475c145",
+    "gen/go/workspace-sandbox/v1/workspace/workspace.pb.go": "sha256:19909beaec51d56c14e3f945efbdf0e98c9f384c93fb0bf13cf21a3c5d895fe3",
+    "gen/go/workspace-sandbox/v1/workspace/workspaceconnect/workspace.connect.go": "sha256:bce83d48894f01f95c874c6cf869c9c72a83543cb366995db0f0f0f3824840ac",
     "gen/python/workspace_sandbox/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/workspace_sandbox/v1/domain/applied_change_pb2.py": "sha256:f8a0ce8f0ca990acc11723d9c8257f1f7b359bf3fd1d0399b87e9a7a32ca70ab",
     "gen/python/workspace_sandbox/v1/domain/applied_change_pb2.pyi": "sha256:6eac7c97bf1888aa72a5e8fef01b9dae33522cc42081fb6ed65d36831702f528",
     "gen/python/workspace_sandbox/v1/domain/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/workspace_sandbox/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/workspace_sandbox/v1/workspace/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/workspace_sandbox/v1/workspace/workspace_pb2.py": "sha256:bb6620a2246602d9b554044d850940d8ea530ac17bffe142138d06519fc3d6b4",
+    "gen/python/workspace_sandbox/v1/workspace/workspace_pb2.pyi": "sha256:94fe84beb3c3f292d62ff5bab97278315fab3e17e4ae3b2a0eb9c001a80e8b0d",
     "gen/typescript/js/workspace-sandbox/v1/domain/applied_change_pb.js": "sha256:19379712fb8b38f6448516c68cd70d92f3ee2ad8b56a92798354260e20a036a2",
-    "gen/typescript/workspace-sandbox/v1/domain/applied_change_pb.ts": "sha256:3cdf2fd65d4709b76e108dbf894e99b97674ac7dd08415c1faa258ae67c37ddd"
+    "gen/typescript/js/workspace-sandbox/v1/workspace/workspace_pb.js": "sha256:444e7c5a29463ce528630e2da79a341f2ee1f7ae612ddac405bf326cd0024453",
+    "gen/typescript/workspace-sandbox/v1/domain/applied_change_pb.ts": "sha256:3cdf2fd65d4709b76e108dbf894e99b97674ac7dd08415c1faa258ae67c37ddd",
+    "gen/typescript/workspace-sandbox/v1/workspace/workspace_pb.ts": "sha256:89c66ed5a91eb8d71029a55440fc26ea2c5c1a9dedb1de89012ea19baa9033bc"
   }
 }

@@ -8,14 +8,28 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ReindexRequest(_message.Message):
-    __slots__ = ("scope", "dry_run", "control_token")
+    __slots__ = ("scope", "dry_run", "control_token", "action", "shadow_collection", "rollback_collection", "embedding_model", "embedding_role", "embedding_dimensions", "embedding_policy_schema_version")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     CONTROL_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    SHADOW_COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    ROLLBACK_COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    EMBEDDING_MODEL_FIELD_NUMBER: _ClassVar[int]
+    EMBEDDING_ROLE_FIELD_NUMBER: _ClassVar[int]
+    EMBEDDING_DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
+    EMBEDDING_POLICY_SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
     scope: str
     dry_run: bool
     control_token: str
-    def __init__(self, scope: _Optional[str] = ..., dry_run: _Optional[bool] = ..., control_token: _Optional[str] = ...) -> None: ...
+    action: str
+    shadow_collection: str
+    rollback_collection: str
+    embedding_model: str
+    embedding_role: str
+    embedding_dimensions: int
+    embedding_policy_schema_version: str
+    def __init__(self, scope: _Optional[str] = ..., dry_run: _Optional[bool] = ..., control_token: _Optional[str] = ..., action: _Optional[str] = ..., shadow_collection: _Optional[str] = ..., rollback_collection: _Optional[str] = ..., embedding_model: _Optional[str] = ..., embedding_role: _Optional[str] = ..., embedding_dimensions: _Optional[int] = ..., embedding_policy_schema_version: _Optional[str] = ...) -> None: ...
 
 class ReindexResponse(_message.Message):
     __slots__ = ("job_id", "planned_upserts", "planned_deletes", "dry_run")

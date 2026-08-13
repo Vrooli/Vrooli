@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#asset-studio/v1/search/search.proto\x12\x1dvrooli.asset_studio.v1.search\";\n\rSearchRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\"x\n\x0cSearchResult\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n\x07snippet\x18\x03 \x01(\tR\x07snippet\x12\x14\n\x05score\x18\x04 \x01(\x01R\x05score\x12\x12\n\x04kind\x18\x05 \x01(\tR\x04kind\"W\n\x0eSearchResponse\x12\x45\n\x07results\x18\x01 \x03(\x0b\x32+.vrooli.asset_studio.v1.search.SearchResultR\x07results\"\x0f\n\rStatusRequest\"S\n\x0eStatusResponse\x12\x1c\n\tavailable\x18\x01 \x01(\x08R\tavailable\x12#\n\rindexed_count\x18\x02 \x01(\x05R\x0cindexedCount2\xdd\x01\n\rSearchService\x12\x65\n\x06Search\x12,.vrooli.asset_studio.v1.search.SearchRequest\x1a-.vrooli.asset_studio.v1.search.SearchResponse\x12\x65\n\x06Status\x12,.vrooli.asset_studio.v1.search.StatusRequest\x1a-.vrooli.asset_studio.v1.search.StatusResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/search;search_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#asset-studio/v1/search/search.proto\x12\x1dvrooli.asset_studio.v1.search\";\n\rSearchRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\"x\n\x0cSearchResult\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n\x07snippet\x18\x03 \x01(\tR\x07snippet\x12\x14\n\x05score\x18\x04 \x01(\x01R\x05score\x12\x12\n\x04kind\x18\x05 \x01(\tR\x04kind\"W\n\x0eSearchResponse\x12\x45\n\x07results\x18\x01 \x03(\x0b\x32+.vrooli.asset_studio.v1.search.SearchResultR\x07results\"\x0f\n\rStatusRequest\"{\n\x0eStatusResponse\x12\x1c\n\tavailable\x18\x01 \x01(\x08R\tavailable\x12#\n\rindexed_count\x18\x02 \x01(\x05R\x0cindexedCount\x12&\n\x0flast_indexed_at\x18\x03 \x01(\tR\rlastIndexedAt2\xdd\x01\n\rSearchService\x12\x65\n\x06Search\x12,.vrooli.asset_studio.v1.search.SearchRequest\x1a-.vrooli.asset_studio.v1.search.SearchResponse\x12\x65\n\x06Status\x12,.vrooli.asset_studio.v1.search.StatusRequest\x1a-.vrooli.asset_studio.v1.search.StatusResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/search;search_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -41,7 +41,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_STATUSREQUEST']._serialized_start=342
   _globals['_STATUSREQUEST']._serialized_end=357
   _globals['_STATUSRESPONSE']._serialized_start=359
-  _globals['_STATUSRESPONSE']._serialized_end=442
-  _globals['_SEARCHSERVICE']._serialized_start=445
-  _globals['_SEARCHSERVICE']._serialized_end=666
+  _globals['_STATUSRESPONSE']._serialized_end=482
+  _globals['_SEARCHSERVICE']._serialized_start=485
+  _globals['_SEARCHSERVICE']._serialized_end=706
 # @@protoc_insertion_point(module_scope)

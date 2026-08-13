@@ -350,6 +350,18 @@ class ScenarioSetupSteps(_message.Message):
     skipped: int
     def __init__(self, executed: _Optional[int] = ..., skipped: _Optional[int] = ...) -> None: ...
 
+class ScenarioLogsResponse(_message.Message):
+    __slots__ = ("success", "scenario", "logs", "tail_lines")
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    LOGS_FIELD_NUMBER: _ClassVar[int]
+    TAIL_LINES_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    scenario: str
+    logs: str
+    tail_lines: int
+    def __init__(self, success: _Optional[bool] = ..., scenario: _Optional[str] = ..., logs: _Optional[str] = ..., tail_lines: _Optional[int] = ...) -> None: ...
+
 class ScenarioBatchResponse(_message.Message):
     __slots__ = ("success", "data")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]

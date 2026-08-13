@@ -62,15 +62,17 @@ class StatusRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class StatusResponse(_message.Message):
-    __slots__ = ("available", "ollama", "qdrant", "indexed_count", "matcher")
+    __slots__ = ("available", "ollama", "qdrant", "indexed_count", "matcher", "last_indexed_at")
     AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     OLLAMA_FIELD_NUMBER: _ClassVar[int]
     QDRANT_FIELD_NUMBER: _ClassVar[int]
     INDEXED_COUNT_FIELD_NUMBER: _ClassVar[int]
     MATCHER_FIELD_NUMBER: _ClassVar[int]
+    LAST_INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
     available: bool
     ollama: bool
     qdrant: bool
     indexed_count: int
     matcher: str
-    def __init__(self, available: _Optional[bool] = ..., ollama: _Optional[bool] = ..., qdrant: _Optional[bool] = ..., indexed_count: _Optional[int] = ..., matcher: _Optional[str] = ...) -> None: ...
+    last_indexed_at: str
+    def __init__(self, available: _Optional[bool] = ..., ollama: _Optional[bool] = ..., qdrant: _Optional[bool] = ..., indexed_count: _Optional[int] = ..., matcher: _Optional[str] = ..., last_indexed_at: _Optional[str] = ...) -> None: ...

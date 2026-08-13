@@ -23,6 +23,10 @@ message Flow {
   string name = 2;
   repeated Step steps = 3;
   bool allow_unredacted_capture = 4;
+  // usb is the default; wireless must be explicitly requested after promotion.
+  string transport = 5;
+  bool require_unlocked = 6;
+  string auth_profile_id = 7;
 }
 message Step {
   string id = 1;
@@ -43,6 +47,9 @@ message RunResult {
   repeated Chapter chapters = 3;
   repeated Resolution resolutions = 4;
   repeated EvidenceReference evidence = 5;
+  bool incomplete = 6;
+  string disconnect_reason = 7;
+  string disconnect_step = 8;
 }
 message Chapter {
   string id = 1;
@@ -67,4 +74,8 @@ message EvidenceReference {
   string kind = 9;
   repeated string applied_rules = 10;
   bool opted_out = 11;
+  string claim_class = 12;
+  double minimum_useful_fps = 13;
+  string disposition = 14;
+  string disposition_reason = 15;
 }

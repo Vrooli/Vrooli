@@ -31,6 +31,9 @@ const (
 	EventKind_BINDING_REFUSED        EventKind = 4
 	EventKind_SESSION_RECLAIMED      EventKind = 5
 	EventKind_BINDING_INVOKED        EventKind = 6
+	EventKind_PROGRAM_ACCEPTED       EventKind = 7
+	EventKind_PROGRAM_RUNNING        EventKind = 8
+	EventKind_PROGRAM_CANCELLED      EventKind = 9
 )
 
 // Enum value maps for EventKind.
@@ -43,6 +46,9 @@ var (
 		4: "BINDING_REFUSED",
 		5: "SESSION_RECLAIMED",
 		6: "BINDING_INVOKED",
+		7: "PROGRAM_ACCEPTED",
+		8: "PROGRAM_RUNNING",
+		9: "PROGRAM_CANCELLED",
 	}
 	EventKind_value = map[string]int32{
 		"EVENT_KIND_UNSPECIFIED": 0,
@@ -52,6 +58,9 @@ var (
 		"BINDING_REFUSED":        4,
 		"SESSION_RECLAIMED":      5,
 		"BINDING_INVOKED":        6,
+		"PROGRAM_ACCEPTED":       7,
+		"PROGRAM_RUNNING":        8,
+		"PROGRAM_CANCELLED":      9,
 	}
 )
 
@@ -340,7 +349,7 @@ const file_program_runtime_v1_telemetry_telemetry_proto_rawDesc = "" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12B\n" +
 	"\x04kind\x18\x02 \x01(\x0e2..vrooli.program_runtime.v1.telemetry.EventKindR\x04kind\"_\n" +
 	"\x12ListEventsResponse\x12I\n" +
-	"\x06events\x18\x01 \x03(\v21.vrooli.program_runtime.v1.telemetry.ProgramEventR\x06events*\xaa\x01\n" +
+	"\x06events\x18\x01 \x03(\v21.vrooli.program_runtime.v1.telemetry.ProgramEventR\x06events*\xec\x01\n" +
 	"\tEventKind\x12\x1a\n" +
 	"\x16EVENT_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11PROGRAM_SUBMITTED\x10\x01\x12\x15\n" +
@@ -348,7 +357,10 @@ const file_program_runtime_v1_telemetry_telemetry_proto_rawDesc = "" +
 	"\x0ePROGRAM_FAILED\x10\x03\x12\x13\n" +
 	"\x0fBINDING_REFUSED\x10\x04\x12\x15\n" +
 	"\x11SESSION_RECLAIMED\x10\x05\x12\x13\n" +
-	"\x0fBINDING_INVOKED\x10\x062\x91\x01\n" +
+	"\x0fBINDING_INVOKED\x10\x06\x12\x14\n" +
+	"\x10PROGRAM_ACCEPTED\x10\a\x12\x13\n" +
+	"\x0fPROGRAM_RUNNING\x10\b\x12\x15\n" +
+	"\x11PROGRAM_CANCELLED\x10\t2\x91\x01\n" +
 	"\x10TelemetryService\x12}\n" +
 	"\n" +
 	"ListEvents\x126.vrooli.program_runtime.v1.telemetry.ListEventsRequest\x1a7.vrooli.program_runtime.v1.telemetry.ListEventsResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry;telemetry_v1b\x06proto3"

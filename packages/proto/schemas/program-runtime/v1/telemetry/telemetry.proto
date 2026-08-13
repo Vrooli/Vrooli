@@ -12,6 +12,9 @@ enum EventKind {
   BINDING_REFUSED = 4;
   SESSION_RECLAIMED = 5;
   BINDING_INVOKED = 6;
+  PROGRAM_ACCEPTED = 7;
+  PROGRAM_RUNNING = 8;
+  PROGRAM_CANCELLED = 9;
 }
 
 message ProgramEvent {

@@ -20,6 +20,10 @@ message Session {
   int64 delegation_ceiling_micros = 13;
   bool delegation_spend_measured = 14;
   string delegation_spend_note = 15;
+  int64 wall_budget_millis = 16;
+  int64 wall_consumed_millis = 17;
+  int64 cpu_budget_millis = 18;
+  int64 cpu_consumed_millis = 19;
 }
 
 message CreateSessionRequest {
@@ -28,6 +32,8 @@ message CreateSessionRequest {
   string name = 3;
   int64 inference_ceiling_micros = 4;
   int64 delegation_ceiling_micros = 5;
+  int64 wall_budget_millis = 6;
+  int64 cpu_budget_millis = 7;
 }
 message CreateSessionResponse {
   Session session = 1;

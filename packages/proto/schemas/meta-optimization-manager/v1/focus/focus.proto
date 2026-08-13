@@ -58,6 +58,19 @@ message Gap {
   string evidence_locator = 13; // run/task locator a reader can follow
   string availability_reason = 14; // honest per-source degradation, when present
   repeated string provider_ids = 15; // owning Search Hub leaves/groups used for ranking
+  string condition_status = 16; // observed condition verdict for empirical condition gaps
+  repeated MaturityFinding maturity_findings = 17; // structured blocking evidence from Search Hub
+}
+
+// MaturityFinding is one blocking Search Hub rule with enough context to
+// understand and execute its repair from the focus board.
+message MaturityFinding {
+  string code = 1;
+  string message = 2;
+  string location = 3;
+  string remediation = 4;
+  string fix_class = 5;
+  string repair_command = 6;
 }
 
 // FocusItem is a ranked next-best gap.
@@ -111,6 +124,20 @@ message ListConditionRequest {}
 
 message ListConditionResponse {
   repeated Gap gaps = 1;
+  ConditionInstrumentation instrumentation = 2;
+}
+
+message ConditionInstrumentation {
+  int32 healthy = 1;
+  int32 degraded = 2;
+  int32 dormant = 3;
+  int32 uninstrumented = 4;
+  int32 unavailable = 5;
+  int32 instrumented = 6;
+  int32 total = 7;
+  // Runtime condition legs excluded because their owner does not currently
+  // back a live NOW cell in the coverage population.
+  int32 filtered_out = 8;
 }
 
 message ExplainConditionRequest {

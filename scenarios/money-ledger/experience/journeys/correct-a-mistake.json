@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "correct-a-mistake",
+    "title": "An operator corrects a wrong entry",
+    "purpose": "Corrections are reversing entries and never edits, so both the error and its correction stay permanently visible in the record.",
+    "prd_refs": [
+      "OT-P0-002"
+    ]
+  },
+  "steps": [
+    {
+      "page": "journal",
+      "intent": "Find the incorrect event among its neighbours"
+    },
+    {
+      "page": "journal",
+      "intent": "Create a reversing entry that references it and carries a reason"
+    },
+    {
+      "page": "journal",
+      "state": "reversed",
+      "intent": "See both entries linked, with balances updated on the next read"
+    },
+    {
+      "page": "journal",
+      "intent": "Confirm no edit or delete affordance exists anywhere on the surface"
+    }
+  ]
+}

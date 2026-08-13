@@ -214,6 +214,8 @@ message Tuning {
   FloorConfig floor = 7;
   // QUERY-TIME: dense+sparse Qdrant fusion strategy ("rrf" or "dbsf").
   string hybrid_fusion = 8;
+  // QUERY-TIME: whether the cross-encoder may fall back to the LLM leg.
+  string rerank_preference = 9;
 }
 
 // The unit of registration: one (corpus, type) leaf.
@@ -276,6 +278,15 @@ message EvalMinimum {
 service RegistryService {
   rpc RegisterProvider(RegisterProviderRequest) returns (RegisterProviderResponse);
   rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse);
+  // Execute an authenticated provider-owned embedding migration action through
+  // the descriptor's declared reindex endpoint. Search Hub retains the control
+  // token; operator CLIs never receive it.
+  rpc ExecuteEmbeddingMigration(ExecuteEmbeddingMigrationRequest) returns (ExecuteEmbeddingMigrationResponse);
+  // ListMaturityTargets returns the descriptor/capability target set used by
+  // Search Hub's maturity scan. It is intentionally separate from provider
+  // registration: a scenario can be a scan target before it owns a registered
+  // provider leaf.
+  rpc ListMaturityTargets(ListMaturityTargetsRequest) returns (ListMaturityTargetsResponse);
   rpc DeregisterProvider(DeregisterProviderRequest) returns (DeregisterProviderResponse);
 }
 
@@ -311,6 +322,42 @@ message ListProvidersRequest {
 
 message ListProvidersResponse {
   repeated ProviderDescriptor providers = 1;
+}
+
+message ExecuteEmbeddingMigrationRequest {
+  string provider_id = 1;
+  string action = 2;
+  string shadow_collection = 3;
+  string rollback_collection = 4;
+  string embedding_model = 5;
+  string embedding_role = 6;
+  int32 embedding_dimensions = 7;
+  string embedding_policy_schema_version = 8;
+  string scope = 9;
+  bool dry_run = 10;
+  string job_id = 11;
+}
+
+message ExecuteEmbeddingMigrationResponse {
+  string job_id = 1;
+  string state = 2;
+  int32 planned_upserts = 3;
+  int32 planned_deletes = 4;
+  int32 processed = 5;
+  int32 total = 6;
+  string error = 7;
+}
+
+message ListMaturityTargetsRequest {}
+
+message ListMaturityTargetsResponse {
+  repeated MaturityTarget targets = 1;
+}
+
+message MaturityTarget {
+  string scenario = 1;
+  string path = 2;
+  string applicability_reason = 3;
 }
 
 message DeregisterProviderRequest {

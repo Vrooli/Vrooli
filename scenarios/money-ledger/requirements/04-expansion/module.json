@@ -1,0 +1,116 @@
+{
+  "_metadata": {
+    "module": "expansion",
+    "description": "Reconciliation, console, and the seams held open for capabilities not yet justified.",
+    "prd_ref": "PRD.md",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "REC-001",
+      "title": "Reconciliation surfaces both unmatched sides",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "service",
+      "criticality": "P2",
+      "description": "Matching the journal against an authoritative statement reports entries present in one and not the other, in both directions. A one-directional check finds missing records but never spurious ones.",
+      "tags": [
+        "service",
+        "integrity"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A seeded mismatch in each direction produces exactly one finding each."
+        }
+      ]
+    },
+    {
+      "id": "UI-001",
+      "title": "Console covers every perceivable state",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "ui",
+      "criticality": "P2",
+      "description": "Journal, position, goals and adapter health each render loading, empty, partial, stale and error states. Money is never colour-only — an outflow carries a sign and a label — and every chart has a table equivalent.",
+      "tags": [
+        "ui",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Feature tests assert each state renders with its documented selector."
+        },
+        {
+          "type": "business",
+          "status": "planned",
+          "notes": "BAS case asserts figures use tabular numerals and that status carries text."
+        }
+      ]
+    },
+    {
+      "id": "VAL-001",
+      "title": "Valuation accounts separate holdings from transactions",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "domain",
+      "criticality": "P2",
+      "description": "An account kind whose value changes without a transaction — investments, crypto — plus a valuation event kind that restates it. The seam is cheap now; the portfolio experience is not, and is deliberately excluded.",
+      "tags": [
+        "domain",
+        "seam"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A valuation event changes a holding's value without creating an income posting."
+        }
+      ]
+    },
+    {
+      "id": "ADP-001",
+      "title": "Adapters extract on a declared trigger",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "architecture",
+      "criticality": "P2",
+      "description": "Adapters move to their own scenario when any of three conditions holds: a third live adapter lands, adapters need retry schedules and sync cursors independent of the journal's clock, or stored credentials need rotation. Until then the contract is the boundary and the code lives here. The trigger is recorded so the split is a decision rather than a drift.",
+      "tags": [
+        "architecture",
+        "boundary"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Reviewed at each adapter addition; the extraction decision is recorded in docs/internal/DECISIONS.md."
+        }
+      ]
+    },
+    {
+      "id": "LOT-001",
+      "title": "Events may reference an acquisition lot",
+      "status": "planned",
+      "prd_ref": "OT-P2-005",
+      "category": "domain",
+      "criticality": "P2",
+      "description": "A posting may reference a cost-basis lot so per-unit margin is knowable for resale. Only the reference is in scope; inventory management belongs to whatever capability actually runs a resale loop, and none exists yet.",
+      "tags": [
+        "domain",
+        "seam"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A lot reference round-trips and constrains nothing else about the posting."
+        }
+      ]
+    }
+  ]
+}

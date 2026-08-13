@@ -70,6 +70,13 @@ message AssetMetrics {
   // Includes direct roots and dependency files materialized through a parent
   // adoption. It is always at least direct_adoption_count.
   int32 effective_adoption_count = 3;
+  repeated VersionAdoptionMetric version_adoptions = 4;
+}
+
+message VersionAdoptionMetric {
+  string version = 1;
+  int32 current_count = 2;
+  int32 peak_count = 3;
 }
 
 // Component is the canonical wire shape for a single indexed component.

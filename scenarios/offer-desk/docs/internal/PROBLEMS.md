@@ -1,0 +1,110 @@
+# Problems — Offer Desk
+
+Persistent register of known issues, tech debt, and deferred work
+specific to **this** scenario. Future agents read this file to avoid
+re-discovering the same constraint.
+
+Entries are appended as constraints appear, so they are not rediscovered.
+
+## What belongs here
+
+- **Known bugs** that are real but not yet worth fixing
+- **Tech debt** — workarounds that need a real fix later
+- **Deferred work** — features descoped from a phase, with the reason
+- **Architecture drift** — code/docs/tests that no longer line up with
+  the intended capability map or boundary model
+- **Constraints discovered the hard way** that aren't visible from
+  the code (e.g., "this resource needs warm-up before the first call;
+  see commit X")
+
+## What does NOT belong here
+
+- **Generic template issues** — those go in
+  [`../guides/troubleshooting.md`](../guides/troubleshooting.md)
+- **Open feature requests** — track those in PRD operational targets
+- **Code comments** — if the constraint is local to one file, a
+  comment there is more discoverable
+- **Test failures** — fix them, don't document them
+
+## Entry template
+
+Use this shape so entries are scannable. Append newest at the bottom.
+
+```markdown
+### YYYY-MM-DD — short title
+
+**Symptom:** What goes wrong, observable from outside the system.
+
+**Root cause:** What actually causes it (or "unknown" if not yet diagnosed).
+
+**Workaround:** What to do today to keep moving.
+
+**Real fix:** What needs to happen for this entry to be deleted.
+
+**Owner:** Who should drive the fix (or "unassigned").
+
+**Refs:** Code paths, related issues, prior commits.
+```
+
+## Entries
+
+### Scaffold health gate is not yet run
+
+`make setup` / `make start` / `make test` (Gate 0) have not been run for this scenario. Every gate above it was completed from documentation, so the scaffold is unproven at runtime. **Do this before any code work** — a foundation authored against a scaffold that does not boot is worth less than it appears.
+
+### The import is the riskiest step, and it is ordered
+
+`OT-P0-006` moves 22 markdown files into this scenario. The ordering rule is absolute and easy to get wrong under time pressure: **import, verify per-file counts, then delete sources.** The source files are the importer's only input. The team that owns them must be paused first, because a running team writes to the surfaces the importer reads.
+
+### The source catalog is already 19% broken
+
+33 of 174 internal links in `docs/monetization/` do not resolve. `MIG-002` requires those to import as findings rather than be discarded, so the drift stays visible after the move. Expect the first import run to produce a substantial finding list; that is the correct outcome, not a failure.
+
+### The trigger language will be asked to grow
+
+`GATE-002` deliberately admits only declared facts, comparison operators and boolean composition. The first real trigger that wants something richer will feel like a small exception. It is not — that is how a rules engine starts. Route it to `OT-P2-004` (scenario-sourced facts) rather than widening the expression language.
+
+## Architecture Drift
+
+Use this section for deferred findings from `screaming-architecture-audit`.
+Do not create a standalone architecture-audit report unless the work is
+a migration handoff with a planned retirement path back into
+`ARCHITECTURE.md`, `SEAMS.md`, or this file.
+
+| Area | Drift | Maturity Impact | Real Fix |
+|---|---|---|---|
+| ### Scaffold health gate is not yet run
+
+`make setup` / `make start` / `make test` (Gate 0) have not been run for this scenario. Every gate above it was completed from documentation, so the scaffold is unproven at runtime. **Do this before any code work** — a foundation authored against a scaffold that does not boot is worth less than it appears.
+
+### The import is the riskiest step, and it is ordered
+
+`OT-P0-006` moves 22 markdown files into this scenario. The ordering rule is absolute and easy to get wrong under time pressure: **import, verify per-file counts, then delete sources.** The source files are the importer's only input. The team that owns them must be paused first, because a running team writes to the surfaces the importer reads.
+
+### The source catalog is already 19% broken
+
+33 of 174 internal links in `docs/monetization/` do not resolve. `MIG-002` requires those to import as findings rather than be discarded, so the drift stays visible after the move. Expect the first import run to produce a substantial finding list; that is the correct outcome, not a failure.
+
+### The trigger language will be asked to grow
+
+`GATE-002` deliberately admits only declared facts, comparison operators and boolean composition. The first real trigger that wants something richer will feel like a small exception. It is not — that is how a rules engine starts. Route it to `OT-P2-004` (scenario-sourced facts) rather than widening the expression language. |  |  |  |
+
+## Cross-references
+
+- [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)
+- [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
+- [`TESTING.md`](TESTING.md) — test patterns
+- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+### The generated shell fails two of its own accessibility floors on mobile
+
+Discovered 2026-08-13 during experience validation, and **reproduced identically in both scenarios generated from `react-vite` v1.6.5**, so this is a template defect rather than anything either scenario did:
+
+- `floor-tap-target-size` — the theme control renders ~79×30px on mobile, under the 44px minimum.
+- `floor-safe-area-tap-targets` — an interactive target on the dashboard overlaps the mobile unsafe bottom area.
+
+This matters more than a normal placeholder complaint because `docs/START-HERE.md` lists the shell's *"fixed safe-area bottom navigation on mobile"* as durable infrastructure to preserve, not as illustrative content. The floor it is supposed to guarantee is the one failing.
+
+It is invisible until a scenario's experience contract is real enough to be checked against a running UI, which is why a freshly generated scenario reports clean. Fix it in the template rather than per-scenario, or every future scenario inherits it.
+
+**Reproduce:** `make start`, then `experience-manager spec validate <scenario> --json`.

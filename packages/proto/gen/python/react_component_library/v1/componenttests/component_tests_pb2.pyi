@@ -102,12 +102,14 @@ class GetComponentTestReportResponse(_message.Message):
     def __init__(self, report: _Optional[_Union[ComponentTestReport, _Mapping]] = ...) -> None: ...
 
 class ListComponentTestReportsRequest(_message.Message):
-    __slots__ = ("component_id", "limit")
+    __slots__ = ("component_id", "limit", "version")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     limit: int
-    def __init__(self, component_id: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+    version: str
+    def __init__(self, component_id: _Optional[str] = ..., limit: _Optional[int] = ..., version: _Optional[str] = ...) -> None: ...
 
 class ListComponentTestReportsResponse(_message.Message):
     __slots__ = ("reports",)

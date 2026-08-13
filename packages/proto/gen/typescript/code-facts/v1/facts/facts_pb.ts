@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file code-facts/v1/facts/facts.proto.
  */
 export const file_code_facts_v1_facts_facts: GenFile = /*@__PURE__*/
-  fileDesc("Ch9jb2RlLWZhY3RzL3YxL2ZhY3RzL2ZhY3RzLnByb3RvEhp2cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cyKeAQoKQ29kZVRhcmdldBI0CgRraW5kGAEgASgOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuVGFyZ2V0S2luZBIMCgRwYXRoGAIgASgJEhAKCHNjZW5hcmlvGAMgASgJEhEKCXJlcG9fcm9vdBgEIAEoCRIXCg9sYW5ndWFnZV9maWx0ZXIYBSADKAkSDgoGc3RyaWN0GAYgASgIIvABChhEZXNjcmliZUNvZGVGYWN0c1JlcXVlc3QSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBI3CgdpbmNsdWRlGAIgAygOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRmFjdEZhbWlseRIUCgxlbmRwb2ludF9pZHMYAyADKAkSEwoLY29tbWFuZF9pZHMYBCADKAkSEgoKd2lkZ2V0X2lkcxgFIAMoCRIRCgltYXhfZGVwdGgYBiABKAUSEQoJdXNlX2NhY2hlGAcgASgIIn4KG0Rlc2NyaWJlRmxlZXRJbXBvcnRzUmVxdWVzdBIRCglzY2VuYXJpb3MYASADKAkSDQoFbGltaXQYAiABKAUSEQoJdXNlX2NhY2hlGAMgASgIEhEKCXJlcG9fcm9vdBgEIAEoCRIXCg9sYW5ndWFnZV9maWx0ZXIYBSADKAkibwoPQ29kZUZhY3RzUmVzdWx0EhAKCHNjZW5hcmlvGAEgASgJEjsKBnJlcG9ydBgCIAEoCzIrLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNvZGVGYWN0c1JlcG9ydBINCgVlcnJvchgDIAEoCSJcChxEZXNjcmliZUZsZWV0SW1wb3J0c1Jlc3BvbnNlEjwKB3Jlc3VsdHMYASADKAsyKy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlRmFjdHNSZXN1bHQiYAoTTGlzdFN1cmZhY2VzUmVxdWVzdBI2CgZ0YXJnZXQYASABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0EhEKCXVzZV9jYWNoZRgCIAEoCCJ4ChlDaGVja1Byb3RvQWRvcHRpb25SZXF1ZXN0EjYKBnRhcmdldBgBIAEoCzImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNvZGVUYXJnZXQSEAoIc3VyZmFjZXMYAiADKAkSEQoJdXNlX2NhY2hlGAMgASgIInwKGUNoZWNrRW5kcG9pbnRQcm9vZlJlcXVlc3QSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBIUCgxlbmRwb2ludF9pZHMYAiADKAkSEQoJdXNlX2NhY2hlGAMgASgIIk8KFUdldENhY2hlU3RhdHVzUmVxdWVzdBI2CgZ0YXJnZXQYASABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0ImAKE0luc3BlY3RDYWNoZVJlcXVlc3QSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBIRCgljYWNoZV9rZXkYAiABKAkiaQoRQ2xlYXJDYWNoZVJlcXVlc3QSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBIPCgdkcnlfcnVuGAIgASgIEgsKA2FsbBgDIAEoCCLGAQoNVGFyZ2V0Q29udGV4dBI5CglyZXF1ZXN0ZWQYASABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0Ej0KDXJlc29sdmVkX2tpbmQYAiABKA4yJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5UYXJnZXRLaW5kEhEKCXJvb3RfcGF0aBgDIAEoCRIQCghzY2VuYXJpbxgEIAEoCRIWCg5zY2VuYXJpb19hd2FyZRgFIAEoCCJrCgtTb3VyY2VSYW5nZRIMCgRmaWxlGAEgASgJEhIKCnN0YXJ0X2xpbmUYAiABKAUSFAoMc3RhcnRfY29sdW1uGAMgASgFEhAKCGVuZF9saW5lGAQgASgFEhIKCmVuZF9jb2x1bW4YBSABKAUixQEKCEV2aWRlbmNlEjoKBnN0YXR1cxgBIAEoDjIqLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlU3RhdHVzEhIKCmNvbmZpZGVuY2UYAiABKAESNgoFcmFuZ2UYAyABKAsyJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Tb3VyY2VSYW5nZRIOCgZzeW1ib2wYBCABKAkSEAoIYW5hbHl6ZXIYBSABKAkSDwoHbWVzc2FnZRgGIAEoCSLFAQoJUGFyc2VVbml0EgoKAmlkGAEgASgJEhAKCGxhbmd1YWdlGAIgASgJEhEKCXJvb3RfcGF0aBgDIAEoCRITCgtjb25maWdfcGF0aBgEIAEoCRI6CgZzdGF0dXMYBSABKA4yKi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5FdmlkZW5jZVN0YXR1cxI2CghldmlkZW5jZRgGIAMoCzIkLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlIs0BCgdTdXJmYWNlEgoKAmlkGAEgASgJEjUKBGtpbmQYAiABKA4yJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5TdXJmYWNlS2luZBIMCgRwYXRoGAMgASgJEjkKBnN0YXR1cxgEIAEoDjIpLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlN1cmZhY2VTdGF0dXMSNgoIZXZpZGVuY2UYBSADKAsyJC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5FdmlkZW5jZSKoAgoLR2VuZXJpY0ZhY3QSCgoCaWQYASABKAkSNgoGZmFtaWx5GAIgASgOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRmFjdEZhbWlseRIMCgRraW5kGAMgASgJEg8KB3N1YmplY3QYBCABKAkSNgoIZXZpZGVuY2UYBSADKAsyJC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5FdmlkZW5jZRJLCgphdHRyaWJ1dGVzGAYgAygLMjcudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuR2VuZXJpY0ZhY3QuQXR0cmlidXRlc0VudHJ5GjEKD0F0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBImQKB1dhcm5pbmcSDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEjoKBnN0YXR1cxgDIAEoDjIqLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlU3RhdHVzIv4CCg1DYWNoZU1ldGFkYXRhEhEKCWNhY2hlX2tleRgBIAEoCRILCgNoaXQYAiABKAgSGAoQYW5hbHl6ZXJfdmVyc2lvbhgDIAEoCRISCgpncmFwaF9oYXNoGAQgASgJEhMKC2FnZV9zZWNvbmRzGAUgASgDEg0KBXN0YXRlGAYgASgJEg4KBnJlYXNvbhgHIAEoCRITCgtzb3VyY2VfaGFzaBgIIAEoCRITCgtjb25maWdfaGFzaBgJIAEoCRIYChBwcm92aWRlcl92ZXJzaW9uGAogASgJEhYKDnNjaGVtYV92ZXJzaW9uGAsgASgJEhcKD2NyZWF0ZWRfYXRfdW5peBgMIAEoAxIZChFsYXN0X3VzZWRfYXRfdW5peBgNIAEoAxIRCgloaXRfY291bnQYDiABKAMSDQoFc2NvcGUYDyABKAkSEwoLbG9naWNhbF9rZXkYECABKAkSFQoNcGF5bG9hZF9ieXRlcxgRIAEoAxINCgVjb2RlYxgSIAEoCSJMChFDYWNoZVNjb3BlU3VtbWFyeRINCgVzY29wZRgBIAEoCRIRCglyb3dfY291bnQYAiABKAMSFQoNcGF5bG9hZF9ieXRlcxgDIAEoAyLlAgoLQ2FjaGVTdGF0dXMSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBIRCgljYWNoZV9rZXkYAiABKAkSDwoHZW50cmllcxgDIAEoAxJDChBlbnRyaWVzX21ldGFkYXRhGAQgAygLMikudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2FjaGVNZXRhZGF0YRISCgp0b3RhbF9yb3dzGAUgASgDEhsKE3RvdGFsX3BheWxvYWRfYnl0ZXMYBiABKAMSFAoMYnVkZ2V0X2J5dGVzGAcgASgDEhMKC3V0aWxpemF0aW9uGAggASgBEj0KBnNjb3BlcxgJIAMoCzItLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNhY2hlU2NvcGVTdW1tYXJ5EhoKEmxhc3Rfc3dlZXBfYXRfdW5peBgKIAEoAyJqChJDbGVhckNhY2hlUmVzcG9uc2USEQoJY2FjaGVfa2V5GAEgASgJEhcKD21hdGNoZWRfZW50cmllcxgCIAEoAxIXCg9jbGVhcmVkX2VudHJpZXMYAyABKAMSDwoHZHJ5X3J1bhgEIAEoCCKgAwoPQ29kZUZhY3RzUmVwb3J0EjkKBnRhcmdldBgBIAEoCzIpLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlRhcmdldENvbnRleHQSOgoLcGFyc2VfdW5pdHMYAiADKAsyJS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5QYXJzZVVuaXQSNQoIc3VyZmFjZXMYAyADKAsyIy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5TdXJmYWNlEjYKBWZhY3RzGAQgAygLMicudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuR2VuZXJpY0ZhY3QSNgoIZXZpZGVuY2UYBSADKAsyJC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5FdmlkZW5jZRI1Cgh3YXJuaW5ncxgGIAMoCzIjLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLldhcm5pbmcSOAoFY2FjaGUYByABKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DYWNoZU1ldGFkYXRhIvkBChRMaXN0U3VyZmFjZXNSZXNwb25zZRI5CgZ0YXJnZXQYASABKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5UYXJnZXRDb250ZXh0EjUKCHN1cmZhY2VzGAIgAygLMiMudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuU3VyZmFjZRI1Cgh3YXJuaW5ncxgDIAMoCzIjLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLldhcm5pbmcSOAoFY2FjaGUYBCABKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DYWNoZU1ldGFkYXRhIuECCgtQcm9vZlJlcG9ydBI5CgZ0YXJnZXQYASABKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5UYXJnZXRDb250ZXh0EjYKBmZhbWlseRgCIAEoDjImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkZhY3RGYW1pbHkSNgoFZmFjdHMYAyADKAsyJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5HZW5lcmljRmFjdBI2CghldmlkZW5jZRgEIAMoCzIkLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlEjUKCHdhcm5pbmdzGAUgAygLMiMudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuV2FybmluZxI4CgVjYWNoZRgGIAEoCzIpLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNhY2hlTWV0YWRhdGEqoAEKClRhcmdldEtpbmQSGwoXVEFSR0VUX0tJTkRfVU5TUEVDSUZJRUQQABIUChBUQVJHRVRfS0lORF9QQVRIEAESGAoUVEFSR0VUX0tJTkRfU0NFTkFSSU8QAhIUChBUQVJHRVRfS0lORF9SRVBPEAMSFgoSVEFSR0VUX0tJTkRfTU9EVUxFEAQSFwoTVEFSR0VUX0tJTkRfUFJPSkVDVBAFKvYCCgpGYWN0RmFtaWx5EhsKF0ZBQ1RfRkFNSUxZX1VOU1BFQ0lGSUVEEAASGAoURkFDVF9GQU1JTFlfU1VSRkFDRVMQARIbChdGQUNUX0ZBTUlMWV9QQVJTRV9VTklUUxACEhcKE0ZBQ1RfRkFNSUxZX0lNUE9SVFMQAxIXChNGQUNUX0ZBTUlMWV9TWU1CT0xTEAQSGgoWRkFDVF9GQU1JTFlfUkVGRVJFTkNFUxAFEhUKEUZBQ1RfRkFNSUxZX0NBTExTEAYSHgoaRkFDVF9GQU1JTFlfUFJPVE9fQURPUFRJT04QBxIfChtGQUNUX0ZBTUlMWV9FTkRQT0lOVF9QUk9PRlMQCBIaChZGQUNUX0ZBTUlMWV9DTElfUFJPT0ZTEAkSIAocRkFDVF9GQU1JTFlfVUlfV0lER0VUX1BST09GUxAKEhsKF0ZBQ1RfRkFNSUxZX0ZJTEVfRE9NQUlOEAsSEwoPRkFDVF9GQU1JTFlfQUxMEGMqygEKDkV2aWRlbmNlU3RhdHVzEh8KG0VWSURFTkNFX1NUQVRVU19VTlNQRUNJRklFRBAAEhoKFkVWSURFTkNFX1NUQVRVU19QUk9WRU4QARIbChdFVklERU5DRV9TVEFUVVNfTUlTU0lORxACEiAKHEVWSURFTkNFX1NUQVRVU19DT05UUkFESUNURUQQAxIfChtFVklERU5DRV9TVEFUVVNfVU5TVVBQT1JURUQQBBIbChdFVklERU5DRV9TVEFUVVNfVU5LTk9XThAFKs8BCgtTdXJmYWNlS2luZBIcChhTVVJGQUNFX0tJTkRfVU5TUEVDSUZJRUQQABIUChBTVVJGQUNFX0tJTkRfQVBJEAESFAoQU1VSRkFDRV9LSU5EX0NMSRACEhMKD1NVUkZBQ0VfS0lORF9VSRADEhgKFFNVUkZBQ0VfS0lORF9TSURFQ0FSEAQSFwoTU1VSRkFDRV9LSU5EX1dPUktFUhAFEhQKEFNVUkZBQ0VfS0lORF9KT0IQBhIYChRTVVJGQUNFX0tJTkRfUlVOVElNRRAHKr8BCg1TdXJmYWNlU3RhdHVzEh4KGlNVUkZBQ0VfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGAoUU1VSRkFDRV9TVEFUVVNfS05PV04QARIaChZTVVJGQUNFX1NUQVRVU19NSVNTSU5HEAISHgoaU1VSRkFDRV9TVEFUVVNfVU5TVVBQT1JURUQQAxIcChhTVVJGQUNFX1NUQVRVU19BTUJJR1VPVVMQBBIaChZTVVJGQUNFX1NUQVRVU19VTktOT1dOEAUyygcKEENvZGVGYWN0c1NlcnZpY2USeAoRRGVzY3JpYmVDb2RlRmFjdHMSNC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5EZXNjcmliZUNvZGVGYWN0c1JlcXVlc3QaKy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlRmFjdHNSZXBvcnQiABKLAQoURGVzY3JpYmVGbGVldEltcG9ydHMSNy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5EZXNjcmliZUZsZWV0SW1wb3J0c1JlcXVlc3QaOC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5EZXNjcmliZUZsZWV0SW1wb3J0c1Jlc3BvbnNlIgAScwoMTGlzdFN1cmZhY2VzEi8udnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuTGlzdFN1cmZhY2VzUmVxdWVzdBowLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkxpc3RTdXJmYWNlc1Jlc3BvbnNlIgASdgoSQ2hlY2tQcm90b0Fkb3B0aW9uEjUudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2hlY2tQcm90b0Fkb3B0aW9uUmVxdWVzdBonLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlByb29mUmVwb3J0IgASdgoSQ2hlY2tFbmRwb2ludFByb29mEjUudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2hlY2tFbmRwb2ludFByb29mUmVxdWVzdBonLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlByb29mUmVwb3J0IgASbgoOR2V0Q2FjaGVTdGF0dXMSMS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5HZXRDYWNoZVN0YXR1c1JlcXVlc3QaJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DYWNoZVN0YXR1cyIAEmoKDEluc3BlY3RDYWNoZRIvLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkluc3BlY3RDYWNoZVJlcXVlc3QaJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DYWNoZVN0YXR1cyIAEm0KCkNsZWFyQ2FjaGUSLS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DbGVhckNhY2hlUmVxdWVzdBouLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNsZWFyQ2FjaGVSZXNwb25zZSIAQk1aS2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29kZS1mYWN0cy92MS9mYWN0cztmYWN0c192MWIGcHJvdG8z");
+  fileDesc("Ch9jb2RlLWZhY3RzL3YxL2ZhY3RzL2ZhY3RzLnByb3RvEhp2cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cyK0AQoKQ29kZVRhcmdldBI0CgRraW5kGAEgASgOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuVGFyZ2V0S2luZBIMCgRwYXRoGAIgASgJEhAKCHNjZW5hcmlvGAMgASgJEhEKCXJlcG9fcm9vdBgEIAEoCRIXCg9sYW5ndWFnZV9maWx0ZXIYBSADKAkSDgoGc3RyaWN0GAYgASgIEhQKDHBhY2thZ2VfbmFtZRgHIAEoCSKXAgoYRGVzY3JpYmVDb2RlRmFjdHNSZXF1ZXN0EjYKBnRhcmdldBgBIAEoCzImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNvZGVUYXJnZXQSNwoHaW5jbHVkZRgCIAMoDjImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkZhY3RGYW1pbHkSFAoMZW5kcG9pbnRfaWRzGAMgAygJEhMKC2NvbW1hbmRfaWRzGAQgAygJEhIKCndpZGdldF9pZHMYBSADKAkSEQoJbWF4X2RlcHRoGAYgASgFEhEKCXVzZV9jYWNoZRgHIAEoCBIRCglwYWdlX3NpemUYCCABKAUSEgoKcGFnZV90b2tlbhgJIAEoCSK1AQoNU2VhcmNoUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBRI2CgZ0YXJnZXQYAyABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0EjgKCGZhbWlsaWVzGAQgAygOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRmFjdEZhbWlseRIUCgxleHBhbmRfZWRnZXMYBSABKAgigQIKCVNlYXJjaEhpdBIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIMCgR0ZXh0GAMgASgJEg0KBXNjb3JlGAQgASgBEgwKBHBhdGgYBSABKAkSEAoIYW5hbHl6ZXIYBiABKAkSQwoPZXZpZGVuY2Vfc3RhdHVzGAcgASgOMioudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRXZpZGVuY2VTdGF0dXMSEQoJZmFjdF9raW5kGAggASgJEkQKD2VkZ2VfZXhwYW5zaW9ucxgJIAMoCzIrLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlNlYXJjaEV4cGFuc2lvbiLqAQoPU2VhcmNoRXhwYW5zaW9uEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEgwKBHRleHQYAyABKAkSDAoEcGF0aBgEIAEoCRIQCghhbmFseXplchgFIAEoCRJDCg9ldmlkZW5jZV9zdGF0dXMYBiABKA4yKi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5FdmlkZW5jZVN0YXR1cxIRCglmYWN0X2tpbmQYByABKAkSNgoGZmFtaWx5GAggASgOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRmFjdEZhbWlseSJICg5TZWFyY2hSZXNwb25zZRI2CgdyZXN1bHRzGAEgAygLMiUudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuU2VhcmNoSGl0In4KG0Rlc2NyaWJlRmxlZXRJbXBvcnRzUmVxdWVzdBIRCglzY2VuYXJpb3MYASADKAkSDQoFbGltaXQYAiABKAUSEQoJdXNlX2NhY2hlGAMgASgIEhEKCXJlcG9fcm9vdBgEIAEoCRIXCg9sYW5ndWFnZV9maWx0ZXIYBSADKAkibwoPQ29kZUZhY3RzUmVzdWx0EhAKCHNjZW5hcmlvGAEgASgJEjsKBnJlcG9ydBgCIAEoCzIrLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNvZGVGYWN0c1JlcG9ydBINCgVlcnJvchgDIAEoCSJcChxEZXNjcmliZUZsZWV0SW1wb3J0c1Jlc3BvbnNlEjwKB3Jlc3VsdHMYASADKAsyKy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlRmFjdHNSZXN1bHQiYAoTTGlzdFN1cmZhY2VzUmVxdWVzdBI2CgZ0YXJnZXQYASABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0EhEKCXVzZV9jYWNoZRgCIAEoCCJ4ChlDaGVja1Byb3RvQWRvcHRpb25SZXF1ZXN0EjYKBnRhcmdldBgBIAEoCzImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNvZGVUYXJnZXQSEAoIc3VyZmFjZXMYAiADKAkSEQoJdXNlX2NhY2hlGAMgASgIInwKGUNoZWNrRW5kcG9pbnRQcm9vZlJlcXVlc3QSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBIUCgxlbmRwb2ludF9pZHMYAiADKAkSEQoJdXNlX2NhY2hlGAMgASgIIk8KFUdldENhY2hlU3RhdHVzUmVxdWVzdBI2CgZ0YXJnZXQYASABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0ImAKE0luc3BlY3RDYWNoZVJlcXVlc3QSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBIRCgljYWNoZV9rZXkYAiABKAkiaQoRQ2xlYXJDYWNoZVJlcXVlc3QSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBIPCgdkcnlfcnVuGAIgASgIEgsKA2FsbBgDIAEoCCLaAQoNVGFyZ2V0Q29udGV4dBI5CglyZXF1ZXN0ZWQYASABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0Ej0KDXJlc29sdmVkX2tpbmQYAiABKA4yJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5UYXJnZXRLaW5kEhEKCXJvb3RfcGF0aBgDIAEoCRIQCghzY2VuYXJpbxgEIAEoCRIWCg5zY2VuYXJpb19hd2FyZRgFIAEoCBISCgpyb290X3BhdGhzGAYgAygJImsKC1NvdXJjZVJhbmdlEgwKBGZpbGUYASABKAkSEgoKc3RhcnRfbGluZRgCIAEoBRIUCgxzdGFydF9jb2x1bW4YAyABKAUSEAoIZW5kX2xpbmUYBCABKAUSEgoKZW5kX2NvbHVtbhgFIAEoBSLFAQoIRXZpZGVuY2USOgoGc3RhdHVzGAEgASgOMioudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRXZpZGVuY2VTdGF0dXMSEgoKY29uZmlkZW5jZRgCIAEoARI2CgVyYW5nZRgDIAEoCzInLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlNvdXJjZVJhbmdlEg4KBnN5bWJvbBgEIAEoCRIQCghhbmFseXplchgFIAEoCRIPCgdtZXNzYWdlGAYgASgJIsUBCglQYXJzZVVuaXQSCgoCaWQYASABKAkSEAoIbGFuZ3VhZ2UYAiABKAkSEQoJcm9vdF9wYXRoGAMgASgJEhMKC2NvbmZpZ19wYXRoGAQgASgJEjoKBnN0YXR1cxgFIAEoDjIqLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlU3RhdHVzEjYKCGV2aWRlbmNlGAYgAygLMiQudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRXZpZGVuY2UizQEKB1N1cmZhY2USCgoCaWQYASABKAkSNQoEa2luZBgCIAEoDjInLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlN1cmZhY2VLaW5kEgwKBHBhdGgYAyABKAkSOQoGc3RhdHVzGAQgASgOMikudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuU3VyZmFjZVN0YXR1cxI2CghldmlkZW5jZRgFIAMoCzIkLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlIqgCCgtHZW5lcmljRmFjdBIKCgJpZBgBIAEoCRI2CgZmYW1pbHkYAiABKA4yJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5GYWN0RmFtaWx5EgwKBGtpbmQYAyABKAkSDwoHc3ViamVjdBgEIAEoCRI2CghldmlkZW5jZRgFIAMoCzIkLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlEksKCmF0dHJpYnV0ZXMYBiADKAsyNy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5HZW5lcmljRmFjdC5BdHRyaWJ1dGVzRW50cnkaMQoPQXR0cmlidXRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiZAoHV2FybmluZxIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSOgoGc3RhdHVzGAMgASgOMioudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRXZpZGVuY2VTdGF0dXMi/gIKDUNhY2hlTWV0YWRhdGESEQoJY2FjaGVfa2V5GAEgASgJEgsKA2hpdBgCIAEoCBIYChBhbmFseXplcl92ZXJzaW9uGAMgASgJEhIKCmdyYXBoX2hhc2gYBCABKAkSEwoLYWdlX3NlY29uZHMYBSABKAMSDQoFc3RhdGUYBiABKAkSDgoGcmVhc29uGAcgASgJEhMKC3NvdXJjZV9oYXNoGAggASgJEhMKC2NvbmZpZ19oYXNoGAkgASgJEhgKEHByb3ZpZGVyX3ZlcnNpb24YCiABKAkSFgoOc2NoZW1hX3ZlcnNpb24YCyABKAkSFwoPY3JlYXRlZF9hdF91bml4GAwgASgDEhkKEWxhc3RfdXNlZF9hdF91bml4GA0gASgDEhEKCWhpdF9jb3VudBgOIAEoAxINCgVzY29wZRgPIAEoCRITCgtsb2dpY2FsX2tleRgQIAEoCRIVCg1wYXlsb2FkX2J5dGVzGBEgASgDEg0KBWNvZGVjGBIgASgJIkwKEUNhY2hlU2NvcGVTdW1tYXJ5Eg0KBXNjb3BlGAEgASgJEhEKCXJvd19jb3VudBgCIAEoAxIVCg1wYXlsb2FkX2J5dGVzGAMgASgDIuUCCgtDYWNoZVN0YXR1cxI2CgZ0YXJnZXQYASABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0EhEKCWNhY2hlX2tleRgCIAEoCRIPCgdlbnRyaWVzGAMgASgDEkMKEGVudHJpZXNfbWV0YWRhdGEYBCADKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DYWNoZU1ldGFkYXRhEhIKCnRvdGFsX3Jvd3MYBSABKAMSGwoTdG90YWxfcGF5bG9hZF9ieXRlcxgGIAEoAxIUCgxidWRnZXRfYnl0ZXMYByABKAMSEwoLdXRpbGl6YXRpb24YCCABKAESPQoGc2NvcGVzGAkgAygLMi0udnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2FjaGVTY29wZVN1bW1hcnkSGgoSbGFzdF9zd2VlcF9hdF91bml4GAogASgDImoKEkNsZWFyQ2FjaGVSZXNwb25zZRIRCgljYWNoZV9rZXkYASABKAkSFwoPbWF0Y2hlZF9lbnRyaWVzGAIgASgDEhcKD2NsZWFyZWRfZW50cmllcxgDIAEoAxIPCgdkcnlfcnVuGAQgASgIIs4DCg9Db2RlRmFjdHNSZXBvcnQSOQoGdGFyZ2V0GAEgASgLMikudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuVGFyZ2V0Q29udGV4dBI6CgtwYXJzZV91bml0cxgCIAMoCzIlLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlBhcnNlVW5pdBI1CghzdXJmYWNlcxgDIAMoCzIjLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlN1cmZhY2USNgoFZmFjdHMYBCADKAsyJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5HZW5lcmljRmFjdBI2CghldmlkZW5jZRgFIAMoCzIkLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlEjUKCHdhcm5pbmdzGAYgAygLMiMudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuV2FybmluZxI4CgVjYWNoZRgHIAEoCzIpLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNhY2hlTWV0YWRhdGESFwoPbmV4dF9wYWdlX3Rva2VuGAggASgJEhMKC3RvdGFsX2ZhY3RzGAkgASgFIvkBChRMaXN0U3VyZmFjZXNSZXNwb25zZRI5CgZ0YXJnZXQYASABKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5UYXJnZXRDb250ZXh0EjUKCHN1cmZhY2VzGAIgAygLMiMudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuU3VyZmFjZRI1Cgh3YXJuaW5ncxgDIAMoCzIjLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLldhcm5pbmcSOAoFY2FjaGUYBCABKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DYWNoZU1ldGFkYXRhIuECCgtQcm9vZlJlcG9ydBI5CgZ0YXJnZXQYASABKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5UYXJnZXRDb250ZXh0EjYKBmZhbWlseRgCIAEoDjImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkZhY3RGYW1pbHkSNgoFZmFjdHMYAyADKAsyJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5HZW5lcmljRmFjdBI2CghldmlkZW5jZRgEIAMoCzIkLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlEjUKCHdhcm5pbmdzGAUgAygLMiMudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuV2FybmluZxI4CgVjYWNoZRgGIAEoCzIpLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNhY2hlTWV0YWRhdGEqzwIKClRhcmdldEtpbmQSGwoXVEFSR0VUX0tJTkRfVU5TUEVDSUZJRUQQABIUChBUQVJHRVRfS0lORF9QQVRIEAESGAoUVEFSR0VUX0tJTkRfU0NFTkFSSU8QAhIUChBUQVJHRVRfS0lORF9SRVBPEAMSFgoSVEFSR0VUX0tJTkRfTU9EVUxFEAQSFwoTVEFSR0VUX0tJTkRfUFJPSkVDVBAFEh0KGVRBUkdFVF9LSU5EX0NPTlRST0xfUExBTkUQBhIXChNUQVJHRVRfS0lORF9QQUNLQUdFEAcSGAoUVEFSR0VUX0tJTkRfUkVTT1VSQ0UQCBIUChBUQVJHRVRfS0lORF9UT09MEAkSGQoVVEFSR0VUX0tJTkRfU0FGRUdVQVJEEAoSFAoQVEFSR0VUX0tJTkRfRE9DUxALEhQKEFRBUkdFVF9LSU5EX1RFQU0QDCr2AgoKRmFjdEZhbWlseRIbChdGQUNUX0ZBTUlMWV9VTlNQRUNJRklFRBAAEhgKFEZBQ1RfRkFNSUxZX1NVUkZBQ0VTEAESGwoXRkFDVF9GQU1JTFlfUEFSU0VfVU5JVFMQAhIXChNGQUNUX0ZBTUlMWV9JTVBPUlRTEAMSFwoTRkFDVF9GQU1JTFlfU1lNQk9MUxAEEhoKFkZBQ1RfRkFNSUxZX1JFRkVSRU5DRVMQBRIVChFGQUNUX0ZBTUlMWV9DQUxMUxAGEh4KGkZBQ1RfRkFNSUxZX1BST1RPX0FET1BUSU9OEAcSHwobRkFDVF9GQU1JTFlfRU5EUE9JTlRfUFJPT0ZTEAgSGgoWRkFDVF9GQU1JTFlfQ0xJX1BST09GUxAJEiAKHEZBQ1RfRkFNSUxZX1VJX1dJREdFVF9QUk9PRlMQChIbChdGQUNUX0ZBTUlMWV9GSUxFX0RPTUFJThALEhMKD0ZBQ1RfRkFNSUxZX0FMTBBjKsoBCg5FdmlkZW5jZVN0YXR1cxIfChtFVklERU5DRV9TVEFUVVNfVU5TUEVDSUZJRUQQABIaChZFVklERU5DRV9TVEFUVVNfUFJPVkVOEAESGwoXRVZJREVOQ0VfU1RBVFVTX01JU1NJTkcQAhIgChxFVklERU5DRV9TVEFUVVNfQ09OVFJBRElDVEVEEAMSHwobRVZJREVOQ0VfU1RBVFVTX1VOU1VQUE9SVEVEEAQSGwoXRVZJREVOQ0VfU1RBVFVTX1VOS05PV04QBSrPAQoLU3VyZmFjZUtpbmQSHAoYU1VSRkFDRV9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQU1VSRkFDRV9LSU5EX0FQSRABEhQKEFNVUkZBQ0VfS0lORF9DTEkQAhITCg9TVVJGQUNFX0tJTkRfVUkQAxIYChRTVVJGQUNFX0tJTkRfU0lERUNBUhAEEhcKE1NVUkZBQ0VfS0lORF9XT1JLRVIQBRIUChBTVVJGQUNFX0tJTkRfSk9CEAYSGAoUU1VSRkFDRV9LSU5EX1JVTlRJTUUQByq/AQoNU3VyZmFjZVN0YXR1cxIeChpTVVJGQUNFX1NUQVRVU19VTlNQRUNJRklFRBAAEhgKFFNVUkZBQ0VfU1RBVFVTX0tOT1dOEAESGgoWU1VSRkFDRV9TVEFUVVNfTUlTU0lORxACEh4KGlNVUkZBQ0VfU1RBVFVTX1VOU1VQUE9SVEVEEAMSHAoYU1VSRkFDRV9TVEFUVVNfQU1CSUdVT1VTEAQSGgoWU1VSRkFDRV9TVEFUVVNfVU5LTk9XThAFMq0IChBDb2RlRmFjdHNTZXJ2aWNlEngKEURlc2NyaWJlQ29kZUZhY3RzEjQudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRGVzY3JpYmVDb2RlRmFjdHNSZXF1ZXN0GisudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZUZhY3RzUmVwb3J0IgASYQoGU2VhcmNoEikudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuU2VhcmNoUmVxdWVzdBoqLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlNlYXJjaFJlc3BvbnNlIgASiwEKFERlc2NyaWJlRmxlZXRJbXBvcnRzEjcudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRGVzY3JpYmVGbGVldEltcG9ydHNSZXF1ZXN0GjgudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRGVzY3JpYmVGbGVldEltcG9ydHNSZXNwb25zZSIAEnMKDExpc3RTdXJmYWNlcxIvLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkxpc3RTdXJmYWNlc1JlcXVlc3QaMC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5MaXN0U3VyZmFjZXNSZXNwb25zZSIAEnYKEkNoZWNrUHJvdG9BZG9wdGlvbhI1LnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNoZWNrUHJvdG9BZG9wdGlvblJlcXVlc3QaJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Qcm9vZlJlcG9ydCIAEnYKEkNoZWNrRW5kcG9pbnRQcm9vZhI1LnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNoZWNrRW5kcG9pbnRQcm9vZlJlcXVlc3QaJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Qcm9vZlJlcG9ydCIAEm4KDkdldENhY2hlU3RhdHVzEjEudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuR2V0Q2FjaGVTdGF0dXNSZXF1ZXN0GicudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2FjaGVTdGF0dXMiABJqCgxJbnNwZWN0Q2FjaGUSLy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5JbnNwZWN0Q2FjaGVSZXF1ZXN0GicudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2FjaGVTdGF0dXMiABJtCgpDbGVhckNhY2hlEi0udnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2xlYXJDYWNoZVJlcXVlc3QaLi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DbGVhckNhY2hlUmVzcG9uc2UiAEJNWktnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvZGUtZmFjdHMvdjEvZmFjdHM7ZmFjdHNfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CodeTarget
@@ -45,6 +45,11 @@ export type CodeTarget = Message<"vrooli.code_facts.v1.facts.CodeTarget"> & {
    * @generated from field: bool strict = 6;
    */
   strict: boolean;
+
+  /**
+   * @generated from field: string package_name = 7;
+   */
+  packageName: string;
 };
 
 /**
@@ -92,6 +97,21 @@ export type DescribeCodeFactsRequest = Message<"vrooli.code_facts.v1.facts.Descr
    * @generated from field: bool use_cache = 7;
    */
   useCache: boolean;
+
+  /**
+   * Optional page size for large reports. Zero preserves the historical
+   * single-response behavior.
+   *
+   * @generated from field: int32 page_size = 8;
+   */
+  pageSize: number;
+
+  /**
+   * Decimal fact offset returned by the previous response's next_page_token.
+   *
+   * @generated from field: string page_token = 9;
+   */
+  pageToken: string;
 };
 
 /**
@@ -100,6 +120,173 @@ export type DescribeCodeFactsRequest = Message<"vrooli.code_facts.v1.facts.Descr
  */
 export const DescribeCodeFactsRequestSchema: GenMessage<DescribeCodeFactsRequest> = /*@__PURE__*/
   messageDesc(file_code_facts_v1_facts_facts, 1);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.SearchRequest
+ */
+export type SearchRequest = Message<"vrooli.code_facts.v1.facts.SearchRequest"> & {
+  /**
+   * @generated from field: string query = 1;
+   */
+  query: string;
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit: number;
+
+  /**
+   * @generated from field: vrooli.code_facts.v1.facts.CodeTarget target = 3;
+   */
+  target?: CodeTarget | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.code_facts.v1.facts.FactFamily families = 4;
+   */
+  families: FactFamily[];
+
+  /**
+   * Expand matching node hits with graph edges resolved from the authoritative
+   * Describe path at query time. Edges are never embedded in the Search Hub
+   * corpus.
+   *
+   * @generated from field: bool expand_edges = 5;
+   */
+  expandEdges: boolean;
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.SearchRequest.
+ * Use `create(SearchRequestSchema)` to create a new message.
+ */
+export const SearchRequestSchema: GenMessage<SearchRequest> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 2);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.SearchHit
+ */
+export type SearchHit = Message<"vrooli.code_facts.v1.facts.SearchHit"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string text = 3;
+   */
+  text: string;
+
+  /**
+   * @generated from field: double score = 4;
+   */
+  score: number;
+
+  /**
+   * @generated from field: string path = 5;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string analyzer = 6;
+   */
+  analyzer: string;
+
+  /**
+   * @generated from field: vrooli.code_facts.v1.facts.EvidenceStatus evidence_status = 7;
+   */
+  evidenceStatus: EvidenceStatus;
+
+  /**
+   * @generated from field: string fact_kind = 8;
+   */
+  factKind: string;
+
+  /**
+   * @generated from field: repeated vrooli.code_facts.v1.facts.SearchExpansion edge_expansions = 9;
+   */
+  edgeExpansions: SearchExpansion[];
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.SearchHit.
+ * Use `create(SearchHitSchema)` to create a new message.
+ */
+export const SearchHitSchema: GenMessage<SearchHit> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 3);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.SearchExpansion
+ */
+export type SearchExpansion = Message<"vrooli.code_facts.v1.facts.SearchExpansion"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string text = 3;
+   */
+  text: string;
+
+  /**
+   * @generated from field: string path = 4;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string analyzer = 5;
+   */
+  analyzer: string;
+
+  /**
+   * @generated from field: vrooli.code_facts.v1.facts.EvidenceStatus evidence_status = 6;
+   */
+  evidenceStatus: EvidenceStatus;
+
+  /**
+   * @generated from field: string fact_kind = 7;
+   */
+  factKind: string;
+
+  /**
+   * @generated from field: vrooli.code_facts.v1.facts.FactFamily family = 8;
+   */
+  family: FactFamily;
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.SearchExpansion.
+ * Use `create(SearchExpansionSchema)` to create a new message.
+ */
+export const SearchExpansionSchema: GenMessage<SearchExpansion> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 4);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.SearchResponse
+ */
+export type SearchResponse = Message<"vrooli.code_facts.v1.facts.SearchResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.code_facts.v1.facts.SearchHit results = 1;
+   */
+  results: SearchHit[];
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.SearchResponse.
+ * Use `create(SearchResponseSchema)` to create a new message.
+ */
+export const SearchResponseSchema: GenMessage<SearchResponse> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 5);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.DescribeFleetImportsRequest
@@ -136,7 +323,7 @@ export type DescribeFleetImportsRequest = Message<"vrooli.code_facts.v1.facts.De
  * Use `create(DescribeFleetImportsRequestSchema)` to create a new message.
  */
 export const DescribeFleetImportsRequestSchema: GenMessage<DescribeFleetImportsRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 2);
+  messageDesc(file_code_facts_v1_facts_facts, 6);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CodeFactsResult
@@ -163,7 +350,7 @@ export type CodeFactsResult = Message<"vrooli.code_facts.v1.facts.CodeFactsResul
  * Use `create(CodeFactsResultSchema)` to create a new message.
  */
 export const CodeFactsResultSchema: GenMessage<CodeFactsResult> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 3);
+  messageDesc(file_code_facts_v1_facts_facts, 7);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.DescribeFleetImportsResponse
@@ -180,7 +367,7 @@ export type DescribeFleetImportsResponse = Message<"vrooli.code_facts.v1.facts.D
  * Use `create(DescribeFleetImportsResponseSchema)` to create a new message.
  */
 export const DescribeFleetImportsResponseSchema: GenMessage<DescribeFleetImportsResponse> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 4);
+  messageDesc(file_code_facts_v1_facts_facts, 8);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.ListSurfacesRequest
@@ -202,7 +389,7 @@ export type ListSurfacesRequest = Message<"vrooli.code_facts.v1.facts.ListSurfac
  * Use `create(ListSurfacesRequestSchema)` to create a new message.
  */
 export const ListSurfacesRequestSchema: GenMessage<ListSurfacesRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 5);
+  messageDesc(file_code_facts_v1_facts_facts, 9);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CheckProtoAdoptionRequest
@@ -229,7 +416,7 @@ export type CheckProtoAdoptionRequest = Message<"vrooli.code_facts.v1.facts.Chec
  * Use `create(CheckProtoAdoptionRequestSchema)` to create a new message.
  */
 export const CheckProtoAdoptionRequestSchema: GenMessage<CheckProtoAdoptionRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 6);
+  messageDesc(file_code_facts_v1_facts_facts, 10);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CheckEndpointProofRequest
@@ -256,7 +443,7 @@ export type CheckEndpointProofRequest = Message<"vrooli.code_facts.v1.facts.Chec
  * Use `create(CheckEndpointProofRequestSchema)` to create a new message.
  */
 export const CheckEndpointProofRequestSchema: GenMessage<CheckEndpointProofRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 7);
+  messageDesc(file_code_facts_v1_facts_facts, 11);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.GetCacheStatusRequest
@@ -273,7 +460,7 @@ export type GetCacheStatusRequest = Message<"vrooli.code_facts.v1.facts.GetCache
  * Use `create(GetCacheStatusRequestSchema)` to create a new message.
  */
 export const GetCacheStatusRequestSchema: GenMessage<GetCacheStatusRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 8);
+  messageDesc(file_code_facts_v1_facts_facts, 12);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.InspectCacheRequest
@@ -295,7 +482,7 @@ export type InspectCacheRequest = Message<"vrooli.code_facts.v1.facts.InspectCac
  * Use `create(InspectCacheRequestSchema)` to create a new message.
  */
 export const InspectCacheRequestSchema: GenMessage<InspectCacheRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 9);
+  messageDesc(file_code_facts_v1_facts_facts, 13);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.ClearCacheRequest
@@ -322,7 +509,7 @@ export type ClearCacheRequest = Message<"vrooli.code_facts.v1.facts.ClearCacheRe
  * Use `create(ClearCacheRequestSchema)` to create a new message.
  */
 export const ClearCacheRequestSchema: GenMessage<ClearCacheRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 10);
+  messageDesc(file_code_facts_v1_facts_facts, 14);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.TargetContext
@@ -352,6 +539,11 @@ export type TargetContext = Message<"vrooli.code_facts.v1.facts.TargetContext"> 
    * @generated from field: bool scenario_aware = 5;
    */
   scenarioAware: boolean;
+
+  /**
+   * @generated from field: repeated string root_paths = 6;
+   */
+  rootPaths: string[];
 };
 
 /**
@@ -359,7 +551,7 @@ export type TargetContext = Message<"vrooli.code_facts.v1.facts.TargetContext"> 
  * Use `create(TargetContextSchema)` to create a new message.
  */
 export const TargetContextSchema: GenMessage<TargetContext> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 11);
+  messageDesc(file_code_facts_v1_facts_facts, 15);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.SourceRange
@@ -396,7 +588,7 @@ export type SourceRange = Message<"vrooli.code_facts.v1.facts.SourceRange"> & {
  * Use `create(SourceRangeSchema)` to create a new message.
  */
 export const SourceRangeSchema: GenMessage<SourceRange> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 12);
+  messageDesc(file_code_facts_v1_facts_facts, 16);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.Evidence
@@ -438,7 +630,7 @@ export type Evidence = Message<"vrooli.code_facts.v1.facts.Evidence"> & {
  * Use `create(EvidenceSchema)` to create a new message.
  */
 export const EvidenceSchema: GenMessage<Evidence> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 13);
+  messageDesc(file_code_facts_v1_facts_facts, 17);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.ParseUnit
@@ -480,7 +672,7 @@ export type ParseUnit = Message<"vrooli.code_facts.v1.facts.ParseUnit"> & {
  * Use `create(ParseUnitSchema)` to create a new message.
  */
 export const ParseUnitSchema: GenMessage<ParseUnit> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 14);
+  messageDesc(file_code_facts_v1_facts_facts, 18);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.Surface
@@ -517,7 +709,7 @@ export type Surface = Message<"vrooli.code_facts.v1.facts.Surface"> & {
  * Use `create(SurfaceSchema)` to create a new message.
  */
 export const SurfaceSchema: GenMessage<Surface> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 15);
+  messageDesc(file_code_facts_v1_facts_facts, 19);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.GenericFact
@@ -559,7 +751,7 @@ export type GenericFact = Message<"vrooli.code_facts.v1.facts.GenericFact"> & {
  * Use `create(GenericFactSchema)` to create a new message.
  */
 export const GenericFactSchema: GenMessage<GenericFact> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 16);
+  messageDesc(file_code_facts_v1_facts_facts, 20);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.Warning
@@ -586,7 +778,7 @@ export type Warning = Message<"vrooli.code_facts.v1.facts.Warning"> & {
  * Use `create(WarningSchema)` to create a new message.
  */
 export const WarningSchema: GenMessage<Warning> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 17);
+  messageDesc(file_code_facts_v1_facts_facts, 21);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CacheMetadata
@@ -688,7 +880,7 @@ export type CacheMetadata = Message<"vrooli.code_facts.v1.facts.CacheMetadata"> 
  * Use `create(CacheMetadataSchema)` to create a new message.
  */
 export const CacheMetadataSchema: GenMessage<CacheMetadata> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 18);
+  messageDesc(file_code_facts_v1_facts_facts, 22);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CacheScopeSummary
@@ -715,7 +907,7 @@ export type CacheScopeSummary = Message<"vrooli.code_facts.v1.facts.CacheScopeSu
  * Use `create(CacheScopeSummarySchema)` to create a new message.
  */
 export const CacheScopeSummarySchema: GenMessage<CacheScopeSummary> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 19);
+  messageDesc(file_code_facts_v1_facts_facts, 23);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CacheStatus
@@ -777,7 +969,7 @@ export type CacheStatus = Message<"vrooli.code_facts.v1.facts.CacheStatus"> & {
  * Use `create(CacheStatusSchema)` to create a new message.
  */
 export const CacheStatusSchema: GenMessage<CacheStatus> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 20);
+  messageDesc(file_code_facts_v1_facts_facts, 24);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.ClearCacheResponse
@@ -809,7 +1001,7 @@ export type ClearCacheResponse = Message<"vrooli.code_facts.v1.facts.ClearCacheR
  * Use `create(ClearCacheResponseSchema)` to create a new message.
  */
 export const ClearCacheResponseSchema: GenMessage<ClearCacheResponse> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 21);
+  messageDesc(file_code_facts_v1_facts_facts, 25);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CodeFactsReport
@@ -849,6 +1041,16 @@ export type CodeFactsReport = Message<"vrooli.code_facts.v1.facts.CodeFactsRepor
    * @generated from field: vrooli.code_facts.v1.facts.CacheMetadata cache = 7;
    */
   cache?: CacheMetadata | undefined;
+
+  /**
+   * @generated from field: string next_page_token = 8;
+   */
+  nextPageToken: string;
+
+  /**
+   * @generated from field: int32 total_facts = 9;
+   */
+  totalFacts: number;
 };
 
 /**
@@ -856,7 +1058,7 @@ export type CodeFactsReport = Message<"vrooli.code_facts.v1.facts.CodeFactsRepor
  * Use `create(CodeFactsReportSchema)` to create a new message.
  */
 export const CodeFactsReportSchema: GenMessage<CodeFactsReport> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 22);
+  messageDesc(file_code_facts_v1_facts_facts, 26);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.ListSurfacesResponse
@@ -888,7 +1090,7 @@ export type ListSurfacesResponse = Message<"vrooli.code_facts.v1.facts.ListSurfa
  * Use `create(ListSurfacesResponseSchema)` to create a new message.
  */
 export const ListSurfacesResponseSchema: GenMessage<ListSurfacesResponse> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 23);
+  messageDesc(file_code_facts_v1_facts_facts, 27);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.ProofReport
@@ -930,7 +1132,7 @@ export type ProofReport = Message<"vrooli.code_facts.v1.facts.ProofReport"> & {
  * Use `create(ProofReportSchema)` to create a new message.
  */
 export const ProofReportSchema: GenMessage<ProofReport> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 24);
+  messageDesc(file_code_facts_v1_facts_facts, 28);
 
 /**
  * @generated from enum vrooli.code_facts.v1.facts.TargetKind
@@ -965,6 +1167,41 @@ export enum TargetKind {
    * @generated from enum value: TARGET_KIND_PROJECT = 5;
    */
   PROJECT = 5,
+
+  /**
+   * @generated from enum value: TARGET_KIND_CONTROL_PLANE = 6;
+   */
+  CONTROL_PLANE = 6,
+
+  /**
+   * @generated from enum value: TARGET_KIND_PACKAGE = 7;
+   */
+  PACKAGE = 7,
+
+  /**
+   * @generated from enum value: TARGET_KIND_RESOURCE = 8;
+   */
+  RESOURCE = 8,
+
+  /**
+   * @generated from enum value: TARGET_KIND_TOOL = 9;
+   */
+  TOOL = 9,
+
+  /**
+   * @generated from enum value: TARGET_KIND_SAFEGUARD = 10;
+   */
+  SAFEGUARD = 10,
+
+  /**
+   * @generated from enum value: TARGET_KIND_DOCS = 11;
+   */
+  DOCS = 11,
+
+  /**
+   * @generated from enum value: TARGET_KIND_TEAM = 12;
+   */
+  TEAM = 12,
 }
 
 /**
@@ -1204,6 +1441,18 @@ export const CodeFactsService: GenService<{
     methodKind: "unary";
     input: typeof DescribeCodeFactsRequestSchema;
     output: typeof CodeFactsReportSchema;
+  },
+  /**
+   * Search returns a lexical, provenance-preserving view over node facts. It
+   * is intentionally separate from DescribeCodeFacts so the Search Hub leaf
+   * never needs to ship a full fleet report to answer one identifier query.
+   *
+   * @generated from rpc vrooli.code_facts.v1.facts.CodeFactsService.Search
+   */
+  search: {
+    methodKind: "unary";
+    input: typeof SearchRequestSchema;
+    output: typeof SearchResponseSchema;
   },
   /**
    * DescribeFleetImports returns IMPORTS facts for many or all scenarios.

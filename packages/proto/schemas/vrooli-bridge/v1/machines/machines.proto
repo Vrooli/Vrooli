@@ -136,6 +136,9 @@ message MachineTrust {
   string host_key_fingerprint = 2;
   string host_key_state = 3;
   google.protobuf.Timestamp updated_at = 4;
+  string ssh_user = 5;
+  int32 ssh_port = 6;
+  string connection_state = 7;
 }
 message GetMachineTrustRequest {
   string machine_id = 1;

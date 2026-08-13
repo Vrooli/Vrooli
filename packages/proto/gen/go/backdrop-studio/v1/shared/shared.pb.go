@@ -21,6 +21,78 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// QualityTier is the quality bar a style's SOURCE must meet, which the
+// capability router resolves to a serving lane.
+//
+// It lives on the style because the style is the only place that knows. A
+// Truchet tiling never needs a diffusion model; a Mediterranean colonnade with
+// a statue and a sea behind it always does, and no amount of screening will
+// make three flat tonal zones into that picture. A global configuration switch
+// was rejected for exactly this reason: it forces one cost profile onto a
+// catalog whose styles have genuinely different needs.
+//
+// The tier is a floor, not an instruction. The router serves it with the
+// cheapest lane that meets it and refuses by name when none does — it never
+// downgrades silently, because a frontier-tier style served by a local model is
+// a picture wearing a label it did not earn.
+type QualityTier int32
+
+const (
+	// Unspecified means the style predates the tier and is served procedurally,
+	// which is what every style in seed versions 1 through 7 actually was.
+	QualityTier_QUALITY_TIER_UNSPECIFIED QualityTier = 0
+	// Drawn in-process by a generator. Free, offline, deterministic.
+	QualityTier_QUALITY_TIER_PROCEDURAL QualityTier = 1
+	// Needs a diffusion model; the installed local model set is enough.
+	QualityTier_QUALITY_TIER_LOCAL_MODEL QualityTier = 2
+	// Needs a current frontier image model, reached through image-tools' BYOK
+	// rung and its ai-gateway client. Opt-in per style, because it costs money.
+	QualityTier_QUALITY_TIER_FRONTIER_MODEL QualityTier = 3
+)
+
+// Enum value maps for QualityTier.
+var (
+	QualityTier_name = map[int32]string{
+		0: "QUALITY_TIER_UNSPECIFIED",
+		1: "QUALITY_TIER_PROCEDURAL",
+		2: "QUALITY_TIER_LOCAL_MODEL",
+		3: "QUALITY_TIER_FRONTIER_MODEL",
+	}
+	QualityTier_value = map[string]int32{
+		"QUALITY_TIER_UNSPECIFIED":    0,
+		"QUALITY_TIER_PROCEDURAL":     1,
+		"QUALITY_TIER_LOCAL_MODEL":    2,
+		"QUALITY_TIER_FRONTIER_MODEL": 3,
+	}
+)
+
+func (x QualityTier) Enum() *QualityTier {
+	p := new(QualityTier)
+	*p = x
+	return p
+}
+
+func (x QualityTier) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (QualityTier) Descriptor() protoreflect.EnumDescriptor {
+	return file_backdrop_studio_v1_shared_shared_proto_enumTypes[0].Descriptor()
+}
+
+func (QualityTier) Type() protoreflect.EnumType {
+	return &file_backdrop_studio_v1_shared_shared_proto_enumTypes[0]
+}
+
+func (x QualityTier) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use QualityTier.Descriptor instead.
+func (QualityTier) EnumDescriptor() ([]byte, []int) {
+	return file_backdrop_studio_v1_shared_shared_proto_rawDescGZIP(), []int{0}
+}
+
 type ReservedRegion struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	X             float64                `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
@@ -252,6 +324,119 @@ func (x *GenerationBlock) GetCredential() string {
 	return ""
 }
 
+// RoutingRecord is what actually served one candidate.
+//
+// Every field here answers a question that has no other source after the fact.
+// Which lane drew it decides whether the picture can be reproduced offline;
+// which model decides whether it can be disclosed honestly; what it cost
+// decides whether the catalog is affordable to render. The previous code
+// carried the routing policy as two constants in a Go file, so none of the
+// three was answerable from a candidate — and the constants' predecessor had
+// quietly billed every render to a cloud provider with nothing recording it.
+type RoutingRecord struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The tier the style declared.
+	DeclaredTier QualityTier `protobuf:"varint,1,opt,name=declared_tier,json=declaredTier,proto3,enum=vrooli.backdrop_studio.v1.shared.QualityTier" json:"declared_tier,omitempty"`
+	// The lane that served it: "procedural", "local_model" or "frontier_model".
+	ServedLane string `protobuf:"bytes,2,opt,name=served_lane,json=servedLane,proto3" json:"served_lane,omitempty"`
+	// The registry model image-tools' selector chose. Empty on the procedural
+	// lane, which uses no model. Never a model this scenario asked for: routing
+	// is image-tools' decision and recording a request as a result would be a
+	// fabricated disclosure.
+	ModelId string `protobuf:"bytes,3,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
+	// Where it ran: "local-gpu", "local-cpu" or "byok-cloud".
+	ExecutionTier string `protobuf:"bytes,4,opt,name=execution_tier,json=executionTier,proto3" json:"execution_tier,omitempty"`
+	// Reported cost in USD. Zero on a free lane, and zero is a measurement there
+	// rather than a missing value.
+	CostUsd float64 `protobuf:"fixed64,5,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
+	// Lanes tried and rejected before the served one, in order, so an operator
+	// can see the escalation rather than only its result.
+	AttemptedLanes []string `protobuf:"bytes,6,rep,name=attempted_lanes,json=attemptedLanes,proto3" json:"attempted_lanes,omitempty"`
+	// Why each attempted lane did not serve, aligned with attempted_lanes.
+	AttemptDetails []string `protobuf:"bytes,7,rep,name=attempt_details,json=attemptDetails,proto3" json:"attempt_details,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RoutingRecord) Reset() {
+	*x = RoutingRecord{}
+	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoutingRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoutingRecord) ProtoMessage() {}
+
+func (x *RoutingRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoutingRecord.ProtoReflect.Descriptor instead.
+func (*RoutingRecord) Descriptor() ([]byte, []int) {
+	return file_backdrop_studio_v1_shared_shared_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *RoutingRecord) GetDeclaredTier() QualityTier {
+	if x != nil {
+		return x.DeclaredTier
+	}
+	return QualityTier_QUALITY_TIER_UNSPECIFIED
+}
+
+func (x *RoutingRecord) GetServedLane() string {
+	if x != nil {
+		return x.ServedLane
+	}
+	return ""
+}
+
+func (x *RoutingRecord) GetModelId() string {
+	if x != nil {
+		return x.ModelId
+	}
+	return ""
+}
+
+func (x *RoutingRecord) GetExecutionTier() string {
+	if x != nil {
+		return x.ExecutionTier
+	}
+	return ""
+}
+
+func (x *RoutingRecord) GetCostUsd() float64 {
+	if x != nil {
+		return x.CostUsd
+	}
+	return 0
+}
+
+func (x *RoutingRecord) GetAttemptedLanes() []string {
+	if x != nil {
+		return x.AttemptedLanes
+	}
+	return nil
+}
+
+func (x *RoutingRecord) GetAttemptDetails() []string {
+	if x != nil {
+		return x.AttemptDetails
+	}
+	return nil
+}
+
 type Style struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -267,13 +452,40 @@ type Style struct {
 	ContrastThreshold float64                `protobuf:"fixed64,11,opt,name=contrast_threshold,json=contrastThreshold,proto3" json:"contrast_threshold,omitempty"`
 	Scaffold          *ScaffoldBinding       `protobuf:"bytes,12,opt,name=scaffold,proto3" json:"scaffold,omitempty"`
 	Generation        *GenerationBlock       `protobuf:"bytes,13,opt,name=generation,proto3" json:"generation,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// treatment_params carries the per-style parameters for each named
+	// treatment, keyed by operation name, each value a JSON object.
+	//
+	// They were absent from this message while being the field that decides what
+	// a style actually looks like: two styles naming `halftone` differ only by
+	// their line frequency, angle and inks, so a catalog that ships the chain and
+	// withholds the parameters describes a look it cannot distinguish. Nothing
+	// outside the API could see them — the studio's style page had the chain, the
+	// regions and the prompt, and no way to answer "at what ruling?".
+	TreatmentParams map[string]string `protobuf:"bytes,14,rep,name=treatment_params,json=treatmentParams,proto3" json:"treatment_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// inks are the style's own defaults for the "$brand.*" slots its parameters
+	// reference. They are what let a style render on a cold install with no brand
+	// bound, so an operator reading a style needs to see them to understand what
+	// binding a brand would change.
+	Inks map[string]string `protobuf:"bytes,15,rep,name=inks,proto3" json:"inks,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// parent_id records the style this one was forked from.
+	//
+	// Lineage is what makes a fork reviewable: a style that differs from its
+	// parent on exactly one axis is a comparison, while the same style with no
+	// recorded parent is just another entry someone has to work out from scratch.
+	// The store has tracked it since the catalog was written; it was simply never
+	// on the wire, so the studio could offer a fork it could not record.
+	ParentId string `protobuf:"bytes,16,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
+	// quality_tier is the bar this style's source must meet. See QualityTier:
+	// the router resolves it to the cheapest lane that meets it, records what
+	// served, and refuses by name when nothing does.
+	QualityTier   QualityTier `protobuf:"varint,17,opt,name=quality_tier,json=qualityTier,proto3,enum=vrooli.backdrop_studio.v1.shared.QualityTier" json:"quality_tier,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Style) Reset() {
 	*x = Style{}
-	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[3]
+	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -285,7 +497,7 @@ func (x *Style) String() string {
 func (*Style) ProtoMessage() {}
 
 func (x *Style) ProtoReflect() protoreflect.Message {
-	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[3]
+	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -298,7 +510,7 @@ func (x *Style) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Style.ProtoReflect.Descriptor instead.
 func (*Style) Descriptor() ([]byte, []int) {
-	return file_backdrop_studio_v1_shared_shared_proto_rawDescGZIP(), []int{3}
+	return file_backdrop_studio_v1_shared_shared_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Style) GetId() string {
@@ -392,6 +604,34 @@ func (x *Style) GetGeneration() *GenerationBlock {
 	return nil
 }
 
+func (x *Style) GetTreatmentParams() map[string]string {
+	if x != nil {
+		return x.TreatmentParams
+	}
+	return nil
+}
+
+func (x *Style) GetInks() map[string]string {
+	if x != nil {
+		return x.Inks
+	}
+	return nil
+}
+
+func (x *Style) GetParentId() string {
+	if x != nil {
+		return x.ParentId
+	}
+	return ""
+}
+
+func (x *Style) GetQualityTier() QualityTier {
+	if x != nil {
+		return x.QualityTier
+	}
+	return QualityTier_QUALITY_TIER_UNSPECIFIED
+}
+
 var File_backdrop_studio_v1_shared_shared_proto protoreflect.FileDescriptor
 
 const file_backdrop_studio_v1_shared_shared_proto_rawDesc = "" +
@@ -417,7 +657,16 @@ const file_backdrop_studio_v1_shared_shared_proto_rawDesc = "" +
 	"\fprovider_url\x18\x06 \x01(\tR\vproviderUrl\x12\x1e\n" +
 	"\n" +
 	"credential\x18\a \x01(\tR\n" +
-	"credentialJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x04roleR\aprofile\"\x86\x04\n" +
+	"credentialJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x04roleR\aprofile\"\xb3\x02\n" +
+	"\rRoutingRecord\x12R\n" +
+	"\rdeclared_tier\x18\x01 \x01(\x0e2-.vrooli.backdrop_studio.v1.shared.QualityTierR\fdeclaredTier\x12\x1f\n" +
+	"\vserved_lane\x18\x02 \x01(\tR\n" +
+	"servedLane\x12\x19\n" +
+	"\bmodel_id\x18\x03 \x01(\tR\amodelId\x12%\n" +
+	"\x0eexecution_tier\x18\x04 \x01(\tR\rexecutionTier\x12\x19\n" +
+	"\bcost_usd\x18\x05 \x01(\x01R\acostUsd\x12'\n" +
+	"\x0fattempted_lanes\x18\x06 \x03(\tR\x0eattemptedLanes\x12'\n" +
+	"\x0fattempt_details\x18\a \x03(\tR\x0eattemptDetails\"\xa2\a\n" +
 	"\x05Style\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
@@ -438,7 +687,22 @@ const file_backdrop_studio_v1_shared_shared_proto_rawDesc = "" +
 	"\bscaffold\x18\f \x01(\v21.vrooli.backdrop_studio.v1.shared.ScaffoldBindingR\bscaffold\x12Q\n" +
 	"\n" +
 	"generation\x18\r \x01(\v21.vrooli.backdrop_studio.v1.shared.GenerationBlockR\n" +
-	"generationBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared;shared_v1b\x06proto3"
+	"generation\x12g\n" +
+	"\x10treatment_params\x18\x0e \x03(\v2<.vrooli.backdrop_studio.v1.shared.Style.TreatmentParamsEntryR\x0ftreatmentParams\x12E\n" +
+	"\x04inks\x18\x0f \x03(\v21.vrooli.backdrop_studio.v1.shared.Style.InksEntryR\x04inks\x12\x1b\n" +
+	"\tparent_id\x18\x10 \x01(\tR\bparentId\x12P\n" +
+	"\fquality_tier\x18\x11 \x01(\x0e2-.vrooli.backdrop_studio.v1.shared.QualityTierR\vqualityTier\x1aB\n" +
+	"\x14TreatmentParamsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a7\n" +
+	"\tInksEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*\x87\x01\n" +
+	"\vQualityTier\x12\x1c\n" +
+	"\x18QUALITY_TIER_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17QUALITY_TIER_PROCEDURAL\x10\x01\x12\x1c\n" +
+	"\x18QUALITY_TIER_LOCAL_MODEL\x10\x02\x12\x1f\n" +
+	"\x1bQUALITY_TIER_FRONTIER_MODEL\x10\x03BTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_backdrop_studio_v1_shared_shared_proto_rawDescOnce sync.Once
@@ -452,22 +716,31 @@ func file_backdrop_studio_v1_shared_shared_proto_rawDescGZIP() []byte {
 	return file_backdrop_studio_v1_shared_shared_proto_rawDescData
 }
 
-var file_backdrop_studio_v1_shared_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_backdrop_studio_v1_shared_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_backdrop_studio_v1_shared_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_backdrop_studio_v1_shared_shared_proto_goTypes = []any{
-	(*ReservedRegion)(nil),  // 0: vrooli.backdrop_studio.v1.shared.ReservedRegion
-	(*ScaffoldBinding)(nil), // 1: vrooli.backdrop_studio.v1.shared.ScaffoldBinding
-	(*GenerationBlock)(nil), // 2: vrooli.backdrop_studio.v1.shared.GenerationBlock
-	(*Style)(nil),           // 3: vrooli.backdrop_studio.v1.shared.Style
+	(QualityTier)(0),        // 0: vrooli.backdrop_studio.v1.shared.QualityTier
+	(*ReservedRegion)(nil),  // 1: vrooli.backdrop_studio.v1.shared.ReservedRegion
+	(*ScaffoldBinding)(nil), // 2: vrooli.backdrop_studio.v1.shared.ScaffoldBinding
+	(*GenerationBlock)(nil), // 3: vrooli.backdrop_studio.v1.shared.GenerationBlock
+	(*RoutingRecord)(nil),   // 4: vrooli.backdrop_studio.v1.shared.RoutingRecord
+	(*Style)(nil),           // 5: vrooli.backdrop_studio.v1.shared.Style
+	nil,                     // 6: vrooli.backdrop_studio.v1.shared.Style.TreatmentParamsEntry
+	nil,                     // 7: vrooli.backdrop_studio.v1.shared.Style.InksEntry
 }
 var file_backdrop_studio_v1_shared_shared_proto_depIdxs = []int32{
-	0, // 0: vrooli.backdrop_studio.v1.shared.Style.regions:type_name -> vrooli.backdrop_studio.v1.shared.ReservedRegion
-	1, // 1: vrooli.backdrop_studio.v1.shared.Style.scaffold:type_name -> vrooli.backdrop_studio.v1.shared.ScaffoldBinding
-	2, // 2: vrooli.backdrop_studio.v1.shared.Style.generation:type_name -> vrooli.backdrop_studio.v1.shared.GenerationBlock
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	0, // 0: vrooli.backdrop_studio.v1.shared.RoutingRecord.declared_tier:type_name -> vrooli.backdrop_studio.v1.shared.QualityTier
+	1, // 1: vrooli.backdrop_studio.v1.shared.Style.regions:type_name -> vrooli.backdrop_studio.v1.shared.ReservedRegion
+	2, // 2: vrooli.backdrop_studio.v1.shared.Style.scaffold:type_name -> vrooli.backdrop_studio.v1.shared.ScaffoldBinding
+	3, // 3: vrooli.backdrop_studio.v1.shared.Style.generation:type_name -> vrooli.backdrop_studio.v1.shared.GenerationBlock
+	6, // 4: vrooli.backdrop_studio.v1.shared.Style.treatment_params:type_name -> vrooli.backdrop_studio.v1.shared.Style.TreatmentParamsEntry
+	7, // 5: vrooli.backdrop_studio.v1.shared.Style.inks:type_name -> vrooli.backdrop_studio.v1.shared.Style.InksEntry
+	0, // 6: vrooli.backdrop_studio.v1.shared.Style.quality_tier:type_name -> vrooli.backdrop_studio.v1.shared.QualityTier
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_backdrop_studio_v1_shared_shared_proto_init() }
@@ -480,13 +753,14 @@ func file_backdrop_studio_v1_shared_shared_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_backdrop_studio_v1_shared_shared_proto_rawDesc), len(file_backdrop_studio_v1_shared_shared_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   4,
+			NumEnums:      1,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_backdrop_studio_v1_shared_shared_proto_goTypes,
 		DependencyIndexes: file_backdrop_studio_v1_shared_shared_proto_depIdxs,
+		EnumInfos:         file_backdrop_studio_v1_shared_shared_proto_enumTypes,
 		MessageInfos:      file_backdrop_studio_v1_shared_shared_proto_msgTypes,
 	}.Build()
 	File_backdrop_studio_v1_shared_shared_proto = out.File

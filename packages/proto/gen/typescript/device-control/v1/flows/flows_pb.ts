@@ -11,7 +11,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file device-control/v1/flows/flows.proto.
  */
 export const file_device_control_v1_flows_flows: GenFile = /*@__PURE__*/
-  fileDesc("CiNkZXZpY2UtY29udHJvbC92MS9mbG93cy9mbG93cy5wcm90bxIednJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzIl4KE1ZhbGlkYXRlRmxvd1JlcXVlc3QSMgoEZmxvdxgBIAEoCzIkLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5GbG93EhMKC3N0cmF0ZWd5X2lkGAIgASgJInsKDlJ1bkZsb3dSZXF1ZXN0EjIKBGZsb3cYASABKAsyJC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuRmxvdxIRCglkZXZpY2VfaWQYAiABKAkSDQoFYWN0b3IYAyABKAkSEwoLbGVhc2VfdG9rZW4YBCABKAkidwoERmxvdxIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEjMKBXN0ZXBzGAMgAygLMiQudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLlN0ZXASIAoYYWxsb3dfdW5yZWRhY3RlZF9jYXB0dXJlGAQgASgIIo8BCgRTdGVwEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkSHQoVcmVxdWlyZWRfY2FwYWJpbGl0aWVzGAMgAygJEg4KBnRhcmdldBgEIAEoCRISCgp0aW1lb3V0X21zGAUgASgDEioKCWFyZ3VtZW50cxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiRwoTQ2FwYWJpbGl0eUdhcFJlcG9ydBIQCghydW5uYWJsZRgBIAEoCBIMCgRnYXBzGAIgAygJEhAKCHdhcm5pbmdzGAMgAygJIvEBCglSdW5SZXN1bHQSDgoGcnVuX2lkGAEgASgJEhMKC2Rpc3Bvc2l0aW9uGAIgASgJEjkKCGNoYXB0ZXJzGAMgAygLMicudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLkNoYXB0ZXISPwoLcmVzb2x1dGlvbnMYBCADKAsyKi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuUmVzb2x1dGlvbhJDCghldmlkZW5jZRgFIAMoCzIxLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5FdmlkZW5jZVJlZmVyZW5jZSJKCgdDaGFwdGVyEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC2Rpc3Bvc2l0aW9uGAMgASgJEg8KB21lc3NhZ2UYBCABKAkiPgoKUmVzb2x1dGlvbhIOCgZ0YXJnZXQYASABKAkSDAoEcnVuZxgCIAEoCRISCgpjb25maWRlbmNlGAMgASgBIu4BChFFdmlkZW5jZVJlZmVyZW5jZRIKCgJpZBgBIAEoCRIOCgZzaGEyNTYYAiABKAkSEgoKc2l6ZV9ieXRlcxgDIAEoAxISCgpjcmVhdGVkX2F0GAQgASgJEhoKEnJlZGFjdGlvbl92ZXJpZmllZBgFIAEoCBIYChByZWNvcmRpbmdfbWV0aG9kGAYgASgJEhUKDWVmZmVjdGl2ZV9mcHMYByABKAESEAoIcHJvZHVjZXIYCCABKAkSDAoEa2luZBgJIAEoCRIVCg1hcHBsaWVkX3J1bGVzGAogAygJEhEKCW9wdGVkX291dBgLIAEoCDLtAQoLRmxvd1NlcnZpY2USeAoMVmFsaWRhdGVGbG93EjMudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLlZhbGlkYXRlRmxvd1JlcXVlc3QaMy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuQ2FwYWJpbGl0eUdhcFJlcG9ydBJkCgdSdW5GbG93Ei4udnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLlJ1bkZsb3dSZXF1ZXN0GikudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLlJ1blJlc3VsdEJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2RldmljZS1jb250cm9sL3YxL2Zsb3dzO2Zsb3dzX3YxYgZwcm90bzM", [file_google_protobuf_struct]);
+  fileDesc("CiNkZXZpY2UtY29udHJvbC92MS9mbG93cy9mbG93cy5wcm90bxIednJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzIl4KE1ZhbGlkYXRlRmxvd1JlcXVlc3QSMgoEZmxvdxgBIAEoCzIkLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5GbG93EhMKC3N0cmF0ZWd5X2lkGAIgASgJInsKDlJ1bkZsb3dSZXF1ZXN0EjIKBGZsb3cYASABKAsyJC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuRmxvdxIRCglkZXZpY2VfaWQYAiABKAkSDQoFYWN0b3IYAyABKAkSEwoLbGVhc2VfdG9rZW4YBCABKAkivQEKBEZsb3cSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIzCgVzdGVwcxgDIAMoCzIkLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5TdGVwEiAKGGFsbG93X3VucmVkYWN0ZWRfY2FwdHVyZRgEIAEoCBIRCgl0cmFuc3BvcnQYBSABKAkSGAoQcmVxdWlyZV91bmxvY2tlZBgGIAEoCBIXCg9hdXRoX3Byb2ZpbGVfaWQYByABKAkijwEKBFN0ZXASCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIdChVyZXF1aXJlZF9jYXBhYmlsaXRpZXMYAyADKAkSDgoGdGFyZ2V0GAQgASgJEhIKCnRpbWVvdXRfbXMYBSABKAMSKgoJYXJndW1lbnRzGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCJHChNDYXBhYmlsaXR5R2FwUmVwb3J0EhAKCHJ1bm5hYmxlGAEgASgIEgwKBGdhcHMYAiADKAkSEAoId2FybmluZ3MYAyADKAkiuQIKCVJ1blJlc3VsdBIOCgZydW5faWQYASABKAkSEwoLZGlzcG9zaXRpb24YAiABKAkSOQoIY2hhcHRlcnMYAyADKAsyJy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZmxvd3MuQ2hhcHRlchI/CgtyZXNvbHV0aW9ucxgEIAMoCzIqLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5SZXNvbHV0aW9uEkMKCGV2aWRlbmNlGAUgAygLMjEudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLkV2aWRlbmNlUmVmZXJlbmNlEhIKCmluY29tcGxldGUYBiABKAgSGQoRZGlzY29ubmVjdF9yZWFzb24YByABKAkSFwoPZGlzY29ubmVjdF9zdGVwGAggASgJIkoKB0NoYXB0ZXISCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEwoLZGlzcG9zaXRpb24YAyABKAkSDwoHbWVzc2FnZRgEIAEoCSI+CgpSZXNvbHV0aW9uEg4KBnRhcmdldBgBIAEoCRIMCgRydW5nGAIgASgJEhIKCmNvbmZpZGVuY2UYAyABKAEi0AIKEUV2aWRlbmNlUmVmZXJlbmNlEgoKAmlkGAEgASgJEg4KBnNoYTI1NhgCIAEoCRISCgpzaXplX2J5dGVzGAMgASgDEhIKCmNyZWF0ZWRfYXQYBCABKAkSGgoScmVkYWN0aW9uX3ZlcmlmaWVkGAUgASgIEhgKEHJlY29yZGluZ19tZXRob2QYBiABKAkSFQoNZWZmZWN0aXZlX2ZwcxgHIAEoARIQCghwcm9kdWNlchgIIAEoCRIMCgRraW5kGAkgASgJEhUKDWFwcGxpZWRfcnVsZXMYCiADKAkSEQoJb3B0ZWRfb3V0GAsgASgIEhMKC2NsYWltX2NsYXNzGAwgASgJEhoKEm1pbmltdW1fdXNlZnVsX2ZwcxgNIAEoARITCgtkaXNwb3NpdGlvbhgOIAEoCRIaChJkaXNwb3NpdGlvbl9yZWFzb24YDyABKAky7QEKC0Zsb3dTZXJ2aWNlEngKDFZhbGlkYXRlRmxvdxIzLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5WYWxpZGF0ZUZsb3dSZXF1ZXN0GjMudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmZsb3dzLkNhcGFiaWxpdHlHYXBSZXBvcnQSZAoHUnVuRmxvdxIuLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5SdW5GbG93UmVxdWVzdBopLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5mbG93cy5SdW5SZXN1bHRCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kZXZpY2UtY29udHJvbC92MS9mbG93cztmbG93c192MWIGcHJvdG8z", [file_google_protobuf_struct]);
 
 /**
  * @generated from message vrooli.device_control.v1.flows.ValidateFlowRequest
@@ -90,6 +90,23 @@ export type Flow = Message<"vrooli.device_control.v1.flows.Flow"> & {
    * @generated from field: bool allow_unredacted_capture = 4;
    */
   allowUnredactedCapture: boolean;
+
+  /**
+   * usb is the default; wireless must be explicitly requested after promotion.
+   *
+   * @generated from field: string transport = 5;
+   */
+  transport: string;
+
+  /**
+   * @generated from field: bool require_unlocked = 6;
+   */
+  requireUnlocked: boolean;
+
+  /**
+   * @generated from field: string auth_profile_id = 7;
+   */
+  authProfileId: string;
 };
 
 /**
@@ -196,6 +213,21 @@ export type RunResult = Message<"vrooli.device_control.v1.flows.RunResult"> & {
    * @generated from field: repeated vrooli.device_control.v1.flows.EvidenceReference evidence = 5;
    */
   evidence: EvidenceReference[];
+
+  /**
+   * @generated from field: bool incomplete = 6;
+   */
+  incomplete: boolean;
+
+  /**
+   * @generated from field: string disconnect_reason = 7;
+   */
+  disconnectReason: string;
+
+  /**
+   * @generated from field: string disconnect_step = 8;
+   */
+  disconnectStep: string;
 };
 
 /**
@@ -322,6 +354,26 @@ export type EvidenceReference = Message<"vrooli.device_control.v1.flows.Evidence
    * @generated from field: bool opted_out = 11;
    */
   optedOut: boolean;
+
+  /**
+   * @generated from field: string claim_class = 12;
+   */
+  claimClass: string;
+
+  /**
+   * @generated from field: double minimum_useful_fps = 13;
+   */
+  minimumUsefulFps: number;
+
+  /**
+   * @generated from field: string disposition = 14;
+   */
+  disposition: string;
+
+  /**
+   * @generated from field: string disposition_reason = 15;
+   */
+  dispositionReason: string;
 };
 
 /**

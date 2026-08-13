@@ -35,6 +35,15 @@ class OnboardingStepStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ONBOARDING_STEP_STATUS_OK: _ClassVar[OnboardingStepStatus]
     ONBOARDING_STEP_STATUS_SKIPPED: _ClassVar[OnboardingStepStatus]
     ONBOARDING_STEP_STATUS_FAILED: _ClassVar[OnboardingStepStatus]
+
+class ConnectDecision(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CONNECT_DECISION_UNSPECIFIED: _ClassVar[ConnectDecision]
+    CONNECT_DECISION_RECONNECT: _ClassVar[ConnectDecision]
+    CONNECT_DECISION_FIRST_TOUCH: _ClassVar[ConnectDecision]
+    CONNECT_DECISION_RECOVERY_REQUIRED: _ClassVar[ConnectDecision]
+    CONNECT_DECISION_AMBIGUOUS: _ClassVar[ConnectDecision]
+    CONNECT_DECISION_HOST_KEY_REVIEW: _ClassVar[ConnectDecision]
 ONBOARDING_STATE_UNSPECIFIED: OnboardingState
 ONBOARDING_STATE_PENDING: OnboardingState
 ONBOARDING_STATE_SSH_SETUP: OnboardingState
@@ -52,6 +61,12 @@ ONBOARDING_STEP_STATUS_STARTED: OnboardingStepStatus
 ONBOARDING_STEP_STATUS_OK: OnboardingStepStatus
 ONBOARDING_STEP_STATUS_SKIPPED: OnboardingStepStatus
 ONBOARDING_STEP_STATUS_FAILED: OnboardingStepStatus
+CONNECT_DECISION_UNSPECIFIED: ConnectDecision
+CONNECT_DECISION_RECONNECT: ConnectDecision
+CONNECT_DECISION_FIRST_TOUCH: ConnectDecision
+CONNECT_DECISION_RECOVERY_REQUIRED: ConnectDecision
+CONNECT_DECISION_AMBIGUOUS: ConnectDecision
+CONNECT_DECISION_HOST_KEY_REVIEW: ConnectDecision
 
 class OnboardingOp(_message.Message):
     __slots__ = ("id", "host", "port", "user", "node_name", "target_revision", "repo_url", "state", "node_id", "failure_reason", "exit_code", "created_at", "started_at", "finished_at", "source_mode", "base_revision", "working_tree_digest", "failure_detail", "control_plane_url", "reachability_mode", "machine_id", "enrollment_attempt_id")
@@ -116,6 +131,40 @@ class OnboardingStepEvent(_message.Message):
     detail: str
     emitted_at: _timestamp_pb2.Timestamp
     def __init__(self, op_id: _Optional[str] = ..., sequence: _Optional[int] = ..., step_id: _Optional[str] = ..., status: _Optional[_Union[OnboardingStepStatus, str]] = ..., detail: _Optional[str] = ..., emitted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class PreflightOnboardingRequest(_message.Message):
+    __slots__ = ("host", "port", "user", "machine_id")
+    HOST_FIELD_NUMBER: _ClassVar[int]
+    PORT_FIELD_NUMBER: _ClassVar[int]
+    USER_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    host: str
+    port: int
+    user: str
+    machine_id: str
+    def __init__(self, host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., machine_id: _Optional[str] = ...) -> None: ...
+
+class PreflightOnboardingResponse(_message.Message):
+    __slots__ = ("decision", "machine_id", "host", "port", "user", "client_key_fingerprint", "host_key_fingerprint", "password_required", "message")
+    DECISION_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    HOST_FIELD_NUMBER: _ClassVar[int]
+    PORT_FIELD_NUMBER: _ClassVar[int]
+    USER_FIELD_NUMBER: _ClassVar[int]
+    CLIENT_KEY_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    HOST_KEY_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    PASSWORD_REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    decision: ConnectDecision
+    machine_id: str
+    host: str
+    port: int
+    user: str
+    client_key_fingerprint: str
+    host_key_fingerprint: str
+    password_required: bool
+    message: str
+    def __init__(self, decision: _Optional[_Union[ConnectDecision, str]] = ..., machine_id: _Optional[str] = ..., host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., client_key_fingerprint: _Optional[str] = ..., host_key_fingerprint: _Optional[str] = ..., password_required: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
 
 class StartOnboardingRequest(_message.Message):
     __slots__ = ("host", "port", "user", "ssh_password", "node_name", "target_revision", "repo_url", "checkout_dir", "control_plane_url", "capabilities", "verify_timeout_seconds", "skip_setup", "skip_prereqs", "provision_sudo", "setup_environment", "setup_resources", "setup_scenarios", "include_optional", "source_mode", "reachability_mode", "machine_id", "retry_of_enrollment_attempt_id", "setup_passphrase")

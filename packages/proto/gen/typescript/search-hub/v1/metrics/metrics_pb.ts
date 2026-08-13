@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file search-hub/v1/metrics/metrics.proto.
  */
 export const file_search_hub_v1_metrics_metrics: GenFile = /*@__PURE__*/
-  fileDesc("CiNzZWFyY2gtaHViL3YxL21ldHJpY3MvbWV0cmljcy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcyImCg9JbnNpZ2h0c1JlcXVlc3QSEwoLd2luZG93X2RheXMYASABKAUiygIKE1Byb3ZpZGVyVXRpbGl6YXRpb24SEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIUCgx0aW1lc19yb3V0ZWQYBCABKAMSEgoKdG90YWxfaGl0cxgFIAEoAxIWCg51bmRlcl91dGlsaXplZBgGIAEoCBIWCg5sYXRlbmN5X3A1MF9tcxgHIAEoAxIWCg5sYXRlbmN5X3A5NV9tcxgIIAEoAxIWCg5kZWdyYWRlZF9jb3VudBgJIAEoAxIYChBkZWdyYWRhdGlvbl9yYXRlGAogASgBElQKE2RlZ3JhZGF0aW9uX3JlYXNvbnMYCyADKAsyNy52cm9vbGkuc2VhcmNoX2h1Yi52MS5tZXRyaWNzLlByb3ZpZGVyRGVncmFkYXRpb25SZWFzb24iOgoZUHJvdmlkZXJEZWdyYWRhdGlvblJlYXNvbhIOCgZyZWFzb24YASABKAkSDQoFY291bnQYAiABKAMibAobUHJvdmlkZXJSZXRpcmVtZW50Q2FuZGlkYXRlEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhQKDHRpbWVzX3JvdXRlZBgCIAEoAxISCgp0b3RhbF9oaXRzGAMgASgDEg4KBnJlYXNvbhgEIAEoCSJlChVQcm92aWRlckdyb3VwQWR2aXNvcnkSFgoOcHJvdmlkZXJfZ3JvdXAYASABKAkSFQoNYWN0aXZlX2xlYXZlcxgCIAEoBRINCgVzaGFyZRgDIAEoARIOCgZyZWFzb24YBCABKAkikAQKEEluc2lnaHRzUmVzcG9uc2USFQoNdG90YWxfcXVlcmllcxgBIAEoAxIbChN6ZXJvX3Jlc3VsdF9xdWVyaWVzGAIgASgDEhgKEHplcm9fcmVzdWx0X3JhdGUYAyABKAESGAoQZGVncmFkZWRfcXVlcmllcxgEIAEoAxIYChByZXJhbmtlZF9xdWVyaWVzGAUgASgDEhYKDmxhdGVuY3lfcDUwX21zGAYgASgDEhYKDmxhdGVuY3lfcDk1X21zGAcgASgDEkQKCXByb3ZpZGVycxgIIAMoCzIxLnZyb29saS5zZWFyY2hfaHViLnYxLm1ldHJpY3MuUHJvdmlkZXJVdGlsaXphdGlvbhJYChVyZXRpcmVtZW50X2NhbmRpZGF0ZXMYCSADKAsyOS52cm9vbGkuc2VhcmNoX2h1Yi52MS5tZXRyaWNzLlByb3ZpZGVyUmV0aXJlbWVudENhbmRpZGF0ZRJNChBncm91cF9hZHZpc29yaWVzGAogAygLMjMudnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcy5Qcm92aWRlckdyb3VwQWR2aXNvcnkSGwoTcmVzb2x2ZXJfY2FjaGVfaGl0cxgLIAEoAxIdChVyZXNvbHZlcl9jYWNoZV9taXNzZXMYDCABKAMSHwoXcmVzb2x2ZXJfY2FjaGVfaGl0X3JhdGUYDSABKAEyewoOTWV0cmljc1NlcnZpY2USaQoISW5zaWdodHMSLS52cm9vbGkuc2VhcmNoX2h1Yi52MS5tZXRyaWNzLkluc2lnaHRzUmVxdWVzdBouLnZyb29saS5zZWFyY2hfaHViLnYxLm1ldHJpY3MuSW5zaWdodHNSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NlYXJjaC1odWIvdjEvbWV0cmljczttZXRyaWNzX3YxYgZwcm90bzM");
+  fileDesc("CiNzZWFyY2gtaHViL3YxL21ldHJpY3MvbWV0cmljcy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcyI2Cg9JbnNpZ2h0c1JlcXVlc3QSEwoLd2luZG93X2RheXMYASABKAUSDgoGd2luZG93GAIgASgJIucCChNQcm92aWRlclV0aWxpemF0aW9uEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhYKDnByb3ZpZGVyX2dyb3VwGAIgASgJEgwKBHR5cGUYAyABKAkSFAoMdGltZXNfcm91dGVkGAQgASgDEhIKCnRvdGFsX2hpdHMYBSABKAMSFgoOdW5kZXJfdXRpbGl6ZWQYBiABKAgSFgoObGF0ZW5jeV9wNTBfbXMYByABKAMSFgoObGF0ZW5jeV9wOTVfbXMYCCABKAMSFgoOZGVncmFkZWRfY291bnQYCSABKAMSGAoQZGVncmFkYXRpb25fcmF0ZRgKIAEoARJUChNkZWdyYWRhdGlvbl9yZWFzb25zGAsgAygLMjcudnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcy5Qcm92aWRlckRlZ3JhZGF0aW9uUmVhc29uEhsKE2FjdGl2ZV9yZXJhbmtlcl9sZWcYDCABKAkiOgoZUHJvdmlkZXJEZWdyYWRhdGlvblJlYXNvbhIOCgZyZWFzb24YASABKAkSDQoFY291bnQYAiABKAMibAobUHJvdmlkZXJSZXRpcmVtZW50Q2FuZGlkYXRlEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhQKDHRpbWVzX3JvdXRlZBgCIAEoAxISCgp0b3RhbF9oaXRzGAMgASgDEg4KBnJlYXNvbhgEIAEoCSJlChVQcm92aWRlckdyb3VwQWR2aXNvcnkSFgoOcHJvdmlkZXJfZ3JvdXAYASABKAkSFQoNYWN0aXZlX2xlYXZlcxgCIAEoBRINCgVzaGFyZRgDIAEoARIOCgZyZWFzb24YBCABKAki4gUKEEluc2lnaHRzUmVzcG9uc2USFQoNdG90YWxfcXVlcmllcxgBIAEoAxIbChN6ZXJvX3Jlc3VsdF9xdWVyaWVzGAIgASgDEhgKEHplcm9fcmVzdWx0X3JhdGUYAyABKAESGAoQZGVncmFkZWRfcXVlcmllcxgEIAEoAxIYChByZXJhbmtlZF9xdWVyaWVzGAUgASgDEhYKDmxhdGVuY3lfcDUwX21zGAYgASgDEhYKDmxhdGVuY3lfcDk1X21zGAcgASgDEkQKCXByb3ZpZGVycxgIIAMoCzIxLnZyb29saS5zZWFyY2hfaHViLnYxLm1ldHJpY3MuUHJvdmlkZXJVdGlsaXphdGlvbhJYChVyZXRpcmVtZW50X2NhbmRpZGF0ZXMYCSADKAsyOS52cm9vbGkuc2VhcmNoX2h1Yi52MS5tZXRyaWNzLlByb3ZpZGVyUmV0aXJlbWVudENhbmRpZGF0ZRJNChBncm91cF9hZHZpc29yaWVzGAogAygLMjMudnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcy5Qcm92aWRlckdyb3VwQWR2aXNvcnkSGwoTcmVzb2x2ZXJfY2FjaGVfaGl0cxgLIAEoAxIdChVyZXNvbHZlcl9jYWNoZV9taXNzZXMYDCABKAMSHwoXcmVzb2x2ZXJfY2FjaGVfaGl0X3JhdGUYDSABKAESEwoLd2luZG93X2Zyb20YDiABKAkSEQoJd2luZG93X3RvGA8gASgJEhQKDHNhbXBsZV9jb3VudBgQIAEoAxIcChRtaW5pbXVtX3NhbXBsZV9jb3VudBgRIAEoAxIZChFzYW1wbGVfc3VmZmljaWVudBgSIAEoCBIbChNyZWNlbnRfc2FtcGxlX2NvdW50GBMgASgDEh0KFXJlY2VudF9sYXRlbmN5X3A1MF9tcxgUIAEoAxIdChVyZWNlbnRfbGF0ZW5jeV9wOTVfbXMYFSABKAMyewoOTWV0cmljc1NlcnZpY2USaQoISW5zaWdodHMSLS52cm9vbGkuc2VhcmNoX2h1Yi52MS5tZXRyaWNzLkluc2lnaHRzUmVxdWVzdBouLnZyb29saS5zZWFyY2hfaHViLnYxLm1ldHJpY3MuSW5zaWdodHNSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NlYXJjaC1odWIvdjEvbWV0cmljczttZXRyaWNzX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.search_hub.v1.metrics.InsightsRequest
@@ -23,6 +23,14 @@ export type InsightsRequest = Message<"vrooli.search_hub.v1.metrics.InsightsRequ
    * @generated from field: int32 window_days = 1;
    */
   windowDays: number;
+
+  /**
+   * Optional duration window such as 15m or 2h. A bare integer is interpreted
+   * as days by the server for compatibility with window_days.
+   *
+   * @generated from field: string window = 2;
+   */
+  window: string;
 };
 
 /**
@@ -96,6 +104,13 @@ export type ProviderUtilization = Message<"vrooli.search_hub.v1.metrics.Provider
    * @generated from field: repeated vrooli.search_hub.v1.metrics.ProviderDegradationReason degradation_reasons = 11;
    */
   degradationReasons: ProviderDegradationReason[];
+
+  /**
+   * The reranker leg most recently observed for this provider in the window.
+   *
+   * @generated from field: string active_reranker_leg = 12;
+   */
+  activeRerankerLeg: string;
 };
 
 /**
@@ -276,6 +291,52 @@ export type InsightsResponse = Message<"vrooli.search_hub.v1.metrics.InsightsRes
    * @generated from field: double resolver_cache_hit_rate = 13;
    */
   resolverCacheHitRate: number;
+
+  /**
+   * Auditable bounds and evidence quality for the aggregate.
+   *
+   * @generated from field: string window_from = 14;
+   */
+  windowFrom: string;
+
+  /**
+   * @generated from field: string window_to = 15;
+   */
+  windowTo: string;
+
+  /**
+   * @generated from field: int64 sample_count = 16;
+   */
+  sampleCount: bigint;
+
+  /**
+   * @generated from field: int64 minimum_sample_count = 17;
+   */
+  minimumSampleCount: bigint;
+
+  /**
+   * @generated from field: bool sample_sufficient = 18;
+   */
+  sampleSufficient: boolean;
+
+  /**
+   * Rolling recent-N latency percentiles, labelled separately from the
+   * requested window so an operator can compare current behaviour with the
+   * full window without confusing the two populations.
+   *
+   * @generated from field: int64 recent_sample_count = 19;
+   */
+  recentSampleCount: bigint;
+
+  /**
+   * @generated from field: int64 recent_latency_p50_ms = 20;
+   */
+  recentLatencyP50Ms: bigint;
+
+  /**
+   * @generated from field: int64 recent_latency_p95_ms = 21;
+   */
+  recentLatencyP95Ms: bigint;
 };
 
 /**

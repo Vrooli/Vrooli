@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "offer-desk",
+  "description": "Experience contract for Offer Desk. This is an operator tool read a few times a week, not a monitored dashboard: every surface must be understandable cold, without remembering what was true last visit.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Board",
+      "status": "active"
+    },
+    {
+      "id": "offers",
+      "path": "pages/offers.json",
+      "title": "Offers",
+      "status": "draft"
+    },
+    {
+      "id": "proposals",
+      "path": "pages/proposals.json",
+      "title": "Proposals",
+      "status": "draft"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    },
+    {
+      "id": "notes",
+      "path": "pages/notes.json",
+      "title": "Notes",
+      "status": "deprecated"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "disposition-a-fired-trigger",
+      "path": "journeys/disposition-a-fired-trigger.json",
+      "title": "Disposition a fired trigger",
+      "status": "draft"
+    },
+    {
+      "id": "learn-from-a-refusal",
+      "path": "journeys/learn-from-a-refusal.json",
+      "title": "Learn from a refusal",
+      "status": "draft"
+    }
+  ]
+}

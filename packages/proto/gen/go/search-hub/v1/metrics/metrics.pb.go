@@ -25,7 +25,10 @@ type InsightsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional: restrict aggregates to telemetry recorded in the last N days.
 	// 0 (the default) means all-time.
-	WindowDays    int32 `protobuf:"varint,1,opt,name=window_days,json=windowDays,proto3" json:"window_days,omitempty"`
+	WindowDays int32 `protobuf:"varint,1,opt,name=window_days,json=windowDays,proto3" json:"window_days,omitempty"`
+	// Optional duration window such as 15m or 2h. A bare integer is interpreted
+	// as days by the server for compatibility with window_days.
+	Window        string `protobuf:"bytes,2,opt,name=window,proto3" json:"window,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -67,6 +70,13 @@ func (x *InsightsRequest) GetWindowDays() int32 {
 	return 0
 }
 
+func (x *InsightsRequest) GetWindow() string {
+	if x != nil {
+		return x.Window
+	}
+	return ""
+}
+
 // Per-provider routing utilization over the window. `times_routed` counts the
 // queries that fanned out to this leaf; `total_hits` sums the results it
 // contributed. `under_utilized` flags an ACTIVE registry leaf that was never
@@ -85,8 +95,10 @@ type ProviderUtilization struct {
 	DegradedCount      int64                        `protobuf:"varint,9,opt,name=degraded_count,json=degradedCount,proto3" json:"degraded_count,omitempty"`
 	DegradationRate    float64                      `protobuf:"fixed64,10,opt,name=degradation_rate,json=degradationRate,proto3" json:"degradation_rate,omitempty"`
 	DegradationReasons []*ProviderDegradationReason `protobuf:"bytes,11,rep,name=degradation_reasons,json=degradationReasons,proto3" json:"degradation_reasons,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// The reranker leg most recently observed for this provider in the window.
+	ActiveRerankerLeg string `protobuf:"bytes,12,opt,name=active_reranker_leg,json=activeRerankerLeg,proto3" json:"active_reranker_leg,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ProviderUtilization) Reset() {
@@ -194,6 +206,13 @@ func (x *ProviderUtilization) GetDegradationReasons() []*ProviderDegradationReas
 		return x.DegradationReasons
 	}
 	return nil
+}
+
+func (x *ProviderUtilization) GetActiveRerankerLeg() string {
+	if x != nil {
+		return x.ActiveRerankerLeg
+	}
+	return ""
 }
 
 type ProviderDegradationReason struct {
@@ -408,8 +427,20 @@ type InsightsResponse struct {
 	ResolverCacheHits    int64                          `protobuf:"varint,11,opt,name=resolver_cache_hits,json=resolverCacheHits,proto3" json:"resolver_cache_hits,omitempty"`
 	ResolverCacheMisses  int64                          `protobuf:"varint,12,opt,name=resolver_cache_misses,json=resolverCacheMisses,proto3" json:"resolver_cache_misses,omitempty"`
 	ResolverCacheHitRate float64                        `protobuf:"fixed64,13,opt,name=resolver_cache_hit_rate,json=resolverCacheHitRate,proto3" json:"resolver_cache_hit_rate,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Auditable bounds and evidence quality for the aggregate.
+	WindowFrom         string `protobuf:"bytes,14,opt,name=window_from,json=windowFrom,proto3" json:"window_from,omitempty"`
+	WindowTo           string `protobuf:"bytes,15,opt,name=window_to,json=windowTo,proto3" json:"window_to,omitempty"`
+	SampleCount        int64  `protobuf:"varint,16,opt,name=sample_count,json=sampleCount,proto3" json:"sample_count,omitempty"`
+	MinimumSampleCount int64  `protobuf:"varint,17,opt,name=minimum_sample_count,json=minimumSampleCount,proto3" json:"minimum_sample_count,omitempty"`
+	SampleSufficient   bool   `protobuf:"varint,18,opt,name=sample_sufficient,json=sampleSufficient,proto3" json:"sample_sufficient,omitempty"`
+	// Rolling recent-N latency percentiles, labelled separately from the
+	// requested window so an operator can compare current behaviour with the
+	// full window without confusing the two populations.
+	RecentSampleCount  int64 `protobuf:"varint,19,opt,name=recent_sample_count,json=recentSampleCount,proto3" json:"recent_sample_count,omitempty"`
+	RecentLatencyP50Ms int64 `protobuf:"varint,20,opt,name=recent_latency_p50_ms,json=recentLatencyP50Ms,proto3" json:"recent_latency_p50_ms,omitempty"`
+	RecentLatencyP95Ms int64 `protobuf:"varint,21,opt,name=recent_latency_p95_ms,json=recentLatencyP95Ms,proto3" json:"recent_latency_p95_ms,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *InsightsResponse) Reset() {
@@ -533,14 +564,71 @@ func (x *InsightsResponse) GetResolverCacheHitRate() float64 {
 	return 0
 }
 
+func (x *InsightsResponse) GetWindowFrom() string {
+	if x != nil {
+		return x.WindowFrom
+	}
+	return ""
+}
+
+func (x *InsightsResponse) GetWindowTo() string {
+	if x != nil {
+		return x.WindowTo
+	}
+	return ""
+}
+
+func (x *InsightsResponse) GetSampleCount() int64 {
+	if x != nil {
+		return x.SampleCount
+	}
+	return 0
+}
+
+func (x *InsightsResponse) GetMinimumSampleCount() int64 {
+	if x != nil {
+		return x.MinimumSampleCount
+	}
+	return 0
+}
+
+func (x *InsightsResponse) GetSampleSufficient() bool {
+	if x != nil {
+		return x.SampleSufficient
+	}
+	return false
+}
+
+func (x *InsightsResponse) GetRecentSampleCount() int64 {
+	if x != nil {
+		return x.RecentSampleCount
+	}
+	return 0
+}
+
+func (x *InsightsResponse) GetRecentLatencyP50Ms() int64 {
+	if x != nil {
+		return x.RecentLatencyP50Ms
+	}
+	return 0
+}
+
+func (x *InsightsResponse) GetRecentLatencyP95Ms() int64 {
+	if x != nil {
+		return x.RecentLatencyP95Ms
+	}
+	return 0
+}
+
 var File_search_hub_v1_metrics_metrics_proto protoreflect.FileDescriptor
 
 const file_search_hub_v1_metrics_metrics_proto_rawDesc = "" +
 	"\n" +
-	"#search-hub/v1/metrics/metrics.proto\x12\x1cvrooli.search_hub.v1.metrics\"2\n" +
+	"#search-hub/v1/metrics/metrics.proto\x12\x1cvrooli.search_hub.v1.metrics\"J\n" +
 	"\x0fInsightsRequest\x12\x1f\n" +
 	"\vwindow_days\x18\x01 \x01(\x05R\n" +
-	"windowDays\"\xe2\x03\n" +
+	"windowDays\x12\x16\n" +
+	"\x06window\x18\x02 \x01(\tR\x06window\"\x92\x04\n" +
 	"\x13ProviderUtilization\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12%\n" +
@@ -555,7 +643,8 @@ const file_search_hub_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x0edegraded_count\x18\t \x01(\x03R\rdegradedCount\x12)\n" +
 	"\x10degradation_rate\x18\n" +
 	" \x01(\x01R\x0fdegradationRate\x12h\n" +
-	"\x13degradation_reasons\x18\v \x03(\v27.vrooli.search_hub.v1.metrics.ProviderDegradationReasonR\x12degradationReasons\"I\n" +
+	"\x13degradation_reasons\x18\v \x03(\v27.vrooli.search_hub.v1.metrics.ProviderDegradationReasonR\x12degradationReasons\x12.\n" +
+	"\x13active_reranker_leg\x18\f \x01(\tR\x11activeRerankerLeg\"I\n" +
 	"\x19ProviderDegradationReason\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\x03R\x05count\"\x98\x01\n" +
@@ -570,7 +659,7 @@ const file_search_hub_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x0eprovider_group\x18\x01 \x01(\tR\rproviderGroup\x12#\n" +
 	"\ractive_leaves\x18\x02 \x01(\x05R\factiveLeaves\x12\x14\n" +
 	"\x05share\x18\x03 \x01(\x01R\x05share\x12\x16\n" +
-	"\x06reason\x18\x04 \x01(\tR\x06reason\"\xef\x05\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"\xc5\b\n" +
 	"\x10InsightsResponse\x12#\n" +
 	"\rtotal_queries\x18\x01 \x01(\x03R\ftotalQueries\x12.\n" +
 	"\x13zero_result_queries\x18\x02 \x01(\x03R\x11zeroResultQueries\x12(\n" +
@@ -585,7 +674,16 @@ const file_search_hub_v1_metrics_metrics_proto_rawDesc = "" +
 	" \x03(\v23.vrooli.search_hub.v1.metrics.ProviderGroupAdvisoryR\x0fgroupAdvisories\x12.\n" +
 	"\x13resolver_cache_hits\x18\v \x01(\x03R\x11resolverCacheHits\x122\n" +
 	"\x15resolver_cache_misses\x18\f \x01(\x03R\x13resolverCacheMisses\x125\n" +
-	"\x17resolver_cache_hit_rate\x18\r \x01(\x01R\x14resolverCacheHitRate2{\n" +
+	"\x17resolver_cache_hit_rate\x18\r \x01(\x01R\x14resolverCacheHitRate\x12\x1f\n" +
+	"\vwindow_from\x18\x0e \x01(\tR\n" +
+	"windowFrom\x12\x1b\n" +
+	"\twindow_to\x18\x0f \x01(\tR\bwindowTo\x12!\n" +
+	"\fsample_count\x18\x10 \x01(\x03R\vsampleCount\x120\n" +
+	"\x14minimum_sample_count\x18\x11 \x01(\x03R\x12minimumSampleCount\x12+\n" +
+	"\x11sample_sufficient\x18\x12 \x01(\bR\x10sampleSufficient\x12.\n" +
+	"\x13recent_sample_count\x18\x13 \x01(\x03R\x11recentSampleCount\x121\n" +
+	"\x15recent_latency_p50_ms\x18\x14 \x01(\x03R\x12recentLatencyP50Ms\x121\n" +
+	"\x15recent_latency_p95_ms\x18\x15 \x01(\x03R\x12recentLatencyP95Ms2{\n" +
 	"\x0eMetricsService\x12i\n" +
 	"\bInsights\x12-.vrooli.search_hub.v1.metrics.InsightsRequest\x1a..vrooli.search_hub.v1.metrics.InsightsResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics;metrics_v1b\x06proto3"
 

@@ -140,7 +140,7 @@ class FloorConfig(_message.Message):
     def __init__(self, max_gap: _Optional[float] = ..., hard_floor: _Optional[float] = ...) -> None: ...
 
 class Tuning(_message.Message):
-    __slots__ = ("engine", "embed_model", "embed_task_prefix", "rerank_enabled", "rerank_blend", "rerank_shortlist", "floor", "hybrid_fusion")
+    __slots__ = ("engine", "embed_model", "embed_task_prefix", "rerank_enabled", "rerank_blend", "rerank_shortlist", "floor", "hybrid_fusion", "rerank_preference")
     ENGINE_FIELD_NUMBER: _ClassVar[int]
     EMBED_MODEL_FIELD_NUMBER: _ClassVar[int]
     EMBED_TASK_PREFIX_FIELD_NUMBER: _ClassVar[int]
@@ -149,6 +149,7 @@ class Tuning(_message.Message):
     RERANK_SHORTLIST_FIELD_NUMBER: _ClassVar[int]
     FLOOR_FIELD_NUMBER: _ClassVar[int]
     HYBRID_FUSION_FIELD_NUMBER: _ClassVar[int]
+    RERANK_PREFERENCE_FIELD_NUMBER: _ClassVar[int]
     engine: str
     embed_model: str
     embed_task_prefix: bool
@@ -157,7 +158,8 @@ class Tuning(_message.Message):
     rerank_shortlist: int
     floor: FloorConfig
     hybrid_fusion: str
-    def __init__(self, engine: _Optional[str] = ..., embed_model: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor: _Optional[_Union[FloorConfig, _Mapping]] = ..., hybrid_fusion: _Optional[str] = ...) -> None: ...
+    rerank_preference: str
+    def __init__(self, engine: _Optional[str] = ..., embed_model: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor: _Optional[_Union[FloorConfig, _Mapping]] = ..., hybrid_fusion: _Optional[str] = ..., rerank_preference: _Optional[str] = ...) -> None: ...
 
 class ProviderDescriptor(_message.Message):
     __slots__ = ("provider_id", "provider_group", "bucket", "type", "description", "endpoint", "result_mapping", "query_hint", "status_endpoint", "scope", "state", "intended_home", "reindex_endpoint", "config_endpoint", "tuning", "lifecycle", "tests_minimum", "junk_leak_opt_out_reason", "index_timestamp_field")
@@ -244,6 +246,70 @@ class ListProvidersResponse(_message.Message):
     PROVIDERS_FIELD_NUMBER: _ClassVar[int]
     providers: _containers.RepeatedCompositeFieldContainer[ProviderDescriptor]
     def __init__(self, providers: _Optional[_Iterable[_Union[ProviderDescriptor, _Mapping]]] = ...) -> None: ...
+
+class ExecuteEmbeddingMigrationRequest(_message.Message):
+    __slots__ = ("provider_id", "action", "shadow_collection", "rollback_collection", "embedding_model", "embedding_role", "embedding_dimensions", "embedding_policy_schema_version", "scope", "dry_run", "job_id")
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    SHADOW_COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    ROLLBACK_COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    EMBEDDING_MODEL_FIELD_NUMBER: _ClassVar[int]
+    EMBEDDING_ROLE_FIELD_NUMBER: _ClassVar[int]
+    EMBEDDING_DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
+    EMBEDDING_POLICY_SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    provider_id: str
+    action: str
+    shadow_collection: str
+    rollback_collection: str
+    embedding_model: str
+    embedding_role: str
+    embedding_dimensions: int
+    embedding_policy_schema_version: str
+    scope: str
+    dry_run: bool
+    job_id: str
+    def __init__(self, provider_id: _Optional[str] = ..., action: _Optional[str] = ..., shadow_collection: _Optional[str] = ..., rollback_collection: _Optional[str] = ..., embedding_model: _Optional[str] = ..., embedding_role: _Optional[str] = ..., embedding_dimensions: _Optional[int] = ..., embedding_policy_schema_version: _Optional[str] = ..., scope: _Optional[str] = ..., dry_run: _Optional[bool] = ..., job_id: _Optional[str] = ...) -> None: ...
+
+class ExecuteEmbeddingMigrationResponse(_message.Message):
+    __slots__ = ("job_id", "state", "planned_upserts", "planned_deletes", "processed", "total", "error")
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    PLANNED_UPSERTS_FIELD_NUMBER: _ClassVar[int]
+    PLANNED_DELETES_FIELD_NUMBER: _ClassVar[int]
+    PROCESSED_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    job_id: str
+    state: str
+    planned_upserts: int
+    planned_deletes: int
+    processed: int
+    total: int
+    error: str
+    def __init__(self, job_id: _Optional[str] = ..., state: _Optional[str] = ..., planned_upserts: _Optional[int] = ..., planned_deletes: _Optional[int] = ..., processed: _Optional[int] = ..., total: _Optional[int] = ..., error: _Optional[str] = ...) -> None: ...
+
+class ListMaturityTargetsRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListMaturityTargetsResponse(_message.Message):
+    __slots__ = ("targets",)
+    TARGETS_FIELD_NUMBER: _ClassVar[int]
+    targets: _containers.RepeatedCompositeFieldContainer[MaturityTarget]
+    def __init__(self, targets: _Optional[_Iterable[_Union[MaturityTarget, _Mapping]]] = ...) -> None: ...
+
+class MaturityTarget(_message.Message):
+    __slots__ = ("scenario", "path", "applicability_reason")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    APPLICABILITY_REASON_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    path: str
+    applicability_reason: str
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., applicability_reason: _Optional[str] = ...) -> None: ...
 
 class DeregisterProviderRequest(_message.Message):
     __slots__ = ("provider_id",)

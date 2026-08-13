@@ -95,6 +95,11 @@ message ValidateScenarioResponse {
   // evidence Unit Health observed, including passing rows so operators can see
   // which parts of the testing contract are actually enforced.
   repeated ProjectionCheck projection_checks = 20;
+
+  // Findings suppressed by a validated unit-policy waiver. Suppression is
+  // visible and separate from active findings so operators can audit every
+  // exception without counting it as an active maturity failure.
+  repeated ValidationFinding suppressed_findings = 21;
 }
 
 // ProjectionCheck is one policy-vs-native comparison for unit-test
@@ -260,4 +265,5 @@ message ValidationCounts {
   int32 surfaces = 4;
   int32 workspaces = 5;
   int32 coverage_targets = 6;
+  int32 suppressed_findings = 7;
 }

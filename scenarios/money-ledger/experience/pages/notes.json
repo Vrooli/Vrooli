@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "notes",
+    "title": "Notes",
+    "routes": [
+      "/notes"
+    ],
+    "purpose": "Worked example page from the react-vite template. Removed together with the notes domain by `template-manager detemplate`; kept until then because a BAS case references this spec entry.",
+    "prd_refs": []
+  },
+  "priorities": [
+    {
+      "statement": "Example surface only — carries no product priority."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Example domain surface at rest."
+    },
+    {
+      "id": "idle",
+      "description": "Nothing in flight."
+    },
+    {
+      "id": "pending",
+      "description": "An example operation is in flight."
+    },
+    {
+      "id": "success",
+      "description": "An example operation completed."
+    },
+    {
+      "id": "loading",
+      "description": "The example list is being read."
+    },
+    {
+      "id": "saving",
+      "description": "An example write is in flight."
+    },
+    {
+      "id": "syncing",
+      "description": "Background refresh of example data."
+    },
+    {
+      "id": "refreshing",
+      "description": "User-requested re-read of example data."
+    },
+    {
+      "id": "empty",
+      "description": "No example notes exist."
+    },
+    {
+      "id": "partial",
+      "description": "An example sub-read failed while others succeeded."
+    },
+    {
+      "id": "stale",
+      "description": "Example data is older than its freshness window."
+    },
+    {
+      "id": "validation-error",
+      "description": "Example input was rejected before submission."
+    },
+    {
+      "id": "request-error",
+      "description": "The example read or write failed."
+    },
+    {
+      "id": "retrying",
+      "description": "An automatic retry of the example call is in progress."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The caller's role does not permit the example action."
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API."
+    }
+  ]
+}

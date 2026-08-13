@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "disposition-a-fired-trigger",
+    "title": "An operator dispositions a trigger that fired",
+    "purpose": "The journey this scenario exists to make possible. It was impossible before: nothing evaluated a trigger, so no offer ever reached trigger-met and there was nothing to disposition.",
+    "prd_refs": [
+      "OT-P0-004",
+      "OT-P0-005"
+    ]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "intent": "See that a trigger fired and which fact satisfied it, without hunting"
+    },
+    {
+      "page": "offers",
+      "intent": "Read the offer's declared trigger and its full status history before deciding"
+    },
+    {
+      "page": "proposals",
+      "intent": "Accept the promotion, or decline it with a reason that persists"
+    },
+    {
+      "page": "dashboard",
+      "intent": "Confirm the entry has left the board, so the loop visibly closes"
+    }
+  ]
+}

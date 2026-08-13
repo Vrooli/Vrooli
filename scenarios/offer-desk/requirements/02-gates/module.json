@@ -1,0 +1,146 @@
+{
+  "_metadata": {
+    "module": "gates",
+    "description": "Revisit triggers, their evaluation, and the operator-only promotion boundary.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "GATE-001",
+      "title": "A candidate must carry a machine-evaluable trigger",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "Creating or holding a node in `candidate` without a parseable revisit trigger is refused. The source documents state this as a prose rule with the word 'must' and nothing able to enforce it, which is the canonical shape of a capability requirement in disguise.",
+      "tags": [
+        "policy",
+        "gate"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Reject a candidate node with an absent, empty, or unparseable trigger."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "A node already in `candidate` cannot be updated in a way that removes its trigger."
+        }
+      ]
+    },
+    {
+      "id": "GATE-002",
+      "title": "Triggers are declared over facts, not free text",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "A trigger is a declared predicate over named facts with comparison operators and boolean composition. Free-text conditions are not accepted. The first version deliberately admits only operator-supplied and scenario-supplied facts; a more expressive language would become an unmaintainable rules engine.",
+      "tags": [
+        "domain",
+        "schema"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Parse-and-evaluate table covering each operator, composition, unknown fact, and type mismatch."
+        }
+      ]
+    },
+    {
+      "id": "GATE-003",
+      "title": "Scheduled evaluation reaches trigger-met",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "service",
+      "criticality": "P0",
+      "description": "An evaluation run scores every candidate's trigger against current facts and transitions the satisfied ones to `trigger-met`, recording which fact satisfied which clause. This is the first capability in the replaced surface that does something no document could.",
+      "tags": [
+        "service",
+        "scheduler"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A satisfied trigger transitions the node and records the satisfying facts; an unsatisfied one does not."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "A full evaluation run over a seeded graph is idempotent — re-running changes nothing."
+        }
+      ]
+    },
+    {
+      "id": "GATE-004",
+      "title": "Unknown facts block rather than fire",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "A trigger referencing a fact with no current value evaluates to unknown, not false. The node stays in `candidate` and the run reports the missing fact. Treating unknown as false would silently keep candidates asleep forever, which is the failure this scenario exists to end.",
+      "tags": [
+        "policy",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A trigger over a missing fact yields unknown; the run output names the fact."
+        }
+      ]
+    },
+    {
+      "id": "GATE-005",
+      "title": "Promotion to active is operator-only",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "security",
+      "criticality": "P0",
+      "description": "An agent-role caller may create a promotion proposal and may not transition a node to `active`. Only an operator-role call performs that transition. The source canon states 'agents never self-promote'; this makes it a permission rather than an instruction.",
+      "tags": [
+        "security",
+        "policy"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "An agent-role transition to `active` is refused; the same call from an operator role succeeds."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "A proposal survives across restarts and carries its proposing actor."
+        }
+      ]
+    },
+    {
+      "id": "GATE-006",
+      "title": "Triggers can be dry-run before saving",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "service",
+      "criticality": "P1",
+      "description": "A caller can evaluate a candidate trigger against current facts without saving it, so an author learns that a trigger is unsatisfiable or already satisfied at write time rather than a quarter later.",
+      "tags": [
+        "service",
+        "authoring"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Dry-run returns the verdict and the facts consulted, and writes nothing."
+        }
+      ]
+    }
+  ]
+}

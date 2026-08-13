@@ -15,6 +15,13 @@ class TargetKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TARGET_KIND_REPO: _ClassVar[TargetKind]
     TARGET_KIND_MODULE: _ClassVar[TargetKind]
     TARGET_KIND_PROJECT: _ClassVar[TargetKind]
+    TARGET_KIND_CONTROL_PLANE: _ClassVar[TargetKind]
+    TARGET_KIND_PACKAGE: _ClassVar[TargetKind]
+    TARGET_KIND_RESOURCE: _ClassVar[TargetKind]
+    TARGET_KIND_TOOL: _ClassVar[TargetKind]
+    TARGET_KIND_SAFEGUARD: _ClassVar[TargetKind]
+    TARGET_KIND_DOCS: _ClassVar[TargetKind]
+    TARGET_KIND_TEAM: _ClassVar[TargetKind]
 
 class FactFamily(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -66,6 +73,13 @@ TARGET_KIND_SCENARIO: TargetKind
 TARGET_KIND_REPO: TargetKind
 TARGET_KIND_MODULE: TargetKind
 TARGET_KIND_PROJECT: TargetKind
+TARGET_KIND_CONTROL_PLANE: TargetKind
+TARGET_KIND_PACKAGE: TargetKind
+TARGET_KIND_RESOURCE: TargetKind
+TARGET_KIND_TOOL: TargetKind
+TARGET_KIND_SAFEGUARD: TargetKind
+TARGET_KIND_DOCS: TargetKind
+TARGET_KIND_TEAM: TargetKind
 FACT_FAMILY_UNSPECIFIED: FactFamily
 FACT_FAMILY_SURFACES: FactFamily
 FACT_FAMILY_PARSE_UNITS: FactFamily
@@ -101,23 +115,25 @@ SURFACE_STATUS_AMBIGUOUS: SurfaceStatus
 SURFACE_STATUS_UNKNOWN: SurfaceStatus
 
 class CodeTarget(_message.Message):
-    __slots__ = ("kind", "path", "scenario", "repo_root", "language_filter", "strict")
+    __slots__ = ("kind", "path", "scenario", "repo_root", "language_filter", "strict", "package_name")
     KIND_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     REPO_ROOT_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FILTER_FIELD_NUMBER: _ClassVar[int]
     STRICT_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
     kind: TargetKind
     path: str
     scenario: str
     repo_root: str
     language_filter: _containers.RepeatedScalarFieldContainer[str]
     strict: bool
-    def __init__(self, kind: _Optional[_Union[TargetKind, str]] = ..., path: _Optional[str] = ..., scenario: _Optional[str] = ..., repo_root: _Optional[str] = ..., language_filter: _Optional[_Iterable[str]] = ..., strict: _Optional[bool] = ...) -> None: ...
+    package_name: str
+    def __init__(self, kind: _Optional[_Union[TargetKind, str]] = ..., path: _Optional[str] = ..., scenario: _Optional[str] = ..., repo_root: _Optional[str] = ..., language_filter: _Optional[_Iterable[str]] = ..., strict: _Optional[bool] = ..., package_name: _Optional[str] = ...) -> None: ...
 
 class DescribeCodeFactsRequest(_message.Message):
-    __slots__ = ("target", "include", "endpoint_ids", "command_ids", "widget_ids", "max_depth", "use_cache")
+    __slots__ = ("target", "include", "endpoint_ids", "command_ids", "widget_ids", "max_depth", "use_cache", "page_size", "page_token")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_FIELD_NUMBER: _ClassVar[int]
     ENDPOINT_IDS_FIELD_NUMBER: _ClassVar[int]
@@ -125,6 +141,8 @@ class DescribeCodeFactsRequest(_message.Message):
     WIDGET_IDS_FIELD_NUMBER: _ClassVar[int]
     MAX_DEPTH_FIELD_NUMBER: _ClassVar[int]
     USE_CACHE_FIELD_NUMBER: _ClassVar[int]
+    PAGE_SIZE_FIELD_NUMBER: _ClassVar[int]
+    PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
     target: CodeTarget
     include: _containers.RepeatedScalarFieldContainer[FactFamily]
     endpoint_ids: _containers.RepeatedScalarFieldContainer[str]
@@ -132,7 +150,71 @@ class DescribeCodeFactsRequest(_message.Message):
     widget_ids: _containers.RepeatedScalarFieldContainer[str]
     max_depth: int
     use_cache: bool
-    def __init__(self, target: _Optional[_Union[CodeTarget, _Mapping]] = ..., include: _Optional[_Iterable[_Union[FactFamily, str]]] = ..., endpoint_ids: _Optional[_Iterable[str]] = ..., command_ids: _Optional[_Iterable[str]] = ..., widget_ids: _Optional[_Iterable[str]] = ..., max_depth: _Optional[int] = ..., use_cache: _Optional[bool] = ...) -> None: ...
+    page_size: int
+    page_token: str
+    def __init__(self, target: _Optional[_Union[CodeTarget, _Mapping]] = ..., include: _Optional[_Iterable[_Union[FactFamily, str]]] = ..., endpoint_ids: _Optional[_Iterable[str]] = ..., command_ids: _Optional[_Iterable[str]] = ..., widget_ids: _Optional[_Iterable[str]] = ..., max_depth: _Optional[int] = ..., use_cache: _Optional[bool] = ..., page_size: _Optional[int] = ..., page_token: _Optional[str] = ...) -> None: ...
+
+class SearchRequest(_message.Message):
+    __slots__ = ("query", "limit", "target", "families", "expand_edges")
+    QUERY_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    FAMILIES_FIELD_NUMBER: _ClassVar[int]
+    EXPAND_EDGES_FIELD_NUMBER: _ClassVar[int]
+    query: str
+    limit: int
+    target: CodeTarget
+    families: _containers.RepeatedScalarFieldContainer[FactFamily]
+    expand_edges: bool
+    def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., target: _Optional[_Union[CodeTarget, _Mapping]] = ..., families: _Optional[_Iterable[_Union[FactFamily, str]]] = ..., expand_edges: _Optional[bool] = ...) -> None: ...
+
+class SearchHit(_message.Message):
+    __slots__ = ("id", "title", "text", "score", "path", "analyzer", "evidence_status", "fact_kind", "edge_expansions")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    ANALYZER_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_STATUS_FIELD_NUMBER: _ClassVar[int]
+    FACT_KIND_FIELD_NUMBER: _ClassVar[int]
+    EDGE_EXPANSIONS_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    title: str
+    text: str
+    score: float
+    path: str
+    analyzer: str
+    evidence_status: EvidenceStatus
+    fact_kind: str
+    edge_expansions: _containers.RepeatedCompositeFieldContainer[SearchExpansion]
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., text: _Optional[str] = ..., score: _Optional[float] = ..., path: _Optional[str] = ..., analyzer: _Optional[str] = ..., evidence_status: _Optional[_Union[EvidenceStatus, str]] = ..., fact_kind: _Optional[str] = ..., edge_expansions: _Optional[_Iterable[_Union[SearchExpansion, _Mapping]]] = ...) -> None: ...
+
+class SearchExpansion(_message.Message):
+    __slots__ = ("id", "title", "text", "path", "analyzer", "evidence_status", "fact_kind", "family")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    ANALYZER_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_STATUS_FIELD_NUMBER: _ClassVar[int]
+    FACT_KIND_FIELD_NUMBER: _ClassVar[int]
+    FAMILY_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    title: str
+    text: str
+    path: str
+    analyzer: str
+    evidence_status: EvidenceStatus
+    fact_kind: str
+    family: FactFamily
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., text: _Optional[str] = ..., path: _Optional[str] = ..., analyzer: _Optional[str] = ..., evidence_status: _Optional[_Union[EvidenceStatus, str]] = ..., fact_kind: _Optional[str] = ..., family: _Optional[_Union[FactFamily, str]] = ...) -> None: ...
+
+class SearchResponse(_message.Message):
+    __slots__ = ("results",)
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    results: _containers.RepeatedCompositeFieldContainer[SearchHit]
+    def __init__(self, results: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ...) -> None: ...
 
 class DescribeFleetImportsRequest(_message.Message):
     __slots__ = ("scenarios", "limit", "use_cache", "repo_root", "language_filter")
@@ -217,18 +299,20 @@ class ClearCacheRequest(_message.Message):
     def __init__(self, target: _Optional[_Union[CodeTarget, _Mapping]] = ..., dry_run: _Optional[bool] = ..., all: _Optional[bool] = ...) -> None: ...
 
 class TargetContext(_message.Message):
-    __slots__ = ("requested", "resolved_kind", "root_path", "scenario", "scenario_aware")
+    __slots__ = ("requested", "resolved_kind", "root_path", "scenario", "scenario_aware", "root_paths")
     REQUESTED_FIELD_NUMBER: _ClassVar[int]
     RESOLVED_KIND_FIELD_NUMBER: _ClassVar[int]
     ROOT_PATH_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_AWARE_FIELD_NUMBER: _ClassVar[int]
+    ROOT_PATHS_FIELD_NUMBER: _ClassVar[int]
     requested: CodeTarget
     resolved_kind: TargetKind
     root_path: str
     scenario: str
     scenario_aware: bool
-    def __init__(self, requested: _Optional[_Union[CodeTarget, _Mapping]] = ..., resolved_kind: _Optional[_Union[TargetKind, str]] = ..., root_path: _Optional[str] = ..., scenario: _Optional[str] = ..., scenario_aware: _Optional[bool] = ...) -> None: ...
+    root_paths: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, requested: _Optional[_Union[CodeTarget, _Mapping]] = ..., resolved_kind: _Optional[_Union[TargetKind, str]] = ..., root_path: _Optional[str] = ..., scenario: _Optional[str] = ..., scenario_aware: _Optional[bool] = ..., root_paths: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SourceRange(_message.Message):
     __slots__ = ("file", "start_line", "start_column", "end_line", "end_column")
@@ -410,7 +494,7 @@ class ClearCacheResponse(_message.Message):
     def __init__(self, cache_key: _Optional[str] = ..., matched_entries: _Optional[int] = ..., cleared_entries: _Optional[int] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class CodeFactsReport(_message.Message):
-    __slots__ = ("target", "parse_units", "surfaces", "facts", "evidence", "warnings", "cache")
+    __slots__ = ("target", "parse_units", "surfaces", "facts", "evidence", "warnings", "cache", "next_page_token", "total_facts")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     PARSE_UNITS_FIELD_NUMBER: _ClassVar[int]
     SURFACES_FIELD_NUMBER: _ClassVar[int]
@@ -418,6 +502,8 @@ class CodeFactsReport(_message.Message):
     EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
     CACHE_FIELD_NUMBER: _ClassVar[int]
+    NEXT_PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FACTS_FIELD_NUMBER: _ClassVar[int]
     target: TargetContext
     parse_units: _containers.RepeatedCompositeFieldContainer[ParseUnit]
     surfaces: _containers.RepeatedCompositeFieldContainer[Surface]
@@ -425,7 +511,9 @@ class CodeFactsReport(_message.Message):
     evidence: _containers.RepeatedCompositeFieldContainer[Evidence]
     warnings: _containers.RepeatedCompositeFieldContainer[Warning]
     cache: CacheMetadata
-    def __init__(self, target: _Optional[_Union[TargetContext, _Mapping]] = ..., parse_units: _Optional[_Iterable[_Union[ParseUnit, _Mapping]]] = ..., surfaces: _Optional[_Iterable[_Union[Surface, _Mapping]]] = ..., facts: _Optional[_Iterable[_Union[GenericFact, _Mapping]]] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[Warning, _Mapping]]] = ..., cache: _Optional[_Union[CacheMetadata, _Mapping]] = ...) -> None: ...
+    next_page_token: str
+    total_facts: int
+    def __init__(self, target: _Optional[_Union[TargetContext, _Mapping]] = ..., parse_units: _Optional[_Iterable[_Union[ParseUnit, _Mapping]]] = ..., surfaces: _Optional[_Iterable[_Union[Surface, _Mapping]]] = ..., facts: _Optional[_Iterable[_Union[GenericFact, _Mapping]]] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[Warning, _Mapping]]] = ..., cache: _Optional[_Union[CacheMetadata, _Mapping]] = ..., next_page_token: _Optional[str] = ..., total_facts: _Optional[int] = ...) -> None: ...
 
 class ListSurfacesResponse(_message.Message):
     __slots__ = ("target", "surfaces", "warnings", "cache")
