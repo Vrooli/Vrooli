@@ -27,67 +27,321 @@
   "states": [
     {
       "id": "default",
-      "description": "The surface at rest with data present — the state a journey step assumes when it names none."
+      "description": "The surface at rest with data present — the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/settings"
+      }
     },
     {
       "id": "idle",
-      "description": "Nothing in flight; the surface is at rest and its controls are usable."
+      "description": "Nothing in flight; the surface is at rest and its controls are usable.",
+      "setup": {
+        "route": "/settings"
+      }
     },
     {
       "id": "pending",
-      "description": "A user-triggered operation is in flight and its outcome is not yet known."
+      "description": "A user-triggered operation is in flight and its outcome is not yet known.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "pending"
+        }
+      }
     },
     {
       "id": "success",
-      "description": "An operation completed; the result is announced, not merely rendered."
+      "description": "An operation completed; the result is announced, not merely rendered.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "success"
+        }
+      }
     },
     {
       "id": "loading",
-      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival."
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
     },
     {
       "id": "saving",
-      "description": "A write is in flight; the affected control is disabled and says why."
+      "description": "A write is in flight; the affected control is disabled and says why.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "saving"
+        }
+      }
     },
     {
       "id": "syncing",
-      "description": "A background read is refreshing data the user is already looking at."
+      "description": "A background read is refreshing data the user is already looking at.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "syncing"
+        }
+      }
     },
     {
       "id": "refreshing",
-      "description": "A user-requested re-read of data already on screen."
+      "description": "A user-requested re-read of data already on screen.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "refreshing"
+        }
+      }
     },
     {
       "id": "empty",
-      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded."
+      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "empty"
+        }
+      }
     },
     {
       "id": "partial",
-      "description": "Some contributing source could not be read; what is missing is named."
+      "description": "Some contributing source could not be read; what is missing is named.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "partial"
+        }
+      }
     },
     {
       "id": "stale",
-      "description": "Displayed data is older than its freshness window; its age is shown."
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "stale"
+        }
+      }
     },
     {
       "id": "validation-error",
-      "description": "Input was rejected before submission; the offending field is identified."
+      "description": "Input was rejected before submission; the offending field is identified.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
     },
     {
       "id": "request-error",
-      "description": "The request failed; the reason and the next action are stated."
+      "description": "The request failed; the reason and the next action are stated.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
     },
     {
       "id": "retrying",
-      "description": "An automatic retry is in progress; attempt count and next attempt are visible."
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "retrying"
+        }
+      }
     },
     {
       "id": "permission-denied",
-      "description": "The caller's role does not permit this; what role would is stated."
+      "description": "The caller's role does not permit this; what role would is stated.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "permission-denied"
+        }
+      }
     },
     {
       "id": "offline",
-      "description": "The client cannot reach the API; queued or read-only behavior is explained."
+      "description": "The client cannot reach the API; queued or read-only behavior is explained.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "ledger-connected",
+      "description": "The Money Ledger reads are reachable; the connection states when each was last read successfully.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "ledger-connected"
+        }
+      }
+    },
+    {
+      "id": "ledger-disconnected",
+      "description": "One or both Money Ledger reads are unreachable. The board still ranks its other sources; this surface states which read is down, why, and how old the last good reading is.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "ledger-disconnected"
+        }
+      }
+    },
+    {
+      "id": "schedule-paused",
+      "description": "Scheduled trigger evaluation is paused. Nothing can reach trigger-met while this holds, which the surface states rather than leaving the operator to infer it from an idle board.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "schedule-paused"
+        }
+      }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "evaluation-schedule",
+      "role": "group",
+      "name": "Evaluation schedule",
+      "description": "How often declared triggers are evaluated. This interval is the upper bound on how long a fired condition stays invisible."
+    },
+    {
+      "id": "schedule-paused-notice",
+      "role": "status",
+      "description": "States that scheduled evaluation is paused and that no node can reach trigger-met until it resumes."
+    },
+    {
+      "id": "ledger-connection",
+      "role": "status",
+      "name": "Money Ledger",
+      "description": "Per-read connection state for the actuals and posture reads, each with the age of its last successful reading."
+    },
+    {
+      "id": "ledger-connection-reason",
+      "role": "note",
+      "description": "Why a Money Ledger read is unavailable, stated specifically enough to act on rather than as a generic failure."
+    },
+    {
+      "id": "locale-control",
+      "role": "combobox",
+      "name": "Language",
+      "description": "Locale switching. Settings owns this control; it is a durable seam of the generated shell, not page content."
+    },
+    {
+      "id": "theme-control",
+      "role": "group",
+      "name": "Theme",
+      "description": "Light, dark, and system mode."
+    }
+  ],
+  "claims": [
+    {
+      "id": "paused-schedule-is-stated",
+      "type": "state-covered",
+      "statement": "When scheduled evaluation is paused, the page says so and says that nothing can reach trigger-met until it resumes.",
+      "tier": "machine",
+      "states": [
+        "schedule-paused"
+      ],
+      "elements": [
+        "schedule-paused-notice"
+      ],
+      "rationale": "A paused scheduler and a portfolio with nothing to report produce an identical board. This is the one place the difference can be stated, and OT-P0-004 exists precisely because nothing previously evaluated a trigger."
+    },
+    {
+      "id": "ledger-reads-report-independently",
+      "type": "element-present",
+      "statement": "The actuals read and the posture read report their own connection state and their own last-good age.",
+      "tier": "machine",
+      "elements": [
+        "ledger-connection",
+        "ledger-connection-reason"
+      ],
+      "states": [
+        "ledger-disconnected"
+      ],
+      "rationale": "INT-005. The two reads degrade independently, so a single combined indicator would report a healthy read as broken or hide a broken one behind a healthy one."
+    },
+    {
+      "id": "connected-is-distinct-from-disconnected",
+      "type": "state-distinct",
+      "statement": "A reachable Money Ledger is perceivably different from an unreachable one, without relying on colour.",
+      "tier": "machine",
+      "states": [
+        "ledger-connected",
+        "ledger-disconnected"
+      ],
+      "elements": [
+        "ledger-connection"
+      ],
+      "rationale": "DESIGN.md binding adaptation for this scenario: status is never colour-only. This is the status whose misreading turns an unavailable ledger into an apparent zero."
+    },
+    {
+      "id": "schedule-reads-before-appearance",
+      "type": "reading-order",
+      "statement": "The evaluation schedule and the ledger connection read before appearance preferences.",
+      "tier": "machine",
+      "elements": [
+        "evaluation-schedule",
+        "ledger-connection",
+        "theme-control"
+      ],
+      "states": [
+        "default"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "Priorities 2 and 3. Both settings change what the board can tell the operator; theme does not. Direction-aware so the order survives RTL."
+    },
+    {
+      "id": "locale-control-lives-in-settings",
+      "type": "element-present",
+      "statement": "The locale control is present on this page.",
+      "tier": "machine",
+      "elements": [
+        "locale-control"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Settings ownership of locale switching is a durable seam of the generated shell listed in START-HERE, not illustrative page content. Asserting it here stops a redesign from quietly relocating it."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "evaluation-schedule": {
+        "testid": "settings-evaluation-schedule"
+      },
+      "schedule-paused-notice": {
+        "testid": "settings-schedule-paused"
+      },
+      "ledger-connection": {
+        "testid": "settings-ledger-connection"
+      },
+      "ledger-connection-reason": {
+        "testid": "settings-ledger-connection-reason"
+      },
+      "locale-control": {
+        "testid": "settings-locale"
+      },
+      "theme-control": {
+        "testid": "settings-theme"
+      }
+    }
+  }
 }

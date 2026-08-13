@@ -96,7 +96,21 @@ hypothesis rather than reposition a third time. The internal role does not depen
 | Standalone app | candidate | The strongest standalone case of any scenario in the monetization set. Local-first, no hosting cost, no per-user COGS beyond gateway usage if AI categorisation is enabled. |
 | Bundle component | candidate | Plausibly in both `business` and `lifestyle`. Membership is proposed through Offer Desk once it owns the catalog, not asserted here. |
 | Add-on | rejected | It is a base capability, not an extension of another SKU. Modelling it as an add-on would put it behind a parent bundle it does not depend on. |
+| **Open money-event contract** | **candidate** | The contract published as a spec anyone may implement, with the ledger as its reference implementation. See below — this is the most durable asset here and the least like the others. |
 | Service/consulting assist | not-applicable | See Role In Vrooli. |
+
+### The contract as the asset
+
+The thesis above is about a *product*. The most defensible thing this scenario produces may not be the product at all: it is the **money-event contract** — a typed, versioned, public shape that any source can satisfy, carrying a date, a signed amount, an account, provenance, and a basis.
+
+Two reasons to record it as a packaging option rather than leaving it implicit:
+
+- **It inverts the integration-count problem.** The direct-product thesis explicitly refuses to compete on integration count (`GO-TO-MARKET.md`), because that axis is unwinnable against incumbents with years of adapter work. A published contract makes integration count something *other people* contribute to, which is the only version of that axis worth being on.
+- **It is what the architecture already is.** `OT-P0-004` defines one inbound door and no privileged path; `INTEGRATIONS.md` states outright that the scenario "does not integrate with named systems — it defines one inbound shape and lets systems satisfy it." Publishing the shape costs a specification and a conformance test, not a new capability.
+
+Two honest limits. A contract with one implementation is a file, not a standard — this stays `candidate` until at least one adapter exists that we did not write. And it is a *distribution* strategy, not a *revenue* strategy: it plausibly makes the OSS-discovery channel work, and it does not by itself make anyone pay. Do not let it become a reason to defer the demand testing the direct-product hypothesis still needs.
+
+**Revisit trigger:** the manual, file, and commerce adapters are all green — proving the contract against three genuinely different source shapes — **and** an external party has asked how to feed the ledger from a source we do not support.
 
 ## Pricing Hypothesis
 

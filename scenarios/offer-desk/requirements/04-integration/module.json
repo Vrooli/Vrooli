@@ -101,6 +101,42 @@
           "notes": "Output parses against the shared projection contract."
         }
       ]
+    },
+    {
+      "id": "INT-005",
+      "title": "The board carries financial posture as well as offer state",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "The board returns runway, goal verdicts with sustain-window progress, and the default-alive gap alongside the offer entries, each read from Money Ledger and rendered with its source and age. This scenario is the monetization team's single address, so its financial member must be served by the same surface as its catalog members; without these rows the team has two addresses, which is the deviation the instrument exists to remove. Posture figures are surfaced and never stored, computed, or corrected here. Where the ledger reports a position as partial, the board propagates the qualification rather than flattening it.",
+      "tags": [
+        "integration",
+        "board",
+        "instrument"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A faked unavailable posture read yields an availability entry with a reason and a last-good age — never a zero runway and never an unmet goal verdict."
+        },
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "The actuals read and the posture read degrade independently: either may be unavailable while the other ranks."
+        },
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A position the ledger marked partial arrives on the board still marked partial."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "No posting, balance, or posture amount is persisted by this scenario; an architecture test asserts the board package owns no amount-bearing storage."
+        }
+      ]
     }
   ]
 }

@@ -9,6 +9,13 @@ identity, route, purpose and operational-target linkage (L0), communication
 priorities (L1), elements, claims and bindings (L2), and explicit states with
 `setup` blocks (L3); journeys connect them (L4).
 
+That sentence was false for `settings` until 2026-08-13 — the page was `active`
+in the registry with no elements, claims, bindings, or state `setup` blocks, so
+it gated nothing while appearing complete. It is now authored to L3 like every
+other active page. **If a page cannot be authored to L2, mark it `draft` rather
+than leaving it `active`**; an active page with no claims is invisible to the
+experience phase and reads as coverage that does not exist.
+
 Two consequences follow, and both are binding on implementation:
 
 - **`bindings` is the selector contract, not a record of what was built.** The
@@ -26,6 +33,26 @@ the claim can be checked by the experience phase. Manual claims need
 attestations with expiry; aspirational claims are useful intent but never gate.
 
 The `triggers` page carries operational targets that had no surface before it existed; check `prd_refs` coverage across the whole contract before adding another page.
+
+## Known gaps in this contract
+
+Recorded so they are chosen rather than discovered.
+
+- **Mobile is under-declared.** Only `dashboard` declares a `viewport`, and no
+  claim is scoped to a mobile one. This scenario is read a few times a week and
+  often not at a desk, so the board — the team's single address — is the surface
+  that most needs a mobile-scoped claim on its priority-1 content.
+- **No cross-scenario journey exists, and the schema cannot express one.**
+  `JourneyStep.page` resolves within this scenario, so the pair's headline claim
+  — "this offer is active and has earned nothing" — has no journey on either
+  side, even though this board is where it is meant to be read. Neither contract
+  is at fault; the capability is missing. Raise it against `experience-manager`
+  rather than working around it.
+- **The posture rows on `dashboard` are specified ahead of `INT-005`.** Their
+  states, claims and bindings are authored; the Money Ledger posture read they
+  render does not exist yet. That is the intended order for this contract, but it
+  means those claims cannot pass until the second read ships, and the fixtures
+  must arrive with it.
 
 The generated `notes` page is part of the removable example domain. Running
 `template-manager detemplate offer-desk` removes its page spec and registry

@@ -8,9 +8,10 @@
     "routes": [
       "/"
     ],
-    "purpose": "Answer 'what needs my attention in the offer portfolio' before anything else. This is the team's one address, so it must be readable cold, without first knowing which offers exist.",
+    "purpose": "Answer 'what needs my attention' before anything else — fired triggers, offers earning nothing, and the operator's financial posture. This is the monetization team's single address, so it must be readable cold, without first knowing which offers exist, and it must serve the financial member as well as the catalog ones.",
     "prd_refs": [
       "OT-P1-003",
+      "OT-P1-002",
       "OT-P0-004"
     ]
   },
@@ -25,7 +26,10 @@
       "statement": "Which sources could not be read, and how old the last good reading is"
     },
     {
-      "statement": "Everything else, ranked below the three above"
+      "statement": "Where the operator stands financially — runway, goal verdicts, and the default-alive gap — as standing context beneath the decisions above"
+    },
+    {
+      "statement": "Everything else, ranked below the four above"
     }
   ],
   "states": [
@@ -213,6 +217,36 @@
           "fixture": "all-sources-healthy"
         }
       }
+    },
+    {
+      "id": "posture-present",
+      "description": "The Money Ledger posture read succeeded. Runway, each goal verdict with its sustain-window progress, and the default-alive gap are shown with their source and age.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "posture-present"
+        }
+      }
+    },
+    {
+      "id": "posture-unavailable",
+      "description": "The posture read could not be completed. Runway and the goal verdicts are reported as unknown with a reason and a last-good age. Never a zero runway and never an unmet verdict — an unreadable ledger and an exhausted one are opposite conclusions.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "posture-unavailable"
+        }
+      }
+    },
+    {
+      "id": "posture-partial",
+      "description": "Money Ledger returned a position it had already marked partial. The board propagates that qualification rather than flattening it, and names the adapter the ledger said was missing.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "posture-partial"
+        }
+      }
     }
   ],
   "elements": [
@@ -249,6 +283,28 @@
       "id": "empty-guidance",
       "role": "note",
       "description": "Explains an empty board — nothing fired and nothing is silent — distinct from sources being unreadable."
+    },
+    {
+      "id": "posture-summary",
+      "role": "status",
+      "name": "Financial posture",
+      "description": "Runway and the default-alive gap, read from Money Ledger. Present because this board is the team's one address and its financial member is served here rather than at a second surface."
+    },
+    {
+      "id": "posture-goal-verdicts",
+      "role": "list",
+      "name": "Goal verdicts",
+      "description": "Each declared goal's verdict with its sustain-window progress. A verdict without the window would report met on a first good reading."
+    },
+    {
+      "id": "posture-basis",
+      "role": "note",
+      "description": "The source and age of the posture figures, and — where the ledger reported the position as partial — which adapter it said was missing."
+    },
+    {
+      "id": "posture-gap",
+      "role": "status",
+      "description": "States that the posture read could not be completed, with a reason and the age of the last good reading. Shown in place of the figures, never alongside a substituted zero."
     }
   ],
   "claims": [
@@ -341,6 +397,92 @@
         "source-degraded"
       ],
       "rationale": "This is a surface read a few times a week and understood cold. What needs action, and whether the picture is complete, must arrive together."
+    },
+    {
+      "id": "unavailable-posture-is-not-zero",
+      "type": "element-present",
+      "statement": "When the posture read fails, the board states that runway and the goal verdicts are unknown with a reason, and shows no runway figure and no verdict.",
+      "tier": "machine",
+      "elements": [
+        "posture-gap"
+      ],
+      "states": [
+        "posture-unavailable"
+      ],
+      "rationale": "INT-005, and the actuals rule applied to the second read. A zero runway is the most alarming possible wrong number, and an unmet verdict on an unreadable ledger would send the operator to fix a business problem that may not exist."
+    },
+    {
+      "id": "posture-partial-survives-the-hop",
+      "type": "element-present",
+      "statement": "A position Money Ledger marked partial arrives here still marked partial, naming the adapter the ledger said was missing.",
+      "tier": "machine",
+      "elements": [
+        "posture-summary",
+        "posture-basis"
+      ],
+      "states": [
+        "posture-partial"
+      ],
+      "rationale": "INT-005. This board is the surface the operator actually reads, so a caveat the ledger attached and this board drops is a caveat that never existed. The one-hop distance is exactly where that loss would happen unnoticed."
+    },
+    {
+      "id": "posture-carries-source-and-age",
+      "type": "element-present",
+      "statement": "Runway and the goal verdicts are accompanied by their source and the age of the reading.",
+      "tier": "machine",
+      "elements": [
+        "posture-summary",
+        "posture-basis"
+      ],
+      "states": [
+        "posture-present"
+      ],
+      "rationale": "These figures are computed elsewhere and rendered here. Without a named source and an age they read as this scenario's own numbers, which is the first step toward someone caching them."
+    },
+    {
+      "id": "goal-verdict-shows-sustain-window",
+      "type": "element-present",
+      "statement": "Each goal verdict is accompanied by its progress through the sustain window, not only whether the threshold is currently crossed.",
+      "tier": "machine",
+      "elements": [
+        "posture-goal-verdicts"
+      ],
+      "states": [
+        "posture-present"
+      ],
+      "rationale": "The default-alive rule requires three consecutive months. A verdict that ignores the window reports met on the first good month and is wrong; this claim is stated identically on the Money Ledger side so the guarantee survives the hop."
+    },
+    {
+      "id": "posture-unavailable-is-distinct-from-present",
+      "type": "state-distinct",
+      "statement": "A board whose posture read failed is perceivably different from one showing real figures.",
+      "tier": "machine",
+      "states": [
+        "posture-present",
+        "posture-unavailable"
+      ],
+      "elements": [
+        "posture-gap"
+      ],
+      "rationale": "The board-level form of the silent-zero failure, on the read whose figures carry the most consequence."
+    },
+    {
+      "id": "offer-work-reads-before-posture",
+      "type": "reading-order",
+      "statement": "Fired triggers read before the financial posture summary.",
+      "tier": "machine",
+      "elements": [
+        "fired-triggers",
+        "posture-summary"
+      ],
+      "states": [
+        "posture-present"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "Priority 1 is unchanged by the posture rows. A fired trigger is a decision waiting on the operator; posture is standing context that changes slowly. Direction-aware so the order survives RTL."
     }
   ],
   "bindings": {
@@ -362,6 +504,18 @@
       },
       "empty-guidance": {
         "testid": "board-empty-guidance"
+      },
+      "posture-summary": {
+        "testid": "board-posture-summary"
+      },
+      "posture-goal-verdicts": {
+        "testid": "board-posture-goal-verdicts"
+      },
+      "posture-basis": {
+        "testid": "board-posture-basis"
+      },
+      "posture-gap": {
+        "testid": "board-posture-gap"
       }
     }
   }

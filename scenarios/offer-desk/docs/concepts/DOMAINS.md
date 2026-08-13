@@ -29,8 +29,8 @@ belong in [`DATA.md`](DATA.md).
 |---|---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/offer-desk/v1/shared/health.proto` |
 | catalog | Own the offer graph — typed nodes, typed edges, and the lifecycle the API enforces on them. | One place every sellable thing lives with a state that cannot be set illegally. | Nodes, edges, status history, audit entries. | crud | policy | Offer, Variant, Channel, RevenueLine, Deliverable, Edge | `api/internal/catalog/` |
-| gates | Own revisit triggers, their scheduled evaluation, promotion proposals, and the operator-only promotion boundary. | Turns two prose rules that nothing could enforce into a constraint and a scheduled evaluation. | Trigger declarations, facts, evaluation runs, proposals. | policy | scheduler | Trigger, Fact, Predicate, EvaluationRun, Proposal | `api/internal/gates/` |
-| board | Rank fired triggers, blocked offers, and active offers earning nothing across independently-degrading sources. | One address a member reads instead of reconciling several surfaces by hand. | Nothing. Every entry is derived at read time. | reporting | integration | BoardEntry, GapSource, Availability | `api/internal/board/` |
+| gates | Own revisit triggers, their scheduled evaluation, the facts they evaluate against, promotion proposals, and the operator-only promotion boundary. | Turns two prose rules that nothing could enforce into a constraint and a scheduled evaluation. | Trigger declarations, facts (including dated market benchmarks), evaluation runs, proposals. | policy | scheduler | Trigger, Fact, Predicate, EvaluationRun, Proposal, StalenessWindow | `api/internal/gates/` |
+| board | Rank fired triggers, blocked offers, active offers earning nothing, and the operator's financial posture across independently-degrading sources. | The `monetization` team's single address — one surface a member reads instead of reconciling several by hand. | Nothing. Every entry is derived at read time. | reporting | integration | BoardEntry, GapSource, Availability, PostureRow | `api/internal/board/` |
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)
@@ -131,13 +131,17 @@ piece into an owning domain instead of growing infrastructure.
 - **Key rule**: an unknown fact evaluates to **unknown, not false**. A candidate whose trigger references a missing fact stays put and the run reports the gap. Treating unknown as false would keep candidates asleep forever, which is the exact failure this scenario exists to end.
 - **Key rule**: promotion to `active` requires an operator role. An agent may create a proposal and nothing more. The source canon says "agents never self-promote"; this makes it a permission rather than an instruction.
 - **Deliberate limit**: the trigger language admits declared facts, comparison operators and boolean composition — nothing more. A richer language becomes an unmaintainable rules engine, and the P2 target for scenario-sourced facts is the intended growth path.
-- **Targets**: OT-P0-003, OT-P0-004, OT-P0-005, OT-P1-005, OT-P2-004. **Requirements**: GATE-001…GATE-007.
+- **Market benchmarks are facts** (`../internal/DECISIONS.md`, 2026-08-13). A competitor comp is a fact with an observation date and a dimension-derived staleness window — pricing 90d, retention and activation 180d, channel-cac 120d, everything else 365d. Past its window it becomes **unknown rather than false**, which is the behaviour this domain already guarantees and the reason benchmarks belong here rather than in a registry of their own. A trigger may therefore reference a comp directly, and a trigger resting on a stale comp reports the gap instead of firing on an old number.
+- **Targets**: OT-P0-003, OT-P0-004, OT-P0-005, OT-P1-005, OT-P2-004. **Requirements**: GATE-001…GATE-008 (GATE-007 lives in the console module, with the P2 target it serves).
 
 ### board
 
-- **Owns**: nothing. Every entry is computed at read time from catalog, gates, and the Money Ledger actuals join.
+- **Owns**: nothing. Every entry is computed at read time from catalog, gates, and two Money Ledger reads.
 - **Key rule**: each entry names its source, and a source that cannot be read becomes a visible availability entry while healthy sources continue to rank. An unavailable ledger is never rendered as zero earnings — that would be indistinguishable from an offer that genuinely earned nothing.
-- **Targets**: OT-P1-002, OT-P1-003. **Requirements**: INT-002, INT-003.
+- **The instrument role**: this domain is the `monetization` team's single address (`../internal/DECISIONS.md`, 2026-08-13). That is what makes the second Money Ledger read necessary: a team with one address needs its financial member served by the same surface as its catalog members, so the board carries **runway, goal verdicts with sustain-window progress, and the default-alive gap** alongside the per-offer actuals join.
+- **Surfaced, never owned**: posture rows carry no stored amount and no computation of one. The board asks Money Ledger for a figure and renders it with its source and age. The PRD non-goal excluding accounting and balances is intact — reporting someone else's number under attribution is not owning it.
+- **Fallback is legal**: per the §5 degradation contract in `path:docs/agent-system/TARGET_MODEL.md`, the board makes the good path cheap and never makes the manual path illegal. A consumer that cannot reach the board reads `money-ledger` directly and says so.
+- **Targets**: OT-P1-002, OT-P1-003. **Requirements**: INT-002, INT-003, INT-005.
 
 ## Build Order
 
@@ -154,7 +158,7 @@ Build `catalog` first as a full vertical slice, then `gates` — which is where 
 | Excluded | Why |
 |---|---|
 | Pricing, billing, subscriptions, entitlements | The commerce scenario upstream owns all of it. Reimplementing any part here would be the worst available outcome. |
-| Money, balances, revenue figures | Money Ledger owns them. This scenario reads actuals and never stores an amount. |
+| Money, balances, revenue figures | Money Ledger owns them. This scenario reads actuals and financial posture for the board and never stores an amount, never computes one, and never corrects one. Rendering another scenario's figure under attribution is not ownership; the moment a figure is cached or adjusted here, it is. |
 | Marketing execution — campaigns, drafts, publishing | A different clock and a different failure mode. Adjacency is not a boundary. |
 | Strategy — whether to sell something, and at what price | The scenario records a decision and never makes one. Promotion is an operator action by construction. |
 | PRD and requirements conformance | An existing scenario already owns that for every scenario in the fleet. |

@@ -142,11 +142,14 @@ piece into an owning domain instead of growing infrastructure.
 - **Owns**: goal declarations and cached position snapshots. It owns no financial fact and no balance.
 - **Key rule**: every figure it returns names its inputs, each with a source and an age. A number without a basis is not reportable.
 - **Deliberate design**: a goal is a declared threshold with a comparison, a sustain window, and an optional buffer multiple. The "default-alive" rule that motivated this scenario is one instance of that shape rather than a rule the code knows about.
+- **Its main external consumer**: Offer Desk's `board` reads this domain for the `monetization` team's single address — per-offer actuals, plus runway, goal verdicts and the default-alive gap. Two consequences bind the read API. A partial position must remain **legibly partial to a caller**, because a caveat this domain attaches and a consumer cannot see is a caveat that will be dropped at the surface the operator actually reads. And a goal verdict must carry its sustain-window progress in the response rather than only in the UI, since the consumer renders the verdict and cannot re-derive the window.
 - **Targets**: OT-P1-001, OT-P1-002, OT-P1-003, OT-P1-004, OT-P1-006. **Requirements**: POS-001…POS-004, POS-006.
 
 ## Build Order
 
-Domains that read other domains decide the order. `position` reads `journal`; `journal` reads `books`; `ingest` writes through `journal`. Nothing reads `position`, and no two domains read each other.
+Domains that read other domains decide the order. `position` reads `journal`; `journal` reads `books`; `ingest` writes through `journal`. **No domain inside this scenario reads `position`**, and no two domains read each other.
+
+`position` does have an external reader — Offer Desk's `board` reads it for the actuals join and for financial posture — but that is a consumer of this scenario's public read API, not an internal dependency, and it does not affect build order. The direction is one-way: nothing here reads Offer Desk (see [`INTEGRATIONS.md`](INTEGRATIONS.md) and `../internal/DECISIONS.md`, 2026-08-13).
 
 ```
 books  →  journal  →  { ingest (writes), position (reads) }

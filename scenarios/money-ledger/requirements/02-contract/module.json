@@ -126,6 +126,42 @@
           "notes": "Architecture test asserts no adapter package imports a non-ingestion domain."
         }
       ]
+    },
+    {
+      "id": "CTR-006",
+      "title": "The operator-inputs import is verified before the sources are retired",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "adapter",
+      "criticality": "P0",
+      "description": "The financial cutover moves two source surfaces into this scenario: `scenarios/prompt-manager/store/teams/monetization/shared/operator-inputs.json` (cash, the four burn categories, time allocation) and the eleven-field per-heartbeat snapshot schema plus the goal thresholds in `docs/monetization/evidence/FINANCIAL_MODEL.md`. The ordering is absolute and mirrors Offer Desk's OT-P0-006 on the catalog side: import, verify field-by-field against the source with counts, then retire the source. Retiring first, or retiring on an unverified import, destroys operator-supplied data that exists nowhere else — this dataset is not regenerable, which the PRD states and which is exactly why the discipline is a requirement rather than a convention. Every imported figure enters as an ordinary event with basis `operator-asserted`; none is promoted to `authoritative` by virtue of having been canon. Goal thresholds currently carried in prose — default-alive at three consecutive months, the 1.25 buffer multiple, services capacity at 30 percent of the time budget for three consecutive weeks, and services revenue exceeding subscription revenue for two consecutive months — become declared goals under POS-002 rather than being re-typed as text.",
+      "tags": [
+        "adapter",
+        "migration",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Import of a fixture operator-inputs file yields one event per populated field, each with basis operator-asserted and provenance naming the source file and its read time."
+        },
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A field present in the source and absent from the import produces a verification failure, not a silent skip."
+        },
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Fields marked pending-operator in the source import as absent rather than as zero."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "The verification report emits per-field counts sufficient to authorise source retirement, and reports any mismatch as a blocking finding."
+        }
+      ]
     }
   ]
 }

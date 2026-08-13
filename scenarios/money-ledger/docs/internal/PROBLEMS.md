@@ -83,6 +83,22 @@ It is invisible until a scenario's experience contract is real enough to be chec
 
 **Filed:** against `template-manager` (`react-vite` v1.6.5), not against this scenario. Do not patch the shell here — a per-scenario fix hides the defect from every future generation.
 
+### The financial cutover is ordered, and the source data exists nowhere else
+
+`CTR-006` moves `shared/operator-inputs.json` and `FINANCIAL_MODEL.md`'s snapshot schema into this scenario. The ordering rule is the same one Offer Desk states for the catalog and is just as easy to get wrong under time pressure: **import, verify field-by-field with counts, then retire the source.**
+
+Two things make this worse here than on the catalog side. The operator-inputs file is **operator-supplied and not regenerable** — a lost field is not recoverable from any other system, unlike a markdown catalog whose content is at least reconstructible from history. And the file is smaller and looks trivial, which is exactly the property that invites skipping the verification step.
+
+Fields marked `pending-operator` in the source must import as **absent, not as zero**. A zero burn category is a confidently wrong figure that will propagate into runway and read as good news.
+
+### The team must be paused for the financial cutover too
+
+Offer Desk records this for the catalog import. It applies here for the same reason and is easy to miss because this cutover touches one JSON file rather than 22 markdown ones: `financial-tracker` writes to `operator-inputs.json`'s neighbourhood on its heartbeat, and a running team during the import produces a verification mismatch that looks like an importer bug.
+
+### Goal thresholds must not be re-typed as prose
+
+The default-alive rule (three consecutive months, 1.25 buffer), the services-capacity guardrail (30% for three consecutive weeks) and the services-trap signal (two consecutive months) are the clearest instances of the defect this scenario exists to remove. They must land as declared goals under `POS-002`. Copying them into a settings page description, a comment, or a README would reproduce the original problem inside the replacement — and would be nearly invisible in review, because the text would look like documentation rather than state.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

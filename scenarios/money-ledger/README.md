@@ -8,6 +8,8 @@ Holds where money is and where it went as an auditable journal, admits every sou
 
 **Its sibling:** [Offer Desk](../offer-desk/) holds what should be sold. This scenario holds what happened.
 
+**How the two are adopted:** Offer Desk is the `monetization` team's *instrument* — the one address its members read — and it reads this scenario for actuals and financial posture. This scenario is *covered by* that instrument rather than being it, which is a work-queue role and not a ranking: this is the marketed surface and the operator's daily tool. The direction is one-way and stays that way; this scenario has no knowledge of offers. See [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md), 2026-08-13.
+
 **Read first:** [`docs/START-HERE.md`](docs/START-HERE.md) for the initialization gates, then [`PRD.md`](PRD.md) for the operational targets and [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md) for the diagrams showing how the pieces fit together.
 
 > **Status:** documentation gates complete; no product code written. `make orient` reports 6/9 — the three remaining gates require code. See [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) before starting.

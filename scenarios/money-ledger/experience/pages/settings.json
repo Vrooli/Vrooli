@@ -27,67 +27,364 @@
   "states": [
     {
       "id": "default",
-      "description": "The surface at rest with data present — the state a journey step assumes when it names none."
+      "description": "The surface at rest with data present — the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/settings"
+      }
     },
     {
       "id": "idle",
-      "description": "Nothing in flight; the surface is at rest and its controls are usable."
+      "description": "Nothing in flight; the surface is at rest and its controls are usable.",
+      "setup": {
+        "route": "/settings"
+      }
     },
     {
       "id": "pending",
-      "description": "A user-triggered operation is in flight and its outcome is not yet known."
+      "description": "A user-triggered operation is in flight and its outcome is not yet known.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "pending"
+        }
+      }
     },
     {
       "id": "success",
-      "description": "An operation completed; the result is announced, not merely rendered."
+      "description": "An operation completed; the result is announced, not merely rendered.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "success"
+        }
+      }
     },
     {
       "id": "loading",
-      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival."
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
     },
     {
       "id": "saving",
-      "description": "A write is in flight; the affected control is disabled and says why."
+      "description": "A write is in flight; the affected control is disabled and says why.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "saving"
+        }
+      }
     },
     {
       "id": "syncing",
-      "description": "A background read is refreshing data the user is already looking at."
+      "description": "A background read is refreshing data the user is already looking at.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "syncing"
+        }
+      }
     },
     {
       "id": "refreshing",
-      "description": "A user-requested re-read of data already on screen."
+      "description": "A user-requested re-read of data already on screen.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "refreshing"
+        }
+      }
     },
     {
       "id": "empty",
-      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded."
+      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded. No goal has been declared yet, so the position page reports against nothing.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "empty"
+        }
+      }
     },
     {
       "id": "partial",
-      "description": "Some contributing source could not be read; what is missing is named."
+      "description": "Some contributing source could not be read; what is missing is named.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "partial"
+        }
+      }
     },
     {
       "id": "stale",
-      "description": "Displayed data is older than its freshness window; its age is shown."
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "stale"
+        }
+      }
     },
     {
       "id": "validation-error",
-      "description": "Input was rejected before submission; the offending field is identified."
+      "description": "Input was rejected before submission; the offending field is identified. A goal whose sustain window or threshold cannot be parsed is refused here rather than saved and silently never met.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
     },
     {
       "id": "request-error",
-      "description": "The request failed; the reason and the next action are stated."
+      "description": "The request failed; the reason and the next action are stated.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
     },
     {
       "id": "retrying",
-      "description": "An automatic retry is in progress; attempt count and next attempt are visible."
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "retrying"
+        }
+      }
     },
     {
       "id": "permission-denied",
-      "description": "The caller's role does not permit this; what role would is stated."
+      "description": "The caller's role does not permit this; what role would is stated.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "permission-denied"
+        }
+      }
     },
     {
       "id": "offline",
-      "description": "The client cannot reach the API; queued or read-only behavior is explained."
+      "description": "The client cannot reach the API; queued or read-only behavior is explained.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "goal-declared",
+      "description": "At least one goal exists, each showing its full shape — threshold, comparison, sustain window, and any buffer multiple.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "goal-declared"
+        }
+      }
+    },
+    {
+      "id": "goals-empty",
+      "description": "No goal has been declared. Distinct from a goal that is declared and unmet: the position page has nothing to report against, and says so rather than showing a verdict.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "goals-empty"
+        }
+      }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "goal-list",
+      "role": "list",
+      "name": "Goals",
+      "description": "Declared financial goals. This is the surface where the thresholds that used to live in a strategy document become state the position page evaluates."
+    },
+    {
+      "id": "goal-threshold",
+      "role": "group",
+      "name": "Threshold",
+      "description": "A goal's threshold and comparison — the figure it is measured against and the direction that counts as met."
+    },
+    {
+      "id": "goal-sustain-window",
+      "role": "group",
+      "name": "Sustain window",
+      "description": "How long the threshold must hold before the goal counts as met. A goal without one would report met on its first good reading."
+    },
+    {
+      "id": "goal-buffer",
+      "role": "group",
+      "name": "Buffer multiple",
+      "description": "Optional headroom multiplier applied to the threshold, for goals that want margin rather than a bare crossing."
+    },
+    {
+      "id": "goals-empty-guidance",
+      "role": "note",
+      "description": "Explains that no goal is declared and that the position page will report no verdict until one is — not that every goal is unmet."
+    },
+    {
+      "id": "default-book-control",
+      "role": "combobox",
+      "name": "Default book",
+      "description": "Which accounting entity the other surfaces scope to by default."
+    },
+    {
+      "id": "currency-display-control",
+      "role": "combobox",
+      "name": "Currency display",
+      "description": "How amounts are presented. Never a conversion setting — currencies are reported separately and never converted."
+    },
+    {
+      "id": "locale-control",
+      "role": "combobox",
+      "name": "Language",
+      "description": "Locale switching. Settings owns this control; it is a durable seam of the generated shell, not page content."
+    },
+    {
+      "id": "theme-control",
+      "role": "group",
+      "name": "Theme",
+      "description": "Light, dark, and system mode."
+    }
+  ],
+  "claims": [
+    {
+      "id": "goal-shows-its-full-shape",
+      "type": "element-present",
+      "statement": "A declared goal shows its threshold, its comparison, and its sustain window together, not a threshold alone.",
+      "tier": "machine",
+      "elements": [
+        "goal-list",
+        "goal-threshold",
+        "goal-sustain-window"
+      ],
+      "states": [
+        "goal-declared"
+      ],
+      "rationale": "OT-P1-002. The default-alive rule this scenario replaces requires three consecutive months; a goal surface that shows only a threshold invites re-introducing the sustain window as prose somewhere else, which is the exact defect being removed."
+    },
+    {
+      "id": "goals-read-before-preferences",
+      "type": "reading-order",
+      "statement": "Goal declarations read before default book, currency display, and appearance preferences.",
+      "tier": "machine",
+      "elements": [
+        "goal-list",
+        "default-book-control",
+        "theme-control"
+      ],
+      "states": [
+        "goal-declared"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "Priority 1. Goals decide what another page reports; theme does not. Direction-aware so the order survives RTL."
+    },
+    {
+      "id": "no-goals-is-distinct-from-unmet-goals",
+      "type": "state-distinct",
+      "statement": "Having declared no goal is perceivably different from having goals that are currently unmet.",
+      "tier": "machine",
+      "states": [
+        "goals-empty",
+        "goal-declared"
+      ],
+      "elements": [
+        "goals-empty-guidance"
+      ],
+      "rationale": "The scenario's honesty rule applied to its own configuration. 'Nothing is being measured' and 'what is measured is failing' lead to opposite actions and would otherwise both render as an absence of green."
+    },
+    {
+      "id": "unparseable-goal-is-refused-at-write-time",
+      "type": "state-covered",
+      "statement": "A goal whose threshold or sustain window cannot be parsed is rejected with the offending field identified, rather than saved.",
+      "tier": "machine",
+      "states": [
+        "validation-error"
+      ],
+      "elements": [
+        "goal-threshold",
+        "goal-sustain-window"
+      ],
+      "rationale": "A goal that saves but can never evaluate is indistinguishable from one that is simply never met — the same silent-failure class the trigger language refuses on the Offer Desk side."
+    },
+    {
+      "id": "saving-a-goal-says-so",
+      "type": "state-covered",
+      "statement": "While a goal write is in flight the affected control is disabled and states why, rather than appearing inert.",
+      "tier": "machine",
+      "states": [
+        "saving"
+      ],
+      "elements": [
+        "goal-list"
+      ],
+      "rationale": "DESIGN.md request-lifecycle contract. A settings write that looks like nothing happened invites a second submission."
+    },
+    {
+      "id": "locale-control-lives-in-settings",
+      "type": "element-present",
+      "statement": "The locale control is present on this page.",
+      "tier": "machine",
+      "elements": [
+        "locale-control"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Settings ownership of locale switching is a durable seam of the generated shell listed in START-HERE, not illustrative page content. Asserting it here stops a redesign from quietly relocating it."
+    },
+    {
+      "id": "currency-display-is-not-conversion",
+      "type": "custom",
+      "statement": "The currency control changes presentation only and offers no conversion between currencies.",
+      "tier": "manual",
+      "elements": [
+        "currency-display-control"
+      ],
+      "rationale": "PRD non-goal: there is no FX engine, and a converted total's basis would depend on a rate and date this scenario does not own. Manual because it is the absence of an affordance, which a presence check cannot express."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "goal-list": {
+        "testid": "settings-goal-list"
+      },
+      "goal-threshold": {
+        "testid": "settings-goal-threshold"
+      },
+      "goal-sustain-window": {
+        "testid": "settings-goal-sustain-window"
+      },
+      "goal-buffer": {
+        "testid": "settings-goal-buffer"
+      },
+      "goals-empty-guidance": {
+        "testid": "settings-goals-empty-guidance"
+      },
+      "default-book-control": {
+        "testid": "settings-default-book"
+      },
+      "currency-display-control": {
+        "testid": "settings-currency-display"
+      },
+      "locale-control": {
+        "testid": "settings-locale"
+      },
+      "theme-control": {
+        "testid": "settings-theme"
+      }
+    }
+  }
 }

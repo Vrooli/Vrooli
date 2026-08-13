@@ -6,6 +6,8 @@ Holds every sellable thing an operator offers as a record with a state, evaluate
 
 **Its sibling:** [Money Ledger](../money-ledger/) holds what actually happened. This scenario holds what *should* earn. Neither can say "this offer is active and has earned nothing" alone.
 
+**Its other job:** this scenario is the `monetization` team's *instrument* — the one address its members read to learn what needs doing. That is why the `board` domain carries financial posture alongside offer state: a team with one address must serve its financial member from the same surface as its catalog members. Money Ledger remains the marketed product; instrument is a work-queue role, not a ranking. See [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md), 2026-08-13.
+
 **Read first:** [`docs/START-HERE.md`](docs/START-HERE.md) for the initialization gates, then [`PRD.md`](PRD.md) for the operational targets and [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) for the domain map and build order.
 
 > **Status:** documentation gates complete; no product code written. `make orient` reports 6/9 — the three remaining gates are scaffold health, the first vertical slice, and example-domain removal, all of which require code. See [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) before starting.
