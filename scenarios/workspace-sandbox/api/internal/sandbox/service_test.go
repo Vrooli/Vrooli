@@ -26,17 +26,18 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/audit"
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // --- Test Helpers ---
 
 func newTestService(repo *mocks.FakeRepository, drv *mocks.FakeDriver) *Service {
-	clk := clock.System{}
+	clk := schedule.System()
 	return NewService(repo, drv, ServiceConfig{
 		DefaultProjectRoot: "/tmp/project",
 		MaxSandboxes:       100,
@@ -182,7 +183,7 @@ func TestService_Create_ScopeConflict(t *testing.T) {
 func TestService_Create_NoProjectRoot(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, ServiceConfig{}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter()) // No default project root
 	ctx := context.Background()
 
@@ -1034,7 +1035,7 @@ func TestService_CheckConflicts_NoConflicts(t *testing.T) {
 	gitOps := mocks.NewFakeGitOps()
 	gitOps.ConflictResult = &diff.ConflictCheckResult{HasChanged: false}
 
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultServiceConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(), WithGitOps(gitOps))
 	ctx := context.Background()
 
@@ -1069,7 +1070,7 @@ func TestService_CheckConflicts_WithConflicts(t *testing.T) {
 		ConflictingFiles: []string{"file1.txt"},
 	}
 
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultServiceConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(), WithGitOps(gitOps))
 	ctx := context.Background()
 
@@ -1101,7 +1102,7 @@ func TestService_Rebase_Success(t *testing.T) {
 	gitOps := mocks.NewFakeGitOps()
 	gitOps.CommitHash = "new-hash-789"
 
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultServiceConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(), WithGitOps(gitOps))
 	ctx := context.Background()
 
@@ -1169,7 +1170,7 @@ func TestService_ValidatePath_Valid(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, ServiceConfig{
 		DefaultProjectRoot: tmpDir,
 		MaxSandboxes:       100,

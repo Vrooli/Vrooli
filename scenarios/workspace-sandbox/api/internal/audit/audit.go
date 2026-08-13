@@ -40,8 +40,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Event is the input shape for Emitter.Emit. It mirrors the subset
@@ -91,7 +92,7 @@ type Event struct {
 //
 // Implementations must:
 //
-//   - Stamp EventTime from an authoritative clock.
+//   - Stamp EventTime from an authoritative schedule.
 //   - Default ActorType to "system" when the input leaves it empty.
 //   - Propagate the underlying persistence error to the caller. The
 //     audit policy (log-and-continue vs return-to-caller) is the
@@ -111,13 +112,13 @@ type LogFunc func(ctx context.Context, event *types.AuditEvent) error
 // clock, and persists through the supplied LogFunc.
 type RepoEmitter struct {
 	log   LogFunc
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewRepoEmitter wires a RepoEmitter. Both args are required —
 // passing nil panics on construction so misconfigured boot paths
 // fail loudly instead of silently dropping audit events.
-func NewRepoEmitter(log LogFunc, clk clock.Clock) *RepoEmitter {
+func NewRepoEmitter(log LogFunc, clk schedule.Clock) *RepoEmitter {
 	if log == nil {
 		panic("audit.NewRepoEmitter: log function is required")
 	}
@@ -131,7 +132,7 @@ func NewRepoEmitter(log LogFunc, clk clock.Clock) *RepoEmitter {
 // every other field is normalized:
 //
 //   - ActorType defaults to "system" when empty.
-//   - EventTime is stamped from the injected clock.
+//   - EventTime is stamped from the injected schedule.
 //   - ID is stamped here too (the repository would otherwise stamp
 //     it on insert; doing it here means the persisted row has a
 //     deterministic ID even if the caller wants to read it back

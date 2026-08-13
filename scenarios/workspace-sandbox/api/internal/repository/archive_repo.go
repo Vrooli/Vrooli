@@ -11,8 +11,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // ArchiveRepository persists DiffArchive metadata and lists/queries it.
@@ -77,13 +78,13 @@ var _ ArchiveRepository = (*SandboxArchiveRepository)(nil)
 // the same *sql.DB the SandboxRepository uses.
 type SandboxArchiveRepository struct {
 	db    *sql.DB
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewArchiveRepository constructs the production archive repository.
 // clk is required: SnapshotAt is derived from clk.Now when the inserted
 // DiffArchive leaves SnapshotAt as the zero value.
-func NewArchiveRepository(db *sql.DB, clk clock.Clock) *SandboxArchiveRepository {
+func NewArchiveRepository(db *sql.DB, clk schedule.Clock) *SandboxArchiveRepository {
 	if db == nil {
 		panic("repository.NewArchiveRepository: db is required")
 	}

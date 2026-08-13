@@ -21,7 +21,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/fsmount"
@@ -30,6 +29,8 @@ import (
 	"workspace-sandbox/internal/runtime"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // StatsGetter is an interface for retrieving sandbox statistics.
@@ -53,7 +54,7 @@ type Handlers struct {
 	InUserNamespace bool                  // Whether API is running in a user namespace
 	Reconcilers     *sandbox.Runner       // Periodic reconciler dispatcher (Phase 2 Round 3)
 	RetentionStore  config.RetentionStore // Diff-archive retention config (Phase 4)
-	Clock           clock.Clock           // Wall-clock seam (Round 4 Phase 2). Required.
+	Clock           schedule.Clock        // Wall-clock seam (Round 4 Phase 2). Required.
 	Mounter         fsmount.Mounter       // Mount/unmount seam (Round 4 Phase 7). Required.
 	Starter         process.Starter       // Process exec seam (Round 4 Phase 7). Required.
 

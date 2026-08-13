@@ -2,7 +2,7 @@
 //
 // Deps carries the seam dependencies every driver constructor needs.
 // Round 4 Phase 7 introduced fsmount.Mounter and process.Starter as
-// required deps; bundling them with clock.Clock keeps factory call
+// required deps; bundling them with schedule.Clock keeps factory call
 // sites readable (one struct argument instead of three positional
 // parameters) and lets new seams be added without re-flowing every
 // driver factory signature.
@@ -14,9 +14,10 @@
 package driver
 
 import (
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/process"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Deps is the bundle of seam dependencies every driver factory takes.
@@ -24,7 +25,7 @@ import (
 type Deps struct {
 	// Clock is the time source for change-detection timestamps and
 	// driver-internal scheduling. Required.
-	Clock clock.Clock
+	Clock schedule.Clock
 
 	// Mounter handles every mount/unmount/IsMountPoint syscall. Required.
 	Mounter fsmount.Mounter

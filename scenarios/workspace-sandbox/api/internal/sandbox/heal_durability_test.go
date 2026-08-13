@@ -14,9 +14,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 
 	_ "modernc.org/sqlite"
 )
@@ -34,7 +35,7 @@ func newDurabilityRepo(t *testing.T) *repository.SandboxRepository {
 		t.Fatalf("apply schema: %v", err)
 	}
 	t.Cleanup(func() { db.Close() })
-	return repository.NewSandboxRepository(db, clock.System{})
+	return repository.NewSandboxRepository(db, schedule.System())
 }
 
 // TestHealTracker_PersistsAcrossRestart records a failure, simulates

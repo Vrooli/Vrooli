@@ -23,7 +23,6 @@ import (
 
 	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/blobstore"
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/metrics"
@@ -31,6 +30,8 @@ import (
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // --- Service Interface ---
@@ -157,7 +158,7 @@ type Service struct {
 	blobs       blobstore.BlobStore
 	driver      driver.Driver
 	config      ServiceConfig
-	clock       clock.Clock
+	clock       schedule.Clock
 	audit       audit.Emitter
 	starter     process.Starter
 
@@ -295,14 +296,14 @@ func WithArchive(archiveRepo repository.ArchiveRepository, blobs blobstore.BlobS
 //
 //   - clk: idle timeouts, audit timestamps, manual-review TTL
 //     evaluation, and the per-sandbox auto-heal clock all flow
-//     through it. Production wires clock.System{}; tests wire
+//     through it. Production wires schedule.System(); tests wire
 //     FakeClock so time-dependent behavior is deterministic.
 //   - emitter: every audit event (created, approved, rejected,
 //     auto-heal-failed, manual-review-ttl-expired, etc.) goes
 //     through it. Production wires audit.NewRepoEmitter(repo.LogAuditEvent, clk);
 //     tests wire mocks.NewFakeEmitter(clk) and assert via
 //     assertx.AssertAuditEvents.
-func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig, clk clock.Clock, emitter audit.Emitter, starter process.Starter, opts ...ServiceOption) *Service {
+func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig, clk schedule.Clock, emitter audit.Emitter, starter process.Starter, opts ...ServiceOption) *Service {
 	if clk == nil {
 		panic("sandbox.NewService: clock is required")
 	}

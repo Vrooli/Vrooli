@@ -21,6 +21,8 @@ import (
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // countingReconcilerInternal is an in-package Reconciler whose
@@ -63,7 +65,7 @@ func waitForCount(t *testing.T, c *countingReconcilerInternal, want int32, msg s
 // reads from the supplied FakeClock — including auto-heal grace
 // windows, lifecycle TTL evaluation, manual-review expiry, daemon
 // reaper start-time math, and the orphan reconciler's duration field.
-func newClockTestService(t *testing.T, repo *mocks.FakeRepository, drv *mocks.FakeDriver, clk *mocks.FakeClock) *Service {
+func newClockTestService(t *testing.T, repo *mocks.FakeRepository, drv *mocks.FakeDriver, clk *scheduletest.FakeClock) *Service {
 	t.Helper()
 	return NewService(repo, drv, ServiceConfig{
 		DefaultProjectRoot: "/tmp/project",
@@ -80,7 +82,7 @@ func TestService_Stop_TimestampsViaClock(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()
 	pinned := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
-	clk := mocks.NewFakeClock(pinned)
+	clk := scheduletest.New(pinned)
 	svc := newClockTestService(t, repo, drv, clk)
 
 	id := uuid.New()
@@ -118,7 +120,7 @@ func TestReconcileLifecycle_IdleTimeoutFiresOnAdvance(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()
 	start := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
-	clk := mocks.NewFakeClock(start)
+	clk := scheduletest.New(start)
 	svc := newClockTestService(t, repo, drv, clk)
 
 	id := uuid.New()
@@ -173,7 +175,7 @@ func TestReconcileManualReviewExpiry_TTLBoundary(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := mocks.NewFakeRepository()
 			drv := mocks.NewFakeDriver()
-			clk := mocks.NewFakeClock(tc.now)
+			clk := scheduletest.New(tc.now)
 			svc := newClockTestService(t, repo, drv, clk)
 
 			id := uuid.New()
@@ -207,7 +209,7 @@ func TestReconcileManualReviewExpiry_TTLBoundary(t *testing.T) {
 // directly, which forced wall-time sleeps in tests.
 func TestRunner_TickerFiresThroughFakeClock(t *testing.T) {
 	rc := newCountingReconciler("rc")
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	r := NewRunner(time.Hour, []Reconciler{rc}, nil, clk)
 	r.Start()
 	defer r.Stop()

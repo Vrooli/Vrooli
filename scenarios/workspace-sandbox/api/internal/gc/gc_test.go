@@ -10,9 +10,10 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/audit"
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // gcRepo builds a FakeRepository pre-seeded with the given sandboxes
@@ -50,7 +51,7 @@ func TestGCService_DryRun_ReturnsWithoutDeleting(t *testing.T) {
 
 	repo := gcRepo([]*types.Sandbox{oldSandbox})
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
@@ -94,7 +95,7 @@ func TestGCService_ActualRun_DeletesSandboxes(t *testing.T) {
 
 	repo := gcRepo([]*types.Sandbox{oldSandbox})
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
@@ -142,7 +143,7 @@ func TestGCService_NoCandidates_ReturnsEmpty(t *testing.T) {
 	// [REQ:P1-003] GC with no eligible sandboxes
 	repo := gcRepo([]*types.Sandbox{})
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
@@ -173,7 +174,7 @@ func TestGCService_IdleTimeout_CollectsIdleSandboxes(t *testing.T) {
 
 	repo := gcRepo([]*types.Sandbox{idleSandbox})
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
@@ -206,7 +207,7 @@ func TestGCService_TerminalState_CollectsApprovedRejected(t *testing.T) {
 
 	repo := gcRepo([]*types.Sandbox{approvedSandbox})
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
@@ -241,7 +242,7 @@ func TestGCService_Limit_RespectsMaxCount(t *testing.T) {
 
 	repo := gcRepo(sandboxes)
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
@@ -275,7 +276,7 @@ func TestGCService_DefaultPolicy_UsedWhenNil(t *testing.T) {
 
 	repo := gcRepo([]*types.Sandbox{oldSandbox})
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
@@ -304,7 +305,7 @@ func TestGCService_Preview_IsDryRun(t *testing.T) {
 
 	repo := gcRepo([]*types.Sandbox{sandbox})
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	policy := types.DefaultGCPolicy()
@@ -335,7 +336,7 @@ func TestGCService_Reasons_ArePopulated(t *testing.T) {
 
 	repo := gcRepo([]*types.Sandbox{sandbox})
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
@@ -370,7 +371,7 @@ func TestGCService_GetGCCandidatesError(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	repo.GetGCCandidatesErr = fmt.Errorf("database connection failed")
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	_, err := svc.Run(context.Background(), &types.GCRequest{
@@ -403,7 +404,7 @@ func TestGCService_GetStatsError(t *testing.T) {
 	seedCandidates(repo, []*types.Sandbox{sandbox})
 	repo.GetStatsErr = fmt.Errorf("stats query failed")
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	_, err := svc.Run(context.Background(), &types.GCRequest{
@@ -437,7 +438,7 @@ func TestGCService_CleanupError_ContinuesDeleting(t *testing.T) {
 	seedCandidates(repo, []*types.Sandbox{sandbox})
 	drv := mocks.NewFakeDriver()
 	drv.CleanupErr = fmt.Errorf("cleanup failed: resource busy")
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
@@ -494,7 +495,7 @@ func TestGCService_DeleteError_ContinuesToNextSandbox(t *testing.T) {
 	repo.DeleteFailIDs = map[uuid.UUID]bool{sandbox1.ID: true}
 	repo.DeleteErr = fmt.Errorf("delete failed: constraint violation")
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{
@@ -569,7 +570,7 @@ func TestGCService_MultipleErrors_AllRecorded(t *testing.T) {
 	drv := mocks.NewFakeDriver()
 	drv.CleanupFailIDs = map[uuid.UUID]bool{sandboxes[1].ID: true}
 	drv.CleanupErr = fmt.Errorf("cleanup failed")
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(repo, drv, DefaultConfig(), clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk))
 
 	result, err := svc.Run(context.Background(), &types.GCRequest{

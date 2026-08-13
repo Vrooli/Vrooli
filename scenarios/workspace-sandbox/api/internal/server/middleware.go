@@ -26,8 +26,9 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/logging"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Middleware bundles the cross-cutting HTTP concerns wrapping every
@@ -42,7 +43,7 @@ type Middleware struct {
 	// Clock supplies request-duration measurement. Required (Round 4
 	// Phase 2 made the wall-clock seam explicit; nothing in the
 	// middleware path may call time.Now directly).
-	Clock clock.Clock
+	Clock schedule.Clock
 
 	// CORSAllowedOrigins is the strict allowlist for Access-Control-
 	// Allow-Origin. Empty means "fall back to the dev UI port" (see
@@ -122,7 +123,7 @@ func (m Middleware) structuredLogging(next http.Handler) http.Handler {
 
 		next.ServeHTTP(wrapped, r)
 
-		duration := m.Clock.Since(start)
+		duration := schedule.Since(start)
 		m.Logger.APIRequest(r.Method, r.RequestURI, wrapped.statusCode, float64(duration.Milliseconds()))
 	})
 }

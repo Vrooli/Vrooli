@@ -10,8 +10,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // newTestArchiveRepo wires an archive repo + a sandbox repo against a
@@ -20,7 +21,7 @@ import (
 func newTestArchiveRepo(t *testing.T) (*SandboxArchiveRepository, *SandboxRepository, *sql.DB) {
 	t.Helper()
 	db := newTestDB(t)
-	clk := clock.System{}
+	clk := schedule.System()
 	return NewArchiveRepository(db, clk), NewSandboxRepository(db, clk), db
 }
 

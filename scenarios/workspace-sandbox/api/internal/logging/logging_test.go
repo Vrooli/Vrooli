@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"workspace-sandbox/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 func TestNew(t *testing.T) {
 	t.Run("creates logger with defaults", func(t *testing.T) {
-		l := New("test-service", WithClock(clock.System{}))
+		l := New("test-service", WithClock(schedule.System()))
 		if l.service != "test-service" {
 			t.Errorf("expected service 'test-service', got %s", l.service)
 		}
@@ -26,7 +26,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("applies WithLevel option", func(t *testing.T) {
-		l := New("test", WithClock(clock.System{}), WithLevel(LevelDebug))
+		l := New("test", WithClock(schedule.System()), WithLevel(LevelDebug))
 		if l.level != LevelDebug {
 			t.Errorf("expected level Debug, got %s", l.level)
 		}
@@ -34,7 +34,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("applies WithOutput option", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.Info("test.event", "test message", nil)
 		if buf.Len() == 0 {
 			t.Error("expected output to custom writer")
@@ -43,7 +43,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("applies multiple options", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf), WithLevel(LevelError))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf), WithLevel(LevelError))
 		if l.level != LevelError {
 			t.Errorf("expected level Error, got %s", l.level)
 		}
@@ -89,7 +89,7 @@ func TestShouldLog(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(string(tt.configuredLevel)+"_allows_"+string(tt.logLevel), func(t *testing.T) {
-			l := New("test", WithClock(clock.System{}), WithLevel(tt.configuredLevel))
+			l := New("test", WithClock(schedule.System()), WithLevel(tt.configuredLevel))
 			if got := l.shouldLog(tt.logLevel); got != tt.shouldLog {
 				t.Errorf("shouldLog(%s) with level %s = %v, want %v",
 					tt.logLevel, tt.configuredLevel, got, tt.shouldLog)
@@ -101,7 +101,7 @@ func TestShouldLog(t *testing.T) {
 func TestLogOutput(t *testing.T) {
 	t.Run("outputs valid JSON", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test-service", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test-service", WithClock(schedule.System()), WithOutput(buf))
 		l.Info("test.event", "test message", nil)
 
 		var entry Entry
@@ -112,7 +112,7 @@ func TestLogOutput(t *testing.T) {
 
 	t.Run("includes required fields", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test-service", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test-service", WithClock(schedule.System()), WithOutput(buf))
 		l.Info("test.event", "test message", nil)
 
 		var entry Entry
@@ -139,7 +139,7 @@ func TestLogOutput(t *testing.T) {
 
 	t.Run("extracts special fields", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test-service", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test-service", WithClock(schedule.System()), WithOutput(buf))
 		l.Info("test.event", "test", map[string]interface{}{
 			"sandboxId":  "sb-123",
 			"actor":      "user-456",
@@ -172,7 +172,7 @@ func TestLogOutput(t *testing.T) {
 
 	t.Run("appends newline", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.Info("test", "test", nil)
 		if !strings.HasSuffix(buf.String(), "\n") {
 			t.Error("expected output to end with newline")
@@ -183,7 +183,7 @@ func TestLogOutput(t *testing.T) {
 func TestLogLevels(t *testing.T) {
 	t.Run("Debug", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf), WithLevel(LevelDebug))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf), WithLevel(LevelDebug))
 		l.Debug("test.debug", "debug message", nil)
 
 		var entry Entry
@@ -197,7 +197,7 @@ func TestLogLevels(t *testing.T) {
 
 	t.Run("Info", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.Info("test.info", "info message", nil)
 
 		var entry Entry
@@ -211,7 +211,7 @@ func TestLogLevels(t *testing.T) {
 
 	t.Run("Warn", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.Warn("test.warn", "warn message", nil)
 
 		var entry Entry
@@ -225,7 +225,7 @@ func TestLogLevels(t *testing.T) {
 
 	t.Run("Error", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.Error("test.error", "error message", nil)
 
 		var entry Entry
@@ -241,7 +241,7 @@ func TestLogLevels(t *testing.T) {
 func TestConvenienceMethods(t *testing.T) {
 	t.Run("SandboxCreated", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.SandboxCreated("sb-123", "/project/src", "user-1", 150.5)
 
 		var entry Entry
@@ -264,7 +264,7 @@ func TestConvenienceMethods(t *testing.T) {
 
 	t.Run("SandboxMounted", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.SandboxMounted("sb-123", "/merged/dir", 50.0)
 
 		var entry Entry
@@ -278,7 +278,7 @@ func TestConvenienceMethods(t *testing.T) {
 
 	t.Run("SandboxStopped", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.SandboxStopped("sb-123", 25.0)
 
 		var entry Entry
@@ -292,7 +292,7 @@ func TestConvenienceMethods(t *testing.T) {
 
 	t.Run("SandboxApproved", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.SandboxApproved("sb-123", "reviewer-1", 5, "abc123")
 
 		var entry Entry
@@ -309,7 +309,7 @@ func TestConvenienceMethods(t *testing.T) {
 
 	t.Run("SandboxRejected", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.SandboxRejected("sb-123", "reviewer-1")
 
 		var entry Entry
@@ -323,7 +323,7 @@ func TestConvenienceMethods(t *testing.T) {
 
 	t.Run("SandboxDeleted", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.SandboxDeleted("sb-123", 10.0)
 
 		var entry Entry
@@ -337,7 +337,7 @@ func TestConvenienceMethods(t *testing.T) {
 
 	t.Run("SandboxError", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.SandboxError("sb-123", "mount", errors.New("mount failed"))
 
 		var entry Entry
@@ -357,7 +357,7 @@ func TestConvenienceMethods(t *testing.T) {
 
 	t.Run("DriverError", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.DriverError("unmount", errors.New("device busy"), map[string]interface{}{
 			"path": "/some/path",
 		})
@@ -376,7 +376,7 @@ func TestConvenienceMethods(t *testing.T) {
 
 	t.Run("APIRequest", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.APIRequest("GET", "/api/v1/sandboxes", 200, 15.5)
 
 		var entry Entry
@@ -393,7 +393,7 @@ func TestConvenienceMethods(t *testing.T) {
 
 	t.Run("PolicyValidation passed", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.PolicyValidation("acceptance_deny", "sb-123", true, "within limits")
 
 		var entry Entry
@@ -407,7 +407,7 @@ func TestConvenienceMethods(t *testing.T) {
 
 	t.Run("PolicyValidation failed", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.PolicyValidation("acceptance_deny", "sb-123", false, "too many files")
 
 		var entry Entry
@@ -422,7 +422,7 @@ func TestConvenienceMethods(t *testing.T) {
 
 func TestContextOperations(t *testing.T) {
 	t.Run("WithLogger stores logger in context", func(t *testing.T) {
-		l := New("test-service", WithClock(clock.System{}))
+		l := New("test-service", WithClock(schedule.System()))
 		ctx := WithLogger(context.Background(), l)
 		if ctx == nil {
 			t.Fatal("expected non-nil context")
@@ -431,7 +431,7 @@ func TestContextOperations(t *testing.T) {
 
 	t.Run("FromContext retrieves stored logger", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("specific-service", WithClock(clock.System{}), WithOutput(buf))
+		l := New("specific-service", WithClock(schedule.System()), WithOutput(buf))
 		ctx := WithLogger(context.Background(), l)
 
 		retrieved := FromContext(ctx)
@@ -459,7 +459,7 @@ func TestContextOperations(t *testing.T) {
 
 func TestConcurrentLogging(t *testing.T) {
 	buf := &bytes.Buffer{}
-	l := New("test", WithClock(clock.System{}), WithOutput(buf))
+	l := New("test", WithClock(schedule.System()), WithOutput(buf))
 
 	done := make(chan bool, 10)
 	for i := 0; i < 10; i++ {
@@ -495,7 +495,7 @@ func TestConcurrentLogging(t *testing.T) {
 func TestNilFields(t *testing.T) {
 	t.Run("handles nil fields map", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.Info("test", "test", nil)
 
 		var entry Entry
@@ -506,7 +506,7 @@ func TestNilFields(t *testing.T) {
 
 	t.Run("handles empty fields map", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		l := New("test", WithClock(clock.System{}), WithOutput(buf))
+		l := New("test", WithClock(schedule.System()), WithOutput(buf))
 		l.Info("test", "test", map[string]interface{}{})
 
 		var entry Entry

@@ -30,15 +30,16 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/storage"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/blobstore"
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/repository"
-	"workspace-sandbox/internal/testutil/db"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // archiveTestEnv bundles a real SQLite-backed Service with a real
@@ -64,8 +65,8 @@ func newArchiveTestEnv(t *testing.T) *archiveTestEnv {
 	t.Setenv("VROOLI_STORAGE_ROOT", tmp)
 
 	sqliteDB := db.NewSQLite(t)
-	repo := repository.NewSandboxRepository(sqliteDB, clock.System{})
-	archiveRepo := repository.NewArchiveRepository(sqliteDB, clock.System{})
+	repo := repository.NewSandboxRepository(sqliteDB, schedule.System())
+	archiveRepo := repository.NewArchiveRepository(sqliteDB, schedule.System())
 
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		AppID:   "vrooli-archive-test",
@@ -80,7 +81,7 @@ func newArchiveTestEnv(t *testing.T) *archiveTestEnv {
 	}
 
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(
 		repo, drv, ServiceConfig{DefaultProjectRoot: tmp, MaxSandboxes: 100},
 		clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(),
@@ -749,9 +750,9 @@ func TestSnapshot_NoArchiveSeam_Bypassed(t *testing.T) {
 	t.Setenv("VROOLI_STORAGE_ROOT", tmp)
 
 	sqliteDB := db.NewSQLite(t)
-	repo := repository.NewSandboxRepository(sqliteDB, clock.System{})
+	repo := repository.NewSandboxRepository(sqliteDB, schedule.System())
 	drv := mocks.NewFakeDriver()
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := NewService(
 		repo, drv, ServiceConfig{},
 		clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(),

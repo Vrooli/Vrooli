@@ -23,17 +23,18 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
+	httpx "github.com/vrooli/api-core/servertest"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/handlers"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/sandbox"
-	"workspace-sandbox/internal/testutil/httpx"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/testutil/mocks/procmocks"
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // liveOpt customizes the *handlers.Handlers built by newLive before
@@ -56,7 +57,7 @@ func withStarter(s process.Starter) liveOpt {
 func newLive(t *testing.T, svc sandbox.ServiceAPI, opts ...liveOpt) *httpx.LiveServer {
 	t.Helper()
 	h := &handlers.Handlers{
-		Clock:      clock.System{},
+		Clock:      schedule.System(),
 		Service:    svc,
 		DB:         mocks.NewFakePinger(),
 		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),

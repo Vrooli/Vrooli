@@ -74,9 +74,9 @@ flowchart TB
         SB[Sandbox Storage<br/>~/.local/share/workspace-sandbox/]
     end
 
-    AM -->|"POST /sandboxes"| H
-    UI -->|"GET /sandboxes/:id/diff"| H
-    CLI -->|"DELETE /sandboxes/:id"| H
+    AM -->|"Connect RPC"| H
+    UI -->|"Connect RPC / REST compatibility"| H
+    CLI -->|"Connect RPC"| H
 
     H --> S
     S --> D
@@ -87,11 +87,16 @@ flowchart TB
 
 **Key Components:**
 
-1. **API Server** - HTTP endpoints for all sandbox operations
+1. **API Server** - Connect-RPC is the typed application contract; existing REST routes remain for compatibility and operational integration.
 2. **Sandbox Service** - Business logic for create, diff, approve, etc.
 3. **Driver Layer** - Abstracts the actual filesystem isolation mechanism
 4. **SQLite** - Stores sandbox metadata (not the actual files)
 5. **Filesystem** - Where the magic happens via overlayfs
+
+The governed change path is `WorkspaceSandboxService`: `CreateSandbox`,
+`GetSandboxDiff`, `PromoteSandbox`, and `ResolveWorkspace`. Each handler
+delegates to the existing sandbox service, so typed callers and compatibility
+routes share the same lifecycle, policy, and path validation rules.
 
 ---
 

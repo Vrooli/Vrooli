@@ -10,12 +10,13 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/audit"
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // waitForExit returns nil if the spawned cmd exits within the bounded
@@ -71,7 +72,7 @@ func TestDelete_Daemon_Lifecycle(t *testing.T) {
 		CreatedAt: time.Now().Add(-time.Hour),
 	}
 
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := sandbox.NewService(
 		repo, mocks.NewFakeDriver(), sandbox.ServiceConfig{},
 		clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(),
@@ -114,7 +115,7 @@ func TestDelete_Daemon_Lifecycle_AllowsRemountSameID(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	repo.Sandboxes[id] = &types.Sandbox{ID: id, Status: types.StatusActive}
 
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := sandbox.NewService(
 		repo, mocks.NewFakeDriver(), sandbox.ServiceConfig{},
 		clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(),

@@ -10,23 +10,24 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/logging"
-	"workspace-sandbox/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fixedClockMW returns a clock that pretends every Now() call advances
 // by 50ms. The structuredLogging middleware reads start, then reads
 // Since(start) — with this clock the duration is always 50ms.
-func fixedClockMW(t *testing.T) *mocks.FakeClock {
+func fixedClockMW(t *testing.T) *scheduletest.FakeClock {
 	t.Helper()
-	c := mocks.NewFakeClock(time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC))
+	c := scheduletest.New(time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC))
 	return c
 }
 
 func newTestLogger(t *testing.T, buf *bytes.Buffer) *logging.Logger {
 	t.Helper()
-	return logging.New("test", logging.WithOutput(buf), logging.WithClock(clock.System{}))
+	return logging.New("test", logging.WithOutput(buf), logging.WithClock(schedule.System()))
 }
 
 // TestMiddleware_Apply_RegistersOrder verifies Apply panics if Logger
@@ -38,7 +39,7 @@ func TestMiddleware_Apply_RequiresLoggerAndClock(t *testing.T) {
 				t.Fatal("Apply with nil Logger should panic")
 			}
 		}()
-		(Middleware{Clock: clock.System{}}).Apply(mux.NewRouter())
+		(Middleware{Clock: schedule.System()}).Apply(mux.NewRouter())
 	})
 	t.Run("nil clock panics", func(t *testing.T) {
 		defer func() {
@@ -46,7 +47,7 @@ func TestMiddleware_Apply_RequiresLoggerAndClock(t *testing.T) {
 				t.Fatal("Apply with nil Clock should panic")
 			}
 		}()
-		(Middleware{Logger: logging.New("t", logging.WithClock(clock.System{}))}).Apply(mux.NewRouter())
+		(Middleware{Logger: logging.New("t", logging.WithClock(schedule.System()))}).Apply(mux.NewRouter())
 	})
 }
 
@@ -56,7 +57,7 @@ func TestMiddleware_Apply_RequiresLoggerAndClock(t *testing.T) {
 func TestStructuredLogging_RecordsAPIRequest(t *testing.T) {
 	var buf bytes.Buffer
 	logger := newTestLogger(t, &buf)
-	mw := Middleware{Logger: logger, Clock: clock.System{}}
+	mw := Middleware{Logger: logger, Clock: schedule.System()}
 
 	router := mux.NewRouter()
 	mw.Apply(router)
@@ -90,7 +91,7 @@ func TestStructuredLogging_RecordsAPIRequest(t *testing.T) {
 // fast-failing process loses its `event: exit` frame.
 func TestResponseWriter_FlushPassThrough(t *testing.T) {
 	logger := newTestLogger(t, &bytes.Buffer{})
-	mw := Middleware{Logger: logger, Clock: clock.System{}}
+	mw := Middleware{Logger: logger, Clock: schedule.System()}
 
 	router := mux.NewRouter()
 	mw.Apply(router)
@@ -131,7 +132,7 @@ func TestResponseWriter_FlushPassThrough(t *testing.T) {
 // they 500 silently.
 func TestResponseWriter_HijackPassThrough(t *testing.T) {
 	logger := newTestLogger(t, &bytes.Buffer{})
-	mw := Middleware{Logger: logger, Clock: clock.System{}}
+	mw := Middleware{Logger: logger, Clock: schedule.System()}
 
 	router := mux.NewRouter()
 	mw.Apply(router)
@@ -177,7 +178,7 @@ func TestCORS_AllowlistMatch(t *testing.T) {
 	logger := newTestLogger(t, &bytes.Buffer{})
 	mw := Middleware{
 		Logger:             logger,
-		Clock:              clock.System{},
+		Clock:              schedule.System(),
 		CORSAllowedOrigins: []string{"https://app.example.com"},
 	}
 
@@ -215,7 +216,7 @@ func TestCORS_AllowlistMatch(t *testing.T) {
 // before the handler chain runs.
 func TestCORS_OptionsShortCircuits(t *testing.T) {
 	logger := newTestLogger(t, &bytes.Buffer{})
-	mw := Middleware{Logger: logger, Clock: clock.System{}}
+	mw := Middleware{Logger: logger, Clock: schedule.System()}
 	router := mux.NewRouter()
 	mw.Apply(router)
 	called := false
@@ -243,7 +244,7 @@ func TestCORS_EmptyAllowlistFallsBackToUIPort(t *testing.T) {
 	logger := newTestLogger(t, &bytes.Buffer{})
 	const envName = "WORKSPACE_SANDBOX_TEST_UI_PORT"
 	t.Setenv(envName, "5173")
-	mw := Middleware{Logger: logger, Clock: clock.System{}, UIPortEnv: envName}
+	mw := Middleware{Logger: logger, Clock: schedule.System(), UIPortEnv: envName}
 
 	router := mux.NewRouter()
 	mw.Apply(router)

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/scheduletest"
 
 	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/types"
@@ -14,7 +15,7 @@ import (
 
 func TestFakeEmitter_RecordsAndStamps(t *testing.T) {
 	frozen := time.Date(2026, 4, 29, 16, 0, 0, 0, time.UTC)
-	clk := NewFakeClock(frozen)
+	clk := scheduletest.New(frozen)
 	f := NewFakeEmitter(clk)
 
 	id := uuid.New()
@@ -48,7 +49,7 @@ func TestFakeEmitter_RecordsAndStamps(t *testing.T) {
 }
 
 func TestFakeEmitter_PropagatesEmitErr(t *testing.T) {
-	clk := NewFakeClock(time.Now())
+	clk := scheduletest.New(time.Now())
 	f := NewFakeEmitter(clk)
 	want := errors.New("boom")
 	f.EmitErr = want
@@ -66,7 +67,7 @@ func TestFakeEmitter_PropagatesEmitErr(t *testing.T) {
 }
 
 func TestFakeEmitter_Reset(t *testing.T) {
-	clk := NewFakeClock(time.Now())
+	clk := scheduletest.New(time.Now())
 	f := NewFakeEmitter(clk)
 	_ = f.Emit(context.Background(), audit.Event{EventType: "a"})
 	_ = f.Emit(context.Background(), audit.Event{EventType: "b"})
@@ -80,7 +81,7 @@ func TestFakeEmitter_Reset(t *testing.T) {
 }
 
 func TestFakeEmitter_EventsReturnsSnapshot(t *testing.T) {
-	clk := NewFakeClock(time.Now())
+	clk := scheduletest.New(time.Now())
 	f := NewFakeEmitter(clk)
 	_ = f.Emit(context.Background(), audit.Event{EventType: "a"})
 	snap := f.Events()
@@ -106,7 +107,7 @@ func TestFakeEmitter_NilClockPanics(t *testing.T) {
 // LogAuditEvent would have stored, so tests can swap between fakes
 // without rewriting their assertions.
 func TestFakeEmitter_ShapeMatchesRepo(t *testing.T) {
-	clk := NewFakeClock(time.Now())
+	clk := scheduletest.New(time.Now())
 	emitter := NewFakeEmitter(clk)
 	if err := emitter.Emit(context.Background(), audit.Event{EventType: "created", Actor: "x"}); err != nil {
 		t.Fatalf("Emit: %v", err)

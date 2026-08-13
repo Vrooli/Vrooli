@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/schedule"
 
 	"workspace-sandbox/internal/blobstore"
 	"workspace-sandbox/internal/types"
@@ -444,19 +445,19 @@ func (s *Service) ReconcileArchiveRetention(ctx context.Context, policy Retentio
 	start := s.clock.Now()
 	report := ArchiveRetentionReport{}
 	if s.archiveRepo == nil || s.blobs == nil {
-		report.Duration = s.clock.Since(start)
+		report.Duration = schedule.Since(start)
 		return report
 	}
 
 	all, err := s.archiveRepo.AllOrdered(ctx)
 	if err != nil {
 		report.LastError = fmt.Sprintf("list archives: %v", err)
-		report.Duration = s.clock.Since(start)
+		report.Duration = schedule.Since(start)
 		return report
 	}
 	report.Scanned = len(all)
 	if len(all) == 0 {
-		report.Duration = s.clock.Since(start)
+		report.Duration = schedule.Since(start)
 		return report
 	}
 
@@ -535,7 +536,7 @@ func (s *Service) ReconcileArchiveRetention(ctx context.Context, policy Retentio
 		}
 	}
 
-	report.Duration = s.clock.Since(start)
+	report.Duration = schedule.Since(start)
 	return report
 }
 

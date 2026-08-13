@@ -8,16 +8,17 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // testClock returns the production clock for driver tests that don't
 // care about deterministic timestamps. Tests asserting on
 // FileChange.DetectedAt should construct a FakeClock instead.
-func testClock() clock.Clock { return clock.System{} }
+func testClock() schedule.Clock { return schedule.System() }
 
 // testStarter returns the production process.Starter; integration
 // tests that probe real binaries (overlay mounts, version queries)

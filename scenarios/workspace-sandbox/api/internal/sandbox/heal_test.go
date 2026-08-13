@@ -9,17 +9,18 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/audit"
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // --- helpers ---
 
 func newHealTestService(drv *mocks.FakeDriver, repo *mocks.FakeRepository) *Service {
-	clk := clock.System{}
+	clk := schedule.System()
 	return NewService(repo, drv, ServiceConfig{
 		DefaultProjectRoot: "/tmp/project",
 	}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter())

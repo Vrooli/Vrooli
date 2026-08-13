@@ -17,12 +17,13 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver/changedetect"
 	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 var (
@@ -48,7 +49,7 @@ type OverlayDriver struct {
 	availability availabilityFunc
 	version      func() string
 	isolation    ContainmentLevel
-	clock        clock.Clock
+	clock        schedule.Clock
 }
 
 // NewOverlayfsUserNSDriver builds the kernel-overlayfs flavor that runs

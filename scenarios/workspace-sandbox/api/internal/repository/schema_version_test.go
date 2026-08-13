@@ -10,9 +10,10 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/repository"
-	"workspace-sandbox/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // openRawSQLite returns a connected handle WITHOUT applying any
@@ -37,7 +38,7 @@ func openRawSQLite(t *testing.T) *sql.DB {
 
 func TestEnsureSchema_FreshInitWritesExpectedVersion(t *testing.T) {
 	db := openRawSQLite(t)
-	clk := mocks.NewFakeClock(time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC))
 
 	if err := repository.EnsureSchema(context.Background(), db, clk); err != nil {
 		t.Fatalf("EnsureSchema: %v", err)
@@ -62,7 +63,7 @@ func TestEnsureSchema_FreshInitWritesExpectedVersion(t *testing.T) {
 
 func TestEnsureSchema_IdempotentReinit(t *testing.T) {
 	db := openRawSQLite(t)
-	clk := mocks.NewFakeClock(time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC))
 
 	// First init writes the version.
 	if err := repository.EnsureSchema(context.Background(), db, clk); err != nil {
@@ -87,7 +88,7 @@ func TestEnsureSchema_WalksForwardThroughRegisteredVersions(t *testing.T) {
 		t.Skip("requires ExpectedSchemaVersion >= 2 to exercise forward walk")
 	}
 	db := openRawSQLite(t)
-	clk := clock.System{}
+	clk := schedule.System()
 
 	// Simulate a pre-existing DB at version (expected-1): apply DDL,
 	// stamp the older version manually, then call EnsureSchema. The
@@ -124,7 +125,7 @@ func TestEnsureSchema_WalksForwardThroughRegisteredVersions(t *testing.T) {
 
 func TestEnsureSchema_RefusesNewerVersionThanExpected(t *testing.T) {
 	db := openRawSQLite(t)
-	clk := clock.System{}
+	clk := schedule.System()
 
 	if _, err := db.Exec(repository.SchemaSQL); err != nil {
 		t.Fatalf("apply schema: %v", err)
@@ -145,7 +146,7 @@ func TestEnsureSchema_RefusesNewerVersionThanExpected(t *testing.T) {
 }
 
 func TestEnsureSchema_RejectsNilDeps(t *testing.T) {
-	if err := repository.EnsureSchema(context.Background(), nil, clock.System{}); err == nil {
+	if err := repository.EnsureSchema(context.Background(), nil, schedule.System()); err == nil {
 		t.Error("expected error for nil db")
 	}
 	db := openRawSQLite(t)
@@ -156,7 +157,7 @@ func TestEnsureSchema_RejectsNilDeps(t *testing.T) {
 
 func TestEnsureSchema_AppliesLegacyMigrations(t *testing.T) {
 	db := openRawSQLite(t)
-	clk := clock.System{}
+	clk := schedule.System()
 
 	// Simulate a pre-2026 database: full sandboxes schema as it existed
 	// before the home-overlay refactor — columns named `driver` (not

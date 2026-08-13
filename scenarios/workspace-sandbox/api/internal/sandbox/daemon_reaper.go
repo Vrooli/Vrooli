@@ -32,8 +32,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // upperDirUUIDPattern matches `--upperdir=<path>/<uuid>/...` arguments
@@ -186,7 +187,7 @@ func (s *Service) ReconcileStaleDaemonsWithConfig(ctx context.Context, cfg Daemo
 		}
 	}
 
-	report.Duration = s.clock.Since(start)
+	report.Duration = schedule.Since(start)
 	return report
 }
 
@@ -227,7 +228,7 @@ func (s *Service) daemonOwnerStatus(ctx context.Context, id uuid.UUID) (status t
 // uses the supplied clock so tests can drive the wait deterministically
 // (FakeClock.Sleep advances the fake clock; the loop terminates after
 // one iteration once the deadline lies in the past).
-func killDaemon(pid int, termWait time.Duration, clk clock.Clock) error {
+func killDaemon(pid int, termWait time.Duration, clk schedule.Clock) error {
 	proc, err := os.FindProcess(pid)
 	if err != nil {
 		return fmt.Errorf("find process: %w", err)

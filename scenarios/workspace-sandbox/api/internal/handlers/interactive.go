@@ -12,10 +12,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
-	"workspace-sandbox/internal/clock"
 	driverexec "workspace-sandbox/internal/driver/exec"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // WebSocket message types for interactive sessions
@@ -163,7 +164,7 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 // runInteractiveSession runs a command with PTY and streams I/O over
 // WebSocket. PTY allocation routes through process.PTYStart so the
 // os/exec dependency stays confined to the canonical PTY seam.
-func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverexec.BwrapConfig, req InteractiveStartRequest, clk clock.Clock) {
+func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverexec.BwrapConfig, req InteractiveStartRequest, clk schedule.Clock) {
 	// Build the command
 	executable, args := driverexec.BuildExecCommand(sb, cfg, req.Command, req.Args...)
 

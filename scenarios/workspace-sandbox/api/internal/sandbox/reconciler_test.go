@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // TestRunner_RunsPeriodicInOrder verifies that every periodic reconciler
@@ -17,7 +18,7 @@ func TestRunner_RunsPeriodicInOrder(t *testing.T) {
 	a := sandboxiface.NewFakeReconciler("a")
 	b := sandboxiface.NewFakeReconciler("b")
 	c := sandboxiface.NewFakeReconciler("c")
-	r := sandbox.NewRunner(time.Hour, []sandbox.Reconciler{a, b, c}, nil, clock.System{})
+	r := sandbox.NewRunner(time.Hour, []sandbox.Reconciler{a, b, c}, nil, schedule.System())
 
 	r.Start()
 	defer r.Stop()
@@ -45,7 +46,7 @@ func TestRunner_RunsPeriodicInOrder(t *testing.T) {
 func TestRunner_RunsStartupOnly(t *testing.T) {
 	periodic := sandboxiface.NewFakeReconciler("periodic")
 	startup := sandboxiface.NewFakeReconciler("startup")
-	r := sandbox.NewRunner(20*time.Millisecond, []sandbox.Reconciler{periodic}, []sandbox.Reconciler{startup}, clock.System{})
+	r := sandbox.NewRunner(20*time.Millisecond, []sandbox.Reconciler{periodic}, []sandbox.Reconciler{startup}, schedule.System())
 
 	r.Start()
 	defer r.Stop()
@@ -70,7 +71,7 @@ func TestRunner_RunOne_ByName(t *testing.T) {
 	a := sandboxiface.NewFakeReconciler("a")
 	a.Report = sandbox.ReconcileReport{ItemsProcessed: 5}
 	b := sandboxiface.NewFakeReconciler("b")
-	r := sandbox.NewRunner(time.Hour, []sandbox.Reconciler{a, b}, nil, clock.System{})
+	r := sandbox.NewRunner(time.Hour, []sandbox.Reconciler{a, b}, nil, schedule.System())
 
 	report, err := r.RunOne(context.Background(), "a")
 	if err != nil {
@@ -91,7 +92,7 @@ func TestRunner_RunOne_ByName(t *testing.T) {
 // matches the requested name. The admin endpoint relies on this to
 // return 404.
 func TestRunner_RunOne_UnknownReturnsError(t *testing.T) {
-	r := sandbox.NewRunner(time.Hour, []sandbox.Reconciler{sandboxiface.NewFakeReconciler("a")}, nil, clock.System{})
+	r := sandbox.NewRunner(time.Hour, []sandbox.Reconciler{sandboxiface.NewFakeReconciler("a")}, nil, schedule.System())
 	_, err := r.RunOne(context.Background(), "nope")
 	if err == nil {
 		t.Fatal("expected error for unknown reconciler, got nil")
@@ -102,7 +103,7 @@ func TestRunner_RunOne_UnknownReturnsError(t *testing.T) {
 func TestRunner_Names(t *testing.T) {
 	r := sandbox.NewRunner(time.Hour,
 		[]sandbox.Reconciler{sandboxiface.NewFakeReconciler("a"), sandboxiface.NewFakeReconciler("b")},
-		[]sandbox.Reconciler{sandboxiface.NewFakeReconciler("z")}, clock.System{})
+		[]sandbox.Reconciler{sandboxiface.NewFakeReconciler("z")}, schedule.System())
 	got := r.Names()
 	want := []string{"a", "b", "z"}
 	if len(got) != len(want) {
@@ -119,7 +120,7 @@ func TestRunner_Names(t *testing.T) {
 func TestRunner_Metrics(t *testing.T) {
 	a := sandboxiface.NewFakeReconciler("a")
 	a.Report = sandbox.ReconcileReport{ItemsProcessed: 3, ItemsFailed: 1}
-	r := sandbox.NewRunner(time.Hour, []sandbox.Reconciler{a}, nil, clock.System{})
+	r := sandbox.NewRunner(time.Hour, []sandbox.Reconciler{a}, nil, schedule.System())
 
 	if _, err := r.RunOne(context.Background(), "a"); err != nil {
 		t.Fatalf("RunOne: %v", err)
@@ -143,7 +144,7 @@ func TestRunner_Metrics(t *testing.T) {
 // TestRunner_StopIsIdempotent confirms calling Stop twice does not
 // panic or block indefinitely.
 func TestRunner_StopIsIdempotent(t *testing.T) {
-	r := sandbox.NewRunner(10*time.Millisecond, []sandbox.Reconciler{sandboxiface.NewFakeReconciler("a")}, nil, clock.System{})
+	r := sandbox.NewRunner(10*time.Millisecond, []sandbox.Reconciler{sandboxiface.NewFakeReconciler("a")}, nil, schedule.System())
 	r.Start()
 	r.Stop()
 	r.Stop()
@@ -154,7 +155,7 @@ func TestRunner_StopIsIdempotent(t *testing.T) {
 func TestRunner_RunOne_StartupOnlyByName(t *testing.T) {
 	startup := sandboxiface.NewFakeReconciler("startup")
 	startup.Report = sandbox.ReconcileReport{ItemsProcessed: 7}
-	r := sandbox.NewRunner(time.Hour, nil, []sandbox.Reconciler{startup}, clock.System{})
+	r := sandbox.NewRunner(time.Hour, nil, []sandbox.Reconciler{startup}, schedule.System())
 	report, err := r.RunOne(context.Background(), "startup")
 	if err != nil {
 		t.Fatalf("RunOne: %v", err)
@@ -169,7 +170,7 @@ func TestRunner_RunOne_StartupOnlyByName(t *testing.T) {
 func TestRunner_LastErrorRecorded(t *testing.T) {
 	rc := sandboxiface.NewFakeReconciler("boom")
 	rc.ErrText = "boom"
-	r := sandbox.NewRunner(time.Hour, []sandbox.Reconciler{rc}, nil, clock.System{})
+	r := sandbox.NewRunner(time.Hour, []sandbox.Reconciler{rc}, nil, schedule.System())
 	if _, err := r.RunOne(context.Background(), "boom"); err != nil {
 		t.Fatalf("RunOne: %v", err)
 	}

@@ -16,8 +16,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // hydrateReservedFields normalizes ReservedPath/ReservedPaths/ScopePath into
@@ -144,12 +145,12 @@ var (
 // FakeClock.
 type SandboxRepository struct {
 	db    *sql.DB
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSandboxRepository creates a new repository. clk is required and may
-// not be nil — production wires clock.System{}, tests wire FakeClock.
-func NewSandboxRepository(db *sql.DB, clk clock.Clock) *SandboxRepository {
+// not be nil — production wires schedule.System(), tests wire FakeClock.
+func NewSandboxRepository(db *sql.DB, clk schedule.Clock) *SandboxRepository {
 	if clk == nil {
 		panic("repository.NewSandboxRepository: clock is required")
 	}
@@ -164,7 +165,7 @@ func NewSandboxRepository(db *sql.DB, clk clock.Clock) *SandboxRepository {
 // time source as the surrounding session.
 type TxSandboxRepository struct {
 	tx    *sql.Tx
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 func (r *TxSandboxRepository) Commit() error   { return r.tx.Commit() }
@@ -291,7 +292,7 @@ func scanSandbox(row interface {
 	return &s, nil
 }
 
-func insertSandbox(ctx context.Context, exec dbExec, clk clock.Clock, s *types.Sandbox) error {
+func insertSandbox(ctx context.Context, exec dbExec, clk schedule.Clock, s *types.Sandbox) error {
 	if s.ID == uuid.Nil {
 		s.ID = uuid.New()
 	}
@@ -391,7 +392,7 @@ func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.San
 	return getSandbox(ctx, r.tx, id)
 }
 
-func updateSandbox(ctx context.Context, exec dbExec, clk clock.Clock, s *types.Sandbox) error {
+func updateSandbox(ctx context.Context, exec dbExec, clk schedule.Clock, s *types.Sandbox) error {
 	metadataJSON, err := jsonObject(s.Metadata)
 	if err != nil {
 		return fmt.Errorf("marshal metadata: %w", err)
@@ -456,7 +457,7 @@ func (r *TxSandboxRepository) Update(ctx context.Context, s *types.Sandbox) erro
 	return updateSandbox(ctx, r.tx, r.clock, s)
 }
 
-func deleteSandbox(ctx context.Context, exec dbExec, clk clock.Clock, id uuid.UUID) error {
+func deleteSandbox(ctx context.Context, exec dbExec, clk schedule.Clock, id uuid.UUID) error {
 	now := clk.Now().UTC()
 	const query = `
 		UPDATE sandboxes
@@ -706,7 +707,7 @@ func (r *TxSandboxRepository) CheckScopeOverlap(ctx context.Context, scopePath, 
 // Audit log
 // ---------------------------------------------------------------------------
 
-func logAuditEvent(ctx context.Context, exec dbExec, clk clock.Clock, event *types.AuditEvent) error {
+func logAuditEvent(ctx context.Context, exec dbExec, clk schedule.Clock, event *types.AuditEvent) error {
 	if event.ID == uuid.Nil {
 		event.ID = uuid.New()
 	}
@@ -911,7 +912,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 // Optimistic locking
 // ---------------------------------------------------------------------------
 
-func updateWithVersionCheck(ctx context.Context, exec dbExec, clk clock.Clock, s *types.Sandbox, expectedVersion int64) error {
+func updateWithVersionCheck(ctx context.Context, exec dbExec, clk schedule.Clock, s *types.Sandbox, expectedVersion int64) error {
 	metadataJSON, err := jsonObject(s.Metadata)
 	if err != nil {
 		return fmt.Errorf("marshal metadata: %w", err)
@@ -1074,7 +1075,7 @@ func (r *TxSandboxRepository) GetGCCandidates(ctx context.Context, policy *types
 // Provenance / applied_changes
 // ---------------------------------------------------------------------------
 
-func recordAppliedChanges(ctx context.Context, exec dbExec, clk clock.Clock, changes []*types.AppliedChange) error {
+func recordAppliedChanges(ctx context.Context, exec dbExec, clk schedule.Clock, changes []*types.AppliedChange) error {
 	if len(changes) == 0 {
 		return nil
 	}
@@ -1298,9 +1299,11 @@ func (r *SandboxRepository) PurgeUnresolvableCommitChanges(ctx context.Context, 
 func (r *TxSandboxRepository) IncrementCommitResolutionAttempts(context.Context, uuid.UUID) error {
 	return errors.New("IncrementCommitResolutionAttempts not implemented for transactions")
 }
+
 func (r *TxSandboxRepository) MarkCommitUnresolvable(context.Context, uuid.UUID, time.Time) error {
 	return errors.New("MarkCommitUnresolvable not implemented for transactions")
 }
+
 func (r *TxSandboxRepository) PurgeUnresolvableCommitChanges(context.Context, time.Time) (int, error) {
 	return 0, errors.New("PurgeUnresolvableCommitChanges not implemented for transactions")
 }

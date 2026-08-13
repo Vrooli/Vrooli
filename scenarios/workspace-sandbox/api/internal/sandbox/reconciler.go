@@ -19,8 +19,9 @@ import (
 	"sync"
 	"time"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // CommitAttributionReconciler closes provenance after operators commit with
@@ -48,7 +49,7 @@ func (r *CommitAttributionReconciler) Run(ctx context.Context) ReconcileReport {
 	if err != nil {
 		result.Failed++
 	}
-	return ReconcileReport{ItemsProcessed: result.Scanned + purged, ItemsFailed: result.Failed, Duration: r.svc.clock.Since(start), Details: map[string]any{"repaired": result.Repaired, "retired": result.Retired, "purged": purged}}
+	return ReconcileReport{ItemsProcessed: result.Scanned + purged, ItemsFailed: result.Failed, Duration: schedule.Since(start), Details: map[string]any{"repaired": result.Repaired, "retired": result.Retired, "purged": purged}}
 }
 
 // Reconciler is the contract every periodic reconciler implements.
@@ -97,7 +98,7 @@ type Runner struct {
 	startupOnly []Reconciler
 	stopCh      chan struct{}
 	doneCh      chan struct{}
-	clock       clock.Clock
+	clock       schedule.Clock
 
 	mu      sync.Mutex
 	metrics map[string]ReconcilerMetrics
@@ -125,7 +126,7 @@ type ReconcilerMetrics struct {
 // clk is required: the dispatch ticker and per-reconciler LastRunAt
 // metric both flow through it so tests can drive deterministic ticks
 // via FakeClock.Advance.
-func NewRunner(interval time.Duration, periodic, startupOnly []Reconciler, clk clock.Clock) *Runner {
+func NewRunner(interval time.Duration, periodic, startupOnly []Reconciler, clk schedule.Clock) *Runner {
 	if clk == nil {
 		panic("sandbox.NewRunner: clock is required")
 	}
@@ -287,7 +288,7 @@ func (r *LifecycleReconciler) Run(ctx context.Context) ReconcileReport {
 	}
 	start := r.svc.clock.Now()
 	r.svc.ReconcileLifecycle(ctx)
-	return ReconcileReport{Duration: r.svc.clock.Since(start)}
+	return ReconcileReport{Duration: schedule.Since(start)}
 }
 
 // HealReconciler heals sandboxes whose mount has gone stale.
@@ -312,7 +313,7 @@ func (r *HealReconciler) Run(ctx context.Context) ReconcileReport {
 	}
 	start := r.svc.clock.Now()
 	r.svc.ReconcileActiveMounts(ctx, r.tracker, r.cfg)
-	return ReconcileReport{Duration: r.svc.clock.Since(start)}
+	return ReconcileReport{Duration: schedule.Since(start)}
 }
 
 // OrphanReconciler walks the driver's BaseDir and releases dirs whose
@@ -406,7 +407,7 @@ func (r *ManualReviewExpiryReconciler) Run(ctx context.Context) ReconcileReport 
 	}
 	start := r.svc.clock.Now()
 	r.svc.ReconcileManualReviewExpiry(ctx, r.ttl)
-	return ReconcileReport{Duration: r.svc.clock.Since(start)}
+	return ReconcileReport{Duration: schedule.Since(start)}
 }
 
 // =============================================================================

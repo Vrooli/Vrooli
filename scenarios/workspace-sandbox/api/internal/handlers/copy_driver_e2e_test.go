@@ -30,9 +30,10 @@ import (
 
 	"github.com/vrooli/api-core/storage"
 
+	db "github.com/vrooli/api-core/databasetest"
+	httpx "github.com/vrooli/api-core/servertest"
 	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/blobstore"
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/driverid"
@@ -43,10 +44,10 @@ import (
 	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/runtime"
 	"workspace-sandbox/internal/sandbox"
-	"workspace-sandbox/internal/testutil/db"
-	"workspace-sandbox/internal/testutil/httpx"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // forceCopyDriver writes the durable driver preference into baseDir and
@@ -62,7 +63,7 @@ func forceCopyDriver(t *testing.T, baseDir string, starter process.Starter) driv
 	}
 
 	deps := driver.Deps{
-		Clock:   clock.System{},
+		Clock:   schedule.System(),
 		Mounter: fsmount.NewSystemMounter(starter),
 		Starter: starter,
 	}
@@ -158,7 +159,7 @@ func newCopyE2E(t *testing.T) *copyE2E {
 		}
 	}
 
-	clk := clock.System{}
+	clk := schedule.System()
 	starter := process.NewOSExecStarter()
 	drv := forceCopyDriver(t, baseDir, starter)
 

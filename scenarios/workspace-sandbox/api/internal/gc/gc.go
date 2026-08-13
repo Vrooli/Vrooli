@@ -35,10 +35,11 @@ import (
 	"time"
 
 	"workspace-sandbox/internal/audit"
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Service provides garbage collection operations for sandboxes.
@@ -46,7 +47,7 @@ type Service struct {
 	repo    repository.Repository
 	driver  driver.Driver
 	config  Config
-	clock   clock.Clock
+	clock   schedule.Clock
 	emitter audit.Emitter
 }
 
@@ -88,7 +89,7 @@ func DefaultConfig() Config {
 //     through the audit.Emitter seam (Round 4 Phase 6). Production
 //     wires audit.NewRepoEmitter(repo.LogAuditEvent, clk); tests wire
 //     mocks.NewFakeEmitter(clk).
-func NewService(repo repository.Repository, drv driver.Driver, cfg Config, clk clock.Clock, emitter audit.Emitter) *Service {
+func NewService(repo repository.Repository, drv driver.Driver, cfg Config, clk schedule.Clock, emitter audit.Emitter) *Service {
 	if clk == nil {
 		panic("gc.NewService: clock is required")
 	}

@@ -16,11 +16,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver/changedetect"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Compile-time assertion that CopyDriver satisfies the composite Driver
@@ -58,7 +59,7 @@ var _ Driver = (*CopyDriver)(nil)
 //   - When overlayfs is unavailable
 type CopyDriver struct {
 	config  Config
-	clock   clock.Clock
+	clock   schedule.Clock
 	starter process.Starter
 }
 

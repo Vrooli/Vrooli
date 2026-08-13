@@ -5,11 +5,9 @@
 // assert wording and call sequencing without any real wall-clock sleep
 // in the test body.
 //
-// We use a locally-defined fakeClock instead of testutil/mocks.FakeClock
-// to avoid a test-time import cycle: process is imported by
-// internal/driver/deps.go (Round 4 Phase 7), and testutil/mocks imports
-// driver via FakeDriver — so importing testutil/mocks from a process
-// internal test creates a cycle.
+// The shared scheduletest fake is safe here because it depends only on the
+// api-core schedule contract; it does not import this scenario or its test
+// helpers, so the process package remains cycle-free.
 
 package process
 
@@ -17,55 +15,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
-// fakeClock is the minimal Clock fake the tests in this file need. It
-// matches the surface area of testutil/mocks.FakeClock for the methods
-// these tests exercise (Now, Since, Sleep, NewTicker). Production code
-// is unaffected — production wires clock.System{}.
-type fakeClock struct {
-	mu  sync.Mutex
-	now time.Time
-}
-
-func newFakeClock(start time.Time) *fakeClock { return &fakeClock{now: start} }
-
-func (f *fakeClock) Now() time.Time {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.now
-}
-
-func (f *fakeClock) Since(t time.Time) time.Duration { return f.Now().Sub(t) }
-func (f *fakeClock) Sleep(d time.Duration) {
-	f.mu.Lock()
-	f.now = f.now.Add(d)
-	f.mu.Unlock()
-}
-
-func (f *fakeClock) NewTicker(d time.Duration) clock.Ticker {
-	// Round 4 Phase 2 tests don't drive ticker behavior in the process
-	// package; the production fake (testutil/mocks.FakeClock) does.
-	// Returning a real ticker keeps the type contract honest without
-	// pulling in extra plumbing.
-	return realTicker{t: time.NewTicker(d)}
-}
-
-type realTicker struct{ t *time.Ticker }
-
-func (r realTicker) C() <-chan time.Time { return r.t.C }
-func (r realTicker) Stop()               { r.t.Stop() }
+func newFakeClock(start time.Time) *scheduletest.FakeClock { return scheduletest.New(start) }
 
 // TestTracker_RecordExit_FillsStoppedAtFromClock pins the contract
 // that callers can leave ExitInfo.StoppedAt
-// zero and the tracker stamps it from the injected clock. Without
+// zero and the tracker stamps it from the injected schedule. Without
 // this, every caller would need its own clock, fragmenting the time
 // source.
 func TestTracker_RecordExit_FillsStoppedAtFromClock(t *testing.T) {
@@ -92,7 +54,7 @@ func TestTracker_RecordExit_FillsStoppedAtFromClock(t *testing.T) {
 
 // TestLogger_HeaderUsesClockTimestamp pins that the per-stream log
 // header records the time the pending pair was created, sourced from
-// the injected clock. Forensic readers rely on these timestamps to
+// the injected schedule. Forensic readers rely on these timestamps to
 // reconstruct run timelines.
 func TestLogger_HeaderUsesClockTimestamp(t *testing.T) {
 	pinned := time.Date(2026, 4, 29, 9, 30, 0, 0, time.UTC)

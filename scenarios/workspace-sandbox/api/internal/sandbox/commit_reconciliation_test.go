@@ -8,10 +8,11 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/audit"
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func TestReconcileCommittedChanges_RepairsPendingAndExternalRows(t *testing.T) {
@@ -23,7 +24,7 @@ func TestReconcileCommittedChanges_RepairsPendingAndExternalRows(t *testing.T) {
 	repo.AppliedChanges = []*types.AppliedChange{pending, external}
 	git := mocks.NewFakeGitOps()
 	git.ResolvedCommitHash = "0123456789abcdef0123456789abcdef01234567"
-	svc := NewService(repo, mocks.NewFakeDriver(), ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter(), WithGitOps(git))
+	svc := NewService(repo, mocks.NewFakeDriver(), ServiceConfig{}, schedule.System(), audit.NewRepoEmitter(repo.LogAuditEvent, schedule.System()), process.NewOSExecStarter(), WithGitOps(git))
 
 	report := svc.ReconcileCommittedChanges(context.Background())
 	if report.Scanned != 2 || report.Repaired != 2 || report.Failed != 0 {
@@ -55,7 +56,7 @@ func TestReconcileCommittedChanges_ChecksSharedProjectRootOncePerPass(t *testing
 
 	git := mocks.NewFakeGitOps()
 	git.ResolvedCommitHash = "0123456789abcdef0123456789abcdef01234567"
-	svc := NewService(repo, mocks.NewFakeDriver(), ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter(), WithGitOps(git))
+	svc := NewService(repo, mocks.NewFakeDriver(), ServiceConfig{}, schedule.System(), audit.NewRepoEmitter(repo.LogAuditEvent, schedule.System()), process.NewOSExecStarter(), WithGitOps(git))
 
 	report := svc.ReconcileCommittedChanges(context.Background())
 	if report.Scanned != 2 || report.Repaired != 2 || report.Failed != 0 {
@@ -78,7 +79,7 @@ func TestReconcileCommittedChanges_LeavesUncommittedRowsPending(t *testing.T) {
 	change := &types.AppliedChange{ID: uuid.New(), SandboxID: uuid.New(), ProjectRoot: "/project", FilePath: "/project/new.go", AppliedAt: time.Now().UTC()}
 	repo.AppliedChanges = []*types.AppliedChange{change}
 	git := mocks.NewFakeGitOps()
-	svc := NewService(repo, mocks.NewFakeDriver(), ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter(), WithGitOps(git))
+	svc := NewService(repo, mocks.NewFakeDriver(), ServiceConfig{}, schedule.System(), audit.NewRepoEmitter(repo.LogAuditEvent, schedule.System()), process.NewOSExecStarter(), WithGitOps(git))
 
 	report := svc.ReconcileCommittedChanges(context.Background())
 	if report.Repaired != 0 || change.CommittedAt != nil || change.CommitHash != "" {
@@ -91,7 +92,7 @@ func TestReconcileCommittedChanges_RetiresOldUntrackedRowOnce(t *testing.T) {
 	change := &types.AppliedChange{ID: uuid.New(), SandboxID: uuid.New(), ProjectRoot: "/project", FilePath: "/project/cache.bin", AppliedAt: time.Now().UTC().Add(-721 * time.Hour)}
 	repo.AppliedChanges = []*types.AppliedChange{change}
 	git := mocks.NewFakeGitOps()
-	svc := NewService(repo, mocks.NewFakeDriver(), ServiceConfig{CommitResolutionBatchLimit: 1, CommitResolutionHorizon: 720 * time.Hour}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter(), WithGitOps(git))
+	svc := NewService(repo, mocks.NewFakeDriver(), ServiceConfig{CommitResolutionBatchLimit: 1, CommitResolutionHorizon: 720 * time.Hour}, schedule.System(), audit.NewRepoEmitter(repo.LogAuditEvent, schedule.System()), process.NewOSExecStarter(), WithGitOps(git))
 	report := svc.ReconcileCommittedChanges(context.Background())
 	if report.Retired != 1 || change.UnresolvableAt == nil || change.ResolutionAttempts != 1 {
 		t.Fatalf("first pass = %+v change=%+v", report, change)
@@ -109,7 +110,7 @@ func TestPurgeUnresolvableCommitChangesPreservesCommittedRows(t *testing.T) {
 	retired := &types.AppliedChange{ID: uuid.New(), UnresolvableAt: &old}
 	committed := &types.AppliedChange{ID: uuid.New(), UnresolvableAt: &old, CommitHash: "0123456789abcdef0123456789abcdef01234567", CommittedAt: &committedAt}
 	repo.AppliedChanges = []*types.AppliedChange{retired, committed}
-	svc := NewService(repo, mocks.NewFakeDriver(), ServiceConfig{UnresolvedProvenanceRetention: 168 * time.Hour}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter())
+	svc := NewService(repo, mocks.NewFakeDriver(), ServiceConfig{UnresolvedProvenanceRetention: 168 * time.Hour}, schedule.System(), audit.NewRepoEmitter(repo.LogAuditEvent, schedule.System()), process.NewOSExecStarter())
 	purged, err := svc.PurgeUnresolvableCommitChanges(context.Background())
 	if err != nil || purged != 1 || len(repo.AppliedChanges) != 1 || repo.AppliedChanges[0] != committed {
 		t.Fatalf("purge=%d err=%v rows=%+v", purged, err, repo.AppliedChanges)
@@ -128,7 +129,7 @@ func TestDefaultRunner_SchedulesCommitAttributionReconciliation(t *testing.T) {
 	repo.AppliedChanges = []*types.AppliedChange{change}
 	git := mocks.NewFakeGitOps()
 	git.ResolvedCommitHash = "0123456789abcdef0123456789abcdef01234567"
-	svc := NewService(repo, mocks.NewFakeDriver(), ServiceConfig{}, clock.System{}, audit.NewRepoEmitter(repo.LogAuditEvent, clock.System{}), process.NewOSExecStarter(), WithGitOps(git))
+	svc := NewService(repo, mocks.NewFakeDriver(), ServiceConfig{}, schedule.System(), audit.NewRepoEmitter(repo.LogAuditEvent, schedule.System()), process.NewOSExecStarter(), WithGitOps(git))
 
 	runner := DefaultRunner(svc, 25*time.Millisecond, 0, 25*time.Millisecond, HealConfig{}, nil)
 	runner.Start()

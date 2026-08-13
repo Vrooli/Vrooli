@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "modernc.org/sqlite"
 
+	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
@@ -21,7 +22,6 @@ import (
 
 	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/blobstore"
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/fsmount"
@@ -36,6 +36,10 @@ import (
 	"workspace-sandbox/internal/runtime"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/server"
+
+	workspaceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/workspace/workspaceconnect"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Server wires the HTTP router, database, and services.
@@ -46,7 +50,7 @@ type Server struct {
 	driver           driver.Driver
 	handlers         *handlers.Handlers
 	logger           *logging.Logger
-	clock            clock.Clock      // Wall-clock seam (Round 4 Phase 2). Threads through middleware.
+	clock            schedule.Clock   // Wall-clock seam (Round 4 Phase 2). Threads through middleware.
 	processTracker   *process.Tracker // OT-P0-008: Process/Session Tracking
 	gcService        *gc.Service      // OT-P1-003: GC/Prune Operations
 	lifecycleRecon   *sandbox.Runner
@@ -62,9 +66,9 @@ func NewServer() (*Server, error) {
 	}
 
 	// Wall-clock seam (Round 4 Phase 2). Production wires
-	// clock.System{} once and threads it through every constructor that
+	// schedule.System() once and threads it through every constructor that
 	// needs time. Tests construct equivalents with a FakeClock.
-	clk := clock.System{}
+	clk := schedule.System()
 
 	// Process exec seam (Round 4 Phase 7). OSExecStarter wraps os/exec
 	// for every external-command invocation in driver, namespace,
@@ -381,6 +385,8 @@ func (s *Server) setupRoutes() {
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	connectPath, connectHandler := workspaceconnect.NewWorkspaceSandboxServiceHandler(handlers.NewConnectHandler(s.handlers.Service))
+	connectx.RegisterServices(s.router, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 
 	// Delegate remaining route registration to handlers package
 	// This centralizes route knowledge with the handlers and makes the API surface explicit

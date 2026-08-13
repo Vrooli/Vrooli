@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/schedule"
 
 	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/types"
@@ -114,7 +115,7 @@ func (s *Service) ReconcileFilesystemOrphans(ctx context.Context) OrphanReport {
 		})
 	}
 
-	report.Duration = s.clock.Since(start)
+	report.Duration = schedule.Since(start)
 	return report
 }
 

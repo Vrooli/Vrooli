@@ -29,8 +29,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // ExitInfo captures the terminal state of a tracked process. It is the
@@ -159,18 +160,18 @@ type Tracker struct {
 	mu        sync.RWMutex
 	processes map[uuid.UUID][]*TrackedProcess // sandboxID -> processes
 	config    TrackerConfig
-	clock     clock.Clock
+	clock     schedule.Clock
 }
 
 // NewTracker creates a new process tracker with default config and the
-// supplied clock. clk is required: production wires clock.System{},
+// supplied schedule. clk is required: production wires schedule.System(),
 // tests wire FakeClock so kill-grace-period semantics are deterministic.
-func NewTracker(clk clock.Clock) *Tracker {
+func NewTracker(clk schedule.Clock) *Tracker {
 	return NewTrackerWithConfig(DefaultTrackerConfig(), clk)
 }
 
 // NewTrackerWithConfig creates a new process tracker with custom config.
-func NewTrackerWithConfig(cfg TrackerConfig, clk clock.Clock) *Tracker {
+func NewTrackerWithConfig(cfg TrackerConfig, clk schedule.Clock) *Tracker {
 	if clk == nil {
 		panic("process.NewTrackerWithConfig: clock is required")
 	}

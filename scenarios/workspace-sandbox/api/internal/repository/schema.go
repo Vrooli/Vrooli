@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"workspace-sandbox/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 //go:embed schema.sql
@@ -53,7 +53,7 @@ const ExpectedSchemaVersion = 4
 // Returns an error annotated with the persisted/expected versions when
 // drift is detected so operators get an actionable message instead of
 // a confusing mid-operation failure later.
-func EnsureSchema(ctx context.Context, db *sql.DB, clk clock.Clock) error {
+func EnsureSchema(ctx context.Context, db *sql.DB, clk schedule.Clock) error {
 	if db == nil {
 		return fmt.Errorf("EnsureSchema: db is nil")
 	}

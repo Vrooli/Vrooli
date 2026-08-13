@@ -20,7 +20,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Stream identifies one of the two log streams for a process.
@@ -81,7 +81,7 @@ type Logger struct {
 	mu      sync.RWMutex
 	config  LogConfig
 	writers map[string]*logWriter // key: "{sandboxID}/{pid}/{stream}"
-	clock   clock.Clock
+	clock   schedule.Clock
 }
 
 // logWriter handles writing to a single stream of a process log file. It
@@ -128,7 +128,7 @@ func (p *PendingLogPair) AsLogPair() LogPair {
 // NewLogger creates a new process logger. clk is required (the log
 // header and exit-trailer timestamps go through it so tests can assert
 // the exact wording produced for a given exit info).
-func NewLogger(cfg LogConfig, clk clock.Clock) *Logger {
+func NewLogger(cfg LogConfig, clk schedule.Clock) *Logger {
 	if clk == nil {
 		panic("process.NewLogger: clock is required")
 	}
@@ -178,7 +178,7 @@ func (l *Logger) CreatePendingLogPair(sandboxID uuid.UUID) (*PendingLogPair, err
 	}, nil
 }
 
-func openPendingStream(logDir, tempID string, sandboxID uuid.UUID, stream Stream, clk clock.Clock) (*logWriter, error) {
+func openPendingStream(logDir, tempID string, sandboxID uuid.UUID, stream Stream, clk schedule.Clock) (*logWriter, error) {
 	tempPath := filepath.Join(logDir, fmt.Sprintf("pending_%s.%s.log", tempID, stream))
 	file, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {

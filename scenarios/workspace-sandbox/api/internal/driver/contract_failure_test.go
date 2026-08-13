@@ -41,11 +41,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/testutil/mocks/fsmountmocks"
 	"workspace-sandbox/internal/testutil/mocks/procmocks"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // fakeDeps assembles a Deps backed entirely by in-memory fakes. Returned
@@ -61,7 +62,7 @@ func fakeDeps() (Deps, *fsmountmocks.FakeMounter, *procmocks.FakeStarter) {
 	// lenient: any incidental LookPath call (none expected) returns a
 	// not-found error rather than failing on unmatched commands.
 	starter.SetDefault(procmocks.CommandBehavior{})
-	return Deps{Clock: clock.System{}, Mounter: mounter, Starter: starter}, mounter, starter
+	return Deps{Clock: schedule.System(), Mounter: mounter, Starter: starter}, mounter, starter
 }
 
 // overlayFlavor describes one parameterized backend the failure-mode
@@ -663,4 +664,4 @@ func containsAdded(changes []*types.FileChange, filePath string) bool {
 // that the failure tests run against the production Clock.
 // =============================================================================
 
-var _ clock.Clock = clock.System{}
+var _ schedule.Clock = schedule.System()

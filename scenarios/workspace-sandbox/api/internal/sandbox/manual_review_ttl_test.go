@@ -20,13 +20,15 @@ import (
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // newManualReviewTestService wires a Service with a FakeClock pinned to
 // `now` so the manual-review TTL reconciler reads a deterministic time.
-func newManualReviewTestService(t *testing.T, repo *mocks.FakeRepository, drv *mocks.FakeDriver, now time.Time) (*Service, *mocks.FakeClock) {
+func newManualReviewTestService(t *testing.T, repo *mocks.FakeRepository, drv *mocks.FakeDriver, now time.Time) (*Service, *scheduletest.FakeClock) {
 	t.Helper()
-	clk := mocks.NewFakeClock(now)
+	clk := scheduletest.New(now)
 	svc := NewService(repo, drv, ServiceConfig{
 		DefaultProjectRoot: "/tmp/project",
 		MaxSandboxes:       100,

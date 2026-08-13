@@ -7,8 +7,9 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/audit"
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // FakeEmitter is the canonical audit.Emitter fake. Tests that wire a
@@ -32,12 +33,12 @@ type FakeEmitter struct {
 	// return them to the caller).
 	EmitErr error
 
-	clock clock.Clock
+	clock schedule.Clock
 }
 
-// NewFakeEmitter constructs a FakeEmitter using the supplied clock.
+// NewFakeEmitter constructs a FakeEmitter using the supplied schedule.
 // Most tests pass FakeClock so EventTime is deterministic.
-func NewFakeEmitter(clk clock.Clock) *FakeEmitter {
+func NewFakeEmitter(clk schedule.Clock) *FakeEmitter {
 	if clk == nil {
 		panic("mocks.NewFakeEmitter: clock is required")
 	}

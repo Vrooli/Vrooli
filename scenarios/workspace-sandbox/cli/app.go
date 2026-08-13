@@ -44,7 +44,11 @@ func NewApp() (*App, error) {
 		},
 		SubcommandGroups: func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 			app.core = core
-			return domains.SubcommandGroups(app.dependencies())
+			groups, err := domains.SubcommandGroups(app.dependencies(), manifestBytes)
+			if err != nil {
+				panic(err)
+			}
+			return groups
 		},
 	})
 	if err != nil {
@@ -71,5 +75,9 @@ func (a *App) commandGroups() []cliapp.CommandGroup {
 }
 
 func (a *App) subcommandGroups() []cliapp.SubcommandGroup {
-	return domains.SubcommandGroups(a.dependencies())
+	groups, err := domains.SubcommandGroups(a.dependencies(), manifestBytes)
+	if err != nil {
+		return nil
+	}
+	return groups
 }

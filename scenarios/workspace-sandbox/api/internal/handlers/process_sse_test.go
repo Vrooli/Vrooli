@@ -38,17 +38,18 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/handlers"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/sse"
-	"workspace-sandbox/internal/testutil/assertx"
-	"workspace-sandbox/internal/testutil/httpx"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // sseFixture pre-wires a *handlers.Handlers with real Logger + Tracker
@@ -67,7 +68,7 @@ type sseFixture struct {
 func newSSEFixture(t *testing.T) *sseFixture {
 	t.Helper()
 
-	clk := clock.System{}
+	clk := schedule.System()
 	tmp := t.TempDir()
 	logger := process.NewLogger(process.LogConfig{BaseDir: tmp}, clk)
 	tracker := process.NewTracker(clk)
@@ -357,7 +358,7 @@ func TestStreamProcessLogs_FrameOrderingInvariant(t *testing.T) {
 
 			// Spec: every successful run ends with `end`, and `end`
 			// is preceded by `exit`.
-			assertx.AssertSSEFrameSequence(t, last2(frames), []assertx.FrameSpec{
+			apihttptest.AssertSSEFrameSequence(t, last2(frames), []apihttptest.FrameSpec{
 				{Event: "exit"},
 				{Event: "end"},
 			})

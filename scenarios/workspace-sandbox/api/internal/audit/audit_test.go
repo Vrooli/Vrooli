@@ -9,13 +9,14 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/audit"
-	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func TestRepoEmitter_StampsEventTimeAndDefaults(t *testing.T) {
 	frozen := time.Date(2026, 4, 29, 15, 30, 0, 0, time.UTC)
-	clk := mocks.NewFakeClock(frozen)
+	clk := scheduletest.New(frozen)
 
 	var captured *types.AuditEvent
 	log := func(ctx context.Context, ev *types.AuditEvent) error {
@@ -61,7 +62,7 @@ func TestRepoEmitter_StampsEventTimeAndDefaults(t *testing.T) {
 }
 
 func TestRepoEmitter_PreservesExplicitActorTypeAndSource(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Now())
+	clk := scheduletest.New(time.Now())
 	var captured *types.AuditEvent
 	log := func(ctx context.Context, ev *types.AuditEvent) error {
 		captured = ev
@@ -86,7 +87,7 @@ func TestRepoEmitter_PreservesExplicitActorTypeAndSource(t *testing.T) {
 }
 
 func TestRepoEmitter_RejectsEmptyEventType(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Now())
+	clk := scheduletest.New(time.Now())
 	log := func(ctx context.Context, ev *types.AuditEvent) error {
 		t.Errorf("log should not be called for invalid Emit; got %+v", ev)
 		return nil
@@ -100,7 +101,7 @@ func TestRepoEmitter_RejectsEmptyEventType(t *testing.T) {
 }
 
 func TestRepoEmitter_PropagatesLogError(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Now())
+	clk := scheduletest.New(time.Now())
 	wantErr := errors.New("disk full")
 	log := func(ctx context.Context, ev *types.AuditEvent) error {
 		return wantErr
@@ -119,7 +120,7 @@ func TestNewRepoEmitter_RequiresLog(t *testing.T) {
 			t.Error("expected panic when log is nil")
 		}
 	}()
-	audit.NewRepoEmitter(nil, mocks.NewFakeClock(time.Now()))
+	audit.NewRepoEmitter(nil, scheduletest.New(time.Now()))
 }
 
 func TestNewRepoEmitter_RequiresClock(t *testing.T) {
@@ -140,7 +141,7 @@ func TestRepoEmitter_EmitsUTC(t *testing.T) {
 		t.Fatalf("LoadLocation: %v", err)
 	}
 	wall := time.Date(2026, 4, 29, 11, 45, 0, 0, loc)
-	clk := mocks.NewFakeClock(wall)
+	clk := scheduletest.New(wall)
 
 	var captured *types.AuditEvent
 	log := func(ctx context.Context, ev *types.AuditEvent) error {

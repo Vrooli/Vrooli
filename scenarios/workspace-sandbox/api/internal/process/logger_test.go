@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // withPair is a small helper that creates a pending log pair, finalises it
@@ -34,7 +34,7 @@ func withPair(t *testing.T, logger *Logger, sandboxID uuid.UUID, pid int) (*Pend
 // kept on separate disk files and that ReadLog can return either.
 func TestLogger_CreateAndReadStreams(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 12345
@@ -81,7 +81,7 @@ func TestLogger_CreateAndReadStreams(t *testing.T) {
 // TestLogger_RejectsInvalidStream verifies the Stream type guard.
 func TestLogger_RejectsInvalidStream(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	if _, err := logger.GetLog(sandboxID, 1, "stdoutXXX"); err == nil {
@@ -96,7 +96,7 @@ func TestLogger_RejectsInvalidStream(t *testing.T) {
 // stdout and stderr per process.
 func TestLogger_GetLogReportsBothStreams(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 54321
@@ -123,7 +123,7 @@ func TestLogger_GetLogReportsBothStreams(t *testing.T) {
 // TestLogger_LogPathSeparatesStreams pins the on-disk naming convention.
 func TestLogger_LogPathSeparatesStreams(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	want := filepath.Join(tmpDir, sandboxID.String(), "logs", "123.stdout.log")
@@ -139,7 +139,7 @@ func TestLogger_LogPathSeparatesStreams(t *testing.T) {
 // TestLogger_ReadTail returns the last N lines from a single stream.
 func TestLogger_ReadTail(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 999
@@ -167,7 +167,7 @@ func TestLogger_ReadTail(t *testing.T) {
 // TestLogger_CloseLogPair writes the exit footer to both streams.
 func TestLogger_CloseLogPair(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 777
@@ -192,7 +192,7 @@ func TestLogger_CloseLogPair(t *testing.T) {
 // TestLogger_CleanupSandboxLogs removes all stream files.
 func TestLogger_CleanupSandboxLogs(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	for _, pid := range []int{1, 2, 3} {
@@ -218,7 +218,7 @@ func TestLogger_CleanupSandboxLogs(t *testing.T) {
 // torn writes from multiple goroutines.
 func TestLogger_ConcurrentWrites(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 888
@@ -263,7 +263,7 @@ func TestLogger_ConcurrentWrites(t *testing.T) {
 // the writer reach a Subscribe channel without polling.
 func TestLogger_StreamLogReceivesPushChunks(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 666
@@ -332,7 +332,7 @@ func TestLogger_StreamLogReceivesPushChunks(t *testing.T) {
 // TestLogger_NonExistentLog returns an error when the file is missing.
 func TestLogger_NonExistentLog(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	if _, err := logger.GetLog(sandboxID, 99999, StreamStdout); err == nil {
@@ -346,7 +346,7 @@ func TestLogger_NonExistentLog(t *testing.T) {
 // TestLogger_EmptySandbox returns no logs.
 func TestLogger_EmptySandbox(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	logs, err := logger.ListLogs(uuid.New())
 	if err != nil {
@@ -361,7 +361,7 @@ func TestLogger_EmptySandbox(t *testing.T) {
 // pending stream files.
 func TestPendingLogPair_AbortRemovesBothFiles(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	pending, err := logger.CreatePendingLogPair(uuid.New())
 	if err != nil {
@@ -392,7 +392,7 @@ func TestPendingLogPair_AbortRemovesBothFiles(t *testing.T) {
 // two-phase create→finalize path.
 func TestPendingLogPair_FinalizeRenamesAndPreservesContent(t *testing.T) {
 	tmpDir := t.TempDir()
-	logger := NewLogger(LogConfig{BaseDir: tmpDir}, clock.System{})
+	logger := NewLogger(LogConfig{BaseDir: tmpDir}, schedule.System())
 
 	sandboxID := uuid.New()
 	pid := 12345

@@ -10,12 +10,13 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/audit"
-	"workspace-sandbox/internal/clock"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // TestInvariants is the canonical entry point for sandbox-package
@@ -52,7 +53,7 @@ func invariantDeleteOwnsDaemonTeardown(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	repo.Sandboxes[id] = &types.Sandbox{ID: id, Status: types.StatusActive}
 
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := sandbox.NewService(
 		repo, mocks.NewFakeDriver(), sandbox.ServiceConfig{},
 		clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(),
@@ -84,7 +85,7 @@ func invariantStateTransitionEmitsOneAudit(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	repo.Sandboxes[id] = &types.Sandbox{ID: id, Status: types.StatusActive}
 
-	clk := clock.System{}
+	clk := schedule.System()
 	svc := sandbox.NewService(
 		repo, mocks.NewFakeDriver(), sandbox.ServiceConfig{},
 		clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter(),

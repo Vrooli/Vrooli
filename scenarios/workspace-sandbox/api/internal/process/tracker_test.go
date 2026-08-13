@@ -10,12 +10,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"workspace-sandbox/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // [REQ:REQ-P0-009] Test process tracking basic operations
 func TestTrackerBasicOperations(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 
 	// Start a simple sleep process
@@ -55,7 +55,7 @@ func TestTrackerBasicOperations(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test process running detection
 func TestTrackedProcessIsRunning(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 
 	// Start a sleep process
@@ -100,7 +100,7 @@ func TestTrackedProcessIsRunning(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test GetProcesses returns all tracked processes
 func TestGetProcesses(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 
 	// Track some fake processes (using current PID as they'll be "running")
@@ -123,7 +123,7 @@ func TestGetProcesses(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test GetRunningProcesses filters correctly
 func TestGetRunningProcesses(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 
 	// Track current process (running)
@@ -149,7 +149,7 @@ func TestGetRunningProcesses(t *testing.T) {
 // [REQ:REQ-P0-009] Test KillAll method exists and doesn't panic
 // Note: Full process kill testing is done in integration tests.
 func TestKillAll(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
@@ -173,7 +173,7 @@ func TestKillAll(t *testing.T) {
 // [REQ:REQ-P0-009] Test KillProcess method exists and handles edge cases
 // Note: Full process kill testing is done in integration tests.
 func TestKillProcess(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
@@ -198,7 +198,7 @@ func TestKillProcess(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test Cleanup removes tracking data
 func TestCleanup(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 
 	if _, err := tracker.Track(sandboxID, os.Getpid(), "test", ""); err != nil {
@@ -220,7 +220,7 @@ func TestCleanup(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test GetAllStats aggregates correctly
 func TestGetAllStats(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandbox1 := uuid.New()
 	sandbox2 := uuid.New()
 
@@ -257,7 +257,7 @@ func TestGetAllStats(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test Session workflow
 func TestSessionWorkflow(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
@@ -297,7 +297,7 @@ func TestSessionWorkflow(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test GetActiveCount
 func TestGetActiveCount(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 
 	// Initially zero
@@ -328,7 +328,7 @@ func TestGetActiveCount(t *testing.T) {
 // [REQ:REQ-P0-009] WaitForProcess returns the structured exit info
 // recorded by the driver's wait reaper via RecordExit.
 func TestWaitForProcess(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
@@ -366,7 +366,7 @@ func TestWaitForProcess(t *testing.T) {
 
 // WaitForProcess times out when the wait reaper never records exit info.
 func TestWaitForProcessTimeout(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
@@ -390,7 +390,7 @@ func TestWaitForProcessTimeout(t *testing.T) {
 
 // RecordExit unblocks ExitChannel subscribers and is idempotent.
 func TestRecordExit_IdempotentAndNotifies(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	pid := 12345
 	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
@@ -433,7 +433,7 @@ func TestRecordExit_IdempotentAndNotifies(t *testing.T) {
 // stop racing fast-failing processes (the bug where bwrap chdir errors
 // made `event: exit` go missing).
 func TestWaitForExit_BlocksUntilRecordExit(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	pid := 24680
 	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
@@ -462,7 +462,7 @@ func TestWaitForExit_BlocksUntilRecordExit(t *testing.T) {
 // where StreamProcessLogs attaches *after* the wait reaper has already
 // recorded exit info — it should not block.
 func TestWaitForExit_ReturnsImmediatelyForAlreadyExited(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	pid := 13579
 	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
@@ -490,7 +490,7 @@ func TestWaitForExit_ReturnsImmediatelyForAlreadyExited(t *testing.T) {
 // TestWaitForExit_ContextDeadline guards against silent hangs when the
 // reaper genuinely never fires — caller must see ctx.Err().
 func TestWaitForExit_ContextDeadline(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	pid := 11111
 	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
@@ -511,7 +511,7 @@ func TestWaitForExit_ContextDeadline(t *testing.T) {
 
 // TestWaitForExit_UntrackedProcess guards the not-found path.
 func TestWaitForExit_UntrackedProcess(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	_, err := tracker.WaitForExit(ctx, uuid.New(), 99999)
@@ -522,7 +522,7 @@ func TestWaitForExit_UntrackedProcess(t *testing.T) {
 
 // SetStdin / WriteStdin / CloseStdin form a one-shot pipe contract.
 func TestStdinPipeContract(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	pid := 22222
 	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
@@ -574,7 +574,7 @@ func TestStdinPipeContract(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test KillProcess returns error for unknown process
 func TestKillProcessNotFound(t *testing.T) {
-	tracker := NewTracker(clock.System{})
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
