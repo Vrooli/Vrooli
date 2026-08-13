@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	localdb "architecture-cartographer/internal/database"
-	testdb "architecture-cartographer/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 

@@ -8,7 +8,7 @@ import (
 
 	"brand-manager/internal/module"
 	"brand-manager/internal/server"
-	"brand-manager/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

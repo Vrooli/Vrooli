@@ -1,1 +1,1 @@
-export * from "./renderWithProviders";
+export * from "@vrooli/api-base/testing";

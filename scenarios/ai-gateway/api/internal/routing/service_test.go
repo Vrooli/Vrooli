@@ -15,7 +15,7 @@ import (
 	"ai-gateway/internal/providers"
 	"ai-gateway/internal/providers/mocks"
 	"ai-gateway/internal/routing"
-	testdb "ai-gateway/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 func TestPreviewSelectsLocalFirstAndExplainsFallback(t *testing.T) { // [REQ:AIGW-ROUTE-PREVIEW] [REQ:AIGW-POLICY-CONSTRAINTS]

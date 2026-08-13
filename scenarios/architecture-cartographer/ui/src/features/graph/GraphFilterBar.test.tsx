@@ -10,7 +10,7 @@ vi.mock("../../api/domains", () => ({
 
 import { domainsClient } from "../../api/domains";
 import { renderWithProviders } from "../../test-utils";
-import { expectNoA11yViolations } from "../../test-utils/a11y";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 import { selectors } from "../../consts/selectors";
 import { GraphFilterBar } from "./GraphFilterBar";
 

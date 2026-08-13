@@ -3,7 +3,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { test } from "vitest";
 import { MeasureFrame } from "../../src/features/stats/components/measure/MeasureFrame.js";
-import { renderWithProviders } from "../../src/test-utils/renderWithProviders.js";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 const available = {
   executedQuery: "SELECT 1",

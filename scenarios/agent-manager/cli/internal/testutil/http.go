@@ -1,4 +1,4 @@
-// Package testutil provides shared deterministic fixtures for CLI tests.
+// Package testutil provides agent-manager-specific HTTP contract fixtures.
 package testutil
 
 import (
@@ -16,7 +16,8 @@ type Request struct {
 }
 
 // RecordingServer serves a JSON response and retains each received request.
-// Tests use it to verify the CLI-to-API contract without a running scenario.
+// It remains scenario-local because its response contract is specific to the
+// agent-manager CLI's endpoint suite.
 type RecordingServer struct {
 	mu       sync.Mutex
 	requests []Request
@@ -27,9 +28,7 @@ func NewRecordingServer(t testing.TB, response string) *RecordingServer {
 	return NewRecordingServerForRequests(t, func(Request) string { return response })
 }
 
-// NewRecordingServerForRequests serves a response selected from the received
-// request. It keeps contract tests deterministic while allowing a single test
-// to model list and detail endpoints with realistic, distinct payloads.
+// NewRecordingServerForRequests selects a response from each received request.
 func NewRecordingServerForRequests(t testing.TB, response func(Request) string) *RecordingServer {
 	t.Helper()
 	recorder := &RecordingServer{}

@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, test, vi } from "vitest";
 import { StatsPage } from "../../src/features/stats/StatsPage.js";
-import { renderWithProviders } from "../../src/test-utils/renderWithProviders.js";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 const volume = vi.hoisted(() => vi.fn());
 vi.mock("../../src/features/stats/api/statsClient.js", () => ({

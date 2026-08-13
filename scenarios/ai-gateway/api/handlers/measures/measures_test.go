@@ -13,7 +13,7 @@ import (
 
 	measuresH "ai-gateway/handlers/measures"
 	"ai-gateway/internal/routing"
-	testdb "ai-gateway/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 func newRepo(t *testing.T) *routing.SQLRepository {

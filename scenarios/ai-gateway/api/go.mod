@@ -16,6 +16,7 @@ require (
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/ai-go v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect

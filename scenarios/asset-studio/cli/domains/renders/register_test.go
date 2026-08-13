@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"asset-studio/cli/internal/testutil"
+	testutil "github.com/vrooli/cli-core/cliapptest"
 )
 
 func TestRegisterIncludesRenderInspection(t *testing.T) {

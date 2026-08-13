@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, test, vi } from "vitest";
 import { RunClassBreakdown } from "../../src/features/stats/components/breakdown/RunClassBreakdown.js";
-import { renderWithProviders } from "../../src/test-utils/renderWithProviders.js";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 afterEach(() => vi.unstubAllGlobals());
 

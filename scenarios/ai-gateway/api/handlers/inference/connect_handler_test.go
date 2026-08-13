@@ -12,7 +12,7 @@ import (
 	handler "ai-gateway/handlers/inference"
 	"ai-gateway/internal/inference"
 	"ai-gateway/internal/server"
-	"ai-gateway/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 )

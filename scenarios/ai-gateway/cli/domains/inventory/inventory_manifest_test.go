@@ -3,7 +3,7 @@ package inventory
 import (
 	"testing"
 
-	clitest "ai-gateway/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inventory"
 

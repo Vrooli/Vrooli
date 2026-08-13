@@ -3,7 +3,7 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, test, vi } from "vitest";
 import { RecurringWorkloadPanel } from "../../src/features/stats/components/workload/RecurringWorkloadPanel.js";
-import { renderWithProviders } from "../../src/test-utils/renderWithProviders.js";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 const mocks = vi.hoisted(() => ({
   workload: vi.fn(),

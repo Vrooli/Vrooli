@@ -8,7 +8,7 @@ import (
 
 	"ai-gateway/internal/module"
 	"ai-gateway/internal/server"
-	"ai-gateway/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
-import { expectNoA11yViolations } from "../test-utils/a11y";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 import { renderWithProviders } from "../test-utils";
 import { WorkflowsPage } from "./WorkflowsPage";
 

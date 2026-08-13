@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, test, vi } from "vitest";
 import { FrictionOverviewCard } from "../../src/features/stats/components/operational/FrictionOverviewCard.js";
-import { renderWithProviders } from "../../src/test-utils/renderWithProviders.js";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 const mocks = vi.hoisted(() => ({
   external: vi.fn(), rereads: vi.fn(), findings: vi.fn(), helpRecovery: vi.fn(), repeatedWork: vi.fn(), retry: vi.fn(), definitions: vi.fn(),

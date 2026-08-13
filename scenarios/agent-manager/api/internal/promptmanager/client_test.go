@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"agent-manager/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/apihttptest"
 )
 
 func TestNewHTTPClient_Defaults(t *testing.T) {

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../../test-utils";
-import { expectNoA11yViolations } from "../../test-utils/a11y";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 import { selectors } from "../../consts/selectors";
 import { GraphAccessibleList } from "./GraphAccessibleList";
 import type { GraphLayout } from "./lib/graphAdapter";

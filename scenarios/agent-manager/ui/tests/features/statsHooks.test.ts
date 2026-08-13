@@ -3,7 +3,7 @@ import { act, fireEvent, renderHook, screen, waitFor } from "@testing-library/re
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createElement, type ReactNode } from "react";
 import { afterEach, test, vi } from "vitest";
-import { createTestQueryClient } from "../../src/test-utils/renderWithProviders.js";
+import { createTestQueryClient } from "@vrooli/api-base/testing";
 import { useCostTrends } from "../../src/features/stats/hooks/useCostTrends.js";
 import { useErrorAnalysis } from "../../src/features/stats/hooks/useErrorAnalysis.js";
 import { useModelBreakdown, useModelUsageRuns } from "../../src/features/stats/hooks/useModelBreakdown.js";
@@ -14,7 +14,7 @@ import { useStatsSummary } from "../../src/features/stats/hooks/useStatsSummary.
 import { getPresetLabel, getPresetShortLabel, TimeWindowProvider, useStatsFilter, useTimeWindow } from "../../src/features/stats/hooks/useTimeWindow.js";
 import { useToolUsage, useToolUsageModels, useToolUsageRuns } from "../../src/features/stats/hooks/useToolUsage.js";
 import { TimeWindowSelector } from "../../src/features/stats/components/controls/TimeWindowSelector.js";
-import { renderWithProviders } from "../../src/test-utils/renderWithProviders.js";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 const client = vi.hoisted(() => ({
   durableCost: vi.fn(async () => ({ totalCostUsd: 0, averageCostUsd: 0, totalRuns: 0, totalTokens: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, inputCostUsd: 0, outputCostUsd: 0, cacheReadCostUsd: 0, cacheCreationCostUsd: 0, executedQuery: "SELECT" })), errors: vi.fn(async () => ({ value: "errors" })),

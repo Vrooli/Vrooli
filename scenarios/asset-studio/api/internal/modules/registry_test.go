@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"asset-studio/internal/modules"
-	"asset-studio/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 

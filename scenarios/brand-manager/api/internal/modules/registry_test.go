@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"brand-manager/internal/modules"
-	"brand-manager/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 

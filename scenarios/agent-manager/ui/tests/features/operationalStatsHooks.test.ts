@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createElement, type ReactNode } from "react";
 import { afterEach, test, vi } from "vitest";
-import { createTestQueryClient } from "../../src/test-utils/renderWithProviders.js";
+import { createTestQueryClient } from "@vrooli/api-base/testing";
 import { useFallbackInsights, useHealthSummary } from "../../src/features/stats/hooks/useOperationalStats.js";
 
 const client = vi.hoisted(() => ({
