@@ -400,6 +400,12 @@ func raiseCoverageThresholds(src string, floor float64) string {
 
 func testUtilsCandidates(root string) []*scenariovalidationv1.FixCandidate {
 	var candidates []*scenariovalidationv1.FixCandidate
+	// A package-owned helper is the canonical projection. Do not offer the
+	// legacy fix that recreates a scenario-local implementation after a
+	// migration has deliberately removed it.
+	if workspaceUsesSharedRenderHelper(filepath.Join(root, "ui")) {
+		return nil
+	}
 	renderPath := filepath.Join(root, "ui", "src", "test-utils", "renderWithProviders.tsx")
 	before, exists := readFixFile(renderPath)
 	if !exists {
@@ -422,6 +428,31 @@ func testUtilsCandidates(root string) []*scenariovalidationv1.FixCandidate {
 		candidates = append(candidates, candidate(codeUnitProjectionDrift, indexPath, "Re-export the canonical render helper from src/test-utils.", indexBefore, indexAfter))
 	}
 	return candidates
+}
+
+func workspaceUsesSharedRenderHelper(root string) bool {
+	found := false
+	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil || found || info == nil || info.IsDir() {
+			return nil
+		}
+		switch filepath.Ext(path) {
+		case ".ts", ".tsx", ".js", ".jsx", ".mts", ".cts":
+			if strings.Contains(readFixFileContents(path), "@vrooli/api-base/testing") && strings.Contains(readFixFileContents(path), "renderWithProviders") {
+				found = true
+			}
+		}
+		return nil
+	})
+	return found
+}
+
+func readFixFileContents(path string) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
 }
 
 func canonicalRenderWithProviders() string {

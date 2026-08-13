@@ -36,11 +36,25 @@ import (
 type OrientationComponents struct {
 	// Members is the team's roster size.
 	Members int `json:"members"`
-	// CanonLines is the total line count of the team's declared
-	// plan-of-record documents. Lines rather than files: two 40-line docs
-	// cost a reader less than one 700-line doc, and file count would say the
-	// opposite.
+	// CanonLines is the line count of the team's declared plan-of-record
+	// documents, **charged by consumer share**: a document its own manifest
+	// entry declares for N consuming teams contributes lines/N here.
+	//
+	// Lines rather than files: two 40-line docs cost a reader less than one
+	// 700-line doc, and file count would say the opposite.
+	//
+	// The consumer split exists because fleet canon has to live somewhere, and
+	// billing all of it to whichever team happens to be its custodian made the
+	// team that maintains the framework read as the fleet's heaviest team. The
+	// custodian of `docs/agent-system/` was charged 4,241 lines that all six
+	// teams consume, which buried the signal that actually distinguished it —
+	// roster and topic sprawl. The consumer list is already in the manifest, so
+	// this needs no new declaration.
 	CanonLines int `json:"canonLines"`
+	// SharedCanonLines is the full, unsplit line count of documents this team
+	// declares for more than one consumer. It is reported and never charged, so
+	// the split above cannot hide how much canon a custodian actually carries.
+	SharedCanonLines int `json:"sharedCanonLines,omitempty"`
 	// Topics is the count of declared topic families in the team catalog.
 	Topics int `json:"topics"`
 }
@@ -52,11 +66,35 @@ type OrientationCost struct {
 	// Composite is the weighted sum. Its absolute value carries no meaning;
 	// only its movement between audit cycles does.
 	Composite int `json:"composite"`
-	// ScenarioCoverage counts the distinct external scenarios the team's
-	// operating graph composes with. It is the second quantity in the band:
-	// a rise in composite is only a finding when this rose too.
+	// ScenarioCoverage counts the scenarios this team's declared instrument
+	// aggregates (`team.json::instrument.coversScenarios`). It is the second
+	// quantity in the band: a rise in composite is only a finding when this
+	// rose too.
+	//
+	// It previously counted external nodes in the team's operating graph, on
+	// the stated assumption that external nodes are how a team declares the
+	// scenarios it composes with. They are not: they resolved to `operator`,
+	// `vision-walk`, `swarm-manager-work` and `report-friction` — triggers and
+	// people. The custodian of the fleet's own instrument did not have that
+	// instrument in its list. The guard series therefore could not move for the
+	// reason the band exists, and the band silently never fired.
 	ScenarioCoverage int      `json:"scenarioCoverage"`
 	Scenarios        []string `json:"scenarios,omitempty"`
+	// DomainAddresses counts the distinct scenarios this team's member files
+	// instruct a member to call, excluding universal substrate. The target is
+	// one plus declared fallbacks; it measures the wiring topology directly,
+	// where ScenarioCoverage measures capability.
+	//
+	// It reads low for two opposite reasons — a consolidated team and an
+	// unequipped one — so it is meaningless alone and must be read beside
+	// ScenarioCoverage and the instrument declaration.
+	DomainAddresses int      `json:"domainAddresses"`
+	Addresses       []string `json:"addresses,omitempty"`
+	// ExternalActors is the operating graph's external node set, retained under
+	// an honest name after it stopped backing ScenarioCoverage. It is real
+	// information about a team's trigger surface; it was only ever wrong as a
+	// proxy for scenario coverage.
+	ExternalActors []string `json:"externalActors,omitempty"`
 	// MissingCanon names plan-of-record documents the team declares but that
 	// do not exist on disk. They are excluded from CanonLines; reporting them
 	// keeps a broken reference from reading as a cheaper team.
@@ -85,7 +123,7 @@ type OrientationCostReport struct {
 	Note string `json:"note"`
 }
 
-const orientationTrendNote = "A single reading is a baseline, not a finding. The band is a trend: compare against the previous framework-health-audit record and raise a finding only when composite rose in a cycle where scenarioCoverage also rose."
+const orientationTrendNote = "A single reading is a baseline, not a finding. The band is a trend: compare against the previous framework-health-audit record and raise a finding only when composite rose in a cycle where scenarioCoverage also rose. scenarioCoverage reads team.json::instrument.coversScenarios; a team that declares no instrument reports zero and can never trip the band. domainAddresses is reported beside it and is meaningless alone — it reads low both for a consolidated team and for an unequipped one."
 
 // ComputeOrientationCost reads every team's declared surfaces and returns the
 // composite for each.
@@ -96,22 +134,34 @@ func ComputeOrientationCost(configDir, repoRoot string) (OrientationCostReport, 
 	if err != nil {
 		return report, err
 	}
-	// Model documents supply scenario coverage. A model that fails to load
-	// costs that team its coverage number, not the whole report.
+	// Model documents supply the external-actor set. A model that fails to load
+	// costs that team its actor list, not the whole report.
 	models, _ := LoadOperatingModelDocuments(repoRoot)
-	scenariosByTeam := externalScenariosByTeam(models)
+	externalByTeam := externalScenariosByTeam(models)
+
+	// Instrument declarations supply the guard series. A store that cannot be
+	// read leaves every team's coverage at zero rather than failing the report;
+	// zero coverage can never make the trend band fire, so the degraded mode is
+	// silent-safe rather than falsely alarming.
+	instruments, _ := LoadTeamInstruments(configDir)
+	coveredByTeam := instrumentCoveredScenarios(instruments)
+	addressesByTeam := domainAddressesByTeam(configDir, repoRoot, sortedMapKeys(contracts))
 
 	for _, teamID := range sortedMapKeys(contracts) {
 		contract := contracts[teamID]
 		cost := OrientationCost{TeamID: teamID}
 		cost.Components.Members = countTeamMembers(configDir, teamID, contract)
 		cost.Components.Topics = len(contract.TopicCatalog)
-		lines, missing := canonLineCount(repoRoot, contract)
-		cost.Components.CanonLines = lines
+		charged, shared, missing := canonLineCount(repoRoot, contract)
+		cost.Components.CanonLines = charged
+		cost.Components.SharedCanonLines = shared
 		cost.MissingCanon = missing
 		cost.Composite = orientationComposite(cost.Components)
-		cost.Scenarios = scenariosByTeam[teamID]
+		cost.Scenarios = coveredByTeam[teamID]
 		cost.ScenarioCoverage = len(cost.Scenarios)
+		cost.Addresses = addressesByTeam[teamID]
+		cost.DomainAddresses = len(cost.Addresses)
+		cost.ExternalActors = externalByTeam[teamID]
 		report.Teams = append(report.Teams, cost)
 	}
 	return report, nil
@@ -154,14 +204,26 @@ func countTeamMembers(configDir, teamID string, contract *LoadedTeamContract) in
 // nothing and the ratchet could not fire on it. A root cannot drift: the folder
 // is the declaration. The trade is that everything markdown under a root counts,
 // including generated projections, so a folder is charged for what it contains.
-func canonLineCount(repoRoot string, contract *LoadedTeamContract) (int, []string) {
+//
+// Returns (charged, shared, missing): charged is the consumer-split total that
+// feeds the composite, shared is the full unsplit count of multi-consumer
+// documents, and missing names declared paths that do not exist on disk.
+func canonLineCount(repoRoot string, contract *LoadedTeamContract) (int, int, []string) {
 	if contract == nil {
-		return 0, nil
+		return 0, 0, nil
 	}
 	total := 0
+	shared := 0
 	var missing []string
 	seen := map[string]bool{}
 	for _, doc := range contract.PlanOfRecordDocuments {
+		// A document declared for N consuming teams is N teams' orientation
+		// cost, not one team's. One consumer (or none declared) charges in
+		// full — the common case, and the conservative default.
+		consumers := len(doc.Consumers)
+		if consumers < 1 {
+			consumers = 1
+		}
 		for _, ref := range doc.Paths {
 			// Only repo-root paths are resolvable here. A member-relative ref
 			// is member documentation, which the roster component already
@@ -174,25 +236,181 @@ func canonLineCount(repoRoot string, contract *LoadedTeamContract) (int, []strin
 				continue
 			}
 			seen[path] = true
+			var lines int
 			if strings.HasSuffix(path, "/") {
-				lines, err := canonRootLineCount(repoRoot, path)
+				rootLines, err := canonRootLineCount(repoRoot, path)
 				if err != nil {
 					missing = append(missing, path)
 					continue
 				}
-				total += lines
-				continue
+				lines = rootLines
+			} else {
+				data, err := os.ReadFile(filepath.Join(repoRoot, path))
+				if err != nil {
+					missing = append(missing, path)
+					continue
+				}
+				lines = strings.Count(string(data), "\n") + 1
 			}
-			data, err := os.ReadFile(filepath.Join(repoRoot, path))
-			if err != nil {
-				missing = append(missing, path)
-				continue
+			total += lines / consumers
+			if consumers > 1 {
+				shared += lines
 			}
-			total += strings.Count(string(data), "\n") + 1
 		}
 	}
 	sort.Strings(missing)
-	return total, missing
+	return total, shared, missing
+}
+
+// Address-scan vocabulary.
+//
+// universalSubstrateScenarios are excluded because every team calls them by
+// construction — prompt-manager is the runtime the members run on and
+// swarm-manager is the shared portfolio. Counting them would add a constant to
+// every team and make the number less able to separate teams, which is the
+// only job it has.
+var universalSubstrateScenarios = map[string]bool{
+	"prompt-manager": true,
+	"swarm-manager":  true,
+}
+
+// addressScanNoise are scenario names that are also ordinary English words or
+// generic test fixtures. Matching them produces false addresses from prose that
+// was never naming a scenario ("record durable notes", "run the test"). They
+// are skipped rather than resolved because a false address inflates the reading
+// in the direction that hides consolidation, which is the failure that matters.
+var addressScanNoise = map[string]bool{
+	"notes":         true,
+	"test":          true,
+	"portal":        true,
+	"calendar":      true,
+	"progress":      true,
+	"simple-test":   true,
+	"test-scenario": true,
+}
+
+// domainAddressesByTeam scans each team's member files for named scenarios.
+//
+// Member files are the right surface because they are what a member actually
+// reads before acting: a scenario named in a heartbeat or in standing
+// responsibilities is an address that member must hold, whether or not the
+// team contract mentions it.
+func domainAddressesByTeam(configDir, repoRoot string, teamIDs []string) map[string][]string {
+	out := map[string][]string{}
+	scenarios := repoScenarioNames(repoRoot)
+	if len(scenarios) == 0 {
+		return out
+	}
+	for _, teamID := range teamIDs {
+		membersDir := filepath.Join(configDir, "teams", teamID, "members")
+		entries, err := os.ReadDir(membersDir)
+		if err != nil {
+			continue
+		}
+		found := map[string]bool{}
+		for _, me := range entries {
+			if !me.IsDir() || strings.HasPrefix(me.Name(), ".") {
+				continue
+			}
+			files, err := os.ReadDir(filepath.Join(membersDir, me.Name()))
+			if err != nil {
+				continue
+			}
+			for _, f := range files {
+				if f.IsDir() || !strings.EqualFold(filepath.Ext(f.Name()), ".md") {
+					continue
+				}
+				data, err := os.ReadFile(filepath.Join(membersDir, me.Name(), f.Name()))
+				if err != nil {
+					continue
+				}
+				for _, name := range scenarios {
+					if !found[name] && containsScenarioToken(string(data), name) {
+						found[name] = true
+					}
+				}
+			}
+		}
+		names := make([]string, 0, len(found))
+		for name := range found {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		if len(names) > 0 {
+			out[teamID] = names
+		}
+	}
+	return out
+}
+
+// repoScenarioNames lists the scenario directory names worth scanning for.
+func repoScenarioNames(repoRoot string) []string {
+	if strings.TrimSpace(repoRoot) == "" {
+		return nil
+	}
+	entries, err := os.ReadDir(filepath.Join(repoRoot, "scenarios"))
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range entries {
+		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		name := e.Name()
+		if universalSubstrateScenarios[name] || addressScanNoise[name] {
+			continue
+		}
+		out = append(out, name)
+	}
+	// Longest first so a scan cannot match `agent-manager` inside
+	// `agent-metareasoning-manager` before trying the longer name.
+	sort.Slice(out, func(i, j int) bool {
+		if len(out[i]) != len(out[j]) {
+			return len(out[i]) > len(out[j])
+		}
+		return out[i] < out[j]
+	})
+	return out
+}
+
+// containsScenarioToken reports whether body names the scenario as a whole
+// token. Scenario names are hyphenated, so a plain substring search matches
+// `agent-manager` inside `agent-metareasoning-manager`; the boundary check
+// treats a hyphen as a word character to prevent it.
+func containsScenarioToken(body, name string) bool {
+	for i := 0; ; {
+		idx := strings.Index(body[i:], name)
+		if idx < 0 {
+			return false
+		}
+		start := i + idx
+		end := start + len(name)
+		if !scenarioTokenChar(body, start-1) && !scenarioTokenChar(body, end) {
+			return true
+		}
+		i = start + 1
+		if i >= len(body) {
+			return false
+		}
+	}
+}
+
+// scenarioTokenChar reports whether the byte at index is part of a scenario
+// token. Out-of-range indices are not, which makes start/end of file a
+// boundary.
+func scenarioTokenChar(body string, index int) bool {
+	if index < 0 || index >= len(body) {
+		return false
+	}
+	c := body[index]
+	switch {
+	case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		return true
+	case c == '-', c == '_':
+		return true
+	}
+	return false
 }
 
 // canonRootLineCount sums every .md beneath a declared canon root. Only .md

@@ -99,10 +99,29 @@ func tsProjectionChecks(scenarioRoot string, ws Workspace) []ProjectionCheck {
 	}
 	if helper := strings.TrimSpace(class.TestUtils.CanonicalRenderHelper); helper != "" {
 		path := resolveProjectionPath(scenarioRoot, ws.RootPath, helper)
-		checks = append(checks, projectionCheck(ws, "testutil.canonical_render_helper", "unit.policy_profile test_utils.canonical_render_helper", path, helper, boolNative(fileExists(path)), fileExists(path),
-			"Add src/test-utils/renderWithProviders.tsx and re-export it from src/test-utils/index.ts."))
+		if fileExists(path) {
+			checks = append(checks, projectionCheck(ws, "testutil.canonical_render_helper", "unit.policy_profile test_utils.canonical_render_helper", path, helper, "true", true,
+				"Add src/test-utils/renderWithProviders.tsx and re-export it from src/test-utils/index.ts."))
+		} else if importsSharedRenderHelperFromWorkspace(ws.RootPath) {
+			checks = append(checks, projectionCheck(ws, "testutil.canonical_render_helper", "unit.policy_profile test_utils.canonical_render_helper", filepath.Join(ws.RootPath, "package.json"), helper, "@vrooli/api-base/testing", true,
+				"Import renderWithProviders from @vrooli/api-base/testing or provide a documented local adapter."))
+		} else {
+			checks = append(checks, projectionCheck(ws, "testutil.canonical_render_helper", "unit.policy_profile test_utils.canonical_render_helper", path, helper, "false", false,
+				"Import renderWithProviders from @vrooli/api-base/testing or provide a documented local adapter."))
+		}
 	}
 	return checks
+}
+
+func importsSharedRenderHelperFromWorkspace(root string) bool {
+	found := false
+	walkSourceFiles(root, func(path string) {
+		if found || !isTSSourceFile(path) {
+			return
+		}
+		found = importsSharedRenderHelper(readFileString(path))
+	})
+	return found
 }
 
 func policyClassForWorkspace(scenarioRoot string, ws Workspace) unitPolicyClass {

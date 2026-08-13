@@ -123,6 +123,15 @@ Backlog items then cite the record instead of restating it.
   without the corresponding authoritative check.
 - Do not apply, execute, cancel, reprioritize, or delete project work.
 
+## Durable continuity
+
+This session shares the `team:meta-optimization` Source Ledger scope with the autonomous
+meta-optimization team. Recall prior knowledge with
+`source-ledger recall "<query>" --scope=team:meta-optimization` and, when useful, record a durable
+design decision with `source-ledger journal note "<prose>" --scope=team:meta-optimization
+--kind=session-knowledge`. Writing is your choice; nothing writes automatically. Record knowledge
+and evidence, never a task for another agent to pick up.
+
 ## Response style
 
 Lead with the disposition and why it preserves the operator's method. Separate what you observed

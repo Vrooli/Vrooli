@@ -56,7 +56,7 @@ type Locator interface {
 
 // Discoverer returns the test-surface inventory for a target.
 type Discoverer interface {
-	Discover(ctx context.Context, scenario, path string, useCache bool) (Inventory, error)
+	Discover(ctx context.Context, scenario, targetKind, path string, useCache bool) (Inventory, error)
 }
 
 // DefaultLocator resolves scenario ids through the repo-contract package.
@@ -107,14 +107,21 @@ type CodeFactsClient struct {
 }
 
 // Discover resolves the target and asks Code Facts for surfaces + parse units.
-func (c CodeFactsClient) Discover(ctx context.Context, scenario, path string, useCache bool) (Inventory, error) {
+func (c CodeFactsClient) Discover(ctx context.Context, scenario, requestedKind, path string, useCache bool) (Inventory, error) {
 	locator := c.Locator
 	if locator == nil {
 		locator = DefaultLocator{}
 	}
-	scenarioName, targetKind, rootPath, err := locator.Locate(ctx, scenario, path)
+	scenarioName, locatedKind, rootPath, err := locator.Locate(ctx, scenario, path)
 	if err != nil {
 		return Inventory{}, err
+	}
+	targetKind := strings.TrimSpace(requestedKind)
+	if targetKind == "" {
+		targetKind = locatedKind
+	}
+	if targetKind == "" {
+		targetKind = "scenario"
 	}
 
 	resolver := c.Resolver
@@ -150,10 +157,20 @@ func (c CodeFactsClient) Discover(ctx context.Context, scenario, path string, us
 }
 
 func targetKindToProto(kind string) factsv1.TargetKind {
-	if kind == "scenario" {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "scenario":
 		return factsv1.TargetKind_TARGET_KIND_SCENARIO
+	case "package":
+		return factsv1.TargetKind_TARGET_KIND_PACKAGE
+	case "control-plane":
+		return factsv1.TargetKind_TARGET_KIND_CONTROL_PLANE
+	case "resource":
+		return factsv1.TargetKind_TARGET_KIND_RESOURCE
+	case "project":
+		return factsv1.TargetKind_TARGET_KIND_PROJECT
+	default:
+		return factsv1.TargetKind_TARGET_KIND_PATH
 	}
-	return factsv1.TargetKind_TARGET_KIND_PATH
 }
 
 func fromCodeFacts(report *factsv1.CodeFactsReport, scenarioName, targetKind, rootPath string) Inventory {

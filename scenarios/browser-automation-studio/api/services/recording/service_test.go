@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/scheduletest"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/domain"
-	"github.com/vrooli/browser-automation-studio/internal/clock"
 	"github.com/vrooli/browser-automation-studio/internal/testutil/fixtures"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 )
@@ -32,7 +32,7 @@ func TestNewService_WithClock(t *testing.T) {
 	repo := persistence.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
-	mockClock := clock.NewMock(time.Time{})
+	mockClock := scheduletest.New(time.Time{})
 
 	svc := NewService(repo, nil, log, ServiceConfig{
 		Clock: mockClock,
@@ -1210,7 +1210,7 @@ func TestService_FilterEntries_BySince(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	mockClock := clock.NewMock(time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC))
+	mockClock := scheduletest.New(time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC))
 	svc := NewService(repo, nil, log, ServiceConfig{Clock: mockClock})
 	ctx := context.Background()
 

@@ -3,7 +3,7 @@ import { waitFor } from "@testing-library/react";
 import { Route, Routes } from "react-router-dom";
 
 import { renderWithProviders } from "../../test-utils";
-import { expectNoA11yViolations } from "../../test-utils/a11y";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 
 vi.mock("../../api/validation", () => {
   const validateScenario = vi.fn((scenario: string) =>

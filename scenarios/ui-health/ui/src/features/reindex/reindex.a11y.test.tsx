@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 
 import { renderWithProviders } from "../../test-utils";
-import { expectNoA11yViolations } from "../../test-utils/a11y";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 import { selectors } from "../../consts/selectors";
 
 vi.mock("../../api/reindex", async (importOriginal) => {

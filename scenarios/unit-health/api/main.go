@@ -10,10 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"unit-health/internal/clock"
 	"unit-health/internal/modules"
 	"unit-health/internal/runhistory"
 	"unit-health/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -123,7 +124,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: logger},
+		server.Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, "unit-health-api", "1.0.0"),
 		validationH.Module(logger, repoRoot, runhistory.NewRepository(db.Primary())),
 	)

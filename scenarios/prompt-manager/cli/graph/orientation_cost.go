@@ -22,9 +22,14 @@ import (
 )
 
 type orientationComponents struct {
-	Members    int `json:"members"`
+	Members int `json:"members"`
+	// CanonLines is charged by consumer share: a plan-of-record document
+	// declared for N consuming teams contributes lines/N.
 	CanonLines int `json:"canonLines"`
-	Topics     int `json:"topics"`
+	// SharedCanonLines is the full unsplit count of multi-consumer documents,
+	// reported so the split cannot hide what a custodian actually carries.
+	SharedCanonLines int `json:"sharedCanonLines,omitempty"`
+	Topics           int `json:"topics"`
 }
 
 type orientationCost struct {
@@ -33,6 +38,9 @@ type orientationCost struct {
 	Composite        int                   `json:"composite"`
 	ScenarioCoverage int                   `json:"scenarioCoverage"`
 	Scenarios        []string              `json:"scenarios,omitempty"`
+	DomainAddresses  int                   `json:"domainAddresses"`
+	Addresses        []string              `json:"addresses,omitempty"`
+	ExternalActors   []string              `json:"externalActors,omitempty"`
 	MissingCanon     []string              `json:"missingCanon,omitempty"`
 }
 
@@ -58,11 +66,17 @@ func cmdOrientationCost(ctx appctx.Context, args []string) error {
 		return enc.Encode(resp)
 	}
 
-	fmt.Printf("%-20s %9s %8s %6s %6s %9s\n", "TEAM", "COMPOSITE", "MEMBERS", "CANON", "TOPICS", "SCENARIOS")
+	fmt.Printf("%-20s %9s %8s %6s %6s %9s %9s\n", "TEAM", "COMPOSITE", "MEMBERS", "CANON", "TOPICS", "COVERS", "ADDRESSES")
 	for _, team := range resp.Teams {
-		fmt.Printf("%-20s %9d %8d %6d %6d %9d\n",
+		fmt.Printf("%-20s %9d %8d %6d %6d %9d %9d\n",
 			team.TeamID, team.Composite, team.Components.Members,
-			team.Components.CanonLines, team.Components.Topics, team.ScenarioCoverage)
+			team.Components.CanonLines, team.Components.Topics,
+			team.ScenarioCoverage, team.DomainAddresses)
+	}
+	for _, team := range resp.Teams {
+		if team.DomainAddresses > 1 {
+			fmt.Printf("\n%s names %d domain addresses: %s\n", team.TeamID, team.DomainAddresses, strings.Join(team.Addresses, ", "))
+		}
 	}
 	for _, team := range resp.Teams {
 		if len(team.MissingCanon) > 0 {

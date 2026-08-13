@@ -1,7 +1,7 @@
 import { describe, it, vi, beforeEach } from "vitest";
 
 import { renderWithProviders, makeHealthResponse } from "../test-utils";
-import { expectNoA11yViolations } from "../test-utils/a11y";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 import { selectors } from "../consts/selectors";
 
 vi.mock("../api/health", async (importOriginal) => {

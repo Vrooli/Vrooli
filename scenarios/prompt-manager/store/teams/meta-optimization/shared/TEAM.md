@@ -28,7 +28,7 @@ flowchart TB
 
     subgraph TEAM[Meta-optimization team]
       direction TB
-      M1[team-agent-optimizer<br/>9-layer rubric on<br/>teams + agents +<br/>capability architecture]
+      M1[team-agent-optimizer<br/>10-layer rubric on<br/>teams + agents +<br/>capability architecture]
       M2[skill-optimizer<br/>skill drift, usage,<br/>action graduation candidates,<br/>deprecation]
       M3[run-introspector<br/>agent-manager run traces,<br/>error / retry / slowness<br/>patterns]
       M4[debt-curator<br/>typed evidence scan;<br/>promote to canon /<br/>retire when obsolete]
@@ -58,7 +58,7 @@ flowchart TB
 
 | Member | Audit lens | Primary work types |
 |---|---|---|
-| `team-agent-optimizer` | 9-layer team-member capability audit (`docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`); team + agent file structure | `team-structure-change`, `agent-improvement`, `capability work item` |
+| `team-agent-optimizer` | 10-layer team-member capability audit (`docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`); team + agent file structure | `team-structure-change`, `agent-improvement`, `capability work item` |
 | `skill-optimizer` | Skill drift, usage telemetry, promotion-ladder progress (`docs/agent-system/PROMOTION_LADDER.md`); detects action-candidate + action-deprecation | `action-candidate`, `action-improvement`, `action-deprecation`, `meta-self-improvement` |
 | `run-introspector` | Recent agent-manager run telemetry; ground-truth on what actually happens vs. what's documented | `agent-improvement`, `meta-self-improvement`, `capability work item` |
 | `debt-curator` | The team's own typed evidence topics and shared artifacts; promotion + retirement candidates | `meta-self-improvement` |

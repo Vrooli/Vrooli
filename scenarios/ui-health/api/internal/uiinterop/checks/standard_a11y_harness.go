@@ -2,8 +2,9 @@
 Rule: Accessibility Test Harness
 ID: standard_a11y_harness
 Description: A UI scenario must ship an automated accessibility harness: an
-  axe-core-based dependency (axe-core / jest-axe / vitest-axe), canonical
-  ui/src/test-utils/a11y.ts helper, AND at least one *.a11y.test.* file that
+  axe-core-based dependency (axe-core / jest-axe / vitest-axe), either the
+  canonical ui/src/test-utils/a11y.ts helper or the shared
+  @vrooli/api-base/testing companion, AND at least one *.a11y.test.* file that
   uses that helper against rendered components. This is the
   static precondition for the runtime axe/WCAG check group.
 Why: Accessibility regressions are invisible in normal development and code
@@ -17,7 +18,8 @@ Slot: [D]
 SlotFile: ui
 TechStack: React
 Recommendation: Add a dev dependency on axe-core (or jest-axe / vitest-axe) and
-  author at least one *.a11y.test.tsx that calls axe.run / toHaveNoViolations
+  author at least one *.a11y.test.tsx that calls the shared helper, axe.run, or
+  toHaveNoViolations
   against your top-level shell. See the react-vite template's
   src/test-utils/a11y.ts.
 Standard: vrooli-ui-a11y-v1
@@ -139,7 +141,7 @@ func checkA11yHarness(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 			break
 		}
 	}
-	hasHelper := hasCanonicalA11yHelper(ctx)
+	hasHelper := hasCanonicalA11yHelper(ctx) || hasSharedA11yHelper(ctx)
 	hasTest := hasA11yTestFile(ctx)
 
 	if hasDep && hasHelper && hasTest {
@@ -155,7 +157,7 @@ func checkA11yHarness(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 		missing = append(missing, "an axe-based dependency (axe-core/jest-axe/vitest-axe)")
 	}
 	if !hasHelper {
-		missing = append(missing, "ui/src/test-utils/a11y.ts exporting an axe.run helper")
+		missing = append(missing, "a local a11y helper or @vrooli/api-base/testing")
 	}
 	if !hasTest {
 		missing = append(missing, "at least one *.a11y.test.* file using the canonical helper")
@@ -170,7 +172,7 @@ func checkA11yHarness(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 			Title:          "Missing accessibility test harness",
 			Description:    "UI present but the accessibility harness is incomplete: missing " + strings.Join(missing, " and "),
 			FilePath:       "ui/package.json",
-			Recommendation: "Add an axe dependency, ui/src/test-utils/a11y.ts, and an *.a11y.test.tsx that uses the helper against the app shell",
+			Recommendation: "Add an axe dependency, import expectNoA11yViolations from @vrooli/api-base/testing (or provide a local helper), and add an *.a11y.test.tsx against the app shell",
 		}},
 	}
 }
@@ -183,6 +185,17 @@ func hasCanonicalA11yHelper(ctx uiinterop.CheckContext) bool {
 	}
 	content := string(data)
 	return strings.Contains(content, "expectNoA11yViolations") && strings.Contains(content, "axe.run")
+}
+
+func hasSharedA11yHelper(ctx uiinterop.CheckContext) bool {
+	for _, files := range [][]uiinterop.SourceFile{ctx.Sources, ctx.TestSources} {
+		for _, f := range files {
+			if strings.Contains(f.Content, "@vrooli/api-base/testing") && strings.Contains(f.Content, "expectNoA11yViolations") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // hasA11yTestFile reports whether any *.a11y.test.* file uses the canonical helper.

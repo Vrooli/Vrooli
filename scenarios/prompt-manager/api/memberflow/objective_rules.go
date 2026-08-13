@@ -33,6 +33,7 @@ func ObjectiveRuleCatalog() (RuleCatalog, error) {
 	}
 	const fixDeclaration = "Correct team.json::objectivesServed, or route an objective-set change through director-swarm's vision-update work item type"
 	const fixCoverage = "Raise outcome-direction or capability work in director-swarm"
+	const fixRestatement = "The serving team's contrarian re-derives its obligation list against the current statement, then records the objective's revision in team.json::objectivesServed[].acknowledgedRevision"
 	return NewRuleCatalog(
 		entry("objective_unknown_id", SeverityError,
 			"A team declares an objective id that the objective table does not define.", fixDeclaration),
@@ -54,6 +55,8 @@ func ObjectiveRuleCatalog() (RuleCatalog, error) {
 			"An objective names no serving team and carries no dated gap marker.", fixCoverage),
 		entry("objective_unmeasurable", SeverityWarning,
 			"An objective names no evidence source, so progress toward it cannot be scored.", fixCoverage),
+		entry("objective_restatement_pending", SeverityWarning,
+			"An objective's statement changed, or was never acknowledged, since the serving team last re-derived its obligations.", fixRestatement),
 	)
 }
 
@@ -95,6 +98,7 @@ func (objectiveCheck) Emits() []string {
 		"objective_team_unattached",
 		"objective_unserved",
 		"objective_unmeasurable",
+		"objective_restatement_pending",
 	}
 }
 
@@ -168,9 +172,41 @@ func checkObjectiveDeclarations(in ObjectiveValidationInput) []OperatingGraphFin
 			if msg := objectiveRoleDrift(d, ref); msg != "" {
 				findings = append(findings, objectiveFinding("objective_role_drift", SeverityWarning, teamID, id, source, msg))
 			}
+			if msg := objectiveRestatementPending(d, obj); msg != "" {
+				findings = append(findings, objectiveFinding("objective_restatement_pending", SeverityWarning, teamID, id, source, msg))
+			}
 		}
 	}
 	return findings
+}
+
+// objectiveRestatementPending reports whether this team has confirmed its
+// obligations against the objective's *current* statement.
+//
+// An absent acknowledgement is a finding, not a free pass. Every team starts in
+// that state, so the first cycle after this rule ships asks all six to do the
+// one useful thing they have never done: read the objective they serve and
+// confirm the work they are set up to do still follows from it. It self-clears
+// the moment each records the revision.
+//
+// A blank revision on the objective side (a table row this parser could not
+// digest) yields no finding — a sensor that cannot read the setpoint reports
+// nothing rather than accusing the team.
+func objectiveRestatementPending(d TeamObjectiveDeclaration, obj Objective) string {
+	current := strings.TrimSpace(obj.Revision)
+	if current == "" {
+		return ""
+	}
+	acknowledged := strings.TrimSpace(d.AcknowledgedRevision)
+	if acknowledged == current {
+		return ""
+	}
+	if acknowledged == "" {
+		return fmt.Sprintf("objective %s is at revision %s and this team has never recorded an acknowledgedRevision; confirm the obligation list still follows from the current statement, then record it",
+			obj.ID, current)
+	}
+	return fmt.Sprintf("objective %s moved from revision %s to %s since this team last re-derived its obligations",
+		obj.ID, acknowledged, current)
 }
 
 // checkObjectiveDownwardCoverage runs the downward direction: every objective

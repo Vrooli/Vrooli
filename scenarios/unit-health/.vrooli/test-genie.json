@@ -165,6 +165,18 @@
         "capability_id": "framework_config",
         "clean_requirement": "required"
       },
+      "UNSUPPORTED_TARGET_KIND": {
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "surface_discovery",
+        "clean_requirement": "required"
+      },
       "TEST_FRAMEWORK_MISSING": {
         "local_level_impact": "L0",
         "global_impact": "foundation_blocker",
@@ -266,6 +278,52 @@
         ],
         "capability_id": "test_architecture",
         "clean_requirement": "required"
+      },
+      "SEAM_DUPLICATED_IN_PACKAGE": {
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "unit-testing-architecture-steer",
+          "seam-discovery-and-enforcement"
+        ],
+        "capability_id": "test_architecture",
+        "clean_requirement": "required"
+      },
+      "SEAM_REIMPLEMENTED": {
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "unit-testing-architecture-steer",
+          "seam-discovery-and-enforcement"
+        ],
+        "capability_id": "test_architecture",
+        "clean_requirement": "required"
+      },
+      "COMPANION_REIMPLEMENTED": {
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "test_architecture",
+        "clean_requirement": "required"
+      },
+      "COMPANION_AVAILABLE": {
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "test_architecture",
+        "clean_requirement": "advisory"
       },
       "LOW_COVERAGE": {
         "local_level_impact": "L2",

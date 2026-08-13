@@ -343,6 +343,7 @@ func auditCollectors() []func(appctx.Context) auditTarget {
 		auditCrossTeamCoupling,
 		auditCanonCoherence,
 		auditObjectiveCoverage,
+		auditInstrumentCoverage,
 		auditStaticallyUnreferencedSkills,
 		auditSkillConditioning,
 		auditExperimentLiveness,
@@ -903,6 +904,42 @@ func auditPoREntropy(appctx.Context) auditTarget {
 	}, auditHonestyTelemetry,
 		"state-in-prose is audited by judgment today",
 		"2026-07-27 — build state-in-prose telemetry; blocked on a stable document-state classification contract")
+}
+
+// auditInstrumentCoverage reads whether each team declares the one scenario it
+// reads for the state of its domain.
+//
+// The band is "declared or dated", never "present". A team with no instrument
+// is in band as long as it says so with a date, for the same reason an unserved
+// objective with a gap marker is: a declared hole is a decision the reader can
+// age and argue with, while silence is neither. Making presence the band would
+// turn this sensor into a controller, which is the boundary the target model
+// forbids for instruments themselves.
+func auditInstrumentCoverage(ctx appctx.Context) auditTarget {
+	t := auditTarget{
+		Target:   "Instrument coverage",
+		Sensor:   "prompt-manager graph instruments",
+		Deadband: "every team declares an instrument or carries a dated gap marker; declarations are internally coherent",
+		Actuator: "team-capability-consolidation",
+	}
+	var resp instrumentCoverageReport
+	if err := ctx.GetWithQuery("/instruments", url.Values{}, &resp); err != nil {
+		return auditFailed(t, err)
+	}
+	t.Observed = fmt.Sprintf("%d live, %d partial, %d none, %d undeclared across %d team(s); %d out of band",
+		resp.Live, resp.Partial, resp.None, resp.Undeclared, len(resp.Teams), resp.OutOfBand)
+	t.Status = auditBand(resp.OutOfBand == 0)
+	// A declared hole is in band but still reaches the reader with its age, so
+	// a deliberate deferral and an overdue one are told apart in the record.
+	for _, team := range resp.Teams {
+		for _, finding := range team.Findings {
+			t.Detail = appendCapped(t.Detail, fmt.Sprintf("%s: %s", team.TeamID, finding))
+		}
+		if len(team.Findings) == 0 && team.Instrument != nil && team.Instrument.Status != "live" {
+			t.Detail = appendCapped(t.Detail, fmt.Sprintf("%s declared %s since %s", team.TeamID, team.Instrument.Status, team.GapOpenedOn))
+		}
+	}
+	return t
 }
 
 // auditTeamOrientationCost reads the composite for every team.

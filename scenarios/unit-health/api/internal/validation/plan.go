@@ -31,6 +31,7 @@ const (
 	codeUnitPolicyWeakened      = "UNIT_POLICY_WEAKENED"
 	codeUnitWaiverInvalid       = "UNIT_POLICY_WAIVER_INVALID"
 	codeUnitProjectionDrift     = "UNIT_POLICY_PROJECTION_DRIFT"
+	codeUnsupportedTargetKind   = "UNSUPPORTED_TARGET_KIND"
 )
 
 // codeSeverity mirrors the severity_default of each code in
@@ -53,6 +54,7 @@ var codeSeverity = map[string]string{
 	codeUnitPolicyWeakened:      "error",
 	codeUnitWaiverInvalid:       "error",
 	codeUnitProjectionDrift:     "error",
+	codeUnsupportedTargetKind:   "error",
 
 	// Phase 5 analyzer codes (coverage, architecture, quality, diagnostics).
 	codeLowCoverage:             "warning",
@@ -69,6 +71,10 @@ var codeSeverity = map[string]string{
 	codeTestFlakeSuspected:      "warning",
 	codeTestRuntimeGrowth:       "info",
 	codeTestUntaggedRequirement: "warning",
+	codeSeamDuplicatedInPackage: "error",
+	codeSeamReimplemented:       "error",
+	codeCompanionReimplemented:  "error",
+	codeCompanionAvailable:      "info",
 }
 
 // defaultWorkspaceTimeoutSeconds bounds each planned command. The bounded
@@ -101,6 +107,7 @@ func (m nodeManifest) hasScript(name string) bool {
 // workspace list, the dry-run execution plan, and the discovery/config-gap
 // findings. It performs no execution.
 func buildPlan(scenario string, inv discovery.Inventory, now string) ([]Surface, []Workspace, ExecutionPlan, []Finding) {
+	inv = normalizeTargetInventory(inv)
 	surfaces := make([]Surface, 0, len(inv.Surfaces))
 	for _, s := range inv.Surfaces {
 		if strings.EqualFold(s.Status, "missing") {
@@ -118,7 +125,10 @@ func buildPlan(scenario string, inv discovery.Inventory, now string) ([]Surface,
 		})
 	}
 
-	findings := resolveUnitPolicyFindings(scenario, inv, now)
+	var findings []Finding
+	if inv.TargetKind == "scenario" || inv.TargetKind == "" {
+		findings = resolveUnitPolicyFindings(scenario, inv, now)
+	}
 	if len(inv.Surfaces) == 0 {
 		reason := inv.DegradedReason
 		if reason == "" {
@@ -168,6 +178,49 @@ func buildPlan(scenario string, inv discovery.Inventory, now string) ([]Surface,
 
 	plan := buildExecutionPlan(workspaces)
 	return surfaces, workspaces, plan, findings
+}
+
+// normalizeTargetInventory gives non-scenario targets a stable package-shaped
+// workspace. Code Facts may describe a package as a collection of nested parse
+// units; unit-health's package contract is deliberately narrower: one package
+// target means one Go module rooted at that package. Scenario discovery keeps
+// its existing surface model unchanged.
+func normalizeTargetInventory(inv discovery.Inventory) discovery.Inventory {
+	targetKind := strings.ToLower(strings.TrimSpace(inv.TargetKind))
+	if targetKind != "package" && targetKind != "control-plane" {
+		return inv
+	}
+	if targetKind == "package" && fileExists(filepath.Join(inv.RootPath, "go.mod")) {
+		inv.Surfaces = []discovery.Surface{{
+			ID: "package", Kind: "package", Language: "go", RootPath: inv.RootPath,
+			Status: "known", Confidence: 1,
+		}}
+		return inv
+	}
+	if targetKind == "control-plane" && fileExists(filepath.Join(inv.RootPath, "go.mod")) {
+		inv.Surfaces = []discovery.Surface{{
+			ID: "control-plane", Kind: "control-plane", Language: "go", RootPath: inv.RootPath,
+			Status: "known", Confidence: 1,
+		}}
+	}
+	return inv
+}
+
+func unsupportedTargetFinding(scenario, targetKind, now string) Finding {
+	return Finding{
+		ID:           codeUnsupportedTargetKind + "-" + targetKind,
+		Scenario:     scenario,
+		Code:         codeUnsupportedTargetKind,
+		Category:     "target",
+		Severity:     codeSeverity[codeUnsupportedTargetKind],
+		Message:      fmt.Sprintf("Unit Health does not implement target kind %q.", targetKind),
+		Evidence:     "target_kind=" + targetKind,
+		Expected:     "A provider implementation that declares and supports this target kind.",
+		Observed:     "no unit-health analyzer for target kind " + targetKind,
+		WhyItMatters: "Reporting a clean maturity rung for an unanalyzed target would be misleading.",
+		Remediation:  "Use a provider that supports this target kind or add an explicit target-aware analyzer before declaring support.",
+		CreatedAt:    now,
+	}
 }
 
 func normalizeLanguage(lang, root string) string {

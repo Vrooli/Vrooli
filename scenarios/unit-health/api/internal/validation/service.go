@@ -45,12 +45,17 @@ type Service struct {
 	// history for the diagnostics analyzer. Nil disables persistence; the
 	// diagnostics then fall back to single-run signals only.
 	History runhistory.Store
-	Now     func() time.Time
+	// DependencyResolver reads the target closure from Scenario Dependency
+	// Analyzer. Tests inject a deterministic closure; production defaults to
+	// the live target-DAG export and remains conservative if it is unavailable.
+	DependencyResolver DependencyResolver
+	Now                func() time.Time
 }
 
 // Request identifies the validation target and execution options.
 type Request struct {
 	Scenario         string
+	TargetKind       string
 	Path             string
 	Workspaces       []string
 	IncludeExecution bool
@@ -60,24 +65,25 @@ type Request struct {
 // Response is the engine's normalized result. It maps one-to-one onto
 // validationv1.ValidateScenarioResponse.
 type Response struct {
-	RunID            string
-	Status           string
-	Summary          string
-	Scenario         string
-	TargetKind       string
-	TargetPath       string
-	DegradedReason   string
-	Surfaces         []Surface
-	Workspaces       []Workspace
-	Plan             ExecutionPlan
-	CommandResults   []CommandResult
-	Coverage         []CoverageTarget
-	ProjectionChecks []ProjectionCheck
-	Findings         []Finding
-	Diagnostics      []Diagnostic
-	Maturity         Maturity
-	NextSteps        []string
-	Artifacts        []Artifact
+	RunID              string
+	Status             string
+	Summary            string
+	Scenario           string
+	TargetKind         string
+	TargetPath         string
+	DegradedReason     string
+	Surfaces           []Surface
+	Workspaces         []Workspace
+	Plan               ExecutionPlan
+	CommandResults     []CommandResult
+	Coverage           []CoverageTarget
+	ProjectionChecks   []ProjectionCheck
+	Findings           []Finding
+	SuppressedFindings []Finding
+	Diagnostics        []Diagnostic
+	Maturity           Maturity
+	NextSteps          []string
+	Artifacts          []Artifact
 }
 
 // Artifact is a labeled, typed reference into a run's outputs (the run id, a
@@ -209,6 +215,7 @@ type Finding struct {
 	Remediation   string
 	SourceCommand string
 	CreatedAt     string
+	Suppressed    bool
 }
 
 // Diagnostic is a flake/runtime/hang diagnostic.
@@ -259,7 +266,8 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		disc = discovery.CodeFactsClient{Locator: s.Locator}
 	}
 	discover := collector.Stage("discover")
-	inv, err := disc.Discover(ctx, req.Scenario, req.Path, req.UseCache)
+	targetKind := orDefault(strings.TrimSpace(req.TargetKind), "scenario")
+	inv, err := disc.Discover(ctx, req.Scenario, targetKind, req.Path, req.UseCache)
 	if err != nil {
 		discover.End()
 		return Response{}, fmt.Errorf("discover surfaces: %w", err)
@@ -271,14 +279,46 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	if scenario == "" {
 		scenario = req.Scenario
 	}
+	if targetKind != "scenario" && targetKind != "package" && targetKind != "control-plane" {
+		findings := []Finding{unsupportedTargetFinding(scenario, targetKind, nowStr)}
+		resp := Response{
+			RunID:      runID,
+			Scenario:   scenario,
+			TargetKind: targetKind,
+			TargetPath: inv.RootPath,
+			Status:     "failed",
+			Summary:    fmt.Sprintf("%s target kind is not supported by unit-health.", targetKind),
+			Findings:   findings,
+			Maturity:   Maturity{Rung: 0, Label: "L0", Rationale: fmt.Sprintf("Target kind %q is unsupported; no maturity is claimed.", targetKind)},
+		}
+		resp.NextSteps = []string{"Route this target to a provider that declares and implements its target kind."}
+		resp.Artifacts = buildArtifacts(resp)
+		return resp, nil
+	}
 
 	static := collector.Stage("static-analysis")
 	surfaces, workspaces, plan, findings := buildPlan(scenario, inv, nowStr)
-	projectionChecks := buildProjectionChecks(inv.RootPath, workspaces)
+	closure := DependencyClosure{}
+	resolver := s.DependencyResolver
+	if resolver == nil {
+		resolver = sdaDependencyResolver{}
+	}
+	if resolved, resolveErr := resolver.Resolve(ctx, targetKind, scenario, inv.RootPath); resolveErr == nil {
+		closure = mergeModuleClosure(inv.RootPath, resolved)
+	}
+	var suppressedFindings []Finding
+	var projectionChecks []ProjectionCheck
+	if targetKind == "scenario" {
+		projectionChecks = buildProjectionChecks(inv.RootPath, workspaces)
+	}
 
 	// Static analyzers run regardless of execution: they read source facts only.
-	findings = append(findings, analyzeArchitecture(scenario, workspaces, nowStr)...)
-	findings = append(findings, analyzeQuality(scenario, inv.RootPath, workspaces, nowStr)...)
+	if targetKind == "scenario" {
+		findings = append(findings, analyzeArchitectureWithClosure(scenario, workspaces, nowStr, closure)...)
+		findings = append(findings, analyzeQuality(scenario, inv.RootPath, workspaces, nowStr)...)
+	} else if targetKind == "package" || targetKind == "control-plane" {
+		findings = append(findings, analyzePackageArchitectureWithClosure(scenario, workspaces, nowStr, closure)...)
+	}
 	static.Gauge("workspaces", float64(len(workspaces)))
 	static.End()
 
@@ -290,9 +330,11 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	if req.IncludeExecution && len(plan.Commands) > 0 {
 		execStage := collector.Stage("execute")
 		commandResults, findings = s.execute(ctx, scenario, plan, findings, nowStr, execStage)
-		var covFindings []Finding
-		coverage, covFindings = analyzeCoverage(scenario, inv.RootPath, workspaces, nowStr)
-		findings = append(findings, covFindings...)
+		if targetKind == "scenario" {
+			var covFindings []Finding
+			coverage, covFindings = analyzeCoverage(scenario, inv.RootPath, workspaces, nowStr)
+			findings = append(findings, covFindings...)
+		}
 		execStage.End()
 	}
 
@@ -308,26 +350,37 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 
 	// Diagnostics fold in runtime-growth/flake from history plus runtime/hang
 	// evidence from any executed commands (commandResults is empty on a dry run).
-	diagnostics, diagFindings := analyzeDiagnostics(scenario, workspaces, plan, commandResults, history, nowStr)
+	var diagnostics []Diagnostic
+	var diagFindings []Finding
+	if targetKind == "scenario" {
+		diagnostics, diagFindings = analyzeDiagnostics(scenario, workspaces, plan, commandResults, history, nowStr)
+	}
 	findings = append(findings, diagFindings...)
+	findings = applyConfiguredUnitPolicyWaivers(findings, scenario, inv.RootPath, nowStr)
+	findings, suppressedFindings = splitSuppressedFindings(findings)
 
 	resp := Response{
-		RunID:            runID,
-		Scenario:         scenario,
-		TargetKind:       orDefault(inv.TargetKind, "scenario"),
-		TargetPath:       inv.RootPath,
-		DegradedReason:   inv.DegradedReason,
-		Surfaces:         surfaces,
-		Workspaces:       workspaces,
-		Plan:             plan,
-		CommandResults:   commandResults,
-		Coverage:         coverage,
-		ProjectionChecks: projectionChecks,
-		Diagnostics:      diagnostics,
-		Findings:         findings,
+		RunID:              runID,
+		Scenario:           scenario,
+		TargetKind:         targetKind,
+		TargetPath:         inv.RootPath,
+		DegradedReason:     inv.DegradedReason,
+		Surfaces:           surfaces,
+		Workspaces:         workspaces,
+		Plan:               plan,
+		CommandResults:     commandResults,
+		Coverage:           coverage,
+		ProjectionChecks:   projectionChecks,
+		Diagnostics:        diagnostics,
+		Findings:           findings,
+		SuppressedFindings: suppressedFindings,
 	}
 	resp.Status = deriveStatus(inv, findings)
-	resp.Maturity = s.assessMaturity(findings)
+	if targetKind == "scenario" {
+		resp.Maturity = s.assessMaturity(findings)
+	} else {
+		resp.Maturity = Maturity{Rung: 0, Label: "L0", Rationale: fmt.Sprintf("%s targets use package-aware validation; scenario maturity is not claimed.", targetKind)}
+	}
 	resp.Summary = summarize(scenario, surfaces, workspaces, findings)
 	resp.NextSteps = nextSteps(resp.Status, inv)
 	resp.Artifacts = buildArtifacts(resp)
@@ -675,6 +728,20 @@ func nextSteps(status string, inv discovery.Inventory) []string {
 	default:
 		return []string{"Run with --include-execution to execute the planned tests and analyze coverage."}
 	}
+}
+
+func splitSuppressedFindings(findings []Finding) ([]Finding, []Finding) {
+	active := make([]Finding, 0, len(findings))
+	suppressed := make([]Finding, 0)
+	for _, finding := range findings {
+		if finding.Suppressed {
+			finding.Suppressed = false
+			suppressed = append(suppressed, finding)
+			continue
+		}
+		active = append(active, finding)
+	}
+	return active, suppressed
 }
 
 func orDefault(v, def string) string {

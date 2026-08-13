@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, renderHook, type RenderHookOptions, type RenderOptions } from '@testing-library/react'
+import { renderHook, type RenderHookOptions } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '@/hooks/use-theme'
@@ -14,8 +14,6 @@ interface ProviderOptions {
   withTheme?: boolean
   withToaster?: boolean
 }
-
-type RenderWithProvidersOptions = ProviderOptions & Omit<RenderOptions, 'wrapper'>
 
 export function createTestWrapper(options: ProviderOptions = {}) {
   const {
@@ -59,20 +57,6 @@ export function createTestWrapper(options: ProviderOptions = {}) {
     }
 
     return tree
-  }
-}
-
-export function renderWithProviders(
-  ui: React.ReactElement,
-  options: RenderWithProvidersOptions = {}
-) {
-  const { queryClient = createTestQueryClient(), ...renderOptions } = options
-  const wrapper = createTestWrapper({ ...options, queryClient })
-  const result = render(ui, { ...renderOptions, wrapper })
-
-  return {
-    ...result,
-    queryClient,
   }
 }
 

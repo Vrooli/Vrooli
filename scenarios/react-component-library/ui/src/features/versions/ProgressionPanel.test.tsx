@@ -1,14 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { selectors } from "../../consts/selectors";
 import { listVersionLedger } from "../../api/versionLedger";
-import { renderWithProviders } from "../../test-utils";
 import { ProgressionPanel } from "./ProgressionPanel";
 
 vi.mock("../../api/versionLedger", () => ({
   listVersionLedger: vi.fn(),
 }));
+
+function renderPanel() {
+  return render(
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        })
+      }
+    >
+      <ProgressionPanel libraryId="react-component-library:Chart" />
+    </QueryClientProvider>,
+  );
+}
 
 describe("ProgressionPanel", () => {
   beforeEach(() => vi.mocked(listVersionLedger).mockReset());
@@ -52,13 +66,14 @@ describe("ProgressionPanel", () => {
       },
     ]);
 
-    renderWithProviders(<ProgressionPanel libraryId="react-component-library:Chart" />);
+    renderPanel();
 
     const chart = await screen.findByTestId("cartesian-charts");
     expect(screen.getByTestId(selectors.versions.progressionPanel)).toBeInTheDocument();
     expect(chart).toHaveTextContent("0.9.0");
     expect(chart).toHaveTextContent("retired");
-    expect(within(chart).getAllByText("0.9.0")).toHaveLength(2);
+    expect(within(chart).getByRole("button", { name: /0\.9\.0/ })).toBeInTheDocument();
+    expect(within(chart).getByRole("table")).toBeInTheDocument();
     expect(listVersionLedger).toHaveBeenCalledWith("react-component-library:Chart");
   });
 
@@ -66,14 +81,14 @@ describe("ProgressionPanel", () => {
     vi.mocked(listVersionLedger).mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve([]), 25)),
     );
-    renderWithProviders(<ProgressionPanel libraryId="react-component-library:Chart" />);
+    renderPanel();
     expect(screen.getByRole("status")).toHaveTextContent("componentDetail.progression.loading");
     await screen.findByTestId("cartesian-charts");
   });
 
   it("reports provider failures", async () => {
     vi.mocked(listVersionLedger).mockRejectedValueOnce(new Error("offline"));
-    renderWithProviders(<ProgressionPanel libraryId="react-component-library:Chart" />);
+    renderPanel();
     expect(await screen.findByRole("alert")).toHaveTextContent("componentDetail.progression.error");
   });
 });

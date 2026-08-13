@@ -30,7 +30,7 @@ Score its Phase 4 (objective coverage) as a measurement only. The actuator for a
 
 ## Capability Architecture Audits
 
-Use `prompt-manager skill read team-member-capability-architecture-audit` when a member's capability is vague, workflow-heavy, repeatedly blocked, dependent on external/operator-fed signals, or missing an obvious skill/doc/tool surface. The skill carries the audit process; the nine layers, the score scale, and the smell catalogue are canon in `path:docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`. Read them there.
+Use `prompt-manager skill read team-member-capability-architecture-audit` when a member's capability is vague, workflow-heavy, repeatedly blocked, dependent on external/operator-fed signals, or missing an obvious skill/doc/tool surface. The skill carries the audit process; the ten layers, the score scale, and the smell catalogue are canon in `path:docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`. Read them there.
 
 Two judgments this lane adds on top of the scoring:
 

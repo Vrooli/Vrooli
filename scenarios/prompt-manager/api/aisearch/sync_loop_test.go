@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"prompt-manager/internal/testutil/assertx"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 func TestSyncLoop_RunOnce_NoWork_AppliesEmptyPlan(t *testing.T) {
@@ -70,7 +70,7 @@ func TestSyncLoop_Start_TickerCallsRunOnce(t *testing.T) {
 	defer cancel()
 	go s.Start(ctx)
 
-	assertx.Eventually(t, 2*time.Second, 20*time.Millisecond, func() error {
+	apihttptest.Eventually(t, 2*time.Second, 20*time.Millisecond, func() error {
 		st := wrapped.Status()
 		if st.LastPlan != nil {
 			atomic.StoreInt32(&ticks, 1)

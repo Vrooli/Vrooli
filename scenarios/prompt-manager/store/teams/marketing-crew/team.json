@@ -15,6 +15,15 @@
       "note": "OSS surface only"
     }
   ],
+  "instrument": {
+    "status": "partial",
+    "archetype": "production-ledger",
+    "coversScenarios": [
+      "content-desk",
+      "asset-studio"
+    ],
+    "gapMarker": "2026-08-13 — content-desk and asset-studio are both real and substantially built, but no single address aggregates them, so a member must know which of the two holds the answer. A third capability the operating model assigns to `social-media-scheduler` (account activation, warming, cadence, posting) has no scenario at all — that capability is unowned, not merely unaggregated. Decide the aggregator (content-desk is the likeliest) before building anything new."
+  },
   "enabled": false,
   "runtime": {
     "mode": "multi-process"
@@ -358,7 +367,7 @@
         }
       },
       "marketing-contrarian": {
-        "lane": "Challenge pending marketing proposals against the failure-mode framework and run stale work item hygiene.",
+        "lane": "Challenge pending marketing proposals against the failure-mode framework and run stale work item hygiene. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
         "allowedWrites": [
           {
             "kind": "knowledge"

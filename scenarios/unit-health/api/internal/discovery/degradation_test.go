@@ -47,7 +47,7 @@ func TestDiscoverDegradesWhenResolverFails(t *testing.T) {
 		Locator:  fakeLocator{root: root},
 		Resolver: fakeResolver{err: errors.New("no api url")},
 	}
-	inv, err := c.Discover(context.Background(), "demo", "", false)
+	inv, err := c.Discover(context.Background(), "demo", "scenario", "", false)
 	if err != nil {
 		t.Fatalf("Discover should degrade, not error: %v", err)
 	}
@@ -63,7 +63,7 @@ func TestDiscoverDegradesWhenRPCFails(t *testing.T) {
 		Resolver:   fakeResolver{url: "http://127.0.0.1:0"},
 		HTTPClient: errHTTPClient{},
 	}
-	inv, err := c.Discover(context.Background(), "demo", "", false)
+	inv, err := c.Discover(context.Background(), "demo", "scenario", "", false)
 	if err != nil {
 		t.Fatalf("Discover should degrade, not error: %v", err)
 	}

@@ -12,7 +12,7 @@ import (
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 
 	"experience-manager/internal/spec"
-	"experience-manager/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func TestAuthoringRoundTripAppliesParserCleanPage(t *testing.T) { // [REQ:EXPERIEN-P0-004]

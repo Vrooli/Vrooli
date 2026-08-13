@@ -9,6 +9,11 @@
       "id": "I2"
     }
   ],
+  "instrument": {
+    "status": "none",
+    "archetype": "coverage-board",
+    "gapMarker": "2026-08-13 — ten *-health scenarios report per-capability condition and nothing aggregates them; the setpoint exists as prose deadbands in docs/infra-health/strategy/RELIABILITY_TARGETS.md. Closest to ready of the unequipped teams: the denominator is already authored, only the observer is missing."
+  },
   "enabled": true,
   "runtime": {
     "mode": "multi-process"
@@ -244,7 +249,7 @@
         }
       },
       "infra-contrarian": {
-        "lane": "Challenge infra-health work items against the team failure-mode rubric and run the stale work item scan.",
+        "lane": "Challenge infra-health work items against the team failure-mode rubric and run the stale work item scan. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
         "allowedWrites": [
           {
             "kind": "knowledge"

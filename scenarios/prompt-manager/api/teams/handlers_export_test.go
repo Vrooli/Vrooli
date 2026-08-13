@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"prompt-manager/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 	"prompt-manager/interop"
 	"prompt-manager/store"
 )

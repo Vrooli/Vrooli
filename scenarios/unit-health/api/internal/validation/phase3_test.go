@@ -19,7 +19,7 @@ func TestSeamBypassWithDeclaredSeamIsNotFlagged(t *testing.T) {
 	goModForSeam(t, root)
 	// Production bypasses time.Now() BUT the workspace declares a clock seam.
 	writeFile(t, filepath.Join(root, "svc.go"), "package demo\n\nimport \"time\"\n\nfunc N() time.Time { return time.Now() }\n")
-	writeFile(t, filepath.Join(root, "clock", "clock.go"), "package clock\n\nimport \"time\"\n\ntype Clock interface { Now() time.Time }\n")
+	writeFile(t, filepath.Join(root, "clock", "clock.go"), "package clock\n\nimport \"time\"\n\ntype Clock = TimeSource\n\ntype TimeSource interface { Now() time.Time }\n")
 
 	findings := analyzeArchitecture("demo", []Workspace{{ID: "api", Language: "go", RootPath: root}}, fixedNowStr)
 	if _, ok := findingByCode(findings, codeMissingInjectableSeam); ok {

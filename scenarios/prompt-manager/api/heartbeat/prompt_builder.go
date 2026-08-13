@@ -332,6 +332,35 @@ func (b *PromptBuilder) buildTopicContractSection(teamID, agentID string) string
 // includeHeartbeat is the only permitted variation: naming the heartbeat
 // section in the precedence list when the build omits it would rank a heading
 // the reader cannot find. All heartbeat builds still share one prefix.
+// sharedDoctrineTargetModel is the reference every member is measured against.
+//
+// It exists because of a specific hole: before it, the only universal-scope
+// prompt section taught mechanics and precedence — where to write things and
+// who wins when sources disagree — and nothing anywhere told a member what a
+// well-formed team looks like. A member could execute its lane perfectly and
+// remain structurally unable to notice that its own team had no instrument,
+// four addresses, or an obligation list that no longer followed from its
+// objective, because it had never been given a reference to compare against.
+//
+// The detector and the router for those reports already existed
+// (`report-friction` is universal-source; friction-curator drains it). This
+// block is only the reference they compare against, which is why it is prose
+// here rather than a new channel.
+//
+// It is deliberately short. Universal scope means every member of every team
+// pays for it on every heartbeat, so it carries the model and points at
+// `docs/agent-system/TARGET_MODEL.md` for everything the model implies.
+const sharedDoctrineTargetModel = "## The target model\n\n" +
+	"Your team is a control loop: it regulates one domain against a setpoint it does not own, reads one instrument that does not decide for it, and should get *simpler* as the system around it gets more capable. Canon: `docs/agent-system/TARGET_MODEL.md`.\n\n" +
+	"- **One address.** A team reads one instrument scenario for the state of its domain and what to do next. Members read different rows of one board, never different boards.\n" +
+	"- **The setpoint is owned elsewhere.** What *should* exist is declared by the scenario that owns the capability, never by the instrument that measures it.\n" +
+	"- **Capability is scored in four modes** — Answer (can we know it), Validate (can we check it), Guide (is there a skill), Act (can an agent invoke it).\n" +
+	"- **Three exits, and only three** — execute, observe, propose. The table above is that split. Observe is the cheapest and the most often skipped: it asks for no decision.\n" +
+	"- **Prose cites, never restates.** Team and member files name no current number, owner, or scenario that the board can report at read time.\n" +
+	"- **A skill's target length is a pointer.** Prose shrinks as the scenario behind it grows.\n\n" +
+	"**A deviation from this model is error, and reporting one is inside your lane.** If your team declares no instrument, or you were told to call more than one domain scenario to learn your own team's state, or a document asks you to hand-maintain records that carry a status and a lifecycle, or a rule says something *must* happen with nothing able to refuse when it does not, or a skill is long because the scenario behind it is thin — file it with `prompt-manager skill read report-friction`. One typed observation, no decision requested. The full catalogue is `TARGET_MODEL.md` §9.\n\n" +
+	"If your team's instrument is unavailable, say so in your continuity record and fall back to the manual path. Never silently skip the board.\n\n"
+
 func buildSharedDoctrineSection(includeHeartbeat bool) string {
 	var section strings.Builder
 	section.WriteString(promptHeading(promptSectionKindSharedDoctrine) + "\n\n")
@@ -346,6 +375,7 @@ func buildSharedDoctrineSection(includeHeartbeat bool) string {
 	section.WriteString("| A shaped outcome | `swarm-manager backlog create` | Same disposition read path |\n")
 	section.WriteString("| Live team objects you maintain | team working state | Only the files named in your operating contract |\n\n")
 	section.WriteString("Record what a later run needs in your declared Source Ledger topics. Confirm writes from `X-Vrooli-Attribution` receipts; do not treat your final response as proof that a write happened.\n\n")
+	section.WriteString(sharedDoctrineTargetModel)
 	section.WriteString("## Authority order — the world\n\n")
 	section.WriteString("When sources disagree about what is true or accepted:\n\n")
 	section.WriteString("1. Operator instruction in the current run\n2. Accepted plan-of-record docs\n3. Accepted work dispositions\n4. Team working state\n5. Source Ledger evidence\n\n")

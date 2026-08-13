@@ -1,10 +1,31 @@
 ## Meta focus: Team Tool Mapping
 
-Govern how teams are equipped with scenario-based tool skills, using a lazy evaluation pattern that generates honest demand signals for development prioritization.
+Govern how teams are equipped with scenario capability — by routing it into the team's **instrument** first, and only writing per-member tool skills for teams that have no instrument yet.
 
 Required reading:
+- `path:docs/agent-system/TARGET_MODEL.md` — §"The instrument: six invariants" owns the one-address rule and why per-member wiring is the fallback. This skill applies that rule at the moment a scenario ships; it does not restate it.
 - `docs/agent-system/SKILL_AUTHORING.md`
 - `prompt-manager skill read skill-authoring-tools`
+
+---
+
+### **0. Subtraction First — the question that comes before every phase**
+
+When a scenario ships, the first question is **not** "which teams get a tool skill." It is:
+
+> **Which team's instrument absorbs this, and what does that let us delete?**
+
+Answer it in this order, and stop at the first branch that applies:
+
+| The consuming team… | Do this | What is deleted |
+|---|---|---|
+| declares a **live** instrument | Add the capability to that instrument's denominator as cells. Write nothing into member files. | Nothing yet — but the team-side cost of this scenario is zero, which is the point |
+| declares **partial** or **none** | Write the tool skill (Phases 1–4 below), **and** record the missing-instrument deviation via `report-friction` | Nothing yet; you have just created per-member wiring that a future instrument will delete |
+| declares an instrument and this scenario **supersedes** hand-maintained state | Route to `prompt-manager skill read team-capability-consolidation` | The state surfaces the scenario now owns, and any member separation that existed only to hand that state along |
+
+**Why this ordering exists.** Without it, this skill and `team-capability-consolidation` pull in opposite directions and only this one fires on "a scenario shipped": every new capability arrived as *more* for every member to read, while the skill that removes prose only ran when a team already looked heavy. A tool skill written onto *M* member files is real cost — the reading load grows as scenarios × members — so it is the fallback for an unequipped team, not the default for a capable one.
+
+**Record what you chose.** If you write per-member tool skills for a team that has an instrument, say why in the friction entry. That is a deviation with a reason, which is fine; a deviation without one is drift.
 
 ---
 
@@ -50,8 +71,8 @@ When agents know a tool is unavailable upfront, they route around it — and you
 
 | Trigger | Entry Point |
 |---------|-------------|
-| New team created | Full mapping (Phase 1-4) |
-| New scenario completed that could serve as a tool | Phase 2 — check which teams would benefit |
+| New team created | **Phase 0**, then full mapping (Phase 1-4) if the team has no instrument |
+| New scenario completed that could serve as a tool | **Phase 0** — which instrument absorbs it, and what does that delete? |
 | Periodic meta-optimization sweep (P4/P5) | Phase 1 — audit all teams for missing tools |
 | Team reports low effectiveness or blocked work | Phase 1 — targeted audit of that team |
 | Backlog idea created for a new scenario | Phase 3 — write anticipatory tool skill |

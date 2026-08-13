@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	clitest "prompt-manager/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 func TestCommandsRegistersAgentCommand(t *testing.T) {

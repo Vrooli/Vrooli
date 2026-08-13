@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	uhdb "unit-health/internal/testutil/db"
+	uhdb "github.com/vrooli/api-core/databasetest"
 )
 
 func newRepo(t *testing.T, retention int) (*Repository, *sql.DB) {

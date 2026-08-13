@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
@@ -23,13 +23,13 @@ type Service struct {
 	repo     persistence.Repository
 	sessions *ActiveSessionRegistry
 	log      *logrus.Logger
-	clock    clock.Clock
+	clock    schedule.Clock
 }
 
 // ServiceConfig configures the session profile service.
 type ServiceConfig struct {
-	// Clock provides time operations. If nil, uses the real system clock.
-	Clock clock.Clock
+	// Clock provides time operations. If nil, uses the real system schedule.
+	Clock schedule.Clock
 }
 
 // NewService creates a new session profile service.
@@ -41,7 +41,7 @@ func NewService(repo persistence.Repository, log *logrus.Logger) *Service {
 func NewServiceWithConfig(repo persistence.Repository, log *logrus.Logger, config ServiceConfig) *Service {
 	clk := config.Clock
 	if clk == nil {
-		clk = clock.New()
+		clk = schedule.System()
 	}
 	return &Service{
 		repo:     repo,

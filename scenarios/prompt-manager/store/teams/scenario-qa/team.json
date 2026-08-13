@@ -9,6 +9,11 @@
       "id": "I1"
     }
   ],
+  "instrument": {
+    "status": "none",
+    "archetype": "coverage-board",
+    "gapMarker": "2026-08-13 — test-genie, scenario-auditor, scenario-completeness-scoring and tidiness-manager each hold part of the answer and no denominator is authored. Needs an obligation list before an observer is worth building."
+  },
   "enabled": true,
   "runtime": {
     "mode": "multi-process"
@@ -207,7 +212,7 @@
         }
       },
       "qa-contrarian": {
-        "lane": "Read peer scenario-qa member outputs (bug-investigation-reports, audits, readiness backlog) and write Swarm Manager review evidence/* plus Swarm Manager review state/* entries citing specific failure modes from docs/scenario-qa/{investigation,audit}-techniques/. Does not generate positive-action proposals.",
+        "lane": "Read peer scenario-qa member outputs (bug-investigation-reports, audits, readiness backlog) and write Swarm Manager review evidence/* plus Swarm Manager review state/* entries citing specific failure modes from docs/scenario-qa/{investigation,audit}-techniques/. Does not generate positive-action proposals. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
         "allowedWrites": [
           {
             "kind": "knowledge"

@@ -3,7 +3,7 @@
 Audit whether a prompt-manager team member has the right capability structure around its work. Use this when a member is vague, workflow-heavy, repeatedly blocked, or dependent on external signals that are not captured cleanly.
 
 Required reading:
-- `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md` — the 9-layer model (definitions, score scale, smell catalogue)
+- `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md` — the 10-layer model (definitions, score scale, smell catalogue) — the Instrument layer scores whether the member starts from one board
 - `docs/agent-system/INTAKE_PIPELINE.md` — the Intake → Collection → Analysis → Promotion pipeline
 - `docs/agent-system/LAYERS.md` — the layering rule the audit applies
 - `prompt-manager skill read capability-extraction`
@@ -35,7 +35,7 @@ The goal is not to make every member elaborate. The goal is to put each kind of 
 
 ### 2. Layer Model
 
-The 9-layer model — definitions, score scale, smell catalogue, and the layering rule — lives in `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`. Read it before scoring; do not re-derive the layers from this skill.
+The 10-layer model — definitions, score scale, smell catalogue, and the layering rule — lives in `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`. Read it before scoring; do not re-derive the layers from this skill.
 
 This skill scores the layers and routes findings; the layer definitions themselves are canon.
 

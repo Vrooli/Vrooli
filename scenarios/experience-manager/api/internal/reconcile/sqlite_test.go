@@ -6,7 +6,7 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
-	testdb "experience-manager/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 func TestSQLiteRepositorySavesAndListsEvidence(t *testing.T) {

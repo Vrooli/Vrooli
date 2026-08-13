@@ -12,7 +12,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	localdb "experience-manager/internal/database"
-	testdb "experience-manager/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 func TestSQLiteRepositoryAppendsAttestations(t *testing.T) { // [REQ:EXPERIEN-P1-004]

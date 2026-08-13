@@ -7,14 +7,14 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/internal/clock"
+	"github.com/vrooli/api-core/scheduletest"
 	"github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
-func newTestService(t *testing.T) (*Service, *persistence.MockRepository, *clock.MockClock) {
+func newTestService(t *testing.T) (*Service, *persistence.MockRepository, *scheduletest.FakeClock) {
 	t.Helper()
 	repo := persistence.NewMockRepository()
-	mockClock := clock.NewMock(time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC))
+	mockClock := scheduletest.New(time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC))
 	log := logrus.New()
 	log.SetLevel(logrus.PanicLevel)
 

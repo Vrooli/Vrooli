@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"prompt-manager/internal/testutil/assertx"
-	"prompt-manager/internal/testutil/httpx"
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
 )
 
 func TestHandleGetReturnsDefaultConfigWhenMissing(t *testing.T) {
@@ -34,7 +34,7 @@ func TestHandleGetRejectsMalformedPersistedConfig(t *testing.T) {
 	HandleGet(dir)(rec, httpx.Request(t, http.MethodGet, "/world-scale", nil, nil))
 
 	httpx.AssertStatus(t, rec, http.StatusInternalServerError)
-	assertx.Contains(t, rec.Body.String(), "reading world-scale config", "malformed persisted world-scale config error")
+	apihttptest.Contains(t, rec.Body.String(), "reading world-scale config", "malformed persisted world-scale config error")
 }
 
 func TestHandlePutRejectsOutOfRangeScale(t *testing.T) {
@@ -52,7 +52,7 @@ func TestHandlePutRejectsInvalidJSON(t *testing.T) {
 	HandlePut(t.TempDir())(rec, httpx.Request(t, http.MethodPut, "/world-scale", strings.NewReader("{bad"), nil))
 
 	httpx.AssertStatus(t, rec, http.StatusBadRequest)
-	assertx.Contains(t, rec.Body.String(), "invalid request body", "invalid world-scale request body error")
+	apihttptest.Contains(t, rec.Body.String(), "invalid request body", "invalid world-scale request body error")
 }
 
 func TestHandlePutPersistsConfig(t *testing.T) {

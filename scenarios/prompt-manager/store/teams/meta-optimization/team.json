@@ -9,6 +9,18 @@
       "id": "I2"
     }
   ],
+  "instrument": {
+    "status": "live",
+    "scenario": "meta-optimization-manager",
+    "archetype": "coverage-board",
+    "coversScenarios": [
+      "search-hub",
+      "test-genie",
+      "prompt-manager",
+      "program-runtime",
+      "agent-manager"
+    ]
+  },
   "enabled": true,
   "runtime": {
     "mode": "multi-process"
@@ -167,7 +179,7 @@
             "scenario-qa"
           ],
           "rationale": "Canonical home for the prompt-manager self-improvement framework: definitions, layer model, promotion ladder, intake pipeline, skill authoring rules, deprecation policy, reference scenarios, the operating-model contract, the three topic-validation pillars, framework-health targets, and the template-convergence loop. Every team's audit and skill work cites this hub. Declared as a root (trailing slash), not a file list: every .md under the folder counts toward orientation cost, so a canon file added here is charged the moment it lands and no second list can drift out of sync. Generated projections count too — a folder is charged for what it contains, so put generated bulk where it belongs rather than in canon.",
-          "useFor": "framework canon — definitions of skill/agent/team/PoR/Action/CLI, the layering rule, the promotion ladder, the 9-layer team-member architecture, the intake-collection-analysis-promotion pipeline, the operating-graph contract, topics.json / prose-scan / runtime-attribution validation, and the template-convergence loop"
+          "useFor": "framework canon — definitions of skill/agent/team/PoR/Action/CLI, the layering rule, the promotion ladder, the 10-layer team-member architecture, the intake-collection-analysis-promotion pipeline, the operating-graph contract, topics.json / prose-scan / runtime-attribution validation, and the template-convergence loop"
         },
         {
           "id": "meta-optimization-operating-model",
@@ -507,7 +519,7 @@
         }
       },
       "meta-contrarian": {
-        "lane": "Challenge stale, weak, or excessive open work items.",
+        "lane": "Challenge stale, weak, or excessive open work items. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
         "allowedWrites": [
           {
             "kind": "knowledge"

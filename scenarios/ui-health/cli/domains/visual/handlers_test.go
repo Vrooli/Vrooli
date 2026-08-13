@@ -10,7 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
-	clitest "ui-health/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"

@@ -117,7 +117,7 @@ func resolveUnitPolicyFindings(scenario string, inv discovery.Inventory, now str
 			Expected:     "Code Facts observes every role required by the unit policy profile.",
 			Observed:     "required role missing from observed surfaces",
 			WhyItMatters: "Template policy cannot protect a surface that is absent from discovery.",
-			Remediation:  "Restore the missing surface or add a formal waiver once waiver enforcement is available.",
+			Remediation:  "Restore the missing surface or add a valid, time-bounded waiver with accountable ownership and evidence.",
 			CreatedAt:    now,
 		})
 	}
@@ -198,7 +198,39 @@ func validateUnitPolicyProfile(scenario, path string, profile unitPolicyProfile,
 	for i, waiver := range profile.Customization.Waivers {
 		findings = append(findings, validateUnitPolicyWaiver(scenario, path, waiver, i, now)...)
 	}
+	findings = applyUnitPolicyWaivers(findings, profile.Customization.Waivers, scenario, path, now)
 	return findings
+}
+
+// applyUnitPolicyWaivers marks matching findings for transparent suppression.
+// Validation deliberately uses the same validator that emits
+// UNIT_POLICY_WAIVER_INVALID: malformed and expired waivers can never suppress
+// a real finding.
+func applyUnitPolicyWaivers(findings []Finding, waivers []unitPolicyWaiver, scenario, path, now string) []Finding {
+	for _, waiver := range waivers {
+		if len(validateUnitPolicyWaiver(scenario, path, waiver, 0, now)) != 0 {
+			continue
+		}
+		for i := range findings {
+			if findings[i].Code == waiver.Finding {
+				findings[i].Suppressed = true
+			}
+		}
+	}
+	return findings
+}
+
+// applyConfiguredUnitPolicyWaivers applies the validated profile waivers to
+// findings from every analyzer, not only policy-profile findings. Keeping this
+// at the response boundary makes waivers transparent and ensures newly added
+// architecture rules cannot accidentally bypass the Phase 4 suppression
+// contract.
+func applyConfiguredUnitPolicyWaivers(findings []Finding, scenario, root, now string) []Finding {
+	profile, path, ok, _ := loadUnitPolicyProfile(scenario, root, now)
+	if !ok {
+		return findings
+	}
+	return applyUnitPolicyWaivers(findings, profile.Customization.Waivers, scenario, path, now)
 }
 
 func validateUnitPolicyWaiver(scenario, path string, waiver unitPolicyWaiver, index int, now string) []Finding {

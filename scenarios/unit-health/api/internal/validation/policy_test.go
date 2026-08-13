@@ -135,6 +135,72 @@ func TestResolveUnitPolicyProfileValidWaiver(t *testing.T) {
 	}
 }
 
+func TestResolveUnitPolicyProfileValidWaiverSuppressesMatchingFinding(t *testing.T) {
+	root := t.TempDir()
+	profile := reactViteUnitPolicyProfile()
+	ui := profile.PolicyClasses["react_vite_ui"]
+	ui.Coverage.MinimumPercent = 70
+	profile.PolicyClasses["react_vite_ui"] = ui
+	profile.Customization.Waivers = []unitPolicyWaiver{{
+		Finding:   codeUnitPolicyWeakened,
+		Reason:    "temporary policy exception while generated tests migrate",
+		Owner:     "unit-health",
+		ExpiresAt: "2026-07-01T00:00:00Z",
+		Evidence:  "rec-123",
+	}}
+	writeUnitPolicyProfile(t, root, profile)
+
+	findings := resolveUnitPolicyFindings("demo", discovery.Inventory{Scenario: "demo", RootPath: root}, fixedNowStr)
+	weakened, ok := findingByCode(findings, codeUnitPolicyWeakened)
+	if !ok || !weakened.Suppressed {
+		t.Fatalf("valid waiver should mark matching finding suppressed, got %+v", findings)
+	}
+}
+
+func TestResolveUnitPolicyProfileExpiredWaiverDoesNotSuppress(t *testing.T) {
+	root := t.TempDir()
+	profile := reactViteUnitPolicyProfile()
+	ui := profile.PolicyClasses["react_vite_ui"]
+	ui.Coverage.MinimumPercent = 70
+	profile.PolicyClasses["react_vite_ui"] = ui
+	profile.Customization.Waivers = []unitPolicyWaiver{{
+		Finding:   codeUnitPolicyWeakened,
+		Reason:    "temporary policy exception",
+		Owner:     "unit-health",
+		ExpiresAt: "2026-06-01T00:00:00Z",
+		Evidence:  "rec-123",
+	}}
+	writeUnitPolicyProfile(t, root, profile)
+
+	findings := resolveUnitPolicyFindings("demo", discovery.Inventory{Scenario: "demo", RootPath: root}, fixedNowStr)
+	weakened, ok := findingByCode(findings, codeUnitPolicyWeakened)
+	if !ok || weakened.Suppressed {
+		t.Fatalf("expired waiver must not suppress matching finding, got %+v", findings)
+	}
+	if _, ok := findingByCode(findings, codeUnitWaiverInvalid); !ok {
+		t.Fatalf("expired waiver must emit %s, got %+v", codeUnitWaiverInvalid, findings)
+	}
+}
+
+func TestResolveUnitPolicyProfileMalformedWaiverDoesNotSuppress(t *testing.T) {
+	root := t.TempDir()
+	profile := reactViteUnitPolicyProfile()
+	ui := profile.PolicyClasses["react_vite_ui"]
+	ui.Coverage.MinimumPercent = 70
+	profile.PolicyClasses["react_vite_ui"] = ui
+	profile.Customization.Waivers = []unitPolicyWaiver{{Finding: codeUnitPolicyWeakened, Reason: "temporary"}}
+	writeUnitPolicyProfile(t, root, profile)
+
+	findings := resolveUnitPolicyFindings("demo", discovery.Inventory{Scenario: "demo", RootPath: root}, fixedNowStr)
+	weakened, ok := findingByCode(findings, codeUnitPolicyWeakened)
+	if !ok || weakened.Suppressed {
+		t.Fatalf("malformed waiver must not suppress matching finding, got %+v", findings)
+	}
+	if _, ok := findingByCode(findings, codeUnitWaiverInvalid); !ok {
+		t.Fatalf("malformed waiver must emit %s, got %+v", codeUnitWaiverInvalid, findings)
+	}
+}
+
 func TestResolveUnitPolicyProfileUnknownWaiverFinding(t *testing.T) {
 	root := t.TempDir()
 	profile := reactViteUnitPolicyProfile()

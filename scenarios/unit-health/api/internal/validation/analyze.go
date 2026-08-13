@@ -25,6 +25,10 @@ const (
 	codeTestFlakeSuspected      = "TEST_FLAKE_SUSPECTED"
 	codeTestRuntimeGrowth       = "TEST_RUNTIME_GROWTH"
 	codeTestUntaggedRequirement = "TEST_UNTAGGED_REQUIREMENT"
+	codeSeamDuplicatedInPackage = "SEAM_DUPLICATED_IN_PACKAGE"
+	codeSeamReimplemented       = "SEAM_REIMPLEMENTED"
+	codeCompanionReimplemented  = "COMPANION_REIMPLEMENTED"
+	codeCompanionAvailable      = "COMPANION_AVAILABLE"
 )
 
 // analyzerSkipDirs are directories the static analyzers never descend into:
@@ -94,4 +98,13 @@ func isTSTestFile(path string) bool {
 		}
 	}
 	return false
+}
+
+func isTSSourceFile(path string) bool {
+	switch filepath.Ext(path) {
+	case ".ts", ".tsx", ".js", ".jsx", ".mts", ".cts":
+		return true
+	default:
+		return false
+	}
 }

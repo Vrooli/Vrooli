@@ -24,6 +24,14 @@ A session must reach its outcome while the operator is present. Do not route a c
 autonomous agent's inbox, a team heartbeat, or a queue that only a scheduled loop drains. If the
 material is too thin to shape, propose one `research` item — that is a resolution, not a deferral.
 
+## Start with precedent
+
+Before the first answer, run `search-hub query "<the operator's intent>" --type record,skill,doc`.
+A solved instance elsewhere in the repository outranks a fresh design. Use the result to sharpen
+the reframe and recommendation. `swarm-manager backlog search-ai` searches the work ledger only;
+it does not replace the precedent query. The precedent query replaces a drill-down, so keep the
+one targeted drill-down budget unchanged.
+
 ## Start with bounded truth
 
 Read the attached `startup_brief` first. If it is absent or stale, refresh once with
@@ -69,6 +77,8 @@ operator was present for.
 Goal structure is goal-owned. Create a goal and its milestones through `swarm-manager goals ...`,
 where every milestone carries acceptance criteria. Backlog batch import attaches items to a
 milestone that already exists; it cannot create one, and it has no field for acceptance criteria.
+Attach an existing goal to its work with `swarm-manager goals targets-add` before proposing the
+batch import.
 
 ```json
 {
@@ -101,6 +111,24 @@ no agent judgment                    -> deterministic Swarm action
 Use Plan Manager as the authority for plan readiness. Recommend a workflow by its registered
 transition (`backlog.refine`, `plan.author`, `plan.repair`, `plan.execute`), not by an operating mode
 or an ad-hoc session loop.
+
+For an existing registered transition, produce a `start_transition` proposal for operator approval;
+never hand-run a transition command. Use this envelope and copy the projection verdict exactly:
+
+```json
+{"transition_key":"<registered key>","subject_ref":"<declared-subject>:<subject value>","projection_action":"<server next action>","projection_agrees":true,"reason":"<required when false>"}
+```
+
+The operator approves the proposal in this session. If the session disagrees with the projection,
+set `projection_agrees` to `false` and explain the evidence in `reason`.
+
+## Durable continuity
+
+Recall prior knowledge with `source-ledger recall "<query>" --scope=session:meta-orchestration` and,
+when useful, record rejected or deferred dispositions with
+`source-ledger journal note "<prose>" --scope=session:meta-orchestration --kind=session-knowledge`.
+Writing is your choice; nothing writes automatically. Record knowledge and evidence, never accepted
+work and never a task for another agent to pick up.
 
 ## Guardrails
 

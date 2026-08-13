@@ -8,7 +8,7 @@ import (
 
 	"experience-manager/internal/module"
 	"experience-manager/internal/server"
-	"experience-manager/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

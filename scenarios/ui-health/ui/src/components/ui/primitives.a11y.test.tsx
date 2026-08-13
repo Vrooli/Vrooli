@@ -11,7 +11,7 @@ import { render } from "@testing-library/react";
 import { Search } from "lucide-react";
 import { afterEach, describe, it } from "vitest";
 
-import { expectNoA11yViolations } from "../../test-utils/a11y";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "./Card";

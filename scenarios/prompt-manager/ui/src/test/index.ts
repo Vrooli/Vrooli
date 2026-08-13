@@ -35,11 +35,11 @@ export { deepClone, deepEqual } from './deep-utils'
 
 export {
   createTestQueryClient,
-} from './query'
+  renderWithProviders,
+} from '@vrooli/api-base/testing'
 
 export {
   createTestWrapper,
-  renderWithProviders,
   renderHookWithProviders,
 } from './render'
 

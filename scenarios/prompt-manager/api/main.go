@@ -53,6 +53,7 @@ import (
 	"github.com/vrooli/api-core/receiptsigning"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	searchregister "github.com/vrooli/searchregister-go"
 	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 
 	"github.com/gorilla/handlers"
@@ -580,6 +581,16 @@ func main() {
 		log.Println("AI Search: Resources not fully configured (will gracefully degrade to text search)")
 	}
 
+	// Search Hub registration is a best-effort mirror of this scenario's
+	// .vrooli/search.json SSOT. It registers both high-traffic leaves (skills and
+	// actions) and their starter corpora through the shared bridge, so registry
+	// and eval governance see exactly the same boot-owned source of truth.
+	go searchregister.Register(context.Background(), searchregister.Config{
+		ScenarioID:     "prompt-manager",
+		SearchFilePath: filepath.Join(roots.RepoRoot, "scenarios", "prompt-manager", ".vrooli", "search.json"),
+		Logger:         log.Default(),
+	})
+
 	// Setup routes
 	router := mux.NewRouter()
 	if !devrouting.RegisterWithFileRoots(gorillaMuxAdapter{router: router}, db, fileRoots) {
@@ -788,6 +799,7 @@ func main() {
 	v1.HandleFunc("/topics/rules", memberFlowHandlers.GetRules).Methods("GET")
 	v1.HandleFunc("/objectives", memberFlowHandlers.GetObjectives).Methods("GET")
 	v1.HandleFunc("/orientation-cost", memberFlowHandlers.GetOrientationCost).Methods("GET")
+	v1.HandleFunc("/instruments", memberFlowHandlers.GetInstruments).Methods("GET")
 	v1.HandleFunc("/topics/drain-status", memberFlowHandlers.GetDrainStatus).Methods("GET")
 	v1.HandleFunc("/operating-models", memberFlowHandlers.GetOperatingModels).Methods("GET")
 	v1.HandleFunc("/operating-models/map", graphHandlers.GetOperatingMap).Methods("GET")

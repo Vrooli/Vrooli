@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"experience-manager/internal/spec"
-	testdb "experience-manager/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 
 	apidb "github.com/vrooli/api-core/database"
 )

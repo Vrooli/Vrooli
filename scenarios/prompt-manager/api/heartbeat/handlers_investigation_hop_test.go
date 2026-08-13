@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"prompt-manager/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 )
 
 func TestCreateInvestigationRunSetsErrorHopHeaderOnUpstreamFailure(t *testing.T) {

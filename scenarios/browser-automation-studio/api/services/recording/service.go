@@ -11,10 +11,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/telemetry"
 	"github.com/vrooli/browser-automation-studio/domain"
-	"github.com/vrooli/browser-automation-studio/internal/clock"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -70,7 +70,7 @@ type Service struct {
 	repo  persistence.Repository
 	wsHub wsHub.HubInterface
 	log   *logrus.Logger
-	clock clock.Clock
+	clock schedule.Clock
 
 	// Hot cache for active sessions
 	cache   map[string]*SessionTimeline
@@ -85,15 +85,15 @@ type ServiceConfig struct {
 	// OnAction is called when a new entry is recorded (for WebSocket broadcast).
 	OnAction func(sessionID string, entry *persistence.UnifiedTimelineEntry)
 
-	// Clock provides time operations. If nil, uses the real system clock.
-	Clock clock.Clock
+	// Clock provides time operations. If nil, uses the real system schedule.
+	Clock schedule.Clock
 }
 
 // NewService creates a new unified recording service.
 func NewService(repo persistence.Repository, hub wsHub.HubInterface, log *logrus.Logger, config ServiceConfig) *Service {
 	clk := config.Clock
 	if clk == nil {
-		clk = clock.New()
+		clk = schedule.System()
 	}
 	return &Service{
 		repo:     repo,

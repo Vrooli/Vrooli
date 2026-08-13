@@ -14,6 +14,15 @@
       "note": "Ranking authority only; detection of missing instruments stays distributed across teams."
     }
   ],
+  "instrument": {
+    "status": "partial",
+    "archetype": "production-ledger",
+    "coversScenarios": [
+      "swarm-manager",
+      "command-center"
+    ],
+    "gapMarker": "2026-08-13 — two addresses. swarm-manager holds the portfolio state, so the never-own-your-own-denominator rule disqualifies it from grading that portfolio; command-center is the only candidate that owns none of what it would observe. Blocked on deciding whether the objective join moves out of `prompt-manager graph objectives` or is read from there as a transmitter."
+  },
   "enabled": true,
   "runtime": {
     "mode": "multi-process"
@@ -229,7 +238,7 @@
         }
       },
       "outcome-strategist": {
-        "lane": "Interpret Command Center outcomes when real metrics exist; otherwise produce blocked handoffs.",
+        "lane": "Interpret Command Center outcomes when real metrics exist; otherwise produce blocked handoffs. Also this team's shape sensor (this team has no contrarian): hold the team against the target model's deviation catalogue and report deviations; never restructure.",
         "allowedWrites": [
           {
             "kind": "knowledge"

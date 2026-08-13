@@ -16,11 +16,15 @@ import (
 // the workspace root and emits co-location, shared-test-utility,
 // production-helper-import, and injectable-seam findings.
 func analyzeArchitecture(scenario string, workspaces []Workspace, now string) []Finding {
+	return analyzeArchitectureWithClosure(scenario, workspaces, now, DependencyClosure{})
+}
+
+func analyzeArchitectureWithClosure(scenario string, workspaces []Workspace, now string, closure DependencyClosure) []Finding {
 	var findings []Finding
 	for _, ws := range workspaces {
 		switch ws.Language {
 		case "go":
-			findings = append(findings, analyzeGoArchitecture(scenario, ws, now)...)
+			findings = append(findings, analyzeGoArchitectureWithClosure(scenario, ws, now, closure)...)
 		case "typescript":
 			findings = append(findings, analyzeTSArchitecture(scenario, ws, now)...)
 		}
@@ -34,6 +38,7 @@ type goWorkspaceScan struct {
 	testFiles      int
 	hasTestUtilPkg bool
 	hasImportBan   bool
+	testImports    map[string]bool
 	seamBypass     map[string]bool // seam category -> production bypasses it (AST)
 	seamDeclared   map[string]bool // seam category -> a seam interface/pkg exists
 	prodHelperUses []helperImport
@@ -46,8 +51,12 @@ type helperImport struct {
 }
 
 func analyzeGoArchitecture(scenario string, ws Workspace, now string) []Finding {
+	return analyzeGoArchitectureWithClosure(scenario, ws, now, DependencyClosure{})
+}
+
+func analyzeGoArchitectureWithClosure(scenario string, ws Workspace, now string, closure DependencyClosure) []Finding {
 	modulePath := goModulePath(ws.RootPath)
-	scan := goWorkspaceScan{seamBypass: map[string]bool{}, seamDeclared: map[string]bool{}, rogueTestDirs: map[string]bool{}}
+	scan := goWorkspaceScan{seamBypass: map[string]bool{}, seamDeclared: map[string]bool{}, rogueTestDirs: map[string]bool{}, testImports: map[string]bool{}}
 
 	walkSourceFiles(ws.RootPath, func(path string) {
 		// A seam-implementation package (clock/httpc/envx/logx) legitimately
@@ -59,6 +68,9 @@ func analyzeGoArchitecture(scenario string, ws Workspace, now string) []Finding 
 		switch {
 		case isGoTestFile(path):
 			scan.testFiles++
+			for _, imp := range goImports(path) {
+				scan.testImports[imp] = true
+			}
 			if filepath.Base(path) == "no_prod_import_test.go" {
 				scan.hasImportBan = true
 			}
@@ -126,7 +138,9 @@ func analyzeGoArchitecture(scenario string, ws Workspace, now string) []Finding 
 		))
 	}
 
-	if scan.testFiles >= 3 && !scan.hasTestUtilPkg {
+	registry, hasRegistry := loadCompanionRegistry(ws.RootPath)
+	hasAdoptedCompanion := hasRegistry && importsRegisteredCompanion(scan.testImports, registry)
+	if scan.testFiles >= 3 && !scan.hasTestUtilPkg && !hasAdoptedCompanion {
 		findings = append(findings, mk(codeTestUtilMissing, ws.RootPath,
 			"Workspace has several test files but no shared test-utility package.",
 			fmt.Sprintf("%d test files; no testutil/ package found", scan.testFiles),
@@ -181,6 +195,10 @@ func analyzeGoArchitecture(scenario string, ws Workspace, now string) []Finding 
 				"Introduce the missing seam (clock, env, http doer, or logger interface) and inject it (see seam-discovery-and-enforcement).",
 			))
 		}
+	}
+
+	if hasRegistry {
+		findings = append(findings, analyzeCompanionDeclarations(scenario, ws, now, registry, closure)...)
 	}
 
 	return findings
@@ -368,6 +386,7 @@ func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding 
 	var testFiles int
 	var hasTestUtils bool
 	var hasRenderHelper bool
+	var hasSharedRenderHelper bool
 	directRenderFiles := map[string]bool{}
 	rogue := map[string]bool{}
 
@@ -392,9 +411,16 @@ func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding 
 		if strings.HasPrefix(base, "renderWithProviders.") && filepath.Base(filepath.Dir(path)) == "test-utils" {
 			hasRenderHelper = true
 		}
+		if importsSharedRenderHelper(readFileString(path)) {
+			hasSharedRenderHelper = true
+		}
 	})
+	hasRenderHelper = hasRenderHelper || hasSharedRenderHelper
 
 	var findings []Finding
+	if hasSharedRenderHelper {
+		hasTestUtils = true
+	}
 	mk := func(code, file, message, evidence, expected, observed, why, remediation string) Finding {
 		return Finding{
 			ID:           code + "-" + ws.ID,
@@ -453,7 +479,6 @@ func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding 
 			now,
 		))
 	}
-
 	findings = append(findings, analyzeVitestProjection(scenario, ws, now)...)
 
 	if len(rogue) > 0 {
@@ -505,6 +530,17 @@ func importsTestingLibraryRender(src string) bool {
 		}
 	}
 	return false
+}
+
+// importsSharedRenderHelper recognizes the package-owned provider helper as a
+// canonical implementation. Scenario test-utils barrels may continue to
+// re-export it for local fixtures, but the implementation itself must not be
+// copied back into each scenario.
+func importsSharedRenderHelper(src string) bool {
+	if !strings.Contains(src, "@vrooli/api-base/testing") || !strings.Contains(src, "renderWithProviders") {
+		return false
+	}
+	return strings.Contains(src, "import")
 }
 
 func projectionFinding(scenario string, ws Workspace, file, message, evidence, expected, observed, why, remediation, now string) Finding {
@@ -870,20 +906,6 @@ func objectValueBlock(src, key string) (string, bool) {
 		return "", false
 	}
 	return src[i+1 : end], true
-}
-
-func stringPropertyEquals(src, key, want string) bool {
-	values := stringArrayPropertyValues(src, key)
-	return len(values) == 1 && values[0] == want
-}
-
-func stringArrayPropertyContains(src, key, wantSubstr string) bool {
-	for _, value := range stringArrayPropertyValues(src, key) {
-		if strings.Contains(value, wantSubstr) {
-			return true
-		}
-	}
-	return false
 }
 
 func stringArrayPropertyValues(src, key string) []string {

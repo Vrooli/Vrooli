@@ -29,7 +29,7 @@ type fakeDiscoverer struct {
 	inv discovery.Inventory
 }
 
-func (f fakeDiscoverer) Discover(context.Context, string, string, bool) (discovery.Inventory, error) {
+func (f fakeDiscoverer) Discover(context.Context, string, string, string, bool) (discovery.Inventory, error) {
 	return f.inv, nil
 }
 
@@ -270,6 +270,30 @@ func TestValidateScenarioPacksNativeDetail(t *testing.T) {
 	}
 	if len(native.GetFindings()) != 0 {
 		t.Fatalf("expected clean fake scenario to have no native findings, got %d", len(native.GetFindings()))
+	}
+}
+
+func TestValidateTargetPreservesPackageKind(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.test/package\n\ngo 1.25\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	svc := internalvalidation.New()
+	svc.Spec = testSpec(t)
+	svc.Discoverer = fakeDiscoverer{inv: discovery.Inventory{Scenario: "api-core", TargetKind: "package", RootPath: root, Surfaces: []discovery.Surface{{ID: "package", Language: "go", RootPath: root, Status: "known"}}}}
+	h := NewSharedHandler(NewHandlerWithDeps(Deps{Service: svc, MaturitySpec: svc.Spec}))
+	resp, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{Target: &commonv1.ValidationTarget{Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE, Id: "api-core"}, Path: root}))
+	if err != nil {
+		t.Fatalf("ValidateTarget: %v", err)
+	}
+	if resp.Msg.GetTarget().GetKind() != commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE {
+		t.Fatalf("returned target = %v, want package", resp.Msg.GetTarget().GetKind())
+	}
+	if resp.Msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
+		t.Fatal("ValidateTarget returned unspecified status")
+	}
+	if resp.Msg.GetAssessment() == nil {
+		t.Fatal("ValidateTarget must return an assessment")
 	}
 }
 

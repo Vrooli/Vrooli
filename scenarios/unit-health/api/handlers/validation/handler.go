@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	internalvalidation "unit-health/internal/validation"
 
@@ -60,6 +61,7 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[val
 	}
 	report, err := h.svc.Validate(ctx, internalvalidation.Request{
 		Scenario:         req.Msg.GetScenario(),
+		TargetKind:       "scenario",
 		Path:             req.Msg.GetPath(),
 		Workspaces:       req.Msg.GetWorkspaces(),
 		IncludeExecution: req.Msg.GetIncludeExecution(),
@@ -123,11 +125,71 @@ func (h *SharedHandler) ValidateTarget(ctx context.Context, req *connect.Request
 	if path == "" {
 		path = target.GetRoot()
 	}
-	legacy, err := h.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: target.GetId(), Path: path, IncludeExecution: req.Msg.GetIncludeExecution()}))
+	targetKind := validationTargetKindString(target.GetKind())
+	report, err := h.handler.svc.Validate(ctx, internalvalidation.Request{
+		Scenario:         target.GetId(),
+		TargetKind:       targetKind,
+		Path:             path,
+		IncludeExecution: req.Msg.GetIncludeExecution(),
+		UseCache:         true,
+	})
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{Target: target, Status: legacy.Msg.GetStatus(), Assessment: legacy.Msg.GetAssessment(), NativeDetail: legacy.Msg.GetNativeDetail(), Metrics: legacy.Msg.GetMetrics()}), nil
+	native, err := responseToProto(report, h.handler.spec)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build target validation response: %w", err))
+	}
+	detail, err := anypb.New(native)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("pack target validation response: %w", err))
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{
+		Target:       target,
+		Status:       validationStatusFromString(native.GetStatus()),
+		Assessment:   native.GetAssessment(),
+		NativeDetail: detail,
+	}), nil
+}
+
+func validationStatusFromString(status string) scenariovalidationv1.ValidationStatus {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "passed":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+	case "failed", "failing":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+	case "degraded":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
+	case "error":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR
+	default:
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED
+	}
+}
+
+func validationTargetKindString(kind commonv1.ValidationTargetKind) string {
+	switch kind {
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO:
+		return "scenario"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE:
+		return "package"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE:
+		return "control-plane"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE:
+		return "resource"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL:
+		return "tool"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD:
+		return "safeguard"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TEAM:
+		return "team"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS:
+		return "docs"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT:
+		return "project"
+	default:
+		return "unspecified"
+	}
 }
 
 func statusOverride(resp *validationv1.ValidateScenarioResponse) []assessment.ValidationResponseOption {
@@ -162,12 +224,13 @@ func responseToProto(in internalvalidation.Response, spec *assessment.Spec) (*va
 			Rationale: in.Maturity.Rationale,
 		},
 		Counts: &validationv1.ValidationCounts{
-			Errors:          int32(errCount),
-			Warnings:        int32(warnCount),
-			Infos:           int32(infoCount),
-			Surfaces:        int32(len(in.Surfaces)),
-			Workspaces:      int32(len(in.Workspaces)),
-			CoverageTargets: int32(len(in.Coverage)),
+			Errors:             int32(errCount),
+			Warnings:           int32(warnCount),
+			Infos:              int32(infoCount),
+			Surfaces:           int32(len(in.Surfaces)),
+			Workspaces:         int32(len(in.Workspaces)),
+			CoverageTargets:    int32(len(in.Coverage)),
+			SuppressedFindings: int32(len(in.SuppressedFindings)),
 		},
 		NextSteps:  in.NextSteps,
 		Assessment: maturityAssessment,
@@ -189,6 +252,9 @@ func responseToProto(in internalvalidation.Response, spec *assessment.Spec) (*va
 	}
 	for _, f := range in.Findings {
 		out.Findings = append(out.Findings, findingToProto(f))
+	}
+	for _, f := range in.SuppressedFindings {
+		out.SuppressedFindings = append(out.SuppressedFindings, findingToProto(f))
 	}
 	for _, d := range in.Diagnostics {
 		out.Diagnostics = append(out.Diagnostics, diagnosticToProto(d))

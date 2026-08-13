@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	clitest "prompt-manager/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 // cleanAuditContext wires every endpoint the sweep reads with in-band values.

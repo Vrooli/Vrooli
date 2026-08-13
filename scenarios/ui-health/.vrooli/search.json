@@ -10,6 +10,7 @@
       "description": "UI surfaces across every scenario — components, pages, features, and hooks — searchable by what each surface is or does (for example \"settings page\", \"date picker component\", \"health dashboard overview\"). Route here to find an existing UI building block to reuse rather than rebuild.",
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
+      "index_timestamp_field": "lastReconcileAt",
       "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {

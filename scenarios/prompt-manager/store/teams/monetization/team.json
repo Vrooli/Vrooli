@@ -10,6 +10,11 @@
       "role": "primary"
     }
   ],
+  "instrument": {
+    "status": "none",
+    "archetype": "production-ledger",
+    "gapMarker": "2026-08-13 — no domain scenario at all. docs/monetization/catalogs/ holds a six-state SKU lifecycle across 22 hand-maintained files, which is the operational state a ledger instrument would own. Highest-value consolidation candidate in the fleet."
+  },
   "enabled": true,
   "runtime": {
     "mode": "multi-process"
@@ -440,7 +445,7 @@
         }
       },
       "monetization-contrarian": {
-        "lane": "Challenge monetization proposals against the seven failure modes and channel-activation guardrail; make skepticism visible without creating positive proposals.",
+        "lane": "Challenge monetization proposals against the seven failure modes and channel-activation guardrail; make skepticism visible without creating positive proposals. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
         "allowedWrites": [
           {
             "kind": "knowledge"

@@ -318,3 +318,82 @@ func indexOf(s, sub string) int {
 	}
 	return -1
 }
+
+// TestObjectiveRestatementPendingTracksTheStatement covers
+// `objective_restatement_pending` — the rule that closes the slowest loop in
+// the target model. Editing an objective's wording while keeping its id
+// changed what every serving team was obliged to do, and nothing noticed.
+func TestObjectiveRestatementPendingTracksTheStatement(t *testing.T) {
+	reg := testObjectiveRegistry(t)
+	t1, ok := reg.Get("T1")
+	if !ok {
+		t.Fatal("fixture is missing T1")
+	}
+	if t1.Revision == "" {
+		t.Fatal("parsed objective carries no revision")
+	}
+
+	// Never acknowledged: the state every team starts in, and a finding, so the
+	// first cycle asks each team to confirm its obligations once.
+	unacknowledged := ValidateObjectives(ObjectiveValidationInput{
+		Registry: reg,
+		Declared: map[string][]TeamObjectiveDeclaration{
+			"monetization": {{ID: "T1", Role: ObjectiveRolePrimary}},
+		},
+	})
+	if !hasObjectiveRule(unacknowledged, "objective_restatement_pending") {
+		t.Fatalf("missing acknowledgement raised nothing: %v", findingRules(unacknowledged))
+	}
+
+	// Acknowledged at the current revision: silent.
+	current := ValidateObjectives(ObjectiveValidationInput{
+		Registry: reg,
+		Declared: map[string][]TeamObjectiveDeclaration{
+			"monetization": {{ID: "T1", Role: ObjectiveRolePrimary, AcknowledgedRevision: t1.Revision}},
+		},
+	})
+	if hasObjectiveRule(current, "objective_restatement_pending") {
+		t.Fatalf("current acknowledgement still raised the rule: %v", findingRules(current))
+	}
+
+	// Acknowledged at a stale revision: a finding again.
+	stale := ValidateObjectives(ObjectiveValidationInput{
+		Registry: reg,
+		Declared: map[string][]TeamObjectiveDeclaration{
+			"monetization": {{ID: "T1", Role: ObjectiveRolePrimary, AcknowledgedRevision: "000000000000"}},
+		},
+	})
+	if !hasObjectiveRule(stale, "objective_restatement_pending") {
+		t.Fatalf("stale acknowledgement raised nothing: %v", findingRules(stale))
+	}
+}
+
+// TestObjectiveRevisionTracksMeaningNotLayout pins what the digest is allowed
+// to churn on. A reflowed line or a moved row must not read as a changed
+// objective, or teams learn to re-acknowledge without reading.
+func TestObjectiveRevisionTracksMeaningNotLayout(t *testing.T) {
+	base := Objective{
+		ID: "T1", Title: "Income.", Class: "terminal",
+		ServedBy:       []ObjectiveTeamRef{{TeamID: "monetization", Role: ObjectiveRolePrimary, Coverage: ObjectiveCoverageFull}},
+		EvidenceSource: "Command Center `ledger`", Line: 25,
+	}
+	reflowed := base
+	reflowed.Title = "Income."
+	reflowed.EvidenceSource = "Command  Center   `ledger`"
+	reflowed.Line = 91
+	if objectiveRevision(base) != objectiveRevision(reflowed) {
+		t.Fatal("whitespace or row position changed the revision")
+	}
+
+	restated := base
+	restated.Title = "Income. Vrooli sustains itself and its operator financially."
+	if objectiveRevision(base) == objectiveRevision(restated) {
+		t.Fatal("a restated objective kept its revision")
+	}
+
+	reassigned := base
+	reassigned.ServedBy = []ObjectiveTeamRef{{TeamID: "marketing-crew", Role: ObjectiveRolePrimary, Coverage: ObjectiveCoverageFull}}
+	if objectiveRevision(base) == objectiveRevision(reassigned) {
+		t.Fatal("a reassigned objective kept its revision")
+	}
+}

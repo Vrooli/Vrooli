@@ -103,5 +103,5 @@ func Module(d Deps) connectx.ServiceMount {
 		d.UserIdentity = func(context.Context) string { return "" }
 	}
 	path, handler := apiconnect.NewWorkflowsServiceHandler(&service{deps: d})
-	return connectx.ServiceMount{Path: path, Handler: handler}
+	return connectx.ServiceMount{Path: path, Handler: normalizeAdhocRequest(handler)}
 }

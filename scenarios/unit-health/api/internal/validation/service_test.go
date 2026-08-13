@@ -18,7 +18,7 @@ type fakeDiscoverer struct {
 	err error
 }
 
-func (f fakeDiscoverer) Discover(context.Context, string, string, bool) (discovery.Inventory, error) {
+func (f fakeDiscoverer) Discover(context.Context, string, string, string, bool) (discovery.Inventory, error) {
 	return f.inv, f.err
 }
 
@@ -178,6 +178,94 @@ func TestValidatePythonIsDegradedFallback(t *testing.T) {
 	// UNSUPPORTED_PARSE_UNIT is info/advisory and must not block maturity.
 	if resp.Status == "failing" {
 		t.Errorf("python fallback should not be failing; status=%q", resp.Status)
+	}
+}
+
+func TestValidatePackageTargetUsesPackageKindWithoutScenarioMaturity(t *testing.T) {
+	spec := loadSpec(t)
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.test/package\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "seams.go"), `package packageapi
+
+import "time"
+
+type LocalClock interface { Now() time.Time }
+type WiderClock interface { Now() time.Time; Sleep(time.Duration) }
+`)
+	inv := discovery.Inventory{
+		Scenario: "api-core", TargetKind: "package", RootPath: root,
+		Surfaces: []discovery.Surface{{ID: "ignored-code-facts-surface", Language: "go", RootPath: root, Status: "known"}},
+	}
+	resp, err := newService(fakeDiscoverer{inv: inv}, spec).Validate(context.Background(), Request{Scenario: "api-core", TargetKind: "package"})
+	if err != nil {
+		t.Fatalf("Validate package: %v", err)
+	}
+	if resp.TargetKind != "package" {
+		t.Fatalf("target kind = %q, want package", resp.TargetKind)
+	}
+	if len(resp.Workspaces) != 1 || resp.Workspaces[0].RootPath != root {
+		t.Fatalf("package workspaces = %+v, want one workspace rooted at package", resp.Workspaces)
+	}
+	if resp.Maturity.Label != "L0" || resp.Maturity.Rationale == "" {
+		t.Fatalf("package maturity = %+v, want explicit non-scenario L0", resp.Maturity)
+	}
+	if hasFinding(resp.Findings, codeTestUtilMissing) || hasFinding(resp.Findings, codeUnitPolicyInvalid) {
+		t.Fatalf("package received scenario-shaped findings: %+v", resp.Findings)
+	}
+	if !hasFinding(resp.Findings, codeSeamDuplicatedInPackage) {
+		t.Fatalf("package seam analyzer did not report duplicate interfaces: %+v", resp.Findings)
+	}
+}
+
+func TestValidateUnsupportedTargetKindFailsWithoutClaimingMaturity(t *testing.T) {
+	spec := loadSpec(t)
+	root := t.TempDir()
+	resp, err := newService(fakeDiscoverer{inv: discovery.Inventory{Scenario: "ollama", TargetKind: "resource", RootPath: root}}, spec).Validate(context.Background(), Request{Scenario: "ollama", TargetKind: "resource"})
+	if err != nil {
+		t.Fatalf("Validate resource: %v", err)
+	}
+	if resp.Status != "failed" || resp.TargetKind != "resource" {
+		t.Fatalf("unsupported response = %+v", resp)
+	}
+	if !hasFinding(resp.Findings, codeUnsupportedTargetKind) {
+		t.Fatalf("missing %s finding: %+v", codeUnsupportedTargetKind, resp.Findings)
+	}
+	if resp.Maturity.Label != "L0" {
+		t.Fatalf("unsupported maturity = %+v, want L0", resp.Maturity)
+	}
+}
+
+func TestValidateResponseExposesSuppressedFindingsSeparately(t *testing.T) {
+	spec := loadSpec(t)
+	root := t.TempDir()
+	profile := reactViteUnitPolicyProfile()
+	ui := profile.PolicyClasses["react_vite_ui"]
+	ui.Coverage.MinimumPercent = 70
+	profile.PolicyClasses["react_vite_ui"] = ui
+	profile.Customization.Waivers = []unitPolicyWaiver{{
+		Finding:   codeUnitPolicyWeakened,
+		Reason:    "temporary policy exception while generated tests migrate",
+		Owner:     "unit-health",
+		ExpiresAt: "2026-07-01T00:00:00Z",
+		Evidence:  "rec-123",
+	}}
+	writeUnitPolicyProfile(t, root, profile)
+	resp, err := newService(fakeDiscoverer{inv: discovery.Inventory{
+		Scenario: "demo", RootPath: root,
+		Surfaces: []discovery.Surface{
+			{ID: "api", Kind: "api", Language: "go", RootPath: filepath.Join(root, "api"), Status: "known"},
+			{ID: "cli", Kind: "cli", Language: "go", RootPath: filepath.Join(root, "cli"), Status: "known"},
+			{ID: "ui", Kind: "ui", Language: "typescript", Framework: "vite", RootPath: filepath.Join(root, "ui"), Status: "known"},
+		},
+	}}, spec).Validate(context.Background(), Request{Scenario: "demo"})
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if hasFinding(resp.Findings, codeUnitPolicyWeakened) {
+		t.Fatalf("suppressed finding remained active: %+v", resp.Findings)
+	}
+	if len(resp.SuppressedFindings) != 1 || resp.SuppressedFindings[0].Code != codeUnitPolicyWeakened {
+		t.Fatalf("suppressed findings = %+v, want one weakened-policy finding", resp.SuppressedFindings)
 	}
 }
 

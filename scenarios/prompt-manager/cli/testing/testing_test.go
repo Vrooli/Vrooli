@@ -6,7 +6,7 @@ import (
 	stdtesting "testing"
 	"time"
 
-	clitest "prompt-manager/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 func TestCommandsRegistersTestingCommand(t *stdtesting.T) {

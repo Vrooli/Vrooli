@@ -19,11 +19,14 @@
 package memberflow
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -91,6 +94,19 @@ type Objective struct {
 	// HasEvidence is false when the evidence cell declares none.
 	HasEvidence bool `json:"hasEvidence"`
 	Line        int  `json:"line"`
+	// Revision is a short digest of this objective's *meaning* — title, class,
+	// serving teams and evidence source, normalised. It exists because the
+	// objective join was blind to the one change that matters most: editing an
+	// objective's statement while keeping its id changed what every serving
+	// team is obliged to do, and no surface asked whether the obligations still
+	// followed. The id set, the team set and the evidence cell were all
+	// checked; the words were not.
+	//
+	// The digest is computed, never authored. OBJECTIVES.md stays operator
+	// prose and must not become a config file — so the version lives in the
+	// parser and the *acknowledgement* lives on the team, which is the side
+	// that has to act.
+	Revision string `json:"revision,omitempty"`
 }
 
 // Unserved reports whether the table names no team for this objective.
@@ -191,9 +207,41 @@ func parseObjectiveTable(lines []string) []Objective {
 			obj.EvidenceSource = strings.TrimSpace(cells[4])
 			obj.HasEvidence = !objectiveCellDeclaresNone(cells[4])
 		}
+		obj.Revision = objectiveRevision(obj)
 		out = append(out, obj)
 	}
 	return out
+}
+
+// objectiveRevision digests the parts of an objective row that change what a
+// serving team is obliged to do.
+//
+// The line number is deliberately excluded: moving a row up the table does not
+// change what it asks of anyone, and a digest that churned on reordering would
+// train teams to re-acknowledge without reading. Whitespace is normalised for
+// the same reason.
+func objectiveRevision(obj Objective) string {
+	teams := make([]string, 0, len(obj.ServedBy))
+	for _, ref := range obj.ServedBy {
+		teams = append(teams, strings.ToLower(strings.TrimSpace(ref.TeamID+"/"+ref.Role+"/"+ref.Coverage)))
+	}
+	sort.Strings(teams)
+	parts := []string{
+		strings.ToUpper(strings.TrimSpace(obj.ID)),
+		normalizeObjectiveText(obj.Title),
+		strings.ToLower(strings.TrimSpace(obj.Class)),
+		strings.Join(teams, ","),
+		strings.ToLower(strings.TrimSpace(obj.GapMarker)),
+		normalizeObjectiveText(obj.EvidenceSource),
+	}
+	sum := sha256.Sum256([]byte(strings.Join(parts, "|")))
+	return hex.EncodeToString(sum[:])[:12]
+}
+
+// normalizeObjectiveText collapses runs of whitespace so a reflowed line does
+// not read as a changed objective.
+func normalizeObjectiveText(text string) string {
+	return strings.ToLower(strings.Join(strings.Fields(text), " "))
 }
 
 // parseObjectiveTeams reads the `Served by` cell. Each `team:<id>` reference
@@ -252,6 +300,16 @@ type TeamObjectiveDeclaration struct {
 	// validated; it exists so a team can say *why* its coverage is partial
 	// without that reason having to live in prose the validator cannot see.
 	Note string `json:"note,omitempty"`
+	// AcknowledgedRevision is the objective revision this team last confirmed
+	// its obligation list follows from. When it differs from the objective's
+	// current revision — including when it is absent, which is the state every
+	// team starts in — the team carries `objective_restatement_pending` until
+	// its contrarian re-derives the obligations and records the new value.
+	//
+	// It is the actuator for the slowest loop in the target model: intent
+	// changed, so the setpoint derived from it has to be re-derived. Nothing
+	// else in the system fires on that event.
+	AcknowledgedRevision string `json:"acknowledgedRevision,omitempty"`
 }
 
 // teamObjectivesFile is the minimal slice of team.json this parser reads.

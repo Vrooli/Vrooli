@@ -35,6 +35,19 @@ Read `path:docs/agent-system/PROMOTION_LADDER.md` when repeated manual runtime w
    program-runtime bindings describe ai-gateway/inference/run
    ```
 
+   A submitted program can read the same live contract without leaving the
+   kernel. Pass either a binding id or its qualified dotted path and keep the
+   bounded argument rows in a handle:
+
+   ```python
+   contract = vrooli.describe("test-genie/runs/list")
+   print(contract.head(10))
+   ```
+
+   The description is resolved through the registry on every call, so it is
+   the same descriptor-backed contract that will accept or refuse the later
+   binding invocation.
+
 3. Create a named session when state must survive multiple submissions:
 
    ```text
@@ -56,7 +69,7 @@ Use this work table for operation choice:
 |---|---|---|
 | Find callable operations | `bindings list` | The operation has a manifest binding and `run_eligible` is true. |
 | Explain why an operation is unavailable | `bindings unbound` | The result contains one closed-set unbound reason. |
-| Resolve the Act projection | `bindings act` | Each requested cell returns a measured or sketch verdict. |
+| Resolve the Act projection | `bindings act` | With no request payload, audits the owned 28-cell denominator and returns one measured verdict per cell with `partial` confidence. |
 | Preserve variables | `sessions create` once, then reuse its ID | The same session ID appears in each submission. |
 | Run a program | `programs submit` | The source and provenance are recorded in the returned program. |
 | Find recurring failures | `programs mine` | The result contains a failure shape and count, or an explicit empty count. |

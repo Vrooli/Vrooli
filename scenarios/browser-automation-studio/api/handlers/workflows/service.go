@@ -230,7 +230,10 @@ func (s *service) ExecuteAdhocWorkflow(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errCurrentFlowRequired)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, constants.ExtendedRequestTimeout)
+	// Adhoc callers explicitly opt into synchronous execution with
+	// wait_for_completion. Use the completion budget rather than the generic
+	// extended request timeout, which is intentionally short for CRUD calls.
+	ctx, cancel := context.WithTimeout(ctx, constants.ExecutionCompletionTimeout)
 	defer cancel()
 
 	opts := executeOptionsFromProto(req.Msg.GetOptions())
