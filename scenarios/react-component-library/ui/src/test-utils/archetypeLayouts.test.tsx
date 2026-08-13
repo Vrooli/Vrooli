@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { renderWithProviders } from "./renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { AssetDetailShell } from "../components/AssetDetailShell/versions/1.0.0/AssetDetailShell";
 import { InspectorLayout } from "../components/InspectorLayout/versions/1.0.0/InspectorLayout";
 

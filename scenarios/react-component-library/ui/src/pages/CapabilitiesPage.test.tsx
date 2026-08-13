@@ -5,7 +5,7 @@ const { describeCapabilities } = vi.hoisted(() => ({ describeCapabilities: vi.fn
 vi.mock("../api/catalog", () => ({ describeCapabilities }));
 
 import { CapabilitiesPage } from "./CapabilitiesPage";
-import { renderWithProviders } from "../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 describe("CapabilitiesPage", () => {
   afterEach(() => cleanup());

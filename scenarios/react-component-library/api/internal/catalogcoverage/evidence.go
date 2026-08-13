@@ -22,13 +22,15 @@ import (
 func Schema() string {
 	return `
 CREATE TABLE IF NOT EXISTS catalog_gate_evidence (
+  id TEXT PRIMARY KEY,
   asset_id TEXT NOT NULL,
   target TEXT NOT NULL,
   gate TEXT NOT NULL,
+  version TEXT NOT NULL DEFAULT '',
   result TEXT NOT NULL,
   source_revision TEXT NOT NULL,
   recorded_at TEXT NOT NULL,
-  PRIMARY KEY (asset_id, target, gate)
+  UNIQUE (asset_id, target, gate, version, recorded_at)
 );
 CREATE INDEX IF NOT EXISTS idx_catalog_gate_evidence_revision
   ON catalog_gate_evidence(source_revision);
@@ -49,6 +51,7 @@ type EvidenceStore struct {
 type ExperienceCapture struct {
 	AssetID        string
 	Target         string
+	Version        string
 	ClaimID        string
 	ClaimType      string
 	Verdict        string
@@ -87,17 +90,25 @@ func (s *EvidenceStore) Save(ctx context.Context, evidence []GateEvidence) error
 	}
 	defer func() { _ = tx.Rollback() }()
 	for _, item := range evidence {
+		if strings.TrimSpace(item.Version) == "" {
+			item.Version = "legacy"
+		}
 		if strings.TrimSpace(item.RecordedAt) == "" {
 			item.RecordedAt = stamp
 		}
+		id := evidenceID(item)
 		_, err := tx.ExecContext(ctx, `
-INSERT INTO catalog_gate_evidence(asset_id, target, gate, result, source_revision, recorded_at)
-VALUES (?, ?, ?, ?, ?, ?)
-ON CONFLICT(asset_id, target, gate) DO UPDATE SET
-  result=excluded.result,
-  source_revision=excluded.source_revision,
-  recorded_at=excluded.recorded_at`, item.AssetID, item.Target, item.Gate, item.Result, item.SourceRevision, item.RecordedAt)
+INSERT OR IGNORE INTO catalog_gate_evidence(id, asset_id, target, gate, version, result, source_revision, recorded_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, id, item.AssetID, item.Target, item.Gate, item.Version, item.Result, item.SourceRevision, item.RecordedAt)
 		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `
+WITH ranked AS (
+  SELECT id, ROW_NUMBER() OVER (PARTITION BY asset_id, target, gate, version ORDER BY recorded_at DESC, id DESC) AS rank
+  FROM catalog_gate_evidence WHERE asset_id = ? AND target = ? AND gate = ? AND version = ?
+)
+DELETE FROM catalog_gate_evidence WHERE id IN (SELECT id FROM ranked WHERE rank > 3)`, item.AssetID, item.Target, item.Gate, item.Version); err != nil {
 			return err
 		}
 	}
@@ -108,7 +119,7 @@ func (s *EvidenceStore) List(ctx context.Context) ([]GateEvidence, error) {
 	if s == nil || s.db == nil {
 		return nil, nil
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT asset_id, target, gate, result, source_revision, recorded_at FROM catalog_gate_evidence ORDER BY asset_id, target, gate`)
+	rows, err := s.db.QueryContext(ctx, `SELECT asset_id, target, gate, version, result, source_revision, recorded_at FROM catalog_gate_evidence ORDER BY asset_id, target, gate, recorded_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -116,12 +127,17 @@ func (s *EvidenceStore) List(ctx context.Context) ([]GateEvidence, error) {
 	var out []GateEvidence
 	for rows.Next() {
 		var item GateEvidence
-		if err := rows.Scan(&item.AssetID, &item.Target, &item.Gate, &item.Result, &item.SourceRevision, &item.RecordedAt); err != nil {
+		if err := rows.Scan(&item.AssetID, &item.Target, &item.Gate, &item.Version, &item.Result, &item.SourceRevision, &item.RecordedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
 	}
 	return out, rows.Err()
+}
+
+func evidenceID(item GateEvidence) string {
+	sum := sha256.Sum256([]byte(strings.Join([]string{item.AssetID, item.Target, item.Gate, item.Version, item.RecordedAt, item.SourceRevision, item.Result}, "\x00")))
+	return hex.EncodeToString(sum[:])
 }
 
 // CurrentRevision is a content hash for the catalog declaration and its
@@ -278,11 +294,12 @@ func MergeExperienceEvidence(ctx context.Context, root string, store *EvidenceSt
 		if fetchErr != nil {
 			continue
 		}
-		for _, capture := range fetched {
-			capture.AssetID = impl.CatalogID
-			capture.Target = targets[impl.CatalogID]
-			captures = append(captures, capture)
+		for index := range fetched {
+			fetched[index].AssetID = impl.CatalogID
+			fetched[index].Target = targets[impl.CatalogID]
+			fetched[index].Version = impl.Latest
 		}
+		captures = append(captures, fetched...)
 	}
 	fresh, err := deriveExperienceEvidence(root, captures, gates)
 	if err != nil {
@@ -370,7 +387,7 @@ func deriveExperienceEvidence(root string, captures []ExperienceCapture, definit
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, GateEvidence{AssetID: assetID, Target: target, Gate: gateID, Result: result, SourceRevision: revision})
+		out = append(out, GateEvidence{AssetID: assetID, Target: target, Version: group.captures[0].Version, Gate: gateID, Result: result, SourceRevision: revision})
 	}
 	// A completed, passing capture matrix is also direct evidence for the
 	// capture-backed visual and responsive gates. These gates used to depend on
@@ -424,7 +441,7 @@ func deriveExperienceEvidence(root string, captures []ExperienceCapture, definit
 			if definition.ID == "responsive" && len(entry.viewports) < definition.ExperienceMinimumViewports {
 				continue
 			}
-			out = append(out, GateEvidence{AssetID: assetID, Target: target, Gate: definition.ID, Result: "pass", SourceRevision: revision})
+			out = append(out, GateEvidence{AssetID: assetID, Target: target, Version: latestCaptureVersion(latest, assetID, target), Gate: definition.ID, Result: "pass", SourceRevision: revision})
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -434,6 +451,15 @@ func deriveExperienceEvidence(root string, captures []ExperienceCapture, definit
 		return out[i].Gate < out[j].Gate
 	})
 	return out, nil
+}
+
+func latestCaptureVersion(captures map[string]ExperienceCapture, assetID, target string) string {
+	for _, capture := range captures {
+		if capture.AssetID == assetID && capture.Target == target && capture.Version != "" {
+			return capture.Version
+		}
+	}
+	return "legacy"
 }
 
 func RecomputeEvidence(root string) ([]GateEvidence, error) {
@@ -517,7 +543,7 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 			} else if runner.Inspected == 0 {
 				result = "skipped"
 			}
-			out = append(out, GateEvidence{AssetID: asset.ID, Target: target, Gate: gateName, Result: result, SourceRevision: revision})
+			out = append(out, GateEvidence{AssetID: asset.ID, Target: target, Version: implByAsset[asset.ID].Latest, Gate: gateName, Result: result, SourceRevision: revision})
 		}
 	}
 	return out, nil

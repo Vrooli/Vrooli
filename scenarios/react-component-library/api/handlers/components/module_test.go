@@ -17,12 +17,13 @@ import (
 
 	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/handlers/components"
-	"react-component-library/internal/clock"
 	internalcomponents "react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
 	"react-component-library/internal/experience"
-	"react-component-library/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 type fakeExperienceReader struct {
@@ -44,7 +45,7 @@ func setupModule(t *testing.T, opts ...components.ModuleOption) (*mux.Router, st
 	))
 
 	root := t.TempDir()
-	svc, repo := components.BuildService(d, clock.System{}, root)
+	svc, repo := components.BuildService(d, schedule.System(), root)
 	internalcomponents.SetServiceJSONReader(svc, internalcomponents.NewFSServiceJSONReader(filepath.Dir(root)))
 	m := components.ModuleFromService(svc, repo, root, log.New(io.Discard, "", 0), opts...)
 	r := mux.NewRouter()

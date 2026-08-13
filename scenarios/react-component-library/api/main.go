@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"react-component-library/internal/clock"
 	"react-component-library/internal/modules"
 	"react-component-library/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -43,6 +44,7 @@ import (
 	depsInternal "react-component-library/internal/deps"
 	experienceInternal "react-component-library/internal/experience"
 	themesInternal "react-component-library/internal/themes"
+	versionledgerInternal "react-component-library/internal/versionledger"
 	workflowsInternal "react-component-library/internal/workflows"
 )
 
@@ -192,14 +194,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("components source root: %v", err)
 	}
-	componentsSvc, componentsRepo := componentsH.BuildService(primaryDB, clock.System{}, sourceRoot)
+	componentsSvc, componentsRepo := componentsH.BuildService(primaryDB, schedule.System(), sourceRoot)
+	versionLedger := versionledgerInternal.NewRepository(primaryDB, sourceRoot)
+	if err := versionLedger.Rebuild(context.Background()); err != nil {
+		log.Fatalf("rebuild version ledger: %v", err)
+	}
 
 	scenariosRoot, err := adoptionsH.DefaultScenariosRoot()
 	if err != nil {
 		log.Fatalf("adoptions scenarios root: %v", err)
 	}
 	componentsInternal.SetServiceJSONReader(componentsSvc, componentsInternal.NewFSServiceJSONReader(scenariosRoot))
-	adoptionsSvc, scenariosReader := adoptionsH.BuildService(primaryDB, clock.System{}, adoptionsH.LibraryFromComponents(componentsSvc), scenariosRoot)
+	adoptionsSvc, scenariosReader := adoptionsH.BuildService(primaryDB, schedule.System(), adoptionsH.LibraryFromComponents(componentsSvc), scenariosRoot)
 	if tokenReader, ok := scenariosReader.(adoptionsInternal.ScenarioTokenNamespaceReader); ok {
 		adoptionsInternal.SetTokenNamespaceReader(adoptionsSvc, tokenReader)
 	} else {
@@ -220,7 +226,7 @@ func main() {
 	}
 
 	versionsResolver := versionsH.AdoptionResolverFromService(adoptionsSvc, scenariosReader)
-	versionsSvc := versionsH.BuildService(primaryDB, clock.System{}, versionsResolver)
+	versionsSvc := versionsH.BuildService(primaryDB, schedule.System(), versionsResolver)
 
 	// Wire post-save versions recording. Listener errors are logged
 	// inside the adapter; UpdateContent does not fail when recording
@@ -256,7 +262,7 @@ func main() {
 	})
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		capabilitiesH.Module(),
 		adoptionsH.ModuleFromService(
 			adoptionsSvc,
@@ -268,7 +274,7 @@ func main() {
 			),
 			adoptionsH.WithSuggestions(componentsSvc, depsSvc, inventoryScanner, scenariosRoot),
 		),
-		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot)))),
+		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot))), componentsH.WithVersionLedger(versionLedger)),
 		componentTestsH.Module(primaryDB, componentsSvc, sourceRoot, log.Default()),
 		catalogH.Module(filepath.Dir(scenariosRoot), primaryDB),
 		depsH.ModuleFromService(depsSvc, log.Default()),
@@ -276,8 +282,8 @@ func main() {
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),
 		previewH.ModuleWithDepsAtRoot(componentsSvc, depsSvc, log.Default(), filepath.Dir(scenariosRoot)),
 		themesH.ModuleFromService(themesSvc, log.Default()),
-		versionsH.Module(primaryDB, clock.System{}, versionsResolver, log.Default()),
-		workflowsH.ModuleWithReadiness(primaryDB, clock.System{}, workflowsInternal.NewAgentManagerDispatcher(), workflowsInternal.NewPromotionReadinessReader(componentsSvc, adoptionsSvc), log.Default()),
+		versionsH.ModuleWithLedger(primaryDB, schedule.System(), versionsResolver, log.Default(), versionLedger),
+		workflowsH.ModuleWithReadiness(primaryDB, schedule.System(), workflowsInternal.NewAgentManagerDispatcher(), workflowsInternal.NewPromotionReadinessReader(componentsSvc, adoptionsSvc), log.Default()),
 	)
 
 	rootMux := http.NewServeMux()

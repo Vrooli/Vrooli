@@ -89,3 +89,13 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 }
+
+func init() {
+	Endpoints = append(Endpoints,
+		module.EndpointDescriptor{ID: "versions_progression", Path: versionsconnect.VersionLifecycleServiceListVersionLedgerProcedure, Method: "POST", Summary: "List durable version progression ledger", Category: "versions"},
+		module.EndpointDescriptor{ID: "versions_retire_candidates", Path: versionsconnect.VersionLifecycleServiceListRetireCandidatesProcedure, Method: "POST", Summary: "List safe version retirement candidates", Category: "versions"},
+		module.EndpointDescriptor{ID: "versions_deprecate", Path: versionsconnect.VersionLifecycleServiceDeprecateVersionProcedure, Method: "POST", Summary: "Deprecate a version", Category: "versions"},
+		module.EndpointDescriptor{ID: "versions_archive", Path: versionsconnect.VersionLifecycleServiceArchiveVersionProcedure, Method: "POST", Summary: "Archive a version", Category: "versions"},
+		module.EndpointDescriptor{ID: "versions_retire", Path: versionsconnect.VersionLifecycleServiceRetireVersionProcedure, Method: "POST", Summary: "Retire an unreferenced version", Category: "versions"},
+	)
+}

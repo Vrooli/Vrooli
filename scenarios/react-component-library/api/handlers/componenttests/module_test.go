@@ -11,19 +11,20 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/require"
-	apidb "github.com/vrooli/api-core/database"
-	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
-	testsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests/componenttests_v1connect"
-	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/handlers/components"
 	componenttests "react-component-library/handlers/componenttests"
-	"react-component-library/internal/clock"
 	internalcomponents "react-component-library/internal/components"
 	domain "react-component-library/internal/componenttests"
 	localdb "react-component-library/internal/database"
-	"react-component-library/internal/testutil/db"
+
+	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/schedule"
+	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
+	testsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests/componenttests_v1connect"
+	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
 type passingExecutor struct{}
@@ -40,7 +41,7 @@ func TestModuleRunsAndListsDurableContractReport(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "component.json"), []byte(`{"libraryId":"rcl:Button","displayName":"Button","latest":"1.0.0"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "Button.tsx"), []byte("/**\n * @libraryId rcl:Button\n * @version 1.0.0\n */\nexport const Button = () => null;"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "story.json"), []byte(`{"schemaVersion":1,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"idle","name":"Idle","args":{},"expect":[{"kind":"role","role":"button","name":"Button"}]}]}`), 0o644))
-	assets, repo := components.BuildService(database, clock.System{}, root)
+	assets, repo := components.BuildService(database, schedule.System(), root)
 	router := mux.NewRouter()
 	components.ModuleFromService(assets, repo, root, log.New(io.Discard, "", 0)).Mount(router)
 	componenttests.ModuleWithExecutor(database, assets, root, passingExecutor{}, log.New(io.Discard, "", 0)).Mount(router)

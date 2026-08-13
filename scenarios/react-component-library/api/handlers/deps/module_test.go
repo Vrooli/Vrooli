@@ -15,10 +15,10 @@ import (
 
 	depsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/deps/deps_v1connect"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/handlers/deps"
 	localdb "react-component-library/internal/database"
 	internaldeps "react-component-library/internal/deps"
-	"react-component-library/internal/testutil/db"
 )
 
 type fakePackageReader struct {

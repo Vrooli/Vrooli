@@ -216,7 +216,13 @@ export function DataTable<Row>({
                   <th
                     key={column.id}
                     scope="col"
-                    aria-sort={active ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+                    aria-sort={
+                      active
+                        ? sortDirection === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                    }
                     className={cn("px-3 py-3 font-semibold", column.className)}
                   >
                     {column.sortValue ? (

@@ -567,6 +567,7 @@ const literalSelectors = {
     itemRecordedAt: "versions-item-recorded-at",
     itemChangelog: "versions-item-changelog",
     itemDiffButton: "versions-item-diff-button",
+    progressionPanel: "versions-progression-panel",
     diff: {
       card: "versions-diff-card",
       fromSelect: "versions-diff-from",

@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"react-component-library/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/internal/themes"
 )
 

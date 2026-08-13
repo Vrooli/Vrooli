@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	"react-component-library/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func TestEvidenceStorePersistsAndListsRows(t *testing.T) {

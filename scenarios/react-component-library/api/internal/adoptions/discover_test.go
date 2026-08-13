@@ -12,7 +12,8 @@ import (
 	"react-component-library/internal/adoptions"
 	adoptmocks "react-component-library/internal/adoptions/mocks"
 	"react-component-library/internal/components"
-	"react-component-library/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // libBody is a realistic multi-line component body. A verbatim header-less copy
@@ -60,7 +61,7 @@ func TestService_Discover_FindsPlantedHeaderlessCopy(t *testing.T) {
 		bytes:    map[string][]byte{"experience-manager::ui/src/components/ui/input.tsx": []byte(libBody)},
 		untagged: []adoptions.CandidateFile{{Scenario: "experience-manager", AdoptedPath: "ui/src/components/ui/input.tsx", Content: []byte(libBody)}},
 	}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 
 	out, err := svc.Discover(context.Background(), adoptions.DiscoverInput{})
 	require.NoError(t, err)
@@ -92,7 +93,7 @@ func TestService_Discover_SkipsRecordedAndBelowThreshold(t *testing.T) {
 		// A genuinely unrelated file — must fall below threshold.
 		{Scenario: "other", AdoptedPath: "ui/src/pages/Dashboard.tsx", Content: []byte("export const Dashboard = () => <main>totally unrelated content here</main>;\nconst x = 1;\nconst y = 2;\n")},
 	}}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 
 	out, err := svc.Discover(context.Background(), adoptions.DiscoverInput{})
 	require.NoError(t, err)
@@ -107,7 +108,7 @@ func TestService_ConfirmDiscovery_InjectsHeaderAndRecords(t *testing.T) {
 		bytes:    map[string][]byte{"experience-manager::ui/src/components/ui/input.tsx": []byte(libBody)},
 		untagged: []adoptions.CandidateFile{{Scenario: "experience-manager", AdoptedPath: "ui/src/components/ui/input.tsx", Content: []byte(libBody)}},
 	}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 
 	res, err := svc.ConfirmDiscovery(context.Background(), adoptions.ConfirmDiscoveryInput{
 		Scenario: "experience-manager", AdoptedPath: "ui/src/components/ui/input.tsx",
@@ -188,7 +189,7 @@ func TestDiscover_RejectsDivergentSiblingPrimitive(t *testing.T) {
 	}
 	divergent := "import { cva } from \"class-variance-authority\";\nimport { Slot } from \"@radix-ui/react-slot\";\nconst buttonVariants = cva(\"inline-flex\");\nexport function Button({ asChild }) {\n  const Comp = asChild ? Slot : \"button\";\n  return <Comp className={buttonVariants()} />;\n}\n"
 	files := &fakeFiles{untagged: []adoptions.CandidateFile{{Scenario: "experience-manager", AdoptedPath: "ui/src/components/ui/button.tsx", Content: []byte(divergent)}}}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 
 	out, err := svc.Discover(context.Background(), adoptions.DiscoverInput{})
 	require.NoError(t, err)

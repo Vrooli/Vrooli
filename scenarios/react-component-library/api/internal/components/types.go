@@ -99,6 +99,12 @@ type AssetMetrics struct {
 	DirectAdoptionCount    int
 	EffectiveAdoptionCount int
 	VersionCount           int
+	VersionAdoptions       []VersionAdoptionMetric
+}
+
+type VersionAdoptionMetric struct {
+	Version                 string
+	CurrentCount, PeakCount int
 }
 
 // ComponentVersionStatus classifies a version folder.
@@ -124,6 +130,7 @@ type ComponentVersion struct {
 	ContentSHA256 string
 	ChangelogMD   string
 	IndexedAt     time.Time
+	CreatedAt     time.Time
 	ReleasedAt    time.Time
 	Headers       map[string]string
 	Files         []ComponentVersionFile

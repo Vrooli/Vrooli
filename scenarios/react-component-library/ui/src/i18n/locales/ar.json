@@ -53,6 +53,13 @@
       "identity": "العقد: {{contract}} · الإصدار {{version}}",
       "versionUnavailable": "الإصدار غير متاح",
       "stale": "قديم"
+    },
+    "progression": {
+      "tab": "التقدم",
+      "title": "تقدم الإصدارات",
+      "description": "معدل نجاح الاختبارات عبر كل إصدار؛ تبقى الإصدارات المتقاعدة على المحور.",
+      "loading": "جارٍ تحميل التقدم…",
+      "error": "التقدم غير متاح حالياً."
     }
   },
   "catalog": {
@@ -351,6 +358,7 @@
     "viewVersion": "عرض هذا الإصدار",
     "viewingVersion": "أنت تشاهد هذا الإصدار",
     "recordedAt": "سُجّل في {{when}}",
+    "createdAt": "ظهر أول مرة في {{when}}",
     "shaLabel": "sha256 {{sha}}",
     "versionLabel": "v{{version}}",
     "diff": {

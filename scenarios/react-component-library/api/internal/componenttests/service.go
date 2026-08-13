@@ -30,6 +30,6 @@ func (s *Service) Rerun(ctx context.Context, id string) (Report, error) {
 	return s.Run(ctx, Request{ComponentID: previous.RootComponentID, Version: previous.RootVersion, IncludeClosure: previous.IncludeClosure})
 }
 
-func (s *Service) List(ctx context.Context, componentID string, limit int) ([]Report, error) {
-	return s.reports.List(ctx, componentID, limit)
+func (s *Service) List(ctx context.Context, componentID, version string, limit int) ([]Report, error) {
+	return s.reports.List(ctx, componentID, version, limit)
 }

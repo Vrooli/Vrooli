@@ -17,6 +17,7 @@ func versionToProto(v versions.Version, _ bool) *versionsv1.Version {
 		ContentSha256: v.ContentSHA256,
 		ChangelogMd:   v.ChangelogMD,
 		RecordedAt:    timestamppb.New(v.RecordedAt.UTC()),
+		CreatedAt:     timestamppb.New(v.CreatedAt.UTC()),
 		Status:        v.Status,
 		SourcePath:    v.SourcePath,
 	}

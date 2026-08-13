@@ -203,6 +203,12 @@
       "path": "components/drawer.json",
       "title": "Drawer",
       "status": "active"
+    },
+    {
+      "id": "cartesian-charts",
+      "path": "components/cartesian-charts.json",
+      "title": "Cartesian Charts",
+      "status": "active"
     }
   ]
 }

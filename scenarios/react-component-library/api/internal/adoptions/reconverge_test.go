@@ -11,7 +11,8 @@ import (
 	adoptmocks "react-component-library/internal/adoptions/mocks"
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
-	"react-component-library/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // reconvergeLibrary builds a Button with a BEHIND release (1.0.0) and the
@@ -51,7 +52,7 @@ func TestService_Reconverge_ReappliesBehindCleanAndRunsValidation(t *testing.T) 
 	bodyV10, bodyV11 := "BODY-V10", "BODY-V11"
 	lib := reconvergeLibrary(bodyV10, bodyV11)
 	files := &fakeFiles{bytes: map[string][]byte{tmButtonKey(): []byte(bodyV10)}}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 	depsGate := &validationDeps{verdict: deps.Verdict{Kind: deps.VerdictWarn}}
 	styleGate := &validationStyles{}
 	adoptions.SetValidationGates(svc, depsGate, styleGate)
@@ -105,7 +106,7 @@ func TestService_Reconverge_FlagsModifiedNeverOverwrites(t *testing.T) {
 	lib := reconvergeLibrary(bodyV10, bodyV11)
 	edited := "BODY-V10-WITH-LOCAL-EDIT"
 	files := &fakeFiles{bytes: map[string][]byte{tmButtonKey(): []byte(edited)}}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 	adoptions.SetValidationGates(svc, &validationDeps{verdict: deps.Verdict{Kind: deps.VerdictWarn}}, &validationStyles{})
 
 	repo.Seed(adoptions.Adoption{
@@ -140,7 +141,7 @@ func TestService_Reconverge_ScopesByScenarioAndSkipsCurrent(t *testing.T) {
 		tmButtonKey(): []byte(bodyV10),
 		cleanupKey:    []byte(bodyV11), // current copy in a different scenario
 	}}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 	adoptions.SetValidationGates(svc, &validationDeps{verdict: deps.Verdict{Kind: deps.VerdictWarn}}, &validationStyles{})
 
 	repo.Seed(adoptions.Adoption{
@@ -181,7 +182,7 @@ func TestService_Reconverge_MissingCopyIsSkippedNotReapplied(t *testing.T) {
 	bodyV10, bodyV11 := "BODY-V10", "BODY-V11"
 	lib := reconvergeLibrary(bodyV10, bodyV11)
 	files := &fakeFiles{bytes: map[string][]byte{}} // nothing on disk
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 
 	repo.Seed(adoptions.Adoption{
 		ID: "row-missing", ComponentID: "cmp-btn", LibraryID: "rcl:Button",

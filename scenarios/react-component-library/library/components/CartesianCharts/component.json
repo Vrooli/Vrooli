@@ -1,0 +1,16 @@
+{
+  "libraryId": "react-component-library:CartesianCharts",
+  "catalogId": "visualization.cartesian-charts",
+  "displayName": "Cartesian Charts",
+  "description": "Accessible line, area, bar, stacked-bar, scatter, and histogram chart family.",
+  "assetKind": "component",
+  "tags": ["visualization", "charts", "accessible", "responsive"],
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" }
+  ],
+  "latest": "1.0.0",
+  "dependencies": [
+    { "libraryId": "react-component-library:Chart", "version": "1.0.0" }
+  ]
+}

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"react-component-library/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -19,11 +19,11 @@ import (
 // fake without reaching inside the struct.
 type sqliteRepository struct {
 	db    *sql.DB
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db *sql.DB, clk clock.Clock) Repository {
+func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
@@ -97,14 +97,19 @@ func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestI
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_parity_reports WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ?)`, c.ID); err != nil {
 		return Component{}, fmt.Errorf("clear component parity reports for %q: %w", c.ID, err)
 	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_versions WHERE component_id = ?`, c.ID); err != nil {
-		return Component{}, fmt.Errorf("clear component versions for %q: %w", c.ID, err)
+	existingVersions, err := s.versionMetadata(ctx, c.ID)
+	if err != nil {
+		return Component{}, err
 	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_stories WHERE component_id = ?`, c.ID); err != nil {
 		return Component{}, fmt.Errorf("clear component stories for %q: %w", c.ID, err)
 	}
 	now := s.clock.Now().UTC()
 	for _, v := range in.Versions {
+		previous, existed := existingVersions[v.Version]
+		if existed {
+			v.ID = previous.id
+		}
 		if v.ID == "" {
 			v.ID = uuid.NewString()
 		}
@@ -113,10 +118,18 @@ func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestI
 		if v.IndexedAt.IsZero() {
 			v.IndexedAt = now
 		}
+		createdAt := previous.createdAt
+		if createdAt == "" {
+			createdAt = now.Format(timeFormat)
+		}
+		releasedAt := previous.releasedAt
+		if v.Version == in.Manifest.LatestVersion && releasedAt == "" {
+			releasedAt = now.Format(timeFormat)
+		}
 		if _, err := s.db.ExecContext(ctx, `
 INSERT INTO component_versions
-  (id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(component_id, version) DO UPDATE SET
   library_id = excluded.library_id,
   status = excluded.status,
@@ -125,9 +138,12 @@ ON CONFLICT(component_id, version) DO UPDATE SET
   content_sha256 = excluded.content_sha256,
   changelog_md = excluded.changelog_md,
   indexed_at = excluded.indexed_at,
-  released_at = excluded.released_at
+  released_at = CASE
+    WHEN component_versions.released_at <> '' THEN component_versions.released_at
+    ELSE excluded.released_at
+  END
 `, v.ID, v.ComponentID, v.LibraryID, v.Version, string(v.Status), v.SourcePath, v.Content, v.ContentSHA256,
-			v.ChangelogMD, v.IndexedAt.UTC().Format(timeFormat), formatOptionalTime(v.ReleasedAt)); err != nil {
+			v.ChangelogMD, v.IndexedAt.UTC().Format(timeFormat), createdAt, releasedAt); err != nil {
 			return Component{}, fmt.Errorf("upsert component version %s@%s: %w", c.LibraryID, v.Version, err)
 		}
 		for _, file := range v.Files {
@@ -143,6 +159,18 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 			if _, err := s.db.ExecContext(ctx, `INSERT INTO component_version_parity_reports (version_id, report_json) VALUES (?, ?)`, v.ID, string(report)); err != nil {
 				return Component{}, fmt.Errorf("upsert component parity report %s@%s: %w", c.LibraryID, v.Version, err)
 			}
+		}
+	}
+	if len(in.Versions) > 0 {
+		placeholders := strings.TrimRight(strings.Repeat("?,", len(in.Versions)), ",")
+		args := make([]any, 0, len(in.Versions)+1)
+		args = append(args, c.ID)
+		for _, v := range in.Versions {
+			args = append(args, v.Version)
+		}
+		deleteStale := `DELETE FROM component_versions WHERE component_id = ? AND version NOT IN (` + placeholders + `)`
+		if _, err := s.db.ExecContext(ctx, deleteStale, args...); err != nil {
+			return Component{}, fmt.Errorf("reconcile stale component versions for %q: %w", c.ID, err)
 		}
 	}
 	for _, story := range in.Stories {
@@ -175,6 +203,33 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 		return Component{}, err
 	}
 	return s.Get(ctx, c.ID)
+}
+
+type versionMetadata struct {
+	id         string
+	createdAt  string
+	releasedAt string
+}
+
+func (s *sqliteRepository) versionMetadata(ctx context.Context, componentID string) (map[string]versionMetadata, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, version, created_at, released_at FROM component_versions WHERE component_id = ?`, componentID)
+	if err != nil {
+		return nil, fmt.Errorf("read existing component versions for %q: %w", componentID, err)
+	}
+	defer rows.Close()
+	out := map[string]versionMetadata{}
+	for rows.Next() {
+		var version versionMetadata
+		var label string
+		if err := rows.Scan(&version.id, &label, &version.createdAt, &version.releasedAt); err != nil {
+			return nil, fmt.Errorf("scan existing component version for %q: %w", componentID, err)
+		}
+		out[label] = version
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate existing component versions for %q: %w", componentID, err)
+	}
+	return out, nil
 }
 
 func (s *sqliteRepository) upsertComponent(ctx context.Context, in ComponentManifest, sourcePath string) (Component, error) {
@@ -466,6 +521,22 @@ FROM components c WHERE c.id IN (`+placeholders+`)`, ids...)
 		}
 		byID[id].Metrics = AssetMetrics{DirectAdoptionCount: directAdoptions, EffectiveAdoptionCount: effectiveAdoptions, VersionCount: versions}
 	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	rows, err = s.db.QueryContext(ctx, `SELECT component_id, adopted_version, COUNT(*) FROM adoption_records WHERE component_id IN (`+placeholders+`) GROUP BY component_id, adopted_version ORDER BY component_id, adopted_version`, ids...)
+	if err != nil {
+		return fmt.Errorf("load version adoption metrics: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, version string
+		var count int
+		if err := rows.Scan(&id, &version, &count); err != nil {
+			return err
+		}
+		byID[id].Metrics.VersionAdoptions = append(byID[id].Metrics.VersionAdoptions, VersionAdoptionMetric{Version: version, CurrentCount: count, PeakCount: count})
+	}
 	return rows.Err()
 }
 
@@ -674,10 +745,10 @@ func (s *sqliteRepository) ListVersions(ctx context.Context, componentID string,
 		limit = 100
 	}
 	rows, err := s.db.QueryContext(ctx, `
-SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at
+SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at
 FROM component_versions
 WHERE component_id = ?
-ORDER BY indexed_at DESC, version DESC
+ORDER BY version DESC
 LIMIT ?
 `, componentID, limit)
 	if err != nil {
@@ -715,7 +786,7 @@ LIMIT ?
 
 func (s *sqliteRepository) GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at
+SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at
 FROM component_versions
 WHERE component_id = ? AND version = ?
 `, componentID, version)
@@ -866,8 +937,8 @@ func assetKindOrDefault(kind AssetKind) AssetKind {
 
 func scanComponentVersion(s rowScanner) (ComponentVersion, error) {
 	var v ComponentVersion
-	var statusRaw, indexedRaw, releasedRaw string
-	if err := s.Scan(&v.ID, &v.ComponentID, &v.LibraryID, &v.Version, &statusRaw, &v.SourcePath, &v.Content, &v.ContentSHA256, &v.ChangelogMD, &indexedRaw, &releasedRaw); err != nil {
+	var statusRaw, indexedRaw, createdRaw, releasedRaw string
+	if err := s.Scan(&v.ID, &v.ComponentID, &v.LibraryID, &v.Version, &statusRaw, &v.SourcePath, &v.Content, &v.ContentSHA256, &v.ChangelogMD, &indexedRaw, &createdRaw, &releasedRaw); err != nil {
 		return ComponentVersion{}, err
 	}
 	v.Status = ComponentVersionStatus(statusRaw)
@@ -876,6 +947,13 @@ func scanComponentVersion(s rowScanner) (ComponentVersion, error) {
 		return ComponentVersion{}, fmt.Errorf("parse indexed_at %q: %w", indexedRaw, err)
 	}
 	v.IndexedAt = indexed
+	if createdRaw != "" {
+		created, err := time.Parse(timeFormat, createdRaw)
+		if err != nil {
+			return ComponentVersion{}, fmt.Errorf("parse created_at %q: %w", createdRaw, err)
+		}
+		v.CreatedAt = created
+	}
 	if releasedRaw != "" {
 		released, err := time.Parse(timeFormat, releasedRaw)
 		if err != nil {
@@ -899,13 +977,6 @@ func scanComponentStory(s rowScanner) (ComponentStory, error) {
 	}
 	story.IndexedAt = indexed
 	return story, nil
-}
-
-func formatOptionalTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.UTC().Format(timeFormat)
 }
 
 func firstNonEmpty(values ...string) string {

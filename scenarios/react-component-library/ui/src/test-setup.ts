@@ -25,6 +25,11 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
+import { configureTestProviders } from "@vrooli/api-base/testing";
+import { ThemeProvider } from "./components/theme/ThemeProvider";
+import { createElement } from "react";
+
+configureTestProviders((children) => createElement(ThemeProvider, null, children));
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;

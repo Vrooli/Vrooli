@@ -24,16 +24,18 @@ import (
 
 	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
 
-	"react-component-library/internal/clock"
 	"react-component-library/internal/components"
 	"react-component-library/internal/experience"
 	"react-component-library/internal/module"
+	"react-component-library/internal/versionledger"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Module wires the components domain into the API server using the
 // production-default source root. Tests should use ModuleWithRoot to
 // inject a temp dir.
-func Module(db *sql.DB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *sql.DB, clk schedule.Clock, logger *log.Logger) module.Module {
 	root, err := defaultSourceRoot()
 	if err != nil {
 		logger.Fatalf("components source root: %v", err)
@@ -43,7 +45,7 @@ func Module(db *sql.DB, clk clock.Clock, logger *log.Logger) module.Module {
 
 // ModuleWithRoot is the explicit-injection variant used by tests and by
 // callers that want to point the indexer at a custom path.
-func ModuleWithRoot(db *sql.DB, clk clock.Clock, sourceRoot string, logger *log.Logger) module.Module {
+func ModuleWithRoot(db *sql.DB, clk schedule.Clock, sourceRoot string, logger *log.Logger) module.Module {
 	svc, repo := BuildService(db, clk, sourceRoot)
 	return ModuleFromService(svc, repo, sourceRoot, logger)
 }
@@ -55,6 +57,10 @@ func ModuleWithRoot(db *sql.DB, clk clock.Clock, sourceRoot string, logger *log.
 // with. Use WithIndexObserver to plug in a cross-domain post-upsert
 // hook (req 10's deps recorder).
 type ModuleOption func(*Deps)
+
+func WithVersionLedger(ledger *versionledger.Repository) ModuleOption {
+	return func(d *Deps) { d.VersionLedger = ledger }
+}
 
 // WithIndexObserver installs the components.UpsertObserver the indexer
 // calls after each successful upsert.
@@ -100,7 +106,7 @@ func DefaultSourceRoot() (string, error) { return defaultSourceRoot() }
 // components.Service that multiple modules can read from. Keeps a
 // single Service per process so preview reads see the same content
 // the components handler does.
-func BuildService(db *sql.DB, clk clock.Clock, sourceRoot string) (components.Service, components.Repository) {
+func BuildService(db *sql.DB, clk schedule.Clock, sourceRoot string) (components.Service, components.Repository) {
 	repo := components.NewSQLiteRepository(db, clk)
 	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(sourceRoot))
 	return svc, repo

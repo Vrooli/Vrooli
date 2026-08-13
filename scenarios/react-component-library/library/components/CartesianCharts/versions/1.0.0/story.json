@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Cartesian charts",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Progression chart",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "img", "name": "Progression" },
+        { "kind": "role", "role": "table" }
+      ]
+    },
+    {
+      "id": "area",
+      "name": "Area chart",
+      "harness": "Area",
+      "args": {},
+      "expect": [{ "kind": "role", "role": "img", "name": "Progression" }]
+    },
+    {
+      "id": "bar",
+      "name": "Bar chart",
+      "harness": "Bar",
+      "args": {},
+      "expect": [{ "kind": "role", "role": "img", "name": "Progression" }]
+    },
+    {
+      "id": "stacked-bar",
+      "name": "Stacked bar chart",
+      "harness": "StackedBar",
+      "args": {},
+      "expect": [{ "kind": "role", "role": "img", "name": "Progression" }]
+    },
+    {
+      "id": "scatter",
+      "name": "Scatter chart",
+      "harness": "Scatter",
+      "args": {},
+      "expect": [{ "kind": "role", "role": "img", "name": "Progression" }]
+    },
+    {
+      "id": "histogram",
+      "name": "Histogram",
+      "harness": "Histogram",
+      "args": {},
+      "expect": [{ "kind": "role", "role": "img", "name": "Progression" }]
+    }
+  ]
+}

@@ -13,7 +13,7 @@ vi.mock("../api/adoptions", () => ({ adoptionsClient: { listScenarios } }));
 vi.mock("../api/components", () => ({ listCatalogAssets }));
 
 import { ActionLauncher } from "./ActionLauncher";
-import { renderWithProviders } from "../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 function renderLauncher(action: "menu" | "extract" | "adopt" = "menu") {
   return renderWithProviders(

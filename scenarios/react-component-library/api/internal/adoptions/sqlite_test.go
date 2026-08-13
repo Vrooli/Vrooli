@@ -9,21 +9,22 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/internal/adoptions"
 	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
-	"react-component-library/internal/testutil/db"
-	"react-component-library/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
-func newAdoptionsDB(t *testing.T) (adoptions.Repository, *mocks.FakeClock) {
+func newAdoptionsDB(t *testing.T) (adoptions.Repository, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(adoptions.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC))
 	return adoptions.NewSQLiteRepository(d, clk), clk
 }
 
@@ -195,7 +196,7 @@ INSERT INTO adoption_files (adoption_id, library_path, adopted_path) VALUES
 	require.NoError(t, err)
 
 	require.NoError(t, adoptions.EnsureSchemaMigrations(ctx, d))
-	repo := adoptions.NewSQLiteRepository(d, mocks.NewFakeClock(time.Now()))
+	repo := adoptions.NewSQLiteRepository(d, scheduletest.New(time.Now()))
 	effective, err := repo.ListEffective(ctx, "focus", 10)
 	require.NoError(t, err)
 	require.Len(t, effective, 1)

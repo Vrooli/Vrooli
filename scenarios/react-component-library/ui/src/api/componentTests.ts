@@ -54,6 +54,7 @@ export async function getComponentTestReport(id: string): Promise<ComponentTestR
 }
 export async function listComponentTestReports(input: {
   componentId: string;
+  version?: string;
   limit?: number;
 }): Promise<ComponentTestReport[]> {
   const response = await invoke<{ reports?: ComponentTestReport[] }>(

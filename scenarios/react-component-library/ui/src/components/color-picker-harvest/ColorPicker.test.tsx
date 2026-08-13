@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import ColorPicker from "./ColorPicker";
 import { isLightColor, parseColorValue, serializeColorValue } from "./colorUtils";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 describe("ColorPicker", () => {
   it("supports palette, transparent, gradient, recent, and custom-color flows", () => {

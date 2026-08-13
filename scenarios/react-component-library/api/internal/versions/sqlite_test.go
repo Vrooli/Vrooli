@@ -9,14 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
-	"react-component-library/internal/testutil/db"
-	"react-component-library/internal/testutil/mocks"
 	"react-component-library/internal/versions"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
-func newVersionsDB(t *testing.T) (versions.Repository, *mocks.FakeClock) {
+func newVersionsDB(t *testing.T) (versions.Repository, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	// component_versions is owned by the components domain schema; the
@@ -25,7 +26,7 @@ func newVersionsDB(t *testing.T) (versions.Repository, *mocks.FakeClock) {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(components.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC))
 	return versions.NewSQLiteRepository(d, clk), clk
 }
 
@@ -110,4 +111,17 @@ func TestSQLiteRepository_List_RespectsLimitAndComponent(t *testing.T) {
 	for _, r := range rows {
 		require.Equal(t, "cmp-1", r.ComponentID)
 	}
+}
+
+func TestServiceRecordReturnsTypedCollisionForContentChangeWithoutVersionBump(t *testing.T) {
+	repo, _ := newVersionsDB(t)
+	svc := versions.NewService(repo, nil)
+	ctx := context.Background()
+	_, _, err := svc.Record(ctx, versions.RecordInput{ComponentID: "cmp-1", Content: "// @version 1.0.0\nfirst"})
+	require.NoError(t, err)
+
+	_, _, err = svc.Record(ctx, versions.RecordInput{ComponentID: "cmp-1", Content: "// @version 1.0.0\nsecond"})
+	var collision versions.ErrVersionExists
+	require.ErrorAs(t, err, &collision)
+	require.Equal(t, "1.0.0", collision.Version)
 }

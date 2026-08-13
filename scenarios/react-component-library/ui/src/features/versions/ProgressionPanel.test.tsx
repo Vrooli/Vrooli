@@ -1,0 +1,79 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen, within } from "@testing-library/react";
+
+import { selectors } from "../../consts/selectors";
+import { listVersionLedger } from "../../api/versionLedger";
+import { renderWithProviders } from "../../test-utils";
+import { ProgressionPanel } from "./ProgressionPanel";
+
+vi.mock("../../api/versionLedger", () => ({
+  listVersionLedger: vi.fn(),
+}));
+
+describe("ProgressionPanel", () => {
+  beforeEach(() => vi.mocked(listVersionLedger).mockReset());
+  afterEach(() => cleanup());
+
+  it("keeps a retired version on the chart and labels it", async () => {
+    vi.mocked(listVersionLedger).mockResolvedValue([
+      {
+        libraryId: "react-component-library:Chart",
+        version: "1.0.0",
+        createdAt: "2026-01-01T00:00:00Z",
+        releasedAt: "2026-01-02T00:00:00Z",
+        retiredAt: "",
+        lifecycleState: "released",
+        gatePassCount: 4,
+        gateFailCount: 0,
+        testRuns: 3,
+        testPassRate: 1,
+        adoptionCurrent: 2,
+        adoptionPeak: 2,
+        fileCount: 1,
+        linesOfCode: 40,
+        dependencyCount: 0,
+      },
+      {
+        libraryId: "react-component-library:Chart",
+        version: "0.9.0",
+        createdAt: "2025-12-01T00:00:00Z",
+        releasedAt: "2025-12-01T00:00:00Z",
+        retiredAt: "2026-01-03T00:00:00Z",
+        lifecycleState: "retired",
+        gatePassCount: 3,
+        gateFailCount: 1,
+        testRuns: 4,
+        testPassRate: 0.75,
+        adoptionCurrent: 0,
+        adoptionPeak: 1,
+        fileCount: 1,
+        linesOfCode: 32,
+        dependencyCount: 0,
+      },
+    ]);
+
+    renderWithProviders(<ProgressionPanel libraryId="react-component-library:Chart" />);
+
+    const chart = await screen.findByTestId("cartesian-charts");
+    expect(screen.getByTestId(selectors.versions.progressionPanel)).toBeInTheDocument();
+    expect(chart).toHaveTextContent("0.9.0");
+    expect(chart).toHaveTextContent("retired");
+    expect(within(chart).getAllByText("0.9.0")).toHaveLength(2);
+    expect(listVersionLedger).toHaveBeenCalledWith("react-component-library:Chart");
+  });
+
+  it("reports loading while the provider is pending", async () => {
+    vi.mocked(listVersionLedger).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve([]), 25)),
+    );
+    renderWithProviders(<ProgressionPanel libraryId="react-component-library:Chart" />);
+    expect(screen.getByRole("status")).toHaveTextContent("componentDetail.progression.loading");
+    await screen.findByTestId("cartesian-charts");
+  });
+
+  it("reports provider failures", async () => {
+    vi.mocked(listVersionLedger).mockRejectedValueOnce(new Error("offline"));
+    renderWithProviders(<ProgressionPanel libraryId="react-component-library:Chart" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("componentDetail.progression.error");
+  });
+});

@@ -2,10 +2,13 @@ package versions
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"time"
 
 	"connectrpc.com/connect"
 
+	"react-component-library/internal/versionledger"
 	"react-component-library/internal/versions"
 
 	versionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions"
@@ -15,6 +18,60 @@ import (
 type Deps struct {
 	Service versions.Service
 	Logger  *log.Logger
+	Ledger  *versionledger.Repository
+}
+
+func (h *connectHandler) ListRetireCandidates(ctx context.Context, req *connect.Request[versionsv1.ListRetireCandidatesRequest]) (*connect.Response[versionsv1.ListRetireCandidatesResponse], error) {
+	if h.deps.Ledger == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("version lifecycle is not configured"))
+	}
+	items, err := h.deps.Ledger.RetireCandidates(ctx, req.Msg.GetComponentId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &versionsv1.ListRetireCandidatesResponse{}
+	for _, item := range items {
+		out.Candidates = append(out.Candidates, &versionsv1.RetireCandidate{ComponentId: item.ComponentID, LibraryId: item.LibraryID, Version: item.Version, Status: item.Status})
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) ListVersionLedger(ctx context.Context, req *connect.Request[versionsv1.ListVersionLedgerRequest]) (*connect.Response[versionsv1.ListVersionLedgerResponse], error) {
+	if h.deps.Ledger == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("version ledger is not configured"))
+	}
+	items, err := h.deps.Ledger.ListWindow(ctx, req.Msg.GetLibraryId(), req.Msg.GetWindow())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &versionsv1.ListVersionLedgerResponse{}
+	for _, item := range items {
+		out.Rows = append(out.Rows, &versionsv1.VersionLedgerRow{LibraryId: item.LibraryID, Version: item.Version, CreatedAt: item.CreatedAt.Format(time.RFC3339Nano), ReleasedAt: item.ReleasedAt.Format(time.RFC3339Nano), RetiredAt: item.RetiredAt.Format(time.RFC3339Nano), LifecycleState: item.LifecycleState, GatePassCount: int32(item.GatePassCount), GateFailCount: int32(item.GateFailCount), TestRuns: int32(item.TestRuns), TestPassRate: item.TestPassRate, AdoptionCurrent: int32(item.AdoptionCurrent), AdoptionPeak: int32(item.AdoptionPeak), FileCount: int32(item.FileCount), LinesOfCode: int32(item.LinesOfCode), DependencyCount: int32(item.DependencyCount)})
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) transition(ctx context.Context, req *connect.Request[versionsv1.VersionLifecycleRequest], state string) (*connect.Response[versionsv1.VersionLifecycleResponse], error) {
+	if h.deps.Ledger == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("version lifecycle is not configured"))
+	}
+	item, err := h.deps.Ledger.Transition(ctx, req.Msg.GetComponentId(), req.Msg.GetVersion(), state, req.Msg.GetConfirm())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&versionsv1.VersionLifecycleResponse{Version: &versionsv1.RetireCandidate{ComponentId: item.ComponentID, LibraryId: item.LibraryID, Version: item.Version, Status: item.Status}, LifecycleState: state}), nil
+}
+
+func (h *connectHandler) DeprecateVersion(ctx context.Context, req *connect.Request[versionsv1.VersionLifecycleRequest]) (*connect.Response[versionsv1.VersionLifecycleResponse], error) {
+	return h.transition(ctx, req, "deprecated")
+}
+
+func (h *connectHandler) ArchiveVersion(ctx context.Context, req *connect.Request[versionsv1.VersionLifecycleRequest]) (*connect.Response[versionsv1.VersionLifecycleResponse], error) {
+	return h.transition(ctx, req, "archived")
+}
+
+func (h *connectHandler) RetireVersion(ctx context.Context, req *connect.Request[versionsv1.VersionLifecycleRequest]) (*connect.Response[versionsv1.VersionLifecycleResponse], error) {
+	return h.transition(ctx, req, "retired")
 }
 
 type connectHandler struct {

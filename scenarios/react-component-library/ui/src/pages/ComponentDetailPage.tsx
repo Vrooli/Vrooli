@@ -29,6 +29,7 @@ import { AdoptionsCard } from "../features/adoptions/AdoptionsCard";
 import { ComponentExperiencePanel } from "../features/components/ComponentExperiencePanel";
 import { ComponentTestPanel } from "../features/components/ComponentTestPanel";
 import { VersionsCard } from "../features/versions/VersionsCard";
+import { ProgressionPanel } from "../features/versions/ProgressionPanel";
 import { useTranslation } from "../i18n";
 import {
   assetInfoTab,
@@ -74,6 +75,7 @@ function DetailTabs({
       label: t("componentDetail.info.versions", { defaultValue: "Versions" }),
       count: versionCount,
     },
+    { id: "progression", label: t(strings.componentDetail.progression.tab) },
     {
       id: "adoptions",
       label: t("componentDetail.info.adoptions", { defaultValue: "Adoptions" }),
@@ -226,6 +228,7 @@ function HookWorkspace({
                 onCompare={() => undefined}
               />
             )}
+            {tab === "progression" && <ProgressionPanel libraryId={asset.libraryId || asset.id} />}
             {tab === "adoptions" && (
               <div data-testid="hook-effective-adoptions" className="space-y-space-2xs text-xs">
                 {effective.isLoading ? (
@@ -570,6 +573,9 @@ export function ComponentDetailPage() {
                 onSelectVersion={setSelectedVersion}
                 onCompare={setComparison}
               />
+            )}
+            {infoTab === "progression" && (
+              <ProgressionPanel libraryId={component.libraryId || component.id} />
             )}
             {infoTab === "adoptions" && (
               <section

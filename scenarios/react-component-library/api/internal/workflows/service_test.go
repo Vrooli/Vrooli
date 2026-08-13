@@ -8,12 +8,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/internal/adoptions"
 	adoptionmocks "react-component-library/internal/adoptions/mocks"
 	"react-component-library/internal/components"
 	componentmocks "react-component-library/internal/components/mocks"
-	"react-component-library/internal/testutil/db"
-	"react-component-library/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 type fakeDispatcher struct {
@@ -42,7 +43,7 @@ func TestPromotionReadinessRequiresParityExamplesAndCleanOriginReplacement(t *te
 	require.NoError(t, err)
 	adoptionRepo := adoptionmocks.NewFakeRepository()
 	adoptionRepo.Seed(adoptions.Adoption{ID: "origin", ComponentID: component.ID, Scenario: "web-console", AdoptedVersion: "1.0.0-draft.1", LibraryVersionStatus: adoptions.LibraryVersionStatusCurrent, LocalStatus: adoptions.LocalStatusClean})
-	adoptionSvc := adoptions.NewService(adoptionRepo, nil, nil, mocks.NewFakeClock(time.Now()))
+	adoptionSvc := adoptions.NewService(adoptionRepo, nil, nil, scheduletest.New(time.Now()))
 	reader := NewPromotionReadinessReader(componentSvc, adoptionSvc)
 
 	got, err := reader.PromotionReadiness(ctx, PromotionReadinessInput{AssetID: component.ID, OriginScenario: "web-console"})
@@ -80,12 +81,12 @@ func (f *fakeDispatcher) Stop(_ context.Context, runID string) (RunSnapshot, err
 	return f.stopped, f.stopErr
 }
 
-func newWorkflowService(t *testing.T, dispatcher *fakeDispatcher) (Service, Repository, *mocks.FakeClock) {
+func newWorkflowService(t *testing.T, dispatcher *fakeDispatcher) (Service, Repository, *scheduletest.FakeClock) {
 	t.Helper()
 	database := db.NewSQLite(t)
 	_, err := database.ExecContext(context.Background(), Schema())
 	require.NoError(t, err)
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
 	repo := NewSQLiteRepository(database, clk)
 	return NewService(repo, dispatcher), repo, clk
 }

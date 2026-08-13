@@ -15,7 +15,8 @@ import (
 	"react-component-library/internal/adoptions"
 	adoptmocks "react-component-library/internal/adoptions/mocks"
 	"react-component-library/internal/components"
-	"react-component-library/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fakeReporter records each Report call and returns a canned ref. It
@@ -65,7 +66,7 @@ func TestService_Refresh_FilesDriftBacklogOnce(t *testing.T) {
 		// Adopted bytes equal the snapshot but not the library — behind.
 		"swarm-manager::adopted.tsx": []byte("BODY-V10"),
 	}}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 13, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 13, 0, 0, 0, 0, time.UTC))
 
 	repo.Seed(adoptions.Adoption{
 		ID: "row-1", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
@@ -113,7 +114,7 @@ func TestService_Refresh_ClearsRefOnReturnToCurrent(t *testing.T) {
 	files := &fakeFiles{bytes: map[string][]byte{
 		"swarm-manager::adopted.tsx": []byte("BODY-CURRENT"),
 	}}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 13, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 13, 0, 0, 0, 0, time.UTC))
 
 	// Seed with a pre-existing drift ref (simulates a prior drift cycle).
 	repo.Seed(adoptions.Adoption{
@@ -149,7 +150,7 @@ func TestService_Refresh_ReporterErrorDoesNotFailRefresh(t *testing.T) {
 	files := &fakeFiles{bytes: map[string][]byte{
 		"swarm-manager::adopted.tsx": []byte("BODY-V10"),
 	}}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 13, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 13, 0, 0, 0, 0, time.UTC))
 
 	repo.Seed(adoptions.Adoption{
 		ID: "row-1", ComponentID: "cmp-btn", LibraryID: "rcl:Button",

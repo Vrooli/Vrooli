@@ -9,6 +9,7 @@ import (
 
 	"react-component-library/internal/components"
 	"react-component-library/internal/experience"
+	"react-component-library/internal/versionledger"
 
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 )
@@ -29,6 +30,7 @@ type Deps struct {
 	// behaves exactly as before.
 	IndexObserver    components.UpsertObserver
 	ExperienceReader experience.Reader
+	VersionLedger    *versionledger.Repository
 }
 
 type connectHandler struct {
@@ -348,6 +350,12 @@ func (h *connectHandler) IndexComponents(ctx context.Context, _ *connect.Request
 	if err != nil {
 		h.deps.Logger.Printf("components.IndexComponents: %v", err)
 		return nil, components.ToConnectError(err)
+	}
+	if h.deps.VersionLedger != nil {
+		if err := h.deps.VersionLedger.Rebuild(ctx); err != nil {
+			h.deps.Logger.Printf("components.IndexComponents: rebuild version ledger: %v", err)
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
 	}
 	errs := make([]string, 0, len(res.Errors))
 	for _, e := range res.Errors {

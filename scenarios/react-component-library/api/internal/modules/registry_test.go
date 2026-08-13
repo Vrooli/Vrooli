@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/internal/modules"
-	"react-component-library/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 

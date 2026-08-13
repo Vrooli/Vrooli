@@ -149,7 +149,7 @@ func recordContractEvidence(ctx context.Context, evidenceStore *catalogcoverage.
 			return fmt.Errorf("compute component-test evidence revision for %s: %w", catalogID, err)
 		}
 		for _, gate := range []string{"unit", "interaction"} {
-			evidence = append(evidence, catalogcoverage.GateEvidence{AssetID: catalogID, Target: targetByID[catalogID], Gate: gate, Result: result, SourceRevision: revision})
+			evidence = append(evidence, catalogcoverage.GateEvidence{AssetID: catalogID, Target: targetByID[catalogID], Version: item.version, Gate: gate, Result: result, SourceRevision: revision})
 		}
 	}
 	return evidenceStore.Save(ctx, evidence)
@@ -164,7 +164,7 @@ func (h *connectHandler) GetComponentTestReport(ctx context.Context, req *connec
 }
 
 func (h *connectHandler) ListComponentTestReports(ctx context.Context, req *connect.Request[componenttestsv1.ListComponentTestReportsRequest]) (*connect.Response[componenttestsv1.ListComponentTestReportsResponse], error) {
-	reports, err := h.service.List(ctx, req.Msg.GetComponentId(), int(req.Msg.GetLimit()))
+	reports, err := h.service.List(ctx, req.Msg.GetComponentId(), req.Msg.GetVersion(), int(req.Msg.GetLimit()))
 	if err != nil {
 		return nil, h.error(err)
 	}

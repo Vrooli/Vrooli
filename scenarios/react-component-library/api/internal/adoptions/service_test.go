@@ -16,7 +16,8 @@ import (
 	adoptmocks "react-component-library/internal/adoptions/mocks"
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
-	"react-component-library/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fakeLibrary is a minimal LibraryReader keyed by component_id.
@@ -202,7 +203,7 @@ func TestService_Refresh_StatusMatrix(t *testing.T) {
 		"swarm-manager::e-component-gone.tsx": []byte("anything"),
 	}}
 
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 12, 0, 0, 0, time.UTC))
 
 	// Seed adoption rows directly (Seed bypasses Create's gates).
 	rows := []adoptions.Adoption{
@@ -283,7 +284,7 @@ func TestService_Refresh_FilterByComponent(t *testing.T) {
 		"s::a.tsx": []byte("AA"),
 		"s::b.tsx": []byte("BB"),
 	}}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
 
 	repo.Seed(adoptions.Adoption{ID: "ra", ComponentID: "cmp-a", Scenario: "s", AdoptedPath: "a.tsx", CreatedAt: clk.Now()})
 	repo.Seed(adoptions.Adoption{ID: "rb", ComponentID: "cmp-b", Scenario: "s", AdoptedPath: "b.tsx", CreatedAt: clk.Now()})
@@ -307,7 +308,7 @@ func TestService_Refresh_UsesSemverOrdering(t *testing.T) {
 		"s::newer.tsx": []byte("BODY"),
 		"s::older.tsx": []byte("BODY"),
 	}}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
 	repo.Seed(adoptions.Adoption{ID: "newer", ComponentID: "cmp", LibraryID: "rcl:Button", Scenario: "s", AdoptedPath: "newer.tsx", AdoptedVersion: "1.10.0", AdoptedSnapshotSHA256: sha("BODY"), CreatedAt: clk.Now()})
 	repo.Seed(adoptions.Adoption{ID: "older", ComponentID: "cmp", LibraryID: "rcl:Button", Scenario: "s", AdoptedPath: "older.tsx", AdoptedVersion: "1.1.9", AdoptedSnapshotSHA256: sha("BODY"), CreatedAt: clk.Now()})
 
@@ -336,7 +337,7 @@ func TestService_Refresh_ReportsDeprecatedVersion(t *testing.T) {
 		},
 	}
 	files := &fakeFiles{bytes: map[string][]byte{"s::table.tsx": []byte("BODY")}}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
 	repo.Seed(adoptions.Adoption{ID: "deprecated", ComponentID: "cmp", LibraryID: "rcl:DataTable", Scenario: "s", AdoptedPath: "table.tsx", AdoptedVersion: "1.0.0", AdoptedSnapshotSHA256: sha("BODY"), CreatedAt: clk.Now()})
 
 	svc := adoptions.NewService(repo, lib, files, clk)
@@ -360,7 +361,7 @@ func TestService_Refresh_DoesNotTreatDraftVersionAsCurrent(t *testing.T) {
 		},
 	}
 	files := &fakeFiles{bytes: map[string][]byte{"s::button.tsx": []byte("BODY")}}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
 	repo.Seed(adoptions.Adoption{ID: "draft", ComponentID: "cmp", LibraryID: "rcl:Button", Scenario: "s", AdoptedPath: "button.tsx", AdoptedVersion: "1.1.0-beta.1", AdoptedSnapshotSHA256: sha("BODY"), CreatedAt: clk.Now()})
 
 	svc := adoptions.NewService(repo, lib, files, clk)
@@ -376,7 +377,7 @@ func TestService_Create_RejectsMissingComponent(t *testing.T) {
 	repo := adoptmocks.NewFakeRepository()
 	lib := &fakeLibrary{byID: map[string]components.Component{}, body: map[string]string{}}
 	files := &fakeFiles{bytes: map[string][]byte{}}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
 
 	svc := adoptions.NewService(repo, lib, files, clk)
 	_, err := svc.Create(context.Background(), adoptions.CreateInput{
@@ -398,7 +399,7 @@ func TestService_Create_HashesSnapshotAndEchoesLibraryID(t *testing.T) {
 	files := &fakeFiles{bytes: map[string][]byte{
 		"s::p.tsx": []byte("ADOPTED-AT-CREATE"),
 	}}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
 
 	svc := adoptions.NewService(repo, lib, files, clk)
 	a, err := svc.Create(context.Background(), adoptions.CreateInput{
@@ -420,7 +421,7 @@ func TestService_Apply_UsesSameIDInRecordAndProvenance(t *testing.T) {
 		},
 	}
 	files := &fakeFiles{bytes: map[string][]byte{}}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
 
 	svc := adoptions.NewService(repo, lib, files, clk)
 	result, err := svc.Apply(context.Background(), adoptions.ApplyInput{
@@ -453,7 +454,7 @@ func TestService_ApplyCopiesVersionExperienceContractIntoScenario(t *testing.T) 
 		},
 	}
 	files := &fakeFiles{bytes: map[string][]byte{}}
-	result, err := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now())).Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/components/Button.tsx"})
+	result, err := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now())).Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/components/Button.tsx"})
 	require.NoError(t, err)
 	require.Equal(t, "experience/components/button.json", result.ExperiencePath)
 	require.JSONEq(t, `{"contract":{"kind":"rcl-component-experience-contract"},"component":{"id":"button"},"claims":[]}`, string(files.bytes["target::experience/components/button.json"]))
@@ -469,7 +470,7 @@ func TestService_ApplyVendorsEveryFileInAUnit(t *testing.T) {
 		}},
 	}}
 	files := &fakeFiles{bytes: map[string][]byte{}}
-	result, err := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now())).Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/components/Drawer.tsx"})
+	result, err := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now())).Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/components/Drawer.tsx"})
 	require.NoError(t, err)
 	require.Len(t, result.Adoption.Files, 2)
 	require.Contains(t, string(files.bytes["target::ui/src/components/Drawer.tsx"]), "@vrooliComponentSource rcl:Drawer")
@@ -486,7 +487,7 @@ func TestService_ApplyPlacesHookCompanionsInHookSlotAndRewritesImports(t *testin
 		}},
 	}}
 	files := &fakeFiles{bytes: map[string][]byte{}}
-	_, err := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now())).Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/components/Drawer.tsx"})
+	_, err := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now())).Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/components/Drawer.tsx"})
 	require.NoError(t, err)
 	require.Contains(t, string(files.bytes["target::ui/src/components/Drawer.tsx"]), `from "../hooks/useFocusTrap"`)
 	require.Contains(t, string(files.bytes["target::ui/src/hooks/useFocusTrap.ts"]), "useFocusTrap")
@@ -503,7 +504,7 @@ func TestService_ApplyMaterializesPinnedHookDependencyAsMediatedProvenance(t *te
 		"hook@1.0.0":  {ComponentID: "hook", LibraryID: "rcl:useFocusTrap", Version: "1.0.0", SourcePath: "hooks/useFocusTrap/versions/1.0.0/useFocusTrap.ts", ContentSHA256: sha("hook"), Files: []components.ComponentVersionFile{{Path: "useFocusTrap.ts", Content: "export const useFocusTrap = () => {};", ContentSHA256: sha("hook"), IsEntry: true}}},
 	}}
 	files := &fakeFiles{bytes: map[string][]byte{}}
-	result, err := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now())).Apply(context.Background(), adoptions.ApplyInput{ComponentID: "panel", Scenario: "target", AdoptedPath: "ui/src/components/FocusTrapPanel.tsx"})
+	result, err := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now())).Apply(context.Background(), adoptions.ApplyInput{ComponentID: "panel", Scenario: "target", AdoptedPath: "ui/src/components/FocusTrapPanel.tsx"})
 	require.NoError(t, err)
 	require.Equal(t, "panel", result.Adoption.ComponentID)
 	require.Contains(t, string(files.bytes["target::ui/src/components/FocusTrapPanel.tsx"]), `from "../hooks/useFocusTrap"`)
@@ -528,7 +529,7 @@ func TestService_ReapplyRefreshesEveryFileInAUnit(t *testing.T) {
 		"cmp@1.0.0": {ComponentID: "cmp", LibraryID: "rcl:Drawer", Version: "1.0.0", ContentSHA256: sha("entry-1"), Files: []components.ComponentVersionFile{{Path: "Drawer.tsx", Content: "export const Drawer = 1;", ContentSHA256: sha("entry-1"), IsEntry: true}, {Path: "focus.ts", Content: "export const focus = 1;", ContentSHA256: sha("focus-1")}}},
 	}}
 	files := &fakeFiles{bytes: map[string][]byte{}}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 	created, err := svc.Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/Drawer.tsx"})
 	require.NoError(t, err)
 	lib.versions["cmp@1.0.0"] = components.ComponentVersion{ComponentID: "cmp", LibraryID: "rcl:Drawer", Version: "1.0.0", ContentSHA256: sha("entry-2"), Files: []components.ComponentVersionFile{{Path: "Drawer.tsx", Content: "export const Drawer = 2;", ContentSHA256: sha("entry-2"), IsEntry: true}, {Path: "focus.ts", Content: "export const focus = 2;", ContentSHA256: sha("focus-2")}}}
@@ -548,7 +549,7 @@ func TestService_ReapplyRefreshesPinnedClosureAndRewritesImports(t *testing.T) {
 		"button@1.0.0": {ComponentID: "button", LibraryID: "rcl:Button", Version: "1.0.0", SourcePath: "components/Button/versions/1.0.0/Button.tsx", ContentSHA256: sha("button"), Files: []components.ComponentVersionFile{{Path: "Button.tsx", Content: "export const Button = () => null;", ContentSHA256: sha("button"), IsEntry: true}}},
 	}}
 	files := &fakeFiles{bytes: map[string][]byte{}}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 	created, err := svc.Apply(context.Background(), adoptions.ApplyInput{ComponentID: "panel", Scenario: "target", AdoptedPath: "ui/src/components/VoiceInputButton.tsx"})
 	require.NoError(t, err)
 
@@ -570,7 +571,7 @@ func TestService_ApplyReplaceExisting_RequiresConfirmationAndReportsImportSites(
 	}, sites: map[string][]string{
 		"target::ui/src/Button.tsx": {"ui/src/Toolbar.tsx", "ui/src/Workspace.tsx"},
 	}}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC)))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC)))
 
 	_, err := svc.Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/Button.tsx", ReplaceExisting: true})
 	var invalid adoptions.ErrInvalidAdoption
@@ -594,7 +595,7 @@ func TestService_ApplyAndReapply_BlockDependencyVerdictsUnlessExplicitlyOverridd
 		},
 	}
 	files := &fakeFiles{bytes: map[string][]byte{}}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
 	svc := adoptions.NewService(repo, lib, files, clk)
 	dependency := &validationDeps{verdict: deps.Verdict{Kind: deps.VerdictBlock}}
 	styles := &validationStyles{}
@@ -630,7 +631,7 @@ func TestService_Apply_BlocksDiscouragedStyleUnlessExplicitlyOverridden(t *testi
 	repo := adoptmocks.NewFakeRepository()
 	lib := &fakeLibrary{byID: map[string]components.Component{"cmp": {ID: "cmp", LibraryID: "rcl:Button", LatestVersion: "1.0.0"}}, body: map[string]string{"cmp": "export function Button() { return <button />; }"}}
 	files := &fakeFiles{bytes: map[string][]byte{}}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC)))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC)))
 	styles := &validationStyles{verdict: components.StyleFitVerdict{Kind: components.StyleFitVerdictWarn, Affinity: components.DesignAffinityDiscouraged}}
 	adoptions.SetValidationGates(svc, &validationDeps{verdict: deps.Verdict{Kind: deps.VerdictOK}}, styles)
 
@@ -662,7 +663,7 @@ func TestService_Reapply_PersistsNewVersionAndSnapshot(t *testing.T) {
 		},
 	}
 	files := &fakeFiles{bytes: map[string][]byte{"target::Button.tsx": []byte(initial)}}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
 
 	svc := adoptions.NewService(repo, lib, files, clk)
 	a, _, err := svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: "adopt-1"})
@@ -701,7 +702,7 @@ func TestService_ReconcileDryRunAndApplyGroupsProvenanceWithoutReporter(t *testi
 		{Scenario: "target", AdoptedPath: "ui/src/components/drawer.tsx", LibraryID: "rcl:Drawer", Version: "1.0.0", AdoptionID: "known-unit", Content: []byte("entry")},
 		{Scenario: "target", AdoptedPath: "ui/src/hooks/useFocusTrap.ts", LibraryID: "rcl:Drawer", Version: "1.0.0", AdoptionID: "known-unit", Content: []byte("hook")},
 	}}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 	reporter := &recordingReporter{}
 	adoptions.SetDriftReporter(svc, reporter, nil)
 	dry, err := svc.Reconcile(context.Background(), adoptions.ReconcileInput{})

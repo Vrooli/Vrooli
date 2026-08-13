@@ -126,9 +126,9 @@ export function VersionsCard({
                 </div>
                 <div className="mt-space-3xs flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-app-muted-foreground">
                   <span data-testid={selectors.versions.itemRecordedAt}>
-                    {t(strings.versions.recordedAt, {
-                      when: v.recordedAt?.seconds
-                        ? new Date(Number(v.recordedAt.seconds) * 1000).toLocaleString()
+                    {t(strings.versions.createdAt, {
+                      when: v.createdAt?.seconds
+                        ? new Date(Number(v.createdAt.seconds) * 1000).toLocaleString()
                         : "",
                     })}
                   </span>

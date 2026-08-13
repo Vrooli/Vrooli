@@ -209,9 +209,9 @@ export function ComponentTestPanel({
   const reportID = search.get("testReport") || "";
   const queryClient = useQueryClient();
   const reports = useQuery({
-    queryKey: ["component-tests", componentId],
-    queryFn: () => listComponentTestReports({ componentId }),
-    enabled: Boolean(componentId),
+    queryKey: ["component-tests", componentId, version],
+    queryFn: () => listComponentTestReports({ componentId, version }),
+    enabled: Boolean(componentId && version),
   });
   const selected = useQuery({
     queryKey: ["component-test-report", reportID],
@@ -221,7 +221,7 @@ export function ComponentTestPanel({
   const run = useMutation({
     mutationFn: () => runComponentTest({ componentId, version, includeClosure: true }),
     onSuccess: () =>
-      void queryClient.invalidateQueries({ queryKey: ["component-tests", componentId] }),
+      void queryClient.invalidateQueries({ queryKey: ["component-tests", componentId, version] }),
   });
   const latest = run.data ?? selected.data ?? reports.data?.[0];
 

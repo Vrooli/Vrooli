@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/internal/deps"
-	"react-component-library/internal/testutil/db"
 )
 
 func newSQLiteRepo(t *testing.T) deps.Repository {

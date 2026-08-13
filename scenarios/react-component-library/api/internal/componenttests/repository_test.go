@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 	internalcomponents "react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
-	"react-component-library/internal/testutil/db"
 )
 
 func TestSQLiteRepositoryPersistsNormalizedReportsNewestFirst(t *testing.T) {
@@ -30,7 +30,7 @@ func TestSQLiteRepositoryPersistsNormalizedReportsNewestFirst(t *testing.T) {
 	require.Equal(t, VerdictFailed, got.Verdict)
 	require.Equal(t, "fix contract", got.Results[0].Remediation)
 	require.Equal(t, newer.Artifacts, got.Artifacts)
-	list, err := repository.List(context.Background(), "button", 10)
+	list, err := repository.List(context.Background(), "button", "", 10)
 	require.NoError(t, err)
 	require.Equal(t, []string{"ctr_new", "ctr_old"}, []string{list[0].ID, list[1].ID})
 }
@@ -42,7 +42,7 @@ func TestSQLiteRepositoryReadsLegacyResultsArray(t *testing.T) {
 		"ctr_legacy", "button", "rcl:Button", "1.0.0", false, "2026-01-01T00:00:00Z", VerdictPassed, `[{"stage":"contract_validation","verdict":"passed"}]`)
 	require.NoError(t, err)
 
-	reports, err := NewSQLiteRepository(database).List(context.Background(), "button", 10)
+	reports, err := NewSQLiteRepository(database).List(context.Background(), "button", "", 10)
 	require.NoError(t, err)
 	require.Len(t, reports, 1)
 	require.Equal(t, StageContract, reports[0].Results[0].Stage)

@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS component_versions (
   content_sha256  TEXT NOT NULL,
   changelog_md    TEXT NOT NULL DEFAULT '',
   indexed_at      TEXT NOT NULL,
+  created_at      TEXT NOT NULL DEFAULT '',
   released_at     TEXT NOT NULL DEFAULT '',
   UNIQUE(component_id, version)
 );
@@ -162,3 +163,18 @@ CREATE TABLE IF NOT EXISTS component_test_reports (
 );
 CREATE INDEX IF NOT EXISTS idx_component_test_reports_component_created
   ON component_test_reports(component_id, created_at DESC);
+
+-- Compact version-scoped test history. Payload rows are bounded, while these
+-- counters preserve the complete verdict history for analytical consumers.
+CREATE TABLE IF NOT EXISTS component_version_test_rollup (
+  library_id TEXT NOT NULL,
+  version TEXT NOT NULL,
+  runs_total INTEGER NOT NULL DEFAULT 0,
+  runs_passed INTEGER NOT NULL DEFAULT 0,
+  runs_failed INTEGER NOT NULL DEFAULT 0,
+  runs_blocked INTEGER NOT NULL DEFAULT 0,
+  first_pass_report_id TEXT NOT NULL DEFAULT '',
+  first_fail_report_id TEXT NOT NULL DEFAULT '',
+  last_run_at TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (library_id, version)
+);

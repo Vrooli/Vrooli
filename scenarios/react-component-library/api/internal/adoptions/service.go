@@ -17,10 +17,11 @@ import (
 	"strings"
 	"time"
 
-	"react-component-library/internal/clock"
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
 	"react-component-library/internal/uimanifest"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -163,7 +164,7 @@ type service struct {
 	repo           Repository
 	library        LibraryReader
 	files          ScenarioFileWriter
-	clock          clock.Clock
+	clock          schedule.Clock
 	reporter       DriftReporter
 	logger         *log.Logger
 	deps           DependencyValidator
@@ -177,7 +178,7 @@ type service struct {
 // when the swarm-manager integration is disabled (e.g. tests that don't
 // exercise drift reporting); a nil reporter is treated as a no-op so
 // the rest of the Refresh path is unaffected.
-func NewService(repo Repository, lib LibraryReader, files ScenarioFileWriter, clk clock.Clock) Service {
+func NewService(repo Repository, lib LibraryReader, files ScenarioFileWriter, clk schedule.Clock) Service {
 	return &service{repo: repo, library: lib, files: files, clock: clk}
 }
 

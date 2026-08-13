@@ -10,19 +10,19 @@ import (
 
 	"github.com/google/uuid"
 
-	"react-component-library/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 const timestampFormat = time.RFC3339Nano
 
 type sqliteRepository struct {
 	db  *sql.DB
-	clk clock.Clock
+	clk schedule.Clock
 }
 
-func NewSQLiteRepository(db *sql.DB, clk clock.Clock) Repository {
+func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &sqliteRepository{db: db, clk: clk}
 }

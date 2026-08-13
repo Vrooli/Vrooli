@@ -9,7 +9,7 @@ const { getCatalogCoverage, listCatalogNextWork } = vi.hoisted(() => ({
 vi.mock("../api/catalog", () => ({ getCatalogCoverage, listCatalogNextWork }));
 
 import { CoveragePage } from "./CoveragePage";
-import { renderWithProviders } from "../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 describe("CoveragePage", () => {
   afterEach(() => cleanup());

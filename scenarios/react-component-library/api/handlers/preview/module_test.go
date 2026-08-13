@@ -17,12 +17,13 @@ import (
 
 	previewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview/preview_v1connect"
 
+	db "github.com/vrooli/api-core/databasetest"
 	componentsH "react-component-library/handlers/components"
 	previewH "react-component-library/handlers/preview"
-	"react-component-library/internal/clock"
 	internalcomponents "react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
-	"react-component-library/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 
 	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
 )
@@ -48,8 +49,8 @@ func setupModule(t *testing.T) (*mux.Router, string) {
 	// Components module first — preview depends on its service surface
 	// but the test wires its own shared service so both modules read
 	// the same on-disk content.
-	componentsModule := componentsH.ModuleWithRoot(d, clock.System{}, root, logger)
-	svc, _ := componentsH.BuildService(d, clock.System{}, root)
+	componentsModule := componentsH.ModuleWithRoot(d, schedule.System(), root, logger)
+	svc, _ := componentsH.BuildService(d, schedule.System(), root)
 	previewModule := previewH.Module(svc, logger)
 
 	r := mux.NewRouter()

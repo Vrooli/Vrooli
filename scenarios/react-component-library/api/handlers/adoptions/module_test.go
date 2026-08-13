@@ -19,12 +19,13 @@ import (
 
 	adoptionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions/adoptions_v1connect"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/handlers/adoptions"
 	internaladoptions "react-component-library/internal/adoptions"
-	"react-component-library/internal/clock"
 	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
-	"react-component-library/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // stubLibrary is the minimal LibraryReader the handler needs for
@@ -91,7 +92,7 @@ func setupModule(t *testing.T) (*mux.Router, string, *stubLibrary) {
 		component: components.Component{ID: "cmp-btn", LibraryID: "rcl:Button", Version: "1.0.0", LatestVersion: "1.0.0"},
 		content:   components.Content{Body: "X", SHA256: sha256OfHandlerTests("X")},
 	}
-	m := adoptions.ModuleWithRoot(d, clock.System{}, lib, root, log.New(io.Discard, "", 0))
+	m := adoptions.ModuleWithRoot(d, schedule.System(), lib, root, log.New(io.Discard, "", 0))
 	r := mux.NewRouter()
 	m.Mount(r)
 	return r, root, lib

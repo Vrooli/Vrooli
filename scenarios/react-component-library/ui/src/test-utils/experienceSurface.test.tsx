@@ -1,5 +1,5 @@
 import { screen } from "@testing-library/react";
-import { renderWithProviders } from "./renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { ExperienceSurface } from "../components/ExperienceSurface/versions/1.0.0/ExperienceSurface";
 
 describe("ExperienceSurface", () => {

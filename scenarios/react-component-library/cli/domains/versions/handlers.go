@@ -16,16 +16,60 @@ import (
 )
 
 type handlers struct {
-	core   *cliapp.ScenarioApp
-	client versionsconnect.VersionsServiceClient
+	core            *cliapp.ScenarioApp
+	client          versionsconnect.VersionsServiceClient
+	lifecycleClient versionsconnect.VersionLifecycleServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
-		core:   core,
-		client: versionsconnect.NewVersionsServiceClient(httpClient, baseURL),
+		core:            core,
+		client:          versionsconnect.NewVersionsServiceClient(httpClient, baseURL),
+		lifecycleClient: versionsconnect.NewVersionLifecycleServiceClient(httpClient, baseURL),
 	}
+}
+
+func (h *handlers) retireCandidates(ctx cliapp.RunContext) error {
+	resp, err := h.lifecycleClient.ListRetireCandidates(context.Background(), connect.NewRequest(&versionsv1.ListRetireCandidatesRequest{ComponentId: ctx.Flag("component-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("list retire candidates", err, nil)
+	}
+	results := make([]string, 0, len(resp.Msg.Candidates))
+	for _, item := range resp.Msg.Candidates {
+		results = append(results, fmt.Sprintf("%s %s@%s status=%s", item.ComponentId, item.LibraryId, item.Version, item.Status))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d retire candidate(s).", len(results))}, ResultsHeading: "Retire candidates", Results: results})
+}
+
+func (h *handlers) progression(ctx cliapp.RunContext) error {
+	resp, err := h.lifecycleClient.ListVersionLedger(context.Background(), connect.NewRequest(&versionsv1.ListVersionLedgerRequest{LibraryId: ctx.Flag("library-id"), Window: ctx.Flag("window")}))
+	if err != nil {
+		return cliapp.WrapAPIError("list version progression", err, nil)
+	}
+	results := make([]string, 0, len(resp.Msg.Rows))
+	for _, row := range resp.Msg.Rows {
+		results = append(results, fmt.Sprintf("%s@%s state=%s gates=%d/%d tests=%d pass=%.2f adopters=%d size=%d LOC", row.LibraryId, row.Version, row.LifecycleState, row.GatePassCount, row.GateFailCount, row.TestRuns, row.TestPassRate, row.AdoptionCurrent, row.LinesOfCode))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d ledger row(s).", len(results))}, ResultsHeading: "Version progression", Results: results})
+}
+
+func (h *handlers) transition(ctx cliapp.RunContext, method string) error {
+	req := &versionsv1.VersionLifecycleRequest{ComponentId: ctx.Positional("component-id"), Version: ctx.Positional("version"), Confirm: ctx.Flag("confirm") != ""}
+	var resp *connect.Response[versionsv1.VersionLifecycleResponse]
+	var err error
+	switch method {
+	case "deprecate":
+		resp, err = h.lifecycleClient.DeprecateVersion(context.Background(), connect.NewRequest(req))
+	case "archive":
+		resp, err = h.lifecycleClient.ArchiveVersion(context.Background(), connect.NewRequest(req))
+	default:
+		resp, err = h.lifecycleClient.RetireVersion(context.Background(), connect.NewRequest(req))
+	}
+	if err != nil {
+		return cliapp.WrapAPIError(method+" version", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("%s %s@%s.", method, req.ComponentId, req.Version)}, ResultsHeading: "Version lifecycle", Results: []string{fmt.Sprintf("%s state=%s", resp.Msg.Version.GetVersion(), resp.Msg.LifecycleState)}})
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
@@ -113,16 +157,16 @@ func formatVersion(v *versionsv1.Version) string {
 	if v == nil {
 		return "(nil)"
 	}
-	recorded := "?"
-	if v.RecordedAt != nil {
-		recorded = v.RecordedAt.AsTime().Format(time.RFC3339)
+	created := "?"
+	if v.CreatedAt != nil {
+		created = v.CreatedAt.AsTime().Format(time.RFC3339)
 	}
 	sha := v.ContentSha256
 	if len(sha) > 12 {
 		sha = sha[:12]
 	}
-	return fmt.Sprintf("%s — v=%s sha=%s recorded=%s changelog=%q",
-		v.Id, v.Version, sha, recorded, v.ChangelogMd)
+	return fmt.Sprintf("%s — v=%s sha=%s first-seen=%s changelog=%q",
+		v.Id, v.Version, sha, created, v.ChangelogMd)
 }
 
 func formatDiffRow(r *versionsv1.DiffRow) string {

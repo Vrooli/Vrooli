@@ -19,6 +19,7 @@ package modules
 import (
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/module"
+	"react-component-library/internal/versionledger"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -88,6 +89,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "preview", File: previewv1.File_react_component_library_v1_preview_preview_proto},
 		{Module: "themes", File: themesv1.File_react_component_library_v1_themes_themes_proto},
 		{Module: "versions", File: versionsv1.File_react_component_library_v1_versions_versions_proto},
+		{Module: "versions-lifecycle", File: versionsv1.File_react_component_library_v1_versions_lifecycle_proto},
 		{Module: "workflows", File: workflowsv1.File_react_component_library_v1_workflows_workflows_proto},
 	}
 }
@@ -103,6 +105,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(catalogcoverage.Schema),
+		apidb.SchemaProviderFunc(versionledger.Schema),
 		apidb.SchemaProviderFunc(adoptionsH.Schema),
 		apidb.SchemaProviderFunc(componentsH.Schema),
 		apidb.SchemaProviderFunc(depsH.Schema),

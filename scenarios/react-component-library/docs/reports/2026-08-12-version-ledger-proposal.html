@@ -1,0 +1,1386 @@
+<title>Catalog Version Ledger</title>
+
+<style>
+  /* ============================================================
+     Palette: react-component-library's own design tokens
+     (scenarios/react-component-library/ui/src/design-tokens.css).
+     :root carries the COMPLETE light set. The two dark blocks
+     redefine tokens only — no component ever declares a colour
+     inside a media or [data-theme] block.
+     ============================================================ */
+  :root {
+    --ground:        #f8fafc;
+    --surface:       #ffffff;
+    --surface-muted: #f1f5f9;
+    --surface-sunk:  #eef2f7;
+    --ink:           #0f172a;
+    --ink-muted:     #475569;
+    --ink-faint:     #64748b;
+    --rule:          #cbd5e1;
+    --rule-subtle:   #e2e8f0;
+
+    --primary:       #2563eb;
+    --primary-soft:  #dbeafe;
+    --accent:        #0891b2;
+    --accent-soft:   #cffafe;
+    --warning:       #d97706;
+    --warning-soft:  #fef3c7;
+    --danger:        #dc2626;
+    --danger-soft:   #fee2e2;
+    --success:       #16a34a;
+    --success-soft:  #dcfce7;
+
+    /* Chart fills — validated as a set against #ffffff and #0f172a */
+    --series-1: #2563eb;
+    --series-2: #0891b2;
+    --series-3: #d97706;
+    --chart-surface: #ffffff;
+    --grid: #e2e8f0;
+
+    --shadow-flat:   0 1px 2px rgb(15 23 42 / 0.04);
+    --shadow-raised: 0 1px 3px rgb(15 23 42 / 0.07), 0 6px 20px -8px rgb(15 23 42 / 0.10);
+
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "JetBrains Mono", "SF Mono", SFMono-Regular,
+                 Menlo, Consolas, monospace;
+
+    --measure: 68ch;
+    --gutter: clamp(1.15rem, 4vw, 3rem);
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:        #020617;
+      --surface:       #0f172a;
+      --surface-muted: #1e293b;
+      --surface-sunk:  #16203a;
+      --ink:           #f8fafc;
+      --ink-muted:     #94a3b8;
+      --ink-faint:     #7f8ea6;
+      --rule:          #334155;
+      --rule-subtle:   #1e293b;
+
+      --primary:       #60a5fa;
+      --primary-soft:  #16294d;
+      --accent:        #22d3ee;
+      --accent-soft:   #0c3844;
+      --warning:       #f59e0b;
+      --warning-soft:  #422006;
+      --danger:        #f87171;
+      --danger-soft:   #431717;
+      --success:       #22c55e;
+      --success-soft:  #052e16;
+
+      --chart-surface: #0f172a;
+      --grid: #263449;
+
+      --shadow-flat:   0 1px 2px rgb(0 0 0 / 0.35);
+      --shadow-raised: 0 1px 3px rgb(0 0 0 / 0.5), 0 8px 24px -10px rgb(0 0 0 / 0.65);
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:        #020617;
+    --surface:       #0f172a;
+    --surface-muted: #1e293b;
+    --surface-sunk:  #16203a;
+    --ink:           #f8fafc;
+    --ink-muted:     #94a3b8;
+    --ink-faint:     #7f8ea6;
+    --rule:          #334155;
+    --rule-subtle:   #1e293b;
+
+    --primary:       #60a5fa;
+    --primary-soft:  #16294d;
+    --accent:        #22d3ee;
+    --accent-soft:   #0c3844;
+    --warning:       #f59e0b;
+    --warning-soft:  #422006;
+    --danger:        #f87171;
+    --danger-soft:   #431717;
+    --success:       #22c55e;
+    --success-soft:  #052e16;
+
+    --chart-surface: #0f172a;
+    --grid: #263449;
+
+    --shadow-flat:   0 1px 2px rgb(0 0 0 / 0.35);
+    --shadow-raised: 0 1px 3px rgb(0 0 0 / 0.5), 0 8px 24px -10px rgb(0 0 0 / 0.65);
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :where(a) { color: var(--primary); text-underline-offset: 0.18em; }
+  :where(a):focus-visible,
+  :where(button):focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  /* ---------- shell ---------- */
+  .shell {
+    max-width: 78rem;
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+    padding-block-end: 5rem;
+  }
+
+  .band { border-block-end: 1px solid var(--rule-subtle); }
+
+  .prose { max-width: var(--measure); }
+  .prose p { margin-block: 0 1rem; color: var(--ink-muted); }
+  .prose p strong { color: var(--ink); font-weight: 600; }
+  .prose > :last-child { margin-block-end: 0; }
+
+  /* ---------- type scale (RCL tailwind.theme.json) ---------- */
+  .display {
+    font-size: clamp(2rem, 5.2vw, 3.15rem);
+    line-height: 1.06;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .title {
+    font-size: clamp(1.45rem, 3vw, 1.9rem);
+    line-height: 1.18;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .heading {
+    font-size: 1.075rem;
+    line-height: 1.35;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .caption {
+    font-size: 0.688rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0;
+  }
+  code, .mono { font-family: var(--font-mono); font-size: 0.855em; }
+  :not(pre) > code {
+    background: var(--surface-muted);
+    border: 1px solid var(--rule-subtle);
+    border-radius: 4px;
+    padding: 0.08em 0.34em;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- masthead ---------- */
+  .masthead { padding-block: clamp(3rem, 8vw, 5rem) clamp(2rem, 5vw, 3rem); }
+  .eyebrow-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin-block-end: 1.4rem;
+  }
+  .sigil {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: var(--ink-faint);
+  }
+  .sigil::before {
+    content: "";
+    inline-size: 0.55rem;
+    block-size: 0.55rem;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+  .masthead .lede {
+    font-size: clamp(1.05rem, 2vw, 1.2rem);
+    line-height: 1.55;
+    color: var(--ink-muted);
+    max-width: 60ch;
+    margin-block: 1.35rem 0;
+  }
+  .masthead .lede strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- measured facts strip ---------- */
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
+    gap: 1px;
+    background: var(--rule-subtle);
+    border: 1px solid var(--rule-subtle);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-block-start: 2.5rem;
+  }
+  .fact {
+    background: var(--surface);
+    padding: 1.05rem 1.15rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .fact-value {
+    font-size: 1.85rem;
+    line-height: 1.05;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .fact-value .unit {
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--ink-faint);
+    margin-inline-start: 0.15rem;
+  }
+  .fact-label { font-size: 0.8rem; line-height: 1.35; color: var(--ink-muted); }
+  .fact[data-tone="danger"]  { box-shadow: inset 3px 0 0 var(--danger); }
+  .fact[data-tone="warning"] { box-shadow: inset 3px 0 0 var(--warning); }
+  .fact[data-tone="accent"]  { box-shadow: inset 3px 0 0 var(--accent); }
+
+  /* ---------- sections ---------- */
+  section.chapter { padding-block: clamp(2.75rem, 6vw, 4.25rem); }
+  .chapter-head { display: flex; flex-direction: column; gap: 0.7rem; margin-block-end: 1.9rem; }
+  .chapter-head .prose { margin-block-start: 0.35rem; }
+
+  /* ---------- figures ---------- */
+  figure { margin: 0; }
+  .figure-block {
+    margin-block: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--rule-subtle);
+    border-radius: 12px;
+    box-shadow: var(--shadow-flat);
+    overflow: hidden;
+  }
+  .figure-scroll { overflow-x: auto; padding: 1.5rem 1.35rem 0.4rem; }
+  .figure-block svg { display: block; max-width: 100%; height: auto; min-width: 30rem; margin-inline: auto; }
+  figcaption {
+    padding: 0.95rem 1.35rem 1.15rem;
+    font-size: 0.855rem;
+    line-height: 1.5;
+    color: var(--ink-muted);
+    border-block-start: 1px solid var(--rule-subtle);
+    background: var(--surface-muted);
+  }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- tables ---------- */
+  .table-wrap {
+    margin-block: 2rem;
+    border: 1px solid var(--rule-subtle);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--surface);
+    box-shadow: var(--shadow-flat);
+  }
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; inline-size: 100%; min-inline-size: 44rem; font-size: 0.875rem; }
+  thead th {
+    text-align: start;
+    font-size: 0.688rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 0.8rem 1rem;
+    background: var(--surface-muted);
+    border-block-end: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  tbody td { padding: 0.72rem 1rem; border-block-end: 1px solid var(--rule-subtle); vertical-align: top; color: var(--ink-muted); }
+  tbody tr:last-child td { border-block-end: 0; }
+  tbody th {
+    text-align: start;
+    font-weight: 600;
+    padding: 0.72rem 1rem;
+    border-block-end: 1px solid var(--rule-subtle);
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  tbody tr:last-child th { border-block-end: 0; }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.32rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.3;
+    padding: 0.16rem 0.48rem;
+    border-radius: 999px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .pill::before { content: ""; inline-size: 0.4rem; block-size: 0.4rem; border-radius: 999px; background: currentColor; flex: none; }
+  .pill[data-tone="yes"]  { color: var(--success); background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+  .pill[data-tone="no"]   { color: var(--danger);  background: var(--danger-soft);  border-color: color-mix(in srgb, var(--danger) 32%, transparent); }
+  .pill[data-tone="part"] { color: var(--warning); background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 32%, transparent); }
+
+  /* ---------- callout ---------- */
+  .callout {
+    margin-block: 1.75rem;
+    padding: 1.05rem 1.25rem;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--rule-subtle);
+    border-inline-start: 3px solid var(--danger);
+    max-width: var(--measure);
+  }
+  .callout[data-tone="note"] { border-inline-start-color: var(--accent); }
+  .callout p { margin: 0; color: var(--ink-muted); font-size: 0.925rem; }
+  .callout p + p { margin-block-start: 0.6rem; }
+  .callout strong { color: var(--ink); font-weight: 600; }
+  .callout .caption { margin-block-end: 0.45rem; }
+
+  /* ---------- proportion meter ---------- */
+  .meter-card {
+    margin-block: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--rule-subtle);
+    border-radius: 12px;
+    padding: 1.35rem;
+    box-shadow: var(--shadow-flat);
+  }
+  .meter-track { display: flex; gap: 2px; margin-block: 1rem 0.9rem; }
+  .meter-seg { block-size: 2.35rem; border-radius: 3px; position: relative; }
+  .meter-seg[data-seg="1"] { background: var(--series-1); }
+  .meter-seg[data-seg="2"] { background: var(--series-2); }
+  .meter-seg[data-seg="3"] { background: var(--series-3); }
+  .meter-key { display: flex; flex-wrap: wrap; gap: 0.4rem 1.6rem; }
+  .meter-key-item { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.845rem; color: var(--ink-muted); }
+  .meter-swatch { inline-size: 0.7rem; block-size: 0.7rem; border-radius: 2px; flex: none; align-self: center; }
+  .meter-swatch[data-seg="1"] { background: var(--series-1); }
+  .meter-swatch[data-seg="2"] { background: var(--series-2); }
+  .meter-swatch[data-seg="3"] { background: var(--series-3); }
+  .meter-key-item b { color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; }
+
+  /* ---------- mockup ---------- */
+  .mock {
+    margin-block: 2rem;
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--surface);
+    box-shadow: var(--shadow-raised);
+  }
+  .mock-chrome {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.6rem 0.9rem;
+    background: var(--surface-muted);
+    border-block-end: 1px solid var(--rule-subtle);
+  }
+  .mock-dot { inline-size: 0.55rem; block-size: 0.55rem; border-radius: 999px; background: var(--rule); flex: none; }
+  .mock-path { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-faint); margin-inline-start: 0.35rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mock-tabs { display: flex; gap: 0.15rem; padding: 0.7rem 0.9rem 0; border-block-end: 1px solid var(--rule-subtle); overflow-x: auto; }
+  .mock-tab {
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.4rem 0.7rem 0.55rem;
+    color: var(--ink-faint);
+    border-block-end: 2px solid transparent;
+    white-space: nowrap;
+  }
+  .mock-tab[data-state="active"] { color: var(--primary); border-block-end-color: var(--primary); font-weight: 600; }
+  .mock-tab .badge {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    background: var(--surface-muted);
+    border: 1px solid var(--rule-subtle);
+    border-radius: 999px;
+    padding: 0 0.3rem;
+    margin-inline-start: 0.3rem;
+    color: var(--ink-faint);
+  }
+  .mock-tab[data-state="new"]::after {
+    content: "new";
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-inline-start: 0.34rem;
+  }
+  .mock-body { padding: 1.15rem 1.1rem 1.3rem; overflow-x: auto; }
+  .mock-note {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+    padding: 0.55rem 0.9rem;
+    background: var(--accent-soft);
+    border-block-start: 1px solid var(--rule-subtle);
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+  }
+  .mock-note b { color: var(--ink); font-weight: 650; }
+
+  /* ---------- phases ---------- */
+  .phases { display: flex; flex-direction: column; gap: 1px; background: var(--rule-subtle); border: 1px solid var(--rule-subtle); border-radius: 12px; overflow: hidden; margin-block: 2rem; }
+  .phase { background: var(--surface); padding: 1.25rem 1.3rem; display: grid; gap: 0.85rem; grid-template-columns: 2.4rem minmax(0, 1fr); }
+  .phase-n {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--primary);
+    background: var(--primary-soft);
+    border-radius: 6px;
+    block-size: 1.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .phase-main { display: flex; flex-direction: column; gap: 0.55rem; min-width: 0; }
+  .phase-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 0.75rem; }
+  .phase-title h3 { margin: 0; font-size: 1rem; font-weight: 650; letter-spacing: -0.01em; color: var(--ink); }
+  .dep {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--ink-faint);
+    border: 1px dashed var(--rule);
+    border-radius: 999px;
+    padding: 0.05rem 0.45rem;
+    white-space: nowrap;
+  }
+  .phase-main > p { margin: 0; font-size: 0.9rem; color: var(--ink-muted); max-width: 62ch; }
+  .phase-work { margin: 0; padding-inline-start: 1.05rem; font-size: 0.875rem; color: var(--ink-muted); display: flex; flex-direction: column; gap: 0.28rem; }
+  .phase-work li::marker { color: var(--rule); }
+  .gate {
+    margin-block-start: 0.2rem;
+    font-size: 0.83rem;
+    color: var(--ink-muted);
+    background: var(--surface-muted);
+    border: 1px solid var(--rule-subtle);
+    border-radius: 8px;
+    padding: 0.55rem 0.75rem;
+  }
+  .gate b { color: var(--success); font-weight: 650; }
+
+  /* ---------- decisions ---------- */
+  .decisions { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); margin-block: 2rem; }
+  .decision { background: var(--surface); border: 1px solid var(--rule-subtle); border-radius: 10px; padding: 1.05rem 1.15rem; display: flex; flex-direction: column; gap: 0.45rem; box-shadow: var(--shadow-flat); }
+  .decision h3 { margin: 0; font-size: 0.94rem; font-weight: 650; color: var(--ink); letter-spacing: -0.01em; }
+  .decision p { margin: 0; font-size: 0.865rem; color: var(--ink-muted); }
+  .decision .rec { font-size: 0.83rem; color: var(--ink); border-block-start: 1px dashed var(--rule); padding-block-start: 0.5rem; margin-block-start: 0.15rem; }
+  .decision .rec b { color: var(--accent); font-weight: 650; }
+
+  /* ---------- code ---------- */
+  pre {
+    margin-block: 1.5rem;
+    background: var(--surface-muted);
+    border: 1px solid var(--rule-subtle);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    font-size: 0.815rem;
+    line-height: 1.65;
+    color: var(--ink);
+  }
+  pre .c { color: var(--ink-faint); }
+  pre .k { color: var(--primary); font-weight: 600; }
+  pre .n { color: var(--accent); }
+
+  footer.colophon { padding-block: 2.25rem; border-block-start: 1px solid var(--rule-subtle); }
+  footer.colophon p { margin: 0; font-size: 0.8rem; color: var(--ink-faint); max-width: var(--measure); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+
+<div class="shell">
+
+  <!-- ============ MASTHEAD ============ -->
+  <header class="masthead band">
+    <div class="eyebrow-row">
+      <span class="sigil">scenarios/react-component-library</span>
+      <span class="caption">Investigation &amp; proposal &middot; 2026-08-12</span>
+    </div>
+    <h1 class="display">A version history that has no history</h1>
+    <p class="lede">
+      Every one of the catalog's <strong>264 versions</strong> is stamped with the same
+      three-second window &mdash; the moment of the last reindex. The evidence that would
+      show progression across versions is either overwritten on every run or piled into a
+      57&nbsp;MB table that nothing can read. This is what's broken, and what the repaired
+      system looks like.
+    </p>
+
+    <div class="facts">
+      <div class="fact" data-tone="danger">
+        <span class="fact-value num">0</span>
+        <span class="fact-label">versions with a real creation date, of 264</span>
+      </div>
+      <div class="fact" data-tone="warning">
+        <span class="fact-value num">32,059</span>
+        <span class="fact-label">test reports stored; newest 30 per asset are readable</span>
+      </div>
+      <div class="fact" data-tone="warning">
+        <span class="fact-value num">57<span class="unit">MB</span></span>
+        <span class="fact-label">of an 84&nbsp;MB database, in one unpruned table</span>
+      </div>
+      <div class="fact" data-tone="accent">
+        <span class="fact-value num">65</span>
+        <span class="fact-label">versions retirable today &mdash; no adopter, no dep pin</span>
+      </div>
+      <div class="fact" data-tone="danger">
+        <span class="fact-value num">0</span>
+        <span class="fact-label">CLI verbs that retire, archive, or delete a version</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ 1. THE MECHANISM ============ -->
+  <section class="chapter band">
+    <div class="chapter-head">
+      <p class="caption">Root cause</p>
+      <h2 class="title">The reindex destroys the timeline</h2>
+      <div class="prose">
+        <p>
+          Git holds the versions; SQLite is a projection rebuilt by <code>components index</code>.
+          The rebuild is a delete-and-reinsert, so every row is restamped with the clock at
+          rebuild time. There is no column that survives it.
+        </p>
+      </div>
+    </div>
+
+    <figure class="figure-block">
+      <div class="figure-scroll">
+        <svg viewBox="0 0 880 340" role="img"
+             aria-label="Today, components index deletes all version rows and reinserts them with the current timestamp, collapsing 264 distinct creation dates into one. The target replaces the delete with an upsert that preserves created_at.">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+            <marker id="ar-d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--danger)"/>
+            </marker>
+            <marker id="ar-p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--primary)"/>
+            </marker>
+          </defs>
+
+          <!-- ROW 1: TODAY -->
+          <text x="0" y="14" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" font-weight="700"
+                fill="var(--danger)" letter-spacing="1.2">TODAY</text>
+
+          <!-- git folders -->
+          <rect x="0" y="30" width="150" height="96" rx="7" fill="none"
+                stroke="currentColor" stroke-width="1.4" opacity="0.55"/>
+          <text x="12" y="50" font-size="11.5" font-weight="600" fill="currentColor">versions/ on disk</text>
+          <text x="12" y="68" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="currentColor" opacity="0.72">0.1.0  ·  Jun</text>
+          <text x="12" y="84" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="currentColor" opacity="0.72">1.1.0  ·  Jul</text>
+          <text x="12" y="100" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="currentColor" opacity="0.72">4.1.0  ·  Aug</text>
+          <text x="12" y="117" font-size="10" fill="currentColor" opacity="0.5">true dates, in git</text>
+
+          <line x1="152" y1="78" x2="205" y2="78" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+          <text x="178" y="70" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.72">index</text>
+
+          <!-- DELETE -->
+          <rect x="207" y="46" width="168" height="64" rx="7" fill="var(--danger-soft)"
+                stroke="var(--danger)" stroke-width="1.6"/>
+          <text x="291" y="72" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11"
+                font-weight="700" fill="var(--danger)">DELETE FROM</text>
+          <text x="291" y="88" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5"
+                fill="var(--danger)">component_versions</text>
+          <text x="291" y="124" text-anchor="middle" font-size="10" fill="var(--danger)">sqlite.go:100 — every row, every run</text>
+
+          <line x1="377" y1="78" x2="430" y2="78" stroke="var(--danger)" stroke-width="1.6" marker-end="url(#ar-d)"/>
+
+          <!-- reinsert -->
+          <rect x="432" y="46" width="160" height="64" rx="7" fill="none"
+                stroke="currentColor" stroke-width="1.4" opacity="0.55"/>
+          <text x="512" y="72" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="currentColor">INSERT …</text>
+          <text x="512" y="88" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="currentColor" opacity="0.8">indexed_at = now()</text>
+
+          <line x1="594" y1="78" x2="647" y2="78" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+
+          <!-- result -->
+          <rect x="649" y="30" width="231" height="96" rx="7" fill="var(--danger-soft)"
+                stroke="var(--danger)" stroke-width="1.6"/>
+          <text x="663" y="50" font-size="11.5" font-weight="600" fill="var(--danger)">264 rows, one timestamp</text>
+          <text x="663" y="70" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="var(--danger)">15:54:48.189Z  ×  264</text>
+          <text x="663" y="88" font-size="10.5" fill="var(--danger)" opacity="0.92">order falls back to random UUID</text>
+          <text x="663" y="105" font-size="10.5" fill="var(--danger)" opacity="0.92">released_at empty on all 264</text>
+
+          <!-- divider -->
+          <line x1="0" y1="168" x2="880" y2="168" stroke="currentColor" stroke-width="1" opacity="0.18" stroke-dasharray="3 4"/>
+
+          <!-- ROW 2: TARGET -->
+          <text x="0" y="204" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" font-weight="700"
+                fill="var(--primary)" letter-spacing="1.2">TARGET</text>
+
+          <rect x="0" y="220" width="150" height="96" rx="7" fill="none"
+                stroke="currentColor" stroke-width="1.4" opacity="0.55"/>
+          <text x="12" y="240" font-size="11.5" font-weight="600" fill="currentColor">versions/ on disk</text>
+          <text x="12" y="258" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="currentColor" opacity="0.72">0.1.0  ·  Jun</text>
+          <text x="12" y="274" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="currentColor" opacity="0.72">1.1.0  ·  Jul</text>
+          <text x="12" y="290" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="currentColor" opacity="0.72">4.1.0  ·  Aug</text>
+          <text x="12" y="307" font-size="10" fill="currentColor" opacity="0.5">backfilled once from git</text>
+
+          <line x1="152" y1="268" x2="205" y2="268" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+          <text x="178" y="260" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.72">index</text>
+
+          <rect x="207" y="236" width="385" height="64" rx="7" fill="var(--primary-soft)"
+                stroke="var(--primary)" stroke-width="1.6"/>
+          <text x="399" y="262" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11"
+                font-weight="700" fill="var(--primary)">INSERT … ON CONFLICT(component_id, version)</text>
+          <text x="399" y="279" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5"
+                fill="var(--primary)">DO UPDATE — created_at untouched</text>
+          <text x="399" y="314" text-anchor="middle" font-size="10" fill="var(--primary)">content refreshes; identity and time survive</text>
+
+          <line x1="594" y1="268" x2="647" y2="268" stroke="var(--primary)" stroke-width="1.6" marker-end="url(#ar-p)"/>
+
+          <rect x="649" y="220" width="231" height="96" rx="7" fill="var(--primary-soft)"
+                stroke="var(--primary)" stroke-width="1.6"/>
+          <text x="663" y="240" font-size="11.5" font-weight="600" fill="var(--primary)">264 distinct creation dates</text>
+          <text x="663" y="260" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="var(--primary)">created_at · released_at</text>
+          <text x="663" y="278" font-size="10.5" fill="var(--primary)" opacity="0.92">ordered by semver comparator</text>
+          <text x="663" y="295" font-size="10.5" fill="var(--primary)" opacity="0.92">every later phase depends on this</text>
+        </svg>
+      </div>
+      <figcaption>
+        <strong>One line causes it.</strong> Replacing the <code>DELETE</code> with an upsert that
+        preserves <code>created_at</code> is the whole fix &mdash; but nothing downstream can be
+        built until it lands, because every trend view needs a real x-axis.
+      </figcaption>
+    </figure>
+
+    <div class="callout">
+      <p class="caption">Measured, not inferred</p>
+      <p>
+        <code>MIN(indexed_at)</code> = <span class="mono num">2026-08-12T15:54:48.189Z</span>,
+        <code>MAX(indexed_at)</code> = <span class="mono num">2026-08-12T15:54:51.279Z</span>
+        across all 264 rows &mdash; a 3.09-second spread. <code>released_at</code> is empty on
+        every one. Because the list sorts by <code>indexed_at DESC, id ASC</code> and the
+        timestamps tie, markdown-renderer's 17 versions return in UUID order:
+        <span class="mono">0.2.2-draft.1, 0.2.0-draft.1, 0.2.2, 0.3.2, 0.1.0&hellip;</span>
+        The UI labels that list &ldquo;newest first.&rdquo;
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 2. EVIDENCE ROUTING ============ -->
+  <section class="chapter band">
+    <div class="chapter-head">
+      <p class="caption">Second failure</p>
+      <h2 class="title">Five signals per version, four dead ends</h2>
+      <div class="prose">
+        <p>
+          Each version already generates real quality evidence. None of it accumulates into
+          something you can plot. Gate verdicts are overwritten in place; test reports pile up
+          faster than they can be read; adoption is stamped per version but never grouped by it.
+        </p>
+      </div>
+    </div>
+
+    <figure class="figure-block">
+      <div class="figure-scroll">
+        <svg viewBox="0 0 880 396" role="img"
+             aria-label="Today five per-version signals route to four dead ends: gate verdicts are overwritten, test reports are write-only beyond the newest thirty, adoption is counted per asset, and promotion readiness is never stored. In the target all five write to one durable version ledger row.">
+          <defs>
+            <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+            <marker id="ar2p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--primary)"/>
+            </marker>
+          </defs>
+
+          <!-- column headers -->
+          <text x="0" y="14" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" font-weight="700"
+                fill="currentColor" opacity="0.65" letter-spacing="1.2">SIGNAL</text>
+          <text x="330" y="14" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" font-weight="700"
+                fill="var(--danger)" letter-spacing="1.2">WHERE IT GOES TODAY</text>
+          <text x="672" y="14" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" font-weight="700"
+                fill="var(--primary)" letter-spacing="1.2">TARGET</text>
+
+          <!-- rows -->
+          <g font-size="11.5">
+            <!-- r1 gate -->
+            <rect x="0" y="30" width="200" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.5"/>
+            <text x="14" y="49" font-weight="600" fill="currentColor">Gate verdicts &times;12</text>
+            <text x="14" y="65" font-size="10" fill="currentColor" opacity="0.62">unit · a11y · visual · rtl · perf…</text>
+            <line x1="202" y1="53" x2="326" y2="53" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar2)" opacity="0.6"/>
+            <text x="264" y="47" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.6">upsert</text>
+            <rect x="328" y="30" width="300" height="46" rx="6" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="1.4"/>
+            <text x="342" y="49" font-weight="600" fill="var(--danger)">Overwritten — previous verdict gone</text>
+            <text x="342" y="65" font-size="10" fill="var(--danger)" opacity="0.85">key is (asset, target, gate) — no version column</text>
+
+            <!-- r2 tests -->
+            <rect x="0" y="86" width="200" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.5"/>
+            <text x="14" y="105" font-weight="600" fill="currentColor">Component test report</text>
+            <text x="14" y="121" font-size="10" fill="currentColor" opacity="0.62">carries root_version</text>
+            <line x1="202" y1="109" x2="326" y2="109" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar2)" opacity="0.6"/>
+            <text x="264" y="103" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.6">insert</text>
+            <rect x="328" y="86" width="300" height="46" rx="6" fill="var(--warning-soft)" stroke="var(--warning)" stroke-width="1.4"/>
+            <text x="342" y="105" font-weight="600" fill="var(--warning)">Write-only past the newest 30</text>
+            <text x="342" y="121" font-size="10" fill="var(--warning)" opacity="0.85">32,059 rows · 57 MB · no retention, no version filter</text>
+
+            <!-- r3 adoption -->
+            <rect x="0" y="142" width="200" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.5"/>
+            <text x="14" y="161" font-weight="600" fill="currentColor">Adoption</text>
+            <text x="14" y="177" font-size="10" fill="currentColor" opacity="0.62">adopted_version stamped</text>
+            <line x1="202" y1="165" x2="326" y2="165" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar2)" opacity="0.6"/>
+            <text x="264" y="159" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.6">count</text>
+            <rect x="328" y="142" width="300" height="46" rx="6" fill="var(--warning-soft)" stroke="var(--warning)" stroke-width="1.4"/>
+            <text x="342" y="161" font-weight="600" fill="var(--warning)">Summed per asset, never per version</text>
+            <text x="342" y="177" font-size="10" fill="var(--warning)" opacity="0.85">the GROUP BY is simply absent from AssetMetrics</text>
+
+            <!-- r4 parity -->
+            <rect x="0" y="198" width="200" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.5"/>
+            <text x="14" y="217" font-weight="600" fill="currentColor">Parity + story contract</text>
+            <text x="14" y="233" font-size="10" fill="currentColor" opacity="0.62">42 of 275 versions</text>
+            <line x1="202" y1="221" x2="326" y2="221" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar2)" opacity="0.6"/>
+            <text x="264" y="215" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.6">replace</text>
+            <rect x="328" y="198" width="300" height="46" rx="6" fill="var(--warning-soft)" stroke="var(--warning)" stroke-width="1.4"/>
+            <text x="342" y="217" font-weight="600" fill="var(--warning)">Current state only</text>
+            <text x="342" y="233" font-size="10" fill="var(--warning)" opacity="0.85">dropped with the row on every reindex</text>
+
+            <!-- r5 promotion -->
+            <rect x="0" y="254" width="200" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.5"/>
+            <text x="14" y="273" font-weight="600" fill="currentColor">Promotion readiness</text>
+            <text x="14" y="289" font-size="10" fill="currentColor" opacity="0.62">version-scoped already</text>
+            <line x1="202" y1="277" x2="326" y2="277" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar2)" opacity="0.6"/>
+            <text x="264" y="271" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.6">compute</text>
+            <rect x="328" y="254" width="300" height="46" rx="6" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="1.4"/>
+            <text x="342" y="273" font-weight="600" fill="var(--danger)">Never persisted</text>
+            <text x="342" y="289" font-size="10" fill="var(--danger)" opacity="0.85">recomputed per request, no trend possible</text>
+          </g>
+
+          <!-- target ledger -->
+          <path d="M 632 53 C 656 53 656 165 670 165" fill="none" stroke="var(--primary)" stroke-width="1.5" opacity="0.75"/>
+          <path d="M 632 109 C 654 109 654 165 670 165" fill="none" stroke="var(--primary)" stroke-width="1.5" opacity="0.75"/>
+          <path d="M 632 165 L 670 165" fill="none" stroke="var(--primary)" stroke-width="1.5" opacity="0.75"/>
+          <path d="M 632 221 C 654 221 654 165 670 165" fill="none" stroke="var(--primary)" stroke-width="1.5" opacity="0.75"/>
+          <path d="M 632 277 C 656 277 656 165 670 165" fill="none" stroke="var(--primary)" stroke-width="1.5" opacity="0.75"/>
+          <line x1="668" y1="165" x2="694" y2="165" stroke="var(--primary)" stroke-width="1.7" marker-end="url(#ar2p)"/>
+
+          <rect x="696" y="98" width="184" height="134" rx="8" fill="var(--primary-soft)" stroke="var(--primary)" stroke-width="1.8"/>
+          <text x="710" y="122" font-size="11.5" font-weight="700" fill="var(--primary)">version_ledger</text>
+          <text x="710" y="140" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9.8" fill="var(--primary)" opacity="0.92">library_id + version  ⟵ key</text>
+          <line x1="710" y1="149" x2="866" y2="149" stroke="var(--primary)" stroke-width="1" opacity="0.35"/>
+          <text x="710" y="165" font-size="10.2" fill="var(--primary)">one row per version, forever</text>
+          <text x="710" y="181" font-size="10.2" fill="var(--primary)">append gate + test outcomes</text>
+          <text x="710" y="197" font-size="10.2" fill="var(--primary)">adoption peak &amp; current</text>
+          <text x="710" y="213" font-size="10.2" fill="var(--primary)">survives folder deletion</text>
+
+          <text x="696" y="252" font-size="10" fill="currentColor" opacity="0.6">keyed by library_id, not</text>
+          <text x="696" y="266" font-size="10" fill="currentColor" opacity="0.6">component_id — reindex-safe</text>
+
+          <!-- footnote -->
+          <line x1="0" y1="330" x2="880" y2="330" stroke="currentColor" stroke-width="1" opacity="0.15" stroke-dasharray="3 4"/>
+          <text x="0" y="352" font-size="10.5" fill="currentColor" opacity="0.68">Neither component_test_reports nor catalog_gate_evidence appears in docs/concepts/DATA.md — the two</text>
+          <text x="0" y="368" font-size="10.5" fill="currentColor" opacity="0.68">fastest-growing tables are absent from the scenario's own ownership map, and cli/manifest.json declares zero measures.</text>
+        </svg>
+      </div>
+      <figcaption>
+        <strong>The ledger is the load-bearing idea.</strong> Keying it on
+        <code>library_id&nbsp;+&nbsp;version</code> rather than <code>component_id</code> is what lets a
+        row outlive both a reindex and the deletion of its version folder &mdash; which is what makes
+        cleanup safe.
+      </figcaption>
+    </figure>
+
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <caption class="caption" style="padding:0.9rem 1rem; text-align:start;">Per-version coverage, as it stands</caption>
+          <thead>
+            <tr>
+              <th scope="col">Signal</th>
+              <th scope="col">Version-scoped</th>
+              <th scope="col">Keeps history</th>
+              <th scope="col">Readable</th>
+              <th scope="col">Where it lives</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Source &amp; companions</th>
+              <td><span class="pill" data-tone="yes">Yes</span></td>
+              <td><span class="pill" data-tone="yes">Yes, in git</span></td>
+              <td><span class="pill" data-tone="yes">Yes</span></td>
+              <td><code>versions/&lt;v&gt;/</code></td>
+            </tr>
+            <tr>
+              <th scope="row">Story contract</th>
+              <td><span class="pill" data-tone="yes">Yes</span></td>
+              <td><span class="pill" data-tone="no">Current only</span></td>
+              <td><span class="pill" data-tone="yes">Yes</span></td>
+              <td><code>component_stories</code></td>
+            </tr>
+            <tr>
+              <th scope="row">Parity report</th>
+              <td><span class="pill" data-tone="yes">Yes</span></td>
+              <td><span class="pill" data-tone="no">Current only</span></td>
+              <td><span class="pill" data-tone="part">Via readiness</span></td>
+              <td><code>…_parity_reports</code> · 42 of 275</td>
+            </tr>
+            <tr>
+              <th scope="row">Dep declarations</th>
+              <td><span class="pill" data-tone="yes">Yes</span></td>
+              <td><span class="pill" data-tone="no">Current only</span></td>
+              <td><span class="pill" data-tone="part">Validation only</span></td>
+              <td><code>component_dep_declarations</code></td>
+            </tr>
+            <tr>
+              <th scope="row">Component test reports</th>
+              <td><span class="pill" data-tone="yes">Yes</span></td>
+              <td><span class="pill" data-tone="part">Hoarded, unpruned</span></td>
+              <td><span class="pill" data-tone="no">Newest 30</span></td>
+              <td><code>component_test_reports</code> · 32,059</td>
+            </tr>
+            <tr>
+              <th scope="row">Catalog gate evidence</th>
+              <td><span class="pill" data-tone="no">No</span></td>
+              <td><span class="pill" data-tone="no">No</span></td>
+              <td><span class="pill" data-tone="part">Current verdict</span></td>
+              <td><code>catalog_gate_evidence</code> · 955</td>
+            </tr>
+            <tr>
+              <th scope="row">Adoption counts</th>
+              <td><span class="pill" data-tone="part">Data yes, rollup no</span></td>
+              <td><span class="pill" data-tone="no">No</span></td>
+              <td><span class="pill" data-tone="part">Row by row</span></td>
+              <td><code>adoption_records.adopted_version</code></td>
+            </tr>
+            <tr>
+              <th scope="row">Promotion readiness</th>
+              <td><span class="pill" data-tone="yes">Yes</span></td>
+              <td><span class="pill" data-tone="no">Not stored</span></td>
+              <td><span class="pill" data-tone="part">On demand</span></td>
+              <td>Computed per request</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. GROWTH ============ -->
+  <section class="chapter band">
+    <div class="chapter-head">
+      <p class="caption">What is actually growing</p>
+      <h2 class="title">Not the versions &mdash; the evidence about them</h2>
+      <div class="prose">
+        <p>
+          The entire <code>library/</code> tree &mdash; 192 manifests and 275 version folders
+          &mdash; totals 8.1&nbsp;MB, and their indexed content is 2&nbsp;MB of the database. The
+          instinct that the scenario grows because we keep adding versions is understandable but
+          wrong. Growth comes from
+          <code>ValidateScenario</code>, which runs all ~180 assets on every test-genie
+          <code>component-tests</code> phase and persists one report row each.
+        </p>
+      </div>
+    </div>
+
+    <figure class="figure-block">
+      <div class="figure-scroll">
+        <svg viewBox="0 0 880 268" role="img"
+             aria-label="Daily component test report inserts from 1 to 12 August 2026, ranging from 83 to 6,443 per day, with no retention policy. Total 32,059 rows and 57 megabytes in 26 days.">
+          <!-- gridlines — on the same scale as the bars: y = 210 - v/6443*180 -->
+          <g stroke="var(--grid)" stroke-width="1">
+            <line x1="46" y1="42.4"  x2="874" y2="42.4"/>
+            <line x1="46" y1="98.3"  x2="874" y2="98.3"/>
+            <line x1="46" y1="154.1" x2="874" y2="154.1"/>
+          </g>
+          <g font-size="10" fill="currentColor" opacity="0.55" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace">
+            <text x="38" y="45.9">6k</text>
+            <text x="38" y="101.8">4k</text>
+            <text x="38" y="157.6">2k</text>
+            <text x="38" y="213.5">0</text>
+          </g>
+          <!-- baseline -->
+          <line x1="46" y1="210" x2="874" y2="210" stroke="currentColor" stroke-width="1.4" opacity="0.45"/>
+
+          <!-- bars: scale 6443 -> 165px tall from y=210 baseline; y=210-(v/6443*180) -->
+          <g fill="var(--series-3)">
+            <rect x="56"  y="207.7" width="52" height="2.3" rx="2"/>
+            <rect x="124" y="202.4" width="52" height="7.6" rx="2"/>
+            <rect x="192" y="140.8" width="52" height="69.2" rx="4"/>
+            <rect x="260" y="180.8" width="52" height="29.2" rx="4"/>
+            <rect x="328" y="176.7" width="52" height="33.3" rx="4"/>
+            <rect x="396" y="40.9"  width="52" height="169.1" rx="4"/>
+            <rect x="464" y="182.5" width="52" height="27.5" rx="4"/>
+            <rect x="532" y="196.6" width="52" height="13.4" rx="4"/>
+            <rect x="600" y="196.1" width="52" height="13.9" rx="4"/>
+            <rect x="668" y="180.7" width="52" height="29.3" rx="4"/>
+            <rect x="736" y="199.6" width="52" height="10.4" rx="4"/>
+            <rect x="804" y="30"    width="52" height="180" rx="4"/>
+          </g>
+
+          <!-- direct labels on the two spikes -->
+          <text x="422" y="33" text-anchor="middle" font-size="11" font-weight="700"
+                font-family="ui-monospace, Menlo, Consolas, monospace" fill="var(--ink)">6,052</text>
+          <text x="830" y="22" text-anchor="middle" font-size="11" font-weight="700"
+                font-family="ui-monospace, Menlo, Consolas, monospace" fill="var(--ink)">6,443</text>
+
+          <!-- x labels -->
+          <g font-size="10" fill="currentColor" opacity="0.6" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">
+            <text x="82"  y="226">01</text>
+            <text x="150" y="226">02</text>
+            <text x="218" y="226">03</text>
+            <text x="286" y="226">04</text>
+            <text x="354" y="226">05</text>
+            <text x="422" y="226">06</text>
+            <text x="490" y="226">07</text>
+            <text x="558" y="226">08</text>
+            <text x="626" y="226">09</text>
+            <text x="694" y="226">10</text>
+            <text x="762" y="226">11</text>
+            <text x="830" y="226">12</text>
+          </g>
+          <text x="46" y="248" font-size="10.5" fill="currentColor" opacity="0.6">August 2026 · reports inserted per day</text>
+          <text x="874" y="248" text-anchor="end" font-size="10.5" fill="currentColor" opacity="0.6">no retention code exists in the API</text>
+        </svg>
+      </div>
+      <figcaption>
+        <strong>26 days of accumulation, zero eviction.</strong> Reads are capped at 30 rows per
+        asset (<code>componenttests/repository.go:45</code>) against roughly 177 stored per asset,
+        so about 83&nbsp;% of those 57&nbsp;MB can never be retrieved, trended, or deleted through
+        any surface.
+      </figcaption>
+    </figure>
+
+    <div class="meter-card">
+      <p class="caption">Retirement pressure &mdash; 264 indexed versions</p>
+      <div class="meter-track" role="img"
+           aria-label="Of 264 versions: 181 are the pinned latest, 18 are older but still referenced, and 65 are retirable with no adopter and no dependency pin.">
+        <div class="meter-seg" data-seg="1" style="flex: 181;"></div>
+        <div class="meter-seg" data-seg="2" style="flex: 18;"></div>
+        <div class="meter-seg" data-seg="3" style="flex: 65;"></div>
+      </div>
+      <div class="meter-key">
+        <span class="meter-key-item"><span class="meter-swatch" data-seg="1"></span><b class="num">181</b> pinned as <code>latest</code></span>
+        <span class="meter-key-item"><span class="meter-swatch" data-seg="2"></span><b class="num">18</b> older, still referenced</span>
+        <span class="meter-key-item"><span class="meter-swatch" data-seg="3"></span><b class="num">65</b> retirable &mdash; no adopter, no dep pin, no provenance</span>
+      </div>
+    </div>
+
+    <div class="prose">
+      <p>
+        That 65 is computable today in one query. What's missing is any command that runs it and
+        anything that would let you retire the result safely. There is no
+        <code>versions delete</code>, <code>prune</code>, or <code>archive</code> verb;
+        <code>deprecatedVersions[]</code> is honoured by the indexer but sits empty in all 192
+        manifests; and <code>.vrooli/service.json</code> declares <code>data/</code> as
+        <code>regenerable: false</code> with a rationale that explicitly forbids automatic
+        deletion &mdash; so storage-manager's cleanup is locked out by design and nothing replaced it.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 4. TARGET STATE ============ -->
+  <section class="chapter band">
+    <div class="chapter-head">
+      <p class="caption">Target end state</p>
+      <h2 class="title">Versions become deletable because the record doesn't live in them</h2>
+      <div class="prose">
+        <p>
+          The goal isn't to keep every version forever &mdash; it's to make retiring one cost
+          nothing. A ledger row keyed on <code>library_id&nbsp;+&nbsp;version</code> holds the
+          measurements; the folder holds the code. Delete the folder, keep the data point.
+        </p>
+      </div>
+    </div>
+
+    <figure class="figure-block">
+      <div class="figure-scroll">
+        <svg viewBox="0 0 880 300" role="img"
+             aria-label="A version moves through draft, released, superseded, deprecated, archived, and folder deleted. The source folder exists only through the archived stage, while the ledger row persists across all six stages including after deletion.">
+          <defs>
+            <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <text x="0" y="16" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" font-weight="700"
+                fill="currentColor" opacity="0.62" letter-spacing="1.2">LIFECYCLE</text>
+
+          <!-- stage boxes -->
+          <g font-size="11">
+            <rect x="0" y="34" width="128" height="42" rx="6" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.55"/>
+            <text x="64" y="52" text-anchor="middle" font-weight="600" fill="currentColor">draft</text>
+            <text x="64" y="67" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.6">exists today</text>
+
+            <rect x="150" y="34" width="128" height="42" rx="6" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.55"/>
+            <text x="214" y="52" text-anchor="middle" font-weight="600" fill="currentColor">released</text>
+            <text x="214" y="67" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.6">exists today</text>
+
+            <rect x="300" y="34" width="128" height="42" rx="6" fill="var(--primary-soft)" stroke="var(--primary)" stroke-width="1.5"/>
+            <text x="364" y="52" text-anchor="middle" font-weight="600" fill="var(--primary)">superseded</text>
+            <text x="364" y="67" text-anchor="middle" font-size="9.5" fill="var(--primary)" opacity="0.85">new — derived</text>
+
+            <rect x="450" y="34" width="128" height="42" rx="6" fill="none" stroke="var(--warning)" stroke-width="1.5"/>
+            <text x="514" y="52" text-anchor="middle" font-weight="600" fill="var(--warning)">deprecated</text>
+            <text x="514" y="67" text-anchor="middle" font-size="9.5" fill="var(--warning)" opacity="0.85">declared, never used</text>
+
+            <rect x="600" y="34" width="128" height="42" rx="6" fill="var(--primary-soft)" stroke="var(--primary)" stroke-width="1.5"/>
+            <text x="664" y="52" text-anchor="middle" font-weight="600" fill="var(--primary)">archived</text>
+            <text x="664" y="67" text-anchor="middle" font-size="9.5" fill="var(--primary)" opacity="0.85">enum exists, unreachable</text>
+
+            <rect x="750" y="34" width="130" height="42" rx="6" fill="none" stroke="var(--danger)" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <text x="815" y="52" text-anchor="middle" font-weight="600" fill="var(--danger)">folder deleted</text>
+            <text x="815" y="67" text-anchor="middle" font-size="9.5" fill="var(--danger)" opacity="0.85">new — no verb today</text>
+          </g>
+
+          <g stroke="currentColor" stroke-width="1.3" opacity="0.5">
+            <line x1="130" y1="55" x2="146" y2="55" marker-end="url(#ar3)"/>
+            <line x1="280" y1="55" x2="296" y2="55" marker-end="url(#ar3)"/>
+            <line x1="430" y1="55" x2="446" y2="55" marker-end="url(#ar3)"/>
+            <line x1="580" y1="55" x2="596" y2="55" marker-end="url(#ar3)"/>
+            <line x1="730" y1="55" x2="746" y2="55" marker-end="url(#ar3)"/>
+          </g>
+
+          <!-- source folder lifespan -->
+          <text x="0" y="122" font-size="10.5" font-weight="600" fill="currentColor" opacity="0.75">Source folder</text>
+          <rect x="0" y="132" width="728" height="26" rx="5" fill="currentColor" opacity="0.1"/>
+          <rect x="0" y="132" width="728" height="26" rx="5" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.45"/>
+          <text x="364" y="149" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.8">versions/&lt;v&gt;/ — code, story.json, parity.json</text>
+          <line x1="728" y1="126" x2="728" y2="166" stroke="var(--danger)" stroke-width="2"/>
+          <text x="742" y="149" font-size="10.5" font-weight="600" fill="var(--danger)">reclaimed</text>
+
+          <!-- ledger lifespan -->
+          <text x="0" y="196" font-size="10.5" font-weight="600" fill="var(--primary)">Ledger row</text>
+          <rect x="0" y="206" width="880" height="34" rx="6" fill="var(--primary-soft)" stroke="var(--primary)" stroke-width="1.7"/>
+          <text x="16" y="227" font-size="11" font-weight="600" fill="var(--primary)">version_ledger (library_id, version)</text>
+          <text x="864" y="227" text-anchor="end" font-size="10.5" fill="var(--primary)">persists indefinitely</text>
+          <line x1="300" y1="206" x2="300" y2="240" stroke="var(--primary)" stroke-width="1" opacity="0.3" stroke-dasharray="3 3"/>
+          <line x1="600" y1="206" x2="600" y2="240" stroke="var(--primary)" stroke-width="1" opacity="0.3" stroke-dasharray="3 3"/>
+
+          <text x="0" y="266" font-size="10.5" fill="currentColor" opacity="0.68">created_at · released_at · retired_at · gate verdicts · test pass rate · peak adoption · LOC · file count · dep count</text>
+          <text x="0" y="286" font-size="10.5" fill="currentColor" opacity="0.68">The progression chart reads this table, so a retired version stays on the x-axis after its code is gone.</text>
+        </svg>
+      </div>
+      <figcaption>
+        <strong>Two of the six stages already have names in the code.</strong>
+        <code>VersionStatusArchived</code> is declared in <code>types.go:111</code> and mapped in the
+        proto adapter but the indexer never assigns it &mdash; the rung exists and is unreachable.
+        <code>deprecated</code> is reachable but unused across all 192 manifests.
+      </figcaption>
+    </figure>
+
+    <pre><span class="c">-- The one new table. Everything else in the plan feeds or reads it.</span>
+<span class="k">CREATE TABLE</span> version_ledger (
+  library_id        <span class="n">TEXT</span>    <span class="k">NOT NULL</span>,   <span class="c">-- survives component_id reassignment</span>
+  version           <span class="n">TEXT</span>    <span class="k">NOT NULL</span>,
+  created_at        <span class="n">TEXT</span>    <span class="k">NOT NULL</span>,   <span class="c">-- backfilled from git, never restamped</span>
+  released_at       <span class="n">TEXT</span>    <span class="k">NOT NULL DEFAULT</span> '',
+  retired_at        <span class="n">TEXT</span>    <span class="k">NOT NULL DEFAULT</span> '',   <span class="c">-- set when the folder is reclaimed</span>
+  lifecycle         <span class="n">TEXT</span>    <span class="k">NOT NULL</span>,   <span class="c">-- draft|released|superseded|deprecated|archived|retired</span>
+  gate_pass         <span class="n">INTEGER</span> <span class="k">NOT NULL DEFAULT</span> 0,
+  gate_fail         <span class="n">INTEGER</span> <span class="k">NOT NULL DEFAULT</span> 0,
+  test_runs         <span class="n">INTEGER</span> <span class="k">NOT NULL DEFAULT</span> 0,
+  test_pass_rate    <span class="n">REAL</span>    <span class="k">NOT NULL DEFAULT</span> 0,
+  adoption_peak     <span class="n">INTEGER</span> <span class="k">NOT NULL DEFAULT</span> 0,
+  adoption_current  <span class="n">INTEGER</span> <span class="k">NOT NULL DEFAULT</span> 0,
+  file_count        <span class="n">INTEGER</span> <span class="k">NOT NULL DEFAULT</span> 0,
+  loc               <span class="n">INTEGER</span> <span class="k">NOT NULL DEFAULT</span> 0,
+  dep_count         <span class="n">INTEGER</span> <span class="k">NOT NULL DEFAULT</span> 0,
+  <span class="k">PRIMARY KEY</span> (library_id, version)
+);</pre>
+
+    <div class="mock">
+      <div class="mock-chrome">
+        <span class="mock-dot"></span><span class="mock-dot"></span><span class="mock-dot"></span>
+        <span class="mock-path">/assets/data-display.data-table</span>
+      </div>
+      <div class="mock-tabs">
+        <span class="mock-tab">Preview</span>
+        <span class="mock-tab">Overview</span>
+        <span class="mock-tab">Files</span>
+        <span class="mock-tab">Tests</span>
+        <span class="mock-tab" data-state="active">Progression</span>
+        <span class="mock-tab">Versions<span class="badge">6</span></span>
+        <span class="mock-tab">Adoptions<span class="badge">6</span></span>
+      </div>
+      <div class="mock-body">
+        <svg viewBox="0 0 820 250" role="img" style="display:block;max-width:100%;height:auto;min-width:34rem;"
+             aria-label="Mock of the proposed Progression tab: a chart tracking gate failures, adoption count, and lines of code across six versions of DataTable, with two retired versions still plotted.">
+          <!-- axis -->
+          <line x1="44" y1="14" x2="44" y2="164" stroke="var(--grid)" stroke-width="1"/>
+          <g stroke="var(--grid)" stroke-width="1">
+            <line x1="44" y1="14"  x2="800" y2="14"/>
+            <line x1="44" y1="64"  x2="800" y2="64"/>
+            <line x1="44" y1="114" x2="800" y2="114"/>
+          </g>
+          <line x1="44" y1="164" x2="800" y2="164" stroke="currentColor" stroke-width="1.3" opacity="0.45"/>
+
+          <!-- retired band -->
+          <rect x="52" y="14" width="230" height="150" fill="currentColor" opacity="0.045"/>
+          <text x="60" y="28" font-size="9.5" font-family="ui-monospace, Menlo, Consolas, monospace" fill="currentColor" opacity="0.55">retired — folder reclaimed</text>
+
+          <!-- gate failures (series 3, amber) -->
+          <polyline points="100,44 226,64 352,94 478,134 604,154 730,154"
+                    fill="none" stroke="var(--series-3)" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+          <g fill="var(--series-3)" stroke="var(--chart-surface)" stroke-width="2">
+            <circle cx="100" cy="44"  r="4.5"/><circle cx="226" cy="64"  r="4.5"/>
+            <circle cx="352" cy="94"  r="4.5"/><circle cx="478" cy="134" r="4.5"/>
+            <circle cx="604" cy="154" r="4.5"/><circle cx="730" cy="154" r="4.5"/>
+          </g>
+          <text x="748" y="152" font-size="10" font-weight="600" fill="var(--series-3)">gate failures</text>
+
+          <!-- adoption (series 1, blue) -->
+          <polyline points="100,158 226,150 352,132 478,110 604,86 730,74"
+                    fill="none" stroke="var(--series-1)" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+          <g fill="var(--series-1)" stroke="var(--chart-surface)" stroke-width="2">
+            <circle cx="100" cy="158" r="4.5"/><circle cx="226" cy="150" r="4.5"/>
+            <circle cx="352" cy="132" r="4.5"/><circle cx="478" cy="110" r="4.5"/>
+            <circle cx="604" cy="86"  r="4.5"/><circle cx="730" cy="74"  r="4.5"/>
+          </g>
+          <text x="748" y="72" font-size="10" font-weight="600" fill="var(--series-1)">adopters</text>
+
+          <!-- LOC (series 2, cyan) -->
+          <polyline points="100,120 226,112 352,100 478,104 604,96 730,92"
+                    fill="none" stroke="var(--series-2)" stroke-width="2"
+                    stroke-dasharray="5 3" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="748" y="98" font-size="10" font-weight="600" fill="var(--series-2)">LOC ÷ 10</text>
+
+          <!-- x labels -->
+          <g font-size="10" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle" fill="currentColor" opacity="0.65">
+            <text x="100" y="182">1.0.0</text>
+            <text x="226" y="182">1.0.1</text>
+            <text x="352" y="182">1.1.0</text>
+            <text x="478" y="182">1.2.0</text>
+            <text x="604" y="182">1.3.0</text>
+            <text x="730" y="182">1.4.0</text>
+          </g>
+          <g font-size="9" text-anchor="middle" fill="currentColor" opacity="0.45">
+            <text x="100" y="196">Jun 04</text>
+            <text x="226" y="196">Jun 21</text>
+            <text x="352" y="196">Jul 09</text>
+            <text x="478" y="196">Jul 28</text>
+            <text x="604" y="196">Aug 05</text>
+            <text x="730" y="196">Aug 11</text>
+          </g>
+
+          <!-- y labels -->
+          <g font-size="9.5" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="end" fill="currentColor" opacity="0.5">
+            <text x="36" y="18">12</text>
+            <text x="36" y="68">8</text>
+            <text x="36" y="118">4</text>
+            <text x="36" y="168">0</text>
+          </g>
+
+          <!-- retire strip -->
+          <rect x="44" y="212" width="756" height="30" rx="6" fill="var(--warning-soft)" stroke="var(--warning)" stroke-width="1.3"/>
+          <text x="58" y="231" font-size="11" font-weight="600" fill="var(--warning)">2 versions retirable</text>
+          <text x="196" y="231" font-size="10.5" fill="var(--warning)" opacity="0.9">1.1.0 and 1.2.0 — no adopter, no dep pin. Retiring keeps both points on this chart.</text>
+          <rect x="668" y="218" width="118" height="18" rx="4" fill="var(--warning)"/>
+          <text x="727" y="231" text-anchor="middle" font-size="10" font-weight="700" fill="var(--chart-surface)">Review candidates</text>
+        </svg>
+      </div>
+      <div class="mock-note">
+        <b>Mockup.</b>
+        <span>Proposed <em>Progression</em> tab, sitting beside Tests rather than replacing it. Values shown are illustrative &mdash; the measured figures in this document are all in the sections above.</span>
+      </div>
+    </div>
+
+    <div class="callout" data-tone="note">
+      <p class="caption">On &ldquo;Tests&rdquo; vs &ldquo;Stats&rdquo;</p>
+      <p>
+        In addition to, not instead of. The Tests tab is a run-and-inspect workflow with real
+        product value &mdash; the <code>measures-adoption</code> skill is explicit that you don't
+        gut an operator surface to clear a maturity rung. What's missing is a sibling view that
+        reads the ledger and plots change across versions, including versions whose code no longer
+        exists.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 5. PLAN ============ -->
+  <section class="chapter band">
+    <div class="chapter-head">
+      <p class="caption">Execution</p>
+      <h2 class="title">Six phases, one hard dependency</h2>
+      <div class="prose">
+        <p>
+          Numbered because the order is real, not decorative: nothing downstream of phase&nbsp;1
+          can be validated without a truthful timeline. Phases 2 and 3 then run in parallel.
+          Each phase carries the check that proves it landed.
+        </p>
+      </div>
+    </div>
+
+    <div class="phases">
+      <article class="phase">
+        <span class="phase-n">1</span>
+        <div class="phase-main">
+          <div class="phase-title">
+            <h3>Version identity and time</h3>
+            <span class="dep">blocks 2–6</span>
+          </div>
+          <p>Give versions a creation date that survives the reindex, and an order that means something.</p>
+          <ul class="phase-work">
+            <li>Add <code>created_at</code>; replace the <code>DELETE</code>+reinsert at <code>components/sqlite.go:100</code> with <code>ON CONFLICT DO UPDATE</code> preserving it</li>
+            <li>Populate <code>released_at</code> when a version becomes <code>latest</code></li>
+            <li>Add a semver comparator; order lists by it instead of <code>indexed_at DESC, id ASC</code></li>
+            <li>One-shot backfill of all 264 rows from git history</li>
+            <li>Decide the second-writer question: <code>versions.Record</code> plain-<code>INSERT</code>s into a table with <code>UNIQUE(component_id, version)</code>, so a content edit without a <code>@version</code> bump throws and is swallowed</li>
+          </ul>
+          <p class="gate"><b>Proves it:</b> 264 rows with distinct, git-correct <code>created_at</code>; markdown-renderer's 17 versions return in semver order; a reindex leaves both unchanged.</p>
+        </div>
+      </article>
+
+      <article class="phase">
+        <span class="phase-n">2</span>
+        <div class="phase-main">
+          <div class="phase-title">
+            <h3>Version-scoped gate evidence</h3>
+            <span class="dep">after 1 · parallel with 3</span>
+          </div>
+          <p>Stop overwriting the only signal that answers &ldquo;are issues increasing or decreasing?&rdquo;</p>
+          <ul class="phase-work">
+            <li>Re-key <code>catalog_gate_evidence</code> to <code>(asset_id, target, gate, version)</code>; append instead of upsert</li>
+            <li>Retain generously &mdash; 955 rows per sweep across 12 gates is cheap</li>
+            <li>Keep <code>source_revision</code> so a re-run at the same version is distinguishable from a new one</li>
+          </ul>
+          <p class="gate"><b>Proves it:</b> two gate sweeps at different versions leave two rows, not one; the earlier verdict is still queryable.</p>
+        </div>
+      </article>
+
+      <article class="phase">
+        <span class="phase-n">3</span>
+        <div class="phase-main">
+          <div class="phase-title">
+            <h3>Test-report retention and rollup</h3>
+            <span class="dep">after 1 · parallel with 2</span>
+          </div>
+          <p>Convert 57&nbsp;MB of unreadable blobs into a bounded table plus a durable summary.</p>
+          <ul class="phase-work">
+            <li>Retain newest <em>N</em> per <code>(component_id, root_version)</code>, plus the first pass and first failure per version</li>
+            <li>Roll evicted rows into per-version counters before deleting them &mdash; no verdict is lost, only its payload</li>
+            <li>Add a <code>version</code> filter to <code>ListComponentTestReportsRequest</code> so the Tests tab stops mixing versions in one history list</li>
+            <li>Add both tables to <code>docs/concepts/DATA.md</code>; neither is in the ownership map today</li>
+          </ul>
+          <p class="gate"><b>Proves it:</b> table stays bounded across ten validation runs; pass/fail totals computed pre- and post-eviction match exactly.</p>
+        </div>
+      </article>
+
+      <article class="phase">
+        <span class="phase-n">4</span>
+        <div class="phase-main">
+          <div class="phase-title">
+            <h3>The version ledger</h3>
+            <span class="dep">after 2 + 3</span>
+          </div>
+          <p>One durable row per version that outlives both the reindex and the folder.</p>
+          <ul class="phase-work">
+            <li>Create <code>version_ledger</code> keyed on <code>library_id + version</code></li>
+            <li>Project into it from gate evidence, test rollups, adoption, parity, and the manifest</li>
+            <li>Make projection replayable so the ledger can be rebuilt from retained facts</li>
+          </ul>
+          <p class="gate"><b>Proves it:</b> delete a version folder, reindex, and every ledger field for that version still reads back &mdash; the acceptance test for cleanup-without-loss.</p>
+        </div>
+      </article>
+
+      <article class="phase">
+        <span class="phase-n">5</span>
+        <div class="phase-main">
+          <div class="phase-title">
+            <h3>Adoption rollup and retirement verbs</h3>
+            <span class="dep">after 4</span>
+          </div>
+          <p>Make the 65 visible, then make them safe to act on.</p>
+          <ul class="phase-work">
+            <li><code>GROUP BY adopted_version</code> on <code>AssetMetrics</code>; expose per-version adoption on the wire</li>
+            <li><code>versions retire-candidates</code> &mdash; ship the orphan query as a command</li>
+            <li>Lifecycle verbs: <code>deprecate</code>, <code>archive</code>, <code>retire</code>; wire the unreachable <code>VersionStatusArchived</code> rung</li>
+            <li>Revisit the <code>regenerable: false</code> declaration in <code>.vrooli/service.json</code> now that eviction is safe</li>
+          </ul>
+          <p class="gate"><b>Proves it:</b> the command surfaces 65 candidates; retiring one reclaims the folder, sets <code>retired_at</code>, and leaves the chart intact.</p>
+        </div>
+      </article>
+
+      <article class="phase">
+        <span class="phase-n">6</span>
+        <div class="phase-main">
+          <div class="phase-title">
+            <h3>Measures and the Progression surface</h3>
+            <span class="dep">after 4 + 5</span>
+          </div>
+          <p>Only now is there a substrate worth declaring measures over.</p>
+          <ul class="phase-work">
+            <li>Declare <code>catalog.version_count</code>, <code>catalog.retirable_versions</code>, <code>adoption.by_version</code>, <code>quality.gate_pass_rate</code> &mdash; questions the scenario already owns</li>
+            <li>Clear the four <code>measures.undeclared-substrate</code> warnings; <code>cli/manifest.json</code> has zero <code>measure</code> blocks today</li>
+            <li>Ship the Progression tab reading the ledger, retired versions included</li>
+            <li>Consider the <code>v1/domain/</code> move that retires the <code>measures.domains[]</code> fallback advisory</li>
+          </ul>
+          <p class="gate"><b>Proves it:</b> <code>measures-health validate scenario react-component-library</code> reports provider maturity unblocked with no new waivers.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============ 6. DECISIONS ============ -->
+  <section class="chapter band">
+    <div class="chapter-head">
+      <p class="caption">Before phase 1</p>
+      <h2 class="title">Four calls I'd like you to make</h2>
+      <div class="prose">
+        <p>Each changes the shape of the work rather than its size. My recommendation is on each card; none of them blocks starting phase 1.</p>
+      </div>
+    </div>
+
+    <div class="decisions">
+      <article class="decision">
+        <h3>Backfill source for <code>created_at</code></h3>
+        <p>Git history gives true dates but costs a walk over 275 folders. File mtime is instant and wrong.</p>
+        <p class="rec"><b>Recommend:</b> git, once, offline. It's a one-shot cost for a column read forever.</p>
+      </article>
+      <article class="decision">
+        <h3>Retention depth <em>N</em></h3>
+        <p>Keeping 10 reports per version puts the table near 2,600 rows. Keeping 3 puts it near 800.</p>
+        <p class="rec"><b>Recommend:</b> 5, plus first-pass and first-failure pinned. Bounded, and keeps enough to spot flake.</p>
+      </article>
+      <article class="decision">
+        <h3>Who owns retirement</h3>
+        <p>An RCL-local verb, or a policy registered with storage-manager whose cleanup is currently locked out by <code>regenerable: false</code>.</p>
+        <p class="rec"><b>Recommend:</b> RCL-local. It needs catalog semantics — adopters and dep pins — that a generic file sweeper can't see.</p>
+      </article>
+      <article class="decision">
+        <h3>Retire the 65 now or after phase 4</h3>
+        <p>They're safe to delete today, but doing it before the ledger exists throws away their history permanently.</p>
+        <p class="rec"><b>Recommend:</b> wait for phase 4. The whole point is that retiring stops being lossy.</p>
+      </article>
+    </div>
+  </section>
+
+  <footer class="colophon">
+    <p>
+      Every figure in this document was measured on 2026-08-12 against
+      <code>scenarios/react-component-library/data/react-component-library.db</code> and the
+      working tree on branch <code>agi</code>. The Progression tab is a mockup and is labelled as
+      one; its values are illustrative. No files were changed during the investigation.
+    </p>
+  </footer>
+
+</div>

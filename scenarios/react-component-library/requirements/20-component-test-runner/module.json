@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "First-class, safe, version-pinned component and hook test contracts.",
-    "last_validated_at": "2026-08-12T14:08:34-04:00",
+    "last_validated_at": "2026-08-12T22:47:53-04:00",
     "module": "component-test-runner",
     "prd_ref": "OT-P0-008",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "CTR-001",
       "title": "Catalog assets declare only safe, version-pinned test behavior",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
@@ -26,14 +26,14 @@
           "type": "test",
           "ref": "api/internal/components/story_contract_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CTR-002",
       "title": "A component test resolves a deterministic manifest closure",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
@@ -48,14 +48,14 @@
           "type": "test",
           "ref": "api/internal/componenttests/runner_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CTR-003",
       "title": "Catalog users can run, inspect, and rerun durable test evidence",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
@@ -77,7 +77,7 @@
           "type": "test",
           "ref": "ui/src/features/components/ComponentTestPanel.test.tsx",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },

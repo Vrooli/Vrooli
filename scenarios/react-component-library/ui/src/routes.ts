@@ -14,7 +14,14 @@ export const appRoutes = {
   settings: "/settings",
 } as const;
 
-export type AssetInfoTab = "preview" | "overview" | "files" | "tests" | "versions" | "adoptions";
+export type AssetInfoTab =
+  | "preview"
+  | "overview"
+  | "files"
+  | "tests"
+  | "versions"
+  | "progression"
+  | "adoptions";
 export type AssetRouteState = { tab?: AssetInfoTab; story?: string; testReport?: string };
 
 const assetTabs = new Set<AssetInfoTab>([
@@ -23,6 +30,7 @@ const assetTabs = new Set<AssetInfoTab>([
   "files",
   "tests",
   "versions",
+  "progression",
   "adoptions",
 ]);
 

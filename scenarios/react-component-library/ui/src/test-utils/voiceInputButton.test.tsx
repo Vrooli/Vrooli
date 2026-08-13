@@ -1,7 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { VoiceInputButton } from "../components/VoiceInputButton";
-import { renderWithProviders } from "./renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 describe("VoiceInputButton", () => {
   it("renders exactly one control in every state", () => {

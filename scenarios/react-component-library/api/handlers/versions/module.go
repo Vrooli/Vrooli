@@ -6,6 +6,7 @@ package versions
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 
 	"github.com/gorilla/mux"
@@ -14,26 +15,36 @@ import (
 	versionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions/versions_v1connect"
 
 	"react-component-library/internal/adoptions"
-	"react-component-library/internal/clock"
 	"react-component-library/internal/components"
 	"react-component-library/internal/module"
+	"react-component-library/internal/versionledger"
 	"react-component-library/internal/versions"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Module wires the versions domain with an optional AdoptionResolver
 // so the diff endpoint can compare against adopted-copy bytes. Pass
 // nil resolver to disable adoption-side diffs.
-func Module(db *sql.DB, clk clock.Clock, resolver versions.AdoptionResolver, logger *log.Logger) module.Module {
+func Module(db *sql.DB, clk schedule.Clock, resolver versions.AdoptionResolver, logger *log.Logger) module.Module {
+	return ModuleWithLedger(db, clk, resolver, logger, nil)
+}
+
+func ModuleWithLedger(db *sql.DB, clk schedule.Clock, resolver versions.AdoptionResolver, logger *log.Logger, ledger *versionledger.Repository) module.Module {
 	repo := versions.NewSQLiteRepository(db, clk)
 	svc := versions.NewService(repo, resolver)
-	connectPath, connectHandler := versionsconnect.NewVersionsServiceHandler(NewConnectHandler(Deps{
+	h := NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,
-	}))
+		Ledger:  ledger,
+	})
+	connectPath, connectHandler := versionsconnect.NewVersionsServiceHandler(h)
+	lifecyclePath, lifecycleHandler := versionsconnect.NewVersionLifecycleServiceHandler(h)
 	return module.Module{
 		Name: "versions",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: lifecyclePath, Handler: lifecycleHandler})
 		},
 		Endpoints: Endpoints,
 	}
@@ -42,7 +53,7 @@ func Module(db *sql.DB, clk clock.Clock, resolver versions.AdoptionResolver, log
 // BuildService is the seam main.go calls to construct one
 // versions.Service that other layers (the components content-change
 // listener, the CLI handlers test) can share.
-func BuildService(db *sql.DB, clk clock.Clock, resolver versions.AdoptionResolver) versions.Service {
+func BuildService(db *sql.DB, clk schedule.Clock, resolver versions.AdoptionResolver) versions.Service {
 	return versions.NewService(versions.NewSQLiteRepository(db, clk), resolver)
 }
 
@@ -62,7 +73,12 @@ func (l *ListenerAdapter) OnContentSaved(ctx context.Context, c components.Compo
 		Content:     content.Body,
 	})
 	if err != nil && l.Logger != nil {
-		l.Logger.Printf("versions: record on save for component %q failed: %v", c.ID, err)
+		var exists versions.ErrVersionExists
+		if errors.As(err, &exists) {
+			l.Logger.Printf("versions: content save for component %q kept existing version %q; version bump required: %v", c.ID, exists.Version, err)
+		} else {
+			l.Logger.Printf("versions: record on save for component %q failed: %v", c.ID, err)
+		}
 	}
 	return err
 }

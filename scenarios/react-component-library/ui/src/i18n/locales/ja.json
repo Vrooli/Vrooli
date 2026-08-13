@@ -53,6 +53,13 @@
       "identity": "契約: {{contract}} · バージョン {{version}}",
       "versionUnavailable": "バージョンを利用できません",
       "stale": "古い"
+    },
+    "progression": {
+      "tab": "推移",
+      "title": "バージョンの推移",
+      "description": "すべてのバージョンのテスト成功率。廃止済みバージョンも軸に残ります。",
+      "loading": "推移を読み込み中…",
+      "error": "現在、推移を利用できません。"
     }
   },
   "catalog": {
@@ -347,6 +354,7 @@
     "viewVersion": "このバージョンを表示",
     "viewingVersion": "このバージョンを表示中",
     "recordedAt": "記録: {{when}}",
+    "createdAt": "初回確認: {{when}}",
     "shaLabel": "sha256 {{sha}}",
     "versionLabel": "v{{version}}",
     "diff": {

@@ -53,6 +53,13 @@
       "identity": "Contract: {{contract}} · Version {{version}}",
       "versionUnavailable": "version unavailable",
       "stale": "stale"
+    },
+    "progression": {
+      "tab": "Progression",
+      "title": "Version progression",
+      "description": "Test pass rate across every version; retired versions remain on the axis.",
+      "loading": "Loading progression…",
+      "error": "Progression is unavailable right now."
     }
   },
   "catalog": {
@@ -351,6 +358,7 @@
     "viewVersion": "View this version",
     "viewingVersion": "Viewing this version",
     "recordedAt": "Recorded {{when}}",
+    "createdAt": "First seen {{when}}",
     "shaLabel": "sha256 {{sha}}",
     "versionLabel": "v{{version}}",
     "diff": {

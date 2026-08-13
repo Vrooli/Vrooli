@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "When an adoption record goes behind, file a `fix` backlog item via swarm-manager's CLI.",
-    "last_validated_at": "2026-08-12T14:08:34-04:00",
+    "last_validated_at": "2026-08-12T22:47:53-04:00",
     "module": "adoption-issue-integration",
     "prd_ref": "PRD.md",
     "priority": "P1",
@@ -11,7 +11,7 @@
     {
       "id": "IS-001",
       "title": "Drift transitions trigger a single issue per adoption record",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "category": "integration",
       "criticality": "P1",
@@ -25,7 +25,7 @@
           "type": "test",
           "ref": "api/internal/adoptions/drift_reporter_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "drift_reporter_test.go: 3 service tests (TestService_Refresh_FilesDriftBacklogOnce, ...ClearsRefOnReturnToCurrent, ...ReporterErrorDoesNotFailRefresh) + 3 SwarmManagerCLIReporter unit tests (shapes args/parses response, propagates CLI error, rejects malformed response). All 6 verified passing 2026-07-14."
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "IS-002",
       "title": "Integration uses the scenario CLI, never raw HTTP",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "category": "integration",
       "criticality": "P1",
@@ -47,7 +47,7 @@
           "type": "test",
           "ref": "api/internal/adoptions/drift_reporter_test.go::TestSwarmManagerCLIReporter_ShapesArgsAndParsesResponse",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The reporter test verifies the integration shapes a `swarm-manager backlog create --data ...` CLI invocation and parses the CLI response; the adoption package has no raw HTTP reporter path (grep for net/http in internal/adoptions non-test code returns nothing). Verified passing 2026-07-14."
         }
       ]

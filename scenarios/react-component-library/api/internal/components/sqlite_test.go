@@ -10,10 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
-	"react-component-library/internal/testutil/db"
-	"react-component-library/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newComponentsRawDB(t *testing.T) (*sql.DB, components.Repository, func() time.Time) {
@@ -23,7 +24,7 @@ func newComponentsRawDB(t *testing.T) (*sql.DB, components.Repository, func() ti
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(components.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC))
 	repo := components.NewSQLiteRepository(d, clk)
 	return d, repo, clk.Now
 }
@@ -120,6 +121,46 @@ func TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet(t 
 	require.NoError(t, err)
 	require.Equal(t, "controls", fetched.Category)
 	require.NotContains(t, fetched.Headers, "category")
+}
+
+func TestSQLiteRepository_UpsertManifestPreservesCreatedAtAndReleasedAt(t *testing.T) {
+	d, repo, now := newComponentsRawDB(t)
+	ctx := context.Background()
+	input := components.IndexManifestInput{
+		Manifest: components.ComponentManifest{
+			LibraryID:     "react-component-library:Button",
+			Slug:          "Button",
+			LatestVersion: "1.0.0",
+		},
+		Versions: []components.ComponentVersion{{
+			Version:       "1.0.0",
+			Status:        components.VersionStatusReleased,
+			SourcePath:    "components/Button/versions/1.0.0/Button.tsx",
+			Content:       "export const Button = () => null;",
+			ContentSHA256: "first",
+		}},
+	}
+	first, err := repo.UpsertManifest(ctx, input)
+	require.NoError(t, err)
+	firstVersion, err := repo.GetVersion(ctx, first.ID, "1.0.0")
+	require.NoError(t, err)
+	require.False(t, firstVersion.CreatedAt.IsZero())
+	require.False(t, firstVersion.ReleasedAt.IsZero())
+
+	_ = now()
+	input.Versions[0].Content = "export const Button = () => true;"
+	input.Versions[0].ContentSHA256 = "second"
+	second, err := repo.UpsertManifest(ctx, input)
+	require.NoError(t, err)
+	secondVersion, err := repo.GetVersion(ctx, second.ID, "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, firstVersion.ID, secondVersion.ID)
+	require.Equal(t, firstVersion.CreatedAt, secondVersion.CreatedAt)
+	require.Equal(t, firstVersion.ReleasedAt, secondVersion.ReleasedAt)
+
+	var count int
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM component_versions WHERE component_id = ?`, first.ID).Scan(&count))
+	require.Equal(t, 1, count)
 }
 
 func TestSQLiteRepository_UpsertManifestPersistsDesignAffinitiesAndFilters(t *testing.T) {
@@ -287,7 +328,7 @@ VALUES ('component-1', 'vrooli-default', 'native');`)
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(components.Schema),
 	))
-	repo := components.NewSQLiteRepository(d, mocks.NewFakeClock(time.Date(2026, 5, 12, 11, 0, 0, 0, time.UTC)))
+	repo := components.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 5, 12, 11, 0, 0, 0, time.UTC)))
 	got, err := repo.GetByLibraryID(ctx, "lib:Button")
 	require.NoError(t, err)
 	require.Equal(t, "lib:Button", got.LibraryID)

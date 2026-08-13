@@ -10,7 +10,8 @@ import (
 	"react-component-library/internal/adoptions"
 	adoptmocks "react-component-library/internal/adoptions/mocks"
 	"react-component-library/internal/components"
-	"react-component-library/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // These tests pin the fix for the adoptions backfill hash-masking defect
@@ -72,7 +73,7 @@ func TestService_Reconcile_BackfillOverModifiedCopyReadsModified(t *testing.T) {
 			Content: []byte(onDisk),
 		}},
 	}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 
 	applied, err := svc.Reconcile(ctx, adoptions.ReconcileInput{Apply: true})
 	require.NoError(t, err)
@@ -112,7 +113,7 @@ func TestService_Reconcile_CleanCopyReadsCleanAndReconverges(t *testing.T) {
 			Content: []byte(onDisk),
 		}},
 	}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 
 	applied, err := svc.Reconcile(ctx, adoptions.ReconcileInput{Apply: true})
 	require.NoError(t, err)
@@ -143,7 +144,7 @@ func TestService_Reconverge_RefusesPoisonedCleanSnapshot(t *testing.T) {
 	lib := dataTableLibrary(body111, body112)
 	modified := provHeader("rcl:DataTable", "1.1.1", "adopt-dt") + "export const DataTable = () => 'LOCAL FIX';\n"
 	files := &fakeFiles{bytes: map[string][]byte{emDataTableKey(): []byte(modified)}}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 
 	// Poisoned row: snapshot equals the already-modified copy, so a snapshot-only
 	// drift check would call it CLEAN.
@@ -173,7 +174,7 @@ func TestService_Reconcile_HealsPoisonedSnapshot(t *testing.T) {
 	lib := dataTableLibrary(body111, body111)
 	modified := provHeader("rcl:DataTable", "1.1.1", "adopt-dt") + "export const DataTable = () => 'LOCAL FIX';\n"
 	files := &fakeFiles{bytes: map[string][]byte{emDataTableKey(): []byte(modified)}}
-	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
 
 	repo.Seed(adoptions.Adoption{
 		ID: "poison", ComponentID: "cmp-dt", LibraryID: "rcl:DataTable",

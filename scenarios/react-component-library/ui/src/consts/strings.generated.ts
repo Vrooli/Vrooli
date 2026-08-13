@@ -66,6 +66,13 @@ export const strings = {
       versionUnavailable: "componentDetail.experience.versionUnavailable",
       stale: "componentDetail.experience.stale",
     },
+    progression: {
+      tab: "componentDetail.progression.tab",
+      title: "componentDetail.progression.title",
+      description: "componentDetail.progression.description",
+      loading: "componentDetail.progression.loading",
+      error: "componentDetail.progression.error",
+    },
   },
   catalog: {
     title: "catalog.title",
@@ -363,6 +370,7 @@ export const strings = {
     viewVersion: "versions.viewVersion",
     viewingVersion: "versions.viewingVersion",
     recordedAt: "versions.recordedAt",
+    createdAt: "versions.createdAt",
     shaLabel: "versions.shaLabel",
     versionLabel: "versions.versionLabel",
     diff: {

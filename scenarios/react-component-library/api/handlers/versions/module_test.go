@@ -15,12 +15,13 @@ import (
 
 	versionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions/versions_v1connect"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/handlers/versions"
-	"react-component-library/internal/clock"
 	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
-	"react-component-library/internal/testutil/db"
 	internalversions "react-component-library/internal/versions"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 type fakeAdoptions struct{ content map[string]string }
@@ -39,8 +40,8 @@ func setupModule(t *testing.T) (*mux.Router, internalversions.Service) {
 	resolver := &fakeAdoptions{content: map[string]string{
 		"adp-1": "library shared\nadopted line",
 	}}
-	svc := versions.BuildService(d, clock.System{}, resolver)
-	m := versions.Module(d, clock.System{}, resolver, log.New(io.Discard, "", 0))
+	svc := versions.BuildService(d, schedule.System(), resolver)
+	m := versions.Module(d, schedule.System(), resolver, log.New(io.Discard, "", 0))
 	r := mux.NewRouter()
 	m.Mount(r)
 	return r, svc
@@ -49,7 +50,7 @@ func setupModule(t *testing.T) (*mux.Router, internalversions.Service) {
 func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, versions.Endpoints, 3)
+	require.Len(t, versions.Endpoints, 8)
 }
 
 func TestModule_RecordListDiff(t *testing.T) {

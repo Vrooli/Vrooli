@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { renderWithProviders } from "./renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { CommandCenterShell } from "../components/CommandCenterShell/versions/1.0.0/CommandCenterShell";
 
 describe("CommandCenterShell", () => {

@@ -1,6 +1,6 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "./renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { AsyncPanel } from "../components/AsyncPanel/versions/1.0.0/AsyncPanel";
 
 describe("AsyncPanel", () => {

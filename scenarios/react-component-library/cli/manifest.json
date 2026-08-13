@@ -1256,6 +1256,49 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "retire-candidates",
+          "description": "List versions with no adopter, provenance, or dependency pin",
+          "flags": [{"name": "component-id", "description": "Restrict candidates to one component"}],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ListRetireCandidates"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "progression",
+          "description": "Read durable per-version progression facts, including retired versions",
+          "flags": [{"name": "library-id", "description": "Restrict to one library asset"}, {"name": "window", "description": "Canonical time window", "values": ["this_week", "last_7d", "last_30d", "this_month", "last_month", "this_quarter"]}],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ListVersionLedger"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "measure": {
+            "domain": "version_ledger",
+            "intent": "Compare quality, adoption, and size across every version of a library asset.",
+            "questions": ["how is this component progressing across versions", "compare version quality and adoption", "show retired versions on the progression chart"],
+            "params": {"window": {"type": "time_window", "default": "this_week"}},
+            "result": {"kind": "table", "value_field": "rows", "unit": "version rows", "summary_template": "{count} version progression rows"}
+          }
+        },
+        {
+          "name": "deprecate",
+          "description": "Mark a non-latest version deprecated",
+          "positionals": [{"name": "component-id", "required": true, "description": "Component id"}, {"name": "version", "required": true, "description": "Version"}],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "DeprecateVersion"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
+        },
+        {
+          "name": "archive",
+          "description": "Archive a deprecated version",
+          "positionals": [{"name": "component-id", "required": true, "description": "Component id"}, {"name": "version", "required": true, "description": "Version"}],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ArchiveVersion"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
+        },
+        {
+          "name": "retire",
+          "description": "Reclaim an explicitly confirmed unreferenced version folder",
+          "positionals": [{"name": "component-id", "required": true, "description": "Component id"}, {"name": "version", "required": true, "description": "Version"}],
+          "flags": [{"name": "confirm", "description": "Confirm destructive folder reclamation", "bind": {"field": "confirm"}}],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "RetireVersion"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"]}
         }
       ]
     },
@@ -1562,6 +1605,18 @@
       ]
     }
   ],
+  "measures": {
+    "domains": [
+      {"domain": "version_ledger", "stateful": true, "reason": "Replayable analytical projection over durable version facts."}
+    ],
+    "omitted": [
+      {"domain": "component_versions", "reason": "Source projection consumed by version_ledger; the progression measure is the public analytical surface."},
+      {"domain": "component_test_reports", "reason": "Bounded report payloads are summarized by component_version_test_rollup and version_ledger."},
+      {"domain": "adoption_records", "reason": "Adoption facts are grouped per version in version_ledger."},
+      {"domain": "assisted_workflows", "reason": "Workflow history is an operational integration substrate, not a catalog progression measure."},
+      {"domain": "builtin_themes", "reason": "Built-in theme definitions are configuration seed data, not historical progression facts."}
+    ]
+  },
   "exceptions": [
     {
       "command": "preview populate-store",

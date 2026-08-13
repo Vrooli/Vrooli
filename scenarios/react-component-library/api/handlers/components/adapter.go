@@ -61,8 +61,17 @@ func domainToProto(c components.Component) *componentsv1.Component {
 			DirectAdoptionCount:    int32(c.Metrics.DirectAdoptionCount),
 			EffectiveAdoptionCount: int32(c.Metrics.EffectiveAdoptionCount),
 			VersionCount:           int32(c.Metrics.VersionCount),
+			VersionAdoptions:       versionAdoptionsToProto(c.Metrics.VersionAdoptions),
 		},
 	}
+}
+
+func versionAdoptionsToProto(in []components.VersionAdoptionMetric) []*componentsv1.VersionAdoptionMetric {
+	out := make([]*componentsv1.VersionAdoptionMetric, 0, len(in))
+	for _, item := range in {
+		out = append(out, &componentsv1.VersionAdoptionMetric{Version: item.Version, CurrentCount: int32(item.CurrentCount), PeakCount: int32(item.PeakCount)})
+	}
+	return out
 }
 
 func assetKindToProto(kind components.AssetKind) componentsv1.AssetKind {

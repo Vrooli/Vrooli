@@ -39,6 +39,7 @@ type GateEvidence struct {
 	AssetID        string
 	Target         string
 	Gate           string
+	Version        string
 	Result         string
 	SourceRevision string
 	RecordedAt     string
@@ -247,7 +248,7 @@ func achieved(asset Asset, target string, impl Implementation, gates []GateDefin
 	}
 	results := map[string]string{}
 	for _, item := range evidence {
-		if item.AssetID == asset.ID && item.Target == target {
+		if item.AssetID == asset.ID && item.Target == target && (item.Version == "" || item.Version == impl.Latest) {
 			results[item.Gate] = strings.ToLower(item.Result)
 		}
 	}

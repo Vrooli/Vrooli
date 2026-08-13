@@ -28,6 +28,7 @@ type Version struct {
 	ContentSHA256 string
 	ChangelogMD   string
 	RecordedAt    time.Time
+	CreatedAt     time.Time
 	ReleasedAt    time.Time
 }
 
@@ -55,6 +56,18 @@ type ListQuery struct {
 type ErrVersionNotFound struct {
 	ComponentID string
 	Version     string
+}
+
+// ErrVersionExists means a content save attempted to record a version label
+// that already belongs to a different content hash. The recorder must surface
+// this collision instead of treating the failed INSERT as a swallowed no-op.
+type ErrVersionExists struct {
+	ComponentID string
+	Version     string
+}
+
+func (e ErrVersionExists) Error() string {
+	return fmt.Sprintf("version %q for component %q already exists with different content", e.Version, e.ComponentID)
 }
 
 func (e ErrVersionNotFound) Error() string {

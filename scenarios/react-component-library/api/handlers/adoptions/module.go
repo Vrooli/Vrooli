@@ -24,17 +24,18 @@ import (
 	adoptionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions/adoptions_v1connect"
 
 	"react-component-library/internal/adoptions"
-	"react-component-library/internal/clock"
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
 	"react-component-library/internal/module"
 	"react-component-library/internal/uimanifest"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Module wires the adoptions domain using the production-default
 // scenarios root. Tests should use ModuleWithRoot to inject a temp
 // dir + a custom LibraryReader.
-func Module(db *sql.DB, clk clock.Clock, library adoptions.LibraryReader, logger *log.Logger) module.Module {
+func Module(db *sql.DB, clk schedule.Clock, library adoptions.LibraryReader, logger *log.Logger) module.Module {
 	root, err := defaultScenariosRoot()
 	if err != nil {
 		logger.Fatalf("adoptions scenarios root: %v", err)
@@ -44,7 +45,7 @@ func Module(db *sql.DB, clk clock.Clock, library adoptions.LibraryReader, logger
 
 // ModuleWithRoot is the explicit-injection variant used by tests and
 // callers that want to point the scenario-file reader at a custom path.
-func ModuleWithRoot(db *sql.DB, clk clock.Clock, library adoptions.LibraryReader, scenariosRoot string, logger *log.Logger) module.Module {
+func ModuleWithRoot(db *sql.DB, clk schedule.Clock, library adoptions.LibraryReader, scenariosRoot string, logger *log.Logger) module.Module {
 	svc, _ := BuildService(db, clk, library, scenariosRoot)
 	return ModuleFromService(svc, logger)
 }
@@ -102,7 +103,7 @@ func Schema() string { return adoptions.Schema() }
 // adoptions.Service that sibling modules can read from (e.g.,
 // versions resolves `adoption:<id>` diff sides through this service
 // and the returned ScenarioFileReader).
-func BuildService(db *sql.DB, clk clock.Clock, library adoptions.LibraryReader, scenariosRoot string) (adoptions.Service, adoptions.ScenarioFileReader) {
+func BuildService(db *sql.DB, clk schedule.Clock, library adoptions.LibraryReader, scenariosRoot string) (adoptions.Service, adoptions.ScenarioFileReader) {
 	repo := adoptions.NewSQLiteRepository(db, clk)
 	files := adoptions.NewFSScenarioFileReader(scenariosRoot)
 	svc := adoptions.NewService(repo, library, files, clk)

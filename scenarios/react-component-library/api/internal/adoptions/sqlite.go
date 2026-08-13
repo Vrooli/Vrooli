@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"react-component-library/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -18,11 +18,11 @@ import (
 // fake without reaching inside the struct.
 type sqliteRepository struct {
 	db    *sql.DB
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db *sql.DB, clk clock.Clock) Repository {
+func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
