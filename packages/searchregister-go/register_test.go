@@ -17,6 +17,7 @@ import (
 
 	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/retry"
+	"github.com/vrooli/api-core/scheduletest"
 	searchregister "github.com/vrooli/searchregister-go"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
@@ -125,7 +126,7 @@ func cfgWithEval(t *testing.T, raw string, client *fakeClient, evalClient *fakeE
 		NewEvalClient:  func(string) searchregister.EvalClient { return evalClient },
 		Retry: retry.Config{
 			MaxAttempts:    5,
-			Sleeper:        func(time.Duration) {},
+			Clock:          scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 			Rand:           func() float64 { return 0 },
 			JitterFraction: 0,
 		},

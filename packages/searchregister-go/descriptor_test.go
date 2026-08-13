@@ -22,6 +22,7 @@ const cliHealthSearchJSON = `{
     "type": "command",
     "description": "Vrooli CLI commands searchable by what each does.",
     "scope": "SCOPE_PROJECT",
+    "index_timestamp_field": "index.last_reconcile_at",
     "endpoint": {
       "http_json": {
         "scenario_id": "cli-health",
@@ -80,7 +81,7 @@ func TestDescriptorMapsAllDescriptorFields(t *testing.T) {
 	require.Equal(t, "application/json", hj.GetHeaders()["Content-Type"])
 
 	require.Equal(t, "cli-health", d.GetStatusEndpoint().GetHttpJson().GetScenarioId())
-	require.Equal(t, "last_indexed_at", d.GetIndexTimestampField())
+	require.Equal(t, "index.last_reconcile_at", d.GetIndexTimestampField())
 
 	rm := d.GetResultMapping()
 	require.NotNil(t, rm)

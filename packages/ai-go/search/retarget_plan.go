@@ -63,7 +63,7 @@ func PlanEmbeddingRetarget(oldMeta, newMeta EmbeddingMetadata, stores []string) 
 		Old:            normalizeEmbeddingMetadata(oldMeta),
 		New:            normalizeEmbeddingMetadata(newMeta),
 		AffectedStores: append([]string{}, stores...),
-		ApplySafety:    "dry-run only; no destructive apply is implemented",
+		ApplySafety:    "shadow-only apply; live collections are never written directly and cutover requires a passing evaluation compare",
 	}
 	switch {
 	case plan.Old.Model == plan.New.Model &&

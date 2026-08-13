@@ -116,10 +116,11 @@ func Descriptor(p aisearch.ProviderConfig) (*registryv1.ProviderDescriptor, erro
 	}
 	if len(p.StatusEndpoint) > 0 {
 		obj["status_endpoint"] = p.StatusEndpoint
-		// The shared status contract has one canonical field. Provider status
-		// handlers may add a nested response shape, but registration must state
-		// which field Search Hub reads before it can report a real age.
-		obj["index_timestamp_field"], err = json.Marshal("last_indexed_at")
+		field := strings.TrimSpace(p.IndexTimestampField)
+		if field == "" {
+			field = "last_indexed_at"
+		}
+		obj["index_timestamp_field"], err = json.Marshal(field)
 		if err != nil {
 			return nil, fmt.Errorf("marshal index_timestamp_field: %w", err)
 		}
@@ -160,13 +161,14 @@ func Descriptor(p aisearch.ProviderConfig) (*registryv1.ProviderDescriptor, erro
 // build the wire shape through this one converter.
 func TuningToProto(t aisearch.TuningConfig) *registryv1.Tuning {
 	return &registryv1.Tuning{
-		Engine:          t.Engine,
-		EmbedModel:      t.EmbedModel,
-		EmbedTaskPrefix: t.EmbedTaskPrefix,
-		RerankEnabled:   t.RerankEnabled,
-		RerankBlend:     t.RerankBlend,
-		RerankShortlist: int32(t.RerankShortlist),
-		HybridFusion:    t.HybridFusion,
+		Engine:           t.Engine,
+		EmbedModel:       t.EmbedModel,
+		EmbedTaskPrefix:  t.EmbedTaskPrefix,
+		RerankEnabled:    t.RerankEnabled,
+		RerankBlend:      t.RerankBlend,
+		RerankShortlist:  int32(t.RerankShortlist),
+		RerankPreference: t.RerankPreference,
+		HybridFusion:     t.HybridFusion,
 		Floor: &registryv1.FloorConfig{
 			MaxGap:    t.Floor.MaxGap,
 			HardFloor: t.Floor.HardFloor,
@@ -185,13 +187,14 @@ func TuningFromProto(t *registryv1.Tuning) aisearch.TuningConfig {
 		return aisearch.TuningConfig{}
 	}
 	cfg := aisearch.TuningConfig{
-		Engine:          t.GetEngine(),
-		EmbedModel:      t.GetEmbedModel(),
-		EmbedTaskPrefix: t.GetEmbedTaskPrefix(),
-		RerankEnabled:   t.GetRerankEnabled(),
-		RerankBlend:     t.GetRerankBlend(),
-		RerankShortlist: int(t.GetRerankShortlist()),
-		HybridFusion:    t.GetHybridFusion(),
+		Engine:           t.GetEngine(),
+		EmbedModel:       t.GetEmbedModel(),
+		EmbedTaskPrefix:  t.GetEmbedTaskPrefix(),
+		RerankEnabled:    t.GetRerankEnabled(),
+		RerankBlend:      t.GetRerankBlend(),
+		RerankShortlist:  int(t.GetRerankShortlist()),
+		RerankPreference: t.GetRerankPreference(),
+		HybridFusion:     t.GetHybridFusion(),
 	}
 	if f := t.GetFloor(); f != nil {
 		cfg.Floor = aisearch.FloorTuning{MaxGap: f.GetMaxGap(), HardFloor: f.GetHardFloor()}

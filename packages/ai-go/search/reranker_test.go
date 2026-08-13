@@ -293,6 +293,22 @@ func TestRerankerChainFallsBack(t *testing.T) {
 	}
 }
 
+func TestRerankerChainRequiredRefusesLLMFallback(t *testing.T) {
+	cross := &stubReranker{name: "cross-encoder:test", available: false}
+	llm := &stubReranker{name: "llm:test", available: true, scores: []RerankScore{{ID: "b", Score: 1}}}
+	chain := NewRerankerChain(cross, llm)
+
+	if got := chain.ActiveNameWithPreference(context.Background(), RerankPreferenceCrossEncoderRequired); got != "none" {
+		t.Fatalf("active = %q, want none when cross-encoder is required", got)
+	}
+	if _, err := chain.RerankWithPreference(context.Background(), "q", []RerankCandidate{{ID: "b"}}, RerankPreferenceCrossEncoderRequired); err != nil {
+		t.Fatalf("RerankWithPreference: %v", err)
+	}
+	if llm.called {
+		t.Fatal("required cross-encoder policy called the LLM fallback")
+	}
+}
+
 func TestRerankerChainNoneAvailable(t *testing.T) {
 	chain := NewRerankerChain(
 		&stubReranker{name: "cross", available: false},

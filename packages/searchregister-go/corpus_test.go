@@ -118,8 +118,6 @@ func pick(rng *rand.Rand, opts ...string) string { return opts[rng.Intn(len(opts
 func randStrings(rng *rand.Rand, opts ...string) []string {
 	k := 1 + rng.Intn(len(opts))
 	out := make([]string, 0, k)
-	for _, o := range opts[:k] {
-		out = append(out, o)
-	}
+	out = append(out, opts[:k]...)
 	return out
 }

@@ -235,6 +235,40 @@ func NewService(opts ServiceOptions) *Service {
 // Reconciler exposes the underlying reconciler (for the sync loop / EnsureCollection).
 func (s *Service) Reconciler() *Reconciler { return s.reconciler }
 
+// Options returns a copy of the read-path configuration currently held by the
+// service. Adopters that own a provider-controlled shadow index can use this
+// as the starting point for an isolated engine while preserving the provider's
+// filters, projection and reranker policy. The returned reconciler is the
+// current one and callers that build a new source binding must replace it.
+func (s *Service) Options() ServiceOptions {
+	return ServiceOptions{
+		Embedder:         s.embedder,
+		SparseEncoder:    s.sparse,
+		VectorStore:      s.store,
+		Reranker:         s.reranker,
+		Reconciler:       s.reconciler,
+		RerankEnabled:    s.rerankEnabled,
+		RerankBlend:      s.rerankBlend,
+		RerankRRFK:       s.rrfK,
+		HybridFusion:     s.hybridFusion,
+		Shortlist:        s.shortlist,
+		ApplyFloor:       s.applyFloor,
+		Floor:            s.floor,
+		Threshold:        s.threshold,
+		DefaultLimit:     s.defaultLimit,
+		MaxLimit:         s.maxLimit,
+		PrefetchLimit:    s.prefetchLimit,
+		Project:          s.project,
+		Filter:           s.filter,
+		PostFilter:       s.postFilter,
+		PreFloorDecorate: s.preFloorDecorate,
+		Decorate:         s.decorate,
+		RerankText:       s.rerankText,
+		TextFallback:     s.text,
+		OverridePolicy:   s.overridePolicy,
+	}
+}
+
 func (s *Service) normalize(q SearchQuery) SearchQuery {
 	q.Query = strings.TrimSpace(q.Query)
 	if q.Mode == "" {
@@ -565,6 +599,14 @@ func (s *Service) Status(ctx context.Context) StatusReport {
 	if s.reconciler != nil {
 		st := s.reconciler.Status()
 		rep.LastReconcileAt = st.FinishedAt
+		// A periodic reconciler can start the next run immediately after a
+		// completed apply. In that interval its top-level FinishedAt is
+		// intentionally withheld while LastResult still carries the last
+		// completed apply. Expose that completed timestamp so status remains
+		// truthful instead of becoming spuriously unreported during a run.
+		if rep.LastReconcileAt == "" && st.LastResult != nil && !st.LastResult.FinishedAt.IsZero() {
+			rep.LastReconcileAt = st.LastResult.FinishedAt.Format(time.RFC3339)
+		}
 		switch {
 		case st.Running:
 			rep.LastReconcileOutcome = "running"
@@ -621,13 +663,14 @@ func (s *Service) Reindex(_ context.Context, scenario string, dryRun bool) (*Rei
 		StartedAt: time.Now(),
 		cancel:    cancel,
 	}
+	initial := cloneReindexJob(job)
 	s.mu.Lock()
 	s.jobs[jobID] = job
 	s.lastJob = jobID
 	s.mu.Unlock()
 
 	go s.runReindex(jobCtx, job)
-	return job, nil
+	return initial, nil
 }
 
 func (s *Service) runReindex(ctx context.Context, job *ReindexJob) {
@@ -670,6 +713,9 @@ func (s *Service) runReindex(ctx context.Context, job *ReindexJob) {
 			job.State = "failed"
 			job.Err = err.Error()
 		}
+	case len(apply.Errors) > 0:
+		job.State = "failed"
+		job.Err = fmt.Sprintf("reconcile completed with %d item error(s): %s", len(apply.Errors), apply.Errors[0].Err)
 	default:
 		job.State = "succeeded"
 	}
@@ -683,7 +729,22 @@ func (s *Service) ReindexStatus(jobID string) (*ReindexJob, bool) {
 		jobID = s.lastJob
 	}
 	job, ok := s.jobs[jobID]
-	return job, ok
+	if !ok {
+		return nil, false
+	}
+	return cloneReindexJob(job), true
+}
+
+// cloneReindexJob is the read-side snapshot boundary for asynchronous job
+// state. ReindexStatus holds Service.mu while taking this copy, so callers can
+// inspect the returned value without racing the background worker's updates.
+func cloneReindexJob(job *ReindexJob) *ReindexJob {
+	if job == nil {
+		return nil
+	}
+	copy := *job
+	copy.cancel = nil
+	return &copy
 }
 
 // ReindexCancel asks an in-flight job to stop. Returns true when a running or

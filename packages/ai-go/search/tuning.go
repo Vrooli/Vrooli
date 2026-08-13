@@ -40,6 +40,11 @@ const (
 	HybridFusionDBSF = "dbsf"
 )
 
+const (
+	RerankPreferenceCrossEncoderRequired  = "cross_encoder_required"
+	RerankPreferenceCrossEncoderPreferred = "cross_encoder_preferred"
+)
+
 func normalizeHybridFusion(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case HybridFusionDBSF:
@@ -127,6 +132,11 @@ var Factors = []Factor{
 		Tradeoff: "over-fetch depth into the reranker; higher = more recall into the rerank but more candidates to score (LLM-leg latency; negligible on the cross-encoder).",
 	},
 	{
+		Key: "rerank_preference", Tier: QueryTime, Kind: FactorEnum,
+		Enum: []string{RerankPreferenceCrossEncoderRequired, RerankPreferenceCrossEncoderPreferred}, Default: RerankPreferenceCrossEncoderPreferred,
+		Tradeoff: "required preserves the cross-encoder latency/SLO contract by refusing the expensive LLM fallback; preferred keeps recall available when the cross-encoder is unavailable.",
+	},
+	{
 		Key: "hybrid_fusion", Tier: QueryTime, Kind: FactorEnum,
 		Enum: []string{HybridFusionRRF, HybridFusionDBSF}, Default: HybridFusionRRF,
 		Tradeoff: "how Qdrant combines dense and sparse legs; RRF is rank-robust, while DBSF preserves score separation for exact lexical matches. Only affects hybrid engines.",
@@ -186,14 +196,15 @@ func (f FloorTuning) Config() FloorConfig {
 // reads it at boot and the sweep writes it back. Every field corresponds to a
 // row in Factors.
 type TuningConfig struct {
-	Engine          string      `json:"engine"`
-	EmbedModel      string      `json:"embed_model"`
-	EmbedTaskPrefix bool        `json:"embed_task_prefix"`
-	RerankEnabled   bool        `json:"rerank_enabled"`
-	RerankBlend     bool        `json:"rerank_blend"`
-	RerankShortlist int         `json:"rerank_shortlist"`
-	HybridFusion    string      `json:"hybrid_fusion"`
-	Floor           FloorTuning `json:"floor"`
+	Engine           string      `json:"engine"`
+	EmbedModel       string      `json:"embed_model"`
+	EmbedTaskPrefix  bool        `json:"embed_task_prefix"`
+	RerankEnabled    bool        `json:"rerank_enabled"`
+	RerankBlend      bool        `json:"rerank_blend"`
+	RerankShortlist  int         `json:"rerank_shortlist"`
+	RerankPreference string      `json:"rerank_preference"`
+	HybridFusion     string      `json:"hybrid_fusion"`
+	Floor            FloorTuning `json:"floor"`
 }
 
 // WithDefaults returns a copy with absent/zero fields filled from the taxonomy
@@ -208,6 +219,9 @@ func (t TuningConfig) WithDefaults() TuningConfig {
 	}
 	if t.RerankShortlist <= 0 {
 		t.RerankShortlist = DefaultRerankShortlist
+	}
+	if strings.TrimSpace(t.RerankPreference) == "" {
+		t.RerankPreference = RerankPreferenceCrossEncoderPreferred
 	}
 	if strings.TrimSpace(t.HybridFusion) == "" {
 		t.HybridFusion = HybridFusionRRF
@@ -250,6 +264,13 @@ func (t TuningConfig) Validate() error {
 		// WithDefaults supplies the conservative RRF default.
 	default:
 		return fmt.Errorf("tuning.hybrid_fusion %q is not known (expected %q or %q)", t.HybridFusion, HybridFusionRRF, HybridFusionDBSF)
+	}
+	switch strings.TrimSpace(t.RerankPreference) {
+	case RerankPreferenceCrossEncoderRequired, RerankPreferenceCrossEncoderPreferred:
+	case "":
+		// WithDefaults supplies the preferred default.
+	default:
+		return fmt.Errorf("tuning.rerank_preference %q is not known (expected %q or %q)", t.RerankPreference, RerankPreferenceCrossEncoderRequired, RerankPreferenceCrossEncoderPreferred)
 	}
 	if t.Floor.MaxGap < 0 || t.Floor.MaxGap > 1 {
 		return fmt.Errorf("tuning.floor.max_gap %g out of range [0,1]", t.Floor.MaxGap)

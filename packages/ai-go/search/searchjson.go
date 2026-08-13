@@ -93,7 +93,11 @@ type ProviderConfig struct {
 	// Descriptor sub-objects — opaque to aisearch-go (search-hub registry shapes).
 	Endpoint       json.RawMessage `json:"endpoint,omitempty"`
 	StatusEndpoint json.RawMessage `json:"status_endpoint,omitempty"`
-	ResultMapping  json.RawMessage `json:"result_mapping,omitempty"`
+	// IndexTimestampField names the status response field containing the last
+	// successful index/reconcile timestamp. Search Hub defaults it to
+	// last_indexed_at when omitted; dotted paths are supported.
+	IndexTimestampField string          `json:"index_timestamp_field,omitempty"`
+	ResultMapping       json.RawMessage `json:"result_mapping,omitempty"`
 	// Secured control-plane targets (search-hub.v1.control.SearchControlService):
 	// reindex_endpoint drives an async corpus reconcile; config_endpoint writes a
 	// new tuning block back into this file. Both are opaque registry Endpoint

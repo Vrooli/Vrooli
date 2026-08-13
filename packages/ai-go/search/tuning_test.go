@@ -12,7 +12,7 @@ import (
 func TestFactorTaxonomyConsistency(t *testing.T) {
 	wantKeys := map[string]bool{
 		"engine": true, "embed_model": true, "embed_task_prefix": true,
-		"rerank_enabled": true, "rerank_blend": true, "rerank_shortlist": true,
+		"rerank_enabled": true, "rerank_blend": true, "rerank_shortlist": true, "rerank_preference": true,
 		"hybrid_fusion": true,
 		"floor_max_gap": true, "floor_hard_floor": true,
 	}
@@ -76,7 +76,7 @@ func TestQueryVsIndexTimeFactors(t *testing.T) {
 		}
 	}
 	// Query-time factors are per-request safe (the override channel honors these).
-	for _, k := range []string{"rerank_enabled", "rerank_blend", "rerank_shortlist", "hybrid_fusion", "floor_max_gap", "floor_hard_floor"} {
+	for _, k := range []string{"rerank_enabled", "rerank_blend", "rerank_shortlist", "rerank_preference", "hybrid_fusion", "floor_max_gap", "floor_hard_floor"} {
 		if !qt[k] {
 			t.Errorf("%q must be a query-time factor", k)
 		}

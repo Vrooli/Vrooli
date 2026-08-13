@@ -476,37 +476,62 @@ func newRerankerChain(clock func() time.Time, ttl time.Duration, rerankers ...Re
 // runs at most once per window, never once per query. A live readout (e.g. a
 // status surface) should use ActiveUncached.
 func (c *RerankerChain) Active(ctx context.Context) Reranker {
+	return c.ActiveWithPreference(ctx, RerankPreferenceCrossEncoderPreferred)
+}
+
+// ActiveWithPreference selects the first available leg subject to the
+// provider's reranker policy. A required cross-encoder never silently spends
+// the LLM fallback budget; a preferred policy preserves the existing
+// cross-encoder-first, LLM-second behavior.
+func (c *RerankerChain) ActiveWithPreference(ctx context.Context, preference string) Reranker {
+	preference = strings.TrimSpace(preference)
+	if preference == RerankPreferenceCrossEncoderRequired {
+		// A required policy must probe the cross-encoder on every decision. A
+		// preferred-cache entry may legitimately be an LLM fallback and must
+		// never turn a recovered required leg into a stale refusal.
+		return c.refreshWithPreference(ctx, preference)
+	}
 	c.mu.Lock()
 	if c.primed && c.clock().Sub(c.cachedAt) < c.ttl {
 		active := c.cached
 		c.mu.Unlock()
+		if preference == RerankPreferenceCrossEncoderRequired && !isCrossEncoder(active) {
+			return nil
+		}
 		return active
 	}
 	c.mu.Unlock()
-	return c.refresh(ctx)
+	return c.refreshWithPreference(ctx, preference)
 }
 
 // ActiveUncached probes the legs live (bypassing the TTL cache) and refreshes
 // it. The cache exists for the search hot path; a rarely-called status probe
 // wants the current truth, not a cached one (plan §13).
 func (c *RerankerChain) ActiveUncached(ctx context.Context) Reranker {
-	return c.refresh(ctx)
+	return c.refreshWithPreference(ctx, RerankPreferenceCrossEncoderPreferred)
 }
 
-// refresh probes the legs in order and stores the result with a fresh timestamp.
-func (c *RerankerChain) refresh(ctx context.Context) Reranker {
+func (c *RerankerChain) refreshWithPreference(ctx context.Context, preference string) Reranker {
 	var active Reranker
 	for _, r := range c.rerankers {
+		if preference == RerankPreferenceCrossEncoderRequired && !isCrossEncoder(r) {
+			continue
+		}
 		if r.Available(ctx) {
 			active = r
 			break
 		}
 	}
-	c.mu.Lock()
-	c.cached = active
-	c.cachedAt = c.clock()
-	c.primed = true
-	c.mu.Unlock()
+	// The required policy is stricter than the shared preferred cache. Do not
+	// let a required probe that found no cross-encoder poison a subsequent
+	// preferred request for the duration of the TTL.
+	if preference != RerankPreferenceCrossEncoderRequired {
+		c.mu.Lock()
+		c.cached = active
+		c.cachedAt = c.clock()
+		c.primed = true
+		c.mu.Unlock()
+	}
 	return active
 }
 
@@ -525,10 +550,20 @@ func (c *RerankerChain) Name() string {
 
 // ActiveName returns the active leg's Name(), or "none" when none is available.
 func (c *RerankerChain) ActiveName(ctx context.Context) string {
-	if r := c.Active(ctx); r != nil {
+	return c.ActiveNameWithPreference(ctx, RerankPreferenceCrossEncoderPreferred)
+}
+
+// ActiveNameWithPreference is the policy-aware leg name for status and query
+// observability. It returns "none" when the required leg is unavailable.
+func (c *RerankerChain) ActiveNameWithPreference(ctx context.Context, preference string) string {
+	if r := c.ActiveWithPreference(ctx, preference); r != nil {
 		return r.Name()
 	}
 	return "none"
+}
+
+func isCrossEncoder(r Reranker) bool {
+	return r != nil && strings.HasPrefix(strings.TrimSpace(r.Name()), "cross")
 }
 
 // Available reports whether any leg is reachable.
@@ -539,7 +574,12 @@ func (c *RerankerChain) Available(ctx context.Context) bool {
 // Rerank delegates to the first available leg. (nil, nil) means "no reranker
 // available — keep fused order."
 func (c *RerankerChain) Rerank(ctx context.Context, query string, candidates []RerankCandidate) ([]RerankScore, error) {
-	active := c.Active(ctx)
+	return c.RerankWithPreference(ctx, query, candidates, RerankPreferenceCrossEncoderPreferred)
+}
+
+// RerankWithPreference executes the selected leg under the declared policy.
+func (c *RerankerChain) RerankWithPreference(ctx context.Context, query string, candidates []RerankCandidate, preference string) ([]RerankScore, error) {
+	active := c.ActiveWithPreference(ctx, preference)
 	if active == nil {
 		return nil, nil
 	}

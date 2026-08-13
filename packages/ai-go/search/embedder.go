@@ -188,7 +188,13 @@ func (e *cliEmbedder) embed(ctx context.Context, prefix, text string) ([]float64
 	if role == "" {
 		role = DefaultEmbedRole
 	}
-	args := []string{e.bin, "gateway", "embed", "--role", role, "--json", "--input-stdin"}
+	args := []string{e.bin, "gateway", "embed"}
+	if strings.TrimSpace(e.model) != "" && strings.TrimSpace(e.model) != DefaultEmbedModel {
+		args = append(args, "--model", e.model)
+	} else {
+		args = append(args, "--role", role)
+	}
+	args = append(args, "--json", "--input-stdin")
 	out, err := e.run(ctx, args, []byte(prefix+text))
 	if err != nil {
 		return nil, fmt.Errorf("resource-ollama gateway embed: %w", err)

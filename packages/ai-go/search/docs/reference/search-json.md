@@ -51,6 +51,7 @@ One entry per searchable corpus a scenario exposes (most scenarios expose one).
 | `class` | scenario | **Operability class** (`local_index` / `local_live` / `external` / `async`). Descriptor policy that drives Search Hub's control/latency posture with no scenario-name special-casing (see below). Required for active providers under maturity certification. |
 | `endpoint` | descriptor | How the router calls the provider's **public search** RPC. Opaque registry `Endpoint` shape (mapped to the proto by `searchregister-go`). |
 | `status_endpoint` | descriptor | How the router polls index status. |
+| `index_timestamp_field` | scenario | Optional status-response field containing the last successful index/reconcile timestamp; defaults to `last_indexed_at` and accepts dotted paths such as `index.last_reconcile_at`. |
 | `reindex_endpoint` | descriptor | Token-gated `SearchControlService.Reindex` target. Absent ⇒ provider is routable but **not index-time tunable**. |
 | `config_endpoint` | descriptor | Token-gated `SearchControlService.WriteConfig` target — where a sweep writes a winning `tuning` block back. Absent ⇒ provider is **not config-writable** by the sweep. |
 | `config_writable` / `config_pinned_reason` | scenario | Explicit non-writable posture for indexed providers whose tuning is intentionally fixed by construction. |
@@ -117,6 +118,7 @@ one-line decision rule:
 | `rerank_enabled` | query-time | bool | `false` | cross-encoder / LLM rerank lifts precision + junk rejection; buys no recall on prose corpora and adds latency + a reranker resource dependency. Off degrades cleanly to retrieval order. |
 | `rerank_blend` | query-time | bool | `false` | fuse the rerank order with retrieval via RRF instead of reordering outright; keeps junk rejection without burying strongly-retrieved canonical hits (+0.20 recall on the command corpus). Requires `rerank_enabled`. |
 | `rerank_shortlist` | query-time | int [1,500] | `50` | over-fetch depth into the reranker; higher = more recall into the rerank but more candidates to score (LLM-leg latency; negligible on the cross-encoder). |
+| `rerank_preference` | query-time | `cross_encoder` / `llm_fallback` / `auto` | `auto` | Declares the preferred available reranker leg. A preference is advisory when that leg is unavailable; the response and telemetry still name the active leg and degradation reason. |
 | `floor.max_gap` | query-time | float [0,1] | `0` | relative cutoff below the query's top hit; `0` = let the package pick the regime-appropriate band. Raise to cut more of the weak tail. |
 | `floor.hard_floor` | query-time | float [0,1] | `0` | absolute garbage floor; `0` = let the package pick the regime default. Non-zero overrides it (cosine regimes want a real floor; fused regimes want 0). |
 
