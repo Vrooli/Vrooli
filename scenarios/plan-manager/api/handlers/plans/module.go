@@ -7,9 +7,10 @@ import (
 	"log"
 
 	"plan-manager/internal/audit"
-	"plan-manager/internal/clock"
 	"plan-manager/internal/module"
 	internalplans "plan-manager/internal/plans"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -23,7 +24,7 @@ import (
 // ~/.vrooli home store and the os-backed plan-source reader (the fallback
 // import seam). Wired here at the production edge; never imported into
 // internal/plans.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	svc := internalplans.NewService(internalplans.Deps{
 		Repo:     internalplans.NewSQLiteRepository(db, clk),
 		Clock:    clk,

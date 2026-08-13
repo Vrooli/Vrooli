@@ -6,9 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vrooli/api-core/provenance"
-	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
+
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -41,7 +42,7 @@ type service struct {
 	resolver Resolver
 	bugs     BugReporter
 	records  RecordWriter
-	clock    clock.Clock
+	clock    schedule.Clock
 }
 
 // Deps wires the log Service. Repo is required. Resolver is optional (nil =>
@@ -53,14 +54,14 @@ type Deps struct {
 	Resolver Resolver
 	Bugs     BugReporter
 	Records  RecordWriter
-	Clock    clock.Clock
+	Clock    schedule.Clock
 }
 
 // NewService constructs the log Service.
 func NewService(d Deps) Service {
 	clk := d.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	bugs := d.Bugs
 	if bugs == nil {

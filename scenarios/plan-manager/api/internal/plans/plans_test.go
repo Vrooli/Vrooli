@@ -15,10 +15,11 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	planmodel "plan-manager/internal/planmodel"
 	"plan-manager/internal/plans"
-	"plan-manager/internal/testutil/db"
-	"plan-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -28,18 +29,18 @@ import (
 	localdb "plan-manager/internal/database"
 )
 
-func newDB(t *testing.T) (*sql.DB, *mocks.FakeClock) {
+func newDB(t *testing.T) (*sql.DB, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(plans.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC))
 	return d, clk
 }
 
-func newService(t *testing.T) (plans.Service, *mocks.FakeClock) {
+func newService(t *testing.T) (plans.Service, *scheduletest.FakeClock) {
 	t.Helper()
 	d, clk := newDB(t)
 	svc := plans.NewService(plans.Deps{

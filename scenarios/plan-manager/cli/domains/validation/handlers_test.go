@@ -15,7 +15,7 @@ import (
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/validation/validation_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	clitest "plan-manager/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 // validationRecorder is a fake ValidationService capturing the request the

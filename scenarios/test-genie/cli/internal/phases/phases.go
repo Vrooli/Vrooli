@@ -160,7 +160,13 @@ func dedupeNormalized(phases []string) []string {
 
 // NormalizeName lowercases and trims a phase name.
 func NormalizeName(name string) string {
-	return catalog.NormalizeKey(name)
+	key := catalog.NormalizeKey(name)
+	switch key {
+	case "playbooks", "playbook", "e2e":
+		return "workflow"
+	default:
+		return key
+	}
 }
 
 // MakeDescriptorMaps builds lookup maps from phase descriptors.

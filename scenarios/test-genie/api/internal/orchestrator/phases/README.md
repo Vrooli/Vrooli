@@ -202,6 +202,7 @@ Audits requirements modules:
 | `misconfiguration` | User-fixable config error | Missing `service.json`, invalid JSON |
 | `missing_dependency` | Required tool not installed | `go` command not found |
 | `timeout` | Phase exceeded time limit | Long-running test suite |
+| `test_failure` | Provider-attributed product defect | Validation returned failed status or findings |
 | `system` | Unexpected runtime error | File permission issue |
 
 ## Adding a New Phase

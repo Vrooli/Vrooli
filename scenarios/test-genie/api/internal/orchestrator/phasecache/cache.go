@@ -7,11 +7,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/vrooli/freshness-go/treedigest"
+	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	"test-genie/internal/orchestrator/phases"
 )
 
@@ -141,42 +145,73 @@ func (s *Store) IsDemoted(key string) bool {
 	return found
 }
 
-// Equivalent compares the observable phase result and excludes run-local
-// paths, timing, and cache provenance. A cache audit must judge behavior, not
-// whether two executions happened to take the same number of milliseconds.
+// normalizedVerdict is the stable behavior-bearing projection used by cache
+// audits. Timing, paths, metrics, orchestration observations, and cache
+// provenance can differ between correct runs; status, finding identities, and
+// the provider's maturity standing cannot.
+type normalizedVerdict struct {
+	Status     string
+	FindingSet []string
+	Standing   string
+}
+
+// Equivalent compares the normalized validation verdict rather than the
+// marshalled execution result. This prevents ordering and run-local metadata
+// from demoting a deterministic cache entry while still detecting changed
+// findings and maturity standing.
 func Equivalent(a, b phases.ExecutionResult) bool {
-	a.DurationSeconds, a.DurationMilliseconds, a.PredictedDurationMilliseconds, a.LogPath = 0, 0, 0, ""
-	b.DurationSeconds, b.DurationMilliseconds, b.PredictedDurationMilliseconds, b.LogPath = 0, 0, 0, ""
-	a.CacheHit, a.CacheSourceRunID = false, ""
-	b.CacheHit, b.CacheSourceRunID = false, ""
-	// Provider metrics describe this execution's timing and host resources;
-	// they are deliberately not part of the observable validation result.
-	a.Metrics, b.Metrics = nil, nil
-	a.Observations = cacheComparableObservations(a.Observations)
-	b.Observations = cacheComparableObservations(b.Observations)
-	left, _ := json.Marshal(a)
-	right, _ := json.Marshal(b)
-	return string(left) == string(right)
+	return reflect.DeepEqual(normalized(a), normalized(b))
+}
+
+func normalized(result phases.ExecutionResult) normalizedVerdict {
+	verdict := normalizedVerdict{Status: strings.TrimSpace(result.Status), Standing: assessmentStanding(result)}
+	for _, finding := range result.Findings {
+		if finding == nil {
+			continue
+		}
+		verdict.FindingSet = append(verdict.FindingSet, findingIdentity(finding))
+	}
+	sort.Strings(verdict.FindingSet)
+	return verdict
+}
+
+func findingIdentity(finding *architecturev1.ArchitectureFinding) string {
+	token := strings.TrimSpace(finding.GetStableId())
+	if token == "" {
+		token = findingid.For(finding)
+	}
+	locations := append([]string(nil), finding.GetLocations()...)
+	sort.Strings(locations)
+	subject := ""
+	if target := finding.GetSubject(); target != nil {
+		subject = strings.Join([]string{target.GetKind().String(), target.GetId(), target.GetRoot()}, "\x1e")
+	}
+	return strings.Join([]string{
+		token,
+		strings.TrimSpace(finding.GetCode()),
+		finding.GetSeverity().String(),
+		subject,
+		strings.Join(locations, "\x1e"),
+	}, "\x1f")
+}
+
+func assessmentStanding(result phases.ExecutionResult) string {
+	if result.Assessment == nil || result.Assessment.GetPresentation() == nil {
+		return ""
+	}
+	presentation := result.Assessment.GetPresentation()
+	return strings.Join([]string{
+		presentation.GetCurrentLevel(),
+		presentation.GetCurrentLevelLabel(),
+		strconv.FormatBool(presentation.GetClean()),
+		presentation.GetNextLevel(),
+	}, "\x1f")
 }
 
 // cacheComparableObservations excludes orchestration diagnostics that describe
 // how a phase was admitted, rather than what the provider observed. Admission
 // can legitimately differ between runs under queue pressure; allowing that
 // warning to poison a cache audit would demote deterministic provider results.
-func cacheComparableObservations(observations []phases.Observation) []phases.Observation {
-	if len(observations) == 0 {
-		return observations
-	}
-	filtered := make([]phases.Observation, 0, len(observations))
-	for _, observation := range observations {
-		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(observation.Text)), "scheduler ") {
-			continue
-		}
-		filtered = append(filtered, observation)
-	}
-	return filtered
-}
-
 func (s *Store) Save(key, runID string, phase phases.ExecutionResult) error {
 	if s == nil || strings.TrimSpace(key) == "" || phase.Status != "passed" {
 		return nil

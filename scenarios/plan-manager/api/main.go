@@ -10,13 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"plan-manager/internal/clock"
 	internalexecution "plan-manager/internal/execution"
 	"plan-manager/internal/modules"
 	internalplanlog "plan-manager/internal/planlog"
 	internalplans "plan-manager/internal/plans"
 	"plan-manager/internal/server"
 	internalvalidation "plan-manager/internal/validation"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -147,13 +148,13 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "plan-manager-api", "1.0.0"),
-		plansH.Module(db, clock.System{}, log.Default()),
-		validationH.Module(db, clock.System{}, log.Default()),
-		authoringH.Module(db, clock.System{}, log.Default(), sqlitePathFromDSN(dsn)),
-		executionH.Module(db, clock.System{}, log.Default()),
-		planlogH.Module(db, clock.System{}, log.Default(), newPlanLogResolver(db, clock.System{})),
+		plansH.Module(db, schedule.System(), log.Default()),
+		validationH.Module(db, schedule.System(), log.Default()),
+		authoringH.Module(db, schedule.System(), log.Default(), sqlitePathFromDSN(dsn)),
+		executionH.Module(db, schedule.System(), log.Default()),
+		planlogH.Module(db, schedule.System(), log.Default(), newPlanLogResolver(db, schedule.System())),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -190,7 +191,7 @@ type planLogResolver struct {
 	executions internalexecution.Repository
 }
 
-func newPlanLogResolver(db *database.RoutedDB, clk clock.Clock) planLogResolver {
+func newPlanLogResolver(db *database.RoutedDB, clk schedule.Clock) planLogResolver {
 	return planLogResolver{
 		plans: internalplans.NewService(internalplans.Deps{
 			Repo:  internalplans.NewSQLiteRepository(db, clk),

@@ -18,10 +18,12 @@ import (
 // rest of the RunsServiceClient surface.
 type fakeClient struct {
 	runs_v1connect.RunsServiceClient
-	resp *runspb.GetSelfHealthResponse
+	resp    *runspb.GetSelfHealthResponse
+	request *runspb.GetSelfHealthRequest
 }
 
-func (f *fakeClient) GetSelfHealth(context.Context, *connect.Request[runspb.GetSelfHealthRequest]) (*connect.Response[runspb.GetSelfHealthResponse], error) {
+func (f *fakeClient) GetSelfHealth(_ context.Context, req *connect.Request[runspb.GetSelfHealthRequest]) (*connect.Response[runspb.GetSelfHealthResponse], error) {
+	f.request = req.Msg
 	return connect.NewResponse(f.resp), nil
 }
 
@@ -80,5 +82,16 @@ func TestHealthJSON(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Fatalf("json missing %q:\n%s", want, out)
 		}
+	}
+}
+
+func TestHealthForceLiveConformance(t *testing.T) {
+	client := &fakeClient{resp: sampleResponse()}
+	withFakeClient(t, client)
+	if err := run(&cliutil.APIClient{}, []string{"--json", "--force-live-conformance"}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("run --force-live-conformance: %v", err)
+	}
+	if client.request == nil || !client.request.GetForceLiveConformance() || client.request.GetSkipConformance() {
+		t.Fatalf("request = %+v, want force_live_conformance=true and skip_conformance=false", client.request)
 	}
 }

@@ -52,13 +52,27 @@ func (s *Service) GetFleetHealth(ctx context.Context, req *connect.Request[runsp
 
 func fleetLedgerToProto(l *selfhealth.FleetLedger) *runspb.FleetHealth {
 	out := &runspb.FleetHealth{
-		WindowDays:          int32(l.WindowDays),
-		CapturedAt:          l.CapturedAt.UTC().Format(snapshotTimeLayout),
-		ScenariosTested:     int32(l.ScenariosTested),
-		ScenariosTotal:      int32(l.ScenariosTotal),
-		TotalRuns:           int32(l.TotalRuns),
-		TotalIssues:         int32(l.TotalIssues),
-		NeverTestedInWindow: l.NeverTestedInWindow,
+		WindowDays:              int32(l.WindowDays),
+		CapturedAt:              l.CapturedAt.UTC().Format(snapshotTimeLayout),
+		ScenariosTested:         int32(l.ScenariosTested),
+		ScenariosTotal:          int32(l.ScenariosTotal),
+		TotalRuns:               int32(l.TotalRuns),
+		TotalIssues:             int32(l.FailedPhaseObservations),
+		FailedPhaseObservations: int32(l.FailedPhaseObservations),
+		NeverTestedInWindow:     l.NeverTestedInWindow,
+	}
+	for _, bucket := range l.FailureClassifications {
+		out.FailureClassifications = append(out.FailureClassifications, &runspb.FailureClassificationCount{
+			Classification: bucket.Label,
+			Count:          int32(bucket.Count),
+		})
+	}
+	out.FindingQuality = &runspb.FleetFindingQuality{
+		Blockers: int32(l.FindingQuality.Blockers),
+		Errors:   int32(l.FindingQuality.Errors),
+		Warnings: int32(l.FindingQuality.Warnings),
+		Infos:    int32(l.FindingQuality.Infos),
+		Total:    int32(l.FindingQuality.Total),
 	}
 	for _, sc := range l.Scenarios {
 		fs := &runspb.FleetScenarioHealth{

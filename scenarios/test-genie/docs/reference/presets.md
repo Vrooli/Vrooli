@@ -45,11 +45,11 @@ test-genie execute my-scenario --preset architecture-audit
 | Phase | Description | Timeout |
 |-------|-------------|---------|
 | Structure | Validates scenario skeleton and lifecycle wiring through structure-health. | 1m |
-| Contracts | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. | 90s |
+| Contracts | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. | 2m |
 | UI Health | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. | 5m |
 | API Health | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. | 2m |
-| Architecture | Validates structural cohesion through architecture-cartographer. | 2m |
-| Documentation | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 1m |
+| Architecture | Validates structural cohesion through architecture-cartographer. | 3m |
+| Documentation | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 90s |
 | Proto | Validates proto contracts through proto-health. | 2m |
 
 ### Comprehensive
@@ -64,13 +64,13 @@ test-genie execute my-scenario --preset comprehensive
 |-------|-------------|---------|
 | Portability | Runs the deployability resolver against declared resource inputs and the observed host OS. | 2m |
 | Structure | Validates scenario skeleton and lifecycle wiring through structure-health. | 1m |
-| Contracts | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. | 90s |
+| Contracts | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. | 2m |
 | UI Health | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. | 5m |
 | API Health | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. | 2m |
-| Architecture | Validates structural cohesion through architecture-cartographer. | 2m |
+| Architecture | Validates structural cohesion through architecture-cartographer. | 3m |
 | Dependencies | Validates dependency readiness, governance, runtime status, release-age policy, and graph drift. | 15m |
 | Quality | Validates static quality contracts, lint and type policy, and strict config through quality-health. | 2m |
-| Documentation | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 1m |
+| Documentation | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 90s |
 | Performance | Validates API/UI build performance and Lighthouse budgets through performance-health. | 5m |
 | Unit | Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health. | 15m |
 | Storage | Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-manager. | 2m |

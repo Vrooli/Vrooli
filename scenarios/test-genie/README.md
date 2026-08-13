@@ -23,6 +23,19 @@ test-genie runs wait --json --timeout=840 my-scenario <run-id>
 - **Turns completed execution evidence into ranked remediation jobs**
 - **Delegates agent policy and protected-workspace execution to Agent Manager**
 
+### Signal and remediation policy
+
+Fleet health reports actionable finding volume as a separate headline
+(`blockers + errors`) and keeps `warnings + infos` as advisory context. Info
+volume is bounded to the documented 30-day `InfoFindingRetentionWindow`; the
+full execution evidence and actionable findings remain governed by the normal
+run-retention policy.
+
+The evidence-bound remediation surface is adopted and remains supported. It is
+operator-triggered from a completed execution and stable finding IDs; Test
+Genie does not create autonomous remediation jobs from a fleet rollup. The
+verification rerun remains the authority for declaring a remediation effective.
+
 ## Architecture
 
 ```

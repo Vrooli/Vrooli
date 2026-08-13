@@ -2,8 +2,11 @@ package eligibility
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -35,10 +38,6 @@ const (
 	// routed path (isolation unproven ⟹ no destructive E2E).
 	CodeStorageIsolationUnverified = "STORAGE_ISOLATION_UNVERIFIED"
 )
-
-// storageManagerProviderScenario is the scenario whose ScenarioValidationService
-// owns the storage-isolation verdict.
-const storageManagerProviderScenario = "storage-manager"
 
 // defaultStorageCheckTimeout bounds the storage-manager validation RPC. storage
 // validation is a fast static analysis (no execution), so a tight bound keeps
@@ -83,7 +82,7 @@ type StorageValidationClient interface {
 
 // ResolveStorageManagerURL resolves storage-manager's base URL. Tests override it.
 var ResolveStorageManagerURL = func(ctx context.Context) (string, error) {
-	return discovery.ResolveScenarioURLDefault(ctx, storageManagerProviderScenario)
+	return "", fmt.Errorf("declared isolation provider is not configured")
 }
 
 // NewStorageValidationClient builds the storage-manager validation client. Tests
@@ -95,7 +94,8 @@ var NewStorageValidationClient = func(timeout time.Duration, baseURL string) Sto
 // Checker fetches and caches per-scenario eligibility for the lifetime of a
 // test-genie run.
 type Checker struct {
-	timeout time.Duration
+	timeout          time.Duration
+	providerScenario string
 
 	mu    sync.Mutex
 	cache map[string]Eligibility
@@ -110,6 +110,15 @@ func NewChecker() *Checker {
 	}
 }
 
+// NewCheckerWithRepoRoot resolves the isolation owner from provider
+// descriptors. A provider opts in with dbIsolationProvider=true; the router
+// does not know any provider scenario name.
+func NewCheckerWithRepoRoot(repoRoot string) *Checker {
+	c := NewChecker()
+	c.providerScenario = declaredIsolationProvider(repoRoot)
+	return c
+}
+
 // Check returns the eligibility of `scenario` for the routed path by querying
 // storage-manager's ScenarioValidationService and inspecting its L2 isolation
 // findings. A storage-manager failure (unreachable, RPC error) is returned as an
@@ -122,12 +131,18 @@ func (c *Checker) Check(ctx context.Context, scenario string, mapping workspace.
 	}
 	c.mu.Unlock()
 
-	baseURL, err := ResolveStorageManagerURL(ctx)
+	var baseURL string
+	var err error
+	if c.providerScenario != "" {
+		baseURL, err = discovery.ResolveScenarioURLDefault(ctx, c.providerScenario)
+	} else {
+		baseURL, err = ResolveStorageManagerURL(ctx)
+	}
 	if err != nil {
-		return Eligibility{}, fmt.Errorf("resolve %s URL: %w", storageManagerProviderScenario, err)
+		return Eligibility{}, fmt.Errorf("resolve declared isolation provider URL: %w", err)
 	}
 	if strings.TrimSpace(baseURL) == "" {
-		return Eligibility{}, fmt.Errorf("%s base URL is empty", storageManagerProviderScenario)
+		return Eligibility{}, fmt.Errorf("declared isolation provider base URL is empty")
 	}
 
 	resp, err := NewStorageValidationClient(c.timeout, baseURL).ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
@@ -135,10 +150,10 @@ func (c *Checker) Check(ctx context.Context, scenario string, mapping workspace.
 		Path:     strings.TrimSpace(mapping.PhysicalScenarioDir),
 	}))
 	if err != nil {
-		return Eligibility{}, fmt.Errorf("%s validation RPC failed: %w", storageManagerProviderScenario, err)
+		return Eligibility{}, fmt.Errorf("declared isolation provider validation RPC failed: %w", err)
 	}
 	if resp == nil || resp.Msg == nil {
-		return Eligibility{}, fmt.Errorf("%s returned an empty validation response", storageManagerProviderScenario)
+		return Eligibility{}, fmt.Errorf("declared isolation provider returned an empty validation response")
 	}
 
 	elig := decideFromAssessment(resp.Msg.GetAssessment())
@@ -147,6 +162,31 @@ func (c *Checker) Check(ctx context.Context, scenario string, mapping workspace.
 	c.cache[scenario] = elig
 	c.mu.Unlock()
 	return elig, nil
+}
+
+func declaredIsolationProvider(repoRoot string) string {
+	root := strings.TrimSpace(repoRoot)
+	if root == "" {
+		return ""
+	}
+	matches, err := filepath.Glob(filepath.Join(root, "scenarios", "*", ".vrooli", "test-genie.json"))
+	if err != nil {
+		return ""
+	}
+	for _, path := range matches {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var descriptor struct {
+			Scenario            string `json:"scenario"`
+			DBIsolationProvider bool   `json:"dbIsolationProvider"`
+		}
+		if json.Unmarshal(raw, &descriptor) == nil && descriptor.DBIsolationProvider && strings.TrimSpace(descriptor.Scenario) != "" {
+			return strings.TrimSpace(descriptor.Scenario)
+		}
+	}
+	return ""
 }
 
 // Invalidate drops the cached eligibility for a single scenario so the next

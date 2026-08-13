@@ -3,7 +3,6 @@ package phases
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -11,11 +10,6 @@ import (
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
-
-func testProviderAssessmentJSON(scenario, provider, phase, current, next string) string {
-	return fmt.Sprintf(`"assessment":{"scenario":%q,"provider":%q,"phase":%q,"version":"1.0.0","local":{"current_level":%q,"next_level":%q}}`,
-		scenario, provider, phase, current, next)
-}
 
 func testProtoProviderAssessment(scenario, provider, phase, current, next string) *commonv1.MaturityAssessment {
 	return &commonv1.MaturityAssessment{

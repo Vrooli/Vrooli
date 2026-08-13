@@ -8,9 +8,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vrooli/api-core/provenance"
-	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
+
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // execTimeFormat matches the rest of the scenario (RFC3339Nano sorts
@@ -28,11 +29,11 @@ type SQLExecutor interface {
 
 type sqliteRepository struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production execution Repository.
-func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
+func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

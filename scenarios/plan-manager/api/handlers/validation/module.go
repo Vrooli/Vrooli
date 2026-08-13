@@ -10,11 +10,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"plan-manager/internal/clock"
 	internalexecution "plan-manager/internal/execution"
 	"plan-manager/internal/module"
 	internalplans "plan-manager/internal/plans"
 	internalvalidation "plan-manager/internal/validation"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -30,7 +31,7 @@ import (
 // refinement, and the LookPath-guarded command runner (the git-control-tower
 // baseline-diff oracle). All wired here at the production edge; never imported
 // into internal/validation.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	plansSvc := internalplans.NewService(internalplans.Deps{
 		Repo:  internalplans.NewSQLiteRepository(db, clk),
 		Clock: clk,

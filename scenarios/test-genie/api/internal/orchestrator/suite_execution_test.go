@@ -127,6 +127,100 @@ func TestLoadCachedPhaseResultWritesLogToCurrentRunDirectory(t *testing.T) {
 	}
 }
 
+func TestRunSelectedPhasesServesCacheBeforeAdmission(t *testing.T) {
+	scenarioDir := t.TempDir()
+	env := workspacepkg.Environment{
+		ScenarioName:                 "demo",
+		ScenarioDir:                  scenarioDir,
+		ArtifactRoot:                 scenarioDir,
+		DescriptorSnapshotDigest:     "descriptor:test",
+		ExecutionConfigurationDigest: "config:test",
+	}
+	phase := staticDef(phasespkg.Name("structure"))
+	phase.ProviderScenario = "structure-health"
+	phase.Determinism = phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}}
+	phase.Concurrency = phasespkg.Concurrency{Mode: "parallel-safe"}
+	identity, ok := (&SuiteOrchestrator{}).phaseCacheIdentity(env, phase, nil)
+	if !ok {
+		t.Fatal("phase should be cache eligible")
+	}
+	if err := phasecache.New(env.ArtifactRoot).Save(phasecache.Key(identity), "source-run", phasespkg.ExecutionResult{Name: "structure", Status: "passed", DurationMilliseconds: 250}); err != nil {
+		t.Fatal(err)
+	}
+
+	broker := &schedulerBrokerStub{kind: "deny", reason: "cache hit must not be admitted"}
+	o := &SuiteOrchestrator{capacity: broker, costEstimator: schedulerCostStub{}, phaseTimeout: time.Second}
+	results, failed, metrics := o.runSelectedPhasesWithRunID(context.Background(), env, runnability.RunContext{}, "current-run", t.TempDir(), []phasespkg.Definition{phase}, nil, false, nil, nil, nil)
+	if failed || len(results) != 1 || !results[0].CacheHit {
+		t.Fatalf("cached execution = failed:%t results:%+v, want one cache hit", failed, results)
+	}
+	if broker.acquires != 0 || metrics.AdmissionAttempts != 0 || metrics.BatchCount != 0 {
+		t.Fatalf("cache hit entered scheduler: acquires=%d attempts=%d batches=%d", broker.acquires, metrics.AdmissionAttempts, metrics.BatchCount)
+	}
+}
+
+func TestPrepareExecutionRebasesOnlyQueuedAdmissionIdentity(t *testing.T) {
+	tests := []struct {
+		name       string
+		queued     bool
+		wantError  bool
+		wantRebase bool
+	}{
+		{name: "immediate request remains fail closed", queued: false, wantError: true},
+		{name: "queued request uses current plan", queued: true, wantRebase: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			createScenarioLayout(t, root, "demo")
+			o, err := NewSuiteOrchestrator(root)
+			if err != nil {
+				t.Fatalf("NewSuiteOrchestrator: %v", err)
+			}
+
+			prepared, err := o.prepareExecution(SuiteExecutionRequest{
+				ScenarioName:                 "demo",
+				Preset:                       "comprehensive",
+				ResolvedPhases:               []string{"structure"},
+				AdmissionTreeDigest:          "stale-tree",
+				AdmissionPhaseSetDigest:      "stale-phase-set",
+				AdmissionDescriptorDigest:    "stale-descriptor",
+				AdmissionConfigurationDigest: "stale-configuration",
+				AdmissionQueued:              tt.queued,
+			})
+			if tt.wantError {
+				if err == nil || !strings.Contains(err.Error(), "source") || !strings.Contains(err.Error(), "phase-set") {
+					t.Fatalf("prepareExecution error = %v, want named admission mismatches", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("prepareExecution: %v", err)
+			}
+			if !tt.wantRebase {
+				return
+			}
+			if prepared.request.AdmissionTreeDigest == "stale-tree" || prepared.request.AdmissionPhaseSetDigest == "stale-phase-set" || prepared.request.AdmissionDescriptorDigest == "stale-descriptor" || prepared.request.AdmissionConfigurationDigest == "stale-configuration" {
+				t.Fatalf("queued request retained stale admission identity: %+v", prepared.request)
+			}
+			if len(prepared.plan.Selected) <= 1 {
+				t.Fatalf("rebased plan selected %d phases, want current comprehensive selection", len(prepared.plan.Selected))
+			}
+			foundWarning := false
+			for _, warning := range prepared.result.Warnings {
+				if strings.Contains(warning, "queued admission identity changed") {
+					foundWarning = true
+					break
+				}
+			}
+			if !foundWarning {
+				t.Fatalf("rebased result warnings = %v, want queued rebase warning", prepared.result.Warnings)
+			}
+		})
+	}
+}
+
 func TestAppendPhaseCacheFindingNamesPhaseAndCapability(t *testing.T) {
 	result := PhaseExecutionResult{PhasePresentation: &commonv1.PhasePresentation{FocusCapabilityId: "endpoint_proof"}}
 	appendPhaseCacheFinding(&result, "demo", "proto", "test_genie.phase_cache_audit_mismatch", "cache mismatch")
@@ -149,6 +243,7 @@ type stubRequirementsSyncer struct {
 func TestCompactTerminalSnapshotDropsDetailedPhasePayloads(t *testing.T) {
 	result := &SuiteExecutionResult{Phases: []PhaseExecutionResult{{
 		Name: "security", Status: "failed", DurationSeconds: 3,
+		Classification: "missing_dependency", ClassificationSource: phasespkg.ClassificationSourceProvider,
 		Observations: []phasespkg.Observation{phasespkg.NewErrorObservation("large observation")},
 		Findings:     []*architecturev1.ArchitectureFinding{{Code: "detailed.finding"}},
 		LogPath:      "coverage/logs/security.log",
@@ -161,7 +256,7 @@ func TestCompactTerminalSnapshotDropsDetailedPhasePayloads(t *testing.T) {
 	if phase.LogPath != "" || len(phase.Observations) != 0 || len(phase.Findings) != 0 || phase.Metrics != nil {
 		t.Fatalf("snapshot retained detailed phase payload: %+v", phase)
 	}
-	if phase.Name != "security" || phase.Status != "failed" || phase.DurationSeconds != 3 {
+	if phase.Name != "security" || phase.Status != "failed" || phase.DurationSeconds != 3 || phase.ClassificationSource != phasespkg.ClassificationSourceProvider {
 		t.Fatalf("snapshot lost compact phase summary: %+v", phase)
 	}
 }

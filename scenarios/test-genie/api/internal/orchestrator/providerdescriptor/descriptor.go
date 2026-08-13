@@ -23,43 +23,56 @@ import (
 const (
 	RelPath       = ".vrooli/test-genie.json"
 	SchemaVersion = "1.0.0"
+	// BoilerplateDeterminismReason is rejected for static providers because it
+	// does not state which external observation makes a file-bound result
+	// non-deterministic. Revisit if the descriptor contract gains a structured
+	// observation list that makes this prose unnecessary.
+	BoilerplateDeterminismReason = "Provider inputs and external observations are not proven to be completely represented by a file digest."
 )
 
 var evidenceKindPattern = regexp.MustCompile(`^[a-z0-9]+(?:[._-][a-z0-9]+)*$`)
 
 type Descriptor struct {
-	SchemaVersion        string           `json:"schemaVersion"`
-	Scenario             string           `json:"scenario"`
-	Phase                string           `json:"phase"`
-	DisplayName          string           `json:"displayName"`
-	Description          string           `json:"description"`
-	Source               string           `json:"source"`
-	OrderHint            int              `json:"orderHint,omitempty"`
-	Timeout              string           `json:"timeout"`
-	FindingSource        string           `json:"findingSource,omitempty"`
-	ProfileMembership    []string         `json:"profileMembership,omitempty"`
-	FreshnessRequirement string           `json:"freshnessRequirement,omitempty"`
-	PhaseClass           string           `json:"phaseClass,omitempty"`
-	RuntimeClass         string           `json:"runtimeClass,omitempty"`
-	Concurrency          Concurrency      `json:"concurrency,omitempty"`
-	Determinism          Determinism      `json:"determinism,omitempty"`
-	Dimensions           []string         `json:"dimensions,omitempty"`
-	EvidenceKinds        []string         `json:"evidenceKinds,omitempty"`
-	Aliases              []string         `json:"aliases,omitempty"`
-	Supersedes           []string         `json:"supersedes,omitempty"`
-	Comparison           Comparison       `json:"comparison,omitempty"`
-	Validation           Validation       `json:"validation"`
-	Targets              Targets          `json:"targets,omitempty"`
-	Applicability        Applicability    `json:"applicability"`
-	Policy               Policy           `json:"policy"`
-	Runnability          Runnability      `json:"runnability"`
-	Docs                 Docs             `json:"docs,omitempty"`
-	Maturity             json.RawMessage  `json:"maturity"`
-	Path                 string           `json:"-"`
-	TimeoutValue         time.Duration    `json:"-"`
-	MaturitySpec         *assessment.Spec `json:"-"`
-	concurrencyDeclared  bool             `json:"-"`
-	determinismDeclared  bool             `json:"-"`
+	SchemaVersion string `json:"schemaVersion"`
+	Scenario      string `json:"scenario"`
+	Phase         string `json:"phase"`
+	DisplayName   string `json:"displayName"`
+	Description   string `json:"description"`
+	Source        string `json:"source"`
+	// ConformanceTarget is an optional provider-owned fixture used by the
+	// background conformance scan. When omitted, the provider scenario is the
+	// target. The orchestrator never needs a provider-name switch.
+	ConformanceTarget string `json:"conformanceTarget,omitempty"`
+	// DBIsolationProvider identifies the descriptor that owns routed database
+	// isolation checks. It is a declaration, not an orchestrator special case.
+	DBIsolationProvider        bool             `json:"dbIsolationProvider,omitempty"`
+	ArtifactComparisonProvider bool             `json:"artifactComparisonProvider,omitempty"`
+	OrderHint                  int              `json:"orderHint,omitempty"`
+	Timeout                    string           `json:"timeout"`
+	FindingSource              string           `json:"findingSource,omitempty"`
+	ProfileMembership          []string         `json:"profileMembership,omitempty"`
+	FreshnessRequirement       string           `json:"freshnessRequirement,omitempty"`
+	PhaseClass                 string           `json:"phaseClass,omitempty"`
+	RuntimeClass               string           `json:"runtimeClass,omitempty"`
+	Concurrency                Concurrency      `json:"concurrency,omitempty"`
+	Determinism                Determinism      `json:"determinism,omitempty"`
+	Dimensions                 []string         `json:"dimensions,omitempty"`
+	EvidenceKinds              []string         `json:"evidenceKinds,omitempty"`
+	Aliases                    []string         `json:"aliases,omitempty"`
+	Supersedes                 []string         `json:"supersedes,omitempty"`
+	Comparison                 Comparison       `json:"comparison,omitempty"`
+	Validation                 Validation       `json:"validation"`
+	Targets                    Targets          `json:"targets,omitempty"`
+	Applicability              Applicability    `json:"applicability"`
+	Policy                     Policy           `json:"policy"`
+	Runnability                Runnability      `json:"runnability"`
+	Docs                       Docs             `json:"docs,omitempty"`
+	Maturity                   json.RawMessage  `json:"maturity"`
+	Path                       string           `json:"-"`
+	TimeoutValue               time.Duration    `json:"-"`
+	MaturitySpec               *assessment.Spec `json:"-"`
+	concurrencyDeclared        bool             `json:"-"`
+	determinismDeclared        bool             `json:"-"`
 }
 
 type Concurrency struct {
@@ -546,7 +559,7 @@ func validateDescriptor(d *Descriptor) []Diagnostic {
 		add("invalid_validation_contract", "validation.contract must be scenario-validation/v1")
 	}
 	if len(d.Targets.Kinds) == 0 {
-		d.Targets.Kinds = []string{"scenario"}
+		add("missing_targets", "targets.kinds is required; declare the target kinds this provider actually validates")
 	}
 	if d.Targets.Selection != "" && d.Targets.Selection != "enumerate" {
 		add("invalid_target_selection", "targets.selection must be enumerate when present")
@@ -709,6 +722,12 @@ func validateOrchestration(d *Descriptor) []Diagnostic {
 		}
 		if d.Determinism.Default == "observational" && d.Determinism.Reason == "" {
 			add("missing_determinism_reason", "determinism.reason is required when determinism.default is observational")
+		}
+		if d.RuntimeClass == "static" && d.Determinism.Default == "observational" {
+			add("static_provider_declared_observational", "runtimeClass=static must declare file-determined determinism or explain a concrete external observation")
+		}
+		if d.RuntimeClass == "static" && d.Determinism.Reason == BoilerplateDeterminismReason {
+			add("boilerplate_determinism_reason", "static providers must name the external observation that prevents file-determined caching")
 		}
 		for capability, override := range d.Determinism.Capabilities {
 			if !oneOf(override.Mode, "file-determined", "observational") {

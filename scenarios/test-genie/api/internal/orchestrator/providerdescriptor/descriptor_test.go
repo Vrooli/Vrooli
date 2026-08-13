@@ -35,6 +35,15 @@ func TestLoadValidDescriptor(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsDescriptorWithoutTargetDeclaration(t *testing.T) {
+	body := strings.Replace(validDescriptor("search-hub", "search"),
+		`  "targets":{"kinds":["scenario"],"selection":"enumerate"},`+"\n", "", 1)
+	result := Load(LoadOptions{Paths: []string{writeDescriptor(t, "search-hub", body)}})
+	if !hasDiagnostic(result.Diagnostics, "missing_targets") {
+		t.Fatalf("missing target declaration was accepted: %+v", result.Diagnostics)
+	}
+}
+
 func TestLoadRejectsDescriptorErrors(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -124,6 +133,18 @@ func TestLoadRejectsDescriptorErrors(t *testing.T) {
 				`"validation":{"contract":"scenario-validation/v1","includeExecution":true}`,
 				`"validation":{"contract":"scenario-validation/v1","deliveryMode":"durable-run","execution":true}`, 1),
 			want: "durable_delivery_requires_run_service", scenario: "search-hub",
+		},
+		{
+			name: "static observational determinism is explicit diagnostic",
+			body: strings.Replace(validDescriptor("search-hub", "search"),
+				`"source":"validation-provider",`, `"source":"validation-provider","runtimeClass":"static","determinism":{"default":"observational","reason":"reads a live service"},`, 1),
+			want: "static_provider_declared_observational", scenario: "search-hub",
+		},
+		{
+			name: "static boilerplate reason is rejected",
+			body: strings.Replace(validDescriptor("search-hub", "search"),
+				`"source":"validation-provider",`, `"source":"validation-provider","runtimeClass":"static","determinism":{"default":"file-determined","inputs":["**/*.go"],"reason":"Provider inputs and external observations are not proven to be completely represented by a file digest."},`, 1),
+			want: "boilerplate_determinism_reason", scenario: "search-hub",
 		},
 	}
 	for _, tc := range tests {
@@ -325,6 +346,7 @@ func validDescriptor(scenario, phase string) string {
   "timeout":"120s",
   "findingSource":"search",
   "validation":{"contract":"scenario-validation/v1","includeExecution":true},
+  "targets":{"kinds":["scenario"],"selection":"enumerate"},
   "applicability":{"default":"not_applicable","any":[{"fileExists":".vrooli/search.json"},{"serviceCapability":"search"}]},
   "policy":{
     "selection":"default_when_applicable",

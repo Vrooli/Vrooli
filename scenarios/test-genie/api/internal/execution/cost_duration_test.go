@@ -31,10 +31,9 @@ VALUES (?, 0, ?, ?, 1, ?, ?, ?, ?)`, execID, phase, status, durationMs, duration
 	}
 }
 
-// The deadline guard must see how long a phase actually runs, including the
-// runs where it fails. Failing phases are the slow ones — measured 2026-08-08 at
-// 2.2x the passing average — so an estimate drawn only from passing samples
-// would understate exactly the risk the guard exists to catch.
+// The deadline guard must include failed executions in its observed history.
+// They contribute to the p90 tail even though one isolated failure does not
+// become the estimate by itself.
 func TestPhaseDurationEstimateIncludesFailingSamples(t *testing.T) {
 	db := testsqlite.Open(t)
 	repo := NewSuiteExecutionRepository(db)
@@ -48,8 +47,8 @@ func TestPhaseDurationEstimateIncludesFailingSamples(t *testing.T) {
 	if !ok {
 		t.Fatal("no estimate from ten samples")
 	}
-	if estimate != 90_000 {
-		t.Fatalf("estimate = %d ms, want the failing 90000 ms sample to be represented", estimate)
+	if estimate != 10_000 {
+		t.Fatalf("estimate = %d ms, want the p90 estimate to include failed-run history", estimate)
 	}
 }
 
@@ -57,7 +56,7 @@ func TestPhaseDurationEstimateIncludesFailingSamples(t *testing.T) {
 // slow on the tenth is exactly what a timeout catches, so a middle-of-the-
 // distribution estimate would wave it into a batch and let contention turn the
 // slow run into a false timeout.
-func TestPhaseDurationEstimateRepresentsTheSlowTail(t *testing.T) {
+func TestPhaseDurationEstimateUsesP90InsteadOfOneOutlier(t *testing.T) {
 	db := testsqlite.Open(t)
 	repo := NewSuiteExecutionRepository(db)
 
@@ -67,8 +66,8 @@ func TestPhaseDurationEstimateRepresentsTheSlowTail(t *testing.T) {
 	insertDurationSample(t, db, "demo", "unit", "failed", 140_000, reliable())
 
 	estimate, ok := repo.PhaseDurationEstimate(context.Background(), "demo", "unit")
-	if !ok || estimate != 140_000 {
-		t.Fatalf("estimate = %d ms ok=%t, want the slow tail sample", estimate, ok)
+	if !ok || estimate != 5_000 {
+		t.Fatalf("estimate = %d ms ok=%t, want p90 fast-tail sample", estimate, ok)
 	}
 }
 

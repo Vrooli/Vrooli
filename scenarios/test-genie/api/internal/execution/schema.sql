@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS suite_execution_phases (
     duration_seconds INTEGER NOT NULL DEFAULT 0 CHECK (duration_seconds >= 0),
     error_text TEXT NOT NULL DEFAULT '',
     classification TEXT NOT NULL DEFAULT '',
+    classification_source TEXT NOT NULL DEFAULT '',
     remediation TEXT NOT NULL DEFAULT '',
     runnability_verdict TEXT NOT NULL DEFAULT '',
     runnability_reason TEXT NOT NULL DEFAULT '',

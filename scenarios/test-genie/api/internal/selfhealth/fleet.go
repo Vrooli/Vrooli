@@ -14,6 +14,22 @@ import (
 // still returned (callers paginate/render as needed).
 const maxTopFindingSources = 8
 
+// InfoFindingRetentionWindow is the documented horizon for the lowest-value
+// finding volume shown by fleet health. The run store's normal evidence policy
+// retains actionable detail; info volume is a bounded advisory signal.
+const InfoFindingRetentionWindow = 30 * 24 * time.Hour
+
+type FleetFindingQuality struct {
+	Blockers int `json:"blockers"`
+	Errors   int `json:"errors"`
+	Warnings int `json:"warnings"`
+	Infos    int `json:"infos"`
+	Total    int `json:"total"`
+}
+
+func (q FleetFindingQuality) Headline() int { return q.Blockers + q.Errors }
+func (q FleetFindingQuality) Advisory() int { return q.Warnings + q.Infos }
+
 // fleetObservationSource is the read seam the fleet ledger composes over —
 // satisfied by *execution.SuiteExecutionRepository. It adds the per-scenario
 // run rollup to the phase observations the per-phase ledger already consumes.
@@ -66,16 +82,20 @@ type FleetAlert struct {
 // fresh. NeverTestedInWindow is honest about coverage gaps when a fleet roster
 // is supplied.
 type FleetLedger struct {
-	WindowDays          int                   `json:"windowDays"`
-	CapturedAt          time.Time             `json:"capturedAt"`
-	ScenariosTested     int                   `json:"scenariosTested"`
-	ScenariosTotal      int                   `json:"scenariosTotal"`
-	TotalRuns           int                   `json:"totalRuns"`
-	TotalIssues         int                   `json:"totalIssues"`
-	Scenarios           []FleetScenarioHealth `json:"scenarios"`
-	TopFindingSources   []FleetFindingSource  `json:"topFindingSources"`
-	NeverTestedInWindow []string              `json:"neverTestedInWindow"`
-	Alerts              []FleetAlert          `json:"alerts"`
+	WindowDays              int                   `json:"windowDays"`
+	CapturedAt              time.Time             `json:"capturedAt"`
+	ScenariosTested         int                   `json:"scenariosTested"`
+	ScenariosTotal          int                   `json:"scenariosTotal"`
+	TotalRuns               int                   `json:"totalRuns"`
+	FailedPhaseObservations int                   `json:"failedPhaseObservations"`
+	Scenarios               []FleetScenarioHealth `json:"scenarios"`
+	TopFindingSources       []FleetFindingSource  `json:"topFindingSources"`
+	// FailureClassifications preserves provider-attributed causes and exposes
+	// missing attribution as an explicit unclassified bucket.
+	FailureClassifications []LabeledCount      `json:"failureClassifications"`
+	FindingQuality         FleetFindingQuality `json:"findingQuality"`
+	NeverTestedInWindow    []string            `json:"neverTestedInWindow"`
+	Alerts                 []FleetAlert        `json:"alerts"`
 }
 
 // FleetBuilder assembles fleet ledgers from a fleet observation source.
@@ -116,7 +136,16 @@ func (b *FleetBuilder) Build(ctx context.Context, roster []string) (*FleetLedger
 	// finding-source clustering, in one pass over the phase observations.
 	issuesByScenario := map[string]int{}
 	issuesBySource := map[string]int{}
+	classifications := map[string]int{}
+	var findingQuality FleetFindingQuality
+	infoSince := now.Add(-InfoFindingRetentionWindow)
 	for _, obs := range observations {
+		findingQuality.Blockers += obs.FindingBlockers
+		findingQuality.Errors += obs.FindingErrors
+		findingQuality.Warnings += obs.FindingWarnings
+		if obs.CompletedAt.IsZero() || !obs.CompletedAt.Before(infoSince) {
+			findingQuality.Infos += obs.FindingInfos
+		}
 		if obs.Status != "failed" {
 			continue
 		}
@@ -128,11 +157,19 @@ func (b *FleetBuilder) Build(ctx context.Context, roster []string) (*FleetLedger
 			source = "unattributed"
 		}
 		issuesBySource[source]++
+		classification := strings.TrimSpace(obs.Classification)
+		if classification == "" {
+			classification = "unclassified"
+		}
+		classifications[classification]++
 	}
+	findingQuality.Total = findingQuality.Blockers + findingQuality.Errors + findingQuality.Warnings + findingQuality.Infos
 
 	ledger := &FleetLedger{
-		WindowDays: int(b.window.Hours() / 24),
-		CapturedAt: now,
+		WindowDays:             int(b.window.Hours() / 24),
+		CapturedAt:             now,
+		FailureClassifications: histogram(classifications),
+		FindingQuality:         findingQuality,
 	}
 
 	tested := make(map[string]struct{}, len(runRollups))
@@ -162,7 +199,7 @@ func (b *FleetBuilder) Build(ctx context.Context, roster []string) (*FleetLedger
 		}
 		ledger.Scenarios = append(ledger.Scenarios, health)
 		ledger.TotalRuns += roll.Runs
-		ledger.TotalIssues += health.Issues
+		ledger.FailedPhaseObservations += health.Issues
 		if health.FailedRuns > 0 || health.Issues > 0 {
 			ledger.Alerts = append(ledger.Alerts, FleetAlert{
 				Code: "FLEET_SCENARIO_NOT_GREEN", Severity: "error", Scenario: name,
@@ -173,7 +210,6 @@ func (b *FleetBuilder) Build(ctx context.Context, roster []string) (*FleetLedger
 			})
 		}
 	}
-
 	// Rank most-errored first: failure rate, then absolute failures, then issue
 	// count, then name (deterministic). Healthy + fresh scenarios sort last.
 	sort.SliceStable(ledger.Scenarios, func(i, j int) bool {

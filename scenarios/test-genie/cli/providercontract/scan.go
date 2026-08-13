@@ -125,7 +125,9 @@ func ParseScanArgs(args []string) (ScanArgs, error) {
 	}
 	fs := flag.NewFlagSet("provider-contract scan", flag.ContinueOnError)
 	fs.SetOutput(flag.CommandLine.Output())
-	out := ScanArgs{Target: selfhealth.DefaultScanTarget, Timeout: time.Minute}
+	// Empty means descriptor-driven per-provider fixtures. A common target is
+	// still available explicitly through --target for operator experiments.
+	out := ScanArgs{Timeout: time.Minute}
 	fs.BoolVar(&out.JSON, "json", false, "Output JSON")
 	fs.StringVar(&out.Target, "target", out.Target, "Fixture scenario each provider validates")
 	fs.DurationVar(&out.Timeout, "timeout", out.Timeout, "Default per-provider probe timeout")
@@ -145,9 +147,6 @@ func ParseScanArgs(args []string) (ScanArgs, error) {
 		return ScanArgs{}, errors.New(scanUsage)
 	}
 	out.Target = strings.TrimSpace(out.Target)
-	if out.Target == "" {
-		return ScanArgs{}, errors.New(scanUsage)
-	}
 	return out, nil
 }
 

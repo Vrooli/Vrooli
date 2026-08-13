@@ -61,6 +61,14 @@ role reference.
 
 `SuiteOrchestrator.Execute*` now shares one bootstrap/finalization path before branching into streaming vs non-streaming execution. Runtime URL detection, testing-config loading, plan creation, artifact directories, and completion bookkeeping happen once so the two execution surfaces cannot drift on setup or result-shaping policy.
 
+Preparation evidence keeps the phase loop honest: `phase_execution` is the
+wall time from the first scheduling decision through the last admitted phase,
+while `phase_scheduling` records admission overhead, batch count, and the
+largest admitted batch. Provider readiness remains a separate preflight stage.
+Fleet parallelism calculations should use the sum of phase durations divided by
+`phase_execution`, not total run wall time; the latter also includes readiness,
+target startup, and other work the phase scheduler cannot overlap.
+
 ### Workflow assets vs delegated workflow phase
 
 `workflow-health` owns BAS catalog scanning, maturity, safe execution, and findings. Test Genie keeps legacy registry and seed helpers for compatibility, but the catalog phase is `workflow` and it consumes provider output through `ScenarioValidationService` rather than running BAS workflows natively.

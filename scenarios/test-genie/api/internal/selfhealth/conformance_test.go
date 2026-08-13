@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 func writeSpec(t *testing.T, repoRoot, provider, phase string) {
@@ -73,6 +74,35 @@ func probeFn(resp *scenariovalidationv1.ValidateScenarioResponse, err error) Con
 func fixProbeFn(preview, applied *scenariovalidationv1.FixResponse, err error) FixConformanceProbe {
 	return func(context.Context, string, string, string, []string, time.Duration) (*scenariovalidationv1.FixResponse, *scenariovalidationv1.FixResponse, error) {
 		return preview, applied, err
+	}
+}
+
+func TestCheckProviderRequiresFailureClassification(t *testing.T) {
+	repo := t.TempDir()
+	writeSpec(t, repo, "proto-health", "proto")
+	base := validProbeResponse("proto-health", "proto", true)
+	for _, tc := range []struct {
+		name           string
+		status         scenariovalidationv1.ValidationStatus
+		classification string
+		wantMissing    bool
+	}{
+		{name: "failed without cause", status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, wantMissing: true},
+		{name: "error with cause", status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR, classification: "missing_dependency"},
+		{name: "passed without cause", status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := proto.Clone(base).(*scenariovalidationv1.ValidateScenarioResponse)
+			resp.Status = tc.status
+			resp.FailureClassification = tc.classification
+			got := ScanProvider(context.Background(), probeFn(resp, nil), repo, "test-genie", "proto", "proto-health", time.Second)
+			if got.FailureClassificationMissing != tc.wantMissing {
+				t.Fatalf("missing = %t, want %t; report=%+v", got.FailureClassificationMissing, tc.wantMissing, got)
+			}
+			if tc.wantMissing && (len(got.ReasonCodes) != 1 || got.ReasonCodes[0] != ReasonFailureClassificationMissing) {
+				t.Fatalf("reason codes = %v, want %q", got.ReasonCodes, ReasonFailureClassificationMissing)
+			}
+		})
 	}
 }
 
@@ -146,6 +176,8 @@ func testGenieDescriptor(provider, phase string, spec assessment.Spec) map[strin
 }
 
 func TestScanProviderAutofixCoverage(t *testing.T) {
+	restore := stubDescribeProbe(nil)
+	defer restore()
 	repo := t.TempDir()
 	writeSpecWithFindings(t, repo, "proto-health", "proto", map[string]assessment.FindingMapping{
 		"DONE":    {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassAuto, FixerStatus: assessment.FixerStatusImplemented},
@@ -182,6 +214,8 @@ func TestScanProviderAutofixCoverageWhenUnreachable(t *testing.T) {
 }
 
 func TestScanProviderFullAdoption(t *testing.T) {
+	restore := stubDescribeProbe(nil)
+	defer restore()
 	repo := t.TempDir()
 	writeSpec(t, repo, "proto-health", "proto")
 	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
@@ -368,8 +402,8 @@ func TestConformanceScannerScansCatalog(t *testing.T) {
 		RepoRoot: repo,
 		Probe:    probeFn(validProbeResponse("proto-health", "proto", true), nil),
 	}.Scan(context.Background())
-	if report.Target != DefaultScanTarget {
-		t.Fatalf("target = %q, want %q", report.Target, DefaultScanTarget)
+	if report.Target != "" {
+		t.Fatalf("target = %q, want empty descriptor-driven target", report.Target)
 	}
 	if len(report.Providers) == 0 {
 		t.Fatal("expected the scan to enumerate delegated providers")
@@ -398,12 +432,11 @@ func TestConformanceScannerFiltersBySubject(t *testing.T) {
 	}
 }
 
-func TestProviderDefaultTargetUsesApplicabilityValidExperienceFixture(t *testing.T) {
-	if got := ProviderDefaultTarget("experience-manager"); got != "experience-manager" {
-		t.Fatalf("experience-manager target = %q", got)
-	}
-	if got := ProviderDefaultTarget("brand-manager"); got != DefaultScanTarget {
-		t.Fatalf("brand-manager target = %q, want default %q", got, DefaultScanTarget)
+func TestProviderDefaultTargetIsProviderOwned(t *testing.T) {
+	for _, provider := range []string{"experience-manager", "brand-manager"} {
+		if got := ProviderDefaultTarget(provider); got != provider {
+			t.Fatalf("provider %q target = %q, want provider-owned fallback", provider, got)
+		}
 	}
 }
 

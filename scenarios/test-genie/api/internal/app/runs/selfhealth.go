@@ -2,6 +2,7 @@ package runs
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"time"
 
@@ -87,10 +88,25 @@ func (s *Service) GetSelfHealth(ctx context.Context, req *connect.Request[runspb
 
 	if req.Msg.GetSkipConformance() {
 		sh.ConformanceFreshness = "skipped"
+	} else if !req.Msg.GetForceLiveConformance() {
+		// The normal read path is deliberately snapshot-backed. A missing or
+		// malformed snapshot is still reported as cached/unavailable rather than
+		// silently reintroducing a provider fan-out into this request.
+		sh.ConformanceFreshness = "cached"
+		if s.snapshotReader != nil {
+			if snapshot, ok, err := s.snapshotReader.Latest(ctx); err == nil && ok {
+				sh.ConformanceCapturedAt = snapshot.CapturedAt.UTC().Format(snapshotTimeLayout)
+				var payload struct {
+					Conformance []selfhealth.ProviderConformance `json:"conformance"`
+				}
+				if json.Unmarshal([]byte(snapshot.PayloadJSON), &payload) == nil {
+					sh.Conformance = conformanceToProto(selfhealth.ConformanceReport{Providers: payload.Conformance})
+				}
+			}
+		}
 	} else {
 		scanner := selfhealth.ConformanceScanner{
 			RepoRoot: s.repoRoot(),
-			Target:   selfhealth.DefaultScanTarget,
 		}
 		if s.storedMetrics != nil {
 			scanner.StoredMetrics = func(probeCtx context.Context, _ string, phase string) bool {
@@ -155,22 +171,23 @@ func conformanceToProto(report selfhealth.ConformanceReport) []*runspb.ProviderC
 	out := make([]*runspb.ProviderConformance, 0, len(report.Providers))
 	for _, pr := range report.Providers {
 		out = append(out, &runspb.ProviderConformance{
-			Provider:            pr.Provider,
-			Phase:               pr.Phase,
-			Classification:      string(pr.Classification),
-			ReasonCodes:         append([]string(nil), pr.ReasonCodes...),
-			Reachable:           pr.Reachable,
-			ContractValid:       pr.ContractValid,
-			IdentityOk:          pr.IdentityOK,
-			SpecValid:           pr.SpecValid,
-			MetricsAdopted:      pr.MetricsAdopted,
-			MetricsReachable:    pr.MetricsReachable,
-			FixContractRequired: pr.FixContractRequired,
-			FixContractValid:    pr.FixContractValid,
-			ConcurrencyDeclared: pr.ConcurrencyDeclared,
-			AdoptionScore:       pr.AdoptionScore,
-			Violations:          pr.Violations,
-			Autofix:             autofixCoverageToProto(pr.Autofix),
+			Provider:                     pr.Provider,
+			Phase:                        pr.Phase,
+			Classification:               string(pr.Classification),
+			ReasonCodes:                  append([]string(nil), pr.ReasonCodes...),
+			Reachable:                    pr.Reachable,
+			ContractValid:                pr.ContractValid,
+			IdentityOk:                   pr.IdentityOK,
+			SpecValid:                    pr.SpecValid,
+			MetricsAdopted:               pr.MetricsAdopted,
+			MetricsReachable:             pr.MetricsReachable,
+			FixContractRequired:          pr.FixContractRequired,
+			FixContractValid:             pr.FixContractValid,
+			FailureClassificationMissing: pr.FailureClassificationMissing,
+			ConcurrencyDeclared:          pr.ConcurrencyDeclared,
+			AdoptionScore:                pr.AdoptionScore,
+			Violations:                   pr.Violations,
+			Autofix:                      autofixCoverageToProto(pr.Autofix),
 		})
 	}
 	return out
@@ -226,18 +243,22 @@ func ledgerToProto(l *selfhealth.Ledger) *runspb.ReliabilityLedger {
 
 func phaseReliabilityToProto(p selfhealth.PhaseReliability) *runspb.PhaseReliability {
 	out := &runspb.PhaseReliability{
-		Phase:             p.Phase,
-		Provider:          p.Provider,
-		FindingSource:     p.FindingSource,
-		TotalObservations: int32(p.TotalObservations),
-		Passed:            int32(p.Passed),
-		Failed:            int32(p.Failed),
-		Skipped:           int32(p.Skipped),
-		Degraded:          int32(p.Degraded),
-		Availability:      p.Availability,
-		FailureRate:       p.FailureRate,
-		MetricsAdopted:    int32(p.MetricsAdopted),
-		Duration:          durationToProto(p.Duration),
+		Phase:               p.Phase,
+		Provider:            p.Provider,
+		FindingSource:       p.FindingSource,
+		TotalObservations:   int32(p.TotalObservations),
+		Passed:              int32(p.Passed),
+		Failed:              int32(p.Failed),
+		Skipped:             int32(p.Skipped),
+		Degraded:            int32(p.Degraded),
+		Availability:        p.Availability,
+		FailureRate:         p.FailureRate,
+		MetricsAdopted:      int32(p.MetricsAdopted),
+		Duration:            durationToProto(p.Duration),
+		ConsecutiveFailures: int32(p.ConsecutiveFailures),
+	}
+	if !p.FailureStreakSince.IsZero() {
+		out.FailureStreakSince = p.FailureStreakSince.UTC().Format(snapshotTimeLayout)
 	}
 	for _, lc := range p.SkipReasons {
 		out.SkipReasons = append(out.SkipReasons, &runspb.LabeledCount{Label: lc.Label, Count: int32(lc.Count)})

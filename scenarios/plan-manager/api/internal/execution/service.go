@@ -8,9 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vrooli/api-core/provenance"
-	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
+
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -56,7 +57,7 @@ type service struct {
 	velocity  VelocitySink
 	baseline  BaselineSynchronizer
 	preflight SourceEvidencePreflighter
-	clock     clock.Clock
+	clock     schedule.Clock
 	startMu   sync.Mutex
 }
 
@@ -74,14 +75,14 @@ type Deps struct {
 	Velocity  VelocitySink
 	Baseline  BaselineSynchronizer
 	Preflight SourceEvidencePreflighter
-	Clock     clock.Clock
+	Clock     schedule.Clock
 }
 
 // NewService constructs the execution Service.
 func NewService(d Deps) Service {
 	clk := d.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	sink := d.Velocity
 	if sink == nil {

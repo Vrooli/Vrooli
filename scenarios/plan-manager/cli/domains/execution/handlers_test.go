@@ -15,7 +15,7 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 
 	"github.com/vrooli/cli-core/cliapp"
-	clitest "plan-manager/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 // execRecorder is a fake ExecutionService capturing the request the handler

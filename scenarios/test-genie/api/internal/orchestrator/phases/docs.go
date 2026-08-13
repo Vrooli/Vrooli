@@ -208,8 +208,6 @@ func displayNameFromKey(raw string) string {
 		if part == "" {
 			continue
 		}
-		switch strings.ToLower(part) {
-		}
 		parts[i] = strings.ToUpper(part[:1]) + part[1:]
 	}
 	return strings.Join(parts, " ")

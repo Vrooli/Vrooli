@@ -222,6 +222,12 @@ type SuiteExecutionRequest struct {
 	AdmissionPhaseSetDigest      string `json:"admissionPhaseSetDigest,omitempty"`
 	AdmissionDescriptorDigest    string `json:"admissionDescriptorDigest,omitempty"`
 	AdmissionConfigurationDigest string `json:"admissionConfigurationDigest,omitempty"`
+	// AdmissionQueued is set by the run manager when this request waited for a
+	// global execution slot. A queued request may outlive the plan preview that
+	// admitted it, so prepareExecution is allowed one explicit rebase against
+	// the current source and descriptor snapshot. Immediate requests remain
+	// fail-closed when their admission identity changes.
+	AdmissionQueued bool `json:"admissionQueued,omitempty"`
 	// AdmissionResources is populated from selected phase descriptors so the
 	// durable run manager can serialize suites sharing a singleton service.
 	AdmissionResources                  []string         `json:"admissionResources,omitempty"`
@@ -286,8 +292,14 @@ type SuiteExecutionResult struct {
 	PreparationStages []PreparationStage          `json:"preparationStages,omitempty"`
 	ProviderReadiness []providerreadiness.Outcome `json:"providerReadiness,omitempty"`
 	SchedulerDecision string                      `json:"schedulerDecision,omitempty"`
-	Warnings          []string                    `json:"warnings,omitempty"`
-	WarningSummary    WarningSummary              `json:"warningSummary"`
+	// SchedulerAdmissionAttempts and SchedulerEstimatedAdmissions make the
+	// scheduler's fallback usage durable. The latter is the revisit signal for
+	// the fleet-wide reservation constant; without persistence, the scheduler
+	// could silently drift back to guessed capacity forever.
+	SchedulerAdmissionAttempts   int            `json:"schedulerAdmissionAttempts,omitempty"`
+	SchedulerEstimatedAdmissions int            `json:"schedulerEstimatedAdmissions,omitempty"`
+	Warnings                     []string       `json:"warnings,omitempty"`
+	WarningSummary               WarningSummary `json:"warningSummary"`
 	// CampaignNudge is present only when the audit finding load exceeded the
 	// single-pass threshold, steering the agent to open a tracked
 	// improvement campaign. Nil otherwise.
@@ -392,6 +404,7 @@ type preparedExecution struct {
 	env               workspacepkg.Environment
 	config            *workspacepkg.Config
 	plan              *phasePlan
+	request           SuiteExecutionRequest
 	runID             string
 	runLogDir         string
 	result            *SuiteExecutionResult
@@ -516,6 +529,11 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 	if err != nil {
 		return nil, err
 	}
+	// A queued request may have been rebased against a newer plan while it
+	// waited for a global slot. Carry that effective request through the rest
+	// of execution so runtime setup, scheduling, and final evidence agree on
+	// the same current contract.
+	req = prepared.request
 	prepared.result.PreparationStages = append(prepared.result.PreparationStages, PreparationStage{Name: "planning", Status: "completed", DurationMilliseconds: time.Since(prepareStarted).Milliseconds()})
 	prepared.result.PreparationStages = append(prepared.result.PreparationStages, prepared.preparationStages...)
 	emitPreparationProgress(emit, "planning", fmt.Sprintf("completed in %s", time.Since(prepareStarted).Round(time.Millisecond)))
@@ -573,14 +591,25 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 		buildPhaseWarningMap(prepared.plan),
 		req.PredictedPhaseDurationsMilliseconds,
 	)
+	// Keep phase execution wall time separate from provider readiness and other
+	// preflight. The scheduler can control overlap only inside this interval;
+	// folding a slow legacy readiness probe into its denominator makes a faster
+	// scheduler look worse and hides the actual readiness tax from operators.
+	prepared.result.PreparationStages = append(prepared.result.PreparationStages, PreparationStage{
+		Name:                 "phase_execution",
+		Status:               "completed",
+		DurationMilliseconds: loopMetrics.ExecutionMilliseconds,
+	})
 	// Recorded as a stage so `runs cost` and any consumer summing stages sees
 	// scheduling overhead beside phase cost instead of losing it.
 	prepared.result.PreparationStages = append(prepared.result.PreparationStages, PreparationStage{
 		Name:                 "phase_scheduling",
 		Status:               "completed",
-		Subject:              fmt.Sprintf("%d admission attempts", loopMetrics.AdmissionAttempts),
+		Subject:              fmt.Sprintf("%d admission attempts; %d estimated admissions; %d batches; max batch %d", loopMetrics.AdmissionAttempts, loopMetrics.EstimatedAdmissions, loopMetrics.BatchCount, loopMetrics.MaxBatchSize),
 		DurationMilliseconds: loopMetrics.SchedulingMilliseconds,
 	})
+	prepared.result.SchedulerAdmissionAttempts = loopMetrics.AdmissionAttempts
+	prepared.result.SchedulerEstimatedAdmissions = loopMetrics.EstimatedAdmissions
 
 	return o.finalizeExecution(ctx, req, prepared, phaseResults, anyFailure, emit), nil
 }
@@ -788,11 +817,45 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 	configurationDigest := ExecutionConfigurationFingerprint(req, descriptorSnapshot.Digest)
 	planCtx.env.DescriptorSnapshotDigest = descriptorSnapshot.Digest
 	planCtx.env.ExecutionConfigurationDigest = configurationDigest
-	if req.AdmissionTreeDigest != "" && req.AdmissionTreeDigest != digest {
-		return nil, fmt.Errorf("source tree changed after admission; retry to measure the current source identity")
-	}
-	if req.AdmissionPhaseSetDigest != "" && req.AdmissionPhaseSetDigest != phaseSetDigest || req.AdmissionDescriptorDigest != "" && req.AdmissionDescriptorDigest != descriptorSnapshot.Digest || req.AdmissionConfigurationDigest != "" && req.AdmissionConfigurationDigest != configurationDigest {
-		return nil, fmt.Errorf("execution plan changed after admission; retry to measure the current validation contract")
+	admissionMismatches := admissionIdentityMismatches(req, digest, phaseSetDigest, descriptorSnapshot.Digest, configurationDigest)
+	admissionRebased := false
+	if len(admissionMismatches) > 0 {
+		if !req.AdmissionQueued {
+			return nil, fmt.Errorf("admission identity changed (%s); retry to measure the current validation contract", strings.Join(admissionMismatches, ", "))
+		}
+
+		// A queued request was previewed before it acquired a slot. Rebuild the
+		// adaptive selection from the current preset instead of executing the
+		// old ResolvedPhases set. Explicit phase requests retain their exact
+		// operator intent; only planner-resolved selections are cleared.
+		if len(req.Phases) == 0 && len(req.ResolvedPhases) > 0 {
+			req.ResolvedPhases = nil
+			req.PredictedPhaseDurationsMilliseconds = nil
+			planCtx, err = o.loadExecutionPlanContext(req)
+			if err != nil {
+				return nil, fmt.Errorf("rebase queued execution plan: %w", err)
+			}
+			scenario = planCtx.env.ScenarioName
+			plannedPhases = phaseDefinitionNames(planCtx.plan.Selected)
+			descriptorSnapshot, err = buildRunDescriptorSnapshot(planCtx.plan)
+			if err != nil {
+				return nil, fmt.Errorf("build rebased run descriptor snapshot: %w", err)
+			}
+			phaseSetDigest = phases.PhaseSetDigest(plannedPhases)
+			configurationDigest = ExecutionConfigurationFingerprint(req, descriptorSnapshot.Digest)
+			planCtx.env.DescriptorSnapshotDigest = descriptorSnapshot.Digest
+			planCtx.env.ExecutionConfigurationDigest = configurationDigest
+		}
+
+		// The current source and plan were just measured together. Replace the
+		// stale admission identity with that measurement and retain an explicit
+		// warning in the durable result. A later source change is still captured
+		// by finalizeExecution's source-stability check.
+		req.AdmissionTreeDigest = digest
+		req.AdmissionPhaseSetDigest = phaseSetDigest
+		req.AdmissionDescriptorDigest = descriptorSnapshot.Digest
+		req.AdmissionConfigurationDigest = configurationDigest
+		admissionRebased = true
 	}
 	if req.RequireGateQuality && (digest == "" || digestErr != nil || gitCtx.Dirty || !isLinkedWorktree(planCtx.env.ScenarioDir)) {
 		return nil, fmt.Errorf("gate-quality execution requires an isolated linked Git worktree with a clean, digest-stamped source tree")
@@ -823,10 +886,16 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		return nil, fmt.Errorf("record run %s in durable index: %w", runID, err)
 	}
 
+	warnings := buildPlanWarnings(planCtx.plan)
+	if admissionRebased {
+		warnings = append(warnings, "queued admission identity changed; execution was rebased onto the current validation contract")
+	}
+
 	return &preparedExecution{
 		env:       planCtx.env,
 		config:    planCtx.config,
 		plan:      planCtx.plan,
+		request:   req,
 		runID:     runID,
 		runLogDir: runLogDir,
 		result: &SuiteExecutionResult{
@@ -849,13 +918,30 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 			SourceStable:             true,
 			GateQuality:              req.RequireGateQuality,
 			FailFast:                 req.FailFast,
-			Warnings:                 buildPlanWarnings(planCtx.plan),
+			Warnings:                 warnings,
 		},
 		preparationStages: []PreparationStage{
 			{Name: "git_context", Parent: "planning", Status: "completed", DurationMilliseconds: gitContextDuration.Milliseconds()},
 			{Name: "source_digest", Parent: "planning", Status: "completed", DurationMilliseconds: digestDuration.Milliseconds()},
 		},
 	}, nil
+}
+
+func admissionIdentityMismatches(req SuiteExecutionRequest, treeDigest, phaseSetDigest, descriptorDigest, configurationDigest string) []string {
+	var mismatches []string
+	if req.AdmissionTreeDigest != "" && req.AdmissionTreeDigest != treeDigest {
+		mismatches = append(mismatches, "source")
+	}
+	if req.AdmissionPhaseSetDigest != "" && req.AdmissionPhaseSetDigest != phaseSetDigest {
+		mismatches = append(mismatches, "phase-set")
+	}
+	if req.AdmissionDescriptorDigest != "" && req.AdmissionDescriptorDigest != descriptorDigest {
+		mismatches = append(mismatches, "descriptor")
+	}
+	if req.AdmissionConfigurationDigest != "" && req.AdmissionConfigurationDigest != configurationDigest {
+		mismatches = append(mismatches, "configuration")
+	}
+	return mismatches
 }
 
 // isLinkedWorktree requires a separate Git worktree rather than merely a
@@ -1047,18 +1133,19 @@ func CompactTerminalSnapshot(result *SuiteExecutionResult) *SuiteExecutionResult
 	compact.Phases = make([]PhaseExecutionResult, 0, len(result.Phases))
 	for _, phase := range result.Phases {
 		compact.Phases = append(compact.Phases, PhaseExecutionResult{
-			Name:               phase.Name,
-			Status:             phase.Status,
-			DurationSeconds:    phase.DurationSeconds,
-			Error:              phase.Error,
-			Classification:     phase.Classification,
-			Remediation:        phase.Remediation,
-			RunnabilityVerdict: phase.RunnabilityVerdict,
-			RunnabilityReason:  phase.RunnabilityReason,
-			FindingSource:      phase.FindingSource,
-			PhasePresentation:  phase.PhasePresentation,
-			FindingsSummary:    phase.FindingsSummary,
-			Assessment:         phase.Assessment,
+			Name:                 phase.Name,
+			Status:               phase.Status,
+			DurationSeconds:      phase.DurationSeconds,
+			Error:                phase.Error,
+			Classification:       phase.Classification,
+			ClassificationSource: phase.ClassificationSource,
+			Remediation:          phase.Remediation,
+			RunnabilityVerdict:   phase.RunnabilityVerdict,
+			RunnabilityReason:    phase.RunnabilityReason,
+			FindingSource:        phase.FindingSource,
+			PhasePresentation:    phase.PhasePresentation,
+			FindingsSummary:      phase.FindingsSummary,
+			Assessment:           phase.Assessment,
 		})
 	}
 	compact.Warnings = nil
@@ -1127,16 +1214,17 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 	return results, anyFailure
 }
 
-// phaseLoopMetrics attributes the wall-clock a run spends inside the phase loop
-// but outside any phase.
+// phaseLoopMetrics attributes the wall-clock spent in the phase loop and the
+// scheduler work inside it, separately from preflight.
 //
-// It exists because that time was unmeasurable. On 2026-08-08 a suite whose
-// phases totalled 72.5 s took 571 s, and the missing 401 s sat between phases
-// where nothing recorded it: `test-genie runs cost` sums phase durations, so it
-// reported the regression as zero. A cost surface that cannot see the largest
-// cost in a run is not a cost surface, and the fix is to name the gap rather
-// than to trust that it stays small.
+// It exists because preflight and phase-loop cost were previously mixed in the
+// run wall time while the cost surface only retained individual phase rows.
+// A scheduler metric that cannot name its own interval is not auditable, so
+// the execution and scheduling intervals are recorded as preparation stages.
 type phaseLoopMetrics struct {
+	// ExecutionMilliseconds is wall time spent in the phase loop, including
+	// phase execution and its inter-batch waits, but excluding preflight.
+	ExecutionMilliseconds int64
 	// SchedulingMilliseconds is time spent choosing a batch and admitting it
 	// against the capacity broker — work that belongs to no phase.
 	SchedulingMilliseconds int64
@@ -1144,6 +1232,14 @@ type phaseLoopMetrics struct {
 	// re-proposes its remaining phases on the next iteration, so this grows
 	// faster than the phase count and is the signal that it is doing so.
 	AdmissionAttempts int
+	// EstimatedAdmissions counts phases admitted with the fleet-wide fallback
+	// reservation. It is the revisit signal for the metrics adoption contract.
+	EstimatedAdmissions int
+	// BatchCount counts the batches actually executed after capacity admission
+	// may have shortened the proposed batch.
+	BatchCount int
+	// MaxBatchSize is the largest admitted batch in this execution.
+	MaxBatchSize int
 }
 
 func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
@@ -1186,14 +1282,46 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 		forceSerial = true
 	}
 	policy := o.phaseBatchPolicy(ctx, env.ScenarioName, forceSerial, predicted)
+	executionStarted := time.Now()
 	for start := 0; start < len(defs); {
+		// A reusable verdict is not phase work and must not consume a host
+		// reservation or an admission attempt. Besides saving the broker round
+		// trip, this keeps cache-heavy runs from reporting scheduler overhead as
+		// execution pressure. Audited hits intentionally stay on the normal path
+		// so the provider still revalidates the cached verdict at its sample rate.
+		if _, blocked := readiness[defs[start].Name.Key()]; !blocked {
+			verdict := resolvePhaseVerdict(defs[start], runCtx)
+			if !verdict.IsSkip() {
+				if cached, audit, found, _ := o.loadCachedPhaseResult(env, runID, runLogDir, defs[start], readiness); found && !audit {
+					cached.PredictedDurationMilliseconds = predicted[strings.ToLower(strings.TrimSpace(defs[start].Name.String()))]
+					if emit != nil {
+						emit(ExecutionEvent{Type: EventPhaseStart, Timestamp: time.Now(), Phase: defs[start].Name.String(), PhaseIndex: start + 1, PhaseTotal: total})
+					}
+					results = append(results, cached)
+					if emit != nil {
+						emit(ExecutionEvent{Type: EventPhaseEnd, Timestamp: time.Now(), Phase: cached.Name, Status: cached.Status, DurationSeconds: cached.DurationSeconds, DurationMilliseconds: cached.DurationMilliseconds, PhasePresentation: cached.PhasePresentation, FindingsSummary: cached.FindingsSummary, Assessment: cached.Assessment})
+					}
+					start++
+					continue
+				}
+			}
+		}
 		// Everything from here to the goroutine launch is scheduling, not
 		// phase work. It is timed because it used to be invisible.
 		admissionStarted := time.Now()
 		end := nextPhaseBatch(defs, start, policy)
+		// A batcher policy may defer a phase by moving it to the pending tail.
+		// Even when that phase is the last remaining member, the scheduler must
+		// consume one item; otherwise a malformed/changed predicate can return
+		// the same index forever and strand the run. The singleton fallback is
+		// safe because admission and provider concurrency still guard it.
+		if end <= start {
+			end = start + 1
+		}
 		batch := defs[start:end]
 		metrics.AdmissionAttempts++
-		leases, admissionReason, admitted := o.admitPhaseBatch(ctx, env.ScenarioName, runID, batch)
+		leases, admissionReason, admitted, estimated := o.admitPhaseBatch(ctx, env.ScenarioName, runID, batch)
+		metrics.EstimatedAdmissions += estimated
 		if admitted < len(batch) {
 			// The host granted a shorter prefix than the batcher proposed. The
 			// phases past it are re-proposed on the next iteration rather than
@@ -1201,6 +1329,10 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 			// validates.
 			end = start + admitted
 			batch = defs[start:end]
+		}
+		metrics.BatchCount++
+		if len(batch) > metrics.MaxBatchSize {
+			metrics.MaxBatchSize = len(batch)
 		}
 		metrics.SchedulingMilliseconds += time.Since(admissionStarted).Milliseconds()
 		for offset, phase := range batch {
@@ -1294,6 +1426,7 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 		}
 		start = end
 	}
+	metrics.ExecutionMilliseconds = time.Since(executionStarted).Milliseconds()
 	return results, anyFailure, metrics
 }
 
@@ -1415,7 +1548,7 @@ func (o *SuiteOrchestrator) saveCachedPhaseResult(env workspacepkg.Environment, 
 
 // phaseBatchPolicy resolves the batching predicates once per run.
 //
-// Both predicates query durable history, and the batcher consults them
+// The duration predicate queries durable history, and the batcher consults it
 // repeatedly as it re-proposes the tail of the phase list, so the results are
 // memoized per phase. Without that, admission cost grows with the square of the
 // phase count — the shape that put 401 s of unattributed scheduling into a run
@@ -1427,18 +1560,7 @@ func (o *SuiteOrchestrator) phaseBatchPolicy(ctx context.Context, scenario strin
 		// run walks the phase list one at a time.
 		return policy
 	}
-	sizableCache := make(map[string]bool, len(predicted))
-	policy.sizable = func(def phases.Definition) bool {
-		key := def.Name.Key()
-		if cached, ok := sizableCache[key]; ok {
-			return cached
-		}
-		ramBytes, cpuMilli, reliable := o.costEstimator.PhaseCostEstimate(ctx, scenario, key)
-		sizable := reliable && ramBytes > 0 && cpuMilli > 0
-		sizableCache[key] = sizable
-		return sizable
-	}
-
+	policy.admissionEnabled = true
 	var measured func(phases.Definition) (int64, bool)
 	if estimator, ok := o.costEstimator.(PhaseDurationEstimator); ok {
 		type durationSample struct {
@@ -1470,18 +1592,19 @@ func (o *SuiteOrchestrator) phaseBatchPolicy(ctx context.Context, scenario strin
 // released the grants already held for the others and dropped the whole batch
 // to serial, and the caller then re-proposed the remainder, denied again, and
 // walked the run one phase at a time. Sizing is no longer a failure mode here
-// at all — nextPhaseBatch refuses to put an unsizable phase in a batch — so the
-// only reason a prefix is short now is that the host is genuinely full, which
-// is a reason to run what fits rather than to run nothing.
+// at all — missing estimates use the named fallback reservation — so the only
+// reason a prefix is short now is that the host is genuinely full, which is a
+// reason to run what fits rather than to run nothing.
 //
 // The returned length is always at least 1, so the caller always makes
 // progress. A prefix of exactly 1 carries the broker's reason so the run
 // records why it serialized.
-func (o *SuiteOrchestrator) admitPhaseBatch(ctx context.Context, scenario, runID string, batch []phases.Definition) ([]sharedcapacity.Lease, string, int) {
+func (o *SuiteOrchestrator) admitPhaseBatch(ctx context.Context, scenario, runID string, batch []phases.Definition) ([]sharedcapacity.Lease, string, int, int) {
 	if len(batch) <= 1 || o.capacity == nil || o.costEstimator == nil {
-		return nil, "", len(batch)
+		return nil, "", len(batch), 0
 	}
 	leases := make([]sharedcapacity.Lease, 0, len(batch))
+	estimated := 0
 	release := func() {
 		for _, acquired := range leases {
 			if acquired != nil {
@@ -1497,34 +1620,34 @@ func (o *SuiteOrchestrator) admitPhaseBatch(ctx context.Context, scenario, runID
 			err     error
 			reason  string
 		)
+		if !reliable || ramBytes <= 0 || cpuMilli <= 0 {
+			ramBytes = defaultPhaseReservationRAMBytes
+			cpuMilli = defaultPhaseReservationCPUMilli
+			estimated++
+		}
+		ownerID := fmt.Sprintf("test-genie:%s:%s", strings.TrimSpace(runID), phase.Name.Key())
+		lease, verdict, err = o.capacity.Acquire(ctx, ownerID, ramBytes, cpuMilli)
 		switch {
-		case !reliable || ramBytes <= 0 || cpuMilli <= 0:
-			reason = fmt.Sprintf("no reliable measured size for phase %s", phase.Name)
-		default:
-			ownerID := fmt.Sprintf("test-genie:%s:%s", strings.TrimSpace(runID), phase.Name.Key())
-			lease, verdict, err = o.capacity.Acquire(ctx, ownerID, ramBytes, cpuMilli)
-			switch {
-			case err != nil:
-				reason = err.Error()
-			case verdict.Kind != "grant" && verdict.Kind != "degrade":
-				reason = verdict.Reason
-				if reason == "" {
-					reason = verdict.Kind
-				}
+		case err != nil:
+			reason = err.Error()
+		case verdict.Kind != "grant" && verdict.Kind != "degrade":
+			reason = verdict.Reason
+			if reason == "" {
+				reason = verdict.Kind
 			}
 		}
 		if reason != "" {
 			if len(leases) >= 2 {
 				// A partial batch still beats a serial walk. The phases past
 				// the stopping point are re-proposed on the next iteration.
-				return leases, reason, len(leases)
+				return leases, reason, len(leases), estimated
 			}
 			release()
-			return nil, reason, 1
+			return nil, reason, 1, 0
 		}
 		leases = append(leases, lease)
 	}
-	return leases, "", len(leases)
+	return leases, "", len(leases), estimated
 }
 
 func phaseSchedulerForcedSerial() bool {
@@ -1537,21 +1660,21 @@ func phaseSchedulerForcedSerial() bool {
 
 // phaseBatchPolicy carries the per-run predicates the batcher consults. They
 // are injected rather than looked up inline so the batcher stays a pure
-// function of the phase list, and so a run resolves each phase's sizing and
-// duration history once instead of once per batch proposal.
+// function of the phase list, and so a run resolves each phase's duration
+// history once instead of once per batch proposal.
 type phaseBatchPolicy struct {
 	forceSerial bool
-	// sizable reports whether admission can size the phase against the host
-	// ledger. A nil predicate means nothing is sizable, which yields the serial
-	// walk the scheduler falls back to when no broker is wired.
-	sizable func(phases.Definition) bool
 	// timeoutRisk reports whether the phase runs close enough to its own
 	// deadline that contention could turn a pass into a timeout.
 	timeoutRisk func(phases.Definition) bool
+	// admissionEnabled distinguishes an unavailable broker from a phase whose
+	// individual measurement is missing. The latter uses a conservative
+	// reservation and remains eligible for a batch.
+	admissionEnabled bool
 }
 
 func (p phaseBatchPolicy) canBatch(def phases.Definition) bool {
-	if p.sizable == nil || !p.sizable(def) {
+	if !p.admissionEnabled {
 		return false
 	}
 	return p.timeoutRisk == nil || !p.timeoutRisk(def)
@@ -1559,60 +1682,89 @@ func (p phaseBatchPolicy) canBatch(def phases.Definition) bool {
 
 // nextPhaseBatch returns the exclusive end of the next contiguous batch.
 //
-// It excludes three kinds of phase from a batch. A phase whose provider
+// It excludes two kinds of phase from a batch. A phase whose provider
 // declares `exclusive` never shares a batch. A phase whose duration sits close
 // to its own timeout is kept alone, because a phase that already consumes most
 // of its budget has no contention headroom and concurrency could turn a passing
-// run into a timeout with no source change. And a phase admission cannot size
-// is kept alone, because the host ledger cannot be asked whether it fits.
-//
-// That last exclusion is a boundary here rather than a rejection in
-// admitPhaseBatch on purpose. Sizing is a property of one phase, but rejecting
-// the batch punished every phase beside it: measured 2026-08-08, `workflow` had
-// zero reliable samples in 160 rows, so every batch it fell into collapsed to a
-// serial walk of the phases around it.
+// run into a timeout with no source change. A phase with no resource estimate is
+// not excluded: admitPhaseBatch uses the documented fallback reservation.
 func nextPhaseBatch(defs []phases.Definition, start int, policy phaseBatchPolicy) int {
 	if start >= len(defs) {
 		return start
 	}
-	if policy.forceSerial || phaseConcurrencyMode(defs[start]) == "exclusive" || !policy.canBatch(defs[start]) {
+	if policy.forceSerial || phaseConcurrencyMode(defs[start]) == "exclusive" {
 		return start + 1
 	}
+	// Collect deferred phases in one pass. Repeatedly moving a deferred phase
+	// and retrying the same index can cycle forever when all remaining phases
+	// are non-batchable. Reorder once after the scan so the scheduler always
+	// consumes work.
+	deferred := make([]phases.Definition, 0)
 	providers := map[string]struct{}{}
-	for end := start; end < len(defs); end++ {
-		mode := phaseConcurrencyMode(defs[end])
+	batch := make([]phases.Definition, 0, len(defs)-start)
+	boundary := len(defs)
+	for end := start; end < len(defs); {
+		def := defs[end]
+		mode := phaseConcurrencyMode(def)
 		if mode == "exclusive" {
-			return end
+			boundary = end
+			break
 		}
-		if end > start && !policy.canBatch(defs[end]) {
-			return end
+		if !policy.canBatch(def) {
+			deferred = append(deferred, def)
+			end++
+			continue
 		}
 		if mode == "provider-serial" {
-			provider := strings.TrimSpace(defs[end].ProviderScenario)
+			provider := strings.TrimSpace(def.ProviderScenario)
 			if provider == "" {
-				provider = defs[end].Name.Key()
+				provider = def.Name.Key()
 			}
 			if _, exists := providers[provider]; exists {
-				return end
+				boundary = end
+				break
 			}
 			providers[provider] = struct{}{}
 		}
+		batch = append(batch, def)
+		end++
 	}
-	return len(defs)
+	if len(deferred) > 0 {
+		reordered := append(append([]phases.Definition(nil), batch...), deferred...)
+		copy(defs[start:boundary], reordered)
+		if len(batch) == 0 {
+			return start + 1
+		}
+		return start + len(batch)
+	}
+	if boundary < len(defs) {
+		return boundary
+	}
+	return start + len(batch)
 }
 
 // contentionAllowance is how much slower a phase is assumed to run when it
 // shares the host with its batch. A phase is kept out of a batch when its
 // measured duration times this allowance would reach its timeout.
 //
-// Two is the same margin the original guard intended when it compared the
-// prediction against half the timeout. What changed is the input, not the
-// safety factor: phaseTimeoutRisk now measures against observed p90 wall-clock
-// instead of the planner's estimate, which is rounded to whole seconds and
-// overshoots — 56 s predicted for a `contracts` phase that ran in 23.9 s,
-// measured 2026-08-08. Loosening the margin to compensate for a biased input
-// would have hidden the bias; correcting the input keeps the margin honest.
-const contentionAllowance = 2
+// The original guard used 2x because it compared an upward-biased planner
+// prediction against half the timeout. The scheduler now uses observed p90
+// wall-clock, and the post-change full-suite evidence showed that 2x still
+// serialized a roughly 100 s security phase against its 180 s timeout despite
+// the capacity broker granting the batch. 1.5x preserves a meaningful timeout
+// margin while allowing measured p90 phases with genuine headroom to overlap.
+// Revisit if a fresh 200-run window records timeout escapes under contention or
+// remains below the 2.5x parallelism target.
+const contentionAllowance = 1.5
+
+// These reservations approximate the fleet p90 of observed phase resource
+// claims. They keep an unmeasured phase eligible for a safe batch without
+// pretending its cost is known. Revisit when durable fallback admissions
+// exceed 10% for two consecutive weeks or the host capacity profile changes.
+const (
+	defaultPhaseReservationRAMBytes int64 = 512 * 1024 * 1024
+	defaultPhaseReservationCPUMilli int64 = 500
+)
 
 // phaseTimeoutRisk reports whether concurrency could push the phase past its
 // own deadline. It prefers measured history and falls back to the planner's
@@ -1625,7 +1777,7 @@ func phaseTimeoutRisk(def phases.Definition, predicted map[string]int64, measure
 	}
 	if measured != nil {
 		if observed, ok := measured(def); ok && observed > 0 {
-			return observed*contentionAllowance >= timeout.Milliseconds()
+			return float64(observed)*contentionAllowance >= float64(timeout.Milliseconds())
 		}
 	}
 	if len(predicted) == 0 {
@@ -1635,7 +1787,7 @@ func phaseTimeoutRisk(def phases.Definition, predicted map[string]int64, measure
 	if prediction <= 0 {
 		return false
 	}
-	return prediction*contentionAllowance >= timeout.Milliseconds()
+	return float64(prediction)*contentionAllowance >= float64(timeout.Milliseconds())
 }
 
 func phaseConcurrencyMode(def phases.Definition) string {
@@ -1777,24 +1929,6 @@ func (o *SuiteOrchestrator) descriptorPredicates() []providerdescriptor.Predicat
 		predicates = append(predicates, entry.Descriptor.Applicability.All...)
 	}
 	return predicates
-}
-
-func formatRegistryDiagnostics(diagnostics []phaseregistry.Diagnostic) string {
-	if len(diagnostics) == 0 {
-		return ""
-	}
-	parts := make([]string, 0, len(diagnostics))
-	for _, diagnostic := range diagnostics {
-		prefix := diagnostic.Code
-		if diagnostic.Phase != "" {
-			prefix = diagnostic.Phase + ":" + prefix
-		}
-		if diagnostic.Path != "" {
-			prefix = diagnostic.Path + ":" + prefix
-		}
-		parts = append(parts, prefix+": "+diagnostic.Message)
-	}
-	return strings.Join(parts, "; ")
 }
 
 func looksLikeVrooliRepoRoot(root string) bool {
@@ -1980,6 +2114,10 @@ func (o *SuiteOrchestrator) completePhaseRun(
 	status := phaseStatusPassed
 	errMsg := ""
 	classification := report.FailureClassification
+	classificationSource := ""
+	if classification != "" && classification != phases.FailureClassSystem {
+		classificationSource = phases.ClassificationSourceProvider
+	}
 	remediation := report.Remediation
 
 	if runErr != nil {
@@ -1988,12 +2126,17 @@ func (o *SuiteOrchestrator) completePhaseRun(
 		if errors.Is(runErr, context.DeadlineExceeded) || errors.Is(run.phaseCtx.Err(), context.DeadlineExceeded) {
 			errMsg = fmt.Sprintf("phase timed out after %s", run.timeout)
 			classification = phases.FailureClassTimeout
+			classificationSource = phases.ClassificationSourceHarness
 			if remediation == "" {
 				remediation = "Increase the timeout or break the phase into smaller steps."
 			}
 		}
 		if classification == "" {
 			classification = phases.FailureClassSystem
+			classificationSource = phases.ClassificationSourceHarness
+		}
+		if classificationSource == "" {
+			classificationSource = phases.ClassificationSourceHarness
 		}
 		if remediation == "" {
 			remediation = "Refer to the phase logs to triage the failure."
@@ -2013,6 +2156,7 @@ func (o *SuiteOrchestrator) completePhaseRun(
 		LogPath:              displayLogPath,
 		Error:                errMsg,
 		Classification:       classification,
+		ClassificationSource: classificationSource,
 		Remediation:          remediation,
 		Observations:         report.Observations,
 		Findings:             report.Findings,

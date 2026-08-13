@@ -8,9 +8,10 @@ import (
 	"net/http"
 	"time"
 
-	"plan-manager/internal/clock"
 	"plan-manager/internal/module"
 	internalplanlog "plan-manager/internal/planlog"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -24,7 +25,7 @@ import (
 // table), a Resolver over the plans SSOT + execution store (so a plan slug or
 // execution id binds entries to the right scope), and live downstream bug/record
 // sinks that degrade to pending when their local scenarios are unavailable.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, resolver internalplanlog.Resolver) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, resolver internalplanlog.Resolver) module.Module {
 	downstreamHTTP := &http.Client{Timeout: 5 * time.Second}
 	svc := internalplanlog.NewService(internalplanlog.Deps{
 		Repo:     internalplanlog.NewSQLiteRepository(db, clk),

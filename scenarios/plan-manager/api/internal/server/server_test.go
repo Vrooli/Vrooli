@@ -7,10 +7,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"plan-manager/internal/clock"
+	httpx "github.com/vrooli/api-core/servertest"
 	"plan-manager/internal/module"
 	"plan-manager/internal/server"
-	"plan-manager/internal/testutil/httpx"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -95,7 +96,7 @@ func TestServer_NewRequiresClock(t *testing.T) {
 func TestServerInjectsVerifiedAgentProvenance(t *testing.T) {
 	var got provenance.Provenance
 	srv := server.New(server.Deps{
-		Clock:  clock.System{},
+		Clock:  schedule.System(),
 		Logger: log.New(io.Discard, "", 0),
 		Verifier: provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
 			return &cliutil.VerifyResult{Valid: token == "verified", Claims: &cliutil.VerifiedClaims{RunID: "run-1", TaskID: "task-1", ProfileKey: "codex"}}, nil
@@ -124,7 +125,7 @@ func TestServerInjectsVerifiedAgentProvenance(t *testing.T) {
 
 func newTestDeps() server.Deps {
 	return server.Deps{
-		Clock:  clock.System{},
+		Clock:  schedule.System(),
 		Logger: log.New(io.Discard, "", 0),
 	}
 }

@@ -5,8 +5,9 @@ import (
 	"strings"
 	"sync"
 
-	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -51,7 +52,7 @@ type service struct {
 	renderer        PlanRenderer
 	posture         PosturePreparer
 	storePath       string
-	clock           clock.Clock
+	clock           schedule.Clock
 	lockMu          sync.Mutex
 	sessionLocks    map[string]*sync.Mutex
 	lifecycleCtx    context.Context
@@ -94,7 +95,7 @@ type Deps struct {
 	// (tests, unwired callers) degrades to "unknown" in the response — never a
 	// fabricated path.
 	StorePath string
-	Clock     clock.Clock
+	Clock     schedule.Clock
 }
 
 // TemplateSeeder pre-scaffolds the section skeleton from a template id. Optional;
@@ -108,7 +109,7 @@ type TemplateSeeder interface {
 func NewService(d Deps) Service {
 	clk := d.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	lifecycleCtx, lifecycleCancel := context.WithCancel(context.Background())
 	return &service{

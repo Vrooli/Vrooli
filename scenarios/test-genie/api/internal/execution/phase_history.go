@@ -16,13 +16,13 @@ import (
 const insertPhaseHistorySQL = `
 INSERT INTO suite_execution_phases (
 	execution_id, ordinal, phase_name, status, duration_ms, predicted_duration_ms, duration_seconds, error_text,
-	classification, remediation, runnability_verdict, runnability_reason,
+	classification, classification_source, remediation, runnability_verdict, runnability_reason,
 	finding_source, metrics_present, findings_blockers, findings_errors,
 	findings_warnings, findings_infos, findings_total, wall_clock_ms, cpu_user_ms,
 	cpu_sys_ms, peak_rss_bytes, cpu_reliability, memory_reliability, gpu_reliability,
 	cache_hit, cache_source_run_id, cache_audit, cache_audit_mismatch, cache_no_saving
 ) VALUES (
- ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+		 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
  ?)`
@@ -59,7 +59,7 @@ func insertPhaseHistory(ctx context.Context, tx *sql.Tx, executionID uuid.UUID, 
 		}
 		if _, err := tx.ExecContext(ctx, insertPhaseHistorySQL,
 			executionID.String(), ordinal, name, strings.ToLower(strings.TrimSpace(result.Status)), durationMs, predicted, durationSeconds,
-			result.Error, result.Classification, result.Remediation, result.RunnabilityVerdict,
+			result.Error, result.Classification, result.ClassificationSource, result.Remediation, result.RunnabilityVerdict,
 			result.RunnabilityReason, result.FindingSource, boolToInt(result.Metrics != nil), summary.GetBlockers(), summary.GetErrors(),
 			summary.GetWarnings(), summary.GetInfos(), summary.GetTotal(), wallClock, cpuUser, cpuSys,
 			peakRSS, cpuReliability, memoryReliability, gpuReliability, boolToInt(result.CacheHit), result.CacheSourceRunID,
@@ -91,7 +91,7 @@ func metricColumns(metrics *commonv1.ExecutionMetrics) (any, any, any, any, any,
 
 func (r *SuiteExecutionRepository) loadPhaseHistory(ctx context.Context, executionID uuid.UUID) ([]phases.ExecutionResult, error) {
 	const q = `
-	SELECT phase_name, status, duration_ms, predicted_duration_ms, duration_seconds, error_text, classification,
+	SELECT phase_name, status, duration_ms, predicted_duration_ms, duration_seconds, error_text, classification, classification_source,
        remediation, runnability_verdict, runnability_reason, finding_source,
        metrics_present, findings_blockers, findings_errors, findings_warnings,
 		findings_infos, findings_total, cache_hit, cache_source_run_id,
@@ -112,7 +112,7 @@ ORDER BY ordinal ASC`
 		var cacheHit, cacheAudit, cacheAuditMismatch, cacheNoSaving int
 		var summary runspb.PhaseFindingsSummary
 		if err := rows.Scan(&result.Name, &result.Status, &result.DurationMilliseconds, &predictedDuration, &result.DurationSeconds, &result.Error,
-			&result.Classification, &result.Remediation, &result.RunnabilityVerdict,
+			&result.Classification, &result.ClassificationSource, &result.Remediation, &result.RunnabilityVerdict,
 			&result.RunnabilityReason, &result.FindingSource, &metricsPresent,
 			&summary.Blockers, &summary.Errors, &summary.Warnings, &summary.Infos, &summary.Total, &cacheHit, &result.CacheSourceRunID,
 			&cacheAudit, &cacheAuditMismatch, &cacheNoSaving); err != nil {

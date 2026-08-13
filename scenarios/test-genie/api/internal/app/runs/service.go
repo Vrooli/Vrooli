@@ -178,7 +178,7 @@ func (s *Service) GetCostReport(ctx context.Context, req *connect.Request[runspb
 // and planner power the durable run-lifecycle RPCs. ledgerSource feeds the
 // GetSelfHealth reliability ledger.
 func NewService(scenariosRoot string, runManager *runmanager.Manager, planner executionPlanner, ledgerSource ledgerSource) *Service {
-	return &Service{scenariosRoot: scenariosRoot, runManager: runManager, planner: planner, ledgerSource: ledgerSource, visualHealth: defaultVisualHealthComparer{}}
+	return &Service{scenariosRoot: scenariosRoot, runManager: runManager, planner: planner, ledgerSource: ledgerSource, visualHealth: defaultVisualHealthComparer{repoRoot: filepath.Dir(scenariosRoot)}}
 }
 
 func (s *Service) SetVisualHealthComparer(comparer visualHealthComparer) *Service {
@@ -190,10 +190,14 @@ type visualHealthComparer interface {
 	CompareArtifacts(context.Context, *visualpb.CompareArtifactsRequest) (*visualpb.CompareArtifactsResponse, error)
 }
 
-type defaultVisualHealthComparer struct{}
+type defaultVisualHealthComparer struct{ repoRoot string }
 
-func (defaultVisualHealthComparer) CompareArtifacts(ctx context.Context, req *visualpb.CompareArtifactsRequest) (*visualpb.CompareArtifactsResponse, error) {
-	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "ui-health")
+func (c defaultVisualHealthComparer) CompareArtifacts(ctx context.Context, req *visualpb.CompareArtifactsRequest) (*visualpb.CompareArtifactsResponse, error) {
+	provider := declaredArtifactComparisonProvider(c.repoRoot)
+	if provider == "" {
+		return nil, errors.New("declared artifact comparison provider is unavailable")
+	}
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
@@ -203,6 +207,27 @@ func (defaultVisualHealthComparer) CompareArtifacts(ctx context.Context, req *vi
 		return nil, err
 	}
 	return resp.Msg, nil
+}
+
+func declaredArtifactComparisonProvider(repoRoot string) string {
+	matches, err := filepath.Glob(filepath.Join(strings.TrimSpace(repoRoot), "scenarios", "*", ".vrooli", "test-genie.json"))
+	if err != nil {
+		return ""
+	}
+	for _, path := range matches {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var descriptor struct {
+			Scenario                   string `json:"scenario"`
+			ArtifactComparisonProvider bool   `json:"artifactComparisonProvider"`
+		}
+		if json.Unmarshal(raw, &descriptor) == nil && descriptor.ArtifactComparisonProvider {
+			return strings.TrimSpace(descriptor.Scenario)
+		}
+	}
+	return ""
 }
 
 // scenarioManifest is the marker that makes a directory under scenarios/ a

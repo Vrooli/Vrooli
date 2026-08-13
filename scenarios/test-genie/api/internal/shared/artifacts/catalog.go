@@ -371,7 +371,10 @@ func discoverArtifactRoot(catalog *ArtifactCatalog, runID, storageRoot, root str
 			ref.Provenance = ArtifactProvenanceLegacy
 		}
 		if kind == ArtifactKindScreenshot || kind == ArtifactKindVisualDiff {
-			ref.Comparison = &ArtifactComparison{Semantics: "advisory", Analyzer: "ui-health"}
+			// The concrete analyzer is resolved from the provider descriptor by
+			// the comparison service. This catalog stores a capability token so
+			// artifact discovery remains provider-agnostic.
+			ref.Comparison = &ArtifactComparison{Semantics: "advisory", Analyzer: "visual-comparison-provider"}
 		}
 		catalog.Artifacts = append(catalog.Artifacts, ref)
 		return nil

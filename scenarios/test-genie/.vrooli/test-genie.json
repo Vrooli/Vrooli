@@ -12,6 +12,7 @@
   "validation": {
     "contract": "scenario-validation/v1"
   },
+  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
   "applicability": {
     "default": "not_applicable",
     "any": [
@@ -476,7 +477,7 @@
   "profileMembership": [],
   "freshnessRequirement": "never",
   "phaseClass": "provider-contract",
-  "runtimeClass": "static",
+  "runtimeClass": "execution",
   "concurrency": {
     "mode": "provider-serial"
   },

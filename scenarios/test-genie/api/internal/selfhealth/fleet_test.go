@@ -29,8 +29,8 @@ func TestFleetLedgerRanksMostErroredFirst(t *testing.T) {
 			{ScenarioName: "flaky", Runs: 4, Passed: 1, LastCompletedAt: now.Add(-2 * time.Hour), LastOutcome: "failed"},
 		},
 		obs: []execution.PhaseObservation{
-			{ScenarioName: "flaky", Status: "failed", FindingSource: "standards"},
-			{ScenarioName: "flaky", Status: "failed", FindingSource: "standards"},
+			{ScenarioName: "flaky", Status: "failed", FindingSource: "standards", FindingBlockers: 1, FindingErrors: 2, FindingWarnings: 3, FindingInfos: 4, FindingTotal: 10},
+			{ScenarioName: "flaky", Status: "failed", FindingSource: "standards", FindingBlockers: 2, FindingErrors: 1, FindingWarnings: 2, FindingInfos: 5, FindingTotal: 10},
 			{ScenarioName: "flaky", Status: "passed", FindingSource: "unit"},
 			{ScenarioName: "healthy", Status: "passed", FindingSource: "unit"},
 		},
@@ -55,11 +55,17 @@ func TestFleetLedgerRanksMostErroredFirst(t *testing.T) {
 	if flaky.AgeDays <= 0 {
 		t.Fatalf("flaky AgeDays = %v, want > 0 (staleness explicit)", flaky.AgeDays)
 	}
-	if led.TotalIssues != 2 {
-		t.Fatalf("TotalIssues = %d, want 2", led.TotalIssues)
+	if led.FailedPhaseObservations != 2 {
+		t.Fatalf("FailedPhaseObservations = %d, want 2", led.FailedPhaseObservations)
 	}
 	if len(led.TopFindingSources) == 0 || led.TopFindingSources[0].Source != "standards" {
 		t.Fatalf("top finding source = %+v, want standards", led.TopFindingSources)
+	}
+	if len(led.FailureClassifications) != 1 || led.FailureClassifications[0].Label != "unclassified" || led.FailureClassifications[0].Count != 2 {
+		t.Fatalf("failure classifications = %+v, want two unclassified failures", led.FailureClassifications)
+	}
+	if got := led.FindingQuality; got.Blockers != 3 || got.Errors != 3 || got.Warnings != 5 || got.Infos != 9 || got.Total != 20 || got.Headline() != 6 || got.Advisory() != 14 {
+		t.Fatalf("finding quality = %+v, want blockers=3 errors=3 warnings=5 infos=9 total=20", got)
 	}
 	if len(led.Alerts) != 1 || led.Alerts[0].Code != "FLEET_SCENARIO_NOT_GREEN" || led.Alerts[0].NextAction == "" {
 		t.Fatalf("fleet alert = %+v, want actionable failed-scenario alert", led.Alerts)

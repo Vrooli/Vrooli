@@ -52,6 +52,7 @@ func Migrate(ctx context.Context, db dbexec.Executor) error {
 		{name: "cache_audit", ddl: "INTEGER NOT NULL DEFAULT 0"},
 		{name: "cache_audit_mismatch", ddl: "INTEGER NOT NULL DEFAULT 0"},
 		{name: "cache_no_saving", ddl: "INTEGER NOT NULL DEFAULT 0"},
+		{name: "classification_source", ddl: "TEXT NOT NULL DEFAULT ''"},
 	} {
 		hasColumn, err := columnExists(ctx, db, "suite_execution_phases", column.name)
 		if err != nil {

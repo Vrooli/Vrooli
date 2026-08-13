@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"time"
 
-	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // sessionTimeFormat matches the rest of the scenario (RFC3339Nano sorts
@@ -27,11 +28,11 @@ type SQLExecutor interface {
 
 type sqliteStore struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteStore constructs the production authoring SessionStore.
-func NewSQLiteStore(db SQLExecutor, clk clock.Clock) SessionStore {
+func NewSQLiteStore(db SQLExecutor, clk schedule.Clock) SessionStore {
 	return &sqliteStore{db: db, clock: clk}
 }
 

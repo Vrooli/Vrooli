@@ -24,10 +24,16 @@ const (
 )
 
 const (
+	ClassificationSourceProvider = "provider"
+	ClassificationSourceHarness  = "harness"
+)
+
+const (
 	FailureClassMisconfiguration  = "misconfiguration"
 	FailureClassMissingDependency = "missing_dependency"
 	FailureClassTimeout           = "timeout"
 	FailureClassMaturityContract  = "maturity_contract"
+	FailureClassTestFailure       = "test_failure"
 	FailureClassSystem            = "system"
 )
 
@@ -347,6 +353,7 @@ type ExecutionResult struct {
 	LogPath                       string `json:"logPath"`
 	Error                         string `json:"error,omitempty"`
 	Classification                string `json:"classification,omitempty"`
+	ClassificationSource          string `json:"classificationSource,omitempty"`
 	Remediation                   string `json:"remediation,omitempty"`
 	// RunnabilityVerdict records the runnability gate's decision for this phase
 	// ("run", "run_degraded", or "skip") and RunnabilityReason its rationale.

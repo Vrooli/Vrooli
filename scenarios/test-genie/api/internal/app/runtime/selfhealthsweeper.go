@@ -20,14 +20,15 @@ import (
 // a snapshot digest (and stored as payload_json). Identical content → identical
 // digest → the sweeper skips the row, so idle periods don't accumulate.
 type selfHealthSweepRollup struct {
-	WindowDays     int                     `json:"window_days"`
-	RunCount       int                     `json:"run_count"`
-	Availability   float64                 `json:"availability"`
-	HardViolations int                     `json:"hard_violations"`
-	MetricsAdopted int                     `json:"metrics_adopted"`
-	ProvidersTotal int                     `json:"providers_total"`
-	Phases         []selfHealthPhasePoint  `json:"phases"`
-	Providers      []selfHealthProviderPnt `json:"providers"`
+	WindowDays     int                              `json:"window_days"`
+	RunCount       int                              `json:"run_count"`
+	Availability   float64                          `json:"availability"`
+	HardViolations int                              `json:"hard_violations"`
+	MetricsAdopted int                              `json:"metrics_adopted"`
+	ProvidersTotal int                              `json:"providers_total"`
+	Phases         []selfHealthPhasePoint           `json:"phases"`
+	Providers      []selfHealthProviderPnt          `json:"providers"`
+	Conformance    []selfhealth.ProviderConformance `json:"conformance"`
 }
 
 type selfHealthPhasePoint struct {
@@ -53,13 +54,14 @@ func newSelfHealthRollupBuilder(ledgerSource *execution.SuiteExecutionRepository
 		if err != nil {
 			return selfhealthsnapshots.Rollup{}, err
 		}
-		report := selfhealth.ConformanceScanner{RepoRoot: repoRoot, Target: selfhealth.DefaultScanTarget}.Scan(ctx)
+		report := selfhealth.ConformanceScanner{RepoRoot: repoRoot}.Scan(ctx)
 
 		payload := selfHealthSweepRollup{
 			WindowDays:     ledger.WindowDays,
 			RunCount:       ledger.RunCount,
 			Availability:   ledger.Availability,
 			ProvidersTotal: len(report.Providers),
+			Conformance:    append([]selfhealth.ProviderConformance(nil), report.Providers...),
 		}
 		for _, p := range ledger.Phases {
 			payload.Phases = append(payload.Phases, selfHealthPhasePoint{
@@ -101,9 +103,14 @@ func newSelfHealthRollupBuilder(ledgerSource *execution.SuiteExecutionRepository
 }
 
 const (
+	defaultSelfHealthSweepInterval    = time.Hour
 	defaultSelfHealthSweepStartDelay  = 30 * time.Second
 	defaultSelfHealthSweepStartJitter = 30 * time.Second
-	defaultSelfHealthSweepRunTimeout  = 20 * time.Second
+	// defaultSelfHealthSweepRunTimeout leaves enough time for the bounded
+	// provider scan (27 providers at the scanner's concurrency limit) while
+	// keeping a wedged provider from holding the sweeper forever. Revisit when
+	// the provider count or conformance timeout contract changes.
+	defaultSelfHealthSweepRunTimeout  = 5 * time.Minute
 	defaultSelfHealthSweepPersistTime = 3 * time.Second
 )
 
@@ -124,7 +131,7 @@ func runSelfHealthSweeper(ctx context.Context, repo selfhealthsnapshots.Snapshot
 		log.Printf("[test-genie] self-health snapshot sweeper disabled via env")
 		return
 	}
-	interval := parseDurationEnv("TEST_GENIE_SELFHEALTH_SWEEP_INTERVAL", time.Hour)
+	interval := parseDurationEnv("TEST_GENIE_SELFHEALTH_SWEEP_INTERVAL", defaultSelfHealthSweepInterval)
 	delay := parseDurationEnv("TEST_GENIE_SELFHEALTH_SWEEP_START_DELAY", defaultSelfHealthSweepStartDelay)
 	jitter := randomizedDelay(parseDurationEnv("TEST_GENIE_SELFHEALTH_SWEEP_START_JITTER", defaultSelfHealthSweepStartJitter))
 	timeout := parsePositiveDurationEnv("TEST_GENIE_SELFHEALTH_SWEEP_TIMEOUT", defaultSelfHealthSweepRunTimeout)

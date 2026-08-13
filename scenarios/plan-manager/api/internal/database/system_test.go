@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"plan-manager/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 

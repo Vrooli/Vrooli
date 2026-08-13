@@ -9,8 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -44,7 +45,7 @@ type service struct {
 	inventories BaselineInventorySource
 	results     ResultStore
 	operations  OperationStore
-	clock       clock.Clock
+	clock       schedule.Clock
 }
 
 // Deps wires the validation Service. plans is required; resolver/staleness/runner/
@@ -61,7 +62,7 @@ type Deps struct {
 	Inventories BaselineInventorySource
 	Results     ResultStore
 	Operations  OperationStore
-	Clock       clock.Clock
+	Clock       schedule.Clock
 	// Commands remains accepted while older module wiring is migrated. It is not
 	// used by producer-owned tickets and cannot dispatch validation work.
 	Commands CommandReferenceValidator
@@ -71,7 +72,7 @@ type Deps struct {
 func NewService(d Deps) Service {
 	clk := d.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &service{
 		plans:       d.Plans,

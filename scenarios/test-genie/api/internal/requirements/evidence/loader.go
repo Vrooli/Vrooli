@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"time"
 
 	"test-genie/internal/requirements/types"
@@ -40,6 +41,10 @@ type Loader interface {
 
 	// LoadManualValidations loads evidence from manual validation logs.
 	LoadManualValidations(ctx context.Context, scenarioRoot string) (*types.ManualManifest, error)
+
+	// LoadExternalAutomationEvidence loads receipts emitted by an external
+	// automation provider (for example, browser-automation-studio).
+	LoadExternalAutomationEvidence(ctx context.Context, scenarioRoot string) (types.EvidenceMap, error)
 }
 
 // loader implements Loader using file system operations.
@@ -77,6 +82,15 @@ func (l *loader) LoadAll(ctx context.Context, scenarioRoot string) (*types.Evide
 	manualValidations, err := l.LoadManualValidations(ctx, scenarioRoot)
 	if err == nil && manualValidations != nil {
 		bundle.ManualValidations = manualValidations
+	}
+
+	// External automation is deliberately kept separate from phase results:
+	// the provider owns the run, while Test Genie owns the requirement sync.
+	// Merge the normalized receipts into the common evidence map so all
+	// existing matching and status rules apply consistently.
+	externalEvidence, err := l.LoadExternalAutomationEvidence(ctx, scenarioRoot)
+	if err == nil && len(externalEvidence) > 0 {
+		bundle.PhaseResults.Merge(externalEvidence)
 	}
 
 	bundle.LoadedAt = time.Now()
@@ -176,6 +190,50 @@ func (l *loader) LoadManualValidations(ctx context.Context, scenarioRoot string)
 	}
 
 	return manifest, nil
+}
+
+// LoadExternalAutomationEvidence loads provider receipts from the two
+// supported locations:
+//   - coverage/external-evidence, for generated run output; and
+//   - bas/evidence, for source-controlled receipts that were exported from a
+//     provider run and are intended to remain reviewable with the scenario.
+//
+// Invalid files are ignored in the same way as malformed optional Vitest and
+// manual evidence. A valid receipt still has to identify the requirement,
+// validation reference, phase, status, provider run, and provider evidence.
+func (l *loader) LoadExternalAutomationEvidence(ctx context.Context, scenarioRoot string) (types.EvidenceMap, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	evidenceMap := make(types.EvidenceMap)
+	for _, dir := range []string{
+		filepath.Join(scenarioRoot, "coverage", "external-evidence"),
+		filepath.Join(scenarioRoot, "bas", "evidence"),
+	} {
+		if !l.reader.Exists(dir) {
+			continue
+		}
+		entries, err := l.reader.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+				continue
+			}
+			path := filepath.Join(dir, entry.Name())
+			records, err := loadExternalAutomationFile(ctx, l.reader, path)
+			if err != nil {
+				continue
+			}
+			evidenceMap.Merge(records)
+		}
+	}
+
+	return evidenceMap, nil
 }
 
 // LoadFromPhaseExecution creates evidence from phase execution results.

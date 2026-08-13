@@ -12,8 +12,9 @@ import (
 	"strings"
 	"sync"
 
-	"plan-manager/internal/clock"
 	"plan-manager/internal/planmodel"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -73,7 +74,7 @@ type Service interface {
 
 type service struct {
 	repo       Repository
-	clock      clock.Clock
+	clock      schedule.Clock
 	reader     SourceReader
 	mirror     MirrorStore
 	maturity   MaturityReader
@@ -96,7 +97,7 @@ type MutationImpact struct {
 // false Brownfield).
 type Deps struct {
 	Repo     Repository
-	Clock    clock.Clock
+	Clock    schedule.Clock
 	Reader   SourceReader
 	Mirror   MirrorStore
 	Maturity MaturityReader
@@ -106,7 +107,7 @@ type Deps struct {
 func NewService(d Deps) Service {
 	clk := d.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	mirror := d.Mirror
 	if mirror == nil {

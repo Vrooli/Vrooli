@@ -24,7 +24,9 @@ type Unsupported struct {
 	Reason   string
 }
 
-func (e Unsupported) Error() string { return "unsupported execution language " + string(e.Language) + ": " + e.Reason }
+func (e Unsupported) Error() string {
+	return "unsupported execution language " + string(e.Language) + ": " + e.Reason
+}
 
 // ForLanguage selects only runners with an established deterministic command.
 func ForLanguage(language string) (Runner, error) {

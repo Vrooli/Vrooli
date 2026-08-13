@@ -35,12 +35,13 @@ func withFakeClient(t *testing.T, fc runs_v1connect.RunsServiceClient) {
 func sampleResponse() *runspb.GetFleetHealthResponse {
 	return &runspb.GetFleetHealthResponse{
 		FleetHealth: &runspb.FleetHealth{
-			WindowDays:      30,
-			CapturedAt:      "2026-06-20T12:00:00Z",
-			ScenariosTested: 2,
-			ScenariosTotal:  3,
-			TotalRuns:       5,
-			TotalIssues:     2,
+			WindowDays:              30,
+			CapturedAt:              "2026-06-20T12:00:00Z",
+			ScenariosTested:         2,
+			ScenariosTotal:          3,
+			TotalRuns:               5,
+			FailedPhaseObservations: 2,
+			FindingQuality:          &runspb.FleetFindingQuality{Blockers: 3, Errors: 4, Warnings: 5, Infos: 6, Total: 18},
 			Scenarios: []*runspb.FleetScenarioHealth{
 				{Scenario: "flaky", Runs: 3, PassedRuns: 1, FailedRuns: 2, FailureRate: 0.66, Issues: 2, LastOutcome: "failed", LastRunAt: "2026-06-20T11:00:00Z", AgeDays: 0.04},
 				{Scenario: "healthy", Runs: 2, PassedRuns: 2, FailureRate: 0, LastOutcome: "passed", AgeDays: 1},
@@ -58,7 +59,7 @@ func TestFleetStatusHumanSummary(t *testing.T) {
 		t.Fatalf("runStatus: %v", err)
 	}
 	out := buf.String()
-	for _, want := range []string{"Fleet health", "2 tested / 3 total", "flaky", "standards=2", "Never tested in window (1)", "untouched"} {
+	for _, want := range []string{"Fleet health", "2 tested / 3 total", "headline=7 (blockers=3 errors=4)", "advisory=11 (warnings=5 infos=6)", "flaky", "standards=2", "Never tested in window (1)", "untouched"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output missing %q:\n%s", want, out)
 		}

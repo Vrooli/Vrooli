@@ -45,8 +45,8 @@ type Service struct {
 	// lifecycle. It is intentionally a generic transport seam, not a
 	// Workflow-Health-specific check.
 	DurableProbe DurableConformanceProbe
-	// ProbeTarget is the fixture scenario the target provider is asked to
-	// validate during the live probe (selfhealth.DefaultScanTarget when empty).
+	// ProbeTarget is the optional fixture scenario the target provider is asked
+	// to validate during the live probe. Empty resolves from its descriptor.
 	ProbeTarget string
 	// ProbeTimeout bounds the live probe (defaultProbeTimeout when zero).
 	ProbeTimeout time.Duration
@@ -199,7 +199,7 @@ func (s *Service) probeContract(ctx context.Context, report *Report, descriptor 
 	}
 	target := strings.TrimSpace(s.ProbeTarget)
 	if target == "" {
-		target = selfhealth.ProviderDefaultTarget(report.Scenario)
+		target = selfhealth.ResolveConformanceTarget(s.RepoRoot, report.Scenario)
 	}
 	timeout := s.ProbeTimeout
 	if timeout <= 0 {

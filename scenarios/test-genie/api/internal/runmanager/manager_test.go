@@ -41,9 +41,14 @@ type fakeExecutor struct {
 	// suites were actually driven. The one-run-per-scenario guard's whole point
 	// is that coalesced/rejected requests never increment this.
 	calls int32
+	// queuedInputs proves the dispatcher marks delayed requests so the
+	// orchestrator can rebase their admission identity at promotion time.
+	queuedInputs int32
 }
 
 func (f *fakeExecutor) driveCount() int32 { return atomic.LoadInt32(&f.calls) }
+
+func (f *fakeExecutor) queuedInputCount() int32 { return atomic.LoadInt32(&f.queuedInputs) }
 
 func newFakeExecutor(scenarioDir string) *fakeExecutor {
 	return &fakeExecutor{
@@ -55,6 +60,9 @@ func newFakeExecutor(scenarioDir string) *fakeExecutor {
 
 func (f *fakeExecutor) ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
 	atomic.AddInt32(&f.calls, 1)
+	if input.Request.AdmissionQueued {
+		atomic.AddInt32(&f.queuedInputs, 1)
+	}
 	runID := input.Request.RunID
 	if f.scenarioDir != "" {
 		_ = sharedruns.NewIndex(f.scenarioDir).Append(sharedruns.RunRecord{
@@ -878,6 +886,9 @@ func TestQueuedRunPromotedOnSlotFree(t *testing.T) {
 	}
 	waitForStatus(t, m, "b", bID, sharedruns.StatusInProgress)
 	waitForDriveCount(t, exec, 2)
+	if got := exec.queuedInputCount(); got != 1 {
+		t.Fatalf("queued input markers = %d, want 1", got)
+	}
 }
 
 // TestAbortQueuedRun verifies a queued run can be aborted directly (it has no

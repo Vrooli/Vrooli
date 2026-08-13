@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"plan-manager/internal/execution"
 	planmodel "plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
-	"plan-manager/internal/testutil/db"
-	"plan-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/provenance"
@@ -172,7 +173,7 @@ type harness struct {
 	store *fakePlanStore
 	sink  *recordingSink
 	log   *fakeLog
-	clock *mocks.FakeClock
+	clock *scheduletest.FakeClock
 }
 
 func newHarness(t *testing.T, plan internalplans.Plan, validator execution.Validator) harness {
@@ -186,7 +187,7 @@ func newHarnessWithLog(t *testing.T, plan internalplans.Plan, validator executio
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(execution.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	store := &fakePlanStore{plan: plan}
 	sink := &recordingSink{}
 	svc := execution.NewService(execution.Deps{
@@ -207,7 +208,7 @@ func newHarnessWithFreshener(t *testing.T, plan internalplans.Plan, freshener ex
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(execution.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	store := &fakePlanStore{plan: plan}
 	sink := &recordingSink{}
 	svc := execution.NewService(execution.Deps{
@@ -227,7 +228,7 @@ func newHarnessWithFreshenerAndValidator(t *testing.T, plan internalplans.Plan, 
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(execution.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	store := &fakePlanStore{plan: plan}
 	sink := &recordingSink{}
 	svc := execution.NewService(execution.Deps{Repo: execution.NewSQLiteRepository(d, clk), Plans: store, Validator: validator, Log: &fakeLog{}, Velocity: sink, Baseline: freshener, Clock: clk})
@@ -238,7 +239,7 @@ func newHarnessWithPreflight(t *testing.T, plan internalplans.Plan, preflight ex
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(execution.Schema)))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	store := &fakePlanStore{plan: plan}
 	sink := &recordingSink{}
 	svc := execution.NewService(execution.Deps{Repo: execution.NewSQLiteRepository(d, clk), Plans: store, Log: &fakeLog{}, Velocity: sink, Preflight: preflight, Clock: clk})

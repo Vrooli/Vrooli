@@ -154,7 +154,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 
 	// Construct the routed-test-db eligibility checker once at process startup
 	// for the Connect EligibilityService handler.
-	routingEligibility := eligibility.NewChecker()
+	routingEligibility := eligibility.NewCheckerWithRepoRoot(repoRootFromScenariosRoot(cfg.ScenariosRoot))
 	eligibilityService := appelig.NewService(routingEligibility, cfg.ScenariosRoot)
 
 	// RunsService exposes the append-only run index AND the durable run

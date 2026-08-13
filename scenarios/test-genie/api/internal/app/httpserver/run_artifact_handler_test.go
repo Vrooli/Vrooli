@@ -20,6 +20,12 @@ import (
 func TestOpaqueRunArtifactHandlerStreamsCatalogBytesWithSafeHeaders(t *testing.T) { // [REQ:TESTGENIE-TYPED-EVIDENCE-P0]
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	runID := "run-safe"
 	if err := sharedruns.NewIndex(scenarioDir).Append(sharedruns.RunRecord{
 		RunID: runID, Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
@@ -64,6 +70,12 @@ func TestOpaqueRunArtifactHandlerStreamsCatalogBytesWithSafeHeaders(t *testing.T
 
 func TestOpaqueRunArtifactHandlerRejectsInvalidAndForeignIDs(t *testing.T) {
 	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "demo", ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "demo", ".vrooli", "service.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	server := &Server{runsService: appruns.NewService(root, nil, nil, nil), logger: log.New(io.Discard, "", 0)}
 
 	req := httptest.NewRequest(http.MethodGet, "/artifacts/..%2F..%2Fetc%2Fpasswd", nil)

@@ -6,17 +6,17 @@
 
 > **Condition** — every cell that resolves `NOW` here puts its **phase/provider** into the
 > Condition population, and `test-genie` owes that leg's serving, freshness, and exercise signals
-> as declared Measures. Note the known asymmetry: this projection's numerator already folds a
-> serving signal into cell status (red ledger or pending autofix yields `IN-REACH`), which no
-> sibling does. The model, the required signals, and the target state for that asymmetry are in
-> `meta-optimization-manager/docs/concepts/CONDITION-MODEL.md`.
+> as declared Measures. Condition is reported beside coverage; transient red evidence does not
+> erase capability supply. Only the named sustained-degradation threshold can promote a downgrade.
+> The model and signal contract are in `meta-optimization-manager/docs/concepts/CONDITION-MODEL.md`.
 
 ## Purpose
 
 The **denominator** for the *Validate* projection: the validation concerns the project should
 check, each mapped to its test-genie phase and owning health scenario. The numerator — which
-phases are red, the autofix `implemented`-vs-`pending` split, and reliability — is computed live
-from `test-genie health` + `test-genie fleet status`, not stored here.
+phases exist — is computed live from the catalog. Condition, the autofix
+`implemented`-vs-`pending` split, and reliability are computed from `test-genie health` +
+`test-genie fleet status`, not stored here.
 
 ## Target model
 
@@ -39,9 +39,9 @@ result for `package:api-core` can never satisfy a scenario run by accident.
 |---|---|
 | Projection | Validate |
 | Owner | `test-genie` (owns the phase catalog this extends) |
-| Denominator confidence | Covered set: `AUTHORITATIVE` (mirrors the phase catalog). Candidate-missing delta: `SKETCH` (what *else* should be validated is judgment-heavy; full population deferred to the initiative). |
+| Denominator confidence | `AUTHORITATIVE` for the authored concern tier; the generated provider/capability tier is descriptor-derived and moves when descriptors add capabilities. Candidate-missing rationale remains `SKETCH`. |
 | Sibling spaces | `search-hub/docs/spaces/answer-space.md`, `prompt-manager/docs/spaces/guide-space.md` |
-| Legend | `NOW` phase exists + works · `IN-REACH` phase exists but has a substantive coverage gap (missing sub-concern or autofix) · `MISSING` concern not yet a phase · Autofix intent: `mechanical` / `partial` / `manual`. |
+| Legend | `NOW` phase exists · `IN-REACH` phase exists but has a sustained coverage gap · `MISSING` concern not yet a phase · condition is reported separately · Autofix intent: `mechanical` / `partial` / `manual`. |
 
 ## Coverage Grid
 
@@ -66,6 +66,15 @@ result for `package:api-core` can never satisfy a scenario run by accident.
 | V15 | UI Health | `ui-health` | NOW | partial | Manifest/interop/standards + BAS render/handshake. |
 | V16 | Performance | `performance-health` | NOW | manual | Go/UI build benchmarks + Lighthouse. |
 | V17 | Experience | `ui-health` (UX) + _(native BAS flows)_ | IN-REACH | manual | Reframes "Playbooks". User-flow validation (BAS test cases) is the runtime rung; the UX-spec ladder is the successor (see Known Gaps). |
+
+### Generated provider capability tier
+
+This tier is appended at runtime from each provider descriptor's
+`maturity.capabilities` declaration. IDs are namespaced by provider and
+capability, and `coverage list-cells` / `coverage explain-cell` expose the same
+live join and provenance as authored concerns. Its denominator is intentionally
+moving: a new declared capability is a new measurable cell without a source
+change in meta-optimization-manager.
 
 ### Candidate concerns (the denominator delta — `SKETCH`, deferred to initiative)
 

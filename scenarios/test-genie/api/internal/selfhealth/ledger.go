@@ -97,22 +97,24 @@ type ScenarioFailureRate struct {
 
 // PhaseReliability is the per-phase reliability + performance rollup.
 type PhaseReliability struct {
-	Phase             string                `json:"phase"`
-	Provider          string                `json:"provider,omitempty"`
-	FindingSource     string                `json:"findingSource,omitempty"`
-	TotalObservations int                   `json:"totalObservations"`
-	Passed            int                   `json:"passed"`
-	Failed            int                   `json:"failed"`
-	Skipped           int                   `json:"skipped"`
-	Degraded          int                   `json:"degraded"`
-	Availability      float64               `json:"availability"`
-	FailureRate       float64               `json:"failureRate"`
-	MetricsAdopted    int                   `json:"metricsAdopted"`
-	SkipReasons       []LabeledCount        `json:"skipReasons,omitempty"`
-	Classifications   []LabeledCount        `json:"classifications,omitempty"`
-	Duration          DurationStats         `json:"duration"`
-	WorstScenarios    []ScenarioFailureRate `json:"worstScenarios,omitempty"`
-	SecurityFriction  SecurityFriction      `json:"securityFriction,omitempty"`
+	Phase               string                `json:"phase"`
+	Provider            string                `json:"provider,omitempty"`
+	FindingSource       string                `json:"findingSource,omitempty"`
+	TotalObservations   int                   `json:"totalObservations"`
+	Passed              int                   `json:"passed"`
+	Failed              int                   `json:"failed"`
+	Skipped             int                   `json:"skipped"`
+	Degraded            int                   `json:"degraded"`
+	Availability        float64               `json:"availability"`
+	FailureRate         float64               `json:"failureRate"`
+	MetricsAdopted      int                   `json:"metricsAdopted"`
+	SkipReasons         []LabeledCount        `json:"skipReasons,omitempty"`
+	Classifications     []LabeledCount        `json:"classifications,omitempty"`
+	Duration            DurationStats         `json:"duration"`
+	WorstScenarios      []ScenarioFailureRate `json:"worstScenarios,omitempty"`
+	SecurityFriction    SecurityFriction      `json:"securityFriction,omitempty"`
+	ConsecutiveFailures int                   `json:"consecutiveFailures,omitempty"`
+	FailureStreakSince  time.Time             `json:"failureStreakSince,omitempty"`
 }
 
 // ProviderReliability is the per-provider rollup across its phase(s).
@@ -230,6 +232,7 @@ type phaseAccumulator struct {
 	durations            []int
 	perScenario          map[string]*scenarioAcc
 	securityObservations []execution.PhaseObservation
+	statuses             []execution.PhaseObservation
 }
 
 type scenarioAcc struct {
@@ -279,6 +282,7 @@ func buildPhaseReliability(observations []execution.PhaseObservation, phaseMeta 
 }
 
 func (a *phaseAccumulator) observe(obs execution.PhaseObservation) {
+	a.statuses = append(a.statuses, obs)
 	a.total++
 	switch obs.Status {
 	case "passed":
@@ -330,23 +334,62 @@ func (a *phaseAccumulator) observe(obs execution.PhaseObservation) {
 func (a *phaseAccumulator) finalize() PhaseReliability {
 	executed := a.passed + a.failed
 	return PhaseReliability{
-		Phase:             a.phase,
-		Provider:          a.provider,
-		FindingSource:     a.findingSource,
-		TotalObservations: a.total,
-		Passed:            a.passed,
-		Failed:            a.failed,
-		Skipped:           a.skipped,
-		Degraded:          a.degraded,
-		Availability:      ratio(executed, a.total),
-		FailureRate:       ratio(a.failed, executed),
-		MetricsAdopted:    a.metricsAdopted,
-		SkipReasons:       histogram(a.skipReasons),
-		Classifications:   histogram(a.classifications),
-		Duration:          durationStats(a.durations),
-		WorstScenarios:    worstScenarios(a.perScenario),
-		SecurityFriction:  securityFriction(a.phase, a.findingSource, a.securityObservations),
+		Phase:               a.phase,
+		Provider:            a.provider,
+		FindingSource:       a.findingSource,
+		TotalObservations:   a.total,
+		Passed:              a.passed,
+		Failed:              a.failed,
+		Skipped:             a.skipped,
+		Degraded:            a.degraded,
+		Availability:        ratio(executed, a.total),
+		FailureRate:         ratio(a.failed, executed),
+		MetricsAdopted:      a.metricsAdopted,
+		SkipReasons:         histogram(a.skipReasons),
+		Classifications:     histogram(a.classifications),
+		Duration:            durationStats(a.durations),
+		WorstScenarios:      worstScenarios(a.perScenario),
+		SecurityFriction:    securityFriction(a.phase, a.findingSource, a.securityObservations),
+		ConsecutiveFailures: consecutiveFailureCount(a.statuses),
+		FailureStreakSince:  failureStreakSince(a.statuses),
 	}
+}
+
+func consecutiveFailureCount(observations []execution.PhaseObservation) int {
+	if len(observations) == 0 {
+		return 0
+	}
+	sort.SliceStable(observations, func(i, j int) bool { return observations[i].CompletedAt.After(observations[j].CompletedAt) })
+	count := 0
+	for _, obs := range observations {
+		if obs.Status != "failed" {
+			break
+		}
+		count++
+	}
+	return count
+}
+
+// failureStreakSince returns the oldest completed observation in the current
+// contiguous failure streak. A duration-bearing timestamp lets consumers apply
+// a real sustained-degradation window instead of equating sample count with
+// elapsed time.
+func failureStreakSince(observations []execution.PhaseObservation) time.Time {
+	if len(observations) == 0 {
+		return time.Time{}
+	}
+	ordered := append([]execution.PhaseObservation(nil), observations...)
+	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].CompletedAt.After(ordered[j].CompletedAt) })
+	var oldest time.Time
+	for _, obs := range ordered {
+		if obs.Status != "failed" {
+			break
+		}
+		if oldest.IsZero() || obs.CompletedAt.Before(oldest) {
+			oldest = obs.CompletedAt
+		}
+	}
+	return oldest
 }
 
 func buildProviderReliability(phases []PhaseReliability, observations []execution.PhaseObservation, phaseMeta map[string]PhaseMeta) []ProviderReliability {

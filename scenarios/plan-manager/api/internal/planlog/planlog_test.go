@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"plan-manager/internal/planlog"
 	planmodel "plan-manager/internal/planmodel"
-	"plan-manager/internal/testutil/db"
-	"plan-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/provenance"
@@ -75,7 +76,7 @@ func newService(t *testing.T, d planlog.Deps) (planlog.Service, planlog.Reposito
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(planlog.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 27, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 27, 12, 0, 0, 0, time.UTC))
 	repo := planlog.NewSQLiteRepository(sqlDB, clk)
 	d.Repo = repo
 	d.Clock = clk

@@ -8,9 +8,9 @@ import (
 	goruntime "runtime"
 	"testing"
 
+	"test-genie/internal/dbexec"
 	"test-genie/internal/storage/sqlfiles"
 	"test-genie/internal/storage/sqlitedb"
-	"test-genie/internal/dbexec"
 
 	"github.com/vrooli/api-core/database"
 	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.

@@ -10,15 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	testdb "plan-manager/internal/testutil/db"
-	"plan-manager/internal/testutil/mocks"
+	testdb "github.com/vrooli/api-core/databasetest"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newOperationStore(t *testing.T) *sqliteResultStore {
 	t.Helper()
 	db := testdb.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(Schema)))
-	return NewSQLiteResultStore(db, mocks.NewFakeClock(time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)))
+	return NewSQLiteResultStore(db, scheduletest.New(time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)))
 }
 
 func v2Operation(op ValidationOperation) ValidationOperation {
@@ -217,7 +218,7 @@ VALUES ('legacy-result', 'plan-1', 'phase-1', 'pass', '2026-07-10T12:00:00Z');`)
 	require.NoError(t, EnsureMigrations(context.Background(), db))
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(Schema)))
 
-	store := NewSQLiteResultStore(db, mocks.NewFakeClock(time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)))
+	store := NewSQLiteResultStore(db, scheduletest.New(time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)))
 	legacy, found, err := store.GetResult(context.Background(), "legacy-result")
 	require.NoError(t, err)
 	require.True(t, found)

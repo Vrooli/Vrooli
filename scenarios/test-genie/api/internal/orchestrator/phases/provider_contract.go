@@ -23,13 +23,6 @@ func classifyProviderParseFailure(err error) shared.FailureClass {
 	return shared.FailureClassSystem
 }
 
-func localMaturitySummary(assessment *commonv1.MaturityAssessment) (current string, next string) {
-	if assessment == nil {
-		return "", ""
-	}
-	return assessment.GetLocal().GetCurrentLevel(), assessment.GetLocal().GetNextLevel()
-}
-
 func requireProtoProviderAssessment(provider string, phase string, a *commonv1.MaturityAssessment) error {
 	if err := assessment.RequireIdentity(provider, phase, a); err != nil {
 		return providerMaturityContractError("%s %s %v", provider, phase, err)

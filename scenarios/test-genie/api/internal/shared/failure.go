@@ -13,8 +13,12 @@ func StandardizeFailureClass(fc FailureClass) FailureClass {
 	case FailureClassMaturityContract:
 		return FailureClassMaturityContract
 	case FailureClassTestFailure:
-		// Map test failures to system for phase reporting
-		return FailureClassSystem
+		// Preserve provider-attributed product failures. Collapsing these into
+		// system makes a red fleet look like a broken harness and defeats the
+		// failure taxonomy used by self-health and focus. Revisit only if the
+		// phase wire contract introduces a distinct, richer product-failure
+		// category.
+		return FailureClassTestFailure
 	case FailureClassExecution:
 		// Map execution failures to system for phase reporting
 		return FailureClassSystem

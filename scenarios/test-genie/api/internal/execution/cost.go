@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -65,10 +66,17 @@ type CostSource interface {
 
 const calibrationInterval = 7 * 24 * time.Hour
 
+// phaseDurationRiskPercentile is the observed tail used by the scheduler's
+// contention guard. A single pathological run must not serialize a phase for
+// the whole history window. It matches the cost report's p90 convention and
+// should be revisited if timeout escapes or false serializations show
+// miscalibration.
+const phaseDurationRiskPercentile = 0.90
+
 // deadlineHistoryWindow bounds the history PhaseDurationEstimate reads. It is
-// shorter than the 30-day sizing window because that estimate takes the slowest
-// observation rather than a percentile, and the window is what keeps one
-// pathological run from serializing a phase indefinitely.
+// shorter than the 30-day sizing window because the scheduler uses the
+// observed p90 and the window bounds how long stale tail behavior can affect
+// admission.
 const deadlineHistoryWindow = 14 * 24 * time.Hour
 
 // minUnmeasurableEvidence is how many measurable-but-never-RELIABLE samples a
@@ -170,8 +178,9 @@ ORDER BY completed_at DESC LIMIT 1`, scenario).Scan(&recentDescriptor); err == n
 }
 
 // PhaseCostEstimate adapts durable measured history to scheduler claim units.
-// A phase without a reliable sample is intentionally unknown and must run
-// serially until history is available.
+// A phase without a reliable sample returns unknown measurements; admission
+// uses the orchestrator's named fallback reservation so that one unmeasured
+// phase does not serialize unrelated work.
 func (r *SuiteExecutionRepository) PhaseCostEstimate(ctx context.Context, scenario, phase string) (ramBytes, cpuMilli int64, reliable bool) {
 	type sample struct{ wall, cpu, peak int64 }
 	load := func(scope string) ([]sample, error) {
@@ -236,24 +245,14 @@ func (r *SuiteExecutionRepository) PhaseCostEstimate(ctx context.Context, scenar
 	return ramValues[index(len(ramValues))], cpuValues[index(len(cpuValues))], true
 }
 
-// PhaseDurationEstimate returns the slowest wall-clock the phase has been
-// observed to take recently, for the scheduler's deadline check.
+// PhaseDurationEstimate returns the observed p90 wall-clock duration for the
+// scheduler's deadline check.
 //
-// The slowest rather than the p90 PhaseCostEstimate uses for sizing, because
-// the two answer different questions with different costs of being wrong.
-// Sizing asks how much of the host to reserve, and over-reserving costs
-// throughput, so the middle of the distribution is the right input. This guard
-// asks whether contention could push a phase past its own timeout, and the two
-// errors are not symmetric: erring high costs one phase its concurrency, while
-// erring low costs a passing run a false timeout — a fabricated failure in the
-// surface whose entire job is to be trusted. A phase that runs in 10 s
-// nineteen times and 140 s on the twentieth is exactly what a timeout catches,
-// and every percentile short of the maximum waves it into a batch.
-//
-// The remedy for the maximum's usual weakness — one pathological run pinning a
-// phase to serial forever — is the window rather than the statistic. It is
-// deliberately shorter than the 30-day pool PhaseCostEstimate draws on, so a
-// fixed pathology ages out in a fortnight instead of a month.
+// The p90 rather than the median is intentional: the guard protects the
+// ordinary slow tail against contention, while the percentile prevents one
+// pathological run from pinning a phase to serial forever. A phase that runs
+// in 10 seconds nineteen times and 140 seconds once should not be excluded
+// from every otherwise-safe batch solely because of that outlier.
 //
 // It is deliberately not the planner's estimate. The planner's number arrives
 // through the request as `EstimatedDurationSeconds`, is rounded to whole
@@ -320,13 +319,18 @@ func (r *SuiteExecutionRepository) PhaseDurationEstimate(ctx context.Context, sc
 	if len(samples) == 0 {
 		return 0, false
 	}
-	slowest := samples[0]
-	for _, ms := range samples[1:] {
-		if ms > slowest {
-			slowest = ms
-		}
+	sort.Slice(samples, func(i, j int) bool { return samples[i] < samples[j] })
+	// Use the same nearest-rank ceiling as PhaseCostEstimate so the scheduler
+	// and cost report agree about what p90 means, especially for small samples.
+	index := int(math.Ceil(float64(len(samples)) * phaseDurationRiskPercentile))
+	if index < 1 {
+		index = 1
 	}
-	return slowest, true
+	index--
+	if index >= len(samples) {
+		index = len(samples) - 1
+	}
+	return samples[index], true
 }
 
 // HasPersistedMetrics reports whether a terminal run has a metrics rollup for

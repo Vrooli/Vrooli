@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	"test-genie/internal/orchestrator/phases"
 )
 
@@ -70,6 +71,43 @@ func TestEquivalentIgnoresSchedulerAdmissionObservations(t *testing.T) {
 	b.Observations = []phases.Observation{{Prefix: "INFO", Text: "provider result"}}
 	if !Equivalent(a, b) {
 		t.Fatal("scheduler admission diagnostics must not demote an otherwise equivalent cache result")
+	}
+}
+
+func TestEquivalentNormalizesFindingOrder(t *testing.T) {
+	a := phases.ExecutionResult{Name: "quality", Status: "passed", Findings: []*architecturev1.ArchitectureFinding{
+		{Code: "rule-b", Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING, Locations: []string{"b.go"}},
+		{Code: "rule-a", Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, Locations: []string{"a.go"}},
+	}}
+	b := a
+	b.Findings = []*architecturev1.ArchitectureFinding{a.Findings[1], a.Findings[0]}
+	if !Equivalent(a, b) {
+		t.Fatal("finding order must not change the normalized verdict")
+	}
+}
+
+func TestEquivalentDetectsFindingVerdictChanges(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*phases.ExecutionResult)
+	}{
+		{name: "severity", mutate: func(result *phases.ExecutionResult) {
+			result.Findings[0].Severity = architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER
+		}},
+		{name: "status", mutate: func(result *phases.ExecutionResult) { result.Status = "failed" }},
+		{name: "finding set", mutate: func(result *phases.ExecutionResult) {
+			result.Findings = append(result.Findings, &architecturev1.ArchitectureFinding{Code: "new-rule"})
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			a := phases.ExecutionResult{Name: "quality", Status: "passed", Findings: []*architecturev1.ArchitectureFinding{{Code: "rule", Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING}}}
+			b := phases.ExecutionResult{Name: "quality", Status: "passed", Findings: []*architecturev1.ArchitectureFinding{{Code: "rule", Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING}}}
+			tc.mutate(&b)
+			if Equivalent(a, b) {
+				t.Fatal("changed validation verdict must not compare equal")
+			}
+		})
 	}
 }
 

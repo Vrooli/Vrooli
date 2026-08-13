@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"plan-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 const contentHashMigrationID = "20260721_complete_authored_content_hash"
@@ -26,7 +26,7 @@ func EnsureMigrations(ctx context.Context, db SQLExecutor) error {
 	if err != sql.ErrNoRows {
 		return fmt.Errorf("inspect content-hash migration: %w", err)
 	}
-	repo := NewSQLiteRepository(db, clock.System{})
+	repo := NewSQLiteRepository(db, schedule.System())
 	plans, listErr := repo.List(ctx, ListFilter{IncludeArchived: true})
 	if listErr != nil {
 		return fmt.Errorf("list plans for content-hash migration: %w", listErr)

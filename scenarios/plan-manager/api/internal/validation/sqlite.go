@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"time"
 
-	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // resultTimeFormat matches the rest of the scenario (RFC3339Nano sorts
@@ -27,12 +28,12 @@ type SQLExecutor interface {
 
 type sqliteResultStore struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteResultStore constructs the production validation ResultStore over the
 // shared home-store DB.
-func NewSQLiteResultStore(db SQLExecutor, clk clock.Clock) *sqliteResultStore {
+func NewSQLiteResultStore(db SQLExecutor, clk schedule.Clock) *sqliteResultStore {
 	return &sqliteResultStore{db: db, clock: clk}
 }
 

@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"unicode/utf8"
 
 	"test-genie/internal/shared"
 )
@@ -105,59 +104,6 @@ func runCommandCapture(ctx context.Context, dir string, logWriter io.Writer, nam
 	}
 	err := cmd.Run()
 	return output.String(), err
-}
-
-// stripANSIWriter removes ANSI escape sequences from writes before forwarding.
-type stripANSIWriter struct {
-	target io.Writer
-}
-
-func (w *stripANSIWriter) Write(p []byte) (int, error) {
-	clean := stripANSI(p)
-	n, err := w.target.Write(clean)
-	if err != nil {
-		return 0, err
-	}
-	if n != len(clean) {
-		return 0, io.ErrShortWrite
-	}
-	// Report that we've consumed the full input so io.Copy doesn't treat stripping
-	// as a short write and close the underlying exec pipes (which can SIGPIPE the
-	// child process).
-	return len(p), nil
-}
-
-// stripANSI removes ANSI escape sequences from a byte slice.
-func stripANSI(p []byte) []byte {
-	var out []rune
-	for i := 0; i < len(p); {
-		r, size := utf8.DecodeRune(p[i:])
-		// Detect CSI sequences: ESC [
-		if r == 0x1b && i+1 < len(p) && p[i+1] == '[' {
-			// Skip until letter terminator
-			j := i + 2
-			for j < len(p) {
-				if (p[j] >= 'A' && p[j] <= 'Z') || (p[j] >= 'a' && p[j] <= 'z') {
-					j++
-					break
-				}
-				j++
-			}
-			i = j
-			continue
-		}
-		out = append(out, r)
-		i += size
-	}
-	return []byte(string(out))
-}
-
-// wrapLogSansANSI ensures downstream logs are ANSI-free.
-func wrapLogSansANSI(w io.Writer) io.Writer {
-	if w == nil {
-		return nil
-	}
-	return &stripANSIWriter{target: w}
 }
 
 // OverrideCommandLookup temporarily replaces the binary lookup used by phases.

@@ -16,14 +16,15 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	internalauthoring "plan-manager/internal/authoring"
 	internalexecution "plan-manager/internal/execution"
 	internalplanlog "plan-manager/internal/planlog"
 	planmodel "plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
-	"plan-manager/internal/testutil/db"
-	"plan-manager/internal/testutil/mocks"
 	internalvalidation "plan-manager/internal/validation"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/provenance"
@@ -157,7 +158,7 @@ func newStack(t *testing.T) (*sql.DB, internalplans.Service, internalvalidation.
 		apidb.SchemaProviderFunc(internalexecution.Schema),
 		apidb.SchemaProviderFunc(internalplanlog.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC))
 
 	plansSvc := internalplans.NewService(internalplans.Deps{Repo: internalplans.NewSQLiteRepository(d, clk), Clock: clk})
 	execRepo := internalexecution.NewSQLiteRepository(d, clk)
@@ -365,7 +366,7 @@ func TestPersistedValidationReceiptAllowsBoundPhaseCompletion(t *testing.T) {
 	phaseID := plan.Phases[0].ID
 	// The normal stack deliberately has no live GCT synchronizer. Supply a
 	// completed typed snapshot so this test reaches the validation gate.
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC))
 	executionSvc := internalexecution.NewService(internalexecution.Deps{
 		Repo:      internalexecution.NewSQLiteRepository(d, clk),
 		Plans:     planStore{svc: plansSvc},
@@ -387,7 +388,7 @@ func TestPersistedValidationReceiptAllowsBoundPhaseCompletion(t *testing.T) {
 
 	// Use a new repository instance to model the post-restart read path rather
 	// than relying on any in-memory result object from the writer.
-	store := internalvalidation.NewSQLiteResultStore(d, mocks.NewFakeClock(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)))
+	store := internalvalidation.NewSQLiteResultStore(d, scheduletest.New(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)))
 	require.NoError(t, store.SaveResult(ctx, internalvalidation.Result{
 		ID: "validation-op:result", PlanID: plan.ID, PhaseID: phaseID, Verdict: internalvalidation.VerdictPass,
 		Staleness: planmodel.StalenessFresh, RanAt: "2026-06-25T12:00:00Z", ExecutionID: exec.ID,

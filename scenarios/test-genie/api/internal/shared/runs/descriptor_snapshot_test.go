@@ -62,6 +62,28 @@ func TestDescriptorSnapshotRejectsFutureSchema(t *testing.T) {
 	}
 }
 
+func TestDescriptorSnapshotDigestIgnoresRunLocalPlannedApplicability(t *testing.T) {
+	base := []PhaseDescriptorSnapshot{{
+		Phase:         "unit",
+		Provider:      "unit-health",
+		PhaseClass:    "quality",
+		RuntimeClass:  "static",
+		Applicability: ApplicabilityDecisionSnapshot{Status: "applies", Planned: false},
+	}}
+	left, err := NewDescriptorSnapshot(base)
+	if err != nil {
+		t.Fatalf("left snapshot: %v", err)
+	}
+	base[0].Applicability.Planned = true
+	right, err := NewDescriptorSnapshot(base)
+	if err != nil {
+		t.Fatalf("right snapshot: %v", err)
+	}
+	if left.Digest != right.Digest {
+		t.Fatalf("planned applicability changed descriptor digest: %q != %q", left.Digest, right.Digest)
+	}
+}
+
 func TestPhaseComparisonFingerprintIncludesValidationContract(t *testing.T) {
 	base := PhaseDescriptorSnapshot{Phase: "unit", ValidationContract: "scenario-validation/v1", ValidationDeliveryMode: "inline"}
 	changed := base

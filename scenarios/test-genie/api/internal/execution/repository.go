@@ -78,7 +78,7 @@ INSERT INTO suite_executions (
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	_, err = tx.ExecContext(
 		ctx,
 		q,
@@ -248,7 +248,7 @@ func (r *SuiteExecutionRepository) DeleteByRunID(ctx context.Context, runID stri
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	// Do not depend on connection-local foreign_keys pragmas for lifecycle
 	// correctness: the compact child rows are removed explicitly with their
 	// owning execution headers.

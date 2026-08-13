@@ -20,7 +20,7 @@ vi.mock("./hooks/useScenarios", () => ({
 }));
 
 import App from "./App";
-import { expectNoA11yViolations } from "./test-utils/a11y";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 import { useUIStore } from "./stores/uiStore";
 
 describe("Test Genie app shell accessibility", () => {

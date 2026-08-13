@@ -630,6 +630,11 @@ func (m *Manager) dispatch() {
 		}
 		next.mu.Lock()
 		next.status = sharedruns.StatusInProgress
+		// The admission preview may be much older than the slot that just
+		// opened. Tell the orchestrator that this request waited so it can
+		// rebase once against the current plan instead of executing a stale
+		// adaptive selection or failing before durable phase evidence exists.
+		next.input.Request.AdmissionQueued = true
 		// Re-stamp so elapsed/ETA measure execution, not the time spent queued.
 		next.startedAt = time.Now().UTC()
 		next.lastEventAt = next.startedAt
@@ -641,7 +646,10 @@ func (m *Manager) dispatch() {
 	for _, ar := range toStart {
 		ar.bc.publish(Event{Kind: EventRunStarted, RunID: ar.runID, Scenario: ar.scenario, Preset: ar.preset})
 		m.wg.Add(1)
-		go m.drive(ar.runCtx, ar, ar.input)
+		ar.mu.Lock()
+		input := ar.input
+		ar.mu.Unlock()
+		go m.drive(ar.runCtx, ar, input)
 	}
 }
 

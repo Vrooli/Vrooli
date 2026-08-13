@@ -10,7 +10,9 @@ import (
 // Clock is the time seam used by Service. Tests inject a fake.
 //
 // seam: Clock
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	Now() time.Time
 }
 

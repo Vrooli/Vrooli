@@ -9,11 +9,12 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"plan-manager/internal/authoring"
 	planmodel "plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
-	"plan-manager/internal/testutil/db"
-	"plan-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -199,14 +200,14 @@ func TestPhaseAcceptanceEqualsValidationRejected(t *testing.T) {
 
 // newStore returns a real SQLite-backed SessionStore (the production persistence
 // path) plus a fake clock — mirroring internal/plans/plans_test.go.
-func newStore(t *testing.T) (authoring.SessionStore, *mocks.FakeClock) {
+func newStore(t *testing.T) (authoring.SessionStore, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(authoring.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC))
 	return authoring.NewSQLiteStore(d, clk), clk
 }
 

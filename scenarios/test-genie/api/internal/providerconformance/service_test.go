@@ -56,7 +56,10 @@ func fixtureRepo(t *testing.T, scenario string, mutate func(map[string]any)) (re
 		"description":   "Fixture provider phase.",
 		"source":        "validation-provider",
 		"timeout":       "30s",
+		"phaseClass":    "quality",
+		"runtimeClass":  "execution",
 		"validation":    map[string]any{"contract": "scenario-validation/v1"},
+		"targets":       map[string]any{"kinds": []string{"scenario"}, "selection": "enumerate"},
 		"applicability": map[string]any{
 			"default": "not_applicable",
 			"any":     []any{map[string]any{"fileExists": ".vrooli/demo.json"}},
@@ -70,6 +73,7 @@ func fixtureRepo(t *testing.T, scenario string, mutate func(map[string]any)) (re
 			"unavailable":       "fail",
 		},
 		"runnability": map[string]any{},
+		"concurrency": map[string]any{"mode": "provider-serial"},
 		"docs":        map[string]any{"path": docsRel},
 		"determinism": map[string]any{
 			"default": "observational",

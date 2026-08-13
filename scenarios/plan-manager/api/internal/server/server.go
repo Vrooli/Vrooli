@@ -13,9 +13,10 @@ import (
 	"log"
 	"net/http"
 
-	"plan-manager/internal/clock"
 	"plan-manager/internal/middleware"
 	"plan-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -24,14 +25,14 @@ import (
 
 // Deps holds the cross-cutting interfaces the Server depends on
 // regardless of which modules are mounted. Production wires concrete
-// implementations (clock.System{}, log.Default()) in main.go; tests
+// implementations (schedule.System(), log.Default()) in main.go; tests
 // wire fakes from internal/testutil/mocks.
 //
 // Per-domain dependencies (database handle, repository services,
 // pingers) live inside each module's constructor — Deps is intentionally
 // limited to what the middleware stack reads.
 type Deps struct {
-	Clock    clock.Clock
+	Clock    schedule.Clock
 	Logger   *log.Logger
 	Verifier provenance.Verifier
 	// ReceiptMiddleware is an optional standard api-core boundary. It is

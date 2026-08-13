@@ -8,10 +8,11 @@ import (
 	"log"
 
 	internalauthoring "plan-manager/internal/authoring"
-	"plan-manager/internal/clock"
 	"plan-manager/internal/module"
 	internalplans "plan-manager/internal/plans"
 	internalvalidation "plan-manager/internal/validation"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -27,7 +28,7 @@ import (
 // absent), and a PlanWriter adapter that writes the produced plan
 // THROUGH the plans domain. All wired here at the production edge; never imported
 // into internal/authoring.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, storePath string) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, storePath string) module.Module {
 	maturity := internalplans.NewFilesystemMaturityReader()
 	plansSvc := internalplans.NewService(internalplans.Deps{
 		Repo:  internalplans.NewSQLiteRepository(db, clk),

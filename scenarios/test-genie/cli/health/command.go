@@ -48,6 +48,7 @@ func run(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	asJSON := fs.Bool("json", false, "Emit the full self-health payload as proto JSON")
 	windowDays := fs.Int("window-days", 0, "Reliability-ledger look-back window (0 = server default)")
 	skipConformance := fs.Bool("skip-conformance", false, "Skip the live provider conformance scan (faster)")
+	forceLiveConformance := fs.Bool("force-live-conformance", false, "Run the full live provider conformance scan (slow; bypass the cached scorecard)")
 	includeTrend := fs.Bool("trend", false, "Include the persisted self-health snapshot trend series (newest-first)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -58,9 +59,10 @@ func run(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		return err
 	}
 	resp, err := client.GetSelfHealth(context.Background(), connect.NewRequest(&runspb.GetSelfHealthRequest{
-		WindowDays:      int32(*windowDays),
-		SkipConformance: *skipConformance,
-		IncludeTrend:    *includeTrend,
+		WindowDays:           int32(*windowDays),
+		SkipConformance:      *skipConformance,
+		ForceLiveConformance: *forceLiveConformance,
+		IncludeTrend:         *includeTrend,
 	}))
 	if err != nil {
 		return fmt.Errorf("get self-health: %w", err)

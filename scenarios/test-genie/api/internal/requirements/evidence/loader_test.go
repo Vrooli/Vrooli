@@ -198,6 +198,70 @@ func TestLoader_LoadManualValidations_WithFile(t *testing.T) {
 	}
 }
 
+func TestLoader_LoadExternalAutomationEvidence_WithProviderReceipt(t *testing.T) {
+	reader := newMemReader()
+	dir := "/test/scenario/bas/evidence"
+	reader.dirs[dir] = []fs.DirEntry{
+		&memDirEntry{name: "journeys.json", isDir: false},
+	}
+	reader.files[dir+"/journeys.json"] = []byte(`{
+		"schema_version": 1,
+		"producer": "browser-automation-studio",
+		"scenario": "test-scenario",
+		"generated_at": "2026-08-12T22:00:00Z",
+		"records": [{
+			"requirement_id": "REQ-JOURNEY",
+			"validation_ref": "bas/cases/experience/first-run.json",
+			"status": "passed",
+			"phase": "integration",
+			"evidence": "BAS execution run-1 produced video.webm",
+			"source_path": "bas/cases/experience/first-run.json",
+			"run_id": "run-1",
+			"metadata": {"artifact_sha256": "abc"}
+		}]
+	}`)
+
+	loader := New(reader)
+	results, err := loader.LoadExternalAutomationEvidence(context.Background(), "/test/scenario")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	records := results.Get("REQ-JOURNEY")
+	if len(records) != 1 {
+		t.Fatalf("expected one journey record, got %d", len(records))
+	}
+	if records[0].Status != types.LivePassed {
+		t.Fatalf("expected passed status, got %q", records[0].Status)
+	}
+	if records[0].Metadata["run_id"] != "run-1" {
+		t.Fatalf("expected run provenance, got %#v", records[0].Metadata)
+	}
+}
+
+func TestLoader_LoadExternalAutomationEvidence_RejectsUnprovenRows(t *testing.T) {
+	reader := newMemReader()
+	dir := "/test/scenario/coverage/external-evidence"
+	reader.dirs[dir] = []fs.DirEntry{
+		&memDirEntry{name: "invalid.json", isDir: false},
+	}
+	reader.files[dir+"/invalid.json"] = []byte(`{
+		"schema_version": 1,
+		"producer": "browser-automation-studio",
+		"scenario": "test-scenario",
+		"generated_at": "2026-08-12T22:00:00Z",
+		"records": [{"requirement_id":"REQ-JOURNEY","status":"passed"}]
+	}`)
+
+	loader := New(reader)
+	results, err := loader.LoadExternalAutomationEvidence(context.Background(), "/test/scenario")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if results.Count() != 0 {
+		t.Fatalf("expected invalid row to be rejected, got %d records", results.Count())
+	}
+}
+
 func TestLoader_LoadAll_WithAllSources(t *testing.T) {
 	reader := newMemReader()
 

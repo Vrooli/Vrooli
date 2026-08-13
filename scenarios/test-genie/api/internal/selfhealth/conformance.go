@@ -43,21 +43,11 @@ func DefaultPhaseMeta() map[string]PhaseMeta {
 	return meta
 }
 
-// DefaultScanTarget is the fixture scenario most providers are asked to
-// validate during a conformance scan. ProviderDefaultTarget supplies an
-// applicability-valid fixture for the exceptional providers.
-const DefaultScanTarget = "test-genie"
-
-// ProviderDefaultTarget returns an applicability-valid fixture for providers
-// that cannot inspect Test Genie's own scenario. An explicit scanner Target
-// always takes precedence over this table.
+// ProviderDefaultTarget returns the provider-owned fallback fixture. The
+// descriptor loader may replace this with conformanceTarget; keeping this
+// fallback provider-local ensures a new provider needs no orchestrator edit.
 func ProviderDefaultTarget(provider string) string {
-	switch strings.TrimSpace(provider) {
-	case "experience-manager":
-		return "experience-manager"
-	default:
-		return DefaultScanTarget
-	}
+	return strings.TrimSpace(provider)
 }
 
 // defaultConformanceTimeout bounds each provider probe when the caller does not
@@ -90,15 +80,16 @@ const (
 )
 
 const (
-	ReasonNativePhase         = "native_phase"
-	ReasonDescriptorInvalid   = "descriptor_invalid"
-	ReasonProviderUnreachable = "provider_unreachable"
-	ReasonPresentationInvalid = "presentation_invalid"
-	ReasonIdentityMismatch    = "identity_mismatch"
-	ReasonMetricsMissing      = "metrics_missing"
-	ReasonFixContractInvalid  = "fix_contract_invalid"
-	ReasonDescribeNotAdopted  = "describe_provider_not_adopted"
-	ReasonConcurrencyMissing  = "concurrency_declaration_missing"
+	ReasonNativePhase                  = "native_phase"
+	ReasonDescriptorInvalid            = "descriptor_invalid"
+	ReasonProviderUnreachable          = "provider_unreachable"
+	ReasonPresentationInvalid          = "presentation_invalid"
+	ReasonIdentityMismatch             = "identity_mismatch"
+	ReasonMetricsMissing               = "metrics_missing"
+	ReasonFixContractInvalid           = "fix_contract_invalid"
+	ReasonDescribeNotAdopted           = "describe_provider_not_adopted"
+	ReasonConcurrencyMissing           = "concurrency_declaration_missing"
+	ReasonFailureClassificationMissing = "failure_classification_missing"
 )
 
 // ProviderConformance is one provider's adoption scorecard against the shared
@@ -120,11 +111,15 @@ type ProviderConformance struct {
 	// probe, which for an inspection-only provider costs a full target analysis
 	// on every suite run — the duplicate work DescribeProvider exists to remove.
 	// Tracking it here keeps that cost visible instead of silently returning.
-	DescribeAdopted     bool     `json:"describeAdopted"`
-	FixContractRequired bool     `json:"fixContractRequired"`
-	FixContractValid    bool     `json:"fixContractValid"`
-	AdoptionScore       float64  `json:"adoptionScore"`
-	Violations          []string `json:"violations,omitempty"`
+	DescribeAdopted     bool `json:"describeAdopted"`
+	FixContractRequired bool `json:"fixContractRequired"`
+	FixContractValid    bool `json:"fixContractValid"`
+	// FailureClassificationMissing is a provider contract defect. The harness
+	// may retain a system fallback for historical compatibility, but it must not
+	// make a red provider response uninterpretable on newly captured evidence.
+	FailureClassificationMissing bool     `json:"failureClassificationMissing"`
+	AdoptionScore                float64  `json:"adoptionScore"`
+	Violations                   []string `json:"violations,omitempty"`
 	// Autofix is the spec-derived autofix declaration rollup (Stage 1). It is the
 	// 6th, advisory conformance dimension: DeclarationComplete is the gated-later
 	// signal (every finding classified, every manual justified); Pending is the
@@ -160,7 +155,8 @@ func IsHardViolation(specValid, reachable, contractValid, identityOK, metricsAdo
 // contract-breaking among reachable providers. It delegates to the
 // IsHardViolation SSOT so the API and both CLIs share one rule.
 func (r ProviderConformance) HasHardViolation() bool {
-	return IsHardViolation(r.SpecValid, r.Reachable, r.ContractValid, r.IdentityOK, r.MetricsAdopted) || (r.FixContractRequired && !r.FixContractValid)
+	return IsHardViolation(r.SpecValid, r.Reachable, r.ContractValid, r.IdentityOK, r.MetricsAdopted) ||
+		(r.FixContractRequired && !r.FixContractValid) || r.FailureClassificationMissing
 }
 
 // ConformanceReport is the fleet-wide conformance report.
@@ -188,8 +184,8 @@ type ConformanceScanner struct {
 	// RepoRoot is the repository root used to load each provider's shipped
 	// descriptor (scenarios/<provider>/.vrooli/test-genie.json).
 	RepoRoot string
-	// Target is the fixture scenario each provider validates (DefaultScanTarget
-	// when empty).
+	// Target is an optional common fixture scenario. When empty, each provider's
+	// descriptor selects conformanceTarget or falls back to its own scenario.
 	Target string
 	// Subject optionally narrows the scan to one delegated phase or provider.
 	// Empty scans every delegated provider.
@@ -214,9 +210,6 @@ type ConformanceScanner struct {
 func (s ConformanceScanner) Scan(ctx context.Context) ConformanceReport {
 	target := strings.TrimSpace(s.Target)
 	usesDefaultTarget := target == ""
-	if target == "" {
-		target = DefaultScanTarget
-	}
 	subject := catalog.NormalizeKey(s.Subject)
 	probe := s.Probe
 	if probe == nil {
@@ -258,7 +251,7 @@ func (s ConformanceScanner) Scan(ctx context.Context) ConformanceReport {
 		}
 		jobTarget := target
 		if usesDefaultTarget {
-			jobTarget = ProviderDefaultTarget(provider)
+			jobTarget = ResolveConformanceTarget(s.RepoRoot, provider)
 		}
 		jobs = append(jobs, job{phase: phase, provider: provider, target: jobTarget, timeout: timeout})
 	}
@@ -285,6 +278,41 @@ func (s ConformanceScanner) Scan(ctx context.Context) ConformanceReport {
 
 	sort.Slice(results, func(i, j int) bool { return results[i].Phase < results[j].Phase })
 	return ConformanceReport{Target: target, Providers: results}
+}
+
+// providerConformanceTarget resolves the scan fixture from the provider's
+// descriptor. A missing or unreadable descriptor degrades to the provider
+// scenario itself; it never triggers a named-provider exception.
+// ResolveConformanceTarget resolves the descriptor-owned conformance fixture
+// for a provider. It is shared by fleet self-health and provider-contract
+// validation so the two surfaces cannot drift.
+func ResolveConformanceTarget(repoRoot, provider string) string {
+	provider = strings.TrimSpace(provider)
+	if provider == "" {
+		return ""
+	}
+	target := ProviderDefaultTarget(provider)
+	if strings.TrimSpace(repoRoot) == "" {
+		return target
+	}
+	raw, err := os.ReadFile(filepath.Join(repoRoot, "scenarios", provider, providerdescriptor.RelPath))
+	if err != nil {
+		return target
+	}
+	var descriptor struct {
+		Scenario          string `json:"scenario"`
+		ConformanceTarget string `json:"conformanceTarget"`
+	}
+	if json.Unmarshal(raw, &descriptor) != nil {
+		return target
+	}
+	if value := strings.TrimSpace(descriptor.ConformanceTarget); value != "" {
+		return value
+	}
+	if value := strings.TrimSpace(descriptor.Scenario); value != "" {
+		return value
+	}
+	return target
 }
 
 func nativePhaseExemption(phase string) ProviderConformance {
@@ -373,6 +401,10 @@ func CheckProvider(ctx context.Context, probe ConformanceProbe, fixProbe FixConf
 	// ScenarioValidationService contract.
 	pr.MetricsReachable = resp.GetMetrics() != nil
 	pr.MetricsAdopted = pr.MetricsReachable
+	if requiresFailureClassification(resp.GetStatus()) && strings.TrimSpace(resp.GetFailureClassification()) == "" {
+		pr.FailureClassificationMissing = true
+		pr.Violations = append(pr.Violations, "failed validation response omitted failure_classification")
+	}
 
 	// DescribeProvider adoption is advisory for now: it lowers the adoption
 	// score and names the cost, but does not classify the provider as a
@@ -433,11 +465,25 @@ func finishConformance(pr *ProviderConformance) {
 		if pr.FixContractRequired && !pr.FixContractValid {
 			pr.ReasonCodes = append(pr.ReasonCodes, ReasonFixContractInvalid)
 		}
+		if pr.FailureClassificationMissing {
+			pr.ReasonCodes = append(pr.ReasonCodes, ReasonFailureClassificationMissing)
+		}
 		if len(pr.ReasonCodes) == 0 {
 			pr.Classification = ConformanceCompliant
 		} else {
 			pr.Classification = ConformanceViolation
 		}
+	}
+}
+
+func requiresFailureClassification(status scenariovalidationv1.ValidationStatus) bool {
+	switch status {
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED:
+		return true
+	default:
+		return false
 	}
 }
 

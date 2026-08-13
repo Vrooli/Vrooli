@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,6 +14,12 @@ import (
 	"test-genie/internal/runmanager"
 )
 
+// fleetRosterEphemeralTTL prevents timestamp-named generated scenarios from
+// becoming permanent coverage gaps after their short-lived experiment ends.
+const fleetRosterEphemeralTTL = 30 * 24 * time.Hour
+
+var timestampedScenarioDate = regexp.MustCompile(`(?:^|[-_])(20[0-9]{2})[-_]?([0-9]{2})[-_]?([0-9]{2})(?:$|[-_])`)
+
 // fleetRosterFromScenariosRoot returns a roster provider listing the first-level
 // scenario directories under scenariosRoot (hidden entries skipped), so the
 // fleet ledger can name scenarios that exist on disk but have no run in the
@@ -20,6 +27,7 @@ import (
 // treats "no roster" as an honest unknown rather than asserting zero coverage.
 func fleetRosterFromScenariosRoot(scenariosRoot string) func(ctx context.Context) ([]string, error) {
 	return func(ctx context.Context) ([]string, error) {
+		now := time.Now().UTC()
 		entries, err := os.ReadDir(scenariosRoot)
 		if err != nil {
 			return nil, err
@@ -33,11 +41,26 @@ func fleetRosterFromScenariosRoot(scenariosRoot string) func(ctx context.Context
 			if name == "" || strings.HasPrefix(name, ".") {
 				continue
 			}
+			if timestampedScenarioExpired(name, now) {
+				continue
+			}
 			names = append(names, name)
 		}
 		sort.Strings(names)
 		return names, nil
 	}
+}
+
+func timestampedScenarioExpired(name string, now time.Time) bool {
+	match := timestampedScenarioDate.FindStringSubmatch(name)
+	if len(match) != 4 {
+		return false
+	}
+	date, err := time.ParseInLocation("20060102", match[1]+match[2]+match[3], time.UTC)
+	if err != nil {
+		return false
+	}
+	return now.Sub(date) > fleetRosterEphemeralTTL
 }
 
 // startFleetScheduler launches the priority-weighted background fleet scheduler

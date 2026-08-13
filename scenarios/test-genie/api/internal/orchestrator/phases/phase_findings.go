@@ -40,19 +40,6 @@ func normalizeFindingSeverity(raw string) architecturev1.FindingSeverity {
 	}
 }
 
-// nonEmptyLocations drops blank locations and trims each. findingid does
-// its own normalization for the hash; this keeps the displayed/stored
-// Locations tidy.
-func nonEmptyLocations(locs ...string) []string {
-	out := make([]string, 0, len(locs))
-	for _, l := range locs {
-		if t := strings.TrimSpace(l); t != "" {
-			out = append(out, t)
-		}
-	}
-	return out
-}
-
 // defaultEffortForSource is the documented per-source effort heuristic.
 // Effort is advisory ranking input (the campaign tracker's FAST/LONG_TERM
 // profiles consume it) and is EXCLUDED from the stable-ID hash, so a coarse

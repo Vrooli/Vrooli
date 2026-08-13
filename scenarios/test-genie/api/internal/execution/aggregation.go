@@ -14,17 +14,23 @@ import (
 // engine-neutral SuiteExecutionRepository (storage-steer §8); the selfhealth
 // ledger composes over these values without embedding SQL.
 type PhaseObservation struct {
-	ScenarioName       string
-	TerminalOutcome    string
-	PhaseName          string
-	Status             string
-	Classification     string
-	RunnabilityVerdict string
-	RunnabilityReason  string
-	FindingSource      string
-	DurationSeconds    int
-	MetricsPresent     bool
-	CompletedAt        time.Time
+	ScenarioName         string
+	TerminalOutcome      string
+	PhaseName            string
+	Status               string
+	Classification       string
+	ClassificationSource string
+	RunnabilityVerdict   string
+	RunnabilityReason    string
+	FindingSource        string
+	FindingBlockers      int
+	FindingErrors        int
+	FindingWarnings      int
+	FindingInfos         int
+	FindingTotal         int
+	DurationSeconds      int
+	MetricsPresent       bool
+	CompletedAt          time.Time
 }
 
 // RunOutcomeCount is one bucket of the run-level terminal_outcome histogram over
@@ -57,9 +63,15 @@ SELECT
 	p.phase_name,
 	p.status,
 	p.classification,
+	p.classification_source,
 	p.runnability_verdict,
 	p.runnability_reason,
 	p.finding_source,
+	p.findings_blockers,
+	p.findings_errors,
+	p.findings_warnings,
+	p.findings_infos,
+	p.findings_total,
 	p.duration_seconds,
 	p.metrics_present,
 	e.completed_at
@@ -93,9 +105,15 @@ WHERE p.phase_name <> ''
 			&obs.PhaseName,
 			&obs.Status,
 			&obs.Classification,
+			&obs.ClassificationSource,
 			&obs.RunnabilityVerdict,
 			&obs.RunnabilityReason,
 			&obs.FindingSource,
+			&obs.FindingBlockers,
+			&obs.FindingErrors,
+			&obs.FindingWarnings,
+			&obs.FindingInfos,
+			&obs.FindingTotal,
 			&obs.DurationSeconds,
 			&metricsPresent,
 			&completedAt,

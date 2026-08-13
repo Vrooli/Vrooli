@@ -267,11 +267,12 @@ func RunTarget(ctx context.Context, provider Provider, target *commonv1.Validati
 		return failure(provider, target.GetId(), shared.FailureClassSystem, errors.New("provider returned an empty target validation response"), "")
 	}
 	legacy := &scenariovalidationv1.ValidateScenarioResponse{
-		Status:       resp.Msg.GetStatus(),
-		Assessment:   resp.Msg.GetAssessment(),
-		NativeDetail: resp.Msg.GetNativeDetail(),
-		Metrics:      resp.Msg.GetMetrics(),
-		Scenario:     target.GetId(),
+		Status:                resp.Msg.GetStatus(),
+		Assessment:            resp.Msg.GetAssessment(),
+		NativeDetail:          resp.Msg.GetNativeDetail(),
+		Metrics:               resp.Msg.GetMetrics(),
+		Scenario:              target.GetId(),
+		FailureClassification: resp.Msg.GetFailureClassification(),
 	}
 	return translate(provider, target.GetId(), legacy)
 }

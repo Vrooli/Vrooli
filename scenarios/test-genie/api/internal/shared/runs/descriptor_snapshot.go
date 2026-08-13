@@ -93,7 +93,11 @@ type PhaseDescriptorSnapshot struct {
 }
 
 // DescriptorSnapshot is written once before execution. Digest covers the
-// canonical schema_version+phases payload and is verified on every read.
+// canonical descriptor contract and is verified on every read. Applicability
+// Planned is deliberately excluded from that digest: it records the current
+// run's phase selection, while phase_set_digest is the durable identity for
+// that selection. Including it here made every targeted phase-set change look
+// like a provider contract change and forced an unnecessary serial calibration.
 type DescriptorSnapshot struct {
 	SchemaVersion int                       `json:"schema_version"`
 	Digest        string                    `json:"digest"`
@@ -208,10 +212,17 @@ func PhaseComparisonFingerprint(phase PhaseDescriptorSnapshot) (string, error) {
 }
 
 func descriptorSnapshotDigest(snapshot DescriptorSnapshot) (string, error) {
+	// Planned is run-local presentation, not provider-owned descriptor
+	// semantics. Normalize it before hashing so the same catalog has one
+	// calibration/cache identity across full and targeted runs.
+	phases := append([]PhaseDescriptorSnapshot(nil), snapshot.Phases...)
+	for i := range phases {
+		phases[i].Applicability.Planned = false
+	}
 	payload := struct {
 		SchemaVersion int                       `json:"schema_version"`
 		Phases        []PhaseDescriptorSnapshot `json:"phases"`
-	}{SchemaVersion: snapshot.SchemaVersion, Phases: snapshot.Phases}
+	}{SchemaVersion: snapshot.SchemaVersion, Phases: phases}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return "", fmt.Errorf("marshal descriptor snapshot digest: %w", err)

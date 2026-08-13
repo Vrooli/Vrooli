@@ -186,13 +186,3 @@ func missingSurfaces(caps PhaseCapabilities, rc RunContext) []string {
 	}
 	return missing
 }
-
-func joinReason(parts ...string) string {
-	var nonEmpty []string
-	for _, p := range parts {
-		if strings.TrimSpace(p) != "" {
-			nonEmpty = append(nonEmpty, p)
-		}
-	}
-	return strings.Join(nonEmpty, "; ")
-}

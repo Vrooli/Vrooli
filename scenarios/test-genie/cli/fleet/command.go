@@ -94,8 +94,13 @@ func printFleet(w io.Writer, fh *runspb.FleetHealth) {
 		asOf = t.Format("2006-01-02 15:04 MST")
 	}
 	fmt.Fprintf(w, "Fleet health (%dd window, as of %s)\n", fh.GetWindowDays(), asOf)
-	fmt.Fprintf(w, "  Scenarios: %d tested / %d total · %d runs · %d issues\n",
-		fh.GetScenariosTested(), fh.GetScenariosTotal(), fh.GetTotalRuns(), fh.GetTotalIssues())
+	fmt.Fprintf(w, "  Scenarios: %d tested / %d total · %d runs · %d failed phase observations\n",
+		fh.GetScenariosTested(), fh.GetScenariosTotal(), fh.GetTotalRuns(), fh.GetFailedPhaseObservations())
+	if quality := fh.GetFindingQuality(); quality != nil {
+		fmt.Fprintf(w, "  Finding quality: headline=%d (blockers=%d errors=%d) · advisory=%d (warnings=%d infos=%d) · total=%d\n",
+			quality.GetBlockers()+quality.GetErrors(), quality.GetBlockers(), quality.GetErrors(),
+			quality.GetWarnings()+quality.GetInfos(), quality.GetWarnings(), quality.GetInfos(), quality.GetTotal())
+	}
 
 	if sources := fh.GetTopFindingSources(); len(sources) > 0 {
 		parts := make([]string, 0, len(sources))

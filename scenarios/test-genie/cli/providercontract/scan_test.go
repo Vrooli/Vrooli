@@ -17,8 +17,8 @@ func TestParseScanArgsDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseScanArgs: %v", err)
 	}
-	if args.Target != selfhealth.DefaultScanTarget {
-		t.Fatalf("default target = %q, want %q", args.Target, selfhealth.DefaultScanTarget)
+	if args.Target != "" {
+		t.Fatalf("default target = %q, want descriptor-driven empty target", args.Target)
 	}
 	if args.Timeout != time.Minute {
 		t.Fatalf("default timeout = %v, want 1m", args.Timeout)
