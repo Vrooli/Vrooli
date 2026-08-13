@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -59,7 +59,9 @@ describe("DashboardPage", () => {
 
     const user = userEvent.setup();
     renderWithProviders(<DashboardPage />);
-    await user.click(await screen.findByRole("button", { name: strings.pages.dashboard.reprobe }));
+    await screen.findByText(device.id);
+    const fleet = screen.getByTestId(selectors.pages.dashboardDevices);
+    await user.click(within(fleet).getByRole("button", { name: strings.pages.dashboard.reprobe }));
 
     const report = await screen.findByTestId(selectors.pages.onboardingReport);
     expect(report).toHaveTextContent("data-cable");
@@ -68,6 +70,22 @@ describe("DashboardPage", () => {
     expect(report).toHaveTextContent("Choose File Transfer on the phone.");
     expect(report).toHaveTextContent("rsa-authorized");
     expect(api.connectDevice).toHaveBeenCalledWith("android");
+  });
+
+  it("offers onboarding from the zero-device state", async () => {
+    api.listDevices.mockResolvedValue({ devices: [] });
+    api.connectDevice.mockResolvedValue({
+      kind: "android",
+      first_next_action: "Attach and authorize an Android device.",
+      rungs: [{ id: "usb-bus", status: "unavailable", next_action: "Attach the device over USB." }],
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(<DashboardPage />);
+
+    await user.click(await screen.findByTestId(selectors.pages.dashboardEmptyReprobe));
+    expect(api.connectDevice).toHaveBeenCalledWith("android");
+    expect(await screen.findByTestId(selectors.pages.onboardingReport)).toHaveTextContent("usb-bus");
   });
 
   it("kills a live lease from the dashboard controls", async () => {

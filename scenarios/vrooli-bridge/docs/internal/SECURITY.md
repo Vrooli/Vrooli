@@ -168,6 +168,16 @@ accidentally move a secret to weaker custody.
   is now also used to install the `sudoers.d` drop-in in the same touch — but it
   is still zeroed on all paths and never persisted; the hold is longer, not
   durable.
+- **Durable Bridge trust = metadata plus a Bridge-owned key.** A successful
+  `onboard connect` binds exactly one Machine to the target host/account/port,
+  an opaque client-key reference and fingerprint, and a verified host-key
+  fingerprint. The private key remains only in the Bridge-owned 0700/0600
+  state directory. Preflight performs an exact key-only check before
+  passwordless reconnect; onboarding performs another key-only check after
+  bootstrap and pairing before reporting success. Missing authorization,
+  account changes, ambiguous Machine evidence, and changed host keys fail
+  closed; recovery requires an explicit password-bearing request and never
+  silently creates a replacement identity.
 - **Durable credential = a per-Machine bridge keypair, on-disk at `0600` (dir
   `0700`).** New Machine enrollment selects a stable Machine-scoped key name
   under the bridge-owned trust-store namespace (never the operator's `~/.ssh`).

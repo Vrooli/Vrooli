@@ -4,8 +4,9 @@ import (
 	"log"
 
 	"device-sync-hub/internal/auth"
-	"device-sync-hub/internal/clock"
 	"device-sync-hub/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -23,7 +24,7 @@ import (
 // main.go threads into the owner-auth middleware). hub (optional) backs the
 // pairing-request realtime push and the live online-presence overlay; nil
 // disables both without changing the stored device data.
-func Module(db *database.RoutedDB, clk clock.Clock, authClient auth.Validator, hub *internalrealtime.Hub, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, authClient auth.Validator, hub *internalrealtime.Hub, logger *log.Logger) module.Module {
 	repo := internaldevices.NewSQLiteRepository(db, clk)
 	cfg := internaldevices.Config{
 		Repo:    repo,

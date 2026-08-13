@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"vrooli-bridge/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Service is the application-layer surface the artifacts handler depends on. It
@@ -33,7 +33,7 @@ type service struct {
 	runs     RunReader
 	nodes    NodeReader
 	delivery DirectedDelivery
-	clock    clock.Clock
+	clock    schedule.Clock
 }
 
 // Option wires the produced-artifact dependencies without changing the
@@ -49,7 +49,7 @@ func WithRunReader(reader RunReader) Option {
 }
 
 // NewService constructs the production Service.
-func NewService(repo Repository, nodes NodeReader, delivery DirectedDelivery, clk clock.Clock, opts ...Option) Service {
+func NewService(repo Repository, nodes NodeReader, delivery DirectedDelivery, clk schedule.Clock, opts ...Option) Service {
 	s := &service{repo: repo, nodes: nodes, delivery: delivery, clock: clk}
 	for _, opt := range opts {
 		opt(s)

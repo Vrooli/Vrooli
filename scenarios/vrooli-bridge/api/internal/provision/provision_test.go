@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/provision"
 	"vrooli-bridge/internal/provision/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +25,7 @@ func newService(t *testing.T) (provision.Service, *mocks.FakeRepository, *mocks.
 	pres := &mocks.FakePresence{Online: map[string]bool{"n1": true}}
 	audit := &mocks.FakeAuditSink{}
 	pusher := &mocks.FakeCommandPusher{Delivered: 1}
-	svc := provision.NewService(repo, nodes, pres, audit, pusher, clock.System{})
+	svc := provision.NewService(repo, nodes, pres, audit, pusher, schedule.System())
 	return svc, repo, nodes, pres, audit, pusher
 }
 

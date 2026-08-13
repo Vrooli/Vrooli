@@ -78,15 +78,15 @@ func (s *Service) RunAndroidConformance(ctx context.Context, fixture conformance
 	var session Session
 	var err error
 	if strings.TrimSpace(leaseToken) != "" {
-		session, err = s.sessionForLease(deviceID, leaseToken)
+		session, err = s.sessionForLease(ctx, deviceID, leaseToken)
 	} else {
-		session, err = s.Acquire(deviceID, actor, 15*time.Minute)
+		session, err = s.AcquireContext(ctx, deviceID, actor, 15*time.Minute)
 	}
 	if err != nil {
 		return result, err
 	}
 	if leaseToken == "" {
-		defer func() { _, _ = s.Release(session.ID) }()
+		defer func() { _, _ = s.ReleaseContext(ctx, session.ID) }()
 	}
 	result.RunID = fmt.Sprintf("%s-%s", plan.ID, session.ID)
 

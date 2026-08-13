@@ -5,6 +5,7 @@ package strategy
 import (
 	"context"
 	"errors"
+	"runtime"
 	"time"
 )
 
@@ -104,6 +105,8 @@ type Capability struct {
 type Declaration struct {
 	StrategyID       string                `json:"strategy_id"`
 	Description      string                `json:"description"`
+	SupportedHostOS  []string              `json:"supported_host_os"`
+	Reason           string                `json:"reason,omitempty"`
 	Status           string                `json:"status"`
 	Capabilities     map[string]Capability `json:"capabilities"`
 	Tiers            []string              `json:"tiers"`
@@ -112,6 +115,11 @@ type Declaration struct {
 	EvidenceClass    string                `json:"evidence_class"`
 	MinimumUsefulFPS float64               `json:"minimum_useful_fps"`
 }
+
+// HostOS is the host operating-system seam used by strategy resolution. It is
+// runtime.GOOS in production and intentionally mutable in tests so every
+// platform branch can be proven without pretending to be on another host.
+var HostOS = runtime.GOOS
 
 type Strategy interface {
 	ID() string

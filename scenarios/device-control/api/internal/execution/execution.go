@@ -14,7 +14,9 @@ type Flow struct {
 	ID                     string `json:"id"`
 	Name                   string `json:"name"`
 	Steps                  []Step `json:"steps"`
+	Transport              string `json:"transport,omitempty"`
 	AllowUnredactedCapture bool   `json:"allow_unredacted_capture"`
+	SuppressActuation      bool   `json:"suppress_actuation,omitempty"`
 }
 type GapReport struct {
 	Runnable bool     `json:"runnable"`
@@ -33,9 +35,12 @@ type Resolution struct {
 	Confidence float64 `json:"confidence"`
 }
 type RunResult struct {
-	RunID       string               `json:"run_id"`
-	Disposition string               `json:"disposition"`
-	Chapters    []Chapter            `json:"chapters"`
-	Resolutions []Resolution         `json:"resolutions"`
-	Evidence    []evidence.Reference `json:"evidence"`
+	RunID            string               `json:"run_id"`
+	Disposition      string               `json:"disposition"`
+	Chapters         []Chapter            `json:"chapters"`
+	Resolutions      []Resolution         `json:"resolutions"`
+	Evidence         []evidence.Reference `json:"evidence"`
+	Incomplete       bool                 `json:"incomplete,omitempty"`
+	DisconnectReason string               `json:"disconnect_reason,omitempty"`
+	DisconnectStep   string               `json:"disconnect_step,omitempty"`
 }

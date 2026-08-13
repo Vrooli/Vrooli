@@ -3,9 +3,10 @@ package registry
 import (
 	"log"
 
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/module"
 	internalregistry "vrooli-bridge/internal/registry"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -19,7 +20,7 @@ import (
 // online/offline overlay on the read path; nil disables the overlay (every node
 // reads offline) without changing the stored node data — the Phase-1 presence
 // step threads the real hub in.
-func Module(db *database.RoutedDB, clk clock.Clock, presence Presence, credentials CredentialRevoker, disconnect Disconnector, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, presence Presence, credentials CredentialRevoker, disconnect Disconnector, logger *log.Logger) module.Module {
 	repo := internalregistry.NewSQLiteRepository(db, clk)
 	svc := internalregistry.NewService(repo)
 	path, handler := registryconnect.NewNodeRegistryServiceHandler(NewConnectHandler(Deps{

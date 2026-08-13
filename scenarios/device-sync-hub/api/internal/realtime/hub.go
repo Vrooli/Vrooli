@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"device-sync-hub/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // EventKind tags a server-pushed event. Mapped to the proto EventType enum at
@@ -77,16 +77,16 @@ type subscriber struct {
 // Hub tracks live presence connections and fans events to subscribers. Safe for
 // concurrent use. Construct once in main.go and share across handlers.
 type Hub struct {
-	clock clock.Clock
+	clock schedule.Clock
 
 	mu   sync.Mutex
 	subs map[string]map[*subscriber]struct{} // keyed by ownerID
 }
 
 // NewHub constructs an empty Hub. clk supplies event timestamps so tests pin them.
-func NewHub(clk clock.Clock) *Hub {
+func NewHub(clk schedule.Clock) *Hub {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &Hub{clock: clk, subs: make(map[string]map[*subscriber]struct{})}
 }

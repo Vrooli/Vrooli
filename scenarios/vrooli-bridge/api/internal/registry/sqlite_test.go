@@ -8,7 +8,8 @@ import (
 
 	"vrooli-bridge/internal/registry"
 	"vrooli-bridge/internal/testutil/db"
-	"vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -17,9 +18,9 @@ import (
 	localdb "vrooli-bridge/internal/database"
 )
 
-func newSchemaDB(t *testing.T) (*sql.DB, *mocks.FakeClock) {
+func newSchemaDB(t *testing.T) (*sql.DB, *scheduletest.FakeClock) {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),

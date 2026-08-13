@@ -7,7 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"device-sync-hub/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/blobstore"
 )
@@ -95,7 +95,7 @@ type Service interface {
 type Config struct {
 	Repo  Repository
 	Blobs blobstore.BlobStore
-	Clock clock.Clock
+	Clock schedule.Clock
 	Trust TrustChecker
 	Notif Notifier
 	Log   *log.Logger
@@ -111,7 +111,7 @@ type Config struct {
 type service struct {
 	repo  Repository
 	blobs blobstore.BlobStore
-	clock clock.Clock
+	clock schedule.Clock
 	trust TrustChecker
 	notif Notifier
 	log   *log.Logger
@@ -142,7 +142,7 @@ func NewService(cfg Config) Service {
 		maxText:      cfg.MaxTextBytes,
 	}
 	if s.clock == nil {
-		s.clock = clock.System{}
+		s.clock = schedule.System()
 	}
 	if s.notif == nil {
 		s.notif = nopNotifier{}

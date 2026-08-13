@@ -8,7 +8,8 @@ import (
 	"vrooli-bridge/internal/auth"
 	internalfleet "vrooli-bridge/internal/fleet"
 	fleetmocks "vrooli-bridge/internal/fleet/mocks"
-	testmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,7 @@ func newHarness(t *testing.T) *connectHandler {
 	nodes := &fleetmocks.FakeNodeLister{Nodes: []internalfleet.NodeRef{{ID: "n1"}, {ID: "n2"}}}
 	presence := &fleetmocks.FakePresence{Online: map[string]bool{"n1": true, "n2": true}}
 	prov := &fleetmocks.FakeProvisioner{}
-	clk := testmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	svc := internalfleet.NewService(fleetmocks.NewFakeRepository(), nodes, presence, prov, clk)
 	return NewConnectHandler(Deps{Service: svc})
 }

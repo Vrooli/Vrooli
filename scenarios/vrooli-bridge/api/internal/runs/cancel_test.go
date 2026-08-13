@@ -8,7 +8,8 @@ import (
 
 	"vrooli-bridge/internal/runs"
 	"vrooli-bridge/internal/runs/mocks"
-	tmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -31,7 +32,7 @@ func (f *fakeCanceller) CancelJob(_ context.Context, nodeID, runID, _ string) er
 // the in-flight run rather than running it to completion as an ignored stale
 // completion, and fires the terminal hook so the run's queue slot frees.
 func TestAbort_PushesNodeCancelAndFiresTerminalHook(t *testing.T) {
-	clk := tmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	repo := mocks.NewFakeRepository()
 	canceller := &fakeCanceller{}
 
@@ -56,7 +57,7 @@ func TestAbort_PushesNodeCancelAndFiresTerminalHook(t *testing.T) {
 // [REQ:BRG-P1-004] A natural completion (node EXIT) fires the terminal hook but
 // does NOT push a node-cancel (the run already exited).
 func TestAppendEvent_TerminalFiresHookWithoutCancel(t *testing.T) {
-	clk := tmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	repo := mocks.NewFakeRepository()
 	canceller := &fakeCanceller{}
 

@@ -34,6 +34,12 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			}
 			return emit(ctx, b, "Device forgotten")
 		}),
+		command("promote", "Promote an onboarded Android device to wireless ADB", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "USB-onboarded device id"}}, Flags: []cliapp.Flag{{Name: "transport", Required: true, Description: "wireless"}}}, func(ctx cliapp.RunContext) error {
+			if ctx.Flag("transport") != "wireless" {
+				return fmt.Errorf("transport must be wireless")
+			}
+			return post(ctx, core, "/devices/"+ctx.Positional("id")+"/promote", map[string]string{"transport": "wireless"}, "Device transport promotion")
+		}),
 	}}
 }
 
@@ -92,7 +98,7 @@ func SessionGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 func FlowGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "flow", Description: "Validate and run bounded device flows", NeedsAPI: true, Subcommands: []cliapp.Command{
 		command("validate", "Validate a flow before taking a lease", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "file", Required: true, Description: "flow JSON file"}, {Name: "strategy", Required: true, Description: "strategy id"}}}, func(ctx cliapp.RunContext) error { return flowRequest(ctx, core, "/flows/validate", false) }),
-		command("run", "Run a flow with chaptered evidence", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "file", Required: true, Description: "flow JSON file"}, {Name: "device", Required: true, Description: "device id"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "lease", Description: "held lease token"}}}, func(ctx cliapp.RunContext) error { return flowRequest(ctx, core, "/flows/run", true) }),
+		command("run", "Run a flow with chaptered evidence", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "file", Required: true, Description: "flow JSON file"}, {Name: "device", Required: true, Description: "device id"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "lease", Description: "held lease token"}, {Name: "transport", Description: "usb (default) or wireless; wireless must be explicit"}}}, func(ctx cliapp.RunContext) error { return flowRequest(ctx, core, "/flows/run", true) }),
 	}}
 }
 
@@ -260,6 +266,18 @@ func flowRequest(ctx cliapp.RunContext, core *cliapp.ScenarioApp, path string, r
 		return fmt.Errorf("parse flow: %w", e)
 	}
 	body := map[string]any{"flow": json.RawMessage(flow)}
+	if run && ctx.Flag("transport") != "" {
+		var definition map[string]any
+		if e = json.Unmarshal(raw, &definition); e != nil {
+			return fmt.Errorf("parse flow definition: %w", e)
+		}
+		definition["transport"] = ctx.Flag("transport")
+		flow, e = json.Marshal(definition)
+		if e != nil {
+			return fmt.Errorf("encode flow definition: %w", e)
+		}
+		body["flow"] = json.RawMessage(flow)
+	}
 	if run {
 		body["device_id"] = ctx.Flag("device")
 		body["actor"] = ctx.Flag("actor")

@@ -96,6 +96,9 @@ CREATE TABLE IF NOT EXISTS machine_trust (
   client_key_fingerprint TEXT NOT NULL DEFAULT '',
   host_key_fingerprint TEXT NOT NULL DEFAULT '',
   host_key_state TEXT NOT NULL DEFAULT 'unverified',
+  ssh_user TEXT NOT NULL DEFAULT '',
+  ssh_port INTEGER NOT NULL DEFAULT 22,
+  connection_state TEXT NOT NULL DEFAULT 'untrusted',
   updated_at TEXT NOT NULL
 );
 

@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"device-sync-hub/internal/auth"
-	"device-sync-hub/internal/clock"
 	"device-sync-hub/internal/deviceauth"
 	internaldevices "device-sync-hub/internal/devices"
 	"device-sync-hub/internal/middleware"
@@ -18,6 +17,8 @@ import (
 	internalrealtime "device-sync-hub/internal/realtime"
 	"device-sync-hub/internal/server"
 	internaltransfer "device-sync-hub/internal/transfer"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -136,7 +137,7 @@ func main() {
 	authResolver := discovery.NewResolver(discovery.ResolverConfig{})
 	authClient := auth.NewClient(auth.Config{Resolver: authResolver})
 
-	clk := clock.System{}
+	clk := schedule.System()
 	logger := log.Default()
 
 	// The realtime hub is shared across domains: transfer emits item events

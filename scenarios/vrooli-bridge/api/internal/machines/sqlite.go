@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"vrooli-bridge/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 type SQLExecutor interface {
@@ -28,10 +28,12 @@ type transactionStarter interface {
 }
 type sqliteRepository struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
-func NewSQLiteRepository(db SQLExecutor, c clock.Clock) Repository { return &sqliteRepository{db, c} }
+func NewSQLiteRepository(db SQLExecutor, c schedule.Clock) Repository {
+	return &sqliteRepository{db, c}
+}
 
 const machineTimeFormat = time.RFC3339Nano
 
@@ -737,6 +739,17 @@ func (s *sqliteRepository) UpsertTrust(ctx context.Context, trust TrustRecord) (
 	if trust.HostKeyState == "" {
 		trust.HostKeyState = HostKeyUnverified
 	}
+	if trust.SSHPort == 0 {
+		trust.SSHPort = 22
+	}
+	if trust.ConnectionState == "" {
+		trust.ConnectionState = ConnectionUntrusted
+	}
+	switch trust.ConnectionState {
+	case ConnectionUntrusted, ConnectionTrusted, ConnectionRecovery:
+	default:
+		return TrustRecord{}, ErrInvalid{"trust.connection_state", "invalid"}
+	}
 	switch trust.HostKeyState {
 	case HostKeyUnverified, HostKeyVerified, HostKeyReviewRequired:
 	default:
@@ -756,7 +769,7 @@ func (s *sqliteRepository) UpsertTrust(ctx context.Context, trust TrustRecord) (
 		}
 	}
 	trust.UpdatedAt = s.clock.Now().UTC()
-	_, err := s.db.ExecContext(ctx, `INSERT INTO machine_trust (machine_id,client_key_ref,client_key_fingerprint,host_key_fingerprint,host_key_state,updated_at) VALUES (?,?,?,?,?,?) ON CONFLICT(machine_id) DO UPDATE SET client_key_ref=excluded.client_key_ref,client_key_fingerprint=excluded.client_key_fingerprint,host_key_fingerprint=excluded.host_key_fingerprint,host_key_state=excluded.host_key_state,updated_at=excluded.updated_at`, trust.MachineID, trust.ClientKeyRef, trust.ClientKeyFingerprint, trust.HostKeyFingerprint, string(trust.HostKeyState), trust.UpdatedAt.Format(machineTimeFormat))
+	_, err := s.db.ExecContext(ctx, `INSERT INTO machine_trust (machine_id,client_key_ref,client_key_fingerprint,host_key_fingerprint,host_key_state,ssh_user,ssh_port,connection_state,updated_at) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(machine_id) DO UPDATE SET client_key_ref=excluded.client_key_ref,client_key_fingerprint=excluded.client_key_fingerprint,host_key_fingerprint=excluded.host_key_fingerprint,host_key_state=excluded.host_key_state,ssh_user=excluded.ssh_user,ssh_port=excluded.ssh_port,connection_state=excluded.connection_state,updated_at=excluded.updated_at`, trust.MachineID, trust.ClientKeyRef, trust.ClientKeyFingerprint, trust.HostKeyFingerprint, string(trust.HostKeyState), trust.SSHUser, trust.SSHPort, string(trust.ConnectionState), trust.UpdatedAt.Format(machineTimeFormat))
 	if err != nil {
 		return TrustRecord{}, fmt.Errorf("upsert machine trust: %w", err)
 	}
@@ -781,8 +794,8 @@ func (s *sqliteRepository) UpsertTrust(ctx context.Context, trust TrustRecord) (
 
 func (s *sqliteRepository) GetTrust(ctx context.Context, machineID string) (TrustRecord, error) {
 	var trust TrustRecord
-	var state, updated string
-	err := s.db.QueryRowContext(ctx, "SELECT machine_id,client_key_ref,client_key_fingerprint,host_key_fingerprint,host_key_state,updated_at FROM machine_trust WHERE machine_id=?", machineID).Scan(&trust.MachineID, &trust.ClientKeyRef, &trust.ClientKeyFingerprint, &trust.HostKeyFingerprint, &state, &updated)
+	var state, connectionState, updated string
+	err := s.db.QueryRowContext(ctx, "SELECT machine_id,client_key_ref,client_key_fingerprint,host_key_fingerprint,host_key_state,ssh_user,ssh_port,connection_state,updated_at FROM machine_trust WHERE machine_id=?", machineID).Scan(&trust.MachineID, &trust.ClientKeyRef, &trust.ClientKeyFingerprint, &trust.HostKeyFingerprint, &state, &trust.SSHUser, &trust.SSHPort, &connectionState, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return TrustRecord{}, ErrNotFound{machineID}
 	}
@@ -790,6 +803,13 @@ func (s *sqliteRepository) GetTrust(ctx context.Context, machineID string) (Trus
 		return TrustRecord{}, err
 	}
 	trust.HostKeyState = HostKeyState(state)
+	trust.ConnectionState = ConnectionState(connectionState)
+	if trust.SSHPort == 0 {
+		trust.SSHPort = 22
+	}
+	if trust.ConnectionState == "" {
+		trust.ConnectionState = ConnectionUntrusted
+	}
 	var parseErr error
 	trust.UpdatedAt, parseErr = time.Parse(machineTimeFormat, updated)
 	if parseErr != nil {

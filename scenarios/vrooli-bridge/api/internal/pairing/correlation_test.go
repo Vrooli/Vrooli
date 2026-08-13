@@ -9,7 +9,8 @@ import (
 
 	"vrooli-bridge/internal/pairing"
 	"vrooli-bridge/internal/testutil/db"
-	"vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 	apiDB "github.com/vrooli/api-core/database"
@@ -48,7 +49,7 @@ func TestCorrelatedRedemptionConcurrentReplayConverges(t *testing.T) {
 	ctx := context.Background()
 	d := db.NewSQLite(t)
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(pairing.Schema)))
-	clock := mocks.NewFakeClock(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
+	clock := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
 	registrar := &correlatedRegistrar{nodes: map[string]string{}}
 	svc := pairing.NewService(pairing.NewSQLiteRepository(d, clock), registrar, clock)
 	issued, err := svc.IssueCodeForEnrollment(ctx, "mac", nil, 0, "attempt-concurrent")
@@ -78,7 +79,7 @@ func TestCorrelatedRedemptionIsReplaySafe(t *testing.T) {
 	ctx := context.Background()
 	d := db.NewSQLite(t)
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(pairing.Schema)))
-	clock := mocks.NewFakeClock(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
+	clock := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
 	registrar := &correlatedRegistrar{nodes: map[string]string{}}
 	svc := pairing.NewService(pairing.NewSQLiteRepository(d, clock), registrar, clock)
 	issued, err := svc.IssueCodeForEnrollment(ctx, "mac", []string{"presence.read"}, 0, "attempt-1")
@@ -100,7 +101,7 @@ func TestCorrelatedRedemptionReusesActiveCredential(t *testing.T) {
 	ctx := context.Background()
 	d := db.NewSQLite(t)
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(pairing.Schema)))
-	clock := mocks.NewFakeClock(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
+	clock := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
 	registrar := &correlatedRegistrar{nodes: map[string]string{}}
 	repo := pairing.NewSQLiteRepository(d, clock)
 	svc := pairing.NewService(repo, registrar, clock)

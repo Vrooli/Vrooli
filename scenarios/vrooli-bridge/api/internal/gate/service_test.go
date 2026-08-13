@@ -8,14 +8,15 @@ import (
 
 	"vrooli-bridge/internal/gate"
 	"vrooli-bridge/internal/gate/mocks"
-	testmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
 
 func newService(nodes *mocks.FakeNodeLister, presence *mocks.FakePresence, runner *mocks.FakeRunner) (gate.Service, *mocks.FakeRepository) {
 	repo := mocks.NewFakeRepository()
-	clk := testmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	return gate.NewService(repo, nodes, presence, runner, clk), repo
 }
 

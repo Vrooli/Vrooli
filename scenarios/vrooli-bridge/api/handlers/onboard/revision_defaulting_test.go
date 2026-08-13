@@ -7,11 +7,12 @@ import (
 
 	onboardhandler "vrooli-bridge/handlers/onboard"
 	"vrooli-bridge/internal/auth"
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/cprev"
 	internalmachines "vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/onboard/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -66,7 +67,7 @@ func handlerWithResolver(res onboard.RevisionResolver) startHandler {
 		&mocks.FakeSSHDriver{},
 		&mocks.FakeCodeIssuer{Code: "PAIRINGCODEABCDEF0123456789ABCDEF"},
 		&mocks.FakeOnlineConfirmer{Online: true},
-		clock.System{},
+		schedule.System(),
 		onboard.WithRevisionResolver(res),
 	)
 	return onboardhandler.NewConnectHandler(onboardhandler.Deps{Service: svc})
@@ -114,7 +115,7 @@ func TestStartOnboarding_ValidatesExplicitMachineTarget(t *testing.T) {
 		&mocks.FakeSSHDriver{},
 		&mocks.FakeCodeIssuer{Code: "PAIRINGCODEABCDEF0123456789ABCDEF"},
 		&mocks.FakeOnlineConfirmer{Online: true},
-		clock.System{},
+		schedule.System(),
 		onboard.WithRevisionResolver(&stubResolver{resolved: "1111111111111111111111111111111111111111"}),
 	)
 	h := onboardhandler.NewConnectHandler(onboardhandler.Deps{
@@ -138,7 +139,7 @@ func TestStartOnboardingRejectsLocatorMismatch(t *testing.T) {
 		&mocks.FakeSSHDriver{},
 		&mocks.FakeCodeIssuer{Code: "PAIRINGCODEABCDEF0123456789ABCDEF"},
 		&mocks.FakeOnlineConfirmer{Online: true},
-		clock.System{},
+		schedule.System(),
 		onboard.WithRevisionResolver(&stubResolver{resolved: "1111111111111111111111111111111111111111"}),
 	)
 	h := onboardhandler.NewConnectHandler(onboardhandler.Deps{

@@ -8,7 +8,8 @@ import (
 
 	"vrooli-bridge/internal/fleet"
 	"vrooli-bridge/internal/fleet/mocks"
-	testmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,7 @@ import (
 
 func newFakeService(nodes *mocks.FakeNodeLister, presence *mocks.FakePresence, prov *mocks.FakeProvisioner) (fleet.Service, *mocks.FakeRepository) {
 	repo := mocks.NewFakeRepository()
-	clk := testmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	return fleet.NewService(repo, nodes, presence, prov, clk), repo
 }
 

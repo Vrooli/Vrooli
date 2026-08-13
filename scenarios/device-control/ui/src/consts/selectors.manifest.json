@@ -92,6 +92,10 @@
       "testId": "dashboard-reprobe",
       "selector": "[data-testid=\"dashboard-reprobe\"]"
     },
+    "pages.dashboardEmptyReprobe": {
+      "testId": "dashboard-empty-reprobe",
+      "selector": "[data-testid=\"dashboard-empty-reprobe\"]"
+    },
     "pages.dashboardAcquire": {
       "testId": "dashboard-acquire",
       "selector": "[data-testid=\"dashboard-acquire\"]"
@@ -139,6 +143,10 @@
     "pages.flowRunReview": {
       "testId": "flow-run-review",
       "selector": "[data-testid=\"flow-run-review\"]"
+    },
+    "pages.flowError": {
+      "testId": "flow-error",
+      "selector": "[data-testid=\"flow-error\"]"
     },
     "pages.flowEvidenceImage": {
       "testId": "flow-evidence-image",

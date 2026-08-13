@@ -5,11 +5,12 @@ import (
 	"log"
 
 	internalartifacts "vrooli-bridge/internal/artifacts"
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/module"
 	"vrooli-bridge/internal/nodeauth"
 	"vrooli-bridge/internal/registry"
 	internalruns "vrooli-bridge/internal/runs"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -23,7 +24,7 @@ import (
 // module is the single place its proto-free seams are bound to the concrete
 // registry (revocation) and the device-sync-hub directed-delivery client. It
 // owns its own durable distributions table, so it re-exports Schema().
-func Module(db internalartifacts.SQLExecutor, clk clock.Clock, registrySvc registry.Service, runsSvc internalruns.Service, verifier *nodeauth.Verifier, logger *log.Logger) module.Module {
+func Module(db internalartifacts.SQLExecutor, clk schedule.Clock, registrySvc registry.Service, runsSvc internalruns.Service, verifier *nodeauth.Verifier, logger *log.Logger) module.Module {
 	svc := internalartifacts.NewService(
 		internalartifacts.NewSQLiteRepository(db, clk),
 		nodeReaderAdapter{svc: registrySvc},

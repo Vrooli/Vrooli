@@ -8,7 +8,8 @@ import (
 
 	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/testutil/db"
-	"vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -17,9 +18,9 @@ import (
 	localdb "vrooli-bridge/internal/database"
 )
 
-func newSchemaDB(t *testing.T) (*sql.DB, *mocks.FakeClock) {
+func newSchemaDB(t *testing.T) (*sql.DB, *scheduletest.FakeClock) {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 14, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 14, 12, 0, 0, 0, time.UTC))
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
@@ -116,7 +117,7 @@ func TestSQLiteRepository_ListNewestFirstAndNonTerminal(t *testing.T) {
 
 	base := time.Date(2026, 7, 14, 12, 0, 0, 0, time.UTC)
 	mk := func(id string, offset time.Duration, state onboard.State) {
-		clk := mocks.NewFakeClock(base.Add(offset))
+		clk := scheduletest.New(base.Add(offset))
 		repo := onboard.NewSQLiteRepository(d, clk)
 		op, err := repo.Create(ctx, onboard.Op{ID: id, Host: "h"})
 		require.NoError(t, err)
@@ -128,7 +129,7 @@ func TestSQLiteRepository_ListNewestFirstAndNonTerminal(t *testing.T) {
 	mk("mid", time.Minute, onboard.StateBootstrapping)
 	mk("new", 2*time.Minute, onboard.StateFailed)
 
-	repo := onboard.NewSQLiteRepository(d, mocks.NewFakeClock(base))
+	repo := onboard.NewSQLiteRepository(d, scheduletest.New(base))
 	all, err := repo.List(ctx, onboard.ListFilter{})
 	require.NoError(t, err)
 	require.Equal(t, []string{"new", "mid", "old"}, []string{all[0].ID, all[1].ID, all[2].ID})

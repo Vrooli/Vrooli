@@ -19,8 +19,9 @@ import (
 	"time"
 
 	"image-tools/internal/ai"
-	"image-tools/internal/clock"
 	"image-tools/internal/ops"
+
+	"github.com/vrooli/api-core/schedule"
 
 	looksv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/looks"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -47,16 +48,16 @@ type SQLExecutor interface {
 // Store persists custom Looks and merges them with the read-only built-ins.
 type Store struct {
 	db       SQLExecutor
-	clock    clock.Clock
+	clock    schedule.Clock
 	builtins map[string]*looksv1.Look
 	order    []string // built-in ids in seed order
 }
 
-// NewStore constructs the looks store over db using the system clock.
-func NewStore(db SQLExecutor) *Store { return NewStoreWithClock(db, clock.System{}) }
+// NewStore constructs the looks store over db using the system schedule.
+func NewStore(db SQLExecutor) *Store { return NewStoreWithClock(db, schedule.System()) }
 
 // NewStoreWithClock constructs the store with an injected clock (tests).
-func NewStoreWithClock(db SQLExecutor, clk clock.Clock) *Store {
+func NewStoreWithClock(db SQLExecutor, clk schedule.Clock) *Store {
 	s := &Store{db: db, clock: clk, builtins: map[string]*looksv1.Look{}}
 	for _, b := range BuiltinLooks() {
 		s.builtins[b.GetId()] = b

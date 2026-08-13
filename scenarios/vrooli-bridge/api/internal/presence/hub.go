@@ -6,8 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/compat"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Hub is the in-memory presence tracker. It is safe for concurrent use and
@@ -21,7 +22,7 @@ import (
 // set still tolerates a brief reconnect overlap — a node that reconnects before
 // its old connection's Close lands never flickers offline.
 type Hub struct {
-	clock      clock.Clock
+	clock      schedule.Clock
 	staleAfter time.Duration
 	onlineHook func(string)
 
@@ -60,7 +61,7 @@ type DeliveryAck struct {
 var ErrUnknownDeliveryFrame = errors.New("delivery acknowledgement does not match a frame sent to this node")
 
 // NewHub constructs an empty Hub.
-func NewHub(clk clock.Clock, opts ...Option) *Hub {
+func NewHub(clk schedule.Clock, opts ...Option) *Hub {
 	h := &Hub{
 		clock: clk, staleAfter: DefaultHeartbeatStaleAfter,
 		conns:   make(map[string]map[*Conn]struct{}),

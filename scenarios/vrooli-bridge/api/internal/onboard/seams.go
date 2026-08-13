@@ -168,6 +168,12 @@ type SSHDriver interface {
 	// The password is zeroed by the driver.
 	FirstTouch(ctx context.Context, p FirstTouchParams) (Conn, error)
 
+	// VerifyKey performs a key-only SSH check using the exact connection selected
+	// by FirstTouch. The durable onboarding operation calls this after bootstrap
+	// and pairing, so success proves trust survived the complete operation rather
+	// than only the initial key copy.
+	VerifyKey(ctx context.Context, conn Conn) (Conn, error)
+
 	// PushScript copies the bootstrap script to the node and returns the remote
 	// path it landed at.
 	PushScript(ctx context.Context, conn Conn) (remotePath string, err error)

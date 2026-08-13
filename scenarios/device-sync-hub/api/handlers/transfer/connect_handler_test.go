@@ -9,8 +9,9 @@ import (
 	"device-sync-hub/internal/deviceauth"
 	"device-sync-hub/internal/devices"
 	"device-sync-hub/internal/testutil/db"
-	"device-sync-hub/internal/testutil/mocks"
 	internaltransfer "device-sync-hub/internal/transfer"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -20,6 +21,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	localdb "device-sync-hub/internal/database"
+
 	transferv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/transfer"
 )
 
@@ -41,7 +43,7 @@ func newConnect(t *testing.T) connectAPI {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(internaltransfer.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
 	svc := internaltransfer.NewService(internaltransfer.Config{
 		Repo:  internaltransfer.NewSQLiteRepository(d, clk),
 		Blobs: blobstore.NewMemoryBlobStore(),

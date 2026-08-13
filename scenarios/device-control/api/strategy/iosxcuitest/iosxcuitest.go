@@ -12,8 +12,11 @@ type Adapter struct{}
 func New() *Adapter           { return &Adapter{} }
 func (a *Adapter) ID() string { return "ios-xcuitest" }
 func (a *Adapter) Describe(context.Context) (strategy.Declaration, error) {
+	if unsupported, ok := strategy.ResolveHostSupport(a.ID(), "Physical iPhones through devicectl and WebDriverAgent", []string{"darwin"}); ok {
+		return unsupported, nil
+	}
 	actions := []string{"Enroll in the Apple Developer Program and configure code signing for WebDriverAgent.", "Attach an iPhone to a trusted macOS host node and authorize the device."}
-	return strategy.UnavailableDeclaration(a.ID(), "Physical iPhones through devicectl and WebDriverAgent", []strategy.Capability{{Name: strategy.CapSemanticTree, Status: strategy.StatusUnavailable, Prerequisite: actions[0], NextAction: actions[0]}}, actions...), nil
+	return strategy.WithSupportedHostOS(strategy.UnavailableDeclaration(a.ID(), "Physical iPhones through devicectl and WebDriverAgent", []strategy.Capability{{Name: strategy.CapSemanticTree, Status: strategy.StatusUnavailable, Prerequisite: actions[0], NextAction: actions[0]}}, actions...), "darwin"), nil
 }
 
 func (a *Adapter) Observe(context.Context) (strategy.Frame, error) {

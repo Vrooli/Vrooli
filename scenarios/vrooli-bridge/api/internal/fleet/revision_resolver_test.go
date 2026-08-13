@@ -8,7 +8,8 @@ import (
 
 	"vrooli-bridge/internal/fleet"
 	"vrooli-bridge/internal/fleet/mocks"
-	testmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -32,7 +33,7 @@ func (f *fakeRevResolver) Resolve(_ context.Context, requested string) (string, 
 
 func newResolverService(nodes *mocks.FakeNodeLister, presence *mocks.FakePresence, prov *mocks.FakeProvisioner, res fleet.RevisionResolver) (fleet.Service, *mocks.FakeRepository) {
 	repo := mocks.NewFakeRepository()
-	clk := testmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	return fleet.NewService(repo, nodes, presence, prov, clk, fleet.WithRevisionResolver(res)), repo
 }
 

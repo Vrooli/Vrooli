@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"log"
 
-	"device-sync-hub/internal/clock"
 	"device-sync-hub/internal/devices"
 	"device-sync-hub/internal/module"
 	"device-sync-hub/internal/realtime"
 	internaltransfer "device-sync-hub/internal/transfer"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/blobstore"
@@ -33,7 +34,7 @@ type Wiring struct {
 // edges (multipart upload, streaming download). devSvc backs the directed-item
 // trust check; hub (optional) backs realtime item events. Production blobs are
 // the filesystem store under the storage-steer data class.
-func New(db *database.RoutedDB, clk clock.Clock, devSvc devices.Service, hub *realtime.Hub, logger *log.Logger) (Wiring, error) {
+func New(db *database.RoutedDB, clk schedule.Clock, devSvc devices.Service, hub *realtime.Hub, logger *log.Logger) (Wiring, error) {
 	store, err := defaultBlobStore()
 	if err != nil {
 		return Wiring{}, err
@@ -43,7 +44,7 @@ func New(db *database.RoutedDB, clk clock.Clock, devSvc devices.Service, hub *re
 
 // NewWithBlobStore is the explicit-injection variant used by tests (typically
 // with blobstore.NewMemoryBlobStore()) and callers that swap the blob backend.
-func NewWithBlobStore(db *database.RoutedDB, clk clock.Clock, devSvc devices.Service, hub *realtime.Hub, store blobstore.BlobStore, logger *log.Logger) Wiring {
+func NewWithBlobStore(db *database.RoutedDB, clk schedule.Clock, devSvc devices.Service, hub *realtime.Hub, store blobstore.BlobStore, logger *log.Logger) Wiring {
 	repo := internaltransfer.NewSQLiteRepository(db, clk)
 	cfg := internaltransfer.Config{
 		Repo:  repo,

@@ -88,12 +88,27 @@ const (
 	HostKeyReviewRequired HostKeyState = "review_required"
 )
 
+// ConnectionState is the durable SSH trust lifecycle used by Bridge's
+// one-command connect flow. It is deliberately separate from host-key state:
+// a host key can be verified while the Bridge client key is missing or
+// untrusted.
+type ConnectionState string
+
+const (
+	ConnectionUntrusted ConnectionState = "untrusted"
+	ConnectionTrusted   ConnectionState = "trusted"
+	ConnectionRecovery  ConnectionState = "recovery_required"
+)
+
 type TrustRecord struct {
 	MachineID            string
 	ClientKeyRef         string
 	ClientKeyFingerprint string
 	HostKeyFingerprint   string
 	HostKeyState         HostKeyState
+	SSHUser              string
+	SSHPort              int
+	ConnectionState      ConnectionState
 	UpdatedAt            time.Time
 }
 type CreateInput struct {

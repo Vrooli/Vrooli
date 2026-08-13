@@ -41,6 +41,40 @@ func TestEnumerateDerivesStableIdentityAndHealth(t *testing.T) {
 	require.Equal(t, devices[0].ID, second[0].ID)
 }
 
+func TestPromoteWirelessVerifiesSerialAndKeepsIdentity(t *testing.T) { // [REQ:DVC-P0-011]
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 tcpip 5555":                                      []byte("restarting in TCP mode port: 5555"),
+		"adb -s serial-1 shell ip route":                                  []byte("wlan0 192.168.1.0/24 src 192.168.1.42\n"),
+		"adb connect 192.168.1.42:5555":                                   []byte("connected to 192.168.1.42:5555"),
+		"adb -s 192.168.1.42:5555 shell getprop ro.serialno":              []byte("serial-1\n"),
+		"adb devices -l":                                                  []byte("List of devices attached\n192.168.1.42:5555\tdevice product:a03s model:SM_A037U\n"),
+		"adb -s 192.168.1.42:5555 shell getprop ro.build.version.release": []byte("11\n"),
+	}}
+	adapter := NewWithRunner(runner, "serial-1")
+	require.NoError(t, adapter.PromoteWireless(context.Background()))
+	devices, err := adapter.Enumerate(context.Background())
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.Equal(t, "serial-1", devices[0].Serial)
+	require.Equal(t, "wireless", devices[0].Transport)
+}
+
+func TestPromoteWirelessRefusesSerialMismatch(t *testing.T) { // [REQ:DVC-P0-011]
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 tcpip 5555":                         []byte("ok"),
+		"adb -s serial-1 shell ip route":                     []byte("wlan0 192.168.1.0/24 src 192.168.1.42\n"),
+		"adb connect 192.168.1.42:5555":                      []byte("connected"),
+		"adb -s 192.168.1.42:5555 shell getprop ro.serialno": []byte("another-phone\n"),
+	}}
+	adapter := NewWithRunner(runner, "serial-1")
+	require.ErrorContains(t, adapter.PromoteWireless(context.Background()), "identity mismatch")
+}
+
+func TestWirelessAddressRejectsInvalidIPv4(t *testing.T) {
+	require.Equal(t, "", wirelessAddress("wlan0 999.999.999.999/24 src 999.999.999.999\n"))
+	require.Equal(t, "192.168.1.42", wirelessAddress("wlan0 192.168.1.0/24 src 192.168.1.42\n"))
+}
+
 func TestActuateTapTextAndLifecycleUseADBVerbs(t *testing.T) { // [REQ:DVC-P0-011]
 	runner := &scriptedRunner{responses: map[string][]byte{}}
 	adapter := NewWithRunner(runner, "serial-1")

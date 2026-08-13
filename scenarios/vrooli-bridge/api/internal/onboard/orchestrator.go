@@ -291,6 +291,15 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	}
 	s.recordNodeID(ctx, opID, nodeID)
 	s.transition(ctx, opID, StateVerifying)
+	s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusStarted, "verifying Bridge key after bootstrap and pairing")
+	verifiedConn, keyErr := s.driver.VerifyKey(ctx, conn)
+	if keyErr != nil {
+		detail := "final key-only SSH verification failed: " + keyErr.Error()
+		s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusFailed, detail)
+		s.finishFailed(ctx, opID, &seq, FailureVerifyOnline, int32(res.ExitCode), detail, res.Diagnostics)
+		return
+	}
+	conn = verifiedConn
 	s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusStarted, "confirming node is online in the fleet")
 	online, cErr := s.confirmer.ConfirmOnline(ctx, nodeID, verifyTimeout(in))
 	if cErr != nil || !online {
@@ -302,7 +311,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		s.finishFailed(ctx, opID, &seq, FailureVerifyOnline, int32(res.ExitCode), detail, res.Diagnostics)
 		return
 	}
-	s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusOK, "node is online with control-plane key pinned")
+	s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusOK, "node is online with control-plane key pinned and final SSH trust verified")
 	s.recordNodeRevision(ctx, opID, &seq, nodeID, in)
 	selection, requested := onboarding.FromSetupProfile(in.SetupScenarios, in.SetupResources, in.IncludeOptional)
 	if s.handoff != nil {

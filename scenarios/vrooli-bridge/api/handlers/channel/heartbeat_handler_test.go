@@ -14,7 +14,8 @@ import (
 	"vrooli-bridge/internal/nodeauth"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/runs"
-	"vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -42,7 +43,7 @@ func (f *fakeLastSeen) TouchLastSeen(_ context.Context, id string, _ time.Time) 
 }
 
 func newHub() *presence.Hub {
-	return presence.NewHub(mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)))
+	return presence.NewHub(scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)))
 }
 
 // [REQ:BRG-P0-003] A heartbeat records the node's health in the hub and

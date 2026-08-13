@@ -2,6 +2,7 @@ package control
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"sort"
@@ -20,6 +21,7 @@ func (s *Service) Verify(ctx context.Context, id string) (strategy.ConformanceRe
 func (s *Service) Devices(ctx context.Context) []Device {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.restoreTransportStrategies()
 	declarations := s.registry.List(ctx)
 	declarationByID := make(map[string]strategy.Declaration, len(declarations))
 	for _, declaration := range declarations {
@@ -33,6 +35,12 @@ func (s *Service) Devices(ctx context.Context) []Device {
 	for _, d := range declarations {
 		enumerating := false
 		if item, ok := s.registry.Get(d.StrategyID); ok {
+			for deviceID, promoted := range s.transportStrategies {
+				if device, exists := s.devices.Get(deviceID); exists && device.StrategyID == d.StrategyID && promoted != nil {
+					item = promoted
+					break
+				}
+			}
 			if enumerator, ok := item.(strategy.Enumerator); ok {
 				enumerating = true
 				if discovered, err := enumerator.Enumerate(ctx); err == nil {
@@ -153,6 +161,18 @@ func (s *Service) Devices(ctx context.Context) []Device {
 			}
 		}
 	}
+	// ADB and the bridge can both report the USB endpoint during the handoff.
+	// Promotion owns the identity transition, so restore its selected
+	// transport after all merges rather than allowing a USB observation to
+	// overwrite the stable record on the next refresh.
+	for i := range out {
+		if _, promoted := s.transportStrategies[out[i].ID]; !promoted {
+			continue
+		}
+		out[i].Transport = "wireless"
+		out[i].HealthReason = "wireless ADB transport verified against the onboarded serial"
+		s.devices.Upsert(recordFromDevice(out[i]))
+	}
 	return out
 }
 
@@ -160,9 +180,63 @@ func (s *Service) Devices(ctx context.Context) []Device {
 // requests it. Device discovery never calls this path, preserving stable ids
 // across disconnects and adb-server restarts.
 func (s *Service) ForgetDevice(id string) bool {
+	return s.ForgetDeviceContext(context.Background(), id)
+}
+
+func (s *Service) ForgetDeviceContext(ctx context.Context, id string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.devices.Forget(strings.TrimSpace(id))
+	id = strings.TrimSpace(id)
+	forgotten := s.devices.Forget(id)
+	delete(s.transportStrategies, id)
+	delete(s.transportStates, id)
+	if s.db != nil {
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_transports WHERE device_id = ?`, id)
+	}
+	return forgotten
+}
+
+// PromoteWireless changes transport on an existing USB-onboarded identity
+// only after the strategy verifies the same serial over its wireless endpoint.
+func (s *Service) PromoteWireless(ctx context.Context, id string) (Device, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	record, ok := s.devices.Get(strings.TrimSpace(id))
+	if !ok {
+		return Device{}, fmt.Errorf("unknown device %q", id)
+	}
+	if record.Transport != "usb" {
+		return Device{}, fmt.Errorf("device %q must be onboarded over USB before wireless promotion", id)
+	}
+	base, ok := s.registry.Get(record.StrategyID)
+	if !ok {
+		return Device{}, fmt.Errorf("strategy %q is unavailable", record.StrategyID)
+	}
+	if scoped, ok := base.(strategy.DeviceScoped); ok && record.Serial != "" {
+		base = scoped.ForDevice(record.Serial)
+	}
+	promoter, ok := base.(interface{ PromoteWireless(context.Context) error })
+	if !ok {
+		return Device{}, fmt.Errorf("strategy %q does not support wireless transport", record.StrategyID)
+	}
+	if err := promoter.PromoteWireless(ctx); err != nil {
+		return Device{}, err
+	}
+	endpointProvider, ok := base.(interface{ WirelessEndpoint() string })
+	if !ok || strings.TrimSpace(endpointProvider.WirelessEndpoint()) == "" {
+		return Device{}, fmt.Errorf("strategy %q did not expose a verified wireless endpoint", record.StrategyID)
+	}
+	state := transportState{DeviceID: id, Serial: record.Serial, StrategyID: record.StrategyID, Transport: "wireless", Endpoint: strings.TrimSpace(endpointProvider.WirelessEndpoint()), UpdatedAt: time.Now().UTC()}
+	if err := s.persistTransportState(ctx, state); err != nil {
+		return Device{}, err
+	}
+	s.transportStrategies[id] = base
+	s.transportStates[id] = state
+	record.Transport = "wireless"
+	record.Status = strategy.StatusAvailable
+	record.Health = strategy.StatusAvailable
+	record.HealthReason = "wireless ADB transport verified against the onboarded serial"
+	return deviceFromRecord(s.devices.Upsert(record)), nil
 }
 
 func mapCaps(d strategy.Declaration) []strategy.Capability {
@@ -229,7 +303,8 @@ func (s *Service) OnboardingLive(ctx context.Context, kind string) []map[string]
 		if !ok {
 			continue
 		}
-		busStatus, busReason := usbBusProbe()
+		bus := sampleUSBLink()
+		busStatus, busReason := bus.Status, bus.Reason
 		status, reason := "unavailable", "No Android device is visible to adb. Use a data-capable cable and set USB mode to File Transfer."
 		if busStatus == "unavailable" {
 			reason = busReason
@@ -248,6 +323,7 @@ func (s *Service) OnboardingLive(ctx context.Context, kind string) []map[string]
 			if rungs[i]["id"] == "usb-bus" {
 				rungs[i]["status"] = busStatus
 				rungs[i]["next_action"] = busReason
+				rungs[i]["flap_count"] = fmt.Sprintf("%d", bus.FlapCount)
 			}
 			if rungs[i]["id"] == "usb-debugging" {
 				rungs[i]["status"] = status
@@ -269,28 +345,150 @@ var execLookPath = func(name string) (string, error) { return exec.LookPath(name
 
 var usbBusCommand = func() ([]byte, error) { return exec.Command("lsusb").Output() }
 
+var systemProfilerCommand = func() ([]byte, error) { return exec.Command("system_profiler", "SPUSBDataType").Output() }
+
+var windowsUSBCommand = func() ([]byte, error) {
+	return exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", "Get-PnpDevice -Class USB | Format-List -Property InstanceId,Status,Class").Output()
+}
+
+const (
+	usbBusPresent       = "available"
+	usbBusAbsent        = "unavailable"
+	usbBusCannotInspect = "cannot-inspect"
+)
+
+type usbBusInspection struct {
+	Status    string
+	Reason    string
+	FlapCount int
+}
+
+type usbBusInspector interface {
+	Inspect() usbBusInspection
+}
+
+type linuxUSBInspector struct{}
+
+func (linuxUSBInspector) Inspect() usbBusInspection {
+	if _, err := execLookPath("lsusb"); err != nil {
+		return usbBusInspection{Status: usbBusCannotInspect, Reason: "USB bus inspection is unavailable on Linux; install usbutils so the host can inspect Android hardware."}
+	}
+	out, err := usbBusCommand()
+	if err != nil {
+		return usbBusInspection{Status: usbBusCannotInspect, Reason: "USB bus inspection failed on Linux; verify host permissions and install usbutils."}
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 6 {
+			vendor := strings.ToLower(strings.SplitN(fields[5], ":", 2)[0]) + ":"
+			if androidUSBVendorIDs[vendor] {
+				return usbBusInspection{Status: usbBusPresent, Reason: "Android hardware is visible on the Linux USB bus; waiting for adb authorization."}
+			}
+		}
+	}
+	return usbBusInspection{Status: usbBusAbsent, Reason: "No Android device is visible on the Linux USB bus; check for a data-capable cable and File Transfer USB mode."}
+}
+
+type darwinUSBInspector struct{}
+
+func (darwinUSBInspector) Inspect() usbBusInspection {
+	if _, err := execLookPath("system_profiler"); err != nil {
+		return usbBusInspection{Status: usbBusCannotInspect, Reason: "USB bus inspection is unavailable on macOS; use the built-in system_profiler command."}
+	}
+	out, err := systemProfilerCommand()
+	if err != nil {
+		return usbBusInspection{Status: usbBusCannotInspect, Reason: "macOS system_profiler could not inspect the USB bus; check host permissions."}
+	}
+	if containsAndroidUSBVendor(string(out)) {
+		return usbBusInspection{Status: usbBusPresent, Reason: "Android hardware is visible through macOS system_profiler; waiting for adb authorization."}
+	}
+	return usbBusInspection{Status: usbBusAbsent, Reason: "No Android device is visible in macOS system_profiler; check the data cable and USB mode."}
+}
+
+type windowsUSBInspector struct{}
+
+func (windowsUSBInspector) Inspect() usbBusInspection {
+	if _, err := execLookPath("powershell"); err != nil {
+		return usbBusCannotInspectResult("USB bus inspection is unavailable on Windows; use PowerShell PnP device enumeration.")
+	}
+	out, err := windowsUSBCommand()
+	if err != nil {
+		return usbBusCannotInspectResult("Windows PnP USB enumeration failed; check device-manager permissions.")
+	}
+	if containsAndroidUSBVendor(string(out)) || strings.Contains(strings.ToLower(string(out)), "android") {
+		return usbBusInspection{Status: usbBusPresent, Reason: "Android hardware is visible through Windows PnP enumeration; waiting for adb authorization."}
+	}
+	return usbBusInspection{Status: usbBusAbsent, Reason: "No Android device is visible in Windows PnP enumeration; check the data cable and USB mode."}
+}
+
+func usbBusCannotInspectResult(reason string) usbBusInspection {
+	return usbBusInspection{Status: usbBusCannotInspect, Reason: reason}
+}
+
+func containsAndroidUSBVendor(output string) bool {
+	lower := strings.ToLower(output)
+	for vendor := range androidUSBVendorIDs {
+		if strings.Contains(lower, strings.TrimSuffix(vendor, ":")) {
+			return true
+		}
+	}
+	return false
+}
+
+func selectedUSBInspector() usbBusInspector {
+	switch strategy.HostOS {
+	case "darwin":
+		return darwinUSBInspector{}
+	case "windows":
+		return windowsUSBInspector{}
+	case "linux":
+		return linuxUSBInspector{}
+	default:
+		return unknownUSBInspector{}
+	}
+}
+
+type unknownUSBInspector struct{}
+
+func (unknownUSBInspector) Inspect() usbBusInspection {
+	return usbBusCannotInspectResult(fmt.Sprintf("USB bus inspection is not implemented for host OS %q.", strategy.HostOS))
+}
+
+func sampleUSBLink() usbBusInspection {
+	const sampleCount = 3
+	first := selectedUSBInspector().Inspect()
+	if first.Status == usbBusCannotInspect {
+		return first
+	}
+	previousPresent := first.Status == usbBusPresent
+	flaps := 0
+	for i := 1; i < sampleCount; i++ {
+		current := selectedUSBInspector().Inspect()
+		if current.Status == usbBusCannotInspect {
+			return current
+		}
+		present := current.Status == usbBusPresent
+		if present != previousPresent {
+			flaps++
+		}
+		previousPresent = present
+		first = current
+	}
+	first.FlapCount = flaps
+	if flaps > 0 {
+		first.Reason = fmt.Sprintf("Android USB link is intermittent (%d flap(s) observed); replace the cable before running a flow.", flaps)
+	} else if first.Status == usbBusPresent {
+		first.Reason += " Link stability sample passed; flap_count=0."
+	}
+	return first
+}
+
 // usbBusProbe distinguishes a disconnected/charge-only cable from an adb
 // authorization problem. Vendor ids cover the common Android manufacturers;
 // adb remains the authority for serial, authorization, and device state.
 func usbBusProbe() (string, string) {
-	if _, err := execLookPath("lsusb"); err != nil {
-		return "unavailable", "Install usbutils so the host can inspect the USB bus."
-	}
-	out, err := usbBusCommand()
-	if err != nil {
-		return "unavailable", "USB bus inspection failed; verify host permissions and install usbutils."
-	}
-	for _, line := range strings.Split(string(out), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 6 {
-			continue
-		}
-		vendor := strings.ToLower(strings.SplitN(fields[5], ":", 2)[0]) + ":"
-		if androidUSBVendorIDs[vendor] {
-			return "available", "Android hardware is visible on the USB bus; waiting for adb authorization."
-		}
-	}
-	return "unavailable", "No Android device is visible on the USB bus; check for a data-capable cable and File Transfer USB mode."
+	result := selectedUSBInspector().Inspect()
+	return result.Status, result.Reason
 }
 
 var androidUSBVendorIDs = map[string]bool{

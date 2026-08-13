@@ -8,7 +8,8 @@ import (
 	"vrooli-bridge/internal/onboard"
 	onboardmocks "vrooli-bridge/internal/onboard/mocks"
 	"vrooli-bridge/internal/testutil/db"
-	testmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 	apiDB "github.com/vrooli/api-core/database"
@@ -31,7 +32,7 @@ func TestEnrollmentAttemptRetryIsImmutableAndLinked(t *testing.T) {
 	ctx := context.Background()
 	d := db.NewSQLite(t)
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(onboard.Schema)))
-	repo := onboard.NewSQLiteRepository(d, testmocks.NewFakeClock(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC)))
+	repo := onboard.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC)))
 	store := repo.(onboard.AttemptStore)
 	first, err := onboard.NewAttempt("machine-1", map[string]string{"locator": "mac.local"})
 	require.NoError(t, err)
@@ -54,7 +55,7 @@ func TestEnrollmentAttemptListForMachineIsNewestFirstAndDoesNotMixMachines(t *te
 	ctx := context.Background()
 	d := db.NewSQLite(t)
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(onboard.Schema)))
-	store := onboard.NewSQLiteRepository(d, testmocks.NewFakeClock(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))).(onboard.AttemptStore)
+	store := onboard.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))).(onboard.AttemptStore)
 	first, err := onboard.NewAttempt("machine-1", map[string]string{"host": "one"})
 	require.NoError(t, err)
 	first.CreatedAt = time.Date(2026, 7, 17, 10, 0, 0, 0, time.UTC)
@@ -82,7 +83,7 @@ func TestMachineEnrollmentCreatesAttemptBeforeSSHAndCompletesIt(t *testing.T) {
 	ctx := context.Background()
 	d := db.NewSQLite(t)
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(onboard.Schema)))
-	clk := testmocks.NewFakeClock(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
 	repo := onboard.NewSQLiteRepository(d, clk)
 	driver := &onboardmocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
 	svc := onboard.NewService(repo, driver, &onboardmocks.FakeCodeIssuer{Code: testCode}, &onboardmocks.FakeOnlineConfirmer{Online: true}, clk, onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}))
@@ -104,7 +105,7 @@ func TestRetryMachineEnrollmentCreatesLinkedFreshAttempt(t *testing.T) {
 	ctx := context.Background()
 	d := db.NewSQLite(t)
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(onboard.Schema)))
-	clk := testmocks.NewFakeClock(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
 	repo := onboard.NewSQLiteRepository(d, clk)
 	svc := onboard.NewService(repo, &onboardmocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}, &onboardmocks.FakeCodeIssuer{Code: testCode}, &onboardmocks.FakeOnlineConfirmer{Online: true}, clk, onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}))
 	first, err := svc.StartMachineEnrollment(ctx, "machine-1", validInput())
@@ -130,7 +131,7 @@ func TestRetryMachineEnrollmentRejectsNonTerminalOrForeignAttempt(t *testing.T) 
 	ctx := context.Background()
 	d := db.NewSQLite(t)
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(onboard.Schema)))
-	clk := testmocks.NewFakeClock(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
 	repo := onboard.NewSQLiteRepository(d, clk)
 	store := repo.(onboard.AttemptStore)
 	pending, err := onboard.NewAttempt("machine-1", nil)
@@ -150,7 +151,7 @@ func TestPairedThenBootstrapFailureKeepsCorrelatedMachineLineage(t *testing.T) {
 	ctx := context.Background()
 	d := db.NewSQLite(t)
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(onboard.Schema)))
-	clk := testmocks.NewFakeClock(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
 	repo := onboard.NewSQLiteRepository(d, clk)
 	linker := &recordingMachineLinker{}
 	svc := onboard.NewService(repo,

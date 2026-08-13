@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"device-sync-hub/internal/testutil/db"
-	"device-sync-hub/internal/testutil/mocks"
 	"device-sync-hub/internal/transfer"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,7 +54,7 @@ type harness struct {
 	svc   transfer.Service
 	repo  transfer.Repository
 	blobs *blobstore.MemoryBlobStore
-	clk   *mocks.FakeClock
+	clk   *scheduletest.FakeClock
 	notif *captureNotifier
 }
 
@@ -64,7 +65,7 @@ func newService(t *testing.T, cfg transfer.Config) harness {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(transfer.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
 	repo := transfer.NewSQLiteRepository(d, clk)
 	blobs := blobstore.NewMemoryBlobStore()
 	notif := &captureNotifier{}

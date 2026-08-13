@@ -96,43 +96,47 @@ func strategyProto(d strategy.Declaration) *strategiesv1.Strategy {
 
 type sessionConnect struct{ h *handler }
 
-func (c *sessionConnect) ListSessions(_ context.Context, _ *connect.Request[sessionsv1.ListSessionsRequest]) (*connect.Response[sessionsv1.ListSessionsResponse], error) {
+func (c *sessionConnect) ListSessions(ctx context.Context, _ *connect.Request[sessionsv1.ListSessionsRequest]) (*connect.Response[sessionsv1.ListSessionsResponse], error) {
 	out := make([]*sessionsv1.Session, 0)
-	for _, s := range c.h.service.ListLiveSessions() {
-		out = append(out, sessionProto(s))
+	for _, s := range c.h.service.ListLiveSessionsContext(ctx) {
+		out = append(out, sessionProto(s, false))
 	}
 	return connect.NewResponse(&sessionsv1.ListSessionsResponse{Sessions: out}), nil
 }
 
-func (c *sessionConnect) AcquireSession(_ context.Context, req *connect.Request[sessionsv1.AcquireSessionRequest]) (*connect.Response[sessionsv1.SessionResponse], error) {
-	s, err := c.h.service.Acquire(req.Msg.DeviceId, req.Msg.Actor, time.Duration(req.Msg.TtlSeconds)*time.Second)
+func (c *sessionConnect) AcquireSession(ctx context.Context, req *connect.Request[sessionsv1.AcquireSessionRequest]) (*connect.Response[sessionsv1.SessionResponse], error) {
+	s, err := c.h.service.AcquireContext(ctx, req.Msg.DeviceId, req.Msg.Actor, time.Duration(req.Msg.TtlSeconds)*time.Second)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "unknown device ") {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		return nil, connect.NewError(connect.CodeAlreadyExists, err)
 	}
-	return connect.NewResponse(&sessionsv1.SessionResponse{Session: sessionProto(s)}), nil
+	return connect.NewResponse(&sessionsv1.SessionResponse{Session: sessionProto(s, true)}), nil
 }
 
-func (c *sessionConnect) KillSession(_ context.Context, req *connect.Request[sessionsv1.KillSessionRequest]) (*connect.Response[sessionsv1.SessionResponse], error) {
-	s, err := c.h.service.Kill(req.Msg.Id, "operator requested kill")
+func (c *sessionConnect) KillSession(ctx context.Context, req *connect.Request[sessionsv1.KillSessionRequest]) (*connect.Response[sessionsv1.SessionResponse], error) {
+	s, err := c.h.service.KillContext(ctx, req.Msg.Id, "operator requested kill")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
-	return connect.NewResponse(&sessionsv1.SessionResponse{Session: sessionProto(s)}), nil
+	return connect.NewResponse(&sessionsv1.SessionResponse{Session: sessionProto(s, false)}), nil
 }
 
-func (c *sessionConnect) ReleaseSession(_ context.Context, req *connect.Request[sessionsv1.ReleaseSessionRequest]) (*connect.Response[sessionsv1.SessionResponse], error) {
-	s, err := c.h.service.Release(req.Msg.Id)
+func (c *sessionConnect) ReleaseSession(ctx context.Context, req *connect.Request[sessionsv1.ReleaseSessionRequest]) (*connect.Response[sessionsv1.SessionResponse], error) {
+	s, err := c.h.service.ReleaseContext(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
-	return connect.NewResponse(&sessionsv1.SessionResponse{Session: sessionProto(s)}), nil
+	return connect.NewResponse(&sessionsv1.SessionResponse{Session: sessionProto(s, false)}), nil
 }
 
-func sessionProto(s internal.Session) *sessionsv1.Session {
-	return &sessionsv1.Session{Id: s.ID, DeviceId: s.DeviceID, Actor: s.Actor, State: s.State, LeaseToken: s.LeaseToken, ExpiresAt: timestamppb.New(s.ExpiresAt), CreatedAt: timestamppb.New(s.CreatedAt), KillReason: s.KillReason}
+func sessionProto(s internal.Session, includeToken bool) *sessionsv1.Session {
+	out := &sessionsv1.Session{Id: s.ID, DeviceId: s.DeviceID, Actor: s.Actor, State: s.State, ExpiresAt: timestamppb.New(s.ExpiresAt), CreatedAt: timestamppb.New(s.CreatedAt), KillReason: s.KillReason}
+	if includeToken {
+		out.LeaseToken = s.LeaseToken
+	}
+	return out
 }
 
 type flowConnect struct{ h *handler }
@@ -154,7 +158,17 @@ func (c *flowConnect) RunFlow(ctx context.Context, req *connect.Request[flowsv1.
 		}
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	out := &flowsv1.RunResult{RunId: result.RunID, Disposition: result.Disposition}
+	return connect.NewResponse(runResultProto(result)), nil
+}
+
+func runResultProto(result internal.RunResult) *flowsv1.RunResult {
+	out := &flowsv1.RunResult{
+		RunId:            result.RunID,
+		Disposition:      result.Disposition,
+		Incomplete:       result.Incomplete,
+		DisconnectReason: result.DisconnectReason,
+		DisconnectStep:   result.DisconnectStep,
+	}
 	for _, ch := range result.Chapters {
 		out.Chapters = append(out.Chapters, &flowsv1.Chapter{Id: ch.ID, Title: ch.Title, Disposition: ch.Disposition, Message: ch.Message})
 	}
@@ -164,14 +178,14 @@ func (c *flowConnect) RunFlow(ctx context.Context, req *connect.Request[flowsv1.
 	for _, ref := range result.Evidence {
 		out.Evidence = append(out.Evidence, &flowsv1.EvidenceReference{Id: ref.ID, Sha256: ref.SHA256, SizeBytes: ref.SizeBytes, CreatedAt: ref.CreatedAt.Format(time.RFC3339Nano), RedactionVerified: ref.RedactionVerified, RecordingMethod: ref.RecordingMethod, EffectiveFps: ref.EffectiveFPS, Producer: ref.Producer, Kind: ref.Kind, AppliedRules: ref.AppliedRules, OptedOut: ref.OptedOut})
 	}
-	return connect.NewResponse(out), nil
+	return out
 }
 
 func flowFromProto(f *flowsv1.Flow) internal.Flow {
 	if f == nil {
 		return internal.Flow{}
 	}
-	out := internal.Flow{ID: f.Id, Name: f.Name, AllowUnredactedCapture: f.AllowUnredactedCapture}
+	out := internal.Flow{ID: f.Id, Name: f.Name, Transport: f.Transport, AllowUnredactedCapture: f.AllowUnredactedCapture}
 	for _, s := range f.Steps {
 		args := map[string]any{}
 		if s.Arguments != nil {
@@ -184,9 +198,9 @@ func flowFromProto(f *flowsv1.Flow) internal.Flow {
 
 type evidenceConnect struct{ h *handler }
 
-func (c *evidenceConnect) ListAudit(_ context.Context, _ *connect.Request[evidencev1.ListAuditRequest]) (*connect.Response[evidencev1.ListAuditResponse], error) {
+func (c *evidenceConnect) ListAudit(ctx context.Context, _ *connect.Request[evidencev1.ListAuditRequest]) (*connect.Response[evidencev1.ListAuditResponse], error) {
 	out := make([]*evidencev1.AuditRecord, 0)
-	for _, a := range c.h.service.Audit() {
+	for _, a := range c.h.service.AuditContext(ctx) {
 		out = append(out, &evidencev1.AuditRecord{Id: a.ID, Actor: a.Actor, DeviceId: a.DeviceID, LeaseId: a.LeaseID, Verb: a.Verb, Outcome: a.Outcome, CreatedAt: timestamppb.New(a.CreatedAt), RedactionVerified: a.RedactionVerified, RedactionOptedOut: a.RedactionOptedOut})
 	}
 	return connect.NewResponse(&evidencev1.ListAuditResponse{Records: out}), nil

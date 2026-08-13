@@ -60,6 +60,27 @@ func (d *sshDriver) FirstTouch(ctx context.Context, p FirstTouchParams) (Conn, e
 	return Conn{Host: res.Host, Port: res.Port, User: res.User, KeyPath: res.KeyPath, ClientKeyRef: "ssh-key://" + filepath.Base(res.KeyPath), ClientKeyFingerprint: res.Fingerprint, HostKeyFingerprint: res.HostKeyFingerprint, SudoState: string(res.SudoState)}, nil
 }
 
+func (d *sshDriver) VerifyKey(ctx context.Context, conn Conn) (Conn, error) {
+	res := d.svc.TestConnection(ctx, ssh.TestConnectionRequest{
+		Host:    conn.Host,
+		Port:    conn.Port,
+		User:    conn.User,
+		KeyPath: conn.KeyPath,
+	})
+	if !res.OK {
+		detail := res.Message
+		if h := strings.TrimSpace(res.Hint); h != "" && h != res.Message {
+			detail += ": " + h
+		}
+		return Conn{}, fmt.Errorf("final key-only SSH verification failed: %s", detail)
+	}
+	verified := conn
+	if res.Fingerprint != "" {
+		verified.HostKeyFingerprint = res.Fingerprint
+	}
+	return verified, nil
+}
+
 func (d *sshDriver) PushScript(ctx context.Context, conn Conn) (string, error) {
 	cfg := d.config(conn)
 	remotePath, err := remoteScriptPath()

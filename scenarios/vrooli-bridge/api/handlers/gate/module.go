@@ -3,13 +3,14 @@ package gate
 import (
 	"log"
 
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/dispatch"
 	internalgate "vrooli-bridge/internal/gate"
 	"vrooli-bridge/internal/module"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/registry"
 	"vrooli-bridge/internal/runs"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -25,7 +26,7 @@ import (
 // place its proto-free seams are bound to the concrete registry (enumerate +
 // OS/revocation), presence (online + protocol compatibility), and dispatch +
 // runs. It owns its own durable gate tables, so it re-exports Schema().
-func Module(db internalgate.SQLExecutor, clk clock.Clock, registrySvc registry.Service, hub *presence.Hub, dispatchSvc dispatch.Service, runsSvc runs.Service, logger *log.Logger) module.Module {
+func Module(db internalgate.SQLExecutor, clk schedule.Clock, registrySvc registry.Service, hub *presence.Hub, dispatchSvc dispatch.Service, runsSvc runs.Service, logger *log.Logger) module.Module {
 	svc := internalgate.NewService(
 		internalgate.NewSQLiteRepository(db, clk),
 		nodeListerAdapter{svc: registrySvc},

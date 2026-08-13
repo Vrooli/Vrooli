@@ -13,7 +13,8 @@ import (
 	channelH "vrooli-bridge/handlers/channel"
 	"vrooli-bridge/internal/compat"
 	"vrooli-bridge/internal/presence"
-	"vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,7 @@ func (noopLastSeen) TouchLastSeen(context.Context, string, time.Time) error { re
 // the test client stands in for the node-agent.
 func startChannelServer(t *testing.T) (*httptest.Server, *presence.Hub) {
 	t.Helper()
-	hub := presence.NewHub(mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)))
+	hub := presence.NewHub(scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)))
 	r := mux.NewRouter()
 	// nil verifier → Phase-1 ?node= behaviour (mutual-auth enforcement is
 	// exercised in handlers/channel/heartbeat_handler_test.go).

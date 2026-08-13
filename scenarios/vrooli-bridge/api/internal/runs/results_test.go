@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/runs"
-	tmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +22,7 @@ func TestResults_LogsAndArtifactsPersist(t *testing.T) {
 
 	// First service instance: create the run and ingest the node's events.
 	repo := runs.NewSQLiteRepository(d, clk)
-	svc := runs.NewService(repo, tmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)))
+	svc := runs.NewService(repo, scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)))
 	run, err := svc.Create(ctx, runs.CreateInput{NodeID: "n1", Scenario: "web-search", Verb: "scenario test", Args: []string{"web-search"}})
 	require.NoError(t, err)
 
@@ -40,7 +41,7 @@ func TestResults_LogsAndArtifactsPersist(t *testing.T) {
 
 	// A fresh service over the SAME database (simulating a control-plane restart
 	// / a different client) reads the full persisted history + the terminal run.
-	svc2 := runs.NewService(runs.NewSQLiteRepository(d, clk), tmocks.NewFakeClock(time.Now()))
+	svc2 := runs.NewService(runs.NewSQLiteRepository(d, clk), scheduletest.New(time.Now()))
 	got, persistedEvents, err := svc2.Get(ctx, run.ID)
 	require.NoError(t, err)
 	require.Equal(t, runs.StatusPassed, got.Status)

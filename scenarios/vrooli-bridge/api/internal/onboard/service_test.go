@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/onboard/mocks"
 	"vrooli-bridge/internal/onboarding"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 )
@@ -51,7 +52,7 @@ func successMarkers(nodeID string) []onboard.Marker {
 }
 
 func newTestService(repo *mocks.FakeRepository, driver *mocks.FakeSSHDriver, issuer *mocks.FakeCodeIssuer, confirmer *mocks.FakeOnlineConfirmer) onboard.Service {
-	return onboard.NewService(repo, driver, issuer, confirmer, clock.System{}, onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}))
+	return onboard.NewService(repo, driver, issuer, confirmer, schedule.System(), onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}))
 }
 
 type fixedEnrollmentResolver struct {
@@ -140,6 +141,7 @@ func TestStart_SuccessFullFlow(t *testing.T) {
 	require.Contains(t, driver.CapturedArgs, "--node-name")
 	require.Equal(t, "web-01", issuer.LastParams.NodeName)
 	require.Equal(t, testNodeID, confirmer.LastID)
+	require.Equal(t, 1, driver.VerifyKeyCalls, "successful onboarding must re-check the exact SSH key after bootstrap")
 
 	// The persisted step history covers the orchestrator phases AND every emitted
 	// bootstrap step, in order.
@@ -163,6 +165,23 @@ func TestStart_SuccessFullFlow(t *testing.T) {
 	}
 }
 
+func TestStart_FinalKeyVerificationFailsClosed(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	driver := &mocks.FakeSSHDriver{
+		RunBootstrapMarkers: successMarkers(testNodeID),
+		VerifyKeyErr:        errors.New("key revoked during bootstrap"),
+	}
+	svc := newTestService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true})
+
+	dec, err := svc.Start(context.Background(), validInput())
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+
+	require.Equal(t, onboard.StateFailed, op.State)
+	require.Equal(t, onboard.FailureVerifyOnline, op.FailureReason)
+	require.Equal(t, 1, driver.VerifyKeyCalls)
+}
+
 func TestStart_OnboardingHandoffReceivesIdentityAndAppliesReturnedSelection(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	driver := &onboardingRunnerDriver{
@@ -177,7 +196,7 @@ func TestStart_OnboardingHandoffReceivesIdentityAndAppliesReturnedSelection(t *t
 		OptionalResources: []string{"ollama"},
 		Apply:             true,
 	}}
-	svc := onboard.NewService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, clock.System{},
+	svc := onboard.NewService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(),
 		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}),
 		onboard.WithOnboardingHandoff(handoff),
 	)
@@ -210,7 +229,7 @@ func TestStart_ThreadsPostureDefaultScopesIntoPairing(t *testing.T) {
 	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
 	issuer := &mocks.FakeCodeIssuer{Code: testCode}
 	confirmer := &mocks.FakeOnlineConfirmer{Online: true}
-	svc := onboard.NewService(repo, driver, issuer, confirmer, clock.System{},
+	svc := onboard.NewService(repo, driver, issuer, confirmer, schedule.System(),
 		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}),
 		onboard.WithDefaultScopes([]string{"vrooli-bridge:read", "vrooli-bridge:write"}),
 	)
@@ -451,7 +470,7 @@ func TestStart_FailAtEachPhase(t *testing.T) {
 		// Bootstrap text is not identity evidence; an absent durable result fails.
 		markers := []onboard.Marker{{Event: "run-start"}, {Event: "run-ok", Detail: "done"}}
 		driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: markers}
-		svc := onboard.NewService(mocks.NewFakeRepository(), driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, clock.System{}, onboard.WithEnrollmentResolver(fixedEnrollmentResolver{}))
+		svc := onboard.NewService(mocks.NewFakeRepository(), driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(), onboard.WithEnrollmentResolver(fixedEnrollmentResolver{}))
 		dec, err := svc.Start(context.Background(), validInput())
 		require.NoError(t, err)
 		op := waitTerminal(t, svc, dec.OpID)
@@ -511,7 +530,7 @@ func TestStart_BootstrapFailureDoesNotRequirePairingRow(t *testing.T) {
 	resolver := fixedEnrollmentResolver{err: sql.ErrNoRows}
 	svc := onboard.NewService(
 		mocks.NewFakeRepository(), driver, &mocks.FakeCodeIssuer{Code: testCode},
-		&mocks.FakeOnlineConfirmer{Online: true}, clock.System{}, onboard.WithEnrollmentResolver(resolver),
+		&mocks.FakeOnlineConfirmer{Online: true}, schedule.System(), onboard.WithEnrollmentResolver(resolver),
 	)
 
 	dec, err := svc.Start(context.Background(), validInput())

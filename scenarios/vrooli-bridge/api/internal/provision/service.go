@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"vrooli-bridge/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // DefaultTimeoutSeconds is applied when a Sync passes timeout_seconds <= 0, so a
@@ -69,7 +69,7 @@ type service struct {
 	presence       Presence
 	audit          AuditSink
 	pusher         CommandPusher
-	clock          clock.Clock
+	clock          schedule.Clock
 	coord          *coordinator
 	defaultTimeout int64
 	revResolver    RevisionResolver
@@ -99,7 +99,7 @@ func WithRevisionResolver(r RevisionResolver) Option {
 // NewService constructs the production Service. A single instance is shared
 // between the provision handler (operator verbs + node ingest); the in-memory
 // waiter/subscriber state therefore stays coherent across both call sites.
-func NewService(repo Repository, nodes NodeReader, presence Presence, sink AuditSink, pusher CommandPusher, clk clock.Clock, opts ...Option) Service {
+func NewService(repo Repository, nodes NodeReader, presence Presence, sink AuditSink, pusher CommandPusher, clk schedule.Clock, opts ...Option) Service {
 	s := &service{
 		repo:           repo,
 		nodes:          nodes,

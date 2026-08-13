@@ -22,12 +22,16 @@ diagnosis.
    The resource must either make `adb version` succeed or return a non-zero
    diagnostic; a successful no-op is not a valid installation result.
 2. On the phone, enable Developer Options and USB debugging.
-3. Run `adb kill-server`, connect a data-capable USB cable, and select **File
-   Transfer** when Android asks for the USB mode. A charge-only cable is
-   diagnosed as no usable device; it is not reported as an unknown phone.
-4. Accept the RSA authorization prompt and confirm `adb devices` reports the
-   phone as `device`, not `unauthorized`. Declining the prompt leaves the
-   named `unauthorized` rung active.
+3. Connect a data-capable USB cable and select **File Transfer** when Android
+   asks for the USB mode. If an old ADB server is genuinely stale, run
+   `adb kill-server` once before reconnecting; do not run it for every probe.
+   Restarting ADB can make Android show the RSA authorization prompt again.
+   A charge-only cable is diagnosed as no usable device; it is not reported as
+   an unknown phone.
+4. Accept the RSA authorization prompt only for the intended phone and confirm
+   `adb devices` reports it as `device`, not `unauthorized`. Declining the
+   prompt leaves the named `unauthorized` rung active. Normal device-control
+   probes and flow runs do not bypass or suppress this Android trust boundary.
 5. Run `device-control device connect --kind android` again. The probe is live:
    it distinguishes missing `adb`, no USB device, `unauthorized`, `offline`,
    and insufficient udev permissions. Run `device-control device list --json`
@@ -57,6 +61,44 @@ present and the next action names the RSA, offline, or udev issue.
 If an old retained identity is no longer yours, remove it deliberately with
 `device-control device forget <device-id>`. Normal disconnects never remove a
 row, so reconnecting the same serial restores the same stable id.
+
+### Reading the `usb-bus` rung correctly
+
+A locked phone still enumerates. It appears on the USB bus and reports
+`unauthorized` to `adb` — present, but not yet trusted. So a locked screen never
+causes an absent device, and unlocking the phone never repairs one.
+
+Use this table to turn the two rungs into one physical action:
+
+| `usb-bus` | `usb-debugging` | Meaning | Do this |
+| --- | --- | --- | --- |
+| unavailable | unavailable | No USB data link at all | Reseat or replace the cable; select **File Transfer** USB mode; try a direct port instead of a hub |
+| available | unavailable | Phone is present, not yet trusted | Accept the RSA prompt, or apply the udev rule when the reason names permissions |
+| available | available | Ready | Run `device-control device list --json` |
+
+The first row is the one operators most often misread. A charge-only cable, a
+damaged cable, or a cable that does not seat its data pins produces a phone that
+charges normally and is invisible to both `lsusb` and `adb`. No Android setting
+can produce that state, so do not change phone settings to chase it.
+
+Confirm a repaired cable is stable before you rely on it. The onboarding
+probe takes a bounded presence sample and reports `flap_count` on the
+`usb-bus` rung. A non-zero count means the link was intermittent during the
+sample; replace the cable before capturing evidence you intend to keep.
+
+### Transport support today
+
+USB is the onboarding and release-evidence transport. After a trusted USB
+onboarding, Android devices may be promoted to wireless ADB with
+`device-control device promote --transport wireless`. Promotion keeps the same
+device id and verifies the recorded serial after connecting. Wireless is useful
+for automation, but pairing is lost after a device reboot; reattach USB and
+promote it again. Release-grade conformance defaults to USB. To explicitly run
+a flow over the promoted wireless endpoint, use
+`device-control flow run --transport wireless`; omitting the flag requests USB.
+Promotion may also cause Android to re-ask for trust when ADB is re-established;
+that is an OS authorization event, not a hardcoded device address or an
+unattended approval.
 
 ## iOS Simulator
 

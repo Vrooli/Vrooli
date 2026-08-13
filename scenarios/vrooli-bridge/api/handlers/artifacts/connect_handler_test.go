@@ -13,7 +13,8 @@ import (
 	amocks "vrooli-bridge/internal/artifacts/mocks"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/nodeauth"
-	testmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,7 @@ func newHarness(t *testing.T) *connectHandler {
 	t.Helper()
 	nodes := &amocks.FakeNodeReader{Nodes: map[string]internalartifacts.TargetNode{"n1": {ID: "n1"}}}
 	delivery := &amocks.FakeDelivery{Delivered: true}
-	clk := testmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	svc := internalartifacts.NewService(amocks.NewFakeRepository(), nodes, delivery, clk)
 	return NewConnectHandler(Deps{Service: svc})
 }
@@ -81,7 +82,7 @@ func (f fakeCredentialStore) ActivePublicKey(context.Context, string) (ed25519.P
 func TestArtifactsHandler_NodeUploadAndOwnerRetrieval(t *testing.T) {
 	public, private, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
-	clk := testmocks.NewFakeClock(time.Unix(1_700_000_000, 0).UTC())
+	clk := scheduletest.New(time.Unix(1_700_000_000, 0).UTC())
 	produced := amocks.NewFakeProducedRepository()
 	runs := &amocks.FakeRunReader{Targets: map[string]internalartifacts.RunTarget{"run-1": {ID: "run-1", NodeID: "n1"}}}
 	svc := internalartifacts.NewService(amocks.NewFakeRepository(),

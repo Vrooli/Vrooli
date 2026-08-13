@@ -10,11 +10,12 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	jobsH "image-tools/handlers/jobs"
-	"image-tools/internal/clock"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/server"
 	"image-tools/internal/testutil/db"
 	httpxtest "image-tools/internal/testutil/httpx"
+
+	"github.com/vrooli/api-core/schedule"
 
 	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
 	jobsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs/jobs_v1connect"
@@ -30,7 +31,7 @@ func TestWatchJobStreamsToTerminal(t *testing.T) {
 	}
 
 	mgr := internaljobs.New(d, internaljobs.Config{
-		Clock: clock.System{},
+		Clock: schedule.System(),
 		Runner: func(_ context.Context, job internaljobs.Job, emit func(int, string)) (string, error) {
 			emit(50, "halfway")
 			return "out/" + job.ID, nil
@@ -44,7 +45,7 @@ func TestWatchJobStreamsToTerminal(t *testing.T) {
 	defer mgr.Close()
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		jobsH.Module(mgr, log.Default()),
 	)
 	live := httpxtest.NewLiveServer(t, srv)
@@ -100,7 +101,7 @@ func TestWatchJobUnknownIsNotFound(t *testing.T) {
 		t.Fatalf("ensure schemas: %v", err)
 	}
 	mgr := internaljobs.New(d, internaljobs.Config{
-		Clock:  clock.System{},
+		Clock:  schedule.System(),
 		Runner: func(context.Context, internaljobs.Job, func(int, string)) (string, error) { return "", nil },
 	})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -110,7 +111,7 @@ func TestWatchJobUnknownIsNotFound(t *testing.T) {
 	}
 	defer mgr.Close()
 
-	srv := server.New(server.Deps{Clock: clock.System{}, Logger: log.Default()}, jobsH.Module(mgr, log.Default()))
+	srv := server.New(server.Deps{Clock: schedule.System(), Logger: log.Default()}, jobsH.Module(mgr, log.Default()))
 	live := httpxtest.NewLiveServer(t, srv)
 	client := jobsconnect.NewJobsServiceClient(live.Client, live.URL)
 

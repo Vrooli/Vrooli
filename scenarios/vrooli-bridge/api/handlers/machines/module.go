@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 
-	"vrooli-bridge/internal/clock"
 	internalmachines "vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/module"
 	internalonboard "vrooli-bridge/internal/onboard"
@@ -13,6 +12,8 @@ import (
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/registry"
 
+	"github.com/vrooli/api-core/schedule"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
@@ -20,7 +21,7 @@ import (
 	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines/machines_v1connect"
 )
 
-func Module(db *database.RoutedDB, clk clock.Clock, sshSvc *ssh.Service, registrySvc registry.Service, pairingSvc *pairing.Service, presenceHub *presence.Hub, onboardSvc internalonboard.Service, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, sshSvc *ssh.Service, registrySvc registry.Service, pairingSvc *pairing.Service, presenceHub *presence.Hub, onboardSvc internalonboard.Service, logger *log.Logger) module.Module {
 	repo := internalmachines.NewSQLiteRepository(db, clk)
 	svc := internalmachines.NewService(repo)
 	audit, _ := repo.(auditAppender)

@@ -19,6 +19,12 @@
           "ref": "api/strategy/fakes/fake_test.go::TestStrategyProvidesReplayableFloor",
           "status": "complete",
           "notes": "unit phase — planned test `api/strategy/contract_test.go::TestFloorOperationsRequiredOfEveryStrategy`. Table test over every registered strategy asserting observe/actuate/describe exist and that a declared-but-unprobed capability resolves to unavailable with a named prerequisite."
+        },
+        {
+          "type": "test",
+          "ref": "api/strategy/contract_test.go::TestHostResolutionIsTerminalBeforePrerequisites",
+          "status": "complete",
+          "notes": "Cross-platform host declarations resolve unsupported before prerequisite probes and expose a terminal reason."
         }
       ]
     },
@@ -51,6 +57,18 @@
           "ref": "api/internal/control/service_test.go::TestBridgeAttachmentMergesWithLocalPhysicalIdentity",
           "status": "complete",
           "notes": "integration phase — planned test `api/devices/inventory_test.go::TestInventoryReportsUnreachableWhenHostNodeOffline`. Fake bridge registry returns an attached device whose host node is offline; inventory must report unreachable carrying that exact reason rather than omitting the device."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/control/service_test.go::TestCrossPlatformUSBInspectorsUseHostCommands",
+          "status": "complete",
+          "notes": "Forced Linux, macOS, and Windows inspector seams use host-correct commands and repair guidance."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/control/service_test.go::TestUSBLinkStabilityReportsFlaps",
+          "status": "complete",
+          "notes": "Bounded USB sampling reports a flap count and intermittent-link guidance."
         }
       ]
     },
@@ -67,6 +85,12 @@
           "ref": "api/internal/control/service_test.go::TestRunReusesHeldLeaseTokenWithoutConflict",
           "status": "complete",
           "notes": "integration phase — planned test `api/sessions/lease_test.go::TestConcurrentClaimOnSingleSessionDeviceIsRefused`. Second claim on a held device is refused, not queued or interleaved; expired leases release; verbs without a lease are rejected before reaching a strategy."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/control/service_test.go::TestDeviceDisconnectReleasesLeaseAndRetainsPriorEvidence",
+          "status": "complete",
+          "notes": "A transport availability loss produces device_disconnected, releases the lease, and retains prior evidence."
         }
       ]
     },
@@ -131,6 +155,12 @@
           "ref": "api/internal/evidence/redact_test.go::TestBinaryImageRequiresPixelMasking",
           "status": "complete",
           "notes": "unit phase — planned test `api/evidence/redaction_test.go::TestCaptureLeavesProducerOnlyAsRedactedReference`. A capture containing a seeded secret must not leave the producer until redaction is verified; consumers receive checksum-addressed references, never bytes or filesystem paths."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/control/service_test.go::TestFrameDifferenceFailsWhenActuationIsSuppressed",
+          "status": "complete",
+          "notes": "The physical smoke contract fails when actuation is suppressed because before and after frames must differ."
         }
       ]
     },
@@ -179,6 +209,24 @@
           "ref": "api/strategy/androidadb/androidadb_test.go::TestActuateTapTextAndLifecycleUseADBVerbs",
           "status": "complete",
           "notes": "integration phase — planned test `api/strategy/androidadb/adapter_test.go::TestAndroidAdbServesEmulatorAndPhysicalIdentically`. One adapter drives both device kinds: semantic hierarchy, app lifecycle, permissions, input, screenshot and recording, asserted against a fake adb transport."
+        },
+        {
+          "type": "test",
+          "ref": "api/strategy/androidadb/androidadb_test.go::TestPromoteWirelessVerifiesSerialAndKeepsIdentity",
+          "status": "complete",
+          "notes": "Wireless promotion derives the endpoint, verifies ro.serialno, and retains the stable device identity."
+        },
+        {
+          "type": "test",
+          "ref": "api/strategy/androidadb/androidadb_test.go::TestPromoteWirelessRefusesSerialMismatch",
+          "status": "complete",
+          "notes": "Wireless promotion refuses a different hardware serial rather than rebinding the inventory id."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/control/service_test.go::TestFlowTransportDefaultsToUSBAndWirelessMustBeExplicit",
+          "status": "complete",
+          "notes": "Flow execution defaults to USB and only selects the promoted wireless endpoint when wireless is explicitly requested."
         }
       ]
     },

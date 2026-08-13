@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"vrooli-bridge/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // DefaultWaitTimeout bounds a WaitRun call that passes timeout_seconds <= 0, so
@@ -67,7 +67,7 @@ type Service interface {
 
 type service struct {
 	repo         Repository
-	clock        clock.Clock
+	clock        schedule.Clock
 	coord        *coordinator
 	terminalHook TerminalHook
 	canceller    Canceller
@@ -106,7 +106,7 @@ func WithCanceller(c Canceller) Option {
 // single instance is shared between the runs handler (operator + node ingest)
 // and the dispatch handler (Create) so the in-memory waiter/subscriber state is
 // coherent across both call sites.
-func NewService(repo Repository, clk clock.Clock, opts ...Option) Service {
+func NewService(repo Repository, clk schedule.Clock, opts ...Option) Service {
 	s := &service{repo: repo, clock: clk, coord: newCoordinator()}
 	for _, opt := range opts {
 		opt(s)

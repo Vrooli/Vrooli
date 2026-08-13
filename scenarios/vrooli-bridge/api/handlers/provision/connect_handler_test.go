@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/auth"
-	"vrooli-bridge/internal/clock"
 	internalprovision "vrooli-bridge/internal/provision"
 	provmocks "vrooli-bridge/internal/provision/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -26,7 +27,7 @@ func newHarness(t *testing.T) (*connectHandler, internalprovision.Service) {
 	nodes := &provmocks.FakeNodeReader{Nodes: map[string]internalprovision.TargetNode{"n1": {ID: "n1"}}}
 	pres := &provmocks.FakePresence{Online: map[string]bool{"n1": true}}
 	pusher := &provmocks.FakeCommandPusher{Delivered: 1}
-	svc := internalprovision.NewService(repo, nodes, pres, &provmocks.FakeAuditSink{}, pusher, clock.System{})
+	svc := internalprovision.NewService(repo, nodes, pres, &provmocks.FakeAuditSink{}, pusher, schedule.System())
 	// Verifier nil: ReportProvisionEvent skips node-auth (pre-pairing stub path),
 	// exercising the lifecycle without crypto.
 	return NewConnectHandler(Deps{Service: svc}), svc

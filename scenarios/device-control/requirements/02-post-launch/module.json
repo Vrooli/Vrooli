@@ -56,13 +56,14 @@
       "description": "Drive the local machine as a device, reusing existing headless display and input tooling so desktop automation composes with the same flow vocabulary.",
       "id": "DVC-P1-004",
       "prd_ref": "OT-P1-004",
-      "status": "planned",
+      "status": "complete",
       "title": "host-desktop strategy",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
-          "notes": "integration phase — planned test `api/strategy/hostdesktop/adapter_test.go::TestHostDesktopStrategyCapabilityTier`. Local machine as a device, reusing headless display and input tooling behind the same floor."
+          "type": "test",
+          "ref": "api/strategy/hostdesktop/hostdesktop_test.go::TestHostDesktopStrategyCapabilityTier",
+          "status": "complete",
+          "notes": "Targeted suite proves the platform-neutral host-desktop declaration and the explicit unsupported Windows path while preserving the Linux prerequisite probe."
         }
       ]
     },
@@ -122,7 +123,7 @@
         {
           "type": "manual",
           "status": "planned",
-          "notes": "bas phase — planned test `bas/cases/02-operator/live-session-and-flow-review.json`. Operator surfaces: fleet view with per-device probed capability, live session with visible lease and kill, flow authoring validation, and run review with chaptered evidence."
+          "notes": "bas phase — planned test `bas/cases/02-operator/live-session-and-flow-review.json`. Operator surfaces: fleet view with per-device probed capability, live session with visible lease and kill, flow authoring validation, and run review with chaptered evidence. The zero-device onboarding slice is covered by `bas/cases/02-operator/onboarding-empty-state.json` and remains pending a detached-phone BAS run."
         }
       ]
     },

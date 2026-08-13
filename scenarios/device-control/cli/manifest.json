@@ -18,10 +18,18 @@
           "description": "Show device onboarding",
           "flags": [
             { "name": "kind", "description": "Device kind" },
-            { "name": "watch", "description": "Re-probe until onboarding is ready or the watch window expires" },
-            { "name": "watch-seconds", "description": "Maximum live re-probe window in seconds" }
+            { "name": "watch", "description": "Re-probe until onboarding is ready or the watch window expires", "local_only": true, "bind_waiver": "The CLI handler performs the bounded re-probe loop locally after the initial kind request; these flags are intentionally not part of ConnectDeviceRequest." },
+            { "name": "watch-seconds", "description": "Maximum live re-probe window in seconds", "local_only": true, "bind_waiver": "The CLI handler performs the bounded re-probe loop locally after the initial kind request; this flag is intentionally not part of ConnectDeviceRequest." }
           ],
           "binding": { "kind": "connect-rpc", "service": "DeviceService", "method": "ConnectDevice" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "promote",
+          "description": "Promote an onboarded Android device to wireless ADB",
+          "positionals": [{ "name": "id", "required": true }],
+          "flags": [{ "name": "transport", "required": true }],
+          "binding": { "kind": "local" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {

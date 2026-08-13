@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"vrooli-bridge/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // ReconcilePresence is the minimal boot-time eligibility projection.
@@ -23,7 +23,7 @@ type Reconciliation struct {
 // accepted. Eligible nodes are re-driven; runs whose node is not currently
 // dispatchable are terminalized with an accountable typed reason rather than
 // left stranded in memory.
-func Reconcile(ctx context.Context, store DurableStore, presence ReconcilePresence, pusher Pusher, clk clock.Clock) ([]Reconciliation, error) {
+func Reconcile(ctx context.Context, store DurableStore, presence ReconcilePresence, pusher Pusher, clk schedule.Clock) ([]Reconciliation, error) {
 	entries, err := store.Load(ctx)
 	if err != nil {
 		return nil, err

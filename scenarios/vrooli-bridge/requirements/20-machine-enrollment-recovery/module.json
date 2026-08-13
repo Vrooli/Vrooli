@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Durable Machine intent, immutable enrollment recovery, trust, and capability-policy invariants.",
-    "last_validated_at": "2026-07-17T17:29:01-04:00",
+    "last_validated_at": "2026-08-12T21:07:48-04:00",
     "module": "machine-enrollment-recovery",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -66,6 +66,59 @@
           "phase": "design",
           "status": "planned",
           "notes": "The correlation and terminal-attempt immutability decisions are explicitly recorded before implementation."
+        }
+      ]
+    },
+    {
+      "id": "BRG-MEC-004",
+      "title": "One-command durable SSH connection",
+      "status": "planned",
+      "category": "security",
+      "description": "The canonical `vrooli-bridge onboard connect --host \u003chost\u003e --user \u003cuser\u003e` flow resolves one Machine, prompts once for first touch, installs a Bridge-managed key, pairs the node, performs a final key-only verification, and reconnects after Bridge restart without a password or replacement identity.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/onboard/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Durable orchestration tests assert final key-only verification and fail-closed behavior; live restart evidence remains a final qualification step."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/onboard/handlers_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI tests assert first-touch prompting, trusted reconnect without prompting, and server-owned Machine resolution."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/operations/RUNBOOK.md#canonical-one-command-connection",
+          "phase": "operations",
+          "status": "planned",
+          "notes": "Run the documented first-touch, Bridge restart, and no-prompt reconnect ladder on an authorized target."
+        }
+      ]
+    },
+    {
+      "id": "BRG-MEC-005",
+      "title": "Connection identity and credential fail-closed behavior",
+      "status": "complete",
+      "category": "security",
+      "description": "Preflight returns explicit first-touch, reconnect, recovery-required, ambiguous, and host-key-review decisions. A no-password request cannot start first touch or recovery, and passwords never appear in durable records or process arguments.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/onboard/integration_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The integration flow asserts password and pairing-code absence from database rows, events, and logs."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/onboard/handlers_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI request captures verify credential-safe intake and trusted reconnect behavior."
         }
       ]
     }

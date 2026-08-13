@@ -13,13 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/pyenv-go"
 	internaladapters "image-tools/internal/adapters"
 	internalai "image-tools/internal/ai"
 	internalanalysis "image-tools/internal/analysis"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
-	"image-tools/internal/clock"
 	"image-tools/internal/fetch"
 	internalhosttool "image-tools/internal/hosttool"
 	"image-tools/internal/jobrunner"
@@ -31,6 +29,9 @@ import (
 	"image-tools/internal/safety"
 	"image-tools/internal/server"
 	"image-tools/internal/sidecar"
+
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/pyenv-go"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -272,7 +273,7 @@ func main() {
 	measureRec := internalmeasures.NewRecorder(db)
 	jobManager := internaljobs.New(db, internaljobs.Config{
 		Runner:     dispatcher.Run,
-		Clock:      clock.System{},
+		Clock:      schedule.System(),
 		CPUWorkers: runtimeCfg.CPUWorkers,
 		OnComplete: func(job internaljobs.Job) {
 			sample, trace := jobSampleAndTrace(job)
@@ -567,7 +568,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "image-tools-api", "1.0.0", healthModelRuntime),
 		adaptersH.Module(db, adapterRegistry, registry, adapterInstaller, jobManager, func(sizeMBApprox int) int {
 			return internaladapters.EstimateInstallSeconds(sizeMBApprox)

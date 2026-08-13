@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"asset-studio/internal/clock"
 	"asset-studio/internal/modules"
 	"asset-studio/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -150,7 +151,7 @@ func main() {
 	fileRoots := filerouting.New(primaryFileRoots)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "asset-studio-api", "1.0.0"),
 		searchH.Module(db),
 		studioH.Module(db),

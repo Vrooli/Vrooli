@@ -185,7 +185,7 @@ func (a machineLinkerAdapter) RecordCorrelatedTrust(ctx context.Context, correla
 	if conn.HostKeyFingerprint != "" {
 		state = machines.HostKeyVerified
 	}
-	_, err = a.machines.UpsertTrust(ctx, machines.TrustRecord{MachineID: attempt.MachineID, ClientKeyRef: conn.ClientKeyRef, ClientKeyFingerprint: conn.ClientKeyFingerprint, HostKeyFingerprint: conn.HostKeyFingerprint, HostKeyState: state})
+	_, err = a.machines.UpsertTrust(ctx, machines.TrustRecord{MachineID: attempt.MachineID, ClientKeyRef: conn.ClientKeyRef, ClientKeyFingerprint: conn.ClientKeyFingerprint, HostKeyFingerprint: conn.HostKeyFingerprint, HostKeyState: state, SSHUser: conn.User, SSHPort: conn.Port, ConnectionState: machines.ConnectionTrusted})
 	return err
 }
 

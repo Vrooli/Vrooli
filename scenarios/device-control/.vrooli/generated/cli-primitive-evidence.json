@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "a2cc75076a1e0e42c90d6bfa7b802393f282df1ea7353ce7d79ebcc2c2e905ac",
+  "manifest_hash": "7f73c80650a0e7278de68376880231f2e0002fe1bed8715278e65c23cf19bb3e",
   "commands": [
     {
       "path": "agent abort",
@@ -59,6 +59,12 @@
       "group": "device",
       "command": "list",
       "binding": "DeviceService.ListDevices"
+    },
+    {
+      "path": "device promote",
+      "group": "device",
+      "command": "promote",
+      "binding": "."
     },
     {
       "path": "flow run",

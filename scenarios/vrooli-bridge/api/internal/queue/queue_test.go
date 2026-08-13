@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/queue"
-	"vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -101,7 +102,7 @@ func newScheduler(t *testing.T, limit int) (*queue.Scheduler, *fakePusher, *fake
 	t.Helper()
 	pusher := &fakePusher{failNodes: map[string]bool{}}
 	aborter := &fakeAborter{}
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	return queue.NewScheduler(pusher, aborter, clk, limit), pusher, aborter
 }
 
@@ -195,7 +196,7 @@ func TestSubmit_ImmediatePushFailureReportsZeroAndFreesSlot(t *testing.T) {
 }
 
 func TestSubmit_OfflineQueuesAndReconnectPromotes(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	pusher := &fakePusher{failNodes: map[string]bool{}, available: map[string]bool{"n1": false}}
 	s := queue.NewScheduler(pusher, &fakeAborter{}, clk, 1)
 
@@ -213,7 +214,7 @@ func TestSubmit_OfflineQueuesAndReconnectPromotes(t *testing.T) {
 }
 
 func TestNewSchedulerWithStoreRestoresQueueProjection(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	store := &fakeDurableStore{entries: []queue.DurableEntry{
 		{Job: job("r1", "n1"), State: queue.StateRunning, StartedAt: clk.Now()},
 		{Job: job("r2", "n1"), State: queue.StateQueued, EnqueuedAt: clk.Now()},
@@ -227,7 +228,7 @@ func TestNewSchedulerWithStoreRestoresQueueProjection(t *testing.T) {
 }
 
 func TestReconcile_TerminalizesUnownedRunAndReportsOutcome(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	store := &fakeDurableStore{entries: []queue.DurableEntry{{Job: job("r1", "n1"), State: queue.StateQueued}}}
 	presence := fakeReconcilePresence{dispatchable: false}
 	outcomes, err := queue.Reconcile(context.Background(), store, presence, &fakePusher{failNodes: map[string]bool{}}, clk)

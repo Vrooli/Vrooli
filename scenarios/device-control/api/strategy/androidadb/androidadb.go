@@ -11,6 +11,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -26,26 +27,147 @@ type Runner interface {
 }
 type commandRunner struct{}
 
+const wirelessADBPort = "5555"
+
 func (commandRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
 	return exec.CommandContext(ctx, name, args...).Output()
 }
 
 type Adapter struct {
-	runner Runner
-	serial string
+	runner         Runner
+	serial         string
+	identitySerial string
+	endpoint       string
+	transport      string
 }
 
 func New() *Adapter {
-	return &Adapter{runner: commandRunner{}, serial: strings.TrimSpace(os.Getenv("ANDROID_SERIAL"))}
+	serial := strings.TrimSpace(os.Getenv("ANDROID_SERIAL"))
+	return &Adapter{runner: commandRunner{}, serial: serial, identitySerial: serial, transport: transportForSerial(serial)}
 }
-func NewWithRunner(r Runner, serial string) *Adapter { return &Adapter{runner: r, serial: serial} }
+func NewWithRunner(r Runner, serial string) *Adapter {
+	return &Adapter{runner: r, serial: serial, identitySerial: serial, transport: transportForSerial(serial)}
+}
 func (a *Adapter) ForDevice(serial string) strategy.Strategy {
-	return &Adapter{runner: a.runner, serial: strings.TrimSpace(serial)}
+	serial = strings.TrimSpace(serial)
+	return &Adapter{runner: a.runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial)}
+}
+
+// RestoreWireless rebuilds an endpoint-bound adapter after the control
+// service is restarted. The endpoint was previously verified against the
+// hardware serial during promotion and is restored only from durable local
+// state, never from operator-supplied input.
+func (a *Adapter) RestoreWireless(endpoint string) strategy.Strategy {
+	identity := a.identitySerial
+	if identity == "" {
+		identity = a.serial
+	}
+	return &Adapter{runner: a.runner, serial: identity, identitySerial: identity, endpoint: strings.TrimSpace(endpoint), transport: "wireless"}
+}
+
+func (a *Adapter) WirelessEndpoint() string { return a.endpoint }
+
+func transportForSerial(serial string) string {
+	if strings.Contains(serial, ":") {
+		return "wireless"
+	}
+	return "usb"
+}
+
+// WirelessPromoter is the narrow service seam for promoting an already
+// onboarded USB device. It keeps transport changes out of the inventory store
+// until the returned ADB identity has been verified.
+type WirelessPromoter interface {
+	PromoteWireless(context.Context) error
+}
+
+func (a *Adapter) PromoteWireless(ctx context.Context) error {
+	if strings.TrimSpace(a.serial) == "" {
+		return fmt.Errorf("wireless promotion requires a USB-onboarded device serial")
+	}
+	if a.transport != "usb" {
+		return fmt.Errorf("device is already using %s transport", a.transport)
+	}
+	// Read the address while the USB transport is still usable. `adb tcpip`
+	// restarts adbd and commonly drops the USB-selected endpoint immediately.
+	route, err := a.runner.Run(ctx, "adb", a.args("shell", "ip", "route")...)
+	if err != nil {
+		return fmt.Errorf("read device wireless address: %w", err)
+	}
+	address := wirelessAddress(string(route))
+	if address == "" {
+		return fmt.Errorf("device did not report a wireless address")
+	}
+	if _, err := a.runner.Run(ctx, "adb", a.args("tcpip", wirelessADBPort)...); err != nil {
+		return fmt.Errorf("enable adb tcpip mode: %w", err)
+	}
+	if _, err := a.runner.Run(ctx, "adb", "connect", address+":"+wirelessADBPort); err != nil {
+		return fmt.Errorf("connect wireless adb: %w", err)
+	}
+	endpoint := address + ":" + wirelessADBPort
+	// `adb get-serialno` reports the network endpoint for a wireless target,
+	// not the hardware identity. Read the device property over the verified
+	// endpoint so the stable inventory identity remains tied to the handset.
+	var serialCheck []byte
+	for attempt := 0; attempt < 5; attempt++ {
+		serialCheck, err = a.runner.Run(ctx, "adb", "-s", endpoint, "shell", "getprop", "ro.serialno")
+		if err == nil && strings.TrimSpace(string(serialCheck)) == a.identitySerial {
+			break
+		}
+		if attempt < 4 {
+			time.Sleep(250 * time.Millisecond)
+		}
+	}
+	if err != nil || strings.TrimSpace(string(serialCheck)) != a.identitySerial {
+		return fmt.Errorf("wireless adb identity mismatch: expected serial %q, got %q", a.identitySerial, strings.TrimSpace(string(serialCheck)))
+	}
+	devices, err := a.runner.Run(ctx, "adb", "devices", "-l")
+	if err != nil {
+		return fmt.Errorf("verify wireless adb identity: %w", err)
+	}
+	matched := false
+	for _, line := range strings.Split(string(devices), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[1] == "device" && (fields[0] == endpoint || fields[0] == a.identitySerial) {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		return fmt.Errorf("wireless adb identity mismatch: expected serial %q", a.serial)
+	}
+	a.endpoint = endpoint
+	a.transport = "wireless"
+	return nil
+}
+
+func wirelessAddress(route string) string {
+	fields := strings.Fields(route)
+	for i, field := range fields {
+		if field == "src" && i+1 < len(fields) && isIPv4(fields[i+1]) {
+			return fields[i+1]
+		}
+	}
+	for _, field := range fields {
+		if isIPv4(field) && !strings.HasPrefix(field, "0.") {
+			return field
+		}
+	}
+	return ""
+}
+
+func isIPv4(value string) bool {
+	ip := net.ParseIP(strings.TrimSpace(value))
+	return ip != nil && ip.To4() != nil
 }
 func (a *Adapter) ID() string { return "android-adb" }
 func (a *Adapter) args(args ...string) []string {
-	if a.serial != "" {
-		return append([]string{"-s", a.serial}, args...)
+	selector := a.serial
+	if a.endpoint != "" {
+		selector = a.endpoint
+	}
+	if selector != "" {
+		return append([]string{"-s", selector}, args...)
 	}
 	return args
 }
@@ -77,6 +199,13 @@ func (a *Adapter) Enumerate(ctx context.Context) ([]strategy.Device, error) {
 			continue
 		}
 		serial, state := fields[0], fields[1]
+		if a.endpoint != "" && serial != a.endpoint {
+			continue
+		}
+		identitySerial := serial
+		if a.transport == "wireless" && a.endpoint != "" && serial == a.endpoint && a.identitySerial != "" {
+			identitySerial = a.identitySerial
+		}
 		model := ""
 		for _, field := range fields[2:] {
 			if strings.HasPrefix(field, "model:") {
@@ -95,22 +224,29 @@ func (a *Adapter) Enumerate(ctx context.Context) ([]strategy.Device, error) {
 		default:
 			health, reason = strategy.HealthUnreachable, "device state is "+state
 		}
-		digest := sha256.Sum256([]byte(serial))
+		digest := sha256.Sum256([]byte(identitySerial))
 		osVersion := ""
 		if state == "device" {
-			if version, versionErr := a.runner.Run(ctx, "adb", "-s", serial, "shell", "getprop", "ro.build.version.release"); versionErr == nil {
+			selector := serial
+			if a.endpoint != "" && serial == a.endpoint {
+				selector = a.endpoint
+			}
+			if version, versionErr := a.runner.Run(ctx, "adb", "-s", selector, "shell", "getprop", "ro.build.version.release"); versionErr == nil {
 				osVersion = strings.TrimSpace(string(version))
 			}
 		}
-		devices = append(devices, strategy.Device{ID: "android-" + hex.EncodeToString(digest[:8]), Serial: serial, Model: model, OSVersion: osVersion, StrategyID: a.ID(), Transport: "usb", Health: health, HealthReason: reason, ObservedAt: now})
+		devices = append(devices, strategy.Device{ID: "android-" + hex.EncodeToString(digest[:8]), Serial: identitySerial, Model: model, OSVersion: osVersion, StrategyID: a.ID(), Transport: transportForSerial(serial), Health: health, HealthReason: reason, ObservedAt: now})
 	}
 	return devices, nil
 }
 
 func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
+	if unsupported, ok := strategy.ResolveHostSupport(a.ID(), "Android phones and emulators through ADB", []string{"linux", "darwin", "windows"}); ok {
+		return unsupported, nil
+	}
 	ok, next := a.connected(ctx)
 	if !ok {
-		return unavailable(next), nil
+		return strategy.WithSupportedHostOS(unavailable(next), "linux", "darwin", "windows"), nil
 	}
 	caps := map[string]strategy.Capability{}
 	probes := []struct {
@@ -136,6 +272,7 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 	caps[strategy.CapNativeRecording] = strategy.ProbeCapability(strategy.CapNativeRecording, recordingErr == nil, "adb screenrecord is unavailable on this device image", "Install a device image with screenrecord support", "adb shell screenrecord --help")
 	caps[strategy.CapScreenRecording] = caps[strategy.CapNativeRecording]
 	d := strategy.Declaration{StrategyID: a.ID(), Description: "Android phones and emulators through ADB", Status: strategy.StatusAvailable, Capabilities: caps, Promotable: true}
+	d = strategy.WithSupportedHostOS(d, "linux", "darwin", "windows")
 	d.Tiers = strategy.Tiers(d)
 	return d, nil
 }

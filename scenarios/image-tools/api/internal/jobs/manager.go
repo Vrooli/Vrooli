@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"image-tools/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -33,8 +33,8 @@ const laneQueueCap = 1024
 type Config struct {
 	// Runner executes work. Required.
 	Runner Runner
-	// Clock supplies timestamps. Defaults to clock.System{}.
-	Clock clock.Clock
+	// Clock supplies timestamps. Defaults to schedule.System().
+	Clock schedule.Clock
 	// CPUWorkers is the concurrent CPU lane size. Defaults to 4 when <= 0.
 	CPUWorkers int
 	// OnComplete, when set, is called once per job as it reaches a terminal state
@@ -50,7 +50,7 @@ type Config struct {
 type Manager struct {
 	st         *store
 	runner     Runner
-	clock      clock.Clock
+	clock      schedule.Clock
 	cpuN       int
 	onComplete func(Job)
 	baseCtx    context.Context
@@ -82,7 +82,7 @@ type jobEntry struct {
 func New(db SQLExecutor, cfg Config) *Manager {
 	clk := cfg.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	n := cfg.CPUWorkers
 	if n <= 0 {

@@ -30,6 +30,11 @@ install software. Treat the control capability itself as a credential.
 | Flow definitions | low–medium | flows | Ordinarily benign, but a flow may embed a target string that is itself sensitive (an account name, a search term). Treated as owner data, not shared by default. |
 | Strategy registrations | low | strategies | Adapter metadata only. |
 
+Lease tokens are bearer credentials. `session acquire` returns the token once;
+live-session listings, kill responses, release responses, and audit surfaces
+return only the session id and lease metadata. Callers use that id for kill and
+release, while flows continue to send the token they received at acquisition.
+
 ## Threat Model
 
 | Threat | Mitigation | Status |
@@ -96,7 +101,7 @@ ships, not after:
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| Redaction policy undefined | **high** | Before `DVC-P0-011` (`android-adb`) puts a real device's screen into an evidence store. |
+| Redaction policy needs broader owner review | **high** | Before additional consumers or retention policies expose real-device evidence beyond the current verified producer rules. |
 | No per-consumer grant granularity | medium | Before any consumer beyond the delivery ramps holds a lease. |
 | Unattended agent control unresolved | medium | Before `DVC-P1-005` (agent mode) ships. |
 | No visual-understanding route in `ai-gateway` | blocking for `ai.*` only | Declared dependency, not a workaround target. `ai.*` steps report `unavailable` naming it until the gateway capability exists. |

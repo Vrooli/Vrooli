@@ -14,6 +14,9 @@ import (
 // EnsureSchemas runs its drift check. A fresh database has no review table yet,
 // so it remains a no-op and EnsureSchemas creates the complete schema.
 func Migrate(ctx context.Context, db SQLExecutor) error {
+	if err := addMachineTrustColumns(ctx, db); err != nil {
+		return err
+	}
 	exists, err := migrationTableExists(ctx, db, "machine_migration_reviews")
 	if err != nil {
 		return err
@@ -30,6 +33,35 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		}
 	}
 	return reconcileDuplicateCurrentNodes(ctx, db)
+}
+
+func addMachineTrustColumns(ctx context.Context, db SQLExecutor) error {
+	exists, err := migrationTableExists(ctx, db, "machine_trust")
+	if err != nil || !exists {
+		return err
+	}
+	columns := []struct {
+		name string
+		ddl  string
+	}{
+		{"ssh_user", "ALTER TABLE machine_trust ADD COLUMN ssh_user TEXT NOT NULL DEFAULT ''"},
+		{"ssh_port", "ALTER TABLE machine_trust ADD COLUMN ssh_port INTEGER NOT NULL DEFAULT 22"},
+		{"connection_state", "ALTER TABLE machine_trust ADD COLUMN connection_state TEXT NOT NULL DEFAULT 'untrusted'"},
+	}
+	for _, column := range columns {
+		var found int
+		err := db.QueryRowContext(ctx, "SELECT 1 FROM pragma_table_info('machine_trust') WHERE name=?", column.name).Scan(&found)
+		if errors.Is(err, sql.ErrNoRows) {
+			if _, err := db.ExecContext(ctx, column.ddl); err != nil {
+				return fmt.Errorf("add machine_trust.%s: %w", column.name, err)
+			}
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("inspect machine_trust.%s: %w", column.name, err)
+		}
+	}
+	return nil
 }
 
 // reconcileDuplicateCurrentNodes is deliberately run before the global

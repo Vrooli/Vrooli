@@ -7,15 +7,15 @@ import (
 	"log"
 	"net/http"
 
-	"device-control/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // NewLoggingMiddleware returns a middleware that logs each request's
 // method, URI, and elapsed duration. Time is read from the injected
-// Clock so tests using mocks.FakeClock can assert exact durations
-// without depending on the wall clock. Logger defaults to log.Default()
+// Clock so tests using scheduletest.FakeClock can assert exact durations
+// without depending on the wall schedule. Logger defaults to log.Default()
 // when nil; tests inject a buffer-backed *log.Logger to capture output.
-func NewLoggingMiddleware(clk clock.Clock, logger *log.Logger) func(http.Handler) http.Handler {
+func NewLoggingMiddleware(clk schedule.Clock, logger *log.Logger) func(http.Handler) http.Handler {
 	if logger == nil {
 		logger = log.Default()
 	}

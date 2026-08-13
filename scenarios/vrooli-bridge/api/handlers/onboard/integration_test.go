@@ -20,11 +20,12 @@ import (
 
 	onboardhandler "vrooli-bridge/handlers/onboard"
 	"vrooli-bridge/internal/auth"
-	"vrooli-bridge/internal/clock"
 	localdb "vrooli-bridge/internal/database"
 	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/onboard/mocks"
 	onboardssh "vrooli-bridge/internal/onboard/ssh"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -65,7 +66,7 @@ func TestOnboarding_FullFlow_ThroughConnectHandler(t *testing.T) {
 	driver := onboard.NewSSHDriver(sshSvc, stubPath)
 	issuer := &mocks.FakeCodeIssuer{Code: intCode}
 	confirmer := &mocks.FakeOnlineConfirmer{Online: true}
-	svc := onboard.NewService(onboard.NewSQLiteRepository(d, clock.System{}), driver, issuer, confirmer, clock.System{}, onboard.WithEnrollmentResolver(onboard.EnrollmentResolverFunc(func(context.Context, string) (string, bool, error) { return intNodeID, true, nil })))
+	svc := onboard.NewService(onboard.NewSQLiteRepository(d, schedule.System()), driver, issuer, confirmer, schedule.System(), onboard.WithEnrollmentResolver(onboard.EnrollmentResolverFunc(func(context.Context, string) (string, bool, error) { return intNodeID, true, nil })))
 
 	handler := onboardhandler.NewConnectHandler(onboardhandler.Deps{Service: svc})
 
@@ -183,7 +184,7 @@ func mustInterfaces(t *testing.T) []testInterface {
 // boots over the same database, and the change is durable.
 func TestOnboarding_RestartResume_RealSQLite(t *testing.T) {
 	d := newOnboardSchemaDB(t)
-	clk := clock.System{}
+	clk := schedule.System()
 
 	// Process A persists an op mid-flight then "crashes" (we never run its
 	// orchestration).

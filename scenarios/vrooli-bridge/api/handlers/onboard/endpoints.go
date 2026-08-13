@@ -13,6 +13,21 @@ import (
 // exactly one entry here once onboard is listed in AllProtoFiles().
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "onboard_preflight_onboarding",
+		Path:        onboardconnect.OnboardServicePreflightOnboardingProcedure,
+		Method:      "POST",
+		Summary:     "Classify a durable SSH connection before onboarding",
+		Description: "Resolves the durable Machine and reports first-touch, reconnect, recovery-required, ambiguity, or host-key-review. It never contacts or mutates the remote host and never treats an empty password as trust proof. Owner-gated.",
+		Category:    "onboard",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"host": "string (required)", "port": "int32", "user": "string", "machine_id": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"decision": "ConnectDecision", "machine_id": "string", "password_required": "bool", "message": "string"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing or invalid SSH target"},
+			{Status: 401, Code: "unauthenticated", Description: "Owner token required"},
+			{Status: 412, Code: "failed_precondition", Description: "The target requires explicit trust or host-key review"},
+		},
+	},
+	{
 		ID:          "onboard_start_onboarding",
 		Path:        onboardconnect.OnboardServiceStartOnboardingProcedure,
 		Method:      "POST",

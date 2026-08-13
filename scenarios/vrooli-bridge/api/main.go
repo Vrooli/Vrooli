@@ -11,13 +11,9 @@ import (
 	"strings"
 	"time"
 
-	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
-	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
-	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 	internalaudit "vrooli-bridge/internal/audit"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/channelsign"
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/cpkeys"
 	"vrooli-bridge/internal/cprev"
 	"vrooli-bridge/internal/hostbroker"
@@ -36,6 +32,11 @@ import (
 	internalruns "vrooli-bridge/internal/runs"
 	"vrooli-bridge/internal/server"
 	internalsession "vrooli-bridge/internal/session"
+
+	"github.com/vrooli/api-core/schedule"
+	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -319,7 +320,7 @@ func main() {
 		log.Fatalf("machine legacy backfill failed: %v", err)
 	}
 
-	clk := clock.System{}
+	clk := schedule.System()
 	logger := log.Default()
 
 	// Owner identity is resolved against scenario-authenticator (the "Owner →
@@ -633,7 +634,7 @@ func main() {
 		// SSH. Owns its durable op tables; drives SSH first-touch + SCP + remote
 		// bootstrap (streamed VBOOTSTRAP markers), issues the pairing code
 		// server-side (pairingSvc), and confirms the node ONLINE (presenceHub).
-		onboardH.Module(onboardSvc, db, clk, logger),
+		onboardH.Module(onboardSvc, db, clk, sshSvc, logger),
 		// fleet (OT-P1-001): fleet-wide version roll. Enumerates nodes
 		// (registrySvc), gates on presence + protocol compatibility (presenceHub),
 		// and dispatches a privileged provisioning op per eligible node by

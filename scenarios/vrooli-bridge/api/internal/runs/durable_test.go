@@ -7,14 +7,15 @@ import (
 
 	"vrooli-bridge/internal/runs"
 	"vrooli-bridge/internal/runs/mocks"
-	tmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
 
 func newService(t *testing.T) (runs.Service, *mocks.FakeRepository) {
 	t.Helper()
-	clk := tmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	repo := mocks.NewFakeRepository()
 	return runs.NewService(repo, clk), repo
 }

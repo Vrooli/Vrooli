@@ -6,8 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/onboarding"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // DefaultVerifyTimeout bounds the orchestrator's post-bootstrap ONLINE
@@ -81,7 +82,7 @@ type service struct {
 	resolver  EnrollmentResolver
 	linker    MachineLinker
 	confirmer OnlineConfirmer
-	clock     clock.Clock
+	clock     schedule.Clock
 	coord     *coordinator
 
 	defaultControlPlaneURL string
@@ -185,7 +186,7 @@ func WithFirewallAdmitter(admitter FirewallAdmitter) Option {
 }
 
 // NewService constructs the production Service.
-func NewService(repo Repository, driver SSHDriver, issuer CodeIssuer, confirmer OnlineConfirmer, clk clock.Clock, opts ...Option) Service {
+func NewService(repo Repository, driver SSHDriver, issuer CodeIssuer, confirmer OnlineConfirmer, clk schedule.Clock, opts ...Option) Service {
 	s := &service{
 		repo:      repo,
 		driver:    driver,

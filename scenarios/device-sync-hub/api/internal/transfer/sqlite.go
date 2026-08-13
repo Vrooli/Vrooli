@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"device-sync-hub/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -26,12 +26,12 @@ type SQLExecutor interface {
 // depend on the Repository interface and tests substitute the fake.
 type sqliteRepository struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository. db is the pool from
 // main.go; clk supplies timestamps so tests advance time deterministically.
-func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
+func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

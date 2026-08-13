@@ -8,18 +8,19 @@ import (
 
 	"device-sync-hub/internal/devices"
 	"device-sync-hub/internal/devices/mocks"
-	tmocks "device-sync-hub/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newService(t *testing.T) (devices.Service, *mocks.FakeRepository, *mocks.FakeSecrets, *mocks.FakeAuth, *tmocks.FakeClock) {
+func newService(t *testing.T) (devices.Service, *mocks.FakeRepository, *mocks.FakeSecrets, *mocks.FakeAuth, *scheduletest.FakeClock) {
 	t.Helper()
 	repo := mocks.NewFakeRepository()
 	sec := &mocks.FakeSecrets{}
 	authd := &mocks.FakeAuth{}
-	clk := tmocks.NewFakeClock(time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
 	svc := devices.NewService(devices.Config{
 		Repo:       repo,
 		Clock:      clk,

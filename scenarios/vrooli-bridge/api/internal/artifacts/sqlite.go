@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"vrooli-bridge/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -23,21 +23,21 @@ type SQLExecutor interface {
 
 type sqliteRepository struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
+func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
 type sqliteProducedRepository struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteProducedRepository constructs the bounded produced-artifact store.
-func NewSQLiteProducedRepository(db SQLExecutor, clk clock.Clock) ProducedArtifactRepository {
+func NewSQLiteProducedRepository(db SQLExecutor, clk schedule.Clock) ProducedArtifactRepository {
 	return &sqliteProducedRepository{db: db, clock: clk}
 }
 

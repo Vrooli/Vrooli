@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"device-sync-hub/internal/auth"
-	"device-sync-hub/internal/clock"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // defaultPairingTTL is how long an issued pairing code stays redeemable. Short
@@ -77,7 +78,7 @@ type PairingNotifier interface {
 // Config configures NewService. Repo is required; the rest default.
 type Config struct {
 	Repo         Repository
-	Clock        clock.Clock
+	Clock        schedule.Clock
 	Secrets      Secrets
 	Auth         auth.Validator
 	Logger       *log.Logger
@@ -87,7 +88,7 @@ type Config struct {
 
 type service struct {
 	repo       Repository
-	clock      clock.Clock
+	clock      schedule.Clock
 	secrets    Secrets
 	auth       auth.Validator
 	logger     *log.Logger
@@ -108,7 +109,7 @@ func NewService(cfg Config) Service {
 		pairNotif:  cfg.PairNotifier,
 	}
 	if s.clock == nil {
-		s.clock = clock.System{}
+		s.clock = schedule.System()
 	}
 	if s.secrets == nil {
 		s.secrets = CryptoSecrets{}

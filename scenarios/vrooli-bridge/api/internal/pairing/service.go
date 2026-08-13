@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"vrooli-bridge/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Code/TTL policy. Codes are single-use and short-lived: a live code can enrol a
@@ -29,11 +29,11 @@ const (
 type Service struct {
 	repo      Repository
 	registrar NodeRegistrar
-	clock     clock.Clock
+	clock     schedule.Clock
 }
 
 // NewService constructs the pairing service.
-func NewService(repo Repository, registrar NodeRegistrar, clk clock.Clock) *Service {
+func NewService(repo Repository, registrar NodeRegistrar, clk schedule.Clock) *Service {
 	return &Service{repo: repo, registrar: registrar, clock: clk}
 }
 

@@ -6,10 +6,38 @@ import (
 
 	strategy "device-control/strategy"
 	"device-control/strategy/androidadb"
+	"device-control/strategy/iosmirror"
+	"device-control/strategy/iossimctl"
+	"device-control/strategy/iosxcuitest"
 	"github.com/stretchr/testify/require"
 )
 
 type successfulProbeRunner struct{}
+
+func TestHostResolutionIsTerminalBeforePrerequisites(t *testing.T) { // [REQ:DVC-P0-001]
+	old := strategy.HostOS
+	t.Cleanup(func() { strategy.HostOS = old })
+	strategy.HostOS = "linux"
+	for _, adapter := range []strategy.Strategy{iossimctl.New(), iosxcuitest.New(), iosmirror.New()} {
+		declaration, err := adapter.Describe(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, strategy.StatusUnsupported, declaration.Status, adapter.ID())
+		require.Empty(t, declaration.NextActions, adapter.ID())
+		require.Contains(t, declaration.SupportedHostOS, "darwin")
+	}
+}
+
+func TestSupportedHostUsesPrerequisiteDispositionOnForcedDarwin(t *testing.T) { // [REQ:DVC-P0-001]
+	old := strategy.HostOS
+	t.Cleanup(func() { strategy.HostOS = old })
+	strategy.HostOS = "darwin"
+	for _, adapter := range []strategy.Strategy{iossimctl.New(), iosxcuitest.New(), iosmirror.New()} {
+		declaration, err := adapter.Describe(context.Background())
+		require.NoError(t, err, adapter.ID())
+		require.Equal(t, strategy.StatusUnavailable, declaration.Status, adapter.ID())
+		require.NotEmpty(t, declaration.NextActions, adapter.ID())
+	}
+}
 
 func (successfulProbeRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
 	if name == "adb" && len(args) == 1 && args[0] == "devices" {

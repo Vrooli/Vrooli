@@ -1,6 +1,7 @@
 package control
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"device-control/internal/evidence"
+	"github.com/vrooli/api-core/storage"
 )
 
 func sensitiveRegions(step Step) []evidence.Region {
@@ -79,13 +81,31 @@ func boolInt(value bool) int {
 	return 0
 }
 
-func (s *Service) persistArtifact(id string, data []byte, kind string) error {
-	if err := os.MkdirAll(s.evidenceDir, 0o700); err != nil {
+func (s *Service) artifactPath(ctx context.Context, id string) (string, error) {
+	root := s.evidenceDir
+	if s.fileRoots != nil {
+		dataRoot, err := s.fileRoots.Pick(ctx, storage.ClassData)
+		if err != nil {
+			return "", err
+		}
+		root = filepath.Join(dataRoot, "evidence")
+	}
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		return "", err
+	}
+	return filepath.Join(root, id+".bin"), nil
+}
+
+func (s *Service) persistArtifact(ctx context.Context, id string, data []byte, kind string) error {
+	path, err := s.artifactPath(ctx, id)
+	if err != nil {
 		return fmt.Errorf("create evidence store: %w", err)
 	}
-	path := filepath.Join(s.evidenceDir, id+".bin")
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("retain evidence: %w", err)
+	}
+	if s.fileRoots != nil {
+		s.fileRoots.RecordWrite(ctx)
 	}
 	s.mu.Lock()
 	s.artifacts[id] = path
@@ -98,6 +118,10 @@ func (s *Service) persistArtifact(id string, data []byte, kind string) error {
 // path. The id is deliberately constrained to a single generated filename so
 // the HTTP read surface cannot turn into a path traversal primitive.
 func (s *Service) Artifact(id string) ([]byte, string, error) {
+	return s.ArtifactContext(context.Background(), id)
+}
+
+func (s *Service) ArtifactContext(ctx context.Context, id string) ([]byte, string, error) {
 	if id == "" || filepath.Base(id) != id || strings.ContainsAny(id, `/\\`) {
 		return nil, "", fmt.Errorf("invalid artifact id %q", id)
 	}
@@ -106,7 +130,11 @@ func (s *Service) Artifact(id string) ([]byte, string, error) {
 	kind := s.artifactKinds[id]
 	s.mu.Unlock()
 	if path == "" {
-		path = filepath.Join(s.evidenceDir, id+".bin")
+		var err error
+		path, err = s.artifactPath(ctx, id)
+		if err != nil {
+			return nil, "", fmt.Errorf("resolve artifact %q: %w", id, err)
+		}
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {

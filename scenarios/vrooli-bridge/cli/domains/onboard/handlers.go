@@ -36,6 +36,132 @@ type machineCreator interface {
 	CreateMachine(context.Context, *connect.Request[machinesv1.CreateMachineRequest]) (*connect.Response[machinesv1.CreateMachineResponse], error)
 }
 
+func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
+	host := strings.TrimSpace(ctx.Flag("host"))
+	user := strings.TrimSpace(ctx.Flag("user"))
+	port := parseInt(ctx.Flag("port"))
+	if port == 0 {
+		port = 22
+	}
+	preflight, err := h.client.PreflightOnboarding(context.Background(), connect.NewRequest(&onboardv1.PreflightOnboardingRequest{
+		Host: host, Port: int32(port), User: user, MachineId: strings.TrimSpace(ctx.Flag("machine-id")),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("preflight onboarding connection", err, nil)
+	}
+	if preflight == nil || preflight.Msg == nil {
+		return fmt.Errorf("server returned no onboarding preflight")
+	}
+	decision := preflight.Msg.Decision
+	if decision == onboardv1.ConnectDecision_CONNECT_DECISION_AMBIGUOUS || decision == onboardv1.ConnectDecision_CONNECT_DECISION_HOST_KEY_REVIEW {
+		return fmt.Errorf("cannot connect %s: %s", connectDecisionLabel(decision), preflight.Msg.Message)
+	}
+
+	password := ""
+	credSource := credentialNone
+	if preflight.Msg.PasswordRequired {
+		fromStdin := ctx.BoolFlag("password-stdin")
+		setupPassphraseStdin := ctx.BoolFlag("setup-passphrase-stdin")
+		if setupPassphraseStdin && !fromStdin {
+			return fmt.Errorf("--setup-passphrase-stdin requires --password-stdin")
+		}
+		var resolveErr error
+		if setupPassphraseStdin {
+			password, resolveErr = h.password.resolveLine()
+			credSource = credentialFromStdin
+		} else if fromStdin {
+			var source credentialSource
+			password, source, resolveErr = h.password.resolve(user, host, true, false)
+			credSource = source
+		} else if _, ok := h.password.lookupEnv(sshPasswordEnvVar); ok {
+			password, credSource, resolveErr = h.password.resolve(user, host, false, false)
+		} else {
+			// Connect is intentionally different from start: the server has already
+			// proven that a credential is required, so the interactive prompt is
+			// automatic and cannot be accidentally omitted.
+			password, credSource, resolveErr = h.password.resolve(user, host, false, true)
+		}
+		if resolveErr != nil {
+			return resolveErr
+		}
+		if strings.TrimSpace(password) == "" {
+			return fmt.Errorf("SSH password is required for %s; use the masked prompt, --password-stdin, or $%s", connectDecisionLabel(decision), sshPasswordEnvVar)
+		}
+	}
+
+	setupPassphrase := ""
+	if ctx.BoolFlag("setup-passphrase-stdin") {
+		var passErr error
+		setupPassphrase, passErr = h.password.resolveLine()
+		if passErr != nil {
+			return passErr
+		}
+	}
+	revision := strings.TrimSpace(ctx.Flag("revision"))
+	if revision == "" {
+		revision = defaultRevision
+	}
+	sourceMode, err := resolveSourceMode(ctx.Flag("source"))
+	if err != nil {
+		return err
+	}
+	startResp, err := h.client.StartOnboarding(context.Background(), connect.NewRequest(&onboardv1.StartOnboardingRequest{
+		MachineId: preflight.Msg.MachineId, Host: preflight.Msg.Host, Port: preflight.Msg.Port, User: preflight.Msg.User,
+		SshPassword: password, SetupPassphrase: setupPassphrase, NodeName: ctx.Flag("name"), TargetRevision: revision,
+		RepoUrl: ctx.Flag("repo-url"), CheckoutDir: ctx.Flag("checkout-dir"), ControlPlaneUrl: ctx.Flag("control-plane-url"),
+		ReachabilityMode: strings.TrimSpace(ctx.Flag("reachability-mode")), VerifyTimeoutSeconds: int32(parseInt(ctx.Flag("verify-timeout"))),
+		SkipSetup: ctx.BoolFlag("skip-setup"), SkipPrereqs: ctx.BoolFlag("skip-prereqs"), ProvisionSudo: resolveProvisionSudo(ctx),
+		SetupEnvironment: strings.TrimSpace(ctx.Flag("setup-environment")), SetupResources: strings.TrimSpace(ctx.Flag("setup-resources")),
+		SetupScenarios: strings.TrimSpace(ctx.Flag("setup-scenarios")), IncludeOptional: ctx.BoolFlag("include-optional"), SourceMode: sourceMode,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("start onboarding connection", err, nil)
+	}
+	if startResp == nil || startResp.Msg == nil || startResp.Msg.OpId == "" {
+		return fmt.Errorf("server returned no onboarding operation")
+	}
+	if !ctx.JSON() {
+		fmt.Fprintf(ctx.Stdout(), "Connection preflight: %s — %s\n", connectDecisionLabel(decision), preflight.Msg.Message)
+		if preflight.Msg.ClientKeyFingerprint != "" {
+			fmt.Fprintf(ctx.Stdout(), "Machine: %s; client key: %s\n", preflight.Msg.MachineId, preflight.Msg.ClientKeyFingerprint)
+		} else {
+			fmt.Fprintf(ctx.Stdout(), "Machine: %s; credential: %s\n", preflight.Msg.MachineId, credentialReportLine(credSource))
+		}
+	}
+	waitResp, err := h.client.WaitOnboarding(context.Background(), connect.NewRequest(&onboardv1.WaitOnboardingRequest{Id: startResp.Msg.OpId, TimeoutSeconds: 1800}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("wait for onboarding %q", startResp.Msg.OpId), err, nil)
+	}
+	if waitResp == nil || waitResp.Msg == nil {
+		return fmt.Errorf("server returned no onboarding wait response")
+	}
+	getResp, err := h.client.GetOnboarding(context.Background(), connect.NewRequest(&onboardv1.GetOnboardingRequest{Id: startResp.Msg.OpId}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("get onboarding %q", startResp.Msg.OpId), err, nil)
+	}
+	if getResp == nil || getResp.Msg == nil || getResp.Msg.Op == nil {
+		return fmt.Errorf("server returned no onboarding op")
+	}
+	return h.renderTerminal(ctx, getResp.Msg)
+}
+
+func connectDecisionLabel(decision onboardv1.ConnectDecision) string {
+	switch decision {
+	case onboardv1.ConnectDecision_CONNECT_DECISION_RECONNECT:
+		return "reconnect"
+	case onboardv1.ConnectDecision_CONNECT_DECISION_FIRST_TOUCH:
+		return "first touch"
+	case onboardv1.ConnectDecision_CONNECT_DECISION_RECOVERY_REQUIRED:
+		return "recovery required"
+	case onboardv1.ConnectDecision_CONNECT_DECISION_AMBIGUOUS:
+		return "ambiguous identity"
+	case onboardv1.ConnectDecision_CONNECT_DECISION_HOST_KEY_REVIEW:
+		return "host-key review required"
+	default:
+		return "unknown connection state"
+	}
+}
+
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := session.NewConnectHTTPClient(core)
 	return &handlers{
@@ -56,6 +182,32 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	host := strings.TrimSpace(ctx.Flag("host"))
 	user := strings.TrimSpace(ctx.Flag("user"))
 	machineID := strings.TrimSpace(ctx.Flag("machine-id"))
+	port := parseInt(ctx.Flag("port"))
+	if port == 0 {
+		port = 22
+	}
+
+	// Start is the lower-level automation verb, but it must still use the same
+	// server-owned identity resolver as connect. This prevents an omitted
+	// machine-id from silently creating a replacement Machine and prevents an
+	// empty password from being treated as proof of SSH trust.
+	preflight, err := h.client.PreflightOnboarding(context.Background(), connect.NewRequest(&onboardv1.PreflightOnboardingRequest{
+		Host: host, Port: int32(port), User: user, MachineId: machineID,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("preflight onboarding", err, nil)
+	}
+	if preflight == nil || preflight.Msg == nil {
+		return fmt.Errorf("server returned no onboarding preflight")
+	}
+	decision := preflight.Msg.Decision
+	if decision == onboardv1.ConnectDecision_CONNECT_DECISION_AMBIGUOUS || decision == onboardv1.ConnectDecision_CONNECT_DECISION_HOST_KEY_REVIEW {
+		return fmt.Errorf("cannot start onboarding %s: %s", connectDecisionLabel(decision), preflight.Msg.Message)
+	}
+	host = preflight.Msg.Host
+	user = preflight.Msg.User
+	port = int(preflight.Msg.Port)
+	machineID = preflight.Msg.MachineId
 
 	// Resolve the password BEFORE the RPC so a credential-intake failure never
 	// half-starts. An explicitly selected Machine reuses its Bridge-managed key
@@ -68,7 +220,6 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	}
 	var password string
 	var credSource credentialSource
-	var err error
 	if setupPassphraseStdin {
 		password, err = h.password.resolveLine()
 		credSource = credentialFromStdin
@@ -77,6 +228,9 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	}
 	if err != nil {
 		return err
+	}
+	if preflight.Msg.PasswordRequired && strings.TrimSpace(password) == "" {
+		return fmt.Errorf("SSH password is required for %s; use --password-stdin, --prompt-password, or $%s", connectDecisionLabel(decision), sshPasswordEnvVar)
 	}
 	setupPassphrase := ""
 	if setupPassphraseStdin {
@@ -88,19 +242,6 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 			return fmt.Errorf("setup credential-store passphrase from stdin must not be empty")
 		}
 	}
-	if machineID == "" {
-		machineResp, createErr := h.machines.CreateMachine(context.Background(), connect.NewRequest(&machinesv1.CreateMachineRequest{
-			Locators: []*machinesv1.ConnectionLocator{{Kind: "hostname", Value: host, Ordinal: 0}},
-		}))
-		if createErr != nil {
-			return cliapp.WrapAPIError("create Machine before onboarding", createErr, nil)
-		}
-		if machineResp == nil || machineResp.Msg == nil || machineResp.Msg.Machine == nil || strings.TrimSpace(machineResp.Msg.Machine.Id) == "" {
-			return fmt.Errorf("server returned no machine for onboarding")
-		}
-		machineID = machineResp.Msg.Machine.Id
-	}
-
 	revision := strings.TrimSpace(ctx.Flag("revision"))
 	if revision == "" {
 		revision = defaultRevision
@@ -114,7 +255,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	resp, err := h.client.StartOnboarding(context.Background(), connect.NewRequest(&onboardv1.StartOnboardingRequest{
 		MachineId:            machineID,
 		Host:                 host,
-		Port:                 int32(parseInt(ctx.Flag("port"))),
+		Port:                 int32(port),
 		User:                 user,
 		SshPassword:          password,
 		SetupPassphrase:      setupPassphrase,

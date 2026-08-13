@@ -21,6 +21,7 @@ func Module(s *internal.Service) module.Module {
 	return module.Module{Name: "device-control", Mount: func(r *mux.Router) {
 		r.HandleFunc("/api/v1/devices", h.listDevices).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}", h.forgetDevice).Methods(http.MethodDelete)
+		r.HandleFunc("/api/v1/devices/{id}/promote", h.promoteDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/conformance/android", h.androidConformancePlan).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/conformance/android/run", h.runAndroidConformance).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/connect", h.connectDevice).Methods(http.MethodPost)
@@ -55,11 +56,20 @@ func (h *handler) listDevices(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) forgetDevice(w http.ResponseWriter, r *http.Request) {
-	if !h.service.ForgetDevice(mux.Vars(r)["id"]) {
+	if !h.service.ForgetDeviceContext(r.Context(), mux.Vars(r)["id"]) {
 		writeError(w, http.StatusNotFound, "device_not_found", "unknown device "+mux.Vars(r)["id"])
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) promoteDevice(w http.ResponseWriter, r *http.Request) {
+	device, err := h.service.PromoteWireless(r.Context(), mux.Vars(r)["id"])
+	if err != nil {
+		writeError(w, http.StatusConflict, "wireless_promotion_failed", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"device": device, "transport": device.Transport})
 }
 
 type connectRequest struct {
@@ -116,7 +126,7 @@ func (h *handler) listStrategies(w http.ResponseWriter, r *http.Request) {
 	decls := h.service.Strategies(r.Context())
 	out := make([]map[string]any, 0, len(decls))
 	for _, d := range decls {
-		out = append(out, map[string]any{"id": d.StrategyID, "description": d.Description, "status": d.Status, "capabilities": d.Capabilities, "tiers": append([]string{}, d.Tiers...), "executable_step_kinds": append([]string{}, strategy.StepKinds(d)...), "next_actions": append([]string{}, d.NextActions...), "promotable": d.Promotable, "evidence_class": d.EvidenceClass, "minimum_useful_fps": d.MinimumUsefulFPS})
+		out = append(out, map[string]any{"id": d.StrategyID, "description": d.Description, "status": d.Status, "reason": d.Reason, "supported_host_os": append([]string{}, d.SupportedHostOS...), "capabilities": d.Capabilities, "tiers": append([]string{}, d.Tiers...), "executable_step_kinds": append([]string{}, strategy.StepKinds(d)...), "next_actions": append([]string{}, d.NextActions...), "promotable": d.Promotable, "evidence_class": d.EvidenceClass, "minimum_useful_fps": d.MinimumUsefulFPS})
 	}
 	write(w, http.StatusOK, map[string]any{"strategies": out})
 }
@@ -131,8 +141,21 @@ func (h *handler) verifyStrategy(w http.ResponseWriter, r *http.Request) {
 	write(w, http.StatusOK, report)
 }
 
-func (h *handler) listSessions(w http.ResponseWriter, _ *http.Request) {
-	write(w, http.StatusOK, map[string]any{"sessions": h.service.ListLiveSessions()})
+func (h *handler) listSessions(w http.ResponseWriter, r *http.Request) {
+	sessions := h.service.ListLiveSessionsContext(r.Context())
+	views := make([]map[string]any, 0, len(sessions))
+	for _, session := range sessions {
+		views = append(views, publicSession(session))
+	}
+	write(w, http.StatusOK, map[string]any{"sessions": views})
+}
+
+func publicSession(session internal.Session) map[string]any {
+	return map[string]any{
+		"id": session.ID, "device_id": session.DeviceID, "actor": session.Actor,
+		"state": session.State, "kill_reason": session.KillReason,
+		"expires_at": session.ExpiresAt, "created_at": session.CreatedAt,
+	}
 }
 
 type acquireRequest struct {
@@ -147,7 +170,7 @@ func (h *handler) acquire(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	s, err := h.service.Acquire(in.DeviceID, in.Actor, time.Duration(in.TTLSeconds)*time.Second)
+	s, err := h.service.AcquireContext(r.Context(), in.DeviceID, in.Actor, time.Duration(in.TTLSeconds)*time.Second)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "unknown device ") {
 			writeError(w, http.StatusBadRequest, "unknown_device", err.Error())
@@ -160,21 +183,21 @@ func (h *handler) acquire(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) kill(w http.ResponseWriter, r *http.Request) {
-	s, err := h.service.Kill(mux.Vars(r)["id"], "operator requested kill")
+	s, err := h.service.KillContext(r.Context(), mux.Vars(r)["id"], "operator requested kill")
 	if err != nil {
 		writeError(w, http.StatusNotFound, "not_found", err.Error())
 		return
 	}
-	write(w, http.StatusOK, map[string]any{"session": s})
+	write(w, http.StatusOK, map[string]any{"session": publicSession(s)})
 }
 
 func (h *handler) release(w http.ResponseWriter, r *http.Request) {
-	s, err := h.service.Release(mux.Vars(r)["id"])
+	s, err := h.service.ReleaseContext(r.Context(), mux.Vars(r)["id"])
 	if err != nil {
 		writeError(w, http.StatusNotFound, "not_found", err.Error())
 		return
 	}
-	write(w, http.StatusOK, map[string]any{"session": s})
+	write(w, http.StatusOK, map[string]any{"session": publicSession(s)})
 }
 
 type flowRequest struct {
@@ -226,13 +249,13 @@ func leaseErrorCode(err error) string {
 	}
 }
 
-func (h *handler) audit(w http.ResponseWriter, _ *http.Request) {
-	write(w, http.StatusOK, map[string]any{"records": h.service.Audit()})
+func (h *handler) audit(w http.ResponseWriter, r *http.Request) {
+	write(w, http.StatusOK, map[string]any{"records": h.service.AuditContext(r.Context())})
 }
 
 func (h *handler) artifact(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	data, kind, err := h.service.Artifact(id)
+	data, kind, err := h.service.ArtifactContext(r.Context(), id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "artifact_not_found", err.Error())
 		return

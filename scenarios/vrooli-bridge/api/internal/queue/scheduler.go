@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"vrooli-bridge/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Scheduler is the in-memory per-node job scheduler. It is safe for concurrent
@@ -16,7 +16,7 @@ import (
 type Scheduler struct {
 	pusher        Pusher
 	aborter       Aborter
-	clock         clock.Clock
+	clock         schedule.Clock
 	limit         int
 	store         DurableStore
 	deliveryLease time.Duration
@@ -43,7 +43,7 @@ func WithDeliveryLease(lease time.Duration) Option {
 
 // NewScheduler constructs the scheduler with a per-node concurrency limit
 // (limit <= 0 uses DefaultConcurrencyLimit).
-func NewScheduler(pusher Pusher, aborter Aborter, clk clock.Clock, limit int, opts ...Option) *Scheduler {
+func NewScheduler(pusher Pusher, aborter Aborter, clk schedule.Clock, limit int, opts ...Option) *Scheduler {
 	s := newScheduler(pusher, aborter, clk, limit, opts...)
 	_ = s.load(context.Background())
 	return s
@@ -51,7 +51,7 @@ func NewScheduler(pusher Pusher, aborter Aborter, clk clock.Clock, limit int, op
 
 // NewSchedulerWithStore is the boot path. It returns a migration/load error so
 // the control plane cannot accept traffic with an incomplete queue projection.
-func NewSchedulerWithStore(pusher Pusher, aborter Aborter, clk clock.Clock, limit int, store DurableStore) (*Scheduler, error) {
+func NewSchedulerWithStore(pusher Pusher, aborter Aborter, clk schedule.Clock, limit int, store DurableStore) (*Scheduler, error) {
 	s := newScheduler(pusher, aborter, clk, limit, WithDurableStore(store))
 	if err := s.load(context.Background()); err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func NewSchedulerWithStore(pusher Pusher, aborter Aborter, clk clock.Clock, limi
 	return s, nil
 }
 
-func newScheduler(pusher Pusher, aborter Aborter, clk clock.Clock, limit int, opts ...Option) *Scheduler {
+func newScheduler(pusher Pusher, aborter Aborter, clk schedule.Clock, limit int, opts ...Option) *Scheduler {
 	if limit <= 0 {
 		limit = DefaultConcurrencyLimit
 	}

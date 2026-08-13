@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"vrooli-bridge/internal/audit"
-	"vrooli-bridge/internal/clock"
+
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/schedule"
 )
 
 type fakeClock struct{ now time.Time }
@@ -155,10 +156,10 @@ func TestManagerReattachPreservesPTYSessionAndReplaysScrollback(t *testing.T) {
 	defer unsubscribe()
 	require.Equal(t, []byte("before disconnect\n"), (<-replay).Data)
 	require.Equal(t, []byte("during disconnect\n"), (<-replay).Data)
-	clock.Advance(time.Second)
+	schedule.Advance(time.Second)
 	reattached, err = m.Open(context.Background(), openRequest())
 	require.NoError(t, err)
-	require.True(t, reattached.LastActivity.Equal(clock.Now()), "reattach must refresh idle expiry")
+	require.True(t, reattached.LastActivity.Equal(schedule.Now()), "reattach must refresh idle expiry")
 }
 
 func TestManagerAcceptsIdenticalOutputReplay(t *testing.T) {
@@ -170,4 +171,4 @@ func TestManagerAcceptsIdenticalOutputReplay(t *testing.T) {
 	require.ErrorIs(t, m.DeliverOutput(context.Background(), "s1", 0, []byte("different\n")), ErrSequenceGap)
 }
 
-var _ clock.Clock = (*fakeClock)(nil)
+var _ schedule.Clock = (*fakeClock)(nil)

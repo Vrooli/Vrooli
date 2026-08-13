@@ -29,6 +29,8 @@ type fakeOnboard struct {
 	machinesconnect.UnimplementedMachineServiceHandler
 
 	createMachineReq *machinesv1.CreateMachineRequest
+	preflightReq     *onboardv1.PreflightOnboardingRequest
+	preflightResp    *onboardv1.PreflightOnboardingResponse
 	startReq         *onboardv1.StartOnboardingRequest
 	startResp        *onboardv1.StartOnboardingResponse
 	startErr         error
@@ -50,6 +52,22 @@ type fakeOnboard struct {
 func (f *fakeOnboard) CreateMachine(_ context.Context, req *connect.Request[machinesv1.CreateMachineRequest]) (*connect.Response[machinesv1.CreateMachineResponse], error) {
 	f.createMachineReq = req.Msg
 	return connect.NewResponse(&machinesv1.CreateMachineResponse{Machine: &machinesv1.Machine{Id: "machine-test-1"}}), nil
+}
+
+func (f *fakeOnboard) PreflightOnboarding(_ context.Context, req *connect.Request[onboardv1.PreflightOnboardingRequest]) (*connect.Response[onboardv1.PreflightOnboardingResponse], error) {
+	f.preflightReq = req.Msg
+	if f.preflightResp != nil {
+		return connect.NewResponse(f.preflightResp), nil
+	}
+	machineID := req.Msg.MachineId
+	if machineID == "" {
+		machineID = "machine-test-1"
+	}
+	return connect.NewResponse(&onboardv1.PreflightOnboardingResponse{
+		Decision:  onboardv1.ConnectDecision_CONNECT_DECISION_FIRST_TOUCH,
+		MachineId: machineID, Host: req.Msg.Host, Port: req.Msg.Port, User: req.Msg.User,
+		PasswordRequired: true, Message: "test first touch",
+	}), nil
 }
 
 func (f *fakeOnboard) StartOnboarding(_ context.Context, req *connect.Request[onboardv1.StartOnboardingRequest]) (*connect.Response[onboardv1.StartOnboardingResponse], error) {
@@ -130,9 +148,15 @@ func startSchema() cliapp.ArgSchema {
 }
 
 func TestStart_ExplicitMachineIDReusesDurableIdentity(t *testing.T) {
-	svc := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{
-		OpId: "op-existing", Host: "minimouse.local", Port: 22, User: "matthalloran8",
-	}}
+	svc := &fakeOnboard{
+		preflightResp: &onboardv1.PreflightOnboardingResponse{
+			Decision: onboardv1.ConnectDecision_CONNECT_DECISION_RECONNECT, MachineId: "machine-existing",
+			Host: "minimouse.local", Port: 22, User: "matthalloran8", Message: "trusted",
+		},
+		startResp: &onboardv1.StartOnboardingResponse{
+			OpId: "op-existing", Host: "minimouse.local", Port: 22, User: "matthalloran8",
+		},
+	}
 	core := clitest.NewTestApp(t, connectAPI(svc))
 	h := newHandlers(core)
 	h.password = passwordSource{
@@ -154,6 +178,44 @@ func TestStart_ExplicitMachineIDReusesDurableIdentity(t *testing.T) {
 	require.NoError(t, h.start(ctx))
 	require.Nil(t, svc.createMachineReq, "an explicit durable Machine must not create a replacement identity")
 	require.Equal(t, "machine-existing", svc.startReq.GetMachineId())
+}
+
+func terminalConnectResponse() *onboardv1.GetOnboardingResponse {
+	return &onboardv1.GetOnboardingResponse{Op: &onboardv1.OnboardingOp{Id: "op-connect", Host: "swarminator", Port: 22, User: "matthalloran8", State: onboardv1.OnboardingState_ONBOARDING_STATE_SUCCEEDED}}
+}
+
+func TestConnect_FirstTouchPromptsOnceAndUsesResolvedMachine(t *testing.T) {
+	svc := &fakeOnboard{
+		preflightResp: &onboardv1.PreflightOnboardingResponse{Decision: onboardv1.ConnectDecision_CONNECT_DECISION_FIRST_TOUCH, MachineId: "machine-first", Host: "swarminator", Port: 22, User: "matthalloran8", PasswordRequired: true, Message: "first touch"},
+		startResp:     &onboardv1.StartOnboardingResponse{OpId: "op-connect", Host: "swarminator", Port: 22, User: "matthalloran8"},
+		waitResp:      &onboardv1.WaitOnboardingResponse{Op: terminalConnectResponse().Op},
+		getResps:      []*onboardv1.GetOnboardingResponse{terminalConnectResponse()},
+	}
+	core := clitest.NewTestApp(t, connectAPI(svc))
+	h := newHandlers(core)
+	prompts := 0
+	h.password = passwordSource{lookupEnv: func(string) (string, bool) { return "", false }, isTerminal: func() bool { return true }, readSecret: func() ([]byte, error) { prompts++; return []byte("once-only"), nil }, prompt: io.Discard}
+	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{Flags: map[string]string{"host": "swarminator", "user": "matthalloran8"}})
+	require.NoError(t, h.preflightConnect(ctx))
+	require.Equal(t, 1, prompts)
+	require.Equal(t, "machine-first", svc.startReq.MachineId)
+	require.Equal(t, "once-only", svc.startReq.SshPassword)
+}
+
+func TestConnect_TrustedReconnectDoesNotPrompt(t *testing.T) {
+	svc := &fakeOnboard{
+		preflightResp: &onboardv1.PreflightOnboardingResponse{Decision: onboardv1.ConnectDecision_CONNECT_DECISION_RECONNECT, MachineId: "machine-trusted", Host: "swarminator", Port: 22, User: "matthalloran8", ClientKeyFingerprint: "SHA256:client", PasswordRequired: false, Message: "trusted"},
+		startResp:     &onboardv1.StartOnboardingResponse{OpId: "op-connect", Host: "swarminator", Port: 22, User: "matthalloran8"},
+		waitResp:      &onboardv1.WaitOnboardingResponse{Op: terminalConnectResponse().Op},
+		getResps:      []*onboardv1.GetOnboardingResponse{terminalConnectResponse()},
+	}
+	core := clitest.NewTestApp(t, connectAPI(svc))
+	h := newHandlers(core)
+	h.password = passwordSource{lookupEnv: func(string) (string, bool) { return "", false }, isTerminal: func() bool { return true }, readSecret: func() ([]byte, error) { t.Fatal("trusted reconnect must not prompt"); return nil, nil }, prompt: io.Discard}
+	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{Flags: map[string]string{"host": "swarminator", "user": "matthalloran8"}})
+	require.NoError(t, h.preflightConnect(ctx))
+	require.Equal(t, "machine-trusted", svc.startReq.MachineId)
+	require.Empty(t, svc.startReq.SshPassword)
 }
 
 // envPassword is an injected password source that yields a fixed secret via the
@@ -192,7 +254,7 @@ func TestStart_PasswordStdinFlagPipesTheSecret(t *testing.T) {
 	require.NoError(t, h.start(ctx))
 
 	require.Equal(t, "machine-test-1", svc.startReq.MachineId)
-	require.Equal(t, []*machinesv1.ConnectionLocator{{Kind: "hostname", Value: "10.0.0.5", Ordinal: 0}}, svc.createMachineReq.Locators)
+	require.Nil(t, svc.createMachineReq, "start must use the server-owned preflight resolver instead of creating a Machine in the CLI")
 	// The piped secret reached the request body with the pipe newline stripped...
 	require.Equal(t, "piped-pw", svc.startReq.SshPassword)
 	// ...and the report names the (non-secret) source without leaking the value.
@@ -201,9 +263,15 @@ func TestStart_PasswordStdinFlagPipesTheSecret(t *testing.T) {
 }
 
 func TestStart_NoCredentialReportsKeyTrustedAssumption(t *testing.T) {
-	svc := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{
-		OpId: "op-none", Host: "10.0.0.5", Port: 22, User: "deploy",
-	}}
+	svc := &fakeOnboard{
+		preflightResp: &onboardv1.PreflightOnboardingResponse{
+			Decision: onboardv1.ConnectDecision_CONNECT_DECISION_RECONNECT, MachineId: "machine-test-1",
+			Host: "10.0.0.5", Port: 22, User: "deploy", PasswordRequired: false, Message: "trusted",
+		},
+		startResp: &onboardv1.StartOnboardingResponse{
+			OpId: "op-none", Host: "10.0.0.5", Port: 22, User: "deploy",
+		},
+	}
 	core := clitest.NewTestApp(t, connectAPI(svc))
 	h := newHandlers(core)
 	h.password = passwordSource{
@@ -348,9 +416,10 @@ func TestStart_SourceModeFlag(t *testing.T) {
 }
 
 func TestStart_JSONShape(t *testing.T) {
-	svc := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{
-		OpId: "op-json", Host: "h", Port: 2222, User: "root",
-	}}
+	svc := &fakeOnboard{
+		preflightResp: &onboardv1.PreflightOnboardingResponse{Decision: onboardv1.ConnectDecision_CONNECT_DECISION_RECONNECT, MachineId: "machine-json", Host: "h", Port: 2222, User: "root", Message: "trusted"},
+		startResp:     &onboardv1.StartOnboardingResponse{OpId: "op-json", Host: "h", Port: 2222, User: "root"},
+	}
 	core := clitest.NewTestApp(t, connectAPI(svc))
 	h := newHandlers(core)
 	h.password = envPassword(t, "")
@@ -365,9 +434,10 @@ func TestStart_JSONShape(t *testing.T) {
 }
 
 func TestStart_DryRunRendersNoOp(t *testing.T) {
-	svc := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{
-		DryRun: true, Host: "h", Port: 22, User: "root",
-	}}
+	svc := &fakeOnboard{
+		preflightResp: &onboardv1.PreflightOnboardingResponse{Decision: onboardv1.ConnectDecision_CONNECT_DECISION_RECONNECT, MachineId: "machine-dry", Host: "h", Port: 22, User: "root", Message: "trusted"},
+		startResp:     &onboardv1.StartOnboardingResponse{DryRun: true, Host: "h", Port: 22, User: "root"},
+	}
 	core := clitest.NewTestApp(t, connectAPI(svc))
 	h := newHandlers(core)
 	h.password = envPassword(t, "")

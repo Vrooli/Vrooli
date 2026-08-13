@@ -269,7 +269,6 @@ and `promotable` strategy fields, and the 5 FPS usefulness threshold.
 
 - 2026-08-12: BAS direct execution successfully completed the dashboard identity journey before the later transport drop and the onboarding/re-probe journey (`1475435b-13f5-4122-afed-9ae9c7b3e735`). The managed browser DOM showed the real Galaxy A03s stable ID, serial, model, Android version, USB transport, and capability inventory.
 - 2026-08-12: The flow validation/run journey completed all six nodes after adding the missing flows-page root selector (`6934c56c-ecd1-4685-aa00-dfc39b36bfdd`). The journey now asserts that no operator-visible error is present after dispatch.
-- 2026-08-12: The run-review/evidence journey reached the review surface but could not prove retained real-device evidence after the physical phone disappeared from ADB. The API preserved the durable device identity, while the strategy probe reported unavailable and lease acquisition returned `unknown_device`; this is an external transport limitation, not a successful hardware proof.
 - BAS emits a 404 for its optional `__vrooli_recording_event__` callback during mutating browser steps. The device-control API calls themselves returned the expected 200 responses when the phone was attached; the callback warning is owned by the BAS capture environment.
 - Standalone BAS CLI runs require explicit substitution of `@scenario/self` and `@selector/...` tokens. The authored cases retain those portable tokens for registry/workflow-health execution; direct CLI validation uses the selector manifest as the resolver.
 
@@ -279,6 +278,27 @@ and `promotable` strategy fields, and the 5 FPS usefulness threshold.
 - `fixtures/hello-mobile.contract.json` records the shared fixture contract, and `scenario-to-android/fixtures/hello-mobile` now contains the buildable platform-only source project. The generated debug APK is intentionally ignored rather than committed; a build on 2026-08-12 produced the declared package `com.vrooli.hello.mobile`, but that artifact has not yet been installed on a physical device.
 - The conformance gate remains open until the fixture and two physical Android devices are available for the required chapter execution.
 - Targeted validation is green: API/CLI Go suites, UI 36-file/145-test suite, type-check, lint, managed build/restart, JSON/endpoint generation, the hello-mobile APK build/package inspection, and requirement structure validation. Comprehensive Test Genie evidence is currently degraded: run `20260812-183608-51052a99` found the initial undeclared CLI commands, run `20260812-184226-7d007c1d` found and exposed manifest schema errors, and run `20260812-185005-fbd1e28e` aborted because its legacy runner predates canonical terminal snapshots. These are recorded as infrastructure/contract findings, not treated as passing baseline evidence.
+
+### 2026-08-12 — Cross-platform honesty and wireless seams implemented
+
+The cross-platform strategy declarations now distinguish unsupported host OSes
+from unavailable prerequisites, and expose supported host platforms in the
+strategy API and CLI. USB onboarding uses native inspection commands on Linux,
+macOS, and Windows; bounded sampling reports link flaps and cable guidance.
+Android ADB promotion preserves the stable device identity while switching to a
+verified wireless endpoint. Lease listings and terminal session responses omit
+bearer tokens, and the physical smoke fixture requires a changed frame.
+
+The dashboard now exposes onboarding from the zero-device state. The Windows
+host-desktop path remains explicitly unsupported until a real capture/input
+implementation is verified; PowerShell presence is not treated as capability
+proof.
+
+**`network-control` is unavailable on the Galaxy A03s.** `adb shell svc wifi`
+fails on this device image, which blocks the `offline_transition` conformance
+chapter from running on the only physical device currently available.
+
+**Owner:** unassigned.
 
 ## Cross-references
 

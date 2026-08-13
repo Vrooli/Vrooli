@@ -29,6 +29,8 @@ type Deps struct {
 	Service  onboard.Service
 	Attempts attemptLookup
 	Machines machineReader
+	Resolver machineResolver
+	KeyCheck func(context.Context, string, int, string, string) (ok bool, status, fingerprint string)
 	Logger   *log.Logger
 }
 
@@ -47,12 +49,152 @@ type machineReader interface {
 	Get(context.Context, string) (machines.Machine, error)
 }
 
+type machineResolver interface {
+	Create(context.Context, machines.CreateInput) (machines.Machine, error)
+	Resolve(context.Context, machines.IdentityQuery) (machines.Machine, error)
+	Get(context.Context, string) (machines.Machine, error)
+	GetTrust(context.Context, string) (machines.TrustRecord, error)
+}
+
 // NewConnectHandler constructs the handler, defaulting the logger.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
 	return &connectHandler{deps: d}
+}
+
+// PreflightOnboarding is the only identity decision used by the canonical
+// `onboard connect` flow. It resolves or creates one durable Machine, then
+// classifies the connection from persisted, non-secret evidence. In
+// particular, an empty password is never treated as proof that a key works.
+func (h *connectHandler) PreflightOnboarding(ctx context.Context, req *connect.Request[onboardv1.PreflightOnboardingRequest]) (*connect.Response[onboardv1.PreflightOnboardingResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	if h.deps.Resolver == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("onboarding connection preflight is unavailable"))
+	}
+	host := strings.TrimSpace(req.Msg.GetHost())
+	if host == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("host is required"))
+	}
+	port := int(req.Msg.GetPort())
+	if port == 0 {
+		port = 22
+	}
+	if port < 1 || port > 65535 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("port must be between 1 and 65535"))
+	}
+	user := strings.TrimSpace(req.Msg.GetUser())
+	if user == "" {
+		user = "root"
+	}
+
+	machine, err := h.resolvePreflightMachine(ctx, strings.TrimSpace(req.Msg.GetMachineId()), host)
+	if err != nil {
+		if _, ok := err.(*connect.Error); ok {
+			return nil, err
+		}
+		var ambiguous machines.ErrAmbiguous
+		if errors.As(err, &ambiguous) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		var missing machines.ErrNotFound
+		if errors.As(err, &missing) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, h.mapErr("PreflightOnboarding", host, err)
+	}
+	trust, trustErr := h.deps.Resolver.GetTrust(ctx, machine.ID)
+	if trustErr != nil {
+		var missing machines.ErrNotFound
+		if !errors.As(trustErr, &missing) {
+			return nil, h.mapErr("PreflightOnboarding trust", machine.ID, trustErr)
+		}
+		return connect.NewResponse(&onboardv1.PreflightOnboardingResponse{
+			Decision:         onboardv1.ConnectDecision_CONNECT_DECISION_FIRST_TOUCH,
+			MachineId:        machine.ID,
+			Host:             host,
+			Port:             int32(port),
+			User:             user,
+			PasswordRequired: true,
+			Message:          "first touch will install the Bridge-managed key",
+		}), nil
+	}
+	decision := onboardv1.ConnectDecision_CONNECT_DECISION_RECOVERY_REQUIRED
+	passwordRequired := true
+	message := "stored trust is incomplete; explicit SSH password recovery is required"
+	if trust.HostKeyState == machines.HostKeyReviewRequired {
+		decision = onboardv1.ConnectDecision_CONNECT_DECISION_HOST_KEY_REVIEW
+		passwordRequired = false
+		message = "the target host key changed; review it before reconnecting"
+	} else if trust.ConnectionState == machines.ConnectionTrusted &&
+		strings.EqualFold(strings.TrimSpace(trust.SSHUser), user) && trust.SSHPort == port &&
+		strings.TrimSpace(trust.ClientKeyRef) != "" && strings.TrimSpace(trust.ClientKeyFingerprint) != "" {
+		if h.deps.KeyCheck == nil {
+			decision = onboardv1.ConnectDecision_CONNECT_DECISION_RECONNECT
+			passwordRequired = false
+			message = "durable Bridge trust is available; reconnect will reuse the existing key"
+		} else {
+			ok, status, fingerprint := h.deps.KeyCheck(ctx, host, port, user, trust.ClientKeyRef)
+			if fingerprint != "" {
+				trust.HostKeyFingerprint = fingerprint
+			}
+			if ok {
+				decision = onboardv1.ConnectDecision_CONNECT_DECISION_RECONNECT
+				passwordRequired = false
+				message = "the stored Bridge key authenticated; reconnect will reuse it"
+			} else if status == "host_key_changed" {
+				decision = onboardv1.ConnectDecision_CONNECT_DECISION_HOST_KEY_REVIEW
+				passwordRequired = false
+				message = "the stored Bridge key could not authenticate because the host key changed; review it before reconnecting"
+			} else {
+				decision = onboardv1.ConnectDecision_CONNECT_DECISION_RECOVERY_REQUIRED
+				passwordRequired = true
+				message = "the stored Bridge key is missing or no longer authorized; explicit SSH password recovery is required"
+			}
+		}
+	}
+	return connect.NewResponse(&onboardv1.PreflightOnboardingResponse{
+		Decision:             decision,
+		MachineId:            machine.ID,
+		Host:                 host,
+		Port:                 int32(port),
+		User:                 user,
+		ClientKeyFingerprint: trust.ClientKeyFingerprint,
+		HostKeyFingerprint:   trust.HostKeyFingerprint,
+		PasswordRequired:     passwordRequired,
+		Message:              message,
+	}), nil
+}
+
+func (h *connectHandler) resolvePreflightMachine(ctx context.Context, machineID, host string) (machines.Machine, error) {
+	if machineID != "" {
+		machine, err := h.deps.Resolver.Get(ctx, machineID)
+		if err != nil {
+			return machines.Machine{}, err
+		}
+		if machine.Lifecycle != machines.LifecycleActive {
+			return machines.Machine{}, fmt.Errorf("selected Machine %q is %s and cannot be onboarded", machineID, machine.Lifecycle)
+		}
+		if err := validateMachineTarget(ctx, h.deps.Resolver, machineID, host); err != nil {
+			return machines.Machine{}, err
+		}
+		return machine, nil
+	}
+	machine, err := h.deps.Resolver.Resolve(ctx, machines.IdentityQuery{Hostname: host})
+	if err == nil {
+		if machine.Lifecycle != machines.LifecycleActive {
+			return machines.Machine{}, fmt.Errorf("Machine for %q is %s and cannot be onboarded", host, machine.Lifecycle)
+		}
+		return machine, nil
+	}
+	var missing machines.ErrNotFound
+	if !errors.As(err, &missing) {
+		return machines.Machine{}, err
+	}
+	return h.deps.Resolver.Create(ctx, machines.CreateInput{Locators: []machines.Locator{{Kind: "hostname", Value: host, Ordinal: 0}}})
 }
 
 // StartOnboarding validates the request, then (unless a dry-run) creates a

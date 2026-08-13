@@ -11,14 +11,16 @@ import (
 	"vrooli-bridge/internal/auth"
 	internalpairing "vrooli-bridge/internal/pairing"
 	"vrooli-bridge/internal/testutil/db"
-	"vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	pairingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing"
 	localdb "vrooli-bridge/internal/database"
+
+	pairingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing"
 )
 
 type fakeRegistrar struct{ n int }
@@ -30,7 +32,7 @@ func (f *fakeRegistrar) RegisterNode(_ context.Context, _ internalpairing.NodeFa
 
 func newHandler(t *testing.T) *connectHandler {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),

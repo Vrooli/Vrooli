@@ -5,9 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/onboard/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 )
@@ -54,7 +55,7 @@ func (f *fakeRevResolver) ResolveWorkingTree(_ context.Context, requested string
 }
 
 func newResolverService(repo *mocks.FakeRepository, driver *mocks.FakeSSHDriver, issuer *mocks.FakeCodeIssuer, confirmer *mocks.FakeOnlineConfirmer, res onboard.RevisionResolver) onboard.Service {
-	return onboard.NewService(repo, driver, issuer, confirmer, clock.System{}, onboard.WithRevisionResolver(res), onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}))
+	return onboard.NewService(repo, driver, issuer, confirmer, schedule.System(), onboard.WithRevisionResolver(res), onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}))
 }
 
 // TestStart_OmittedRevisionDefaultsViaResolver is the core phase-6 acceptance:

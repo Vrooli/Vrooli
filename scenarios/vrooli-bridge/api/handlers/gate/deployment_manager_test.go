@@ -6,7 +6,6 @@ import (
 	"time"
 
 	auditmocks "vrooli-bridge/internal/audit/mocks"
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/cpkeys"
 	internalgate "vrooli-bridge/internal/gate"
 	gatemocks "vrooli-bridge/internal/gate/mocks"
@@ -16,7 +15,9 @@ import (
 	rmocks "vrooli-bridge/internal/registry/mocks"
 	"vrooli-bridge/internal/runs"
 	runsmocks "vrooli-bridge/internal/runs/mocks"
-	tmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 
 	dispatchH "vrooli-bridge/handlers/dispatch"
 	queueH "vrooli-bridge/handlers/queue"
@@ -41,7 +42,7 @@ type dmHarness struct {
 
 func newDMHarness(t *testing.T) *dmHarness {
 	t.Helper()
-	clk := clock.System{}
+	clk := schedule.System()
 
 	// One trusted node per target OS, each scoped to run the validation verb.
 	repo := rmocks.NewFakeRepository()
@@ -50,7 +51,7 @@ func newDMHarness(t *testing.T) *dmHarness {
 	repo.Seed(registry.Node{ID: "win-1", Name: "ci-windows", OS: "windows", Arch: "amd64", Scopes: []string{"scenario test*"}})
 	registrySvc := registry.NewService(repo)
 
-	runsSvc := runs.NewService(runsmocks.NewFakeRepository(), tmocks.NewFakeClock(time.Now()))
+	runsSvc := runs.NewService(runsmocks.NewFakeRepository(), scheduletest.New(time.Now()))
 	auditSink := &auditmocks.FakeSink{}
 
 	hub := presence.NewHub(clk)

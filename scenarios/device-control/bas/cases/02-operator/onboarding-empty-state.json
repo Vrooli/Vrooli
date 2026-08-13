@@ -1,0 +1,36 @@
+{
+  "metadata": {
+    "name": "device-control-onboarding-empty-state",
+    "description": "With the phone physically detached, an owner can reach the guided Android onboarding ladder from the zero-device dashboard state.",
+    "requirement": "DVC-P1-008",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "onboarding",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"DVC-P1-008\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "id": "d2c2ce11-4e68-4ce7-9e58-f78f9bbd2c3b",
+  "project_id": "device-control",
+  "name": "device-control-onboarding-empty-state",
+  "folder_path": "/bas/cases/02-operator",
+  "description": "The owner can reach onboarding without a device row, then read the first actionable rung.",
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 1440, "viewport_height": 900 },
+    "nodes": [
+      { "id": "open-dashboard", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "@scenario/self", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open Device Control" } } },
+      { "id": "wait-empty-onboarding", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.dashboardEmptyReprobe", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Zero-device onboarding control renders" } } },
+      { "id": "open-onboarding", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/pages.dashboardEmptyReprobe" }, "metadata": { "label": "Open Android onboarding" } } },
+      { "id": "wait-report", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.onboardingReport", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Onboarding report renders" } } }
+    ],
+    "edges": [
+      { "source": "open-dashboard", "target": "wait-empty-onboarding" },
+      { "source": "wait-empty-onboarding", "target": "open-onboarding" },
+      { "source": "open-onboarding", "target": "wait-report" }
+    ]
+  }
+}

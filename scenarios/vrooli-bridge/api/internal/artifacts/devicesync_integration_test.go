@@ -8,7 +8,8 @@ import (
 	"vrooli-bridge/internal/artifacts"
 	"vrooli-bridge/internal/artifacts/mocks"
 	"vrooli-bridge/internal/testutil/db"
-	testmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -30,7 +31,7 @@ func newSqliteService(t *testing.T, nodes *mocks.FakeNodeReader, delivery *mocks
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(artifacts.Schema),
 	))
-	clk := testmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	return artifacts.NewService(artifacts.NewSQLiteRepository(d, clk), nodes, delivery, clk)
 }
 

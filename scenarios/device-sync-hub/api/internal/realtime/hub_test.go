@@ -5,7 +5,8 @@ import (
 	"time"
 
 	internalrealtime "device-sync-hub/internal/realtime"
-	"device-sync-hub/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,7 +37,7 @@ func latestPresence(t *testing.T, sub *internalrealtime.Subscription) map[string
 }
 
 func TestPresenceReflectsConnections(t *testing.T) {
-	hub := internalrealtime.NewHub(mocks.NewFakeClock(time.Time{}))
+	hub := internalrealtime.NewHub(scheduletest.New(time.Time{}))
 
 	a := hub.Subscribe("owner", "dev-a")
 	defer a.Close()
@@ -52,7 +53,7 @@ func TestPresenceReflectsConnections(t *testing.T) {
 }
 
 func TestItemArrivedBroadcastVsDirected(t *testing.T) {
-	hub := internalrealtime.NewHub(mocks.NewFakeClock(time.Time{}))
+	hub := internalrealtime.NewHub(scheduletest.New(time.Time{}))
 	a := hub.Subscribe("owner", "dev-a")
 	defer a.Close()
 	b := hub.Subscribe("owner", "dev-b")
@@ -78,7 +79,7 @@ func TestItemArrivedBroadcastVsDirected(t *testing.T) {
 }
 
 func TestPairingRequestedFanOut(t *testing.T) {
-	hub := internalrealtime.NewHub(mocks.NewFakeClock(time.Time{}))
+	hub := internalrealtime.NewHub(scheduletest.New(time.Time{}))
 	a := hub.Subscribe("owner", "dev-a")
 	defer a.Close()
 	latestPresence(t, a)

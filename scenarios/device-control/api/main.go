@@ -11,9 +11,10 @@ import (
 	"time"
 
 	"device-control/internal/capabilities"
-	"device-control/internal/clock"
 	"device-control/internal/modules"
 	"device-control/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -141,13 +142,13 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
-	controlService, err := control.NewWithDBAndAttached(strategyregistry.Default(), db.Primary(), control.NewBridgeAttachedReader(http.DefaultClient, nil))
+	controlService, err := control.NewWithDBAndAttached(strategyregistry.Default(), db, control.NewBridgeAttachedReader(http.DefaultClient, nil), fileRoots)
 	if err != nil {
 		log.Fatalf("device-control state initialization failed: %v", err)
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "device-control-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		controlH.Module(controlService),

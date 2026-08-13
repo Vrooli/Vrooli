@@ -4,16 +4,17 @@ import (
 	"context"
 	"testing"
 
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/onboard/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func TestAdmissionFailureStopsBeforeTransferOrPairing(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	driver := &mocks.FakeSSHDriver{AdmissionResult: onboard.AdmissionResult{Category: onboard.AdmissionControlPlaneUnreachable, Detail: "curl-exit-28"}}
 	issuer := &mocks.FakeCodeIssuer{Code: "must-not-issue"}
-	svc := onboard.NewService(repo, driver, issuer, &mocks.FakeOnlineConfirmer{Online: true}, clock.System{}, onboard.WithDefaultRevision("abc"), onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}))
+	svc := onboard.NewService(repo, driver, issuer, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(), onboard.WithDefaultRevision("abc"), onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}))
 	decision, err := svc.Start(context.Background(), onboard.StartInput{Host: "node", User: "root", ControlPlaneURL: "http://192.168.1.173:18767"})
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +61,7 @@ func TestLANAdmissionAutomaticallyAllowsCandidateAndRetries(t *testing.T) {
 	}
 	issuer := &mocks.FakeCodeIssuer{Code: "pairing-code"}
 	var allowedIP string
-	svc := onboard.NewService(repo, driver, issuer, &mocks.FakeOnlineConfirmer{Online: true}, clock.System{},
+	svc := onboard.NewService(repo, driver, issuer, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(),
 		onboard.WithDefaultRevision("abc"),
 		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}),
 		onboard.WithFirewallAdmitter(onboard.FirewallAdmitterFunc(func(_ context.Context, candidateIP string) (onboard.FirewallAdmissionResult, error) {

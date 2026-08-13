@@ -209,6 +209,8 @@ type FakeSSHDriver struct {
 	CapturedPairingCode   []byte
 	CapturedArgs          []string
 	FirstTouchCalls       int
+	VerifyKeyCalls        int
+	VerifyKeyErr          error
 	CapturedProvisionSudo bool
 	CapturedKeyName       string
 	AdmissionResult       onboard.AdmissionResult
@@ -233,6 +235,16 @@ func (d *FakeSSHDriver) FirstTouch(ctx context.Context, p onboard.FirstTouchPara
 		return onboard.Conn{}, d.FirstTouchErr
 	}
 	return onboard.Conn{Host: p.Host, Port: p.Port, User: p.User, KeyPath: "/state/bridge-onboard", SudoState: d.FirstTouchSudoState}, nil
+}
+
+func (d *FakeSSHDriver) VerifyKey(_ context.Context, conn onboard.Conn) (onboard.Conn, error) {
+	d.mu.Lock()
+	d.VerifyKeyCalls++
+	d.mu.Unlock()
+	if d.VerifyKeyErr != nil {
+		return onboard.Conn{}, d.VerifyKeyErr
+	}
+	return conn, nil
 }
 
 func (d *FakeSSHDriver) PushScript(ctx context.Context, _ onboard.Conn) (string, error) {

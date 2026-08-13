@@ -8,7 +8,8 @@ import (
 	"vrooli-bridge/internal/auth"
 	internalgate "vrooli-bridge/internal/gate"
 	gatemocks "vrooli-bridge/internal/gate/mocks"
-	testmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,7 @@ func newHarness(t *testing.T) (*connectHandler, *gatemocks.FakeRunner) {
 	}}
 	presence := &gatemocks.FakePresence{Online: map[string]bool{"ubuntu-1": true, "mac-1": true, "win-1": true}}
 	runner := gatemocks.NewFakeRunner()
-	clk := testmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	svc := internalgate.NewService(gatemocks.NewFakeRepository(), nodes, presence, runner, clk)
 	return NewConnectHandler(Deps{Service: svc}), runner
 }

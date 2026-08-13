@@ -22,7 +22,7 @@
       { "id": "wait-gap-report", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.flowGapReport", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Capability report renders" } } },
       { "id": "run", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/pages.flowRun" }, "metadata": { "label": "Run starter flow" } } },
       { "id": "wait-review", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.flowRunReview", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Run review renders" } } },
-      { "id": "assert-no-error", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "[role=\"alert\"]", "mode": "ASSERTION_MODE_NOT_EXISTS", "timeout_ms": 1000, "failure_message": "Flow run reported an operator-visible error" }, "metadata": { "label": "Run completed without an operator error" } } }
+      { "id": "assert-no-error", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/pages.flowError", "mode": "ASSERTION_MODE_NOT_EXISTS", "timeout_ms": 1000, "failure_message": "Flow run reported an operator-visible error" }, "metadata": { "label": "Run completed without an operator error" } } }
     ],
     "edges": [
       { "source": "open-flows", "target": "wait-flow-page" },

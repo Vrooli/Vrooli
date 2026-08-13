@@ -9,7 +9,6 @@ import (
 	auditmocks "vrooli-bridge/internal/audit/mocks"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/channelsign"
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/cpkeys"
 	"vrooli-bridge/internal/dispatch"
 	"vrooli-bridge/internal/presence"
@@ -18,7 +17,9 @@ import (
 	rmocks "vrooli-bridge/internal/registry/mocks"
 	"vrooli-bridge/internal/runs"
 	runsmocks "vrooli-bridge/internal/runs/mocks"
-	tmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 
 	queueH "vrooli-bridge/handlers/queue"
 
@@ -79,13 +80,13 @@ func TestDispatchHandler_RejectionMapsToPermissionDenied(t *testing.T) {
 // and the typed JobPush lands on the node's held channel as a decodable
 // ServerFrame — exercising the proto translation + channel push for real.
 func TestDispatchHandler_EndToEndPushesTypedJob(t *testing.T) {
-	clk := clock.System{}
+	clk := schedule.System()
 
 	repo := rmocks.NewFakeRepository()
 	repo.Seed(registry.Node{ID: "n1", Name: "office", OS: "linux", Arch: "amd64", Scopes: []string{"scenario test*"}})
 	registrySvc := registry.NewService(repo)
 
-	runsSvc := runs.NewService(runsmocks.NewFakeRepository(), tmocks.NewFakeClock(time.Now()))
+	runsSvc := runs.NewService(runsmocks.NewFakeRepository(), scheduletest.New(time.Now()))
 	auditSink := &auditmocks.FakeSink{}
 
 	hub := presence.NewHub(clk)

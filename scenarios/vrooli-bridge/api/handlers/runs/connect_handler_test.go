@@ -8,7 +8,8 @@ import (
 	"vrooli-bridge/internal/auth"
 	internalruns "vrooli-bridge/internal/runs"
 	runsmocks "vrooli-bridge/internal/runs/mocks"
-	tmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,7 @@ func ownerCtx() context.Context {
 
 func newHarness(t *testing.T) (*connectHandler, internalruns.Service) {
 	t.Helper()
-	svc := internalruns.NewService(runsmocks.NewFakeRepository(), tmocks.NewFakeClock(time.Now()))
+	svc := internalruns.NewService(runsmocks.NewFakeRepository(), scheduletest.New(time.Now()))
 	// Verifier nil: ReportRunEvent skips node-auth (the pre-pairing stub path),
 	// so this test exercises the lifecycle without crypto.
 	return NewConnectHandler(Deps{Service: svc}), svc

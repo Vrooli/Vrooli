@@ -6,13 +6,14 @@ import (
 
 	"vrooli-bridge/internal/compat"
 	"vrooli-bridge/internal/presence"
-	"vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
 
 func newHub() *presence.Hub {
-	return presence.NewHub(mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)))
+	return presence.NewHub(scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)))
 }
 
 // [REQ:BRG-P0-003] A node is offline until it dials out (Connect) and flips
@@ -98,7 +99,7 @@ func TestHub_PresenceOverlaysHealthForOnlineNodes(t *testing.T) {
 }
 
 func TestHub_HeartbeatStalenessMakesHalfOpenChannelUndispatchable(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	h := presence.NewHub(clk, presence.WithHeartbeatStaleAfter(45*time.Second))
 	conn := h.Connect("n1")
 	defer conn.Close()
@@ -113,7 +114,7 @@ func TestHub_HeartbeatStalenessMakesHalfOpenChannelUndispatchable(t *testing.T) 
 }
 
 func TestHub_ReadinessFactsFlipIndependently(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	h := presence.NewHub(clk)
 	conn := h.Connect("n1")
 	facts := h.Readiness("n1")

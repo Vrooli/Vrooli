@@ -1,22 +1,6 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {
-    "entries": {
-      "evidence": {
-        "rung": "owned",
-        "kind": "dir",
-        "class": "data",
-        "regenerable": false,
-        "rationale": "Retained, redacted device-control captures referenced by completed flow runs.",
-        "budget": {
-          "max_bytes": "10GiB",
-          "rationale": "Bound retained evidence while preserving audit references; operators can configure a stricter evidence directory policy."
-        }
-      }
-    },
-    "rationale": "Device-control owns retained evidence bytes and the SQLite audit metadata; consumers receive references only."
-  },
   "service": {
     "parent": "vrooli",
     "name": "device-control",
@@ -29,45 +13,6 @@
       "react-ui",
       "go-api"
     ]
-  },
-  "generation": {
-    "template": {
-      "id": "react-vite",
-      "version": "1.6.5"
-    },
-    "generated_at": "2026-08-10T13:00:11Z",
-    "design": {
-      "id": "vrooli-default",
-      "version": "0.2.0",
-      "adapter": "react-vite-tailwind"
-    },
-    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
-    "content_sha": "592f56a3232924a1b0134fb5acec7f8050d92f37d943059dad738db5df2137f5"
-  },
-  "cli": {
-    "enabled": true,
-    "command": "device-control",
-    "adapter": {
-      "kind": "go_module",
-      "module_dir": "cli"
-    },
-    "artifacts": {
-      "manifest": {},
-      "build_metadata": {}
-    },
-    "source_build": {
-      "kind": "go_module"
-    },
-    "invoke": {
-      "kind": "installed_command",
-      "command": "device-control"
-    },
-    "freshness": {
-      "inputs": [
-        "cli/**",
-        ".vrooli/service.json"
-      ]
-    }
   },
   "ports": {
     "api": {
@@ -236,7 +181,77 @@
         "purpose": "Executes named web-content flows against an attached application WebView for bas.* delegation steps.",
         "required": false,
         "degraded_behavior": "bas.* steps report unavailable; every other step kind still runs."
+      },
+      "audio-tools": {
+        "purpose": "Optional shared voice input and audio output for device-control voice capabilities.",
+        "required": false,
+        "version": "0.0.1",
+        "versionRange": ">=0.0.1",
+        "degraded_behavior": "Voice input and output report unavailable; device discovery, leases, flows, and non-audio verbs remain unaffected."
+      },
+      "scenario-authenticator": {
+        "purpose": "Authenticates the bridge-backed local control connection.",
+        "required": true,
+        "version": "0.0.1",
+        "versionRange": ">=0.0.1",
+        "degraded_behavior": "Bridge-backed devices report unavailable with an authentication dependency reason; no device verb is dispatched."
       }
+    },
+    "resources": {}
+  },
+  "storage": {
+    "entries": {
+      "evidence": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Retained, redacted device-control captures referenced by completed flow runs.",
+        "budget": {
+          "max_bytes": "10GiB",
+          "rationale": "Bound retained evidence while preserving audit references; operators can configure a stricter evidence directory policy."
+        }
+      }
+    },
+    "rationale": "Device-control owns retained evidence bytes and the SQLite audit metadata; consumers receive references only."
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-10T13:00:11Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "592f56a3232924a1b0134fb5acec7f8050d92f37d943059dad738db5df2137f5"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "device-control",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "device-control"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   },
   "credentials": {},

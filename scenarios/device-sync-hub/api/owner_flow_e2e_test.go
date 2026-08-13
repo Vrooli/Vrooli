@@ -25,10 +25,11 @@ import (
 	"github.com/vrooli/api-core/discovery"
 
 	"device-sync-hub/internal/auth"
-	"device-sync-hub/internal/clock"
 	"device-sync-hub/internal/modules"
 	internalrealtime "device-sync-hub/internal/realtime"
 	"device-sync-hub/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	devicesH "device-sync-hub/handlers/devices"
 	healthH "device-sync-hub/handlers/health"
@@ -68,7 +69,7 @@ func TestE2E_OwnerFirstRunFlow(t *testing.T) {
 	// discovery resolver — the one seam we substitute.
 	resolver := discovery.NewStaticResolver(authStub.URL)
 	logger := log.New(io.Discard, "", 0)
-	clk := clock.System{}
+	clk := schedule.System()
 
 	dsn := "file:" + filepath.Join(t.TempDir(), "e2e.db") +
 		"?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)"

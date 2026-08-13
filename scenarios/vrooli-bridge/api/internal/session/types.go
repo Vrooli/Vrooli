@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/audit"
-	"vrooli-bridge/internal/clock"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 const (
@@ -63,7 +64,7 @@ type State struct {
 
 type Manager struct {
 	mu       sync.Mutex
-	clock    clock.Clock
+	clock    schedule.Clock
 	audit    audit.Sink
 	sessions map[string]*State
 	outputs  map[string]map[chan DataResult]struct{}
@@ -71,9 +72,9 @@ type Manager struct {
 	newID    func() string
 }
 
-func NewManager(clk clock.Clock, sink audit.Sink) *Manager {
+func NewManager(clk schedule.Clock, sink audit.Sink) *Manager {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &Manager{clock: clk, audit: sink, sessions: make(map[string]*State), outputs: make(map[string]map[chan DataResult]struct{}), history: make(map[string][]DataResult)}
 }

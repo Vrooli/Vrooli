@@ -5,7 +5,8 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/presence"
-	"vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +17,7 @@ func fixedNow() time.Time { return time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)
 // dial-out channel; the SSE handler drains conn.Out(). A push to an online node
 // reaches its connection.
 func TestHub_PushDeliversToOnlineNode(t *testing.T) {
-	hub := presence.NewHub(mocks.NewFakeClock(fixedNow()))
+	hub := presence.NewHub(scheduletest.New(fixedNow()))
 	conn := hub.Connect("n1")
 	defer conn.Close()
 
@@ -34,13 +35,13 @@ func TestHub_PushDeliversToOnlineNode(t *testing.T) {
 // [REQ:BRG-P0-004] A push to an offline node reaches nothing (delivered 0), so
 // dispatch treats it as non-delivery.
 func TestHub_PushToOfflineNodeDeliversNothing(t *testing.T) {
-	hub := presence.NewHub(mocks.NewFakeClock(fixedNow()))
+	hub := presence.NewHub(scheduletest.New(fixedNow()))
 	require.Equal(t, 0, hub.Push("ghost", []byte("x")))
 }
 
 // [REQ:BRG-P0-004] A push fans out to every live connection a node holds.
 func TestHub_PushFansOutToAllConnections(t *testing.T) {
-	hub := presence.NewHub(mocks.NewFakeClock(fixedNow()))
+	hub := presence.NewHub(scheduletest.New(fixedNow()))
 	c1 := hub.Connect("n1")
 	c2 := hub.Connect("n1")
 	defer c1.Close()
@@ -52,7 +53,7 @@ func TestHub_PushFansOutToAllConnections(t *testing.T) {
 // [REQ:BRG-P0-004] A wedged node whose buffer is full does not stall the push
 // path: once its buffer fills, further pushes report it as undelivered.
 func TestHub_PushNonBlockingWhenBufferFull(t *testing.T) {
-	hub := presence.NewHub(mocks.NewFakeClock(fixedNow()))
+	hub := presence.NewHub(scheduletest.New(fixedNow()))
 	conn := hub.Connect("n1")
 	defer conn.Close()
 
@@ -66,7 +67,7 @@ func TestHub_PushNonBlockingWhenBufferFull(t *testing.T) {
 }
 
 func TestHub_DeliveryAckIsNodeBoundAndIdempotent(t *testing.T) {
-	hub := presence.NewHub(mocks.NewFakeClock(fixedNow()))
+	hub := presence.NewHub(scheduletest.New(fixedNow()))
 	conn := hub.Connect("n1")
 	defer conn.Close()
 
@@ -80,7 +81,7 @@ func TestHub_DeliveryAckIsNodeBoundAndIdempotent(t *testing.T) {
 }
 
 func TestHub_OfflineHookRunsOnlyAfterLastConnectionCloses(t *testing.T) {
-	hub := presence.NewHub(mocks.NewFakeClock(fixedNow()))
+	hub := presence.NewHub(scheduletest.New(fixedNow()))
 	var offline []string
 	hub.SetOfflineHook(func(nodeID string) { offline = append(offline, nodeID) })
 	first := hub.Connect("n1")

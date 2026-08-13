@@ -7,7 +7,8 @@ import (
 
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/queue"
-	"vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -30,7 +31,7 @@ func (noopAborter) Abort(context.Context, string, string) error { return nil }
 
 func newScheduler(t *testing.T) *queue.Scheduler {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	return queue.NewScheduler(okPusher{}, noopAborter{}, clk, 1)
 }
 

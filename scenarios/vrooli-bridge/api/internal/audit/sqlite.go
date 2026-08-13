@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"vrooli-bridge/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -23,13 +23,13 @@ type SQLExecutor interface {
 
 type sqliteStore struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteStore constructs the production Store (Sink + Reader). This is the
 // default accountability substrate; it is append-only by construction (only the
 // INSERT and SELECT below exist).
-func NewSQLiteStore(db SQLExecutor, clk clock.Clock) Store {
+func NewSQLiteStore(db SQLExecutor, clk schedule.Clock) Store {
 	return &sqliteStore{db: db, clock: clk}
 }
 

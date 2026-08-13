@@ -14,6 +14,7 @@ import (
 	strategyregistry "device-control/strategy/registry"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+	flowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows"
 )
 
 func TestAcquireRequestUsesDistinctSnakeCaseFields(t *testing.T) {
@@ -37,6 +38,20 @@ func TestFlowRequestUsesOneSnakeCaseConvention(t *testing.T) {
 	require.Equal(t, "android-adb", got.StrategyID)
 	require.Equal(t, "phone-1", got.DeviceID)
 	require.Equal(t, "operator", got.Actor)
+}
+
+func TestFlowProtoCarriesExplicitTransport(t *testing.T) {
+	got := flowFromProto(&flowsv1.Flow{Id: "flow-1", Transport: "wireless"})
+	require.Equal(t, "wireless", got.Transport)
+}
+
+func TestRunResultProtoCarriesDisconnectMetadata(t *testing.T) {
+	got := runResultProto(internal.RunResult{RunID: "run-1", Disposition: "device_disconnected", Incomplete: true, DisconnectReason: "ADB endpoint disappeared", DisconnectStep: "actuate"})
+	require.Equal(t, "run-1", got.RunId)
+	require.Equal(t, "device_disconnected", got.Disposition)
+	require.True(t, got.Incomplete)
+	require.Equal(t, "ADB endpoint disappeared", got.DisconnectReason)
+	require.Equal(t, "actuate", got.DisconnectStep)
 }
 
 func TestUnknownDeviceIsBadRequestAndPreservesMessage(t *testing.T) {

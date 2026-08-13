@@ -79,7 +79,7 @@ func domainToProto(m internalmachines.Machine) *machinesv1.Machine {
 }
 
 func trustToProto(trust internalmachines.TrustRecord) *machinesv1.MachineTrust {
-	return &machinesv1.MachineTrust{ClientKeyFingerprint: trust.ClientKeyFingerprint, HostKeyFingerprint: trust.HostKeyFingerprint, HostKeyState: string(trust.HostKeyState), UpdatedAt: timestamppb.New(trust.UpdatedAt)}
+	return &machinesv1.MachineTrust{ClientKeyFingerprint: trust.ClientKeyFingerprint, HostKeyFingerprint: trust.HostKeyFingerprint, HostKeyState: string(trust.HostKeyState), SshUser: trust.SSHUser, SshPort: int32(trust.SSHPort), ConnectionState: string(trust.ConnectionState), UpdatedAt: timestamppb.New(trust.UpdatedAt)}
 }
 
 func cleanupToProto(cleanup internalmachines.CleanupTombstone) *machinesv1.MachineCleanup {

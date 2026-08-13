@@ -127,15 +127,37 @@ code server-side (injected over SSH stdin, never argv/logs) → run the
 script → confirm the node is ONLINE. The op is server-owned: it survives
 your client disconnecting and is re-attachable by id.
 
+### Canonical one-command connection
+
+Use this command for the normal operator flow:
+
+```bash
+vrooli-bridge onboard connect --host mini-01.local --user admin
+```
+
+On first touch, Bridge preflight resolves one durable Machine and the command
+opens one masked SSH-password prompt. Bridge installs its own per-Machine key,
+records only key/host fingerprints and non-secret connection metadata, pairs the
+node, performs a final key-only SSH check, and waits for ONLINE. The same
+command after a Bridge restart reuses that Machine and key without prompting.
+
+If the key is missing or revoked, `connect` stops before starting an operation
+unless an explicit password recovery path is supplied. Ambiguous Machines and
+changed host keys fail closed and require operator review. The SSH password is
+never placed in argv, SQLite, operation events, logs, or evidence. Use
+`--password-stdin` or `$BRIDGE_SSH_PASSWORD` for headless first touch/recovery;
+the lower-level `onboard start` verb remains available for automation and uses
+the same server-owned preflight resolver.
+
 CLI path (owner-authenticated; `auth login` first):
 
 ```bash
-# `start` NEVER prompts. Supply the SSH password one of three ways (or the
+# `start` NEVER prompts automatically. Supply the SSH password one of three ways (or the
 # UI onboard form on the fleet dashboard — the equivalent browser path):
 #   --password-stdin       pipe it in (e.g. from `read -s` or a secret manager)
 #   --prompt-password      explicit opt-in masked TTY prompt
 #   $BRIDGE_SSH_PASSWORD   ambient env var for programmatic runs
-# With none of these, the host is assumed to already trust the bridge key.
+# With none of these, start proceeds only when preflight proves the Bridge key is trusted.
 # The password rides once in the request body — never argv, never stored.
 # Passwordless sudo is provisioned at first touch by default
 # (--provision-sudo); pass --no-provision-sudo to opt out and let

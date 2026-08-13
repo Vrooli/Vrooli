@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/queue"
-	"vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +15,7 @@ import (
 func watchdog(t *testing.T, entry queue.DurableEntry, aborter *fakeAborter) (*queue.Watchdog, *fakeDurableStore, *queue.Scheduler, time.Time) {
 	t.Helper()
 	now := time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)
-	clk := mocks.NewFakeClock(now)
+	clk := scheduletest.New(now)
 	store := &fakeDurableStore{entries: []queue.DurableEntry{entry}}
 	scheduler, err := queue.NewSchedulerWithStore(&fakePusher{failNodes: map[string]bool{}, available: map[string]bool{"n1": false}}, aborter, clk, 1, store)
 	require.NoError(t, err)

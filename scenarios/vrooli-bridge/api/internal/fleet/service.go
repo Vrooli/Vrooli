@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"vrooli-bridge/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Service is the application-layer surface the fleet handler depends on. It owns
@@ -31,7 +31,7 @@ type service struct {
 	nodes       NodeLister
 	presence    Presence
 	provisioner Provisioner
-	clock       clock.Clock
+	clock       schedule.Clock
 	revResolver RevisionResolver
 }
 
@@ -48,7 +48,7 @@ func WithRevisionResolver(r RevisionResolver) Option {
 }
 
 // NewService constructs the production Service.
-func NewService(repo Repository, nodes NodeLister, presence Presence, provisioner Provisioner, clk clock.Clock, opts ...Option) Service {
+func NewService(repo Repository, nodes NodeLister, presence Presence, provisioner Provisioner, clk schedule.Clock, opts ...Option) Service {
 	s := &service{repo: repo, nodes: nodes, presence: presence, provisioner: provisioner, clock: clk}
 	for _, opt := range opts {
 		opt(s)

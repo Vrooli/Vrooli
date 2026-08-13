@@ -1705,6 +1705,36 @@
       "description": "One-shot node onboarding: drive a raw SSH host from bare OS to a paired, ONLINE fleet agent in one durable, re-attachable op",
       "commands": [
         {
+          "name": "connect",
+          "description": "Connect a host through Bridge's durable trust workflow. Prompts once for the SSH password on first touch or recovery, then reconnects without prompting on future runs.",
+          "flags": [
+            { "name": "host", "required": true, "description": "SSH host to connect" },
+            { "name": "machine-id", "description": "Existing durable Machine identity; normally inferred by Bridge" },
+            { "name": "user", "description": "SSH user (default: root)" },
+            { "name": "port", "description": "SSH port (default: 22)" },
+            { "name": "name", "description": "Fleet node label" },
+            { "name": "revision", "default": "@cp", "description": "Git revision to bring the node to" },
+            { "name": "repo-url", "description": "Source repo cloned on the node" },
+            { "name": "checkout-dir", "description": "Node checkout location" },
+            { "name": "control-plane-url", "description": "Control-plane URL the node dials back to" },
+            { "name": "reachability-mode", "description": "lan, tunnel, or manual" },
+            { "name": "verify-timeout", "description": "Seconds to wait for ONLINE" },
+            { "name": "setup-environment", "description": "development, production, or minimal" },
+            { "name": "setup-resources", "description": "enabled, none, or a comma-separated list" },
+            { "name": "setup-scenarios", "description": "none, all, or a comma-separated list" },
+            { "name": "include-optional", "bool": true, "description": "Apply optional host safeguards" },
+            { "name": "skip-setup", "bool": true, "description": "Skip node setup" },
+            { "name": "skip-prereqs", "bool": true, "description": "Assume prerequisites are installed" },
+            { "name": "provision-sudo", "bool": true, "description": "Provision scoped passwordless sudo" },
+            { "name": "no-provision-sudo", "bool": true, "description": "Opt out of passwordless sudo" },
+            { "name": "source", "description": "pinned or working-tree" },
+            { "name": "password-stdin", "bool": true, "description": "Read the one-time SSH password from stdin" },
+            { "name": "setup-passphrase-stdin", "bool": true, "description": "Read setup passphrase as the second stdin line" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OnboardService", "method": "PreflightOnboarding" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
           "name": "start",
           "description": "Onboard a host end-to-end (SSH first-touch \u2192 bootstrap \u2192 verify online). Never prompts: supply the SSH password via --password-stdin, --prompt-password (explicit opt-in), or $BRIDGE_SSH_PASSWORD; with none of these the host is assumed to already trust the bridge key. The password is sent once in the request body, never on argv. The UI onboard form is the equivalent browser path.",
           "flags": [

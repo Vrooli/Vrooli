@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"device-sync-hub/internal/testutil/db"
-	"device-sync-hub/internal/testutil/mocks"
 	"device-sync-hub/internal/transfer"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,14 +20,14 @@ import (
 
 // newRepo returns a sqlite-backed transfer.Repository with the production schema
 // applied — the canonical repository-test compose pattern.
-func newRepo(t *testing.T) (transfer.Repository, *mocks.FakeClock) {
+func newRepo(t *testing.T) (transfer.Repository, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(transfer.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
 	return transfer.NewSQLiteRepository(d, clk), clk
 }
 

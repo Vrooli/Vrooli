@@ -8,7 +8,8 @@ import (
 
 	"vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/testutil/db"
-	"vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 	apiDB "github.com/vrooli/api-core/database"
@@ -26,10 +27,10 @@ func (s presenceReaderStub) GetPresence(context.Context, string) (machines.Prese
 	return s.presence, nil
 }
 
-func newDB(t *testing.T) (*sql.DB, *mocks.FakeClock) {
+func newDB(t *testing.T) (*sql.DB, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
 	require.NoError(t, apiDB.EnsureSchemas(context.Background(), d, apiDB.SchemaProviderFunc(machines.Schema)))
 	return d, clk
 }
@@ -251,7 +252,7 @@ func TestBackfillLegacyPreservesAmbiguousRecordsForReview(t *testing.T) {
 	require.Equal(t, 2, reviews)
 	require.Zero(t, machineCount)
 
-	repo := machines.NewSQLiteRepository(d, mocks.NewFakeClock(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC)))
+	repo := machines.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC)))
 	items, err := repo.ListMigrationReviews(ctx)
 	require.NoError(t, err)
 	require.Len(t, items, 2)

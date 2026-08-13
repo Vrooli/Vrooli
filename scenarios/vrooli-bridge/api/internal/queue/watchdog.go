@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"vrooli-bridge/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // WatchdogConfig contains bounded delivery and execution safety limits. The
@@ -55,12 +55,12 @@ type Watchdog struct {
 	store     DurableStore
 	scheduler *Scheduler
 	aborter   Aborter
-	clock     clock.Clock
+	clock     schedule.Clock
 	config    WatchdogConfig
 	onOutcome func(Reconciliation)
 }
 
-func NewWatchdog(store DurableStore, scheduler *Scheduler, aborter Aborter, clk clock.Clock, config WatchdogConfig, onOutcome func(Reconciliation)) *Watchdog {
+func NewWatchdog(store DurableStore, scheduler *Scheduler, aborter Aborter, clk schedule.Clock, config WatchdogConfig, onOutcome func(Reconciliation)) *Watchdog {
 	if config.DeliveryLease <= 0 || config.Interval <= 0 || config.MaxAttempts <= 0 || config.StartDeadline <= 0 {
 		defaults := DefaultWatchdogConfig()
 		if config.DeliveryLease <= 0 {

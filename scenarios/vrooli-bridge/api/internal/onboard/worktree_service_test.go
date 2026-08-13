@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/onboard/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +23,7 @@ func workingTreeService(
 	rec *mocks.FakeNodeRevisionRecorder,
 	res onboard.RevisionResolver,
 ) onboard.Service {
-	return onboard.NewService(repo, driver, issuer, confirmer, clock.System{},
+	return onboard.NewService(repo, driver, issuer, confirmer, schedule.System(),
 		onboard.WithRevisionResolver(res),
 		onboard.WithWorkingTreeSource(src),
 		onboard.WithArtifactBuilder(&mocks.FakeArtifactBuilder{}),
@@ -146,7 +147,7 @@ func TestStart_WorkingTreeWithoutSourceIsRefused(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
 	res := &fakeRevResolver{resolved: wtBase}
-	svc := onboard.NewService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, clock.System{},
+	svc := onboard.NewService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(),
 		onboard.WithRevisionResolver(res), onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}))
 
 	in := validInput()

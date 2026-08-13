@@ -18,8 +18,9 @@ import (
 	"device-sync-hub/internal/deviceauth"
 	"device-sync-hub/internal/devices"
 	"device-sync-hub/internal/testutil/db"
-	"device-sync-hub/internal/testutil/mocks"
 	internaltransfer "device-sync-hub/internal/transfer"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +39,7 @@ func newREST(t *testing.T, cfg internaltransfer.Config) (*uploadHandler, *downlo
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(internaltransfer.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
 	store := blobstore.NewMemoryBlobStore()
 	cfg.Repo = internaltransfer.NewSQLiteRepository(d, clk)
 	cfg.Blobs = store

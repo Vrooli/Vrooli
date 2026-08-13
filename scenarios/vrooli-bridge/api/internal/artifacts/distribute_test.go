@@ -8,7 +8,8 @@ import (
 
 	"vrooli-bridge/internal/artifacts"
 	"vrooli-bridge/internal/artifacts/mocks"
-	testmocks "vrooli-bridge/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,7 @@ import (
 
 func newService(nodes *mocks.FakeNodeReader, delivery *mocks.FakeDelivery) (artifacts.Service, *mocks.FakeRepository) {
 	repo := mocks.NewFakeRepository()
-	clk := testmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	return artifacts.NewService(repo, nodes, delivery, clk), repo
 }
 
@@ -117,7 +118,7 @@ func TestDistribute_DeliveryFailureRecordedFailed(t *testing.T) {
 func TestProducedArtifactUploadRequiresRunOwnerAndRoundTrips(t *testing.T) {
 	produced := mocks.NewFakeProducedRepository()
 	runs := &mocks.FakeRunReader{Targets: map[string]artifacts.RunTarget{"run-1": {ID: "run-1", NodeID: "n1"}}}
-	clk := testmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
 	svc := artifacts.NewService(mocks.NewFakeRepository(), okNodes(), &mocks.FakeDelivery{}, clk,
 		artifacts.WithProducedRepository(produced), artifacts.WithRunReader(runs))
 
@@ -140,7 +141,7 @@ func TestProducedArtifactUploadRequiresRunOwnerAndRoundTrips(t *testing.T) {
 }
 
 func TestProducedArtifactUploadRejectsOversize(t *testing.T) {
-	clk := testmocks.NewFakeClock(time.Unix(0, 0).UTC())
+	clk := scheduletest.New(time.Unix(0, 0).UTC())
 	svc := artifacts.NewService(mocks.NewFakeRepository(), okNodes(), &mocks.FakeDelivery{}, clk,
 		artifacts.WithProducedRepository(mocks.NewFakeProducedRepository()),
 		artifacts.WithRunReader(&mocks.FakeRunReader{Targets: map[string]artifacts.RunTarget{"run-1": {NodeID: "n1"}}}))

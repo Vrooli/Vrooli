@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"vrooli-bridge/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Service is the application-layer surface the gate handler depends on. It owns
@@ -39,11 +39,11 @@ type service struct {
 	nodes    NodeLister
 	presence Presence
 	runner   Runner
-	clock    clock.Clock
+	clock    schedule.Clock
 }
 
 // NewService constructs the production Service.
-func NewService(repo Repository, nodes NodeLister, presence Presence, runner Runner, clk clock.Clock) Service {
+func NewService(repo Repository, nodes NodeLister, presence Presence, runner Runner, clk schedule.Clock) Service {
 	return &service{repo: repo, nodes: nodes, presence: presence, runner: runner, clock: clk}
 }
 
