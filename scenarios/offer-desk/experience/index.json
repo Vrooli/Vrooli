@@ -22,6 +22,12 @@
       "status": "draft"
     },
     {
+      "id": "triggers",
+      "path": "pages/triggers.json",
+      "title": "Triggers",
+      "status": "draft"
+    },
+    {
       "id": "proposals",
       "path": "pages/proposals.json",
       "title": "Proposals",
@@ -41,6 +47,12 @@
     }
   ],
   "journeys": [
+    {
+      "id": "author-a-trigger",
+      "path": "journeys/author-a-trigger.json",
+      "title": "Author a trigger",
+      "status": "draft"
+    },
     {
       "id": "disposition-a-fired-trigger",
       "path": "journeys/disposition-a-fired-trigger.json",

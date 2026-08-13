@@ -64,38 +64,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 `GATE-002` deliberately admits only declared facts, comparison operators and boolean composition. The first real trigger that wants something richer will feel like a small exception. It is not — that is how a rules engine starts. Route it to `OT-P2-004` (scenario-sourced facts) rather than widening the expression language.
 
-## Architecture Drift
-
-Use this section for deferred findings from `screaming-architecture-audit`.
-Do not create a standalone architecture-audit report unless the work is
-a migration handoff with a planned retirement path back into
-`ARCHITECTURE.md`, `SEAMS.md`, or this file.
-
-| Area | Drift | Maturity Impact | Real Fix |
-|---|---|---|---|
-| ### Scaffold health gate is not yet run
-
-`make setup` / `make start` / `make test` (Gate 0) have not been run for this scenario. Every gate above it was completed from documentation, so the scaffold is unproven at runtime. **Do this before any code work** — a foundation authored against a scaffold that does not boot is worth less than it appears.
-
-### The import is the riskiest step, and it is ordered
-
-`OT-P0-006` moves 22 markdown files into this scenario. The ordering rule is absolute and easy to get wrong under time pressure: **import, verify per-file counts, then delete sources.** The source files are the importer's only input. The team that owns them must be paused first, because a running team writes to the surfaces the importer reads.
-
-### The source catalog is already 19% broken
-
-33 of 174 internal links in `docs/monetization/` do not resolve. `MIG-002` requires those to import as findings rather than be discarded, so the drift stays visible after the move. Expect the first import run to produce a substantial finding list; that is the correct outcome, not a failure.
-
-### The trigger language will be asked to grow
-
-`GATE-002` deliberately admits only declared facts, comparison operators and boolean composition. The first real trigger that wants something richer will feel like a small exception. It is not — that is how a rules engine starts. Route it to `OT-P2-004` (scenario-sourced facts) rather than widening the expression language. |  |  |  |
-
-## Cross-references
-
-- [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)
-- [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
-- [`TESTING.md`](TESTING.md) — test patterns
-- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
-
 ### The generated shell fails two of its own accessibility floors on mobile
 
 Discovered 2026-08-13 during experience validation, and **reproduced identically in both scenarios generated from `react-vite` v1.6.5**, so this is a template defect rather than anything either scenario did:
@@ -108,3 +76,23 @@ This matters more than a normal placeholder complaint because `docs/START-HERE.m
 It is invisible until a scenario's experience contract is real enough to be checked against a running UI, which is why a freshly generated scenario reports clean. Fix it in the template rather than per-scenario, or every future scenario inherits it.
 
 **Reproduce:** `make start`, then `experience-manager spec validate <scenario> --json`.
+
+**Filed:** against `template-manager` (`react-vite` v1.6.5), not against this scenario. Do not patch the shell here — a per-scenario fix hides the defect from every future generation.
+
+## Architecture Drift
+
+Use this section for deferred findings from `screaming-architecture-audit`.
+Do not create a standalone architecture-audit report unless the work is
+a migration handoff with a planned retirement path back into
+`ARCHITECTURE.md`, `SEAMS.md`, or this file.
+
+| Area | Drift | Maturity Impact | Real Fix |
+|---|---|---|---|
+| _None recorded._ | | | |
+
+## Cross-references
+
+- [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)
+- [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
+- [`TESTING.md`](TESTING.md) — test patterns
+- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues

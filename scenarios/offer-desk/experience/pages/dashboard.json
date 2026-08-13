@@ -31,71 +31,338 @@
   "states": [
     {
       "id": "default",
-      "description": "The surface at rest with data present — the state a journey step assumes when it names none."
+      "description": "The surface at rest with data present — the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/"
+      }
     },
     {
       "id": "idle",
-      "description": "Nothing in flight; the surface is at rest and its controls are usable."
+      "description": "Nothing in flight; the surface is at rest and its controls are usable.",
+      "setup": {
+        "route": "/"
+      }
     },
     {
       "id": "pending",
-      "description": "A user-triggered operation is in flight and its outcome is not yet known."
+      "description": "A user-triggered operation is in flight and its outcome is not yet known.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "pending"
+        }
+      }
     },
     {
       "id": "success",
-      "description": "An operation completed; the result is announced, not merely rendered."
+      "description": "An operation completed; the result is announced, not merely rendered.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "success"
+        }
+      }
     },
     {
       "id": "loading",
-      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival."
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
     },
     {
       "id": "saving",
-      "description": "A write is in flight; the affected control is disabled and says why."
+      "description": "A write is in flight; the affected control is disabled and says why.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "saving"
+        }
+      }
     },
     {
       "id": "syncing",
-      "description": "A background read is refreshing data the user is already looking at."
+      "description": "A background read is refreshing data the user is already looking at.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "syncing"
+        }
+      }
     },
     {
       "id": "refreshing",
-      "description": "A user-requested re-read of data already on screen."
+      "description": "A user-requested re-read of data already on screen.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "refreshing"
+        }
+      }
     },
     {
       "id": "empty",
-      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded."
+      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "empty"
+        }
+      }
     },
     {
       "id": "partial",
-      "description": "Some contributing source could not be read; what is missing is named."
+      "description": "Some contributing source could not be read; what is missing is named.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "partial"
+        }
+      }
     },
     {
       "id": "stale",
-      "description": "Displayed data is older than its freshness window; its age is shown."
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "stale"
+        }
+      }
     },
     {
       "id": "validation-error",
-      "description": "Input was rejected before submission; the offending field is identified."
+      "description": "Input was rejected before submission; the offending field is identified.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
     },
     {
       "id": "request-error",
-      "description": "The request failed; the reason and the next action are stated."
+      "description": "The request failed; the reason and the next action are stated.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
     },
     {
       "id": "retrying",
-      "description": "An automatic retry is in progress; attempt count and next attempt are visible."
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "retrying"
+        }
+      }
     },
     {
       "id": "permission-denied",
-      "description": "The caller's role does not permit this; what role would is stated."
+      "description": "The caller's role does not permit this; what role would is stated.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "permission-denied"
+        }
+      }
     },
     {
       "id": "offline",
-      "description": "The client cannot reach the API; queued or read-only behavior is explained."
+      "description": "The client cannot reach the API; queued or read-only behavior is explained.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "offline"
+        }
+      }
     },
     {
       "id": "source-degraded",
-      "description": "One ranking source is unreadable; it is named with its last-good age while the others continue to rank. Never rendered as an empty board."
+      "description": "One ranking source is unreadable; it is named with its last-good age while the others continue to rank. Never rendered as an empty board.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "source-degraded"
+        }
+      }
+    },
+    {
+      "id": "ledger-unavailable",
+      "description": "The Money Ledger actuals join could not be read. Earnings are reported as unknown with a reason; no offer is shown as having earned zero.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "ledger-unavailable"
+        }
+      }
+    },
+    {
+      "id": "all-sources-healthy",
+      "description": "Every board source contributed. The only state in which the ranking is complete.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "all-sources-healthy"
+        }
+      }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "fired-triggers",
+      "role": "list",
+      "name": "Fired triggers",
+      "description": "Triggers that have fired since the last visit — decisions waiting on the operator."
+    },
+    {
+      "id": "earning-nothing",
+      "role": "list",
+      "name": "Active and earning nothing",
+      "description": "Active offers with no matching money events. The most expensive kind of silence."
+    },
+    {
+      "id": "source-availability",
+      "role": "list",
+      "name": "Sources",
+      "description": "Per-source contribution status for this ranking, each degrading independently."
+    },
+    {
+      "id": "ledger-gap",
+      "role": "status",
+      "description": "States that the actuals join could not be read, with a reason and the age of the last good reading."
+    },
+    {
+      "id": "board-ranking",
+      "role": "table",
+      "name": "Board",
+      "description": "The ranked entries, computed at read time across every available source."
+    },
+    {
+      "id": "empty-guidance",
+      "role": "note",
+      "description": "Explains an empty board — nothing fired and nothing is silent — distinct from sources being unreadable."
+    }
+  ],
+  "claims": [
+    {
+      "id": "unavailable-ledger-is-not-zero",
+      "type": "element-present",
+      "statement": "When the actuals join cannot be read, the board states that earnings are unknown with a reason, and no offer is shown as having earned zero.",
+      "tier": "machine",
+      "elements": [
+        "ledger-gap"
+      ],
+      "states": [
+        "ledger-unavailable"
+      ],
+      "rationale": "OT-P1-002 verbatim. An unavailable ledger rendered as zero is indistinguishable from an offer that genuinely earned nothing — and the two lead to opposite decisions."
+    },
+    {
+      "id": "sources-degrade-independently",
+      "type": "element-present",
+      "statement": "Each board source reports its own availability, and healthy sources continue to rank while one is unavailable.",
+      "tier": "machine",
+      "elements": [
+        "source-availability",
+        "board-ranking"
+      ],
+      "states": [
+        "source-degraded",
+        "ledger-unavailable"
+      ],
+      "rationale": "OT-P1-003. A board that blanks entirely when one source fails is less useful than the several surfaces it replaced."
+    },
+    {
+      "id": "fired-triggers-read-first",
+      "type": "reading-order",
+      "statement": "Fired triggers read before active-but-earning-nothing entries and before the rest of the ranking.",
+      "tier": "machine",
+      "elements": [
+        "fired-triggers",
+        "earning-nothing",
+        "board-ranking"
+      ],
+      "states": [
+        "default"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "Priorities 1 and 2. A fired trigger is a decision waiting on the operator; everything else is context. Direction-aware so the order survives RTL."
+    },
+    {
+      "id": "degraded-is-distinct-from-healthy",
+      "type": "state-distinct",
+      "statement": "A ranking computed with a degraded source is perceivably different from one computed with every source available.",
+      "tier": "machine",
+      "states": [
+        "all-sources-healthy",
+        "source-degraded"
+      ],
+      "elements": [
+        "source-availability"
+      ],
+      "rationale": "Otherwise a partial ranking is read as a complete one, which is the board-level form of the silent-zero failure."
+    },
+    {
+      "id": "empty-board-differs-from-unreadable",
+      "type": "state-distinct",
+      "statement": "A board with genuinely nothing to report is perceivably different from one whose sources could not be read.",
+      "tier": "machine",
+      "states": [
+        "empty",
+        "ledger-unavailable"
+      ],
+      "elements": [
+        "empty-guidance",
+        "ledger-gap"
+      ],
+      "rationale": "'Nothing needs you' and 'I could not tell whether anything needs you' are opposite conclusions that both render as an empty list."
+    },
+    {
+      "id": "board-visible-without-scroll",
+      "type": "visible-without-scroll",
+      "statement": "Fired triggers and any source degradation are visible without scrolling at every viewport.",
+      "tier": "machine",
+      "elements": [
+        "fired-triggers",
+        "source-availability"
+      ],
+      "states": [
+        "source-degraded"
+      ],
+      "rationale": "This is a surface read a few times a week and understood cold. What needs action, and whether the picture is complete, must arrive together."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "fired-triggers": {
+        "testid": "board-fired-triggers"
+      },
+      "earning-nothing": {
+        "testid": "board-earning-nothing"
+      },
+      "source-availability": {
+        "testid": "board-source-availability"
+      },
+      "ledger-gap": {
+        "testid": "board-ledger-gap"
+      },
+      "board-ranking": {
+        "testid": "board-ranking"
+      },
+      "empty-guidance": {
+        "testid": "board-empty-guidance"
+      }
+    }
+  }
 }

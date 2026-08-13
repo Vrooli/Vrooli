@@ -355,12 +355,6 @@ Dotted edges are **seams held open, not work planned**. Each is cheap to accommo
 | Reconciliation | A feed exists that is authoritative enough to reconcile *against*. Reconciling against nothing is not a feature. |
 | Adapter extraction | A third live adapter lands, **or** adapters need retry schedules independent of the journal's clock, **or** stored credentials need rotation — at which point the security boundary alone justifies the split. |
 
-## Deferred / Unmodeled Flows
-
-| Flow | Risk | Next Step |
-|---|---|---|
-| None yet. | Generated scaffold. | Add real scenario workflows when domains have stateful behavior. |
-
 ## Cross-References
 
 - [`DOMAINS.md`](DOMAINS.md) — owning domain map

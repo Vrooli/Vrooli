@@ -6,90 +6,357 @@
     "id": "accounts",
     "title": "Books & Accounts",
     "routes": [
-      "/accounts",
-      "/accounts/:id"
+      "/accounts"
     ],
-    "purpose": "Show books and the accounts inside them, and let an operator move value between books explicitly rather than by two unrelated entries.",
+    "purpose": "Show the accounting entities an operator keeps and the accounts inside them, so personal and business money share one system without being mixed.",
     "prd_refs": [
       "OT-P0-001",
-      "OT-P1-003"
+      "OT-P0-003"
     ]
   },
   "priorities": [
     {
-      "statement": "Which book is in view, at all times — a figure read against the wrong book is worse than no figure"
+      "statement": "Which book each account belongs to, unambiguously"
     },
     {
-      "statement": "Computed account balances, with the date they are as-of"
+      "statement": "Each account's balance, with the basis and age of the inputs behind it"
     },
     {
-      "statement": "Inter-book transfers shown as paired movements"
+      "statement": "Movement between books, modelled rather than lost"
+    },
+    {
+      "statement": "Account administration, ranked below the three above"
     }
   ],
   "states": [
     {
       "id": "default",
-      "description": "The surface at rest with data present — the state a journey step assumes when it names none."
+      "description": "Books and their accounts at rest.",
+      "setup": {
+        "route": "/accounts"
+      }
     },
     {
       "id": "idle",
-      "description": "Nothing in flight; the surface is at rest and its controls are usable."
+      "description": "Nothing in flight; the surface is at rest and its controls are usable.",
+      "setup": {
+        "route": "/accounts"
+      }
     },
     {
       "id": "pending",
-      "description": "A user-triggered operation is in flight and its outcome is not yet known."
+      "description": "A user-triggered operation is in flight and its outcome is not yet known.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "pending"
+        }
+      }
     },
     {
       "id": "success",
-      "description": "An operation completed; the result is announced, not merely rendered."
+      "description": "An operation completed; the result is announced, not merely rendered.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "success"
+        }
+      }
     },
     {
       "id": "loading",
-      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival."
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
     },
     {
       "id": "saving",
-      "description": "A write is in flight; the affected control is disabled and says why."
+      "description": "A write is in flight; the affected control is disabled and says why.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "saving"
+        }
+      }
     },
     {
       "id": "syncing",
-      "description": "A background read is refreshing data the user is already looking at."
+      "description": "A background read is refreshing data the user is already looking at.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "syncing"
+        }
+      }
     },
     {
       "id": "refreshing",
-      "description": "A user-requested re-read of data already on screen."
+      "description": "A user-requested re-read of data already on screen.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "refreshing"
+        }
+      }
     },
     {
       "id": "empty",
-      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded."
+      "description": "No books or accounts exist yet — first run.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "empty"
+        }
+      }
     },
     {
       "id": "partial",
-      "description": "Some contributing source could not be read; what is missing is named."
+      "description": "Some contributing source could not be read; what is missing is named.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "partial"
+        }
+      }
     },
     {
       "id": "stale",
-      "description": "Displayed data is older than its freshness window; its age is shown."
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "stale"
+        }
+      }
     },
     {
       "id": "validation-error",
-      "description": "Input was rejected before submission; the offending field is identified."
+      "description": "Input was rejected before submission; the offending field is identified.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
     },
     {
       "id": "request-error",
-      "description": "The request failed; the reason and the next action are stated."
+      "description": "The request failed; the reason and the next action are stated.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
     },
     {
       "id": "retrying",
-      "description": "An automatic retry is in progress; attempt count and next attempt are visible."
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "retrying"
+        }
+      }
     },
     {
       "id": "permission-denied",
-      "description": "The caller's role does not permit this; what role would is stated."
+      "description": "The caller's role does not permit this; what role would is stated.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "permission-denied"
+        }
+      }
     },
     {
       "id": "offline",
-      "description": "The client cannot reach the API; queued or read-only behavior is explained."
+      "description": "The client cannot reach the API; queued or read-only behavior is explained.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "multi-book",
+      "description": "More than one book exists — typically a personal and a business entity. Every account is attributed to exactly one of them.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "multi-book"
+        }
+      }
+    },
+    {
+      "id": "inter-book-transfer",
+      "description": "A movement between two books is present, shown as a linked pair rather than as an unexplained outflow in one book and inflow in the other.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "inter-book-transfer"
+        }
+      }
+    },
+    {
+      "id": "balance-partial",
+      "description": "An account's balance is missing a contributing source. The balance is shown with the gap named, never silently completed.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "balance-partial"
+        }
+      }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "book-list",
+      "role": "list",
+      "name": "Books",
+      "description": "The accounting entities the operator keeps. Each account belongs to exactly one."
+    },
+    {
+      "id": "book-label",
+      "role": "status",
+      "description": "The book an account belongs to, stated on the account itself rather than implied by grouping alone."
+    },
+    {
+      "id": "account-table",
+      "role": "table",
+      "name": "Accounts",
+      "description": "Accounts with kind and balance. Balances are compared down the column, so they share a decimal alignment."
+    },
+    {
+      "id": "balance-basis",
+      "role": "note",
+      "description": "The basis and age of the inputs behind a balance, shown beside the figure."
+    },
+    {
+      "id": "balance-gap",
+      "role": "status",
+      "description": "Names the source missing from a balance when it could not be fully computed."
+    },
+    {
+      "id": "transfer-pair",
+      "role": "link",
+      "description": "Links the two sides of an inter-book transfer so neither reads as unexplained money appearing or vanishing."
+    },
+    {
+      "id": "empty-guidance",
+      "role": "note",
+      "description": "First-run guidance explaining what a book is and why the personal/business split exists before asking for one."
+    }
+  ],
+  "claims": [
+    {
+      "id": "account-states-its-book",
+      "type": "element-present",
+      "statement": "Every account states which book it belongs to, rather than relying on visual grouping alone.",
+      "tier": "machine",
+      "elements": [
+        "account-table",
+        "book-label"
+      ],
+      "states": [
+        "multi-book"
+      ],
+      "rationale": "OT-P0-001. Grouping is lost to a screen reader, to a sorted view, and to a filtered one — and mixing personal and business money is the failure this model exists to prevent."
+    },
+    {
+      "id": "transfer-is-shown-as-a-pair",
+      "type": "element-present",
+      "statement": "A movement between books is presented as a linked pair rather than as two unrelated events.",
+      "tier": "machine",
+      "elements": [
+        "transfer-pair"
+      ],
+      "states": [
+        "inter-book-transfer"
+      ],
+      "rationale": "OT-P0-001 requires inter-book movement to be modelled rather than lost. An unlinked pair reads as income in one book and a loss in the other, which is wrong in both."
+    },
+    {
+      "id": "partial-balance-names-its-gap",
+      "type": "element-present",
+      "statement": "A balance that could not be fully computed is shown with the missing source named.",
+      "tier": "machine",
+      "elements": [
+        "balance-gap"
+      ],
+      "states": [
+        "balance-partial"
+      ],
+      "rationale": "OT-P0-003 and the honesty rule. A balance is derived at read time; a partial derivation must say so or it is indistinguishable from a complete one."
+    },
+    {
+      "id": "balance-carries-its-basis",
+      "type": "element-present",
+      "statement": "Each balance is accompanied by the basis and age of the inputs behind it.",
+      "tier": "machine",
+      "elements": [
+        "balance-basis"
+      ],
+      "states": [
+        "default",
+        "multi-book",
+        "stale"
+      ],
+      "rationale": "PRD honesty rule. Balances are the figures most likely to be read as fact, so they are the figures that most need their provenance adjacent."
+    },
+    {
+      "id": "empty-explains-books-first",
+      "type": "state-covered",
+      "statement": "The first-run state explains what a book is before asking the operator to create one.",
+      "tier": "machine",
+      "states": [
+        "empty"
+      ],
+      "elements": [
+        "empty-guidance"
+      ],
+      "rationale": "'Book' is domain vocabulary the target user does not have. An empty form labelled with an unfamiliar noun is the most likely abandonment point in the product."
+    },
+    {
+      "id": "balances-are-decimal-aligned",
+      "type": "custom",
+      "statement": "Balances share a decimal alignment and use tabular numerals so magnitudes are comparable down the column.",
+      "tier": "manual",
+      "elements": [
+        "account-table"
+      ],
+      "rationale": "DESIGN.md binding adaptation."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "book-list": {
+        "testid": "book-list"
+      },
+      "book-label": {
+        "testid": "account-book-label"
+      },
+      "account-table": {
+        "testid": "account-table"
+      },
+      "balance-basis": {
+        "testid": "account-balance-basis"
+      },
+      "balance-gap": {
+        "testid": "account-balance-gap"
+      },
+      "transfer-pair": {
+        "testid": "account-transfer-pair"
+      },
+      "empty-guidance": {
+        "testid": "accounts-empty-guidance"
+      }
+    }
+  }
 }

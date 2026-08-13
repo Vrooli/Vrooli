@@ -32,71 +32,411 @@
   "states": [
     {
       "id": "default",
-      "description": "The surface at rest with data present — the state a journey step assumes when it names none."
+      "description": "The surface at rest with data present — the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/"
+      }
     },
     {
       "id": "idle",
-      "description": "Nothing in flight; the surface is at rest and its controls are usable."
+      "description": "Nothing in flight; the surface is at rest and its controls are usable.",
+      "setup": {
+        "route": "/"
+      }
     },
     {
       "id": "pending",
-      "description": "A user-triggered operation is in flight and its outcome is not yet known."
+      "description": "A user-triggered operation is in flight and its outcome is not yet known.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "pending"
+        }
+      }
     },
     {
       "id": "success",
-      "description": "An operation completed; the result is announced, not merely rendered."
+      "description": "An operation completed; the result is announced, not merely rendered.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "success"
+        }
+      }
     },
     {
       "id": "loading",
-      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival."
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
     },
     {
       "id": "saving",
-      "description": "A write is in flight; the affected control is disabled and says why."
+      "description": "A write is in flight; the affected control is disabled and says why.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "saving"
+        }
+      }
     },
     {
       "id": "syncing",
-      "description": "A background read is refreshing data the user is already looking at."
+      "description": "A background read is refreshing data the user is already looking at.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "syncing"
+        }
+      }
     },
     {
       "id": "refreshing",
-      "description": "A user-requested re-read of data already on screen."
+      "description": "A user-requested re-read of data already on screen.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "refreshing"
+        }
+      }
     },
     {
       "id": "empty",
-      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded."
+      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded. No postings exist yet, so position is undefined rather than zero.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "empty"
+        }
+      }
     },
     {
       "id": "partial",
-      "description": "Some contributing source could not be read; what is missing is named."
+      "description": "Some contributing source could not be read; what is missing is named.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "partial"
+        }
+      }
     },
     {
       "id": "stale",
-      "description": "Displayed data is older than its freshness window; its age is shown."
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "stale"
+        }
+      }
     },
     {
       "id": "validation-error",
-      "description": "Input was rejected before submission; the offending field is identified."
+      "description": "Input was rejected before submission; the offending field is identified.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
     },
     {
       "id": "request-error",
-      "description": "The request failed; the reason and the next action are stated."
+      "description": "The request failed; the reason and the next action are stated.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
     },
     {
       "id": "retrying",
-      "description": "An automatic retry is in progress; attempt count and next attempt are visible."
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "retrying"
+        }
+      }
     },
     {
       "id": "permission-denied",
-      "description": "The caller's role does not permit this; what role would is stated."
+      "description": "The caller's role does not permit this; what role would is stated.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "permission-denied"
+        }
+      }
     },
     {
       "id": "offline",
-      "description": "The client cannot reach the API; queued or read-only behavior is explained."
+      "description": "The client cannot reach the API; queued or read-only behavior is explained.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "offline"
+        }
+      }
     },
     {
       "id": "position-partial",
-      "description": "At least one contributing adapter is unavailable. The figure is shown with the gap named; it is never silently completed with a zero."
+      "description": "At least one contributing adapter is unavailable. The figure is shown with the gap named; it is never silently completed with a zero.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "position-partial"
+        }
+      }
+    },
+    {
+      "id": "position-complete",
+      "description": "Every contributing adapter was available and fresh. The only state in which a figure stands without a caveat.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "position-complete"
+        }
+      }
+    },
+    {
+      "id": "goal-unmet",
+      "description": "A declared goal's threshold is not currently satisfied; the gap and the sustain-window progress are both shown.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "goal-unmet"
+        }
+      }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "runway-figure",
+      "role": "status",
+      "name": "Runway",
+      "description": "Months of runway at current burn and revenue. The page's headline figure and the first thing read."
+    },
+    {
+      "id": "runway-basis",
+      "role": "note",
+      "description": "The basis of the runway figure — which inputs were authoritative, derived, or operator-asserted, and how old the oldest one is."
+    },
+    {
+      "id": "completeness-banner",
+      "role": "status",
+      "name": "Position is partial",
+      "description": "States that at least one contributing adapter could not be read, and names it. Present only when the position is partial."
+    },
+    {
+      "id": "missing-adapter",
+      "role": "note",
+      "description": "The specific adapter that could not be read, its failure reason, and the age of its last success. Inline, not behind a drill-in."
+    },
+    {
+      "id": "goal-list",
+      "role": "list",
+      "name": "Goals",
+      "description": "Declared financial goals with a verdict each. A goal is a threshold plus a sustain window, so a verdict is never just met/unmet."
+    },
+    {
+      "id": "sustain-progress",
+      "role": "meter",
+      "description": "Progress through a goal's sustain window. A threshold met for one month out of three required is not the same as met."
+    },
+    {
+      "id": "delta-since-last",
+      "role": "status",
+      "description": "Change in each headline figure since the previous reading, carrying direction as a sign and a word rather than a colour."
+    },
+    {
+      "id": "empty-guidance",
+      "role": "note",
+      "description": "First-run guidance explaining that position is undefined until postings exist, and where to add the first one."
+    },
+    {
+      "id": "position-error",
+      "role": "alert",
+      "description": "Assertive notice that the position request itself failed — distinct from a position that computed but is partial."
+    }
+  ],
+  "claims": [
+    {
+      "id": "partial-names-the-missing-adapter",
+      "type": "element-present",
+      "statement": "When the position is partial, the adapter that could not be read is named on this page without opening another view.",
+      "tier": "machine",
+      "elements": [
+        "completeness-banner",
+        "missing-adapter"
+      ],
+      "states": [
+        "position-partial",
+        "partial"
+      ],
+      "rationale": "Priority 2 and OT-P1-004. 'Some data is missing' without naming the source forces the operator to guess which figure to distrust."
+    },
+    {
+      "id": "partial-is-distinct-from-complete",
+      "type": "state-distinct",
+      "statement": "A partial position is perceivably different from a complete one, without relying on the figure's value.",
+      "tier": "machine",
+      "states": [
+        "position-complete",
+        "position-partial"
+      ],
+      "elements": [
+        "completeness-banner"
+      ],
+      "rationale": "The scenario's signature guarantee. If the two states render identically, a silent zero is indistinguishable from a real one — the exact defect this product exists to refuse."
+    },
+    {
+      "id": "empty-is-distinct-from-zero",
+      "type": "state-covered",
+      "statement": "With no postings at all, the page explains that position is undefined rather than displaying a zero runway.",
+      "tier": "machine",
+      "states": [
+        "empty"
+      ],
+      "elements": [
+        "empty-guidance"
+      ],
+      "rationale": "The same honesty rule at first-run. A zero runway on an empty ledger is a confidently wrong number and the most alarming possible first impression."
+    },
+    {
+      "id": "every-figure-carries-its-basis",
+      "type": "element-present",
+      "statement": "The runway figure is accompanied by the basis of its inputs and the age of the oldest one.",
+      "tier": "machine",
+      "elements": [
+        "runway-figure",
+        "runway-basis"
+      ],
+      "states": [
+        "position-complete",
+        "position-partial",
+        "stale"
+      ],
+      "rationale": "PRD honesty rule and DESIGN.md: every figure has room beside it for its basis, so provenance is never hidden behind a hover."
+    },
+    {
+      "id": "runway-reads-before-detail",
+      "type": "reading-order",
+      "statement": "Runway and the completeness of the position read before the goal list and any secondary figure.",
+      "tier": "machine",
+      "elements": [
+        "completeness-banner",
+        "runway-figure",
+        "goal-list"
+      ],
+      "states": [
+        "position-partial"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "Priorities 1 and 2. Whether the number can be trusted must arrive with the number, not after it. Direction-aware so the order survives RTL."
+    },
+    {
+      "id": "goal-verdict-shows-sustain-window",
+      "type": "element-present",
+      "statement": "A goal verdict is accompanied by its progress through the sustain window, not only whether the threshold is currently crossed.",
+      "tier": "machine",
+      "elements": [
+        "goal-list",
+        "sustain-progress"
+      ],
+      "states": [
+        "goal-unmet",
+        "position-complete"
+      ],
+      "rationale": "OT-P1-002. The source canon's default-alive rule requires three consecutive months; a verdict that ignores the window would report 'met' on the first good month and be wrong."
+    },
+    {
+      "id": "position-error-differs-from-partial",
+      "type": "state-distinct",
+      "statement": "A failed position request is perceivably different from a position that computed but is missing a source.",
+      "tier": "machine",
+      "states": [
+        "request-error",
+        "position-partial"
+      ],
+      "elements": [
+        "position-error"
+      ],
+      "rationale": "'I could not compute this' and 'I computed this without one input' lead to different operator actions. Collapsing them wastes the distinction the whole ingest contract creates."
+    },
+    {
+      "id": "runway-visible-without-scroll",
+      "type": "visible-without-scroll",
+      "statement": "Runway and the position's completeness are visible without scrolling at every viewport.",
+      "tier": "machine",
+      "elements": [
+        "runway-figure",
+        "completeness-banner"
+      ],
+      "states": [
+        "position-partial"
+      ],
+      "rationale": "Priority 1. A caveat below the fold is a caveat that will not be read, and this one changes the meaning of the figure above it."
+    },
+    {
+      "id": "direction-is-never-colour-only",
+      "type": "custom",
+      "statement": "Every change and every outflow carries a sign or a word, so its direction survives without colour perception.",
+      "tier": "manual",
+      "elements": [
+        "delta-since-last"
+      ],
+      "rationale": "DESIGN.md binding adaptation and the PRD accessibility rule. Manual because it is a perceptual property of a rendered value rather than an element-presence check."
+    },
+    {
+      "id": "figures-are-decimal-aligned",
+      "type": "custom",
+      "statement": "Figures compared across rows use tabular numerals and share a decimal alignment.",
+      "tier": "manual",
+      "elements": [
+        "goal-list"
+      ],
+      "rationale": "DESIGN.md binding adaptation: financial figures on this scenario's surfaces are read in comparison, which misaligned proportional digits actively defeat."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "runway-figure": {
+        "testid": "position-runway"
+      },
+      "runway-basis": {
+        "testid": "position-runway-basis"
+      },
+      "completeness-banner": {
+        "testid": "position-completeness"
+      },
+      "missing-adapter": {
+        "testid": "position-missing-adapter"
+      },
+      "goal-list": {
+        "testid": "position-goal-list"
+      },
+      "sustain-progress": {
+        "testid": "goal-sustain-progress"
+      },
+      "delta-since-last": {
+        "testid": "position-delta"
+      },
+      "empty-guidance": {
+        "testid": "position-empty-guidance"
+      },
+      "position-error": {
+        "testid": "position-error"
+      }
+    }
+  }
 }

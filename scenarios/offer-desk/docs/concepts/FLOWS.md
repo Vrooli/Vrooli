@@ -324,12 +324,6 @@ stateDiagram-v2
   end note
 ```
 
-## Deferred / Unmodeled Flows
-
-| Flow | Risk | Next Step |
-|---|---|---|
-| None yet. | Generated scaffold. | Add real scenario workflows when domains have stateful behavior. |
-
 ## Cross-References
 
 - [`DOMAINS.md`](DOMAINS.md) — owning domain map

@@ -61,25 +61,6 @@ upload exception. Copy its shape for your own domains, then remove it.
   [`../internal/SEAMS.md`](../internal/SEAMS.md).
 <!-- EXAMPLE-DOMAIN:notes END -->
 
-## Domain Details
-
-### health
-
-- Purpose: expose API/database readiness and show the UI can read live
-  backend state.
-- Primary archetype: reporting / query.
-- Secondary traits: operational health.
-- Owns: health response construction and dependency status mapping.
-- Does not own: product data, business rules, or scenario-specific
-  domain behavior.
-- API: `api/handlers/health/`.
-- CLI: built-in `status` command is provided through cli-core.
-- UI: `ui/src/features/health/HealthCard.tsx`.
-- Storage: none; probes configured database reachability.
-- Requirements: starter scaffold health only.
-- Tests: handler, module, UI feature, and accessibility tests.
-- Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
-
 ## Shared Concepts
 
 | Concept | Meaning | Owner |
@@ -111,11 +92,29 @@ These are important but should not become product domains:
 - `api/internal/testutil/` — cross-domain test harnesses.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.
+- The secret-store client used by authenticating adapters — a typed caller, not a bounded context.
 
 If one of these starts using product vocabulary, split the product
 piece into an owning domain instead of growing infrastructure.
 
 ## Domain Details
+
+### health
+
+- Purpose: expose API/database readiness and show the UI can read live
+  backend state.
+- Primary archetype: reporting / query.
+- Secondary traits: operational health.
+- Owns: health response construction and dependency status mapping.
+- Does not own: product data, business rules, or scenario-specific
+  domain behavior.
+- API: `api/handlers/health/`.
+- CLI: built-in `status` command is provided through cli-core.
+- UI: `ui/src/features/health/HealthCard.tsx`.
+- Storage: none; probes configured database reachability.
+- Requirements: starter scaffold health only.
+- Tests: handler, module, UI feature, and accessibility tests.
+- Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
 
 ### books
 
@@ -154,10 +153,6 @@ books  →  journal  →  { ingest (writes), position (reads) }
 ```
 
 Build `books` and `journal` as one vertical slice, then `ingest` with the manual and file adapters, then `position`. Do not build every API, then every CLI, then every UI — finish one domain across proto, API, transport, CLI and UI before starting the next.
-
-## Not Domains
-
-Shared substrate with no business vocabulary: the composition root and HTTP server, storage plumbing (`api-core/storage`), the secret-store client used by authenticating adapters, and the CLI/UI translation layers.
 
 ## Deliberately Excluded
 

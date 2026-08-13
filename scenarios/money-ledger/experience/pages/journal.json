@@ -8,95 +8,415 @@
     "routes": [
       "/journal"
     ],
-    "purpose": "Show money events with their provenance, and let an operator add one by hand or correct one with a reversing entry.",
+    "purpose": "Show every money event as it was recorded, prove nothing has been edited, and provide the only sanctioned correction path.",
     "prd_refs": [
       "OT-P0-002",
       "OT-P0-005",
-      "OT-P0-006"
+      "OT-P0-006",
+      "OT-P0-007"
     ]
   },
   "priorities": [
     {
-      "statement": "Each event's amount, direction, date and account"
+      "statement": "Each event's amount, date, account and direction, comparable down the column"
     },
     {
-      "statement": "Its basis — authoritative, derived, or operator-asserted — beside the number, never inferred from styling"
+      "statement": "Where each event came from and how much it can be trusted"
     },
     {
-      "statement": "Whether it has been reversed, and by which entry"
+      "statement": "That a correction is a new entry, never an edit — visible in the record itself"
     },
     {
-      "statement": "Which adapter brought it in"
+      "statement": "Filters and search, ranked below the three above"
     }
   ],
   "states": [
     {
       "id": "default",
-      "description": "The surface at rest with data present — the state a journey step assumes when it names none."
+      "description": "The journal at rest with events present.",
+      "setup": {
+        "route": "/journal"
+      }
     },
     {
       "id": "idle",
-      "description": "Nothing in flight; the surface is at rest and its controls are usable."
+      "description": "Nothing in flight; the surface is at rest and its controls are usable.",
+      "setup": {
+        "route": "/journal"
+      }
     },
     {
       "id": "pending",
-      "description": "A user-triggered operation is in flight and its outcome is not yet known."
+      "description": "A user-triggered operation is in flight and its outcome is not yet known.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "pending"
+        }
+      }
     },
     {
       "id": "success",
-      "description": "An operation completed; the result is announced, not merely rendered."
+      "description": "An operation completed; the result is announced, not merely rendered.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "success"
+        }
+      }
     },
     {
       "id": "loading",
-      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival."
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
     },
     {
       "id": "saving",
-      "description": "A write is in flight; the affected control is disabled and says why."
+      "description": "A write is in flight; the affected control is disabled and says why.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "saving"
+        }
+      }
     },
     {
       "id": "syncing",
-      "description": "A background read is refreshing data the user is already looking at."
+      "description": "A background read is refreshing data the user is already looking at.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "syncing"
+        }
+      }
     },
     {
       "id": "refreshing",
-      "description": "A user-requested re-read of data already on screen."
+      "description": "A user-requested re-read of data already on screen.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "refreshing"
+        }
+      }
     },
     {
       "id": "empty",
-      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded."
+      "description": "The query succeeded and there are genuinely no events — distinct from not-yet-loaded.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "empty"
+        }
+      }
     },
     {
       "id": "partial",
-      "description": "Some contributing source could not be read; what is missing is named."
+      "description": "Some contributing source could not be read; what is missing is named.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "partial"
+        }
+      }
     },
     {
       "id": "stale",
-      "description": "Displayed data is older than its freshness window; its age is shown."
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "stale"
+        }
+      }
     },
     {
       "id": "validation-error",
-      "description": "Input was rejected before submission; the offending field is identified."
+      "description": "Input was rejected before submission; the offending field is identified.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
     },
     {
       "id": "request-error",
-      "description": "The request failed; the reason and the next action are stated."
+      "description": "The request failed; the reason and the next action are stated.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
     },
     {
       "id": "retrying",
-      "description": "An automatic retry is in progress; attempt count and next attempt are visible."
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "retrying"
+        }
+      }
     },
     {
       "id": "permission-denied",
-      "description": "The caller's role does not permit this; what role would is stated."
+      "description": "The caller's role does not permit this; what role would is stated.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "permission-denied"
+        }
+      }
     },
     {
       "id": "offline",
-      "description": "The client cannot reach the API; queued or read-only behavior is explained."
+      "description": "The client cannot reach the API; queued or read-only behavior is explained.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "offline"
+        }
+      }
     },
     {
       "id": "reversed",
-      "description": "This entry has been reversed. Both the original and its reversal remain visible and linked; neither can be edited or deleted."
+      "description": "At least one event has been reversed. Both the original and its reversing entry are present and linked; neither is hidden, because hiding the original would be an edit by another name.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "reversed"
+        }
+      }
+    },
+    {
+      "id": "manual-entry",
+      "description": "The operator is recording an event by hand. Presented as an ordinary adapter path, not a fallback or an escape hatch.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "manual-entry"
+        }
+      }
+    },
+    {
+      "id": "audit-open",
+      "description": "The append-only audit trail for one event is open, showing actor, timestamp, prior value and reason for every change.",
+      "setup": {
+        "route": "/journal",
+        "query": {
+          "fixture": "audit-open"
+        }
+      }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "event-table",
+      "role": "table",
+      "name": "Journal",
+      "description": "One row per money event, with amount, date, account and direction. The column of amounts is the page's primary comparison surface."
+    },
+    {
+      "id": "event-basis",
+      "role": "status",
+      "description": "Per-event basis — authoritative, derived, or operator-asserted — shown in the row rather than behind a hover."
+    },
+    {
+      "id": "event-source",
+      "role": "note",
+      "description": "The adapter that produced the event and when it was fetched. An operator-entered event names the operator."
+    },
+    {
+      "id": "reversal-link",
+      "role": "link",
+      "description": "On a reversed event, the link to its reversing entry, and on a reversing entry, the link back to what it reverses."
+    },
+    {
+      "id": "reversal-reason",
+      "role": "note",
+      "description": "Why the reversal was made. Required at write time, so it can never be absent on a reversed pair."
+    },
+    {
+      "id": "reverse-action",
+      "role": "button",
+      "name": "Reverse",
+      "description": "The only sanctioned correction path. There is deliberately no edit or delete control anywhere on this page."
+    },
+    {
+      "id": "audit-trail",
+      "role": "list",
+      "name": "Audit trail",
+      "description": "Append-only history for one event: actor, timestamp, prior value, and reason for each change."
+    },
+    {
+      "id": "manual-entry-form",
+      "role": "form",
+      "name": "Record an event",
+      "description": "Operator entry, presented as an ordinary ingestion path with the same fields any adapter supplies."
+    },
+    {
+      "id": "empty-guidance",
+      "role": "note",
+      "description": "First-run guidance: no events yet, and the two ways to add them — record one by hand or run an adapter."
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-edit-or-delete-control-exists",
+      "type": "affordance-present",
+      "statement": "The only correction affordance on an event is reversal; no edit or delete control is offered anywhere on this page.",
+      "tier": "machine",
+      "elements": [
+        "reverse-action"
+      ],
+      "params": {
+        "affordances": [
+          "reverse"
+        ],
+        "targetRole": "button"
+      },
+      "rationale": "OT-P0-002. The journal is append-only. Offering an edit control that the API would refuse teaches the wrong model and invites the endpoint to be added later."
+    },
+    {
+      "id": "reversal-shows-both-entries",
+      "type": "element-present",
+      "statement": "A reversed event and its reversing entry are both present and linked to each other; neither is hidden or collapsed away.",
+      "tier": "machine",
+      "elements": [
+        "reversal-link",
+        "reversal-reason"
+      ],
+      "states": [
+        "reversed"
+      ],
+      "rationale": "Hiding the original would make reversal indistinguishable from an edit, which defeats the append-only guarantee at the presentation layer."
+    },
+    {
+      "id": "audit-trail-is-reachable",
+      "type": "element-present",
+      "statement": "The append-only audit trail for an event — actor, timestamp, prior value, reason — is reachable from the journal.",
+      "tier": "machine",
+      "elements": [
+        "audit-trail"
+      ],
+      "states": [
+        "audit-open"
+      ],
+      "rationale": "OT-P0-007. An audit trail that exists in the database but has no surface cannot be checked by the person it protects."
+    },
+    {
+      "id": "every-event-shows-its-basis",
+      "type": "element-present",
+      "statement": "Every event row carries its basis and its source alongside the amount.",
+      "tier": "machine",
+      "elements": [
+        "event-table",
+        "event-basis",
+        "event-source"
+      ],
+      "states": [
+        "default",
+        "reversed"
+      ],
+      "rationale": "OT-P0-005 and the PRD honesty rule. A figure whose trustworthiness is one click away is a figure that will be read as fully trustworthy."
+    },
+    {
+      "id": "manual-entry-is-not-a-fallback",
+      "type": "state-covered",
+      "statement": "Recording an event by hand uses the same fields and the same prominence as any other ingestion path.",
+      "tier": "machine",
+      "elements": [
+        "manual-entry-form"
+      ],
+      "states": [
+        "manual-entry"
+      ],
+      "rationale": "OT-P0-006. Several real revenue sources have no API at all. Presenting manual entry as a degraded path tells those users they are using the product wrong."
+    },
+    {
+      "id": "empty-explains-both-paths",
+      "type": "state-covered",
+      "statement": "The empty journal explains both ways to add an event rather than rendering a blank table.",
+      "tier": "machine",
+      "states": [
+        "empty"
+      ],
+      "elements": [
+        "empty-guidance"
+      ],
+      "rationale": "First-run is the most likely empty state and the next action is not guessable from an empty grid."
+    },
+    {
+      "id": "reverse-is-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The reversal control is operable from the keyboard.",
+      "tier": "machine",
+      "elements": [
+        "reverse-action"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "It is the only correction path in the product; a correction that requires a pointer is not always available."
+    },
+    {
+      "id": "amounts-are-decimal-aligned",
+      "type": "custom",
+      "statement": "Amounts in the journal share a decimal alignment and use tabular numerals, so magnitudes are comparable down the column.",
+      "tier": "manual",
+      "elements": [
+        "event-table"
+      ],
+      "rationale": "DESIGN.md binding adaptation. This is the page where the comparison-across-rows property matters most, and proportional digits defeat it silently."
+    },
+    {
+      "id": "direction-is-never-colour-only",
+      "type": "custom",
+      "statement": "An outflow is distinguished from an inflow by a sign and a label, not by tint alone.",
+      "tier": "manual",
+      "elements": [
+        "event-table"
+      ],
+      "rationale": "PRD accessibility rule. A red tint is invisible to a substantial fraction of readers and meaningless to a screen reader."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "event-table": {
+        "testid": "journal-table"
+      },
+      "event-basis": {
+        "testid": "journal-event-basis"
+      },
+      "event-source": {
+        "testid": "journal-event-source"
+      },
+      "reversal-link": {
+        "testid": "journal-reversal-link"
+      },
+      "reversal-reason": {
+        "testid": "journal-reversal-reason"
+      },
+      "reverse-action": {
+        "testid": "journal-reverse"
+      },
+      "audit-trail": {
+        "testid": "journal-audit-trail"
+      },
+      "manual-entry-form": {
+        "testid": "journal-manual-entry"
+      },
+      "empty-guidance": {
+        "testid": "journal-empty-guidance"
+      }
+    }
+  }
 }

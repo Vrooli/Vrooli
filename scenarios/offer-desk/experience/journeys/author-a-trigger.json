@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "author-a-trigger",
+    "title": "An operator declares a condition instead of remembering it",
+    "purpose": "The path that makes the scenario worth building. A condition written once, proven to parse, and checked against real facts before it is trusted — replacing a sentence in a document that nothing could evaluate.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P1-005"
+    ]
+  },
+  "steps": [
+    {
+      "page": "offers",
+      "intent": "Open the offer that is waiting on something and see it has no machine-evaluable trigger"
+    },
+    {
+      "page": "triggers",
+      "state": "parse-error",
+      "intent": "Write the condition, and learn immediately where it does not parse and what the language admits"
+    },
+    {
+      "page": "triggers",
+      "state": "dry-run-unknown",
+      "intent": "Dry-run it and discover a referenced fact does not exist yet — reported as unknown, not as unsatisfied"
+    },
+    {
+      "page": "triggers",
+      "state": "dry-run-unsatisfied",
+      "intent": "Supply the missing fact, dry-run again, and read a verdict that names every fact it used"
+    },
+    {
+      "page": "offers",
+      "intent": "Confirm the offer now states what it is waiting on, in the form the condition was declared"
+    }
+  ]
+}

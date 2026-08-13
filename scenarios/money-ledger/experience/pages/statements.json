@@ -1,0 +1,380 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "statements",
+    "title": "Statements",
+    "routes": [
+      "/statements"
+    ],
+    "purpose": "Answer income-versus-expense over a period and assets-minus-liabilities at a date, as queries over the journal — and produce the categorised export an accountant can use.",
+    "prd_refs": [
+      "OT-P1-003",
+      "OT-P1-006",
+      "OT-P0-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The statement figures for the selected period or date"
+    },
+    {
+      "statement": "Whether the period is fully covered by available sources, and where it is not"
+    },
+    {
+      "statement": "That these are categorisations, never tax computations"
+    },
+    {
+      "statement": "Export and period selection, ranked below the three above"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A statement rendered for the selected period.",
+      "setup": {
+        "route": "/statements"
+      }
+    },
+    {
+      "id": "idle",
+      "description": "Nothing in flight; the surface is at rest and its controls are usable.",
+      "setup": {
+        "route": "/statements"
+      }
+    },
+    {
+      "id": "pending",
+      "description": "A user-triggered operation is in flight and its outcome is not yet known.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "pending"
+        }
+      }
+    },
+    {
+      "id": "success",
+      "description": "An operation completed; the result is announced, not merely rendered.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "success"
+        }
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control is disabled and says why.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "syncing",
+      "description": "A background read is refreshing data the user is already looking at.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "syncing"
+        }
+      }
+    },
+    {
+      "id": "refreshing",
+      "description": "A user-requested re-read of data already on screen.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "refreshing"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The period contains no events at all. Distinct from a period whose sources could not be read.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing source could not be read; what is missing is named.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "retrying",
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "retrying"
+        }
+      }
+    },
+    {
+      "id": "permission-denied",
+      "description": "The caller's role does not permit this; what role would is stated.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "permission-denied"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; queued or read-only behavior is explained.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "period-incomplete",
+      "description": "An adapter was unavailable for part of the selected period, so the statement covers less than the period claims. The uncovered span is named.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "period-incomplete"
+        }
+      }
+    },
+    {
+      "id": "uncategorised-present",
+      "description": "Events in the period carry no deductibility category. Surfaced before export, because an export of silently uncategorised events is worse than no export.",
+      "setup": {
+        "route": "/statements",
+        "query": {
+          "fixture": "uncategorised-present"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "statement-figures",
+      "role": "table",
+      "name": "Statement",
+      "description": "Income versus expense for a period, or assets minus liabilities at a date. Figures are compared down the column."
+    },
+    {
+      "id": "coverage-note",
+      "role": "status",
+      "description": "Whether every day in the selected period was covered by available sources, and which span was not."
+    },
+    {
+      "id": "period-selector",
+      "role": "form",
+      "name": "Period",
+      "description": "The period or as-at date the statement is computed for."
+    },
+    {
+      "id": "category-breakdown",
+      "role": "table",
+      "name": "Categories",
+      "description": "Deductibility category tags rolled up. Categorisation only — no computed tax amount appears anywhere."
+    },
+    {
+      "id": "uncategorised-count",
+      "role": "status",
+      "description": "How many events in the period carry no category, shown before any export control."
+    },
+    {
+      "id": "not-tax-advice",
+      "role": "note",
+      "description": "States that these are categorisations for an accountant, not a tax computation or filing."
+    },
+    {
+      "id": "export-action",
+      "role": "button",
+      "name": "Export",
+      "description": "Produces the accountant-facing export of the current statement and its categories."
+    },
+    {
+      "id": "empty-guidance",
+      "role": "note",
+      "description": "Explains that the period contains no events, distinct from sources being unreadable."
+    }
+  ],
+  "claims": [
+    {
+      "id": "incomplete-period-names-the-gap",
+      "type": "element-present",
+      "statement": "When a source was unavailable for part of the period, the statement names the uncovered span rather than presenting a whole-period total.",
+      "tier": "machine",
+      "elements": [
+        "coverage-note"
+      ],
+      "states": [
+        "period-incomplete"
+      ],
+      "rationale": "A statement is the figure most likely to be taken to a third party. A total that silently covers 26 of 31 days is the most consequential silent-zero in the product."
+    },
+    {
+      "id": "incomplete-differs-from-complete",
+      "type": "state-distinct",
+      "statement": "A statement covering an incomplete period is perceivably different from one covering a complete period.",
+      "tier": "machine",
+      "states": [
+        "default",
+        "period-incomplete"
+      ],
+      "elements": [
+        "coverage-note"
+      ],
+      "rationale": "The honesty rule applied to the surface where a wrong number does the most external damage."
+    },
+    {
+      "id": "empty-differs-from-unreadable",
+      "type": "state-distinct",
+      "statement": "A period with genuinely no events is perceivably different from a period whose sources could not be read.",
+      "tier": "machine",
+      "states": [
+        "empty",
+        "period-incomplete"
+      ],
+      "elements": [
+        "empty-guidance",
+        "coverage-note"
+      ],
+      "rationale": "'You earned nothing' and 'I could not tell what you earned' are opposite conclusions that both render as an absence of rows."
+    },
+    {
+      "id": "uncategorised-surfaces-before-export",
+      "type": "reading-order",
+      "statement": "The count of uncategorised events reads before the export control.",
+      "tier": "machine",
+      "elements": [
+        "uncategorised-count",
+        "export-action"
+      ],
+      "states": [
+        "uncategorised-present"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "OT-P1-006 promises an accountant a clean export. Exporting silently uncategorised events breaks that promise in a way the recipient discovers, not the operator."
+    },
+    {
+      "id": "no-computed-tax-figure",
+      "type": "element-present",
+      "statement": "The category breakdown is accompanied by a statement that these are categorisations rather than a tax computation.",
+      "tier": "machine",
+      "elements": [
+        "category-breakdown",
+        "not-tax-advice"
+      ],
+      "states": [
+        "default",
+        "uncategorised-present"
+      ],
+      "rationale": "PRD non-goal: no tax computation or filing, ever — categorise, never compute. A category total sitting alone will be read as a tax figure, which is precisely the liability the non-goal avoids."
+    },
+    {
+      "id": "figures-are-decimal-aligned",
+      "type": "custom",
+      "statement": "Statement figures share a decimal alignment and use tabular numerals.",
+      "tier": "manual",
+      "elements": [
+        "statement-figures"
+      ],
+      "rationale": "DESIGN.md binding adaptation; this page is almost entirely a column of compared figures."
+    },
+    {
+      "id": "statement-has-a-table-equivalent",
+      "type": "custom",
+      "statement": "Any chart on this page is accompanied by an equivalent table of the same figures.",
+      "tier": "manual",
+      "elements": [
+        "statement-figures"
+      ],
+      "rationale": "PRD accessibility rule: every chart has a table equivalent."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "statement-figures": {
+        "testid": "statement-figures"
+      },
+      "coverage-note": {
+        "testid": "statement-coverage"
+      },
+      "period-selector": {
+        "testid": "statement-period"
+      },
+      "category-breakdown": {
+        "testid": "statement-categories"
+      },
+      "uncategorised-count": {
+        "testid": "statement-uncategorised-count"
+      },
+      "not-tax-advice": {
+        "testid": "statement-not-tax-advice"
+      },
+      "export-action": {
+        "testid": "statement-export"
+      },
+      "empty-guidance": {
+        "testid": "statement-empty-guidance"
+      }
+    }
+  }
+}

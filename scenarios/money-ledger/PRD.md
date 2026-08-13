@@ -36,6 +36,10 @@
 - [ ] OT-P2-003 | Valuation accounts | Holdings whose value changes without a transaction — investments, crypto — as an account kind plus a valuation event
 - [ ] OT-P2-004 | Adapter extraction | Adapters move to their own scenario when credential rotation, independent sync clocks, or a third live adapter justifies the boundary
 - [ ] OT-P2-005 | Cost-basis lots | An event may reference an acquisition lot so a per-unit margin is knowable for resale, once a resale capability exists to need it
+- [ ] OT-P2-006 | Recurring and expected events | An expected future event is an ordinary event whose basis is projected, so runway becomes forward-looking without introducing a second concept
+- [ ] OT-P2-007 | Rule-based categorisation | Declared rules assign categories at ingest; a rule never writes an amount, and any model-assisted suggestion is a proposal carrying a derived basis
+- [ ] OT-P2-008 | Event attachments | An event may carry a receipt or statement document as the evidence layer under the categorised export
+- [ ] OT-P2-009 | Per-currency reporting | Balances and statements report each currency separately and never convert between them, so multi-currency holding works without an FX engine
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API behind Connect-RPC with generated proto contracts, typed Go CLI mirroring each service, React + TypeScript + Vite operator console.
@@ -62,3 +66,5 @@
 **The generalisation decision.** The contract is deliberately about the shape of a money event rather than about any upstream's API. A landing page, a payment processor, a marketplace, a brokerage and a person typing a number all produce the same thing: a dated, signed, attributed event with provenance. Standardising that is what makes the scenario usable by an operator whose sources are nothing like this one's, and it is why no upstream is named in any P0 target.
 
 **Sibling scenario.** Offer Desk owns what should be sold and the gates that move an offer through its lifecycle. This scenario owns what actually happened. Neither can state "this offer is active and has earned nothing" alone.
+
+**Amendment 2026-08-13 — P2 expansion only.** `OT-P2-006` through `OT-P2-009` were appended after a competitive scan of the personal- and small-business-finance landscape. Nothing above P2 was touched, no existing target was altered, and no narrative section was rewritten — the amendment adds to the future/expansion list, which is what that list is for. Each new target has a matching requirement in `requirements/04-expansion/` and a stated market rationale in `docs/business/GO-TO-MARKET.md`. The scan's rejected features are recorded there too, so a later reader can tell a decision from an omission. Rationale for amending rather than regenerating: regeneration would discard the provenance and generalisation reasoning above, which is the most load-bearing content in this document.

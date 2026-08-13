@@ -34,6 +34,12 @@
       "status": "draft"
     },
     {
+      "id": "statements",
+      "path": "pages/statements.json",
+      "title": "Statements",
+      "status": "draft"
+    },
+    {
       "id": "settings",
       "path": "pages/settings.json",
       "title": "Settings",

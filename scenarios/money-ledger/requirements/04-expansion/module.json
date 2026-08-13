@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "expansion",
-    "description": "Reconciliation, console, and the seams held open for capabilities not yet justified.",
+    "description": "Reconciliation, console, the seams held open for capabilities not yet justified, and the market-driven expansions added 2026-08-13 from the competitive scan (RCR/CAT/ATT/CUR).",
     "prd_ref": "PRD.md",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -109,6 +109,101 @@
           "type": "unit",
           "status": "planned",
           "notes": "A lot reference round-trips and constrains nothing else about the posting."
+        }
+      ]
+    },
+    {
+      "id": "RCR-001",
+      "title": "An expected event is an event with a projected basis",
+      "status": "planned",
+      "prd_ref": "OT-P2-006",
+      "category": "domain",
+      "criticality": "P2",
+      "description": "A recurring or expected future event enters through the same contract as any other, carrying basis `projected`. Position may include or exclude projected events, and says which it did. Modelling forecasts as a separate concept would create a second kind of truth the honesty rules do not cover; making them ordinary events means every existing provenance guarantee applies to them unchanged.",
+      "tags": [
+        "domain",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A projected event never contributes to a balance reported as authoritative."
+        },
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Position computed with and without projected events differs, and each response states which basis set it used."
+        }
+      ]
+    },
+    {
+      "id": "CAT-001",
+      "title": "Rules assign categories and never amounts",
+      "status": "planned",
+      "prd_ref": "OT-P2-007",
+      "category": "service",
+      "criticality": "P2",
+      "description": "Declared rules match events at ingest and set a deductibility category. A rule may not create, alter, or infer an amount, a date, or an account. Any model-assisted categorisation is a proposal an operator accepts, recorded with basis `derived` and the rule or model that produced it — never a silent write.",
+      "tags": [
+        "service",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A rule that attempts to write an amount is rejected at declaration time."
+        },
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "An accepted model suggestion records basis `derived` and its producing model."
+        }
+      ]
+    },
+    {
+      "id": "ATT-001",
+      "title": "An event may carry evidence",
+      "status": "planned",
+      "prd_ref": "OT-P2-008",
+      "category": "domain",
+      "criticality": "P2",
+      "description": "A receipt or statement document may be attached to an event as the evidence layer under the categorised export. Attachment bytes are treated as sensitive and are covered by the same non-regenerable backup policy as the journal, because a categorised export without its evidence is materially less useful to an accountant.",
+      "tags": [
+        "domain",
+        "security"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "An attachment round-trips and is reachable only through its owning event."
+        },
+        {
+          "type": "business",
+          "status": "planned",
+          "notes": "The export includes attachment references for every event that has one."
+        }
+      ]
+    },
+    {
+      "id": "CUR-001",
+      "title": "Currencies are reported separately and never converted",
+      "status": "planned",
+      "prd_ref": "OT-P2-009",
+      "category": "service",
+      "criticality": "P2",
+      "description": "Balances, statements and position report each currency on its own line. No total spans two currencies and no rate is ever applied — the no-FX-engine guardrail in the PRD stands. A converted total would be a derived figure whose basis depends on a rate and a date the scenario does not own, which is exactly the kind of silently-wrong number the product exists to refuse.",
+      "tags": [
+        "service",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "A book holding two currencies produces two reported lines and no combined total."
         }
       ]
     }

@@ -60,25 +60,6 @@ upload exception. Copy its shape for your own domains, then remove it.
   [`../internal/SEAMS.md`](../internal/SEAMS.md).
 <!-- EXAMPLE-DOMAIN:notes END -->
 
-## Domain Details
-
-### health
-
-- Purpose: expose API/database readiness and show the UI can read live
-  backend state.
-- Primary archetype: reporting / query.
-- Secondary traits: operational health.
-- Owns: health response construction and dependency status mapping.
-- Does not own: product data, business rules, or scenario-specific
-  domain behavior.
-- API: `api/handlers/health/`.
-- CLI: built-in `status` command is provided through cli-core.
-- UI: `ui/src/features/health/HealthCard.tsx`.
-- Storage: none; probes configured database reachability.
-- Requirements: starter scaffold health only.
-- Tests: handler, module, UI feature, and accessibility tests.
-- Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
-
 ## Shared Concepts
 
 | Concept | Meaning | Owner |
@@ -109,15 +90,35 @@ These are important but should not become product domains:
 - `api/internal/testutil/` — cross-domain test harnesses.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.
+- The Money Ledger read client — a typed caller, not a bounded context.
+- The migration importer — a one-time tool owned by `catalog`.
 
 If one of these starts using product vocabulary, split the product
 piece into an owning domain instead of growing infrastructure.
 
 ## Domain Details
 
+### health
+
+- Purpose: expose API/database readiness and show the UI can read live
+  backend state.
+- Primary archetype: reporting / query.
+- Secondary traits: operational health.
+- Owns: health response construction and dependency status mapping.
+- Does not own: product data, business rules, or scenario-specific
+  domain behavior.
+- API: `api/handlers/health/`.
+- CLI: built-in `status` command is provided through cli-core.
+- UI: `ui/src/features/health/HealthCard.tsx`.
+- Storage: none; probes configured database reachability.
+- Requirements: starter scaffold health only.
+- Tests: handler, module, UI feature, and accessibility tests.
+- Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
+
 ### catalog
 
-- **Owns**: the offer graph. Node kinds are `offer`, `variant`, `channel`, `revenue-line` and `deliverable`; edges are typed and directional (a channel *feeds* a line, an offer is *sold at* a variant, a deliverable *belongs to* an offer).
+- **Owns**: the offer graph. Node kinds are `offer`, `variant`, `channel`, `revenue-line` and `deliverable`; edges are typed and directional (a channel *feeds* a line, an offer is *sold at* a variant, a deliverable *belongs to* an offer, an offer *requires* a parent offer).
+- **Mapping from the source canon** (see `../internal/DECISIONS.md`, 2026-08-13): a **delivery tier is a `variant`** — an offer *sold at* a variant is "this bundle, delivered this way", which preserves the orthogonality the source document asserts and makes pricing a property of the edge. An **add-on is an `offer` with a `requires` edge** to its parent bundle, so many-to-many membership survives and the "no add-on before the parent has paying users" guardrail becomes a transition precondition. The **funnel is deliberately not modelled** — its stages are measurements, not records with a lifecycle.
 - **Key rule**: one status vocabulary across every node kind. The replaced documents used four separate vocabularies across four file families, which is precisely why no cross-kind view was possible.
 - **Key rule**: the lifecycle is a state machine owned by the service. An illegal transition is refused with an error naming the rule and the transitions that *would* be legal. Prose that describes a lifecycle can refuse nothing — that is the defect being replaced.
 - **Audit**: every transition writes an append-only entry with actor, timestamp, prior status and reason. Corrections are new entries.
@@ -147,10 +148,6 @@ catalog  →  gates  →  board
 ```
 
 Build `catalog` first as a full vertical slice, then `gates` — which is where the first genuinely new capability lives — then `board`. The migration importer belongs with `catalog` and must run only after that domain's lifecycle enforcement is green, because the importer's writes go through the same state machine.
-
-## Not Domains
-
-Shared substrate with no business vocabulary: the composition root and HTTP server, storage plumbing, the Money Ledger read client, and the CLI/UI translation layers. The migration importer is a one-time tool owned by `catalog`, not a bounded context.
 
 ## Deliberately Excluded
 
