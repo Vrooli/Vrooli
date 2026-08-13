@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/cli-core/cliapp"
-	clitest "vrooli-bridge/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 func TestStatusRendersCanonicalEndpointAndCandidateEvidence(t *testing.T) {

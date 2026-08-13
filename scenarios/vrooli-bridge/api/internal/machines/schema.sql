@@ -41,6 +41,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_machine_one_current_node_global
 CREATE INDEX IF NOT EXISTS idx_machine_locators_normalized
   ON machine_locators(kind, normalized_value);
 
+-- Active locator claims are the database-level uniqueness boundary for Machine
+-- identity.  machine_locators remains historical and may contain the same
+-- locator on archived Machines after a merge; claims contain only the active
+-- owner, so concurrent creates cannot mint sibling Machines.
+CREATE TABLE IF NOT EXISTS machine_locator_claims (
+  kind TEXT NOT NULL,
+  normalized_value TEXT NOT NULL,
+  machine_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY(kind, normalized_value),
+  UNIQUE(machine_id, kind, normalized_value)
+);
+CREATE INDEX IF NOT EXISTS idx_machine_locator_claims_machine
+  ON machine_locator_claims(machine_id);
+
 -- Legacy Nodes and one-shot onboarding operations lack the durable pairing
 -- correlation required to infer operator intent. They are retained as typed,
 -- reviewable evidence rather than silently becoming Machines.

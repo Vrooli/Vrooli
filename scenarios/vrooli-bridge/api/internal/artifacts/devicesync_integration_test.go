@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"vrooli-bridge/internal/artifacts"
 	"vrooli-bridge/internal/artifacts/mocks"
-	"vrooli-bridge/internal/testutil/db"
 
 	"github.com/vrooli/api-core/scheduletest"
 

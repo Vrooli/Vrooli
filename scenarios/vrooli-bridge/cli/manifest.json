@@ -1706,7 +1706,7 @@
       "commands": [
         {
           "name": "connect",
-          "description": "Connect a host through Bridge's durable trust workflow. Prompts once for the SSH password on first touch or recovery, then reconnects without prompting on future runs.",
+          "description": "Connect a remote host through Bridge's durable trust workflow. Prompts once for the SSH password on first touch or recovery, then reconnects without prompting on future runs. Refuses the local Bridge control-plane host to prevent accidental self-onboarding.",
           "flags": [
             { "name": "host", "required": true, "description": "SSH host to connect" },
             { "name": "machine-id", "description": "Existing durable Machine identity; normally inferred by Bridge" },

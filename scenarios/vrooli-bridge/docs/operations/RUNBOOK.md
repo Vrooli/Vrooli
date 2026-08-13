@@ -135,6 +135,12 @@ Use this command for the normal operator flow:
 vrooli-bridge onboard connect --host mini-01.local --user admin
 ```
 
+The target must be a remote machine. Bridge rejects its own control-plane
+hostname, loopback address, or local interface address so an operator working
+inside an SSH session cannot accidentally onboard the machine running Bridge.
+If multiple active Machines share a locator, pass `--machine-id` after the
+duplicate identity has been reconciled; Bridge never guesses between them.
+
 On first touch, Bridge preflight resolves one durable Machine and the command
 opens one masked SSH-password prompt. Bridge installs its own per-Machine key,
 records only key/host fingerprints and non-secret connection metadata, pairs the

@@ -18,16 +18,17 @@ import (
 )
 
 type client struct {
-	app     *cliapp.ScenarioApp
-	base    connect.HTTPClient
-	baseURL string
+	app      *cliapp.ScenarioApp
+	base     connect.HTTPClient
+	baseURL  string
+	exchange func(context.Context) (string, string, error)
 }
 
 // NewConnectHTTPClient returns the standard bridge CLI transport with one
 // transparent owner-token renewal on an unauthenticated response.
 func NewConnectHTTPClient(app *cliapp.ScenarioApp) (connect.HTTPClient, string) {
 	base, baseURL := cliapp.NewConnectHTTPClient(app)
-	return &client{app: app, base: base, baseURL: baseURL}, baseURL
+	return &client{app: app, base: base, baseURL: baseURL, exchange: ExchangeLocal}, baseURL
 }
 
 func (c *client) Do(req *http.Request) (*http.Response, error) {
@@ -36,12 +37,14 @@ func (c *client) Do(req *http.Request) (*http.Response, error) {
 	} else if strings.TrimSpace(token) != "" {
 		return c.doBreakGlass(req, token)
 	}
+	localAttempted := false
 	if c.app != nil && strings.TrimSpace(c.app.Config.Token) == "" {
+		localAttempted = true
 		// Local exchange is the password-free acquisition path. Failure is not
 		// an authorization decision here: the request continues anonymously so
 		// public RPCs and the interactive login fallback retain their normal
 		// behavior.
-		if token, refresh, err := ExchangeLocal(req.Context()); err == nil {
+		if token, refresh, err := c.exchangeLocal(req.Context()); err == nil {
 			_ = c.persist(token, refresh)
 		} else if token, tokenErr := TokenFile(); tokenErr == nil {
 			c.app.Config.Token = token
@@ -50,6 +53,26 @@ func (c *client) Do(req *http.Request) (*http.Response, error) {
 	resp, err := c.base.Do(req)
 	if err != nil || resp == nil || resp.StatusCode != http.StatusUnauthorized || skipRefresh(req.URL.Path) {
 		return resp, err
+	}
+
+	// A saved access token can be expired or revoked while the local machine
+	// binding remains valid. Recover that case through the same password-free
+	// exchange used at startup before attempting refresh. This is important for
+	// self-rebuilding CLIs: a stale config must never suppress the durable local
+	// identity path and turn into a misleading bare "unauthenticated" error.
+	if !localAttempted {
+		if token, refresh, exchangeErr := c.exchangeLocal(req.Context()); exchangeErr == nil {
+			if persistErr := c.persist(token, refresh); persistErr == nil {
+				if resp.Body != nil {
+					_ = resp.Body.Close()
+				}
+				retry, cloneErr := replayRequest(req)
+				if cloneErr != nil {
+					return resp, cloneErr
+				}
+				return c.base.Do(retry)
+			}
+		}
 	}
 	if strings.TrimSpace(c.app.Config.RefreshToken) == "" {
 		return resp, err
@@ -74,6 +97,13 @@ func (c *client) Do(req *http.Request) (*http.Response, error) {
 		return resp, cloneErr
 	}
 	return c.base.Do(retry)
+}
+
+func (c *client) exchangeLocal(ctx context.Context) (string, string, error) {
+	if c.exchange == nil {
+		return "", "", fmt.Errorf("local owner exchange is not configured")
+	}
+	return c.exchange(ctx)
 }
 
 func (c *client) doBreakGlass(req *http.Request, token string) (*http.Response, error) {

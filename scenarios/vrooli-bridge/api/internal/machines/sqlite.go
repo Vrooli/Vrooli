@@ -41,25 +41,6 @@ func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Machine,
 	if len(in.Locators) == 0 {
 		return Machine{}, ErrInvalid{"locators", "at least one required"}
 	}
-	// Creation is intentionally idempotent for active locator evidence. This is
-	// the enrollment safety valve: a retry after a network drop must reconnect to
-	// the durable Machine instead of minting a sibling record.
-	matched := make(map[string]Machine)
-	for _, locator := range in.Locators {
-		if existing, found, err := s.findActiveByLocator(ctx, locator.Kind, locator.Value); err != nil {
-			return Machine{}, err
-		} else if found {
-			matched[existing.ID] = existing
-		}
-	}
-	if len(matched) == 1 {
-		for _, existing := range matched {
-			return existing, nil
-		}
-	}
-	if len(matched) > 1 {
-		return Machine{}, ErrAmbiguous{Evidence: "submitted locators"}
-	}
 	// Every Machine starts from an explicit, least-privilege policy rather than
 	// carrying an empty implicit default into readiness evaluation.
 	if in.DesiredProfileID == "" {
@@ -97,12 +78,44 @@ func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Machine,
 		return Machine{}, fmt.Errorf("begin machine creation transaction: %w", e)
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	// Check the claims inside the same transaction as insertion. The primary
+	// key on machine_locator_claims is the final race-safe guard; this check
+	// makes normal retries return the existing Machine instead of surfacing a
+	// low-level SQLite uniqueness error.
+	matched := make(map[string]string)
+	for _, locator := range locators {
+		var existingID string
+		err := tx.QueryRowContext(ctx, `SELECT c.machine_id FROM machine_locator_claims c JOIN machines m ON m.id=c.machine_id WHERE m.lifecycle='active' AND c.kind=? AND c.normalized_value=?`, strings.ToLower(strings.TrimSpace(locator.Kind)), locator.normalized).Scan(&existingID)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return Machine{}, fmt.Errorf("resolve active machine claim: %w", err)
+		}
+		matched[existingID] = existingID
+	}
+	if len(matched) == 1 {
+		for _, existingID := range matched {
+			_ = tx.Rollback()
+			return s.Get(ctx, existingID)
+		}
+	}
+	if len(matched) > 1 {
+		return Machine{}, ErrAmbiguous{Evidence: "submitted locators"}
+	}
 	if _, e := tx.ExecContext(ctx, "INSERT INTO machines (id,lifecycle,version,desired_profile_id,desired_profile_version,trust_ref,created_at,updated_at) VALUES (?, 'active',1,?,?,?,?,?)", id, in.DesiredProfileID, in.DesiredProfileVersion, in.TrustRef, now.Format(machineTimeFormat), now.Format(machineTimeFormat)); e != nil {
 		return Machine{}, fmt.Errorf("insert machine: %w", e)
 	}
 	for _, l := range locators {
 		if _, e = tx.ExecContext(ctx, "INSERT INTO machine_locators (machine_id,ordinal,kind,value,normalized_value,created_at) VALUES (?,?,?,?,?,?)", id, l.Ordinal, l.Kind, l.Value, l.normalized, now.Format(machineTimeFormat)); e != nil {
 			return Machine{}, fmt.Errorf("insert locator: %w", e)
+		}
+		if _, e = tx.ExecContext(ctx, "INSERT INTO machine_locator_claims (kind,normalized_value,machine_id,created_at) VALUES (?,?,?,?)", strings.ToLower(strings.TrimSpace(l.Kind)), l.normalized, id, now.Format(machineTimeFormat)); e != nil {
+			if isUniqueConstraint(e) {
+				return Machine{}, ErrAmbiguous{Evidence: l.Kind + "=" + l.normalized}
+			}
+			return Machine{}, fmt.Errorf("claim locator: %w", e)
 		}
 	}
 	if e = tx.Commit(); e != nil {
@@ -116,17 +129,17 @@ func (s *sqliteRepository) Resolve(ctx context.Context, query IdentityQuery) (Ma
 		return s.Get(ctx, strings.TrimSpace(query.MachineID))
 	}
 	if nodeID := strings.TrimSpace(query.NodeID); nodeID != "" {
-		return s.machineForEvidence(ctx, "node_id", nodeID, `SELECT machine_id FROM machine_node_lineage WHERE node_id=? AND is_current=1`)
+		return s.machineForEvidence(ctx, "node_id", nodeID, `SELECT l.machine_id FROM machine_node_lineage l JOIN machines m ON m.id=l.machine_id WHERE l.node_id=? AND l.is_current=1 AND m.lifecycle='active'`)
 	}
 	if fingerprint := strings.TrimSpace(query.SSHHostKeyFingerprint); fingerprint != "" {
-		return s.machineForEvidence(ctx, "ssh host-key fingerprint", fingerprint, `SELECT machine_id FROM machine_locators WHERE kind='ssh-host-key' AND normalized_value=?`)
+		return s.machineForEvidence(ctx, "ssh host-key fingerprint", fingerprint, `SELECT l.machine_id FROM machine_locators l JOIN machines m ON m.id=l.machine_id WHERE l.kind='ssh-host-key' AND l.normalized_value=? AND m.lifecycle='active'`)
 	}
 	if hostname := strings.TrimSpace(query.Hostname); hostname != "" {
 		normalized, err := normalizeLocator("hostname", hostname)
 		if err != nil {
 			return Machine{}, err
 		}
-		return s.machineForEvidence(ctx, "hostname "+normalized, normalized, `SELECT machine_id FROM machine_locators WHERE kind='hostname' AND normalized_value=?`)
+		return s.machineForEvidence(ctx, "hostname "+normalized, normalized, `SELECT l.machine_id FROM machine_locators l JOIN machines m ON m.id=l.machine_id WHERE l.kind='hostname' AND l.normalized_value=? AND m.lifecycle='active'`)
 	}
 	return Machine{}, ErrInvalid{"identity", "at least one identity fact is required"}
 }
@@ -136,7 +149,7 @@ func (s *sqliteRepository) findActiveByLocator(ctx context.Context, kind, value 
 	if err != nil {
 		return Machine{}, false, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT m.id FROM machines m JOIN machine_locators l ON l.machine_id=m.id WHERE m.lifecycle='active' AND l.kind=? AND l.normalized_value=? ORDER BY m.updated_at DESC,m.id`, strings.ToLower(strings.TrimSpace(kind)), normalized)
+	rows, err := s.db.QueryContext(ctx, `SELECT c.machine_id FROM machine_locator_claims c JOIN machines m ON m.id=c.machine_id WHERE m.lifecycle='active' AND c.kind=? AND c.normalized_value=?`, strings.ToLower(strings.TrimSpace(kind)), normalized)
 	if err != nil {
 		return Machine{}, false, fmt.Errorf("resolve active machine locator: %w", err)
 	}
@@ -160,6 +173,10 @@ func (s *sqliteRepository) findActiveByLocator(ctx context.Context, kind, value 
 	}
 	machine, err := s.Get(ctx, ids[0])
 	return machine, err == nil, err
+}
+
+func isUniqueConstraint(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "unique constraint")
 }
 
 func (s *sqliteRepository) machineForEvidence(ctx context.Context, evidence, value, query string) (Machine, error) {
@@ -305,6 +322,9 @@ func (s *sqliteRepository) Archive(ctx context.Context, id string, version int64
 	if n == 0 {
 		return Machine{}, ErrConflict{id, version}
 	}
+	if _, err := s.db.ExecContext(ctx, "DELETE FROM machine_locator_claims WHERE machine_id=?", id); err != nil {
+		return Machine{}, fmt.Errorf("release archived machine locator claims: %w", err)
+	}
 	return s.Get(ctx, id)
 }
 
@@ -330,6 +350,9 @@ func (s *sqliteRepository) Remove(ctx context.Context, id string, version int64)
 	changed, _ := result.RowsAffected()
 	if changed == 0 {
 		return Machine{}, ErrConflict{id, version}
+	}
+	if _, err := s.db.ExecContext(ctx, "DELETE FROM machine_locator_claims WHERE machine_id=?", id); err != nil {
+		return Machine{}, fmt.Errorf("release removed machine locator claims: %w", err)
 	}
 	return s.Get(ctx, id)
 }
@@ -426,6 +449,12 @@ func (s *sqliteRepository) Merge(ctx context.Context, input MergeInput) (Machine
 	}
 	if err := locRows.Close(); err != nil {
 		return Machine{}, err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO machine_locator_claims (kind,normalized_value,machine_id,created_at) SELECT kind,normalized_value,?,? FROM machine_locator_claims WHERE machine_id=?`, intoID, now, fromID); err != nil {
+		return Machine{}, fmt.Errorf("transfer source locator claims: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM machine_locator_claims WHERE machine_id=?", fromID); err != nil {
+		return Machine{}, fmt.Errorf("release source locator claims: %w", err)
 	}
 	// A current source lineage wins only when the target has no current node.
 	var targetCurrent string

@@ -15,7 +15,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
 
-	clitest "vrooli-bridge/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 // fakeRuns is a minimal RunsService for the CLI round-trip. The waitStatus knob

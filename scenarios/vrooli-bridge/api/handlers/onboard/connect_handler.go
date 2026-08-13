@@ -31,7 +31,11 @@ type Deps struct {
 	Machines machineReader
 	Resolver machineResolver
 	KeyCheck func(context.Context, string, int, string, string) (ok bool, status, fingerprint string)
-	Logger   *log.Logger
+	// SelfTargetCheck is injectable only for in-process SSHD tests. Production
+	// handlers default to rejectSelfTarget so the local control plane is never
+	// silently treated as a remote fleet target.
+	SelfTargetCheck func(string) error
+	Logger          *log.Logger
 }
 
 type attemptLookup interface {
@@ -61,6 +65,9 @@ func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
+	if d.SelfTargetCheck == nil {
+		d.SelfTargetCheck = rejectSelfTarget
+	}
 	return &connectHandler{deps: d}
 }
 
@@ -78,6 +85,9 @@ func (h *connectHandler) PreflightOnboarding(ctx context.Context, req *connect.R
 	host := strings.TrimSpace(req.Msg.GetHost())
 	if host == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("host is required"))
+	}
+	if err := h.deps.SelfTargetCheck(host); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	port := int(req.Msg.GetPort())
 	if port == 0 {
@@ -212,6 +222,9 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 	}
 	if actor == "" {
 		actor = "owner"
+	}
+	if err := h.deps.SelfTargetCheck(req.Msg.GetHost()); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	dryRun := req.Header().Get(dryRunHeader) == "true"

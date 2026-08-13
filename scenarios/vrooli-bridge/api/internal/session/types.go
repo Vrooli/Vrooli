@@ -179,8 +179,10 @@ func (m *Manager) Open(ctx context.Context, req OpenRequest) (State, error) {
 		return State{}, fmt.Errorf("session id and node id are required")
 	}
 	now := m.clock.Now().UTC()
-	s := &State{ID: req.ID, NodeID: req.NodeID, OwnerID: req.OwnerID, OpenedAt: now, LastActivity: now,
-		Window: boundedWindow(req.Window), Idle: boundedIdle(req.Idle), MaxLifetime: boundedLifetime(req.MaxLifetime), done: make(chan struct{})}
+	s := &State{
+		ID: req.ID, NodeID: req.NodeID, OwnerID: req.OwnerID, OpenedAt: now, LastActivity: now,
+		Window: boundedWindow(req.Window), Idle: boundedIdle(req.Idle), MaxLifetime: boundedLifetime(req.MaxLifetime), done: make(chan struct{}),
+	}
 	m.mu.Lock()
 	if _, exists := m.sessions[req.ID]; exists {
 		existing := m.sessions[req.ID]
@@ -374,6 +376,7 @@ func hasScope(scopes []string) bool {
 	}
 	return false
 }
+
 func boundedWindow(v uint32) uint32 {
 	if v == 0 {
 		return DefaultWindow
@@ -383,6 +386,7 @@ func boundedWindow(v uint32) uint32 {
 	}
 	return v
 }
+
 func boundedIdle(v time.Duration) time.Duration {
 	if v <= 0 {
 		return DefaultIdle
@@ -395,6 +399,7 @@ func boundedIdle(v time.Duration) time.Duration {
 	}
 	return v
 }
+
 func boundedLifetime(v time.Duration) time.Duration {
 	if v <= 0 {
 		return DefaultMaxLifetime

@@ -47,7 +47,7 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 		Host: host, Port: int32(port), User: user, MachineId: strings.TrimSpace(ctx.Flag("machine-id")),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("preflight onboarding connection", err, nil)
+		return wrapOnboardAPIError("preflight onboarding connection", err)
 	}
 	if preflight == nil || preflight.Msg == nil {
 		return fmt.Errorf("server returned no onboarding preflight")
@@ -115,7 +115,7 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 		SetupScenarios: strings.TrimSpace(ctx.Flag("setup-scenarios")), IncludeOptional: ctx.BoolFlag("include-optional"), SourceMode: sourceMode,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("start onboarding connection", err, nil)
+		return wrapOnboardAPIError("start onboarding connection", err)
 	}
 	if startResp == nil || startResp.Msg == nil || startResp.Msg.OpId == "" {
 		return fmt.Errorf("server returned no onboarding operation")
@@ -195,7 +195,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		Host: host, Port: int32(port), User: user, MachineId: machineID,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("preflight onboarding", err, nil)
+		return wrapOnboardAPIError("preflight onboarding", err)
 	}
 	if preflight == nil || preflight.Msg == nil {
 		return fmt.Errorf("server returned no onboarding preflight")
@@ -313,6 +313,13 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 			fmt.Sprintf("`onboard watch %s` — follow the live step states through to ONLINE", resp.Msg.OpId),
 		},
 	})
+}
+
+func wrapOnboardAPIError(action string, err error) error {
+	if connect.CodeOf(err) == connect.CodeUnauthenticated {
+		return fmt.Errorf("%s: owner session unavailable; the local Bridge machine binding could not authenticate this CLI. Run `vrooli-bridge auth login --email <your-account-email>` once, then retry (the login uses the local binding before asking for a password)", action)
+	}
+	return cliapp.WrapAPIError(action, err, nil)
 }
 
 // credentialReportLine echoes the (non-secret) credential intake path in the

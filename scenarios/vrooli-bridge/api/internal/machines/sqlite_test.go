@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"vrooli-bridge/internal/machines"
-	"vrooli-bridge/internal/testutil/db"
 
 	"github.com/vrooli/api-core/scheduletest"
 
@@ -86,6 +86,39 @@ func TestMachineCreateIsIdempotentForRepeatedEnrollmentLocator(t *testing.T) {
 	items, err := repo.List(ctx)
 	require.NoError(t, err)
 	require.Len(t, items, 1)
+	var claims int
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machine_locator_claims WHERE kind='hostname' AND normalized_value='minimouse.local' AND machine_id=?", first.ID).Scan(&claims))
+	require.Equal(t, 1, claims)
+}
+
+func TestMachineCreateClaimsPreventActiveLocatorDuplicates(t *testing.T) {
+	d, clk := newDB(t)
+	ctx := context.Background()
+	repo := machines.NewSQLiteRepository(d, clk)
+	first, err := repo.Create(ctx, machines.CreateInput{Locators: []machines.Locator{{Kind: "hostname", Value: "remote.example"}}})
+	require.NoError(t, err)
+	second, err := repo.Create(ctx, machines.CreateInput{Locators: []machines.Locator{{Kind: "hostname", Value: "REMOTE.EXAMPLE."}}})
+	require.NoError(t, err)
+	require.Equal(t, first.ID, second.ID)
+	var count int
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machines WHERE lifecycle='active'").Scan(&count))
+	require.Equal(t, 1, count)
+}
+
+func TestIdentityResolutionIgnoresArchivedLocatorHistory(t *testing.T) {
+	d, clk := newDB(t)
+	ctx := context.Background()
+	repo := machines.NewSQLiteRepository(d, clk)
+	archived, err := repo.Create(ctx, machines.CreateInput{Locators: []machines.Locator{{Kind: "hostname", Value: "minimouse.local"}}})
+	require.NoError(t, err)
+	_, err = repo.Archive(ctx, archived.ID, archived.Version)
+	require.NoError(t, err)
+	active, err := repo.Create(ctx, machines.CreateInput{Locators: []machines.Locator{{Kind: "hostname", Value: "minimouse.local."}}})
+	require.NoError(t, err)
+
+	resolved, err := repo.Resolve(ctx, machines.IdentityQuery{Hostname: "minimouse.local"})
+	require.NoError(t, err)
+	require.Equal(t, active.ID, resolved.ID)
 }
 
 func TestIdentityResolutionPrefersStrongEvidenceAndStoresHostKeyLocator(t *testing.T) {
@@ -310,4 +343,37 @@ func TestMigrateReconcilesDuplicateCurrentNodesBeforeUniqueIndex(t *testing.T) {
 	_, err = d.ExecContext(ctx, "CREATE UNIQUE INDEX idx_test_global_current ON machine_node_lineage(node_id) WHERE is_current=1")
 	require.NoError(t, err)
 	require.NoError(t, machines.Migrate(ctx, d), "migration is idempotent")
+}
+
+func TestMigrateReconcilesDuplicateActiveLocatorClaims(t *testing.T) {
+	d := db.NewSQLite(t)
+	ctx := context.Background()
+	_, err := d.ExecContext(ctx, `CREATE TABLE machines (
+        id TEXT PRIMARY KEY, lifecycle TEXT NOT NULL, version INTEGER NOT NULL,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        archived_at TEXT NOT NULL DEFAULT '')`)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `CREATE TABLE machine_locators (
+        machine_id TEXT NOT NULL, ordinal INTEGER NOT NULL, kind TEXT NOT NULL,
+        value TEXT NOT NULL, normalized_value TEXT NOT NULL, created_at TEXT NOT NULL,
+        PRIMARY KEY(machine_id, ordinal))`)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `INSERT INTO machines (id,lifecycle,version,created_at,updated_at)
+        VALUES ('keep','active',1,'2026-07-17T11:00:00Z','2026-07-17T11:00:00Z'),
+               ('duplicate','active',1,'2026-07-17T12:00:00Z','2026-07-17T12:00:00Z')`)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `INSERT INTO machine_locators (machine_id,ordinal,kind,value,normalized_value,created_at)
+        VALUES ('keep',0,'hostname','minimouse.local','minimouse.local','2026-07-17T11:00:00Z'),
+               ('duplicate',0,'hostname','minimouse.local.','minimouse.local','2026-07-17T12:00:00Z')`)
+	require.NoError(t, err)
+	require.NoError(t, machines.Migrate(ctx, d))
+	var active, archived, claims, audits int
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machines WHERE lifecycle='active'").Scan(&active))
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machines WHERE lifecycle='archived'").Scan(&archived))
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machine_locator_claims WHERE kind='hostname' AND normalized_value='minimouse.local'").Scan(&claims))
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machine_audit_events WHERE action='migration_merge_duplicate_locator'").Scan(&audits))
+	require.Equal(t, 1, active)
+	require.Equal(t, 1, archived)
+	require.Equal(t, 1, claims)
+	require.Equal(t, 1, audits)
 }

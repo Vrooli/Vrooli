@@ -14,6 +14,9 @@ import (
 // EnsureSchemas runs its drift check. A fresh database has no review table yet,
 // so it remains a no-op and EnsureSchemas creates the complete schema.
 func Migrate(ctx context.Context, db SQLExecutor) error {
+	if err := ensureLocatorClaims(ctx, db); err != nil {
+		return err
+	}
 	if err := addMachineTrustColumns(ctx, db); err != nil {
 		return err
 	}
@@ -33,6 +36,86 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		}
 	}
 	return reconcileDuplicateCurrentNodes(ctx, db)
+}
+
+// ensureLocatorClaims creates the active-identity uniqueness boundary for
+// databases created before durable Machine creation was made idempotent. When
+// legacy active duplicates exist, the oldest active record is retained and
+// newer siblings are archived with their history preserved for review.
+func ensureLocatorClaims(ctx context.Context, db SQLExecutor) error {
+	for _, table := range []string{"machines", "machine_locators"} {
+		exists, err := migrationTableExists(ctx, db, table)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return nil
+		}
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS machine_locator_claims (
+        kind TEXT NOT NULL, normalized_value TEXT NOT NULL, machine_id TEXT NOT NULL,
+        created_at TEXT NOT NULL, PRIMARY KEY(kind, normalized_value),
+        UNIQUE(machine_id, kind, normalized_value))`); err != nil {
+		return fmt.Errorf("prepare machine locator claims: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_machine_locator_claims_machine ON machine_locator_claims(machine_id)`); err != nil {
+		return fmt.Errorf("index machine locator claims: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS machine_audit_events (
+        id TEXT PRIMARY KEY, machine_id TEXT NOT NULL, action TEXT NOT NULL,
+        actor TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL)`); err != nil {
+		return fmt.Errorf("prepare machine locator migration audit: %w", err)
+	}
+	rows, err := db.QueryContext(ctx, `SELECT l.kind,l.normalized_value FROM machine_locators l JOIN machines m ON m.id=l.machine_id WHERE m.lifecycle='active' GROUP BY l.kind,l.normalized_value HAVING COUNT(*)>1`)
+	if err != nil {
+		return fmt.Errorf("find duplicate active machine locators: %w", err)
+	}
+	defer rows.Close()
+	type locator struct{ kind, normalized string }
+	var duplicates []locator
+	for rows.Next() {
+		var item locator
+		if err := rows.Scan(&item.kind, &item.normalized); err != nil {
+			return err
+		}
+		duplicates = append(duplicates, item)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	now := time.Now().UTC().Format(machineTimeFormat)
+	for _, duplicate := range duplicates {
+		var keep string
+		if err := db.QueryRowContext(ctx, `SELECT m.id FROM machines m JOIN machine_locators l ON l.machine_id=m.id WHERE m.lifecycle='active' AND l.kind=? AND l.normalized_value=? ORDER BY m.created_at,m.id LIMIT 1`, duplicate.kind, duplicate.normalized).Scan(&keep); err != nil {
+			return fmt.Errorf("select retained machine for %s=%s: %w", duplicate.kind, duplicate.normalized, err)
+		}
+		losers, err := db.QueryContext(ctx, `SELECT m.id FROM machines m JOIN machine_locators l ON l.machine_id=m.id WHERE m.lifecycle='active' AND l.kind=? AND l.normalized_value=? AND m.id<>?`, duplicate.kind, duplicate.normalized, keep)
+		if err != nil {
+			return fmt.Errorf("select duplicate machines for %s=%s: %w", duplicate.kind, duplicate.normalized, err)
+		}
+		var ids []string
+		for losers.Next() {
+			var id string
+			if err := losers.Scan(&id); err != nil {
+				losers.Close()
+				return err
+			}
+			ids = append(ids, id)
+		}
+		losers.Close()
+		for _, loser := range ids {
+			if _, err := db.ExecContext(ctx, "UPDATE machines SET lifecycle='archived',version=version+1,archived_at=?,updated_at=? WHERE id=? AND lifecycle='active'", now, now, loser); err != nil {
+				return fmt.Errorf("archive duplicate Machine %s: %w", loser, err)
+			}
+			if _, err := db.ExecContext(ctx, `INSERT INTO machine_audit_events (id,machine_id,action,actor,detail,created_at) VALUES (?,?,?,?,?,?)`, uuid.NewString(), keep, "migration_merge_duplicate_locator", "system:migration", fmt.Sprintf("archived_machine=%s locator=%s=%s", loser, duplicate.kind, duplicate.normalized), now); err != nil {
+				return fmt.Errorf("audit duplicate Machine %s: %w", loser, err)
+			}
+		}
+	}
+	if _, err := db.ExecContext(ctx, `INSERT OR IGNORE INTO machine_locator_claims(kind,normalized_value,machine_id,created_at) SELECT l.kind,l.normalized_value,l.machine_id,l.created_at FROM machine_locators l JOIN machines m ON m.id=l.machine_id WHERE m.lifecycle='active'`); err != nil {
+		return fmt.Errorf("backfill machine locator claims: %w", err)
+	}
+	return nil
 }
 
 func addMachineTrustColumns(ctx context.Context, db SQLExecutor) error {

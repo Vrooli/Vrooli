@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"vrooli-bridge/internal/pairing"
-	"vrooli-bridge/internal/testutil/db"
 
 	"github.com/vrooli/api-core/scheduletest"
 

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "One node-agent cross-compiled for linux/darwin/windows; platform-native service install; no Linux-only assumptions.",
-    "last_validated_at": "2026-08-11T22:10:46-04:00",
+    "last_validated_at": "2026-08-13T00:01:49-04:00",
     "module": "cross-platform-agent",
     "prd_ref": "OT-P0-007",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P0-007",
       "title": "Cross-Platform Node-Agent",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "core",
       "description": "One node-agent codebase is cross-compiled for Linux, macOS, and Windows and installs itself as the platform-native background service (systemd / launchd / Windows Service or Scheduled Task). The agent uses platform path/process abstractions only, with no Linux-only assumptions. Build verification is distinct from real-hardware support qualification.",
@@ -20,7 +20,7 @@
           "type": "test",
           "ref": "agent/internal/service/service_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Service-install adapter selects systemd/launchd/Windows-Service by service-manager kind (mirrors NativeServiceManager(GOOS)); rendered units carry no hardcoded POSIX paths and the privileged helper installs under a separate OS principal. Verified by the Linux-runnable package test suite."
         },
         {

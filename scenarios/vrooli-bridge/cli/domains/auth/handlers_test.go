@@ -15,7 +15,7 @@ import (
 	"github.com/vrooli/cli-core/cliapptest"
 	"github.com/vrooli/cli-core/cliutil"
 
-	clitest "vrooli-bridge/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 type fakeIdentityClient struct {

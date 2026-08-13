@@ -68,7 +68,7 @@ func TestOnboarding_FullFlow_ThroughConnectHandler(t *testing.T) {
 	confirmer := &mocks.FakeOnlineConfirmer{Online: true}
 	svc := onboard.NewService(onboard.NewSQLiteRepository(d, schedule.System()), driver, issuer, confirmer, schedule.System(), onboard.WithEnrollmentResolver(onboard.EnrollmentResolverFunc(func(context.Context, string) (string, bool, error) { return intNodeID, true, nil })))
 
-	handler := onboardhandler.NewConnectHandler(onboardhandler.Deps{Service: svc})
+	handler := onboardhandler.NewConnectHandler(onboardhandler.Deps{Service: svc, SelfTargetCheck: func(string) error { return nil }})
 
 	sshd := newOnboardSSHD(t, intPassword)
 	// Admission is a real SSH-executed HTTP probe. Serve health on a non-loopback

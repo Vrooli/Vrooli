@@ -42,7 +42,8 @@ marker_is() { grep -qE "event=$2 step=$3( |\$)" "$1"; }
 
 make_fakes() {
   # git: `clone` makes a checkout with a .git dir; everything else is a no-op
-  # that still lets `rev-parse HEAD` print a stable sha.
+  # that still lets `rev-parse HEAD` print a stable sha. `--git-dir` models git's
+  # ability to recognize both directory and file-form .git metadata.
   cat >"${FAKEBIN}/git" <<'GIT'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -50,7 +51,21 @@ args=("$@")
 for ((i=0; i<${#args[@]}; i++)); do
   case "${args[$i]}" in
     clone) dest="${args[-1]}"; mkdir -p "${dest}/.git"; exit 0 ;;
-    rev-parse) echo "deadbeefcafe0000000000000000000000000000"; exit 0 ;;
+    rev-parse)
+      checkout=""
+      has_git_dir=0
+      for ((j=0; j<${#args[@]}; j++)); do
+        [ "${args[$j]}" = "-C" ] && checkout="${args[$((j + 1))]}"
+        [ "${args[$j]}" = "--git-dir" ] && has_git_dir=1
+      done
+      if [ "$has_git_dir" -eq 1 ]; then
+        [ -n "$checkout" ] && [ -e "${checkout}/.git" ] || exit 1
+        echo "${checkout}/.git"
+      else
+        echo "deadbeefcafe0000000000000000000000000000"
+      fi
+      exit 0
+      ;;
   esac
 done
 exit 0
@@ -274,6 +289,28 @@ check "run 2 setup skipped (sentinel)" "$(marker_is "$OUT2" step-skip setup && e
 check "run 2 service-install skipped (converged)" "$(marker_is "$OUT2" step-skip service-install && echo 0 || echo 1)"
 check "run 2 autostart skipped (linger already on)" "$(marker_is "$OUT2" step-skip autostart && echo 0 || echo 1)"
 check "run 2 verify-online still connected" "$(marker_is "$OUT2" step-ok verify-online && echo 0 || echo 1)"
+
+echo "== existing Git worktree with file-form .git metadata converges =="
+rm -rf "$STATE" "$CHECKOUT"; mkdir -p "$CHECKOUT"
+printf 'gitdir: /tmp/worktree.git\n' >"$CHECKOUT/.git"
+printf 'existing worktree\n' >"$CHECKOUT/WORKTREE.txt"
+OUTWTG="${WORKROOT}/worktree-git.out"
+run_bootstrap "$OUTWTG" --revision e767613fca
+check "file-form .git run exits 0" "$?"
+check "file-form .git uses existing checkout" "$(grep -q 'existing checkout — fetching' "$OUTWTG" "$OUTWTG.err" && echo 0 || echo 1)"
+check "file-form .git reaches run-ok" "$(grep -q 'event=run-ok' "$OUTWTG" && echo 0 || echo 1)"
+
+echo "== populated non-Git checkout fails with safe recovery =="
+rm -rf "$STATE" "$CHECKOUT"; mkdir -p "$CHECKOUT"
+printf 'unmanaged source tree\n' >"$CHECKOUT/README.md"
+OUTNONGIT="${WORKROOT}/nongit.out"
+set +e
+run_bootstrap "$OUTNONGIT"
+rcnongit=$?
+set -e
+check "populated non-Git checkout exits 1" "$([ "$rcnongit" -eq 1 ] && echo 0 || echo 1)"
+check "non-Git failure names source mode recovery" "$(grep 'step=clone' "$OUTNONGIT" | grep -q -- '--source-dir' && echo 0 || echo 1)"
+check "non-Git failure never invokes clone" "$(grep -q 'cloning fresh' "$OUTNONGIT" && echo 1 || echo 0)"
 
 echo "== setup profile flags reach make setup SETUP_ARGS (unprivileged path) =="
 rm -rf "$STATE" "$CHECKOUT"; : >"$FAKE_MAKE_LOG"

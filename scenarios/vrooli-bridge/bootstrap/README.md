@@ -120,7 +120,12 @@ The **clone** step acquires the source in either mode:
 - **Pinned revision (default).** The node clones/fetches `--revision` from the
   clone remote. The revision must be **pushed** — the control-plane preflight
   hard-fails an unpushed commit, because a node can only ever fetch pushed
-  history. This is the fleet-safe path and the only one fleet rolls use.
+  history. An existing Git checkout is fetched and converged in place; Git
+  worktrees are supported even when `.git` is a file. A populated directory
+  without Git metadata is never overwritten: choose `--source-dir` for an
+  intentional working-tree ship or provide an explicitly empty alternate
+  `--checkout-dir`. This is the fleet-safe path and the only one fleet rolls
+  use.
 - **Working-tree (owner development/validation only).** The control plane ships
   its **local working tree** (tracked + modified + untracked-non-ignored files)
   to the node over the established SSH channel, then passes `--source-dir` (where

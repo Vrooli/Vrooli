@@ -510,7 +510,12 @@ step_clone() {
   fi
 
   mkdir -p "$(dirname "$CHECKOUT_DIR")"
-  if [ -d "${CHECKOUT_DIR}/.git" ]; then
+  # Do not inspect .git with `-d`: a linked worktree (and some macOS checkout
+  # tools) stores .git as a file containing the real git-dir. `git rev-parse`
+  # is the authoritative, portable test for whether this directory is a usable
+  # checkout. It also prevents a populated non-Git directory from being handed
+  # to `git clone`, whose generic "not empty" error hides the safe recovery.
+  if [ -d "$CHECKOUT_DIR" ] && git -C "$CHECKOUT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
     log "    existing checkout — fetching"
     git -C "$CHECKOUT_DIR" fetch --tags --prune origin >&2
     if [ -n "$REVISION" ]; then
@@ -519,6 +524,9 @@ step_clone() {
       git -C "$CHECKOUT_DIR" merge --ff-only "origin/${REVISION}" >&2 2>/dev/null || true
     fi
   else
+    if [ -d "$CHECKOUT_DIR" ] && [ -n "$(ls -A "$CHECKOUT_DIR" 2>/dev/null)" ]; then
+      fail 1 "checkout directory ${CHECKOUT_DIR} already exists and is not a Git checkout; use --source-dir for an intentional working-tree ship or choose an empty --checkout-dir"
+    fi
     log "    cloning fresh"
     git clone "$REPO_URL" "$CHECKOUT_DIR" >&2
     [ -n "$REVISION" ] && git -C "$CHECKOUT_DIR" checkout --quiet "$REVISION" >&2

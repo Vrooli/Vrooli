@@ -8,13 +8,8 @@ import (
 	"vrooli-bridge/internal/audit"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 )
-
-type fakeClock struct{ now time.Time }
-
-func (f *fakeClock) Now() time.Time          { return f.now }
-func (f *fakeClock) Advance(d time.Duration) { f.now = f.now.Add(d) }
 
 type fakeAudit struct{ records []audit.Record }
 
@@ -28,7 +23,7 @@ func openRequest() OpenRequest {
 }
 
 func TestManagerRefusesScopeAndOwnerReauth(t *testing.T) {
-	c := &fakeClock{now: time.Unix(100, 0)}
+	c := scheduletest.New(time.Unix(100, 0))
 	m := NewManager(c, nil)
 	_, err := m.Open(context.Background(), OpenRequest{ID: "s1", NodeID: "n1", OwnerID: "o1", Reauth: true})
 	require.ErrorIs(t, err, ErrScopeDenied)
@@ -39,7 +34,7 @@ func TestManagerRefusesScopeAndOwnerReauth(t *testing.T) {
 }
 
 func TestManagerSequenceGapAndBackpressure(t *testing.T) {
-	c := &fakeClock{now: time.Unix(100, 0)}
+	c := scheduletest.New(time.Unix(100, 0))
 	m := NewManager(c, nil)
 	_, err := m.Open(context.Background(), openRequest())
 	require.NoError(t, err)
@@ -57,7 +52,7 @@ func TestManagerSequenceGapAndBackpressure(t *testing.T) {
 }
 
 func TestManagerIdleAndLifetimeAreHardBoundsAndAudited(t *testing.T) {
-	c := &fakeClock{now: time.Unix(100, 0)}
+	c := scheduletest.New(time.Unix(100, 0))
 	a := &fakeAudit{}
 	m := NewManager(c, a)
 	r := openRequest()
@@ -71,7 +66,7 @@ func TestManagerIdleAndLifetimeAreHardBoundsAndAudited(t *testing.T) {
 	require.Len(t, a.records, 2)
 	require.Equal(t, audit.ActionSessionClose, a.records[1].Action)
 
-	c = &fakeClock{now: time.Unix(100, 0)}
+	c = scheduletest.New(time.Unix(100, 0))
 	m = NewManager(c, nil)
 	r = openRequest()
 	r.Idle = time.Hour
@@ -136,7 +131,7 @@ func TestManagerDeliverOutputIsMonotonicAndFanoutSafe(t *testing.T) {
 }
 
 func TestManagerReattachPreservesPTYSessionAndReplaysScrollback(t *testing.T) {
-	clock := &fakeClock{now: time.Unix(100, 0)}
+	clock := scheduletest.New(time.Unix(100, 0))
 	m := NewManager(clock, nil)
 	_, err := m.Open(context.Background(), openRequest())
 	require.NoError(t, err)
@@ -156,10 +151,10 @@ func TestManagerReattachPreservesPTYSessionAndReplaysScrollback(t *testing.T) {
 	defer unsubscribe()
 	require.Equal(t, []byte("before disconnect\n"), (<-replay).Data)
 	require.Equal(t, []byte("during disconnect\n"), (<-replay).Data)
-	schedule.Advance(time.Second)
+	clock.Advance(time.Second)
 	reattached, err = m.Open(context.Background(), openRequest())
 	require.NoError(t, err)
-	require.True(t, reattached.LastActivity.Equal(schedule.Now()), "reattach must refresh idle expiry")
+	require.True(t, reattached.LastActivity.Equal(clock.Now()), "reattach must refresh idle expiry")
 }
 
 func TestManagerAcceptsIdenticalOutputReplay(t *testing.T) {
@@ -170,5 +165,3 @@ func TestManagerAcceptsIdenticalOutputReplay(t *testing.T) {
 	require.NoError(t, m.DeliverOutput(context.Background(), "s1", 0, []byte("once\n")))
 	require.ErrorIs(t, m.DeliverOutput(context.Background(), "s1", 0, []byte("different\n")), ErrSequenceGap)
 }
-
-var _ schedule.Clock = (*fakeClock)(nil)
