@@ -80,14 +80,30 @@ arcade is *content* — no other scenario wants it — so it lives here. That sp
 is the ownership rule applied cleanly, and it is the answer whenever a new
 drawing capability appears.
 
-Two responsibilities:
+Two responsibilities, and the distinction between them is load-bearing rather
+than organisational.
 
-- **Procedural scene generators.** Seeded, deterministic, no wall-clock or
-  unseeded randomness (`SCAF-001`). These produce the base image for the two
-  code-only strategies.
-- **Composition scaffolds.** Parameterised presets (`SCAF-004`) rendered into a
-  conditioning image — a depth field or an edge drawing — with each reserved
-  region drawn as a flat featureless area (`SCAF-003`).
+- **Procedural scene generators** (`api/internal/scenes`). Finished output that
+  a treatment chain runs over and a visitor actually looks at: coherent noise, a
+  light model, atmospheric depth, and a full tonal range, because every
+  ink-mapping treatment downstream distributes its inks across the tones these
+  produce. Seeded, deterministic, no wall-clock or unseeded randomness
+  (`SCAF-001`). Thirteen ship today — `horizon`, `arcade`, `terrain`, `field`,
+  `flow`, `voronoi`, `reaction`, `caustics`, `mesh`, `contour`, `truchet`,
+  `attractor`, `nebula` — and each declares what it depicts, so a style may only
+  name a generator that draws its subject.
+- **Composition scaffolds** (`api/internal/scaffold`). Conditioning input for a
+  model preprocessor: flat, blocky geometry whose only job is to tell a depth or
+  edge preprocessor where the horizon, the focal mass and the copy-safe void
+  sit. Crude is correct here. Parameterised presets (`SCAF-004`) rendered into a
+  conditioning image, with each reserved region drawn as a flat featureless area
+  (`SCAF-003`).
+
+They were once the same code, and the procedural lane therefore shipped
+conditioning geometry as its product — blocked-out shapes where a picture should
+have been. A scaffold's crudeness is a virtue in its own role and a defect in
+the other one, which is why they are separate packages rather than separate
+parameters.
 
 ## 4 · `compose`
 

@@ -279,3 +279,49 @@ or refused.
   illustration is usually *focal* — a drawing that explains something — and only
   the ambient wash behind one is in scope. That line needs drawing before the
   work starts.
+
+## D-014 — Evidence stays in git, at a stated resolution, with a stated ceiling
+
+**Decided 2026-08-12.** `docs/evidence/` reached 34 MB across roughly seventy
+PNGs once the catalog sheets and the generator sheet landed. `PROBLEMS.md` had
+flagged the question as an owner decision nobody had made; this is the decision.
+
+**It stays in git.** Three reasons, in order of weight.
+
+The artifacts are *reviewed by reading a diff*. A contact sheet's job is to make
+a catalog regression visible when someone changes a generator, and a blob seam
+turns that into a fetch step that the reviewer skips. Evidence nobody looks at
+is the same failure as evidence nobody can reproduce, arriving by a different
+road.
+
+They are also *small in the way that matters*. Thirty-four megabytes is a large
+directory and a trivial repository — this repo carries far more in
+dependencies — and the growth is bounded by the catalog, not by time: adding a
+style adds one cell to one sheet, and the sheets are regenerated in place rather
+than accumulated per run.
+
+And a blob seam is a *dependency the evidence rule cannot afford*. The rule is
+that every artifact is reproducible by a stated command; a seam adds a service
+that must be running for the evidence to be readable at all, which is exactly
+the coupling that makes a reader trust the summary instead of the picture.
+
+**Two constraints keep it honest.**
+
+*Resolution is deliberate, not incidental.* Every artifact renders at its
+delivery geometry or at a sheet cell of 640×320, because the failures this
+scenario has actually shipped — sub-pixel engraving lines, screen moire,
+one-pixel filaments read as speckle — are all invisible below roughly a third of
+delivery size. Thumbnails would make the directory small and the evidence
+worthless.
+
+*The ceiling is 50 MB.* Past that, the next artifact set does not get committed
+until something is retired. `docs/evidence/placements/` and
+`docs/evidence/phase-14/` were retired the same day for a stronger reason —
+neither had a producing command — and that is the first thing to check when the
+ceiling is reached: an artifact with no command is not costing space, it is
+costing trust.
+
+**Revisit when** a consumer outside this repository needs the artifacts, or when
+per-seed evidence (rather than per-style) becomes worth keeping. Both would
+change the growth from bounded to unbounded, which is the property this decision
+rests on.

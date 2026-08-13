@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/pyenv-go"
 	internaladapters "image-tools/internal/adapters"
 	internalai "image-tools/internal/ai"
 	internalanalysis "image-tools/internal/analysis"
@@ -27,7 +28,6 @@ import (
 	internalmodels "image-tools/internal/models"
 	"image-tools/internal/modules"
 	"image-tools/internal/pydeps"
-	"image-tools/internal/pyenv"
 	"image-tools/internal/safety"
 	"image-tools/internal/server"
 	"image-tools/internal/sidecar"

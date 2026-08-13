@@ -60,3 +60,18 @@ afterEach(() => {
 // its own beforeEach and restore it on teardown — opt-in override
 // rather than process-wide unwiring.
 vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+
+// jsdom implements neither `URL.createObjectURL` nor `URL.revokeObjectURL`.
+//
+// The studio pages hand candidate PNG bytes to an <img> through an object URL
+// and revoke it on unmount, which is the correct production behaviour — a
+// variation grid that leaked a megabyte-scale blob per re-render walks a
+// comparison session into hundreds of megabytes with nothing visibly wrong. So
+// the environment is given the two functions rather than the hook being taught
+// to work without them: a guard in the hook would make the leak invisible in
+// exactly the runtime that has the problem.
+if (typeof URL.createObjectURL !== "function") {
+  let issued = 0;
+  URL.createObjectURL = () => `blob:test-${++issued}`;
+  URL.revokeObjectURL = () => {};
+}

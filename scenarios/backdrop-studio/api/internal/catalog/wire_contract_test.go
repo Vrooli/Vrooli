@@ -282,3 +282,57 @@ func anyShared(a, b []string) bool {
 	}
 	return false
 }
+
+// perceptualGridColumns is the width of the grid the perceptual gate samples a
+// composition on. It is duplicated from internal/perceptual deliberately: the
+// point of this test is that a *catalog* value must respect a *gate* property,
+// and importing the gate here would let a change to one silently satisfy the
+// other.
+const perceptualGridColumns = 64
+
+// TestSeededScreensResolveFinerThanTheGateSamples is a measured constraint, not
+// a style preference.
+//
+// A halftone's `lpi` is a count of screen lines across the image width, so its
+// cell is width/lpi. The perceptual gate reduces a composition to a 64-column
+// field before correlating it, so its cell is width/64. Once the screen cell is
+// the larger of the two, the gate is measuring the screen instead of the
+// picture — and so is a viewer, because the composition really has been
+// replaced by a pattern at that scale.
+//
+// Measured on one caustic source across rulings, subject survival runs:
+//
+//	lpi  34 → 0.386
+//	lpi  48 → 0.638
+//	lpi  64 → 0.924
+//	lpi  96 → 0.891
+//
+// The knee sits exactly where the two cells cross. Two styles were retuned
+// below it on the theory that a coarser screen would read more calmly over a
+// busy source; the gate refused both, correctly.
+func TestSeededScreensResolveFinerThanTheGateSamples(t *testing.T) {
+	store := seededStore(t)
+	styles, err := store.ListStyles(t.Context(), "", "", "", "", "")
+	require.NoError(t, err)
+
+	checked := 0
+	for _, style := range styles {
+		raw, ok := style.TreatmentParams["halftone"]
+		if !ok {
+			continue
+		}
+		var params struct {
+			LPI int `json:"lpi"`
+		}
+		require.NoErrorf(t, json.Unmarshal([]byte(raw), &params), "style %q halftone params are not an object: %s", style.ID, raw)
+		if params.LPI == 0 {
+			continue // the operation's own default, which is fine enough
+		}
+		require.GreaterOrEqualf(t, params.LPI, perceptualGridColumns,
+			"style %q screens at %d lines across the width, which is coarser than the %d-column grid the perceptual gate samples on. "+
+				"At that ruling the screen replaces the composition rather than reproducing it. Raise the ruling, or give the source stronger large-scale structure and raise it anyway.",
+			style.ID, params.LPI, perceptualGridColumns)
+		checked++
+	}
+	require.Positive(t, checked, "no seeded style declares a halftone ruling; this test would pass vacuously")
+}

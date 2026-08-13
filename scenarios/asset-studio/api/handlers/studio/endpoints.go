@@ -21,4 +21,5 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "studio_release_asset", Path: studioconnect.StudioServiceReleaseAssetProcedure, Method: "POST", Category: "studio", Summary: "Release an asset"},
 	{ID: "studio_get_reference", Path: studioconnect.StudioServiceGetReleasedAssetReferenceProcedure, Method: "POST", Category: "studio", Summary: "Read released asset reference"},
 	{ID: "studio_import_canon", Path: studioconnect.StudioServiceImportCanonProcedure, Method: "POST", Category: "studio", Summary: "Import canon identities"},
+	{ID: "studio_ingest_external_asset", Path: studioconnect.StudioServiceIngestExternalAssetProcedure, Method: "POST", Category: "studio", Summary: "Admit externally produced bytes with their provenance"},
 }

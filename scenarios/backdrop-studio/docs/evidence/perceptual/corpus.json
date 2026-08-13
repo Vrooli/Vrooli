@@ -1,32 +1,78 @@
 {
-  "note": "Perceptual state of the seeded catalog at seed 7, one entry per style at its first permitted surface. `metrics` is what each style scored; `bar` is the threshold it had to clear. Regenerate with `make integration-evidence`. The lane fails when a metric moves more than 0.05 from its recorded value — deterministic renders do not drift, so movement is a change in the code or the catalog. 3 style(s) were unmeasurable on the recording host and carry no entry.",
+  "note": "Perceptual state of the seeded catalog at seed 7, one entry per style at its first permitted surface. `metrics` is what each style scored; `bar` is the threshold it had to clear. Regenerate with `make integration-evidence`. The lane fails when a metric moves more than 0.05 from its recorded value — deterministic renders do not drift, so movement is a change in the code or the catalog. 6 style(s) were unmeasurable on the recording host and carry no entry.",
   "entries": [
     {
       "style": "ascii-field",
-      "surface": "web.hero-mobile",
+      "surface": "email.header",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.0517,
-        "reserved_quiet": 0.4242,
-        "subject_survival": 0.8585,
+        "frequency_modulation": 0.0726,
+        "subject_survival": 0.68,
         "tonal_occupancy": 0.8546
       },
       "bar": {
         "frequency_modulation": 0.03,
-        "reserved_quiet": 1.6,
         "subject_survival": 0.6,
         "tonal_occupancy": 0.4
       }
     },
     {
-      "style": "city-pop-horizon",
-      "surface": "web.hero-mobile",
+      "style": "aurora-mesh",
+      "surface": "email.header",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.1881,
-        "reserved_quiet": 0.9757,
-        "subject_survival": 0.9905,
-        "tonal_occupancy": 0.8524
+        "frequency_modulation": 0.178,
+        "reserved_quiet": 0.4434,
+        "subject_survival": 1,
+        "tonal_occupancy": 0.8627
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "blueprint-truchet",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1191,
+        "subject_survival": 0.9965,
+        "tonal_occupancy": 0.8335
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "caption-wash-nebula",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1723,
+        "reserved_quiet": 0.6406,
+        "subject_survival": 0.993,
+        "tonal_occupancy": 0.7034
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.8,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "city-pop-horizon",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1656,
+        "reserved_quiet": 0.9861,
+        "subject_survival": 0.9872,
+        "tonal_occupancy": 0.8141
       },
       "bar": {
         "frequency_modulation": 0.03,
@@ -37,12 +83,12 @@
     },
     {
       "style": "cyanotype-arcade",
-      "surface": "web.hero-mobile",
+      "surface": "email.header",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.1093,
-        "reserved_quiet": 0.406,
-        "subject_survival": 0.9633,
+        "frequency_modulation": 0.1108,
+        "reserved_quiet": 0.2487,
+        "subject_survival": 0.9176,
         "tonal_occupancy": 0.6142
       },
       "bar": {
@@ -53,19 +99,81 @@
       }
     },
     {
-      "style": "demoscene-terrain",
-      "surface": "web.hero-mobile",
+      "style": "deep-field",
+      "surface": "email.header",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.247,
-        "reserved_quiet": 1.0261,
-        "subject_survival": 0.9985,
+        "frequency_modulation": 0.1765,
+        "reserved_quiet": 0.9914,
+        "subject_survival": 1,
+        "tonal_occupancy": 0.7255
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "demoscene-terrain",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.2491,
+        "reserved_quiet": 1.2234,
+        "subject_survival": 0.9973,
         "tonal_occupancy": 0.7729
       },
       "bar": {
         "frequency_modulation": 0.03,
         "reserved_quiet": 1.6,
         "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "device-stage-mesh",
+      "surface": "play.phone-screenshot",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.2534,
+        "reserved_quiet": 1.1808,
+        "subject_survival": 1,
+        "tonal_occupancy": 0.8871
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "ember-cloud",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.2029,
+        "subject_survival": 1,
+        "tonal_occupancy": 0.749
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "ember-mesh",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.2126,
+        "reserved_quiet": 0.5028,
+        "subject_survival": 1,
+        "tonal_occupancy": 0.8457
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
         "tonal_occupancy": 0.4
       }
     },
@@ -87,13 +195,47 @@
       }
     },
     {
-      "style": "glaze-mosaic",
-      "surface": "web.hero-mobile",
+      "style": "feature-band-mesh",
+      "surface": "email.header",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.06,
-        "subject_survival": 0.999,
-        "tonal_occupancy": 0.6806
+        "frequency_modulation": 0.2569,
+        "reserved_quiet": 1.0895,
+        "subject_survival": 0.9932,
+        "tonal_occupancy": 0.804
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.8,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "filament-plot",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1842,
+        "reserved_quiet": 0.4118,
+        "subject_survival": 0.9964,
+        "tonal_occupancy": 0.8028
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.7,
+        "tonal_occupancy": 0.35
+      }
+    },
+    {
+      "style": "glaze-mosaic",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.0647,
+        "subject_survival": 0.9988,
+        "tonal_occupancy": 0.6835
       },
       "bar": {
         "frequency_modulation": 0.03,
@@ -102,13 +244,45 @@
       }
     },
     {
-      "style": "memphis-weave",
+      "style": "iron-attractor",
       "surface": "web.hero-mobile",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.1315,
-        "reserved_quiet": 0.8184,
-        "subject_survival": 0.9518,
+        "frequency_modulation": 0.0365,
+        "subject_survival": 0.7238,
+        "tonal_occupancy": 0.8666
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "long-exposure-flow",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1746,
+        "reserved_quiet": 1.1045,
+        "subject_survival": 0.9995,
+        "tonal_occupancy": 0.8411
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.7,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "memphis-weave",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1535,
+        "reserved_quiet": 0.9491,
+        "subject_survival": 0.9667,
         "tonal_occupancy": 0.7457
       },
       "bar": {
@@ -119,14 +293,61 @@
       }
     },
     {
-      "style": "riso-horizon",
+      "style": "molten-terrain",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.2989,
+        "subject_survival": 0.9787,
+        "tonal_occupancy": 0.9563
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "subject_survival": 0.7,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "night-contour",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1455,
+        "reserved_quiet": 0.9908,
+        "subject_survival": 0.9966,
+        "tonal_occupancy": 0.9484
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.7,
+        "tonal_occupancy": 0.35
+      }
+    },
+    {
+      "style": "relief-plate",
       "surface": "web.hero-mobile",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.1356,
-        "reserved_quiet": 1.2735,
-        "subject_survival": 0.9993,
-        "tonal_occupancy": 0.6711
+        "frequency_modulation": 0.1279,
+        "subject_survival": 0.9576,
+        "tonal_occupancy": 0.8039
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "subject_survival": 0.6,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "riso-horizon",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1158,
+        "reserved_quiet": 1.3064,
+        "subject_survival": 0.996,
+        "tonal_occupancy": 0.6684
       },
       "bar": {
         "frequency_modulation": 0.03,
@@ -137,12 +358,12 @@
     },
     {
       "style": "silk-drift",
-      "surface": "web.hero-mobile",
+      "surface": "email.header",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.1374,
+        "frequency_modulation": 0.1341,
         "subject_survival": 0.9994,
-        "tonal_occupancy": 0.8205
+        "tonal_occupancy": 0.8078
       },
       "bar": {
         "frequency_modulation": 0.03,
@@ -152,18 +373,32 @@
     },
     {
       "style": "solar-bloom-horizon",
-      "surface": "web.hero-mobile",
+      "surface": "email.header",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.1519,
-        "reserved_quiet": 1.1415,
-        "subject_survival": 0.9632,
-        "tonal_occupancy": 0.6452
+        "frequency_modulation": 0.1152,
+        "reserved_quiet": 1.1331,
+        "subject_survival": 0.9747,
+        "tonal_occupancy": 0.603
       },
       "bar": {
         "frequency_modulation": 0.03,
         "reserved_quiet": 1.6,
         "subject_survival": 0.7,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "solar-mesh",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.1627,
+        "subject_survival": 1,
+        "tonal_occupancy": 0.8081
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
         "tonal_occupancy": 0.4
       }
     },
@@ -185,13 +420,30 @@
       }
     },
     {
+      "style": "store-tile-truchet",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.0852,
+        "reserved_quiet": 1.0941,
+        "subject_survival": 0.9904,
+        "tonal_occupancy": 0.8969
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.8,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
       "style": "swiss-contour",
       "surface": "web.hero-mobile",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.2505,
-        "reserved_quiet": 0.7308,
-        "subject_survival": 0.9475,
+        "frequency_modulation": 0.1267,
+        "reserved_quiet": 1.019,
+        "subject_survival": 0.8381,
         "tonal_occupancy": 0.8039
       },
       "bar": {
@@ -203,13 +455,30 @@
     },
     {
       "style": "technical-field",
-      "surface": "web.hero-mobile",
+      "surface": "email.header",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.1983,
-        "reserved_quiet": 0.9468,
-        "subject_survival": 0.9993,
-        "tonal_occupancy": 0.7577
+        "frequency_modulation": 0.2809,
+        "reserved_quiet": 0.9848,
+        "subject_survival": 0.9994,
+        "tonal_occupancy": 0.9192
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
+        "reserved_quiet": 1.6,
+        "subject_survival": 0.8,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "terrazzo-truchet",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.0554,
+        "reserved_quiet": 1.1018,
+        "subject_survival": 0.9995,
+        "tonal_occupancy": 0.6936
       },
       "bar": {
         "frequency_modulation": 0.03,
@@ -220,11 +489,11 @@
     },
     {
       "style": "tidal-caustic",
-      "surface": "web.hero-mobile",
+      "surface": "email.header",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.0611,
-        "subject_survival": 0.8034,
+        "frequency_modulation": 0.0797,
+        "subject_survival": 0.8056,
         "tonal_occupancy": 0.7431
       },
       "bar": {
@@ -234,35 +503,46 @@
       }
     },
     {
-      "style": "ukiyo-tide",
-      "surface": "web.hero-mobile",
+      "style": "type-mask-caustic",
+      "surface": "email.header",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.0756,
-        "reserved_quiet": 0.9604,
-        "subject_survival": 0.7717,
-        "tonal_occupancy": 0.6624
+        "frequency_modulation": 0.0648,
+        "subject_survival": 0.9942,
+        "tonal_occupancy": 0.7233
       },
       "bar": {
         "frequency_modulation": 0.03,
-        "reserved_quiet": 1.6,
+        "subject_survival": 0.8,
+        "tonal_occupancy": 0.4
+      }
+    },
+    {
+      "style": "ukiyo-tide",
+      "surface": "email.header",
+      "seed": 7,
+      "metrics": {
+        "frequency_modulation": 0.0495,
+        "subject_survival": 0.6993,
+        "tonal_occupancy": 0.7077
+      },
+      "bar": {
+        "frequency_modulation": 0.03,
         "subject_survival": 0.6,
         "tonal_occupancy": 0.4
       }
     },
     {
       "style": "vaporwave-drift",
-      "surface": "web.hero-mobile",
+      "surface": "email.header",
       "seed": 7,
       "metrics": {
-        "frequency_modulation": 0.1524,
-        "reserved_quiet": 0.9642,
-        "subject_survival": 0.9496,
-        "tonal_occupancy": 0.8626
+        "frequency_modulation": 0.15,
+        "subject_survival": 0.9796,
+        "tonal_occupancy": 0.8549
       },
       "bar": {
         "frequency_modulation": 0.03,
-        "reserved_quiet": 1.6,
         "subject_survival": 0.7,
         "tonal_occupancy": 0.4
       }

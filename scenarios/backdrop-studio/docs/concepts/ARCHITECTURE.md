@@ -61,15 +61,15 @@ Four strategies. Each style declares exactly one.
 
 | Strategy | Base image from | Model | Cost | Reproducible |
 |---|---|---|---|---|
-| `procedural` | seeded code | no | none | exactly, from seed |
+| `procedural` | seeded code, shipped as drawn | no | none | exactly, from seed |
 | `procedural-treated` | seeded code, then treatment | no | none | exactly, from seed |
 | `guided` | scaffold → conditioned generation → treatment | yes | metered | composition yes, pixels approximately |
 | `synthesized` | prompt → generation → treatment | yes | metered | least |
 
 ### The invariant
 
-> Every strategy terminates in the same deterministic treatment pass.
-> Raw model output is never released.
+> **Raw model output is never released.** Every model-backed strategy
+> terminates in the same deterministic treatment pass.
 
 This is the load-bearing claim of the design. A synthesized image screened at a
 fixed angle and remapped onto two brand inks cannot read as generic model
@@ -77,6 +77,15 @@ output, because everything that makes generic model output recognisable — the
 smooth photoreal gradient, the arbitrary palette, the absence of process — is
 destroyed by the treatment. The property is **structural**: it does not depend
 on anyone writing a sufficiently good prompt.
+
+The invariant is stated about *model* output rather than about every strategy,
+and the distinction is deliberate. A `procedural` style ships what its generator
+drew, with no treatment at all — a mesh gradient is finished when the generator
+finishes, and a screen over it would add the mechanical texture the look exists
+to avoid. Nothing about that risks reading as model output, because no model was
+involved. Requiring a treatment there would have forced every such style to
+declare one it did not want, which is how the rule was written first and why the
+catalog had no `procedural` styles at all.
 
 It is also what makes the catalog a *system* rather than a collection. Duotone,
 posterization and dithering discard the source's colour and remap luminance onto

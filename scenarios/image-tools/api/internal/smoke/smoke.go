@@ -3,7 +3,7 @@
 // be CONSTRUCTED/LOADED by the provisioned runtime before a user op depends on it,
 // and caches the pass/fail verdict keyed by (model hash, lock hash).
 //
-// Like internal/pyenv, it is deliberately scenario-agnostic: it knows an
+// Like github.com/vrooli/pyenv-go, it is deliberately scenario-agnostic: it knows an
 // interpreter path, a PYTHONPATH, a module name and argv — nothing about
 // image-tools models. The model→probe-args mapping lives with the caller
 // (internal/models). That keeps this a clean lift to a platform package when a

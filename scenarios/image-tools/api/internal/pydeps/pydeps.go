@@ -2,7 +2,7 @@
 // ranged, governed requirements.in and the fully pinned + hashed
 // requirements.lock generated from it — so they travel with the compiled binary.
 // At boot the lock is materialized into the scenario data dir, where the uv venv
-// provisioner (internal/pyenv) syncs the private venv from it. requirements.lock
+// provisioner (github.com/vrooli/pyenv-go) syncs the private venv from it. requirements.lock
 // is the single version source of truth; requirements.in carries the
 // app-compatibility ceilings (e.g. transformers<5). Regenerate the lock with the
 // `uv pip compile` command in internal/pydeps/README.md — never edit

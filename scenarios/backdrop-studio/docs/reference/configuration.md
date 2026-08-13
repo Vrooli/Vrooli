@@ -76,7 +76,7 @@ A slot that neither the style nor the brand defines is a
 written onto the wire as a literal.
 
 That fall-through is not hypothetical: it is what shipped, and image-tools
-answered `422 invalid color "$brand.primary"` for ten of sixteen seeded styles
+answered `422 invalid color "$brand.primary"` for ten of the sixteen styles seeded at the time
 while every unit test passed — because the tests all bound a brand, which is the
 one thing a CLI caller never did.
 

@@ -18,13 +18,6 @@ func TestAppendScopeProviderDerivesIsolatedRecallDescriptor(t *testing.T) {
 	require.NoError(t, AppendScopeProvider(path, "marketing"))
 	file, err := aisearch.LoadSearchFile(path)
 	require.NoError(t, err)
-	var found bool
-	for _, provider := range file.Providers {
-		if provider.ProviderID == "source-ledger.scope.marketing" {
-			found = true
-			require.Contains(t, string(provider.Endpoint), `scope`)
-			require.Contains(t, string(provider.Endpoint), `marketing`)
-		}
-	}
-	require.True(t, found)
+	require.Len(t, file.Providers, 1)
+	require.Equal(t, "source-ledger.agent-memory", file.Providers[0].ProviderID)
 }

@@ -7,7 +7,7 @@
 #   internal/pydeps/requirements.in
 # (see internal/pydeps/README.md to regenerate). At runtime the lock is embedded
 # in the binary, materialized into the scenario data dir, and synced into the venv
-# by internal/pyenv — it is NOT read from this path.
+# by github.com/vrooli/pyenv-go — it is NOT read from this path.
 #
 # This file simply re-exports the lock so `pip install -r requirements.txt` (or any
 # tool that still looks here) resolves the exact same pinned set. Do not add loose

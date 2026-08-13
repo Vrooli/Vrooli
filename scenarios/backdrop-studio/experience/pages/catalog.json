@@ -34,9 +34,27 @@
     }
   ],
   "states": [
-    { "id": "stale", "description": "The last catalog remains visible with a freshness notice.", "setup": { "route": "/" } },
-    { "id": "request-error", "description": "Catalog failure states the cause and keeps previously loaded styles visible.", "setup": { "route": "/" } },
-    { "id": "partial", "description": "Available styles remain discoverable while some specimens are unavailable.", "setup": { "route": "/" } },
+    {
+      "id": "stale",
+      "description": "The last catalog remains visible with a freshness notice.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "Catalog failure states the cause and keeps previously loaded styles visible.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Available styles remain discoverable while some specimens are unavailable.",
+      "setup": {
+        "route": "/"
+      }
+    },
     {
       "id": "empty",
       "description": "No styles exist yet. Offers to seed the starter catalog and explains what a style is, rather than showing a bare grid.",
@@ -63,7 +81,10 @@
       "description": "A filter combination matches nothing. Names the constraining facets and offers to relax the narrowest one, rather than showing an unqualified empty state.",
       "setup": {
         "route": "/",
-        "query": {"treatment": "typographic_mosaic", "lineage": "swiss_international"}
+        "query": {
+          "treatment": "typographic_mosaic",
+          "lineage": "swiss_international"
+        }
       }
     },
     {
@@ -80,5 +101,68 @@
         "route": "/"
       }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "specimen-grid",
+      "role": "list",
+      "description": "One tile per style, each holding a rendered specimen at the style's representative surface."
+    },
+    {
+      "id": "axis-facets",
+      "role": "group",
+      "name": "Filters",
+      "description": "Always-visible selects for role, subject, treatment, lineage and placement, plus a result count."
+    },
+    {
+      "id": "result-count",
+      "role": "status",
+      "description": "How many styles the current facet combination matches."
+    }
+  ],
+  "claims": [
+    {
+      "id": "specimens-present",
+      "type": "element-present",
+      "tier": "machine",
+      "statement": "The catalog shows a grid of rendered specimens rather than a list of names.",
+      "elements": [
+        "specimen-grid"
+      ]
+    },
+    {
+      "id": "facets-are-primary",
+      "type": "affordance-present",
+      "tier": "machine",
+      "statement": "Axis filtering is reachable without opening a menu, because the taxonomy is the navigation.",
+      "elements": [
+        "axis-facets"
+      ],
+      "params": {
+        "affordances": [
+          "filter"
+        ]
+      }
+    },
+    {
+      "id": "filtered-empty-recovers",
+      "type": "state-covered",
+      "tier": "machine",
+      "statement": "A facet combination matching nothing names the constraint and offers to relax it.",
+      "state": "filtered-empty"
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "specimen-grid": {
+        "testid": "catalog-grid"
+      },
+      "axis-facets": {
+        "testid": "catalog-axis-filters"
+      },
+      "result-count": {
+        "testid": "catalog-result-count"
+      }
+    }
+  }
 }

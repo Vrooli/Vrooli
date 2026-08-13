@@ -282,6 +282,11 @@
       "service": "StudioService",
       "method": "CommissionAgent",
       "reason": "Agent commissioning is currently exposed through the workbench API while the dedicated operator CLI workflow is completed."
+    },
+    {
+      "service": "StudioService",
+      "method": "IngestExternalAsset",
+      "reason": "Machine-to-machine ingress: it carries raw image bytes with a producing scenario's provenance, so its caller is another scenario's release path rather than an operator at a terminal. A CLI wrapper would need a file argument and would invite hand-authored provenance, which is exactly the second authority on disclosure this RPC exists to avoid."
     }
   ]
 }

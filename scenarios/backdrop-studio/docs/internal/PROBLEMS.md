@@ -38,14 +38,39 @@
   reintroduced. The 6 remaining are tool gaps and one governance decision, filed
   as `knw-1786539478410570891`; none of them are in backdrop-studio or
   image-tools.
-- **`docs/evidence/` is 8.8 MB across 36 PNGs** now that evidence renders at
-  delivery resolution. `treatments/grain.png` alone is 2.9 MB because noise does
-  not compress. Delivery resolution was the point — a screen cannot be judged at
-  64×48 — but whether this belongs in git or behind a blob seam is an owner
-  decision that has not been made.
+- ~~`docs/evidence/` is 8.8 MB and nobody has decided where it lives.~~
+  **Decided 2026-08-12, D-014.** It stays in git, at delivery resolution, under
+  a 50 MB ceiling — the artifacts are reviewed by reading a diff, growth is
+  bounded by the catalog rather than by time, and a blob seam would add a
+  running service the evidence rule cannot depend on. It is 34 MB today. Two
+  artifact sets were retired the same day for a stronger reason than size:
+  neither had a producing command.
 - **`ascii_mosaic` is the only treatment whose cell size is coupled to a
   font.** It blits a 7×13 bitmap face, so `block_size` values far from 7 resample
   the glyph. Legible, but not crisp at extremes.
+- ~~The studio UX barely exists.~~ **Closed 2026-08-12.** Eleven routes resolved
+  to one 181-line `WorkbenchPage` holding four hardcoded style rows and
+  CSS-gradient "specimens", so the one question the studio exists to answer —
+  what does this style actually look like — could not be asked of it. There are
+  now ten pages, each its own component, each reading the real catalog:
+  a faceted catalog browser, style detail with the chain and its resolved
+  parameters and the perceptual margins, a seed-range variation grid, a remix
+  flow that records lineage, per-placement previews, a compose plan, the surface
+  registry with its citations, candidates, and an honest empty state for
+  released backdrops. `routes.test.tsx` asserts no two routes share a component.
+
+  Three fields had to reach the wire first: `Style.treatment_params`,
+  `Style.inks` and `Style.parent_id` were all held by the store, declared by
+  neither the proto nor the handler mapping, and therefore invisible to every
+  consumer. The studio could show a treatment chain with no parameters under it
+  and offer a fork it could not record.
+- **No surface exists for Apple's current primary iPhone class.** Verified
+  2026-08-12: the 6.9-inch class at 1320×2868 is now primary and the seeded
+  6.7-inch record at 1290×2796 is a fallback Apple still accepts. Assets for the
+  primary class therefore have no surface to render into. The fix is one seed
+  row, not code — the device classes are data by design — but it needs the
+  geometry checked against App Store Connect Help at the time it is added,
+  because that is the number a submission is rejected on.
 - **Six placements have no mockup and silently preview as `full_bleed`.**
   `render.composePlacement` has cases for `split_panel`, `framed_inset` and
   `corner_bleed`, and a `default` that everything else falls into — so
@@ -251,11 +276,15 @@ one became so.
   for an invisible quality loss. Re-run when the card is free, or raise
   generation priority against the other residents.
 
-- **The catalog is 16 styles across 4 scenes.** Adding a genuinely new *subject*
-  (botanical, celestial, figure, industrial) needs a new scene generator, not a
-  new catalog row — those subjects are only reachable through model-backed
-  strategies today, and `scenePreset` refuses them procedurally rather than
-  silently substituting a field.
+- **A new subject needs a new generator, not a new catalog row.** The catalog is
+  40 styles across 13 generators as of seed v7, and the rule has not changed:
+  `botanical`, `celestial`, `figure`, `industrial`, `interior`,
+  `textile_material` and `object_metaphor` are reachable only through
+  model-backed strategies, and `ResolvePreset` refuses them procedurally rather
+  than silently substituting an abstract field. `cartographic` and `atmospheric`
+  left this list when `contour` and `nebula` landed, which is what closing the
+  gap looks like — a generator that genuinely depicts the subject, not a
+  relabelled one that resembles it.
 - ~~`TreatmentParams` is unvalidated on write.~~ **Closed 2026-08-12.**
   `validateStyle` now calls `imageengine.ValidateChain`, which rejects malformed
   JSON, non-object values, parameters naming an operation the style does not
@@ -394,12 +423,18 @@ blast radius to the release call.
 specifications and add a regression test whenever a new conditioning kind is
 introduced. The model-backed handoff is identity-free and needs no workaround.
 
-**Additional context:** `asset-studio` has now been exercised by conformance and dispatcher tests.
-Backdrop Studio is an early generic consumer, so any new conditioning kind still
-Backdrop Studio is an early generic consumer, so any new conditioning kind still
-needs an explicit contract test before it is treated as stable.
+**Resolved 2026-08-12.** The worry was correct to record and turned out not to
+bite. `StudioService.IngestExternalAsset` takes a generic
+`ConditioningReference` — the same type `OT-P0-016` already used — so a scaffold
+goes through as `kind: "scaffold"` with no identity anywhere in the request, and
+the resulting asset carries no identity version ids. It is proven both below the
+wire (`TestIngestAcceptsANonCharacterConditioningKind`) and across it
+(`TestAssetStudioAcceptsAScaffoldConditionedIngress`, which asserts the
+disclosure records `scaffold arcade@edge`). The standing instruction stands: a
+new conditioning kind still needs an explicit contract test before it is treated
+as stable.
 
-**Owner:** unassigned — `asset-studio`
+**Owner:** resolved — `asset-studio`
 
 **Refs:** `scenarios/asset-studio/api/internal/studio/{studio.go,dispatcher.go}`,
 `scenarios/asset-studio/PRD.md` OT-P0-004, OT-P0-005, OT-P0-016

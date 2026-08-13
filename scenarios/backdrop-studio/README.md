@@ -1,152 +1,142 @@
 # Backdrop Studio
 
-Design-system-aware generation of ambient hero imagery for landing pages and promotional surfaces
+Art-directed ambient imagery for landing pages, app stores and social surfaces —
+generated, measured, and released with its provenance intact.
 
-This scenario was generated from the `react-vite` template and packages
-the standard full-stack Vrooli scenario shape:
+An **ambient** image is the stage: attention passes *through* it to the copy on
+top. That is the role this scenario produces, and it is not a synonym for
+"background image" — a backdrop that competes with the headline has failed at
+the one job it has.
 
-- Go API (`api/`)
-- React + TypeScript + Vite UI (`ui/`)
-- CLI wrapper (`cli/`)
-- Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry, generated L0 experience contract, and progress log
-  (`requirements/`, `experience/`, `docs/internal/PROGRESS.md`)
+## What it does
 
-> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
+Give it a **style** and a **surface** and it returns a rendered candidate, the
+perceptual measurements that candidate passed, and the reserved regions a
+consumer should keep its copy inside.
 
-## What You Get
+- **A catalog of 40 styles** across 24 visual lineages, each classified on five
+  axes and carrying its own treatment chain, parameters, ink defaults, reserved
+  regions and quality bar. The catalog is versioned data, applied by version,
+  and an operator-authored style is never overwritten by an upgrade.
+- **Three source lanes.** `procedural` ships what a generator drew;
+  `procedural-treated` runs an `image-tools` treatment chain over it; `guided`
+  and `synthesized` reach an image model, the first conditioning generation on a
+  composition scaffold through ControlNet.
+- **Thirteen procedural generators** — horizon, arcade, terrain, metaball field,
+  flow field, voronoi, reaction-diffusion, caustics, mesh gradient, contour,
+  truchet, strange attractor and nebula. Each is a pure function of
+  `(preset, size, seed, params)`: no clocks, no global RNG, no I/O.
+- **18 declared surfaces** from a 1440×720 hero to a 2048×2732 App Store
+  screenshot, each carrying the citation its geometry came from — because some
+  geometry is ours to choose and some belongs to a store that will reject a
+  wrong number at submission.
+- **Two gates before anything ships.** A legibility gate measures overlay text
+  contrast; a perceptual gate measures whether the composition survived its own
+  treatment at all. The second exists because high-contrast noise passes the
+  first with ease.
 
-- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
-  coordinated through generated proto contracts.
-- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
-  metadata, testing config, and CLI install wiring.
-- Domain-first API shape with per-domain service, repository, schema,
-  handler module, mocks, and tests.
-- SQLite by default. Add external resources to `.vrooli/service.json`
-  only when this scenario actually needs them.
-- UI/CLI guardrails for i18n, accessibility, API base resolution,
-  declarative command args, generated Connect clients, and report-shaped
-  output.
-- Baseline PWA/native-readiness metadata: web app manifest,
-  standalone-mode mobile tags, proxy-safe relative install asset URLs,
-  a minimal app-shell service worker, safe-area CSS tokens, and generic
-  placeholder icons ready for scenario-specific replacement.
-- Canonical responsive shell plus adopted-provenance UI primitives from
-  `react-component-library` for common shared surfaces such as buttons,
-  cards, data tables, empty states, inputs, selects, status badges, sidebar
-  shell, and bottom navigation.
-- Root-level `DESIGN.md` plus generated UI token assets from the
-  selected design kit.
-- Generated `experience/` L0 specs for the starter routes. These are UX
-  intent placeholders, not finished claims; grow them as routes become real.
-- A documentation contract in `docs/manifest.json`, with stubs for
-  domains, flows, data, integrations, monetization, deployment,
-  runbooks, observability, security, performance, and durable
-  decisions.
+## Why the gates matter
 
-## Placeholders vs. Durable Scaffolding
+An audit rebuilt this scenario from source and rendered every style. Twelve of
+sixteen failed outright, and one of the four that rendered was illegible moire
+where a colonnade should have been — while every Go unit test passed, because
+the suite tested against a fake executor below the wire.
 
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
+So the rule here is that **a style is not shippable until its exact bytes have
+made a round trip through a running `image-tools` and come back as an image.**
+Everything else is inference. `api/integration/` is that lane, and it refuses to
+judge anything against a stale binary.
 
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- Starter page content such as the dashboard metric placeholders.
-- The bare-minimum settings surface once your scenario needs more than
-  theme and locale.
+The perceptual gate came from the same audit. It measures four things on the
+pixels — how much of the source composition is still readable, how much of the
+tonal range is occupied, how much the ink density varies across the frame, and
+whether reserved regions are quieter than the rest — and every threshold is
+derived from rendering the whole catalog and scoring it, never chosen a priori.
 
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
+## The studio
 
-- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
-- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
-- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
-- Adopted shared UI primitives under `ui/src/components/ui/`; prefer
-  `react-component-library adoptions apply` over hand-rolling a new primitive.
-- The responsive shell floors: full viewport height, overflow-contained main
-  content, desktop sidebar, fixed safe-area mobile bottom nav, and Settings
-  ownership of locale switching.
-- The feature-folder pattern under `ui/src/features/<name>/`.
-- The proto → API → CLI → UI vertical-slice shape.
+Ten pages, each reading the real catalog:
 
-**Connect-RPC is the default transport.** Every domain endpoint goes
-through a proto service and generated Connect handlers/clients. If
-you find yourself writing `Path: "/api/v1/..."` as a literal string in
-an `EndpointDescriptor`, stop — use a proto service method instead.
-Codegen rejects literal Paths that lack an explicit `RESTException`
-tag; the four allowed REST reasons (multipart upload, webhook
-receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
+| Route | What it is for |
+|---|---|
+| `/catalog` | Every style as a rendered specimen, filtered by any taxonomy axis |
+| `/styles/:id` | One style in full: chain, resolved parameters, prompt, regions, perceptual margins, and the candidate behind real page copy |
+| `/sweep` | One style across a seed range — is the style good, or was that a good seed? |
+| `/remix` | Fork a style, change one axis, see it beside its parent, save it with lineage |
+| `/placements` | The same style at each placement it declares |
+| `/compose` | Resolve a plan and see what it will cost before spending it |
+| `/surfaces` | Every output target with its geometry and its authority |
+| `/candidates` | A batch of candidates with the verdict each carries |
+| `/backdrops` | Released backdrops |
+| `/settings` | Theme and locale |
 
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
-
-## Running The Scenario
+## Running it
 
 ```bash
-# Build API + UI, install pnpm deps, install scenario CLI
-make setup   # wraps `vrooli scenario setup`
-
-# Start API + UI in the background
-make start   # wraps `vrooli scenario start`
+make setup   # build API + UI, install deps, install the scenario CLI
+make start   # start API + UI in the background
+make test    # the scenario suite
 ```
 
-See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
+Render something:
 
-Run tests with `make test` (which runs `vrooli scenario test`) or invoke
-`test-genie execute backdrop-studio --preset comprehensive` directly for
-finer-grained presets.
+```bash
+backdrop-studio catalog list
+backdrop-studio render submit --style cyanotype-arcade --surface web.hero \
+  --placement full_bleed --seed 7
+```
 
-## Documentation Map
+Regenerate the committed evidence — contact sheets, treatment gallery,
+generator sheet, perceptual corpus:
 
-| Need | Start Here |
+```bash
+make integration-evidence
+```
+
+## What it depends on
+
+`image-tools` for every deterministic treatment and for model-backed generation;
+`brand-manager` for the palette a style's `$brand.*` slots resolve against, with
+each style declaring its own ink defaults so a cold install still renders;
+`asset-studio` for the provenance and disclosure record a model-backed release
+carries. Only the first is required — the procedural catalog keeps working when
+the other two are down, which is what makes this deployable as a desktop
+product.
+
+## Documentation map
+
+| Need | Start here |
 |---|---|
-| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
-| Establish UI design language | `DESIGN.md` at this scenario's root |
-| Author UX intent | [`experience/README.md`](experience/README.md) |
-| Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
-| Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
-| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
-| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
-| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
-| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
-| Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
-| Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
-| Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
-| Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
-| Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| The five classification axes and what draws what | [`docs/reference/taxonomy.md`](docs/reference/taxonomy.md) |
+| Output surfaces and their cited geometry | [`docs/reference/surfaces.md`](docs/reference/surfaces.md) |
+| What belongs in the seeded catalog and why | [`docs/reference/starter-catalog.md`](docs/reference/starter-catalog.md) |
+| Architecture and domain boundaries | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md), [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
+| Cross-scenario seams and their fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
+| Known defects, and the ones already closed | [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) |
+| How to reproduce every committed artifact | [`docs/internal/EVIDENCE.md`](docs/internal/EVIDENCE.md) |
+| Per-style ship verdicts | [`docs/evidence/catalog/verdicts.md`](docs/evidence/catalog/verdicts.md) |
+| Testing protocol | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
+| Env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
+| API endpoints and CLI commands | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md), [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
 
-## Working Rules
+## Working rules
 
-## Customize Safely
-
-Keep the generated lifecycle, transport, accessibility, and design-token seams
-intact while replacing placeholder product content. Add new visual behavior
-through the scenario's typed contracts and shared token layer so consumers can
-reuse the result without coupling to implementation details.
-
-1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
-2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
-3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
-4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
-5. **Keep `experience/` aligned with routes.** Start at L0, then add priorities, claims, bindings, states, and journeys before flipping pages active.
-6. **Update `docs/concepts/DOMAINS.md`** before adding product code.
-7. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
-8. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-9. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
-10. **Keep boundaries**: only edit within this scenario's directory.
-
-## pnpm Everywhere
-
-This scenario assumes pnpm. If you run another package manager, convert
-lockfiles yourself before committing. Scripts use `pnpm` directly (no
-`npm` fallbacks) to reduce drift.
-
-## Need Inspiration?
-
-Open `scenarios/browser-automation-studio/` to see the same template
-shape taken to completion.
+1. **Evidence is reproducible or it is not evidence.** Every artifact under
+   `docs/evidence/` is produced by a command named in
+   [`docs/internal/EVIDENCE.md`](docs/internal/EVIDENCE.md). A screenshot from a
+   throwaway probe has been deleted from this repository once already.
+2. **A catalog retune is a seed version, not an edit.** Each
+   `api/internal/catalog/seed/vN.json` carries `retune_reasons` naming every
+   value it changes and why. A number chosen for a reason nobody wrote down gets
+   re-litigated forever.
+3. **Spatial treatment parameters are relative, never pixels.** A value in
+   pixels ties a style to one delivery size; this catalog renders the same style
+   from a 240px edge to a 2732px one.
+4. **Refuse rather than substitute.** A subject no generator draws is an error,
+   not an excuse to render a nearby picture. A model-backed release with no
+   asset-studio is refused, not downgraded to a procedural candidate wearing a
+   synthetic label.
+5. **Keep the durable seams**: i18n wiring, accessibility roles, `data-testid`
+   selectors, design tokens, the responsive shell floors, and the adopted
+   primitives under `ui/src/components/ui/` — prefer
+   `react-component-library adoptions apply` over hand-rolling one.

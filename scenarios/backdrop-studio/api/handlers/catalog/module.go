@@ -54,7 +54,17 @@ func (h *handler) CreateStyle(ctx context.Context, req *connect.Request[catalogv
 }
 
 func toProto(v catalog.Style) *sharedv1.Style {
-	out := &sharedv1.Style{Id: v.ID, Name: v.Name, Version: int32(v.Version), Role: v.Role, Subject: v.Subject, Lineage: v.Lineage, Treatments: v.Treatments, Placements: v.Placements, Strategy: v.Strategy, ContrastThreshold: v.ContrastThreshold}
+	// TreatmentParams, Inks and ParentID are the three fields that decide what a
+	// style looks like and where it came from, and all three used to stop at
+	// this boundary: the store held them, the wire did not carry them, so the
+	// studio could show a chain without its parameters and offer a fork it
+	// could not record.
+	out := &sharedv1.Style{
+		Id: v.ID, Name: v.Name, Version: int32(v.Version), Role: v.Role, Subject: v.Subject,
+		Lineage: v.Lineage, Treatments: v.Treatments, Placements: v.Placements, Strategy: v.Strategy,
+		ContrastThreshold: v.ContrastThreshold, TreatmentParams: v.TreatmentParams, Inks: v.Inks,
+		ParentId: v.ParentID,
+	}
 	if v.Scaffold != nil {
 		out.Scaffold = &sharedv1.ScaffoldBinding{Preset: v.Scaffold.Preset, Conditioner: v.Scaffold.Conditioner, ParamsJson: v.Scaffold.ParamsJSON}
 	}
@@ -68,7 +78,13 @@ func toProto(v catalog.Style) *sharedv1.Style {
 }
 
 func fromProto(v *sharedv1.Style) catalog.Style {
-	out := catalog.Style{ID: v.GetId(), Name: v.GetName(), Version: int(v.GetVersion()), Role: v.GetRole(), Subject: v.GetSubject(), Lineage: v.GetLineage(), Treatments: v.GetTreatments(), Placements: v.GetPlacements(), Strategy: v.GetStrategy(), ContrastThreshold: v.GetContrastThreshold()}
+	out := catalog.Style{
+		ID: v.GetId(), Name: v.GetName(), Version: int(v.GetVersion()), Role: v.GetRole(),
+		Subject: v.GetSubject(), Lineage: v.GetLineage(), Treatments: v.GetTreatments(),
+		Placements: v.GetPlacements(), Strategy: v.GetStrategy(),
+		ContrastThreshold: v.GetContrastThreshold(), TreatmentParams: v.GetTreatmentParams(),
+		Inks: v.GetInks(), ParentID: v.GetParentId(),
+	}
 	if v.GetScaffold() != nil {
 		out.Scaffold = &catalog.ScaffoldBinding{Preset: v.GetScaffold().GetPreset(), Conditioner: v.GetScaffold().GetConditioner(), ParamsJSON: v.GetScaffold().GetParamsJson()}
 	}

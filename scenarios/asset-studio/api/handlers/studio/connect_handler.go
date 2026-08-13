@@ -1,8 +1,11 @@
 package studio
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -52,6 +55,7 @@ func (h *connectHandler) SetAdvisoryAnalyzer(analyzer core.AdvisoryAnalyzer) {
 	}
 	h.analyzer = analyzer
 }
+
 func (h *connectHandler) SetAgentCommissioner(c AgentCommissioner) {
 	if c == nil {
 		c = unavailableCommissioner{}
@@ -396,6 +400,82 @@ func (h *connectHandler) ReleaseAsset(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&studiov1.ReleaseAssetResponse{Asset: toProtoAsset(h.studio.Assets[req.Msg.AssetId])}), nil
 }
 
+// IngestExternalAsset admits bytes another scenario produced.
+//
+// The bytes go through the same blob seam every other asset uses, and the
+// resulting record enters `in_review` — not `released`. That is the whole
+// design: this is a door into the existing release path, not a way around it.
+// An ingested asset still needs its operator verdict and still passes every
+// check in Release, so admitting it cannot be used to publish something the
+// normal path would have refused.
+func (h *connectHandler) IngestExternalAsset(ctx context.Context, req *connect.Request[studiov1.IngestExternalAssetRequest]) (*connect.Response[studiov1.IngestExternalAssetResponse], error) {
+	msg := req.Msg
+	if len(msg.GetImage()) == 0 {
+		return nil, invalid(fmt.Errorf("ingest requires image bytes"))
+	}
+	provenance := msg.GetProvenance()
+	if provenance == nil {
+		return nil, invalid(fmt.Errorf("ingest requires provenance: an asset with no recorded origin cannot be disclosed"))
+	}
+	mediaType := strings.TrimSpace(msg.GetMediaType())
+	if mediaType == "" {
+		mediaType = "image/png"
+	}
+
+	assetID := uuid.NewString()
+	key := "external/" + assetID
+	// The bytes are stored before the record is written. The other order would
+	// leave a record pointing at a blob that failed to save, which reads as a
+	// released asset whose bytes cannot be fetched — the one failure mode a
+	// provenance store must not have.
+	if h.blobs == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("asset blob store is unavailable"))
+	}
+	if err := h.blobs.Put(ctx, key, bytes.NewReader(msg.GetImage()), mediaType); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("store ingested bytes: %w", err))
+	}
+
+	conditioning := core.ConditioningReference{}
+	if c := provenance.GetConditioning(); c != nil {
+		conditioning = core.ConditioningReference{Kind: c.GetKind(), ID: c.GetId(), Version: c.GetVersion()}
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	asset, err := h.studio.Ingest(assetID, core.IngestRequest{
+		BlobKey:    key,
+		MediaType:  mediaType,
+		AltText:    msg.GetAltText(),
+		Decorative: msg.GetDecorative(),
+		Width:      int(msg.GetWidth()),
+		Height:     int(msg.GetHeight()),
+		Provenance: core.ExternalProvenance{
+			ProducingScenario: provenance.GetProducingScenario(),
+			Strategy:          provenance.GetStrategy(),
+			ModelBacked:       provenance.GetModelBacked(),
+			Model:             provenance.GetModel(),
+			Prompt:            provenance.GetPrompt(),
+			NegativePrompt:    provenance.GetNegativePrompt(),
+			Seed:              provenance.GetSeed(),
+			Conditioning:      conditioning,
+			Parameters:        provenance.GetParameters(),
+		},
+	})
+	if err != nil {
+		// The stored bytes are removed: a refused ingest that left its blob
+		// behind would accumulate orphans that no record ever names, which is
+		// indistinguishable from a leak.
+		if delErr := h.blobs.Delete(ctx, key); delErr != nil {
+			log.Printf("ingest rollback: delete orphaned blob %s: %v", key, delErr)
+		}
+		return nil, invalid(err)
+	}
+	if err := h.persist(ctx); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&studiov1.IngestExternalAssetResponse{Asset: toProtoAsset(asset)}), nil
+}
+
 func (h *connectHandler) GetReleasedAssetReference(_ context.Context, req *connect.Request[studiov1.GetReleasedAssetReferenceRequest]) (*connect.Response[studiov1.GetReleasedAssetReferenceResponse], error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -418,6 +498,7 @@ func (h *connectHandler) ImportCanon(ctx context.Context, req *connect.Request[s
 	}
 	return connect.NewResponse(&studiov1.ImportCanonResponse{Created: int32(result.Created), Revised: int32(result.Revised), Errors: result.Errors}), nil
 }
+
 func (h *connectHandler) CommissionAgent(ctx context.Context, req *connect.Request[studiov1.CommissionAgentRequest]) (*connect.Response[studiov1.CommissionAgentResponse], error) {
 	h.mu.Lock()
 	for _, id := range req.Msg.GetSourceIdentityVersionIds() {

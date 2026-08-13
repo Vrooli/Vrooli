@@ -60,6 +60,8 @@ export { expectNoA11yViolations } from "./a11y";
 // folder takes them along.
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";
+export { makeStudioMocks, makeStyle, makeSurface, makeCandidate } from "./mocks/studio";
+export type { StudioMocks } from "./mocks/studio";
 export {
   assertTransitionMatrix,
   validateTransitionMatrix,

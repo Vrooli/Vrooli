@@ -6,10 +6,10 @@ backends. It embeds two files so they travel with the compiled binary:
 | File | Role |
 |------|------|
 | `requirements.in` | The **governed, ranged** inputs. App-compatibility ceilings (e.g. `transformers<5`) live here, *not* in the shared Scenario Dependency Analyzer governance ranges. |
-| `requirements.lock` | The **fully pinned + hashed** set, generated from `requirements.in`. The uv venv (`internal/pyenv`) is synced from exactly this. |
+| `requirements.lock` | The **fully pinned + hashed** set, generated from `requirements.in`. The uv venv (`github.com/vrooli/pyenv-go`) is synced from exactly this. |
 
 At boot, `pydeps.Materialize` writes the lock into the scenario data dir and
-`internal/pyenv` builds/repairs a private venv from it with `uv`. The Python
+`github.com/vrooli/pyenv-go` builds/repairs a private venv from it with `uv`. The Python
 backends invoke that venv's interpreter by absolute path, so their heavy deps
 (torch / diffusers / transformers / onnxruntime) are isolated from any other
 Python on the host.

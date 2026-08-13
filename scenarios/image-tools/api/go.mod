@@ -18,6 +18,7 @@ require (
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/binaryfetch v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
+	github.com/vrooli/pyenv-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/image v0.42.0
 	golang.org/x/sys v0.44.0
@@ -69,3 +70,5 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 replace github.com/vrooli/vrooli => ../../..
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/pyenv-go => ../../../packages/pyenv-go

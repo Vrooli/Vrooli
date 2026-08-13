@@ -132,9 +132,19 @@ func drawCaustics(c *canvas, p paramSet, seed int64) {
 
 			// A slow ambient gradient across the floor, so the frame has an
 			// overall light direction and does not read as a flat tile.
-			d := math.Hypot((float64(x)-focalX*fw)/(fw*0.68), (float64(y)-focalY*fh)/(fh*0.68))
-			ambient := math.Max(0, 1-d*0.95)
-			ambient = math.Pow(ambient, 1.5)
+			//
+			// It is the load-bearing structure in this scene, not decoration.
+			// A screen laid over caustics has only two things to work with: the
+			// caustic filaments, which are finer than any usable screen cell,
+			// and this gradient. Measured on the finished renders, a caustic
+			// field whose low-frequency composition was weak scored 0.372 on
+			// subject survival under a posterize-and-halftone chain — there was
+			// no composition for the screen to preserve, so the screen became
+			// the picture. Widening and deepening the gradient is what gives a
+			// screening treatment a subject.
+			d := math.Hypot((float64(x)-focalX*fw)/(fw*0.78), (float64(y)-focalY*fh)/(fh*0.78))
+			ambient := math.Max(0, 1-d*0.88)
+			ambient = math.Pow(ambient, 1.15)
 
 			// A broad shaft mask: some of the frame is lit water and some is
 			// calm shadow. Without it the caustics are equally busy everywhere
@@ -145,7 +155,11 @@ func drawCaustics(c *canvas, p paramSet, seed int64) {
 			shaft = clamp01((shaft - 0.28) / 0.52)
 			lit := clamp01(0.42 + 0.58*shaft*(0.35+0.65*ambient))
 
-			col := mixRGB(floorDeep, floorLit, ambient*0.85+0.08)
+			// The floor runs the full range of the ramp rather than the top
+			// two thirds of it: an unlit corner has to be genuinely dark, or
+			// the difference between lit and unlit water survives neither a
+			// quantiser nor the eye.
+			col := mixRGB(floorDeep, floorLit, ambient*0.96+0.02)
 			col = mixRGB(col, caustic, clamp01(math.Pow(v, 0.85)*0.95)*lit)
 			// The cusps — where several rays land in one place — get the
 			// highlight. This is the whole reason for accumulating rather than

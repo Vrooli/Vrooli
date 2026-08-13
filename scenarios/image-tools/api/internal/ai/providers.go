@@ -784,7 +784,7 @@ func providerSpecs() []providerSpec {
 //
 // pythonInterpreter is the absolute path to the scenario's private uv venv
 // interpreter; every Python backend invokes it directly (the isolation seam —
-// see internal/pyenv and main.go boot wiring). Pass "" when the venv is not
+// see github.com/vrooli/pyenv-go and main.go boot wiring). Pass "" when the venv is not
 // provisioned (uv absent or the background build is still running): Python
 // backends then report unavailable (no bare-"python3" PATH fallback), surfaced
 // before use via doctor/health/ready_state.

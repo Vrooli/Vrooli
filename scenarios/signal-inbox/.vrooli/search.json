@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "providers": [
     {
-      "provider_id": "signal-inbox.signals",
+    "provider_id": "signal-inbox.signals",
+    "lifecycle": "fixture",
       "provider_group": "signal-inbox",
       "bucket": "BUCKET_KNOW",
       "type": "signal",

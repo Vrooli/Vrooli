@@ -70,20 +70,157 @@
       "forkAction": "تفريع محور واحد",
       "packAction": "تصدير حزمة الأنماط",
       "productChrome": "إطار المنتج",
-      "storeChrome": "إطار المتجر"
-      ,"desktopLabel": "سطح المكتب"
-      ,"mobileLabel": "الهاتف"
-      ,"fullBleedLabel": "ملء كامل"
-      ,"splitPanelLabel": "لوحة مقسمة"
-      ,"axisLineage": "محور السلالة"
-      ,"axisSubject": "محور الموضوع"
-      ,"axisTreatment": "محور المعالجة"
-      ,"forkedLabel": "نمط متفرع"
+      "storeChrome": "إطار المتجر",
+      "desktopLabel": "سطح المكتب",
+      "mobileLabel": "الهاتف",
+      "fullBleedLabel": "ملء كامل",
+      "splitPanelLabel": "لوحة مقسمة",
+      "axisLineage": "محور السلالة",
+      "axisSubject": "محور الموضوع",
+      "axisTreatment": "محور المعالجة",
+      "forkedLabel": "نمط متفرع"
     },
     "settings": {
       "title": "الإعدادات",
       "themeHeading": "المظهر",
       "localeHeading": "اللغة"
+    },
+    "catalog": {
+      "title": "الفهرس",
+      "description": "كل نمط معروضًا بشكله الفعلي. صفِّ النتائج بأي محور تصنيفي لتضييق المجموعة.",
+      "specimenAlt": "عيّنة مُصيَّرة من نمط {{style}}",
+      "specimenLoading": "جارٍ تصيير العيّنة…",
+      "specimenUnavailable": "العيّنة غير متاحة على هذا المضيف",
+      "metered": "مدفوع بالاستخدام",
+      "free": "مجاني",
+      "untreated": "بدون معالجة — يُشحن ناتج المولّد كما هو",
+      "axisRole": "الدور",
+      "axisSubject": "الموضوع",
+      "axisTreatment": "المعالجة",
+      "axisLineage": "النسب",
+      "axisPlacement": "الموضع",
+      "axisAny": "الكل",
+      "resultCount": "{{count}} نمط",
+      "clearFilters": "مسح عوامل التصفية",
+      "loading": "جارٍ تحميل الفهرس…",
+      "error": "تعذّرت قراءة الفهرس.",
+      "retry": "أعد المحاولة",
+      "emptyTitle": "لا توجد أنماط بعد",
+      "emptyDescription": "يُزرع الفهرس المبدئي عند أول تشغيل. إذا استمر هذا فخدمة الفهرس غير قابلة للوصول.",
+      "filteredEmptyTitle": "لا شيء يطابق هذه المحاور",
+      "filteredEmptyDescription": "خفّف أحد عوامل التصفية لتوسيع المجموعة."
+    },
+    "style": {
+      "title": "النمط",
+      "notFound": "لا يوجد نمط بهذا المعرّف في الفهرس.",
+      "backToCatalog": "العودة إلى الفهرس",
+      "chainHeading": "سلسلة المعالجة",
+      "chainEmpty": "يشحن هذا النمط ناتج المولّد دون معالجة.",
+      "parametersHeading": "المعاملات المحلولة",
+      "promptHeading": "الموجّه",
+      "generatorHeading": "المولّد",
+      "regionsHeading": "المناطق المحجوزة",
+      "regionsEmpty": "لا يحجز هذا النمط أي منطقة.",
+      "qualityHeading": "الحكم الإدراكي",
+      "qualityPass": "ناجح",
+      "qualityFail": "راسب",
+      "qualityCaption": "مقيس على هذا التصيير، لا على مُدخل الفهرس.",
+      "qualityAbsent": "لا يحمل هذا المرشّح حكمًا إدراكيًا.",
+      "qualityFloor": "الحد الأدنى {{threshold}}",
+      "qualityCeiling": "الحد الأقصى {{threshold}}",
+      "mockupHeading": "في سياقه",
+      "mockupLanding": "صفحة هبوط",
+      "mockupStore": "بطاقة متجر",
+      "mockupAlt": "نمط {{style}} خلف نص الصفحة",
+      "regionFailing": "أخفقت المنطقة المحجوزة {{index}} في فحصها",
+      "copyKicker": "صور محيطة",
+      "copyHeadline": "أطلق صفحة هبوط تبدو مدروسة",
+      "copySubhead": "خلفيات موجَّهة فنيًا تنقل الأجواء دون أن تزاحم نصّك.",
+      "copyCta": "استعرض الفهرس",
+      "surfaceLabel": "السطح",
+      "seedLabel": "البذرة",
+      "renderError": "تعذّر تصيير هذا النمط هنا.",
+      "remixAction": "أعد مزج هذا النمط",
+      "compareHeading": "التنويعات"
+    },
+    "sweep": {
+      "title": "التنويعات",
+      "description": "نمط واحد عبر مدى من البذور. اختر الإطار الذي تريده.",
+      "seedStart": "البذرة الأولى",
+      "count": "العدد",
+      "styleLabel": "النمط",
+      "select": "اختيار",
+      "selected": "مختار",
+      "empty": "اختر نمطًا لمسحه.",
+      "loading": "جارٍ تصيير التنويعات…"
+    },
+    "remix": {
+      "title": "إعادة المزج",
+      "description": "افصل نسخة من نمط، غيّر شيئًا واحدًا، وشاهدها بجوار أصلها قبل الحفظ.",
+      "parentLabel": "الأصل",
+      "axisLabel": "ما الذي يتغيّر",
+      "valueLabel": "القيمة الجديدة",
+      "newIdLabel": "معرّف النمط الجديد",
+      "renderBoth": "صيِّر كليهما",
+      "save": "احفظ كنمط جديد",
+      "saved": "حُفظ مع تسجيل النسب",
+      "saveError": "رُفض النمط الجديد.",
+      "parentHeading": "الأصل",
+      "childHeading": "الفرع",
+      "chooseStyle": "اختر نمطًا لفصله."
+    },
+    "backdrops": {
+      "title": "الخلفيات المُصدَرة",
+      "description": "خلفيات اجتازت فحص الوضوح وصدرت.",
+      "empty": "لا شيء صدر بعد. صيِّر مرشّحًا وأصدره من صفحة نمطه.",
+      "loading": "جارٍ تحميل الخلفيات المُصدَرة…"
+    },
+    "candidates": {
+      "title": "المرشّحون",
+      "description": "مرشّحون مُصيَّرون بانتظار الاختيار.",
+      "empty": "لا مرشّحين بعد. صيِّر نمطًا لإنتاجهم.",
+      "loading": "جارٍ تحميل المرشّحين…"
+    },
+    "placements": {
+      "title": "المواضع",
+      "description": "كيف تستقر الخلفية داخل السطح، وهل يبقى النص مقروءًا فوقها.",
+      "empty": "اختر نمطًا لعرض مواضعه.",
+      "loading": "جارٍ تصيير المواضع…"
+    },
+    "surfaces": {
+      "title": "الأسطح",
+      "description": "كل هدف إخراج معلن، وأبعاده الدقيقة، ومصدر تلك الأبعاد.",
+      "idHeading": "السطح",
+      "kindHeading": "النوع",
+      "geometryHeading": "الأبعاد",
+      "placementsHeading": "المواضع",
+      "authorityHeading": "المرجع",
+      "confirmedHeading": "تاريخ التأكيد",
+      "caption": "أسطح الإخراج المعلنة",
+      "empty": "لا توجد أسطح مزروعة.",
+      "loading": "جارٍ تحميل الأسطح…",
+      "error": "تعذّرت قراءة الأسطح."
+    },
+    "compose": {
+      "title": "التركيب",
+      "description": "حُلّ النمط والسطح إلى خطة تصيير قبل إنفاق أي شيء عليها.",
+      "planHeading": "الخطة المحلولة",
+      "copyPlan": "انسخ الخطة",
+      "planCopied": "نُسخت",
+      "render": "صيِّر هذه الخطة",
+      "chooseStyle": "اختر نمطًا",
+      "chooseSurface": "اختر سطحًا",
+      "styleLabel": "النمط",
+      "surfaceLabel": "السطح"
+    },
+    "common": {
+      "loading": "جارٍ التحميل…",
+      "error": "حدث خطأ ما.",
+      "retry": "أعد المحاولة",
+      "empty": "لا شيء هنا بعد.",
+      "seedLabel": "بذرة",
+      "provenanceHeading": "المصدر",
+      "renderFailed": "أخفق التصيير"
     }
   },
   "health": {

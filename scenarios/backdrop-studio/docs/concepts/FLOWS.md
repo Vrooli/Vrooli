@@ -22,12 +22,32 @@ sequenceDiagram
         BS-->>Op: plan for review (CMP-001)
         Op->>BS: render(plan, seed, n candidates)
         BS->>BS: draw base scene from seed (SCAF-001)
-        BS->>IT: apply treatment chain
-        IT-->>BS: treated image reference + execution path
-        BS->>BS: measure worst-pixel contrast (LEG-001)
-        BS-->>Op: candidates + verdicts
+        opt style declares a treatment chain
+            BS->>IT: apply treatment chain
+            IT-->>BS: treated image reference + execution path
+        end
+        BS->>BS: score perceptual survival against the style's bar
+        alt the composition did not survive its own treatment
+            BS-->>Op: refuse, name the metric and its floor
+        else it survived
+            BS->>BS: measure worst-pixel contrast (LEG-001)
+            BS-->>Op: candidates + verdicts
+        end
     end
 ```
+
+Two details in that diagram are load-bearing.
+
+The treatment chain is **optional**. A `procedural` style ships what the
+generator drew: a mesh gradient is finished when the generator finishes, and a
+screen over it would add the mechanical texture the look exists to avoid.
+
+The perceptual score runs **before the candidate is recorded**, because a
+candidate that reached the record is a candidate someone can release. It is a
+different measurement from the legibility check and catches a different failure:
+`engraved-colonnade` once shipped illegible moire past a fully green suite,
+because a contrast check cannot fail high-contrast noise — noise has excellent
+contrast.
 
 The plan is returned **before** anything executes. That is the debuggability
 seam: a caller reads exactly what would run without spending anything.
@@ -81,7 +101,11 @@ flowchart TD
     D -- yes --> E{Adapter licence permits commercial use?}
     E -- no --> E1[Refuse: name adapter and restriction] --> Z
     E -- yes --> F{Strategy invoked a model?}
-    F -- yes --> G[Release via asset-studio]
+    F -- yes --> F1{Is asset-studio reachable?}
+    F1 -- no --> F2[Refuse: name the missing capability] --> Z
+    F1 -- yes --> F3{Does the render record a model and a prompt?}
+    F3 -- no --> F4[Refuse: unlabelled synthetic media] --> Z
+    F3 -- yes --> G[Ingest bytes + provenance, then release via asset-studio]
     F -- no --> H[Release locally]
     G --> I[Backdrop reference by stable id]
     H --> I

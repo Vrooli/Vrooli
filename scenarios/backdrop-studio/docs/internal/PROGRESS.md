@@ -208,6 +208,82 @@ capability-gated by an explicit Asset Studio publisher seam; the host refuses
 the release when that upstream capability is absent instead of mislabelling a
 procedural fallback.
 
+
+## 2026-08-12 — Tier-2 catalog, Asset Studio ingress, and the studio UX
+
+Phases 8 through 11 of the wire-truth plan.
+
+**Catalog.** 16 styles to 40, 9 surfaces to 18, across seed versions 5 through 7.
+The running install upgraded itself v4 → v7 on restart, which is the versioned-
+seed machinery proving itself against a real database rather than a fixture. All
+eighteen `image-tools` treatments now appear in a style; four had landed
+operations and no style, so no operator could see the scenario could do them. The
+`procedural` strategy had zero styles, meaning a Tier-1 rule was unmet from the
+day the catalog was written and nothing reported it.
+
+**Generators.** Six added — `mesh`, `contour`, `truchet`, `attractor`, `nebula`,
+and a metaball rewrite of `field`. Every one shipped broken and the existing
+scene standards caught it: sub-pixel contour lines that made the map darker at
+small sizes, a Truchet highlight keyed to each arc's outward normal that flipped
+sides at every tile junction, a mesh gradient that stayed a brown cloud until the
+modulation moved perpendicular to the smear axis.
+
+**The human verdict pass earned its place.** The perceptual gate passed all
+forty; reading the contact sheets rejected seven. Each was repaired at cause —
+an amorphous source, a stipple wider than the filaments it described, a blur
+long enough to average colour into grey, a Canny edge map of a blob field
+handing ControlNet nothing to condition on. `docs/evidence/catalog/verdicts.md`
+carries the per-style reasoning.
+
+**A measured relationship, encoded.** The first caustics repair coarsened the
+screens and the gate refused both styles. Measuring showed why: the gate samples
+a composition on a 64-column grid, so past the point where the screen cell
+exceeds the gate's cell, the gate measures the screen — and so does a viewer.
+Survival runs 0.386 at lpi 34 and 0.924 at lpi 64, with the knee exactly at the
+crossing. `TestSeededScreensResolveFinerThanTheGateSamples` holds the rule.
+
+**Asset Studio ingress.** `StudioService.IngestExternalAsset` admits bytes with
+their producing-scenario provenance, requires no identity record, refuses a
+model-backed request naming no model or prompt, and lands assets in review so it
+is a door into the release path rather than around it. Backdrop Studio's
+disclosure facts come from the render that produced the candidate, not from
+whoever called the release API.
+
+**Studio UX.** Eleven routes on one component became ten pages, each its own,
+all reading the real catalog. Building it exposed three fields —
+`Style.treatment_params`, `Style.inks`, `Style.parent_id` — held by the store,
+declared by neither the proto nor the handler mapping, and therefore invisible
+to every consumer.
+
+**Validation.** Full integration lane green at seed v7; 34 styles scored in the
+perceptual corpus with the weakest at 0.682 subject survival against a 0.600
+floor; all Go and UI unit suites pass; `gofumpt` and `golangci-lint` clean;
+184 UI tests, typecheck clean; `experience-manager spec validate` reports zero
+errors; `cli-health validate scenario backdrop-studio` passes with no findings.
+
+**test-genie could not persist this plan's runs.** `vrooli scenario test
+backdrop-studio` returned `admission identity changed (phase-set,
+configuration)` and `canonical terminal persistence unavailable: run not found
+in index`, so the transient response reported 19 of 21 phases passing and the
+run could not be replayed or diffed afterwards — `runs show` answers
+`not_found`. Another scenario is actively changing test-genie; this is that work
+in flight, not a backdrop-studio regression. The suite's requirement and
+operational-target counts read 0-passing for the same reason: their evidence is
+listed as stale.
+
+Validation therefore rests on what could be measured directly, all of it green:
+the full integration lane against really running scenarios (34 rendered, 0
+failed, 6 named skips of 40), the perceptual corpus over 34 styles, every Go
+unit suite in backdrop-studio, image-tools and asset-studio, 184 UI tests,
+`gofumpt`, `golangci-lint`, `cli-health validate scenario backdrop-studio` with
+no findings, and `experience-manager spec validate` with zero errors.
+
+**Open, and recorded.** Six placements still preview as `full_bleed` because
+`render.composePlacement` has no case for them. No surface exists for Apple's
+current primary iPhone class (6.9-inch, 1320×2868) — verified 2026-08-12; the
+seeded 6.7-inch record is a fallback Apple still accepts. `REL-006` sized-variant
+derivation remains unbuilt.
+
 ## Cross-references
 
 - [`PROBLEMS.md`](PROBLEMS.md) — known issues and upstream dependencies

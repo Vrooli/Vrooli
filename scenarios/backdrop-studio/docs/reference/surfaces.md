@@ -164,6 +164,30 @@ consumer is.
 | `chrome.small-tile` | — | Chrome Web Store small promotional tile | `feature_graphic`, `caption_only` | aspirational |
 | `chrome.screenshot` | — | Chrome Web Store screenshot | `device_center`, `caption_above_device` | aspirational |
 
+### Verification status, 2026-08-12
+
+Two store rows were checked against the authority their record cites, and both
+are correct as seeded:
+
+- `play.feature-graphic` at 1024×500, against
+  [Play Console Help — Add preview assets](https://support.google.com/googleplay/android-developer/answer/9866151).
+  Google requires exactly this size; there is no tolerance.
+- `app-store-6.7-screenshot` at 1290×2796, against
+  [App Store Connect Help — Screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/).
+
+**The 6.7-inch class is no longer Apple's primary iPhone class.** The current
+primary is 6.9-inch at 1320×2868; 1290×2796 is accepted as a fallback. This
+catalog has no 6.9-inch surface, so an operator producing assets for the primary
+class today has no record to render into. That is a gap in the seeded set rather
+than a wrong number in it, and it is the reason this section exists: the device
+classes are data, and Apple revises them as hardware ships.
+
+`app-store-6.5-screenshot` (1284×2778), `app-store-12.9-screenshot`
+(2048×2732), `play.phone-screenshot` and `play.tablet-screenshot` carry their
+2026-08-11 stamp and were **not** re-checked today. Their `confirmed_on` dates
+say when someone last looked, which is exactly what that field is for — do not
+read a stamp as a guarantee that the vendor has not moved since.
+
 **The App Store ids name the device class, not the marketing name.** This
 document previously called them `appstore.iphone-primary` and its siblings while
 the seeded records were `app-store-6.7-screenshot` and its siblings, so the two

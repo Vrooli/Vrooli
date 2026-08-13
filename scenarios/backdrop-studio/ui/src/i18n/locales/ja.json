@@ -70,20 +70,157 @@
       "forkAction": "1軸を分岐",
       "packAction": "スタイルパックをエクスポート",
       "productChrome": "プロダクトのクローム",
-      "storeChrome": "ストアのクローム"
-      ,"desktopLabel": "デスクトップ"
-      ,"mobileLabel": "モバイル"
-      ,"fullBleedLabel": "全面配置"
-      ,"splitPanelLabel": "分割パネル"
-      ,"axisLineage": "系譜軸"
-      ,"axisSubject": "主題軸"
-      ,"axisTreatment": "処理軸"
-      ,"forkedLabel": "分岐したスタイル"
+      "storeChrome": "ストアのクローム",
+      "desktopLabel": "デスクトップ",
+      "mobileLabel": "モバイル",
+      "fullBleedLabel": "全面配置",
+      "splitPanelLabel": "分割パネル",
+      "axisLineage": "系譜軸",
+      "axisSubject": "主題軸",
+      "axisTreatment": "処理軸",
+      "forkedLabel": "分岐したスタイル"
     },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    },
+    "catalog": {
+      "title": "カタログ",
+      "description": "すべてのスタイルを実際の見た目で表示します。任意の分類軸で絞り込めます。",
+      "specimenAlt": "{{style}} スタイルのレンダリング見本",
+      "specimenLoading": "見本を描画しています…",
+      "specimenUnavailable": "このホストでは見本を生成できません",
+      "metered": "従量課金",
+      "free": "無料",
+      "untreated": "処理なし — ジェネレーターの出力をそのまま使用",
+      "axisRole": "役割",
+      "axisSubject": "主題",
+      "axisTreatment": "処理",
+      "axisLineage": "系譜",
+      "axisPlacement": "配置",
+      "axisAny": "すべて",
+      "resultCount": "{{count}} 件のスタイル",
+      "clearFilters": "絞り込みを解除",
+      "loading": "カタログを読み込んでいます…",
+      "error": "カタログを読み込めませんでした。",
+      "retry": "再試行",
+      "emptyTitle": "スタイルがありません",
+      "emptyDescription": "初回起動時に初期カタログが投入されます。表示されない場合はカタログサービスに到達できていません。",
+      "filteredEmptyTitle": "条件に一致するものがありません",
+      "filteredEmptyDescription": "絞り込みを緩めて対象を広げてください。"
+    },
+    "style": {
+      "title": "スタイル",
+      "notFound": "その ID のスタイルはカタログにありません。",
+      "backToCatalog": "カタログに戻る",
+      "chainHeading": "処理チェーン",
+      "chainEmpty": "このスタイルはジェネレーターの出力をそのまま使用します。",
+      "parametersHeading": "解決済みパラメーター",
+      "promptHeading": "プロンプト",
+      "generatorHeading": "ジェネレーター",
+      "regionsHeading": "予約領域",
+      "regionsEmpty": "このスタイルは領域を予約していません。",
+      "qualityHeading": "知覚品質の判定",
+      "qualityPass": "合格",
+      "qualityFail": "不合格",
+      "qualityCaption": "カタログ登録内容ではなく、このレンダリングを計測した結果です。",
+      "qualityAbsent": "この候補には知覚品質の判定がありません。",
+      "qualityFloor": "下限 {{threshold}}",
+      "qualityCeiling": "上限 {{threshold}}",
+      "mockupHeading": "実際の文脈で",
+      "mockupLanding": "ランディングページ",
+      "mockupStore": "ストア掲載",
+      "mockupAlt": "ページ本文の背後に置いた {{style}} スタイル",
+      "regionFailing": "予約領域 {{index}} が判定に失敗しました",
+      "copyKicker": "アンビエント画像",
+      "copyHeadline": "考え抜かれた見た目のランディングページを",
+      "copySubhead": "本文と競合せずに雰囲気を伝える、アートディレクション済みの背景。",
+      "copyCta": "カタログを見る",
+      "surfaceLabel": "サーフェス",
+      "seedLabel": "シード",
+      "renderError": "このスタイルはここでは描画できませんでした。",
+      "remixAction": "このスタイルをリミックス",
+      "compareHeading": "バリエーション"
+    },
+    "sweep": {
+      "title": "バリエーション",
+      "description": "1 つのスタイルをシード範囲で並べます。使いたいものを選んでください。",
+      "seedStart": "開始シード",
+      "count": "件数",
+      "styleLabel": "スタイル",
+      "select": "選択",
+      "selected": "選択済み",
+      "empty": "掃引するスタイルを選んでください。",
+      "loading": "バリエーションを描画しています…"
+    },
+    "remix": {
+      "title": "リミックス",
+      "description": "スタイルを分岐し、1 か所だけ変えて、親と並べて確認してから保存します。",
+      "parentLabel": "親",
+      "axisLabel": "変更する軸",
+      "valueLabel": "新しい値",
+      "newIdLabel": "新しいスタイル ID",
+      "renderBoth": "両方を描画",
+      "save": "新しいスタイルとして保存",
+      "saved": "系譜を記録して保存しました",
+      "saveError": "新しいスタイルは拒否されました。",
+      "parentHeading": "親",
+      "childHeading": "分岐",
+      "chooseStyle": "分岐するスタイルを選んでください。"
+    },
+    "backdrops": {
+      "title": "リリース済み背景",
+      "description": "可読性判定を通過してリリースされた背景です。",
+      "empty": "まだリリースされていません。候補を描画し、スタイルページからリリースしてください。",
+      "loading": "リリース済み背景を読み込んでいます…"
+    },
+    "candidates": {
+      "title": "候補",
+      "description": "選択待ちの描画済み候補です。",
+      "empty": "候補がありません。スタイルを描画すると生成されます。",
+      "loading": "候補を読み込んでいます…"
+    },
+    "placements": {
+      "title": "配置",
+      "description": "背景がサーフェス内でどう収まり、その上で本文が読めるかを示します。",
+      "empty": "配置を確認するスタイルを選んでください。",
+      "loading": "配置を描画しています…"
+    },
+    "surfaces": {
+      "title": "サーフェス",
+      "description": "宣言済みの出力先、その正確な寸法、および寸法の根拠です。",
+      "idHeading": "サーフェス",
+      "kindHeading": "種別",
+      "geometryHeading": "寸法",
+      "placementsHeading": "配置",
+      "authorityHeading": "根拠",
+      "confirmedHeading": "確認日",
+      "caption": "宣言済み出力サーフェス",
+      "empty": "サーフェスが投入されていません。",
+      "loading": "サーフェスを読み込んでいます…",
+      "error": "サーフェスを読み込めませんでした。"
+    },
+    "compose": {
+      "title": "構成",
+      "description": "費用をかける前に、スタイルとサーフェスを描画プランに解決します。",
+      "planHeading": "解決済みプラン",
+      "copyPlan": "プランをコピー",
+      "planCopied": "コピーしました",
+      "render": "このプランを描画",
+      "chooseStyle": "スタイルを選択",
+      "chooseSurface": "サーフェスを選択",
+      "styleLabel": "スタイル",
+      "surfaceLabel": "サーフェス"
+    },
+    "common": {
+      "loading": "読み込み中…",
+      "error": "問題が発生しました。",
+      "retry": "再試行",
+      "empty": "まだ何もありません。",
+      "seedLabel": "シード",
+      "provenanceHeading": "来歴",
+      "renderFailed": "描画に失敗"
     }
   },
   "health": {

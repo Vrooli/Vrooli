@@ -7,8 +7,8 @@ with no brand bound — the path a CLI caller always takes.
 
 | Field | Value |
 |---|---|
-| API build | `41988d04f978` |
-| Catalog seed version | 5 applied of 5 shipped |
+| API build | `73775f73b187` |
+| Catalog seed version | 7 applied of 7 shipped |
 | Image models installed | `sd-1.5`, `instruct-pix2pix`, `sd-1.5-inpainting`, `mi-gan`, `big-lama`, `real-esrgan`, `dncnn`, `nafnet`, `ddcolor-tiny`, `restoreformer-plus-plus`, `isnet-general-use`, `u2netp`, `birefnet-general`, `mobilesam`, `depth-anything-v2-small`, `tesseract`, `adamcodd-vit-nsfw`, `moondream2`, `smolvlm-256m`, `yolox-tiny`, `wd14-vit-v3`, `yunet`, `nomic-embed-vision-v1.5`, `imported-sd15` |
 | Conditioning adapters ready | `lcm-lora-sdv1-5`, `ip-adapter-sd15`, `controlnet-canny-sd15` |
 | Result | **34 rendered, 0 failed, 6 skipped** of 40 |

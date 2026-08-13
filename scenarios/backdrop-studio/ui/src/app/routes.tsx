@@ -6,15 +6,31 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
+import { BackdropsPage } from "../pages/BackdropsPage";
+import { CandidatesPage } from "../pages/CandidatesPage";
+import { CatalogPage } from "../pages/CatalogPage";
+import { ComposePage } from "../pages/ComposePage";
 import { DashboardPage } from "../pages/DashboardPage";
+import { PlacementsPage } from "../pages/PlacementsPage";
+import { RemixPage } from "../pages/RemixPage";
 import { SettingsPage } from "../pages/SettingsPage";
-import { WorkbenchPage } from "../pages/WorkbenchPage";
+import { StylePage } from "../pages/StylePage";
+import { SurfacesPage } from "../pages/SurfacesPage";
+import { SweepPage } from "../pages/SweepPage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
  * from the same config the production app uses.
  *
- * Add new pages by appending to the `children` array.
+ * Every route resolves to its own component. That was not true before: eleven
+ * routes — catalog, surfaces, compose, placements, styles/:styleId, candidates,
+ * backdrops, renders/:renderId and more — all resolved to a single 181-line
+ * `WorkbenchPage` holding four hardcoded style rows and CSS-gradient
+ * "specimens". Nine experience pages were declared and three components
+ * existed, so the navigation promised a studio the app did not have.
+ *
+ * `routes.test.tsx` asserts the one-to-one mapping, so the collapse cannot
+ * quietly return by someone reusing a component for a new route.
  */
 export const routes: RouteObject[] = [
   {
@@ -22,19 +38,15 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: "backdrops", element: <WorkbenchPage /> },
-      { path: "backdrops/:backdropId", element: <WorkbenchPage /> },
-      { path: "candidates", element: <WorkbenchPage /> },
-      { path: "renders/:renderId", element: <WorkbenchPage /> },
-      { path: "renders/:renderId/placements", element: <WorkbenchPage /> },
-      { path: "catalog", element: <WorkbenchPage /> },
-      { path: "compose", element: <WorkbenchPage /> },
-      { path: "placements", element: <WorkbenchPage /> },
-      { path: "placements/:candidateId", element: <WorkbenchPage /> },
-      { path: "styles/:styleId", element: <WorkbenchPage /> },
-      { path: "surfaces", element: <WorkbenchPage /> },
-      { path: "surfaces/:surfaceId", element: <WorkbenchPage /> },
-      { path: "sweep", element: <WorkbenchPage /> },
+      { path: "catalog", element: <CatalogPage /> },
+      { path: "styles/:styleId", element: <StylePage /> },
+      { path: "sweep", element: <SweepPage /> },
+      { path: "remix", element: <RemixPage /> },
+      { path: "compose", element: <ComposePage /> },
+      { path: "placements", element: <PlacementsPage /> },
+      { path: "candidates", element: <CandidatesPage /> },
+      { path: "backdrops", element: <BackdropsPage /> },
+      { path: "surfaces", element: <SurfacesPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

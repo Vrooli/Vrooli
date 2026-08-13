@@ -47,6 +47,10 @@ func drawField(c *canvas, p paramSet, seed int64) {
 	// turbulence warps the sampling position, so the surfaces are lobed and
 	// organic instead of circular.
 	turbulence := p.get("turbulence", 0, 1, 0.45)
+	// grain is a fine tonal texture across the whole field. See its use below:
+	// it is what stops a symbolic treatment rendering a large area as one
+	// repeated character.
+	grain := p.get("grain", 0, 1, 0.5)
 	palette := int(p.get("palette", 0, 1, 0))
 
 	short := math.Min(fw, fh)
@@ -109,6 +113,22 @@ func drawField(c *canvas, p paramSet, seed int64) {
 			if rim > 0 {
 				band := 1 - smoothstep(clamp01(math.Abs(depth)/rim))
 				col = mixRGB(col, surface, band*0.8)
+			}
+			// A fine tonal grain across the whole field.
+			//
+			// It is barely visible on its own and it is what makes the
+			// generator usable under a symbolic treatment. A glyph mosaic
+			// quantises tone into characters, so an area of constant tone
+			// becomes an area of one repeated character — a wall of `@` with a
+			// hard vertical edge where the next tone begins, which is precisely
+			// the artifact the first audit found in `ascii-field` and blamed on
+			// the treatment. The treatment was doing its job; the source had no
+			// tone for it to differentiate. A quarter-step of grain gives every
+			// large area a reason to break up.
+			if grain > 0 {
+				g := fbm(fx/(short*0.045), fy/(short*0.045), 3, seed+61) - 0.5
+				scale := 1 + grain*g*0.34
+				col = [3]float64{col[0] * scale, col[1] * scale, col[2] * scale}
 			}
 			c.set(x, y, col[0], col[1], col[2])
 		}
