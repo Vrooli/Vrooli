@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"git-control-tower/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/discovery"
 )

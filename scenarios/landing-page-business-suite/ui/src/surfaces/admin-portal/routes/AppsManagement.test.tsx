@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderWithProviders } from '../../../test-utils/renderWithProviders';
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { AppsManagement } from './AppsManagement';
 
 const mockNavigate = vi.fn();

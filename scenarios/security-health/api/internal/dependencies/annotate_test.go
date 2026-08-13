@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"security-health/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // countingCommander is a Commander that scripts osv-scanner output and records
@@ -70,7 +70,7 @@ func newCachingAnnotator(t *testing.T, repoRoot string, cmd *countingCommander) 
 	t.Helper()
 	store := newTestStore(t)
 	a := NewAnnotator(repoRoot, cmd).WithCache(store)
-	a.clock = clock.System{}
+	a.clock = schedule.System()
 	return a, store
 }
 
@@ -300,7 +300,7 @@ func TestService_ReconcileReindexOverlapSerialized(t *testing.T) {
 
 	cmd := &gateCommander{enter: make(chan struct{}, 4), release: make(chan struct{})}
 	annot := NewAnnotator(repoRoot, cmd).WithCache(store)
-	svc := NewService(Deps{RepoRoot: repoRoot, Store: store, Annotator: annot, Clock: clock.System{}})
+	svc := NewService(Deps{RepoRoot: repoRoot, Store: store, Annotator: annot, Clock: schedule.System()})
 
 	// Start a periodic reconcile; it will block inside the scan holding the
 	// overlap lock.

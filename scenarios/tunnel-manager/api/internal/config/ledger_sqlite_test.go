@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"tunnel-manager/internal/config"
-	"tunnel-manager/internal/testutil/db"
-	"tunnel-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -23,7 +24,7 @@ func newLedger(t *testing.T) config.OwnershipLedger {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(config.Schema),
 	))
-	return config.NewSQLiteLedger(d, mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)))
+	return config.NewSQLiteLedger(d, scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)))
 }
 
 func TestLedger_GetMissingReturnsNotFound(t *testing.T) {

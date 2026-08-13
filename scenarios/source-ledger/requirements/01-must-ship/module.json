@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-08-09T03:32:56-04:00",
+    "last_validated_at": "2026-08-13T01:35:59-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "SL-P0-001",
       "title": "Append-only journal",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "The ledger shall append every accepted entry and reject updates or deletes to journal rows.",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "api/internal/journal/migrations_test.go::TestEnsureMigrationsGuardsJournalUpdatesAndDeletes",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Append-only migration guard rejects journal updates and deletes."
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "SL-P0-002",
       "title": "Scope-isolated recall",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "When a client supplies a scope, the ledger shall return only entries and derived nodes from that scope.",
@@ -36,7 +36,7 @@
           "type": "test",
           "ref": "api/internal/recall/sqlite_source_test.go::TestRecallSourceIsolatedByScopeAndDefaultsToAgentMemory",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Recall source enforces explicit scope isolation and the agent-memory default."
         }
       ]
@@ -44,7 +44,7 @@
     {
       "id": "SL-P0-003",
       "title": "Bounded compaction canopy",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
       "description": "When compaction runs, the ledger shall preserve journal rows and maintain a scored frontier with rebuildable summaries and edges.",
@@ -53,7 +53,7 @@
           "type": "test",
           "ref": "api/internal/forest/service_test.go::TestRunRepeatsUntilEligibleFrontierReachesTarget",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Compaction repeats until the eligible frontier target is reached and rebuild remains inference-independent."
         }
       ]
@@ -61,7 +61,7 @@
     {
       "id": "SL-P0-004",
       "title": "Stable programmatic surface",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "The ledger shall expose scope-aware Connect, API, and CLI operations for append, recall, wake, frontier, and health.",
@@ -70,7 +70,7 @@
           "type": "test",
           "ref": "api/handlers/health/handler_test.go::TestHealthHandler",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Health and generated Connect/API surfaces are covered by the owned handler and journal integration tests."
         }
       ]
@@ -87,7 +87,7 @@
           "type": "manual",
           "ref": "data-backup-manager:trigger-run,verify,audit,restore",
           "phase": "storage",
-          "status": "implemented",
+          "status": "not_implemented",
           "notes": "Registered SQLite target was backed up, verified, audited for integrity, restored to a temporary file, and compared read-only: 6089 entries and 8 scopes matched."
         }
       ]
@@ -129,7 +129,7 @@
     {
       "id": "SL-P1-008",
       "title": "Scoped prose append",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P1",
       "description": "A team member can append a prose journal entry to a named scope with verified provenance without updating or deleting an existing journal row.",
@@ -138,7 +138,7 @@
           "type": "test",
           "ref": "api/handlers/journal/connect_handler_test.go::TestConnectHandlerAppendGetAndList",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Scoped journal append/get/list integration preserves the append-only source boundary and provenance shape."
         }
       ]
@@ -146,7 +146,7 @@
     {
       "id": "SL-P1-009",
       "title": "Bounded scoped wake",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "criticality": "P1",
       "description": "A team member can render a bounded wake block for a named scope, and scope creation rejects a wake budget that cannot hold the configured frontier target at maximum entry size.",
@@ -155,7 +155,7 @@
           "type": "test",
           "ref": "api/internal/recall/service_test.go::TestWakeCharacterCeilingTruncatesSingleLineEntries",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Wake applies dual ceilings and typed budget validation while preserving scope identity."
         }
       ]
@@ -163,7 +163,7 @@
     {
       "id": "SL-P1-010",
       "title": "Scoped semantic recall",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P1",
       "description": "A team member can perform semantic recall within an explicitly named scope, without implicitly reading another team's corpus.",
@@ -172,7 +172,7 @@
           "type": "test",
           "ref": "api/internal/recall/sqlite_source_test.go::TestRecallSourceIsolatedByScopeAndDefaultsToAgentMemory",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Scoped semantic recall excludes entries from other scopes and defaults safely to agent-memory."
         }
       ]

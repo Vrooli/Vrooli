@@ -11,8 +11,8 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"git-control-tower/internal/testutil/httpx"
 	"github.com/vrooli/api-core/discovery"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	bas_base "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	bas_telemetry "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"

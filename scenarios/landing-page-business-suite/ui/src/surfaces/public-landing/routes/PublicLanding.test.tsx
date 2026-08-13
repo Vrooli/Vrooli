@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { fireEvent, screen, within } from "@testing-library/react";
 import type { ReactNode } from 'react';
 import { BrowserRouter } from 'react-router-dom';

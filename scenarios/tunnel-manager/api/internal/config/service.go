@@ -9,9 +9,10 @@ import (
 	"sort"
 	"strings"
 
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/cmdrunner"
 	"tunnel-manager/internal/manifest"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Service is the application-layer surface the config handlers depend on.
@@ -131,7 +132,7 @@ type Deps struct {
 	CF               CFConfig
 	CredentialStatus CredentialStatus
 	Runner           cmdrunner.Runner
-	Clock            clock.Clock
+	Clock            schedule.Clock
 	// LocalConfigPath is where local mode writes the cloudflared config.yml.
 	// Defaults to ~/.cloudflared/config.yml when empty.
 	LocalConfigPath string
@@ -147,7 +148,7 @@ func NewService(d Deps) Service {
 		d.Runner = cmdrunner.Default
 	}
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		d.Clock = schedule.System()
 	}
 	if d.LocalConfigPath == "" {
 		d.LocalConfigPath = filepath.Join(os.Getenv("HOME"), ".cloudflared", "config.yml")

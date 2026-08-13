@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"network-manager/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"

@@ -12,9 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"security-health/internal/clock"
 	"security-health/internal/dependencies/aisearch"
 	"security-health/internal/validation"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // SemanticIndex is the optional AI-ranking overlay over the SBOM corpus. The
@@ -57,7 +58,7 @@ type Service struct {
 	repoRoot string
 	store    *Store
 	annot    *Annotator
-	clock    clock.Clock
+	clock    schedule.Clock
 
 	// index is the optional semantic overlay. Nil ⇒ AI unavailable (TEXT-only).
 	// It is kept in sync after every authoritative store.Apply, best-effort.
@@ -96,7 +97,7 @@ type Deps struct {
 	RepoRoot  string
 	Store     *Store
 	Annotator *Annotator
-	Clock     clock.Clock
+	Clock     schedule.Clock
 	Index     SemanticIndex
 	AIProbe   func(ctx context.Context) (ollama, qdrant bool)
 }
@@ -105,7 +106,7 @@ type Deps struct {
 func NewService(d Deps) *Service {
 	clk := d.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	annot := d.Annotator
 	if annot == nil {

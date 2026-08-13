@@ -10,6 +10,8 @@ import (
 	internalroutes "tunnel-manager/internal/routes"
 	"tunnel-manager/internal/testutil/mocks"
 
+	"github.com/vrooli/api-core/scheduletest"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -181,7 +183,7 @@ func newSvc(repo config.ConfigRepository, routes config.RoutesReader, ingress co
 		Routes:  routes,
 		Ingress: ingress,
 		Runner:  runner.Run,
-		Clock:   mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:   scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 }
 
@@ -250,7 +252,7 @@ func TestSync_LocalModeMergePreservesForeignConfigYAML(t *testing.T) {
 	svc := config.NewService(config.Deps{
 		Repo: repo, Routes: routes, Ledger: newFakeLedger(),
 		Runner:          runner.Run,
-		Clock:           mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:           scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 		LocalConfigPath: cfgPath,
 	})
 
@@ -313,7 +315,7 @@ func TestSync_PruneRemovesOrphanedOnly(t *testing.T) {
 	svc := config.NewService(config.Deps{
 		Repo: repo, Routes: routes, Ingress: ingress, Ledger: ledger,
 		Runner: (&mocks.FakeCmdRunner{}).Run,
-		Clock:  mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:  scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
 	res, err := svc.Sync(context.Background(), false, true)
@@ -346,7 +348,7 @@ func TestSync_RecordsManagedOwnership(t *testing.T) {
 	svc := config.NewService(config.Deps{
 		Repo: repo, Routes: routes, Ingress: ingress, Ledger: ledger,
 		Runner: (&mocks.FakeCmdRunner{}).Run,
-		Clock:  mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:  scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
 	_, err := svc.Sync(context.Background(), false, false)
@@ -426,7 +428,7 @@ func TestSwitchMode_LocalPersistsWithoutWritingOrRestarting(t *testing.T) {
 		Routes:          routes,
 		Ingress:         &fakeIngress{},
 		Runner:          runner.Run,
-		Clock:           mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:           scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 		LocalConfigPath: cfgPath,
 	})
 
@@ -461,7 +463,7 @@ func TestGetDrift_ClassifiesDesiredLiveAndLedger(t *testing.T) {
 	svc := config.NewService(config.Deps{
 		Repo: repo, Routes: routes, Ingress: ingress, Ledger: ledger,
 		Runner: (&mocks.FakeCmdRunner{}).Run,
-		Clock:  mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:  scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
 	rep, err := svc.GetDrift(context.Background())
@@ -499,7 +501,7 @@ func TestGetDrift_LocalDefaultWithCredentialsReadsRemote(t *testing.T) {
 	svc := config.NewService(config.Deps{
 		Repo: repo, Routes: routes, Ingress: ingress, Ledger: newFakeLedger(),
 		Runner: (&mocks.FakeCmdRunner{}).Run,
-		Clock:  mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:  scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
 	rep, err := svc.GetDrift(context.Background())
@@ -517,7 +519,7 @@ func driftSvc(repo config.ConfigRepository, routes config.RoutesReader, writer c
 	return config.NewService(config.Deps{
 		Repo: repo, Routes: routes, RoutesWriter: writer, Ingress: ingress, Ledger: ledger,
 		Runner: (&mocks.FakeCmdRunner{}).Run,
-		Clock:  mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:  scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 }
 
@@ -571,7 +573,7 @@ func TestAdoptIngress_BareAdoptAutoDetectsScenario(t *testing.T) {
 		Repo: repo, Routes: &fakeRoutes{}, RoutesWriter: writer, Ledger: ledger, Ingress: ingress,
 		Scenarios: fakeScenarioResolver{ports: map[string]int{"agent-inbox": 21237}},
 		Runner:    (&mocks.FakeCmdRunner{}).Run,
-		Clock:     mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:     scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
 	entry, err := svc.AdoptIngress(context.Background(), "agent-inbox.itsagitime.com", "", "")
@@ -603,7 +605,7 @@ func TestAdoptIngress_BareAdoptRangedPortScenarioUsesLivePort(t *testing.T) {
 		Repo: repo, Routes: &fakeRoutes{}, RoutesWriter: writer, Ledger: ledger, Ingress: ingress,
 		Scenarios: fakeScenarioResolver{ranged: map[string]bool{"scenario-completeness-scoring": true}},
 		Runner:    (&mocks.FakeCmdRunner{}).Run,
-		Clock:     mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:     scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
 	entry, err := svc.AdoptIngress(context.Background(), "scenario-completeness-scoring.itsagitime.com", "", "")
@@ -628,7 +630,7 @@ func TestAdoptIngress_BareAdoptUnknownSubdomainFallsBackToExternal(t *testing.T)
 		Repo: repo, Routes: &fakeRoutes{}, RoutesWriter: writer, Ledger: ledger, Ingress: ingress,
 		Scenarios: fakeScenarioResolver{ports: map[string]int{"agent-inbox": 21237}},
 		Runner:    (&mocks.FakeCmdRunner{}).Run,
-		Clock:     mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:     scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
 	entry, err := svc.AdoptIngress(context.Background(), "grafana.itsagitime.com", "", "")
@@ -656,7 +658,7 @@ func TestAdoptIngress_ReadoptRepairsExistingRoute(t *testing.T) {
 		Repo: repo, Routes: &fakeRoutes{}, RoutesWriter: writer, Ledger: ledger, Ingress: ingress,
 		Scenarios: fakeScenarioResolver{ports: map[string]int{"agent-inbox": 21237}},
 		Runner:    (&mocks.FakeCmdRunner{}).Run,
-		Clock:     mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:     scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
 	entry, err := svc.AdoptIngress(context.Background(), "agent-inbox.itsagitime.com", "", "")
@@ -759,7 +761,7 @@ func TestSync_RemoteReresolvesCredentialsBeforeLiveRead(t *testing.T) {
 		Ingress:         ingress,
 		CredentialStore: store,
 		Runner:          (&mocks.FakeCmdRunner{}).Run,
-		Clock:           mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:           scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 
 	_, err := svc.Sync(context.Background(), true, false)

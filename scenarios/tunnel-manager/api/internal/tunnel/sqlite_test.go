@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"tunnel-manager/internal/testutil/db"
-	"tunnel-manager/internal/testutil/mocks"
+	db "github.com/vrooli/api-core/databasetest"
 	"tunnel-manager/internal/tunnel"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -16,14 +17,14 @@ import (
 	localdb "tunnel-manager/internal/database"
 )
 
-func newRepo(t *testing.T) (tunnel.MetricsRepository, *mocks.FakeClock) {
+func newRepo(t *testing.T) (tunnel.MetricsRepository, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(tunnel.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	return tunnel.NewSQLiteRepository(d, clk), clk
 }
 

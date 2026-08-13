@@ -7,7 +7,7 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
-	"portal/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func TestStorePersistsOverride(t *testing.T) {

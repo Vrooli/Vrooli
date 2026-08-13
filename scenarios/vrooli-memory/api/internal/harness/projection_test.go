@@ -11,10 +11,10 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	localdb "github.com/vrooli/api-core/databasetest"
 	sourcerecall "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
 	recallconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
 	"vrooli-memory/internal/ledgerclient"
-	localdb "vrooli-memory/internal/testutil/db"
 )
 
 type fakeRecall struct {

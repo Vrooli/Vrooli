@@ -8,6 +8,8 @@ import (
 	"tunnel-manager/internal/testutil/mocks"
 	"tunnel-manager/internal/tunnel"
 
+	"github.com/vrooli/api-core/scheduletest"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,7 +44,7 @@ func (f *fakeRepo) Latest(_ context.Context) (tunnel.MetricsSample, error) {
 
 func newService(t *testing.T, repo tunnel.MetricsRepository, runner *mocks.FakeCmdRunner, doer *mocks.FakeDoer) tunnel.Service {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	return tunnel.NewService(repo, runner.Run, doer, clk, "")
 }
 

@@ -3,8 +3,8 @@ package variants
 import (
 	"testing"
 
+	testutil "github.com/vrooli/cli-core/cliapptest"
 	"landing-page-business-suite/cli/internal/support"
-	"landing-page-business-suite/cli/internal/testutil"
 )
 
 func TestLegacyUpdateRequestPreservesLegacyAxesAndSEO(t *testing.T) {

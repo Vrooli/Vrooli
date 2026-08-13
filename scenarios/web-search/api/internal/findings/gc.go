@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"web-search/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // GC defaults. All are conservative — the GC only ever SUPERSEDES (soft-retires)
@@ -83,12 +83,12 @@ type GCReport struct {
 // invariants.
 type GCService struct {
 	svc   Service
-	clock clock.Clock
+	clock schedule.Clock
 	cfg   GCConfig
 }
 
 // NewGCService constructs the GC over the findings application service.
-func NewGCService(svc Service, clk clock.Clock, cfg GCConfig) *GCService {
+func NewGCService(svc Service, clk schedule.Clock, cfg GCConfig) *GCService {
 	return &GCService{svc: svc, clock: clk, cfg: cfg.withDefaults()}
 }
 

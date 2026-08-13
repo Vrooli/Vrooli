@@ -15,6 +15,7 @@
     "execution": true,
     "runService": "scenario-validation/v1.DurableValidationRunService"
   },
+  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
   "applicability": {
     "default": "applies"
   },

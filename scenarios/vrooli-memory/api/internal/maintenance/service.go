@@ -12,9 +12,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"vrooli-memory/internal/clock"
 	"vrooli-memory/internal/harness"
 	"vrooli-memory/internal/ledgerclient"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -82,16 +83,16 @@ type (
 		importer     Importer
 		projector    Projector
 		compactor    Compactor
-		clock        clock.Clock
+		clock        schedule.Clock
 		interval     time.Duration
 		compactLimit int
 		running      atomic.Bool
 	}
 )
 
-func NewService(store Store, importer Importer, projector Projector, clk clock.Clock, interval time.Duration) *Service {
+func NewService(store Store, importer Importer, projector Projector, clk schedule.Clock, interval time.Duration) *Service {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &Service{store: store, importer: importer, projector: projector, clock: clk, interval: interval, compactLimit: DefaultCompactLimit}
 }

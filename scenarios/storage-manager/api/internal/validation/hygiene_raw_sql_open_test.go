@@ -104,7 +104,7 @@ func Run(db *sql.DB) error {
 }
 `, false},
 		// database_backoff_unit_test.go: internal/testutil is exempt.
-		{"pass_internal_testutil", "api/internal/testutil/db/sqlite.go", `package db
+		{"pass_internal_testutil", "github.com/vrooli/api-core/databasetest/sqlite.go", `package db
 
 import "database/sql"
 

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"web-search/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // DefaultCacheTTL is the freshness window for a cached live-search result.
@@ -27,20 +27,20 @@ type cacheEntry struct {
 // so expiry is deterministic in tests.
 type Cache struct {
 	ttl   time.Duration
-	clock clock.Clock
+	clock schedule.Clock
 
 	mu      sync.Mutex
 	entries map[string]cacheEntry
 }
 
 // NewCache constructs a TTL cache. A non-positive ttl falls back to
-// DefaultCacheTTL; a nil clock falls back to clock.System.
-func NewCache(ttl time.Duration, clk clock.Clock) *Cache {
+// DefaultCacheTTL; a nil clock falls back to schedule.System.
+func NewCache(ttl time.Duration, clk schedule.Clock) *Cache {
 	if ttl <= 0 {
 		ttl = DefaultCacheTTL
 	}
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &Cache{
 		ttl:     ttl,

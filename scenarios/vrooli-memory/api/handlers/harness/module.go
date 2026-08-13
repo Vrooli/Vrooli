@@ -6,20 +6,21 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/connectx"
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/filerouting"
-	harnessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness"
-	harnessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness/harness_v1connect"
-	"vrooli-memory/internal/clock"
 	internalharness "vrooli-memory/internal/harness"
 	"vrooli-memory/internal/ledgerclient"
 	"vrooli-memory/internal/maintenance"
 	"vrooli-memory/internal/module"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/schedule"
+	harnessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness"
+	harnessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness/harness_v1connect"
 )
 
-func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client *ledgerclient.Client, logger *log.Logger, compactor maintenance.Compactor, clocks ...clock.Clock) module.Module {
+func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client *ledgerclient.Client, logger *log.Logger, compactor maintenance.Compactor, clocks ...schedule.Clock) module.Module {
 	home, _ := os.UserHomeDir()
 	if _, err := internalharness.EnsureCuratedTopology("", home); err != nil {
 		panic(err)
@@ -34,7 +35,7 @@ func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client *ledge
 	if err != nil {
 		panic(err)
 	}
-	clk := clock.Clock(clock.System{})
+	clk := schedule.Clock(schedule.System())
 	if len(clocks) > 0 && clocks[0] != nil {
 		clk = clocks[0]
 	}

@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
+	testdb "github.com/vrooli/api-core/databasetest"
 	localdb "network-manager/internal/database"
 	"network-manager/internal/snapshot"
-	testdb "network-manager/internal/testutil/db"
 )
 
 func newPrivacyDB(t *testing.T) (*sql.DB, *sqliteRepository) {

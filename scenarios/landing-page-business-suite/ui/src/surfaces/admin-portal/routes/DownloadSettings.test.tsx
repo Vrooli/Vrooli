@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method -- assertions exercise Vitest/browser mocks, not detached production methods. */
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DownloadSettings } from './DownloadSettings';
 import * as downloadsForm from '../hooks/useDownloadsForm';

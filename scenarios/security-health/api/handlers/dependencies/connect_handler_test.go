@@ -9,9 +9,10 @@ import (
 
 	"connectrpc.com/connect"
 
-	"security-health/internal/clock"
 	depdomain "security-health/internal/dependencies"
 	apiserver "security-health/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	dependenciesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/dependencies"
 	dependenciesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/dependencies/dependencies_v1connect"
@@ -168,7 +169,7 @@ func TestDependencyService_RouterMountsAllProcedures(t *testing.T) {
 		found: true,
 	}
 	srv := apiserver.New(
-		apiserver.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+		apiserver.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
 		Module(log.New(io.Discard, "", 0), stub),
 	)
 	httpSrv := httptest.NewServer(srv.Handler())

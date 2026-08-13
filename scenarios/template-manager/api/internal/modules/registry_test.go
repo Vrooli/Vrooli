@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/modules"
-	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/reflect/protoreflect"

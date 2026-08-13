@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"testing"
 
-	"workflow-health/internal/clock"
+	httpx "github.com/vrooli/api-core/servertest"
 	"workflow-health/internal/module"
 	"workflow-health/internal/server"
-	"workflow-health/internal/testutil/httpx"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -90,7 +91,7 @@ func TestServer_NewRequiresClock(t *testing.T) {
 
 func newTestDeps() server.Deps {
 	return server.Deps{
-		Clock:  clock.System{},
+		Clock:  schedule.System(),
 		Logger: log.New(io.Discard, "", 0),
 	}
 }

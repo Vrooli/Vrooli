@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { recallMemory } from "../../api/recall";
 import { selectors } from "../../consts/selectors";
 import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
+import { ThemeProvider } from "../../theme/ThemeProvider";
 import { RecallPanel } from "./RecallPanel";
 
 vi.mock("../../api/recall", () => ({ recallMemory: vi.fn() }));
@@ -24,7 +25,9 @@ describe("[REQ:VMEM-P1-003] [REQ:VMEM-P1-006] RecallPanel", () => {
     cleanup();
 
     vi.mocked(recallMemory).mockResolvedValueOnce([]);
-    const empty = renderWithProviders(<RecallPanel />, { initialTheme: "dark" });
+    const empty = renderWithProviders(<RecallPanel />, {
+      extraProviders: (children) => <ThemeProvider initialChoice="dark">{children}</ThemeProvider>,
+    });
     await user.type(screen.getByRole("textbox"), "missing");
     await user.click(screen.getByRole("button"));
     await screen.findByTestId(selectors.recall.empty);

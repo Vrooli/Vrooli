@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	"tech-tree-designer/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func TestSQLiteRepositoryScenarioAndFileRoundTrip(t *testing.T) {

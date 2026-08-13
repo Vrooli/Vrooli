@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"security-health/internal/clock"
-	"security-health/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 	"security-health/internal/validation"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func newTestStore(t *testing.T) *Store {
@@ -283,7 +284,7 @@ func TestService_ReindexDryRunDoesNotWrite(t *testing.T) {
 		RepoRoot:  repoRoot,
 		Store:     s,
 		Annotator: NewAnnotator(repoRoot, noopCommander{}),
-		Clock:     clock.System{},
+		Clock:     schedule.System(),
 	})
 	res, err := svc.Reindex(ctx, "demo", true)
 	if err != nil {
@@ -309,7 +310,7 @@ func TestService_ReindexRealRunReturnsBeforeAnnotationCompletes(t *testing.T) {
 		RepoRoot:  repoRoot,
 		Store:     store,
 		Annotator: NewAnnotator(repoRoot, cmd),
-		Clock:     clock.System{},
+		Clock:     schedule.System(),
 	})
 
 	started := make(chan ReindexResult, 1)
@@ -351,7 +352,7 @@ func TestService_StatusReportsCounts(t *testing.T) {
 	_ = s.Apply(ctx, "", []DependencyRecord{
 		{Scenario: "a", Ecosystem: EcosystemGo, Name: "m", Version: "1", VulnIDs: []string{"X"}, MaxSeverity: "high"},
 	}, "2026-06-01T00:00:00Z")
-	svc := NewService(Deps{RepoRoot: t.TempDir(), Store: s, Annotator: NewAnnotator("", noopCommander{}), Clock: clock.System{}})
+	svc := NewService(Deps{RepoRoot: t.TempDir(), Store: s, Annotator: NewAnnotator("", noopCommander{}), Clock: schedule.System()})
 	st, err := svc.Status(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -362,7 +363,7 @@ func TestService_StatusReportsCounts(t *testing.T) {
 }
 
 func TestService_ReindexCancelUnknownJob(t *testing.T) {
-	svc := NewService(Deps{RepoRoot: t.TempDir(), Store: newTestStore(t), Annotator: NewAnnotator("", noopCommander{}), Clock: clock.System{}})
+	svc := NewService(Deps{RepoRoot: t.TempDir(), Store: newTestStore(t), Annotator: NewAnnotator("", noopCommander{}), Clock: schedule.System()})
 	if _, _, _, _, ok := svc.ReindexStatus("ghost"); ok {
 		t.Error("unknown job must report ok=false")
 	}

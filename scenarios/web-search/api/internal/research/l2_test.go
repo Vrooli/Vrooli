@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"web-search/internal/clock"
+	testdb "github.com/vrooli/api-core/databasetest"
 	localdb "web-search/internal/database"
 	"web-search/internal/findings"
 	"web-search/internal/research"
-	testdb "web-search/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
@@ -24,7 +25,7 @@ func newFindingsService(t *testing.T) findings.Service {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(findings.Schema),
 	))
-	repo := findings.NewSQLiteRepository(d, clock.System{})
+	repo := findings.NewSQLiteRepository(d, schedule.System())
 	return findings.NewServiceWithActor(repo, "agent")
 }
 

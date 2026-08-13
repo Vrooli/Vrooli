@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"web-search/internal/clock"
 	internalfindings "web-search/internal/findings"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/database"
 	measures "github.com/vrooli/measures-go"
@@ -52,7 +53,7 @@ func findingsCountDeclaration() measures.MeasureDeclaration {
 
 // MeasuresHandler builds the measures-go serve registry for the findings domain
 // and returns it as an http.Handler to mount at /measures (see api/main.go).
-func MeasuresHandler(db *database.RoutedDB, clk clock.Clock) (http.Handler, error) {
+func MeasuresHandler(db *database.RoutedDB, clk schedule.Clock) (http.Handler, error) {
 	svc := internalfindings.NewService(internalfindings.NewSQLiteRepository(db, clk))
 	reg := measures.NewRegistry(measures.WithClock(clk.Now))
 	if err := registerFindingsCount(reg, svc, clk); err != nil {
@@ -61,7 +62,7 @@ func MeasuresHandler(db *database.RoutedDB, clk clock.Clock) (http.Handler, erro
 	return reg.Handler(), nil
 }
 
-func registerFindingsCount(reg *measures.Registry, svc internalfindings.Service, clk clock.Clock) error {
+func registerFindingsCount(reg *measures.Registry, svc internalfindings.Service, clk schedule.Clock) error {
 	decl := findingsCountDeclaration()
 	return reg.Register(decl, func(ctx context.Context, req measures.MeasureRequest) (measures.MeasureResult, error) {
 		token := measures.TimeWindowToken(req.Params["window"])

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method -- assertions exercise Vitest/browser mocks, not detached production methods. */
 import { fireEvent, screen } from '@testing-library/react';
-import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BillingDashboard } from './BillingDashboard';
 import * as adminHome from '../hooks/useAdminHome';

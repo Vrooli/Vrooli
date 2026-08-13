@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, screen } from '@testing-library/react';
-import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { useState } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ContentSection, LandingHeaderConfig } from '../../../shared/api';

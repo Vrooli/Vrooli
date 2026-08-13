@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"tech-tree-designer/internal/clock"
 	"tech-tree-designer/internal/modules"
 	"tech-tree-designer/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -143,7 +144,7 @@ func main() {
 	)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "tech-tree-designer-api", "1.0.0"),
 		graphH.Module(graphService),
 		ontologyH.Module(ontologyService),

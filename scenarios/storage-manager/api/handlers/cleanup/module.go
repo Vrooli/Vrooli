@@ -8,10 +8,11 @@ import (
 
 	"storage-manager/hostfs"
 	"storage-manager/hostpaths"
-	"storage-manager/internal/clock"
 	"storage-manager/internal/module"
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/providers"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -79,7 +80,7 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 	}
 	builtIns, err := providers.ConservativeBuiltIns(providers.BuiltInDeps{
 		FileSystem:        files,
-		Clock:             clock.System{},
+		Clock:             schedule.System(),
 		DockerImageLedger: ledger,
 
 		TrashRoots:           roots.Trash,

@@ -9,7 +9,8 @@ import (
 
 	"tunnel-manager/internal/exposure"
 	internalroutes "tunnel-manager/internal/manifest"
-	"tunnel-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fakeAssigner records EnsureFixed/Release calls and reports whether it assigned.
@@ -41,9 +42,9 @@ func (m *memOwnership) Owned(_ context.Context, s string) (bool, error) {
 }
 func (m *memOwnership) Clear(_ context.Context, s string) error { delete(m.owned, s); return nil }
 
-func svcWithAssigner(t *testing.T, m *fakeManifest, repo *fakeRepo, ing *fakeIngress, ports *fakePorts, assigner exposure.PortAssigner, owner exposure.PortOwnership) (exposure.Service, *mocks.FakeClock) {
+func svcWithAssigner(t *testing.T, m *fakeManifest, repo *fakeRepo, ing *fakeIngress, ports *fakePorts, assigner exposure.PortAssigner, owner exposure.PortOwnership) (exposure.Service, *scheduletest.FakeClock) {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	svc := exposure.NewService(repo, m, ing, &fakeRunner{}, ports, func() []string { return nil }, clk,
 		exposure.WithPortAssigner(assigner, owner))
 	return svc, clk

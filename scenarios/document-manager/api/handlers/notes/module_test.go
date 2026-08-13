@@ -19,7 +19,7 @@ import (
 	"document-manager/handlers/notes"
 	localdb "document-manager/internal/database"
 	internalnotes "document-manager/internal/notes"
-	"document-manager/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 )

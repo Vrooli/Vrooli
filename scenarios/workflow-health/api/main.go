@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"workflow-health/internal/clock"
 	"workflow-health/internal/modules"
 	"workflow-health/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -135,7 +136,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "workflow-health-api", "1.0.0"),
 		validationH.Module(log.Default(), repoRoot, db),
 		workflowsH.Module(log.Default()),

@@ -1,4 +1,4 @@
-export { renderWithProviders } from "./renderWithProviders";
+export { renderWithProviders } from "@vrooli/api-base/testing";
 export { createMockHealthResponse, createMockEvent } from "./factories";
 export { mockFetch } from "./mockFetch";
 export type { MockFetchHandle, MockFetchResponse, FetchMatcher, FetchCall } from "./mockFetch";

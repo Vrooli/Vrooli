@@ -13,7 +13,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/middleware"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/module"
 
@@ -23,14 +23,14 @@ import (
 
 // Deps holds the cross-cutting interfaces the Server depends on
 // regardless of which modules are mounted. Production wires concrete
-// implementations (clock.System{}, log.Default()) in main.go; tests
+// implementations (schedule.System(), log.Default()) in main.go; tests
 // wire fakes from internal/testutil/mocks.
 //
 // Per-domain dependencies (database handle, repository services,
 // pingers) live inside each module's constructor — Deps is intentionally
 // limited to what the middleware stack reads.
 type Deps struct {
-	Clock  clock.Clock
+	Clock  schedule.Clock
 	Logger *log.Logger
 }
 

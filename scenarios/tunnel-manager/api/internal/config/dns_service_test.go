@@ -10,6 +10,8 @@ import (
 	"tunnel-manager/internal/config"
 	internalroutes "tunnel-manager/internal/manifest"
 	"tunnel-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fakeDNS records EnsureRecord/RemoveRecord calls for service-level assertions.
@@ -83,7 +85,7 @@ func newSvcWithDNS(repo config.ConfigRepository, routes config.RoutesReader, ing
 		DNS:       dns,
 		DNSLedger: dnsLedger,
 		Runner:    (&mocks.FakeCmdRunner{}).Run,
-		Clock:     mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:     scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 }
 

@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"source-ledger/internal/capabilities"
-	"source-ledger/internal/clock"
 	"source-ledger/internal/facets"
 	"source-ledger/internal/federation"
 	"source-ledger/internal/forest"
@@ -20,6 +19,8 @@ import (
 	"source-ledger/internal/policy"
 	internalrecall "source-ledger/internal/recall"
 	"source-ledger/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -211,7 +212,7 @@ func main() {
 	})
 	forestService := forestH.NewService(db, gatewayClient, recallConfig.FrontierTarget, registry)
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "source-ledger-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		journalH.Module(db, gatewayClient, facetService, log.Default()),

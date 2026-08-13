@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { renderWithProviders } from '../../../test-utils/renderWithProviders';
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { VerifyMagicLink } from './VerifyMagicLink';
 import * as api from '../../../shared/api';
 

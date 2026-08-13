@@ -21,7 +21,7 @@ import {
   type LineChange
 } from "../lib/api";
 import { highlightCode, getLanguageFromPath, type HighlightToken, type HighlightedLine } from "../lib/highlighter";
-import { getFileTypeInfo } from "../lib/fileTypes";
+import { buildImagePreviewSrc, getFileTypeInfo } from "../lib/fileTypes";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import { Popover } from "./ui/popover";
@@ -727,7 +727,10 @@ function DiffViewerImpl({
     if (!fullContent) return 0;
     return fullContent.split("\n").length;
   }, [fullContent]);
-  const isPreviewable = selectedFile ? getFileTypeInfo(selectedFile) : null;
+  const isPreviewable = useMemo(
+    () => (selectedFile ? getFileTypeInfo(selectedFile) : null),
+    [selectedFile]
+  );
   const canEditMode = viewMode === "source" || viewMode === "full_diff";
   const canEditTextFile =
     isPreviewable?.category === "code" || isPreviewable?.category === "markdown";
@@ -743,6 +746,10 @@ function DiffViewerImpl({
     selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "markdown";
   const showImagePreview =
     selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "image" && isPreviewable.mimeType;
+  const imagePreviewSrc = useMemo(
+    () => (isPreviewable ? buildImagePreviewSrc(isPreviewable, fullContent) : null),
+    [fullContent, isPreviewable]
+  );
   const minimapSourceLines = useMemo<string[]>(() => {
     if (viewMode === "source") {
       return fullContent.split("\n");
@@ -1523,11 +1530,8 @@ function DiffViewerImpl({
           )}
 
           {/* Preview mode - render images */}
-          {showImagePreview && isPreviewable?.mimeType && (
-            <ImagePreview
-              src={`data:${isPreviewable.mimeType};base64,${fullContent}`}
-              alt={selectedFile}
-            />
+          {showImagePreview && imagePreviewSrc && (
+            <ImagePreview src={imagePreviewSrc} alt={selectedFile} />
           )}
 
           {/* Binary diff notice */}

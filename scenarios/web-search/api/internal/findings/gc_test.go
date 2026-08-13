@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"web-search/internal/findings"
-	"web-search/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +22,7 @@ func TestGCSupersedesDecayedNeverSurfaced(t *testing.T) {
 	// Findings created ~2.5 decay-half-lives ago so their effective confidence
 	// has decayed well below the GC floor.
 	old := now.Add(-(2*findings.DecayHalfLife + 60*24*time.Hour))
-	clk := mocks.NewFakeClock(old)
+	clk := scheduletest.New(old)
 	repo, _ := newRepoAtClock(t, clk)
 	svc := findings.NewService(repo)
 
@@ -71,7 +72,7 @@ func TestGCReportsColdArchiveStaleDisputesOrphans(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	old := now.Add(-200 * 24 * time.Hour) // past the 90d TTLs
-	clk := mocks.NewFakeClock(old)
+	clk := scheduletest.New(old)
 	repo, d := newRepoAtClock(t, clk)
 	svc := findings.NewService(repo)
 
@@ -132,7 +133,7 @@ func TestGCFullSweepHandlesAllCategories(t *testing.T) {
 	// 400d ago: past both the decay min-age (2 half-lives = 360d) and the 90d
 	// cold-archive / dispute TTLs.
 	old := now.Add(-400 * 24 * time.Hour)
-	clk := mocks.NewFakeClock(old)
+	clk := scheduletest.New(old)
 	repo, _ := newRepoAtClock(t, clk)
 	svc := findings.NewService(repo)
 
@@ -200,7 +201,7 @@ func TestGCRunCompletesWithinScaledBudget(t *testing.T) {
 	}
 	ctx := context.Background()
 	now := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
-	clk := mocks.NewFakeClock(now)
+	clk := scheduletest.New(now)
 	repo, d := newRepoAtClock(t, clk)
 	svc := findings.NewService(repo)
 
@@ -250,7 +251,7 @@ func TestGCRespectsConfidenceFloorConfig(t *testing.T) {
 	now := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	// One decay-half-life old: effective confidence ~ stored/2.
 	created := now.Add(-(2*findings.DecayHalfLife + time.Hour))
-	clk := mocks.NewFakeClock(created)
+	clk := scheduletest.New(created)
 	repo, _ := newRepoAtClock(t, clk)
 	svc := findings.NewService(repo)
 

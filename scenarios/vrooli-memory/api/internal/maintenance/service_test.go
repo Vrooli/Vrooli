@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"vrooli-memory/internal/harness"
-	"vrooli-memory/internal/testutil/mocks"
+
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 type fakeImporter struct {
@@ -113,7 +114,7 @@ func TestRunOnceImportsEveryRuntimeBeforeProjection(t *testing.T) {
 	ctx := context.Background()
 	order := []string{}
 	store := newMemoryStore()
-	service := NewService(store, &fakeImporter{runtimes: []string{"b", "a"}, order: &order, err: map[string]error{}}, &fakeProjector{runtimes: []string{"a"}, order: &order, err: map[string]error{}}, mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)), 0)
+	service := NewService(store, &fakeImporter{runtimes: []string{"b", "a"}, order: &order, err: map[string]error{}}, &fakeProjector{runtimes: []string{"a"}, order: &order, err: map[string]error{}}, scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)), 0)
 	run, err := service.RunOnce(ctx)
 	require.NoError(t, err)
 	require.True(t, run)
@@ -127,7 +128,7 @@ func TestRunOnceImportsEveryRuntimeBeforeProjection(t *testing.T) {
 func TestRunOnceSkipsOverlap(t *testing.T) {
 	started, release := make(chan struct{}, 1), make(chan struct{})
 	store := newMemoryStore()
-	service := NewService(store, &fakeImporter{runtimes: []string{"a"}, started: started, release: release, err: map[string]error{}}, &fakeProjector{runtimes: []string{"a"}, err: map[string]error{}}, mocks.NewFakeClock(time.Time{}), 0)
+	service := NewService(store, &fakeImporter{runtimes: []string{"a"}, started: started, release: release, err: map[string]error{}}, &fakeProjector{runtimes: []string{"a"}, err: map[string]error{}}, scheduletest.New(time.Time{}), 0)
 	done := make(chan struct{})
 	go func() { _, _ = service.RunOnce(context.Background()); close(done) }()
 	<-started
@@ -143,7 +144,7 @@ func TestRunOnceSkipsOverlap(t *testing.T) {
 
 func TestRunOnceRecordsFailureAndContinues(t *testing.T) {
 	store := newMemoryStore()
-	service := NewService(store, &fakeImporter{runtimes: []string{"broken", "healthy"}, err: map[string]error{"broken": errors.New("store missing")}}, &fakeProjector{runtimes: []string{"healthy"}, err: map[string]error{}}, mocks.NewFakeClock(time.Time{}), 0)
+	service := NewService(store, &fakeImporter{runtimes: []string{"broken", "healthy"}, err: map[string]error{"broken": errors.New("store missing")}}, &fakeProjector{runtimes: []string{"healthy"}, err: map[string]error{}}, scheduletest.New(time.Time{}), 0)
 	_, err := service.RunOnce(context.Background())
 	require.NoError(t, err)
 	run, err := service.Latest(context.Background())
@@ -186,7 +187,7 @@ func TestRunOnceCompactsAfterProjectionSoAmbientMemoryIsNeverBlocked(t *testing.
 	service := NewService(store,
 		&fakeImporter{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
 		&fakeProjector{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
-		mocks.NewFakeClock(time.Time{}), 0).WithCompaction(compactor, 25)
+		scheduletest.New(time.Time{}), 0).WithCompaction(compactor, 25)
 	_, err := service.RunOnce(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, []int{25}, compactor.calls, "compaction runs once per pass, at the configured limit")
@@ -208,7 +209,7 @@ func TestCompactionFailureDoesNotStopProjection(t *testing.T) {
 	service := NewService(store,
 		&fakeImporter{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
 		&fakeProjector{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
-		mocks.NewFakeClock(time.Time{}), 0).WithCompaction(compactor, 10)
+		scheduletest.New(time.Time{}), 0).WithCompaction(compactor, 10)
 	_, err := service.RunOnce(context.Background())
 	require.NoError(t, err, "a compaction failure is recorded, not propagated")
 
@@ -225,7 +226,7 @@ func TestCompactionNotConfiguredWhenLimitIsZero(t *testing.T) {
 	service := NewService(store,
 		&fakeImporter{runtimes: []string{"a"}, err: map[string]error{}},
 		&fakeProjector{runtimes: []string{"a"}, err: map[string]error{}},
-		mocks.NewFakeClock(time.Time{}), 0).WithCompaction(compactor, 0)
+		scheduletest.New(time.Time{}), 0).WithCompaction(compactor, 0)
 	_, err := service.RunOnce(context.Background())
 	require.NoError(t, err)
 	require.Empty(t, compactor.calls)

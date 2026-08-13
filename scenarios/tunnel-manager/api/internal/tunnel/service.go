@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/cmdrunner"
 	"tunnel-manager/internal/httpc"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // DefaultMetricsEndpoint is the cloudflared Prometheus metrics base URL used
@@ -53,13 +54,13 @@ type service struct {
 	repo     MetricsRepository
 	runner   cmdrunner.Runner
 	doer     httpc.Doer
-	clock    clock.Clock
+	clock    schedule.Clock
 	endpoint string
 }
 
 // NewService constructs the production Service. endpoint is the cloudflared
 // metrics base URL; an empty value falls back to DefaultMetricsEndpoint.
-func NewService(repo MetricsRepository, runner cmdrunner.Runner, doer httpc.Doer, clk clock.Clock, endpoint string) Service {
+func NewService(repo MetricsRepository, runner cmdrunner.Runner, doer httpc.Doer, clk schedule.Clock, endpoint string) Service {
 	if strings.TrimSpace(endpoint) == "" {
 		endpoint = DefaultMetricsEndpoint
 	}

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"tech-tree-designer/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	apicoredb "github.com/vrooli/api-core/database"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/graph"

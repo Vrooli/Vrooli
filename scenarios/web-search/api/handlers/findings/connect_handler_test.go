@@ -11,13 +11,14 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	findingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/findings"
 
+	testdb "github.com/vrooli/api-core/databasetest"
 	handler "web-search/handlers/findings"
-	"web-search/internal/clock"
 	localdb "web-search/internal/database"
 	"web-search/internal/findingindex"
 	internalfindings "web-search/internal/findings"
-	testdb "web-search/internal/testutil/db"
-	"web-search/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fakeSearcher returns canned hits in order, simulating the semantic index.
@@ -31,13 +32,13 @@ func (f *fakeSearcher) Search(ctx context.Context, query string, limit int) ([]f
 }
 
 func newFindingsService(t *testing.T) internalfindings.Service {
-	return newFindingsServiceAtClock(t, clock.System{})
+	return newFindingsServiceAtClock(t, schedule.System())
 }
 
 // newFindingsServiceAtClock builds the findings service over a fresh SQLite DB
 // whose row timestamps come from clk, so handler-level decay assertions are
 // deterministic.
-func newFindingsServiceAtClock(t *testing.T, clk clock.Clock) internalfindings.Service {
+func newFindingsServiceAtClock(t *testing.T, clk schedule.Clock) internalfindings.Service {
 	t.Helper()
 	d := testdb.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
@@ -64,7 +65,7 @@ func TestSearchFindingsProjectsAndExcludesSuperseded(t *testing.T) {
 		{FindingID: a.ID, Score: 0.91},
 		{FindingID: b.ID, Score: 0.40, Weak: true},
 	}}
-	h := handler.NewConnectHandler(handler.Deps{Service: svc, Searcher: searcher, Clock: clock.System{}})
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, Searcher: searcher, Clock: schedule.System()})
 
 	resp, err := h.SearchFindings(ctx, connect.NewRequest(&findingsv1.SearchFindingsRequest{Query: "claude opus", Limit: 10}))
 	require.NoError(t, err)
@@ -86,7 +87,7 @@ func TestSearchFindingsProjectsAndExcludesSuperseded(t *testing.T) {
 func TestAddFindingValidatesClaim(t *testing.T) {
 	ctx := context.Background()
 	svc := newFindingsService(t)
-	h := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: clock.System{}})
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: schedule.System()})
 	_, err := h.AddFinding(ctx, connect.NewRequest(&findingsv1.AddFindingRequest{Claim: "   "}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
@@ -97,7 +98,7 @@ func TestCountFindingsDefaultsWindow(t *testing.T) {
 	svc := newFindingsService(t)
 	_, err := svc.Add(ctx, internalfindings.NewFinding{Claim: "one", Source: internalfindings.SourceManual})
 	require.NoError(t, err)
-	h := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: clock.System{}})
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: schedule.System()})
 	resp, err := h.CountFindings(ctx, connect.NewRequest(&findingsv1.CountFindingsRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, int64(1), resp.Msg.Count)
@@ -130,7 +131,7 @@ func TestSearchFindingsSurfacesAsync(t *testing.T) {
 		{FindingID: b.ID, Score: 0.8},
 	}}
 	surfacer := &recordingSurfacer{}
-	h := handler.NewConnectHandler(handler.Deps{Service: svc, Searcher: searcher, Surfacer: surfacer, Clock: clock.System{}})
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, Searcher: searcher, Surfacer: surfacer, Clock: schedule.System()})
 
 	resp, err := h.SearchFindings(ctx, connect.NewRequest(&findingsv1.SearchFindingsRequest{Query: "surfaced", Limit: 10}))
 	require.NoError(t, err)
@@ -156,7 +157,7 @@ func TestListEffectivenessBlendsAndRecordUsage(t *testing.T) {
 	svc := newFindingsService(t)
 	f, err := svc.Add(ctx, internalfindings.NewFinding{Claim: "effective claim", Confidence: 0.8, Source: internalfindings.SourceManual})
 	require.NoError(t, err)
-	h := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: clock.System{}})
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: schedule.System()})
 
 	// Before any usage: factor 1.0 (fresh), effective_score == effective_confidence.
 	resp, err := h.ListEffectiveness(ctx, connect.NewRequest(&findingsv1.ListEffectivenessRequest{Limit: 10}))
@@ -203,7 +204,7 @@ func TestListDisputesProjectsDisputeQueueEntries(t *testing.T) {
 	_, err = svc.Add(ctx, internalfindings.NewFinding{Claim: "uncontested"})
 	require.NoError(t, err)
 
-	h := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: clock.System{}})
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: schedule.System()})
 	resp, err := h.ListDisputes(ctx, connect.NewRequest(&findingsv1.ListDisputesRequest{Limit: 10}))
 	require.NoError(t, err)
 	require.Len(t, resp.Msg.Findings, 1, "only disputed findings enter the review queue")
@@ -236,7 +237,7 @@ func TestSearchSurfacesDisputedWithConflictSignal(t *testing.T) {
 	require.NoError(t, err)
 
 	searcher := &fakeSearcher{method: "dense", hits: []findingindex.Hit{{FindingID: f.ID, Score: 0.8}}}
-	h := handler.NewConnectHandler(handler.Deps{Service: svc, Searcher: searcher, Clock: clock.System{}})
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, Searcher: searcher, Clock: schedule.System()})
 
 	resp, err := h.SearchFindings(ctx, connect.NewRequest(&findingsv1.SearchFindingsRequest{Query: "contested rate", Limit: 5}))
 	require.NoError(t, err)
@@ -250,11 +251,11 @@ func TestSearchSurfacesDisputedWithConflictSignal(t *testing.T) {
 // TestListEffectivenessReturnsDecayedConfidence pins age decay on the read
 // path: a finding stored 180 days (one half-life) ago is returned with an
 // effective confidence of about half its stored confidence. Storage is never
-// mutated — the decayed value is computed at read time against the clock.
+// mutated — the decayed value is computed at read time against the schedule.
 func TestListEffectivenessReturnsDecayedConfidence(t *testing.T) {
 	ctx := context.Background()
 	created := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	clk := mocks.NewFakeClock(created)
+	clk := scheduletest.New(created)
 	svc := newFindingsServiceAtClock(t, clk)
 
 	f, err := svc.Add(ctx, internalfindings.NewFinding{Claim: "aging claim", Confidence: 0.8})
@@ -297,7 +298,7 @@ func TestRunGCProjectsReport(t *testing.T) {
 		StaleDisputes:         []string{"c"},
 		Orphans:               []string{"d"},
 	}}
-	h := handler.NewConnectHandler(handler.Deps{Service: svc, GC: gc, Clock: clock.System{}})
+	h := handler.NewConnectHandler(handler.Deps{Service: svc, GC: gc, Clock: schedule.System()})
 
 	resp, err := h.RunGC(ctx, connect.NewRequest(&findingsv1.RunGCRequest{DryRun: true}))
 	require.NoError(t, err)
@@ -309,7 +310,7 @@ func TestRunGCProjectsReport(t *testing.T) {
 	require.Equal(t, []string{"d"}, resp.Msg.Orphans)
 
 	// No GC wired ⇒ Unavailable.
-	hNoGC := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: clock.System{}})
+	hNoGC := handler.NewConnectHandler(handler.Deps{Service: svc, Clock: schedule.System()})
 	_, err = hNoGC.RunGC(ctx, connect.NewRequest(&findingsv1.RunGCRequest{}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))

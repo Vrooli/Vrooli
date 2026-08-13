@@ -12,7 +12,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
 
-	clitest "flow-verifier/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/runs"
 	verificationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/verifications"

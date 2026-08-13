@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"tunnel-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -24,11 +24,11 @@ type SQLExecutor interface {
 
 type sqliteRepository struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production MetricsRepository.
-func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) MetricsRepository {
+func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) MetricsRepository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

@@ -6,9 +6,10 @@ import (
 	"os"
 	"time"
 
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/cmdrunner"
 	"tunnel-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -27,7 +28,7 @@ import (
 // The metrics endpoint is read from TUNNEL_METRICS_URL (falling back to the
 // service default) so deployments can point at a non-default cloudflared
 // Prometheus listener without a rebuild.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	repo := internaltunnel.NewSQLiteRepository(db, clk)
 	doer := &http.Client{Timeout: 5 * time.Second}
 	endpoint := os.Getenv("TUNNEL_METRICS_URL")

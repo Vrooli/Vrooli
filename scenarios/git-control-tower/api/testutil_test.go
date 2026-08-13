@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"git-control-tower/internal/testutil/assertx"
 	"git-control-tower/internal/testutil/fixtures"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 // --- Shared Test Utilities ---
@@ -36,5 +36,5 @@ func WriteTestFile(t *testing.T, path string, contents string) {
 // AssertContains checks if the expected value exists in the slice.
 func AssertContains(t *testing.T, values []string, expected string) {
 	t.Helper()
-	assertx.ContainsString(t, values, expected)
+	apihttptest.ContainsString(t, values, expected)
 }

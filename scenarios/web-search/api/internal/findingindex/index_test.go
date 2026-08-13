@@ -10,10 +10,11 @@ import (
 	"sync"
 	"testing"
 
-	"web-search/internal/clock"
+	testdb "github.com/vrooli/api-core/databasetest"
 	localdb "web-search/internal/database"
 	"web-search/internal/findings"
-	testdb "web-search/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	pkg "github.com/vrooli/ai-go/search"
@@ -171,7 +172,7 @@ func newFindingsRepo(t *testing.T) findings.Repository {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(findings.Schema),
 	))
-	return findings.NewSQLiteRepository(d, clock.System{})
+	return findings.NewSQLiteRepository(d, schedule.System())
 }
 
 // TestWriteReindexSemanticRecall is the OT-P0-005 store/index round trip:

@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"structure-health/internal/clock"
 	"structure-health/internal/modules"
 	"structure-health/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -122,7 +123,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: logger},
+		server.Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, "structure-health-api", "1.0.0"),
 		fleetH.Module(logger, repoRoot),
 		validationH.Module(logger, repoRoot),

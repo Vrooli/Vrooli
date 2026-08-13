@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"tech-tree-designer/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	apicoredb "github.com/vrooli/api-core/database"
 	ontologyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/ontology"

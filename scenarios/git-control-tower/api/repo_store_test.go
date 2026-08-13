@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	testdb "git-control-tower/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 func newTestRepoStore(t *testing.T) *SQLiteRepoStore {

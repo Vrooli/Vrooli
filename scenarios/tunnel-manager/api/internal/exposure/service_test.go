@@ -9,7 +9,8 @@ import (
 
 	"tunnel-manager/internal/exposure"
 	internalroutes "tunnel-manager/internal/routes"
-	"tunnel-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -166,9 +167,9 @@ func (f *fakePorts) UIPort(context.Context, string) (int, error) {
 	return f.port, nil
 }
 
-func newSvc(t *testing.T, m *fakeManifest, repo *fakeRepo, ing *fakeIngress, run *fakeRunner, ports *fakePorts, core []string) (exposure.Service, *mocks.FakeClock) {
+func newSvc(t *testing.T, m *fakeManifest, repo *fakeRepo, ing *fakeIngress, run *fakeRunner, ports *fakePorts, core []string) (exposure.Service, *scheduletest.FakeClock) {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	svc := exposure.NewService(repo, m, ing, run, ports, func() []string { return core }, clk)
 	return svc, clk
 }

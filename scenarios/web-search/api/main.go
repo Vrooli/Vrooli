@@ -10,10 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"web-search/internal/clock"
 	"web-search/internal/findingindex"
 	"web-search/internal/modules"
 	"web-search/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	aisearchpkg "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/apihttp"
@@ -156,7 +157,7 @@ func main() {
 	searchJSONPath := filepath.Join(repoRoot, "scenarios", "web-search", ".vrooli", "search.json")
 	findingsTuning := loadFindingsTuning(searchJSONPath, findingsProviderID)
 
-	indexFindings := internalfindings.NewService(internalfindings.NewSQLiteRepository(db, clock.System{}))
+	indexFindings := internalfindings.NewService(internalfindings.NewSQLiteRepository(db, schedule.System()))
 	searcher := findingindex.New(findingsTuning, findingindex.Options{
 		Loader:           indexFindings.LoadIndexable,
 		Parallelism:      searchCfg.ReconcileParallelism,
@@ -202,7 +203,7 @@ func main() {
 	// seams constructed here from env (with localhost defaults for SearXNG and
 	// Ollama); the service owns the orchestration. Synthesis is off unless a
 	// request opts in, and the raw L0 results are never blocked by it.
-	liveClock := clock.System{}
+	liveClock := schedule.System()
 	liveService := internallivesearch.NewService(internallivesearch.Deps{
 		Client:      internallivesearch.NewHTTPSearxngClient(os.Getenv("SEARXNG_URL"), nil),
 		Cache:       internallivesearch.NewCache(tuning.CacheTTL, liveClock),
@@ -227,7 +228,7 @@ func main() {
 	// GATHER each other's fresh findings) instead of waiting out the sync
 	// interval, which stays on as the repair cadence.
 	researchFindings := internalfindings.WithMutationNotify(
-		internalfindings.NewServiceWithActor(internalfindings.NewSQLiteRepository(db, clock.System{}), "agent"),
+		internalfindings.NewServiceWithActor(internalfindings.NewSQLiteRepository(db, schedule.System()), "agent"),
 		syncLoop.Kick)
 	// L2 excerpting: relevance-aware by default (reusing the findings index's
 	// tuned embedder so chunk scoring lives in the same vector space), with
@@ -267,7 +268,7 @@ func main() {
 	// findings a search returned, entirely off the hot path. It drains on the
 	// same sync context so it stops on shutdown.
 	usageRecorder := internalfindings.NewUsageRecorder(
-		internalfindings.NewSQLiteRepository(db, clock.System{}),
+		internalfindings.NewSQLiteRepository(db, schedule.System()),
 		internalfindings.DefaultUsageBuffer, logger)
 	go usageRecorder.Run(syncCtx)
 
@@ -279,16 +280,16 @@ func main() {
 	if gcInterval := gcIntervalFromEnv(); gcInterval > 0 {
 		gcRunner := internalfindings.NewGCService(
 			internalfindings.WithMutationNotify(
-				internalfindings.NewService(internalfindings.NewSQLiteRepository(db, clock.System{})),
+				internalfindings.NewService(internalfindings.NewSQLiteRepository(db, schedule.System())),
 				syncLoop.Kick),
-			clock.System{}, internalfindings.GCConfig{})
+			schedule.System(), internalfindings.GCConfig{})
 		go runGCLoop(syncCtx, gcRunner, gcInterval, logger)
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: logger},
+		server.Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, "web-search-api", "1.0.0"),
-		findingsH.Module(db, clock.System{}, searcher, usageRecorder, syncLoop.Kick, logger),
+		findingsH.Module(db, schedule.System(), searcher, usageRecorder, syncLoop.Kick, logger),
 		livesearchH.Module(liveService, logger),
 		researchH.Module(researchService, logger),
 	)
@@ -303,7 +304,7 @@ func main() {
 	// harvests <prefix>/declarations and the auto-execution path POSTs
 	// <prefix>/execute. The findings domain owns the canonical measure
 	// (findings.count).
-	findingsMeasures, err := findingsH.MeasuresHandler(db, clock.System{})
+	findingsMeasures, err := findingsH.MeasuresHandler(db, schedule.System())
 	if err != nil {
 		log.Fatalf("measures registry: %v", err)
 	}

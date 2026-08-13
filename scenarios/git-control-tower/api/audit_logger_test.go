@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	testdb "git-control-tower/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 // [REQ:GCT-OT-P0-007] SQLite audit logging tests

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"tunnel-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // ledgerTimeFormat matches the RFC3339Nano round-trip used elsewhere in the
@@ -26,13 +26,13 @@ type LedgerSQLExecutor interface {
 
 type sqliteLedger struct {
 	db    LedgerSQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteLedger constructs the production OwnershipLedger.
-func NewSQLiteLedger(db LedgerSQLExecutor, clk clock.Clock) OwnershipLedger {
+func NewSQLiteLedger(db LedgerSQLExecutor, clk schedule.Clock) OwnershipLedger {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &sqliteLedger{db: db, clock: clk}
 }

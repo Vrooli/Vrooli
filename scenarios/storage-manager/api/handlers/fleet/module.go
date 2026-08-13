@@ -3,10 +3,11 @@ package fleet
 import (
 	"log"
 
-	"storage-manager/internal/clock"
 	"storage-manager/internal/fleet"
 	"storage-manager/internal/module"
 	"storage-manager/internal/validation"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -21,7 +22,7 @@ var ProtoFile = fleetv1.File_storage_manager_v1_fleet_fleet_proto
 // Module mounts the FleetService backed by the real classifier (the storage
 // validation engine projected onto inventory fields), the real enumerator (the
 // typed `vrooli scenario list` contract), and the SQLite snapshot store.
-func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB, clk clock.Clock) module.Module {
+func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB, clk schedule.Clock) module.Module {
 	// Fleet scans classify every discovered scenario, so detection must be fast
 	// and dependency-free: the filesystem detector (language from the api/ build
 	// manifest, domains from api/internal/<domain> layout) is used instead of the

@@ -99,7 +99,9 @@ type Store interface {
 }
 
 // Clock is the minimal wall-clock seam used to stamp a snapshot.
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	Now() time.Time
 }
 

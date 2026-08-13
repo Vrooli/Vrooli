@@ -12,8 +12,8 @@ import (
 	"testing"
 
 	"document-manager/handlers/notes"
-	"document-manager/internal/testutil/assertx"
-	"document-manager/internal/testutil/db"
+	"github.com/vrooli/api-core/apihttptest"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -38,7 +38,7 @@ func TestAttachmentsHandlerUploadSuccess(t *testing.T) {
 	router.ServeHTTP(rw, req)
 
 	require.Equal(t, http.StatusCreated, rw.Code, "body=%s", rw.Body.String())
-	got := assertx.MustUnmarshalProto[notesv1.UploadAttachmentResponse](t, rw.Body.Bytes())
+	got := apihttptest.MustUnmarshalProto[notesv1.UploadAttachmentResponse](t, rw.Body.Bytes())
 	require.NotNil(t, got.Attachment)
 	require.Equal(t, noteID, got.Attachment.NoteId)
 	require.Equal(t, "application/octet-stream", got.Attachment.MimeType)

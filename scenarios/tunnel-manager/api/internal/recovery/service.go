@@ -7,8 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/cmdrunner"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // HealthChecker is the readiness seam the engine consults before and
@@ -57,7 +58,7 @@ type engine struct {
 	health   HealthChecker
 	presence UnitPresence
 	runner   cmdrunner.Runner
-	clock    clock.Clock
+	clock    schedule.Clock
 	sleep    func(time.Duration)
 	cfg      Config
 	circuit  time.Time // wall time the circuit opened
@@ -74,7 +75,7 @@ type engine struct {
 // time.Sleep. presence is the cloudflared-unit self-gate consulted at the
 // top of Evaluate; pass nil to disable the gate (treated as always-present)
 // for tests that exercise the restart/backoff paths directly.
-func NewService(repo Repository, health HealthChecker, presence UnitPresence, runner cmdrunner.Runner, clk clock.Clock, cfg Config, sleep func(time.Duration)) Service {
+func NewService(repo Repository, health HealthChecker, presence UnitPresence, runner cmdrunner.Runner, clk schedule.Clock, cfg Config, sleep func(time.Duration)) Service {
 	if cfg.ConsecutiveFailures <= 0 {
 		cfg.ConsecutiveFailures = 3
 	}

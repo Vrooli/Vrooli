@@ -7,7 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"web-search/internal/livesearch"
-	"web-search/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func cachedResults() []livesearch.Result {
@@ -20,7 +21,7 @@ func cachedResults() []livesearch.Result {
 // only in surrounding whitespace and letter case are the SAME cache entry, so a
 // repeat phrasing never spends budget on a fresh SearXNG call.
 func TestCacheKeyEquivalentQueriesHit(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	cache := livesearch.NewCache(time.Minute, clk)
 
 	cache.Put("Anthropic Claude", 5, cachedResults(), nil)
@@ -37,7 +38,7 @@ func TestCacheKeyEquivalentQueriesHit(t *testing.T) {
 // TestCacheHitWithinTTL pins freshness: an entry stays servable for the whole
 // TTL window and is gone right after it.
 func TestCacheHitWithinTTL(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	cache := livesearch.NewCache(time.Minute, clk)
 	cache.Put("q", 5, cachedResults(), nil)
 
@@ -54,7 +55,7 @@ func TestCacheHitWithinTTL(t *testing.T) {
 // are allowed in a window; every further call in the same window is declined
 // (zero tokens remain) — the caller must degrade instead of hitting SearXNG.
 func TestGovernorExhaustedAfterBurst(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	gov := livesearch.NewGovernor(3, time.Minute, clk)
 
 	for i := 0; i < 3; i++ {
@@ -68,7 +69,7 @@ func TestGovernorExhaustedAfterBurst(t *testing.T) {
 // full window elapses, the bucket is back to FULL capacity (not one token, not
 // a partial trickle).
 func TestGovernorRefillsToCapacityAfterWindow(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	gov := livesearch.NewGovernor(3, time.Minute, clk)
 
 	for i := 0; i < 3; i++ {
@@ -87,7 +88,7 @@ func TestGovernorRefillsToCapacityAfterWindow(t *testing.T) {
 // windows do NOT bank extra tokens — the bucket caps at the configured
 // capacity, so a quiet period can never fund a later super-burst.
 func TestGovernorRefillNeverExceedsCapacity(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	gov := livesearch.NewGovernor(2, time.Minute, clk)
 
 	require.True(t, gov.Allow()) // partial spend, then a long idle stretch
@@ -102,7 +103,7 @@ func TestGovernorRefillNeverExceedsCapacity(t *testing.T) {
 // budget: a hit serves with no network I/O, well under 50ms — the real cost is
 // one mutex + map lookup).
 func BenchmarkCacheGet(b *testing.B) {
-	cache := livesearch.NewCache(time.Hour, mocks.NewFakeClock(time.Time{}))
+	cache := livesearch.NewCache(time.Hour, scheduletest.New(time.Time{}))
 	cache.Put("anthropic claude", 5, cachedResults(), nil)
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
@@ -116,7 +117,7 @@ func BenchmarkCacheGet(b *testing.B) {
 // (REQ-P0-007 performance budget: at most 1ms overhead; the real cost is one
 // mutex + clock read, both on the allow and the decline branch).
 func BenchmarkGovernorAllow(b *testing.B) {
-	gov := livesearch.NewGovernor(64, time.Minute, mocks.NewFakeClock(time.Time{}))
+	gov := livesearch.NewGovernor(64, time.Minute, scheduletest.New(time.Time{}))
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		gov.Allow()

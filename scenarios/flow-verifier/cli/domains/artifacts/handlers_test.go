@@ -11,7 +11,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
 
-	clitest "flow-verifier/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 
 	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/artifacts"
 	artifactsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/artifacts/artifacts_v1connect"

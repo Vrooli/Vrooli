@@ -7,7 +7,7 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
-	testdb "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 func TestSQLiteRepositorySaveValidationRunRoundTrip(t *testing.T) {

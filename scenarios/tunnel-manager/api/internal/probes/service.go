@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"sync"
 
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/httpc"
 	"tunnel-manager/internal/manifest"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // RoutesReader is the narrow slice of the routes domain this service
@@ -43,13 +44,13 @@ type service struct {
 	routes RoutesReader
 	repo   Repository
 	doer   httpc.Doer
-	clock  clock.Clock
+	clock  schedule.Clock
 }
 
 // NewService constructs the production Service. doer is the outbound HTTP
 // seam (a timeout-bounded *http.Client in production); clock stamps
 // latency so tests stay deterministic.
-func NewService(routes RoutesReader, repo Repository, doer httpc.Doer, clk clock.Clock) Service {
+func NewService(routes RoutesReader, repo Repository, doer httpc.Doer, clk schedule.Clock) Service {
 	return &service{routes: routes, repo: repo, doer: doer, clock: clk}
 }
 

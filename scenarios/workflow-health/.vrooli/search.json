@@ -10,6 +10,7 @@
       "description": "Scenario-owned BAS workflow assets exposed by workflow-health: runnable flows, validation cases, and reusable fragments with safety metadata, requirement links, selectors, routes, and guardrails. Route here to find workflow journeys, workflow tests, or workflow fragments before hand-rolling browser automation.",
       "scope": "SCOPE_PROJECT",
       "class": "local_live",
+      "index_timestamp_field": "metrics.last_indexed_at",
       "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
@@ -102,6 +103,7 @@
       "description": "Scenario-owned BAS validation cases indexed by workflow-health. Route here to find workflow evidence that proves scenario behavior or requirement coverage.",
       "scope": "SCOPE_PROJECT",
       "class": "local_live",
+      "index_timestamp_field": "metrics.last_indexed_at",
       "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {
@@ -186,6 +188,7 @@
       "description": "Scenario-owned BAS action fragments indexed by workflow-health. Route here to find reusable browser automation fragments and dependency building blocks, not top-level autonomous workflows.",
       "scope": "SCOPE_PROJECT",
       "class": "local_live",
+      "index_timestamp_field": "metrics.last_indexed_at",
       "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
       "endpoint": {
         "http_json": {

@@ -10,6 +10,8 @@ import (
 	"tunnel-manager/internal/recovery"
 	"tunnel-manager/internal/testutil/mocks"
 
+	"github.com/vrooli/api-core/scheduletest"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -74,7 +76,7 @@ func (f fakePresence) CloudflaredUnitPresent(context.Context) bool { return f.pr
 
 func newEngine(t *testing.T, health *fakeHealth, runner *mocks.FakeCmdRunner, repo *fakeRepo, cfg recovery.Config) recovery.Service {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	return recovery.NewService(repo, health, fakePresence{present: true}, runner.Run, clk, cfg, noopSleep)
 }
 
@@ -151,7 +153,7 @@ func TestRecover_IdempotentWhileInFlight(t *testing.T) {
 	runner := &mocks.FakeCmdRunner{}
 	release := make(chan struct{})
 	health := &gatedHealth{gate: release}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	svc := recovery.NewService(repo, health, fakePresence{present: true}, runner.Run, clk, recovery.Config{ReadyPollAttempts: 100}, noopSleep)
 
 	var firstOutcome recovery.EventOutcome
@@ -208,7 +210,7 @@ func TestEvaluate_DormantWhenNoCloudflaredUnit(t *testing.T) {
 	// failure and eventually restart. The presence gate must short-circuit
 	// before any of that.
 	health := &fakeHealth{ready: false}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	svc := recovery.NewService(repo, health, fakePresence{present: false}, runner.Run, clk, recovery.Config{ConsecutiveFailures: 1}, noopSleep)
 
 	for i := 0; i < 5; i++ {
@@ -231,7 +233,7 @@ func TestEvaluate_ResumesWhenUnitAppears(t *testing.T) {
 	repo := &fakeRepo{}
 	runner := &mocks.FakeCmdRunner{}
 	health := &fakeHealth{ready: true}
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	// Presence flips to true after the first probe — a cloudflared installed
 	// after the scenario started must be picked up on the next tick.
 	presence := &togglePresence{}

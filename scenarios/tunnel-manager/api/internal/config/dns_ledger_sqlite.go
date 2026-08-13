@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"tunnel-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // sqliteDNSLedger is the production DNSLedger over the dns_ownership table.
@@ -15,13 +15,13 @@ import (
 // structurally identical — the only difference is the table and columns.
 type sqliteDNSLedger struct {
 	db    LedgerSQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteDNSLedger constructs the production DNSLedger.
-func NewSQLiteDNSLedger(db LedgerSQLExecutor, clk clock.Clock) DNSLedger {
+func NewSQLiteDNSLedger(db LedgerSQLExecutor, clk schedule.Clock) DNSLedger {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &sqliteDNSLedger{db: db, clock: clk}
 }

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"go-code-graph/internal/modules"
-	"go-code-graph/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 

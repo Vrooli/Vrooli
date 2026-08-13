@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	testdb "git-control-tower/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 type fakeCommandRunner struct {

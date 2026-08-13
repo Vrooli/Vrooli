@@ -10,6 +10,8 @@ import (
 	"tunnel-manager/internal/config"
 	"tunnel-manager/internal/manifest"
 	"tunnel-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fakeAccess records EnsurePublicBypass/RemovePublicBypass calls for
@@ -96,7 +98,7 @@ func newSvcWithAccess(cfg config.TunnelConfig, routes []manifest.Route, ingress 
 		Access:       access,
 		AccessLedger: accessLedger,
 		Runner:       (&mocks.FakeCmdRunner{}).Run,
-		Clock:        mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:        scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 }
 
@@ -211,7 +213,7 @@ func TestSetPublicExposure_Persists(t *testing.T) {
 	svc := config.NewService(config.Deps{
 		Repo:   repo,
 		Routes: &fakeRoutes{},
-		Clock:  mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Clock:  scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
 	})
 	updated, err := svc.SetPublicExposure(context.Background(), true)
 	require.NoError(t, err)

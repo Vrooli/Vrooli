@@ -15,7 +15,7 @@ import (
 	"connectrpc.com/connect"
 
 	"git-control-tower/internal/testutil/fixtures"
-	"git-control-tower/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/storage"

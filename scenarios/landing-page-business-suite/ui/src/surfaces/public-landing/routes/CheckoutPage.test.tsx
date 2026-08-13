@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { renderWithProviders } from '../../../test-utils/renderWithProviders';
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { CheckoutPage } from './CheckoutPage';
 import * as api from '../../../shared/api';
 import type { PricingOverview } from '../../../shared/api';

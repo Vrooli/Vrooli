@@ -11,7 +11,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
 
-	"security-health/cli/internal/testutil"
+	testutil "github.com/vrooli/cli-core/cliapptest"
 
 	dependenciesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/dependencies"
 	dependenciesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/dependencies/dependencies_v1connect"

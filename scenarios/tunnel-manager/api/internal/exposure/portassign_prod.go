@@ -11,7 +11,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/api-core/discovery"
-	"tunnel-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/validation"
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/validation/validation_v1connect"
@@ -97,13 +97,13 @@ func (a *StructureHealthPortAssigner) Release(ctx context.Context, scenario stri
 // tm_port_assignments table.
 type sqlitePortOwnership struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLitePortOwnership constructs the production PortOwnership store.
-func NewSQLitePortOwnership(db SQLExecutor, clk clock.Clock) PortOwnership {
+func NewSQLitePortOwnership(db SQLExecutor, clk schedule.Clock) PortOwnership {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &sqlitePortOwnership{db: db, clock: clk}
 }

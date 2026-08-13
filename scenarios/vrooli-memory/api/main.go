@@ -9,11 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"vrooli-memory/internal/clock"
 	"vrooli-memory/internal/ledgerclient"
 	"vrooli-memory/internal/maintenance"
 	"vrooli-memory/internal/modules"
 	"vrooli-memory/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -151,13 +152,13 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "vrooli-memory-api", "1.0.0", maintenance.NewSQLiteStore(db.Primary()), db.Primary()),
 		journalH.Module(ledger, log.Default()),
 		facetsH.Module(ledger, log.Default()),
 		forestH.Module(ledger, log.Default()),
 		recallH.Module(ledger, log.Default()),
-		harnessH.Module(db, fileRoots, ledger, log.Default(), ledger, clock.System{}),
+		harnessH.Module(db, fileRoots, ledger, log.Default(), ledger, schedule.System()),
 		rulesH.Module(ledger, log.Default()),
 		scopesH.Module(ledger, log.Default()),
 	)

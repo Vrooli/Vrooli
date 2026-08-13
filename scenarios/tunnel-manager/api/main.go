@@ -11,13 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"tunnel-manager/internal/clock"
 	internalexposure "tunnel-manager/internal/exposure"
 	"tunnel-manager/internal/modules"
 	internalprobes "tunnel-manager/internal/probes"
 	internalrecovery "tunnel-manager/internal/recovery"
 	internalroutes "tunnel-manager/internal/routes"
 	"tunnel-manager/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -129,7 +130,7 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
-	clk := clock.System{}
+	clk := schedule.System()
 	logger := log.Default()
 	routesSvc := internalroutes.NewService(internalroutes.NewSQLiteRepository(db, clk))
 	configSvc := configH.NewProductionService(db, clk, routesSvc)

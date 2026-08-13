@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
+	db "github.com/vrooli/api-core/databasetest"
 	internalchat "portal/internal/chat"
 	"portal/internal/completion"
 	localdb "portal/internal/database"
 	"portal/internal/integrations/openrouter"
-	"portal/internal/testutil/db"
 
 	"github.com/vrooli/api-core/scheduletest"
 )

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"tunnel-manager/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // sqliteAccessLedger is the production AccessLedger over the access_ownership
@@ -15,13 +15,13 @@ import (
 // structurally identical — the only difference is the table and columns.
 type sqliteAccessLedger struct {
 	db    LedgerSQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteAccessLedger constructs the production AccessLedger.
-func NewSQLiteAccessLedger(db LedgerSQLExecutor, clk clock.Clock) AccessLedger {
+func NewSQLiteAccessLedger(db LedgerSQLExecutor, clk schedule.Clock) AccessLedger {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &sqliteAccessLedger{db: db, clock: clk}
 }

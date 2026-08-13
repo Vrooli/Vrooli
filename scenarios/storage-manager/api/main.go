@@ -12,11 +12,12 @@ import (
 	"time"
 
 	"storage-manager/internal/census"
-	"storage-manager/internal/clock"
 	"storage-manager/internal/httpx"
 	"storage-manager/internal/modules"
 	managerRetention "storage-manager/internal/retention"
 	"storage-manager/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -167,10 +168,10 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: logger},
+		server.Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, "storage-manager-api", "1.0.0"),
 		cleanupH.Module(logger, db, fileRoots),
-		fleetH.Module(logger, repoRoot, db, clock.System{}),
+		fleetH.Module(logger, repoRoot, db, schedule.System()),
 		advisorH.Module(logger, repoRoot),
 		validationH.Module(logger, repoRoot),
 		storageH.Module(storageH.ModuleDeps{RepoRoot: repoRoot, DB: db}),

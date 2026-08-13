@@ -1,7 +1,7 @@
 import { Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
-import { renderWithProviders } from '../../test-utils/renderWithProviders';
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { AdminAuthProvider } from '../providers/AdminAuthProvider';
 import { userAuthRoutes } from './userAuthRoutes';
 

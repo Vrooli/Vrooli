@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P1 operational targets.",
-    "last_validated_at": "2026-08-09T03:32:56-04:00",
+    "last_validated_at": "2026-08-13T01:35:59-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "SL-P1-001",
       "title": "Per-scope vocabulary",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
       "description": "Operators should create and update each scope's facet vocabulary, retention rules, residency budgets, and frontier target.",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "api/handlers/facets/connect_handler_test.go::TestSetFacetPolicyPersistsScopedRetentionAndResidency",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Transactional facet policy mutation validates scope, retention, compaction eligibility, and residency."
         }
       ]

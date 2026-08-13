@@ -19,7 +19,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
 
-	clitest "web-search/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 // fakeFindingsService is a stateful in-memory FindingsServiceHandler. It

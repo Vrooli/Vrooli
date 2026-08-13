@@ -10,7 +10,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
 
-	"security-health/cli/internal/testutil"
+	testutil "github.com/vrooli/cli-core/cliapptest"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"

@@ -9,6 +9,8 @@ import (
 	internalroutes "tunnel-manager/internal/routes"
 	"tunnel-manager/internal/testutil/mocks"
 
+	"github.com/vrooli/api-core/scheduletest"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,7 +66,7 @@ func TestRunProbes_StatusMappingAndPersistence(t *testing.T) {
 	// (500 → down).
 	doer.AddResponse(200, []byte("ok"))
 	doer.AddResponse(500, []byte("boom"))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 
 	svc := probes.NewService(routes, repo, doer, clk)
 	results, err := svc.RunProbes(context.Background())
@@ -92,7 +94,7 @@ func TestRunProbes_TimeoutAndSkipsDisabled(t *testing.T) {
 	routes := &fakeRoutes{routes: []internalroutes.Route{enabled, disabled}}
 	repo := &fakeRepo{}
 	doer := &mocks.FakeDoer{}
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 
 	svc := probes.NewService(routes, repo, doer, clk)
 
@@ -121,7 +123,7 @@ func TestClassify_AllBranches(t *testing.T) {
 		{Subdomain: "drift", Internal: down(), External: up()},
 		{Subdomain: "scenario", Internal: down(), External: down()},
 	}}
-	svc := probes.NewService(&fakeRoutes{}, repo, &mocks.FakeDoer{}, mocks.NewFakeClock(time.Time{}))
+	svc := probes.NewService(&fakeRoutes{}, repo, &mocks.FakeDoer{}, scheduletest.New(time.Time{}))
 
 	got, err := svc.Classify(context.Background())
 	require.NoError(t, err)

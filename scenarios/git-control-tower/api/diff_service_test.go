@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -790,5 +791,126 @@ func TestParseNumstatOutput_EnhancedFields(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// --- SVG and preview mode tests ---
+//
+// SVG is XML text, not an opaque binary image. It must diff, count lines, and
+// expose its source like any other text file, while remaining previewable.
+
+func TestDetectBinaryKind_SVGIsText(t *testing.T) {
+	svg := []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>`)
+	if got := detectBinaryKind("icon.svg", svg); got != binaryNone {
+		t.Fatalf("detectBinaryKind(icon.svg) = %v, want binaryNone (SVG is text)", got)
+	}
+	if got := detectBinaryKind("ICON.SVG", svg); got != binaryNone {
+		t.Fatalf("detectBinaryKind(ICON.SVG) = %v, want binaryNone", got)
+	}
+}
+
+func TestDetectBinaryKind_RasterImagesStayBinary(t *testing.T) {
+	for _, path := range []string{"a.png", "a.jpg", "a.jpeg", "a.gif", "a.webp", "a.ico", "a.bmp", "a.tiff"} {
+		if got := detectBinaryKind(path, []byte("whatever")); got != binaryImage {
+			t.Errorf("detectBinaryKind(%s) = %v, want binaryImage", path, got)
+		}
+	}
+}
+
+// A multi-byte rune straddling the sample cutoff must not make valid UTF-8 text
+// look like binary.
+func TestDetectBinaryKind_MultibyteRuneAtSampleBoundary(t *testing.T) {
+	for offset := range 4 {
+		prefix := bytes.Repeat([]byte("a"), binarySampleBytes-offset)
+		content := append(append([]byte{}, prefix...), []byte("→ trailing text")...)
+		if got := detectBinaryKind("diagram.svg", content); got != binaryNone {
+			t.Fatalf("offset %d: detectBinaryKind = %v, want binaryNone", offset, got)
+		}
+	}
+}
+
+func TestGetDiff_Untracked_SVGReturnsSourceNotBase64(t *testing.T) {
+	repoDir := t.TempDir()
+	path := "icon.svg"
+	svg := "<svg xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"1\" height=\"1\"/>\n</svg>\n"
+	if err := os.WriteFile(filepath.Join(repoDir, path), []byte(svg), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	diff, err := GetDiff(context.Background(), DiffDeps{
+		Git:     NewFakeGitRunner(),
+		RepoDir: repoDir,
+	}, DiffRequest{Path: path, Untracked: true, Mode: ViewModePreview})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if diff.FullContent != svg {
+		t.Fatalf("FullContent = %q, want the raw SVG source", diff.FullContent)
+	}
+	// An untracked text file reports every line as an addition; reporting 0
+	// contradicts the file list, which counts the same lines.
+	if diff.Stats.Additions != 3 {
+		t.Fatalf("Stats.Additions = %d, want 3", diff.Stats.Additions)
+	}
+	if len(diff.AnnotatedLines) == 0 {
+		t.Fatal("expected annotated lines for SVG so the source view can render it")
+	}
+	if diff.ContentHash == "" {
+		t.Fatal("expected a content hash for SVG so edits can be saved safely")
+	}
+}
+
+func TestGetDiff_Untracked_RasterImageStaysBase64(t *testing.T) {
+	repoDir := t.TempDir()
+	path := "pixel.png"
+	raw := []byte{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a}
+	if err := os.WriteFile(filepath.Join(repoDir, path), raw, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	diff, err := GetDiff(context.Background(), DiffDeps{
+		Git:     NewFakeGitRunner(),
+		RepoDir: repoDir,
+	}, DiffRequest{Path: path, Untracked: true, Mode: ViewModePreview})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := base64.StdEncoding.EncodeToString(raw); diff.FullContent != want {
+		t.Fatalf("FullContent = %q, want base64 %q", diff.FullContent, want)
+	}
+}
+
+// Preview mode needs the whole file. Without this the View tab renders nothing
+// for a tracked file that has changes.
+func TestGetDiff_PreviewMode_TrackedFileHasFullContent(t *testing.T) {
+	repoDir := t.TempDir()
+	path := "icon.svg"
+	svg := "<svg xmlns=\"http://www.w3.org/2000/svg\"/>\n"
+	if err := os.WriteFile(filepath.Join(repoDir, path), []byte(svg), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	diff, err := GetDiff(context.Background(), DiffDeps{
+		Git:     NewFakeGitRunner().AddUnstagedFile(path),
+		RepoDir: repoDir,
+	}, DiffRequest{Path: path, Mode: ViewModePreview})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if diff.FullContent != svg {
+		t.Fatalf("FullContent = %q, want the file source", diff.FullContent)
+	}
+}
+
+func TestGetDiff_PreviewMode_CommitFileHasFullContent(t *testing.T) {
+	diff, err := GetDiff(context.Background(), DiffDeps{
+		Git:     NewFakeGitRunner(),
+		RepoDir: "/fake/repo",
+	}, DiffRequest{Path: "icon.svg", Commit: "abc123", Mode: ViewModePreview})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if diff.FullContent == "" {
+		t.Fatal("expected full content in preview mode for a file at a commit")
 	}
 }

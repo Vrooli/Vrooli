@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VariantEditor } from './VariantEditor';
 import * as variantHook from '../hooks/useVariantForm';

@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 	core "github.com/vrooli/api-core/validationrun"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
-	"workflow-health/internal/testutil/db"
 )
 
 func TestRepositoryPersistsReplaySafeRunAndTerminalEvidence(t *testing.T) {

@@ -103,6 +103,8 @@ type ScenarioProviderClient interface {
 	Apply(ctx context.Context, req ScenarioCleanupRequest) (ApplyResult, error)
 }
 
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	Now() time.Time
 }

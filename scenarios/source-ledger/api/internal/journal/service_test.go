@@ -8,10 +8,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 	localdb "source-ledger/internal/database"
 	"source-ledger/internal/facets"
 	"source-ledger/internal/inference"
-	"source-ledger/internal/testutil/db"
 	"source-ledger/internal/testutil/mocks"
 )
 

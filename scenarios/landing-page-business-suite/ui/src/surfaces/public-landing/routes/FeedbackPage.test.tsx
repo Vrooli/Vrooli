@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { renderWithProviders } from '../../../test-utils/renderWithProviders';
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { createFeedback } from '../../../shared/api/feedback';
 import { FeedbackPage } from './FeedbackPage';
 

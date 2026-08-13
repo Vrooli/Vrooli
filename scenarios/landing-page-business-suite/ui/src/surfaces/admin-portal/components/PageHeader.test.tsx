@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import type { ComponentProps, ReactElement } from 'react';
 import { screen } from "@testing-library/react";
 import { Users } from 'lucide-react';

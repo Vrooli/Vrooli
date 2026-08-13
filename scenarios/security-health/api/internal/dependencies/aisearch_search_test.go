@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"security-health/internal/clock"
 	"security-health/internal/dependencies/aisearch"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // fakeIndex is a test SemanticIndex: Query returns a scripted ranking, and an
@@ -75,7 +76,7 @@ func newSvc(t *testing.T, s *Store, idx SemanticIndex) *Service {
 		RepoRoot:  t.TempDir(),
 		Store:     s,
 		Annotator: NewAnnotator("", noopCommander{}),
-		Clock:     clock.System{},
+		Clock:     schedule.System(),
 		Index:     idx,
 	})
 }

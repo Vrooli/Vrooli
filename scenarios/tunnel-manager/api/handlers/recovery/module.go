@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"tunnel-manager/internal/authz"
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/cmdrunner"
 	"tunnel-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -29,13 +30,13 @@ import (
 // breaker / backoff state machine), so it is constructed once here and
 // closed over by the handler. The readiness probe and the cloudflared
 // restart go through the httpc / cmdrunner seams.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	return ModuleWithService(NewProductionService(db, clk), logger)
 }
 
 // NewProductionService wires the recovery engine with the same production
 // seams used by the Connect handler and the optional background scheduler.
-func NewProductionService(db *database.RoutedDB, clk clock.Clock) internalrecovery.Service {
+func NewProductionService(db *database.RoutedDB, clk schedule.Clock) internalrecovery.Service {
 	repo := internalrecovery.NewSQLiteRepository(db, clk)
 	readyURL := strings.TrimSpace(os.Getenv("TUNNEL_READY_URL"))
 	if readyURL == "" {

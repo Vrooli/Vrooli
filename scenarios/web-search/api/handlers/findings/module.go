@@ -3,8 +3,9 @@ package findings
 import (
 	"log"
 
-	"web-search/internal/clock"
 	"web-search/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -21,7 +22,7 @@ import (
 // exercise the SQL-only paths). indexKick (nil-safe) fires after successful
 // content mutations so the semantic index reconciles within seconds of a
 // write instead of waiting out the periodic sync interval.
-func Module(db *database.RoutedDB, clk clock.Clock, searcher Searcher, surfacer Surfacer, indexKick func(), logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, searcher Searcher, surfacer Surfacer, indexKick func(), logger *log.Logger) module.Module {
 	repo := internalfindings.NewSQLiteRepository(db, clk)
 	svc := internalfindings.WithMutationNotify(internalfindings.NewService(repo), indexKick)
 	gc := internalfindings.NewGCService(svc, clk, internalfindings.GCConfig{})

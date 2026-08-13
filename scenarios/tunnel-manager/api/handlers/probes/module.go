@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -32,13 +33,13 @@ const probeHTTPTimeout = 5 * time.Second
 // from the same RoutedDB, and probes upstreams through a timeout-bounded
 // *http.Client (the httpc.Doer seam) so a slow scenario cannot wedge the
 // cycle.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	return ModuleWithService(NewProductionService(nil, db, clk), logger)
 }
 
 // NewProductionService wires the probes service with the same production
 // seams used by the Connect handler and the background scheduler.
-func NewProductionService(routesReader manifest.Reader, db *database.RoutedDB, clk clock.Clock) internalprobes.Service {
+func NewProductionService(routesReader manifest.Reader, db *database.RoutedDB, clk schedule.Clock) internalprobes.Service {
 	repo := internalprobes.NewSQLiteRepository(db, clk)
 	httpClient := &http.Client{Timeout: probeHTTPTimeout}
 	return internalprobes.NewService(routesReader, repo, httpClient, clk)

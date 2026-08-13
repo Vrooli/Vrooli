@@ -9,8 +9,8 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
+	db "github.com/vrooli/api-core/databasetest"
 	intrewrite "go-code-graph/internal/rewrite"
-	"go-code-graph/internal/testutil/db"
 
 	"github.com/vrooli/api-core/scheduletest"
 )

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"tunnel-manager/internal/config"
-	"tunnel-manager/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 

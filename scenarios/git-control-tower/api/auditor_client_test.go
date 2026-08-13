@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"git-control-tower/internal/testutil/httpx"
 	"github.com/vrooli/api-core/discovery"
+	httpx "github.com/vrooli/api-core/servertest"
 )
 
 func TestAuditorClient_StartCheck(t *testing.T) {

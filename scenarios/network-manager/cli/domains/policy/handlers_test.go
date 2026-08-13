@@ -10,7 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 
-	clitest "network-manager/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 
 	policyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy"
 	policyconnect "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy/policy_v1connect"

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { screen } from '@testing-library/react';
 import { Users } from 'lucide-react';
 import { MemoryRouter } from 'react-router-dom';
-import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { ComingSoonPage } from './ComingSoonPage';
 
 describe('ComingSoonPage', () => {

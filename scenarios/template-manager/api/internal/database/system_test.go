@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 

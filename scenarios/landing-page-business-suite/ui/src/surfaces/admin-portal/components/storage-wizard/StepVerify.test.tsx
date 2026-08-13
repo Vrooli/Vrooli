@@ -1,5 +1,5 @@
 import { fireEvent, screen } from '@testing-library/react';
-import { renderWithProviders as render } from '../../../../test-utils/renderWithProviders';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { describe, expect, it, vi } from 'vitest';
 import { buildDefaultStorageForm } from '../../services/downloads.service';
 import { StepVerify } from './StepVerify';

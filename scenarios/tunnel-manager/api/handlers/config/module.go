@@ -7,8 +7,9 @@ import (
 	"strings"
 
 	"tunnel-manager/internal/authz"
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -45,7 +46,7 @@ func resolveScenariosRoot() string {
 	return "scenarios"
 }
 
-func NewProductionService(db *database.RoutedDB, clk clock.Clock, routes internalconfig.Routes) internalconfig.Service {
+func NewProductionService(db *database.RoutedDB, clk schedule.Clock, routes internalconfig.Routes) internalconfig.Service {
 	return internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{
 		Routes:       routes,
 		RoutesWriter: routes,
@@ -68,7 +69,7 @@ func NewProductionService(db *database.RoutedDB, clk clock.Clock, routes interna
 // legacy CF_* aliases are intentionally not accepted. When credentials are
 // absent the IngressClient is nil and remote apply operations return
 // ErrRemoteUnavailable (mapped to FailedPrecondition).
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	svc := NewProductionService(db, clk, nil)
 	return ModuleWithService(svc, logger)
 }

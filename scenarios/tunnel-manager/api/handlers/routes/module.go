@@ -4,8 +4,9 @@ import (
 	"log"
 
 	"tunnel-manager/internal/authz"
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -20,7 +21,7 @@ import (
 // generated Connect-RPC RoutesService handler. The center (server.New)
 // does not change — adding a domain is one Module() call in main.go plus
 // one registration row in modules.AllEndpoints/AllSchemas/AllProtoFiles.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	repo := internalroutes.NewSQLiteRepository(db, clk)
 	svc := internalroutes.NewService(repo)
 	connectPath, connectHandler := routesconnect.NewRoutesServiceHandler(NewConnectHandler(Deps{

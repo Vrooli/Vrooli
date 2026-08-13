@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	testdb "git-control-tower/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 func newTestCommitCheckStore(t *testing.T) *CommitCheckStore {

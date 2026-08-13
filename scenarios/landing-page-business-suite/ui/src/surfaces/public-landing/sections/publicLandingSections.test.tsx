@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
-import { renderWithProviders } from '../../../test-utils/renderWithProviders';
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { CTASection } from './CTASection';
 import { FAQSection } from './FAQSection';
 import { FooterSection } from './FooterSection';

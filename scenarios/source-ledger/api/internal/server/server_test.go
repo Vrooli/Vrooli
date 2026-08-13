@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"testing"
 
-	"source-ledger/internal/clock"
+	httpx "github.com/vrooli/api-core/servertest"
 	"source-ledger/internal/module"
 	"source-ledger/internal/server"
-	"source-ledger/internal/testutil/httpx"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -91,7 +92,7 @@ func TestServer_NewRequiresClock(t *testing.T) {
 
 func newTestDeps() server.Deps {
 	return server.Deps{
-		Clock:  clock.System{},
+		Clock:  schedule.System(),
 		Logger: log.New(io.Discard, "", 0),
 	}
 }

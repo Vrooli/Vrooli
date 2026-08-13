@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"tech-tree-designer/internal/modules"
-	"tech-tree-designer/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 

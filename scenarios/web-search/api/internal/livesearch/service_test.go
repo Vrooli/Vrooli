@@ -9,7 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"web-search/internal/livesearch"
-	"web-search/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fakeClient is a SearxngClient seam that records calls and returns canned raw
@@ -91,7 +92,7 @@ func TestServiceDefaultsLimit(t *testing.T) {
 }
 
 func TestServiceCacheHitSkipsClient(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	client := &fakeClient{results: sampleRaw()}
 	cache := livesearch.NewCache(time.Minute, clk)
 	svc := livesearch.NewService(livesearch.Deps{Client: client, Cache: cache})
@@ -109,7 +110,7 @@ func TestServiceCacheHitSkipsClient(t *testing.T) {
 }
 
 func TestServiceCacheExpiryRefetches(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	client := &fakeClient{results: sampleRaw()}
 	cache := livesearch.NewCache(time.Minute, clk)
 	svc := livesearch.NewService(livesearch.Deps{Client: client, Cache: cache})
@@ -127,7 +128,7 @@ func TestServiceCacheExpiryRefetches(t *testing.T) {
 }
 
 func TestServiceGovernorExhaustionDegradesWithoutClient(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	client := &fakeClient{results: sampleRaw()}
 	// Capacity 1 per window: the second call in the same window is declined.
 	gov := livesearch.NewGovernor(1, time.Minute, clk)
@@ -146,7 +147,7 @@ func TestServiceGovernorExhaustionDegradesWithoutClient(t *testing.T) {
 }
 
 func TestServiceGovernorWindowRefill(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	client := &fakeClient{results: sampleRaw()}
 	gov := livesearch.NewGovernor(1, time.Minute, clk)
 	svc := livesearch.NewService(livesearch.Deps{Client: client, Governor: gov})
@@ -281,7 +282,7 @@ func TestSearchThreadsDegradedEngines(t *testing.T) {
 		results:      []livesearch.RawResult{{URL: "https://a.example", Title: "A"}},
 		engineIssues: issues,
 	}
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	svc := livesearch.NewService(livesearch.Deps{
 		Client: client,
 		Cache:  livesearch.NewCache(time.Minute, clk),

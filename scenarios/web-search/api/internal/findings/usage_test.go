@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"web-search/internal/clock"
+	testdb "github.com/vrooli/api-core/databasetest"
 	localdb "web-search/internal/database"
 	"web-search/internal/findings"
-	testdb "web-search/internal/testutil/db"
-	"web-search/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
@@ -18,7 +19,7 @@ import (
 
 // newRepoAtClock builds a findings repository over a fresh SQLite DB whose
 // timestamps are driven by clk, so usage/age behavior is deterministic.
-func newRepoAtClock(t *testing.T, clk clock.Clock) (findings.Repository, *sql.DB) {
+func newRepoAtClock(t *testing.T, clk schedule.Clock) (findings.Repository, *sql.DB) {
 	t.Helper()
 	d := testdb.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
@@ -33,7 +34,7 @@ func newRepoAtClock(t *testing.T, clk clock.Clock) (findings.Repository, *sql.DB
 func TestRecordSurfacedAndGetUsage(t *testing.T) {
 	ctx := context.Background()
 	start := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
-	clk := mocks.NewFakeClock(start)
+	clk := scheduletest.New(start)
 	repo, _ := newRepoAtClock(t, clk)
 
 	a, err := repo.Add(ctx, findings.NewFinding{Claim: "claim a"}, "agent")
@@ -66,7 +67,7 @@ func TestRecordSurfacedAndGetUsage(t *testing.T) {
 // bogus id is reported as not-found (never creates an orphan counter).
 func TestRecordUsedValidatesTarget(t *testing.T) {
 	ctx := context.Background()
-	repo, _ := newRepoAtClock(t, clock.System{})
+	repo, _ := newRepoAtClock(t, schedule.System())
 
 	f, err := repo.Add(ctx, findings.NewFinding{Claim: "used claim"}, "operator")
 	require.NoError(t, err)
@@ -86,7 +87,7 @@ func TestRecordUsedValidatesTarget(t *testing.T) {
 // touches the finding row, its confidence, or its audit trail.
 func TestUsageDoesNotMutateFinding(t *testing.T) {
 	ctx := context.Background()
-	repo, d := newRepoAtClock(t, clock.System{})
+	repo, d := newRepoAtClock(t, schedule.System())
 
 	f, err := repo.Add(ctx, findings.NewFinding{Claim: "immutable", Confidence: 0.7}, "agent")
 	require.NoError(t, err)
@@ -151,7 +152,7 @@ func TestEffectiveScoreBlendsDecayAndUsage(t *testing.T) {
 func TestListDecayCandidates(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
-	clk := mocks.NewFakeClock(now.Add(-300 * 24 * time.Hour)) // findings created ~300d ago
+	clk := scheduletest.New(now.Add(-300 * 24 * time.Hour)) // findings created ~300d ago
 	repo, _ := newRepoAtClock(t, clk)
 
 	oldUnsurfaced, err := repo.Add(ctx, findings.NewFinding{Claim: "old, never surfaced"}, "agent")

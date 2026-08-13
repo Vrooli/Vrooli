@@ -9,8 +9,8 @@ import (
 
 	"connectrpc.com/connect"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"workflow-health/internal/execution"
-	"workflow-health/internal/testutil/db"
 	internalvalidation "workflow-health/internal/validation"
 	workflowrun "workflow-health/internal/validationrun"
 

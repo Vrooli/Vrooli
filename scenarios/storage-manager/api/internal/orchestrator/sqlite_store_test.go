@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"storage-manager/internal/cleanup"
 	"storage-manager/internal/policy"
-	"storage-manager/internal/testutil/db"
 )
 
 func newStore(t *testing.T) (*SQLiteStore, func()) {

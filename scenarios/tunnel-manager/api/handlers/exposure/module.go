@@ -8,9 +8,10 @@ import (
 	"strings"
 
 	"tunnel-manager/internal/authz"
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/cmdrunner"
 	"tunnel-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -33,13 +34,13 @@ import (
 // Ingress seam), and process lifecycle (a cmdrunner-backed Runner). The
 // CORE set comes from api-core/coreset; UI ports come from each scenario's
 // service.json via the FilePortResolver.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	return ModuleWithService(NewProductionService(db, clk, nil, nil), logger)
 }
 
 // NewProductionService wires the exposure broker with the same production
 // seams used by the Connect handler and the background scheduler.
-func NewProductionService(db *database.RoutedDB, clk clock.Clock, manifestReader manifest.Store, configSvc internalconfig.Service) internalexposure.Service {
+func NewProductionService(db *database.RoutedDB, clk schedule.Clock, manifestReader manifest.Store, configSvc internalconfig.Service) internalexposure.Service {
 	repo := internalexposure.NewSQLiteRepository(db, clk)
 	if configSvc == nil {
 		configSvc = internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{Routes: manifestReader})

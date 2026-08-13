@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"flow-verifier/internal/settings"
-	"flow-verifier/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 

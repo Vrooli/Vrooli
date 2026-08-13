@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import App from './App';
-import { renderWithProviders } from './test-utils/renderWithProviders';
-import { expectNoA11yViolations } from './test-utils/a11y';
+import { renderWithProviders } from "@vrooli/api-base/testing";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 
 // This test audits the composed shell, not variant-loading behavior (covered by
 // LandingVariantProvider tests). A stable provider keeps the accessibility run

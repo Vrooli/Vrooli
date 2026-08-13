@@ -17,7 +17,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
 
-	clitest "go-code-graph/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 // fakeService implements graph_v1connect.GoCodeGraphServiceHandler so the

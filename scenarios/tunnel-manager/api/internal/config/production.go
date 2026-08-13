@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/cmdrunner"
 	"tunnel-manager/internal/manifest"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // ProductionDB is the database surface required by the config service and
@@ -49,7 +50,7 @@ type httpDoer interface {
 // NewProductionService builds the canonical config service used by both the
 // config API and exposure's ingress adapter. Keep Cloudflare/env/local-runner
 // wiring here so the two modules cannot drift.
-func NewProductionService(db ProductionDB, clk clock.Clock, opts ProductionOptions) Service {
+func NewProductionService(db ProductionDB, clk schedule.Clock, opts ProductionOptions) Service {
 	if opts.Doer == nil {
 		opts.Doer = &http.Client{Timeout: 15 * time.Second}
 	}

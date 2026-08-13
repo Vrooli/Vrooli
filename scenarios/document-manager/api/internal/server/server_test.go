@@ -8,7 +8,7 @@ import (
 
 	"document-manager/internal/module"
 	"document-manager/internal/server"
-	"document-manager/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

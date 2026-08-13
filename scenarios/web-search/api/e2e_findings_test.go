@@ -21,12 +21,13 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	"web-search/internal/clock"
+	testdb "github.com/vrooli/api-core/databasetest"
 	localdb "web-search/internal/database"
 	"web-search/internal/findings"
 	"web-search/internal/research"
 	"web-search/internal/research/agentmanager"
-	testdb "web-search/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // --- static import analysis -------------------------------------------------
@@ -145,7 +146,7 @@ func newCaptureFindingsService(t *testing.T) findings.Service {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(findings.Schema),
 	))
-	return findings.NewServiceWithActor(findings.NewSQLiteRepository(d, clock.System{}), "agent")
+	return findings.NewServiceWithActor(findings.NewSQLiteRepository(d, schedule.System()), "agent")
 }
 
 // newL2Research wires the research service over happy-path stubs and the real

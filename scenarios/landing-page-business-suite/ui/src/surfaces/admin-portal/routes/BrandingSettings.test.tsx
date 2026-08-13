@@ -1,5 +1,5 @@
 import React from 'react';
-import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';

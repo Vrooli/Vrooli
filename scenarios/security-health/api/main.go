@@ -11,11 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"security-health/internal/clock"
 	"security-health/internal/dependencies"
 	"security-health/internal/dependencies/aisearch"
 	"security-health/internal/modules"
 	"security-health/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -120,7 +121,7 @@ func main() {
 	depDeps := dependencies.Deps{
 		RepoRoot: repoRoot,
 		Store:    dependencies.NewStore(db),
-		Clock:    clock.System{},
+		Clock:    schedule.System(),
 	}
 	// The semantic index is the optional AI-ranking overlay (Ollama embeddings +
 	// Qdrant). NewFromConfig returns nil when disabled; only attach a non-nil
@@ -144,7 +145,7 @@ func main() {
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: logger},
+		server.Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, "security-health-api", "1.0.0"),
 		validationH.Module(logger, repoRoot),
 		dependenciesH.Module(logger, depService),

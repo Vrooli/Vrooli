@@ -5,9 +5,10 @@ import (
 	"errors"
 	"log"
 
-	"web-search/internal/clock"
 	"web-search/internal/findingindex"
 	"web-search/internal/findings"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -42,7 +43,7 @@ type Deps struct {
 	Surfacer Surfacer
 	GC       GCRunner
 	// Clock anchors the CountFindings measure's relative time-window resolution.
-	Clock  clock.Clock
+	Clock  schedule.Clock
 	Logger *log.Logger
 }
 
@@ -56,7 +57,7 @@ func NewConnectHandler(d Deps) *connectHandler {
 		d.Logger = log.Default()
 	}
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		d.Clock = schedule.System()
 	}
 	return &connectHandler{deps: d}
 }

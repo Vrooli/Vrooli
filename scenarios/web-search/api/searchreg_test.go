@@ -24,6 +24,7 @@ import (
 
 	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/retry"
+	"github.com/vrooli/api-core/scheduletest"
 	searchregister "github.com/vrooli/searchregister-go"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 )
@@ -171,7 +172,7 @@ func registerConfig(client *fakeRegistryClient, tokens *tokenHolder) searchregis
 		ControlToken:   func(providerID string) string { return tokens.get(providerID) },
 		Retry: retry.Config{
 			MaxAttempts:    1,
-			Sleeper:        func(time.Duration) {},
+			Clock:          scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 			Rand:           func() float64 { return 0 },
 			JitterFraction: 0,
 		},

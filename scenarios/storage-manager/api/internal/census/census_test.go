@@ -10,8 +10,8 @@ import (
 	"time"
 
 	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 	corestorage "github.com/vrooli/api-core/storage"
-	"storage-manager/internal/testutil/db"
 )
 
 func TestScanReportsUnknownUnattributedBytesWhenCoverageIsUnreadable(t *testing.T) {

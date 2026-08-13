@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -28,7 +29,7 @@ import (
 // The audit service reads the routes manifest through internalroutes.Service
 // (the RoutesReader seam) and the scenarios filesystem tree through the
 // scenarios root resolved by resolveScenariosRoot.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	return ModuleWithService(internalaudit.NewService(nil, resolveScenariosRoot(logger)), logger)
 }
 

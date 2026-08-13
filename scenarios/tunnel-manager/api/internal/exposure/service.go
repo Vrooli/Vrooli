@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/manifest"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Manifest is the subset of the routes service this domain needs. Declared
@@ -88,7 +89,7 @@ type service struct {
 	runner    Runner
 	ports     PortResolver
 	coreSet   CoreSetProvider
-	clock     clock.Clock
+	clock     schedule.Clock
 	assigner  PortAssigner
 	portOwner PortOwnership
 }
@@ -108,7 +109,7 @@ func WithPortAssigner(assigner PortAssigner, owner PortOwnership) Option {
 }
 
 // NewService constructs the production exposure broker.
-func NewService(repo Repository, manifest Manifest, ingress Ingress, runner Runner, ports PortResolver, coreSet CoreSetProvider, clk clock.Clock, opts ...Option) Service {
+func NewService(repo Repository, manifest Manifest, ingress Ingress, runner Runner, ports PortResolver, coreSet CoreSetProvider, clk schedule.Clock, opts ...Option) Service {
 	s := &service{
 		repo:     repo,
 		manifest: manifest,

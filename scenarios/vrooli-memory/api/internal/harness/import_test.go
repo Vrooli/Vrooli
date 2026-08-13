@@ -10,9 +10,9 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	localdb "github.com/vrooli/api-core/databasetest"
 	sourcejournal "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 	journalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
-	localdb "vrooli-memory/internal/testutil/db"
 )
 
 type fakeJournal struct {

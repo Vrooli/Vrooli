@@ -17,7 +17,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
 
-	clitest "tech-tree-designer/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 type planningService struct {

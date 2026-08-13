@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
+	db "github.com/vrooli/api-core/databasetest"
 	domainadapters "network-manager/internal/adapters"
 	domainoptimization "network-manager/internal/optimization"
 	domainresolver "network-manager/internal/resolver"
 	domainsnapshot "network-manager/internal/snapshot"
-	"network-manager/internal/testutil/db"
 )
 
 func TestModuleExposesEndpoints(t *testing.T) {
@@ -43,8 +43,8 @@ func TestModuleServiceUsesResolverAwareCapabilities(t *testing.T) {
 		apidb.SchemaProviderFunc(domainsnapshot.Schema),
 	))
 	_, err := domainresolver.NewSQLiteRepository(d).SaveBackend(context.Background(), domainresolver.BackendConfig{
-		Backend:  domainresolver.AdGuardHomeBackend,
-		BaseURL:  "http://adguard.local",
+		Backend:       domainresolver.AdGuardHomeBackend,
+		BaseURL:       "http://adguard.local",
 		CredentialRef: "vrooli/adguard-home",
 	})
 	require.NoError(t, err)

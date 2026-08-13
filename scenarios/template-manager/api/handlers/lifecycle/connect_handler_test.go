@@ -10,8 +10,8 @@ import (
 
 	"connectrpc.com/connect"
 	apidb "github.com/vrooli/api-core/database"
+	testdb "github.com/vrooli/api-core/databasetest"
 	lifecyclev1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/lifecycle"
-	testdb "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/db"
 )
 
 func TestGenerateScenarioValuesMapsDisplayNamePlaceholder(t *testing.T) {

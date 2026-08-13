@@ -10,7 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 
-	clitest "network-manager/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 
 	homev1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/home_integration"
 	homeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/home_integration/home_integration_v1connect"

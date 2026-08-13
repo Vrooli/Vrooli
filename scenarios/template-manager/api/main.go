@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/catalog"
-	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/clock"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/modules"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/monitor"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/server"
@@ -24,6 +24,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	searchregister "github.com/vrooli/searchregister-go"
 	_ "modernc.org/sqlite"
 
 	debtH "github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/debt"
@@ -129,6 +130,15 @@ func main() {
 	if err := syncScenarioTemplateRegistry(context.Background(), catalogRepo); err != nil {
 		log.Fatalf("scenario template registry synchronization failed: %v", err)
 	}
+	// Keep Search Hub's durable registry as a mirror of this scenario's
+	// search.json SSOT. Registration is deliberately best-effort: template
+	// management remains healthy when the optional federation layer is down,
+	// and the next lifecycle start retries the mirror.
+	go searchregister.Register(context.Background(), searchregister.Config{
+		ScenarioID:     "template-manager",
+		SearchFilePath: filepath.Join("..", ".vrooli", "search.json"),
+		Logger:         log.Default(),
+	})
 	validationRunner, err := validationrunner.NewEngineRunner("")
 	if err != nil {
 		log.Fatalf("template engine initialization failed: %v", err)
@@ -141,7 +151,7 @@ func main() {
 		log.Fatalf("measures module init failed: %v", err)
 	}
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "template-manager-api", "1.0.0"),
 		registryH.Module(db, log.Default()),
 		validationH.Module(db, log.Default()),

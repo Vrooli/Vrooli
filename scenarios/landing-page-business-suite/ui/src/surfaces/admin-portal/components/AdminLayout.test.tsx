@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { screen } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';

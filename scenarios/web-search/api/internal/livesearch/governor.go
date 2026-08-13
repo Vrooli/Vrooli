@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"web-search/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Default budget governor settings: how many live SearXNG calls are allowed per
@@ -22,7 +22,7 @@ const (
 type Governor struct {
 	capacity int
 	window   time.Duration
-	clock    clock.Clock
+	clock    schedule.Clock
 
 	mu          sync.Mutex
 	tokens      int
@@ -31,8 +31,8 @@ type Governor struct {
 
 // NewGovernor constructs a token-bucket governor. A non-positive capacity falls
 // back to DefaultGovernorCapacity; a non-positive window to DefaultGovernorWindow;
-// a nil clock to clock.System. The bucket starts full.
-func NewGovernor(capacity int, window time.Duration, clk clock.Clock) *Governor {
+// a nil clock to schedule.System. The bucket starts full.
+func NewGovernor(capacity int, window time.Duration, clk schedule.Clock) *Governor {
 	if capacity <= 0 {
 		capacity = DefaultGovernorCapacity
 	}
@@ -40,7 +40,7 @@ func NewGovernor(capacity int, window time.Duration, clk clock.Clock) *Governor 
 		window = DefaultGovernorWindow
 	}
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &Governor{
 		capacity:    capacity,

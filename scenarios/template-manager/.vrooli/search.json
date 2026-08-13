@@ -10,6 +10,7 @@
       "description": "Template Manager factory documentation: template maintenance, generation contract, validation, drift, cleanup, changelog migration, debt workflow, and orientation guidance.",
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
+      "index_timestamp_field": "last_reconcile_at",
       "endpoint": {
         "http_json": {
           "scenario_id": "knowledge-observatory",
@@ -56,6 +57,7 @@
         "embed_model": "nomic-embed-text"
       },
       "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
         "suite_id": "template-manager.docs.factory",
         "name": "Template Manager factory docs",
         "description": "Golden checks for factory documentation discoverability.",
@@ -162,6 +164,7 @@
       "description": "Template debt ledger entries recorded by Template Manager. Route here for inherited template defects, changelog holes, drift debt, and current open/closed template quality work.",
       "scope": "SCOPE_PROJECT",
       "class": "local_live",
+      "index_timestamp_field": "metrics.last_indexed_at",
       "endpoint": {
         "http_json": {
           "scenario_id": "template-manager",
@@ -192,9 +195,11 @@
         }
       },
       "tuning": {
-        "engine": "bm25"
+        "engine": "hybrid",
+        "embed_model": "nomic-embed-text"
       },
       "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
         "suite_id": "template-manager.debt.ledger",
         "name": "Template Manager debt ledger",
         "description": "Golden checks for inherited template debt discoverability.",

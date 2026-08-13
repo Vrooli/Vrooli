@@ -4,6 +4,7 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 import { listJournalEntries } from "../../api/journal";
 import { selectors } from "../../consts/selectors";
 import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
+import { ThemeProvider } from "../../theme/ThemeProvider";
 import { JournalTimeline } from "./JournalTimeline";
 
 vi.mock("../../api/journal", () => ({ listJournalEntries: vi.fn() }));
@@ -19,7 +20,9 @@ describe("[REQ:VMEM-P1-006] JournalTimeline", () => {
     cleanup();
 
     vi.mocked(listJournalEntries).mockResolvedValueOnce([{ id: "entry", body: "Durable shared memory", facetId: "episode", facetTexts: [], kind: "import" } as never]);
-    const ready = renderWithProviders(<JournalTimeline />, { initialTheme: "dark" });
+    const ready = renderWithProviders(<JournalTimeline />, {
+      extraProviders: (children) => <ThemeProvider initialChoice="dark">{children}</ThemeProvider>,
+    });
     await screen.findByTestId(selectors.journal.list);
     await expectNoA11yViolations(ready.container);
     cleanup();

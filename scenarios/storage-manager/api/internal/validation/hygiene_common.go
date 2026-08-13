@@ -16,10 +16,10 @@ import (
 // rules (rules/api/types.go isExemptPath) treat as exempt but the storage-manager
 // shared isExemptPath (scan.go) does not. The hygiene analyzers union these in so
 // they reach the SAME exemption verdict as the rules they migrate — e.g. an
-// api/internal/testutil/db helper using sql.Open is test scaffolding, not a
+// github.com/vrooli/api-core/databasetest helper using sql.Open is test scaffolding, not a
 // production substrate violation (asserted by database_backoff_unit_test.go).
 var hygieneExtraExemptSegments = map[string]struct{}{
-	"test": {}, "testutil": {}, "migrate": {}, "migration": {}, "tools": {},
+	"test": {}, "testutil": {}, "databasetest": {}, "migrate": {}, "migration": {}, "tools": {},
 }
 
 // hygieneIsExemptPath reports whether a repo-relative path is exempt from the

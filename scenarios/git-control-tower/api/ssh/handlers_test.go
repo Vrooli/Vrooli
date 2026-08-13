@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"git-control-tower/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 )
 
 func TestSSHHandlersReturnExpectedStatuses(t *testing.T) {

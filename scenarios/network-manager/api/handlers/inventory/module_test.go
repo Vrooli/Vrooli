@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
+	testdb "github.com/vrooli/api-core/databasetest"
 	localdb "network-manager/internal/database"
 	domaininventory "network-manager/internal/inventory"
-	testdb "network-manager/internal/testutil/db"
 )
 
 func TestModuleExposesEndpoints(t *testing.T) {

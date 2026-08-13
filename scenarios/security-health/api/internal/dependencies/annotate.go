@@ -19,8 +19,9 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"security-health/internal/clock"
 	"security-health/internal/validation"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 const (
@@ -55,7 +56,7 @@ type Annotator struct {
 	repoRoot string
 	cmd      validation.Commander
 	cache    scanCache
-	clock    clock.Clock
+	clock    schedule.Clock
 
 	// scannerVersion + dayEpoch are folded into every cache key. scannerVersion
 	// invalidates the whole cache on an osv-scanner upgrade (a new scanner can
@@ -79,7 +80,7 @@ func NewAnnotator(repoRoot string, cmd validation.Commander) *Annotator {
 	if cmd == nil {
 		cmd = validation.NewExecCommander()
 	}
-	return &Annotator{repoRoot: repoRoot, cmd: cmd, clock: clock.System{}}
+	return &Annotator{repoRoot: repoRoot, cmd: cmd, clock: schedule.System()}
 }
 
 // WithCache attaches the result cache (the SQLite store). Returns the annotator
@@ -245,7 +246,7 @@ func (a *Annotator) storeCache(ctx context.Context, scenario, key string, report
 func (a *Annotator) now() string {
 	c := a.clock
 	if c == nil {
-		c = clock.System{}
+		c = schedule.System()
 	}
 	return c.Now().UTC().Format(time.RFC3339)
 }
