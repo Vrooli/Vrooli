@@ -431,6 +431,82 @@ func (a *Adapter) encodeScreenshotFallback(samples *recordingScreenshots) ([]byt
 
 func (a *Adapter) WirelessEndpoint() string { return a.endpoint }
 
+// ReconnectWireless re-establishes the persisted wireless endpoint and, when
+// Android wireless debugging has rotated its TLS port, discovers a current
+// endpoint through adb's mDNS browser. Every candidate is verified against the
+// onboarded hardware serial before it can replace the durable endpoint.
+func (a *Adapter) ReconnectWireless(ctx context.Context) error {
+	if a.endpoint == "" {
+		return fmt.Errorf("wireless reconnect requires a persisted endpoint")
+	}
+	candidates := []string{a.endpoint}
+	if discovered, err := a.runner.Run(ctx, "adb", "mdns", "services"); err == nil {
+		candidates = append(candidates, wirelessEndpoints(string(discovered))...)
+	}
+	var lastErr error
+	seen := make(map[string]bool, len(candidates))
+	for _, endpoint := range candidates {
+		endpoint = strings.TrimSpace(endpoint)
+		if endpoint == "" || seen[endpoint] {
+			continue
+		}
+		seen[endpoint] = true
+		if _, err := a.runner.Run(ctx, "adb", "connect", endpoint); err != nil {
+			lastErr = fmt.Errorf("connect wireless endpoint: %w", err)
+			continue
+		}
+		if err := a.verifyWirelessEndpoint(ctx, endpoint); err != nil {
+			lastErr = err
+			continue
+		}
+		a.endpoint = endpoint
+		a.transport = "wireless"
+		return nil
+	}
+	if lastErr != nil {
+		return lastErr
+	}
+	return fmt.Errorf("no wireless ADB endpoint was discovered for the onboarded device")
+}
+
+func (a *Adapter) verifyWirelessEndpoint(ctx context.Context, endpoint string) error {
+	serialCheck, err := a.runner.Run(ctx, "adb", "-s", endpoint, "shell", "getprop", "ro.serialno")
+	if err != nil {
+		return fmt.Errorf("verify wireless endpoint: %w", err)
+	}
+	if strings.TrimSpace(string(serialCheck)) != a.identitySerial {
+		return fmt.Errorf("wireless adb identity mismatch: expected onboarded device")
+	}
+	devices, err := a.runner.Run(ctx, "adb", "devices", "-l")
+	if err != nil {
+		return fmt.Errorf("verify wireless adb device state: %w", err)
+	}
+	for _, line := range strings.Split(string(devices), "\n") {
+		fields := strings.Fields(strings.TrimSpace(line))
+		if len(fields) >= 2 && fields[0] == endpoint && fields[1] == "device" {
+			return nil
+		}
+	}
+	return fmt.Errorf("wireless endpoint is not authorized")
+}
+
+func wirelessEndpoints(output string) []string {
+	endpoints := make([]string, 0)
+	seen := make(map[string]bool)
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(strings.TrimSpace(line))
+		if len(fields) < 2 || !strings.Contains(fields[0], "_adb-tls-connect._tcp") {
+			continue
+		}
+		endpoint := strings.TrimSpace(fields[1])
+		if strings.Contains(endpoint, ":") && !seen[endpoint] {
+			seen[endpoint] = true
+			endpoints = append(endpoints, endpoint)
+		}
+	}
+	return endpoints
+}
+
 func transportForSerial(serial string) string {
 	if strings.Contains(serial, ":") {
 		return "wireless"
@@ -537,6 +613,25 @@ func (a *Adapter) args(args ...string) []string {
 }
 
 func (a *Adapter) connected(ctx context.Context) (bool, string) {
+	if a.endpoint != "" || a.serial != "" {
+		out, err := a.runner.Run(ctx, "adb", "devices", "-l")
+		if err == nil {
+			selector := a.serial
+			if a.endpoint != "" {
+				selector = a.endpoint
+			}
+			for _, line := range strings.Split(string(out), "\n") {
+				fields := strings.Fields(strings.TrimSpace(line))
+				if len(fields) >= 2 && fields[0] == selector && fields[1] == "device" {
+					return true, ""
+				}
+			}
+		}
+		if a.endpoint != "" {
+			return false, "Enable Android wireless debugging, authorize this host, and verify the saved wireless endpoint is reachable."
+		}
+		return false, "Enable USB debugging, authorize this computer, and verify the Android device is reachable."
+	}
 	out, err := a.runner.Run(ctx, "adb", a.args("devices")...)
 	if err != nil {
 		return false, "Install the android-sdk resource (adb/platform-tools) and put adb on PATH."
@@ -581,9 +676,15 @@ func (a *Adapter) Enumerate(ctx context.Context) ([]strategy.Device, error) {
 		case "unauthorized":
 			health, reason = "unauthorized", "device is present but unauthorized; accept the RSA prompt on the phone"
 		case "offline":
-			health, reason = strategy.HealthUnreachable, "device is present but offline; set USB mode to File Transfer and replug"
+			health, reason = strategy.HealthUnreachable, "device is present but offline; verify Android wireless debugging and network reachability"
+			if a.transport != "wireless" {
+				reason = "device is present but offline; set USB mode to File Transfer and replug"
+			}
 		case "no permissions":
-			health, reason = strategy.HealthUnreachable, "insufficient permissions; install the udev rule and replug"
+			health, reason = strategy.HealthUnreachable, "insufficient permissions; verify the host authorization and Android debugging state"
+			if a.transport != "wireless" {
+				reason = "insufficient permissions; install the udev rule and replug"
+			}
 		case "device":
 		default:
 			health, reason = strategy.HealthUnreachable, "device state is "+state
@@ -665,11 +766,7 @@ func (a *Adapter) ReadState(ctx context.Context) (strategy.DeviceState, error) {
 	if state.ScreenState == "" && power != "" {
 		state.Unavailable["screen_state"] = "adb " + strings.Join(a.args("shell", "dumpsys", "power"), " ")
 	}
-	window := probe("lock_state", "shell", "dumpsys", "window")
-	state.LockState = lockState(window)
-	if state.LockState == "" && window != "" {
-		state.Unavailable["lock_state"] = "adb " + strings.Join(a.args("shell", "dumpsys", "window"), " ")
-	}
+	state.LockState = a.readLockState(ctx, &state)
 	input := probe("orientation", "shell", "dumpsys", "input")
 	state.Orientation = orientation(input)
 	if state.Orientation == "" && input != "" {
@@ -710,6 +807,164 @@ func (a *Adapter) ReadState(ctx context.Context) (strategy.DeviceState, error) {
 	return state, nil
 }
 
+// Unlock performs the narrow Android PIN/numeric-passcode procedure. It does
+// not use `input text`: every digit is translated to a non-secret Android key
+// code before it reaches adb. The only success proof is a fresh keyguard probe
+// after submission.
+func (a *Adapter) Unlock(ctx context.Context, request strategy.UnlockRequest) (result strategy.UnlockResult, err error) {
+	defer func() {
+		for i := range request.Secret {
+			request.Secret[i] = 0
+		}
+	}()
+
+	if request.Method != "pin" && request.Method != "numeric_passcode" {
+		if request.Method == "biometric" || request.Method == "human_gated" {
+			return strategy.UnlockResult{Outcome: "human_required", Detail: "this authentication method requires an operator"}, nil
+		}
+		return strategy.UnlockResult{Outcome: "unsupported_method", Detail: "android adb supports only numeric PIN methods"}, nil
+	}
+	if len(request.Secret) == 0 {
+		return strategy.UnlockResult{Outcome: "credential_unconfigured", Detail: "the resolved credential was empty"}, nil
+	}
+	maxAttempts := request.MaxAttempts
+	if maxAttempts < 1 {
+		maxAttempts = 1
+	}
+	if maxAttempts > 1 {
+		// The service may permit an explicit policy, but an adapter never loops
+		// without a fresh live state check between attempts.
+		maxAttempts = 1
+	}
+	if request.AttemptLimit <= 0 {
+		request.AttemptLimit = 15 * time.Second
+	}
+	if request.Settle <= 0 {
+		request.Settle = 750 * time.Millisecond
+	}
+
+	state, probeErr := a.lockState(ctx)
+	if probeErr != nil {
+		return strategy.UnlockResult{Outcome: unlockErrorOutcome(probeErr, "transport_error"), Detail: "unable to read Android keyguard state"}, probeErr
+	}
+	if state == "unlocked" {
+		return strategy.UnlockResult{Outcome: "already_unlocked"}, nil
+	}
+	if state != "locked" {
+		return strategy.UnlockResult{Outcome: "unknown_device_state", Detail: "Android keyguard state was not classifiable"}, nil
+	}
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		attemptCtx, cancel := context.WithTimeout(ctx, request.AttemptLimit)
+		if _, runErr := a.runner.Run(attemptCtx, "adb", a.args("shell", "input", "keyevent", "KEYCODE_WAKEUP")...); runErr != nil {
+			cancel()
+			return strategy.UnlockResult{Outcome: unlockErrorOutcome(runErr, "transport_error"), Attempts: attempt, Detail: "unable to wake the Android display"}, runErr
+		}
+		for _, digit := range request.Secret {
+			keyCode, ok := digitKeyCode(digit)
+			if !ok {
+				cancel()
+				return strategy.UnlockResult{Outcome: "invalid_credential", Attempts: attempt, Detail: "numeric PIN contains a non-digit"}, nil
+			}
+			if _, runErr := a.runner.Run(attemptCtx, "adb", a.args("shell", "input", "keyevent", keyCode)...); runErr != nil {
+				cancel()
+				return strategy.UnlockResult{Outcome: unlockErrorOutcome(runErr, "transport_error"), Attempts: attempt, Detail: "Android rejected a key event"}, runErr
+			}
+		}
+		if _, runErr := a.runner.Run(attemptCtx, "adb", a.args("shell", "input", "keyevent", "KEYCODE_ENTER")...); runErr != nil {
+			cancel()
+			return strategy.UnlockResult{Outcome: unlockErrorOutcome(runErr, "transport_error"), Attempts: attempt, Detail: "Android rejected PIN submission"}, runErr
+		}
+		if settleErr := waitForUnlockSettle(attemptCtx, request.Settle); settleErr != nil {
+			cancel()
+			return strategy.UnlockResult{Outcome: unlockErrorOutcome(settleErr, "timeout"), Attempts: attempt, Detail: "unlock settle window expired"}, nil
+		}
+		state, probeErr = a.lockState(attemptCtx)
+		cancel()
+		if probeErr != nil {
+			return strategy.UnlockResult{Outcome: unlockErrorOutcome(probeErr, "transport_error"), Attempts: attempt, Detail: "unable to verify Android keyguard state"}, probeErr
+		}
+		if state == "unlocked" {
+			return strategy.UnlockResult{Outcome: "unlocked", Attempts: attempt}, nil
+		}
+		if state != "locked" {
+			return strategy.UnlockResult{Outcome: "unknown_device_state", Attempts: attempt, Detail: "Android keyguard state became unclassifiable"}, nil
+		}
+	}
+	return strategy.UnlockResult{Outcome: "wrong_credential", Attempts: maxAttempts, Detail: "the postcondition remained locked; no automatic retry was attempted"}, nil
+}
+
+func (a *Adapter) lockState(ctx context.Context) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "unknown", err
+	}
+	state := strategy.DeviceState{Unavailable: map[string]string{}}
+	lock := a.readLockState(ctx, &state)
+	if lock == "" {
+		if err := ctx.Err(); err != nil {
+			return "unknown", err
+		}
+		return "unknown", errors.New("Android keyguard state unavailable")
+	}
+	return lock, nil
+}
+
+func unlockErrorOutcome(err error, fallback string) string {
+	switch {
+	case errors.Is(err, context.Canceled):
+		return "cancelled"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	default:
+		return fallback
+	}
+}
+
+// readLockState prefers the broad window dump but falls back to the smaller
+// policy dump. Samsung builds can truncate or reject the broad dump over a
+// wireless ADB transport while still exposing the keyguard policy state.
+func (a *Adapter) readLockState(ctx context.Context, state *strategy.DeviceState) string {
+	for _, command := range [][]string{
+		{"shell", "dumpsys", "window"},
+		{"shell", "dumpsys", "window", "policy"},
+		{"shell", "dumpsys", "keyguard"},
+		{"shell", "dumpsys", "window", "displays"},
+		{"shell", "cmd", "statusbar", "is-keyguard-showing"},
+	} {
+		out, err := a.runner.Run(ctx, "adb", a.args(command[:]...)...)
+		if err == nil {
+			if lock := lockState(string(out)); lock != "" {
+				return lock
+			}
+			if lock := exactBooleanLockState(string(out)); lock != "" {
+				return lock
+			}
+		}
+	}
+	if state != nil {
+		state.Unavailable["lock_state"] = "Android keyguard probe failed"
+	}
+	return ""
+}
+
+func digitKeyCode(digit byte) (string, bool) {
+	if digit < '0' || digit > '9' {
+		return "", false
+	}
+	return "KEYCODE_" + string(digit), true
+}
+
+func waitForUnlockSettle(ctx context.Context, duration time.Duration) error {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 func (a *Adapter) RestoreState(ctx context.Context, state strategy.DeviceState) error {
 	rotation := map[string]string{"portrait": "0", "landscape": "1", "reverse-portrait": "2", "reverse-landscape": "3"}[state.Orientation]
 	if rotation == "" {
@@ -720,6 +975,27 @@ func (a *Adapter) RestoreState(ctx context.Context, state strategy.DeviceState) 
 	}
 	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "settings", "put", "system", "user_rotation", rotation)...); err != nil {
 		return fmt.Errorf("restore orientation: %w", err)
+	}
+	if state.LockState == "locked" {
+		current, err := a.lockState(ctx)
+		if err != nil {
+			return fmt.Errorf("verify keyguard before restore: %w", err)
+		}
+		if current == "unlocked" {
+			if _, err := a.runner.Run(ctx, "adb", a.args("shell", "input", "keyevent", "KEYCODE_POWER")...); err != nil {
+				return fmt.Errorf("restore locked keyguard: %w", err)
+			}
+			if err := waitForUnlockSettle(ctx, 750*time.Millisecond); err != nil {
+				return fmt.Errorf("settle restored keyguard: %w", err)
+			}
+			current, err = a.lockState(ctx)
+			if err != nil {
+				return fmt.Errorf("verify restored keyguard: %w", err)
+			}
+		}
+		if current != "locked" {
+			return fmt.Errorf("restored keyguard state is %q, want locked", current)
+		}
 	}
 	return nil
 }
@@ -750,13 +1026,41 @@ func screenState(output string) string {
 }
 
 func lockState(output string) string {
-	if regexp.MustCompile(`(?i)(mShowingLockscreen|isStatusBarKeyguard|mKeyguardShowing)=true`).MatchString(output) {
+	// Android's window/keyguard dump format is not stable across vendors and
+	// releases. Samsung Android 13 commonly reports the delegate state as
+	// `showing=true` or `mShowingState=SHOWING`, while older builds expose one
+	// of the explicit m* fields. Keep this parser deliberately scoped to
+	// keyguard/window terms so unrelated boolean fields cannot unlock a flow.
+	if regexp.MustCompile(`(?i)(mShowingLockscreen|isStatusBarKeyguard|mKeyguardShowing|isKeyguardShowing)\s*[:=]\s*true`).MatchString(output) {
 		return "locked"
 	}
-	if regexp.MustCompile(`(?i)(mShowingLockscreen|isStatusBarKeyguard|mKeyguardShowing)=false`).MatchString(output) {
+	if regexp.MustCompile(`(?i)(mShowingLockscreen|isStatusBarKeyguard|mKeyguardShowing|isKeyguardShowing)\s*[:=]\s*false`).MatchString(output) {
+		return "unlocked"
+	}
+	if regexp.MustCompile(`(?i)\bmShowingState\s*[:=]\s*(?:SHOWING|LOCKED)\b`).MatchString(output) {
+		return "locked"
+	}
+	if regexp.MustCompile(`(?i)\bmShowingState\s*[:=]\s*(?:NOT_SHOWING|UNLOCKED)\b`).MatchString(output) {
+		return "unlocked"
+	}
+	if regexp.MustCompile(`(?i)\b(?:keyguard\s+)?showing\s*[:=]\s*true`).MatchString(output) {
+		return "locked"
+	}
+	if regexp.MustCompile(`(?i)\b(?:keyguard\s+)?showing\s*[:=]\s*false`).MatchString(output) {
 		return "unlocked"
 	}
 	return ""
+}
+
+func exactBooleanLockState(output string) string {
+	switch strings.ToLower(strings.TrimSpace(output)) {
+	case "true":
+		return "locked"
+	case "false":
+		return "unlocked"
+	default:
+		return ""
+	}
 }
 
 func orientation(output string) string {

@@ -29,6 +29,7 @@ install software. Treat the control capability itself as a credential.
 | Capability snapshots | low | devices | What a device can do; no user content. |
 | Flow definitions | low–medium | flows | Ordinarily benign, but a flow may embed a target string that is itself sensitive (an account name, a search term). Treated as owner data, not shared by default. |
 | Strategy registrations | low | strategies | Adapter metadata only. |
+| Authentication profiles | high metadata | auth | Device binding, method, policy, and a credential-authority reference only. No credential value, pattern points, screen text, or capture path is stored. |
 
 Lease tokens are bearer credentials. `session acquire` returns the token once;
 live-session listings, kill responses, release responses, and audit surfaces
@@ -85,6 +86,28 @@ a configuration change; see obstacle 1 in
 | iOS signing identity | host keychain on the macOS node | no | Needed by `ios-xcuitest` to sign WebDriverAgent. The private key never leaves the node and is never handled by this scenario. |
 
 ## Open Security Decisions
+
+## Device authentication boundary
+
+Device unlock is distinct from ADB trust, display power, app login, and human
+authentication. Profiles are reference-only rows in device-control SQLite;
+Vrooli's credential authority is the sole secret store. Provisioning accepts a
+bounded stdin stream, and unlock resolution exists only in memory for one
+lease-scoped transaction. The Android adapter maps numeric digits to named
+key-code events, never `adb input text`, and clears its temporary buffer.
+
+An unlock is successful only after a fresh keyguard probe reports
+`lock_state=unlocked`. A successful ADB command, a dismissed animation, a
+foreground package, or a screenshot cannot prove authentication. The default
+policy is one attempt with no automatic retry. Provider absent, provider
+unavailable, and unconfigured are separate outcomes. Password, pattern,
+biometric, and unknown OEM paths fail closed or report `human_required`.
+
+Unlock requests require the same exclusive device lease as every other verb.
+Safe audit metadata records profile id, method, provider state, attempts,
+outcome, and state transition; it never records the credential reference value
+or resolved secret. UI and CLI surfaces show only profile metadata and typed
+next actions.
 
 These need a deliberate answer before the first physical-device strategy
 ships, not after:

@@ -74,6 +74,21 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 	CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
 	CREATE INDEX IF NOT EXISTS idx_deployments_scenario_id ON deployments(scenario_id);
 	CREATE INDEX IF NOT EXISTS idx_deployments_created_at ON deployments(created_at DESC);
+
+	CREATE TABLE IF NOT EXISTS cloud_instances (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		name TEXT NOT NULL UNIQUE,
+		provider TEXT NOT NULL,
+		state TEXT NOT NULL,
+		image TEXT NOT NULL,
+		workdir TEXT NOT NULL,
+		pid INTEGER NOT NULL DEFAULT 0,
+		command JSONB NOT NULL DEFAULT '[]'::jsonb,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		last_error TEXT
+	);
+	CREATE INDEX IF NOT EXISTS idx_cloud_instances_state ON cloud_instances(state);
 	`
 
 	if _, err := r.db.ExecContext(ctx, baseSchema); err != nil {

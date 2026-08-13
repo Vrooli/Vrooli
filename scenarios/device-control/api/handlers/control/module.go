@@ -26,7 +26,17 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/devices", h.listDevices).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}", h.forgetDevice).Methods(http.MethodDelete)
 		r.HandleFunc("/api/v1/devices/{id}/state", h.deviceState).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/auth/profiles", h.listAuthProfiles).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/auth/profiles", h.createAuthProfile).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/auth/profiles/{id}", h.getAuthProfile).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/auth/profiles/{id}", h.updateAuthProfile).Methods(http.MethodPut)
+		r.HandleFunc("/api/v1/auth/profiles/{id}", h.revokeAuthProfile).Methods(http.MethodDelete)
+		r.HandleFunc("/api/v1/auth/profiles/{id}/provision", h.provisionAuthCredential).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/auth/profiles/{id}/credential", h.deleteAuthCredential).Methods(http.MethodDelete)
+		r.HandleFunc("/api/v1/auth/profiles/{id}/test", h.testAuthProfile).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/auth/unlock", h.unlockDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/promote", h.promoteDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/devices/{id}/reconnect", h.reconnectDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/conformance/android", h.androidConformancePlan).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/conformance/android/run", h.runAndroidConformance).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/connect", h.connectDevice).Methods(http.MethodPost)
@@ -91,6 +101,15 @@ func (h *handler) promoteDevice(w http.ResponseWriter, r *http.Request) {
 	device, err := h.service.PromoteWireless(r.Context(), mux.Vars(r)["id"])
 	if err != nil {
 		writeError(w, http.StatusConflict, "wireless_promotion_failed", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"device": device, "transport": device.Transport})
+}
+
+func (h *handler) reconnectDevice(w http.ResponseWriter, r *http.Request) {
+	device, err := h.service.ReconnectWireless(r.Context(), mux.Vars(r)["id"])
+	if err != nil {
+		writeError(w, http.StatusConflict, "wireless_reconnect_failed", err.Error())
 		return
 	}
 	write(w, http.StatusOK, map[string]any{"device": device, "transport": device.Transport})
@@ -386,6 +405,15 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "devices_list", Path: "/api/v1/devices", Method: "GET", Summary: "List devices and probed capabilities", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "devices_state", Path: "/api/v1/devices/{id}/state", Method: "GET", Summary: "Read live device state", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "auth_profiles_list", Path: "/api/v1/auth/profiles", Method: "GET", Summary: "List authentication profiles", Category: "auth", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "auth_profile_create", Path: "/api/v1/auth/profiles", Method: "POST", Summary: "Create a reference-only authentication profile", Category: "auth", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "auth_profile_get", Path: "/api/v1/auth/profiles/{id}", Method: "GET", Summary: "Inspect an authentication profile", Category: "auth", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "auth_profile_update", Path: "/api/v1/auth/profiles/{id}", Method: "PUT", Summary: "Update authentication profile metadata", Category: "auth", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "auth_profile_revoke", Path: "/api/v1/auth/profiles/{id}", Method: "DELETE", Summary: "Revoke an authentication profile", Category: "auth", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "auth_profile_provision", Path: "/api/v1/auth/profiles/{id}/provision", Method: "POST", Summary: "Provision a credential from stdin", Category: "auth", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "auth_profile_delete_credential", Path: "/api/v1/auth/profiles/{id}/credential", Method: "DELETE", Summary: "Delete an authority-held credential", Category: "auth", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "auth_profile_test", Path: "/api/v1/auth/profiles/{id}/test", Method: "POST", Summary: "Check authentication provider readiness", Category: "auth", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "auth_unlock", Path: "/api/v1/auth/unlock", Method: "POST", Summary: "Unlock a device and verify the live postcondition", Category: "auth", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "flow_export", Path: "/api/v1/flows/{id}/export", Method: "GET", Summary: "Export a completed run as a replayable flow", Category: "flows", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "devices_forget", Path: "/api/v1/devices/{id}", Method: "DELETE", Summary: "Forget a retained device identity", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "devices_connect", Path: "/api/v1/devices/connect", Method: "POST", Summary: "Show guided device onboarding", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},

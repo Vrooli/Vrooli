@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	authdomain "device-control/internal/auth"
 	"device-control/internal/evidence"
 	internalflows "device-control/internal/flows"
 	sessionsdomain "device-control/internal/sessions"
@@ -118,13 +119,72 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 	}()
 	result := RunResult{RunID: uuid.NewString(), Disposition: "passed", Chapters: []Chapter{}, Resolutions: []Resolution{}, Evidence: []evidence.Reference{}}
 	stateManager := &sessionsdomain.StateManager{}
-	if reader, readerOK := strat.(strategy.StateReader); readerOK {
-		if restorer, restorerOK := strat.(strategy.StateRestorer); restorerOK {
-			if snapshot, snapshotErr := reader.ReadState(ctx); snapshotErr == nil && snapshot.Orientation != "" {
-				stateManager.Push("device-state", func(restoreCtx context.Context) error {
-					return restorer.RestoreState(restoreCtx, snapshot)
-				})
+	stateRestorer, hasStateRestorer := strat.(strategy.StateRestorer)
+	restorationPrepared := false
+	prepareRestoration := func(snapshot strategy.DeviceState, snapshotErr error) {
+		if restorationPrepared || snapshotErr != nil || !hasStateRestorer || snapshot.Orientation == "" {
+			return
+		}
+		state := snapshot
+		stateManager.Push("device-state", func(restoreCtx context.Context) error {
+			return stateRestorer.RestoreState(restoreCtx, state)
+		})
+		restorationPrepared = true
+	}
+	restoreBeforeReturn := func() {
+		// A cancelled flow still owns a device state that must be restored. Detach
+		// only cancellation, retain request values, and keep the cleanup bounded.
+		restoreCtx, cancelRestore := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancelRestore()
+		result.Restoration = stateManager.Restore(restoreCtx)
+		for _, event := range result.Restoration {
+			if event.Status == "failed" {
+				result.Disposition = "failed"
+				result.Chapters = append(result.Chapters, Chapter{ID: "restoration-" + event.Name, Title: "state restoration", Disposition: "failed", Message: event.Reason})
 			}
+		}
+	}
+	authFailure := func(message string) (RunResult, error) {
+		result.Disposition = "auth_failed"
+		result.Chapters = append(result.Chapters, Chapter{ID: "authentication", Title: "Require unlocked device", Disposition: "failed", Message: message})
+		restoreBeforeReturn()
+		return result, nil
+	}
+	var preAuthState *strategy.DeviceState
+	if flow.RequireUnlocked || flow.AuthProfileID != "" {
+		reader, readerOK := strat.(strategy.StateReader)
+		if !readerOK {
+			return authFailure("strategy does not expose live lock-state verification")
+		}
+		state, stateErr := reader.ReadState(runctx)
+		if stateErr != nil || (state.LockState != "locked" && state.LockState != "unlocked") {
+			return authFailure("device lock state is unknown; flow stopped")
+		}
+		stateSnapshot := state
+		preAuthState = &stateSnapshot
+		prepareRestoration(state, nil)
+		if state.LockState == "locked" {
+			if flow.AuthProfileID == "" {
+				return authFailure("device is locked and no authentication profile was supplied")
+			}
+			unlock, unlockErr := s.UnlockDevice(runctx, flow.AuthProfileID, deviceID, actor, sess.LeaseToken)
+			if unlockErr != nil || (unlock.Outcome != authdomain.OutcomeUnlocked && unlock.Outcome != authdomain.OutcomeAlreadyUnlocked) {
+				message := unlock.Outcome
+				if unlockErr != nil {
+					message = unlockErr.Error()
+				}
+				return authFailure("unlock precondition failed: " + message)
+			}
+		}
+	}
+	if !restorationPrepared {
+		if reader, readerOK := strat.(strategy.StateReader); readerOK {
+			snapshot, snapshotErr := reader.ReadState(ctx)
+			if preAuthState != nil {
+				snapshot = *preAuthState
+				snapshotErr = nil
+			}
+			prepareRestoration(snapshot, snapshotErr)
 		}
 	}
 	recordingHandles := map[string]strategy.RecordingHandle{}
@@ -176,211 +236,223 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		stepctx, cancel := context.WithTimeout(runctx, time.Duration(step.TimeoutMS)*time.Millisecond)
 		var stepErr error
 		redactionVerified := true
-		switch step.Kind {
-		case "tap":
-			x, y, e := coordinates(step)
-			if e != nil {
-				stepErr = e
-			} else {
-				stepErr = dispatch(stepctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: "tap", X: x, Y: y, Normalized: !pixelStep(step)}})
-			}
-		case "key":
-			stepErr = dispatch(stepctx, strategy.Actuation{Key: &strategy.KeyEvent{Kind: "press", Key: step.Target}})
-		case "swipe", "long-press", "double-tap", "drag", "fling":
-			stepErr = executeGesture(stepctx, dispatch, step)
-		case "pinch":
-			stepErr = executePinch(stepctx, dispatch, step)
-		case "scroll-to":
-			stepErr = executeScrollTo(stepctx, dispatch, step)
-		case "text":
-			stepErr = dispatch(stepctx, strategy.Actuation{Text: step.Target})
-		case "observe":
-			if stateReader, ok := strat.(strategy.StateReader); ok {
+		if requiresVisibleSurface(step.Kind) {
+			if stateReader, stateOK := strat.(strategy.StateReader); stateOK {
 				state, stateErr := stateReader.ReadState(stepctx)
-				if stateErr != nil {
-					stepErr = stateErr
-					break
-				}
-				if state.LockState == "locked" || state.ScreenState == "off" {
-					stepErr = fmt.Errorf("visible surface unavailable: screen is %s%s", state.LockState, screenStateSuffix(state.ScreenState))
-					break
+				if stateErr != nil || state.LockState != "unlocked" || state.ScreenState == "off" {
+					stepErr = fmt.Errorf("visible surface unavailable: lock state is %q and screen state is %q", state.LockState, state.ScreenState)
 				}
 			}
-			frame, e := strat.Observe(stepctx)
-			stepErr = e
-			if stepErr == nil {
-				redacted, re := evidence.RedactCaptureWithRegions(frame.Bytes, frame.MediaType, evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor, sensitiveRegions(step))
-				if re != nil {
-					stepErr = re
-					redactionVerified = false
+		}
+		// Do not dispatch screenshot-dependent work until a fresh state probe
+		// proves the device is awake and unlocked.
+		if stepErr == nil {
+			switch step.Kind {
+			case "tap":
+				x, y, e := coordinates(step)
+				if e != nil {
+					stepErr = e
 				} else {
-					id := uuid.NewString()
-					ref, re := evidence.NewReference(id, redacted.Bytes, redacted)
+					stepErr = dispatch(stepctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: "tap", X: x, Y: y, Normalized: !pixelStep(step)}})
+				}
+			case "key":
+				stepErr = dispatch(stepctx, strategy.Actuation{Key: &strategy.KeyEvent{Kind: "press", Key: step.Target}})
+			case "swipe", "long-press", "double-tap", "drag", "fling":
+				stepErr = executeGesture(stepctx, dispatch, step)
+			case "pinch":
+				stepErr = executePinch(stepctx, dispatch, step)
+			case "scroll-to":
+				stepErr = executeScrollTo(stepctx, dispatch, step)
+			case "text":
+				stepErr = dispatch(stepctx, strategy.Actuation{Text: step.Target})
+			case "observe":
+				if stateReader, ok := strat.(strategy.StateReader); ok {
+					state, stateErr := stateReader.ReadState(stepctx)
+					if stateErr != nil {
+						stepErr = stateErr
+						break
+					}
+					if state.LockState == "locked" || state.ScreenState == "off" {
+						stepErr = fmt.Errorf("visible surface unavailable: screen is %s%s", state.LockState, screenStateSuffix(state.ScreenState))
+						break
+					}
+				}
+				frame, e := strat.Observe(stepctx)
+				stepErr = e
+				if stepErr == nil {
+					redacted, re := evidence.RedactCaptureWithRegions(frame.Bytes, frame.MediaType, evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor, sensitiveRegions(step))
 					if re != nil {
 						stepErr = re
 						redactionVerified = false
-					} else if re = s.persistArtifact(ctx, id, redacted.Bytes, "image"); re != nil {
-						stepErr = re
-						redactionVerified = false
 					} else {
-						previousFrame = lastFrame
-						lastFrame = append([]byte(nil), redacted.Bytes...)
-						result.Evidence = append(result.Evidence, ref)
-						redactionVerified = ref.RedactionVerified
+						id := uuid.NewString()
+						ref, re := evidence.NewReference(id, redacted.Bytes, redacted)
+						if re != nil {
+							stepErr = re
+							redactionVerified = false
+						} else if re = s.persistArtifact(ctx, id, redacted.Bytes, "image"); re != nil {
+							stepErr = re
+							redactionVerified = false
+						} else {
+							previousFrame = lastFrame
+							lastFrame = append([]byte(nil), redacted.Bytes...)
+							result.Evidence = append(result.Evidence, ref)
+							redactionVerified = ref.RedactionVerified
+						}
 					}
 				}
-			}
-		case "assert-frame-different":
-			if len(previousFrame) == 0 || len(lastFrame) == 0 {
-				stepErr = fmt.Errorf("frame-difference assertion requires two observe captures")
-			} else if bytes.Equal(previousFrame, lastFrame) {
-				stepErr = fmt.Errorf("frame-difference assertion failed: before and after captures are identical")
-			}
-		case "wait":
-			settle := 25 * time.Millisecond
-			if raw, ok := step.Arguments["settle_ms"].(float64); ok && raw > 0 {
-				settle = time.Duration(raw) * time.Millisecond
-			}
-			timer := time.NewTimer(settle)
-			select {
-			case <-timer.C:
-			case <-stepctx.Done():
-				stepErr = fmt.Errorf("bounded wait exceeded %dms", step.TimeoutMS)
-			}
-			if !timer.Stop() {
+			case "assert-frame-different":
+				if len(previousFrame) == 0 || len(lastFrame) == 0 {
+					stepErr = fmt.Errorf("frame-difference assertion requires two observe captures")
+				} else if bytes.Equal(previousFrame, lastFrame) {
+					stepErr = fmt.Errorf("frame-difference assertion failed: before and after captures are identical")
+				}
+			case "wait":
+				settle := 25 * time.Millisecond
+				if raw, ok := step.Arguments["settle_ms"].(float64); ok && raw > 0 {
+					settle = time.Duration(raw) * time.Millisecond
+				}
+				timer := time.NewTimer(settle)
 				select {
 				case <-timer.C:
-				default:
+				case <-stepctx.Done():
+					stepErr = fmt.Errorf("bounded wait exceeded %dms", step.TimeoutMS)
 				}
-			}
-		case "semantic-target":
-			semantic, ok := strat.(strategy.SemanticResolver)
-			if !ok {
-				stepErr = fmt.Errorf("strategy does not implement deterministic semantic resolution")
-				break
-			}
-			frame, observeErr := strat.Observe(stepctx)
-			if observeErr != nil {
-				stepErr = observeErr
-				break
-			}
-			resolver := internalflows.NewResolver(nil)
-			resolved, resolveErr := resolver.Resolve(stepctx, internalflows.Request{
-				Target: step.Target,
-				Frame:  internalflows.Frame{Bytes: frame.Bytes, MediaType: frame.MediaType, Width: frame.Width, Height: frame.Height, OriginalWidth: frame.Width, OriginalHeight: frame.Height},
-				Semantic: func(ctx context.Context, target string) (internalflows.SemanticMatch, error) {
-					match, err := semantic.ResolveSemantic(ctx, target)
-					return internalflows.SemanticMatch{Bounds: match.Bounds, Confidence: match.Confidence}, err
-				},
-			})
-			if resolveErr != nil {
-				stepErr = resolveErr
-				break
-			}
-			if len(resolved.DeviceBounds) != 4 {
-				stepErr = fmt.Errorf("semantic resolver returned invalid device bounds")
-				break
-			}
-			result.Resolutions = append(result.Resolutions, Resolution{Target: step.Target, Rung: resolved.Rung, Confidence: resolved.Confidence})
-			stepErr = dispatch(stepctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: "semantic-target", X: float64((resolved.DeviceBounds[0] + resolved.DeviceBounds[2]) / 2), Y: float64((resolved.DeviceBounds[1] + resolved.DeviceBounds[3]) / 2)}})
-		case "semantic-assert":
-			expected, _ := step.Arguments["expected"].(string)
-			stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Expected: expected})
-		case "rotate", "network":
-			stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target})
-		case "deep-link":
-			packageName, _ := step.Arguments["package"].(string)
-			stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName})
-		case "recording-start":
-			if !hasRecorder {
-				stepErr = fmt.Errorf("strategy does not support session-scoped recording")
-				break
-			}
-			class := strategy.ClaimClass(claimClassForStep(step))
-			var handle strategy.RecordingHandle
-			handle, stepErr = recorder.StartRecording(stepctx, class)
-			if stepErr == nil {
-				recordingHandles[step.ID] = handle
-			}
-		case "recording-stop":
-			if !hasRecorder {
-				stepErr = fmt.Errorf("strategy does not support session-scoped recording")
-				break
-			}
-			key := step.Target
-			if key == "" {
-				key = step.ID
-			}
-			handle, ok := recordingHandles[key]
-			if !ok {
-				stepErr = fmt.Errorf("recording %q is not active", key)
-				break
-			}
-			var artifact strategy.RecordingArtifact
-			artifact, stepErr = recorder.StopRecording(stepctx, handle)
-			if stepErr == nil {
-				stepErr = storeRecording(step, artifact)
-			}
-		case "device-logs", "screenrecord":
-			var output []byte
-			packageName, _ := step.Arguments["package"].(string)
-			stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName, Output: &output})
-			if stepErr == nil && len(output) == 0 {
-				stepErr = fmt.Errorf("%s produced no output", step.Kind)
-			}
-			if stepErr == nil && step.Kind == "device-logs" {
-				redacted, redactErr := evidence.RedactCapture(output, "text/plain", evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor)
-				if redactErr != nil {
-					stepErr = redactErr
-				} else {
-					id := uuid.NewString()
-					ref, refErr := evidence.NewLogReference(id, redacted.Bytes, redacted)
-					if refErr != nil {
-						stepErr = refErr
-					} else if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "log"); refErr != nil {
-						stepErr = refErr
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+			case "semantic-target":
+				semantic, ok := strat.(strategy.SemanticResolver)
+				if !ok {
+					stepErr = fmt.Errorf("strategy does not implement deterministic semantic resolution")
+					break
+				}
+				frame, observeErr := strat.Observe(stepctx)
+				if observeErr != nil {
+					stepErr = observeErr
+					break
+				}
+				resolver := internalflows.NewResolver(nil)
+				resolved, resolveErr := resolver.Resolve(stepctx, internalflows.Request{
+					Target: step.Target,
+					Frame:  internalflows.Frame{Bytes: frame.Bytes, MediaType: frame.MediaType, Width: frame.Width, Height: frame.Height, OriginalWidth: frame.Width, OriginalHeight: frame.Height},
+					Semantic: func(ctx context.Context, target string) (internalflows.SemanticMatch, error) {
+						match, err := semantic.ResolveSemantic(ctx, target)
+						return internalflows.SemanticMatch{Bounds: match.Bounds, Confidence: match.Confidence}, err
+					},
+				})
+				if resolveErr != nil {
+					stepErr = resolveErr
+					break
+				}
+				if len(resolved.DeviceBounds) != 4 {
+					stepErr = fmt.Errorf("semantic resolver returned invalid device bounds")
+					break
+				}
+				result.Resolutions = append(result.Resolutions, Resolution{Target: step.Target, Rung: resolved.Rung, Confidence: resolved.Confidence})
+				stepErr = dispatch(stepctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: "semantic-target", X: float64((resolved.DeviceBounds[0] + resolved.DeviceBounds[2]) / 2), Y: float64((resolved.DeviceBounds[1] + resolved.DeviceBounds[3]) / 2)}})
+			case "semantic-assert":
+				expected, _ := step.Arguments["expected"].(string)
+				stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Expected: expected})
+			case "rotate", "network":
+				stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target})
+			case "deep-link":
+				packageName, _ := step.Arguments["package"].(string)
+				stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName})
+			case "recording-start":
+				if !hasRecorder {
+					stepErr = fmt.Errorf("strategy does not support session-scoped recording")
+					break
+				}
+				class := strategy.ClaimClass(claimClassForStep(step))
+				var handle strategy.RecordingHandle
+				handle, stepErr = recorder.StartRecording(stepctx, class)
+				if stepErr == nil {
+					recordingHandles[step.ID] = handle
+				}
+			case "recording-stop":
+				if !hasRecorder {
+					stepErr = fmt.Errorf("strategy does not support session-scoped recording")
+					break
+				}
+				key := step.Target
+				if key == "" {
+					key = step.ID
+				}
+				handle, ok := recordingHandles[key]
+				if !ok {
+					stepErr = fmt.Errorf("recording %q is not active", key)
+					break
+				}
+				var artifact strategy.RecordingArtifact
+				artifact, stepErr = recorder.StopRecording(stepctx, handle)
+				if stepErr == nil {
+					stepErr = storeRecording(step, artifact)
+				}
+			case "device-logs", "screenrecord":
+				var output []byte
+				packageName, _ := step.Arguments["package"].(string)
+				stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName, Output: &output})
+				if stepErr == nil && len(output) == 0 {
+					stepErr = fmt.Errorf("%s produced no output", step.Kind)
+				}
+				if stepErr == nil && step.Kind == "device-logs" {
+					redacted, redactErr := evidence.RedactCapture(output, "text/plain", evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor)
+					if redactErr != nil {
+						stepErr = redactErr
 					} else {
-						result.Evidence = append(result.Evidence, ref)
-						redactionVerified = ref.RedactionVerified
+						id := uuid.NewString()
+						ref, refErr := evidence.NewLogReference(id, redacted.Bytes, redacted)
+						if refErr != nil {
+							stepErr = refErr
+						} else if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "log"); refErr != nil {
+							stepErr = refErr
+						} else {
+							result.Evidence = append(result.Evidence, ref)
+							redactionVerified = ref.RedactionVerified
+						}
 					}
 				}
-			}
-			if stepErr == nil && step.Kind == "screenrecord" {
-				redacted, redactErr := evidence.RedactCapture(output, "video/mp4", evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor)
-				if redactErr != nil {
-					stepErr = redactErr
-				} else {
-					id := uuid.NewString()
-					_, _, effectiveFPS, measureErr := evidence.MeasureVideo(redacted.Bytes)
-					if measureErr != nil {
-						stepErr = measureErr
-						break
-					}
-					ref, refErr := evidence.NewClaimedVideoReference(id, redacted.Bytes, redacted, "native", effectiveFPS, evidence.ClaimClass(claimClassForStep(step)))
-					if refErr != nil {
-						stepErr = refErr
-					} else if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "video"); refErr != nil {
-						stepErr = refErr
+				if stepErr == nil && step.Kind == "screenrecord" {
+					redacted, redactErr := evidence.RedactCapture(output, "video/mp4", evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor)
+					if redactErr != nil {
+						stepErr = redactErr
 					} else {
-						result.Evidence = append(result.Evidence, ref)
-						redactionVerified = ref.RedactionVerified
+						id := uuid.NewString()
+						_, _, effectiveFPS, measureErr := evidence.MeasureVideo(redacted.Bytes)
+						if measureErr != nil {
+							stepErr = measureErr
+							break
+						}
+						ref, refErr := evidence.NewClaimedVideoReference(id, redacted.Bytes, redacted, "native", effectiveFPS, evidence.ClaimClass(claimClassForStep(step)))
+						if refErr != nil {
+							stepErr = refErr
+						} else if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "video"); refErr != nil {
+							stepErr = refErr
+						} else {
+							result.Evidence = append(result.Evidence, ref)
+							redactionVerified = ref.RedactionVerified
+						}
 					}
 				}
+			case "install", "launch", "stop", "uninstall", "clear-data", "grant-permission", "revoke-permission", "package-state":
+				packageName := step.Target
+				if value, ok := step.Arguments["package"].(string); ok && value != "" {
+					packageName = value
+				}
+				permission := step.Target
+				if value, ok := step.Arguments["permission"].(string); ok && value != "" {
+					permission = value
+				}
+				value := step.Target
+				if step.Kind == "package-state" {
+					value, _ = step.Arguments["expected"].(string)
+				}
+				stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Package: packageName, Permission: permission, Value: value})
 			}
-		case "install", "launch", "stop", "uninstall", "clear-data", "grant-permission", "revoke-permission", "package-state":
-			packageName := step.Target
-			if value, ok := step.Arguments["package"].(string); ok && value != "" {
-				packageName = value
-			}
-			permission := step.Target
-			if value, ok := step.Arguments["permission"].(string); ok && value != "" {
-				permission = value
-			}
-			value := step.Target
-			if step.Kind == "package-state" {
-				value, _ = step.Arguments["expected"].(string)
-			}
-			stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Package: packageName, Permission: permission, Value: value})
 		}
 		cancel()
 		disconnected := false
@@ -421,13 +493,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			break
 		}
 	}
-	result.Restoration = stateManager.Restore(ctx)
-	for _, event := range result.Restoration {
-		if event.Status == "failed" {
-			result.Disposition = "failed"
-			result.Chapters = append(result.Chapters, Chapter{ID: "restoration-" + event.Name, Title: "state restoration", Disposition: "failed", Message: event.Reason})
-		}
-	}
+	restoreBeforeReturn()
 	s.mu.Lock()
 	s.runs[result.RunID] = result
 	s.flowRuns[result.RunID] = flow
@@ -476,6 +542,15 @@ func screenStateSuffix(screen string) string {
 		return ""
 	}
 	return " and screen is " + screen
+}
+
+func requiresVisibleSurface(kind string) bool {
+	switch kind {
+	case "observe", "semantic-target", "recording-start", "screenrecord":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Service) strategyForDevice(deviceID string) (strategy.Strategy, bool) {

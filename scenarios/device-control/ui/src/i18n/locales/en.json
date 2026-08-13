@@ -52,6 +52,15 @@
       "leaseFailed": "Lease acquisition failed",
       "onboardingFailed": "Onboarding probe failed"
     },
+    "auth": {
+      "title": "Device authentication",
+      "none": "No authentication profiles enrolled.",
+      "provider": "Provider: {{state}}",
+      "lastOutcome": "Last outcome: {{outcome}}",
+      "reference": "Credential reference: {{identity}}:{{field}}",
+      "configured": "Credential configured; use a held lease for verified unlock.",
+      "unconfigured": "Credential is not configured; provision it through the CLI stdin workflow."
+    },
     "flows": {
       "title": "Flow authoring",
       "acquireAndRun": "Acquire lease and run",

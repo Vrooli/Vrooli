@@ -87,6 +87,66 @@ func TestPromoteWirelessRefusesSerialMismatch(t *testing.T) { // [REQ:DVC-P0-011
 	require.ErrorContains(t, adapter.PromoteWireless(context.Background()), "identity mismatch")
 }
 
+func TestRestoredWirelessDescribeUsesSelectedEndpointState(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb devices -l": []byte("List of devices attached\n192.168.1.42:5555\tdevice product:a03s model:SM_A037U\n"),
+	}}
+	base := NewWithRunner(runner, "serial-1")
+	restored, ok := base.RestoreWireless("192.168.1.42:5555").(*Adapter)
+	require.True(t, ok)
+
+	declaration, err := restored.Describe(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, strategy.StatusAvailable, declaration.Status)
+	require.Equal(t, strategy.StatusAvailable, declaration.Capabilities[strategy.CapInput].Status)
+	require.Equal(t, strategy.StatusAvailable, declaration.Capabilities[strategy.CapScreenshot].Status)
+	require.Equal(t, "adb devices -l", runner.calls[0])
+}
+
+func TestReconnectWirelessDiscoversRotatedTLSEndpoint(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb mdns services":                                   []byte("List of discovered mdns services\nadb-serial-1._adb-tls-connect._tcp 192.168.1.42:37123\n"),
+		"adb connect 192.168.1.179:5555":                      []byte("failed to connect"),
+		"adb connect 192.168.1.42:37123":                      []byte("connected to 192.168.1.42:37123"),
+		"adb -s 192.168.1.42:37123 shell getprop ro.serialno": []byte("serial-1\n"),
+		"adb devices -l":                                      []byte("List of devices attached\n192.168.1.42:37123\tdevice product:a03s model:SM_A037U\n"),
+		"adb -s 192.168.1.179:5555 shell getprop ro.serialno": []byte("\n"),
+	}}
+	base := NewWithRunner(runner, "serial-1")
+	restored, ok := base.RestoreWireless("192.168.1.179:5555").(*Adapter)
+	require.True(t, ok)
+
+	require.NoError(t, restored.ReconnectWireless(context.Background()))
+	require.Equal(t, "192.168.1.42:37123", restored.WirelessEndpoint())
+	require.Equal(t, "wireless", restored.transport)
+}
+
+func TestWirelessEndpointsOnlyReturnsTLSConnectServices(t *testing.T) {
+	got := wirelessEndpoints("" +
+		"adb-serial-1._adb-tls-pairing._tcp 192.168.1.42:37123\n" +
+		"adb-serial-1._adb-tls-connect._tcp 192.168.1.42:37124\n")
+	require.Equal(t, []string{"192.168.1.42:37124"}, got)
+}
+
+func TestLockStateParsesVendorKeyguardFormats(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   string
+	}{
+		{name: "explicit legacy field", output: "mShowingLockscreen=true", want: "locked"},
+		{name: "spaced explicit field", output: "isKeyguardShowing: false", want: "unlocked"},
+		{name: "samsung showing state", output: "mShowingState=SHOWING", want: "locked"},
+		{name: "samsung not showing state", output: "mShowingState: NOT_SHOWING", want: "unlocked"},
+		{name: "delegate showing", output: "KeyguardDelegate: showing=false, occluded=false", want: "unlocked"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.Equal(t, test.want, lockState(test.output))
+		})
+	}
+}
+
 func TestWirelessAddressRejectsInvalidIPv4(t *testing.T) {
 	require.Equal(t, "", wirelessAddress("wlan0 999.999.999.999/24 src 999.999.999.999\n"))
 	require.Equal(t, "192.168.1.42", wirelessAddress("wlan0 192.168.1.0/24 src 192.168.1.42\n"))

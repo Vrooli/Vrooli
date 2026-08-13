@@ -20,6 +20,14 @@ workflow model.
 
 ## Flow Inventory
 
+An authentication precondition is expressed with `require_unlocked: true` and
+an optional `auth_profile_id`. The executor acquires or reuses the exclusive
+lease, probes live keyguard state, short-circuits an already-unlocked device,
+and performs one profile-bound transaction when locked. Screenshot-dependent
+steps (`observe`, semantic capture, and recording start) perform another live
+state check immediately before dispatch and fail closed when state is locked,
+off, or unknown. A failed precondition never silently continues.
+
 `health` is a stateless reporting domain and ships no workflows. List
 each real stateful flow your domains add below, with its owner, trigger,
 outcome, statefulness, and validation level.

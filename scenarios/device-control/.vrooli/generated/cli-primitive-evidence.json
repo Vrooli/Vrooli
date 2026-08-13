@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "7f73c80650a0e7278de68376880231f2e0002fe1bed8715278e65c23cf19bb3e",
+  "manifest_hash": "7f92fb6c7373d406a7ddabe93df9740921cfe39a732f8e7aa48e7a05a0eff909",
   "commands": [
     {
       "path": "agent abort",
@@ -29,6 +29,60 @@
       "group": "audit",
       "command": "list",
       "binding": "EvidenceService.ListAudit"
+    },
+    {
+      "path": "auth create",
+      "group": "auth",
+      "command": "create",
+      "binding": "AuthenticationService.CreateProfile"
+    },
+    {
+      "path": "auth delete-credential",
+      "group": "auth",
+      "command": "delete-credential",
+      "binding": "."
+    },
+    {
+      "path": "auth get",
+      "group": "auth",
+      "command": "get",
+      "binding": "AuthenticationService.GetProfile"
+    },
+    {
+      "path": "auth list",
+      "group": "auth",
+      "command": "list",
+      "binding": "AuthenticationService.ListProfiles"
+    },
+    {
+      "path": "auth provision",
+      "group": "auth",
+      "command": "provision",
+      "binding": "."
+    },
+    {
+      "path": "auth revoke",
+      "group": "auth",
+      "command": "revoke",
+      "binding": "AuthenticationService.RevokeProfile"
+    },
+    {
+      "path": "auth test",
+      "group": "auth",
+      "command": "test",
+      "binding": "AuthenticationService.TestProfile"
+    },
+    {
+      "path": "auth unlock",
+      "group": "auth",
+      "command": "unlock",
+      "binding": "AuthenticationService.UnlockDevice"
+    },
+    {
+      "path": "auth update",
+      "group": "auth",
+      "command": "update",
+      "binding": "AuthenticationService.UpdateProfile"
     },
     {
       "path": "conformance plan",
@@ -67,14 +121,22 @@
       "binding": "."
     },
     {
+      "path": "device reconnect",
+      "group": "device",
+      "command": "reconnect",
+      "binding": "DeviceService.ReconnectDevice"
+    },
+    {
       "path": "device state",
       "group": "device",
-      "command": "state"
+      "command": "state",
+      "binding": "."
     },
     {
       "path": "flow export",
       "group": "flow",
-      "command": "export"
+      "command": "export",
+      "binding": "."
     },
     {
       "path": "flow run",

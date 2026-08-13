@@ -3,11 +3,13 @@ package control
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	authdomain "device-control/internal/auth"
 	internal "device-control/internal/control"
 	"device-control/strategy"
 	"device-control/strategy/fakes"
@@ -119,4 +121,41 @@ func TestAndroidConformancePlanAndUnavailableRunAreExplicit(t *testing.T) {
 	require.Contains(t, result.Reason, "hello-mobile fixture APK is unavailable")
 	require.NotEmpty(t, result.Verdict.Disposition)
 	require.Contains(t, result.Verdict.Detail, "device_id=phone-1")
+}
+
+func TestAuthenticationProfileLifecycle(t *testing.T) {
+	service := internal.New(strategyregistry.New(fakes.New("phone-1", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot)))
+	router := mux.NewRouter()
+	Module(service).Mount(router)
+	create := httptest.NewRecorder()
+	router.ServeHTTP(create, httptest.NewRequest(http.MethodPost, "/api/v1/auth/profiles", strings.NewReader(`{"profile":{"id":"profile-1","device_id":"phone-1","method":"pin","credential_identity":"device-control/phone-1/profile-1","credential_field":"unlock","verification":"fresh_lock_state_unlocked"},"actor":"test"}`)))
+	require.Equal(t, http.StatusCreated, create.Code)
+	require.NotContains(t, create.Body.String(), "value")
+	get := httptest.NewRecorder()
+	router.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/api/v1/auth/profiles/profile-1", nil))
+	require.Equal(t, http.StatusOK, get.Code)
+	var view struct {
+		Profile  authdomain.Profile        `json:"profile"`
+		Provider authdomain.ProviderStatus `json:"provider"`
+	}
+	require.NoError(t, json.Unmarshal(get.Body.Bytes(), &view))
+	require.Equal(t, "device-control/phone-1/profile-1", view.Profile.CredentialIdentity)
+	require.False(t, view.Provider.Configured)
+	update := httptest.NewRecorder()
+	router.ServeHTTP(update, httptest.NewRequest(http.MethodPut, "/api/v1/auth/profiles/profile-1", strings.NewReader(`{"profile":{"method":"numeric_passcode"},"actor":"test"}`)))
+	require.Equal(t, http.StatusOK, update.Code)
+	require.Contains(t, update.Body.String(), "numeric_passcode")
+	testResponse := httptest.NewRecorder()
+	router.ServeHTTP(testResponse, httptest.NewRequest(http.MethodPost, "/api/v1/auth/profiles/profile-1/test", nil))
+	require.Equal(t, http.StatusOK, testResponse.Code)
+	revoke := httptest.NewRecorder()
+	router.ServeHTTP(revoke, httptest.NewRequest(http.MethodDelete, "/api/v1/auth/profiles/profile-1", nil))
+	require.Equal(t, http.StatusOK, revoke.Code)
+}
+
+func TestUnlockErrorIsRedactedAtTheTransportBoundary(t *testing.T) {
+	err := errors.New("runner output contained runtime-only-fixture")
+	require.NotContains(t, safeUnlockError(err), "runtime-only-fixture")
+	require.Equal(t, "device unlock transaction failed; inspect the typed result and next action", safeUnlockError(err))
+	require.Equal(t, "unlock requires an active device lease", safeUnlockError(errors.New("unlock requires an active device lease")))
 }

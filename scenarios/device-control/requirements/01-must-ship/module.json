@@ -269,6 +269,40 @@
           "notes": "Decoded recording content is sampled outside status/navigation bands; a uniformly near-black body is refused before an EvidenceRef is persisted. Live Galaxy A03s flow 8f60f7cb-57c2-4739-ae88-eb3074035fb4 failed at recording-stop with the named black-body reason and emitted no evidence."
         }
       ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Device-control can safely enroll a reference-only authentication profile, resolve a credential only through Vrooli's credential authority, perform one bounded Android numeric unlock attempt without secret-bearing argv, and report success only after a fresh live keyguard probe proves the device is unlocked.",
+      "id": "DVC-P0-013",
+      "prd_ref": "OT-P0-013",
+      "status": "complete",
+      "title": "Secure authentication profiles and verified unlock",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/auth/auth_test.go::TestProfilePersistenceNeverStoresCredentialMaterial",
+          "status": "complete",
+          "notes": "Profile persistence and provider-state tests prove metadata-only SQLite rows and distinct absent, unavailable, and unconfigured outcomes."
+        },
+        {
+          "type": "test",
+          "ref": "api/strategy/androidadb/unlock_test.go::TestUnlockUsesNonSecretKeyEventsAndFreshVerification",
+          "status": "complete",
+          "notes": "Fake adb transcript proves numeric key-code input, no credential-bearing command argument, bounded attempt behavior, and fresh unlocked verification."
+        },
+      {
+        "type": "test",
+        "ref": "api/handlers/control/module_test.go::TestAuthenticationProfileLifecycle",
+        "status": "complete",
+        "notes": "Targeted API lifecycle coverage proves create, inspect, metadata update, provider test, and revoke without exposing credential values. Real-device acceptance is tracked separately as an external gated plan output."
+      },
+      {
+        "type": "test",
+        "ref": "api/internal/auth/auth_test.go::TestProfileUpdateChangesMetadataWithoutResolvingCredential",
+        "status": "complete",
+        "notes": "Metadata updates preserve the authority reference and never resolve or copy a credential."
+      }
+      ]
     }
   ]
 }

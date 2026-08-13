@@ -3,11 +3,14 @@ package control
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	authdomain "device-control/internal/auth"
 	"device-control/internal/conformance"
 	devicedomain "device-control/internal/devices"
 	"device-control/strategy"
@@ -32,6 +35,65 @@ func testService(t *testing.T) (*Service, *sql.DB) {
 	return svc, db
 }
 
+type flowAuthResolver struct{ value string }
+
+func (r *flowAuthResolver) Provision(_ context.Context, _, _, value string) error {
+	r.value = value
+	return nil
+}
+func (r *flowAuthResolver) Resolve(context.Context, string, string) (string, error) {
+	return r.value, nil
+}
+func (r *flowAuthResolver) Delete(context.Context, string, string) error {
+	r.value = ""
+	return nil
+}
+func (r *flowAuthResolver) Status(context.Context, string, string) authdomain.ProviderStatus {
+	return authdomain.ProviderStatus{Provider: "fake", ProviderState: "available", Configured: r.value != ""}
+}
+
+type flowAuthStrategy struct {
+	*fakes.Strategy
+	locked              bool
+	failReadAfterUnlock bool
+	cancelOnUnlock      context.CancelFunc
+}
+
+func (s *flowAuthStrategy) ReadState(ctx context.Context) (strategy.DeviceState, error) {
+	if err := ctx.Err(); err != nil {
+		return strategy.DeviceState{}, err
+	}
+	if !s.locked && s.failReadAfterUnlock {
+		return strategy.DeviceState{}, errors.New("verification unavailable")
+	}
+	lockState := "unlocked"
+	if s.locked {
+		lockState = "locked"
+	}
+	return strategy.DeviceState{LockState: lockState, ScreenState: "on", Orientation: "portrait"}, nil
+}
+
+func (s *flowAuthStrategy) Unlock(_ context.Context, request strategy.UnlockRequest) (strategy.UnlockResult, error) {
+	for i := range request.Secret {
+		request.Secret[i] = 0
+	}
+	s.locked = false
+	if s.cancelOnUnlock != nil {
+		s.cancelOnUnlock()
+	}
+	return strategy.UnlockResult{Outcome: authdomain.OutcomeUnlocked, Attempts: 1}, nil
+}
+
+func (s *flowAuthStrategy) RestoreState(ctx context.Context, state strategy.DeviceState) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if state.LockState == "locked" {
+		s.locked = true
+	}
+	return nil
+}
+
 func TestLeaseAndAuditSurviveServiceReconstruction(t *testing.T) {
 	svc, db := testService(t)
 	session, err := svc.Acquire("fake", "operator", 0)
@@ -44,6 +106,155 @@ func TestLeaseAndAuditSurviveServiceReconstruction(t *testing.T) {
 	sessions := reloaded.ListSessions()
 	require.Len(t, sessions, 1)
 	require.Equal(t, "killed", sessions[0].State)
+}
+
+func TestHeldLeaseCanBeReleasedAfterServiceReconstruction(t *testing.T) {
+	svc, db := testService(t)
+	session, err := svc.Acquire("fake", "operator", time.Minute)
+	require.NoError(t, err)
+
+	reloaded, err := NewWithDB(strategyregistry.New(), db)
+	require.NoError(t, err)
+	released, err := reloaded.Release(session.ID)
+	require.NoError(t, err)
+	require.Equal(t, "released", released.State)
+}
+
+func TestUnlockAuditRetainsSafeTransactionMetadata(t *testing.T) {
+	svc, _ := testService(t)
+	svc.recordAuthAudit(context.Background(), "operator", "fake", "device_unlock", authdomain.OutcomeUnlocked, "lease-1", &authdomain.UnlockResponse{
+		ProfileID: "profile-1", Method: authdomain.MethodPIN, Attempts: 1, ProviderState: "available", BeforeLockState: "locked", AfterLockState: "unlocked",
+	})
+
+	records := svc.Audit()
+	require.Len(t, records, 1)
+	require.Equal(t, "profile-1", records[0].ProfileID)
+	require.Equal(t, authdomain.MethodPIN, records[0].Method)
+	require.Equal(t, 1, records[0].Attempts)
+	require.Equal(t, "available", records[0].ProviderState)
+	require.Equal(t, "locked", records[0].BeforeLockState)
+	require.Equal(t, "unlocked", records[0].AfterLockState)
+	require.NotContains(t, string(mustJSON(t, records[0])), "runtime-only-fixture")
+}
+
+func TestUnlockRequiresHeldLease(t *testing.T) {
+	svc, _ := testService(t)
+	_, err := svc.UnlockDevice(context.Background(), "profile-1", "fake", "operator", "")
+	require.ErrorContains(t, err, "active device lease")
+}
+
+func TestUnlockDeviceUsesPromotedWirelessStrategy(t *testing.T) {
+	wireless := &flowAuthStrategy{
+		Strategy: fakes.New("fake", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot),
+		locked:   true,
+	}
+	svc := New(strategyregistry.New(wireless))
+	svc.devices.Upsert(devicedomain.Record{ID: "wireless-device", Kind: "physical", Serial: "serial-1", StrategyID: wireless.ID(), Transport: "wireless"})
+	svc.transportStrategies["wireless-device"] = wireless
+	resolver := &flowAuthResolver{value: "runtime-only-fixture"}
+	store, err := authdomain.NewStore(nil, resolver)
+	require.NoError(t, err)
+	svc.auth = store
+	profile, err := store.Create(context.Background(), authdomain.Profile{
+		ID: "profile-wireless", DeviceID: "wireless-device", Method: authdomain.MethodPIN,
+		CredentialIdentity: authdomain.CredentialNamespace + "wireless-device/profile-wireless", CredentialField: "unlock",
+		Verification: "fresh_lock_state_unlocked",
+	})
+	require.NoError(t, err)
+	lease, err := svc.Acquire("wireless-device", "operator", time.Minute)
+	require.NoError(t, err)
+
+	result, err := svc.UnlockDevice(context.Background(), profile.ID, "wireless-device", "operator", lease.LeaseToken)
+	require.NoError(t, err)
+	require.Equal(t, authdomain.OutcomeUnlocked, result.Outcome)
+	require.Equal(t, "locked", result.BeforeLockState)
+	require.Equal(t, "unlocked", result.AfterLockState)
+}
+
+func mustJSON(t *testing.T, value any) []byte {
+	t.Helper()
+	encoded, err := json.Marshal(value)
+	require.NoError(t, err)
+	return encoded
+}
+
+func TestLockedAuthFlowRestoresOriginalKeyguardState(t *testing.T) {
+	strategyUnderTest := &flowAuthStrategy{Strategy: fakes.New("fake", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot), locked: true}
+	service := New(strategyregistry.New(strategyUnderTest))
+	resolver := &flowAuthResolver{value: "runtime-only-fixture"}
+	store, err := authdomain.NewStore(nil, resolver)
+	require.NoError(t, err)
+	service.auth = store
+	profile, err := store.Create(context.Background(), authdomain.Profile{
+		ID: "profile-flow", DeviceID: "fake", Method: authdomain.MethodPIN,
+		CredentialIdentity: authdomain.CredentialNamespace + "fake/profile-flow", CredentialField: "unlock",
+		Verification: "fresh_lock_state_unlocked",
+	})
+	require.NoError(t, err)
+
+	result, err := service.Run(context.Background(), Flow{RequireUnlocked: true, AuthProfileID: profile.ID}, "fake", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.True(t, strategyUnderTest.locked, "flow must restore a device that started locked")
+	require.Len(t, result.Restoration, 1)
+	require.Equal(t, "restored", result.Restoration[0].Status)
+	audits := service.Audit()
+	require.Equal(t, authdomain.OutcomeUnlocked, audits[0].Outcome)
+	require.Equal(t, profile.ID, audits[0].ProfileID)
+	require.NotContains(t, string(mustJSON(t, audits[0])), resolver.value)
+}
+
+func TestAuthVerificationFailureRestoresOriginalKeyguardState(t *testing.T) {
+	strategyUnderTest := &flowAuthStrategy{
+		Strategy:            fakes.New("fake", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot),
+		locked:              true,
+		failReadAfterUnlock: true,
+	}
+	service := New(strategyregistry.New(strategyUnderTest))
+	resolver := &flowAuthResolver{value: "runtime-only-fixture"}
+	store, err := authdomain.NewStore(nil, resolver)
+	require.NoError(t, err)
+	service.auth = store
+	profile, err := store.Create(context.Background(), authdomain.Profile{
+		ID: "profile-verification-failure", DeviceID: "fake", Method: authdomain.MethodPIN,
+		CredentialIdentity: authdomain.CredentialNamespace + "fake/profile-verification-failure", CredentialField: "unlock",
+		Verification: "fresh_lock_state_unlocked",
+	})
+	require.NoError(t, err)
+
+	result, err := service.Run(context.Background(), Flow{RequireUnlocked: true, AuthProfileID: profile.ID}, "fake", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "auth_failed", result.Disposition)
+	require.True(t, strategyUnderTest.locked, "verification failure must restore a device that started locked")
+	require.Len(t, result.Restoration, 1)
+	require.Equal(t, "restored", result.Restoration[0].Status)
+}
+
+func TestCancelledAuthFlowRestoresStateWithIndependentCleanupContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	strategyUnderTest := &flowAuthStrategy{
+		Strategy: fakes.New("fake", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot),
+		locked:   true,
+	}
+	strategyUnderTest.cancelOnUnlock = cancel
+	service := New(strategyregistry.New(strategyUnderTest))
+	resolver := &flowAuthResolver{value: "runtime-only-fixture"}
+	store, err := authdomain.NewStore(nil, resolver)
+	require.NoError(t, err)
+	service.auth = store
+	profile, err := store.Create(context.Background(), authdomain.Profile{
+		ID: "profile-cancelled", DeviceID: "fake", Method: authdomain.MethodPIN,
+		CredentialIdentity: authdomain.CredentialNamespace + "fake/profile-cancelled", CredentialField: "unlock",
+		Verification: "fresh_lock_state_unlocked",
+	})
+	require.NoError(t, err)
+
+	result, err := service.Run(ctx, Flow{RequireUnlocked: true, AuthProfileID: profile.ID}, "fake", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "auth_failed", result.Disposition)
+	require.True(t, strategyUnderTest.locked, "cancelled auth must restore a device that started locked")
+	require.Len(t, result.Restoration, 1)
+	require.Equal(t, "restored", result.Restoration[0].Status)
 }
 
 func TestAgentRefusesWithoutSkillAndPromotesPassingRun(t *testing.T) {
@@ -297,6 +508,54 @@ func TestWirelessTransportStateSurvivesServiceReconstruction(t *testing.T) { // 
 	require.Equal(t, "192.168.1.42:5555", provider.WirelessEndpoint())
 }
 
+func TestWirelessInventoryUsesRestoredAdapterCapabilities(t *testing.T) {
+	svc, db := testService(t)
+	first := newPersistentWirelessStrategy()
+	svc.registry = strategyregistry.New(first)
+	svc.devices.Upsert(devicedomain.Record{ID: "wireless-device", Kind: "physical", Serial: "serial-1", StrategyID: first.ID(), Transport: "usb"})
+	_, err := svc.PromoteWireless(context.Background(), "wireless-device")
+	require.NoError(t, err)
+
+	reloadedStrategy := newPersistentWirelessStrategy()
+	reloaded, err := NewWithDB(strategyregistry.New(reloadedStrategy), db)
+	require.NoError(t, err)
+
+	devices := reloaded.Devices(context.Background())
+	require.Len(t, devices, 1)
+	require.Equal(t, strategy.StatusAvailable, devices[0].Status)
+	for _, name := range []string{strategy.CapInput, strategy.CapScreenshot} {
+		var found strategy.Capability
+		for _, capability := range devices[0].Capabilities {
+			if capability.Name == name {
+				found = capability
+				break
+			}
+		}
+		require.Equal(t, strategy.StatusAvailable, found.Status, "wireless capability %s", name)
+	}
+}
+
+func TestWirelessReconnectPersistsRotatedEndpoint(t *testing.T) {
+	svc, db := testService(t)
+	first := newPersistentWirelessStrategy()
+	svc.registry = strategyregistry.New(first)
+	svc.devices.Upsert(devicedomain.Record{ID: "wireless-device", Kind: "physical", Serial: "serial-1", StrategyID: first.ID(), Transport: "usb"})
+	_, err := svc.PromoteWireless(context.Background(), "wireless-device")
+	require.NoError(t, err)
+
+	reloaded, err := NewWithDB(strategyregistry.New(newPersistentWirelessStrategy()), db)
+	require.NoError(t, err)
+	device, err := reloaded.ReconnectWireless(context.Background(), "wireless-device")
+	require.NoError(t, err)
+	require.Equal(t, strategy.StatusAvailable, device.Status)
+	restored, ok := reloaded.transportStrategies["wireless-device"].(interface{ WirelessEndpoint() string })
+	require.True(t, ok)
+	require.Equal(t, "192.168.1.43:37123", restored.WirelessEndpoint())
+
+	state := reloaded.transportStates["wireless-device"]
+	require.Equal(t, "192.168.1.43:37123", state.Endpoint)
+}
+
 func TestRequestStorageUsesRoutedDatabaseAndFileRoots(t *testing.T) { // [REQ:DVC-P0-011]
 	primaryPath := filepath.Join(t.TempDir(), "primary.db")
 	routed, err := coredb.Open(context.Background(), coredb.Config{
@@ -476,6 +735,26 @@ func newPersistentWirelessStrategy() *persistentWirelessStrategy {
 	return &persistentWirelessStrategy{Strategy: fakes.New("persistent-wireless", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot)}
 }
 
+func (s *persistentWirelessStrategy) Describe(ctx context.Context) (strategy.Declaration, error) {
+	if s.endpoint == "" {
+		return strategy.UnavailableDeclaration(s.ID(), "wireless endpoint has not been restored", []strategy.Capability{
+			{Name: strategy.CapInput},
+			{Name: strategy.CapScreenshot},
+		}, "restore a verified wireless endpoint"), nil
+	}
+	return s.Strategy.Describe(ctx)
+}
+
+func (s *persistentWirelessStrategy) Enumerate(context.Context) ([]strategy.Device, error) {
+	if s.endpoint == "" {
+		return nil, nil
+	}
+	return []strategy.Device{{
+		ID: "wireless-device", Serial: "serial-1", Model: "Test phone", StrategyID: s.ID(),
+		Transport: "wireless", Health: strategy.StatusAvailable,
+	}}, nil
+}
+
 func (s *persistentWirelessStrategy) ForDevice(string) strategy.Strategy { return s }
 
 func (s *persistentWirelessStrategy) PromoteWireless(context.Context) error {
@@ -484,6 +763,11 @@ func (s *persistentWirelessStrategy) PromoteWireless(context.Context) error {
 }
 
 func (s *persistentWirelessStrategy) WirelessEndpoint() string { return s.endpoint }
+
+func (s *persistentWirelessStrategy) ReconnectWireless(context.Context) error {
+	s.endpoint = "192.168.1.43:37123"
+	return nil
+}
 
 func (s *persistentWirelessStrategy) RestoreWireless(endpoint string) strategy.Strategy {
 	return &persistentWirelessStrategy{Strategy: s.Strategy, endpoint: endpoint}

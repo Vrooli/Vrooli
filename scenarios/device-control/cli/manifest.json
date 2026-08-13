@@ -14,6 +14,13 @@
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
+          "name": "state",
+          "description": "Read live state from a device",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
           "name": "connect",
           "description": "Show device onboarding",
           "flags": [
@@ -33,11 +40,84 @@
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
+          "name": "reconnect",
+          "description": "Reconnect a promoted Android device over wireless ADB",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "DeviceService", "method": "ReconnectDevice" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
           "name": "forget",
           "description": "Forget a retained device identity",
           "positionals": [{ "name": "id", "required": true }],
           "binding": { "kind": "local" },
           "governance": { "effect": "destructive", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "auth",
+      "description": "Manage device authentication profiles and verified unlocks",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List authentication profiles",
+          "binding": { "kind": "connect-rpc", "service": "AuthenticationService", "method": "ListProfiles" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "create",
+          "description": "Create a reference-only authentication profile",
+          "binding": { "kind": "connect-rpc", "service": "AuthenticationService", "method": "CreateProfile" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Inspect an authentication profile",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "AuthenticationService", "method": "GetProfile" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "update",
+          "description": "Update authentication profile metadata",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "AuthenticationService", "method": "UpdateProfile" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "test",
+          "description": "Check provider/profile readiness",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "AuthenticationService", "method": "TestProfile" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke an authentication profile",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "AuthenticationService", "method": "RevokeProfile" },
+          "governance": { "effect": "destructive", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "provision",
+          "description": "Provision a profile credential from stdin",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "delete-credential",
+          "description": "Delete the authority-held credential for a profile",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "destructive", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "unlock",
+          "description": "Unlock a device and verify the live postcondition",
+          "binding": { "kind": "connect-rpc", "service": "AuthenticationService", "method": "UnlockDevice" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     },
@@ -121,6 +201,13 @@
           ],
           "binding": { "kind": "connect-rpc", "service": "FlowService", "method": "RunFlow" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "export",
+          "description": "Export a completed run as a replayable flow",
+          "positionals": [{ "name": "run-id", "required": true }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     },

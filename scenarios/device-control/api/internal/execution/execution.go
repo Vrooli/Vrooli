@@ -18,6 +18,8 @@ type Flow struct {
 	Name                   string `json:"name"`
 	Steps                  []Step `json:"steps"`
 	Transport              string `json:"transport,omitempty"`
+	RequireUnlocked        bool   `json:"require_unlocked,omitempty"`
+	AuthProfileID          string `json:"auth_profile_id,omitempty"`
 	AllowUnredactedCapture bool   `json:"allow_unredacted_capture"`
 	SuppressActuation      bool   `json:"suppress_actuation,omitempty"`
 }

@@ -15,6 +15,7 @@ import (
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/dns"
+	"scenario-to-cloud/instance"
 	"scenario-to-cloud/investigation"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/persistence"
@@ -72,6 +73,8 @@ type Server struct {
 	tlsALPNRunner tlsinfo.ALPNRunner
 	// Seam: Deployment repository (defaults to persistence.Repository)
 	deploymentRepo DeploymentRepository
+	// Seam: instance provider (defaults to the local disposable QEMU lane).
+	instanceProvider instance.Provider
 }
 
 // NewServer initializes configuration, database, and routes
@@ -147,6 +150,7 @@ func NewServer() (*Server, error) {
 		dnsService:       dnsService,
 		tlsService:       tlsService,
 		tlsALPNRunner:    tlsALPNRunner,
+		instanceProvider: instance.LocalQEMUProvider{},
 	}
 
 	// Initialize manifest refresher for rebuild operations
@@ -222,6 +226,9 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/vps/deploy/apply", s.handleVPSDeployApply).Methods("POST")
 	api.HandleFunc("/vps/inspect/plan", s.handleVPSInspectPlan).Methods("POST")
 	api.HandleFunc("/vps/inspect/apply", s.handleVPSInspectApply).Methods("POST")
+	api.HandleFunc("/instances/plan", s.handleInstancePlan).Methods("POST")
+	api.HandleFunc("/instances", s.handleInstanceCreate).Methods("POST")
+	api.HandleFunc("/instances/{id}/{action}", s.handleInstanceAction).Methods("POST")
 
 	// Deployment management
 	api.HandleFunc("/deployments", s.handleListDeployments).Methods("GET")

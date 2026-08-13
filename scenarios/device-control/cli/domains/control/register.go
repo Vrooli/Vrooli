@@ -47,6 +47,9 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			}
 			return post(ctx, core, "/devices/"+ctx.Positional("id")+"/promote", map[string]string{"transport": "wireless"}, "Device transport promotion")
 		}),
+		command("reconnect", "Reconnect a promoted Android device over wireless ADB", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}}, func(ctx cliapp.RunContext) error {
+			return post(ctx, core, "/devices/"+ctx.Positional("id")+"/reconnect", nil, "Wireless device reconnect")
+		}),
 	}}
 }
 
@@ -174,6 +177,15 @@ func command(name, description string, args cliapp.ArgSchema, run func(cliapp.Ru
 func post(ctx cliapp.RunContext, core *cliapp.ScenarioApp, path string, value any, title string) error {
 	body, _ := json.Marshal(value)
 	b, e := core.Request(http.MethodPost, path, nil, body)
+	if e != nil {
+		return e
+	}
+	return emit(ctx, b, title)
+}
+
+func put(ctx cliapp.RunContext, core *cliapp.ScenarioApp, path string, value any, title string) error {
+	body, _ := json.Marshal(value)
+	b, e := core.Request(http.MethodPut, path, nil, body)
 	if e != nil {
 		return e
 	}

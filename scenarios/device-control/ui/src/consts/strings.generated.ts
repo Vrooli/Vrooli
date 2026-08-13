@@ -64,6 +64,15 @@ export const strings = {
       leaseFailed: "pages.dashboard.leaseFailed",
       onboardingFailed: "pages.dashboard.onboardingFailed",
     },
+    auth: {
+      title: "pages.auth.title",
+      none: "pages.auth.none",
+      provider: "pages.auth.provider",
+      lastOutcome: "pages.auth.lastOutcome",
+      reference: "pages.auth.reference",
+      configured: "pages.auth.configured",
+      unconfigured: "pages.auth.unconfigured",
+    },
     flows: {
       title: "pages.flows.title",
       acquireAndRun: "pages.flows.acquireAndRun",

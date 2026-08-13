@@ -52,6 +52,15 @@
     "leaseFailed": "リースの取得に失敗しました",
     "onboardingFailed": "接続プローブに失敗しました"
     },
+    "auth": {
+      "title": "デバイス認証",
+      "none": "認証プロファイルは登録されていません。",
+      "provider": "プロバイダー: {{state}}",
+      "lastOutcome": "最終結果: {{outcome}}",
+      "reference": "認証情報参照: {{identity}}:{{field}}",
+      "configured": "認証情報が設定されています。検証済みアンロックには保持中のリースを使用してください。",
+      "unconfigured": "認証情報が設定されていません。CLIの標準入力ワークフローで登録してください。"
+    },
     "flows": {
       "title": "フロー",
       "acquireAndRun": "リースを取得して実行",

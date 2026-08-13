@@ -24,6 +24,7 @@ import (
 )
 
 func registerConnectServices(r *mux.Router, h *handler) {
+	registerAuthConnectService(r, h)
 	path, svc := devicesconnect.NewDeviceServiceHandler(&deviceConnect{h})
 	connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: svc})
 	path, svc = strategiesconnect.NewStrategyServiceHandler(&strategyConnect{h})
@@ -58,6 +59,14 @@ func (c *deviceConnect) ConnectDevice(ctx context.Context, req *connect.Request[
 		}
 	}
 	return connect.NewResponse(&devicesv1.ConnectDeviceResponse{Rungs: out, FirstNextAction: first}), nil
+}
+
+func (c *deviceConnect) ReconnectDevice(ctx context.Context, req *connect.Request[devicesv1.ReconnectDeviceRequest]) (*connect.Response[devicesv1.ReconnectDeviceResponse], error) {
+	device, err := c.h.service.ReconnectWireless(ctx, req.Msg.DeviceId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&devicesv1.ReconnectDeviceResponse{Device: deviceProto(device)}), nil
 }
 
 func deviceProto(d internal.Device) *devicesv1.Device {
@@ -185,7 +194,7 @@ func flowFromProto(f *flowsv1.Flow) internal.Flow {
 	if f == nil {
 		return internal.Flow{}
 	}
-	out := internal.Flow{ID: f.Id, Name: f.Name, Transport: f.Transport, AllowUnredactedCapture: f.AllowUnredactedCapture}
+	out := internal.Flow{ID: f.Id, Name: f.Name, Transport: f.Transport, RequireUnlocked: f.RequireUnlocked, AuthProfileID: f.AuthProfileId, AllowUnredactedCapture: f.AllowUnredactedCapture}
 	for _, s := range f.Steps {
 		args := map[string]any{}
 		if s.Arguments != nil {

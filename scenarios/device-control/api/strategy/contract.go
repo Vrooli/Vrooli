@@ -157,6 +157,31 @@ type StateReader interface {
 	ReadState(context.Context) (DeviceState, error)
 }
 
+// UnlockRequest is deliberately not serializable. Secret is populated only
+// after the credential authority resolves a profile reference and is consumed
+// synchronously by the strategy adapter. Adapters must never place it in
+// command arguments, logs, audit records, or evidence.
+type UnlockRequest struct {
+	Method       string
+	Secret       []byte
+	MaxAttempts  int
+	AttemptLimit time.Duration
+	Settle       time.Duration
+}
+
+type UnlockResult struct {
+	Outcome  string `json:"outcome"`
+	Attempts int    `json:"attempts"`
+	Detail   string `json:"detail,omitempty"`
+}
+
+// Unlocker is the strategy boundary for device authentication. A strategy
+// reports transport and postcondition facts; the control service owns profile
+// policy, credential resolution, leases, and audit metadata.
+type Unlocker interface {
+	Unlock(context.Context, UnlockRequest) (UnlockResult, error)
+}
+
 type StateRestorer interface {
 	RestoreState(context.Context, DeviceState) error
 }
@@ -165,6 +190,13 @@ type StateRestorer interface {
 // physical target when several devices share the same transport adapter.
 type DeviceScoped interface {
 	ForDevice(serial string) Strategy
+}
+
+// WirelessReconnector re-establishes a previously promoted wireless
+// transport, including endpoint discovery when Android rotates its wireless
+// debugging address or port.
+type WirelessReconnector interface {
+	ReconnectWireless(context.Context) error
 }
 
 type Capability struct {

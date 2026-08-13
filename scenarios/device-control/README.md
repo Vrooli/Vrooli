@@ -1,5 +1,20 @@
 # Device Control
 
+Device authentication is a governed capability for owner-trusted phones. Use
+`device-control auth create` to save reference-only policy, use
+`device-control auth update` for metadata changes, pipe a credential to
+`device-control auth provision <profile-id>`, acquire a device lease, and run
+`device-control auth unlock` to obtain a typed, live-verified result. Delete
+the authority-held value with `device-control auth delete-credential` before
+revoking a temporary profile. The credential authority owns the secret;
+device-control owns binding, method policy, bounded attempts, and postcondition
+verification.
+
+Promoted wireless Android devices retain their stable device id across service
+restarts. Recover a stale saved endpoint with
+`device-control device reconnect <device-id> --json`; the reconnect verifies
+the original hardware serial before persisting a discovered TLS endpoint.
+
 Drive owner-trusted physical and virtual devices through pluggable control strategies, with shared vision-based understanding, reusable automation flows, and agent-driven goal completion.
 
 This scenario packages the standard full-stack Vrooli scenario shape:

@@ -41,6 +41,15 @@ func (s *Service) Devices(ctx context.Context) []Device {
 					break
 				}
 			}
+			// A promoted wireless adapter is endpoint-bound. Its capability
+			// declaration can differ from the base adapter, which is probed
+			// without a device selector after a service restart. Use the
+			// effective adapter declaration for devices it enumerates so a
+			// reachable wireless phone is not reported with stale USB
+			// capability results.
+			if effective, err := item.Describe(ctx); err == nil {
+				d = effective
+			}
 			if enumerator, ok := item.(strategy.Enumerator); ok {
 				enumerating = true
 				if discovered, err := enumerator.Enumerate(ctx); err == nil {
@@ -170,7 +179,13 @@ func (s *Service) Devices(ctx context.Context) []Device {
 			continue
 		}
 		out[i].Transport = "wireless"
-		out[i].HealthReason = "wireless ADB transport verified against the onboarded serial"
+		// Do not turn a retained, unreachable identity into a healthy
+		// device merely because its wireless adapter was restored. The
+		// enumerator owns the fresh reachability result; this pass only
+		// preserves the selected transport across USB/bridge merges.
+		if out[i].Health == strategy.StatusAvailable {
+			out[i].HealthReason = "wireless ADB endpoint reachable and identity verified"
+		}
 		s.devices.Upsert(recordFromDevice(out[i]))
 	}
 	return out
@@ -237,6 +252,46 @@ func (s *Service) PromoteWireless(ctx context.Context, id string) (Device, error
 	record.Health = strategy.StatusAvailable
 	record.HealthReason = "wireless ADB transport verified against the onboarded serial"
 	return deviceFromRecord(s.devices.Upsert(record)), nil
+}
+
+// ReconnectWireless revalidates a promoted wireless transport and allows the
+// Android adapter to replace a stale endpoint through authenticated mDNS
+// discovery. The stable device identity remains bound to the onboarded serial.
+func (s *Service) ReconnectWireless(ctx context.Context, id string) (Device, error) {
+	s.mu.Lock()
+	s.restoreTransportStrategies()
+	record, ok := s.devices.Get(strings.TrimSpace(id))
+	adapter, hasAdapter := s.transportStrategies[id]
+	s.mu.Unlock()
+	if !ok {
+		return Device{}, fmt.Errorf("unknown device %q", id)
+	}
+	if record.Transport != "wireless" || !hasAdapter {
+		return Device{}, fmt.Errorf("device %q has no promoted wireless transport", id)
+	}
+	reconnector, ok := adapter.(strategy.WirelessReconnector)
+	if !ok {
+		return Device{}, fmt.Errorf("strategy %q does not support wireless reconnect", record.StrategyID)
+	}
+	if err := reconnector.ReconnectWireless(ctx); err != nil {
+		return Device{}, err
+	}
+	endpointProvider, ok := adapter.(interface{ WirelessEndpoint() string })
+	if !ok || strings.TrimSpace(endpointProvider.WirelessEndpoint()) == "" {
+		return Device{}, fmt.Errorf("strategy %q did not expose a verified wireless endpoint", record.StrategyID)
+	}
+	state := transportState{DeviceID: id, Serial: record.Serial, StrategyID: record.StrategyID, Transport: "wireless", Endpoint: strings.TrimSpace(endpointProvider.WirelessEndpoint()), UpdatedAt: time.Now().UTC()}
+	if err := s.persistTransportState(ctx, state); err != nil {
+		return Device{}, err
+	}
+	s.mu.Lock()
+	s.transportStates[id] = state
+	record.Status = strategy.StatusAvailable
+	record.Health = strategy.StatusAvailable
+	record.HealthReason = "wireless ADB endpoint reconnected and identity verified"
+	updated := s.devices.Upsert(record)
+	s.mu.Unlock()
+	return deviceFromRecord(updated), nil
 }
 
 func mapCaps(d strategy.Declaration) []strategy.Capability {

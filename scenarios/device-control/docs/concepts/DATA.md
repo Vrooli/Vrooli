@@ -39,6 +39,7 @@ such as BlobStore.
 |---|---|---|---|---|---|
 | Device records | devices | SQLite | `api/internal/devices/schema.sql` | Until the device leaves the bridge fleet. | Mirrors bridge fleet identity; bridge remains the source of truth for identity and trust. |
 | Capability snapshots | devices | SQLite | `api/internal/devices/schema.sql` | Rolling window per device; latest snapshot always retained. | Records what was *probed*, never what the device kind usually has. |
+| Authentication profiles | auth | SQLite | `api/internal/auth/auth.go` | Metadata retained for audit; authority-held values are deleted or rotated separately. | Stores device binding, method, policy, status, and credential-authority reference only; never a secret value. |
 | Strategy registrations | strategies | SQLite | `api/internal/strategies/schema.sql` | Until the strategy is unregistered. | Declaration only; the verified tier comes from a conformance result. |
 | Conformance results | strategies | SQLite | `api/internal/strategies/schema.sql` | Latest per strategy plus history for trend. | The authority for what a strategy can actually do. |
 | Lease records | sessions | SQLite | `api/internal/sessions/schema.sql` | Retained after expiry for audit. | Expired leases are never deleted eagerly — they are the audit trail for who held a device when. |
@@ -88,6 +89,7 @@ backfills, add a scenario-specific migration plan here and update
 | Verb audit | Never deleted by product behavior. | Long-lived, governed retention. | Audit is the accountability record for a capability that can drive a personal device; truncating it silently would defeat its purpose. |
 | Lease records | Retained after expiry. | Governed retention alongside audit. | None; expiry releases the device but keeps the record. |
 | Capability snapshots | Superseded by the next probe; history trimmed to a rolling window. | Latest snapshot per device always retained. | None. |
+| Authentication profiles | Profile revocation; delete or rotate the authority-held credential separately. | Metadata remains for audit and troubleshooting. | Credential values are never owned by device-control and must not be copied into SQLite. |
 | Device records | Device leaves the bridge fleet. | Removed with the fleet member. | Bridge owns the lifecycle; this scenario must not resurrect a removed device from a stale snapshot. |
 | Flow definitions and run records | Owner deletion, or run retention expiry. | Definitions kept until deleted; runs under governed retention. | None. |
 

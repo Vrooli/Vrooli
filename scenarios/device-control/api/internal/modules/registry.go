@@ -23,6 +23,8 @@ import (
 	controlH "device-control/handlers/control"
 
 	apidb "github.com/vrooli/api-core/database"
+	authv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/auth"
+	authconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/auth/auth_v1connect"
 	devicesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices"
 	devicesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices/devices_v1connect"
 	evidencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/evidence"
@@ -49,8 +51,16 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, capsH.Endpoints...)
 	out = append(out, controlH.Endpoints...)
 	out = append(out,
+		module.EndpointDescriptor{ID: "auth_rpc_list", Path: authconnect.AuthenticationServiceListProfilesProcedure, Method: "POST", Summary: "List authentication profiles", Category: "auth"},
+		module.EndpointDescriptor{ID: "auth_rpc_get", Path: authconnect.AuthenticationServiceGetProfileProcedure, Method: "POST", Summary: "Get authentication profile", Category: "auth"},
+		module.EndpointDescriptor{ID: "auth_rpc_create", Path: authconnect.AuthenticationServiceCreateProfileProcedure, Method: "POST", Summary: "Create authentication profile", Category: "auth"},
+		module.EndpointDescriptor{ID: "auth_rpc_update", Path: authconnect.AuthenticationServiceUpdateProfileProcedure, Method: "POST", Summary: "Update authentication profile", Category: "auth"},
+		module.EndpointDescriptor{ID: "auth_rpc_revoke", Path: authconnect.AuthenticationServiceRevokeProfileProcedure, Method: "POST", Summary: "Revoke authentication profile", Category: "auth"},
+		module.EndpointDescriptor{ID: "auth_rpc_test", Path: authconnect.AuthenticationServiceTestProfileProcedure, Method: "POST", Summary: "Test authentication profile", Category: "auth"},
+		module.EndpointDescriptor{ID: "auth_rpc_unlock", Path: authconnect.AuthenticationServiceUnlockDeviceProcedure, Method: "POST", Summary: "Unlock a device", Category: "auth"},
 		module.EndpointDescriptor{ID: "device_rpc_list", Path: devicesconnect.DeviceServiceListDevicesProcedure, Method: "POST", Summary: "List devices", Category: "devices"},
 		module.EndpointDescriptor{ID: "device_rpc_connect", Path: devicesconnect.DeviceServiceConnectDeviceProcedure, Method: "POST", Summary: "Show device onboarding", Category: "devices"},
+		module.EndpointDescriptor{ID: "device_rpc_reconnect", Path: devicesconnect.DeviceServiceReconnectDeviceProcedure, Method: "POST", Summary: "Reconnect a wireless device", Category: "devices"},
 		module.EndpointDescriptor{ID: "strategy_rpc_list", Path: strategiesconnect.StrategyServiceListStrategiesProcedure, Method: "POST", Summary: "List strategies", Category: "strategies"},
 		module.EndpointDescriptor{ID: "strategy_rpc_verify", Path: strategiesconnect.StrategyServiceVerifyStrategyProcedure, Method: "POST", Summary: "Verify strategy", Category: "strategies"},
 		module.EndpointDescriptor{ID: "session_rpc_list", Path: sessionsconnect.SessionServiceListSessionsProcedure, Method: "POST", Summary: "List sessions", Category: "sessions"},
@@ -87,6 +97,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "auth", File: authv1.File_device_control_v1_auth_auth_proto},
 		{Module: "devices", File: devicesv1.File_device_control_v1_devices_devices_proto},
 		{Module: "strategies", File: strategiesv1.File_device_control_v1_strategies_strategies_proto},
 		{Module: "sessions", File: sessionsv1.File_device_control_v1_sessions_sessions_proto},

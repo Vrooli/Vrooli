@@ -19,6 +19,8 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { HealthCard } from "../features/health/HealthCard";
+import { listAuthProfiles, getAuthProfile, type AuthProfile, type ProviderStatus } from "../api/authentication";
+import { AuthenticationProfilesCard } from "../features/auth/AuthenticationProfilesCard";
 
 /** Dashboard / home page for device health, onboarding, and lease controls. */
 export function DashboardPage() {
@@ -27,7 +29,25 @@ export function DashboardPage() {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [onboarding, setOnboarding] = useState<OnboardingReport>();
+  const [authProfiles, setAuthProfiles] = useState<AuthProfile[]>([]);
+  const [authProviders, setAuthProviders] = useState<Record<string, ProviderStatus>>({});
   const [error, setError] = useState("");
+
+  const loadAuthProfiles = () => {
+    void listAuthProfiles()
+      .then(async (authResponse) => {
+        const profiles = Array.isArray(authResponse.profiles) ? authResponse.profiles : [];
+        setAuthProfiles(profiles);
+        const statuses = await Promise.all(profiles.map(async (profile) => [profile.id, (await getAuthProfile(profile.id)).provider] as const));
+        setAuthProviders(Object.fromEntries(statuses));
+      })
+      .catch(() => {
+        // Authentication status is an additive operator surface. A degraded
+        // auth provider must not hide ordinary device inventory.
+        setAuthProfiles([]);
+        setAuthProviders({});
+      });
+  };
 
   const refresh = () =>
     Promise.all([listDevices(), listStrategies(), listSessions()])
@@ -35,6 +55,7 @@ export function DashboardPage() {
         setDevices(Array.isArray(deviceResponse.devices) ? deviceResponse.devices : []);
         setStrategies(Array.isArray(strategyResponse.strategies) ? strategyResponse.strategies : []);
         setSessions(Array.isArray(sessionResponse.sessions) ? sessionResponse.sessions : []);
+        loadAuthProfiles();
         setError("");
       })
       .catch((cause: Error) => setError(cause.message));
@@ -48,6 +69,7 @@ export function DashboardPage() {
           setDevices(Array.isArray(deviceResponse.devices) ? deviceResponse.devices : []);
           setStrategies(Array.isArray(strategyResponse.strategies) ? strategyResponse.strategies : []);
           setSessions(Array.isArray(sessionResponse.sessions) ? sessionResponse.sessions : []);
+          loadAuthProfiles();
           setError("");
         })
         .catch((cause: Error) => {
@@ -141,6 +163,8 @@ export function DashboardPage() {
         <Metric label={t(strings.pages.dashboard.unavailablePrerequisites)} value={String(unavailable)} />
         <Metric label={t(strings.pages.dashboard.liveLeases)} value={String(sessions.length)} />
       </div>
+
+      <AuthenticationProfilesCard profiles={authProfiles} providers={authProviders} />
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>

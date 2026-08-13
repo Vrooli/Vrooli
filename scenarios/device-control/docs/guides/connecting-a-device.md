@@ -107,6 +107,28 @@ Promotion may also cause Android to re-ask for trust when ADB is re-established;
 that is an OS authorization event, not a hardcoded device address or an
 unattended approval.
 
+### Recovering a promoted wireless device
+
+Wireless debugging can be disabled, the phone can change its TLS ADB endpoint,
+or the saved endpoint can become stale after a reboot. The stable device id is
+retained, so recover the selected device through the governed reconnect command:
+
+```sh
+device-control device reconnect "<device-id>" --json
+device-control device state "<device-id>" --json
+```
+
+Reconnect first rechecks the persisted endpoint, then uses Android mDNS TLS
+discovery when available. It verifies the original hardware serial before
+persisting any rotated endpoint. A successful response reports
+`health_reason: wireless ADB endpoint reconnected and identity verified`; it
+does not accept a different phone merely because that endpoint answers.
+The command does not enable wireless debugging or bypass Android trust. If it
+reports an unavailable wireless transport, enable Wireless debugging and
+authorize this host on the phone, then retry. Use
+`device-control flow run --transport wireless` explicitly for subsequent
+wireless flows.
+
 ## iOS Simulator
 
 The simulator path is owned by a macOS bridge host. Install Xcode and the

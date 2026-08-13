@@ -17,6 +17,24 @@ returns success.
 
 ## The disposition vocabulary
 
+### Authentication outcomes
+
+The authentication domain uses stable, redaction-safe outcome codes:
+
+| Outcome | Meaning | Next action |
+|---|---|---|
+| `already_unlocked` / `unlocked` | A live postcondition probe proved the device is unlocked. | Continue the flow. |
+| `credential_provider_absent` | No supported credential backend exists. | Configure the Vrooli credential authority. |
+| `credential_provider_unavailable` | The backend exists but cannot be reached. | Repair the provider and inspect its diagnosis. |
+| `credential_unconfigured` | The provider answered and has no value for the reference. | Provision through the CLI stdin workflow. |
+| `unknown_device_state` | Keyguard could not be classified. | Re-probe and keep the flow stopped. |
+| `wrong_credential` | One bounded attempt left the keyguard locked. | Verify the credential; automatic retries are disabled. |
+| `human_required` / `unsupported_method` | The selected method cannot be safely automated by this adapter. | Have an operator authenticate or choose a supported method. |
+| `verification_failed` | Input completed but a fresh unlocked postcondition was not proven. | Keep the flow stopped and investigate state/transport. |
+
+No authentication outcome contains a resolved secret, screen content, pattern
+coordinates, argv, or capture path.
+
 Every statement this scenario makes about what a device can do resolves to
 exactly one of four words.
 
@@ -203,8 +221,7 @@ Template defaults:
 | `Err<Entity>NotFound` | `not_found` | `errors.not_found` |
 | Unknown service/repository error | `internal` | `errors.internal` |
 
-Planned scenario sentinels — **none of these exist in code yet**, listed here
-so the mapping is settled before the domains land:
+Additional scenario sentinels and transport mappings:
 
 | Domain error | Connect code | Owning domain |
 |---|---|---|

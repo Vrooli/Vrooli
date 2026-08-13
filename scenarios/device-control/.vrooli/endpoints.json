@@ -68,6 +68,127 @@
       }
     },
     {
+      "id": "devices_state",
+      "path": "/api/v1/devices/{id}/state",
+      "method": "GET",
+      "summary": "Read live device state",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "auth_profiles_list",
+      "path": "/api/v1/auth/profiles",
+      "method": "GET",
+      "summary": "List authentication profiles",
+      "description": "",
+      "category": "auth",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "auth_profile_create",
+      "path": "/api/v1/auth/profiles",
+      "method": "POST",
+      "summary": "Create a reference-only authentication profile",
+      "description": "",
+      "category": "auth",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "auth_profile_get",
+      "path": "/api/v1/auth/profiles/{id}",
+      "method": "GET",
+      "summary": "Inspect an authentication profile",
+      "description": "",
+      "category": "auth",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "auth_profile_update",
+      "path": "/api/v1/auth/profiles/{id}",
+      "method": "PUT",
+      "summary": "Update authentication profile metadata",
+      "description": "",
+      "category": "auth",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "auth_profile_revoke",
+      "path": "/api/v1/auth/profiles/{id}",
+      "method": "DELETE",
+      "summary": "Revoke an authentication profile",
+      "description": "",
+      "category": "auth",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "auth_profile_provision",
+      "path": "/api/v1/auth/profiles/{id}/provision",
+      "method": "POST",
+      "summary": "Provision a credential from stdin",
+      "description": "",
+      "category": "auth",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "auth_profile_delete_credential",
+      "path": "/api/v1/auth/profiles/{id}/credential",
+      "method": "DELETE",
+      "summary": "Delete an authority-held credential",
+      "description": "",
+      "category": "auth",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "auth_profile_test",
+      "path": "/api/v1/auth/profiles/{id}/test",
+      "method": "POST",
+      "summary": "Check authentication provider readiness",
+      "description": "",
+      "category": "auth",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "auth_unlock",
+      "path": "/api/v1/auth/unlock",
+      "method": "POST",
+      "summary": "Unlock a device and verify the live postcondition",
+      "description": "",
+      "category": "auth",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
+      "id": "flow_export",
+      "path": "/api/v1/flows/{id}/export",
+      "method": "GET",
+      "summary": "Export a completed run as a replayable flow",
+      "description": "",
+      "category": "flows",
+      "rest_exception": {
+        "reason": "third_party_shape"
+      }
+    },
+    {
       "id": "devices_forget",
       "path": "/api/v1/devices/{id}",
       "method": "DELETE",
@@ -299,6 +420,62 @@
       }
     },
     {
+      "id": "auth_rpc_list",
+      "path": "/vrooli.device_control.v1.auth.AuthenticationService/ListProfiles",
+      "method": "POST",
+      "summary": "List authentication profiles",
+      "description": "",
+      "category": "auth"
+    },
+    {
+      "id": "auth_rpc_get",
+      "path": "/vrooli.device_control.v1.auth.AuthenticationService/GetProfile",
+      "method": "POST",
+      "summary": "Get authentication profile",
+      "description": "",
+      "category": "auth"
+    },
+    {
+      "id": "auth_rpc_create",
+      "path": "/vrooli.device_control.v1.auth.AuthenticationService/CreateProfile",
+      "method": "POST",
+      "summary": "Create authentication profile",
+      "description": "",
+      "category": "auth"
+    },
+    {
+      "id": "auth_rpc_update",
+      "path": "/vrooli.device_control.v1.auth.AuthenticationService/UpdateProfile",
+      "method": "POST",
+      "summary": "Update authentication profile",
+      "description": "",
+      "category": "auth"
+    },
+    {
+      "id": "auth_rpc_revoke",
+      "path": "/vrooli.device_control.v1.auth.AuthenticationService/RevokeProfile",
+      "method": "POST",
+      "summary": "Revoke authentication profile",
+      "description": "",
+      "category": "auth"
+    },
+    {
+      "id": "auth_rpc_test",
+      "path": "/vrooli.device_control.v1.auth.AuthenticationService/TestProfile",
+      "method": "POST",
+      "summary": "Test authentication profile",
+      "description": "",
+      "category": "auth"
+    },
+    {
+      "id": "auth_rpc_unlock",
+      "path": "/vrooli.device_control.v1.auth.AuthenticationService/UnlockDevice",
+      "method": "POST",
+      "summary": "Unlock a device",
+      "description": "",
+      "category": "auth"
+    },
+    {
       "id": "device_rpc_list",
       "path": "/vrooli.device_control.v1.devices.DeviceService/ListDevices",
       "method": "POST",
@@ -311,6 +488,14 @@
       "path": "/vrooli.device_control.v1.devices.DeviceService/ConnectDevice",
       "method": "POST",
       "summary": "Show device onboarding",
+      "description": "",
+      "category": "devices"
+    },
+    {
+      "id": "device_rpc_reconnect",
+      "path": "/vrooli.device_control.v1.devices.DeviceService/ReconnectDevice",
+      "method": "POST",
+      "summary": "Reconnect a wireless device",
       "description": "",
       "category": "devices"
     },

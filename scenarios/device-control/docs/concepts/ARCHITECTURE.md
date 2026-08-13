@@ -269,11 +269,11 @@ exercises it in the same change (`D-012`). Full walkthrough:
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
 | Design | Authored | PRD operational targets, capability registry, decision log, and planned seam register are complete and mutually consistent. | Two design decisions remain open — lease enforcement point and the `ios-mirror` non-promotability mechanism. See [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md). |
-| API | Template-only | Generated `react-vite` shape: module registry, per-domain schema, documented seams. | No scenario domain implemented yet. The six domains in [`DOMAINS.md`](DOMAINS.md) and the seams in [`../internal/SEAMS.md`](../internal/SEAMS.md) are planned, not built. |
-| UI | Template-only | Feature folders, typed API clients, selector/i18n registries. | Fleet view, live session view, flow authoring, and run review are unbuilt. |
-| CLI | Template-only | Domain command groups wrap API calls and render reports. | CLI parity is a P0 functional requirement (`D-007`); no scenario command exists yet. |
-| Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints. Scenario-specific docs authored 2026-08-10. | Requirement validation entries are typed `manual` while tests are unwritten; convert as implementation lands. |
-| Strategies | Not started | Registry, floor, profiles, and expected matrix specified. | No adapter implemented. `android-adb` (`DVC-P0-011`) is the first and proves the floor, ladder, and conformance suite. |
+| API | Vertical slices implemented | Device inventory, leases, flows, evidence, and authentication profile/unlock services are wired through the module and Connect surfaces. | Remaining expansion domains (agent promotion, iOS, BAS delegation) are still planned; keep their unavailable/unsupported contracts explicit. |
+| UI | Auth and fleet foundations implemented | Dashboard inventory and authentication-profile status use typed API clients, selectors, translations, and isolated feature tests. | Full live-session authoring and run-review UX remain follow-up work. |
+| CLI | Control surface implemented | Device, session, flow, evidence, and authentication commands expose report-shaped JSON and stdin-only credential provisioning. | Future agent-mode and cross-device commands remain planned. |
+| Docs | Operational and traceable | Security, error, flow, data, agent-skill, onboarding, and credential-authority boundaries describe the implemented authentication lifecycle and its evidence. | Keep maturity values and requirement references synchronized as additional strategies land. |
+| Strategies | Android ADB implemented | `android-adb` (`DVC-P0-011`) provides the Android floor plus bounded numeric unlock and fresh keyguard verification. | iOS and other strategy adapters remain planned and must preserve the same declared-capability contract. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later

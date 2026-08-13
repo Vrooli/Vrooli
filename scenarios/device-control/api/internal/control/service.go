@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	authdomain "device-control/internal/auth"
 	devicedomain "device-control/internal/devices"
 	internalflows "device-control/internal/flows"
 	"device-control/strategy"
@@ -43,6 +44,7 @@ type Service struct {
 	anchors             *internalflows.AnchorStore
 	runs                map[string]RunResult
 	flowRuns            map[string]Flow
+	auth                *authdomain.Store
 }
 
 type transportState struct {
@@ -62,7 +64,8 @@ func New(registry *strategyregistry.Registry) *Service {
 	if configured := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_EVIDENCE_DIR")); configured != "" {
 		dir = configured
 	}
-	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}}
+	authStore, _ := authdomain.NewStore(nil, nil)
+	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}, auth: authStore}
 }
 
 func NewWithAttached(registry *strategyregistry.Registry, reader AttachedReader) *Service {
@@ -98,7 +101,10 @@ CREATE INDEX IF NOT EXISTS device_control_sessions_device ON device_control_sess
 CREATE TABLE IF NOT EXISTS device_control_audits (
  id TEXT PRIMARY KEY, actor TEXT NOT NULL, device_id TEXT NOT NULL, lease_id TEXT NOT NULL,
  verb TEXT NOT NULL, outcome TEXT NOT NULL, created_at TEXT NOT NULL, redaction_verified INTEGER NOT NULL,
- redaction_opted_out INTEGER NOT NULL DEFAULT 0
+ redaction_opted_out INTEGER NOT NULL DEFAULT 0, profile_id TEXT NOT NULL DEFAULT '',
+ method TEXT NOT NULL DEFAULT '', attempts INTEGER NOT NULL DEFAULT 0,
+ provider_state TEXT NOT NULL DEFAULT '', before_lock_state TEXT NOT NULL DEFAULT '',
+ after_lock_state TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS device_control_transports (
  device_id TEXT PRIMARY KEY, serial TEXT NOT NULL, strategy_id TEXT NOT NULL,
@@ -111,11 +117,57 @@ CREATE TABLE IF NOT EXISTS device_control_transports (
 	// migration is intentionally best-effort because SQLite reports a duplicate
 	// column when the database has already been upgraded.
 	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN redaction_opted_out INTEGER NOT NULL DEFAULT 0`)
+	for _, column := range []string{
+		`profile_id TEXT NOT NULL DEFAULT ''`,
+		`method TEXT NOT NULL DEFAULT ''`,
+		`attempts INTEGER NOT NULL DEFAULT 0`,
+		`provider_state TEXT NOT NULL DEFAULT ''`,
+		`before_lock_state TEXT NOT NULL DEFAULT ''`,
+		`after_lock_state TEXT NOT NULL DEFAULT ''`,
+	} {
+		_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN `+column)
+	}
+	authStore, err := authdomain.NewStore(db, nil)
+	if err != nil {
+		return nil, err
+	}
+	s.auth = authStore
+	if err := s.loadSessions(); err != nil {
+		return nil, err
+	}
 	if err := s.loadTransportStates(); err != nil {
 		return nil, err
 	}
 	s.restoreTransportStrategies()
 	return s, nil
+}
+
+func (s *Service) loadSessions() error {
+	if s.db == nil {
+		return nil
+	}
+	rows, err := s.db.QueryContext(context.Background(), `SELECT id, device_id, actor, state, lease_token, kill_reason, expires_at, created_at FROM device_control_sessions`)
+	if err != nil {
+		return fmt.Errorf("load device sessions: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var session Session
+		var expires, created string
+		if err := rows.Scan(&session.ID, &session.DeviceID, &session.Actor, &session.State, &session.LeaseToken, &session.KillReason, &expires, &created); err != nil {
+			return fmt.Errorf("read device session: %w", err)
+		}
+		session.ExpiresAt, err = time.Parse(time.RFC3339Nano, expires)
+		if err != nil {
+			return fmt.Errorf("parse device session expiry: %w", err)
+		}
+		session.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
+		if err != nil {
+			return fmt.Errorf("parse device session creation: %w", err)
+		}
+		s.sessions[session.ID] = session
+	}
+	return rows.Err()
 }
 
 func (s *Service) Anchors() *internalflows.AnchorStore { return s.anchors }
@@ -356,7 +408,7 @@ func (s *Service) AuditContext(ctx context.Context) []Audit {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.db != nil {
-		rows, err := s.db.QueryContext(ctx, `SELECT id, actor, device_id, lease_id, verb, outcome, created_at, redaction_verified, redaction_opted_out FROM device_control_audits ORDER BY created_at DESC`)
+		rows, err := s.db.QueryContext(ctx, `SELECT id, actor, device_id, lease_id, verb, outcome, profile_id, method, attempts, provider_state, before_lock_state, after_lock_state, created_at, redaction_verified, redaction_opted_out FROM device_control_audits ORDER BY created_at DESC`)
 		if err == nil {
 			defer rows.Close()
 			out := make([]Audit, 0)
@@ -364,7 +416,7 @@ func (s *Service) AuditContext(ctx context.Context) []Audit {
 				var v Audit
 				var created string
 				var verified, optedOut int
-				if err := rows.Scan(&v.ID, &v.Actor, &v.DeviceID, &v.LeaseID, &v.Verb, &v.Outcome, &created, &verified, &optedOut); err != nil {
+				if err := rows.Scan(&v.ID, &v.Actor, &v.DeviceID, &v.LeaseID, &v.Verb, &v.Outcome, &v.ProfileID, &v.Method, &v.Attempts, &v.ProviderState, &v.BeforeLockState, &v.AfterLockState, &created, &verified, &optedOut); err != nil {
 					continue
 				}
 				v.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)

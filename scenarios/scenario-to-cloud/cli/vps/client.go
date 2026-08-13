@@ -2,6 +2,7 @@ package vps
 
 import (
 	"encoding/json"
+	"net/url"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -9,6 +10,22 @@ import (
 // Client provides API access for VPS operations.
 type Client struct {
 	api *cliutil.APIClient
+}
+
+func (c *Client) InstancePlan(request map[string]interface{}) ([]byte, error) {
+	return c.api.Request("POST", "/api/v1/instances/plan", nil, request)
+}
+
+func (c *Client) InstanceCreate(request map[string]interface{}) ([]byte, error) {
+	return c.api.Request("POST", "/api/v1/instances", nil, request)
+}
+
+func (c *Client) InstanceAction(id, action, snapshot string) ([]byte, error) {
+	path := "/api/v1/instances/" + id + "/" + action
+	if snapshot != "" {
+		path += "?name=" + url.QueryEscape(snapshot)
+	}
+	return c.api.Request("POST", path, nil, map[string]any{})
 }
 
 // NewClient creates a new VPS client.
