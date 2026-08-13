@@ -6,12 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 	localdb "signal-inbox/internal/database"
 	"signal-inbox/internal/signals"
-	"signal-inbox/internal/testutil/db"
 	"signal-inbox/internal/testutil/mocks"
+
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newCategoryService(t *testing.T, fake *mocks.FakeInference) (*Service, signals.Service) {
@@ -22,7 +24,7 @@ func newCategoryService(t *testing.T, fake *mocks.FakeInference) (*Service, sign
 		apidb.SchemaProviderFunc(signals.Schema),
 		apidb.SchemaProviderFunc(Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	return NewService(NewSQLiteRepository(database), clk, fake), signals.NewService(signals.NewSQLiteRepository(database, clk), clk)
 }
 

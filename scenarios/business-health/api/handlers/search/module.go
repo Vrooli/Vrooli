@@ -121,13 +121,14 @@ func (h *handler) Status(ctx context.Context, req *connect.Request[searchv1.Stat
 	}
 	r := h.searcher.Status(ctx)
 	return connect.NewResponse(&searchv1.StatusResponse{
-		Available:  r.Available,
-		OllamaUp:   r.Ollama,
-		QdrantUp:   r.Qdrant,
-		RerankerUp: r.Reranker != "" && r.Reranker != "none" && r.Reranker != "degraded",
-		Indexed:    int64(r.IndexedCount),
-		Collection: h.searcher.Collection(),
-		Detail:     r.LastReconcileOutcome,
+		Available:       r.Available,
+		OllamaUp:        r.Ollama,
+		QdrantUp:        r.Qdrant,
+		RerankerUp:      r.Reranker != "" && r.Reranker != "none" && r.Reranker != "degraded",
+		Indexed:         int64(r.IndexedCount),
+		Collection:      h.searcher.Collection(),
+		Detail:          r.LastReconcileOutcome,
+		LastReconcileAt: r.LastReconcileAt,
 	}), nil
 }
 

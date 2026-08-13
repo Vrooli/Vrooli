@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LPBSReleaseConfigCard } from "./LPBSReleaseConfigCard";
 import * as api from "../../lib/api";

@@ -5,7 +5,7 @@ import {
   LogTailsPanel,
   PortSummaryPanel,
 } from "./DiagnosticsPanels";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { writeToClipboard } from "../../lib/browser";
 
 vi.mock("../../lib/browser", async (importOriginal) => ({

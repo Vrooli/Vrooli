@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { act, screen, waitFor } from "@testing-library/react";
 import { PipelineHistoryDropdown } from "./PipelineHistoryDropdown";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { createPipelineStatus } from "../../test-utils/mocks";
 import { usePipelineStore } from "../../store";
 import {

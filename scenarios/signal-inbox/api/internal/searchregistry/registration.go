@@ -105,11 +105,12 @@ func Descriptor(provider aisearch.ProviderConfig) (*registryv1.ProviderDescripto
 		fields[key] = encoded
 	}
 	for key, value := range map[string]json.RawMessage{
-		"endpoint":         provider.Endpoint,
-		"status_endpoint":  provider.StatusEndpoint,
-		"result_mapping":   provider.ResultMapping,
-		"reindex_endpoint": provider.ReindexEndpoint,
-		"config_endpoint":  provider.ConfigEndpoint,
+		"endpoint":              provider.Endpoint,
+		"status_endpoint":       provider.StatusEndpoint,
+		"index_timestamp_field": rawString(provider.IndexTimestampField),
+		"result_mapping":        provider.ResultMapping,
+		"reindex_endpoint":      provider.ReindexEndpoint,
+		"config_endpoint":       provider.ConfigEndpoint,
 	} {
 		if len(value) > 0 {
 			fields[key] = value
@@ -134,6 +135,17 @@ func Descriptor(provider aisearch.ProviderConfig) (*registryv1.ProviderDescripto
 		Floor:           &registryv1.FloorConfig{MaxGap: tuning.Floor.MaxGap, HardFloor: tuning.Floor.HardFloor},
 	}
 	return descriptor, nil
+}
+
+func rawString(value string) json.RawMessage {
+	if value == "" {
+		return nil
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return nil
+	}
+	return encoded
 }
 
 func shortlistToInt32(value int) int32 {

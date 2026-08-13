@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { WineInstallDialog } from "./WineInstallDialog";
 
 const {

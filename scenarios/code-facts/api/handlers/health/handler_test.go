@@ -12,9 +12,9 @@ import (
 	"code-facts/handlers/health"
 	"code-facts/internal/module"
 	"code-facts/internal/server"
-	"code-facts/internal/testutil/assertx"
-	"code-facts/internal/testutil/httpx"
 	"code-facts/internal/testutil/mocks"
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -39,7 +39,7 @@ import (
 // The pattern: spin up a *server.Server with mocked deps, wrap it in
 // httpx.NewLiveServer (real httptest.Server over real socket), issue a
 // real HTTP request, decode JSON straight into the generated proto
-// type via assertx.MustUnmarshalProto, assert on typed fields. Same
+// type via apihttptest.MustUnmarshalProto, assert on typed fields. Same
 // shape every future handler test in this scenario should follow —
 // when the endpoint's wire shape lives in packages/proto/, decode
 // through protojson; when it doesn't yet, MustDecodeJSON is the
@@ -101,9 +101,9 @@ func TestHealthHandler(t *testing.T) {
 			live := httpx.NewLiveServer(t, srv)
 
 			resp, body := live.Do(t, http.MethodGet, "/health", nil)
-			assertx.AssertStatus(t, resp, tc.wantStatusCode)
+			apihttptest.AssertStatus(t, resp, tc.wantStatusCode)
 
-			got := assertx.MustUnmarshalProto[healthv1.Response](t, body)
+			got := apihttptest.MustUnmarshalProto[healthv1.Response](t, body)
 			require.Equal(t, tc.wantStatus, got.Status, "response.status")
 			require.Equal(t, "react-vite-test", got.Service, "response.service")
 			require.Equal(t, "1.0.0", got.Version, "response.version")

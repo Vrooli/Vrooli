@@ -12,8 +12,8 @@ import (
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/health"
 
 	"data-backup-manager/handlers/health"
-	"data-backup-manager/internal/testutil/assertx"
 	"data-backup-manager/internal/testutil/mocks"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 // fakePosture implements health.BackupPosture with canned output.
@@ -40,7 +40,7 @@ func serve(t *testing.T, h http.HandlerFunc) *healthv1.Response {
 	h(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
 	require.Equal(t, http.StatusOK, rec.Code, "Optional-check failures must stay HTTP 200")
 	body, _ := io.ReadAll(rec.Result().Body)
-	return assertx.MustUnmarshalProto[healthv1.Response](t, body)
+	return apihttptest.MustUnmarshalProto[healthv1.Response](t, body)
 }
 
 // TestHealth_DegradedOnOverdue proves DBM-OBS-001: with an overdue/failed

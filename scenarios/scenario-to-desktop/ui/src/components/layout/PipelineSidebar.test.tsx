@@ -1,7 +1,7 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PipelineSidebar } from "./PipelineSidebar";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { useSidebarStore } from "../../store";
 
 const isMobile = vi.hoisted(() => vi.fn(() => false));

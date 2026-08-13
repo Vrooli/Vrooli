@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"signal-inbox/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 const defaultListLimit = 100
@@ -20,12 +20,12 @@ type Service interface {
 
 type service struct {
 	repo         Repository
-	clock        clock.Clock
+	clock        schedule.Clock
 	postCaptures []PostCapture
 	projection   ReadProjection
 }
 
-func NewService(repo Repository, clk clock.Clock, hooks ...PostCapture) Service {
+func NewService(repo Repository, clk schedule.Clock, hooks ...PostCapture) Service {
 	svc := &service{repo: repo, clock: clk}
 	for _, hook := range hooks {
 		svc.postCaptures = append(svc.postCaptures, hook)

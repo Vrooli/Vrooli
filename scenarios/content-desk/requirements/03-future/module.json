@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P2 operational targets.",
-    "last_validated_at": "2026-07-29T01:10:23-04:00",
+    "last_validated_at": "2026-08-13T01:12:29-04:00",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -31,7 +31,7 @@
     {
       "id": "CONTENTD-P2-002",
       "title": "Per-channel variant derivation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-002",
       "category": "artifacts",
       "criticality": "P2",
@@ -45,7 +45,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Deferred: a derived variant inherits the parent's verified claim set without re-verification."
         }
       ]
@@ -75,7 +75,7 @@
     {
       "id": "CONTENTD-P2-004",
       "title": "Outcome-driven hook promotion",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-004",
       "category": "review",
       "criticality": "P2",
@@ -89,7 +89,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Deferred: depends on publish-performance data that does not yet exist."
         }
       ]

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
-import { renderWithProviders } from '../../test-utils/renderWithProviders';
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { Badge } from './badge';
 
 describe('Badge Component', () => {

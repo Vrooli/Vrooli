@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"signal-inbox/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 const (
@@ -17,11 +17,11 @@ const (
 
 type Service struct {
 	repo     Repository
-	clock    clock.Clock
+	clock    schedule.Clock
 	semantic SemanticSearch
 }
 
-func NewService(repo Repository, clk clock.Clock, semantic ...SemanticSearch) *Service {
+func NewService(repo Repository, clk schedule.Clock, semantic ...SemanticSearch) *Service {
 	service := &Service{repo: repo, clock: clk}
 	if len(semantic) > 0 {
 		service.semantic = semantic[0]

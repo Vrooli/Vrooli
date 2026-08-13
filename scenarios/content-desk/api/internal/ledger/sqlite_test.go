@@ -12,7 +12,7 @@ import (
 	"content-desk/internal/claims"
 	claimsmocks "content-desk/internal/claims/mocks"
 	"content-desk/internal/ledger"
-	"content-desk/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	localdb "content-desk/internal/database"
 	"github.com/stretchr/testify/require"

@@ -8,7 +8,7 @@ import (
 
 	"cli-health/internal/module"
 	"cli-health/internal/server"
-	"cli-health/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

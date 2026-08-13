@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { renderWithProviders } from "../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { DashboardPage, editorShapeForPostType } from "./DashboardPage";
 
 const mocks = vi.hoisted(() => ({

@@ -1,7 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TemplateModal } from "./TemplateModal";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 vi.mock("../generator/TemplateGrid", () => ({
   TemplateGrid: ({

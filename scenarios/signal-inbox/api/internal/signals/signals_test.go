@@ -5,18 +5,19 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
+	localdb "signal-inbox/internal/database"
+
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
-	localdb "signal-inbox/internal/database"
-	"signal-inbox/internal/testutil/db"
-	"signal-inbox/internal/testutil/mocks"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newTestService(t *testing.T) Service {
 	t.Helper()
 	database := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(Schema)))
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	return NewService(NewSQLiteRepository(database, clk), clk)
 }
 

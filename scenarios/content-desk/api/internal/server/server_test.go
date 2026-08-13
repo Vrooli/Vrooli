@@ -8,7 +8,7 @@ import (
 
 	"content-desk/internal/module"
 	"content-desk/internal/server"
-	"content-desk/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

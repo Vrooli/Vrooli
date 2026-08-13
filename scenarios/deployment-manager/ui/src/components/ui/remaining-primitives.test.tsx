@@ -7,7 +7,7 @@ import {
   Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from "./table";
 import { Tip } from "./tip";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 describe("remaining UI primitives", () => {
   it("opens a select and chooses an item", () => {

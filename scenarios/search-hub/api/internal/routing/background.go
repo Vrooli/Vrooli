@@ -6,6 +6,7 @@ type (
 	backgroundEvaluationContextKey  struct{}
 	backgroundEvaluationProviderKey struct{}
 	recoveryProbeContextKey         struct{}
+	failureRecoveryProbeContextKey  struct{}
 )
 
 // WithBackgroundEvaluation marks a query issued by an unattended evaluator.
@@ -30,6 +31,13 @@ func WithRecoveryProbe(ctx context.Context) context.Context {
 	return context.WithValue(WithBackgroundEvaluation(ctx), recoveryProbeContextKey{}, true)
 }
 
+// WithFailureRecoveryProbe marks a probe that already claimed an elapsed
+// transport-breaker cooldown. It bypasses normal breaker admission once;
+// the result still closes or reopens that breaker through normal accounting.
+func WithFailureRecoveryProbe(ctx context.Context) context.Context {
+	return context.WithValue(WithRecoveryProbe(ctx), failureRecoveryProbeContextKey{}, true)
+}
+
 func isBackgroundEvaluation(ctx context.Context) bool {
 	value, _ := ctx.Value(backgroundEvaluationContextKey{}).(bool)
 	return value
@@ -42,5 +50,10 @@ func backgroundEvaluationProvider(ctx context.Context) string {
 
 func isRecoveryProbe(ctx context.Context) bool {
 	value, _ := ctx.Value(recoveryProbeContextKey{}).(bool)
+	return value
+}
+
+func isFailureRecoveryProbe(ctx context.Context) bool {
+	value, _ := ctx.Value(failureRecoveryProbeContextKey{}).(bool)
 	return value
 }

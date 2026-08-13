@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -25,6 +26,10 @@ func (f *fakeSearcher) Query(_ context.Context, _ string, _ int) ([]*measures.Me
 
 func (f *fakeSearcher) Status(context.Context) (bool, bool, bool, int, string) {
 	return len(f.hits) > 0, false, false, len(f.hits), "lexical"
+}
+
+func (f *fakeSearcher) IndexTimestamp() time.Time {
+	return time.Date(2026, 8, 13, 0, 0, 0, 0, time.UTC)
 }
 
 func executedHit() *measures.MeasureHit {

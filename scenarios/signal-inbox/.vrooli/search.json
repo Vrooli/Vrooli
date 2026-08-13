@@ -11,6 +11,7 @@
       "description": "Operator-captured external material: saved links, posts, screenshots, conversations, and pasted notes. Route here when the question is whether the operator previously saved a source or idea; every capture remains searchable even after it is categorized, handled, or dropped from ambient review.",
       "scope": "SCOPE_PROJECT",
       "class": "local_live",
+      "index_timestamp_field": "metrics.last_indexed_at",
       "performance": {
         "p95_ms": 1500,
         "degraded_rate_max": 0.10,

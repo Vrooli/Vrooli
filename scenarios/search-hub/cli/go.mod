@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	connectrpc.com/connect v1.19.2
 	github.com/stretchr/testify v1.10.0
+	github.com/vrooli/ai-go v0.0.0-00010101000000-000000000000
 	github.com/vrooli/api-core v0.0.0-00010101000000-000000000000
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -18,10 +19,13 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 

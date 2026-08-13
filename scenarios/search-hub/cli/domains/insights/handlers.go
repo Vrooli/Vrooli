@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -33,10 +34,15 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 // under-used (registered-but-never-routed leaves), and how often do queries come
 // back empty.
 func (h *handlers) insightsCall(ctx cliapp.OperationContext) (*metricsv1.InsightsResponse, error) {
-	window := parseWindow(ctx.Flag("window"))
+	raw := strings.TrimSpace(ctx.Flag("window"))
+	window, err := parseWindow(raw)
+	if err != nil {
+		return nil, err
+	}
 
 	resp, err := h.client.Insights(context.Background(), connect.NewRequest(&metricsv1.InsightsRequest{
 		WindowDays: window,
+		Window:     raw,
 	}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("insights", err, nil)
@@ -48,17 +54,19 @@ func (h *handlers) insightsCall(ctx cliapp.OperationContext) (*metricsv1.Insight
 }
 
 func (h *handlers) insightsReport(ctx cliapp.OperationContext, msg *metricsv1.InsightsResponse) cliapp.ListReport {
-	scope := "all-time"
-	if window := parseWindow(ctx.Flag("window")); window > 0 {
-		scope = fmt.Sprintf("last %d day(s)", window)
-	}
+	raw := strings.TrimSpace(ctx.Flag("window"))
+	scope := windowDescription(raw)
 
 	summary := []string{
 		fmt.Sprintf("%d quer(ies) recorded (%s).", msg.GetTotalQueries(), scope),
 		fmt.Sprintf("Zero-result: %d (%.1f%%). Degraded: %d. Reranked: %d.",
 			msg.GetZeroResultQueries(), msg.GetZeroResultRate()*100, msg.GetDegradedQueries(), msg.GetRerankedQueries()),
-		fmt.Sprintf("Latency: p50 %dms, p95 %dms.", msg.GetLatencyP50Ms(), msg.GetLatencyP95Ms()),
+		fmt.Sprintf("Latency in window: p50 %dms, p95 %dms.", msg.GetLatencyP50Ms(), msg.GetLatencyP95Ms()),
+		fmt.Sprintf("Evidence: %d sample(s), bounds %s to %s; recent-%d latency p50 %dms, p95 %dms.", msg.GetSampleCount(), msg.GetWindowFrom(), msg.GetWindowTo(), msg.GetRecentSampleCount(), msg.GetRecentLatencyP50Ms(), msg.GetRecentLatencyP95Ms()),
 		fmt.Sprintf("Address-resolution cache: %.1f%% hit rate (%d hits, %d misses).", msg.GetResolverCacheHitRate()*100, msg.GetResolverCacheHits(), msg.GetResolverCacheMisses()),
+	}
+	if !msg.GetSampleSufficient() {
+		summary = append(summary, fmt.Sprintf("Latency percentile is provisional: %d sample(s), minimum %d required.", msg.GetSampleCount(), msg.GetMinimumSampleCount()))
 	}
 	if len(msg.GetRetirementCandidates()) > 0 {
 		summary = append(summary, fmt.Sprintf("Retirement candidates: %d (report-only).", len(msg.GetRetirementCandidates())))
@@ -72,7 +80,7 @@ func (h *handlers) insightsReport(ctx cliapp.OperationContext, msg *metricsv1.In
 		ResultsHeading: "Per-provider utilization",
 		Results:        renderUtilization(msg.GetProviders()),
 		RetrievalHints: []string{
-			"`--window <days>` — restrict to recent telemetry (default all-time)",
+			"`--window <duration>` — use 15m, 2h, or a bare day count; bounds and sample sufficiency are reported",
 			"`federation` — live provider reachability + model availability",
 			"under-utilized leaves are registered but never routed-to — check their description",
 		},
@@ -101,15 +109,26 @@ func renderUtilization(providers []*metricsv1.ProviderUtilization) []string {
 	return out
 }
 
-// parseWindow parses --window into a non-negative day count; an empty or invalid
-// value means all-time (0).
-func parseWindow(raw string) int32 {
+func parseWindow(raw string) (int32, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return 0
+		return 0, nil
 	}
-	if n, err := strconv.ParseInt(raw, 10, 32); err == nil && n > 0 {
-		return int32(n)
+	if n, err := strconv.ParseInt(raw, 10, 32); err == nil && n >= 0 {
+		return int32(n), nil
 	}
-	return 0
+	if d, err := time.ParseDuration(raw); err == nil && d >= time.Minute {
+		return 0, nil
+	}
+	return 0, fmt.Errorf("invalid --window %q: use a non-negative day count or a duration such as 15m or 2h", raw)
+}
+
+func windowDescription(raw string) string {
+	if raw == "" || raw == "0" {
+		return "all-time"
+	}
+	if n, err := strconv.ParseInt(raw, 10, 32); err == nil {
+		return fmt.Sprintf("last %d day(s)", n)
+	}
+	return "last " + raw
 }

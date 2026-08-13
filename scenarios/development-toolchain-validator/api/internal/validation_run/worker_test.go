@@ -9,11 +9,11 @@ import (
 	"time"
 
 	manifest "development-toolchain-validator/internal/manifest"
-	"development-toolchain-validator/internal/testutil/db"
 	vr "development-toolchain-validator/internal/validation_record"
 	vrmocks "development-toolchain-validator/internal/validation_record/mocks"
 	vrun "development-toolchain-validator/internal/validation_run"
 	vrunmocks "development-toolchain-validator/internal/validation_run/mocks"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 

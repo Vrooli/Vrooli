@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"data-backup-manager/internal/modules"
-	"data-backup-manager/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 

@@ -9,22 +9,23 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
-	"github.com/stretchr/testify/require"
-	apidb "github.com/vrooli/api-core/database"
-	sourcesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/sources"
+	db "github.com/vrooli/api-core/databasetest"
 	localdb "signal-inbox/internal/database"
 	"signal-inbox/internal/signals"
 	internal "signal-inbox/internal/sources"
-	"signal-inbox/internal/testutil/db"
-	"signal-inbox/internal/testutil/mocks"
+
+	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/scheduletest"
+	sourcesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/sources"
 )
 
 func newHandler(t *testing.T) (*connectHandler, signals.Service) {
 	t.Helper()
 	database := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(signals.Schema), apidb.SchemaProviderFunc(internal.Schema)))
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	journal := signals.NewService(signals.NewSQLiteRepository(database, clk), clk)
 	service, err := internal.NewService(internal.NewSQLiteRepository(database), journal, clk, internal.ChromeBookmarksAdapter{}, internal.RedditSavedArchiveAdapter{})
 	require.NoError(t, err)
@@ -61,7 +62,7 @@ func TestSourceTransportRejectsEmptyAndUnknownImports(t *testing.T) {
 func TestArchiveUploadImportsWithoutConnectMessageBytes(t *testing.T) {
 	database := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(signals.Schema), apidb.SchemaProviderFunc(internal.Schema)))
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	journal := signals.NewService(signals.NewSQLiteRepository(database, clk), clk)
 	service, err := internal.NewService(internal.NewSQLiteRepository(database), journal, clk, internal.ChromeBookmarksAdapter{})
 	require.NoError(t, err)

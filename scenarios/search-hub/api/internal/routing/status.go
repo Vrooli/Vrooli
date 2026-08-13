@@ -15,6 +15,7 @@ import (
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const statusProbeTimeout = 2 * time.Second
@@ -54,6 +55,7 @@ func (r *Router) Status(ctx context.Context) (*routingv1.StatusResponse, error) 
 	resp := &routingv1.StatusResponse{Providers: health}
 	resp.ClassifierAvailable = r.deps.Classifier != nil && r.deps.Classifier.Available(ctx)
 	resp.RerankerAvailable = r.deps.Reranker != nil && r.deps.Reranker.Available(ctx)
+	resp.RerankerLeg = activeRerankerLeg(ctx, r.deps.Reranker)
 	open, breached, err := r.CircuitOpenQuorum(ctx)
 	if err != nil {
 		return nil, err
@@ -62,6 +64,18 @@ func (r *Router) Status(ctx context.Context) (*routingv1.StatusResponse, error) 
 	resp.CircuitOpenQuorum = CircuitOpenQuorumThreshold
 	resp.FederationDegraded = breached
 	return resp, nil
+}
+
+func activeRerankerLeg(ctx context.Context, reranker Reranker) string {
+	if reranker == nil {
+		return "none"
+	}
+	if named, ok := reranker.(interface{ ActiveName(context.Context) string }); ok {
+		if leg := strings.TrimSpace(named.ActiveName(ctx)); leg != "" {
+			return leg
+		}
+	}
+	return "none"
 }
 
 // providerHealth resolves one leaf's reachability and, only on this status
@@ -138,21 +152,25 @@ func (r *Router) providerHealth(ctx context.Context, p *registryv1.ProviderDescr
 
 	h.Reachable = true
 	h.Reachability = "endpoint resolved"
-	h.IndexAge, h.PointCount = r.probeIndexStatus(ctx, p)
+	var lastIndexedAt time.Time
+	h.IndexAge, h.PointCount, lastIndexedAt = r.probeIndexStatus(ctx, p)
+	if !lastIndexedAt.IsZero() {
+		h.LastIndexedAt = timestamppb.New(lastIndexedAt)
+	}
 	return h
 }
 
-func (r *Router) probeIndexStatus(ctx context.Context, p *registryv1.ProviderDescriptor) (string, int64) {
+func (r *Router) probeIndexStatus(ctx context.Context, p *registryv1.ProviderDescriptor) (string, int64, time.Time) {
 	hj := p.GetStatusEndpoint().GetHttpJson()
 	if hj == nil {
-		return "not_applicable: provider has no status_endpoint", 0
+		return "not_applicable: provider has no status_endpoint", 0, time.Time{}
 	}
 	if r.deps.Doer == nil {
-		return "unreported: status probe transport unavailable", 0
+		return "unreported: status probe transport unavailable", 0, time.Time{}
 	}
 	base, err := r.deps.Resolver.ResolveScenarioURL(ctx, hj.GetScenarioId())
 	if err != nil {
-		return fmt.Sprintf("unreported: status endpoint unreachable: %s", oneLine(err.Error())), 0
+		return fmt.Sprintf("unreported: status endpoint unreachable: %s", oneLine(err.Error())), 0, time.Time{}
 	}
 	body := strings.TrimSpace(hj.GetBodyTemplate())
 	if body == "" {
@@ -163,32 +181,42 @@ func (r *Router) probeIndexStatus(ctx context.Context, p *registryv1.ProviderDes
 	url := strings.TrimRight(base, "/") + hj.GetPath()
 	req, err := http.NewRequestWithContext(probeCtx, httpMethod(hj.GetMethod()), url, bytes.NewReader([]byte(body)))
 	if err != nil {
-		return fmt.Sprintf("unreported: status request invalid: %s", oneLine(err.Error())), 0
+		return fmt.Sprintf("unreported: status request invalid: %s", oneLine(err.Error())), 0, time.Time{}
 	}
 	for key, value := range hj.GetHeaders() {
 		req.Header.Set(key, value)
 	}
 	resp, err := r.deps.Doer.Do(req)
 	if err != nil {
-		return fmt.Sprintf("unreported: status probe failed: %s", oneLine(err.Error())), 0
+		return fmt.Sprintf("unreported: status probe failed: %s", oneLine(err.Error())), 0, time.Time{}
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Sprintf("unreported: status probe returned HTTP %d", resp.StatusCode), 0
+		return fmt.Sprintf("unreported: status probe returned HTTP %d", resp.StatusCode), 0, time.Time{}
 	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if err != nil {
-		return fmt.Sprintf("unreported: status response unreadable: %s", oneLine(err.Error())), 0
+		return fmt.Sprintf("unreported: status response unreadable: %s", oneLine(err.Error())), 0, time.Time{}
 	}
-	timestamp, pointCount, ok := parseIndexStatus(raw)
+	timestamp, pointCount, ok := parseDeclaredIndexStatus(raw, p.GetIndexTimestampField())
 	if !ok {
-		return "unreported: status response has no usable last-index timestamp", pointCount
+		if r.deps.Logger != nil {
+			field := p.GetIndexTimestampField()
+			if field == "" {
+				field = "<missing declaration>"
+			}
+			r.deps.Logger.Printf("provider %q did not return declared index timestamp field %q; using deprecated key-sniff fallback", p.GetProviderId(), field)
+		}
+		timestamp, pointCount, ok = parseIndexStatus(raw)
+	}
+	if !ok {
+		return "unreported: status response has no usable declared index timestamp", pointCount, time.Time{}
 	}
 	age := r.deps.Now().Sub(timestamp)
 	if age < 0 {
 		age = 0
 	}
-	return age.Round(time.Second).String(), pointCount
+	return age.Round(time.Second).String(), pointCount, timestamp
 }
 
 func httpMethod(method registryv1.HttpMethod) string {
@@ -206,6 +234,30 @@ func parseIndexStatus(raw []byte) (time.Time, int64, bool) {
 		return time.Time{}, 0, false
 	}
 	return parseIndexStatusMap(payload)
+}
+
+func parseDeclaredIndexStatus(raw []byte, field string) (time.Time, int64, bool) {
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return time.Time{}, 0, false
+	}
+	field = strings.TrimSpace(field)
+	if field == "" {
+		return time.Time{}, 0, false
+	}
+	var value any = payload
+	for _, part := range strings.Split(field, ".") {
+		object, ok := value.(map[string]any)
+		if !ok {
+			return time.Time{}, 0, false
+		}
+		value, ok = object[part]
+		if !ok {
+			return time.Time{}, 0, false
+		}
+	}
+	timestamp, ok := parseTimestamp(value)
+	return timestamp, 0, ok
 }
 
 func parseIndexStatusMap(payload map[string]any) (time.Time, int64, bool) {

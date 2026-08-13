@@ -121,8 +121,8 @@ func floorRegime(t aisearch.TuningConfig) string {
 // "the same arm" iff every swept and pinned factor matches.
 func canonical(t aisearch.TuningConfig) string {
 	t = t.WithDefaults()
-	return fmt.Sprintf("engine=%s,embed_model=%s,embed_task_prefix=%t,rerank_enabled=%t,rerank_blend=%t,shortlist=%d,floor=%g/%g,hybrid_fusion=%s",
-		t.Engine, t.EmbedModel, t.EmbedTaskPrefix, t.RerankEnabled, t.RerankBlend, t.RerankShortlist, t.Floor.MaxGap, t.Floor.HardFloor, t.HybridFusion)
+	return fmt.Sprintf("engine=%s,embed_model=%s,embed_task_prefix=%t,rerank_enabled=%t,rerank_blend=%t,shortlist=%d,rerank_preference=%s,floor=%g/%g,hybrid_fusion=%s",
+		t.Engine, t.EmbedModel, t.EmbedTaskPrefix, t.RerankEnabled, t.RerankBlend, t.RerankShortlist, t.RerankPreference, t.Floor.MaxGap, t.Floor.HardFloor, t.HybridFusion)
 }
 
 // armTag is the stable, human-legible run tag for an arm in a tier.

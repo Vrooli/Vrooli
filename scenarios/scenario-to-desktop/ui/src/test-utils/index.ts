@@ -9,8 +9,8 @@ export {
   renderWithProviders as render,
   createHookWrapper,
   createTestQueryClient,
-  type RenderWithProvidersOptions,
-} from "./renderWithProviders";
+  type ProviderRenderOptions as RenderWithProvidersOptions,
+} from "@vrooli/api-base/testing";
 
 // Mock factories
 export {

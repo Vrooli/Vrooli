@@ -12,16 +12,17 @@ import (
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 
 	evalH "search-hub/handlers/eval"
-	"search-hub/internal/clock"
 	internaleval "search-hub/internal/eval"
 	"search-hub/internal/module"
 	internalregistry "search-hub/internal/registry"
 	internalvalidation "search-hub/internal/validation"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 var ProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_proto
 
-func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB, clk clock.Clock) module.Module {
+func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB, clk schedule.Clock) module.Module {
 	// DescribeProvider answers readiness from this provider's own descriptor,
 	// so a readiness probe no longer costs a full target analysis. A load
 	// failure yields the zero Describer, which reports Unimplemented and makes

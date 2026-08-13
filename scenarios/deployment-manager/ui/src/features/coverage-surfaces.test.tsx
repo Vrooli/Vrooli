@@ -12,7 +12,7 @@ import { Layout } from "./shared/Layout";
 import { BundleTelemetry } from "./telemetry/BundleTelemetry";
 import { TelemetryEntry } from "./telemetry/TelemetryEntry";
 import * as api from "../lib/api";
-import { renderWithProviders } from "../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 vi.mock("../lib/api");
 

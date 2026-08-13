@@ -14,7 +14,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
 
-	"data-backup-manager/cli/internal/testutil"
+	testutil "github.com/vrooli/cli-core/cliapptest"
 )
 
 // stubRunsService is an in-test RunsServiceHandler that records the request it

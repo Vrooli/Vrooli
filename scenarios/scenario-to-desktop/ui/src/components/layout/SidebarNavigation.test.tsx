@@ -1,7 +1,7 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SidebarNavigation } from "./SidebarNavigation";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { createPipelineStatus } from "../../test-utils/mocks";
 import { usePipelineStore, useSidebarStore } from "../../store";
 import {

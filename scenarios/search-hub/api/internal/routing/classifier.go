@@ -77,6 +77,10 @@ type ProviderProfile struct {
 	Type        string
 	Group       string
 	Description string
+	// OmittedProviderIDs is populated only on the first shortlisted profile.
+	// It is prompt metadata, not a candidate: the classifier must not invent
+	// ids, but the prompt should name every bounded-fallback omission.
+	OmittedProviderIDs []string
 }
 
 // ClassifyResult is the classifier's routing decision over a query.

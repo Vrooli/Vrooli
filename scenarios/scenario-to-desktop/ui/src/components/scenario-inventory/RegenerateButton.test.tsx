@@ -1,7 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RegenerateButton } from "./RegenerateButton";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { StageName } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 const mocks = vi.hoisted(() => ({

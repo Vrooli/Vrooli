@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { PreflightCheckList } from "./PreflightCheckList";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 describe("PreflightCheckList", () => {
   it("omits empty checks", () => {

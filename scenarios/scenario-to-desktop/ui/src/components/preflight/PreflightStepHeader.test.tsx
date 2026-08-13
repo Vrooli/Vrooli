@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { PreflightStepHeader } from "./PreflightStepHeader";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 describe("PreflightStepHeader", () => {
   it("presents indexed title, optional subtitle, and status label", () => {

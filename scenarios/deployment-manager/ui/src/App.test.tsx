@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import * as api from "./lib/api";
-import { renderWithProviders } from "./test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 vi.mock("./lib/api");
 

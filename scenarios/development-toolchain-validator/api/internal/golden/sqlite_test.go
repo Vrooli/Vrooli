@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"development-toolchain-validator/internal/golden"
-	"development-toolchain-validator/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 

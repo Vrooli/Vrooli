@@ -5,16 +5,17 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
+	localdb "signal-inbox/internal/database"
+	"signal-inbox/internal/signals"
+	internal "signal-inbox/internal/triage"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/schedule"
 	triagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/triage"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"signal-inbox/internal/clock"
-	localdb "signal-inbox/internal/database"
-	"signal-inbox/internal/signals"
-	"signal-inbox/internal/testutil/db"
-	internal "signal-inbox/internal/triage"
 )
 
 func newHandler(t *testing.T) *connectHandler {
@@ -27,7 +28,7 @@ func newHandler(t *testing.T) *connectHandler {
 	))
 	_, err := database.ExecContext(context.Background(), "INSERT INTO signal(id,source_kind,source_identity,source_url,raw_payload_ref,extracted_content,content_hash,needs_attention,captured_at) VALUES('signal','text','signal','','','body','hash',0,?)", time.Now().UTC().Format(time.RFC3339Nano))
 	require.NoError(t, err)
-	return NewConnectHandler(internal.NewService(internal.NewSQLiteRepository(database), clock.System{}))
+	return NewConnectHandler(internal.NewService(internal.NewSQLiteRepository(database), schedule.System()))
 }
 
 func TestTriageTransportPreservesDispositionAndAppendsAnnotations(t *testing.T) {

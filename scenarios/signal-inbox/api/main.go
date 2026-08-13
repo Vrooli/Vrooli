@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"signal-inbox/internal/categories"
-	"signal-inbox/internal/clock"
 	"signal-inbox/internal/inference"
 	"signal-inbox/internal/modules"
 	"signal-inbox/internal/retrieval"
@@ -19,6 +18,8 @@ import (
 	"signal-inbox/internal/server"
 	"signal-inbox/internal/sources"
 	"signal-inbox/internal/triage"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -154,9 +155,9 @@ func main() {
 	} else {
 		inferenceClient = inference.NewGatewayClient(routingconnect.NewRoutingServiceClient(http.DefaultClient, gatewayURL))
 	}
-	categoryService := categories.NewService(categories.NewSQLiteRepository(db), clock.System{}, inferenceClient)
-	triageService := triage.NewService(triage.NewSQLiteRepository(db), clock.System{})
-	retrievalService := retrieval.NewService(retrieval.NewSQLiteRepository(db), clock.System{}, retrieval.NewQdrantSemanticSearch(inferenceClient))
+	categoryService := categories.NewService(categories.NewSQLiteRepository(db), schedule.System(), inferenceClient)
+	triageService := triage.NewService(triage.NewSQLiteRepository(db), schedule.System())
+	retrievalService := retrieval.NewService(retrieval.NewSQLiteRepository(db), schedule.System(), retrieval.NewQdrantSemanticSearch(inferenceClient))
 	if _, err := categoryService.Bootstrap(context.Background()); err != nil {
 		log.Fatalf("seed reserved category: %v", err)
 	}
@@ -165,17 +166,17 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
-	signalsRuntime, err := signalsH.NewRuntimeWithRoutedRoots(db, clock.System{}, fileRoots, categoryService)
+	signalsRuntime, err := signalsH.NewRuntimeWithRoutedRoots(db, schedule.System(), fileRoots, categoryService)
 	if err != nil {
 		log.Fatalf("signals runtime: %v", err)
 	}
-	sourcesService, err := sources.NewService(sources.NewSQLiteRepository(db), signalsRuntime.Service, clock.System{}, sources.ChromeBookmarksAdapter{}, sources.RedditSavedArchiveAdapter{}, sources.XAuthoredArchiveAdapter{}, sources.XLikesArchiveAdapter{})
+	sourcesService, err := sources.NewService(sources.NewSQLiteRepository(db), signalsRuntime.Service, schedule.System(), sources.ChromeBookmarksAdapter{}, sources.RedditSavedArchiveAdapter{}, sources.XAuthoredArchiveAdapter{}, sources.XLikesArchiveAdapter{})
 	if err != nil {
 		log.Fatalf("sources runtime: %v", err)
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "signal-inbox-api", "1.0.0"),
 		categoriesH.Module(categoryService),
 		signalsH.ModuleWithRuntime(signalsRuntime, log.Default()),

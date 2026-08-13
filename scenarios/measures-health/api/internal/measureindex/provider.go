@@ -21,6 +21,7 @@ type Provider struct {
 	threshold float64
 	avail     func(ctx context.Context) bool
 	usesLLM   bool
+	indexedAt time.Time
 }
 
 // Config tunes a Provider. The zero value is production-ready (filesystem
@@ -103,6 +104,7 @@ func NewProvider(decls []measures.MeasureDeclaration, cfg Config) *Provider {
 		threshold: threshold,
 		avail:     avail,
 		usesLLM:   cfg.EnableLLMExtraction || cfg.Extractor != nil,
+		indexedAt: time.Now().UTC(),
 	}
 }
 
@@ -128,6 +130,11 @@ func (p *Provider) Query(ctx context.Context, question string, limit int) ([]*me
 
 // Len reports the number of indexed measures.
 func (p *Provider) Len() int { return p.matcher.Len() }
+
+// IndexTimestamp is the materialization time of the declarations supplied to
+// NewProvider. Measures are a live lexical corpus after construction, so no
+// background vector reconciliation timestamp exists to report.
+func (p *Provider) IndexTimestamp() time.Time { return p.indexedAt }
 
 // Status reports provider availability for the Connect Status RPC and the
 // search-hub status_endpoint: the index size, whether the ollama extractor is

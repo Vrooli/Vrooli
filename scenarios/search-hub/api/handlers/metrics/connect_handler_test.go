@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -21,11 +22,18 @@ import (
 
 // fakeInsights is a hand-written InsightsReader fake.
 type fakeInsights struct {
-	out *internalmetrics.Insights
-	err error
+	out       *internalmetrics.Insights
+	err       error
+	rangeFrom time.Time
+	rangeTo   time.Time
 }
 
 func (f *fakeInsights) Insights(context.Context, int) (*internalmetrics.Insights, error) {
+	return f.out, f.err
+}
+
+func (f *fakeInsights) InsightsRange(_ context.Context, from, to time.Time) (*internalmetrics.Insights, error) {
+	f.rangeFrom, f.rangeTo = from, to
 	return f.out, f.err
 }
 
@@ -59,12 +67,20 @@ func TestInsightsReconcilesUnderUtilized(t *testing.T) {
 	// cli-health routed 5×; ui-health registered but never routed-to.
 	client := newClient(t, handler.Deps{
 		Insights: &fakeInsights{out: &internalmetrics.Insights{
-			TotalQueries:      10,
-			ZeroResultQueries: 2,
-			DegradedQueries:   1,
-			RerankedQueries:   8,
-			LatencyP50Ms:      120,
-			LatencyP95Ms:      400,
+			TotalQueries:       10,
+			ZeroResultQueries:  2,
+			DegradedQueries:    1,
+			RerankedQueries:    8,
+			LatencyP50Ms:       120,
+			LatencyP95Ms:       400,
+			WindowFrom:         time.Date(2026, 6, 23, 0, 0, 0, 0, time.UTC),
+			WindowTo:           time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC),
+			SampleCount:        12,
+			MinimumSampleCount: 10,
+			SampleSufficient:   true,
+			RecentSampleCount:  10,
+			RecentLatencyP50Ms: 110,
+			RecentLatencyP95Ms: 390,
 			ProviderUsage: []internalmetrics.ProviderUsage{
 				{
 					ProviderID:      "cli-health.commands",
@@ -94,6 +110,10 @@ func TestInsightsReconcilesUnderUtilized(t *testing.T) {
 	require.InDelta(t, 0.2, msg.GetZeroResultRate(), 1e-9)
 	require.Equal(t, int64(120), msg.GetLatencyP50Ms())
 	require.Equal(t, int64(400), msg.GetLatencyP95Ms())
+	require.Equal(t, int64(12), msg.GetSampleCount())
+	require.True(t, msg.GetSampleSufficient())
+	require.Equal(t, "2026-06-23T00:00:00Z", msg.GetWindowFrom())
+	require.Equal(t, int64(390), msg.GetRecentLatencyP95Ms())
 
 	byID := map[string]*metricsv1.ProviderUtilization{}
 	for _, p := range msg.GetProviders() {
@@ -109,6 +129,20 @@ func TestInsightsReconcilesUnderUtilized(t *testing.T) {
 	require.Equal(t, int64(0), byID["ui-health.surfaces"].GetTimesRouted())
 	require.True(t, byID["ui-health.surfaces"].GetUnderUtilized(), "registered-but-never-routed ⇒ under-utilized")
 	require.Equal(t, "component", byID["ui-health.surfaces"].GetType())
+}
+
+func TestInsightsAcceptsDurationWindowAndUsesRangeReader(t *testing.T) {
+	reader := &fakeInsights{out: &internalmetrics.Insights{SampleCount: 10, SampleSufficient: true}}
+	client := newClient(t, handler.Deps{
+		Insights:      reader,
+		RangeInsights: reader,
+		Lister:        &fakeLister{},
+	})
+
+	_, err := client.Insights(context.Background(), connect.NewRequest(&metricsv1.InsightsRequest{Window: "15m"}))
+	require.NoError(t, err)
+	require.WithinDuration(t, time.Now().UTC(), reader.rangeTo, 5*time.Second)
+	require.WithinDuration(t, reader.rangeTo.Add(-15*time.Minute), reader.rangeFrom, time.Second)
 }
 
 func TestInsightsZeroQueriesRateIsZero(t *testing.T) {

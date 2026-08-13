@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"scenario-to-ios/internal/modules"
-	"scenario-to-ios/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 
@@ -106,10 +106,9 @@ func TestProtoConnectParity(t *testing.T) {
 		byPath[ep.Path]++
 	}
 
+	// An empty list is valid for a scenario whose current API surface is made
+	// entirely of documented REST exceptions (health is the template case).
 	files := modules.AllProtoFiles()
-	require.NotEmpty(t, files,
-		"AllProtoFiles() returned no entries; every Connect-mounted "+
-			"domain module must be registered there")
 
 	for _, entry := range files {
 		services := entry.File.Services()

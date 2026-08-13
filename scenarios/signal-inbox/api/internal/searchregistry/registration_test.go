@@ -14,12 +14,15 @@ import (
 func TestDescriptorPreservesSearchTransportAndTuning(t *testing.T) {
 	descriptor, err := Descriptor(aisearch.ProviderConfig{
 		ProviderID: "signal-inbox.signals", ProviderGroup: "signal-inbox", Bucket: "BUCKET_KNOW", Type: "signal", Description: "immutable captures", Scope: "SCOPE_PROJECT",
-		Endpoint: []byte(`{"http_json":{"scenario_id":"signal-inbox","path":"/search","method":"HTTP_METHOD_POST"}}`),
-		Tuning:   aisearch.TuningConfig{Engine: "dense", EmbedModel: "ai-gateway:embedding.default", EmbedTaskPrefix: true, RerankShortlist: 50},
+		Endpoint:            []byte(`{"http_json":{"scenario_id":"signal-inbox","path":"/search","method":"HTTP_METHOD_POST"}}`),
+		StatusEndpoint:      []byte(`{"http_json":{"scenario_id":"signal-inbox","path":"/health","method":"HTTP_METHOD_GET"}}`),
+		IndexTimestampField: "metrics.last_indexed_at",
+		Tuning:              aisearch.TuningConfig{Engine: "dense", EmbedModel: "ai-gateway:embedding.default", EmbedTaskPrefix: true, RerankShortlist: 50},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "signal-inbox.signals", descriptor.GetProviderId())
 	require.Equal(t, "/search", descriptor.GetEndpoint().GetHttpJson().GetPath())
+	require.Equal(t, "metrics.last_indexed_at", descriptor.GetIndexTimestampField())
 	require.Equal(t, "ai-gateway:embedding.default", descriptor.GetTuning().GetEmbedModel())
 	require.True(t, descriptor.GetTuning().GetEmbedTaskPrefix())
 }

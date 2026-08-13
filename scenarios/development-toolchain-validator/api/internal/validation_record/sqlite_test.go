@@ -8,7 +8,7 @@ import (
 
 	vr "development-toolchain-validator/internal/validation_record"
 
-	"development-toolchain-validator/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 

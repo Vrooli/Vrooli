@@ -50,6 +50,7 @@ type TelemetrySample struct {
 	FanoutLatencyMs         int64
 	RerankLatencyMs         int64
 	RerankCandidateCount    int
+	RerankerLeg             string
 	ResponseDegradeReason   string
 	// AutoRoutedExternal is true when the automatic path folded a SCOPE_EXTERNAL
 	// provider into the fan-out because the query was judged web-shaped
@@ -65,12 +66,23 @@ type TelemetrySample struct {
 // compact, closed vocabulary (comma-separated only when causes coexist), not
 // a copy of unbounded provider error text.
 func ResponseDegradeReason(classifierFailed, rerankerFailed bool, groups []*routingv1.ProviderResultGroup, resultCount int) string {
+	return ResponseDegradeReasonWithReranker(classifierFailed, rerankerFailed, "", groups, resultCount)
+}
+
+// ResponseDegradeReasonWithReranker retains the closed response taxonomy while
+// distinguishing a working-but-expensive LLM fallback from total reranker loss.
+func ResponseDegradeReasonWithReranker(classifierFailed, rerankerFailed bool, rerankerReason string, groups []*routingv1.ProviderResultGroup, resultCount int) string {
 	reasons := make([]string, 0, 4)
 	if classifierFailed {
 		reasons = append(reasons, "classifier")
 	}
 	if rerankerFailed {
-		reasons = append(reasons, "reranker")
+		if rerankerReason == "" {
+			rerankerReason = "reranker_absent"
+		}
+		reasons = append(reasons, rerankerReason)
+	} else if rerankerReason != "" {
+		reasons = append(reasons, rerankerReason)
 	}
 	for _, g := range groups {
 		if g.GetDegraded() {
@@ -140,6 +152,7 @@ func buildSample(query string, targets []*registryv1.ProviderDescriptor, resp *r
 		ResultCount:     total,
 		Degraded:        resp.GetDegraded(),
 		Reranked:        resp.GetReranked(),
+		RerankerLeg:     resp.GetRerankerLeg(),
 		LatencyMs:       resp.GetLatencyMs(),
 	}
 }
@@ -156,8 +169,10 @@ func classifyDegradeReason(note string) string {
 		return "unreachable"
 	case strings.Contains(note, "http "):
 		return "http_error"
-	case strings.Contains(note, "reranker"):
-		return "reranker_unavailable"
+	case strings.Contains(note, "reranker_degraded_to_llm"):
+		return "reranker_degraded_to_llm"
+	case strings.Contains(note, "reranker_absent"), strings.Contains(note, "reranker"):
+		return "reranker_absent"
 	default:
 		return "other"
 	}

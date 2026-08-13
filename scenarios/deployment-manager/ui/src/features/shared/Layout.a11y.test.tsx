@@ -1,8 +1,8 @@
 import { cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { Layout } from "./Layout";
-import { expectNoA11yViolations } from "../../test-utils/a11y";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 describe("Layout accessibility", () => {
   afterEach(() => cleanup());

@@ -27,7 +27,7 @@ import (
 	"sort"
 	"time"
 
-	"search-hub/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	aisearch "github.com/vrooli/ai-go/search"
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
@@ -92,7 +92,7 @@ type Deps struct {
 	// Cache, when set, is refreshed with the winning tuning after a successful
 	// write-back so the registry cache mirrors the file without a reboot.
 	Cache TuningCache
-	Clock clock.Clock
+	Clock schedule.Clock
 	// Sleep waits between reindex-status polls; tests inject a no-op. Defaults to
 	// time.Sleep when nil.
 	Sleep func(time.Duration)
@@ -541,13 +541,14 @@ func snapshotFor(base *evalv1.ConfigSnapshot, t aisearch.TuningConfig) *evalv1.C
 func tuningToProto(t aisearch.TuningConfig) *registryv1.Tuning {
 	t = t.WithDefaults()
 	return &registryv1.Tuning{
-		Engine:          t.Engine,
-		EmbedModel:      t.EmbedModel,
-		EmbedTaskPrefix: t.EmbedTaskPrefix,
-		RerankEnabled:   t.RerankEnabled,
-		RerankBlend:     t.RerankBlend,
-		RerankShortlist: int32(t.RerankShortlist),
-		Floor:           &registryv1.FloorConfig{MaxGap: t.Floor.MaxGap, HardFloor: t.Floor.HardFloor},
+		Engine:           t.Engine,
+		EmbedModel:       t.EmbedModel,
+		EmbedTaskPrefix:  t.EmbedTaskPrefix,
+		RerankEnabled:    t.RerankEnabled,
+		RerankBlend:      t.RerankBlend,
+		RerankShortlist:  int32(t.RerankShortlist),
+		RerankPreference: t.RerankPreference,
+		Floor:            &registryv1.FloorConfig{MaxGap: t.Floor.MaxGap, HardFloor: t.Floor.HardFloor},
 	}
 }
 
@@ -556,12 +557,13 @@ func tuningFromProto(t *registryv1.Tuning) aisearch.TuningConfig {
 		return aisearch.TuningConfig{}
 	}
 	cfg := aisearch.TuningConfig{
-		Engine:          t.GetEngine(),
-		EmbedModel:      t.GetEmbedModel(),
-		EmbedTaskPrefix: t.GetEmbedTaskPrefix(),
-		RerankEnabled:   t.GetRerankEnabled(),
-		RerankBlend:     t.GetRerankBlend(),
-		RerankShortlist: int(t.GetRerankShortlist()),
+		Engine:           t.GetEngine(),
+		EmbedModel:       t.GetEmbedModel(),
+		EmbedTaskPrefix:  t.GetEmbedTaskPrefix(),
+		RerankEnabled:    t.GetRerankEnabled(),
+		RerankBlend:      t.GetRerankBlend(),
+		RerankShortlist:  int(t.GetRerankShortlist()),
+		RerankPreference: t.GetRerankPreference(),
 	}
 	if f := t.GetFloor(); f != nil {
 		cfg.Floor = aisearch.FloorTuning{MaxGap: f.GetMaxGap(), HardFloor: f.GetHardFloor()}

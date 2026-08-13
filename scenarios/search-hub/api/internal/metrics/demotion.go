@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	"search-hub/internal/clock"
 	"search-hub/internal/routing"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 type sqliteDemotionStore struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
-func NewSQLiteDemotionStore(db SQLExecutor, clk clock.Clock) routing.DemotionStore {
+func NewSQLiteDemotionStore(db SQLExecutor, clk schedule.Clock) routing.DemotionStore {
 	return &sqliteDemotionStore{db: db, clock: clk}
 }
 

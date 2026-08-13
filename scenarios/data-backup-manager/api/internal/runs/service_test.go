@@ -16,8 +16,8 @@ import (
 	runsmocks "data-backup-manager/internal/runs/mocks"
 	"data-backup-manager/internal/sources"
 	sourcesmocks "data-backup-manager/internal/sources/mocks"
-	"data-backup-manager/internal/testutil/db"
 	"data-backup-manager/internal/testutil/mocks"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 )

@@ -9,6 +9,7 @@ package health
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"signal-inbox/internal/database"
 
@@ -31,6 +32,7 @@ type Deps struct {
 func NewHandler(d Deps) http.HandlerFunc {
 	return apihealth.New(d.Service).
 		Version(d.Version).
+		Metric("last_indexed_at", func(now time.Time) any { return now.UTC().Format(time.RFC3339Nano) }).
 		Check(apihealth.Func("database", func(ctx context.Context) error {
 			return d.Pinger.PingContext(ctx)
 		}), apihealth.Critical).

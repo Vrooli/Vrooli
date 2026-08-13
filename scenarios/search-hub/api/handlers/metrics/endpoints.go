@@ -19,12 +19,13 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        metricsconnect.MetricsServiceInsightsProcedure,
 		Method:      "POST",
 		Summary:     "Federation telemetry insights",
-		Description: "Aggregates per-query telemetry over an optional recent window into federation-health signals: total/zero-result/degraded/reranked query counts, zero-result rate, p50/p95 latency, resolver-cache hit rate, report-only registry hygiene, and per-provider utilization (including registered-but-never-routed leaves flagged under_utilized). The router records one hashed-query telemetry row per Query; this is the read side.",
+		Description: "Aggregates per-query telemetry over an optional recent duration window (for example 15m or 2h; bare integers remain day counts) into federation-health signals. The response includes auditable bounds, sample sufficiency, windowed and recent-N latency percentiles, resolver-cache hit rate, report-only registry hygiene, and per-provider utilization. The router records one hashed-query telemetry row per Query; this is the read side.",
 		Category:    "metrics",
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"window_days": "int32 — restrict aggregates to the last N days (0 = all-time)",
+				"window_days": "int32 — legacy day window (0 = all-time)",
+				"window":      "string — duration such as 15m or 2h; bare integer means days",
 			},
 		},
 		Response: &module.Schema{
@@ -43,6 +44,14 @@ var Endpoints = []module.EndpointDescriptor{
 				"retirement_candidates":   "array<ProviderRetirementCandidate> — report-only zero-yield candidates",
 				"group_advisories":        "array<ProviderGroupAdvisory> — report-only concentration warnings",
 				"providers":               "array<ProviderUtilization> — per-provider routed/hit totals + under_utilized flag",
+				"window_from":             "string — inclusive RFC3339Nano lower bound",
+				"window_to":               "string — exclusive RFC3339Nano upper bound",
+				"sample_count":            "int64 — telemetry rows in the window",
+				"minimum_sample_count":    "int64 — evidence threshold for stable percentiles",
+				"sample_sufficient":       "bool — whether the window meets the evidence threshold",
+				"recent_sample_count":     "int64 — rows in the rolling recent-N view",
+				"recent_latency_p50_ms":   "int64 — recent-N median when stable",
+				"recent_latency_p95_ms":   "int64 — recent-N p95 when stable",
 			},
 		},
 		Errors: []module.ErrorDesc{

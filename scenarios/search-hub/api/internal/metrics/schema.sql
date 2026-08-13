@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS query_telemetry_provider (
   latency_ms     INTEGER NOT NULL DEFAULT 0,
   degraded       INTEGER NOT NULL DEFAULT 0,
   degrade_reason TEXT NOT NULL DEFAULT '',
+  reranker_leg  TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (query_id, provider_id)
 );
 

@@ -2,17 +2,20 @@
 package search
 
 import (
+	"context"
+	"strings"
+	"time"
+
 	"connectrpc.com/connect"
 	internalartifacts "content-desk/internal/artifacts"
 	internalledger "content-desk/internal/ledger"
 	"content-desk/internal/module"
-	"context"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/search"
 	searchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/search/search_v1connect"
-	"strings"
 )
 
 type handler struct {
@@ -55,6 +58,7 @@ func (h handler) Search(ctx context.Context, req *connect.Request[searchv1.Searc
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h handler) Status(ctx context.Context, _ *connect.Request[searchv1.StatusRequest]) (*connect.Response[searchv1.StatusResponse], error) {
 	drafts, err := h.drafts.List(ctx)
 	if err != nil {
@@ -64,8 +68,13 @@ func (h handler) Status(ctx context.Context, _ *connect.Request[searchv1.StatusR
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&searchv1.StatusResponse{Available: true, IndexedCount: int32(len(drafts) + len(records))}), nil
+	return connect.NewResponse(&searchv1.StatusResponse{
+		Available:     true,
+		IndexedCount:  int32(len(drafts) + len(records)),
+		LastIndexedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}), nil
 }
+
 func Module(db *database.RoutedDB) module.Module {
 	path, h := searchconnect.NewSearchServiceHandler(handler{drafts: internalartifacts.NewSQLiteRepository(db), ledger: internalledger.NewSQLiteRepository(db)})
 	return module.Module{Name: "search", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h}) }, Endpoints: Endpoints}

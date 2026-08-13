@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"search-hub/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	aisearch "github.com/vrooli/ai-go/search"
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
@@ -148,7 +148,7 @@ func newHarnessWithCache(t *testing.T, suite *evalv1.EvalSuite, incumbent aisear
 		Runner:    runner,
 		Control:   control,
 		Cache:     cache,
-		Clock:     clock.System{},
+		Clock:     schedule.System(),
 		Sleep:     func(time.Duration) {},
 		Rand:      newSeededRand(),
 	}, Options{HeldoutFraction: 0.5, MinHeldout: 2, BootstrapIters: 500, GibberishFloor: 0.5, LatencyMultiplier: 0, PollInterval: time.Millisecond})

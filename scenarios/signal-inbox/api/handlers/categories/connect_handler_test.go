@@ -5,15 +5,17 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
-	"github.com/stretchr/testify/require"
-	apidb "github.com/vrooli/api-core/database"
-	categoriesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/categories"
+	db "github.com/vrooli/api-core/databasetest"
 	internal "signal-inbox/internal/categories"
 	localdb "signal-inbox/internal/database"
 	"signal-inbox/internal/signals"
-	"signal-inbox/internal/testutil/db"
 	"signal-inbox/internal/testutil/mocks"
+
+	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/scheduletest"
+	categoriesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/categories"
 )
 
 func newHandler(t *testing.T) *connectHandler {
@@ -24,7 +26,7 @@ func newHandler(t *testing.T) *connectHandler {
 		apidb.SchemaProviderFunc(signals.Schema),
 		apidb.SchemaProviderFunc(internal.Schema),
 	))
-	clock := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clock := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	service := internal.NewService(internal.NewSQLiteRepository(database), clock, &mocks.FakeInference{})
 	_, err := service.Bootstrap(context.Background())
 	require.NoError(t, err)

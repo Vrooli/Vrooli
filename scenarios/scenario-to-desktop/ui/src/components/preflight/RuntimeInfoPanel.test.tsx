@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { RuntimeInfoPanel } from "./RuntimeInfoPanel";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 describe("RuntimeInfoPanel", () => {
   it("presents complete runtime identity without hiding paths or version provenance", () => {

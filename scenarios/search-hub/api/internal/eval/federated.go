@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"search-hub/internal/clock"
 	internalrouting "search-hub/internal/routing"
+
+	"github.com/vrooli/api-core/schedule"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
@@ -24,11 +25,11 @@ const defaultFederatedMargin = 0.01
 type FederatedRunner struct {
 	resolver ProviderResolver
 	query    QueryClient
-	clock    clock.Clock
+	clock    schedule.Clock
 	newID    func() string
 }
 
-func NewFederatedRunner(resolver ProviderResolver, query QueryClient, clk clock.Clock, newID func() string) *FederatedRunner {
+func NewFederatedRunner(resolver ProviderResolver, query QueryClient, clk schedule.Clock, newID func() string) *FederatedRunner {
 	if newID == nil {
 		newID = func() string { return "federated-run" }
 	}
@@ -48,15 +49,26 @@ func (r *FederatedRunner) Run(ctx context.Context, suite *evalv1.EvalSuite, tag 
 	ctx = internalrouting.WithBackgroundEvaluationProvider(ctx, suite.GetProviderId())
 	results := make([]*evalv1.CaseResult, 0, len(suite.GetCases()))
 	latencies := make([]int64, 0, len(suite.GetCases()))
+	var unavailable []*evalv1.UnavailableCase
 	run := &evalv1.EvalRun{RunId: r.newID(), SuiteId: suite.GetSuiteId(), Tag: tag, Tier: "federated"}
 	for _, c := range suite.GetCases() {
 		start := r.clock.Now()
-		response, err := r.query.Query(ctx, &routingv1.QueryRequest{Query: c.GetQuery(), Limit: limit})
+		caseCtx := ctx
+		cancel := func() {}
+		if timeout := caseTimeout(ctx); timeout > 0 {
+			caseCtx, cancel = context.WithTimeout(ctx, timeout)
+		}
+		response, err := r.query.Query(caseCtx, &routingv1.QueryRequest{Query: c.GetQuery(), Limit: limit})
+		cancel()
 		latencies = append(latencies, r.clock.Now().Sub(start).Milliseconds())
 		cr := &evalv1.CaseResult{CaseId: c.GetCaseId(), ExpectedProviderId: suite.GetProviderId()}
 		if err != nil {
 			cr.Outcome = "error"
 			cr.OutcomeReason = err.Error()
+			if unavailableError(err) {
+				cr.Outcome = "unavailable"
+				unavailable = append(unavailable, &evalv1.UnavailableCase{CaseId: c.GetCaseId(), Reason: err.Error()})
+			}
 			run.Degraded = true
 			run.DegradedReason = err.Error()
 			results = append(results, cr)
@@ -109,6 +121,14 @@ func (r *FederatedRunner) Run(ctx context.Context, suite *evalv1.EvalSuite, tag 
 	}
 	run.Results = results
 	run.Aggregate = aggregate(suite, results, latencies)
+	run.UnavailableCases = unavailable
+	run.Aggregate.UnavailableCases = int32(len(unavailable))
+	if run.Aggregate.GradedCases > 0 {
+		run.Aggregate.PassRate = float64(run.Aggregate.Met) / float64(run.Aggregate.GradedCases)
+	}
+	if len(unavailable) > 0 && run.Aggregate.GradedCases == 0 {
+		run.UnavailableReason = unavailable[0].GetReason()
+	}
 	return run, nil
 }
 

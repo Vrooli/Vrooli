@@ -8,7 +8,7 @@ import (
 
 	"data-backup-manager/internal/module"
 	"data-backup-manager/internal/server"
-	"data-backup-manager/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

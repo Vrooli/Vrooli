@@ -19,11 +19,14 @@ import (
 	"strings"
 	"time"
 
-	"search-hub/internal/clock"
+	aisearch "github.com/vrooli/ai-go/search"
+
 	internaleval "search-hub/internal/eval"
 	"search-hub/internal/httpc"
 	internalmetrics "search-hub/internal/metrics"
 	"search-hub/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -49,19 +52,20 @@ const CircuitOpenQuorumThreshold = internalrouting.CircuitOpenQuorumThreshold
 // it may be nil, in which case no telemetry is recorded. It is injected rather
 // than constructed here so the routing handler stays free of any metrics-store
 // import (the seam-discovery / wiring-edge convention).
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder) module.Module {
 	return ModuleWithRouter(NewRouter(db, clk, logger, recorder), logger)
 }
 
 // NewRouter builds the production router once so the health domain and the
 // RoutingService observe the same breaker state and registry snapshot.
-func NewRouter(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder) *internalrouting.Router {
+func NewRouter(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder) *internalrouting.Router {
 	store := internalregistry.NewSQLiteStore(db, clk)
 	router := internalrouting.NewRouter(internalrouting.Deps{
 		Lister:             store,
 		Resolver:           newScenarioResolver(),
 		Doer:               httpc.NewDefault(),
 		Classifier:         internalrouting.NewOllamaClassifier(),
+		DescriptionIndex:   internalrouting.NewEmbeddingDescriptionIndex(aisearch.NewEmbedder(aisearch.DefaultEmbedModel)),
 		Reranker:           internalrouting.NewDefaultRerankerChain(),
 		Recorder:           recorder,
 		EvalQuality:        newEvalQualityReader(db, clk),
@@ -120,7 +124,7 @@ type evalQualityReader struct {
 	now   func() time.Time
 }
 
-func newEvalQualityReader(db *database.RoutedDB, clk clock.Clock) internalrouting.EvalQualityReader {
+func newEvalQualityReader(db *database.RoutedDB, clk schedule.Clock) internalrouting.EvalQualityReader {
 	return &evalQualityReader{store: internaleval.NewSQLiteStore(db, clk), now: clk.Now}
 }
 

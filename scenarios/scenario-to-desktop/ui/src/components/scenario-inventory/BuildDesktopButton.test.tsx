@@ -90,7 +90,7 @@ vi.mock("../pipeline", () => ({
 }));
 
 import { BuildDesktopButton } from "./BuildDesktopButton";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 function renderButton() {
   return renderWithProviders(<BuildDesktopButton scenarioName="calculator" />);

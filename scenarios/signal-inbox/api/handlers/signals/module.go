@@ -13,11 +13,12 @@ import (
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
 
-	signalsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/signals/signals_v1connect"
-	"signal-inbox/internal/clock"
 	"signal-inbox/internal/enrichment"
 	"signal-inbox/internal/module"
 	internal "signal-inbox/internal/signals"
+
+	"github.com/vrooli/api-core/schedule"
+	signalsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/signals/signals_v1connect"
 )
 
 // Runtime is the single composed capture path shared by interactive capture
@@ -28,7 +29,7 @@ type Runtime struct {
 	Store   blobstore.BlobStore
 }
 
-func NewRuntime(db *database.RoutedDB, clk clock.Clock, hooks ...internal.PostCapture) (Runtime, error) {
+func NewRuntime(db *database.RoutedDB, clk schedule.Clock, hooks ...internal.PostCapture) (Runtime, error) {
 	store, err := defaultBlobStore()
 	if err != nil {
 		return Runtime{}, err
@@ -39,7 +40,7 @@ func NewRuntime(db *database.RoutedDB, clk clock.Clock, hooks ...internal.PostCa
 // NewRuntimeWithRoutedRoots keeps opaque image bytes in the same request-scoped
 // file roots as Test Genie's routed database. Production requests use primary
 // roots; test-mode requests use the active lease's disposable data root.
-func NewRuntimeWithRoutedRoots(db *database.RoutedDB, clk clock.Clock, roots *filerouting.RoutedRoots, hooks ...internal.PostCapture) (Runtime, error) {
+func NewRuntimeWithRoutedRoots(db *database.RoutedDB, clk schedule.Clock, roots *filerouting.RoutedRoots, hooks ...internal.PostCapture) (Runtime, error) {
 	store, err := newRoutedBlobStore(roots)
 	if err != nil {
 		return Runtime{}, err
@@ -47,7 +48,7 @@ func NewRuntimeWithRoutedRoots(db *database.RoutedDB, clk clock.Clock, roots *fi
 	return NewRuntimeWithBlobStore(db, clk, store, hooks...), nil
 }
 
-func NewRuntimeWithBlobStore(db *database.RoutedDB, clk clock.Clock, store blobstore.BlobStore, hooks ...internal.PostCapture) Runtime {
+func NewRuntimeWithBlobStore(db *database.RoutedDB, clk schedule.Clock, store blobstore.BlobStore, hooks ...internal.PostCapture) Runtime {
 	enricher := enrichment.NewService(
 		enrichment.NewSQLiteRepository(db),
 		clk,
@@ -58,7 +59,7 @@ func NewRuntimeWithBlobStore(db *database.RoutedDB, clk clock.Clock, store blobs
 	return Runtime{Service: internal.NewService(internal.NewSQLiteRepository(db, clk), clk, allHooks...), Store: store}
 }
 
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, hooks ...internal.PostCapture) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, hooks ...internal.PostCapture) module.Module {
 	runtime, err := NewRuntime(db, clk, hooks...)
 	if err != nil {
 		logger.Fatalf("signals BlobStore: %v", err)
@@ -66,7 +67,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, hooks ..
 	return ModuleWithRuntime(runtime, logger)
 }
 
-func ModuleWithBlobStore(db *database.RoutedDB, clk clock.Clock, store blobstore.BlobStore, logger *log.Logger, hooks ...internal.PostCapture) module.Module {
+func ModuleWithBlobStore(db *database.RoutedDB, clk schedule.Clock, store blobstore.BlobStore, logger *log.Logger, hooks ...internal.PostCapture) module.Module {
 	return ModuleWithRuntime(NewRuntimeWithBlobStore(db, clk, store, hooks...), logger)
 }
 

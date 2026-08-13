@@ -11,6 +11,7 @@ import (
 	"search-hub/internal/control"
 
 	"github.com/vrooli/api-core/retry"
+	"github.com/vrooli/api-core/scheduletest"
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
 	controlconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control/control_v1connect"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
@@ -119,7 +120,7 @@ func descriptorWithControl() *registryv1.ProviderDescriptor {
 }
 
 func noSleepRetry(maxAttempts int) retry.Config {
-	return retry.Config{MaxAttempts: maxAttempts, Sleeper: func(time.Duration) {}}
+	return retry.Config{MaxAttempts: maxAttempts, Clock: scheduletest.NewImmediate(time.Time{}, nil)}
 }
 
 // --- tests -----------------------------------------------------------------

@@ -9,13 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	apidb "github.com/vrooli/api-core/database"
-	"signal-inbox/internal/clock"
+	db "github.com/vrooli/api-core/databasetest"
 	localdb "signal-inbox/internal/database"
 	"signal-inbox/internal/signals"
-	"signal-inbox/internal/testutil/db"
-	"signal-inbox/internal/testutil/mocks"
+
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 type fakeCapture struct{ seen map[string]bool }
@@ -46,11 +47,11 @@ func (a *adapter) Parse(_ context.Context, _ io.Reader) ([]signals.CaptureInput,
 	return []signals.CaptureInput{{URL: "https://example.test/a"}}, nil
 }
 
-func testService(t *testing.T, adapter Adapter) (*Service, *sqliteRepository, *mocks.FakeClock) {
+func testService(t *testing.T, adapter Adapter) (*Service, *sqliteRepository, *scheduletest.FakeClock) {
 	t.Helper()
 	database := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(Schema)))
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	repo := NewSQLiteRepository(database).(*sqliteRepository)
 	service, err := NewService(repo, &fakeCapture{}, clk, adapter)
 	require.NoError(t, err)
@@ -59,7 +60,7 @@ func testService(t *testing.T, adapter Adapter) (*Service, *sqliteRepository, *m
 
 func TestRegistryRejectsUndeclaredRiskTier(t *testing.T) {
 	t.Log("[REQ:SIG-P0-014]")
-	_, err := NewService(nil, nil, clock.System{}, &adapter{descriptor: Descriptor{ID: "bad", Kind: "test"}})
+	_, err := NewService(nil, nil, schedule.System(), &adapter{descriptor: Descriptor{ID: "bad", Kind: "test"}})
 	require.ErrorAs(t, err, new(ErrInvalidDescriptor))
 }
 

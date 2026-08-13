@@ -30,6 +30,7 @@ var Endpoints = []module.EndpointDescriptor{
 				"all":     "bool — fan out to every active provider",
 				"limit":   "int32 — per-provider result cap (default 10)",
 				"group":   "string — scope to one scenario's leaves",
+				"scope":   "string — optional corpus facet passed to scoped providers",
 				"explain": "bool — include routing rationale",
 			},
 		},

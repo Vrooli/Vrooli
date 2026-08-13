@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"data-backup-manager/internal/destinations"
-	"data-backup-manager/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 )

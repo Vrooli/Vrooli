@@ -19,6 +19,7 @@ const (
 	MeasureFederatedLatency        = "query_telemetry.federated-latency"
 	MeasureDegradedQueryRate       = "query_telemetry.degraded-query-rate"
 	MeasureProviderDegradationRate = "query_telemetry.provider-degradation-rate"
+	MeasureProviderRerankerLeg     = "query_telemetry.provider-reranker-leg"
 )
 
 // RangeInsightsReader is the exact-window telemetry seam used by declared
@@ -83,6 +84,23 @@ func measureSpecs() []measureSpec {
 				},
 			),
 			compute: computeProviderDegradationRate,
+		},
+		{
+			decl: measureDecl(
+				MeasureProviderRerankerLeg,
+				"The active reranker leg most recently observed while serving a provider in a time window.",
+				[]string{
+					"which reranker leg served provider measures-health.measures this week",
+					"is search hub using the cross encoder for provider swarm-manager.records",
+					"show the active reranker leg for a search hub provider",
+				},
+				"active_reranker_leg", "leg", "{active_reranker_leg} active reranker leg for {provider_id} ({window})",
+				map[string]gomeasures.Param{
+					"window":      windowParam,
+					"provider_id": {Name: "provider_id", Type: "string", Required: true},
+				},
+			),
+			compute: computeProviderRerankerLeg,
 		},
 	}
 }
@@ -265,6 +283,31 @@ func computeProviderDegradationRate(ctx context.Context, reader RangeInsightsRea
 	return gomeasures.MeasureResult{
 		Value:      formatRate(rate(degraded, routed)),
 		Provenance: gomeasures.Provenance{ExecutedQuery: rangeQuery(query, rng)},
+	}, nil
+}
+
+func computeProviderRerankerLeg(ctx context.Context, reader RangeInsightsReader, rng gomeasures.Range, params map[string]string) (gomeasures.MeasureResult, error) {
+	providerID := params["provider_id"]
+	insights, err := reader.InsightsRange(ctx, rng.From, rng.To)
+	if err != nil {
+		return gomeasures.MeasureResult{}, err
+	}
+	leg := "none"
+	for _, provider := range insights.ProviderUsage {
+		if provider.ProviderID == providerID {
+			if provider.ActiveRerankerLeg != "" {
+				leg = provider.ActiveRerankerLeg
+			}
+			break
+		}
+	}
+	return gomeasures.MeasureResult{
+		Value: leg,
+		Fields: []map[string]string{{
+			"provider_id":         providerID,
+			"active_reranker_leg": leg,
+		}},
+		Provenance: gomeasures.Provenance{ExecutedQuery: rangeQuery("latest query_telemetry_provider.reranker_leg by provider_id", rng)},
 	}, nil
 }
 

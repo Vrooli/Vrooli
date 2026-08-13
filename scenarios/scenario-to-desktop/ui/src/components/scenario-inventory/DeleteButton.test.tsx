@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DeleteButton } from "./DeleteButton";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 const mocks = vi.hoisted(() => ({ deleteDesktopBuild: vi.fn() }));
 vi.mock("../../lib/api", () => ({

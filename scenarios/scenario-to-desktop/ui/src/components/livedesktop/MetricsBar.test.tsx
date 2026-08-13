@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { useLiveDesktopStore } from "../../store/liveDesktopStore";
 import { MetricsBar } from "./MetricsBar";
 

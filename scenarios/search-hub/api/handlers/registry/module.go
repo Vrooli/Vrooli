@@ -10,9 +10,13 @@ package registry
 
 import (
 	"log"
+	"net/http"
+	"time"
 
-	"search-hub/internal/clock"
+	"search-hub/internal/control"
 	"search-hub/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -25,11 +29,14 @@ import (
 
 // Module returns the registry domain's contribution to the API: the generated
 // RegistryService Connect handler backed by the SQLite store.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, repoRoot string) module.Module {
 	store := internalregistry.NewSQLiteStore(db, clk)
 	connectPath, connectHandler := registryconnect.NewRegistryServiceHandler(NewConnectHandler(Deps{
-		Store:  store,
-		Logger: logger,
+		Store:    store,
+		RepoRoot: repoRoot,
+		Logger:   logger,
+		Control:  control.NewClient(control.NewDiscoveryResolver()),
+		Probe:    HTTPProbe{Resolver: control.NewDiscoveryResolver(), Client: &http.Client{Timeout: 5 * time.Second}},
 	}))
 	return module.Module{
 		Name: "registry",

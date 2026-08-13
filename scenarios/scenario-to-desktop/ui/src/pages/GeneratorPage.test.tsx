@@ -3,7 +3,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { GeneratorPage } from "./GeneratorPage";
 import { useSidebarStore } from "../store/sidebarStore";
-import { renderWithProviders } from "../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 vi.mock("../components/layout", () => ({
   GeneratorLayout: ({ children }: { children: ReactNode }) => (

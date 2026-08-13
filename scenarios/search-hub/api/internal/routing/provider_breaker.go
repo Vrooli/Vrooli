@@ -207,6 +207,12 @@ func (p *providerBreakers) recordResult(id string, hitCount int, degraded, expli
 			s.trigger = "explicit hit recovery"
 			s.routed = 0
 			s.hits = 0
+		} else {
+			// Explicit selection is evidence too. Track zero-yield streaks so
+			// status and operators can see the corpus is producing no hits, but
+			// never demote an explicitly selected provider as a side effect of
+			// the caller's intentional choice.
+			s.emptyStreak++
 		}
 		return
 	}
@@ -267,6 +273,72 @@ func (p *providerBreakers) beginRecoveryProbe(id string, now time.Time) bool {
 	p.mu.Unlock()
 	p.persist(id, snapshot)
 	return true
+}
+
+// beginFailureRecoveryProbe claims the same single probation discipline for a
+// transport circuit whose cooldown elapsed. It intentionally does not use
+// rerankBreaker.allow: that method marks the circuit as probing and the probe's
+// own Query would then reject itself. The recovery query bypasses the normal
+// allow gate after this claim and records success/failure through the normal
+// breaker path.
+func (p *providerBreakers) beginFailureRecoveryProbe(id string, now time.Time) bool {
+	if p == nil {
+		return false
+	}
+	b := p.breaker(id)
+	if b == nil {
+		return false
+	}
+	b.mu.Lock()
+	due := b.open && now.Sub(b.openedAt) >= b.cooldown && !b.probing
+	if due {
+		b.probing = true
+	}
+	b.mu.Unlock()
+	if !due {
+		return false
+	}
+	p.mu.Lock()
+	s := p.stats[id]
+	if s == nil {
+		s = &providerYieldStats{}
+		p.stats[id] = s
+	}
+	if s.probation {
+		p.mu.Unlock()
+		b.mu.Lock()
+		b.probing = false
+		b.mu.Unlock()
+		return false
+	}
+	s.probation = true
+	snapshot := *s
+	p.mu.Unlock()
+	p.persist(id, snapshot)
+	return true
+}
+
+// finishFailureRecoveryProbe releases the shared probation slot when a probe
+// did not reach the normal fan-out result recorder.
+func (p *providerBreakers) finishFailureRecoveryProbe(id string, now time.Time, reason string) {
+	if p == nil {
+		return
+	}
+	b := p.breaker(id)
+	b.mu.Lock()
+	if b.open {
+		b.openedAt = now
+	}
+	b.probing = false
+	b.mu.Unlock()
+	p.mu.Lock()
+	if s := p.stats[id]; s != nil {
+		s.probation = false
+		if strings.TrimSpace(reason) != "" {
+			s.trigger = "failure recovery probe unavailable: " + strings.TrimSpace(reason)
+		}
+	}
+	p.mu.Unlock()
 }
 
 // recoveryProbeFailed releases a probation slot after a transport/degraded

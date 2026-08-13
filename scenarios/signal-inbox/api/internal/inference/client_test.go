@@ -70,6 +70,26 @@ func (fakeRouting) ListProviderHealth(context.Context, *connect.Request[routingv
 	return nil, nil
 }
 
+func (fakeRouting) SubmitMedia(context.Context, *connect.Request[routingv1.SubmitMediaRequest]) (*connect.Response[routingv1.SubmitMediaResponse], error) {
+	return nil, nil
+}
+
+func (fakeRouting) GetMediaExecution(context.Context, *connect.Request[routingv1.GetMediaExecutionRequest]) (*connect.Response[routingv1.GetMediaExecutionResponse], error) {
+	return nil, nil
+}
+
+func (fakeRouting) WaitMediaExecution(context.Context, *connect.Request[routingv1.WaitMediaExecutionRequest]) (*connect.Response[routingv1.WaitMediaExecutionResponse], error) {
+	return nil, nil
+}
+
+func (fakeRouting) CancelMediaExecution(context.Context, *connect.Request[routingv1.CancelMediaExecutionRequest]) (*connect.Response[routingv1.CancelMediaExecutionResponse], error) {
+	return nil, nil
+}
+
+func (fakeRouting) RetryMediaExecution(context.Context, *connect.Request[routingv1.RetryMediaExecutionRequest]) (*connect.Response[routingv1.RetryMediaExecutionResponse], error) {
+	return nil, nil
+}
+
 func equalTasks(got, want []EmbeddingTask) bool {
 	if len(got) != len(want) {
 		return false

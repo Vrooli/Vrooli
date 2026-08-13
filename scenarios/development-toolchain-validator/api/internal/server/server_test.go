@@ -8,7 +8,7 @@ import (
 
 	"development-toolchain-validator/internal/module"
 	"development-toolchain-validator/internal/server"
-	"development-toolchain-validator/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

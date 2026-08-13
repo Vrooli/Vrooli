@@ -10,8 +10,9 @@ import (
 	"log"
 	"net/http"
 
-	"search-hub/internal/clock"
 	"search-hub/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -27,7 +28,7 @@ import (
 // Module returns the metrics domain's contribution to the API: the generated
 // MetricsService Connect handler backed by the SQLite telemetry store and the
 // provider registry store.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	store := internalmetrics.NewSQLiteStore(db, clk)
 	serveHandler, err := MeasuresHandler(store, clk.Now)
 	if err != nil {
@@ -37,9 +38,10 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		logger.Printf("metrics measures registry disabled: %v", err)
 	}
 	connectPath, connectHandler := metricsconnect.NewMetricsServiceHandler(NewConnectHandler(Deps{
-		Insights: store,
-		Lister:   internalregistry.NewSQLiteStore(db, clk),
-		Logger:   logger,
+		Insights:      store,
+		RangeInsights: store,
+		Lister:        internalregistry.NewSQLiteStore(db, clk),
+		Logger:        logger,
 	}))
 	measuresPath, measuresConnectHandler := measuresconnect.NewMeasuresServiceHandler(NewMeasuresConnectHandler(store, clk.Now))
 	return module.Module{
@@ -69,6 +71,6 @@ func Migrate(ctx context.Context, db *database.RoutedDB) error {
 // adapts the metrics SQLite store to routing.TelemetryRecorder at the wiring
 // edge, so internal/metrics never imports internal/routing. The bridge lives in
 // recorder.go.
-func Recorder(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) *TelemetryBridge {
+func Recorder(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) *TelemetryBridge {
 	return NewTelemetryBridge(internalmetrics.NewSQLiteStore(db, clk), logger)
 }

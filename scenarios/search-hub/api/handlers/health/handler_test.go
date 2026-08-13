@@ -9,14 +9,15 @@ import (
 	"net/http"
 	"testing"
 
-	apihealth "github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
 	"search-hub/handlers/health"
-	"search-hub/internal/clock"
 	"search-hub/internal/module"
 	"search-hub/internal/server"
-	"search-hub/internal/testutil/assertx"
-	"search-hub/internal/testutil/httpx"
 	"search-hub/internal/testutil/mocks"
+
+	apihealth "github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/health"
@@ -45,7 +46,7 @@ func (f fakeResourceCheck) Check(context.Context) apihealth.CheckResult {
 // The pattern: spin up a *server.Server with mocked deps, wrap it in
 // httpx.NewLiveServer (real httptest.Server over real socket), issue a
 // real HTTP request, decode JSON straight into the generated proto
-// type via assertx.MustUnmarshalProto, assert on typed fields. Same
+// type via apihttptest.MustUnmarshalProto, assert on typed fields. Same
 // shape every future handler test in this scenario should follow —
 // when the endpoint's wire shape lives in packages/proto/, decode
 // through protojson; when it doesn't yet, MustDecodeJSON is the
@@ -94,15 +95,15 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)
 
 			resp, body := live.Do(t, http.MethodGet, "/health", nil)
-			assertx.AssertStatus(t, resp, tc.wantStatusCode)
+			apihttptest.AssertStatus(t, resp, tc.wantStatusCode)
 
-			got := assertx.MustUnmarshalProto[healthv1.Response](t, body)
+			got := apihttptest.MustUnmarshalProto[healthv1.Response](t, body)
 			require.Equal(t, tc.wantStatus, got.Status, "response.status")
 			require.Equal(t, "react-vite-test", got.Service, "response.service")
 			require.Equal(t, "1.0.0", got.Version, "response.version")
@@ -128,11 +129,11 @@ func TestHealthHandlerSurfacesProviderResourceFailureAsDegraded(t *testing.T) {
 		ResourceChecks: []apihealth.Checker{fakeResourceCheck{err: errors.New("connection refused")}},
 	})
 	mod := module.Module{Name: "health", Mount: func(r *mux.Router) { r.HandleFunc("/health", h).Methods(http.MethodGet) }}
-	srv := server.New(server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)}, mod)
+	srv := server.New(server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)}, mod)
 	live := httpx.NewLiveServer(t, srv)
 	resp, body := live.Do(t, http.MethodGet, "/health", nil)
-	assertx.AssertStatus(t, resp, http.StatusOK)
-	got := assertx.MustUnmarshalProto[healthv1.Response](t, body)
+	apihttptest.AssertStatus(t, resp, http.StatusOK)
+	got := apihttptest.MustUnmarshalProto[healthv1.Response](t, body)
 	require.Equal(t, "degraded", got.Status)
 	require.True(t, got.Readiness, "optional resource failure should remain ready but degraded")
 	require.Contains(t, got.Dependencies, "qdrant")

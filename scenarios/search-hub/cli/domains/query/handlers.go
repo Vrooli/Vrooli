@@ -44,6 +44,7 @@ func (h *handlers) queryCall(ctx cliapp.OperationContext) (*routingv1.QueryRespo
 		Types:   splitTypes(ctx.Flag("type")),
 		All:     ctx.BoolFlag("all"),
 		Group:   strings.TrimSpace(ctx.Flag("group")),
+		Scope:   strings.TrimSpace(ctx.Flag("scope")),
 		Limit:   parseLimit(ctx.Flag("limit")),
 		Explain: ctx.BoolFlag("explain"),
 	}
@@ -97,6 +98,7 @@ func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryRe
 			"`--type <a,b>` — route to specific leaf types (command, doc, record, component…)",
 			"`--all` — fan out to every active provider",
 			"`--group <scenario>` — scope to one scenario's leaves",
+			"`--scope <facet>` — pass a corpus facet to scoped providers",
 			"`--limit <n>` — change the per-provider result cap (default 10)",
 			"`--explain` — show why these providers were chosen",
 			"`providers list` — see every registered provider and its type",

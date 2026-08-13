@@ -14,9 +14,10 @@ import (
 
 	"github.com/google/uuid"
 
-	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
-	"search-hub/internal/clock"
 	internaleval "search-hub/internal/eval"
+
+	"github.com/vrooli/api-core/schedule"
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 )
 
 const (
@@ -24,7 +25,13 @@ const (
 	DefaultCadence     = 7 * 24 * time.Hour
 	DefaultConcurrency = 2
 	DefaultCaseLimit   = 10
-	DefaultTierTimeout = 2 * time.Second
+	// DefaultCaseTimeout bounds one provider call. It is intentionally separate
+	// from the run budget: a ten-case suite must not be canceled after its first
+	// slow-but-valid query.
+	DefaultCaseTimeout   = 5 * time.Second
+	DefaultRunOverhead   = 10 * time.Second
+	DefaultStartupDelay  = 30 * time.Second
+	DefaultStartupJitter = 15 * time.Second
 	// DefaultValidationCadence keeps label drift visible inside the eval
 	// freshness window without probing providers on every scheduler tick.
 	DefaultValidationCadence = 24 * time.Hour
@@ -59,9 +66,16 @@ type Options struct {
 	ValidationCadence time.Duration
 	Concurrency       int
 	CaseLimit         int32
-	TierTimeout       time.Duration
-	Validation        CorpusValidator
-	Logger            *log.Logger
+	CaseTimeout       time.Duration
+	RunTimeout        time.Duration
+	// TierTimeout is retained as a source-compatible alias for operators that
+	// already set SEARCH_HUB_EVAL_SCHEDULER_TIMEOUT; it now means per-case.
+	TierTimeout   time.Duration
+	StartupDelay  time.Duration
+	StartupJitter time.Duration
+	Sleep         func(context.Context, time.Duration) error
+	Validation    CorpusValidator
+	Logger        *log.Logger
 }
 
 func (o Options) withDefaults() Options {
@@ -77,8 +91,41 @@ func (o Options) withDefaults() Options {
 	if o.CaseLimit <= 0 {
 		o.CaseLimit = DefaultCaseLimit
 	}
-	if o.TierTimeout <= 0 {
-		o.TierTimeout = DefaultTierTimeout
+	if o.CaseTimeout <= 0 {
+		o.CaseTimeout = o.TierTimeout
+	}
+	if o.CaseTimeout <= 0 {
+		o.CaseTimeout = DefaultCaseTimeout
+	}
+	if o.RunTimeout <= 0 {
+		o.RunTimeout = o.CaseTimeout*time.Duration(o.CaseLimit) + DefaultRunOverhead
+	}
+	if o.StartupDelay < 0 {
+		o.StartupDelay = 0
+	}
+	if o.StartupDelay == 0 {
+		o.StartupDelay = DefaultStartupDelay
+	}
+	if o.StartupJitter < 0 {
+		o.StartupJitter = 0
+	}
+	if o.StartupJitter == 0 {
+		o.StartupJitter = DefaultStartupJitter
+	}
+	if o.Sleep == nil {
+		o.Sleep = func(ctx context.Context, d time.Duration) error {
+			if d <= 0 {
+				return nil
+			}
+			t := time.NewTimer(d)
+			defer t.Stop()
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-t.C:
+				return nil
+			}
+		}
 	}
 	if o.Logger == nil {
 		o.Logger = log.Default()
@@ -112,14 +159,24 @@ func OptionsFromEnv(logger *log.Logger) Options {
 	}
 	if raw := os.Getenv("SEARCH_HUB_EVAL_SCHEDULER_TIMEOUT"); raw != "" {
 		if value, err := time.ParseDuration(raw); err == nil {
-			o.TierTimeout = value
+			o.CaseTimeout = value
+		}
+	}
+	if raw := os.Getenv("SEARCH_HUB_EVAL_SCHEDULER_STARTUP_DELAY"); raw != "" {
+		if value, err := time.ParseDuration(raw); err == nil {
+			o.StartupDelay = value
+		}
+	}
+	if raw := os.Getenv("SEARCH_HUB_EVAL_SCHEDULER_STARTUP_JITTER"); raw != "" {
+		if value, err := time.ParseDuration(raw); err == nil {
+			o.StartupJitter = value
 		}
 	}
 	return o.withDefaults()
 }
 
 type Scheduler struct {
-	clk       clock.Clock
+	clk       schedule.Clock
 	suites    SuiteSource
 	direct    TierRunner
 	federated TierRunner
@@ -133,7 +190,7 @@ type Scheduler struct {
 	running        bool
 }
 
-func New(clk clock.Clock, suites SuiteSource, direct, federated TierRunner, store RunStore, opts Options) *Scheduler {
+func New(clk schedule.Clock, suites SuiteSource, direct, federated TierRunner, store RunStore, opts Options) *Scheduler {
 	return &Scheduler{clk: clk, suites: suites, direct: direct, federated: federated, store: store, validator: opts.Validation, opts: opts.withDefaults(), lastFire: make(map[string]time.Time), lastValidation: make(map[string]time.Time)}
 }
 
@@ -201,7 +258,7 @@ func (s *Scheduler) validateCorpus(ctx context.Context, suite *evalv1.EvalSuite,
 	if s.validator == nil {
 		return
 	}
-	validationCtx, cancel := context.WithTimeout(ctx, s.opts.TierTimeout)
+	validationCtx, cancel := context.WithTimeout(ctx, s.opts.CaseTimeout)
 	defer cancel()
 	result, err := s.validator.ValidateCorpus(validationCtx, suite, s.opts.CaseLimit)
 	if err != nil {
@@ -239,9 +296,13 @@ func (s *Scheduler) runTier(ctx context.Context, runner TierRunner, suite *evalv
 	if runner == nil {
 		return
 	}
-	tierCtx, cancel := context.WithTimeout(ctx, s.opts.TierTimeout)
+	runBudget := s.opts.RunTimeout
+	if runBudget <= 0 {
+		runBudget = s.opts.CaseTimeout*time.Duration(s.opts.CaseLimit) + DefaultRunOverhead
+	}
+	tierCtx, cancel := context.WithTimeout(ctx, runBudget)
 	defer cancel()
-	run, err := runner.Run(tierCtx, suite, schedulerRunTag+":"+tier, s.opts.CaseLimit)
+	run, err := runner.Run(internaleval.WithCaseTimeout(tierCtx, s.opts.CaseTimeout), suite, schedulerRunTag+":"+tier, s.opts.CaseLimit)
 	if err != nil {
 		s.opts.Logger.Printf("eval scheduler: suite %q tier %s failed: %v", suite.GetSuiteId(), tier, err)
 		s.persistDegraded(ctx, suite, tier, err)
@@ -277,7 +338,14 @@ func (s *Scheduler) persistDegraded(ctx context.Context, suite *evalv1.EvalSuite
 func (s *Scheduler) Run(ctx context.Context) {
 	ticker := time.NewTicker(s.opts.Cadence)
 	defer ticker.Stop()
-	_ = s.Tick(ctx) // produce the first unattended cycle immediately
+	delay := s.opts.StartupDelay
+	if s.opts.StartupJitter > 0 {
+		delay += time.Duration(s.clk.Now().UnixNano() % int64(s.opts.StartupJitter))
+	}
+	if err := s.opts.Sleep(ctx, delay); err != nil {
+		return
+	}
+	_ = s.Tick(ctx) // first cycle is delayed to let dependencies settle
 	for {
 		select {
 		case <-ctx.Done():

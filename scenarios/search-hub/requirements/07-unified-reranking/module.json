@@ -9,7 +9,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "core",
-      "description": "The reranker scores the fused shortlist into one comparable ranked list across providers, behind a Reranker interface. rerank-on vs rerank-off MRR is reported on each provider's search.json golden corpus to justify its cost.",
+      "description": "The reranker scores the fused shortlist into one comparable ranked list across providers, behind a Reranker interface. The declared rerank_preference and active leg are observable, and rerank-on vs rerank-off MRR is reported on each provider's search.json golden corpus to justify its cost.",
       "validation": [
         {
           "type": "test",

@@ -6,9 +6,9 @@ import (
 
 	localdb "content-desk/internal/database"
 	"content-desk/internal/posttypes"
-	"content-desk/internal/testutil/db"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func TestActivationEvaluatesEveryCriterion(t *testing.T) {

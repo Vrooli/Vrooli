@@ -4,8 +4,64 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "search-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "4c5a5ff7d8c081f720322cec22f5ed69f30ab4c0387da046fed7bac5f95df1c5",
+  "manifest_hash": "66b19688a118c1c33ed9f4e7df6334c35c87b083ef99cfeb5050263c47949a94",
   "commands": [
+    {
+      "path": "embedding abort",
+      "group": "embedding",
+      "command": "abort",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "embedding apply-shadow",
+      "group": "embedding",
+      "command": "apply-shadow",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "embedding cutover",
+      "group": "embedding",
+      "command": "cutover",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "embedding inventory",
+      "group": "embedding",
+      "command": "inventory",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "embedding record-compare",
+      "group": "embedding",
+      "command": "record-compare",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "embedding retarget-plan",
+      "group": "embedding",
+      "command": "retarget-plan",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "embedding rollback",
+      "group": "embedding",
+      "command": "rollback",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
     {
       "path": "evals compare",
       "group": "evals",

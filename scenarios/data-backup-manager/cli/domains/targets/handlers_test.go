@@ -15,7 +15,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
 
-	"data-backup-manager/cli/internal/testutil"
+	testutil "github.com/vrooli/cli-core/cliapptest"
 )
 
 // stubTargetsService is an in-test TargetsServiceHandler that records the

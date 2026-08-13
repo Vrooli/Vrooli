@@ -30,6 +30,11 @@ const defaultClassifierRole = "classify.routing"
 // object ({"provider_ids":[…],"confidence":…}); 256 is ample headroom.
 const classifierMaxTokens = 256
 
+const (
+	classifierMaxProfiles         = 64
+	classifierMaxDescriptionBytes = 12000
+)
+
 // generateFn shells out one completion (via internal/ollama). Seamed so tests
 // inject a deterministic runner instead of the real model.
 type generateFn func(ctx context.Context, role, prompt string, maxTokens int) ([]byte, error)
@@ -183,8 +188,31 @@ func buildClassifierPrompt(query string, profiles []ProviderProfile) string {
 	var b strings.Builder
 	b.WriteString("You are a search router. Choose which registered corpus leaves can answer the user's query.\n")
 	b.WriteString("Available corpus leaves (provider_id — type/group — what it holds):\n")
+	descriptions := 0
+	truncated := false
+	for i, p := range profiles {
+		if i >= classifierMaxProfiles || descriptions >= classifierMaxDescriptionBytes {
+			truncated = true
+			break
+		}
+		description := p.Description
+		remaining := classifierMaxDescriptionBytes - descriptions
+		if len(description) > remaining {
+			description = description[:remaining]
+			truncated = true
+		}
+		fmt.Fprintf(&b, "- %s — %s/%s — %s\n", p.ProviderID, p.Type, p.Group, description)
+		descriptions += len(description)
+	}
+	if truncated {
+		fmt.Fprintf(&b, "- [candidate descriptions truncated at %d bytes / %d leaves; omitted candidates are handled by bounded recall fallback]\n", classifierMaxDescriptionBytes, classifierMaxProfiles)
+	}
 	for _, p := range profiles {
-		fmt.Fprintf(&b, "- %s — %s/%s — %s\n", p.ProviderID, p.Type, p.Group, p.Description)
+		if len(p.OmittedProviderIDs) == 0 {
+			continue
+		}
+		fmt.Fprintf(&b, "- [omitted provider_ids: %s]\n", strings.Join(p.OmittedProviderIDs, ", "))
+		break
 	}
 	b.WriteString("\nRules:\n")
 	b.WriteString("- Return EVERY provider_id that could plausibly contain a relevant result; prefer recall over precision.\n")

@@ -1,7 +1,7 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DebugJsonModal } from "./DebugJsonModal";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { usePipelineStore } from "../../store";
 import { writeToClipboard } from "../../lib/browser";
 

@@ -1,7 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AppCard } from "./AppCard";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import type { DesktopRecordItemView } from "./recordPresentation";
 
 vi.mock("./SigningBadge", () => ({

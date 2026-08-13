@@ -70,6 +70,7 @@ func (b *TelemetryBridge) Record(ctx context.Context, s internalrouting.Telemetr
 		FanoutLatencyMs:         s.FanoutLatencyMs,
 		RerankLatencyMs:         s.RerankLatencyMs,
 		RerankCandidateCount:    s.RerankCandidateCount,
+		RerankerLeg:             s.RerankerLeg,
 		ResponseDegradeReason:   s.ResponseDegradeReason,
 	}); err != nil {
 		b.logger.Printf("metrics.TelemetryBridge.Record: %v", err)

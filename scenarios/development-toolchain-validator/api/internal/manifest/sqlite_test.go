@@ -7,7 +7,7 @@ import (
 	"time"
 
 	manifest "development-toolchain-validator/internal/manifest"
-	"development-toolchain-validator/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 

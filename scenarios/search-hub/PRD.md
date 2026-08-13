@@ -27,6 +27,7 @@
 - [ ] OT-P0-004 | Operator-friendly output | CLI names the corpora searched, per-corpus counts, expansion hints (`--all`/`--type`/`--limit`), and provenance on every hit; `--json` shape is stable for scripting.
 - [ ] OT-P0-005 | Routing accuracy (make-or-break) | Against labeled `testdata/routing_queries.json`, automatic routing achieves **recall ≥ 0.85** (uncertain ⇒ widen, not narrow); precision reported. `--type`/`--all` always override.
 - [ ] OT-P0-006 | Thin-router boundary held | Architectural tests prove no qdrant import / no corpus tables, and that adding a fixture provider requires only a registry row (no router source change).
+- [ ] OT-P0-007 | Bounded description retrieval | Automatic routing retrieves a bounded provider-description shortlist through the shared embedding contract and names `routing_index_unavailable` when it falls back to deterministic enumeration.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Unified cross-provider ranking | Cross-encoder/LLM reranker fuses heterogeneous candidates into one comparable ranked list; rerank-on vs rerank-off MRR reported to justify its cost. Falls back to by-provider grouping + `degraded` flag when the reranker is unavailable.
@@ -35,6 +36,7 @@
 - [ ] OT-P1-004 | Gap corpora tracked | Every corpus with no search yet (scenarios, resources, code, contracts, runs, git-provenance, requirements, config, domain-map, metrics) is a `CAPABILITY_GAP` registry stub visible in `providers list`/`status` as the live Track-A checklist.
 - [ ] OT-P1-005 | Search UI | Query box, bucket/type facets, expand-search, per-result provenance + provider freshness, loading/error/empty states. Focused UI coverage exists; scenario-level certification remains pending.
 - [ ] OT-P1-006 | Honest provider signals | Provider lifecycle, eval quality/error outcomes, junk-leak withholding, circuit-open quorum, index-age reasons, resolver-cache telemetry, and report-only registry hygiene are exposed through generic descriptors, status, insights, and metrics seams. Code-layer coverage exists; live substrate certification remains pending.
+- [ ] OT-P1-007 | Safe embedding migration | Search Hub exposes inventory, shadow reindex, eval-gated cutover, abort, and pointer-only rollback without writing into a live collection.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | External-scope providers | The descriptor carries `scope=EXTERNAL` from day one; register paid/external corpora (papers, web) through the identical contract.

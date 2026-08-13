@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ServicesReadinessGrid } from "./ServicesReadinessGrid";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 describe("ServicesReadinessGrid", () => {
   it("shows ready service links, timestamps, and configured health endpoint", () => {

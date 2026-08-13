@@ -101,15 +101,22 @@ func defaultFactory(baseURL string) controlconnect.SearchControlServiceClient {
 
 // Reindex starts an async reconcile on the provider behind d's reindex_endpoint.
 func (c *Client) Reindex(ctx context.Context, d *registryv1.ProviderDescriptor, controlToken, scope string, dryRun bool) (*controlv1.ReindexResponse, error) {
+	return c.ReindexRequest(ctx, d, controlToken, &controlv1.ReindexRequest{Scope: scope, DryRun: dryRun})
+}
+
+// ReindexRequest sends an additive provider-owned action through the same
+// declared reindex endpoint and token gate as ordinary reindexing. The registry
+// service uses this server-side so operator clients never receive provider
+// control tokens.
+func (c *Client) ReindexRequest(ctx context.Context, d *registryv1.ProviderDescriptor, controlToken string, request *controlv1.ReindexRequest) (*controlv1.ReindexResponse, error) {
 	cl, err := c.clientFor(ctx, d.GetReindexEndpoint())
 	if err != nil {
 		return nil, err
 	}
 	var out *controlv1.ReindexResponse
 	err = c.call(ctx, func() error {
-		resp, err := cl.Reindex(ctx, connect.NewRequest(&controlv1.ReindexRequest{
-			Scope: scope, DryRun: dryRun, ControlToken: controlToken,
-		}))
+		request.ControlToken = controlToken
+		resp, err := cl.Reindex(ctx, connect.NewRequest(request))
 		if err != nil {
 			return err
 		}

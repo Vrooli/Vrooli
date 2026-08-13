@@ -38,6 +38,13 @@ type Service struct {
 	// from explicit components (NewService, used by tests) has no builder and is
 	// not tuning-rebuildable.
 	rebuild func(pkg.TuningConfig) *engine
+	// buildShadow assembles an isolated engine over a provider-owned shadow
+	// collection. It is intentionally kept beside rebuild so the migration path
+	// uses the same source, embedding and schema construction as production.
+	buildShadow func(pkg.EmbeddingPolicy, string) *engine
+	shadowJobs  map[string]*pkg.Service
+	shadows     map[string]*engine
+	retained    *engine
 }
 
 // current returns the live engine under the read lock.
@@ -177,21 +184,134 @@ func NewTunedService(tuning pkg.TuningConfig, opts TunedOptions) *Service {
 	if opts.Collection == "" {
 		opts.Collection = DefaultCollection
 	}
-	opts.EngineDeps.Collection = opts.Collection
-	build := func(t pkg.TuningConfig) *engine {
-		te := pkg.NewServiceForTuning(t, opts.EngineDeps)
+	buildWith := func(t pkg.TuningConfig, deps pkg.EngineDeps, collection string) *engine {
+		deps.Collection = collection
+		te := pkg.NewServiceForTuning(t, deps)
 		eng := buildEngineFromBase(te.ServiceOptions(), Options{
 			Provider:         opts.Provider,
 			Lister:           opts.Lister,
 			Parallelism:      opts.Parallelism,
 			MaxEmbedsPerTick: opts.MaxEmbedsPerTick,
 			Compose:          opts.Compose,
-			Collection:       opts.Collection,
+			Collection:       collection,
 		})
 		eng.spec = te.Spec
 		return eng
 	}
-	return &Service{eng: build(tuning), rebuild: build}
+	build := func(t pkg.TuningConfig) *engine { return buildWith(t, opts.EngineDeps, opts.Collection) }
+	shadow := func(target pkg.EmbeddingPolicy, collection string) *engine {
+		deps := opts.EngineDeps
+		deps.EmbedRole = target.Role
+		deps.EmbedModel = target.Model
+		deps.EmbedDimensions = target.Dimensions
+		deps.EmbedPolicySchemaVersion = target.PolicySchemaVersion
+		shadowTuning := tuning.WithDefaults()
+		shadowTuning.EmbedModel = target.Model
+		return buildWith(shadowTuning, deps, collection)
+	}
+	return &Service{
+		eng:         build(tuning),
+		rebuild:     build,
+		buildShadow: shadow,
+		shadowJobs:  make(map[string]*pkg.Service),
+		shadows:     make(map[string]*engine),
+	}
+}
+
+// ShadowRequest describes a provider-owned, additive reindex. The live engine
+// is never modified by this operation.
+type ShadowRequest struct {
+	Collection string
+	Embedding  pkg.EmbeddingPolicy
+	Scope      string
+	DryRun     bool
+}
+
+// ReindexShadow creates and reconciles a suffixed collection using the target
+// embedding policy. It returns the normal reindex job so callers can report
+// progress through the existing status/cancel control plane.
+func (s *Service) ReindexShadow(ctx context.Context, req ShadowRequest) (*pkg.ReindexJob, error) {
+	s.mu.RLock()
+	build := s.buildShadow
+	s.mu.RUnlock()
+	if build == nil {
+		return nil, errors.New("aisearch: shadow reindex is unavailable for this service")
+	}
+	if strings.TrimSpace(req.Collection) == "" || req.Embedding.Dimensions <= 0 || strings.TrimSpace(req.Embedding.Model) == "" {
+		return nil, errors.New("aisearch: shadow reindex requires collection, model and positive dimensions")
+	}
+	shadowCollection := strings.TrimSpace(req.Collection)
+	next := build(req.Embedding, shadowCollection)
+	if err := next.vectorStore.EnsureCollection(ctx, next.spec); err != nil {
+		return nil, fmt.Errorf("shadow reindex: ensure collection: %w", err)
+	}
+	job, err := next.svc.Reindex(ctx, req.Scope, req.DryRun)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	s.shadows[shadowCollection] = next
+	s.shadowJobs[job.ID] = next.svc
+	s.mu.Unlock()
+	return job, nil
+}
+
+// ActivateShadow switches the provider's read pointer to a completed shadow
+// engine and retains the prior engine for pointer-only rollback.
+func (s *Service) ActivateShadow(ctx context.Context, shadowCollection string) error {
+	shadowCollection = strings.TrimSpace(shadowCollection)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	next, ok := s.shadows[shadowCollection]
+	if !ok {
+		return fmt.Errorf("shadow collection %q is not known to this process", shadowCollection)
+	}
+	// The registry proxy and CLI are intentionally retry-safe. A cutover may
+	// already have been accepted by the provider before the caller receives the
+	// response, so repeating the same pointer move must not overwrite the
+	// retained live engine with the shadow itself.
+	if s.eng == next || (s.eng != nil && s.eng.spec.Name == shadowCollection) {
+		return nil
+	}
+	if job := latestShadowJob(s.shadowJobs, next.svc); job != nil && job.State != "succeeded" {
+		return fmt.Errorf("shadow collection %q is not ready: reindex job %q is %s", shadowCollection, job.ID, job.State)
+	}
+	if err := next.vectorStore.EnsureCollection(ctx, next.spec); err != nil {
+		return fmt.Errorf("activate shadow: verify collection: %w", err)
+	}
+	s.retained = s.eng
+	s.eng = next
+	return nil
+}
+
+// RollbackShadow restores the retained engine without touching either vector
+// collection. The shadow remains available for inspection until explicitly
+// aborted by the operator.
+func (s *Service) RollbackShadow(_ context.Context, oldCollection string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.retained == nil {
+		return errors.New("aisearch: no retained engine is available for rollback")
+	}
+	if oldCollection != "" && s.retained.spec.Name != oldCollection {
+		return fmt.Errorf("aisearch: retained collection is %q, not %q", s.retained.spec.Name, oldCollection)
+	}
+	s.eng, s.retained = s.retained, s.eng
+	return nil
+}
+
+func latestShadowJob(jobs map[string]*pkg.Service, service *pkg.Service) *pkg.ReindexJob {
+	var latest *pkg.ReindexJob
+	for _, candidate := range jobs {
+		if candidate != service {
+			continue
+		}
+		job, ok := candidate.ReindexStatus("")
+		if ok && (latest == nil || job.StartedAt.After(latest.StartedAt)) {
+			latest = job
+		}
+	}
+	return latest
 }
 
 // Reconciler exposes the current engine's reconciler (the sync loop resolves it
@@ -206,10 +326,27 @@ func (s *Service) Reindex(ctx context.Context, scenario string, dryRun bool) (*p
 }
 
 func (s *Service) ReindexStatus(jobID string) (*pkg.ReindexJob, bool) {
-	return s.current().svc.ReindexStatus(jobID)
+	if job, ok := s.current().svc.ReindexStatus(jobID); ok {
+		return job, true
+	}
+	s.mu.RLock()
+	shadow := s.shadowJobs[jobID]
+	s.mu.RUnlock()
+	if shadow == nil {
+		return nil, false
+	}
+	return shadow.ReindexStatus(jobID)
 }
 
-func (s *Service) ReindexCancel(jobID string) bool { return s.current().svc.ReindexCancel(jobID) }
+func (s *Service) ReindexCancel(jobID string) bool {
+	if s.current().svc.ReindexCancel(jobID) {
+		return true
+	}
+	s.mu.RLock()
+	shadow := s.shadowJobs[jobID]
+	s.mu.RUnlock()
+	return shadow != nil && shadow.ReindexCancel(jobID)
+}
 
 func (s *Service) JobExport(job *pkg.ReindexJob) map[string]any {
 	return s.current().svc.JobExport(job)

@@ -6,15 +6,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"signal-inbox/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 type Service struct {
 	repo  Repository
-	clock clock.Clock
+	clock schedule.Clock
 }
 
-func NewService(repo Repository, clk clock.Clock) *Service { return &Service{repo, clk} }
+func NewService(repo Repository, clk schedule.Clock) *Service { return &Service{repo, clk} }
 func (s *Service) Get(ctx context.Context, id string) (Disposition, []Annotation, error) {
 	d, ok, e := s.repo.GetDisposition(ctx, id)
 	if e != nil {

@@ -35,7 +35,30 @@ func TestMeasureRegistryDeclarations(t *testing.T) {
 		handler.MeasureFederatedLatency,
 		handler.MeasureDegradedQueryRate,
 		handler.MeasureProviderDegradationRate,
+		handler.MeasureProviderRerankerLeg,
 	}, names)
+}
+
+func TestMeasureRegistryExecutesProviderRerankerLeg(t *testing.T) {
+	reader := &fakeRangeInsights{out: &internalmetrics.Insights{
+		ProviderUsage: []internalmetrics.ProviderUsage{
+			{ProviderID: "search.provider", ActiveRerankerLeg: "cross-encoder:bge"},
+		},
+	}}
+	reg, err := handler.NewMeasureRegistry(reader, fixedMeasureNow)
+	require.NoError(t, err)
+
+	got, err := reg.Execute(context.Background(), gomeasures.MeasureRequest{
+		Measure: handler.MeasureProviderRerankerLeg,
+		Params: map[string]string{
+			"window":      string(gomeasures.TokenThisWeek),
+			"provider_id": "search.provider",
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "cross-encoder:bge", got.Value)
+	require.Equal(t, "search.provider", got.Fields[0]["provider_id"])
+	require.Contains(t, got.Provenance.ExecutedQuery, "reranker_leg")
 }
 
 func TestMeasureRegistryExecutesFederatedLatency(t *testing.T) {

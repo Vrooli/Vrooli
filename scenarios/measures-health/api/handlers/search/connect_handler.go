@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -27,6 +28,7 @@ const maxSearchLimit = 10
 type Searcher interface {
 	Query(ctx context.Context, question string, limit int) ([]*measures.MeasureHit, string, error)
 	Status(ctx context.Context) (available, ollama, qdrant bool, indexed int, matcher string)
+	IndexTimestamp() time.Time
 }
 
 // Deps wires the Connect search handler.
@@ -86,11 +88,12 @@ func (h *connectHandler) Status(ctx context.Context, _ *connect.Request[searchv1
 	}
 	available, ollama, qdrant, indexed, matcher := h.deps.Searcher.Status(ctx)
 	return connect.NewResponse(&searchv1.StatusResponse{
-		Available:    available,
-		Ollama:       ollama,
-		Qdrant:       qdrant,
-		IndexedCount: int32(indexed),
-		Matcher:      matcher,
+		Available:     available,
+		Ollama:        ollama,
+		Qdrant:        qdrant,
+		IndexedCount:  int32(indexed),
+		Matcher:       matcher,
+		LastIndexedAt: h.deps.Searcher.IndexTimestamp().UTC().Format(time.RFC3339Nano),
 	}), nil
 }
 

@@ -706,7 +706,7 @@ func (s *Service) validateEvalEvidence(ctx context.Context, report *Report, prov
 		return
 	}
 	evidence.CorpusStatus = "registered"
-	runs, err := s.EvalStore.ListRuns(ctx, internaleval.ListRunsFilter{SuiteID: suiteID, Limit: 1})
+	runs, err := s.EvalStore.ListRuns(ctx, internaleval.ListRunsFilter{SuiteID: suiteID, Limit: 20})
 	if err != nil {
 		evidence.Freshness = "unavailable"
 		evidence.FailureReason = err.Error()
@@ -732,7 +732,53 @@ func (s *Service) validateEvalEvidence(ctx context.Context, report *Report, prov
 		})
 		return
 	}
-	lastRun := runs[0]
+	// A newer all-unavailable run is availability evidence, not retrieval
+	// evidence. Keep it visible as an advisory, then select the newest run with
+	// at least one graded case for quality, latency, and freshness arithmetic.
+	newestRun := runs[0]
+	var lastRun *evalv1.EvalRun
+	for _, candidate := range runs {
+		if candidate != nil && (runGradedCases(candidate) > 0 || hasInformationalResults(candidate)) {
+			lastRun = candidate
+			break
+		}
+	}
+	if lastRun == nil {
+		reason := strings.TrimSpace(newestRun.GetUnavailableReason())
+		if reason == "" && len(newestRun.GetUnavailableCases()) > 0 {
+			reason = newestRun.GetUnavailableCases()[0].GetReason()
+		}
+		if reason == "" {
+			reason = newestRun.GetDegradedReason()
+		}
+		evidence.LastRunID = newestRun.GetRunId()
+		evidence.LastRunAt = newestRun.GetCreatedAt()
+		evidence.Freshness = "unavailable"
+		evidence.FailureReason = reason
+		report.add(Finding{
+			Code:        CodeEvalUnavailable,
+			Severity:    SeverityWarning,
+			Title:       "Search eval quality evidence is unavailable",
+			Message:     fmt.Sprintf("latest eval run %q contains no graded cases; infrastructure reason: %s", newestRun.GetRunId(), reason),
+			Location:    providerPath + ".tests.suite_id",
+			Remediation: "Restore the provider or serving substrate, then rerun the eval suite; this run is excluded from quality arithmetic.",
+		})
+		return
+	}
+	if newestRun != lastRun && runGradedCases(newestRun) == 0 {
+		reason := strings.TrimSpace(newestRun.GetUnavailableReason())
+		if reason == "" && len(newestRun.GetUnavailableCases()) > 0 {
+			reason = newestRun.GetUnavailableCases()[0].GetReason()
+		}
+		report.add(Finding{
+			Code:        CodeEvalUnavailable,
+			Severity:    SeverityWarning,
+			Title:       "Newest search eval run was infrastructure-unavailable",
+			Message:     fmt.Sprintf("newest run %q was excluded from quality evidence; infrastructure reason: %s", newestRun.GetRunId(), reason),
+			Location:    providerPath + ".tests.suite_id",
+			Remediation: "Restore the provider or serving substrate; the validator selected the newest graded run instead.",
+		})
+	}
 	evidence.LastRunID = lastRun.GetRunId()
 	evidence.LastRunAt = lastRun.GetCreatedAt()
 	if runLeakedJunk(lastRun) {
@@ -883,6 +929,53 @@ func (s *Service) validateEvalEvidence(ctx context.Context, report *Report, prov
 	evidence.CorpusStatus = "live"
 }
 
+func runGradedCases(run *evalv1.EvalRun) int {
+	if run == nil {
+		return 0
+	}
+	if graded := int(run.GetAggregate().GetGradedCases()); graded > 0 {
+		return graded
+	}
+	count := 0
+	unknown := 0
+	informational := 0
+	for _, result := range run.GetResults() {
+		if isGradedOutcome(result.GetOutcome()) {
+			count++
+		} else if result.GetOutcome() == "" {
+			unknown++
+		} else if result.GetOutcome() == "n/a" {
+			informational++
+		}
+	}
+	if count == 0 && unknown > 0 {
+		// Runs written before the explicit outcome vocabulary may have results
+		// without labels. Preserve their historical evidence unless they carry
+		// an explicit unavailable case.
+		if len(run.GetUnavailableCases()) == 0 {
+			return unknown
+		}
+	}
+	if count == 0 && informational > 0 && len(run.GetUnavailableCases()) == 0 {
+		// External smoke suites intentionally produce n/a labels: reachability
+		// is the evidence, not deterministic recall.
+		return informational
+	}
+	return count
+}
+
+func hasInformationalResults(run *evalv1.EvalRun) bool {
+	if run == nil || len(run.GetUnavailableCases()) > 0 {
+		return false
+	}
+	for _, result := range run.GetResults() {
+		if result.GetOutcome() == "n/a" || result.GetOutcome() == "" {
+			return true
+		}
+	}
+	return false
+}
+
 func runHasSmokeEvidence(suite *evalv1.EvalSuite, run *evalv1.EvalRun) bool {
 	smokeCases := make(map[string]bool)
 	for _, c := range suite.GetCases() {
@@ -997,12 +1090,12 @@ func validatePerformanceBudget(report *Report, providerPath, class string, extra
 			Remediation: "Run the eval suite so Search Hub records p95 latency, or clear telemetry_required if this provider cannot be measured.",
 		})
 	}
-	if minimumSamples := perf.MinimumSamples; minimumSamples > 0 && len(lastRun.GetResults()) < minimumSamples {
+	if minimumSamples := perf.MinimumSamples; minimumSamples > 0 && runGradedCases(lastRun) < minimumSamples {
 		report.add(Finding{
 			Code:        CodePerfSamplesUnproven,
 			Severity:    SeverityError,
 			Title:       "Search provider performance sample is too small",
-			Message:     fmt.Sprintf("latest run evaluated %d case(s), below the declared minimum sample of %d for %s.", len(lastRun.GetResults()), minimumSamples, class),
+			Message:     fmt.Sprintf("latest run evaluated %d graded case(s), below the declared minimum sample of %d for %s.", runGradedCases(lastRun), minimumSamples, class),
 			Location:    providerPath + ".performance.minimum_samples",
 			Remediation: "Expand the reviewed, provider-owned corpus and run it again so latency and degradation evidence represent the declared SLO.",
 		})
@@ -1039,6 +1132,9 @@ func degradedRate(suite *evalv1.EvalSuite, run *evalv1.EvalRun) (float64, bool) 
 		if excluded[r.GetCaseId()] {
 			continue
 		}
+		if r.GetOutcome() == "unavailable" || r.GetOutcome() == "error" || r.GetOutcome() == "n/a" {
+			continue
+		}
 		total++
 		if len(r.GetTop()) == 0 {
 			degraded++
@@ -1048,6 +1144,15 @@ func degradedRate(suite *evalv1.EvalSuite, run *evalv1.EvalRun) (float64, bool) 
 		return 0, false
 	}
 	return float64(degraded) / float64(total), true
+}
+
+func isGradedOutcome(outcome string) bool {
+	switch outcome {
+	case "met", "below_expectation", "above_expectation", "unexpected_hit", "answered_by_sibling", "misrouted", "thin_margin":
+		return true
+	default:
+		return false
+	}
 }
 
 // tuningDrift returns a human description of the first index/query tuning factor

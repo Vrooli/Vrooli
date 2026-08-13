@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLiveDesktopStore } from "../../store/liveDesktopStore";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { VncCanvas } from "./VncCanvas";
 
 const { rfbInstances, buildVncWsUrlMock } = vi.hoisted(() => ({

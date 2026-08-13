@@ -5,19 +5,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 	localdb "signal-inbox/internal/database"
 	"signal-inbox/internal/signals"
-	"signal-inbox/internal/testutil/db"
-	"signal-inbox/internal/testutil/mocks"
+
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newTriage(t *testing.T) (*Service, signals.Service) {
 	t.Helper()
 	database := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(signals.Schema), apidb.SchemaProviderFunc(Schema)))
-	clock := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clock := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	return NewService(NewSQLiteRepository(database), clock), signals.NewService(signals.NewSQLiteRepository(database, clock), clock)
 }
 

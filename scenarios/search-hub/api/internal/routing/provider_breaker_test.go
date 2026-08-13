@@ -75,6 +75,33 @@ func TestProviderBreakersDemoteZeroYieldAndRestoreExplicitHit(t *testing.T) {
 	require.True(t, p.eligibleAutomatic("leaf", time.Now()))
 }
 
+func TestProviderBreakersTrackExplicitZeroYieldWithoutDemoting(t *testing.T) {
+	p := newProviderBreakers(rerankBreakerConfig{FailureThreshold: 3, Cooldown: time.Minute})
+	for i := int64(0); i < defaultZeroYieldMinimumRoutes; i++ {
+		p.recordResult("leaf", 0, false, true, time.Now())
+	}
+	state := p.state("leaf")
+	require.NotNil(t, state)
+	require.EqualValues(t, defaultZeroYieldMinimumRoutes, state.emptyStreak)
+	require.False(t, state.demoted, "explicit callers must never trigger automatic demotion")
+}
+
+func TestProviderBreakersFailureRecoveryProbeClaimsAndReleasesSlot(t *testing.T) {
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
+	p := newProviderBreakers(rerankBreakerConfig{FailureThreshold: 1, Cooldown: time.Minute})
+	p.openImmediately("leaf", now)
+	require.False(t, p.beginFailureRecoveryProbe("leaf", now.Add(30*time.Second)))
+	require.True(t, p.beginFailureRecoveryProbe("leaf", now.Add(time.Minute)))
+	require.False(t, p.beginFailureRecoveryProbe("leaf", now.Add(time.Minute)))
+	p.finishFailureRecoveryProbe("leaf", now.Add(time.Minute), "probe failed")
+	state := p.state("leaf")
+	require.NotNil(t, state)
+	require.False(t, state.probation)
+	open, note := p.status("leaf", now.Add(time.Minute+time.Second))
+	require.True(t, open)
+	require.Contains(t, note, "circuit open")
+}
+
 func TestProviderBreakersIgnoreDegradedZeroHitForDemotion(t *testing.T) {
 	p := newProviderBreakers(rerankBreakerConfig{FailureThreshold: 3, Cooldown: time.Minute})
 	for i := int64(0); i < defaultZeroYieldMinimumRoutes+2; i++ {

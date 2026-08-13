@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
-import { renderWithProviders } from '../../test-utils/renderWithProviders';
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { Button } from './button';
 
 describe('Button Component', () => {

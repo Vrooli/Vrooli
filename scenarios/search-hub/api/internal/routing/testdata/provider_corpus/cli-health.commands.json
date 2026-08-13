@@ -31,6 +31,7 @@
       "headers": { "Content-Type": "application/json" }
     }
   },
+  "index_timestamp_field": "last_indexed_at",
   "scope": "SCOPE_PROJECT",
   "state": "PROVIDER_STATE_ACTIVE"
 }

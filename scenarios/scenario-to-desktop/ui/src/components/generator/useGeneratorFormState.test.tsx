@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useGeneratorFormState } from "./useGeneratorFormState";
-import { createHookWrapper } from "../../test-utils/renderWithProviders";
+import { createHookWrapper } from "@vrooli/api-base/testing";
 import { useFormStore, usePipelineStore } from "../../store";
 
 vi.mock("../../lib/api", async (importOriginal) => {

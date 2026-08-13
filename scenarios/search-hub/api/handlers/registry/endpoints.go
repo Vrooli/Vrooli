@@ -70,6 +70,20 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "embedding_migration_execute",
+		Path:        registryconnect.RegistryServiceExecuteEmbeddingMigrationProcedure,
+		Method:      "POST",
+		Summary:     "Execute an authenticated provider embedding migration action",
+		Description: "Proxies a shadow, status, cutover, or rollback action through the provider's declared reindex endpoint while retaining the provider control token inside Search Hub.",
+		Category:    "registry",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"provider_id": "string (required)", "action": "string (shadow|status|cutover|rollback)", "job_id": "string (status only)",
+			"shadow_collection": "string", "rollback_collection": "string", "embedding_model": "string", "embedding_role": "string", "embedding_dimensions": "int32", "embedding_policy_schema_version": "string", "scope": "string", "dry_run": "boolean",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"job_id": "string", "state": "string", "planned_upserts": "int32", "planned_deletes": "int32", "processed": "int32", "total": "int32", "error": "string"}},
+		Errors:   []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Provider control endpoint failed"}},
+	},
+	{
 		ID:          "providers_remove",
 		Path:        registryconnect.RegistryServiceDeregisterProviderProcedure,
 		Method:      "POST",
@@ -94,5 +108,16 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Deregister provider", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/DeregisterProvider -H 'Content-Type: application/json' -d '{\"provider_id\":\"example-provider.commands\"}'"},
 		},
+	},
+	{
+		ID:          "maturity_targets_list",
+		Path:        registryconnect.RegistryServiceListMaturityTargetsProcedure,
+		Method:      "POST",
+		Summary:     "List Search Hub maturity targets",
+		Description: "Returns the descriptor/capability scenario set used by Search Hub maturity scans, including scenarios without a registered provider leaf.",
+		Category:    "registry",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"targets": "array<MaturityTarget>"}},
+		Errors:      []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Maturity target discovery failure"}},
 	},
 }

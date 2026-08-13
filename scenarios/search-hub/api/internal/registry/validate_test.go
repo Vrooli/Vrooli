@@ -56,6 +56,16 @@ func TestValidateActiveOK(t *testing.T) {
 	require.NoError(t, registry.Validate(d))
 }
 
+func TestValidateStatusEndpointDefaultsIndexTimestampDeclaration(t *testing.T) {
+	d := validActive()
+	d.StatusEndpoint = &registryv1.Endpoint{Kind: &registryv1.Endpoint_HttpJson{HttpJson: &registryv1.HttpJsonEndpoint{ScenarioId: "cli-health", Path: "/status"}}}
+	registry.Normalize(d)
+	require.Equal(t, "last_indexed_at", d.GetIndexTimestampField())
+	require.NoError(t, registry.Validate(d))
+	d.IndexTimestampField = "index.last_reconcile_at"
+	require.NoError(t, registry.Validate(d))
+}
+
 func TestValidateActiveFailures(t *testing.T) {
 	cases := []struct {
 		name      string

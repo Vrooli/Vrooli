@@ -496,6 +496,21 @@ func TestAutoRouteUsesClassifierTypes(t *testing.T) {
 	require.Contains(t, joined, "cli-health.commands")
 }
 
+func TestAutoRouteCachesDecisionForNormalizedQueryAndRegistryGeneration(t *testing.T) {
+	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.9}}
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(), Classifier: clf,
+	})
+
+	_, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "  Restart   A Scenario  "})
+	require.NoError(t, err)
+	require.True(t, clf.called)
+	clf.called = false
+	_, err = r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario"})
+	require.NoError(t, err)
+	require.False(t, clf.called, "normalized repeat should reuse only the routing decision")
+}
+
 func TestAutoRouteWidensWithinSelectedLeafScope(t *testing.T) {
 	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.2}}
 	r := routing.NewRouter(routing.Deps{
@@ -698,6 +713,39 @@ func TestRecoveryProbeRunsUnattendedAfterDecayAndRestoresAutomaticRouting(t *tes
 	require.NoError(t, err)
 	require.Len(t, resp.GetGroups(), 1, "automatic routing resumes after the background probe")
 	require.Equal(t, "recovery command", resp.GetGroups()[0].GetHits()[0].GetTitle())
+}
+
+func TestRecoveryProbeClearsFailureCircuitWithoutInteractiveTraffic(t *testing.T) {
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
+	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.9}}
+	doer := routeDoer{byURL: map[string]cannedResponse{
+		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {
+			status: 200,
+			body:   `{"results":[{"name":"recovered command","description":"Recovered","score":0.9}]}`,
+		},
+	}}
+	r := routing.NewRouter(routing.Deps{
+		Lister:     &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), swarmRecords()}},
+		Resolver:   staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:       doer,
+		Classifier: clf,
+		Now:        func() time.Time { return now },
+	})
+	doer.byURL["http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search"] = cannedResponse{status: 503, body: `unavailable`}
+	for i := 0; i < 3; i++ {
+		_, _ = r.Query(context.Background(), &routingv1.QueryRequest{Types: []string{"command"}, Query: "find a command"})
+	}
+	doer.byURL["http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search"] = cannedResponse{
+		status: 200,
+		body:   `{"results":[{"name":"recovered command","description":"Recovered","score":0.9}]}`,
+	}
+	now = now.Add(time.Minute + time.Second)
+
+	// The public recovery operation is the same operation owned by the
+	// unattended cycle. No interactive Query is issued.
+	recovered, err := r.ProbeProviderRecovery(context.Background(), "cli-health.commands", "find a command")
+	require.NoError(t, err)
+	require.True(t, recovered, "failure breaker should recover without interactive traffic")
 }
 
 func TestRerankDegradesToGroupingOnError(t *testing.T) {

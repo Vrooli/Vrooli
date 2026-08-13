@@ -204,21 +204,51 @@ func (c *httpProviderClient) ProbeIndexTimestamp(ctx context.Context, d *registr
 	if err != nil {
 		return time.Time{}, err
 	}
-	return parseIndexTimestamp(raw), nil
+	return parseIndexTimestamp(raw, d.GetIndexTimestampField()), nil
 }
 
-func parseIndexTimestamp(raw []byte) time.Time {
+func parseIndexTimestamp(raw []byte, declaredField string) time.Time {
 	var payload map[string]any
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return time.Time{}
 	}
+	if timestamp := parseTimestampValue(fieldValue(payload, declaredField)); !timestamp.IsZero() {
+		return timestamp
+	}
 	for _, key := range []string{"last_indexed_at", "lastIndexedAt", "last_index_at", "lastIndexAt", "index_updated_at", "indexUpdatedAt", "indexed_at", "indexedAt", "last_reindex_at", "lastReindexAt"} {
-		if value, ok := payload[key].(string); ok {
-			for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05Z07:00"} {
-				if timestamp, err := time.Parse(layout, value); err == nil {
-					return timestamp
-				}
-			}
+		if timestamp := parseTimestampValue(payload[key]); !timestamp.IsZero() {
+			return timestamp
+		}
+	}
+	return time.Time{}
+}
+
+func fieldValue(payload map[string]any, field string) any {
+	var current any = payload
+	for _, part := range strings.Split(strings.TrimSpace(field), ".") {
+		if part == "" {
+			return nil
+		}
+		object, ok := current.(map[string]any)
+		if !ok {
+			return nil
+		}
+		current, ok = object[part]
+		if !ok {
+			return nil
+		}
+	}
+	return current
+}
+
+func parseTimestampValue(value any) time.Time {
+	text, ok := value.(string)
+	if !ok {
+		return time.Time{}
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05Z07:00"} {
+		if timestamp, err := time.Parse(layout, text); err == nil {
+			return timestamp
 		}
 	}
 	return time.Time{}

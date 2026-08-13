@@ -8,19 +8,20 @@ import (
 	"sort"
 	"time"
 
-	"github.com/google/uuid"
-	"signal-inbox/internal/clock"
 	"signal-inbox/internal/signals"
+
+	"github.com/google/uuid"
+	"github.com/vrooli/api-core/schedule"
 )
 
 type Service struct {
 	repo     Repository
 	captures CaptureService
-	clock    clock.Clock
+	clock    schedule.Clock
 	adapters map[string]Adapter
 }
 
-func NewService(repo Repository, captures CaptureService, clk clock.Clock, adapters ...Adapter) (*Service, error) {
+func NewService(repo Repository, captures CaptureService, clk schedule.Clock, adapters ...Adapter) (*Service, error) {
 	service := &Service{repo: repo, captures: captures, clock: clk, adapters: make(map[string]Adapter, len(adapters))}
 	for _, adapter := range adapters {
 		descriptor := adapter.Descriptor()

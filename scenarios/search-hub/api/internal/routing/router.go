@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"log"
 	"net/http"
@@ -32,6 +33,7 @@ import (
 	"sync"
 	"time"
 
+	aisearch "github.com/vrooli/ai-go/search"
 	"search-hub/internal/httpc"
 	"search-hub/internal/providers"
 	internalregistry "search-hub/internal/registry"
@@ -172,6 +174,7 @@ type Deps struct {
 	Reranker           Reranker
 	Recorder           TelemetryRecorder
 	EvalQuality        EvalQualityReader
+	DescriptionIndex   ProviderDescriptionIndex
 	Logger             *log.Logger
 	Concurrency        int
 	PerProviderTimeout time.Duration
@@ -212,6 +215,8 @@ type Router struct {
 	deps             Deps
 	rerankBreaker    *rerankBreaker
 	providerBreakers *providerBreakers
+	routeCacheMu     sync.Mutex
+	routeCache       map[string]ClassifyResult
 }
 
 // NewRouter constructs a Router, applying defaults for the optional Deps
@@ -261,6 +266,7 @@ func NewRouter(d Deps) *Router {
 			ZeroYieldMinimumRoutes: d.ProviderBreaker.ZeroYieldMinimumRoutes,
 			DemotionWindow:         d.ProviderBreaker.DemotionWindow,
 		}, d.DemotionStore),
+		routeCache: make(map[string]ClassifyResult),
 	}
 }
 
@@ -299,6 +305,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	if limit <= 0 {
 		limit = defaultLimit
 	}
+	scope := strings.TrimSpace(req.GetScope())
 
 	// Only ACTIVE leaves are callable; capability_gap stubs carry no endpoint
 	// and are intentionally excluded from fan-out.
@@ -322,6 +329,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		selectedLeafCount  int
 		widenedLeafCount   int
 		fanoutBoundReached bool
+		routingIndexReason string
 		rerankLatency      int64
 		partial            bool
 		pendingProviders   int
@@ -357,7 +365,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		autoCandidates = r.filterDemoted(autoCandidates)
 		var webShaped bool
 		classifierStarted := r.deps.Now()
-		targets, autoExplain, classifierError, webShaped, selectedLeafCount, widenedLeafCount, fanoutBoundReached = r.autoSelect(qctx, autoCandidates, query)
+		targets, autoExplain, classifierError, webShaped, selectedLeafCount, widenedLeafCount, fanoutBoundReached, routingIndexReason = r.autoSelect(qctx, autoCandidates, query)
 		autoExplain = append(qualityExplain, autoExplain...)
 		classifierLatency = r.deps.Now().Sub(classifierStarted).Milliseconds()
 		if classifierError {
@@ -379,7 +387,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	}
 
 	fanoutStarted := r.deps.Now()
-	groups := r.fanOut(qctx, targets, query, limit, hasExplicit)
+	groups := r.fanOut(qctx, targets, query, limit, hasExplicit, scope)
 	groups = collapseDocumentHits(groups)
 	if qctx.Err() != nil {
 		usable := 0
@@ -402,7 +410,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	// did not already auto-route external above).
 	if !hasExplicit && r.deps.AutoRouteExternal && !autoRoutedExternal && len(pendingExternal) > 0 {
 		if weakReason := resultsWeakness(groups, autoExternalThreshold()); weakReason != "" {
-			escalationGroups := r.fanOut(qctx, pendingExternal, query, limit, false)
+			escalationGroups := r.fanOut(qctx, pendingExternal, query, limit, false, scope)
 			groups = append(groups, escalationGroups...)
 			groups = collapseDocumentHits(groups)
 			targets = append(targets, pendingExternal...)
@@ -414,12 +422,13 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 
 	var ranked []*routingv1.SearchHit
 	var reranked, rerankDegraded bool
+	var rerankReason, rerankLeg string
 	var rerankExplain []string
 	if backgroundEvaluation {
 		rerankExplain = []string{"background evaluation: classifier and reranker bypassed to protect interactive latency"}
 	} else {
 		rerankStarted := r.deps.Now()
-		ranked, reranked, rerankDegraded, rerankExplain = r.maybeRerank(qctx, query, groups)
+		ranked, reranked, rerankDegraded, rerankReason, rerankLeg, rerankExplain = r.maybeRerank(qctx, query, groups, targets)
 		rerankLatency = r.deps.Now().Sub(rerankStarted).Milliseconds()
 	}
 
@@ -427,9 +436,10 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		Ranked:           ranked,
 		Groups:           groups,
 		Reranked:         reranked,
-		Degraded:         classifierError || rerankDegraded,
+		Degraded:         classifierError || rerankDegraded || routingIndexReason != "",
 		Partial:          partial,
 		PendingProviders: int32(pendingProviders),
+		RerankerLeg:      rerankLeg,
 	}
 	for _, g := range groups {
 		resp.CorporaSearched = append(resp.CorporaSearched, g.GetProviderId())
@@ -451,6 +461,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		}
 		resp.RoutingExplanation = append(resp.RoutingExplanation, rerankExplain...)
 	}
+	resp.RoutingDegradeReason = routingIndexReason
 	resp.LatencyMs = r.deps.Now().Sub(start).Milliseconds()
 
 	// Phase-7 telemetry: record the query's outcome (best-effort; the recorder
@@ -476,7 +487,13 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		sample.FanoutLatencyMs = fanoutLatency
 		sample.RerankLatencyMs = rerankLatency
 		sample.RerankCandidateCount = len(fuseGroups(groups))
-		sample.ResponseDegradeReason = ResponseDegradeReason(classifierError, rerankDegraded, groups, sample.ResultCount)
+		sample.ResponseDegradeReason = ResponseDegradeReasonWithReranker(classifierError, rerankDegraded, rerankReason, groups, sample.ResultCount)
+		if routingIndexReason != "" {
+			if sample.ResponseDegradeReason != "" {
+				sample.ResponseDegradeReason += ","
+			}
+			sample.ResponseDegradeReason += routingIndexReason
+		}
 		r.deps.Recorder.Record(qctx, sample)
 	}
 	return resp, nil
@@ -501,6 +518,10 @@ func (r *Router) filterDemoted(providers []*registryv1.ProviderDescriptor) []*re
 // response restarts the decay window. Transport/degraded failures are released
 // as probation failures and never become zero-yield evidence.
 func (r *Router) ProbeProviderRecovery(ctx context.Context, providerID, query string) (bool, error) {
+	return r.probeProviderRecovery(ctx, providerID, query, false)
+}
+
+func (r *Router) probeProviderRecovery(ctx context.Context, providerID, query string, failureClaimed bool) (bool, error) {
 	providerID = strings.TrimSpace(providerID)
 	query = strings.TrimSpace(query)
 	if providerID == "" {
@@ -513,29 +534,56 @@ func (r *Router) ProbeProviderRecovery(ctx context.Context, providerID, query st
 		return false, nil
 	}
 	r.providerBreakers.restore(ctx)
-	if !r.providerBreakers.beginRecoveryProbe(providerID, r.deps.Now()) {
-		return false, nil
+	if !failureClaimed {
+		if !r.providerBreakers.beginRecoveryProbe(providerID, r.deps.Now()) {
+			failureClaimed = r.providerBreakers.beginFailureRecoveryProbe(providerID, r.deps.Now())
+			if !failureClaimed {
+				return false, nil
+			}
+		}
 	}
 	probeCtx := WithBackgroundEvaluationProvider(WithRecoveryProbe(ctx), providerID)
+	if failureClaimed {
+		probeCtx = WithBackgroundEvaluationProvider(WithFailureRecoveryProbe(ctx), providerID)
+	}
 	resp, err := r.Query(probeCtx, &routingv1.QueryRequest{Query: query, Limit: 1})
 	if err != nil {
-		r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), err.Error())
+		if failureClaimed {
+			r.providerBreakers.finishFailureRecoveryProbe(providerID, r.deps.Now(), err.Error())
+		} else {
+			r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), err.Error())
+		}
 		return false, err
 	}
 	if resp == nil {
-		r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), "provider returned no response")
+		if failureClaimed {
+			r.providerBreakers.finishFailureRecoveryProbe(providerID, r.deps.Now(), "provider returned no response")
+		} else {
+			r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), "provider returned no response")
+		}
 		return false, nil
 	}
 	if resp.GetDegraded() {
-		r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), "provider response degraded")
+		if failureClaimed {
+			r.providerBreakers.finishFailureRecoveryProbe(providerID, r.deps.Now(), "provider response degraded")
+		} else {
+			r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), "provider response degraded")
+		}
 		return false, nil
 	}
 	for _, group := range resp.GetGroups() {
 		if group.GetProviderId() == providerID && len(group.GetHits()) > 0 {
+			if failureClaimed {
+				r.providerBreakers.finishFailureRecoveryProbe(providerID, r.deps.Now(), "")
+			}
 			return true, nil
 		}
 	}
-	r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), "provider returned no recovery group")
+	if failureClaimed {
+		r.providerBreakers.finishFailureRecoveryProbe(providerID, r.deps.Now(), "provider returned no recovery group")
+	} else {
+		r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), "provider returned no recovery group")
+	}
 	return false, nil
 }
 
@@ -581,7 +629,13 @@ func (r *Router) recoveryProbeCycle(ctx context.Context, query string) {
 			continue
 		}
 		probeCtx, cancel := context.WithTimeout(ctx, r.deps.PerProviderTimeout+time.Second)
-		_, err := r.ProbeProviderRecovery(probeCtx, provider.GetProviderId(), query)
+		failureClaimed := r.providerBreakers.beginFailureRecoveryProbe(provider.GetProviderId(), r.deps.Now())
+		var err error
+		if failureClaimed {
+			_, err = r.probeProviderRecovery(probeCtx, provider.GetProviderId(), query, true)
+		} else {
+			_, err = r.ProbeProviderRecovery(probeCtx, provider.GetProviderId(), query)
+		}
 		cancel()
 		if err != nil && r.deps.Logger != nil {
 			r.deps.Logger.Printf("recovery probe: provider %q: %v", provider.GetProviderId(), err)
@@ -719,47 +773,73 @@ func documentKey(hit *routingv1.SearchHit, fallback int) string {
 //
 // On success it returns the ranked list (each hit carrying RerankScore),
 // reranked=true, and a one-line --explain note.
-func (r *Router) maybeRerank(ctx context.Context, query string, groups []*routingv1.ProviderResultGroup) (ranked []*routingv1.SearchHit, reranked, degraded bool, explain []string) {
+func (r *Router) maybeRerank(ctx context.Context, query string, groups []*routingv1.ProviderResultGroup, targets []*registryv1.ProviderDescriptor) (ranked []*routingv1.SearchHit, reranked, degraded bool, reason, leg string, explain []string) {
 	if r.deps.Reranker == nil {
-		return nil, false, false, nil
+		return nil, false, false, "", "none", nil
 	}
 	candidates := fuseGroups(groups)
 	if len(candidates) == 0 {
-		return nil, false, false, nil
+		return nil, false, false, "", "none", nil
 	}
 	if len(candidates) == 1 {
-		return nil, false, false, []string{"reranker skipped (single candidate)"}
+		return nil, false, false, "", "none", []string{"reranker skipped (single candidate)"}
 	}
 	if ok, line := r.rerankBreaker.allow(r.deps.Now()); !ok {
-		return nil, false, true, []string{line}
+		return nil, false, true, "reranker_absent", "none", []string{line}
 	}
 
 	timeout, ok := r.rerankBudget(ctx)
 	if !ok {
-		return nil, false, true, []string{
+		return nil, false, true, "reranker_absent", "none", []string{
 			"reranker skipped (query budget nearly exhausted) — showing honest by-provider grouping",
 		}
 	}
 	rctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	ranked, err := r.deps.Reranker.Rerank(rctx, query, candidates)
+	preference := rerankPreference(targets)
+	var err error
+	if policy, ok := r.deps.Reranker.(interface {
+		RerankWithPreference(context.Context, string, []*routingv1.SearchHit, string) ([]*routingv1.SearchHit, error)
+	}); ok {
+		ranked, err = policy.RerankWithPreference(rctx, query, candidates, preference)
+	} else {
+		ranked, err = r.deps.Reranker.Rerank(rctx, query, candidates)
+	}
 	if err != nil {
 		r.rerankBreaker.recordFailure(r.deps.Now())
 		r.deps.Logger.Printf("routing.maybeRerank: reranker failed, keeping by-provider grouping: %v", err)
-		return nil, false, true, []string{
+		return nil, false, true, "reranker_absent", "none", []string{
 			fmt.Sprintf("reranker unavailable (%s) — showing honest by-provider grouping", oneLine(err.Error())),
 		}
 	}
 	r.rerankBreaker.recordSuccess()
-	leg := "reranker"
+	leg = "reranker"
+	rankReason := ""
 	if named, ok := r.deps.Reranker.(interface{ ActiveName(context.Context) string }); ok {
 		if active := strings.TrimSpace(named.ActiveName(ctx)); active != "" && active != "none" {
 			leg = active
 		}
 	}
-	return ranked, true, false, []string{
-		fmt.Sprintf("reranked %d candidate(s) into one unified cross-provider list via %s", len(ranked), leg),
+	if named, ok := r.deps.Reranker.(interface {
+		ActiveNameWithPreference(context.Context, string) string
+	}); ok {
+		if active := strings.TrimSpace(named.ActiveNameWithPreference(ctx, preference)); active != "" && active != "none" {
+			leg = active
+		}
 	}
+	if strings.HasPrefix(leg, "llm:") {
+		rankReason = "reranker_degraded_to_llm"
+	}
+	return ranked, true, false, rankReason, leg, []string{fmt.Sprintf("reranked %d candidate(s) into one unified cross-provider list via %s", len(ranked), leg)}
+}
+
+func rerankPreference(targets []*registryv1.ProviderDescriptor) string {
+	for _, target := range targets {
+		if target != nil && target.GetTuning() != nil && target.GetTuning().GetRerankPreference() == aisearch.RerankPreferenceCrossEncoderRequired {
+			return aisearch.RerankPreferenceCrossEncoderRequired
+		}
+	}
+	return aisearch.RerankPreferenceCrossEncoderPreferred
 }
 
 func (r *Router) rerankBudget(ctx context.Context) (time.Duration, bool) {
@@ -780,20 +860,33 @@ func (r *Router) rerankBudget(ctx context.Context) (time.Duration, bool) {
 // returns the leaves to fan out to. It never fails the query: classifier errors
 // use a deterministic bounded fallback and flag the response degraded. The
 // widen-on-uncertainty policy lives in widenPolicy.
-func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDescriptor, query string) (targets []*registryv1.ProviderDescriptor, explain []string, classifierError, webShaped bool, selectedLeafCount, widenedLeafCount int, boundReached bool) {
+func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDescriptor, query string) (targets []*registryv1.ProviderDescriptor, explain []string, classifierError, webShaped bool, selectedLeafCount, widenedLeafCount int, boundReached bool, routingIndexReason string) {
 	profiles := buildProfiles(active)
+	if r.deps.DescriptionIndex != nil {
+		shortlist, indexResult := r.deps.DescriptionIndex.Shortlist(ctx, query, profiles, maxFanoutWidth())
+		if !indexResult.Available {
+			routingIndexReason = indexResult.Reason
+			explain = append(explain, "routing_index_unavailable — bounded description enumeration fallback")
+		} else {
+			explain = append(explain, fmt.Sprintf("provider-description index shortlisted %d of %d leaves", indexResult.Returned, indexResult.Total))
+		}
+		if len(indexResult.Omitted) > 0 && len(shortlist) > 0 {
+			shortlist[0].OmittedProviderIDs = append([]string(nil), indexResult.Omitted...)
+		}
+		profiles = shortlist
+	}
 
-	result, err := r.deps.Classifier.Classify(ctx, query, profiles)
+	result, err := r.classifyWithCache(ctx, query, profiles, active)
 	if err != nil {
 		// Graceful degradation: route to a bounded deterministic subset and let
 		// the operator see the classifier failed (never a hard error). A failed
 		// classify is never treated as web-shaped.
 		fallbackIDs, _, fallbackBound := widenPolicy(ClassifyResult{}, profiles, maxFanoutWidth())
 		r.deps.Logger.Printf("routing.autoSelect: classifier failed, using bounded fallback: %v", err)
-		return providersByID(active, fallbackIDs), []string{
+		return providersByID(active, fallbackIDs), append(explain, []string{
 			"automatic routing requested (no explicit selector)",
 			fmt.Sprintf("classifier unavailable (%s) — bounded fallback selected %d provider leaf(s)", oneLine(err.Error()), len(fallbackIDs)),
-		}, true, false, 0, len(fallbackIDs), fallbackBound
+		}...), true, false, 0, len(fallbackIDs), fallbackBound, routingIndexReason
 	}
 
 	chosen, widened, boundReached := widenPolicy(result, profiles, maxFanoutWidth())
@@ -801,7 +894,7 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 	selectedLeafCount = len(matchedProviderIDs(result.ProviderIDs, profiles))
 	widenedLeafCount = max(0, len(targets)-selectedLeafCount)
 
-	explain = []string{"automatic routing via classifier (no explicit selector)"}
+	explain = append(explain, "automatic routing via classifier (no explicit selector)")
 	if r := strings.TrimSpace(result.Rationale); r != "" {
 		explain = append(explain, "classifier rationale: "+r)
 	}
@@ -817,7 +910,37 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 	// Web-shaped only counts when the classifier is confident enough to justify
 	// reaching a rate-limited/paid external corpus (a higher bar than widening).
 	webShaped = result.WebShaped && result.Confidence >= autoExternalThreshold()
-	return targets, explain, false, webShaped, selectedLeafCount, widenedLeafCount, boundReached
+	return targets, explain, false, webShaped, selectedLeafCount, widenedLeafCount, boundReached, routingIndexReason
+}
+
+func (r *Router) classifyWithCache(ctx context.Context, query string, profiles []ProviderProfile, active []*registryv1.ProviderDescriptor) (ClassifyResult, error) {
+	hash := fnv.New64a()
+	for _, provider := range active {
+		_, _ = fmt.Fprintf(hash, "%s\x00%s\x00%s\x00", provider.GetProviderId(), provider.GetDescription(), provider.GetType())
+	}
+	key := fmt.Sprintf("%x\x00%s", hash.Sum64(), strings.ToLower(strings.Join(strings.Fields(query), " ")))
+	r.routeCacheMu.Lock()
+	if result, ok := r.routeCache[key]; ok {
+		r.routeCacheMu.Unlock()
+		return result, nil
+	}
+	r.routeCacheMu.Unlock()
+	result, err := r.deps.Classifier.Classify(ctx, query, profiles)
+	if err != nil {
+		return ClassifyResult{}, err
+	}
+	r.routeCacheMu.Lock()
+	// Registry-generation is part of the key, so stale decisions naturally
+	// become unreachable after provider registration or description changes.
+	r.routeCache[key] = result
+	if len(r.routeCache) > 512 {
+		for cachedKey := range r.routeCache {
+			delete(r.routeCache, cachedKey)
+			break
+		}
+	}
+	r.routeCacheMu.Unlock()
+	return result, nil
 }
 
 // providersByID returns the active leaves whose provider ids were selected,
@@ -1015,7 +1138,7 @@ func resultsWeakness(groups []*routingv1.ProviderResultGroup, threshold float64)
 
 // fanOut queries every target concurrently (bounded by Concurrency) and returns
 // one group per target, ordered by provider_id for deterministic output.
-func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescriptor, query string, limit int32, explicit bool) []*routingv1.ProviderResultGroup {
+func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescriptor, query string, limit int32, explicit bool, scope string) []*routingv1.ProviderResultGroup {
 	if isRecoveryProbe(ctx) {
 		// The provider must be selected explicitly so a demoted leaf can be
 		// tested, but its result is automatic recovery evidence rather than an
@@ -1031,11 +1154,13 @@ func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescr
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			if ok, note := r.providerBreakers.allow(t.GetProviderId(), r.deps.Now()); !ok {
-				groups[i] = degrade(&routingv1.ProviderResultGroup{ProviderId: t.GetProviderId()}, note)
-				return
+			if !isFailureRecoveryProbe(ctx) {
+				if ok, note := r.providerBreakers.allow(t.GetProviderId(), r.deps.Now()); !ok {
+					groups[i] = degrade(&routingv1.ProviderResultGroup{ProviderId: t.GetProviderId()}, note)
+					return
+				}
 			}
-			groups[i] = r.callProvider(ctx, t, query, limit)
+			groups[i] = r.callProvider(ctx, t, query, limit, scope)
 			r.providerBreakers.record(t.GetProviderId(), groups[i].GetDegraded(), r.deps.Now())
 			r.providerBreakers.recordResult(t.GetProviderId(), len(groups[i].GetHits()), groups[i].GetDegraded(), explicit, r.deps.Now())
 		}(i, t)
@@ -1051,7 +1176,7 @@ func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescr
 // callProvider performs one provider's round-trip and always returns a group:
 // on any failure it returns a degraded group carrying a human-readable note
 // rather than an error, so one bad provider never sinks the query.
-func (r *Router) callProvider(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32) *routingv1.ProviderResultGroup {
+func (r *Router) callProvider(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32, scope string) *routingv1.ProviderResultGroup {
 	start := r.deps.Now()
 	g := &routingv1.ProviderResultGroup{ProviderId: d.GetProviderId()}
 	defer func() {
@@ -1071,7 +1196,7 @@ func (r *Router) callProvider(ctx context.Context, d *registryv1.ProviderDescrip
 		return degrade(g, fmt.Sprintf("provider scenario %q unreachable: %s", hj.GetScenarioId(), oneLine(err.Error())))
 	}
 
-	body, err := providers.RenderBody(hj.GetBodyTemplate(), query, limit, d.GetType())
+	body, err := providers.RenderBodyWithScope(hj.GetBodyTemplate(), query, limit, d.GetType(), scope)
 	if err != nil {
 		return degrade(g, fmt.Sprintf("request build failed: %s", err))
 	}

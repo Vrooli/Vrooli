@@ -13,6 +13,7 @@
     "contract": "scenario-validation/v1",
     "includeExecution": true
   },
+  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
   "applicability": {
     "default": "not_applicable",
     "any": [

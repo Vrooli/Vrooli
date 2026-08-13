@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"search-hub/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"google.golang.org/protobuf/encoding/protojson"
 
@@ -53,14 +53,14 @@ type Store interface {
 // Store interface and substitute the fake without reaching inside.
 type sqliteStore struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteStore constructs the production Store. db is the connection pool
 // opened in main.go (*database.RoutedDB in production, *sql.DB in unit tests);
 // clk supplies created_at/updated_at timestamps so tests can advance time
 // deterministically.
-func NewSQLiteStore(db SQLExecutor, clk clock.Clock) Store {
+func NewSQLiteStore(db SQLExecutor, clk schedule.Clock) Store {
 	return &sqliteStore{db: db, clock: clk}
 }
 

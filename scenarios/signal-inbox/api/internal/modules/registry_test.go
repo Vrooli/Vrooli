@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"signal-inbox/internal/modules"
-	"signal-inbox/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 

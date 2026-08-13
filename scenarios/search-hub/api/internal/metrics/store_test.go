@@ -2,6 +2,7 @@ package metrics_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,23 +10,24 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
+	db "github.com/vrooli/api-core/databasetest"
 	localdb "search-hub/internal/database"
 	"search-hub/internal/metrics"
-	"search-hub/internal/testutil/db"
-	"search-hub/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // newStore returns a SQLite-backed metrics Store with the production schema
 // applied — the canonical compose pattern (db.NewSQLite + apidb.EnsureSchemas
 // over system + metrics), so tests exercise the same shape main.go ships.
-func newStore(t *testing.T) (metrics.Store, *mocks.FakeClock) {
+func newStore(t *testing.T) (metrics.Store, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(metrics.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 3, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 3, 12, 0, 0, 0, time.UTC))
 	return metrics.NewSQLiteStore(d, clk), clk
 }
 
@@ -62,6 +64,7 @@ func TestRecordAndAggregate(t *testing.T) {
 		},
 		ResultCount:           5,
 		Reranked:              true,
+		RerankerLeg:           "cross-encoder:bge",
 		AutoRoutedExternal:    true,
 		LatencyMs:             200,
 		RoutingMode:           "automatic",
@@ -101,8 +104,8 @@ func TestRecordAndAggregate(t *testing.T) {
 	require.InDelta(t, 2.0/3.0, got.ResolverCacheHitRate, 1e-9)
 
 	// Nearest-rank over [100,200,300]: p50 → idx ceil(1.5)-1=1 → 200; p95 → idx 2 → 300.
-	require.Equal(t, int64(200), got.LatencyP50Ms)
-	require.Equal(t, int64(300), got.LatencyP95Ms)
+	require.Equal(t, int64(0), got.LatencyP50Ms)
+	require.Equal(t, int64(0), got.LatencyP95Ms)
 
 	// Provider usage: cli-health routed 3× with 4 hits; swarm-manager routed 1× with 2 hits.
 	usage := map[string]metrics.ProviderUsage{}
@@ -111,14 +114,15 @@ func TestRecordAndAggregate(t *testing.T) {
 	}
 	require.Equal(t, int64(3), usage["cli-health.commands"].TimesRouted)
 	require.Equal(t, int64(4), usage["cli-health.commands"].TotalHits)
-	require.Equal(t, int64(200), usage["cli-health.commands"].LatencyP50Ms)
-	require.Equal(t, int64(300), usage["cli-health.commands"].LatencyP95Ms)
+	require.Equal(t, int64(0), usage["cli-health.commands"].LatencyP50Ms)
+	require.Equal(t, int64(0), usage["cli-health.commands"].LatencyP95Ms)
 	require.Equal(t, int64(1), usage["cli-health.commands"].DegradedCount)
 	require.InDelta(t, 1.0/3.0, usage["cli-health.commands"].DegradationRate, 1e-9)
 	require.Equal(t, []metrics.ProviderDegradationReason{{Reason: "timeout", Count: 1}}, usage["cli-health.commands"].DegradationReasons)
 	require.Equal(t, int64(1), usage["swarm-manager.records"].TimesRouted)
 	require.Equal(t, int64(2), usage["swarm-manager.records"].TotalHits)
-	require.Equal(t, int64(500), usage["swarm-manager.records"].LatencyP95Ms)
+	require.Equal(t, int64(0), usage["swarm-manager.records"].LatencyP95Ms)
+	require.Equal(t, "cross-encoder:bge", usage["swarm-manager.records"].ActiveRerankerLeg)
 
 	// The routing bucket is the fleet-scale view: mode + fan-out range with
 	// stage latency, not raw query text or an unbounded fan-out cardinality.
@@ -213,10 +217,38 @@ func TestInsightsRangeFiltersExactWindow(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), got.TotalQueries)
-	require.Equal(t, int64(400), got.LatencyP95Ms)
+	require.Equal(t, int64(0), got.LatencyP95Ms)
 	require.Len(t, got.ProviderUsage, 1)
 	require.Equal(t, int64(1), got.ProviderUsage[0].DegradedCount)
 	require.Equal(t, []metrics.ProviderDegradationReason{{Reason: "timeout", Count: 1}}, got.ProviderUsage[0].DegradationReasons)
+}
+
+func TestLatencyPercentilesBecomeStableAtMinimumSampleCount(t *testing.T) {
+	store, clk := newStore(t)
+	ctx := context.Background()
+	for i := 0; i < int(metrics.MinimumStableSamples); i++ {
+		require.NoError(t, store.Record(ctx, metrics.Sample{
+			QueryHash: fmt.Sprintf("stable-%d", i),
+			ProviderResults: map[string]metrics.ProviderResult{
+				"stable.provider": {HitCount: 1, LatencyMs: int64(100 + i*10)},
+			},
+			ResultCount: 1,
+			LatencyMs:   int64(100 + i*10),
+		}))
+		clk.Advance(time.Second)
+	}
+
+	got, err := store.Insights(ctx, 0)
+	require.NoError(t, err)
+	require.True(t, got.SampleSufficient)
+	require.Equal(t, metrics.MinimumStableSamples, got.SampleCount)
+	require.Equal(t, int64(140), got.LatencyP50Ms)
+	require.Equal(t, int64(190), got.LatencyP95Ms)
+	require.Equal(t, metrics.MinimumStableSamples, got.RecentSampleCount)
+	require.Equal(t, int64(140), got.RecentLatencyP50Ms)
+	require.Equal(t, int64(190), got.RecentLatencyP95Ms)
+	require.Equal(t, int64(140), got.ProviderUsage[0].LatencyP50Ms)
+	require.Equal(t, int64(190), got.ProviderUsage[0].LatencyP95Ms)
 }
 
 func TestMigrateAddsProviderTelemetryColumns(t *testing.T) {

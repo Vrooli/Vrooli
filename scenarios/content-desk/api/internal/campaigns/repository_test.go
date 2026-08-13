@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"content-desk/internal/campaigns"
-	"content-desk/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	localdb "content-desk/internal/database"
 	"github.com/stretchr/testify/require"

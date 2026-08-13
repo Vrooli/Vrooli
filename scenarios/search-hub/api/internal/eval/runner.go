@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"search-hub/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	aisearch "github.com/vrooli/ai-go/search"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
@@ -63,14 +63,14 @@ type ProviderClient interface {
 type Runner struct {
 	resolver ProviderResolver
 	client   ProviderClient
-	clock    clock.Clock
+	clock    schedule.Clock
 	newID    func() string
 }
 
 // NewRunner constructs a Runner. newID supplies run_ids (uuid in production, a
 // deterministic counter in tests); when nil it falls back to a timestamp-based
 // id so production wiring can omit it.
-func NewRunner(resolver ProviderResolver, client ProviderClient, clk clock.Clock, newID func() string) *Runner {
+func NewRunner(resolver ProviderResolver, client ProviderClient, clk schedule.Clock, newID func() string) *Runner {
 	if newID == nil {
 		var n int
 		newID = func() string { n++; return fmt.Sprintf("run-%d", n) }
@@ -112,12 +112,19 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 
 	results := make([]*evalv1.CaseResult, 0, len(suite.GetCases()))
 	latencies := make([]int64, 0, len(suite.GetCases()))
+	var unavailable []*evalv1.UnavailableCase
 	var firstFailure string
 	for _, c := range suite.GetCases() {
 		start := r.clock.Now()
 		caseOpts := opts
 		caseOpts.Scope = c.GetScope()
-		hits, searchErr := r.client.Search(ctx, desc, c.GetQuery(), effLimit, caseOpts)
+		caseCtx := ctx
+		cancel := func() {}
+		if timeout := caseTimeout(ctx); timeout > 0 {
+			caseCtx, cancel = context.WithTimeout(ctx, timeout)
+		}
+		hits, searchErr := r.client.Search(caseCtx, desc, c.GetQuery(), effLimit, caseOpts)
+		cancel()
 		latencies = append(latencies, r.clock.Now().Sub(start).Milliseconds())
 
 		top := toScoredHits(hits)
@@ -125,6 +132,10 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 		if searchErr != nil {
 			cr.Outcome = "error"
 			cr.OutcomeReason = searchErr.Error()
+			if unavailableError(searchErr) {
+				cr.Outcome = "unavailable"
+				unavailable = append(unavailable, &evalv1.UnavailableCase{CaseId: c.GetCaseId(), Reason: searchErr.Error()})
+			}
 			if firstFailure == "" {
 				firstFailure = searchErr.Error()
 			}
@@ -136,14 +147,19 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 	}
 
 	run := &evalv1.EvalRun{
-		RunId:     r.newID(),
-		SuiteId:   suite.GetSuiteId(),
-		Tag:       tag,
-		CreatedAt: r.clock.Now().UTC().Format(timeFormat),
-		Config:    snapshot,
-		Results:   results,
-		Aggregate: aggregate(suite, results, latencies),
-		Tier:      "provider_direct",
+		RunId:            r.newID(),
+		SuiteId:          suite.GetSuiteId(),
+		Tag:              tag,
+		CreatedAt:        r.clock.Now().UTC().Format(timeFormat),
+		Config:           snapshot,
+		Results:          results,
+		Aggregate:        aggregate(suite, results, latencies),
+		Tier:             "provider_direct",
+		UnavailableCases: unavailable,
+	}
+	run.Aggregate.UnavailableCases = int32(len(unavailable))
+	if run.Aggregate.GradedCases > 0 {
+		run.Aggregate.PassRate = float64(run.Aggregate.Met) / float64(run.Aggregate.GradedCases)
 	}
 	if firstFailure != "" {
 		run.Degraded = true
@@ -153,6 +169,9 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 		run.Degraded = true
 		if run.DegradedReason == "" {
 			run.DegradedReason = "run produced zero graded cases"
+		}
+		if len(unavailable) > 0 {
+			run.UnavailableReason = unavailable[0].GetReason()
 		}
 	}
 	return run, nil
@@ -254,18 +273,26 @@ func aggregate(suite *evalv1.EvalSuite, results []*evalv1.CaseResult, latencies 
 	agg := &evalv1.EvalAggregate{Cases: int32(len(results))}
 	var strongSum float64
 	var strongN int
-	for _, cr := range results {
+	gradedLatencies := make([]int64, 0, len(latencies))
+	for i, cr := range results {
+		graded := false
 		switch cr.GetOutcome() {
 		case "met":
 			agg.Met++
 			agg.GradedCases++
+			graded = true
 		case "below_expectation":
 			agg.Below++
 			agg.GradedCases++
+			graded = true
 		case "above_expectation", "unexpected_hit", "answered_by_sibling", "misrouted", "thin_margin":
 			// These are evaluated outcomes even though they are not counted as
 			// successful or below-floor positive cases.
 			agg.GradedCases++
+			graded = true
+		}
+		if graded && i < len(latencies) {
+			gradedLatencies = append(gradedLatencies, latencies[i])
 		}
 		tags := tagsByCase[cr.GetCaseId()]
 		if hasTag(tags, "strong") {
@@ -279,7 +306,10 @@ func aggregate(suite *evalv1.EvalSuite, results []*evalv1.CaseResult, latencies 
 	if strongN > 0 {
 		agg.MeanStrongTop1 = strongSum / float64(strongN)
 	}
-	agg.LatencyP95Ms = int32(p95(latencies))
+	agg.LatencyP95Ms = int32(p95(gradedLatencies))
+	if agg.GradedCases > 0 {
+		agg.PassRate = float64(agg.Met) / float64(agg.GradedCases)
+	}
 	return agg
 }
 

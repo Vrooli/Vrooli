@@ -38,6 +38,10 @@
               "description": "Scope the fan-out to one scenario's leaves"
             },
             {
+              "name": "scope",
+              "description": "Optional corpus facet passed to scoped providers"
+            },
+            {
               "name": "limit",
               "default": "10",
               "description": "Maximum results per provider"
@@ -228,9 +232,9 @@
           "flags": [
             {
               "name": "window",
-              "description": "Restrict aggregates to the last N days (0 or unset = all-time)",
+              "description": "Restrict aggregates to a duration such as 15m or 2h; a bare integer remains days (0 or unset = all-time)",
               "bind": {
-                "field": "window_days"
+                "field": "window"
               }
             }
           ],
@@ -940,6 +944,76 @@
         }
       ]
     }
+    ,
+    {
+      "name": "embedding",
+      "description": "Inventory and safely rehearse embedding retargets",
+      "commands": [
+        {
+          "name": "inventory",
+          "description": "Read every Qdrant collection's embedding sentinel and point count",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "retarget-plan",
+          "description": "Classify a model or role change before any write",
+          "flags": [
+            {"name": "model", "description": "Target embedding model"},
+            {"name": "role", "description": "Target embedding policy role"},
+            {"name": "dimensions", "description": "Explicit target dimensions for controlled rehearsals"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "apply-shadow",
+          "description": "Ask the provider-owned reindex endpoint to build a suffixed shadow collection",
+          "flags": [
+            {"name": "shadow", "bool": true, "description": "Required safety assertion: never write the live collection"},
+            {"name": "provider-id", "required": true, "description": "Provider leaf that owns the reindex endpoint"},
+            {"name": "collection", "description": "Live collection; required when inventory has multiple collections"},
+            {"name": "model", "description": "Target embedding model"},
+            {"name": "role", "description": "Target embedding policy role"},
+            {"name": "dimensions", "description": "Explicit target dimensions"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "record-compare",
+          "description": "Record the external evals compare verdict for a migration",
+          "flags": [{"name": "verdict", "required": true, "description": "pass, fail, or withheld"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:write"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "abort",
+          "description": "Drop the shadow collection and retain the live pointer",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "cutover",
+          "description": "Move the provider pointer only after a passing evals compare verdict",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "rollback",
+          "description": "Restore the retained live collection by pointer change",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        }
+      ]
+    }
   ],
   "measures": {
     "domains": [
@@ -951,6 +1025,16 @@
     ]
   },
   "omitted": [
+    {
+      "service": "RegistryService",
+      "method": "ExecuteEmbeddingMigration",
+      "reason": "Operator embedding commands invoke this authenticated proxy through the embedding command group rather than exposing a standalone registry command."
+    },
+    {
+      "service": "RegistryService",
+      "method": "ListMaturityTargets",
+      "reason": "Internal board-target discovery RPC consumed by meta-optimization-manager; the operator uses `maturity scan` rather than a standalone registry-target command."
+    },
     {
       "service": "SearchControlService",
       "method": "Reindex",

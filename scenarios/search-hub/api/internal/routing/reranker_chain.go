@@ -37,6 +37,16 @@ func NewSharedReranker(chain aisearch.Reranker) *SharedReranker {
 // Rerank converts Search Hub hits to shared rerank candidates, delegates to the
 // active shared reranker leg, and applies returned scores back onto the hits.
 func (r *SharedReranker) Rerank(ctx context.Context, query string, candidates []*routingv1.SearchHit) ([]*routingv1.SearchHit, error) {
+	return r.rerankWithPreference(ctx, query, candidates, aisearch.RerankPreferenceCrossEncoderPreferred)
+}
+
+// RerankWithPreference enforces the provider-declared cross-encoder policy
+// while retaining the normal chain behavior for preferred providers.
+func (r *SharedReranker) RerankWithPreference(ctx context.Context, query string, candidates []*routingv1.SearchHit, preference string) ([]*routingv1.SearchHit, error) {
+	return r.rerankWithPreference(ctx, query, candidates, preference)
+}
+
+func (r *SharedReranker) rerankWithPreference(ctx context.Context, query string, candidates []*routingv1.SearchHit, preference string) ([]*routingv1.SearchHit, error) {
 	if r == nil || r.chain == nil {
 		return nil, fmt.Errorf("reranker chain unavailable")
 	}
@@ -53,9 +63,17 @@ func (r *SharedReranker) Rerank(ctx context.Context, query string, candidates []
 			Text: rerankCandidateText(h),
 		}
 	}
-	scores, err := r.chain.Rerank(ctx, query, shared)
+	var scores []aisearch.RerankScore
+	var err error
+	if policy, ok := r.chain.(interface {
+		RerankWithPreference(context.Context, string, []aisearch.RerankCandidate, string) ([]aisearch.RerankScore, error)
+	}); ok {
+		scores, err = policy.RerankWithPreference(ctx, query, shared, preference)
+	} else {
+		scores, err = r.chain.Rerank(ctx, query, shared)
+	}
 	if err != nil {
-		scores, err = r.retryAfterActiveFailure(ctx, query, shared, err)
+		scores, err = r.retryAfterActiveFailure(ctx, query, shared, err, preference)
 		if err != nil {
 			return nil, err
 		}
@@ -73,8 +91,17 @@ func (r *SharedReranker) Available(ctx context.Context) bool {
 
 // ActiveName returns the shared chain's active leg name when exposed.
 func (r *SharedReranker) ActiveName(ctx context.Context) string {
+	return r.ActiveNameWithPreference(ctx, aisearch.RerankPreferenceCrossEncoderPreferred)
+}
+
+func (r *SharedReranker) ActiveNameWithPreference(ctx context.Context, preference string) string {
 	if r == nil || r.chain == nil {
 		return "none"
+	}
+	if named, ok := r.chain.(interface {
+		ActiveNameWithPreference(context.Context, string) string
+	}); ok {
+		return named.ActiveNameWithPreference(ctx, preference)
 	}
 	if named, ok := r.chain.(interface{ ActiveName(context.Context) string }); ok {
 		return named.ActiveName(ctx)
@@ -85,7 +112,10 @@ func (r *SharedReranker) ActiveName(ctx context.Context) string {
 	return "none"
 }
 
-func (r *SharedReranker) retryAfterActiveFailure(ctx context.Context, query string, candidates []aisearch.RerankCandidate, firstErr error) ([]aisearch.RerankScore, error) {
+func (r *SharedReranker) retryAfterActiveFailure(ctx context.Context, query string, candidates []aisearch.RerankCandidate, firstErr error, preference string) ([]aisearch.RerankScore, error) {
+	if preference == aisearch.RerankPreferenceCrossEncoderRequired {
+		return nil, firstErr
+	}
 	refreshable, ok := r.chain.(interface {
 		ActiveName(context.Context) string
 		ActiveUncached(context.Context) aisearch.Reranker
@@ -102,7 +132,15 @@ func (r *SharedReranker) retryAfterActiveFailure(ctx context.Context, query stri
 	if after == "" || after == "none" || after == before {
 		return nil, fmt.Errorf("%w; no alternate fallback reranker available", firstErr)
 	}
-	scores, err := r.chain.Rerank(ctx, query, candidates)
+	var scores []aisearch.RerankScore
+	var err error
+	if policy, ok := r.chain.(interface {
+		RerankWithPreference(context.Context, string, []aisearch.RerankCandidate, string) ([]aisearch.RerankScore, error)
+	}); ok {
+		scores, err = policy.RerankWithPreference(ctx, query, candidates, preference)
+	} else {
+		scores, err = r.chain.Rerank(ctx, query, candidates)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("%w; fallback %s failed: %v", firstErr, after, err)
 	}

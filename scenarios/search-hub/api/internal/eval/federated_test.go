@@ -13,7 +13,8 @@ import (
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 
 	"search-hub/internal/eval"
-	"search-hub/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 type fakeFederatedQuery struct {
@@ -34,7 +35,7 @@ func federatedHit(provider, id string, score float64) *routingv1.SearchHit {
 
 func newFederatedRunner(query eval.QueryClient) *eval.FederatedRunner {
 	return eval.NewFederatedRunner(fakeResolver{desc: &registryv1.ProviderDescriptor{ProviderId: "owner.leaf"}}, query,
-		mocks.NewFakeClock(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)), func() string { return "federated-fixed" })
+		scheduletest.New(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)), func() string { return "federated-fixed" })
 }
 
 func federatedSuite(cases ...*evalv1.EvalCase) *evalv1.EvalSuite {
@@ -83,7 +84,7 @@ func TestFederatedRunnerUsesDefaultMarginAndRejectsUnknownProvider(t *testing.T)
 	require.NoError(t, err)
 	require.Equal(t, "met", run.GetResults()[0].GetOutcome())
 	require.Contains(t, run.GetResults()[0].GetOutcomeReason(), "default margin floor")
-	unknown := eval.NewFederatedRunner(fakeResolver{err: errors.New("provider is not registered")}, fakeFederatedQuery{}, mocks.NewFakeClock(time.Now()), nil)
+	unknown := eval.NewFederatedRunner(fakeResolver{err: errors.New("provider is not registered")}, fakeFederatedQuery{}, scheduletest.New(time.Now()), nil)
 	_, err = unknown.Run(context.Background(), federatedSuite(), "t", 10)
 	require.Error(t, err)
 }

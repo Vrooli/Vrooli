@@ -10,6 +10,7 @@ import (
 
 	internaleval "search-hub/internal/eval"
 
+	"github.com/vrooli/api-core/schedule"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 )
 
@@ -29,6 +30,10 @@ func (c *fakeClock) Advance(d time.Duration) {
 	c.now = c.now.Add(d)
 	c.mu.Unlock()
 }
+
+func (c *fakeClock) NewTimer(d time.Duration) schedule.Timer   { return schedule.System().NewTimer(d) }
+func (c *fakeClock) NewTicker(d time.Duration) schedule.Ticker { return schedule.System().NewTicker(d) }
+func (c *fakeClock) Sleep(d time.Duration)                     { c.Advance(d) }
 
 type fakeSuites struct {
 	mu     sync.Mutex
@@ -299,4 +304,38 @@ func TestSchedulerValidatesOnSeparateCadenceAndPersistsVerdicts(t *testing.T) {
 	if got := store.count(); got != 2 {
 		t.Fatalf("validation-cadence eval runs = %d, want 2", got)
 	}
+}
+
+func TestSchedulerDelaysFirstTickForDependencyStartup(t *testing.T) {
+	clk := &fakeClock{now: time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC)}
+	store := &fakeStore{}
+	started := make(chan struct{})
+	release := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	scheduler := New(clk, &fakeSuites{suites: []*evalv1.EvalSuite{suite("one")}}, &fakeRunner{name: "direct"}, &fakeRunner{name: "federated"}, store, Options{
+		Cadence:       time.Hour,
+		StartupDelay:  2 * time.Second,
+		StartupJitter: 0,
+		Sleep: func(_ context.Context, delay time.Duration) error {
+			if delay != 2*time.Second {
+				t.Errorf("startup delay = %s, want 2s", delay)
+			}
+			close(started)
+			<-release
+			return nil
+		},
+		Logger: log.New(io.Discard, "", 0),
+	})
+	done := make(chan struct{})
+	go func() { scheduler.Run(ctx); close(done) }()
+	<-started
+	// The injected sleep is the first observable action; the scheduler has not
+	// been allowed to run a boot tick before dependency startup completes.
+	if got := store.count(); got != 0 {
+		t.Fatalf("runs before startup delay completed = %d, want 0", got)
+	}
+	close(release)
+	cancel()
+	<-done
 }

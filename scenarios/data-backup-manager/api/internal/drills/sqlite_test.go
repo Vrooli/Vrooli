@@ -6,8 +6,8 @@ import (
 	"time"
 
 	drills "data-backup-manager/internal/drills"
-	"data-backup-manager/internal/testutil/db"
 	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func newDrillRepo(t *testing.T) drills.Repository {

@@ -9,13 +9,14 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
+	localdb "signal-inbox/internal/database"
+	"signal-inbox/internal/signals"
+
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/blobstore"
 	apidb "github.com/vrooli/api-core/database"
-	localdb "signal-inbox/internal/database"
-	"signal-inbox/internal/signals"
-	"signal-inbox/internal/testutil/db"
-	"signal-inbox/internal/testutil/mocks"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 type doerFunc func(*http.Request) (*http.Response, error)
@@ -36,7 +37,7 @@ func newServices(t *testing.T, doer HTTPDoer) (signals.Service, Repository) {
 		apidb.SchemaProviderFunc(signals.Schema),
 		apidb.SchemaProviderFunc(Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	repo := NewSQLiteRepository(database)
 	enricher := NewService(repo, clk, NewHTMLExtractor(doer))
 	return signals.NewService(signals.NewSQLiteRepository(database, clk), clk, enricher), repo
@@ -105,7 +106,7 @@ func TestCaptureImageDelegatesOCRAndProjectsText(t *testing.T) {
 	))
 	store := blobstore.NewMemoryBlobStore()
 	require.NoError(t, store.Put(context.Background(), "signals/uploads/example", bytes.NewBufferString("image bytes"), "image/png"))
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	runner := runnerFunc(func(_ context.Context, inputPath string) ([]byte, error) {
 		materialized, err := os.ReadFile(inputPath)
 		require.NoError(t, err)
@@ -131,7 +132,7 @@ func TestUnavailableImageToolsLeavesImageCapturedAndNeedsAttention(t *testing.T)
 	))
 	store := blobstore.NewMemoryBlobStore()
 	require.NoError(t, store.Put(context.Background(), "signals/uploads/unavailable", bytes.NewBufferString("image bytes"), "image/png"))
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	runner := runnerFunc(func(context.Context, string) ([]byte, error) { return nil, context.DeadlineExceeded })
 	repo := NewSQLiteRepository(database)
 	enricher := NewService(repo, clk, NewImageExtractor(store, runner))

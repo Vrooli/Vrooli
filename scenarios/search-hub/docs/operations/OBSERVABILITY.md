@@ -19,8 +19,8 @@ Use this document to answer:
 | `/health` status | health | API | API and dependency reachability | healthy for local development |
 | UI health endpoint | health | UI server | UI bundle/server reachability | responds during lifecycle health check |
 | test-genie result | validation | `make test` | scenario correctness evidence | all required phases pass |
-| Federated query telemetry | telemetry | `query_telemetry` / `search-hub insights insights` | Query volume, zero-result rate, degraded-query count, rerank count, total p50/p95 latency, routing mode, selected/withheld/queued fan-out, stage latency, rerank candidates, and closed response-degradation cause | p95 should stay below the operator budget for the active provider set |
-| Per-provider fan-out telemetry | telemetry | `query_telemetry_provider` / `search-hub insights insights` | Provider routed count, hit count, per-leg p50/p95 latency, degraded count/rate, and top degradation reasons | slow or frequently degraded providers should be identifiable without ad-hoc probing |
+| Federated query telemetry | telemetry | `query_telemetry` / `search-hub insights insights` | Query volume, zero-result rate, degraded-query count, rerank count, windowed p50/p95 latency, rolling recent-10 p50/p95 latency, explicit RFC3339 bounds, sample count/sufficiency, routing mode, selected/withheld/queued fan-out, stage latency, rerank candidates, and closed response-degradation cause | Treat latency as provisional until the response's `sample_sufficient` is true; compare the bounded window with recent-10 to distinguish recovery from historical outage data |
+| Per-provider fan-out telemetry | telemetry | `query_telemetry_provider` / `search-hub insights insights` | Provider routed count, hit count, per-leg p50/p95 latency, active reranker leg, degraded count/rate, and top degradation reasons, all bounded by the requested window | slow or frequently degraded providers should be identifiable without ad-hoc probing |
 
 ## Logs
 
@@ -36,7 +36,7 @@ Use this document to answer:
 | Product activation | deferred | Define after PRD users and workflows are real. |
 | Requirement coverage | active | Tracked through requirements and test-genie coverage artifacts. |
 | Performance budgets | deferred | Define in `../internal/PERFORMANCE.md`. |
-| Per-provider latency | active | `search-hub insights insights --window <days>` reports p50/p95 per provider from persisted fan-out legs. |
+| Per-provider latency | active | `search-hub insights insights --window <duration>` accepts `15m`, `2h`, or a bare day count and reports p50/p95 per provider from persisted fan-out legs; sparse providers return zero percentiles rather than implying stable evidence. |
 | Provider degradation rate | active | `search-hub insights insights --window <days>` reports degraded percentage and reason buckets (`timeout`, `unreachable`, `http_error`, `reranker_unavailable`, `other`). |
 | Declared query telemetry measures | active | `/measures/declarations` and `MeasuresService` serve `query_telemetry.federated-latency`, `query_telemetry.degraded-query-rate`, and `query_telemetry.provider-degradation-rate` from the same `InsightsRange` compute path. |
 | Fleet routing envelope | active | The metrics store buckets telemetry by routing mode and selected fan-out (`1`, `2-6`, `7-12`, `13-24`, `25+`) with p50/p95 total and classifier/resolver/fan-out/rerank stage costs. Query text is never persisted. |

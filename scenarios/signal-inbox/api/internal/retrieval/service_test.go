@@ -6,17 +6,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	aisearch "github.com/vrooli/ai-go/search"
-	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 	"signal-inbox/internal/categories"
-	"signal-inbox/internal/clock"
 	localdb "signal-inbox/internal/database"
 	"signal-inbox/internal/inference"
 	"signal-inbox/internal/signals"
-	"signal-inbox/internal/testutil/db"
-	"signal-inbox/internal/testutil/mocks"
 	"signal-inbox/internal/triage"
+
+	"github.com/stretchr/testify/require"
+	aisearch "github.com/vrooli/ai-go/search"
+	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 type memoryVectorStore struct {
@@ -50,7 +51,7 @@ func newService(t *testing.T) (*Service, signals.Service, *sql.DB) {
 	t.Helper()
 	database := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(signals.Schema), apidb.SchemaProviderFunc(categories.Schema), apidb.SchemaProviderFunc(triage.Schema), apidb.SchemaProviderFunc(Schema)))
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	journal := signals.NewService(signals.NewSQLiteRepository(database, clk), clk)
 	return NewService(NewSQLiteRepository(database), clk), journal, database
 }
@@ -62,7 +63,7 @@ func TestSearchIndexesEverySignalRegardlessOfDisposition(t *testing.T) {
 	require.NoError(t, err)
 	dropped, err := journal.Capture(context.Background(), signals.CaptureInput{Text: "A discontinued platform source remains searchable"})
 	require.NoError(t, err)
-	triageService := triage.NewService(triage.NewSQLiteRepository(database), clock.System{})
+	triageService := triage.NewService(triage.NewSQLiteRepository(database), schedule.System())
 	_, err = triageService.Set(context.Background(), dropped.Signal.ID, triage.Dropped, nil)
 	require.NoError(t, err)
 	indexed, total, err := service.Coverage(context.Background())
@@ -84,7 +85,7 @@ func TestAmbientExcludesDoneAndDroppedWithoutAffectingSearch(t *testing.T) {
 	require.NoError(t, err)
 	done, err := journal.Capture(context.Background(), signals.CaptureInput{Text: "completed work remains searchable"})
 	require.NoError(t, err)
-	triageService := triage.NewService(triage.NewSQLiteRepository(database), clock.System{})
+	triageService := triage.NewService(triage.NewSQLiteRepository(database), schedule.System())
 	_, err = triageService.Set(context.Background(), done.Signal.ID, triage.Triaged, nil)
 	require.NoError(t, err)
 	_, err = triageService.Set(context.Background(), done.Signal.ID, triage.Done, nil)
@@ -103,7 +104,7 @@ func TestAmbientDefersRevisitUntilItsScheduledTime(t *testing.T) {
 	t.Log("[REQ:SIG-P0-007] [REQ:SIG-P0-012]")
 	database := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(signals.Schema), apidb.SchemaProviderFunc(categories.Schema), apidb.SchemaProviderFunc(triage.Schema), apidb.SchemaProviderFunc(Schema)))
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	journal := signals.NewService(signals.NewSQLiteRepository(database, clk), clk)
 	deferred, err := journal.Capture(context.Background(), signals.CaptureInput{Text: "Review this at the next scheduled revisit"})
 	require.NoError(t, err)
@@ -167,7 +168,7 @@ func TestSemanticSearchIndexesWholeJournalWithDocumentAndQueryTasks(t *testing.T
 	t.Log("[REQ:SIG-P0-010]")
 	database := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(signals.Schema), apidb.SchemaProviderFunc(categories.Schema), apidb.SchemaProviderFunc(triage.Schema), apidb.SchemaProviderFunc(Schema)))
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
 	journal := signals.NewService(signals.NewSQLiteRepository(database, clk), clk)
 	semantic, err := journal.Capture(context.Background(), signals.CaptureInput{Text: "The blue orchard protocol protects rare fruit trees."})
 	require.NoError(t, err)

@@ -142,7 +142,7 @@ func TestQueryRecordsZeroResultAndDegraded(t *testing.T) {
 
 func TestResponseDegradeReasonClassifiesCoexistingCauses(t *testing.T) {
 	groups := []*routingv1.ProviderResultGroup{{ProviderId: "down", Degraded: true}}
-	require.Equal(t, "classifier,reranker,provider_leg,zero_result",
+	require.Equal(t, "classifier,reranker_absent,provider_leg,zero_result",
 		routing.ResponseDegradeReason(true, true, groups, 0))
 }
 
@@ -233,6 +233,7 @@ func TestStatusReportsProbedIndexAgeAndPointCount(t *testing.T) {
 	require.Equal(t, "endpoint resolved", h.GetReachability())
 	require.Equal(t, "30m0s", h.GetIndexAge())
 	require.Equal(t, int64(42), h.GetPointCount())
+	require.Equal(t, "2026-08-12T07:30:00Z", h.GetLastIndexedAt().AsTime().Format(time.RFC3339))
 	require.Equal(t, 1, doer.statusCalls)
 }
 
@@ -243,7 +244,7 @@ func TestStatusReportsExplicitIndexAgeAbsence(t *testing.T) {
 		err  error
 		want string
 	}{
-		{name: "no timestamp is unreported", body: `{"point_count":9}`, want: "unreported: status response has no usable last-index timestamp"},
+		{name: "no timestamp is unreported", body: `{"point_count":9}`, want: "unreported: status response has no usable declared index timestamp"},
 		{name: "probe timeout is unreported", err: context.DeadlineExceeded, want: "unreported: status probe failed: context deadline exceeded"},
 	}
 	for _, tt := range tests {

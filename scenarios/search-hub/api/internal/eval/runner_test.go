@@ -13,7 +13,8 @@ import (
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 
 	"search-hub/internal/eval"
-	"search-hub/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // fakeResolver returns a canned descriptor (or an error) for the runner's
@@ -52,7 +53,7 @@ func hit(id string, score float64) *routingv1.SearchHit {
 }
 
 func newRunner(client eval.ProviderClient) *eval.Runner {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC))
 	resolver := fakeResolver{desc: &registryv1.ProviderDescriptor{ProviderId: "p"}}
 	var n int
 	return eval.NewRunner(resolver, client, clk, func() string { n++; return "run-fixed" })
@@ -139,6 +140,39 @@ func TestRunner_SearchErrorDegradesCaseNotRun(t *testing.T) {
 	require.EqualValues(t, 1, run.GetAggregate().GetGradedCases())
 }
 
+func TestRunner_InfrastructureFailureIsUnavailableAndExcluded(t *testing.T) {
+	client := fakeClient{
+		errQuery: map[string]error{"down": errors.New("request: provider returned HTTP 503")},
+		byQuery:  map[string][]*routingv1.SearchHit{"ok": {hit("a", 0.8)}},
+	}
+	run, err := newRunner(client).Run(context.Background(), suiteWith(
+		&evalv1.EvalCase{CaseId: "down", Query: "down", ExpectIds: []string{"a"}},
+		&evalv1.EvalCase{CaseId: "ok", Query: "ok", ExpectIds: []string{"a"}},
+	), "t", 0)
+	require.NoError(t, err)
+	require.Equal(t, "unavailable", run.GetResults()[0].GetOutcome())
+	require.Len(t, run.GetUnavailableCases(), 1)
+	require.Contains(t, run.GetUnavailableCases()[0].GetReason(), "503")
+	require.EqualValues(t, 1, run.GetAggregate().GetGradedCases())
+	require.EqualValues(t, 1, run.GetAggregate().GetUnavailableCases())
+	require.InDelta(t, 1.0, run.GetAggregate().GetPassRate(), 1e-9)
+}
+
+func TestRunner_AllInfrastructureFailuresHaveNoQualityDenominator(t *testing.T) {
+	run, err := newRunner(fakeClient{errQuery: map[string]error{
+		"one": context.DeadlineExceeded,
+		"two": errors.New("qdrant: connect: connection refused"),
+	}}).Run(context.Background(), suiteWith(
+		&evalv1.EvalCase{CaseId: "one", Query: "one", ExpectIds: []string{"a"}},
+		&evalv1.EvalCase{CaseId: "two", Query: "two", ExpectIds: []string{"a"}},
+	), "t", 0)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, run.GetAggregate().GetGradedCases())
+	require.EqualValues(t, 2, run.GetAggregate().GetUnavailableCases())
+	require.Empty(t, run.GetAggregate().GetPassRate())
+	require.NotEmpty(t, run.GetUnavailableReason())
+}
+
 func TestRunner_ZeroGradedCasesDegradesRun(t *testing.T) {
 	run, err := newRunner(fakeClient{byQuery: map[string][]*routingv1.SearchHit{
 		"ungraded": {hit("a", 0.2)},
@@ -156,7 +190,7 @@ func TestRunner_UnresolvedProviderErrors(t *testing.T) {
 	r := eval.NewRunner(
 		fakeResolver{err: eval.ErrSuiteNotFound{SuiteID: "p"}},
 		fakeClient{},
-		mocks.NewFakeClock(time.Now().UTC()),
+		scheduletest.New(time.Now().UTC()),
 		nil,
 	)
 	_, err := r.Run(context.Background(), suiteWith(&evalv1.EvalCase{CaseId: "c", Query: "q"}), "t", 0)

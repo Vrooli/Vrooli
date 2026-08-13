@@ -7,8 +7,8 @@ import (
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"measures-health/internal/modules"
-	"measures-health/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 

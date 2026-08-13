@@ -6,7 +6,7 @@ import {
   PreflightCheckStep,
 } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
 import { StageStatus } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
-import { renderWithProviders } from "../../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { usePipelineStore } from "../../../store";
 import { PreflightSection } from "./PreflightSection";
 

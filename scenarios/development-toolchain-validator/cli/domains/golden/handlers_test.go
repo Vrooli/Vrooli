@@ -20,7 +20,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
 
-	clitest "development-toolchain-validator/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 type fakeService struct {

@@ -1,16 +1,19 @@
 package search
 
 import (
+	"context"
+	"strings"
+	"time"
+
 	"asset-studio/internal/module"
 	core "asset-studio/internal/studio"
 	"connectrpc.com/connect"
-	"context"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/search"
 	searchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/search/search_v1connect"
-	"strings"
 )
 
 type handler struct{ store core.StateStore }
@@ -52,13 +55,19 @@ func (h handler) Search(ctx context.Context, req *connect.Request[searchv1.Searc
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h handler) Status(ctx context.Context, _ *connect.Request[searchv1.StatusRequest]) (*connect.Response[searchv1.StatusResponse], error) {
 	s, e := h.store.Load(ctx)
 	if e != nil {
 		return nil, connect.NewError(connect.CodeInternal, e)
 	}
-	return connect.NewResponse(&searchv1.StatusResponse{Available: true, IndexedCount: int32(len(s.Identities) + len(s.Assets))}), nil
+	return connect.NewResponse(&searchv1.StatusResponse{
+		Available:     true,
+		IndexedCount:  int32(len(s.Identities) + len(s.Assets)),
+		LastIndexedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}), nil
 }
+
 func Module(db *database.RoutedDB) module.Module {
 	p, h := searchconnect.NewSearchServiceHandler(handler{store: core.NewSQLiteStore(db)})
 	return module.Module{Name: "search", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: p, Handler: h}) }, Endpoints: Endpoints}

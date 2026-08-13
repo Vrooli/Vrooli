@@ -9,7 +9,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "core",
-      "description": "The classifier ranks provider types using only the registry's NL descriptions and the query — no provider-specific routing code. It is swappable behind a Classifier interface.",
+      "description": "The classifier ranks provider leaves using only registry natural-language descriptions and the query — no provider-specific routing code. Search Hub retrieves a bounded description shortlist through the shared embedding contract and retains deterministic enumeration as an explicit degraded fallback.",
       "validation": [
         {
           "type": "test",

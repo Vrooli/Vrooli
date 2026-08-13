@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Routes, Route } from "react-router-dom";
 import { Deployments } from "./Deployments";
 import * as api from "../../lib/api";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 vi.mock("../../lib/api");
 

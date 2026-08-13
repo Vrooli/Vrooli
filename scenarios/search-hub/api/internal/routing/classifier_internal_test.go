@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -255,6 +256,23 @@ func TestBuildClassifierPromptPrefersEvidenceForImplementationQuestions(t *testi
 	require.Contains(t, prompt, "narrative record or memory corpus")
 	require.Contains(t, prompt, "history, decisions, or prior work")
 	require.Contains(t, prompt, "never route only to skill or record leaves")
+}
+
+func TestBuildClassifierPromptBoundsCandidateDescriptions(t *testing.T) {
+	profiles := make([]ProviderProfile, classifierMaxProfiles+5)
+	for i := range profiles {
+		profiles[i] = ProviderProfile{ProviderID: fmt.Sprintf("provider-%d", i), Type: "code", Description: strings.Repeat("x", 500)}
+	}
+	prompt := buildClassifierPrompt("where is the answer", profiles)
+	require.Contains(t, prompt, "candidate descriptions truncated")
+	require.LessOrEqual(t, len(prompt), classifierMaxDescriptionBytes+3200, "prompt cap must remain bounded including instructions")
+}
+
+func TestBuildClassifierPromptNamesIndexOmissions(t *testing.T) {
+	prompt := buildClassifierPrompt("where is the answer", []ProviderProfile{
+		{ProviderID: "provider-0", Type: "code", Description: "code evidence", OmittedProviderIDs: []string{"provider-9", "provider-10"}},
+	})
+	require.Contains(t, prompt, "omitted provider_ids: provider-9, provider-10")
 }
 
 func TestOllamaClassifier_Classify_RunnerErrorPropagates(t *testing.T) {

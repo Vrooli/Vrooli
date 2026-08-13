@@ -27,6 +27,9 @@ func Normalize(d *registryv1.ProviderDescriptor) {
 	if strings.TrimSpace(d.Lifecycle) == "" {
 		d.Lifecycle = "production"
 	}
+	if d.StatusEndpoint != nil && strings.TrimSpace(d.IndexTimestampField) == "" {
+		d.IndexTimestampField = "last_indexed_at"
+	}
 }
 
 // Validate enforces the descriptor invariants the router depends on. It assumes

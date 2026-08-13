@@ -5,6 +5,8 @@
 > legend are defined once in the canonical model doc:
 > `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`. This document does not re-explain them.
 
+> **Routing and migration safety** — automatic routing first retrieves a bounded provider-description shortlist; if the shared embedding substrate is unavailable, Search Hub reports `routing_index_unavailable` and uses deterministic enumeration. Embedding retargeting is shadow-only and eval-gated; cutover retains the old collection for pointer rollback.
+
 > **Condition** — every cell that resolves `NOW` here puts its **provider** into the Condition
 > population, and `search-hub` owes that provider's serving, freshness, and exercise signals as
 > declared Measures. Condition is not a denominator and is not authored in this file; the model,
@@ -35,11 +37,11 @@ column doubles as the gap registry.
 
 | # | Question (Entity · Archetype) | Owner (provider) | Status | Basis | Notes / approach |
 |---|---|---|---|---|---|
-| 23 | Repo contract · Conformance — "Does the project conform to its repo contract; what's the layout?" | `contract-registry.contracts` | IN-REACH (gap stub) | DERIVED / VALIDATED | The registered contract leaf carries this project-wide question. |
-| 24 | ⭐ Control-plane CLI · Anatomy — "How is the top-level `vrooli` CLI structured/composed?" | _(none)_ | MISSING | DERIVED | Not "find a command" (cli-health does that) — the *structure* of `cmd/vrooli`. Needs a control-plane registry. |
-| 25 | Shared packages · Inventory + Connection — "What `packages/*` exist and who consumes each?" | `code-reference.code` | IN-REACH | DERIVED | The code-reference provider is the declared substrate for package inventory and usage edges; it is currently a capability gap. |
+| 23 | Repo contract · Conformance — "Does the project conform to its repo contract; what's the layout?" | `code-facts.contracts` | NOW | DERIVED / VALIDATED | Code Facts contract evidence is live; conformance remains bounded by available contract facts. |
+| 24 | ⭐ Control-plane CLI · Anatomy — "How is the top-level `vrooli` CLI structured/composed?" | `code-facts.code` | IN-REACH | DERIVED | The control-plane target resolves the governed `cmd/vrooli` and `internal` roots; CLI composition analysis remains a follow-on. |
+| 25 | Shared packages · Inventory + Connection — "What `packages/*` exist and who consumes each?" | `code-facts.code` | NOW | DERIVED | Project lexical nodes and query-time edge expansion provide package locations and usage evidence. |
 | 26 | Resource fleet · Inventory + Anatomy — "What resources exist (ports/health/driver) and how do they fit together?" | _(none)_ | MISSING | DECLARED_UNVERIFIED | Per-`resource.json` exists; no fleet aggregator/provider. |
-| 27 | Contracts/schemas · Inventory — "What contracts/schemas govern the project and what do they enforce?" | `contract-registry.contracts` | IN-REACH (gap stub) | DERIVED | The registered contract leaf owns the project-wide contract inventory. |
+| 27 | Contracts/schemas · Inventory — "What contracts/schemas govern the project and what do they enforce?" | `code-facts.contracts` | NOW | DERIVED | The contract leaf indexes project proto adoption and contract source evidence. |
 
 ### G1 — Scenario (whole)
 
@@ -57,10 +59,10 @@ column doubles as the gap registry.
 | # | Question (Entity · Archetype) | Owner (provider) | Status | Basis | Notes / approach |
 |---|---|---|---|---|---|
 | 7 | Zones · Anatomy — "What are X's zones (handlers / domain / substrate / composition root)?" | `architecture-cartographer.domain-map` | NOW | DERIVED / VALIDATED | The registered domain-map leaf carries the current architectural map; a dedicated zones leaf remains a follow-on. |
-| 8 | Shared substrate · Inventory — "What non-domain/shared packages exist (server, module, clock, httputil…)?" | `code-reference.code` | IN-REACH | DERIVED | The registered code-reference leaf is the current code-graph substrate. |
+| 8 | Shared substrate · Inventory — "What non-domain/shared packages exist (server, module, clock, httputil…)?" | `code-facts.code` | NOW | DERIVED | Code Facts project nodes provide bounded shared-substrate source locations. |
 | 9 | ⭐ Shared substrate · Connection — "How do non-domain packages connect to domains? Who wires them (composition root / `Deps`)?" | _(none)_ | MISSING | DERIVED | Needs a provider; approach: `Deps`-struct + import-edge analysis. |
-| 10 | Seams · Inventory + Connection — "Where are the ambient seams (clock/http/env/logger); who wires prod vs test?" | `code-reference.code` | IN-REACH | DECLARED_UNVERIFIED → DERIVED | Static seam evidence remains the current approach. |
-| 11 | Proto contracts · Inventory + Conformance — "What proto services/messages exist; do they validate + are they adopted?" | `code-reference.code` | IN-REACH | DERIVED | The registered code-reference leaf carries the current contract inventory. |
+| 10 | Seams · Inventory + Connection — "Where are the ambient seams (clock/http/env/logger); who wires prod vs test?" | `code-facts.code` | IN-REACH | DECLARED_UNVERIFIED → DERIVED | Static seam evidence remains the current approach; dedicated seam classification is not yet attested. |
+| 11 | Proto contracts · Inventory + Conformance — "What proto services/messages exist; do they validate + are they adopted?" | `code-facts.contracts` | NOW | DERIVED | Contract source and proto-adoption evidence are live; validation coverage remains bounded by available proof facts. |
 | 12 | CLI substrate · Anatomy — "How is X's CLI composed (cli-core `ScenarioApp`, command groups)?" | `cli-health.commands` | IN-REACH | DERIVED | The live CLI command provider is the closest serving substrate; composition anatomy remains partial. |
 | 13 | UI substrate · Inventory + Anatomy — "What shared UI substrate exists (components/hooks/contexts/client layer)?" | `ui-health.surfaces` | IN-REACH (surfaces/widgets NOW) | DERIVED | The surfaces leaf is the serving provider; shared substrate anatomy needs extension. |
 | 14 | ⭐ Testing entities · Anatomy — "How is X's testing set up (phases, test data, mocks/fakes, fixtures)?" | `workflow-health.tests` | IN-REACH | DERIVED | The registered workflow-test corpus is the current searchable test substrate. |
@@ -71,20 +73,20 @@ column doubles as the gap registry.
 | # | Question (Entity · Archetype) | Owner (provider) | Status | Basis | Notes / approach |
 |---|---|---|---|---|---|
 | 16 | ⭐ Slice · Anatomy — "How is domain X implemented end-to-end (proto→handler→internal→cli→ui)?" | `architecture-cartographer.domain-map` | NOW (PARTIAL) | DERIVED / PARTIAL | The registered domain-map leaf carries partial architecture evidence; UI and cross-rung edges remain incomplete. |
-| 17 | ⭐ Feature · Flow — "Visualize how feature X works at runtime (control/data flow)." | `code-reference.code` | MISSING | PARTIAL (reconstructed) | The registered code-reference leaf lacks a complete call graph; flow remains reconstructed and lower-basis. |
-| 18 | Proto · Conformance — "Does domain X's code match its proto contract?" | `code-reference.code` | IN-REACH | DERIVED | The registered code-reference leaf carries the current contract substrate. |
-| 19 | Invariants · Verification — "What invariants does X enforce, and how?" | `code-reference.code` | IN-REACH | DECLARED_UNVERIFIED → DERIVED | Basis depends on the enforcement mechanism (type/db/test/runtime). |
+| 17 | ⭐ Feature · Flow — "Visualize how feature X works at runtime (control/data flow)." | `code-facts.code` | IN-REACH | PARTIAL (reconstructed) | Query-time edges provide callers/references for a hit; complete runtime flow reconstruction remains future work. |
+| 18 | Proto · Conformance — "Does domain X's code match its proto contract?" | `code-facts.contracts` | NOW | DERIVED | Contract source and proto-adoption evidence are live; full domain conformance remains bounded by available proof facts. |
+| 19 | Invariants · Verification — "What invariants does X enforce, and how?" | `code-facts.code` | IN-REACH | DECLARED_UNVERIFIED → DERIVED | Basis depends on the enforcement mechanism (type/db/test/runtime); invariant detection remains future work. |
 | 20 | Archetype · Inventory / Anatomy — "What's domain X's archetype (one of the canonical fleet vocabulary: reporting / service / mutation / classification / orchestration / scoring / query)?" | `architecture-cartographer.domain-map` | NOW | HEURISTIC → DECLARED | The registered domain-map leaf carries the inferred/declared archetype evidence. |
-| 21 | Persistence · Anatomy — "What's X's storage/persistence pattern (schema, migrations, seams)?" | `code-reference.code` | IN-REACH | DERIVED | The registered code-reference leaf carries the current persistence substrate. |
+| 21 | Persistence · Anatomy — "What's X's storage/persistence pattern (schema, migrations, seams)?" | `code-facts.code` | IN-REACH | DERIVED | Code Facts supplies source locations; persistence-pattern classification remains future work. |
 | 22 | Intent · Provenance — "Why does domain X exist / when should it change?" | `business-health.intent` (PRD purpose/OTs/requirements corpus) | IN-REACH | DERIVED | Pointer-only by contract: hits are anchors into `PRD.md`/`requirements/`, never synthesized rationale (business-health.intent, 2026-07-02). The provider is registered, but this pointer-only contract is not yet a fully attested NOW capability. |
 
 ### G4 — Symbol / file
 
 | # | Question (Entity · Archetype) | Owner (provider) | Status | Basis | Notes / approach |
 |---|---|---|---|---|---|
-| 28 | Symbol · Pointer + Connection — "Where is this function/type defined and where is it used?" | `code-reference.code` | IN-REACH | DERIVED | The code-reference leaf is the registered code-graph substrate. |
-| 29 | Call graph · Connection — "What calls/references symbol X (the graph around it)?" | `code-reference.code` | IN-REACH | DERIVED | The code-reference leaf is the declared call/reference graph substrate and remains a capability gap. |
-| 30 | File · Inventory — "What files/declarations are in package Y (and of what kind)?" | `code-reference.code` | IN-REACH | DERIVED | The registered code-reference leaf is the current code-graph substrate. |
+| 28 | Symbol · Pointer + Connection — "Where is this function/type defined and where is it used?" | `code-facts.code` | NOW | DERIVED | Lexical node search preserves source provenance and query-time edge expansion supplies usage evidence. |
+| 29 | Call graph · Connection — "What calls/references symbol X (the graph around it)?" | `code-facts.code` | NOW | DERIVED | Graph edges are resolved at query time for the top-ranked hit; cold lookups degrade to explicitly labeled lexical candidates. |
+| 30 | File · Inventory — "What files/declarations are in package Y (and of what kind)?" | `code-facts.code` | NOW | DERIVED | Project/package targets and bounded lexical nodes provide file/declaration inventory. |
 
 ### G5 — Ecosystem (inter-scenario)
 

@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"search-hub/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // SQLExecutor is the narrow database surface the store depends on. Declared at
@@ -67,6 +67,7 @@ type Sample struct {
 	FanoutLatencyMs         int64
 	RerankLatencyMs         int64
 	RerankCandidateCount    int
+	RerankerLeg             string
 	ResponseDegradeReason   string
 }
 
@@ -92,6 +93,7 @@ type ProviderUsage struct {
 	TotalHits          int64
 	LatencyP50Ms       int64
 	LatencyP95Ms       int64
+	ActiveRerankerLeg  string
 	DegradedCount      int64
 	DegradationRate    float64
 	DegradationReasons []ProviderDegradationReason
@@ -114,6 +116,14 @@ type Insights struct {
 	EscalatedQueries          int64
 	LatencyP50Ms              int64
 	LatencyP95Ms              int64
+	WindowFrom                time.Time
+	WindowTo                  time.Time
+	SampleCount               int64
+	MinimumSampleCount        int64
+	SampleSufficient          bool
+	RecentSampleCount         int64
+	RecentLatencyP50Ms        int64
+	RecentLatencyP95Ms        int64
 	ProviderUsage             []ProviderUsage
 	ResolverCacheHits         int64
 	ResolverCacheMisses       int64
@@ -155,13 +165,13 @@ type Store interface {
 
 type sqliteStore struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteStore constructs the production Store. db is the connection pool
 // opened in main.go; clk supplies created_at timestamps so tests advance time
 // deterministically.
-func NewSQLiteStore(db SQLExecutor, clk clock.Clock) Store {
+func NewSQLiteStore(db SQLExecutor, clk schedule.Clock) Store {
 	return &sqliteStore{db: db, clock: clk}
 }
 
@@ -169,6 +179,12 @@ func NewSQLiteStore(db SQLExecutor, clk clock.Clock) Store {
 var _ Store = (*sqliteStore)(nil)
 
 const telemetryTimeFormat = time.RFC3339Nano
+
+// MinimumStableSamples is the minimum evidence set for reporting latency
+// percentiles as stable measurements.
+const MinimumStableSamples int64 = 10
+
+const RecentLatencySampleLimit int64 = 10
 
 // Migrate applies guarded SQLite migrations that must run before EnsureSchemas'
 // drift check compares declared columns against an existing table.
@@ -196,6 +212,7 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		{name: "latency_ms", ddl: "ALTER TABLE query_telemetry_provider ADD COLUMN latency_ms INTEGER NOT NULL DEFAULT 0"},
 		{name: "degraded", ddl: "ALTER TABLE query_telemetry_provider ADD COLUMN degraded INTEGER NOT NULL DEFAULT 0"},
 		{name: "degrade_reason", ddl: "ALTER TABLE query_telemetry_provider ADD COLUMN degrade_reason TEXT NOT NULL DEFAULT ''"},
+		{name: "reranker_leg", ddl: "ALTER TABLE query_telemetry_provider ADD COLUMN reranker_leg TEXT NOT NULL DEFAULT ''"},
 	} {
 		table := "query_telemetry_provider"
 		if strings.Contains(col.ddl, "ALTER TABLE query_telemetry ADD") {
@@ -279,9 +296,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
 
 	for pid, provider := range sample.ProviderResults {
 		if _, err := s.db.ExecContext(ctx, `
-INSERT INTO query_telemetry_provider (query_id, provider_id, hit_count, latency_ms, degraded, degrade_reason)
-VALUES (?, ?, ?, ?, ?, ?)`,
-			id, pid, provider.HitCount, provider.LatencyMs, boolToInt(provider.Degraded), provider.DegradeReason); err != nil {
+INSERT INTO query_telemetry_provider (query_id, provider_id, hit_count, latency_ms, degraded, degrade_reason, reranker_leg)
+VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			id, pid, provider.HitCount, provider.LatencyMs, boolToInt(provider.Degraded), provider.DegradeReason, sample.RerankerLeg); err != nil {
 			return fmt.Errorf("insert query_telemetry_provider %q: %w", pid, err)
 		}
 	}
@@ -299,6 +316,8 @@ func (s *sqliteStore) InsightsRange(ctx context.Context, from, to time.Time) (*I
 
 func (s *sqliteStore) insights(ctx context.Context, filter telemetryFilter) (*Insights, error) {
 	out := &Insights{}
+	out.WindowFrom = filter.windowFrom
+	out.WindowTo = filter.windowTo
 	row := s.db.QueryRowContext(ctx, `
 SELECT
   COUNT(*),
@@ -323,11 +342,20 @@ FROM query_telemetry`+filter.queryWhere, filter.queryArgs...)
 		out.ResolverCacheHitRate = float64(out.ResolverCacheHits) / float64(cacheLookups)
 	}
 
+	out.SampleCount = out.TotalQueries
+	out.MinimumSampleCount = MinimumStableSamples
+	out.SampleSufficient = out.SampleCount >= out.MinimumSampleCount
 	p50, p95, err := s.latencyPercentiles(ctx, out.TotalQueries, filter.queryWhere, filter.queryArgs)
 	if err != nil {
 		return nil, err
 	}
-	out.LatencyP50Ms, out.LatencyP95Ms = p50, p95
+	if out.SampleSufficient {
+		out.LatencyP50Ms, out.LatencyP95Ms = p50, p95
+	}
+	out.RecentSampleCount, out.RecentLatencyP50Ms, out.RecentLatencyP95Ms, err = s.recentLatencyPercentiles(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
 
 	usage, err := s.providerUsage(ctx, filter)
 	if err != nil {
@@ -442,6 +470,8 @@ type telemetryFilter struct {
 	providerWhere    string
 	providerAndWhere string
 	providerArgs     []any
+	windowFrom       time.Time
+	windowTo         time.Time
 }
 
 // daysFilter builds the optional "created_at >= ?" filter. A non-positive
@@ -449,9 +479,11 @@ type telemetryFilter struct {
 // tests are deterministic.
 func (s *sqliteStore) daysFilter(windowDays int) telemetryFilter {
 	if windowDays <= 0 {
-		return telemetryFilter{}
+		return telemetryFilter{windowTo: s.clock.Now().UTC()}
 	}
-	cutoff := s.clock.Now().UTC().AddDate(0, 0, -windowDays).Format(telemetryTimeFormat)
+	now := s.clock.Now().UTC()
+	from := now.AddDate(0, 0, -windowDays)
+	cutoff := from.Format(telemetryTimeFormat)
 	return telemetryFilter{
 		queryWhere:       " WHERE created_at >= ?",
 		queryArgs:        []any{cutoff},
@@ -459,6 +491,8 @@ func (s *sqliteStore) daysFilter(windowDays int) telemetryFilter {
 		providerWhere:    ` WHERE t.created_at >= ?`,
 		providerAndWhere: ` AND t.created_at >= ?`,
 		providerArgs:     []any{cutoff},
+		windowFrom:       from,
+		windowTo:         now,
 	}
 }
 
@@ -472,7 +506,35 @@ func (s *sqliteStore) rangeFilter(from, to time.Time) telemetryFilter {
 		providerWhere:    ` WHERE t.created_at >= ? AND t.created_at < ?`,
 		providerAndWhere: ` AND t.created_at >= ? AND t.created_at < ?`,
 		providerArgs:     []any{fromText, toText},
+		windowFrom:       from.UTC(),
+		windowTo:         to.UTC(),
 	}
+}
+
+func (s *sqliteStore) recentLatencyPercentiles(ctx context.Context, filter telemetryFilter) (int64, int64, int64, error) {
+	q := `SELECT latency_ms FROM query_telemetry` + filter.queryWhere + ` ORDER BY created_at DESC, id DESC LIMIT ?`
+	args := append(append([]any{}, filter.queryArgs...), RecentLatencySampleLimit)
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("query recent latency samples: %w", err)
+	}
+	defer rows.Close()
+	values := make([]int64, 0, RecentLatencySampleLimit)
+	for rows.Next() {
+		var value int64
+		if err := rows.Scan(&value); err != nil {
+			return 0, 0, 0, fmt.Errorf("scan recent latency sample: %w", err)
+		}
+		values = append(values, value)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, 0, 0, fmt.Errorf("iterate recent latency samples: %w", err)
+	}
+	count := int64(len(values))
+	if count < MinimumStableSamples {
+		return count, 0, 0, nil
+	}
+	return count, percentile(values, 0.50), percentile(values, 0.95), nil
 }
 
 // latencyPercentiles returns the p50 and p95 latency over the window using
@@ -554,12 +616,36 @@ ORDER BY p.provider_id ASC`
 			return nil, err
 		}
 		out[i].DegradationReasons = reasons
+		leg, err := s.latestRerankerLeg(ctx, out[i].ProviderID, filter)
+		if err != nil {
+			return nil, err
+		}
+		out[i].ActiveRerankerLeg = leg
 	}
 	return out, nil
 }
 
+func (s *sqliteStore) latestRerankerLeg(ctx context.Context, providerID string, filter telemetryFilter) (string, error) {
+	q := `SELECT p.reranker_leg FROM query_telemetry_provider p JOIN query_telemetry t ON t.id = p.query_id`
+	args := []any{providerID}
+	where := ` WHERE p.provider_id = ?`
+	if filter.providerJoin != "" {
+		where += filter.providerAndWhere
+		args = append(args, filter.providerArgs...)
+	}
+	q += where + ` ORDER BY t.created_at DESC, t.id DESC LIMIT 1`
+	var leg string
+	if err := s.db.QueryRowContext(ctx, q, args...).Scan(&leg); err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+		return "", fmt.Errorf("latest reranker leg %s: %w", providerID, err)
+	}
+	return leg, nil
+}
+
 func (s *sqliteStore) providerLatencyPercentiles(ctx context.Context, providerID string, total int64, filter telemetryFilter) (int64, int64, error) {
-	if total == 0 {
+	if total < MinimumStableSamples {
 		return 0, 0, nil
 	}
 	p50, err := s.providerPercentileAt(ctx, providerID, total, 0.50, filter)

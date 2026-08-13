@@ -9,7 +9,7 @@ import (
 	auditsH "data-backup-manager/handlers/audits"
 	"data-backup-manager/internal/audits"
 	localdb "data-backup-manager/internal/database"
-	"data-backup-manager/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 

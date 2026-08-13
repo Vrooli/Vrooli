@@ -19,11 +19,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
-	"search-hub/internal/clock"
 	"search-hub/internal/evalsched"
 	"search-hub/internal/httpc"
 	"search-hub/internal/module"
 	internalrouting "search-hub/internal/routing"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
@@ -46,7 +47,7 @@ import (
 // EvalService Connect handler backed by the SQLite eval store and a Runner that
 // reaches each provider through its registry descriptor (resolving the live base
 // URL at call-time and reusing the shared providers.MapResults adapter).
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	store := internaleval.NewSQLiteStore(db, clk)
 	// The registry store doubles as the runner's provider resolver (its Get
 	// returns the descriptor whose endpoint the runner reuses) and the sweep's

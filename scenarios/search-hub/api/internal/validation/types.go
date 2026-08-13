@@ -45,6 +45,7 @@ const (
 	CodeEvalAssertFailed           = "SEARCH_EVAL_ASSERT_FAILED"
 	CodeEvalLabelsStale            = "SEARCH_EVAL_LABELS_STALE"
 	CodeEvalProviderUnavailable    = "SEARCH_EVAL_PROVIDER_UNAVAILABLE"
+	CodeEvalUnavailable            = "SEARCH_EVAL_UNAVAILABLE"
 	CodeEvalSuiteOrphaned          = "SEARCH_EVAL_SUITE_ORPHANED"
 	CodeTuningBudgetInvalid        = "SEARCH_TUNING_BUDGET_INVALID"
 	CodePerfBudgetBreach           = "SEARCH_PERF_BUDGET_BREACH"

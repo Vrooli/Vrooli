@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -119,6 +120,16 @@ func TestApplyOverrideHeadersNoopForZeroOverrides(t *testing.T) {
 	// explicitly-zero overrides.
 	require.NoError(t, applyOverrideHeaders(req, internaleval.SearchCallOptions{Overrides: &aisearch.SearchOverrides{}, ControlToken: "tok"}))
 	require.Empty(t, req.Header.Get(aisearch.OverridesHeader))
+}
+
+func TestParseIndexTimestampUsesDeclaredDirectField(t *testing.T) {
+	got := parseIndexTimestamp([]byte(`{"lastReconcileAt":"2026-08-13T11:34:20.777491506Z"}`), "lastReconcileAt")
+	require.Equal(t, "2026-08-13T11:34:20.777491506Z", got.UTC().Format(time.RFC3339Nano))
+}
+
+func TestParseIndexTimestampUsesDeclaredNestedField(t *testing.T) {
+	got := parseIndexTimestamp([]byte(`{"metrics":{"last_indexed_at":"2026-08-13T11:34:20.777491506Z"}}`), "metrics.last_indexed_at")
+	require.Equal(t, "2026-08-13T11:34:20.777491506Z", got.UTC().Format(time.RFC3339Nano))
 }
 
 func readRequestBody(t *testing.T, req *http.Request) string {

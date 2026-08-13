@@ -6,18 +6,19 @@ import (
 	"fmt"
 	"strings"
 
-	"signal-inbox/internal/clock"
 	"signal-inbox/internal/inference"
 	"signal-inbox/internal/signals"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 type Service struct {
 	repo      Repository
-	clock     clock.Clock
+	clock     schedule.Clock
 	inference inference.Client
 }
 
-func NewService(repo Repository, clk clock.Clock, client inference.Client) *Service {
+func NewService(repo Repository, clk schedule.Clock, client inference.Client) *Service {
 	return &Service{repo: repo, clock: clk, inference: client}
 }
 

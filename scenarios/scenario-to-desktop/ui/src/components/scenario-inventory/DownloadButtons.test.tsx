@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DownloadButtons } from "./DownloadButtons";
-import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { triggerDownload, writeToClipboard } from "../../lib/browser";
 
 const mocks = vi.hoisted(() => ({ getDownloadUrl: vi.fn() }));

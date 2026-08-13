@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strconv"
+	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -39,9 +42,10 @@ type ProviderLister interface {
 
 // Deps wires the seams the metrics Connect handler needs.
 type Deps struct {
-	Insights InsightsReader
-	Lister   ProviderLister
-	Logger   *log.Logger
+	Insights      InsightsReader
+	RangeInsights RangeInsightsReader
+	Lister        ProviderLister
+	Logger        *log.Logger
 }
 
 type connectHandler struct {
@@ -73,7 +77,27 @@ var _ = func() any {
 func (h *connectHandler) Insights(ctx context.Context, req *connect.Request[metricsv1.InsightsRequest]) (*connect.Response[metricsv1.InsightsResponse], error) {
 	window := int(req.Msg.GetWindowDays())
 
-	agg, err := h.deps.Insights.Insights(ctx, window)
+	var agg *internalmetrics.Insights
+	var err error
+	if raw := strings.TrimSpace(req.Msg.GetWindow()); raw != "" && !isBareDays(raw) {
+		if h.deps.RangeInsights == nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("duration windows are unavailable"))
+		}
+		from, to, parseErr := resolveDurationWindow(raw, time.Now().UTC())
+		if parseErr != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, parseErr)
+		}
+		agg, err = h.deps.RangeInsights.InsightsRange(ctx, from, to)
+	} else {
+		if raw := strings.TrimSpace(req.Msg.GetWindow()); raw != "" {
+			parsed, parseErr := strconv.Atoi(raw)
+			if parseErr != nil || parsed < 0 {
+				return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("window must be a non-negative day count or a duration such as 15m or 2h"))
+			}
+			window = parsed
+		}
+		agg, err = h.deps.Insights.Insights(ctx, window)
+	}
 	if err != nil {
 		h.deps.Logger.Printf("metrics.Insights(window=%d): %v", window, err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
@@ -98,6 +122,14 @@ func (h *connectHandler) Insights(ctx context.Context, req *connect.Request[metr
 		ResolverCacheHits:    agg.ResolverCacheHits,
 		ResolverCacheMisses:  agg.ResolverCacheMisses,
 		ResolverCacheHitRate: agg.ResolverCacheHitRate,
+		WindowFrom:           formatWindowTime(agg.WindowFrom),
+		WindowTo:             formatWindowTime(agg.WindowTo),
+		SampleCount:          agg.SampleCount,
+		MinimumSampleCount:   agg.MinimumSampleCount,
+		SampleSufficient:     agg.SampleSufficient,
+		RecentSampleCount:    agg.RecentSampleCount,
+		RecentLatencyP50Ms:   agg.RecentLatencyP50Ms,
+		RecentLatencyP95Ms:   agg.RecentLatencyP95Ms,
 		Providers:            reconcileUtilization(active, agg.ProviderUsage),
 	}
 	resp.RetirementCandidates, resp.GroupAdvisories = HygieneReports(resp.Providers)
@@ -159,10 +191,31 @@ func reconcileUtilization(active []*registryv1.ProviderDescriptor, usage []inter
 			DegradedCount:      u.DegradedCount,
 			DegradationRate:    u.DegradationRate,
 			DegradationReasons: convertReasons(u.DegradationReasons),
+			ActiveRerankerLeg:  u.ActiveRerankerLeg,
 		})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].GetProviderId() < out[j].GetProviderId() })
 	return out
+}
+
+func isBareDays(raw string) bool {
+	_, err := strconv.Atoi(raw)
+	return err == nil
+}
+
+func resolveDurationWindow(raw string, now time.Time) (time.Time, time.Time, error) {
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 || d < time.Minute {
+		return time.Time{}, time.Time{}, fmt.Errorf("invalid window %q: use a positive duration such as 15m or 2h", raw)
+	}
+	return now.Add(-d), now, nil
+}
+
+func formatWindowTime(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339Nano)
 }
 
 func convertReasons(in []internalmetrics.ProviderDegradationReason) []*metricsv1.ProviderDegradationReason {

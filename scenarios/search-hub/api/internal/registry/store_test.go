@@ -10,23 +10,24 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 
+	db "github.com/vrooli/api-core/databasetest"
 	localdb "search-hub/internal/database"
 	"search-hub/internal/registry"
-	"search-hub/internal/testutil/db"
-	"search-hub/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // newStore returns a SQLite-backed Store with the production schema applied —
 // the canonical compose pattern: db.NewSQLite + apidb.EnsureSchemas over the
 // system + registry providers, so tests exercise the same shape main.go ships.
-func newStore(t *testing.T) (registry.Store, *mocks.FakeClock) {
+func newStore(t *testing.T) (registry.Store, *scheduletest.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(registry.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	return registry.NewSQLiteStore(d, clk), clk
 }
 

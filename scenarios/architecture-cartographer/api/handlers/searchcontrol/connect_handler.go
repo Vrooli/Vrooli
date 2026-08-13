@@ -17,6 +17,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"log"
 
 	"connectrpc.com/connect"
@@ -40,6 +41,15 @@ type Reindexer interface {
 	// schema guard rejects (dense↔hybrid) returns an error and leaves the live
 	// engine untouched (no auto-drop).
 	ApplyTuning(ctx context.Context, tuning aisearchpkg.TuningConfig) (jobID string, plannedUpserts, plannedDeletes int, err error)
+}
+
+// MigrationReindexer is the optional additive extension used by the embedding
+// migration rehearsal. Providers that do not implement it keep the ordinary
+// Reindex contract and the migration command refuses to operate on them.
+type MigrationReindexer interface {
+	ReindexShadow(ctx context.Context, collection, model, role string, dimensions int, policySchemaVersion, scope string, dryRun bool) (jobID string, plannedUpserts, plannedDeletes int, err error)
+	ActivateShadow(ctx context.Context, shadowCollection string) error
+	RollbackShadow(ctx context.Context, oldCollection string) error
 }
 
 // ConfigWriter persists a new tuning block into the provider's search.json SSOT.
@@ -106,6 +116,32 @@ func (h *connectHandler) Reindex(ctx context.Context, req *connect.Request[contr
 	}
 	if h.deps.Reindexer == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("reindex backend not configured"))
+	}
+	if action := r.GetAction(); action != "" {
+		migration, ok := h.deps.Reindexer.(MigrationReindexer)
+		if !ok {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("embedding migration is not implemented by this provider"))
+		}
+		switch action {
+		case "shadow":
+			jobID, up, del, err := migration.ReindexShadow(ctx, r.GetShadowCollection(), r.GetEmbeddingModel(), r.GetEmbeddingRole(), int(r.GetEmbeddingDimensions()), r.GetEmbeddingPolicySchemaVersion(), r.GetScope(), r.GetDryRun())
+			if err != nil {
+				return nil, connect.NewError(connect.CodeInternal, err)
+			}
+			return connect.NewResponse(&controlv1.ReindexResponse{JobId: jobID, PlannedUpserts: int32(up), PlannedDeletes: int32(del), DryRun: r.GetDryRun()}), nil
+		case "cutover":
+			if err := migration.ActivateShadow(ctx, r.GetShadowCollection()); err != nil {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+			}
+			return connect.NewResponse(&controlv1.ReindexResponse{}), nil
+		case "rollback":
+			if err := migration.RollbackShadow(ctx, r.GetRollbackCollection()); err != nil {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+			}
+			return connect.NewResponse(&controlv1.ReindexResponse{}), nil
+		default:
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown migration action %q", action))
+		}
 	}
 	jobID, up, del, err := h.deps.Reindexer.Reindex(ctx, r.GetScope(), r.GetDryRun())
 	if err != nil {
@@ -260,6 +296,32 @@ func (a ServiceAdapter) ReindexStatus(jobID string) (string, int, int, string, b
 }
 
 func (a ServiceAdapter) ReindexCancel(jobID string) bool { return a.Service.ReindexCancel(jobID) }
+
+func (a ServiceAdapter) ReindexShadow(ctx context.Context, collection, model, role string, dimensions int, policySchemaVersion, scope string, dryRun bool) (string, int, int, error) {
+	job, err := a.Service.ReindexShadow(ctx, aisearch.ShadowRequest{
+		Collection: collection,
+		Embedding: aisearchpkg.EmbeddingPolicy{
+			Model: model, Role: role, Dimensions: dimensions, PolicySchemaVersion: policySchemaVersion,
+		},
+		Scope:  scope,
+		DryRun: dryRun,
+	})
+	if err != nil {
+		return "", 0, 0, err
+	}
+	exp := a.Service.JobExport(job)
+	up, _ := exp["planned_upserts"].(int)
+	del, _ := exp["planned_deletes"].(int)
+	return job.ID, up, del, nil
+}
+
+func (a ServiceAdapter) ActivateShadow(ctx context.Context, shadowCollection string) error {
+	return a.Service.ActivateShadow(ctx, shadowCollection)
+}
+
+func (a ServiceAdapter) RollbackShadow(ctx context.Context, oldCollection string) error {
+	return a.Service.RollbackShadow(ctx, oldCollection)
+}
 
 // ApplyTuning delegates to the live service's in-process engine rebuild + re-embed.
 func (a ServiceAdapter) ApplyTuning(ctx context.Context, tuning aisearchpkg.TuningConfig) (string, int, int, error) {

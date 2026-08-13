@@ -11,10 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"search-hub/internal/clock"
 	"search-hub/internal/eval"
 	"search-hub/internal/modules"
 	"search-hub/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -176,15 +177,15 @@ func main() {
 	// boot, so they need no seed here; a suite only references a provider_id and
 	// the runner resolves it at run time. When swarm-manager adopts, this call and
 	// the eval/seeds mechanism are deleted. See internal/eval/seeds.go.
-	if err := eval.RegisterSeeds(context.Background(), eval.NewSQLiteStore(db, clock.System{})); err != nil {
+	if err := eval.RegisterSeeds(context.Background(), eval.NewSQLiteStore(db, schedule.System())); err != nil {
 		log.Fatalf("eval seed registration failed: %v", err)
 	}
 
 	// The metrics domain owns the query_telemetry store. Its Recorder bridge is
 	// injected into the routing module so each federated query records telemetry
 	// (Phase 7), while the routing handler stays free of any metrics-store import.
-	telemetryRecorder := metricsH.Recorder(db, clock.System{}, log.Default())
-	router := routingH.NewRouter(db, clock.System{}, log.Default(), telemetryRecorder)
+	telemetryRecorder := metricsH.Recorder(db, schedule.System(), log.Default())
+	router := routingH.NewRouter(db, schedule.System(), log.Default(), telemetryRecorder)
 	routingH.StartRecoveryProbes(router, log.Default())
 	resourceChecks := requiredResourceChecks(repoRoot)
 	resourceChecks = append(resourceChecks, apihealth.Func("federation", func(ctx context.Context) error {
@@ -199,13 +200,13 @@ func main() {
 	}))
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "search-hub-api", "1.0.0", resourceChecks...),
-		metricsH.Module(db, clock.System{}, log.Default()),
-		registryH.Module(db, clock.System{}, log.Default()),
+		metricsH.Module(db, schedule.System(), log.Default()),
+		registryH.Module(db, schedule.System(), log.Default(), repoRoot),
 		routingH.ModuleWithRouter(router, log.Default()),
-		evalH.Module(db, clock.System{}, log.Default()),
-		validationH.Module(log.Default(), repoRoot, db, clock.System{}),
+		evalH.Module(db, schedule.System(), log.Default()),
+		validationH.Module(log.Default(), repoRoot, db, schedule.System()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

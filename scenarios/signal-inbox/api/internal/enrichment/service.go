@@ -4,17 +4,18 @@ import (
 	"context"
 	"strings"
 
-	"signal-inbox/internal/clock"
 	"signal-inbox/internal/signals"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 type Service struct {
 	repo       Repository
-	clock      clock.Clock
+	clock      schedule.Clock
 	extractors []Extractor
 }
 
-func NewService(repo Repository, clk clock.Clock, extractors ...Extractor) *Service {
+func NewService(repo Repository, clk schedule.Clock, extractors ...Extractor) *Service {
 	return &Service{repo: repo, clock: clk, extractors: extractors}
 }
 
