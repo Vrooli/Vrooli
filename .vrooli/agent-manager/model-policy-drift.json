@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-12T17:25:36.544454531Z",
+  "last_run": "2026-08-13T17:19:56.632487787Z",
   "status": "warning",
   "measured": 4,
   "total": 4,
@@ -75,14 +75,6 @@
       "model": "opencode/laguna-s-2.1-free",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/laguna-s-2.1-free"
-    },
-    {
-      "runner": "opencode",
-      "type": "unnamed_live_model",
-      "severity": "warning",
-      "model": "opencode/ling-3.0-tiny-free",
-      "message": "runner offers a live model not named by this policy",
-      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/ling-3.0-tiny-free"
     },
     {
       "runner": "opencode",
@@ -835,14 +827,6 @@
       "model": "openrouter/inclusionai/ling-3.0-flash",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/inclusionai/ling-3.0-flash"
-    },
-    {
-      "runner": "opencode",
-      "type": "unnamed_live_model",
-      "severity": "warning",
-      "model": "openrouter/inclusionai/ling-3.0-tiny:free",
-      "message": "runner offers a live model not named by this policy",
-      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/inclusionai/ling-3.0-tiny:free"
     },
     {
       "runner": "opencode",

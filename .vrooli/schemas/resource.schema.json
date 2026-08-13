@@ -431,6 +431,31 @@
         "startup_time_estimate": {
           "type": "string"
         },
+        "startup_budget": {
+          "type": "object",
+          "description": "Optional driver-owned readiness budget that grows from an observed unit count; the declared lifecycle timeout remains the floor.",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "qdrant_collection_count"
+              ]
+            },
+            "base_seconds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "per_unit_seconds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "max_seconds": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
         "dependencies": {
           "type": "array",
           "items": {

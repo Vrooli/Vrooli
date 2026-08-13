@@ -46,6 +46,12 @@ gen/manifests/<scenario>.lock.json          ← committed generation manifests
 
 `buf.yaml` declares three workspace modules. The vendored BSR modules sit alongside `schemas/` so transitive imports (`buf/validate/validate.proto`, `google/api/annotations.proto`, ...) resolve locally — no BSR fetch.
 
+The `vendor/googleapis/` and `vendor/protovalidate/` trees are required source
+inputs and must be committed with the Proto package. They are explicitly
+unignored in the repository because a fresh clone and Bridge working-tree
+transfer must carry them. Build outputs such as `gen/`, UI `dist/`, and
+`node_modules/` remain generated and are intentionally rebuilt by setup.
+
 `buf.gen.yaml` runs six plugin invocations against the `schemas/` input:
 
 | Plugin reference | Output | Plugin binary |
@@ -166,6 +172,11 @@ make verify-committed-gen
 The `buf export` calls require BSR access. Anonymous works until the rate limit kicks in; an authenticated session (see [`docs/configuration/integrations/buf-bsr.md`](../configuration/integrations/buf-bsr.md)) raises the ceiling. Login is the **only** time the BSR token matters — codegen itself is unconditional after the refresh.
 
 A `make refresh-vendor` target wraps the above so contributors don't have to memorize the URLs. If the resulting `gen/` diff is unexpected, roll back the vendor change rather than committing drift; `make verify-committed-gen` is the CI-style committed-artifact gate.
+
+Working-tree onboarding validates that these vendor trees are present in the
+enumerated source closure before shipping files to a node. If that check fails,
+restore the committed snapshots or deliberately run `make refresh-vendor` and
+regenerate; do not fix the problem by transferring `dist/` or `node_modules/`.
 
 ## Troubleshooting
 

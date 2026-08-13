@@ -83,6 +83,19 @@
           "uniqueItems": true,
           "description": "Stable machine-readable capabilities exposed by this scenario; unlike free-form tags, these support declarative automation."
         },
+        "platform_capabilities": {
+          "type": "object",
+          "description": "Per-host-OS support declarations for capabilities exposed by this service.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "linux": {"$ref": "#/definitions/platformCapability"},
+              "macos": {"$ref": "#/definitions/platformCapability"},
+              "windows": {"$ref": "#/definitions/platformCapability"}
+            }
+          }
+        },
         "maintainers": {
           "type": "array",
           "items": {
@@ -290,25 +303,6 @@
           "type": "integer",
           "minimum": 1
         },
-        "last_analyzed_at": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "analyzer": {
-          "type": "object",
-          "properties": {
-            "name": {
-              "type": "string"
-            },
-            "version": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        },
-        "aggregate_requirements": {
-          "$ref": "#/definitions/deploymentRequirements"
-        },
         "tiers": {
           "type": "object",
           "properties": {
@@ -408,6 +402,15 @@
     }
   ],
   "definitions": {
+    "platformCapability": {
+      "type": "object",
+      "required": ["status", "mechanism"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {"enum": ["supported", "partial", "unsupported"]},
+        "mechanism": {"type": "string", "minLength": 1}
+      }
+    },
     "generationMetadata": {
       "type": "object",
       "description": "Durable provenance for scenarios generated from a template.",
@@ -645,6 +648,11 @@
           "type": "string",
           "minLength": 1
         },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why this requirement is part of the project floor when required is true."
+        },
         "when": {
           "type": "array",
           "items": {
@@ -703,6 +711,21 @@
         "name",
         "required",
         "reason"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "required": {
+                "const": true
+              }
+            },
+            "required": ["required"]
+          },
+          "then": {
+            "required": ["rationale"]
+          }
+        }
       ],
       "additionalProperties": false
     },
@@ -798,6 +821,14 @@
     "deploymentRequirements": {
       "type": "object",
       "properties": {
+        "class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0
+        },
         "ram_mb": {
           "type": "number",
           "minimum": 0
@@ -859,30 +890,21 @@
     "deploymentTier": {
       "type": "object",
       "properties": {
-        "status": {
-          "type": "string",
-          "enum": [
-            "ready",
-            "limited",
-            "blocked"
-          ]
-        },
-        "fitness_score": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
-        },
-        "constraints": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "notes": {
           "type": "string"
         },
         "requirements": {
           "$ref": "#/definitions/deploymentRequirements"
+        },
+        "host_os": {
+          "type": "object",
+          "description": "Declared per-host-OS delivery input. The resolver derives the verdict; this block never stores a verdict.",
+          "properties": {
+            "linux": {"$ref": "#/definitions/hostOSDeploymentInput"},
+            "macos": {"$ref": "#/definitions/hostOSDeploymentInput"},
+            "windows": {"$ref": "#/definitions/hostOSDeploymentInput"}
+          },
+          "additionalProperties": false
         },
         "adaptations": {
           "type": "array",
@@ -925,6 +947,15 @@
           "type": "string"
         }
       },
+      "additionalProperties": false
+    },
+    "hostOSDeploymentInput": {
+      "type": "object",
+      "properties": {
+        "mechanism": {"type": "string", "minLength": 1},
+        "notes": {"type": "string"}
+      },
+      "required": ["mechanism"],
       "additionalProperties": false
     },
     "deploymentTierSecret": {
@@ -1052,11 +1083,6 @@
       "properties": {
         "supported": {
           "type": "boolean"
-        },
-        "fitness_score": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
         },
         "reason": {
           "type": "string"

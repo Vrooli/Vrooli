@@ -8,7 +8,9 @@
     "description",
     "commands",
     "versionArgs",
-    "bundling"
+    "bundling",
+    "capability",
+    "capability_role"
   ],
   "additionalProperties": false,
   "properties": {
@@ -76,6 +78,16 @@
     "handler": {
       "type": "string",
       "description": "Name of a custom Go handler. When set, the generic package-install logic is bypassed."
+    },
+    "capability": {
+      "type": "string",
+      "enum": ["credential-storage", "process-containment", "crash-forensics", "hardware-error-telemetry", "headless-gui", "network-host-config", "clock-accuracy", "service-resource-limits", "gpu-driver-health", "remote-desktop", "ai-cli", "code-analysis", "test-execution", "protobuf-toolchain", "source-control", "container-runtime", "media-processing", "data-query", "build-toolchain", "package-management", "network-transfer", "runtime-language", "load-testing", "backup-storage", "web-proxy", "terminal-multiplexing", "developer-utility"],
+      "description": "Capability delivered by this tool; values are governed by .vrooli/capability-vocabulary.json."
+    },
+    "capability_role": {
+      "type": "string",
+      "enum": ["primary", "peer"],
+      "description": "Whether this is the primary implementation or a platform peer for the capability."
     },
     "manual": {
       "type": "boolean",
@@ -167,6 +179,17 @@
                 }
               }
             }
+          }
+        },
+        "unsupported": {
+          "type": "object",
+          "description": "Explicitly unsupported os/arch combinations. Each key is <os>/<arch> and each value explains why no upstream artifact or install route exists.",
+          "propertyNames": {
+            "pattern": "^[a-z0-9]+/[a-z0-9]+$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
           }
         }
       }

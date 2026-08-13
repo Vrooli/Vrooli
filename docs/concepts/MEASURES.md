@@ -159,6 +159,13 @@ measure is `read` + `run_eligible` at confidence ≥ θ — **executes and retur
 number with provenance**. A `write`/`destructive` measure returns resolved-but-
 unexecuted with a confirmation prompt. θ is a conservative, tunable config lever.
 
+Search Hub's telemetry insights are a separate operational read: `--window`
+accepts a bare day count for compatibility or a duration such as `15m`/`2h`.
+The response includes inclusive/exclusive RFC3339 bounds, the window sample
+count, a minimum-evidence flag, and a rolling recent-10 latency percentile.
+When evidence is sparse, latency percentiles are returned as zero and marked
+provisional rather than presented as stable performance claims.
+
 ## Where measures live in the system
 
 - **`packages/measures-go`** — the contract SSOT: the `MeasureDeclaration` type,

@@ -25,7 +25,7 @@ Two chains run through this system, and you need both to read it. The **intent c
 | Outcome category | `path:docs/director-swarm/evidence/OUTCOMES_CHARTER.md` §"Team contribution map" | `director-swarm` | the `Serves objective` column |
 | Team purpose | `team.json::objectivesServed`, restated with reasoning in `OPERATING_MODEL.md` §Mission | owning team | **objective id — declared and validated** |
 | Team responsibility | `OPERATING_MODEL.md` §Scope (owns / does not own) and §Operating Loops | owning team | prose, scored by audit judgment |
-| Member surface | `RESPONSIBILITIES.md`, `HEARTBEAT.md`, `topics.json` | owning team | the nine layers in `TEAM_MEMBER_ARCHITECTURE.md` |
+| Member surface | `RESPONSIBILITIES.md`, `HEARTBEAT.md`, `topics.json` | owning team | the ten layers in `TEAM_MEMBER_ARCHITECTURE.md` |
 | Missing capability | `OPERATING_MODEL.md` §Current Implementation Gaps; Swarm Manager work; the capability ladder | owning team | the objective the gap blocks |
 
 Two properties make the chain checkable rather than decorative:
@@ -75,7 +75,7 @@ flowchart TB
     EXECW --> OUT3[Infra change]
     EXECW --> OUT4[POR spoke]
 
-    WORK & OUT1 & OUT2 & OUT3 & OUT4 --> AUDIT{{Meta-optimization audit<br/>9-layer rubric}}
+    WORK & OUT1 & OUT2 & OUT3 & OUT4 --> AUDIT{{Meta-optimization audit<br/>10-layer rubric}}
     AUDIT -->|new work| WORK
     AUDIT -.observable improvement.-> INBOX
 ```
@@ -88,23 +88,25 @@ For a first read, use this order:
 
 0. `path:docs/director-swarm/strategy/OBJECTIVES.md` — what the system is for. Everything below is machinery in service of it, and reading the machinery first is how a reader ends up able to describe the loop without being able to say what it is pointed at.
 1. `PRIMITIVES.md` — the nouns: Skill, Agent, Team, Team scope, PoR, Action, CLI, Gated work item, Knowledge entry, Inbox/synthesis.
-2. `LAYERS.md` — the rule for where each kind of guidance belongs.
-3. `TEAM_DOCS_PATTERNS.md` — where durable truth, typed observations, and implementation work belong.
-4. `INTAKE_PIPELINE.md` — how signals enter through topic inboxes and get routed.
-5. `SWARM_MANAGER_WORK.md` — how a router files one work item, how the operator dispositions it, and how execution returns evidence.
-6. `REVIEW_FEEDBACK.md` — how teams record evidence about proposed work and return it to the same work stream.
-7. `TEAM_MEMBER_ARCHITECTURE.md` — how to evaluate whether a member has a complete operating surface.
-8. `PROMOTION_LADDER.md` — how prose guidance matures (or doesn't) into CLI contracts, Actions, and retired prose.
+2. `TARGET_MODEL.md` — the shape every team is converging toward, the control vocabulary, and the named deviations that count as error. Read it before the surface-by-surface files below: they say where things belong, and this one says what the arrangement is *for*.
+3. `LAYERS.md` — the rule for where each kind of guidance belongs.
+4. `TEAM_DOCS_PATTERNS.md` — where durable truth, typed observations, and implementation work belong.
+5. `INTAKE_PIPELINE.md` — how signals enter through topic inboxes and get routed.
+6. `SWARM_MANAGER_WORK.md` — how a router files one work item, how the operator dispositions it, and how execution returns evidence.
+7. `REVIEW_FEEDBACK.md` — how teams record evidence about proposed work and return it to the same work stream.
+8. `TEAM_MEMBER_ARCHITECTURE.md` — how to evaluate whether a member has a complete operating surface.
+9. `PROMOTION_LADDER.md` — how prose guidance matures (or doesn't) into CLI contracts, Actions, and retired prose.
 
 ## Files
 
 | File | Status | Covers |
 |---|---|---|
 | `PRIMITIVES.md` | canon | What skills, agents, teams, plans, work items, knowledge, inboxes, actions, and CLIs are; how they relate |
+| `TARGET_MODEL.md` | canon | The target shape of a team as a control loop: the control chain and its vocabulary, obligations/cells/the four modes, the six instrument invariants and two archetypes, the degradation contract, the three exits, and the deviation catalogue every member reports against |
 | `LAYERS.md` | canon | The layering rule: truth / judgment / execution / implementation / unbuilt / raw learning |
 | `PROMOTION_LADDER.md` | canon | Lifecycle of guidance: prose guardrail → CLI/tool contract → Action → retired prose |
 | `TEAM_DOCS_PATTERNS.md` | canon | Plan-of-record authority, typed knowledge flow, promotion gates, and write boundaries |
-| `TEAM_MEMBER_ARCHITECTURE.md` | canon | The 9-layer member capability model |
+| `TEAM_MEMBER_ARCHITECTURE.md` | canon | The 10-layer member capability model |
 | `INTAKE_PIPELINE.md` | canon | Intake → Collection → Analysis → Promotion pipeline; inbox-router-drain pattern; two routing modes (classifier-required vs deterministic-prefix); cross-team schema ownership; topic-prefix conventions |
 | `TOPICS_SCHEMA.md` | canon | `topics.json` schema reference — paired with `path:scenarios/prompt-manager/api/memberflow/schema.go`. Pillar 1 of topic validation (declared graph). |
 | `PROSE_SCAN_TARGETS.md` | canon | Pillar 2 of topic validation (prose scan): scanner target inventory, `prose_topic_leak` pattern set and severities, writer-skill `writes_to[]` registry |

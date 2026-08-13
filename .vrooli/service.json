@@ -137,7 +137,6 @@
         "enabled": true
       },
       "twilio": {
-        "credentials_file": "~/.vrooli/twilio-credentials.json",
         "data_dir": "~/.vrooli/twilio",
         "description": "SMS, voice, and messaging automation via Twilio API",
         "enabled": true,
@@ -149,9 +148,9 @@
         "required": false
       },
       "vault": {
-        "description": "Secrets management and secure storage",
-        "enabled": true,
-        "required": true
+        "description": "Optional HashiCorp Vault capability for explicitly Vault-backed workflows; ordinary credentials use the Vrooli credential authority",
+        "enabled": false,
+        "required": false
       },
       "whisper": {
         "description": "Speech-to-text processing service",
@@ -164,9 +163,6 @@
     {
       "name": "clock",
       "notes": "Checks clock against remote HTTP time sources; syncs via hwclock/ntpdate/timedatectl if \u003e5 minutes off",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Verify system clock accuracy for TLS certificate validation and JWT operations",
       "required": false,
       "when": [
@@ -176,9 +172,6 @@
     {
       "name": "cloudflared_recovery_privileges",
       "notes": "Writes /etc/sudoers.d/tunnel-manager (mode 0440, visudo-validated) granting the invoking user NOPASSWD `systemctl restart cloudflared` + `reset-failed cloudflared`. Auto-skips on hosts without cloudflared.service. Optional, but self-promotes to required under `sudo vrooli setup`.",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Let tunnel-manager's non-root auto-recovery loop restart the root cloudflared unit without an interactive sudo prompt (sudo paid once at setup)",
       "required": false,
       "when": [
@@ -188,9 +181,6 @@
     {
       "name": "dns_resolution",
       "notes": "Writes /etc/systemd/resolved.conf.d/99-vrooli-dns.conf with Google and Cloudflare DNS; flushes cache",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Configure reliable DNS servers via systemd-resolved for resilient name resolution",
       "required": false,
       "when": [
@@ -200,9 +190,6 @@
     {
       "name": "docker_host_firewall",
       "notes": "Creates and wires VROOLI-DOCKER iptables chain into DOCKER-USER for container-to-host networking",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Enable Docker containers to reach native host services via iptables VROOLI-DOCKER chain",
       "required": false,
       "when": [
@@ -213,9 +200,6 @@
     {
       "name": "kernel_config",
       "notes": "Manages /etc/sysctl.d/99-vrooli.conf with inotify and other kernel parameters",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Configure kernel parameters for optimal Vrooli operation (inotify limits for dev servers)",
       "required": false,
       "when": [
@@ -225,9 +209,6 @@
     {
       "name": "workspace_sandbox_userns",
       "notes": "Installs/loads a dedicated vrooli-workspace-sandbox AppArmor profile when plain unshare is blocked; does not disable AppArmor or kernel.apparmor_restrict_unprivileged_userns globally.",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Allow workspace-sandbox to restart through its portable launcher with the default overlayfs-userns driver after Linux host reboots",
       "required": true,
       "when": [
@@ -238,9 +219,6 @@
     {
       "name": "nat_protection",
       "notes": "Scans iptables -t nat OUTPUT for REDIRECT rules whose target ports have no listener and removes them",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Detect and remove dead NAT iptables REDIRECT rules that hijack web traffic",
       "required": false,
       "when": [
@@ -251,10 +229,25 @@
     {
       "name": "remote_session_protection",
       "notes": "Native runtime applies managed Linux sysctl and systemd protections for remote sessions",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Protect remote Linux GUI sessions when the deployment profile calls for it",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "remote_desktop_access",
+      "notes": "Declares remote desktop experience and reports provider support without overriding display-manager policy",
+      "reason": "Make remote desktop behavior explicit and safe to inspect before applying",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "login_keyring_unlock",
+      "notes": "High-risk, opt-in safeguard. On an autologin host, backs up the login keyring and opens the user's keyring prompt to request a blank passphrase. Any process running as the autologin user can then read secrets stored in the keyring.",
+      "reason": "Make the login keyring available to an autologin session when the operator explicitly accepts the loss of encryption at rest",
       "required": false,
       "when": [
         "setup"
@@ -263,9 +256,6 @@
     {
       "name": "tcp_tuning",
       "notes": "Manages /etc/sysctl.d/99-vrooli-tcp.conf with tcp_ecn, tcp_mtu_probing, tcp_base_mss",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Optimize TCP stack for reliable connectivity (disable ECN, enable PMTU probing)",
       "required": false,
       "when": [
@@ -275,9 +265,6 @@
     {
       "name": "ollama_resource_controls",
       "notes": "Writes /etc/systemd/system/ollama.service.d/99-vrooli-resource-controls.conf. Auto-skips on hosts without ollama.service. Operator must `systemctl restart ollama` to apply limits to the running process.",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Cap ollama.service memory and bias OOM killer toward it so an embeddings burst cannot exhaust host RAM (see 2026-05-07 host-stability investigation)",
       "required": false,
       "when": [
@@ -287,9 +274,6 @@
     {
       "name": "host_hardening",
       "notes": "Writes /etc/sysctl.d/99-vrooli-host-hardening.conf and /etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf. Depends on the kdump-tools tool being armed (Phase 2 of 2026-05-07 work) — without that, panic_on_oops=1 turns survivable oopses into reboots that produce no diagnostics.",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Turn silent hard resets into observable kdump-able panics (sysrq, hung_task/softlockup/NMI/oops panic) and rate-limit journald so UFW BLOCK floods don't drown panic info",
       "required": false,
       "when": [
@@ -299,10 +283,6 @@
     {
       "name": "vrooli_launcher",
       "notes": "Optional: only matters if you want `sudo vrooli ...` to work. The shim forwards to the calling user's ~/.vrooli/bin/vrooli; see internal/safeguards/vrooli-launcher/handler.go package doc for the design rationale.",
-      "platforms": [
-        "linux",
-        "darwin"
-      ],
       "reason": "Install /usr/local/bin/vrooli launcher shim so `sudo vrooli` resolves (sudo's secure_path excludes ~/.vrooli/bin where make install writes the real binary)",
       "required": false,
       "when": [
@@ -312,9 +292,6 @@
     {
       "name": "pstore_native",
       "notes": "Loads efi_pstore (UEFI hosts) and/or erst (ACPI ERST hosts) and persists at-boot via /etc/modules-load.d. Reports SupportNotApplicable when neither backend is available; configure pstore_ramoops as a RAM-backed fallback in that case.",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Activate native kernel pstore backends (efi_pstore / erst) so panic dumps survive resets without modifying GRUB",
       "required": false,
       "when": [
@@ -325,9 +302,6 @@
     {
       "name": "pstore_observability",
       "notes": "Creates the vrooli-observability group, adds the invoking project user, installs a root-owned pstore collector service/timer, and exports artifacts read-only. Does not delete /sys/fs/pstore artifacts. A logout/login or reboot may be needed before the current shell observes new group membership.",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Export root-readable pstore crash artifacts into /var/lib/vrooli/host-observability/pstore so unprivileged scenarios can inspect crash evidence without sudo",
       "required": false,
       "when": [
@@ -336,10 +310,7 @@
     },
     {
       "name": "pstore_ramoops",
-      "notes": "Modifies GRUB_CMDLINE_LINUX in /etc/default/grub. Backup written to /etc/default/grub.vrooli-bak.\u003ctimestamp\u003e. REQUIRES OPERATOR REBOOT — Vrooli does NOT auto-run update-grub. Reports SupportNotApplicable unless VROOLI_RAMOOPS_MEM_ADDRESS and VROOLI_RAMOOPS_MEM_SIZE env vars are set.",
-      "platforms": [
-        "linux"
-      ],
+      "notes": "Modifies GRUB_CMDLINE_LINUX in /etc/default/grub. Backup written to /etc/default/grub.vrooli-bak.\u003ctimestamp\u003e. REQUIRES OPERATOR REBOOT — Vrooli does NOT auto-run update-grub. Configure mem_address and mem_size in operator-state when native pstore is unavailable.",
       "reason": "RAM-backed pstore fallback for hosts without native pstore — opt-in only, requires explicit memory-region configuration",
       "required": false,
       "when": [
@@ -348,10 +319,7 @@
     },
     {
       "name": "crashkernel_reserve",
-      "notes": "Modifies GRUB_CMDLINE_LINUX with crashkernel=512M-:256M (overridable via VROOLI_CRASHKERNEL). Backup written. REQUIRES OPERATOR REBOOT after running `sudo update-grub`.",
-      "platforms": [
-        "linux"
-      ],
+      "notes": "Modifies GRUB_CMDLINE_LINUX with crashkernel=512M-:256M (overridable via the reservation parameter). Backup written. REQUIRES OPERATOR REBOOT after running `sudo update-grub`.",
       "reason": "Reserve memory for the kdump capture kernel via the crashkernel= boot parameter so kdump-tools can capture panics",
       "required": false,
       "when": [
@@ -360,10 +328,7 @@
     },
     {
       "name": "netconsole",
-      "notes": "Loads the netconsole kernel module with the operator-supplied target. Requires VROOLI_NETCONSOLE_TARGET env var (kernel netconsole format: src-port@src-ip/dev,tgt-port@tgt-ip/tgt-mac). Reports SupportNotApplicable when unset.",
-      "platforms": [
-        "linux"
-      ],
+      "notes": "Loads the netconsole kernel module with the operator-supplied target parameter (kernel netconsole format: src-port@src-ip/dev,tgt-port@tgt-ip/tgt-mac). Reports an invalid parameter when unset.",
       "reason": "Stream kernel oops/panic output to a remote log collector for off-host crash forensics",
       "required": false,
       "when": [
@@ -374,9 +339,6 @@
     {
       "name": "edac_modules",
       "notes": "Detects CPU vendor/family and modprobes the matching EDAC driver (currently amd64_edac for AMD Family 15h–1Ah). Reports SupportNotApplicable on consumer Ryzen 7000 where ECC is not exposed by firmware.",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Load EDAC drivers so memory error counters become readable under /sys/devices/system/edac/ on supported chipsets",
       "required": false,
       "when": [
@@ -387,9 +349,6 @@
     {
       "name": "tpm_credential_access",
       "notes": "Adds the invoking operator account to the group owning /dev/tpmrm0 (usually tss). Auto-skips on hosts with no TPM, or where the device grants its group nothing. The grant takes effect at the next login; `vrooli credentials store rewrap` then adds the unattended wrap.",
-      "platforms": [
-        "linux"
-      ],
       "reason": "Let the encrypted credential store open itself from the TPM after a reboot, instead of requiring an operator to type a passphrase at every boot",
       "required": false,
       "when": [
@@ -406,6 +365,7 @@
       ],
       "name": "git",
       "notes": "Root-owned core tool",
+      "rationale": "The control plane needs Git to identify and operate on the source tree during setup and development.",
       "reason": "Support repository bootstrap, source operations, and setup-time git configuration",
       "required": true,
       "when": [
@@ -421,6 +381,7 @@
       ],
       "name": "curl",
       "notes": "Root-owned core tool",
+      "rationale": "Setup and lifecycle helpers retrieve release metadata and artifacts over HTTP.",
       "reason": "Support HTTP-based bootstrap, diagnostics, and resource helper flows",
       "required": true,
       "when": [
@@ -436,6 +397,7 @@
       ],
       "name": "jq",
       "notes": "Root-owned core tool",
+      "rationale": "The documented operator and validation workflows require a portable JSON command-line parser.",
       "reason": "Support JSON parsing. Commonly used by coding agents and scripts",
       "required": true,
       "when": [
@@ -451,6 +413,7 @@
       ],
       "name": "yq",
       "notes": "Root-owned core tool",
+      "rationale": "The documented operator and validation workflows require a portable YAML command-line parser.",
       "reason": "Support YAML parsing. Commonly used by coding agents and scripts",
       "required": true,
       "when": [
@@ -467,7 +430,7 @@
       "name": "docker",
       "notes": "Root-owned core tool",
       "reason": "Run containerized resources across setup modes",
-      "required": true,
+      "required": false,
       "when": [
         "setup",
         "develop"
@@ -479,6 +442,7 @@
       ],
       "name": "go",
       "notes": "Root-owned development toolchain",
+      "rationale": "The Go toolchain is required to build and validate the control plane itself.",
       "reason": "Build and validate native Vrooli tooling during development setup",
       "required": true,
       "when": [
@@ -493,7 +457,7 @@
       "name": "node",
       "notes": "Root-owned development toolchain",
       "reason": "Build and run JavaScript-based workspace tooling during development setup",
-      "required": true,
+      "required": false,
       "when": [
         "setup",
         "develop"
@@ -506,7 +470,7 @@
       "name": "pnpm",
       "notes": "Pinned standalone binary matching the pnpm-workspace.yaml packageManager version; installed into ~/.vrooli/bin (no sudo).",
       "reason": "Install and build scenario UI workspaces; lifecycle steps fall back to plain `pnpm` when the host Node.js has no corepack shims",
-      "required": true,
+      "required": false,
       "when": [
         "setup",
         "develop"
@@ -519,7 +483,7 @@
       "name": "python",
       "notes": "Root-owned development helper runtime",
       "reason": "Support repo validation helpers and Python-based flows during development setup",
-      "required": true,
+      "required": false,
       "when": [
         "setup"
       ]
@@ -531,7 +495,7 @@
       "name": "java",
       "notes": "Root-owned formal verification runtime",
       "reason": "Provide Java 17+ for formal verification backends used by Quint verify",
-      "required": true,
+      "required": false,
       "when": [
         "setup",
         "test"
@@ -544,7 +508,7 @@
       "name": "quint",
       "notes": "Pinned to 0.32.0; installed via internal/tools/quint Go handler from @informalsystems/quint.",
       "reason": "Check formal temporal-flow models and generate deterministic model-based test artifacts",
-      "required": true,
+      "required": false,
       "when": [
         "setup",
         "test"
@@ -557,7 +521,7 @@
       "name": "buf",
       "notes": "Pinned to v1.37.0; installed via internal/tools/buf Go handler (no shell installer). See docs/development/proto.md.",
       "reason": "Drive packages/proto codegen, lint, and breaking-change checks; also gates template validation",
-      "required": true,
+      "required": false,
       "when": [
         "setup",
         "develop"
@@ -570,7 +534,7 @@
       "name": "protoc-gen-go",
       "notes": "Pinned alongside packages/proto/buf.gen.yaml; installed via `go install`.",
       "reason": "Local protoc plugin for Go codegen; replaces the BSR remote plugin so packages/proto generates offline",
-      "required": true,
+      "required": false,
       "when": [
         "setup",
         "develop"
@@ -583,7 +547,7 @@
       "name": "protoc-gen-connect-go",
       "notes": "Pinned alongside packages/proto/buf.gen.yaml; installed via `go install`.",
       "reason": "Local Connect-RPC protoc plugin for Go service codegen; keeps packages/proto generation offline",
-      "required": true,
+      "required": false,
       "when": [
         "setup",
         "develop"
@@ -596,7 +560,7 @@
       "name": "protoc-gen-es",
       "notes": "Pinned alongside packages/proto/buf.gen.yaml; installed via npm into ~/.cache/vrooli/protoc-plugins/node.",
       "reason": "Local protoc plugin for TypeScript/JavaScript codegen; replaces the BSR remote plugin",
-      "required": true,
+      "required": false,
       "when": [
         "setup",
         "develop"
@@ -609,7 +573,7 @@
       "name": "protoc",
       "notes": "v25+ required for both --python_out and --pyi_out built-ins.",
       "reason": "Provides built-in Python and pyi codegen invoked by buf via protoc_builtin; replaces the BSR remote python/pyi plugins",
-      "required": true,
+      "required": false,
       "when": [
         "setup",
         "develop"
@@ -627,7 +591,7 @@
         "linux"
       ],
       "reason": "Capture AMD/Intel hardware error events (MCE, EDAC, PCIe AER) so unexplained host resets can be diagnosed via the system-mce-recent autoheal check",
-      "required": true,
+      "required": false,
       "when": [
         "setup"
       ]
@@ -644,7 +608,7 @@
         "linux"
       ],
       "reason": "Capture Machine Check Exceptions on hosts where rasdaemon is unavailable; otherwise treated as superseded",
-      "required": true,
+      "required": false,
       "when": [
         "setup"
       ]
@@ -661,13 +625,30 @@
         "linux"
       ],
       "reason": "Capture full kernel crash dumps on panic to /var/crash for forensic analysis of unexplained resets",
-      "required": true,
+      "required": false,
       "when": [
         "setup"
       ]
     }
   ],
   "lifecycle": {
+    "health": {
+      "description": "Health contract for the project control-plane API started by the project develop lifecycle",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${VROOLI_API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 30000
+    },
     "clean": {
       "description": "Clean build artifacts and dependencies",
       "steps": [

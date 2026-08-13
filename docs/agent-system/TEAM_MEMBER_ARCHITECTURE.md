@@ -1,14 +1,14 @@
 # Team Member Architecture
 
-The 9-layer model for evaluating whether a team member has the right capability structure around its work. This file defines the layers; the audit procedure that scores them lives in the `team-member-capability-architecture-audit` skill.
+The 10-layer model for evaluating whether a team member has the right capability structure around its work. This file defines the layers; the audit procedure that scores them lives in the `team-member-capability-architecture-audit` skill.
 
 Cites `LAYERS.md`, `PRIMITIVES.md`, and `INTAKE_PIPELINE.md`. The intake-pipeline section here is a minimal slice; the full pattern lives in `INTAKE_PIPELINE.md`.
 
 ---
 
-## The nine layers
+## The ten layers
 
-Every member has nine independent capability layers. Each lives in a specific home (per `LAYERS.md`); each can be evaluated independently of the others.
+Every member has ten independent capability layers. Each lives in a specific home (per `LAYERS.md`); each can be evaluated independently of the others.
 
 | Layer | Belongs in | Good sign | Failure sign |
 |---|---|---|---|
@@ -17,12 +17,15 @@ Every member has nine independent capability layers. Each lives in a specific ho
 | **Plan of Record** | durable docs hub (`path:docs/<domain>/`) | Accepted strategy/canon has a discoverable home | Canon lives only in heartbeat prose or handoff |
 | **Skill Surface** | focused skills | Repeatable workflows have one or more paired skills | One mega-skill or no skill for repeated work |
 | **Intake** | shared state, inbox topic prefixes, heartbeat, external handoff, `topics.json` | Work can arrive through named, declared channels | Operator discoveries disappear into conversation memory |
+| **Instrument** | the team's declared `team.json::instrument`, read at the top of the loop | The member starts from one board and reads the rows its lane owns | The member is told to call several domain scenarios to learn its own team's state, or names current numbers its board could report |
 | **Collection** | tool skill, Action, CLI, scenario, or collection section | Evidence gathering is explicit and honest | "Research it" without source strategy |
 | **Analysis Method** | practice skill | The reasoning method is reusable and inspectable | Every run reinvents the method |
 | **Promotion / Routing** | contract, skill, decision guidance, `topics.json` | Observation vs synthesis vs decision vs backlog is explicit | Everything becomes a work item or nothing does |
 | **Feedback Loop** | meta-optimization ownership | Skill/doc/tool gaps route to the right optimizer | Weakness is observed but has no improvement path |
 
 The principle behind the layers is the layering rule from `LAYERS.md`: each layer holds a different *kind* of guidance. Confusing the layers is the primary source of architecture smells.
+
+**Instrument is the newest layer and the one most often absent rather than wrong.** It was added because the other nine can all score well for a member whose team has no single place to look: a member can have a crisp lane, a good skill, declared intake and honest collection, and still open every heartbeat by reconciling four scenarios by hand. That cost is invisible to a per-member audit that has no layer for it. Scoring it also makes the layer's *absence* legible — a member on a team that declares `instrument.status: "none"` scores low here through no fault of its own, and the finding routes to `team-capability-consolidation` for the team rather than to a rewrite of the member. The contract for what a well-formed instrument provides is `path:docs/agent-system/TARGET_MODEL.md`.
 
 ---
 

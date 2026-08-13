@@ -64,6 +64,8 @@ lib-cov
 packages/*/coverage/
 scenarios/*/coverage/
 scenarios/*/ui/coverage/
+# Test Genie file-determined phase results are runtime cache state, not source.
+scenarios/*/phase-cache/
 templates/scenarios/*/coverage/
 templates/scenarios/*/ui/coverage/
 *.lcov
@@ -347,6 +349,15 @@ api/api-server
 # Dependency directories (when vendoring is used)
 vendor/
 
+# Proto code generation is intentionally offline-capable. These two exported
+# BSR snapshots are source inputs, not disposable dependency/build output, so
+# working-tree onboarding and fresh checkouts must be able to carry them.
+!packages/proto/vendor/
+!packages/proto/vendor/googleapis/
+!packages/proto/vendor/googleapis/**
+!packages/proto/vendor/protovalidate/
+!packages/proto/vendor/protovalidate/**
+
 # Go workspace file
 # We keep go.work since it's required to start scenarios successfully
 # go.work
@@ -500,3 +511,11 @@ vrooli.lock
 resources/whisper/cli/cli
 resources/kokoro/cli/cli
 /vrooli-ports-migrate
+
+# Per-install operator state is not repository configuration.
+.vrooli/operator-state.json
+
+# vrooli-policy-runner is a nested module built by `make build` into
+# .vrooli/build and installed to ~/.vrooli/bin; its binaries are artifacts.
+cmd/vrooli-policy-runner/vrooli-policy-runner
+cmd/vrooli-policy-runner/vrooli-policy-runner.exe

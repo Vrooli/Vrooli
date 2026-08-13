@@ -22,6 +22,8 @@ Canonical import paths look like:
 
 ```go
 import databasetest "github.com/vrooli/api-core/databasetest"
+import apihttptest "github.com/vrooli/api-core/apihttptest"
+import servertest "github.com/vrooli/api-core/servertest"
 import connectxtest "github.com/vrooli/api-core/connectxtest"
 import cliapptest "github.com/vrooli/cli-core/cliapptest"
 ```
@@ -65,17 +67,25 @@ When TypeScript shared packages adopt this convention, use subpath exports:
 `@vrooli/<pkg>/testing`. The mechanism is package-manager-specific, but the
 shape is the same: a package-owned test companion import path.
 
-No TypeScript shared-package test companion is landed by this pilot.
+The first TypeScript companion is `@vrooli/api-base/testing`. It owns the
+generic `renderWithProviders`, `createTestQueryClient`, `createHookWrapper`,
+`configureTestProviders`, and `expectNoA11yViolations` helpers. Scenario UIs
+may retain a thin local barrel for domain-specific factories and mocks, but
+must import the provider implementation through the compiled subpath export.
+Scenario-specific context belongs in `configureTestProviders` or the
+`extraProviders` option; it must not fork the shared implementation.
 
 ## Per-Package Status
 
 | Module | Package | Status | Reason |
 | --- | --- | --- | --- |
-| `api-core` | `database` | `databasetest` | Canonical fake for `SchemaExecer`. |
+| `api-core` | `apihttp` | `apihttptest` | Canonical HTTP status, JSON, and protobuf assertions for API consumers. |
+| `api-core` | `database` | `databasetest` | Canonical fake executor, SQLite handle, and in-memory repository test helpers. |
 | `api-core` | `connectx` | `connectxtest` | Canonical Connect service server and logger harnesses. |
+| `api-core` | `server` | `servertest` | Narrow `Handler()`-based live HTTP server harness for server consumers. |
 | `api-core` | `blobstore` | Inline alternate implementations | `Memory` and `Filesystem` are runtime implementations, not test-only fakes. |
-| `api-core` | `discovery`, `health`, `pathfilter`, `preflight`, `retry`, `scenario`, `scenariocli`, `secrets`, `server`, `staleness`, `storage` | No companion yet | No exported consumer fake or harness has crossed the extraction threshold. Add `<pkg>test` when a concrete repeated consumer need appears. |
-| `cli-core` | `cliapp` | `cliapptest` | Convention-compliant home for test `RunContext` constructors. Existing `cliapp` exports remain. |
+| `api-core` | `discovery`, `health`, `pathfilter`, `preflight`, `retry`, `scenario`, `scenariocli`, `secrets`, `staleness`, `storage` | No companion yet | No exported consumer fake or harness has crossed the extraction threshold. Add `<pkg>test` when a concrete repeated consumer need appears. |
+| `cli-core` | `cliapp` | `cliapptest` | Convention-compliant home for test `RunContext`, live server, and `ScenarioApp` constructors. Existing `cliapp` exports remain. |
 | `cli-core` | `cliutil` | No companion yet | Current seams are concrete helpers with direct injection points, especially `HTTPClientOptions.Client`; no exported interface currently justifies a canonical fake. |
 | `cli-core` | `buildinfo`, `cmd`, `sandbox-resolve` | No companion yet | No repeated consumer-facing test helper has been identified. |
 
@@ -125,4 +135,3 @@ path, handler := notesconnect.NewNotesServiceHandler(notes.NewConnectHandler(dep
 server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: handler})
 client := notesconnect.NewNotesServiceClient(server.Client(), server.URL)
 ```
-

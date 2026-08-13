@@ -48,7 +48,7 @@ The system's improvement velocity depends on this rule. When canon lives in the 
 - Audits become structural. The team-member capability audit (see `TEAM_MEMBER_ARCHITECTURE.md`) scores each layer independently because each layer has its own home.
 - Retirement is mechanical. Once a CLI returns deterministic pass/fail for a workflow, the prose skill that tries to encode that workflow in words can be retired (per `PROMOTION_LADDER.md`).
 
-When canon lives in the wrong home — typically when a skill restates doctrine that should live in PoR — the same paragraph drifts as different copies update at different rates. The 9-layer audit then turns into prose-grep, which misses everything.
+When canon lives in the wrong home — typically when a skill restates doctrine that should live in PoR — the same paragraph drifts as different copies update at different rates. The 10-layer audit then turns into prose-grep, which misses everything.
 
 ---
 
@@ -78,6 +78,6 @@ When a topic-prefix crosses team boundaries, the producer's taxonomy owns the fr
 - the layer mantra above (any paraphrase that names ≥3 of: PoR, Skill, Action, CLI, backlog, typed knowledge, identity, ownership)
 - the classifier ("If it says X → Y") with ≥3 rows
 - the promotion ladder steps (interim → CLI/tool → Action → retire) without citing `PROMOTION_LADDER.md`
-- the 9-layer table without citing `TEAM_MEMBER_ARCHITECTURE.md`
+- the 10-layer table without citing `TEAM_MEMBER_ARCHITECTURE.md`
 
 Skills carrying canon residue must drop the prose and add `Required reading: docs/agent-system/<file>`. The PoR coherence test in `path:scenarios/prompt-manager/test/agent_system_canon_test.sh` enforces this.

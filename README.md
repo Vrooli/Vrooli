@@ -26,6 +26,7 @@ Vrooli is a local, cross-platform, self-improving software foundry. It gives you
 > - **The full project story (1-line, 1-paragraph, 1-page)** — [`docs/narrative/NARRATIVE.md`](docs/narrative/NARRATIVE.md)
 > - **Common questions answered (what is it, how does it make money, how is it different from OpenClaw / Hermes / OpenHands / Cline, what's its status)** — [`docs/narrative/FAQ.md`](docs/narrative/FAQ.md)
 > - **Long-term philosophical thesis** — [`VISION.md`](VISION.md)
+> - **How the system improves its own ability to improve** — [`docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md`](docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md)
 > - **Technical architecture** — [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md)
 >
 > The rest of this README focuses on **using and contributing to the project**.

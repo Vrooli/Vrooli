@@ -70,6 +70,17 @@ plan or move non-plan notes out of plan source locations, then rerun hygiene.
 
 ## Scenario Lifecycle Wait-Contract Seams
 
+## React Component Library version ledger seam
+
+The RCL `version_ledger` is a replayable projection boundary, not a second
+source of truth. `internal/versionledger.Repository.Rebuild` reads indexed
+version identity, version-scoped gate evidence, compact test rollups, and
+adoption facts, then upserts one stable `(library_id, version)` row. Lifecycle
+verbs use the same repository to protect the reference graph before changing
+manifest state or reclaiming a version folder. Progression consumers and
+measures call the ledger read surface; they do not issue equivalent ad hoc
+queries.
+
 Root control-plane code seams introduced by the scenario start wait contract
 (`docs/plans/scenario-lifecycle-start-wait-contract-plan.md`); each exists so
 the next agent extends it instead of hand-rolling a parallel mechanism:

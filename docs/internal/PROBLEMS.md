@@ -11,6 +11,10 @@ This file tracks the highest-value remaining documentation debt after the main p
 
 ## Highest-Value Remaining Follow-Up
 
+- RCL still uses the flat proto layout for its ledger domains. The planned
+  screaming-architecture move to `packages/proto/schemas/react-component-library/v1/domain/`
+  is intentionally deferred; the manifest records the transitional fallback.
+
 - continue curating specialized leaves under `path:docs/deployment/`, `path:docs/strategy/`, and other focused sections
 - keep `docs/manifest.json` aligned with the actual canonical tree
 - keep project-level command reference pages aligned with `go run ./cmd/vrooli ... --help`

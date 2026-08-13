@@ -1,15 +1,22 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "scenario-ui-manifest/v1",
+  "$id": "scenario-ui-manifest/v2",
   "title": "Scenario UI Manifest",
-  "description": "Declarative contract for a scenario's UI layout. Owned by the template the scenario was generated from. Declares a map of named slots (e.g. layout-shell, page, ui-primitive) to directories and path patterns inside the scenario's UI source tree. Consumers (e.g. react-component-library adoptions resolver) use it to compute the canonical filesystem path for adopted components.\n\nSlots are an open set: the schema does not enum-restrict slot names, so future templates can declare new slots without a schema bump. The v1 canonical slot vocabulary (documented but not enforced) is: ui-primitive, shared-component, layout-shell, layout-nav, page, feature, feature-component, hook, api-client, lib-util, consts, i18n-strings, theme-token, test-util.\n\nPath patterns may contain the tokens {ComponentName} (PascalCase), {componentName} or {camelName} (camelCase), {kebab-name} (kebab-case), {feature} (feature folder, supplied by caller when requiresFeature is true), and {locale} (used by i18n-strings only).",
+  "description": "Declarative contract for a scenario's UI layout. Owned by the template the scenario was generated from. Declares named placement slots, template capabilities, supported targets, and the structure version consumed by adoption and fleet validation. Slot names remain open so a new template can add a placement role without a schema bump. A scenario overlay may override existing slots but may not introduce new ones. Path patterns may contain {ComponentName}, {componentName}, {camelName}, {kebab-name}, {feature}, and {locale}.",
   "type": "object",
   "required": ["contract", "slots"],
   "properties": {
     "version": { "type": "string" },
+    "schemaVersion": { "type": "string" },
     "title": { "type": "string" },
     "description": { "type": "string" },
     "contract": { "$ref": "#/$defs/Contract" },
+    "targets": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "uniqueItems": true },
+    "idiom": { "type": "string", "minLength": 1 },
+    "provides": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "gates": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "templateStructureVersion": { "type": "string", "minLength": 1 },
+    "slotCoverage": { "type": "string", "enum": ["partial", "full"] },
     "slots": {
       "type": "object",
       "minProperties": 1,
@@ -25,7 +32,7 @@
       "required": ["kind", "schema"],
       "properties": {
         "kind": { "type": "string", "const": "scenario-ui" },
-        "schema": { "type": "string", "const": "scenario-ui-manifest/v1" },
+        "schema": { "type": "string", "enum": ["scenario-ui-manifest/v1", "scenario-ui-manifest/v2"] },
         "template": {
           "type": "string",
           "description": "Identifier of the template that owns this manifest (e.g. \"react-vite\"). Optional but recommended."
@@ -60,7 +67,8 @@
           "type": "boolean",
           "default": false,
           "description": "When true, callers must supply a feature folder name for the resolver to substitute {feature}."
-        }
+        },
+        "barrel": { "type": ["string", "null"] }
       },
       "additionalProperties": true
     },
@@ -70,7 +78,8 @@
         "slot": {
           "type": "string",
           "description": "Slot name to use when a component declares no slot of its own."
-        }
+        },
+        "fallbackDir": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": true
     }

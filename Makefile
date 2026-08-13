@@ -4,6 +4,7 @@
 
 BUILD_DIR := .vrooli/build
 INSTALL_DIR := $(HOME)/.vrooli/bin
+SOURCE_ROOT_POINTER := $(HOME)/.vrooli/source-root
 VROOLI := go run ./cmd/vrooli --no-stale-check
 SETUP_ARGS ?=
 DEVELOP_ARGS ?=
@@ -79,6 +80,9 @@ install: build ## Install project-level binaries into ~/.vrooli/bin
 	@mkdir -p "$(INSTALL_DIR)"
 	@$(call atomic_install,$(BUILD_DIR)/vrooli-api,$(INSTALL_DIR)/vrooli-api)
 	@$(call atomic_install,$(BUILD_DIR)/vrooli,$(INSTALL_DIR)/vrooli)
+	@$(call atomic_install,$(BUILD_DIR)/vrooli-policy-runner,$(INSTALL_DIR)/vrooli-policy-runner)
+	@printf '%s\n' "$(CURDIR)" > "$(SOURCE_ROOT_POINTER).new"
+	@mv -f "$(SOURCE_ROOT_POINTER).new" "$(SOURCE_ROOT_POINTER)"
 
 status: ## Show project status
 	@$(VROOLI) status
@@ -108,9 +112,27 @@ type: ## Compile-check project-level Go packages without running tests
 	@go test -run '^$$' ./cmd/... ./internal/...
 	@go test -run '^$$' -tags testing ./cmd/vrooli-api
 
-cross-compile: ## Cross-compile guard for the OS-evidence packages (darwin: full internal + cmd trees; windows: scoped — buildinfo/pstore-observability are not yet ported)
-	@GOOS=darwin GOARCH=arm64 go build ./internal/... ./cmd/...
-	@GOOS=windows GOARCH=amd64 go build ./internal/network/... ./internal/process/... ./internal/maintenance/... ./internal/scenarioruntime/... ./internal/ports/... ./internal/runtimesupervisor/... ./internal/resources/securestore/... ./internal/secrets/...
+cross-compile: ## Cross-compile every repository Go module; modules under node_modules/vendor are excluded by discovery with that reason in this target.
+	@set -eu; \
+	modules=$$(find . -name go.mod -not -path '*/node_modules/*' -not -path '*/vendor/*' -print | sort); \
+	for mod in $$modules; do \
+		dir=$${mod%/go.mod}; \
+		case "$$dir" in \
+			./templates/*) echo "==> SKIP cross-compile $$dir (darwin/arm64): source template contains generation placeholders and is not a buildable module until instantiated" ;; \
+			./scenarios/flow-verifier/api) echo "==> SKIP cross-compile $$dir (darwin/arm64): repository template retains {{SCENARIO_ID}} imports and missing generated channelmanager/forest packages; module is not a buildable scenario artifact" ;; \
+			./scenarios/go-code-graph/bas/fixtures/go-cycles) echo "==> SKIP cross-compile $$dir (darwin/arm64): intentional import-cycle fixture for graph detection tests, not a buildable module" ;; \
+			*) echo "==> cross-compile $$dir (darwin/arm64)"; \
+				(cd "$$dir" && GOFLAGS=-mod=mod GOOS=darwin GOARCH=arm64 go build ./...) ;; \
+		esac; \
+		case "$$dir" in \
+			./templates/*) echo "==> SKIP cross-compile $$dir (windows/amd64): source template contains generation placeholders and is not a buildable module until instantiated" ;; \
+			./scenarios/api-library/api) echo "==> SKIP cross-compile $$dir (windows/amd64): pinned github.com/redis/go-redis/v9 fails upstream with undefined errUnexpectedRead" ;; \
+			./scenarios/flow-verifier/api) echo "==> SKIP cross-compile $$dir (windows/amd64): repository template retains {{SCENARIO_ID}} imports and missing generated channelmanager/forest packages; module is not a buildable scenario artifact" ;; \
+			./scenarios/go-code-graph/bas/fixtures/go-cycles) echo "==> SKIP cross-compile $$dir (windows/amd64): intentional import-cycle fixture for graph detection tests, not a buildable module" ;; \
+			*) echo "==> cross-compile $$dir (windows/amd64)"; \
+				(cd "$$dir" && GOFLAGS=-mod=mod GOOS=windows GOARCH=amd64 go build ./...) ;; \
+		esac; \
+		done
 
 vrooli-dist: ## Build a prebuilt vrooli CLI + .fp sidecar (GOOS=<os> GOARCH=<arch> [OUT=<path>] [VERSION=<tag>])
 	@test -n "$(GOOS)" || { echo "GOOS is required" >&2; exit 2; }
@@ -125,6 +147,7 @@ test: ## Run project-level Go tests
 	@go test ./cmd/vrooli-buildmeta
 	@go test ./cmd/vrooli
 	@go test -tags testing ./cmd/vrooli-api
+	@cd cmd/vrooli-policy-runner && go test ./...
 
 check: lint type cross-compile test check-packages ## Run lint, type, cross-compile, and test quality gates (core + packages)
 
@@ -154,6 +177,8 @@ test-packages: ## Run Go tests in packages/*
 		printf "==> test %s\n" "$$dir"; \
 		$(MAKE) -C "$$dir" test || exit $$?; \
 	done
+	@printf "==> test packages/audio-capture-browser\n"
+	@vrooli package test audio-capture-browser
 
 check-packages: ## Run quality gates across packages/*
 	@for dir in $(PACKAGE_DIRS); do \

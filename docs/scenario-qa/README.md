@@ -85,7 +85,7 @@ Enforced by the canon coherence test at `scenarios/prompt-manager/test/agent_sys
 
 ## Cross-references
 
-- `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md` — the 9-layer model the audit skill uses to evaluate scenario-qa members. The `skillless canon` smell motivated the `methods/audit/` registry's seven paired PoR docs.
+- `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md` — the 10-layer model the audit skill uses to evaluate scenario-qa members. The `skillless canon` smell motivated the `methods/audit/` registry's seven paired PoR docs.
 - `docs/agent-system/INTAKE_PIPELINE.md` — the inbox-router-drain pattern used by the bug-investigator.
 - `docs/agent-system/TOPICS.md` — registry of every active topic prefix; scenario-qa entries live there.
 - `docs/agent-system/TOPICS_SCHEMA.md` — schema reference for `topics.json`; documents the `source_team: "*"` (universal-source) semantics that bug-inbox uses.

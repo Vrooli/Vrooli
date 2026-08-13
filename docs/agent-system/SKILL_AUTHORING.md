@@ -389,7 +389,7 @@ Before creating a new skill:
 
 - Do **not** create skills for one-off tasks (use direct instructions instead).
 - Do **not** duplicate guidance that belongs in `CLAUDE.md`, scenario-specific docs, or canon (`path:docs/agent-system/`, `path:docs/<domain>/`).
-- Do **not** restate framework canon (the layer mantra, the promotion ladder, the 9-layer model, the inbox-router-drain pattern). Cite `path:docs/agent-system/<file>.md` instead. The `team-member-capability-architecture-audit` skill flags this as the "skillless canon residue" smell.
+- Do **not** restate framework canon (the layer mantra, the promotion ladder, the 10-layer model, the inbox-router-drain pattern). Cite `path:docs/agent-system/<file>.md` instead. The `team-member-capability-architecture-audit` skill flags this as the "skillless canon residue" smell.
 - Prefer **updating existing skills** when guidance can be naturally extended.
 - Skills should be **transferable** across scenarios via the `{{TARGET}}` substitution pattern (Steer skills only; see `skill-authoring`).
 

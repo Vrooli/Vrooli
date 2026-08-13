@@ -6,6 +6,23 @@ This is canon. Cites `LAYERS.md` for where each layer lives, `PRIMITIVES.md` for
 
 ---
 
+## The Fourth Surface: The Team Instrument
+
+Three surfaces below hold a team's *words* — accepted truth, typed observations, and executable work. A mature team has a fourth that holds its **state and its error signal**: one scenario it reads to answer *what is the state of the world I own, and what should I do next?*
+
+- **Who writes:** the scenario, from live joins. Never a person, and never the instrument's own denominators, which are owned by the capability owners it reads.
+- **Who reads:** every member of the team, filtered to the rows their lane owns.
+- **Lifespan:** none. Numerators are computed live and never stored, so a stale board is structurally impossible — it is either fresh or honestly unavailable.
+- **Growth direction:** a new capability is a new row in a denominator, not new text in a member file. This is what makes a team get *smaller* as the system gets more capable.
+- **Health signal:** one address. A team whose members are told to call several domain scenarios to learn their own team's state has no instrument, whatever it declares.
+- **Declaration:** `team.json::instrument`. `status: "none"` with a dated `gapMarker` is a valid, honest value; silence is not.
+
+The full contract — the six invariants, the two archetypes, the degradation contract, and what belongs in a denominator — is `path:docs/agent-system/TARGET_MODEL.md`. It is not restated here.
+
+**The rule that decides between this surface and the three below:** if a scenario can answer it at read time, cite the query. Content with a status, a lifecycle, a counter, or a coverage figure belongs to the instrument; judgment frames and evidence belong to the surfaces below. That is the same read-time rule `OPERATING_GRAPHS.md` §"State belongs to scenarios" already states, applied to the question of *which surface* rather than *which document*.
+
+---
+
 ## One Durable Truth Surface
 
 Teams that produce durable intent use a **plan of record**. The plan of record is the authoritative documentation surface under `path:docs/<domain>/`.
@@ -108,5 +125,6 @@ When deciding where something belongs:
 ## Related Skills
 
 - `team-coordination-independent` / `team-coordination-leader-led` / `team-coordination-peer` — runtime coordination.
-- `team-tool-mapping` — tool/skill assignment when team structure changes touch tool wiring.
+- `team-tool-mapping` — routing a shipped scenario into a team's instrument first, and per-member tool skills only as the fallback for a team that has none.
+- `team-capability-consolidation` — turning hand-maintained state into a scenario and re-deriving the roster from what it now enforces.
 - `documentation-health` — clarity discipline for durable docs.

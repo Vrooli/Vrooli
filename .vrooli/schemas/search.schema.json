@@ -58,6 +58,12 @@
           "enum": ["local_index", "local_live", "external", "async"],
           "description": "Operability class — the descriptor policy that tells Search Hub what control/latency posture to expect, with no scenario-name special-casing. local_index: a tunable, locally-owned indexed corpus (must expose reindex_endpoint; config_endpoint optional, pinned for hybrid-by-construction). local_live: computed live, no tunable index (no reindex/config expected). external: third-party provider, e.g. web search (no local index/control/status expected, looser latency budget). async: locally-owned corpus rebuilt asynchronously (must expose reindex_endpoint). Required for active providers by Search Hub maturity certification."
         },
+        "lifecycle": {
+          "type": "string",
+          "enum": ["production", "fixture", "experimental"],
+          "default": "production",
+          "description": "Provider lifecycle policy. production participates in automatic routing; fixture is validation/support data reachable only through an explicit selector; experimental is callable explicitly while its evidence is being established. This is a registrant-declared generic policy with no scenario-name special-casing."
+        },
         "endpoint": {
           "$ref": "#/definitions/endpoint",
           "description": "Search endpoint descriptor (search-hub registry shape)"
@@ -65,6 +71,12 @@
         "status_endpoint": {
           "$ref": "#/definitions/endpoint",
           "description": "Status/health endpoint descriptor"
+        },
+        "index_timestamp_field": {
+          "type": "string",
+          "minLength": 1,
+          "default": "last_indexed_at",
+          "description": "Optional status-response field containing the last successful index/reconcile timestamp. Supports dotted paths; defaults to last_indexed_at."
         },
         "reindex_endpoint": {
           "$ref": "#/definitions/endpoint",
@@ -100,7 +112,7 @@
     },
     "tuning": {
       "type": "object",
-      "description": "Search tuning factors. Optional: a provider that omits this block runs on the aisearch-go defaults (TuningConfig.WithDefaults — dense engine, default embed model, no rerank), so an untuned provider is still valid. INDEX-TIME factors (engine, embed_model, embed_task_prefix) change the stored vectors and require a reindex when moved; QUERY-TIME factors (rerank_*, floor) vary per request. The sweep writes the winning values here. See packages/aisearch-go/tuning.go (the factor-taxonomy SSOT) for the per-factor tradeoff.",
+      "description": "Search tuning factors. Optional: a provider that omits this block runs on the aisearch-go defaults (TuningConfig.WithDefaults — dense engine, default embed model, no rerank), so an untuned provider is still valid. INDEX-TIME factors (engine, embed_model, embed_task_prefix) change the stored vectors and require a reindex when moved; QUERY-TIME factors (rerank_*, hybrid_fusion, floor) vary per request. The sweep writes the winning values here. See packages/aisearch-go/tuning.go (the factor-taxonomy SSOT) for the per-factor tradeoff.",
       "additionalProperties": false,
       "properties": {
         "engine": {
@@ -130,6 +142,17 @@
           "maximum": 500,
           "description": "QUERY-TIME. Over-fetch depth into the reranker."
         },
+        "rerank_preference": {
+          "type": "string",
+          "enum": ["cross_encoder_required", "cross_encoder_preferred"],
+          "default": "cross_encoder_preferred",
+          "description": "QUERY-TIME. Prefer the dedicated cross-encoder; required refuses the slower LLM fallback when the cross-encoder is unavailable."
+        },
+        "hybrid_fusion": {
+          "type": "string",
+          "enum": ["rrf", "dbsf"],
+          "description": "QUERY-TIME. Dense+sparse Qdrant fusion strategy: rrf is rank-robust; dbsf preserves score separation for exact lexical matches. Ignored by dense engines."
+        },
         "floor": {
           "type": "object",
           "additionalProperties": false,
@@ -143,7 +166,7 @@
     },
     "scoring": {
       "type": "object",
-      "description": "Corpus grading policy. Defaults apply when omitted: recall_at=5, recall_target=0.8, mrr_at=3, deep_k=50.",
+      "description": "Corpus grading policy. Defaults apply when omitted: recall_at=5, recall_target=0.8, mrr_at=3, deep_k=50. A junk_leak_opt_out_reason is an explicit, owner-recorded reason for exempting a provider from the automatic junk-leak gate; the reason is surfaced in federation status.",
       "additionalProperties": false,
       "properties": {
         "recall_at": {
@@ -166,6 +189,11 @@
           "type": "integer",
           "minimum": 1,
           "description": "Referential validation probe depth. Values below recall_at are resolved up to recall_at by the shared library."
+        },
+        "junk_leak_opt_out_reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required owner rationale when this provider opts out of automatic junk-leak withholding. The rationale is observable and does not suppress eval evidence."
         }
       }
     },
@@ -210,6 +238,16 @@
         "coverage": {
           "$ref": "#/definitions/coverage",
           "description": "Provider-owned production coverage contract. Required tags/groups must be satisfied by reviewed positive cases before Search Hub production maturity is clean."
+        },
+        "minimum": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Registrant-declared minimum reviewed evidence required for ACTIVE production registration. Zero means the provider has not declared an additional bar.",
+          "properties": {
+            "reviewed_positive": { "type": "integer", "minimum": 0 },
+            "negative": { "type": "integer", "minimum": 0 },
+            "required_tags": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+          }
         },
         "cases": {
           "type": "array",

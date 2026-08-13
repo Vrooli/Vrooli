@@ -5,24 +5,26 @@ go 1.25.0
 toolchain go1.25.12
 
 require (
+	connectrpc.com/connect v1.19.2
 	github.com/gorilla/mux v1.8.1
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/binaryfetch v0.0.0
 	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime v0.0.0
-	golang.org/x/sys v0.42.0
+	golang.org/x/sys v0.44.0
 	golang.org/x/term v0.37.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.50.1
 )
 
 require (
-	connectrpc.com/connect v1.19.2 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/go-chi/chi/v5 v5.0.11 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
@@ -38,6 +40,8 @@ replace github.com/vrooli/api-core => ./packages/api-core
 replace github.com/vrooli/binaryfetch => ./packages/binaryfetch
 
 replace github.com/vrooli/cli-core => ./packages/cli-core
+
+replace github.com/vrooli/platform-go => ./packages/platform-go
 
 replace github.com/vrooli/repo-contract-go => ./packages/repo-contract-go
 

@@ -48,6 +48,15 @@ credential authority and storage boundary.
 
 ## The degradation contract
 
+Device-control authentication profiles follow the same authority boundary. A
+profile stores only a namespaced logical identity and field; the unlock PIN or
+other device credential is provisioned through stdin and resolved in-process
+for one bounded transaction. It is never placed in a flow, source file,
+SQLite profile row, environment variable, process argument, audit record, or
+evidence artifact. Provider absent, provider unavailable, and unconfigured
+remain distinct so an unlock flow never treats an unhealthy store as a missing
+credential.
+
 **A missing or unreadable manifest-declared credential never blocks a scenario
 process from starting.** A scenario starts whenever its processes and ports can
 start. Credential state changes what a resource can *do*, never whether the

@@ -1,5 +1,21 @@
 {
   "colors": {
+    "app-background": "var(--color-background)",
+    "app-shell": "var(--color-background)",
+    "app-surface": "var(--color-surface-primary)",
+    "app-surface-muted": "var(--color-surface-muted)",
+    "app-surface-raised": "var(--color-surface-primary)",
+    "app-foreground": "var(--color-text-primary)",
+    "app-muted-foreground": "var(--color-text-secondary)",
+    "app-border": "var(--color-border-subtle)",
+    "app-primary": "var(--color-accent-primary)",
+    "app-primary-foreground": "var(--color-background)",
+    "app-accent": "var(--color-accent-secondary)",
+    "app-success": "var(--color-success)",
+    "app-danger": "var(--color-danger)",
+    "app-warning": "var(--color-warning)",
+    "app-info": "var(--color-accent-secondary)",
+    "app-focus": "var(--color-accent-secondary)",
     "landing-background": "var(--color-background)",
     "landing-surface-primary": "var(--color-surface-primary)",
     "landing-surface-muted": "var(--color-surface-muted)",
@@ -18,11 +34,19 @@
     "landing-border-subtle": "var(--color-border-subtle)"
   },
   "borderRadius": {
+    "control": "var(--radius-control)",
+    "panel": "var(--radius-panel)",
+    "sheet": "var(--radius-sheet)",
+    "pill": "var(--radius-pill)",
     "landing-control": "var(--radius-control)",
     "landing-card": "var(--radius-card)",
     "landing-panel": "var(--radius-panel)"
   },
   "boxShadow": {
+    "flat": "var(--elev-flat)",
+    "raised": "var(--elev-raised)",
+    "overlay": "var(--elev-overlay)",
+    "modal": "var(--elev-modal)",
     "landing-panel": "var(--shadow-panel)",
     "landing-card": "var(--shadow-card)"
   },
@@ -31,11 +55,34 @@
     "landing-body": "var(--font-body)",
     "mono": "var(--font-mono)"
   },
+  "fontSize": {
+    "display": ["var(--text-display-size)", {"lineHeight": "var(--text-display-line)", "fontWeight": "650", "letterSpacing": "-0.02em"}],
+    "title": ["var(--text-title-size)", {"lineHeight": "var(--text-title-line)", "fontWeight": "650", "letterSpacing": "-0.015em"}],
+    "heading": ["var(--text-heading-size)", {"lineHeight": "var(--text-heading-line)", "fontWeight": "600", "letterSpacing": "-0.01em"}],
+    "subheading": ["var(--text-subheading-size)", {"lineHeight": "var(--text-subheading-line)", "fontWeight": "600"}],
+    "body": ["var(--text-body-size)", {"lineHeight": "var(--text-body-line)", "fontWeight": "400"}],
+    "body-sm": ["var(--text-body-sm-size)", {"lineHeight": "var(--text-body-sm-line)", "fontWeight": "400"}],
+    "label": ["var(--text-label-size)", {"lineHeight": "var(--text-label-line)", "fontWeight": "500", "letterSpacing": "0.005em"}],
+    "caption": ["var(--text-caption-size)", {"lineHeight": "var(--text-caption-line)", "fontWeight": "600", "letterSpacing": "0.06em"}]
+  },
   "spacing": {
+    "space-3xs": "var(--space-3xs)",
+    "space-2xs": "var(--space-2xs)",
+    "space-xs": "var(--space-xs)",
+    "space-sm": "var(--space-sm)",
+    "space-md": "var(--space-md)",
+    "space-lg": "var(--space-lg)",
+    "space-xl": "var(--space-xl)",
+    "space-2xl": "var(--space-2xl)",
     "landing-section": "var(--section-spacing)",
     "touch": "var(--touch-target)"
   },
   "maxWidth": {
     "landing-container": "var(--container-max-width)"
-  }
+  },
+  "zIndex": {"base": "var(--layer-base)", "sticky": "var(--layer-sticky)", "dropdown": "var(--layer-dropdown)", "overlay": "var(--layer-overlay)", "modal": "var(--layer-modal)", "toast": "var(--layer-toast)", "tooltip": "var(--layer-tooltip)"},
+  "borderWidth": {"hairline": "var(--border-hairline)", "strong": "var(--border-strong)"},
+  "opacity": {"disabled": "var(--opacity-disabled)", "muted": "var(--opacity-muted)", "scrim": "var(--opacity-scrim)"},
+  "transitionDuration": {"instant": "var(--dur-instant)", "quick": "var(--dur-quick)", "moderate": "var(--dur-moderate)", "deliberate": "var(--dur-deliberate)"},
+  "transitionTimingFunction": {"standard": "var(--ease-standard)", "enter": "var(--ease-enter)", "exit": "var(--ease-exit)", "spring-subtle": "var(--spring-subtle)", "spring-expressive": "var(--spring-expressive)"}
 }
