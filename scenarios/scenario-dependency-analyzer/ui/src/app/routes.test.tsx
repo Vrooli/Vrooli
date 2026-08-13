@@ -1,8 +1,8 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { renderWithProviders } from "../test-utils/renderWithProviders";
-import { expectNoA11yViolations } from "../test-utils/a11y";
+import { renderWithProviders } from "@vrooli/api-base/testing";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 import { routes, TestAppRouter } from "./routes";
 
 const graphPayload = {
@@ -192,7 +192,7 @@ describe("App routes", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/"]} />);
 
     await waitFor(() => expect(screen.getByTestId("sda-layout-shell")).toBeInTheDocument());
-    await expectNoA11yViolations();
+    await expectNoA11yViolations(document.body);
   });
 
   it("surfaces graph loading failures without hiding the graph controls", async () => {

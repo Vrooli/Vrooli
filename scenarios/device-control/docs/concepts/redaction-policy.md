@@ -8,6 +8,11 @@ filesystem path or an implicit claim that a capture was safe.
 
 ## Default rules
 
+This policy is default-deny: a region is private and must be redacted unless
+the policy explicitly names it safe for the claim being produced. A detector
+may add sensitive regions, but no consumer may remove a region or turn a
+failed verification into a warning. An unknown media format is refused.
+
 The default policy applies these named rules:
 
 - `status_bar_identifiers`: mask the status-bar band, which can contain the
@@ -38,4 +43,3 @@ Unredacted captures may be viewed only by the owner/operator who authorized
 the opt-out and holds the device lease. Downstream consumers cannot disable
 redaction after the producer boundary. Retention and access controls still
 apply to the resulting artifact.
-

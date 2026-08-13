@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "apt-cache",
+  "description": "Debian package candidate query used by optional remediation previews.",
+  "commands": ["apt-cache"],
+  "versionArgs": ["--version"],
+  "platforms": ["linux"],
+  "manual": true,
+  "installHint": "Provided by Debian and Ubuntu base systems.",
+  "bundling": "host-required",
+  "capability": "package-management",
+  "capability_role": "peer"
+}

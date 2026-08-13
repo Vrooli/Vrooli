@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"testing"
 
-	dbtest "scenario-authenticator/internal/testutil/db"
+	dbtest "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 

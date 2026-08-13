@@ -13,6 +13,8 @@ func New() *Adapter           { return &Adapter{} }
 func (a *Adapter) ID() string { return "ios-mirror" }
 func (a *Adapter) Describe(context.Context) (strategy.Declaration, error) {
 	if unsupported, ok := strategy.ResolveHostSupport(a.ID(), "Physical iPhones through iPhone Mirroring and OCR", []string{"darwin"}); ok {
+		unsupported.Promotable = false
+		unsupported.EvidenceClass = "advisory-ocr"
 		return unsupported, nil
 	}
 	next := "Pair iPhone Mirroring on a macOS node and grant Accessibility and Screen Recording permissions."

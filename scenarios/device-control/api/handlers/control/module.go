@@ -17,10 +17,15 @@ import (
 type ModuleDeps struct{ Service *internal.Service }
 
 func Module(s *internal.Service) module.Module {
-	h := &handler{service: s, anchors: internalflows.NewAnchorStore()}
+	anchors := internalflows.NewAnchorStore()
+	if s != nil && s.Anchors() != nil {
+		anchors = s.Anchors()
+	}
+	h := &handler{service: s, anchors: anchors}
 	return module.Module{Name: "device-control", Mount: func(r *mux.Router) {
 		r.HandleFunc("/api/v1/devices", h.listDevices).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}", h.forgetDevice).Methods(http.MethodDelete)
+		r.HandleFunc("/api/v1/devices/{id}/state", h.deviceState).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}/promote", h.promoteDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/conformance/android", h.androidConformancePlan).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/conformance/android/run", h.runAndroidConformance).Methods(http.MethodPost)
@@ -33,6 +38,7 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/sessions/{id}/release", h.release).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/flows/validate", h.validateFlow).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/flows/run", h.runFlow).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/flows/{id}/export", h.exportFlow).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/evidence/audit", h.audit).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/evidence/{id}", h.artifact).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/anchors", h.listAnchors).Methods(http.MethodGet)
@@ -46,6 +52,15 @@ func Module(s *internal.Service) module.Module {
 	}, Endpoints: Endpoints}
 }
 
+func (h *handler) exportFlow(w http.ResponseWriter, r *http.Request) {
+	export, err := h.service.ExportFlow(mux.Vars(r)["id"])
+	if err != nil {
+		writeError(w, http.StatusNotFound, "run_not_found", err.Error())
+		return
+	}
+	write(w, http.StatusOK, export)
+}
+
 type handler struct {
 	service *internal.Service
 	anchors *internalflows.AnchorStore
@@ -53,6 +68,15 @@ type handler struct {
 
 func (h *handler) listDevices(w http.ResponseWriter, r *http.Request) {
 	write(w, http.StatusOK, map[string]any{"devices": h.service.Devices(r.Context())})
+}
+
+func (h *handler) deviceState(w http.ResponseWriter, r *http.Request) {
+	state, err := h.service.ReadDeviceState(r.Context(), mux.Vars(r)["id"])
+	if err != nil {
+		writeError(w, http.StatusConflict, "device_state_unavailable", err.Error())
+		return
+	}
+	write(w, http.StatusOK, state)
 }
 
 func (h *handler) forgetDevice(w http.ResponseWriter, r *http.Request) {
@@ -361,6 +385,8 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "devices_list", Path: "/api/v1/devices", Method: "GET", Summary: "List devices and probed capabilities", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "devices_state", Path: "/api/v1/devices/{id}/state", Method: "GET", Summary: "Read live device state", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "flow_export", Path: "/api/v1/flows/{id}/export", Method: "GET", Summary: "Export a completed run as a replayable flow", Category: "flows", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "devices_forget", Path: "/api/v1/devices/{id}", Method: "DELETE", Summary: "Forget a retained device identity", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "devices_connect", Path: "/api/v1/devices/connect", Method: "POST", Summary: "Show guided device onboarding", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "android_conformance_plan", Path: "/api/v1/conformance/android", Method: "GET", Summary: "Describe the physical Android conformance plan", Category: "conformance", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},

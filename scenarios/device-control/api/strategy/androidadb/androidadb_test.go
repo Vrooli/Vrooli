@@ -1,7 +1,10 @@
 package androidadb
 
 import (
+	"bytes"
 	"context"
+	"image"
+	"image/png"
 	"strings"
 	"testing"
 
@@ -13,6 +16,20 @@ type scriptedRunner struct {
 	responses map[string][]byte
 	calls     []string
 }
+
+type scriptedProcess struct{ signaled bool }
+
+func (p *scriptedProcess) Start() error     { return nil }
+func (p *scriptedProcess) Interrupt() error { p.signaled = true; return nil }
+func (p *scriptedProcess) Kill() error      { p.signaled = true; return nil }
+func (p *scriptedProcess) Wait() error      { return nil }
+
+type processRunner struct {
+	*scriptedRunner
+	process *scriptedProcess
+}
+
+func (r *processRunner) Start(string, ...string) (Process, error) { return r.process, nil }
 
 func (r *scriptedRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
 	call := strings.Join(append([]string{name}, args...), " ")
@@ -94,14 +111,17 @@ func TestInstallReusesPackageDataForUpdateMigration(t *testing.T) {
 }
 
 func TestActuateScreenrecordRequiresAndFillsOutputSink(t *testing.T) {
-	runner := &scriptedRunner{responses: map[string][]byte{
-		"adb -s serial-1 shell screenrecord --time-limit 2 --bit-rate 1000000 /sdcard/device-control-proof.mp4": nil,
-		"adb -s serial-1 exec-out cat /sdcard/device-control-proof.mp4":                                         []byte("ftyp-video"),
-	}}
+	runner := &processRunner{scriptedRunner: &scriptedRunner{responses: map[string][]byte{}}, process: &scriptedProcess{}}
 	adapter := NewWithRunner(runner, "serial-1")
-	var output []byte
-	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "screenrecord", Output: &output}))
-	require.Equal(t, []byte("ftyp-video"), output)
+	handle, err := adapter.StartRecording(context.Background(), strategy.ClaimAnimation)
+	require.NoError(t, err)
+	runner.responses["adb -s serial-1 exec-out cat /sdcard/"+handle.ID+".mp4"] = []byte("ftyp-video")
+	runner.responses["adb -s serial-1 shell ls /sdcard/"+handle.ID+".mp4"] = []byte(handle.ID)
+	artifact, err := adapter.StopRecording(context.Background(), handle)
+	require.NoError(t, err)
+	require.Equal(t, []byte("ftyp-video"), artifact.Bytes)
+	require.Equal(t, strategy.ClaimAnimation, artifact.ClaimClass)
+	require.False(t, runner.process.signaled)
 }
 
 func TestActuateConformanceControlsUseBoundedAndroidVerbs(t *testing.T) {
@@ -118,21 +138,56 @@ func TestActuateConformanceControlsUseBoundedAndroidVerbs(t *testing.T) {
 }
 
 func TestSemanticTargetResolvesAccessibilityBoundsAndTapsCenter(t *testing.T) {
+	var screenshot bytes.Buffer
+	require.NoError(t, png.Encode(&screenshot, image.NewRGBA(image.Rect(0, 0, 100, 200))))
 	runner := &scriptedRunner{responses: map[string][]byte{
-		"adb -s serial-1 shell cat /sdcard/window.xml": []byte(`<hierarchy><node resource-id="com.example:id/hello-mobile-input" bounds="[10,20][90,180]" /></hierarchy>`),
+		"adb -s serial-1 exec-out uiautomator dump /dev/tty": []byte(`<hierarchy><node resource-id="com.example:id/hello-mobile-input" bounds="[10,20][90,180]" /></hierarchy>`),
+		"adb -s serial-1 exec-out screencap -p":              screenshot.Bytes(),
 	}}
 	adapter := NewWithRunner(runner, "serial-1")
-	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "semantic-target", Value: "hello-mobile-input"}))
-	require.Contains(t, strings.Join(runner.calls, "\n"), "shell input tap 50 100")
+	match, err := adapter.ResolveSemantic(context.Background(), "hello-mobile-input")
+	require.NoError(t, err)
+	require.Equal(t, []float64{.1, .1, .9, .9}, match.Bounds)
+	require.Equal(t, 1.0, match.Confidence)
+	require.NotContains(t, strings.Join(runner.calls, "\n"), "/sdcard/")
+	require.ErrorContains(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "semantic-target", Value: "hello-mobile-input"}), "resolver-scoped")
 }
 
 func TestSemanticAssertVerifiesAccessibilityText(t *testing.T) {
 	runner := &scriptedRunner{responses: map[string][]byte{
-		"adb -s serial-1 shell cat /sdcard/window.xml": []byte(`<hierarchy><node resource-id="com.example:id/state" text="Connectivity: offline" bounds="[0,0][100,40]" /></hierarchy>`),
+		"adb -s serial-1 exec-out uiautomator dump /dev/tty": []byte(`<hierarchy><node resource-id="com.example:id/state" text="Connectivity: offline" bounds="[0,0][100,40]" /></hierarchy>`),
 	}}
 	adapter := NewWithRunner(runner, "serial-1")
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "semantic-assert", Value: "state", Expected: "Connectivity: offline"}))
 	require.ErrorContains(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "semantic-assert", Value: "state", Expected: "Connectivity: online"}), "expected text")
+}
+
+func TestReadStateParsesRecordedAndroidProbes(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell dumpsys activity activities":                []byte("mResumedActivity: ActivityRecord{u0 com.example.hello/.MainActivity t42}"),
+		"adb -s serial-1 shell dumpsys power":                              []byte("mWakefulness=Awake\nDisplay Power: state=ON"),
+		"adb -s serial-1 shell dumpsys window":                             []byte("mShowingLockscreen=false isStatusBarKeyguard=false"),
+		"adb -s serial-1 shell dumpsys input":                              []byte("mCurrentRotation=3"),
+		"adb -s serial-1 shell settings get system user_rotation":          []byte("3"),
+		"adb -s serial-1 shell settings get system accelerometer_rotation": []byte("1"),
+		"adb -s serial-1 shell dumpsys battery":                            []byte("level: 87\nAC powered: true"),
+		"adb -s serial-1 shell dumpsys thermalservice":                     []byte("Thermal Status: nominal"),
+		"adb -s serial-1 shell wm size":                                    []byte("Physical size: 1080x2400"),
+		"adb -s serial-1 shell wm density":                                 []byte("Physical density: 420"),
+	}}
+	state, err := NewWithRunner(runner, "serial-1").ReadState(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "com.example.hello", state.ForegroundPackage)
+	require.Equal(t, "on", state.ScreenState)
+	require.Equal(t, "unlocked", state.LockState)
+	require.Equal(t, "reverse-landscape", state.Orientation)
+	require.Equal(t, 87, state.BatteryLevel)
+	require.True(t, state.Charging)
+	require.Equal(t, "nominal", state.ThermalStatus)
+	require.Equal(t, 1080, state.DisplayWidth)
+	require.Equal(t, 2400, state.DisplayHeight)
+	require.Equal(t, 420, state.DisplayDensity)
+	require.Empty(t, state.Unavailable)
 }
 
 func TestPackageStateReportsExpectedInstallationState(t *testing.T) {

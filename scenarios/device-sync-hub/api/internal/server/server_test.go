@@ -8,7 +8,7 @@ import (
 
 	"device-sync-hub/internal/module"
 	"device-sync-hub/internal/server"
-	"device-sync-hub/internal/testutil/httpx"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

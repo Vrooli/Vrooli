@@ -24,16 +24,17 @@ type ConformanceChapterResult struct {
 }
 
 type AndroidConformanceResult struct {
-	PlanID      string                     `json:"plan_id"`
-	Fixture     conformance.Fixture        `json:"fixture"`
-	DeviceID    string                     `json:"device_id"`
-	Serial      string                     `json:"serial,omitempty"`
-	HostNodeID  string                     `json:"host_node_id,omitempty"`
-	RunID       string                     `json:"run_id"`
-	Disposition string                     `json:"disposition"`
-	Reason      string                     `json:"reason,omitempty"`
-	Chapters    []ConformanceChapterResult `json:"chapters"`
-	Verdict     *commonv1.TargetVerdict    `json:"verdict,omitempty"`
+	PlanID        string                     `json:"plan_id"`
+	Fixture       conformance.Fixture        `json:"fixture"`
+	DeviceID      string                     `json:"device_id"`
+	Serial        string                     `json:"serial,omitempty"`
+	HostNodeID    string                     `json:"host_node_id,omitempty"`
+	RunID         string                     `json:"run_id"`
+	Disposition   string                     `json:"disposition"`
+	Reason        string                     `json:"reason,omitempty"`
+	EvidenceClass string                     `json:"evidence_class,omitempty"`
+	Chapters      []ConformanceChapterResult `json:"chapters"`
+	Verdict       *commonv1.TargetVerdict    `json:"verdict,omitempty"`
 }
 
 func (s *Service) AndroidConformancePlan() conformance.Plan { return conformance.AndroidPlan() }
@@ -51,6 +52,11 @@ func (s *Service) RunAndroidConformance(ctx context.Context, fixture conformance
 	if record, ok := s.devices.Get(deviceID); ok {
 		result.Serial = record.Serial
 		result.HostNodeID = record.HostNodeID
+		if item, exists := s.registry.Get(record.StrategyID); exists {
+			if declaration, describeErr := item.Describe(ctx); describeErr == nil {
+				result.EvidenceClass = declaration.EvidenceClass
+			}
+		}
 		if record.Kind != "" && record.Kind != "physical" {
 			result.Disposition = "unavailable"
 			result.Reason = fmt.Sprintf("Android physical conformance requires a physical device; %s is %s", deviceID, record.Kind)
@@ -143,5 +149,5 @@ func conformanceVerdict(result AndroidConformanceResult, refs []evidence.Referen
 		node := result.HostNodeID
 		target.BridgeNodeId = &node
 	}
-	return &commonv1.TargetVerdict{Target: target, Disposition: disposition, Refs: protoRefs, RunId: result.RunID, Detail: detail}
+	return &commonv1.TargetVerdict{Target: target, Disposition: disposition, Refs: protoRefs, RunId: result.RunID, Detail: detail, EvidenceClass: result.EvidenceClass}
 }

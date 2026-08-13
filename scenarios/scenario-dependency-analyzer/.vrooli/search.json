@@ -10,6 +10,7 @@
       "description": "Third-party dependency/package selection and governance — which package to use for a purpose (for example \"a React forms library\", \"a Go HTTP router\", \"image resizing\"), the approved version ranges, and which packages are denied or vulnerable. Route here for 'what dependency/package/library should I use for X' and 'is package Y approved'. Do NOT route here for prior-work records, CLI commands, skills, docs, or scenario status.",
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
+      "index_timestamp_field": "last_indexed_at",
       "endpoint": {
         "http_json": {
           "scenario_id": "scenario-dependency-analyzer",
@@ -24,7 +25,7 @@
       "status_endpoint": {
         "http_json": {
           "scenario_id": "scenario-dependency-analyzer",
-          "path": "/health",
+          "path": "/api/v1/health/analysis",
           "method": "HTTP_METHOD_GET",
           "headers": {
             "Content-Type": "application/json"
@@ -235,6 +236,7 @@
       "description": "Scenario connection graph — what a scenario depends on and what depends on it (its reverse dependents). Route here for 'what does X depend on', 'what depends on X', 'X's dependencies / dependents', and the cross-scenario dependency/connection graph. Do NOT route here for a scenario's purpose, anatomy, responsibilities, or internal domains — that is architecture-cartographer's domain-map. Connection-only.",
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
+      "index_timestamp_field": "last_indexed_at",
       "endpoint": {
         "http_json": {
           "scenario_id": "scenario-dependency-analyzer",
@@ -249,7 +251,7 @@
       "status_endpoint": {
         "http_json": {
           "scenario_id": "scenario-dependency-analyzer",
-          "path": "/health",
+          "path": "/api/v1/health/analysis",
           "method": "HTTP_METHOD_GET",
           "headers": {
             "Content-Type": "application/json"
@@ -490,6 +492,7 @@
       "description": "Local resource usage — which scenarios use a given local resource (postgres, redis, qdrant, ollama, vault, minio, ...). Route here for 'which scenarios use postgres', 'what uses qdrant', 'who uses resource Y'. Do NOT route here for third-party package/dependency selection (that is the dependency leaf) or scenario-to-scenario connections (that is the scenarios leaf).",
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
+      "index_timestamp_field": "last_indexed_at",
       "endpoint": {
         "http_json": {
           "scenario_id": "scenario-dependency-analyzer",
@@ -504,7 +507,7 @@
       "status_endpoint": {
         "http_json": {
           "scenario_id": "scenario-dependency-analyzer",
-          "path": "/health",
+          "path": "/api/v1/health/analysis",
           "method": "HTTP_METHOD_GET",
           "headers": {
             "Content-Type": "application/json"

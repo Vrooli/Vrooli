@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +25,12 @@ import (
 
 const aiGatewayScenario = "ai-gateway"
 
+// MetaCostUSD is the backend-result metadata key carrying what a route cost.
+// It is a named constant because the producer here and the consumer on the
+// submit edge are in different packages, and a string literal in two places is
+// a contract nobody can see.
+const MetaCostUSD = "cost_usd"
+
 // mediaGenerationRequest is the provider-neutral request image-tools sends to
 // AI Gateway. The output path remains owned by image-tools: Gateway writes only
 // to this caller-supplied path for the duration of the request and stores no
@@ -40,6 +47,15 @@ type mediaGenerationResult struct {
 	MediaType string
 	Model     string
 	Warnings  []string
+	// CostUSD is what Gateway's receipt says the call actually cost.
+	//
+	// It was being dropped one stack frame after it arrived. Gateway records it
+	// on the terminal MediaExecution because it is the only party that knows,
+	// and a caller deciding whether a catalog is affordable to render has
+	// nowhere else to look — so a consumer that discards it forces every
+	// downstream cost question to be answered by guessing. Zero is a genuine
+	// measurement for a route that cost nothing, not a missing value.
+	CostUSD float64
 }
 
 type mediaGateway interface {
@@ -158,6 +174,7 @@ func (c *aiGatewayMediaClient) Generate(ctx context.Context, req mediaGeneration
 		MediaType: mediaType,
 		Model:     strings.TrimSpace(execution.GetResolvedModel()),
 		Warnings:  append([]string(nil), execution.GetWarnings()...),
+		CostUSD:   execution.GetActualCostUsd(),
 	}, nil
 }
 
@@ -246,6 +263,10 @@ func (p *aiGatewayProvider) Execute(ctx context.Context, req backends.Request) (
 	if result.MediaType != "" {
 		meta["media_type"] = result.MediaType
 	}
+	// Always recorded, including when it is zero: "this route cost nothing" and
+	// "nobody asked what this route cost" are different facts, and a caller
+	// deciding whether to escalate needs to tell them apart.
+	meta[MetaCostUSD] = strconv.FormatFloat(result.CostUSD, 'f', -1, 64)
 	if len(result.Warnings) > 0 {
 		meta["warnings"] = strings.Join(result.Warnings, "; ")
 	}

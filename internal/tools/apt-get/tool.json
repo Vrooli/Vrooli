@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "apt-get",
+  "description": "Debian package-manager command used by optional remediation previews.",
+  "commands": ["apt-get"],
+  "versionArgs": ["--version"],
+  "platforms": ["linux"],
+  "manual": true,
+  "installHint": "Provided by Debian and Ubuntu base systems.",
+  "bundling": "host-required",
+  "capability": "package-management",
+  "capability_role": "peer"
+}

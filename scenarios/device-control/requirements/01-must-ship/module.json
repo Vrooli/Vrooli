@@ -123,6 +123,12 @@
           "ref": "api/internal/flows/resolution_test.go::TestResolverFallsBackToVisualAnchorBelowCallerThreshold",
           "status": "complete",
           "notes": "unit phase — planned test `api/flows/resolver_test.go::TestResolverPicksHighestSupportedRung`. Same target intent resolves semantically on a semantic strategy, by visual anchor on an anchor-capable strategy, and by vision on a floor-only strategy; the chosen rung and confidence are recorded."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/flows/resolution_test.go::TestResolverSemanticHitSkipsInference",
+          "status": "complete",
+          "notes": "Phase 3 regression test asserts semantic is attempted before anchor/vision and the gateway call count remains zero on a semantic hit."
         }
       ]
     },
@@ -155,6 +161,12 @@
           "ref": "api/internal/evidence/redact_test.go::TestBinaryImageRequiresPixelMasking",
           "status": "complete",
           "notes": "unit phase — planned test `api/evidence/redaction_test.go::TestCaptureLeavesProducerOnlyAsRedactedReference`. A capture containing a seeded secret must not leave the producer until redaction is verified; consumers receive checksum-addressed references, never bytes or filesystem paths."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/evidence/ref_test.go::TestEvidenceSinkRefusesUnverifiedCapture",
+          "status": "complete",
+          "notes": "Phase 2 producer-boundary test refuses an unverified capture rather than passing it with a warning."
         },
         {
           "type": "test",
@@ -243,6 +255,12 @@
           "ref": "api/internal/evidence/recording_test.go::TestNativeMetadataEnforcesUsefulFPS",
           "status": "complete",
           "notes": "integration phase — planned test `api/flows/recording_test.go::TestRecordingIsGuaranteedNativeOrSynthesized`. A strategy declaring native recording produces a native capture; a floor-only strategy produces a video synthesized from its observe() frame stream. Both record which path produced them and the effective frame rate; a synthesized capture is never labelled native."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/evidence/recording_test.go::TestClaimClassAssessmentReportsDegradedRates",
+          "status": "complete",
+          "notes": "Claim-class thresholds are table-tested; an animation recording below 15 fps is degraded and cannot pass."
         }
       ]
     }

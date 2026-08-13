@@ -39,7 +39,7 @@ release, while flows continue to send the token they received at acquisition.
 
 | Threat | Mitigation | Status |
 |---|---|---|
-| A consumer drives a device it was never granted | `vrooli-bridge` owns scopes and allowlisted verbs; this scenario refuses any verb without a bridge-authorized reach *and* a held lease. | Designed; `DVC-P0-004`. |
+| A consumer drives a device it was never granted | `vrooli-bridge` owns scopes, allowlisted verbs, and the short-lived device-lease authorization record; this scenario owns lease lifecycle semantics. Device-scoped dispatch is refused and audited unless bridge's held record matches the device and token. | Designed; `DVC-P0-004`. |
 | Two consumers silently interleave on one device | Exclusive leases with refusal (not queueing) on contention. Several strategies are physically single-session, so collision would otherwise corrupt evidence rather than error. | Designed; `DVC-P0-004`. |
 | A secret is captured in a frame and then distributed | Redaction verified before a capture leaves the producer; consumers receive `common/v1` `EvidenceRef` (checksum, size, kind) and never bytes or filesystem paths. | Designed; `DVC-P0-008`. |
 | An agent run goes further than intended | Bounds on step count, cost, and lease scope; abort at any moment; every action audited as a flow step. | Designed; `DVC-P1-005`. |
@@ -57,7 +57,9 @@ Authorization is two-layer, and neither layer substitutes for the other.
    it never decides.
 2. **Exclusivity — owned by this scenario.** Whether this caller may act on
    that device *right now*, given that someone else may hold it. That is the
-   lease (`DVC-P0-004`).
+   lease (`DVC-P0-004`). For a device-scoped verb, bridge also requires its
+   own held lease record to match the device and presented token; an opaque
+   token alone is never accepted.
 
 **Key invariant: no verb reaches a strategy without both a bridge-authorized
 reach and a held, unexpired lease.** A verb that passes one check and fails

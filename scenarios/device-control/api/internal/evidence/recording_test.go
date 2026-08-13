@@ -16,10 +16,26 @@ func TestEncodeFramesProducesSynthesizedEvidence(t *testing.T) {
 	require.NotEmpty(t, video.Bytes)
 }
 
-func TestNativeMetadataEnforcesUsefulFPS(t *testing.T) { // [REQ:DVC-P0-012]
-	_, err := NativeMetadata(1)
-	require.Error(t, err)
-	meta, err := NativeMetadata(5)
-	require.NoError(t, err)
-	require.Equal(t, "native", meta.Method)
+func TestClaimClassAssessmentReportsDegradedRates(t *testing.T) { // [REQ:DVC-P0-012]
+	tests := []struct {
+		name  string
+		class ClaimClass
+		fps   float64
+		want  Disposition
+	}{
+		{"static pass", ClaimStatic, 1, DispositionPassed},
+		{"static degraded", ClaimStatic, .5, DispositionDegraded},
+		{"transition pass", ClaimTransition, 5, DispositionPassed},
+		{"transition degraded", ClaimTransition, 4.99, DispositionDegraded},
+		{"animation pass", ClaimAnimation, 15, DispositionPassed},
+		{"animation degraded", ClaimAnimation, 14.99, DispositionDegraded},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			meta, err := NativeMetadataForClaim(tt.fps, tt.class)
+			require.NoError(t, err)
+			require.Equal(t, "native", meta.Method)
+			require.Equal(t, tt.want, meta.Assessment.Disposition)
+		})
+	}
 }

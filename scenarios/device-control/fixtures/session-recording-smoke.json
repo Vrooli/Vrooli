@@ -1,0 +1,44 @@
+{
+  "id": "session-recording-smoke",
+  "name": "Session-scoped recording smoke proof",
+  "steps": [
+    {
+      "id": "screen-wake",
+      "kind": "key",
+      "target": "KEYCODE_WAKEUP",
+      "timeout_ms": 10000
+    },
+    {
+      "id": "screen-unlock",
+      "kind": "key",
+      "target": "KEYCODE_MENU",
+      "timeout_ms": 10000
+    },
+    {
+      "id": "recording-start",
+      "kind": "recording-start",
+      "required_capabilities": ["native-recording"],
+      "arguments": {"claim_class": "animation"},
+      "timeout_ms": 10000
+    },
+    {
+      "id": "recording-duration",
+      "kind": "wait",
+      "arguments": {"settle_ms": 20000},
+      "timeout_ms": 25000
+    },
+    {
+      "id": "recording-stop",
+      "kind": "recording-stop",
+      "target": "recording-start",
+      "required_capabilities": ["native-recording"],
+      "timeout_ms": 30000
+    },
+    {
+      "id": "screen-sleep",
+      "kind": "key",
+      "target": "KEYCODE_SLEEP",
+      "timeout_ms": 10000
+    }
+  ]
+}

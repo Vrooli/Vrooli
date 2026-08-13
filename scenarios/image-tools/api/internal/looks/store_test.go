@@ -8,7 +8,7 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
-	"image-tools/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	looksv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/looks"
 )

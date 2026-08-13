@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	testdb "image-tools/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 func newJobsDB(t *testing.T) *sql.DB {

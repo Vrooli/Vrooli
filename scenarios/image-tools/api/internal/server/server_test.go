@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"testing"
 
+	httpx "github.com/vrooli/api-core/servertest"
 	"image-tools/internal/module"
 	"image-tools/internal/server"
-	"image-tools/internal/testutil/httpx"
 
 	"github.com/vrooli/api-core/schedule"
 

@@ -64,6 +64,9 @@ func RedactCaptureWithRegions(raw []byte, mediaType string, p Policy, allowUnred
 		}
 		return Result{Bytes: raw, Verified: true, Policy: p, OptedOut: true, Rules: []string{"unredacted_opt_out"}}, nil
 	}
+	if err := ValidatePolicy(p); err != nil {
+		return Result{}, err
+	}
 	if isMP4(raw) {
 		return redactVideo(raw, p)
 	}
@@ -110,6 +113,15 @@ func RedactCaptureWithRegions(raw []byte, mediaType string, p Policy, allowUnred
 	return result, nil
 }
 
+// ValidatePolicy keeps the default-deny contract fail-closed. A zero policy
+// does not name any safe surface and therefore cannot verify a capture.
+func ValidatePolicy(p Policy) error {
+	if !p.PasswordFields && !p.OneTimeCodes && !p.CredentialPatterns && !p.NotificationContent {
+		return fmt.Errorf("redaction policy is empty; default-deny policy must name protected regions")
+	}
+	return nil
+}
+
 func isMP4(raw []byte) bool {
 	return len(raw) >= 8 && string(raw[4:8]) == "ftyp"
 }
@@ -144,7 +156,7 @@ func redactVideo(raw []byte, p Policy) (Result, error) {
 	defer os.Remove(outputPath)
 	cmd := exec.CommandContext(context.Background(), "ffmpeg", "-y", "-loglevel", "error", "-i", inputPath, "-vf", "drawbox=x=0:y=0:w=iw:h=ih/4:color=black:t=fill", "-c:v", "libx264", "-pix_fmt", "yuv420p", outputPath)
 	if combined, err := cmd.CombinedOutput(); err != nil {
-		return Result{}, fmt.Errorf("redact native video: %w", err)
+		return Result{}, fmt.Errorf("redact native video: %w (%s)", err, strings.TrimSpace(string(combined)))
 	} else if len(combined) > 0 {
 		return Result{}, fmt.Errorf("redact native video: unexpected ffmpeg output")
 	}

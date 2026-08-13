@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "journalctl",
+  "description": "Linux systemd journal reader used for host evidence.",
+  "commands": ["journalctl"],
+  "versionArgs": ["--version"],
+  "platforms": ["linux"],
+  "manual": true,
+  "installHint": "Provided by the Linux systemd package.",
+  "bundling": "host-required",
+  "capability": "service-resource-limits",
+  "capability_role": "peer"
+}

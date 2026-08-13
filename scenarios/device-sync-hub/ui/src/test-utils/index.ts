@@ -45,11 +45,11 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "./renderWithProviders";
-export type { ProviderRenderOptions, ProviderRenderResult } from "./renderWithProviders";
+export { renderWithProviders } from "@vrooli/api-base/testing";
+export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { seedSession, makeDevice } from "./session";
 export { interp } from "./interp";
-export { expectNoA11yViolations } from "./a11y";
+export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 // Note: HealthResponse is the *generated proto type* re-exported by
 // factories.ts. Tests should always import it from here so a future
 // schema change is one-import-update; consuming the proto package

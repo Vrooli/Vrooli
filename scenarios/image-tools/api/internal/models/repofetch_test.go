@@ -9,7 +9,7 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
-	"image-tools/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 // fetcherFunc adapts a function to the RepoFetcher seam.

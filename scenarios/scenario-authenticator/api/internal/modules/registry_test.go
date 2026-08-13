@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"scenario-authenticator/internal/modules"
-	"scenario-authenticator/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 

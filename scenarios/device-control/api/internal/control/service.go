@@ -12,6 +12,7 @@ import (
 	"time"
 
 	devicedomain "device-control/internal/devices"
+	internalflows "device-control/internal/flows"
 	"device-control/strategy"
 	strategyregistry "device-control/strategy/registry"
 	"github.com/google/uuid"
@@ -39,6 +40,9 @@ type Service struct {
 	activeCancels       map[string]context.CancelFunc
 	transportStrategies map[string]strategy.Strategy
 	transportStates     map[string]transportState
+	anchors             *internalflows.AnchorStore
+	runs                map[string]RunResult
+	flowRuns            map[string]Flow
 }
 
 type transportState struct {
@@ -58,7 +62,7 @@ func New(registry *strategyregistry.Registry) *Service {
 	if configured := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_EVIDENCE_DIR")); configured != "" {
 		dir = configured
 	}
-	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}}
+	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}}
 }
 
 func NewWithAttached(registry *strategyregistry.Registry, reader AttachedReader) *Service {
@@ -79,6 +83,11 @@ func NewWithDB(registry *strategyregistry.Registry, db routedDB, roots ...*filer
 	if db == nil {
 		return s, nil
 	}
+	anchors, err := internalflows.NewAnchorStoreWithDB(db)
+	if err != nil {
+		return nil, err
+	}
+	s.anchors = anchors
 	if _, err := db.ExecContext(context.Background(), `
 CREATE TABLE IF NOT EXISTS device_control_sessions (
  id TEXT PRIMARY KEY, device_id TEXT NOT NULL, actor TEXT NOT NULL,
@@ -107,6 +116,24 @@ CREATE TABLE IF NOT EXISTS device_control_transports (
 	}
 	s.restoreTransportStrategies()
 	return s, nil
+}
+
+func (s *Service) Anchors() *internalflows.AnchorStore { return s.anchors }
+
+func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strategy.DeviceState, error) {
+	transport := "usb"
+	if record, found := s.devices.Get(deviceID); found && record.Transport != "" {
+		transport = record.Transport
+	}
+	adapter, ok := s.strategyForFlow(deviceID, transport)
+	if !ok {
+		return strategy.DeviceState{}, fmt.Errorf("unknown or unavailable device %q", deviceID)
+	}
+	reader, ok := adapter.(strategy.StateReader)
+	if !ok {
+		return strategy.DeviceState{}, &strategy.AvailabilityError{Reason: "strategy does not expose device state", NextAction: "Use a strategy that declares device-state reads."}
+	}
+	return reader.ReadState(ctx)
 }
 
 func (s *Service) loadTransportStates() error {

@@ -212,6 +212,15 @@
   },
   "hostTools": [
     {
+      "name": "google-chrome-stable",
+      "required": false,
+      "reason": "High-fidelity SVG rasterization. oksvg silently drops <filter>, <mask>, <pattern> and CSS, so a document using any of them is rendered here or refused by name — never degraded into a plausible wrong picture.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Only consulted for SVG that uses one of those four features; plain SVG keeps the pure-Go path, so this is never required (headless tenet). Discovery falls back through google-chrome, chromium, chromium-browser, chrome and headless-shell, and IMAGE_TOOLS_CHROME_BINARY overrides it. Absent, ops.rasterizeSVG returns ErrSVGFidelityUnavailable naming the features and this tool."
+    },
+    {
       "name": "ffmpeg",
       "required": false,
       "reason": "Transcode image formats Go's native imaging libraries can't fully cover (AVIF/HEIC encode, animated GIF/WebP) during deterministic format conversion",

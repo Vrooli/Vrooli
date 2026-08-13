@@ -23,6 +23,7 @@ const (
 	CapDeviceLogs      = "device-logs"
 	CapWebViewAttach   = "webview-attach"
 	CapNativeRecording = "native-recording"
+	CapMultiTouch      = "multi-touch"
 )
 
 const (
@@ -35,10 +36,13 @@ const (
 )
 
 type PointerEvent struct {
-	Kind   string  `json:"kind"`
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
-	Button string  `json:"button,omitempty"`
+	Kind       string  `json:"kind"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+	Button     string  `json:"button,omitempty"`
+	Normalized bool    `json:"normalized,omitempty"`
+	DurationMS int     `json:"duration_ms,omitempty"`
+	Velocity   float64 `json:"velocity,omitempty"`
 }
 
 type KeyEvent struct {
@@ -58,6 +62,40 @@ type Actuation struct {
 	// Output receives bytes produced by output-bearing actions. It is an
 	// in-process sink and is never serialized across the strategy boundary.
 	Output *[]byte `json:"-"`
+}
+
+// ClaimClass describes the visual claim a recording is expected to support.
+// It is deliberately part of the strategy contract so a recorder cannot
+// silently treat a low-rate transition recording as equivalent to a still.
+type ClaimClass string
+
+const (
+	ClaimStatic     ClaimClass = "static"
+	ClaimTransition ClaimClass = "transition"
+	ClaimAnimation  ClaimClass = "animation"
+)
+
+type RecordingHandle struct {
+	ID         string     `json:"id"`
+	ClaimClass ClaimClass `json:"claim_class"`
+	StartedAt  time.Time  `json:"started_at"`
+}
+
+type RecordingArtifact struct {
+	Bytes        []byte        `json:"-"`
+	Method       string        `json:"recording_method"`
+	ClaimClass   ClaimClass    `json:"claim_class"`
+	FrameCount   int           `json:"frame_count"`
+	Duration     time.Duration `json:"duration"`
+	EffectiveFPS float64       `json:"effective_fps"`
+}
+
+// SessionRecorder is optional: strategies that cannot record declare that
+// capability unavailable. Keeping it optional prevents a fake or a platform
+// stub from claiming a recorder it cannot actually operate.
+type SessionRecorder interface {
+	StartRecording(context.Context, ClaimClass) (RecordingHandle, error)
+	StopRecording(context.Context, RecordingHandle) (RecordingArtifact, error)
 }
 
 type Frame struct {
@@ -86,6 +124,41 @@ type Device struct {
 // Enumerator is optional so non-enumerating strategies remain compatible.
 type Enumerator interface {
 	Enumerate(context.Context) ([]Device, error)
+}
+
+// SemanticResolver is the deterministic view-hierarchy seam. Adapters own
+// transport-specific tree capture, but the flow executor owns rung ordering,
+// anchor fallback, and evidence. Bounds are normalized to the observed frame.
+type SemanticResolver interface {
+	ResolveSemantic(context.Context, string) (SemanticResult, error)
+}
+
+type SemanticResult struct {
+	Bounds     []float64 `json:"bounds"`
+	Confidence float64   `json:"confidence"`
+}
+
+type DeviceState struct {
+	ForegroundPackage string            `json:"foreground_package,omitempty"`
+	ScreenState       string            `json:"screen_state,omitempty"`
+	LockState         string            `json:"lock_state,omitempty"`
+	Orientation       string            `json:"orientation,omitempty"`
+	AutoRotate        bool              `json:"auto_rotate"`
+	BatteryLevel      int               `json:"battery_level,omitempty"`
+	Charging          bool              `json:"charging"`
+	ThermalStatus     string            `json:"thermal_status,omitempty"`
+	DisplayWidth      int               `json:"display_width,omitempty"`
+	DisplayHeight     int               `json:"display_height,omitempty"`
+	DisplayDensity    int               `json:"display_density,omitempty"`
+	Unavailable       map[string]string `json:"unavailable,omitempty"`
+}
+
+type StateReader interface {
+	ReadState(context.Context) (DeviceState, error)
+}
+
+type StateRestorer interface {
+	RestoreState(context.Context, DeviceState) error
 }
 
 // DeviceScoped lets one strategy implementation bind commands to a specific
@@ -164,7 +237,10 @@ func StepKinds(d Declaration) []string {
 	}
 	steps := []string{"observe", "tap", "key", "wait"}
 	if d.Capabilities[CapInput].Status == StatusAvailable {
-		steps = append(steps, "swipe", "text")
+		steps = append(steps, "swipe", "long-press", "double-tap", "drag", "fling", "scroll-to", "text")
+	}
+	if d.Capabilities[CapMultiTouch].Status == StatusAvailable {
+		steps = append(steps, "pinch")
 	}
 	if d.Capabilities[CapSemanticTree].Status == StatusAvailable {
 		steps = append(steps, "semantic-target", "semantic-assert")
@@ -188,7 +264,7 @@ func StepKinds(d Declaration) []string {
 		steps = append(steps, "deep-link")
 	}
 	if d.Capabilities[CapScreenRecording].Status == StatusAvailable || d.Capabilities[CapNativeRecording].Status == StatusAvailable {
-		steps = append(steps, "screenrecord")
+		steps = append(steps, "screenrecord", "recording-start", "recording-stop")
 	}
 	return steps
 }

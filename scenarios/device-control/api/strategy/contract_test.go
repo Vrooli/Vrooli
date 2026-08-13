@@ -39,6 +39,26 @@ func TestSupportedHostUsesPrerequisiteDispositionOnForcedDarwin(t *testing.T) { 
 	}
 }
 
+func TestEvidenceClassIsStructuralAndIosMirrorIsNotPromotable(t *testing.T) { // [REQ:DVC-P1-003]
+	old := strategy.HostOS
+	t.Cleanup(func() { strategy.HostOS = old })
+	strategy.HostOS = "linux"
+	for _, adapter := range []strategy.Strategy{iossimctl.New(), iosxcuitest.New(), iosmirror.New()} {
+		declaration, err := adapter.Describe(context.Background())
+		require.NoError(t, err, adapter.ID())
+		require.NotEmpty(t, declaration.EvidenceClass, adapter.ID())
+		if adapter.ID() == "ios-mirror" {
+			require.False(t, declaration.Promotable)
+			require.Equal(t, "advisory-ocr", declaration.EvidenceClass)
+		}
+	}
+
+	android, err := androidadb.NewWithRunner(successfulProbeRunner{}, "").Describe(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "release-grade", android.EvidenceClass)
+	require.True(t, android.Promotable)
+}
+
 func (successfulProbeRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
 	if name == "adb" && len(args) == 1 && args[0] == "devices" {
 		return []byte("List of devices attached\nserial-1 device\n"), nil
@@ -54,9 +74,11 @@ func TestDeclaredAndroidStepsHaveExecutorImplementations(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, strategy.StatusAvailable, declaration.Status)
 	implemented := map[string]bool{}
-	for _, kind := range []string{"observe", "tap", "key", "wait", "swipe", "text", "semantic-target", "semantic-assert", "install", "launch", "stop", "uninstall", "clear-data", "package-state", "grant-permission", "revoke-permission", "device-logs", "screenrecord", "rotate", "network", "deep-link"} {
+	for _, kind := range []string{"observe", "tap", "key", "wait", "swipe", "long-press", "double-tap", "drag", "fling", "scroll-to", "text", "semantic-target", "semantic-assert", "install", "launch", "stop", "uninstall", "clear-data", "package-state", "grant-permission", "revoke-permission", "device-logs", "screenrecord", "rotate", "network", "deep-link"} {
 		implemented[kind] = true
 	}
+	implemented["recording-start"] = true
+	implemented["recording-stop"] = true
 	for _, kind := range strategy.StepKinds(declaration) {
 		require.Truef(t, implemented[kind], "capability declaration exposed unsupported step %q", kind)
 	}

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	testdb "scenario-completeness-scoring/internal/testutil/db"
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 // TestUpsertSnapshotPersistsRecency verifies the scenario-level recency columns

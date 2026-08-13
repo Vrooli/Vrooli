@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"device-control/cli/internal/testutil"
 	"github.com/vrooli/cli-core/cliapp"
+	testutil "github.com/vrooli/cli-core/cliapptest"
 )
 
 func TestRegisteredRESTPathsUseScenarioRelativePaths(t *testing.T) {

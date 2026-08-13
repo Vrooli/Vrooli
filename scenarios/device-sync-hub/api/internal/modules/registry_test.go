@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"device-sync-hub/internal/modules"
-	"device-sync-hub/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 

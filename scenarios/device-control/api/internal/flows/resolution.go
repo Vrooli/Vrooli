@@ -62,6 +62,13 @@ type Request struct {
 	ConfidenceThreshold float64
 	FallbackBounds      []float64
 	FallbackConfidence  float64
+	Anchors             *AnchorStore
+	Semantic            func(context.Context, string) (SemanticMatch, error)
+}
+
+type SemanticMatch struct {
+	Bounds     []float64
+	Confidence float64
 }
 
 type EvidenceEvent struct {
@@ -127,9 +134,14 @@ func (g *Gateway) Run(ctx context.Context, req *connect.Request[inferencev1.RunR
 	return client.Run(ctx, req)
 }
 
-type Resolver struct{ Gateway InferenceRunner }
+type Resolver struct {
+	Gateway InferenceRunner
+	Anchors *AnchorStore
+}
 
-func NewResolver(gateway InferenceRunner) *Resolver { return &Resolver{Gateway: gateway} }
+func NewResolver(gateway InferenceRunner) *Resolver {
+	return &Resolver{Gateway: gateway, Anchors: NewAnchorStore()}
+}
 
 func (r *Resolver) Resolve(ctx context.Context, req Request) (Result, error) {
 	if strings.TrimSpace(req.Target) == "" {
@@ -152,13 +164,33 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Result, error) {
 		SubmittedHeight: req.Frame.Height,
 		OriginalWidth:   req.Frame.OriginalWidth,
 		OriginalHeight:  req.Frame.OriginalHeight,
-		Evidence: []EvidenceEvent{{
-			Name:            "attempt_vision",
-			Rung:            VisionRung,
-			SubmittedWidth:  req.Frame.Width,
-			SubmittedHeight: req.Frame.Height,
-		}},
+		Evidence:        []EvidenceEvent{},
 	}
+	anchors := req.Anchors
+	if anchors == nil && r != nil {
+		anchors = r.Anchors
+	}
+	if req.Semantic != nil {
+		match, semanticErr := req.Semantic(ctx, req.Target)
+		if semanticErr == nil && validBounds(match.Bounds) && finite(match.Confidence) {
+			result.Status, result.Rung, result.Bounds = "resolved", "semantic", append([]float64(nil), match.Bounds...)
+			result.DeviceBounds, result.Confidence = deviceBounds(match.Bounds, req.Frame.OriginalWidth, req.Frame.OriginalHeight), match.Confidence
+			result.Evidence = append(result.Evidence, EvidenceEvent{Name: "resolved", Rung: "semantic", Confidence: ptr(match.Confidence)})
+			return result, nil
+		}
+		result.Evidence = append(result.Evidence, EvidenceEvent{Name: "skip", Rung: "semantic", Reason: "semantic_target_not_found"})
+	} else {
+		result.Evidence = append(result.Evidence, EvidenceEvent{Name: "skip", Rung: "semantic", Reason: "semantic_capability_not_provided"})
+	}
+	if anchor, ok := anchors.Resolve(req.Target); ok {
+		result.Status, result.Rung, result.Bounds = "resolved", VisualAnchorRung, append([]float64(nil), anchor.Bounds...)
+		result.DeviceBounds, result.Confidence = deviceBounds(anchor.Bounds, req.Frame.OriginalWidth, req.Frame.OriginalHeight), anchor.Confidence
+		result.FallbackUsed = true
+		result.Evidence = append(result.Evidence, EvidenceEvent{Name: "resolved", Rung: VisualAnchorRung, Confidence: ptr(anchor.Confidence)})
+		return result, nil
+	}
+	result.Evidence = append(result.Evidence, EvidenceEvent{Name: "skip", Rung: VisualAnchorRung, Reason: "anchor_not_found"})
+	result.Evidence = append(result.Evidence, EvidenceEvent{Name: "attempt_vision", Rung: VisionRung, SubmittedWidth: req.Frame.Width, SubmittedHeight: req.Frame.Height})
 
 	response, err := r.runVision(ctx, req)
 	if err != nil {
@@ -205,6 +237,14 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Result, error) {
 	result.Provider = response.GetProvider()
 	result.Model = response.GetModel()
 	result.Evidence = append(result.Evidence, EvidenceEvent{Name: "resolved", Rung: VisionRung, Confidence: ptr(value.Confidence)})
+	if req.Anchors != nil {
+		// A successful vision result becomes a deterministic replay anchor. The
+		// frame checksum is retained as provenance, while the next run uses the
+		// normalized bounds and never resubmits the frame to ai-gateway.
+		if _, anchorErr := req.Anchors.CreateFromFrame(req.Target, req.Target, value.Bounds, value.Confidence, req.Frame.Bytes); anchorErr != nil {
+			return Result{}, fmt.Errorf("persist visual anchor: %w", anchorErr)
+		}
+	}
 	return result, nil
 }
 

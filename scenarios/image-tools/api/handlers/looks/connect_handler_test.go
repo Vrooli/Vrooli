@@ -7,9 +7,9 @@ import (
 	"github.com/vrooli/api-core/blobstore"
 	apidb "github.com/vrooli/api-core/database"
 
+	db "github.com/vrooli/api-core/databasetest"
 	internallooks "image-tools/internal/looks"
 	"image-tools/internal/storage"
-	"image-tools/internal/testutil/db"
 
 	"connectrpc.com/connect"
 	looksv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/looks"

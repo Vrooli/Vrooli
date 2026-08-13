@@ -36,7 +36,7 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 	for _, n := range []string{strategy.CapInput, strategy.CapScreenshot, strategy.CapSemanticTree, strategy.CapScreenRecording} {
 		caps[n] = strategy.ProbeCapability(n, true, "", "", "simctl probe")
 	}
-	d := strategy.Declaration{StrategyID: a.ID(), Description: "iOS simulators through simctl and XCUITest", Status: strategy.StatusAvailable, Capabilities: caps, Promotable: true}
+	d := strategy.Declaration{StrategyID: a.ID(), Description: "iOS simulators through simctl and XCUITest", Status: strategy.StatusAvailable, Capabilities: caps, Promotable: true, EvidenceClass: "release-grade", MinimumUsefulFPS: 5}
 	d = strategy.WithSupportedHostOS(d, "darwin")
 	d.Tiers = strategy.Tiers(d)
 	return d, nil

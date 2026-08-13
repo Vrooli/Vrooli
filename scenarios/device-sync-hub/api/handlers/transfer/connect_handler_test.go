@@ -8,8 +8,8 @@ import (
 	handlertransfer "device-sync-hub/handlers/transfer"
 	"device-sync-hub/internal/deviceauth"
 	"device-sync-hub/internal/devices"
-	"device-sync-hub/internal/testutil/db"
 	internaltransfer "device-sync-hub/internal/transfer"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 

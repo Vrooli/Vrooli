@@ -125,6 +125,18 @@ reference (see the fenced example below); `template-manager detemplate
 
 ## Output contracts
 
+Device Control also exposes live state and replay export through the thin CLI:
+
+```bash
+device-control device state <device-id> --json
+device-control flow export <run-id> --json
+```
+
+`device state` returns live foreground, power/lock, orientation, battery,
+thermal, and display data. Fields that cannot be probed retain the exact adb
+command under `unavailable`. `flow export` returns the replayable flow,
+resolution rung metadata, and explicit exclusions for failed steps.
+
 Every scenario command should render through one of three human
 contracts. Proto-backed commands should use `cliapp.RenderProtoList`
 or `cliapp.RenderProtoMutation`: human consumers see the report, while

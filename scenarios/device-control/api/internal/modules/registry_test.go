@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"device-control/internal/modules"
-	"device-control/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 

@@ -7,7 +7,7 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
-	"image-tools/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func newStateDB(t *testing.T) *sql.DB {

@@ -95,20 +95,25 @@ func (h *handler) analysisHealth(c *gin.Context) {
 			"status":    "unhealthy",
 			"service":   "scenario-dependency-analyzer-api",
 			"timestamp": timestamp,
-			"readiness": false,
-			"version":   "1.0.0",
-			"error":     "Analysis capability test failed",
+			// The combined graph is generated as part of this health probe, so
+			// this is the materialization timestamp for the three federated
+			// graph/resource search leaves, not merely the HTTP check time.
+			"last_indexed_at": timestamp,
+			"readiness":       false,
+			"version":         "1.0.0",
+			"error":           "Analysis capability test failed",
 		})
 		return
 	}
 
 	payload := gin.H{
-		"status":       "healthy",
-		"service":      "scenario-dependency-analyzer-api",
-		"timestamp":    timestamp,
-		"readiness":    true,
-		"version":      "1.0.0",
-		"capabilities": []string{"dependency_analysis", "graph_generation"},
+		"status":          "healthy",
+		"service":         "scenario-dependency-analyzer-api",
+		"timestamp":       timestamp,
+		"last_indexed_at": timestamp,
+		"readiness":       true,
+		"version":         "1.0.0",
+		"capabilities":    []string{"dependency_analysis", "graph_generation"},
 	}
 
 	if depSvc := h.dependencyService(); depSvc != nil {

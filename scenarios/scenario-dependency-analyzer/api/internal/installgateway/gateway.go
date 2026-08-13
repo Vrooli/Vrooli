@@ -82,6 +82,25 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 	cmd := exec.CommandContext(ctx, r.Argv[0], r.Argv[1:]...)
 	cmd.Dir = r.SurfaceRoot
 	out, err := cmd.CombinedOutput()
+	if err != nil && r.PackageManager == "pnpm" && strings.Contains(string(out), "ERR_PNPM_UNEXPECTED_STORE") {
+		// A governed install must be able to repair a package workspace whose
+		// node_modules was linked by a different pnpm store configuration. The
+		// frozen, script-disabled relink is intentionally read-only with respect
+		// to dependency versions; it only restores the workspace invariant before
+		// retrying the requested governed mutation.
+		repair := exec.CommandContext(ctx, "pnpm", "install", "--frozen-lockfile", "--ignore-scripts", "--ignore-workspace")
+		repair.Dir = r.SurfaceRoot
+		repairOut, repairErr := repair.CombinedOutput()
+		out = append(out, repairOut...)
+		if repairErr != nil {
+			return string(out), repairErr
+		}
+		retry := exec.CommandContext(ctx, r.Argv[0], r.Argv[1:]...)
+		retry.Dir = r.SurfaceRoot
+		retryOut, retryErr := retry.CombinedOutput()
+		out = append(out, retryOut...)
+		return string(out), retryErr
+	}
 	return string(out), err
 }
 
@@ -109,8 +128,8 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 	if strings.TrimSpace(packageName) == "" {
 		return Resolution{}, fmt.Errorf("package name is required")
 	}
-	surfaceRoot := filepath.Join(repoRoot, "scenarios", scenario, surface)
-	if info, err := os.Stat(surfaceRoot); err != nil || !info.IsDir() {
+	surfaceRoot := resolveSurfaceRoot(repoRoot, scenario, surface)
+	if surfaceRoot == "" {
 		return Resolution{}, fmt.Errorf("surface directory not found: scenarios/%s/%s", scenario, surface)
 	}
 
@@ -118,6 +137,9 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 	manager, manifest, argv, err := planForEcosystem(surfaceRoot, ecosystem, packageName, version)
 	if err != nil {
 		return Resolution{}, err
+	}
+	if manager == "pnpm" && isSharedPackageRoot(repoRoot, surfaceRoot) {
+		argv = append(argv, "--ignore-workspace")
 	}
 	return Resolution{
 		SurfaceRoot:    surfaceRoot,
@@ -190,8 +212,8 @@ func ResolveNpmOverride(repoRoot, scenario, surface string) (Resolution, error) 
 	if err != nil {
 		return Resolution{}, err
 	}
-	surfaceRoot := filepath.Join(repoRoot, "scenarios", scenario, surface)
-	if info, err := os.Stat(surfaceRoot); err != nil || !info.IsDir() {
+	surfaceRoot := resolveSurfaceRoot(repoRoot, scenario, surface)
+	if surfaceRoot == "" {
 		return Resolution{}, fmt.Errorf("surface directory not found: scenarios/%s/%s", scenario, surface)
 	}
 	if manager := jsManager(surfaceRoot); manager != "pnpm" {
@@ -202,6 +224,31 @@ func ResolveNpmOverride(repoRoot, scenario, surface string) (Resolution, error) 
 		argv = append(argv, "--workspace-root")
 	}
 	return Resolution{SurfaceRoot: surfaceRoot, PackageManager: "pnpm", ManifestPath: filepath.Join(surfaceRoot, "package.json"), Argv: argv, Profile: SafeProfileFor("pnpm", argv)}, nil
+}
+
+// resolveSurfaceRoot supports both scenario surfaces and package targets.
+// Package installs use the existing tools/<package> surface spelling so the
+// CLI remains backward-compatible while governed dependency changes can reach
+// shared packages without pretending they are scenarios.
+func resolveSurfaceRoot(repoRoot, scenario, surface string) string {
+	scenarioRoot := filepath.Join(repoRoot, "scenarios", scenario, surface)
+	if info, err := os.Stat(scenarioRoot); err == nil && info.IsDir() {
+		return scenarioRoot
+	}
+	if strings.HasPrefix(surface, "tools/") {
+		packageName := strings.TrimPrefix(surface, "tools/")
+		packageRoot := filepath.Join(repoRoot, "packages", packageName)
+		if info, err := os.Stat(packageRoot); err == nil && info.IsDir() {
+			return packageRoot
+		}
+	}
+	return ""
+}
+
+func isSharedPackageRoot(repoRoot, surfaceRoot string) bool {
+	packagesRoot := filepath.Join(repoRoot, "packages")
+	rel, err := filepath.Rel(packagesRoot, surfaceRoot)
+	return err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // SetNpmOverride records a pnpm override in package.json. It intentionally

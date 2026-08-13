@@ -176,7 +176,7 @@ func runResultProto(result internal.RunResult) *flowsv1.RunResult {
 		out.Resolutions = append(out.Resolutions, &flowsv1.Resolution{Target: res.Target, Rung: res.Rung, Confidence: res.Confidence})
 	}
 	for _, ref := range result.Evidence {
-		out.Evidence = append(out.Evidence, &flowsv1.EvidenceReference{Id: ref.ID, Sha256: ref.SHA256, SizeBytes: ref.SizeBytes, CreatedAt: ref.CreatedAt.Format(time.RFC3339Nano), RedactionVerified: ref.RedactionVerified, RecordingMethod: ref.RecordingMethod, EffectiveFps: ref.EffectiveFPS, Producer: ref.Producer, Kind: ref.Kind, AppliedRules: ref.AppliedRules, OptedOut: ref.OptedOut})
+		out.Evidence = append(out.Evidence, &flowsv1.EvidenceReference{Id: ref.ID, Sha256: ref.SHA256, SizeBytes: ref.SizeBytes, CreatedAt: ref.CreatedAt.Format(time.RFC3339Nano), RedactionVerified: ref.RedactionVerified, RecordingMethod: ref.RecordingMethod, EffectiveFps: ref.EffectiveFPS, Producer: ref.Producer, Kind: ref.Kind, AppliedRules: ref.AppliedRules, OptedOut: ref.OptedOut, ClaimClass: string(ref.ClaimClass), MinimumUsefulFps: ref.MinimumUsefulFPS, Disposition: string(ref.Disposition), DispositionReason: ref.DispositionReason})
 	}
 	return out
 }

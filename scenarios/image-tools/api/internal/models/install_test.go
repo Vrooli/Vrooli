@@ -13,7 +13,7 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
-	"image-tools/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 // installFixture wires an Installer over a fresh SQLite DB and a temp models

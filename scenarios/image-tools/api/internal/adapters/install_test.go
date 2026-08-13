@@ -9,8 +9,8 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"image-tools/internal/fetch"
-	"image-tools/internal/testutil/db"
 )
 
 type downloaderFunc func(ctx context.Context, rawURL, dest string, emit func(int64, int64)) error

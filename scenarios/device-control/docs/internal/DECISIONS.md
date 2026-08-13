@@ -28,7 +28,7 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 | D-005 | 2026-08-10 | All inference goes through `ai-gateway`; the generated `locate.visual` role unblocks the vision rung without reversing the boundary. | A fourth inference transport or a change to the gateway's provider-neutral contract. |
 | D-006 | 2026-08-10 | Leases are P0, not a later refinement. | Never while any single-session strategy exists. |
 | D-007 | 2026-08-10 | The CLI is the contract, because the agent drives it. | Agent mode stops driving the CLI. |
-| D-008 | 2026-08-10 | `vrooli-bridge` owns reach; this scenario owns operation. | Bridge changes its fleet model, or a device class fits neither side. |
+| D-008 | 2026-08-13 | `vrooli-bridge` owns reach and the short-lived device-lease authorization record; this scenario owns lease semantics and operation. Device-scoped bridge dispatch requires a matching held lease record and is audited on refusal. | Bridge changes its fleet model, or a device class fits neither side. |
 | D-009 | 2026-08-10 | Recording is a guaranteed capability with a synthesized fallback. | The ramps stop requiring video evidence. |
 | D-010 | 2026-08-10 | A capability gap report is a successful response, not an error. | Never — making it an error would hide the scenario's most common honest answer. |
 | D-011 | 2026-08-10 | Errors carry identifiers and reasons, never device content. | Never — this is a redaction bypass, not a style preference. |
@@ -140,6 +140,16 @@ control and may I." Putting a second device registry here would split that.
 But if bridge also held ADB, WebDriverAgent, and mirroring logic it would
 become a mobile toolkit, and every new device platform would bloat the trust
 plane. Reach and operation are different rates of change.
+
+The reach gate also owns the short-lived authorization record needed to close
+the out-of-band dispatch path. Device-control remains authoritative for lease
+lifecycle semantics: it acquires, renews, expires, kills, and releases the
+lease, then supplies the bridge gate with the device-scoped token and expiry.
+Bridge never treats a non-empty token as proof by itself; it refuses a
+device-scoped verb unless its own held record matches the device and token, and
+it appends the refusal to the dispatch audit trail. This keeps the trust-plane
+check at the point where reach is granted without moving device operation into
+bridge.
 
 ### D-009 — Recording is a guaranteed capability with a synthesized fallback
 

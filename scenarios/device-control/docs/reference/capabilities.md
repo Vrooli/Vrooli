@@ -55,6 +55,7 @@ and gap reports.
 | `native-recording` | Native video recording | The transport provides its own video capture. |
 | `device-logs` | Device logs | Read the device's system or application log stream. |
 | `webview-attach` | WebView attach | Attach a debugger to an application WebView. Required by `bas.*` delegation. |
+| `multi-touch` | Multi-touch pointer streams | Two simultaneous normalized pointer streams are available for gestures such as pinch. |
 
 ## Step kinds and what they require
 
@@ -69,6 +70,12 @@ portable core of the flow vocabulary.
 | `device.observe` | — | ✅ |
 | `device.tap` | — | ✅ |
 | `device.swipe` | — | ✅ |
+| `device.long-press` | — | ✅ |
+| `device.double-tap` | — | ✅ |
+| `device.drag` | — | ✅ |
+| `device.fling` | — | ✅ |
+| `device.pinch` | `multi-touch` | — |
+| `device.scroll-to` | `semantic-tree` or a resolver rung | — |
 | `device.type` | — | ✅ |
 | `device.key` | — | ✅ |
 | `device.record` | — *(see exception below)* | ✅ |

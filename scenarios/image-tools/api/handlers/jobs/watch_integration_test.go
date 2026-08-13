@@ -9,11 +9,11 @@ import (
 	"connectrpc.com/connect"
 	apidb "github.com/vrooli/api-core/database"
 
+	db "github.com/vrooli/api-core/databasetest"
+	httpxtest "github.com/vrooli/api-core/servertest"
 	jobsH "image-tools/handlers/jobs"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/server"
-	"image-tools/internal/testutil/db"
-	httpxtest "image-tools/internal/testutil/httpx"
 
 	"github.com/vrooli/api-core/schedule"
 

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"testing"
 
-	"image-tools/cli/internal/testutil"
+	testutil "github.com/vrooli/cli-core/cliapptest"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"google.golang.org/protobuf/encoding/protojson"

@@ -45,7 +45,7 @@ func TestResolverNormalizesVisionResultAndConvertsToOriginalDeviceCoordinates(t 
 	require.Equal(t, []int{192, 216, 960, 648}, result.DeviceBounds)
 	require.Equal(t, uint32(960), fake.request.GetAttachments()[0].GetWidth())
 	require.Empty(t, fake.request.GetSource())
-	require.Equal(t, []string{"attempt_vision", "resolved"}, evidenceNames(result.Evidence))
+	require.Equal(t, []string{"skip", "skip", "attempt_vision", "resolved"}, evidenceNames(result.Evidence))
 }
 
 func TestResolverFallsBackToVisualAnchorBelowCallerThreshold(t *testing.T) { // [REQ:DVC-P0-006]
@@ -61,8 +61,8 @@ func TestResolverFallsBackToVisualAnchorBelowCallerThreshold(t *testing.T) { // 
 	require.True(t, result.FallbackUsed)
 	require.Equal(t, VisualAnchorRung, result.Rung)
 	require.Equal(t, []int{384, 270, 768, 540}, result.DeviceBounds)
-	require.Equal(t, []string{"attempt_vision", "fallback", "resolved"}, evidenceNames(result.Evidence))
-	require.Equal(t, "confidence_below_threshold", result.Evidence[1].Reason)
+	require.Equal(t, []string{"skip", "skip", "attempt_vision", "fallback", "resolved"}, evidenceNames(result.Evidence))
+	require.Equal(t, "anchor_not_found", result.Evidence[1].Reason)
 }
 
 func TestResolverReportsTypedUnavailableWithoutProviderFallback(t *testing.T) { // [REQ:DVC-P0-007]
@@ -72,7 +72,42 @@ func TestResolverReportsTypedUnavailableWithoutProviderFallback(t *testing.T) { 
 	require.ErrorAs(t, err, &unavailable)
 	require.Equal(t, "gateway_route_unavailable", unavailable.Reason)
 	require.Equal(t, "unavailable", result.Status)
-	require.Equal(t, []string{"attempt_vision", "unresolved"}, evidenceNames(result.Evidence))
+	require.Equal(t, []string{"skip", "skip", "attempt_vision", "unresolved"}, evidenceNames(result.Evidence))
+}
+
+func TestResolverSemanticHitSkipsInference(t *testing.T) {
+	fake := &fakeGateway{}
+	result, err := NewResolver(fake).Resolve(context.Background(), Request{Target: "hello-mobile-input", Frame: testFrame(), Semantic: func(context.Context, string) (SemanticMatch, error) {
+		return SemanticMatch{Bounds: []float64{.1, .2, .3, .4}, Confidence: 1}, nil
+	}})
+	require.NoError(t, err)
+	require.Equal(t, "semantic", result.Rung)
+	require.Nil(t, fake.request)
+}
+
+func TestResolverAnchorAnswersBeforeVision(t *testing.T) {
+	fake := &fakeGateway{response: &inferencev1.RunResponse{ValueJson: `{"found":true,"bounds":[.8,.8,.9,.9],"confidence":1}`}}
+	anchors := NewAnchorStoreAt("")
+	_, err := anchors.Create("submit", "hello-mobile-input", []float64{.1, .2, .3, .4}, .95)
+	require.NoError(t, err)
+	result, err := NewResolver(fake).Resolve(context.Background(), Request{Target: "hello-mobile-input", Frame: testFrame(), Anchors: anchors})
+	require.NoError(t, err)
+	require.Equal(t, VisualAnchorRung, result.Rung)
+	require.Nil(t, fake.request)
+	require.Equal(t, []string{"skip", "resolved"}, evidenceNames(result.Evidence))
+}
+
+func TestVisionPromotionReplaysThroughAnchorWithoutGateway(t *testing.T) {
+	fake := &fakeGateway{response: &inferencev1.RunResponse{ValueJson: `{"found":true,"bounds":[0.1,0.2,0.3,0.4],"confidence":0.95}`}}
+	anchors := NewAnchorStoreAt("")
+	first, err := NewResolver(fake).Resolve(context.Background(), Request{Target: "hello-mobile-input", Frame: testFrame(), Anchors: anchors})
+	require.NoError(t, err)
+	require.Equal(t, VisionRung, first.Rung)
+	fake.request = nil
+	second, err := NewResolver(fake).Resolve(context.Background(), Request{Target: "hello-mobile-input", Frame: testFrame(), Anchors: anchors})
+	require.NoError(t, err)
+	require.Equal(t, VisualAnchorRung, second.Rung)
+	require.Nil(t, fake.request)
 }
 
 func TestPrepareFrameDownscalesBeforeGatewayAndKeepsOriginalDimensions(t *testing.T) {

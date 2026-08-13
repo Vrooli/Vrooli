@@ -1,6 +1,9 @@
 package execution
 
-import "device-control/internal/evidence"
+import (
+	"device-control/internal/evidence"
+	"device-control/internal/sessions"
+)
 
 type Step struct {
 	ID                   string         `json:"id"`
@@ -35,12 +38,13 @@ type Resolution struct {
 	Confidence float64 `json:"confidence"`
 }
 type RunResult struct {
-	RunID            string               `json:"run_id"`
-	Disposition      string               `json:"disposition"`
-	Chapters         []Chapter            `json:"chapters"`
-	Resolutions      []Resolution         `json:"resolutions"`
-	Evidence         []evidence.Reference `json:"evidence"`
-	Incomplete       bool                 `json:"incomplete,omitempty"`
-	DisconnectReason string               `json:"disconnect_reason,omitempty"`
-	DisconnectStep   string               `json:"disconnect_step,omitempty"`
+	RunID            string                      `json:"run_id"`
+	Disposition      string                      `json:"disposition"`
+	Chapters         []Chapter                   `json:"chapters"`
+	Resolutions      []Resolution                `json:"resolutions"`
+	Evidence         []evidence.Reference        `json:"evidence"`
+	Restoration      []sessions.RestorationEvent `json:"restoration,omitempty"`
+	Incomplete       bool                        `json:"incomplete,omitempty"`
+	DisconnectReason string                      `json:"disconnect_reason,omitempty"`
+	DisconnectStep   string                      `json:"disconnect_step,omitempty"`
 }

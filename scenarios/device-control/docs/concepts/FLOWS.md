@@ -55,6 +55,19 @@ The evidence sequence is ordered and redaction-safe:
 No event contains frame bytes, screen text, provider URLs, model slugs, or
 credentials.
 
+The current resolution order is deterministic semantic tree, persisted visual
+anchor, then vision. A semantic hit is asserted without an ai-gateway call;
+successful vision resolutions may be promoted to an anchor with normalized
+bounds and a frame checksum. Flow steps use normalized pointer coordinates by
+default. The typed vocabulary includes swipe, long-press, double-tap, drag,
+fling, scroll-to, and capability-gated pinch; pixel coordinates are an
+explicit non-portable escape hatch.
+
+Session-scoped recordings carry a claim class (`static`, `transition`, or
+`animation`) and a measured effective frame rate. A recording below its class
+minimum is `degraded`, never silently treated as passed. Device state changes
+are owned by the lease and restored in reverse order when a session ends.
+
 ## Flow Details
 
 Document each real flow here with its owner domain, trigger, inputs,

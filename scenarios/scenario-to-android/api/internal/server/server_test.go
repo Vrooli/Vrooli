@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"testing"
 
+	httpx "github.com/vrooli/api-core/servertest"
 	"scenario-to-android/internal/module"
 	"scenario-to-android/internal/server"
-	"scenario-to-android/internal/testutil/httpx"
 
 	"github.com/vrooli/api-core/schedule"
 

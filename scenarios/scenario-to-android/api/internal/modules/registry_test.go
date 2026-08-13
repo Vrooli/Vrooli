@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"scenario-to-android/internal/modules"
-	"scenario-to-android/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
 

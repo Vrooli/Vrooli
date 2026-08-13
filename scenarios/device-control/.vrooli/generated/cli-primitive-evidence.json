@@ -67,6 +67,16 @@
       "binding": "."
     },
     {
+      "path": "device state",
+      "group": "device",
+      "command": "state"
+    },
+    {
+      "path": "flow export",
+      "group": "flow",
+      "command": "export"
+    },
+    {
       "path": "flow run",
       "group": "flow",
       "command": "run",

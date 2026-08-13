@@ -12,7 +12,7 @@ import (
 	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/identity"
 	identityconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/identity/identity_v1connect"
 
-	clitest "device-sync-hub/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 // identityService is a fake IdentityService backing the CLI's connect client.

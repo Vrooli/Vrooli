@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"device-control/internal/evidence"
+	internalflows "device-control/internal/flows"
+	sessionsdomain "device-control/internal/sessions"
 	"device-control/strategy"
 	"github.com/google/uuid"
 )
@@ -33,6 +35,14 @@ func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strat
 			g.Runnable = false
 			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s", step.ID, strategy.CapSemanticTree))
 		}
+		if (step.Kind == "recording-start" || step.Kind == "recording-stop") && decl.Capabilities[strategy.CapScreenRecording].Status != strategy.StatusAvailable && decl.Capabilities[strategy.CapNativeRecording].Status != strategy.StatusAvailable {
+			g.Runnable = false
+			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s", step.ID, strategy.CapScreenRecording))
+		}
+		if step.Kind == "pinch" && decl.Capabilities[strategy.CapMultiTouch].Status != strategy.StatusAvailable {
+			g.Runnable = false
+			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s", step.ID, strategy.CapMultiTouch))
+		}
 		for _, cap := range step.RequiredCapabilities {
 			if decl.Capabilities[cap].Status != strategy.StatusAvailable {
 				g.Runnable = false
@@ -41,6 +51,16 @@ func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strat
 		}
 	}
 	return g
+}
+
+func claimClassForStep(step Step) string {
+	if value, ok := step.Arguments["claim_class"].(string); ok {
+		switch value {
+		case string(strategy.ClaimStatic), string(strategy.ClaimTransition), string(strategy.ClaimAnimation):
+			return value
+		}
+	}
+	return string(strategy.ClaimTransition)
 }
 
 func (s *Service) Run(ctx context.Context, flow Flow, deviceID, actor string) (RunResult, error) {
@@ -97,6 +117,43 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		s.mu.Unlock()
 	}()
 	result := RunResult{RunID: uuid.NewString(), Disposition: "passed", Chapters: []Chapter{}, Resolutions: []Resolution{}, Evidence: []evidence.Reference{}}
+	stateManager := &sessionsdomain.StateManager{}
+	if reader, readerOK := strat.(strategy.StateReader); readerOK {
+		if restorer, restorerOK := strat.(strategy.StateRestorer); restorerOK {
+			if snapshot, snapshotErr := reader.ReadState(ctx); snapshotErr == nil && snapshot.Orientation != "" {
+				stateManager.Push("device-state", func(restoreCtx context.Context) error {
+					return restorer.RestoreState(restoreCtx, snapshot)
+				})
+			}
+		}
+	}
+	recordingHandles := map[string]strategy.RecordingHandle{}
+	recorder, hasRecorder := strat.(strategy.SessionRecorder)
+	storeRecording := func(step Step, artifact strategy.RecordingArtifact) error {
+		redacted, redactErr := evidence.RedactCapture(artifact.Bytes, "video/mp4", evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor)
+		if redactErr != nil {
+			return redactErr
+		}
+		frameCount, duration, effectiveFPS, measureErr := evidence.MeasureVideo(redacted.Bytes)
+		if measureErr != nil {
+			return measureErr
+		}
+		artifact.FrameCount, artifact.Duration, artifact.EffectiveFPS = frameCount, duration, effectiveFPS
+		id := uuid.NewString()
+		class := evidence.ClaimClass(artifact.ClaimClass)
+		if class == "" {
+			class = evidence.ClaimClass(claimClassForStep(step))
+		}
+		ref, refErr := evidence.NewClaimedVideoReference(id, redacted.Bytes, redacted, artifact.Method, artifact.EffectiveFPS, class)
+		if refErr != nil {
+			return refErr
+		}
+		if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "video"); refErr != nil {
+			return refErr
+		}
+		result.Evidence = append(result.Evidence, ref)
+		return nil
+	}
 	var previousFrame, lastFrame []byte
 	dispatch := func(stepctx context.Context, event strategy.Actuation) error {
 		if flow.SuppressActuation {
@@ -125,15 +182,30 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			if e != nil {
 				stepErr = e
 			} else {
-				stepErr = dispatch(stepctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: "tap", X: x, Y: y}})
+				stepErr = dispatch(stepctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: "tap", X: x, Y: y, Normalized: !pixelStep(step)}})
 			}
 		case "key":
 			stepErr = dispatch(stepctx, strategy.Actuation{Key: &strategy.KeyEvent{Kind: "press", Key: step.Target}})
-		case "swipe":
-			stepErr = dispatch(stepctx, strategy.Actuation{Action: "swipe", Value: step.Target})
+		case "swipe", "long-press", "double-tap", "drag", "fling":
+			stepErr = executeGesture(stepctx, dispatch, step)
+		case "pinch":
+			stepErr = executePinch(stepctx, dispatch, step)
+		case "scroll-to":
+			stepErr = executeScrollTo(stepctx, dispatch, step)
 		case "text":
 			stepErr = dispatch(stepctx, strategy.Actuation{Text: step.Target})
 		case "observe":
+			if stateReader, ok := strat.(strategy.StateReader); ok {
+				state, stateErr := stateReader.ReadState(stepctx)
+				if stateErr != nil {
+					stepErr = stateErr
+					break
+				}
+				if state.LockState == "locked" || state.ScreenState == "off" {
+					stepErr = fmt.Errorf("visible surface unavailable: screen is %s%s", state.LockState, screenStateSuffix(state.ScreenState))
+					break
+				}
+			}
 			frame, e := strat.Observe(stepctx)
 			stepErr = e
 			if stepErr == nil {
@@ -181,7 +253,37 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 				default:
 				}
 			}
-		case "semantic-target", "semantic-assert":
+		case "semantic-target":
+			semantic, ok := strat.(strategy.SemanticResolver)
+			if !ok {
+				stepErr = fmt.Errorf("strategy does not implement deterministic semantic resolution")
+				break
+			}
+			frame, observeErr := strat.Observe(stepctx)
+			if observeErr != nil {
+				stepErr = observeErr
+				break
+			}
+			resolver := internalflows.NewResolver(nil)
+			resolved, resolveErr := resolver.Resolve(stepctx, internalflows.Request{
+				Target: step.Target,
+				Frame:  internalflows.Frame{Bytes: frame.Bytes, MediaType: frame.MediaType, Width: frame.Width, Height: frame.Height, OriginalWidth: frame.Width, OriginalHeight: frame.Height},
+				Semantic: func(ctx context.Context, target string) (internalflows.SemanticMatch, error) {
+					match, err := semantic.ResolveSemantic(ctx, target)
+					return internalflows.SemanticMatch{Bounds: match.Bounds, Confidence: match.Confidence}, err
+				},
+			})
+			if resolveErr != nil {
+				stepErr = resolveErr
+				break
+			}
+			if len(resolved.DeviceBounds) != 4 {
+				stepErr = fmt.Errorf("semantic resolver returned invalid device bounds")
+				break
+			}
+			result.Resolutions = append(result.Resolutions, Resolution{Target: step.Target, Rung: resolved.Rung, Confidence: resolved.Confidence})
+			stepErr = dispatch(stepctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: "semantic-target", X: float64((resolved.DeviceBounds[0] + resolved.DeviceBounds[2]) / 2), Y: float64((resolved.DeviceBounds[1] + resolved.DeviceBounds[3]) / 2)}})
+		case "semantic-assert":
 			expected, _ := step.Arguments["expected"].(string)
 			stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Expected: expected})
 		case "rotate", "network":
@@ -189,6 +291,36 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		case "deep-link":
 			packageName, _ := step.Arguments["package"].(string)
 			stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName})
+		case "recording-start":
+			if !hasRecorder {
+				stepErr = fmt.Errorf("strategy does not support session-scoped recording")
+				break
+			}
+			class := strategy.ClaimClass(claimClassForStep(step))
+			var handle strategy.RecordingHandle
+			handle, stepErr = recorder.StartRecording(stepctx, class)
+			if stepErr == nil {
+				recordingHandles[step.ID] = handle
+			}
+		case "recording-stop":
+			if !hasRecorder {
+				stepErr = fmt.Errorf("strategy does not support session-scoped recording")
+				break
+			}
+			key := step.Target
+			if key == "" {
+				key = step.ID
+			}
+			handle, ok := recordingHandles[key]
+			if !ok {
+				stepErr = fmt.Errorf("recording %q is not active", key)
+				break
+			}
+			var artifact strategy.RecordingArtifact
+			artifact, stepErr = recorder.StopRecording(stepctx, handle)
+			if stepErr == nil {
+				stepErr = storeRecording(step, artifact)
+			}
 		case "device-logs", "screenrecord":
 			var output []byte
 			packageName, _ := step.Arguments["package"].(string)
@@ -219,7 +351,12 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 					stepErr = redactErr
 				} else {
 					id := uuid.NewString()
-					ref, refErr := evidence.NewVideoReference(id, redacted.Bytes, redacted, "native", 30)
+					_, _, effectiveFPS, measureErr := evidence.MeasureVideo(redacted.Bytes)
+					if measureErr != nil {
+						stepErr = measureErr
+						break
+					}
+					ref, refErr := evidence.NewClaimedVideoReference(id, redacted.Bytes, redacted, "native", effectiveFPS, evidence.ClaimClass(claimClassForStep(step)))
 					if refErr != nil {
 						stepErr = refErr
 					} else if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "video"); refErr != nil {
@@ -284,7 +421,61 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			break
 		}
 	}
+	result.Restoration = stateManager.Restore(ctx)
+	for _, event := range result.Restoration {
+		if event.Status == "failed" {
+			result.Disposition = "failed"
+			result.Chapters = append(result.Chapters, Chapter{ID: "restoration-" + event.Name, Title: "state restoration", Disposition: "failed", Message: event.Reason})
+		}
+	}
+	s.mu.Lock()
+	s.runs[result.RunID] = result
+	s.flowRuns[result.RunID] = flow
+	s.mu.Unlock()
 	return result, nil
+}
+
+type FlowExport struct {
+	RunID    string            `json:"run_id"`
+	Flow     Flow              `json:"flow"`
+	Rungs    map[string]string `json:"rungs"`
+	Excluded []string          `json:"excluded_steps,omitempty"`
+}
+
+func (s *Service) ExportFlow(id string) (FlowExport, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	result, ok := s.runs[id]
+	flow, flowOK := s.flowRuns[id]
+	if !ok || !flowOK {
+		return FlowExport{}, fmt.Errorf("run %q not found", id)
+	}
+	export := FlowExport{RunID: id, Flow: flow, Rungs: map[string]string{}, Excluded: []string{}}
+	failed := map[string]bool{}
+	for _, chapter := range result.Chapters {
+		if chapter.Disposition == "failed" || chapter.Disposition == "cancelled" || chapter.Disposition == "device_disconnected" {
+			failed[chapter.ID] = true
+			export.Excluded = append(export.Excluded, chapter.ID+": "+chapter.Message)
+		}
+	}
+	steps := make([]Step, 0, len(flow.Steps))
+	for _, step := range flow.Steps {
+		if !failed[step.ID] {
+			steps = append(steps, step)
+		}
+	}
+	export.Flow.Steps = steps
+	for _, resolution := range result.Resolutions {
+		export.Rungs[resolution.Target] = resolution.Rung
+	}
+	return export, nil
+}
+
+func screenStateSuffix(screen string) string {
+	if screen == "" {
+		return ""
+	}
+	return " and screen is " + screen
 }
 
 func (s *Service) strategyForDevice(deviceID string) (strategy.Strategy, bool) {
@@ -303,6 +494,79 @@ func (s *Service) strategyForDevice(deviceID string) (strategy.Strategy, bool) {
 		return scoped.ForDevice(record.Serial), true
 	}
 	return strat, true
+}
+
+func pixelStep(step Step) bool {
+	space, _ := step.Arguments["coordinate_space"].(string)
+	return strings.EqualFold(space, "pixel")
+}
+
+func gesturePoint(step Step, prefix string) (float64, float64, error) {
+	x, xok := number(step.Arguments[prefix+"x"])
+	y, yok := number(step.Arguments[prefix+"y"])
+	if prefix == "" {
+		x, xok = number(step.Arguments["x"])
+		y, yok = number(step.Arguments["y"])
+	}
+	if !xok || !yok || x < 0 || x > 1 || y < 0 || y > 1 {
+		return 0, 0, fmt.Errorf("gesture %s requires normalized %s coordinates", step.ID, prefix)
+	}
+	return x, y, nil
+}
+
+func gestureDuration(step Step, fallback int) int {
+	if value, ok := number(step.Arguments["duration_ms"]); ok && value > 0 {
+		return int(value)
+	}
+	return fallback
+}
+
+func executeGesture(ctx context.Context, dispatch func(context.Context, strategy.Actuation) error, step Step) error {
+	x0, y0, err := gesturePoint(step, "start_")
+	if step.Kind == "long-press" || step.Kind == "double-tap" {
+		x0, y0, err = gesturePoint(step, "")
+	}
+	if err != nil {
+		return err
+	}
+	x1, y1 := x0, y0
+	if step.Kind == "drag" || step.Kind == "fling" || step.Kind == "swipe" {
+		x1, y1, err = gesturePoint(step, "end_")
+		if err != nil {
+			return err
+		}
+	}
+	duration := gestureDuration(step, 300)
+	if step.Kind == "long-press" {
+		duration = gestureDuration(step, 800)
+	}
+	if step.Kind == "double-tap" {
+		for i := 0; i < 2; i++ {
+			if err := dispatch(ctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: "tap", X: x0, Y: y0, Normalized: true}}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return dispatch(ctx, strategy.Actuation{Pointer: &strategy.PointerEvent{Kind: step.Kind, X: x0, Y: y0, Button: fmt.Sprintf("%f,%f", x1, y1), Normalized: true, DurationMS: duration}})
+}
+
+func executePinch(ctx context.Context, dispatch func(context.Context, strategy.Actuation) error, step Step) error {
+	x0, y0, err := gesturePoint(step, "start_")
+	if err != nil {
+		return err
+	}
+	x1, y1, err := gesturePoint(step, "end_")
+	if err != nil {
+		return err
+	}
+	return dispatch(ctx, strategy.Actuation{Action: "pinch", Value: fmt.Sprintf("%f,%f,%f,%f", x0, y0, x1, y1)})
+}
+
+func executeScrollTo(ctx context.Context, dispatch func(context.Context, strategy.Actuation) error, step Step) error {
+	// Target re-resolution is owned by the flow layer; this bounded adapter
+	// action only performs one scroll attempt.
+	return dispatch(ctx, strategy.Actuation{Action: "scroll-to", Value: step.Target})
 }
 
 // strategyForFlow keeps release-grade flows on USB unless they explicitly

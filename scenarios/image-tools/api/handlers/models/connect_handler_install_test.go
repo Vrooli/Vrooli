@@ -10,10 +10,10 @@ import (
 	"connectrpc.com/connect"
 	apidb "github.com/vrooli/api-core/database"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"image-tools/internal/capabilities"
 	internaljobs "image-tools/internal/jobs"
 	internalmodels "image-tools/internal/models"
-	"image-tools/internal/testutil/db"
 
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 )

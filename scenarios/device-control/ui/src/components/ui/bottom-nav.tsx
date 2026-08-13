@@ -65,7 +65,7 @@ export function BottomNav({
       data-testid={testId}
       aria-label={label}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-30 flex border-t border-app-border bg-app-surface pl-safe pr-safe pb-safe md:hidden",
+        "fixed inset-x-0 bottom-safe z-30 flex border-t border-app-border bg-app-surface pl-safe pr-safe pb-safe md:hidden",
         className,
       )}
     >

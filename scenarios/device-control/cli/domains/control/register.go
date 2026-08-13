@@ -21,6 +21,13 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			}
 			return emit(ctx, b, "Devices")
 		}),
+		command("state", "Read live state from a device", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}}, func(ctx cliapp.RunContext) error {
+			b, err := core.Request(http.MethodGet, "/devices/"+ctx.Positional("id")+"/state", nil, nil)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, b, "Device state")
+		}),
 		command("connect", "Show the guided onboarding ladder", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "kind", Required: true, Description: "android or ios"}, {Name: "watch", Bool: true, Description: "re-probe until all onboarding rungs are available or the watch window expires"}, {Name: "watch-seconds", Default: "30", Description: "maximum live re-probe window when --watch is set"}}}, func(ctx cliapp.RunContext) error {
 			return connect(ctx, core)
 		}),
@@ -99,6 +106,13 @@ func FlowGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "flow", Description: "Validate and run bounded device flows", NeedsAPI: true, Subcommands: []cliapp.Command{
 		command("validate", "Validate a flow before taking a lease", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "file", Required: true, Description: "flow JSON file"}, {Name: "strategy", Required: true, Description: "strategy id"}}}, func(ctx cliapp.RunContext) error { return flowRequest(ctx, core, "/flows/validate", false) }),
 		command("run", "Run a flow with chaptered evidence", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "file", Required: true, Description: "flow JSON file"}, {Name: "device", Required: true, Description: "device id"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "lease", Description: "held lease token"}, {Name: "transport", Description: "usb (default) or wireless; wireless must be explicit"}}}, func(ctx cliapp.RunContext) error { return flowRequest(ctx, core, "/flows/run", true) }),
+		command("export", "Export a completed run as a replayable flow", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "run-id", Required: true, Description: "completed run id"}}}, func(ctx cliapp.RunContext) error {
+			b, err := core.Request(http.MethodGet, "/flows/"+ctx.Positional("run-id")+"/export", nil, nil)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, b, "Flow export")
+		}),
 	}}
 }
 

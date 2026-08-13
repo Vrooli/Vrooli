@@ -55,6 +55,27 @@ func TestResolveBuildsArgvPerEcosystem(t *testing.T) {
 	}
 }
 
+func TestResolveSupportsSharedPackageToolsSurface(t *testing.T) {
+	repoRoot := t.TempDir()
+	packageRoot := filepath.Join(repoRoot, "packages", "api-base")
+	if err := os.MkdirAll(packageRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "package.json"), []byte(`{"name":"@vrooli/api-base"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "pnpm-lock.yaml"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Resolve(repoRoot, "api-base", "tools/api-base", "npm", "react", "^18.3.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.SurfaceRoot != packageRoot || r.ManifestPath != filepath.Join(packageRoot, "package.json") {
+		t.Fatalf("package resolution = %+v, want root %s", r, packageRoot)
+	}
+}
+
 func TestResolveAddsPnpmWorkspaceRootForSurfaceWorkspace(t *testing.T) {
 	repoRoot := t.TempDir()
 	mkSurface(t, repoRoot, "demo", "ui", map[string]string{

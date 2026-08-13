@@ -4,6 +4,13 @@ Device Control is designed so the owner can follow this guide without opening
 source code. Run the commands through the installed CLI after starting the
 scenario with `vrooli scenario start device-control`.
 
+Once a device is listed, inspect live state with
+`device-control device state <device-id> --json`. The report is sourced from
+the phone at request time; an unavailable field names the exact probe command.
+Screenshot-dependent flow steps refuse a locked or sleeping surface rather
+than recording a black frame. Lease-owned orientation and radio changes are
+restored when the session is released or killed.
+
 ## Android over USB
 
 Run `device-control device connect --kind android`. The report identifies each

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"image-tools/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func TestParseTier(t *testing.T) {

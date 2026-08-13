@@ -40,7 +40,7 @@ func (a *Adapter) Describe(context.Context) (strategy.Declaration, error) {
 		return strategy.WithSupportedHostOS(strategy.UnavailableDeclaration(a.ID(), "The local host desktop through the configured display", []strategy.Capability{{Name: strategy.CapInput, Prerequisite: next, NextAction: next}, {Name: strategy.CapScreenshot, Status: strategy.StatusAvailable, ProbeEvidence: "ImageMagick import probe"}}, next), supported...), nil
 	}
 	caps := map[string]strategy.Capability{strategy.CapInput: strategy.ProbeCapability(strategy.CapInput, true, "", "", "DISPLAY probe"), strategy.CapScreenshot: strategy.ProbeCapability(strategy.CapScreenshot, true, "", "", "DISPLAY probe")}
-	d := strategy.Declaration{StrategyID: a.ID(), Description: "The local host desktop through the configured display", Status: strategy.StatusAvailable, Capabilities: caps, Promotable: true}
+	d := strategy.Declaration{StrategyID: a.ID(), Description: "The local host desktop through the configured display", Status: strategy.StatusAvailable, Capabilities: caps, Promotable: true, EvidenceClass: "release-grade", MinimumUsefulFPS: 5}
 	d = strategy.WithSupportedHostOS(d, supported...)
 	d.Tiers = strategy.Tiers(d)
 	return d, nil
@@ -57,7 +57,7 @@ func (a *Adapter) describeDarwin() strategy.Declaration {
 		return strategy.UnavailableDeclaration(a.ID(), description, []strategy.Capability{{Name: strategy.CapInput, Prerequisite: next, NextAction: next}, {Name: strategy.CapScreenshot, Status: strategy.StatusAvailable}}, next)
 	}
 	caps := map[string]strategy.Capability{strategy.CapInput: strategy.ProbeCapability(strategy.CapInput, true, "", "", "osascript accessibility path"), strategy.CapScreenshot: strategy.ProbeCapability(strategy.CapScreenshot, true, "", "", "screencapture path")}
-	d := strategy.Declaration{StrategyID: a.ID(), Description: description, Status: strategy.StatusAvailable, Capabilities: caps, Promotable: true}
+	d := strategy.Declaration{StrategyID: a.ID(), Description: description, Status: strategy.StatusAvailable, Capabilities: caps, Promotable: true, EvidenceClass: "release-grade", MinimumUsefulFPS: 5}
 	d.Tiers = strategy.Tiers(d)
 	return d
 }
