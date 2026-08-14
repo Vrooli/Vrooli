@@ -157,7 +157,14 @@ func (*handlers) programReport(cliapp.OperationContext, *programsv1.GetProgramRe
 }
 
 func (*handlers) listReport(_ cliapp.OperationContext, r *programsv1.ListProgramsResponse) cliapp.ListReport {
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d program(s).", len(r.Programs))}}
+	results := make([]string, 0, len(r.Programs))
+	for _, program := range r.GetPrograms() {
+		if program == nil {
+			continue
+		}
+		results = append(results, fmt.Sprintf("%s [%s] session=%s library=%s", program.GetId(), program.GetStatus().String(), program.GetSessionId(), program.GetLibraryVersion()))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d program(s).", len(r.Programs))}, ResultsHeading: "Programs", Results: results}
 }
 
 func (*handlers) failureReport(_ cliapp.OperationContext, r *programsv1.MineFailuresResponse) cliapp.ListReport {
@@ -178,7 +185,11 @@ func parseProvenance(value string) (programsv1.Provenance, error) {
 		return programsv1.Provenance_PROVENANCE_AGENT, nil
 	case "operator":
 		return programsv1.Provenance_PROVENANCE_OPERATOR, nil
+	case "test":
+		return programsv1.Provenance_PROVENANCE_TEST, nil
+	case "replay":
+		return programsv1.Provenance_PROVENANCE_REPLAY, nil
 	default:
-		return programsv1.Provenance_PROVENANCE_UNSPECIFIED, fmt.Errorf("provenance must be agent or operator")
+		return programsv1.Provenance_PROVENANCE_UNSPECIFIED, fmt.Errorf("provenance must be agent, operator, test, or replay")
 	}
 }

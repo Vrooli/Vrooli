@@ -169,6 +169,56 @@ acceptance test against an active single-node workflow.
 `scenarios/agent-manager/docs/reference/scenario-declarations.md`,
 `POST /api/v1/declarations/reconcile-scenario`.
 
+### 2026-08-14 — Pre-phase corpus success rows are not trustworthy
+
+The response projection previously selected the first repeated JSON field by
+map iteration order. A stored `PROGRAM_STATUS_SUCCEEDED` row therefore proves
+only that the bridge returned a successful transport response; it does not
+prove that the program consumed the operation's intended primary rows. Mining
+and discovery evaluation must exclude submissions created before the
+descriptor-driven `rows_field` projection landed.
+
+**Evidence:** the live `search-hub/query/query` probe now reports
+`count() == 108`, matching the direct `ranked` response field, while an
+ambiguous response fails explicitly with its candidate fields.
+
+**Owner:** program-runtime.
+
+**Refs:** `api/internal/bindings/registry.go`, `kernel/host/engine.py`,
+`api/internal/programs/runner.go`.
+
+### 2026-08-14 — Judged discovery remains model-sensitive on close ties
+
+The governed `judge.default` path now receives only identity-joined candidates,
+resolved argument names, effects, rank, and reviewed intent hints. The reviewed
+51-case run exceeded the floor (39/43 positive cases met), but four positive
+cases still selected a semantically adjacent operation. This is not hidden by
+the threshold: the eval records wrong-selection separately and null remains a
+valid outcome.
+
+**Workaround:** Use `fast` when deterministic provider ranking is preferred;
+use `judged` for the conservative one-or-none contract and inspect its
+confidence/method. The provider corpus and suite are versioned evidence for
+future prompt/model or reranker improvements.
+
+**Owner:** program-runtime / ai-gateway.
+
+**Refs:** `api/handlers/bindings/module.go`, `cli/domains/discovery/register.go`,
+`evals/discovery.primary.json`.
+
+### 2026-08-14 — Immutable regression validation lacks cli-health inventory
+
+The pre-edit plan baseline is intentionally preserved, but its inventory does
+not contain `cli-health`, which the generated full-plan validation scope now
+requires. Plan validation therefore cannot produce a comparable terminal
+verdict; phase transitions record an explicit validation override and name this
+missing member rather than claiming a clean regression diff.
+
+**Owner:** test-genie / plan-manager infrastructure.
+
+**Refs:** plan baseline `program-runtime-trustworthy-results-and-a-self-improving-baseline`,
+`docs/TESTING.md`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

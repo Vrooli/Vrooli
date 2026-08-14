@@ -23,6 +23,7 @@ type kernelProcess struct {
 	stdin             *bufio.Writer
 	stdout            *bufio.Reader
 	bindingPath       string
+	libraryPath       string
 	workingDir        string
 	cleanupWorkingDir bool
 	mu                sync.Mutex
@@ -34,13 +35,27 @@ type Invocation struct {
 }
 
 type BindingSpec struct {
-	ID                 string `json:"id"`
-	Scenario           string `json:"scenario"`
-	Group              string `json:"group"`
-	Command            string `json:"command"`
-	Effect             string `json:"effect"`
-	Reachable          bool   `json:"reachable"`
-	ReachabilityReason string `json:"reachability_reason"`
+	ID                 string   `json:"id"`
+	Scenario           string   `json:"scenario"`
+	Group              string   `json:"group"`
+	Command            string   `json:"command"`
+	Effect             string   `json:"effect"`
+	Reachable          bool     `json:"reachable"`
+	ReachabilityReason string   `json:"reachability_reason"`
+	RowsField          string   `json:"rows_field,omitempty"`
+	MetaFields         []string `json:"meta_fields,omitempty"`
+	RowFieldCandidates []string `json:"row_field_candidates,omitempty"`
+}
+
+// LibrarySpec is the immutable library projection captured when a kernel is
+// created. A running program must not observe a promotion or current-version
+// change halfway through execution.
+type LibrarySpec struct {
+	Name        string `json:"name"`
+	Version     int64  `json:"version"`
+	Source      string `json:"source,omitempty"`
+	Description string `json:"description,omitempty"`
+	Current     bool   `json:"current"`
 }
 
 type Delegator interface {
@@ -74,6 +89,8 @@ type SubprocessRunner struct {
 	locks           map[string]*sync.Mutex
 	sessionLimits   map[string]ExecutionLimits
 	bindingProvider func() []BindingSpec
+	libraries       []LibrarySpec
+	libraryProvider func() []LibrarySpec
 }
 
 // DeadlineExceededError is retained for callers that still classify legacy
@@ -124,6 +141,14 @@ func (r *SubprocessRunner) SetBindingProvider(provider func() []BindingSpec) {
 	r.bindingProvider = provider
 }
 
+// SetLibraryProvider refreshes the versioned library projection for kernels
+// created after the call. Existing kernels retain their captured projection.
+func (r *SubprocessRunner) SetLibraryProvider(provider func() []LibrarySpec) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.libraryProvider = provider
+}
+
 // SetDiscoveryURL configures the private runtime endpoint used by the Python
 // kernel for semantic intent discovery.
 func (r *SubprocessRunner) SetDiscoveryURL(url string) {
@@ -166,6 +191,9 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 	if r.bindingProvider != nil {
 		r.bindings = append([]BindingSpec(nil), r.bindingProvider()...)
 	}
+	if r.libraryProvider != nil {
+		r.libraries = append([]LibrarySpec(nil), r.libraryProvider()...)
+	}
 	python, err := pythonInterpreter()
 	if err != nil {
 		return nil, err
@@ -186,34 +214,67 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 		return nil, err
 	}
 	bindingPath := ""
-	if len(r.bindings) > 0 {
-		encoded, err := json.Marshal(r.bindings)
-		if err != nil {
-			return nil, fmt.Errorf("encode kernel bindings: %w", err)
+	libraryPath := ""
+	if len(r.bindings) > 0 || len(r.libraries) > 0 {
+		if len(r.bindings) > 0 {
+			encoded, err := json.Marshal(r.bindings)
+			if err != nil {
+				return nil, fmt.Errorf("encode kernel bindings: %w", err)
+			}
+			// The fleet registry is large enough to exceed the host's exec argument
+			// and environment limit. Pass the boot-time projection through a private
+			// temporary file and keep the per-request protocol on stdin.
+			file, err := os.CreateTemp("", "vrooli-program-runtime-bindings-*.json")
+			if err != nil {
+				return nil, fmt.Errorf("create kernel bindings file: %w", err)
+			}
+			bindingPath = file.Name()
+			if err := file.Chmod(0o600); err != nil {
+				_ = file.Close()
+				_ = os.Remove(bindingPath)
+				return nil, fmt.Errorf("protect kernel bindings file: %w", err)
+			}
+			if _, err := file.Write(encoded); err != nil {
+				_ = file.Close()
+				_ = os.Remove(bindingPath)
+				return nil, fmt.Errorf("write kernel bindings file: %w", err)
+			}
+			if err := file.Close(); err != nil {
+				_ = os.Remove(bindingPath)
+				return nil, fmt.Errorf("close kernel bindings file: %w", err)
+			}
 		}
-		// The fleet registry is large enough to exceed the host's exec argument
-		// and environment limit. Pass the boot-time projection through a private
-		// temporary file and keep the per-request protocol on stdin.
-		file, err := os.CreateTemp("", "vrooli-program-runtime-bindings-*.json")
-		if err != nil {
-			return nil, fmt.Errorf("create kernel bindings file: %w", err)
+		if len(r.libraries) > 0 {
+			encoded, err := json.Marshal(r.libraries)
+			if err != nil {
+				return nil, fmt.Errorf("encode kernel libraries: %w", err)
+			}
+			file, err := os.CreateTemp("", "vrooli-program-runtime-libraries-*.json")
+			if err != nil {
+				return nil, fmt.Errorf("create kernel libraries file: %w", err)
+			}
+			libraryPath = file.Name()
+			if err := file.Chmod(0o600); err != nil {
+				_ = file.Close()
+				_ = os.Remove(libraryPath)
+				return nil, fmt.Errorf("protect kernel libraries file: %w", err)
+			}
+			if _, err := file.Write(encoded); err != nil {
+				_ = file.Close()
+				_ = os.Remove(libraryPath)
+				return nil, fmt.Errorf("write kernel libraries file: %w", err)
+			}
+			if err := file.Close(); err != nil {
+				_ = os.Remove(libraryPath)
+				return nil, fmt.Errorf("close kernel libraries file: %w", err)
+			}
 		}
-		bindingPath = file.Name()
-		if err := file.Chmod(0o600); err != nil {
-			_ = file.Close()
-			_ = os.Remove(bindingPath)
-			return nil, fmt.Errorf("protect kernel bindings file: %w", err)
+		if bindingPath != "" {
+			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_BINDINGS_FILE="+bindingPath)
 		}
-		if _, err := file.Write(encoded); err != nil {
-			_ = file.Close()
-			_ = os.Remove(bindingPath)
-			return nil, fmt.Errorf("write kernel bindings file: %w", err)
+		if libraryPath != "" {
+			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_LIBRARIES_FILE="+libraryPath)
 		}
-		if err := file.Close(); err != nil {
-			_ = os.Remove(bindingPath)
-			return nil, fmt.Errorf("close kernel bindings file: %w", err)
-		}
-		cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_BINDINGS_FILE="+bindingPath)
 		cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_SESSION_ID="+sessionID)
 		if r.bridgeURL != "" {
 			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_BRIDGE_URL="+r.bridgeURL)
@@ -237,6 +298,9 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 		if bindingPath != "" {
 			_ = os.Remove(bindingPath)
 		}
+		if libraryPath != "" {
+			_ = os.Remove(libraryPath)
+		}
 		return nil, fmt.Errorf("start kernel: %w", err)
 	}
 	if err := applyProcessLimits(cmd.Process.Pid, r.sessionLimits[sessionID]); err != nil {
@@ -244,7 +308,7 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 		_ = cmd.Wait()
 		return nil, err
 	}
-	p := &kernelProcess{command: cmd, stdin: bufio.NewWriter(stdin), stdout: bufio.NewReader(stdout), bindingPath: bindingPath, workingDir: workingDir, cleanupWorkingDir: cleanupWorkingDir}
+	p := &kernelProcess{command: cmd, stdin: bufio.NewWriter(stdin), stdout: bufio.NewReader(stdout), bindingPath: bindingPath, libraryPath: libraryPath, workingDir: workingDir, cleanupWorkingDir: cleanupWorkingDir}
 	r.processes[sessionID] = p
 	return p, nil
 }
@@ -368,6 +432,9 @@ func (r *SubprocessRunner) killProcess(sessionID string, p *kernelProcess) {
 	r.mu.Unlock()
 	if p.bindingPath != "" {
 		_ = os.Remove(p.bindingPath)
+	}
+	if p.libraryPath != "" {
+		_ = os.Remove(p.libraryPath)
 	}
 	if p.cleanupWorkingDir && p.workingDir != "" {
 		_ = os.RemoveAll(p.workingDir)
@@ -496,6 +563,9 @@ func (r *SubprocessRunner) Close() error {
 		}
 		if p.bindingPath != "" {
 			_ = os.Remove(p.bindingPath)
+		}
+		if p.libraryPath != "" {
+			_ = os.Remove(p.libraryPath)
 		}
 		if p.cleanupWorkingDir && p.workingDir != "" {
 			_ = os.RemoveAll(p.workingDir)

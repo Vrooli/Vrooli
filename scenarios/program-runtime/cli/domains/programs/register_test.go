@@ -1,11 +1,19 @@
 package programs
 
 import (
+	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestProgramListReportHasOneRowPerProgram(t *testing.T) {
+	report := (&handlers{}).listReport(nil, &programsv1.ListProgramsResponse{Programs: []*programsv1.Program{{Id: "p1", SessionId: "s1"}, {Id: "p2", SessionId: "s2"}}})
+	if len(report.Results) != 2 {
+		t.Fatalf("results=%d, want 2", len(report.Results))
+	}
+}
 
 func TestGroupName(t *testing.T) {
 	if GroupName != "programs" {

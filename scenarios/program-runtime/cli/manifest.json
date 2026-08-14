@@ -15,7 +15,33 @@
         {"name":"doctor","description":"Report callable-binding health and unresolved arguments.","flags":[{"name":"scenario","description":"Filter by scenario."}],"binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"DoctorBindings"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
         {"name":"condition","description":"Report per-binding serving, freshness, and exercise condition.","flags":[{"name":"binding-id","description":"Filter by canonical binding id."},{"name":"scenario","description":"Filter by scenario."},{"name":"window-seconds","description":"Lookback window in seconds."}],"binding":{"kind":"connect-rpc","service":"vrooli.program_runtime.v1.bindings.BindingConditionService","method":"GetBindingCondition"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"},"measure":{"intent":"How many measured binding freshness conditions are served for the requested filter.","questions":["how many binding freshness conditions are measured","how many binding conditions","binding registry freshness"],"result":{"kind":"scalar","value_field":"count","unit":"freshness_conditions","summary_template":"{count} measured binding freshness conditions"}}},
         {"name":"describe","description":"Describe resolved proto paths for one binding.","positionals":[{"name":"id","required":true,"description":"Canonical binding id, such as ai-gateway/routing/preview."}],"binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"DescribeBinding"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}
-        ,{"name":"resolve-intent","description":"Resolve natural-language intent to governed bindings.","flags":[{"name":"intent","required":true,"description":"Natural-language operation intent."},{"name":"limit","description":"Maximum candidates, default 20."}],"binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ResolveIntent"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}
+        ,{"name":"resolve-intent","description":"Resolve natural-language intent to one governed binding or an explicit null verdict.","flags":[{"name":"intent","required":true,"description":"Natural-language operation intent."},{"name":"limit","description":"Maximum candidates, default 20."},{"name":"mode","description":"Discovery mode: fast, judged, or deep."}],"binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ResolveIntent"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}
+      ]
+    },
+    {
+      "name": "discovery",
+      "description": "Measure intent discovery against a versioned golden corpus.",
+      "commands": [
+        {
+          "name": "eval",
+          "description": "Run the discovery golden corpus and emit falsifiable counts.",
+          "flags": [
+            {"name":"suite","required":true,"description":"Path to the discovery suite JSON."},
+            {"name":"mode","description":"Discovery mode: fast, judged, or deep.","default":"judged"}
+          ],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"read","run_eligible":true}
+        }
+      ]
+    },
+    {
+      "name": "library",
+      "description": "List, promote, and select explicit versioned reusable programs.",
+      "commands": [
+        {"name":"list","description":"List seeded and explicitly promoted library programs.","binding":{"kind":"connect-rpc","service":"LibraryService","method":"ListLibrary"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"},"measure":{"domain":"library_program","intent":"How many versioned reusable library programs are available.","questions":["how many reusable library programs are available","count current library programs","how large is the program library"],"result":{"kind":"table","value_field":"programs","unit":"library programs","summary_template":"{count} reusable library programs"}}},
+        {"name":"get","description":"Read one library program by name and optional version.","positionals":[{"name":"name","required":true,"description":"Exact library program name."}],"flags":[{"name":"version","description":"Optional version; current when omitted."}],"binding":{"kind":"connect-rpc","service":"LibraryService","method":"GetLibrary"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"promote","description":"Explicitly promote a succeeded program into a new library version.","flags":[{"name":"program-id","required":true,"description":"Succeeded source program id."},{"name":"name","required":true,"description":"Stable exact library name."},{"name":"description","required":true,"description":"Retrieval-oriented description."},{"name":"promoted-by","description":"Operator identity."},{"name":"reason","description":"Promotion reason."}],"binding":{"kind":"connect-rpc","service":"LibraryService","method":"PromoteLibrary"},"governance":{"effect":"write","run_eligible":true,"requires_confirmation":true,"permissions":["admin"]},"architecture":{"primitive":"proto_mutation"}},
+        {"name":"set-current","description":"Select the version loaded by new sessions.","positionals":[{"name":"name","required":true,"description":"Exact library name."}],"flags":[{"name":"version","required":true,"description":"Version to select."}],"binding":{"kind":"connect-rpc","service":"LibraryService","method":"SetCurrentLibrary"},"governance":{"effect":"write","run_eligible":true,"requires_confirmation":true,"permissions":["admin"]},"architecture":{"primitive":"proto_mutation"}}
       ]
     },
     {
@@ -55,6 +81,7 @@
       {"domain":"bindings","stateful":true,"reason":"Binding invocations are persisted in the binding_invocations ledger."},
       {"domain":"sessions","stateful":true,"reason":"Live session leases are measured by sessions.list."},
       {"domain":"programs","stateful":true,"reason":"The submitted program corpus is measured by programs.mine."},
+      {"domain":"library_program","stateful":true,"reason":"Versioned seeded and promoted programs are measured by library.list."},
       {"domain":"telemetry","stateful":false,"reason":"Telemetry is a typed event projection owned by the runtime."}
     ]
   },

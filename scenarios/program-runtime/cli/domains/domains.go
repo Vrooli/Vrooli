@@ -2,6 +2,8 @@ package domains
 
 import (
 	"program-runtime/cli/domains/bindings"
+	"program-runtime/cli/domains/discovery"
+	"program-runtime/cli/domains/library"
 	"program-runtime/cli/domains/programs"
 	"program-runtime/cli/domains/sessions"
 	"program-runtime/cli/domains/telemetry"
@@ -49,6 +51,12 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, bindingsGroup)
+	groups = append(groups, discovery.Register(core))
+	libraryGroup, err := library.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, libraryGroup)
 	sessionsGroup, err := sessions.Register(core, manifest)
 	if err != nil {
 		return nil, err

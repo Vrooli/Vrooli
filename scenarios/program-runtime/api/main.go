@@ -13,6 +13,7 @@ import (
 
 	"program-runtime/internal/bindings"
 	"program-runtime/internal/capabilities"
+	"program-runtime/internal/library"
 	"program-runtime/internal/modules"
 	"program-runtime/internal/programs"
 	"program-runtime/internal/retention"
@@ -36,6 +37,7 @@ import (
 	bindingsH "program-runtime/handlers/bindings"
 	capsH "program-runtime/handlers/capabilities"
 	healthH "program-runtime/handlers/health"
+	libraryH "program-runtime/handlers/library"
 	measuresH "program-runtime/handlers/measures"
 	programsH "program-runtime/handlers/programs"
 	sessionsH "program-runtime/handlers/sessions"
@@ -167,6 +169,16 @@ func main() {
 	if err := programs.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("program schema compatibility failed: %v", err)
 	}
+	libraryRepository := library.NewRepository(db.Primary())
+	if err := libraryRepository.EnsureSeeded(context.Background(), []library.Seed{
+		{Name: "discover", Source: "# Governed discovery facade; the public kernel bridge supplies the typed result.\nresult = vrooli.discover(intent)", Description: "Resolve one governed capability by intent and stop on an explicit null verdict."},
+		{Name: "fleet-fanout", Source: "result = vrooli.reachable()", Description: "Summarize live scenario reachability through the governed runtime."},
+		{Name: "failure-triage", Source: "result = vrooli.program_runtime.programs.mine()", Description: "Inspect recurring governed program failure shapes for triage."},
+		{Name: "registry-sweep", Source: "result = vrooli.program_runtime.bindings.doctor()", Description: "Inspect the live binding registry and its serving health."},
+		{Name: "typed-inference", Source: "result = vrooli.ai.classify(text)", Description: "Classify a small corpus through the governed inference binding."},
+	}, time.Now().UTC()); err != nil {
+		log.Fatalf("library seed failed: %v", err)
+	}
 	retentionDB, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
 		DSN:          dsn,
@@ -176,7 +188,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("retention database connection failed: %v", err)
 	}
-	retentionWorker := retention.New(retention.Options{DB: retentionDB.Primary(), Logger: log.Default()})
+	retentionWorker := retention.New(retention.Options{DB: retentionDB.Primary(), ProgramWindow: retention.ProgramWindow, RefusalWindow: retention.RefusalWindow, ReclaimWindow: retention.ReclaimWindow, Logger: log.Default()})
 	retentionWorker.Start(context.Background())
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
@@ -198,7 +210,7 @@ func main() {
 	registryBindings := bindingRegistry.List("", "")
 	bindingSpecs := make([]programs.BindingSpec, 0, len(registryBindings))
 	for _, binding := range registryBindings {
-		bindingSpecs = append(bindingSpecs, programs.BindingSpec{ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason()})
+		bindingSpecs = append(bindingSpecs, programs.BindingSpec{ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates()})
 	}
 	bridgeURL := ""
 	agentBridgeURL := ""
@@ -211,7 +223,21 @@ func main() {
 		current := bindingRegistry.List("", "")
 		out := make([]programs.BindingSpec, 0, len(current))
 		for _, binding := range current {
-			out = append(out, programs.BindingSpec{ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason()})
+			out = append(out, programs.BindingSpec{ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates()})
+		}
+		return out
+	})
+	runner.SetLibraryProvider(func() []programs.LibrarySpec {
+		current, err := libraryRepository.List(context.Background())
+		if err != nil {
+			return nil
+		}
+		out := make([]programs.LibrarySpec, 0, len(current))
+		for _, program := range current {
+			if program == nil {
+				continue
+			}
+			out = append(out, programs.LibrarySpec{Name: program.GetName(), Version: program.GetVersion(), Source: program.GetSource(), Description: program.GetDescription(), Current: program.GetCurrent()})
 		}
 		return out
 	})
@@ -228,7 +254,7 @@ func main() {
 		return programs.ExecutionLimits{Wall: budget.WallBudget - budget.WallConsumed, CPU: budget.CPUBudget - budget.CPUConsumed}, nil
 	}, ChargeExecution: func(id string, wall, cpu time.Duration) error {
 		return sessionManager.ChargeExecution(context.Background(), id, wall, cpu)
-	}, ValidateSession: func(id string) bool { _, err := sessionManager.Get(context.Background(), id); return err == nil }, Events: telemetryStore})
+	}, ValidateSession: func(id string) bool { _, err := sessionManager.Get(context.Background(), id); return err == nil }, LibraryVersion: func(string) string { return libraryRepository.CurrentStamp(context.Background()) }, Events: telemetryStore})
 	reclamationStop := make(chan struct{})
 	reclamationDone := make(chan struct{})
 	go func() {
@@ -249,8 +275,9 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.ModuleWithDescriptor(db, "program-runtime-api", "1.0.0", bindingRegistry.SkippedManifestCount, bindingRegistry.SnapshotMetadata),
 		capsH.Module(capabilities.NewRegistry()),
-		bindingsH.Module(bindingRegistry),
+		bindingsH.Module(bindingRegistry, libraryRepository),
 		programsH.Module(programService),
+		libraryH.Module(libraryRepository),
 		sessionsH.Module(sessionManager),
 		telemetryH.Module(telemetryStore),
 	)
@@ -262,7 +289,10 @@ func main() {
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 	rootMux.Handle("/internal/program-runtime/bindings/execute", bindingsH.Bridge(bindingRegistry, sessionManager, refusalRepository))
 	rootMux.Handle("/internal/program-runtime/bindings/describe", bindingsH.DescribeBridge(bindingRegistry, sessionManager))
-	rootMux.Handle("/internal/program-runtime/bindings/resolve-intent", bindingsH.IntentBridge(bindingRegistry))
+	rootMux.Handle("/internal/program-runtime/bindings/reachability", bindingsH.ReachabilityBridge(bindingRegistry, sessionManager))
+	rootMux.Handle("/internal/program-runtime/bindings/resolve-intent", bindingsH.IntentBridge(bindingRegistry, libraryRepository))
+	rootMux.Handle("/internal/program-runtime/bindings/search", bindingsH.BindingCorpusHandler(bindingRegistry))
+	rootMux.Handle("/internal/program-runtime/library/search", bindingsH.LibraryCorpusHandler(libraryRepository))
 	rootMux.Handle("/internal/program-runtime/agent/execute", bindingsH.AgentBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 	rootMux.Handle("/internal/program-runtime/agent/start", bindingsH.AgentStartBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 	rootMux.Handle("/internal/program-runtime/agent/collect", bindingsH.AgentCollectBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
@@ -284,6 +314,10 @@ func main() {
 		return dormant
 	}, func() int {
 		return bindingRegistry.SustainedDegradedCount(context.Background())
+	}, func() int {
+		return bindingsH.LibraryDiscoveryUsage()
+	}, func() int {
+		return bindingsH.DiscoveryNullVerdictRatePercent()
 	})
 	if err != nil {
 		log.Fatalf("measures registry: %v", err)
@@ -291,6 +325,7 @@ func main() {
 	rootMux.Handle("/measures/", http.StripPrefix("/measures", runtimeMeasures))
 
 	rootMux.Handle("/", srv.Handler())
+	bindingsH.RegisterSearchHubProvider(context.Background(), libraryRepository)
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the

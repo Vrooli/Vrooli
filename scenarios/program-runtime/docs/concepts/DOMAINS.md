@@ -4,7 +4,7 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-Six runtime domains are mapped below, plus `health`. They are implemented
+Seven runtime domains are mapped below, plus `health`. They are implemented
 and lifecycle-validated; this document is now the ownership map for the
 production scenario rather than a pre-implementation scaffold. The
 meta-optimization-manager focus domain consumes the program-runtime friction
@@ -18,7 +18,8 @@ in parallel with `sessions` once `bindings` is green.
 
 ```
 bindings ──┬── sessions ── programs ── telemetry
-           └── actspace
+           ├── actspace
+           └── discovery ── library
 ```
 
 No two domains read each other, so no shared-data ownership question is
@@ -53,6 +54,8 @@ belong in [`DATA.md`](DATA.md).
 |---|---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/program-runtime/v1/shared/health.proto` |
 | bindings | Project the callable surface from the proto descriptor and CLI manifests, validate arguments, and refuse ungoverned calls. | An agent can only invoke what is typed and governed; this domain decides what exists to call. | Binding-resolution snapshots and refusal reasons. | registry | query, policy | Binding, Callable, Grant, Effect | `api/internal/bindings/`, `kernel/bindings/` |
+| discovery | Retrieve binding-shaped and library-shaped candidates, judge only the retrieved set, and return one typed result or null. | Intent lookup must improve agent efficiency without turning a plausible retrieval into an unsafe call. | Discovery outcome counters and unresolved-intent observations. | resolver | query, policy | DiscoverResult, Null Verdict, Candidate Set | `api/handlers/bindings/`, `cli/domains/discovery/`, `kernel/host/` |
+| library | Own versioned, explicitly promoted reusable programs and the immutable session projection. | Successful corpus evidence becomes reusable only through an operator-controlled promotion boundary. | `library_programs`, `library_current`. | registry | lifecycle, reuse | LibraryProgram, Promotion, Current Version | `api/internal/library/`, `api/handlers/library/`, `kernel/host/` |
 | sessions | Own kernel session lifecycle: creation, grants, persistence of kernel state, reclamation. | Programs need somewhere durable to bind variables between submissions. | Sessions, grants, reclamation reasons. | lifecycle | service | Session, Grant, Reclamation | `api/internal/sessions/`, `kernel/host/` |
 | programs | Accept a program, execute it in its session, and return only what it materializes. | This is the product: one submission replaces many tool calls. | Program submissions, results, failure detail, friction projections. | execution | service, evidence source | Program, Handle, Materialization | `api/internal/programs/`, `kernel/host/`, `handlers/programs/` |
 | telemetry | Emit typed platform events for submissions, invocations, and failures. | Program failures are the highest-quality friction evidence in the system; they must leave the scenario. | Nothing durable beyond an outbox. | reporting | integration | ProgramEvent, FailureShape | `api/internal/telemetry/` |

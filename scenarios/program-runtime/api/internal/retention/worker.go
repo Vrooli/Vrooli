@@ -51,13 +51,13 @@ func New(options Options) *Worker {
 	if clock == nil {
 		clock = func() time.Time { return time.Now().UTC() }
 	}
-	if options.ProgramWindow <= 0 {
+	if options.ProgramWindow < 0 {
 		options.ProgramWindow = ProgramWindow
 	}
-	if options.RefusalWindow <= 0 {
+	if options.RefusalWindow < 0 {
 		options.RefusalWindow = RefusalWindow
 	}
-	if options.ReclaimWindow <= 0 {
+	if options.ReclaimWindow < 0 {
 		options.ReclaimWindow = ReclaimWindow
 	}
 	if options.Interval <= 0 {
@@ -73,16 +73,20 @@ func (w *Worker) RunOnce(ctx context.Context) (Result, error) {
 	now := w.clock().UTC()
 	var out Result
 	for _, item := range []struct {
-		table, column string
-		cutoff        time.Time
-		target        *int64
+		table, column, predicate string
+		cutoff                   time.Time
+		target                   *int64
 	}{
-		{table: "programs", column: "created_at", cutoff: now.Add(-w.programs), target: &out.ProgramsDeleted},
+		{table: "programs", column: "created_at", predicate: "NOT EXISTS (SELECT 1 FROM library_programs l WHERE l.source_program_id = programs.id)", cutoff: now.Add(-w.programs), target: &out.ProgramsDeleted},
 		{table: "refusals", column: "occurred_at", cutoff: now.Add(-w.refusals), target: &out.RefusalsDeleted},
 		{table: "unresolved_binding_attempts", column: "occurred_at", cutoff: now.Add(-w.refusals), target: &out.UnresolvedDeleted},
 		{table: "reclamation_reasons", column: "reclaimed_at", cutoff: now.Add(-w.reclaims), target: &out.ReclamationsDeleted},
 	} {
-		result, err := w.db.ExecContext(ctx, "DELETE FROM "+item.table+" WHERE "+item.column+" < ?", formatCutoff(item.cutoff))
+		where := item.column + " < ?"
+		if item.predicate != "" {
+			where += " AND " + item.predicate
+		}
+		result, err := w.db.ExecContext(ctx, "DELETE FROM "+item.table+" WHERE "+where, formatCutoff(item.cutoff))
 		if err != nil {
 			return out, fmt.Errorf("prune %s: %w", item.table, err)
 		}

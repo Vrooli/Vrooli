@@ -15,7 +15,55 @@ import (
 	"github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
+	"google.golang.org/protobuf/reflect/protodesc"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
+
+func TestResponseProjectionUsesDescriptorAndDeclaredPrimary(t *testing.T) {
+	file := &descriptorpb.FileDescriptorProto{
+		Name: protoString("fixture.proto"), Package: protoString("fixture"), Syntax: protoString("proto3"),
+		MessageType: []*descriptorpb.DescriptorProto{
+			{Name: protoString("Response"), Field: []*descriptorpb.FieldDescriptorProto{
+				{Name: protoString("ranked"), JsonName: protoString("ranked"), Number: protoInt32(1), Label: descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(), Type: descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum()},
+				{Name: protoString("corpora_searched"), JsonName: protoString("corporaSearched"), Number: protoInt32(2), Label: descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(), Type: descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum()},
+				{Name: protoString("latency_ms"), JsonName: protoString("latencyMs"), Number: protoInt32(3), Label: descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(), Type: descriptorpb.FieldDescriptorProto_TYPE_INT64.Enum()},
+			}},
+		},
+	}
+	fd, err := protodesc.NewFile(file, nil)
+	require.NoError(t, err)
+	message := fd.Messages().Get(0)
+
+	ambiguous := responseProjectionFor(message, "")
+	require.Empty(t, ambiguous.rowsField)
+	require.Equal(t, []string{"corporaSearched", "ranked"}, ambiguous.candidateFields)
+	require.Equal(t, []string{"corporaSearched", "latencyMs", "ranked"}, ambiguous.metaFields)
+
+	declared := responseProjectionFor(message, "ranked")
+	require.Equal(t, "ranked", declared.rowsField)
+	require.Empty(t, declared.candidateFields)
+	require.Equal(t, []string{"corporaSearched", "latencyMs"}, declared.metaFields)
+}
+
+func protoString(value string) *string { return &value }
+func protoInt32(value int32) *int32    { return &value }
+
+func TestLiveBindingsHaveDescriptorDrivenResponseProjection(t *testing.T) {
+	registry, err := Load(repoRoot(t))
+	require.NoError(t, err)
+	for _, binding := range registry.List("", "") {
+		if binding.GetRowsField() == "" {
+			// Scalar-only responses are represented as one raw row; ambiguous
+			// repeated responses carry their candidates and fail closed.
+			if len(binding.GetRowFieldCandidates()) == 0 {
+				continue
+			}
+			require.Greater(t, len(binding.GetRowFieldCandidates()), 1, "binding %s has an invalid candidate projection", binding.GetId())
+			continue
+		}
+		require.NotContains(t, binding.GetRowFieldCandidates(), binding.GetRowsField(), "binding %s has an unresolved selected field", binding.GetId())
+	}
+}
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
@@ -174,6 +222,41 @@ func TestDoctorReportsManifestCeilingAndReachability(t *testing.T) {
 	require.Equal(t, int32(1), doctor.GetTotalScenarios())
 	require.Equal(t, []string{"program-runtime"}, doctor.GetReachableScenarios())
 	require.Empty(t, doctor.GetUnreachableScenarios())
+}
+
+func TestReachabilityReprobesAfterTTL(t *testing.T) {
+	registry := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	clock := time.Date(2026, time.August, 14, 3, 0, 0, 0, time.UTC)
+	registry.SetClock(func() time.Time { return clock })
+	probes := 0
+	registry.SetReachabilityResolver(func(context.Context, string) (string, error) {
+		probes++
+		return "http://127.0.0.1:19001", nil
+	})
+	first := registry.ReachabilityCheckedAt(context.Background(), "program-runtime")
+	require.Equal(t, 1, probes)
+	clock = clock.Add(reachabilityTTL - time.Nanosecond)
+	require.Equal(t, first, registry.ReachabilityCheckedAt(context.Background(), "program-runtime"))
+	require.Equal(t, 1, probes)
+	clock = clock.Add(2 * time.Nanosecond)
+	second := registry.ReachabilityCheckedAt(context.Background(), "program-runtime")
+	require.Equal(t, 2, probes)
+	require.True(t, second.After(first))
+}
+
+func TestTransportInvalidationOnlyRemovesFailingScenario(t *testing.T) {
+	registry := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	now := time.Date(2026, time.August, 14, 3, 0, 0, 0, time.UTC)
+	registry.SetClock(func() time.Time { return now })
+	registry.reachabilityCache["program-runtime"] = reachabilityStatus{reachable: true, reason: "cached"}
+	registry.reachabilityCache["other"] = reachabilityStatus{reachable: true, reason: "cached"}
+	registry.reachabilityAt["program-runtime"] = now
+	registry.reachabilityAt["other"] = now
+	registry.invalidateReachability("program-runtime")
+	_, ok := registry.reachabilityCache["program-runtime"]
+	require.False(t, ok)
+	_, ok = registry.reachabilityCache["other"]
+	require.True(t, ok)
 }
 
 type sweepRecorder struct{ rows []Invocation }

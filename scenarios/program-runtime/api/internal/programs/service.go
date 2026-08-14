@@ -57,7 +57,10 @@ type Options struct {
 	RecordMemory    func(string, int64)
 	ExecutionBudget func(string) (ExecutionLimits, error)
 	ChargeExecution func(string, time.Duration, time.Duration) error
-	Events          interface {
+	// LibraryVersion is captured at submission time so a running session never
+	// silently hot-swaps its program-library view.
+	LibraryVersion func(string) string
+	Events         interface {
 		Append(*telemetryv1.ProgramEvent)
 	}
 }
@@ -69,6 +72,7 @@ type Service struct {
 	recordMemory    func(string, int64)
 	executionBudget func(string) (ExecutionLimits, error)
 	chargeExecution func(string, time.Duration, time.Duration) error
+	libraryVersion  func(string) string
 	events          interface {
 		Append(*telemetryv1.ProgramEvent)
 	}
@@ -84,7 +88,7 @@ func NewService(options Options) *Service {
 	if options.Store != nil {
 		repo = NewRepository(options.Store)
 	}
-	return &Service{clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, events: options.Events, repo: repo}
+	return &Service{clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, libraryVersion: options.LibraryVersion, events: options.Events, repo: repo}
 }
 
 func (s *Service) Submit(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool, async ...bool) (*programsv1.Program, error) {
@@ -103,6 +107,9 @@ func (s *Service) Submit(ctx context.Context, sessionID, source string, provenan
 
 	now := s.clock().UTC().Format(time.RFC3339Nano)
 	p := &programsv1.Program{Id: "prog_" + uuid.NewString(), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED, OutputLimitBytes: 4096}
+	if s.libraryVersion != nil {
+		p.LibraryVersion = s.libraryVersion(sessionID)
+	}
 	if includeMaterialized {
 		p.OutputLimitBytes = 65536
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/repo-contract-go"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 	internalbindings "program-runtime/internal/bindings"
 )
 
@@ -43,4 +44,14 @@ func TestResolveActCellsNamesUnavailableDenominator(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Act denominator")
 	require.Contains(t, err.Error(), "missing-act-space.md")
+}
+
+func TestOrderedSearchHitsHonorsScoreBeforeIdentityTieBreak(t *testing.T) {
+	hits := orderedSearchHits(&routingv1.QueryResponse{Ranked: []*routingv1.SearchHit{
+		{Id: "lower", Score: 0.4},
+		{Id: "best", Score: 1},
+		{Id: "same-z", Score: 0.8},
+		{Id: "same-a", Score: 0.8},
+	}})
+	require.Equal(t, []string{"best", "same-a", "same-z", "lower"}, []string{hits[0].GetId(), hits[1].GetId(), hits[2].GetId(), hits[3].GetId()})
 }

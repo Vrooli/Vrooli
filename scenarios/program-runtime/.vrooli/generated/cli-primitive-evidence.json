@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "223774695a0a8522e21a3306b124a7bfa71060b5ef00901e32ee0b23fd22ece5",
+  "manifest_hash": "12dcbcf15e4cc6308eada852fcd6986efde96c248b237671f71fd4bd0c7336d6",
   "commands": [
     {
       "path": "bindings act",
@@ -69,6 +69,44 @@
       "binding": "BindingRegistryService.ListUnbound",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "discovery eval",
+      "group": "discovery",
+      "command": "eval",
+      "binding": "."
+    },
+    {
+      "path": "library get",
+      "group": "library",
+      "command": "get",
+      "binding": "LibraryService.GetLibrary",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "library list",
+      "group": "library",
+      "command": "list",
+      "binding": "LibraryService.ListLibrary",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "library promote",
+      "group": "library",
+      "command": "promote",
+      "binding": "LibraryService.PromoteLibrary",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "library set-current",
+      "group": "library",
+      "command": "set-current",
+      "binding": "LibraryService.SetCurrentLibrary",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "programs get",

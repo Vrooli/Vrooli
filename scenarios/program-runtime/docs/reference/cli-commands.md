@@ -143,6 +143,21 @@ The diagnostic command intentionally emits zero-valued counters in JSON, so
 a clean result still contains all four keys and can be compared mechanically
 with the independent census.
 
+### `program-runtime discovery`
+
+Measure intent discovery against the versioned golden corpus. Discovery is
+typed and returns one selected binding or an explicit null verdict:
+
+```bash
+program-runtime discovery eval --suite scenarios/program-runtime/evals/discovery.primary.json --mode judged --json
+program-runtime bindings resolve-intent --intent "find a capability by intent" --mode judged --json
+```
+
+`fast` returns provider-direct candidates, `judged` is the default
+conservative one-selection mode, and `deep` is the bounded expansion mode.
+An empty `result.binding_id` is not permission to guess or shell out; inspect
+`result.reason` and clarify the intent.
+
 ### `program-runtime sessions`
 
 Create, inspect, grant, list, and reclaim persistent kernels. Destructive
@@ -171,6 +186,18 @@ program-runtime programs mine [--include-operator]
 
 Program output remains bounded by default. `--include-materialized` permits
 explicit materialization but still applies the stated output limit.
+
+### `program-runtime library`
+
+The library is versioned and operator-controlled. Successful submissions are
+never promoted implicitly:
+
+```bash
+program-runtime library list --json
+program-runtime library promote --program-id <program-id> --name probe --description "validated reusable probe" --reason "operator validation"
+program-runtime library set-current probe --version 1
+program-runtime library get probe --json
+```
 
 ### `program-runtime telemetry`
 

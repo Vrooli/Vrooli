@@ -164,6 +164,17 @@ piece back into the owning domain or split a new domain first.
 
 ## Extension Rules
 
+### Discovery and library boundary
+
+Intent discovery is a governed two-stage flow. Search Hub retrieves the
+binding-shaped corpus and the versioned `program-runtime.library` corpus;
+Program Runtime joins binding IDs against its live registry, resolves
+arguments, and uses the governed `judge.default` role only over that candidate
+set. A null or unavailable result is a first-class outcome. Library programs
+are copied on promotion, indexed only after explicit promotion, and loaded as
+an immutable per-session `vrooli.lib` projection. Stored source cannot bypass
+the same binding bridge used by ordinary programs.
+
 Add product behavior by adding or updating the owning domain, not by
 growing generic buckets.
 

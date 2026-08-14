@@ -50,9 +50,11 @@ _INVOCATION_CONTEXT: contextvars.ContextVar[dict[str, str]] = contextvars.Contex
 
 
 class Handle:
-    def __init__(self, rows: Iterable[Any], label: str = "result") -> None:
+    def __init__(self, rows: Iterable[Any], label: str = "result", *, metadata: dict[str, Any] | None = None, raw: Any = None) -> None:
         self._rows = list(rows)
         self.label = label
+        self._metadata = dict(metadata or {})
+        self._raw = raw if raw is not None else list(self._rows)
 
     def __repr__(self) -> str:
         return f"Handle(label={self.label!r}, rows={len(self._rows)})"
@@ -136,6 +138,14 @@ class Handle:
     def materialize(self, limit: int | None = None) -> list[Any]:
         return list(self._rows if limit is None else self._rows[: max(0, limit)])
 
+    def meta(self) -> dict[str, Any]:
+        """Return non-row response fields without changing row materialization."""
+        return dict(self._metadata)
+
+    def raw(self) -> Any:
+        """Return the decoded response message exactly as received."""
+        return self._raw
+
     def __getitem__(self, item: int | slice) -> Any:
         if isinstance(item, slice):
             return Handle(self._rows[item], f"{self.label}[slice]")
@@ -151,7 +161,7 @@ class Handle:
 
 
 class Namespace:
-    def __init__(self, bindings: dict[str, Any] | None = None, invocations: list[dict[str, str]] | None = None, session_id: str = "", agent_bridge_url: str = "", bridge_url: str = "", discovery_url: str = "", reachability: dict[str, Any] | None = None) -> None:
+    def __init__(self, bindings: dict[str, Any] | None = None, invocations: list[dict[str, str]] | None = None, session_id: str = "", agent_bridge_url: str = "", bridge_url: str = "", discovery_url: str = "", reachability: dict[str, Any] | None = None, libraries: list[dict[str, Any]] | None = None) -> None:
         self._bindings = _normalize_bindings(bindings or {})
         self._invocations = invocations if invocations is not None else []
         self._session_id = session_id
@@ -168,7 +178,9 @@ class Namespace:
         self._agent = _DelegationSurface(session_id, agent_bridge_url, self._invocations) if agent_bridge_url else _DeferredSurface("agent-manager delegation")
         self._inference = _InferenceSurface(session_id, bridge_url, self._invocations) if bridge_url else _DeferredSurface("ai-gateway inference")
         self._discovery_url = discovery_url.strip()
+        self._reachability_url = self._bridge_url.rsplit("/", 1)[0] + "/reachability" if self._bridge_url else ""
         self._reachability = _normalize_bindings(reachability or {})
+        self.lib = _LibraryNamespace(self, libraries or [])
 
     @property
     def ai(self) -> "_DeferredSurface":
@@ -205,6 +217,24 @@ class Namespace:
         return Handle(rows, f"vrooli.describe({binding})")
 
     def reachable(self) -> Handle:
+        if self._reachability_url:
+            request = urllib.request.Request(
+                self._reachability_url,
+                data=json.dumps({"session_id": self._session_id}).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    live = json.loads(response.read().decode())
+                if isinstance(live, dict):
+                    rows = []
+                    for scenario, status in sorted(live.items()):
+                        status = status if isinstance(status, dict) else {}
+                        rows.append({"scenario": scenario, "reachable": bool(status.get("reachable", False)), "reason": status.get("reason", ""), "checked_at": status.get("checked_at", "")})
+                    return Handle(rows, "vrooli.reachable")
+            except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+                pass
         rows = []
         for scenario, status in sorted(self._reachability.items()):
             rows.append({
@@ -232,46 +262,64 @@ class Namespace:
         raise AttributeError(f"no governed binding scenario or group {group!r}")
 
     def discover(self, intent: str) -> Handle:
+        """Resolve through the current seeded discover library facade."""
+        if self.lib.available("discover"):
+            return self.lib.discover(intent)
+        return self._discover_bridge(intent)
+
+    def _execute_library_source(self, spec: dict[str, Any], args: tuple[Any, ...], kwargs: dict[str, Any]) -> Handle:
+        """Execute one operator-promoted source with only public runtime globals."""
+        if args:
+            raise TypeError("library programs accept named inputs")
+        environment: dict[str, Any] = {
+            "vrooli": self,
+            "Handle": Handle,
+            "__name__": "program_runtime_library",
+            "intent": kwargs.pop("intent", ""),
+            "text": kwargs.pop("text", ""),
+            "__builtins__": {"len": len, "min": min, "max": max, "print": print, "range": range, "sorted": sorted},
+        }
+        if kwargs:
+            raise TypeError(f"unknown library inputs: {', '.join(sorted(kwargs))}")
+        exec(compile(str(spec.get("source", "")), f"<library:{spec.get('name', 'unknown')}>", "exec"), environment, environment)
+        value = environment.get("result")
+        if isinstance(value, Handle):
+            return value
+        return Handle([{"library": spec.get("name", ""), "version": spec.get("version", 0), "value": value}], f"vrooli.lib.{spec.get('name', '')}")
+
+    def _discover_bridge(self, intent: str) -> Handle:
+        """Private bridge used by the seeded discover facade."""
         if self._discovery_url:
             try:
                 request = urllib.request.Request(
                     self._discovery_url,
-                    data=json.dumps({"intent": intent, "limit": 20}).encode(),
+                    data=json.dumps({"intent": intent, "limit": 20, "mode": "judged"}).encode(),
                     headers={"Content-Type": "application/json"},
                     method="POST",
                 )
                 with urllib.request.urlopen(request, timeout=10) as response:
                     payload = json.loads(response.read().decode())
-                rows = []
-                for binding in payload.get("bindings", []):
-                    row = {
-                        "id": binding.get("id", ""),
-                        "scenario": _segment(binding.get("scenario", "")),
-                        "group": _segment(binding.get("group", "")),
-                        "command": _segment(binding.get("command", "")),
-                        "effect": binding.get("effect", ""),
-                        "reason": payload.get("reason", ""),
-                    }
-                    rows.append(row)
-                if not rows:
-                    rows.append({"reason": payload.get("reason", "semantic discovery returned no governed bindings")})
-                return Handle(rows, "vrooli.discover")
+                result = payload.get("result") or {}
+                binding = result.get("binding") or {}
+                binding_id = result.get("bindingId", result.get("binding_id", ""))
+                row = {
+                    "id": binding_id,
+                    "binding_id": binding_id,
+                    "scenario": _segment(binding.get("scenario", "")),
+                    "group": _segment(binding.get("group", "")),
+                    "command": _segment(binding.get("command", "")),
+                    "effect": binding.get("effect", ""),
+                    "confidence": result.get("confidence", ""),
+                    "method": result.get("method", ""),
+                    "reason": result.get("reason", payload.get("reason", "")),
+                    "alternatives": result.get("alternatives", []),
+                    "arguments": result.get("arguments", []),
+                    "null_verdict": not bool(binding_id),
+                }
+                return Handle([row], "vrooli.discover")
             except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
-                return self._local_discover(intent, f"local registry fallback: discovery bridge unavailable: {exc}")
-        return self._local_discover(intent, "local registry fallback: semantic discovery bridge unavailable")
-
-    def _local_discover(self, intent: str, reason: str) -> Handle:
-        terms = [term.lower().replace("-", "_") for term in intent.split() if term.strip()]
-        candidates: list[dict[str, str]] = []
-        for scenario, groups in self._bindings.items():
-            if not _is_scenario_map(groups):
-                groups = {scenario: groups}
-            for group, commands in groups.items():
-                for command in commands:
-                    label = f"{scenario} {group} {command}".lower()
-                    if all(term in label for term in terms):
-                        candidates.append({"scenario": scenario, "group": group, "command": command, "reason": reason})
-        return Handle(candidates, "vrooli.discover")
+                return Handle([{"binding_id": "", "null_verdict": True, "reason": f"discovery unavailable: {exc}"}], "vrooli.discover")
+        return Handle([{"binding_id": "", "null_verdict": True, "reason": "discovery unavailable: bridge is not configured"}], "vrooli.discover")
 
     def gather(self, *calls: Any, max_workers: int = 8) -> list[Handle]:
         """Run zero-argument binding callables concurrently and preserve order."""
@@ -347,6 +395,43 @@ class _NamespaceScenario:
         if group not in self._groups:
             raise AttributeError(f"no governed binding group {group!r} in scenario {self._scenario!r}")
         return _NamespaceGroup(f"{self._scenario}/{group}", self._groups[group], self._invocations)
+
+
+class _LibraryNamespace:
+    """Versioned, allowlisted facades for the promoted program library.
+
+    Library source is retained as auditable metadata and is never evaluated as
+    a second interpreter program. Each seeded entry maps to a narrow host
+    facade, which keeps promotion from becoming an arbitrary code-loading
+    escape hatch while still giving programs a stable ``vrooli.lib`` surface.
+    """
+
+    def __init__(self, owner: Namespace, libraries: list[dict[str, Any]]) -> None:
+        self._owner = owner
+        self._libraries = {
+            _segment(str(item.get("name", ""))): item
+            for item in libraries
+            if item.get("name") and bool(item.get("current", True))
+        }
+
+    def available(self, name: str) -> bool:
+        return name in self._libraries
+
+    def __getattr__(self, name: str) -> Any:
+        spec = self._libraries.get(name)
+        if spec is None:
+            raise AttributeError(f"library program {name!r} is not current and promoted")
+
+        def invoke(*args: Any, **kwargs: Any) -> Handle:
+            if name == "discover":
+                intent = kwargs.pop("intent", args[0] if args else "")
+                if kwargs or len(args) > 1 or not str(intent).strip():
+                    raise TypeError("vrooli.lib.discover requires one non-empty intent")
+                return self._owner._discover_bridge(str(intent))
+            return self._owner._execute_library_source(spec, args, kwargs)
+
+        invoke.__name__ = name
+        return invoke
 
 
 class _DeferredSurface:
@@ -492,7 +577,7 @@ class _NamespaceGroup:
 class BridgeBinding:
     """A callable that can only reach the Go governance bridge."""
 
-    def __init__(self, binding_id: str, effect: str, session_id: str, bridge_url: str, invocations: list[dict[str, str]], reachable: bool = True, reachability_reason: str = "") -> None:
+    def __init__(self, binding_id: str, effect: str, session_id: str, bridge_url: str, invocations: list[dict[str, str]], reachable: bool = True, reachability_reason: str = "", rows_field: str = "", meta_fields: list[str] | None = None, row_field_candidates: list[str] | None = None, reachability_url: str = "") -> None:
         self.binding_id = binding_id
         self.effect = effect
         self.session_id = session_id
@@ -500,6 +585,10 @@ class BridgeBinding:
         self.invocations = invocations
         self.reachable = reachable
         self.reachability_reason = reachability_reason
+        self.rows_field = rows_field
+        self.meta_fields = list(meta_fields or [])
+        self.row_field_candidates = list(row_field_candidates or [])
+        self.reachability_url = reachability_url
         self._records_invocation = True
 
     def __call__(self, *args: Any, **kwargs: Any) -> Handle:
@@ -508,9 +597,30 @@ class BridgeBinding:
         confirmed = bool(kwargs.pop("_confirm", False))
         if not self.bridge_url:
             raise RuntimeError("program-runtime binding bridge is unavailable")
-        if not self.reachable:
+        if self.reachability_url:
+            self._check_live_reachability()
+        elif not self.reachable:
             raise RuntimeError(f"binding {self.binding_id} is unreachable: {self.reachability_reason}")
         return self._invoke(kwargs, confirmed)
+
+    def _check_live_reachability(self) -> None:
+        request = urllib.request.Request(
+            self.reachability_url,
+            data=json.dumps({"session_id": self.session_id}).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                snapshot = json.loads(response.read().decode())
+            scenario = self.binding_id.split("/", 1)[0]
+            status = snapshot.get(scenario, {}) if isinstance(snapshot, dict) else {}
+            if not status.get("reachable", False):
+                raise RuntimeError(f"binding {self.binding_id} is unreachable: {status.get('reason', 'scenario API is unavailable')}")
+        except RuntimeError:
+            raise
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"binding {self.binding_id} is unreachable: live reachability unavailable: {exc}") from exc
 
     def _invoke(self, kwargs: dict[str, Any], confirmed: bool) -> Handle:
         context = _INVOCATION_CONTEXT.get()
@@ -529,10 +639,19 @@ class BridgeBinding:
         except (urllib.error.URLError, TimeoutError) as exc:
             raise RuntimeError(f"binding bridge unavailable: {exc}") from exc
         self.invocations.append({"binding_id": self.binding_id, "effect": self.effect})
-        rows = next((value for value in payload.values() if isinstance(value, list)), None) if isinstance(payload, dict) else None
-        if rows is None:
+        if not isinstance(payload, dict):
+            raise RuntimeError(f"binding {self.binding_id} returned a non-object response")
+        if self.row_field_candidates:
+            candidates = ", ".join(self.row_field_candidates)
+            raise RuntimeError(f"binding {self.binding_id} has no determinable primary response field; candidate repeated fields: {candidates}")
+        if self.rows_field:
+            rows = payload.get(self.rows_field, [])
+            if not isinstance(rows, list):
+                raise RuntimeError(f"binding {self.binding_id} response field {self.rows_field!r} is not a list")
+        else:
             rows = [payload]
-        return Handle(rows, self.binding_id)
+        metadata = {name: payload[name] for name in self.meta_fields if name in payload}
+        return Handle(rows, self.binding_id, metadata=metadata, raw=payload)
 
 
 class _ProgressBuffer(io.StringIO):
@@ -548,7 +667,7 @@ class _ProgressBuffer(io.StringIO):
 
 
 class SessionKernel:
-    def __init__(self, bindings: dict[str, Any] | None = None, session_id: str = "", bridge_url: str = "", agent_bridge_url: str = "", discovery_url: str = "") -> None:
+    def __init__(self, bindings: dict[str, Any] | None = None, session_id: str = "", bridge_url: str = "", agent_bridge_url: str = "", discovery_url: str = "", libraries: list[dict[str, Any]] | None = None) -> None:
         self.invocations: list[dict[str, str]] = []
         self._loop = asyncio.new_event_loop()
         if bindings is None:
@@ -557,13 +676,15 @@ class SessionKernel:
             mapped: dict[str, dict[str, dict[str, Any]]] = {}
             reachability: dict[str, dict[str, Any]] = {}
             for spec in bindings:
-                scenario = _segment(spec.get("scenario", ""))
+                scenario_name = spec.get("scenario", "")
+                scenario = _segment(scenario_name)
                 group = _segment(spec["group"])
                 command = _segment(spec["command"])
                 reachable = bool(spec.get("reachable", True))
                 reason = spec.get("reachability_reason", "")
                 reachability[scenario] = {"reachable": reachable, "reason": reason}
-                mapped.setdefault(scenario, {}).setdefault(group, {})[command] = BridgeBinding(spec["id"], spec.get("effect", ""), session_id, bridge_url, self.invocations, reachable, reason)
+                reachability_url = bridge_url.rsplit("/", 1)[0] + "/reachability" if bridge_url else ""
+                mapped.setdefault(scenario, {}).setdefault(group, {})[command] = BridgeBinding(spec["id"], spec.get("effect", ""), session_id, bridge_url, self.invocations, reachable, reason, spec.get("rows_field", ""), spec.get("meta_fields", []), spec.get("row_field_candidates", []), reachability_url)
             bindings = mapped
         else:
             reachability = {scenario: {"reachable": True, "reason": ""} for scenario in bindings}
@@ -573,7 +694,7 @@ class SessionKernel:
             # submitted programs; the host module is intentionally not on the
             # isolated interpreter's import path.
             "Handle": Handle,
-            "vrooli": Namespace(bindings, self.invocations, session_id, agent_bridge_url, bridge_url, discovery_url, reachability),
+            "vrooli": Namespace(bindings, self.invocations, session_id, agent_bridge_url, bridge_url, discovery_url, reachability, libraries),
         }
 
     def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", progress=None) -> dict[str, Any]:
@@ -647,7 +768,15 @@ def serve() -> None:
             bindings = json.loads(os.environ.get("PROGRAM_RUNTIME_BINDINGS", "[]"))
         except json.JSONDecodeError:
             bindings = []
-    kernel = SessionKernel(bindings, os.environ.get("PROGRAM_RUNTIME_SESSION_ID", ""), os.environ.get("PROGRAM_RUNTIME_BRIDGE_URL", ""), os.environ.get("PROGRAM_RUNTIME_AGENT_BRIDGE_URL", ""), os.environ.get("PROGRAM_RUNTIME_DISCOVERY_URL", ""))
+    libraries = []
+    library_path = os.environ.get("PROGRAM_RUNTIME_LIBRARIES_FILE", "")
+    if library_path:
+        try:
+            with open(library_path, encoding="utf-8") as handle:
+                libraries = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            libraries = []
+    kernel = SessionKernel(bindings, os.environ.get("PROGRAM_RUNTIME_SESSION_ID", ""), os.environ.get("PROGRAM_RUNTIME_BRIDGE_URL", ""), os.environ.get("PROGRAM_RUNTIME_AGENT_BRIDGE_URL", ""), os.environ.get("PROGRAM_RUNTIME_DISCOVERY_URL", ""), libraries)
     protocol_stdout = sys.stdout
 
     def send(response: dict[str, Any]) -> None:

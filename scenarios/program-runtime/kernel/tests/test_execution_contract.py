@@ -33,7 +33,7 @@ def test_public_scenario_namespace_and_discovery():
     assert "vrooli.other.health.status" in kernel.globals["vrooli"].callable_namespace()
     discovered = kernel.execute("print(vrooli.discover('demo search').head())")
     assert discovered["ok"]
-    assert "demo_service" in discovered["stdout"]
+    assert "bridge is not configured" in discovered["stdout"]
 
 
 def test_reachable_reports_scenario_reason_and_blocks_unreachable_binding():

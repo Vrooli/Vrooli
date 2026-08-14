@@ -21,6 +21,7 @@ import (
 
 	bindingsH "program-runtime/handlers/bindings"
 	capsH "program-runtime/handlers/capabilities"
+	libraryH "program-runtime/handlers/library"
 	programsH "program-runtime/handlers/programs"
 	sessionsH "program-runtime/handlers/sessions"
 	telemetryH "program-runtime/handlers/telemetry"
@@ -29,12 +30,14 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
+	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions"
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 	healthH "program-runtime/handlers/health"
 	internalBindings "program-runtime/internal/bindings"
 	localdb "program-runtime/internal/database"
+	internalLibrary "program-runtime/internal/library"
 	internalPrograms "program-runtime/internal/programs"
 	internalSessions "program-runtime/internal/sessions"
 	internalTelemetry "program-runtime/internal/telemetry"
@@ -50,6 +53,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, capsH.Endpoints...)
 	out = append(out, bindingsH.Endpoints...)
 	out = append(out, programsH.Endpoints...)
+	out = append(out, libraryH.Endpoints...)
 	out = append(out, sessionsH.Endpoints...)
 	out = append(out, telemetryH.Endpoints...)
 	return out
@@ -80,6 +84,7 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "bindings", File: bindingsv1.File_program_runtime_v1_bindings_bindings_proto},
 		{Module: "programs", File: programsv1.File_program_runtime_v1_programs_programs_proto},
+		{Module: "library", File: libraryv1.File_program_runtime_v1_library_library_proto},
 		{Module: "sessions", File: sessionsv1.File_program_runtime_v1_sessions_sessions_proto},
 		{Module: "telemetry", File: telemetryv1.File_program_runtime_v1_telemetry_telemetry_proto},
 	}
@@ -98,6 +103,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(internalSessions.Schema),
 		apidb.SchemaProviderFunc(internalPrograms.Schema),
+		apidb.SchemaProviderFunc(internalLibrary.Schema),
 		apidb.SchemaProviderFunc(internalBindings.Schema),
 		apidb.SchemaProviderFunc(internalTelemetry.Schema),
 	}

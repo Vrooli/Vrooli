@@ -47,7 +47,7 @@ func (h *handlers) resolveIntent(ctx cliapp.OperationContext) (*bindingsv1.Resol
 		}
 		limit = int32(parsed)
 	}
-	r, err := h.client.ResolveIntent(context.Background(), connect.NewRequest(&bindingsv1.ResolveIntentRequest{Intent: ctx.Flag("intent"), Limit: limit}))
+	r, err := h.client.ResolveIntent(context.Background(), connect.NewRequest(&bindingsv1.ResolveIntentRequest{Intent: ctx.Flag("intent"), Limit: limit, Mode: ctx.Flag("mode")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("resolve binding intent", err, nil)
 	}

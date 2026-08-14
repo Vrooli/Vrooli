@@ -8,7 +8,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
@@ -23,27 +26,75 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"program-runtime/internal/actspace"
 	"program-runtime/internal/bindings"
+	"program-runtime/internal/library"
 	"program-runtime/internal/module"
 	"program-runtime/internal/programs"
 	"program-runtime/internal/sessions"
 )
 
+const maxDeepParaphrases = 3
+const maxJudgeCandidates = 8
+
 type service struct {
 	bindingsconnect.UnimplementedBindingRegistryServiceHandler
 	registry     *bindings.Registry
+	library      *library.Repository
 	actSpacePath string
+	metrics      *DiscoveryMetrics
 }
+
+// DiscoveryMetrics is the process-local owner for the two measures exposed by
+// this scenario. It deliberately counts only typed discovery outcomes; raw
+// Search Hub queries are not library usage.
+type DiscoveryMetrics struct {
+	discoveryCalls atomic.Int64
+	nullVerdicts   atomic.Int64
+	libraryHits    atomic.Int64
+}
+
+func (m *DiscoveryMetrics) record(response *bindingsv1.ResolveIntentResponse) {
+	if m == nil || response == nil {
+		return
+	}
+	m.discoveryCalls.Add(1)
+	if result := response.GetResult(); result != nil && result.GetLibrary() != nil {
+		m.libraryHits.Add(1)
+	}
+	if result := response.GetResult(); result == nil || (result.GetBindingId() == "" && result.GetLibrary() == nil) {
+		m.nullVerdicts.Add(1)
+	}
+}
+
+func (m *DiscoveryMetrics) LibraryUsage() int { return int(m.libraryHits.Load()) }
+
+func (m *DiscoveryMetrics) NullVerdictRatePercent() int {
+	calls := m.discoveryCalls.Load()
+	if calls == 0 {
+		return 0
+	}
+	return int((m.nullVerdicts.Load() * 100) / calls)
+}
+
+func LibraryDiscoveryUsage() int { return discoveryMetrics.LibraryUsage() }
+
+func DiscoveryNullVerdictRatePercent() int { return discoveryMetrics.NullVerdictRatePercent() }
+
+var discoveryMetrics DiscoveryMetrics
 
 type conditionService struct {
 	bindingsconnect.UnimplementedBindingConditionServiceHandler
 	registry *bindings.Registry
 }
 
-func Module(registry *bindings.Registry) module.Module {
+func Module(registry *bindings.Registry, repositories ...*library.Repository) module.Module {
+	var libraryRepository *library.Repository
+	if len(repositories) > 0 {
+		libraryRepository = repositories[0]
+	}
 	return module.Module{
 		Name: "bindings",
 		Mount: func(r *mux.Router) {
-			path, handler := Handler(registry)
+			path, handler := Handler(registry, libraryRepository)
 			r.PathPrefix(path).Handler(handler)
 			conditionPath, conditionHandler := ConditionHandler(registry)
 			r.PathPrefix(conditionPath).Handler(conditionHandler)
@@ -54,8 +105,12 @@ func Module(registry *bindings.Registry) module.Module {
 
 // Handler returns the generated Connect handler and mount path. The server
 // package mounts it directly so the transport remains generated and typed.
-func Handler(registry *bindings.Registry) (string, http.Handler) {
-	return bindingsconnect.NewBindingRegistryServiceHandler(&service{registry: registry})
+func Handler(registry *bindings.Registry, libraryRepository ...*library.Repository) (string, http.Handler) {
+	var repository *library.Repository
+	if len(libraryRepository) > 0 {
+		repository = libraryRepository[0]
+	}
+	return bindingsconnect.NewBindingRegistryServiceHandler(&service{registry: registry, library: repository, metrics: &discoveryMetrics})
 }
 
 func ConditionHandler(registry *bindings.Registry) (string, http.Handler) {
@@ -65,7 +120,11 @@ func ConditionHandler(registry *bindings.Registry) (string, http.Handler) {
 // IntentBridge is the private kernel seam for semantic discovery. Search-hub
 // remains optional, while the response is always joined against the local
 // manifest-backed registry before it reaches a program.
-func IntentBridge(registry *bindings.Registry) http.Handler {
+func IntentBridge(registry *bindings.Registry, libraryRepository ...*library.Repository) http.Handler {
+	var repository *library.Repository
+	if len(libraryRepository) > 0 {
+		repository = libraryRepository[0]
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -74,12 +133,15 @@ func IntentBridge(registry *bindings.Registry) http.Handler {
 		var request struct {
 			Intent string `json:"intent"`
 			Limit  int32  `json:"limit"`
+			Mode   string `json:"mode"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("decode intent request: %v", err))
 			return
 		}
-		response, err := (&service{registry: registry}).resolveIntent(r.Context(), request.Intent, request.Limit)
+		owner := &service{registry: registry, library: repository, metrics: &discoveryMetrics}
+		response, err := owner.resolveIntent(r.Context(), request.Intent, request.Limit, request.Mode)
+		owner.metrics.record(response)
 		if err != nil {
 			writeBridgeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -129,6 +191,31 @@ func DescribeBridge(registry *bindings.Registry, manager *sessions.Manager) http
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			return
 		}
+	})
+}
+
+// ReachabilityBridge exposes the same TTL-backed scenario census used by
+// governed calls. It is private and session-authenticated because it is a
+// kernel control surface, not a public fleet health endpoint.
+func ReachabilityBridge(registry *bindings.Registry, manager *sessions.Manager) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var request struct {
+			SessionID string `json:"session_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("decode reachability request: %v", err))
+			return
+		}
+		if _, err := manager.Get(r.Context(), request.SessionID); err != nil {
+			writeBridgeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(registry.ReachabilitySnapshot(r.Context()))
 	})
 }
 
@@ -396,42 +483,240 @@ func (s *service) SweepBindings(ctx context.Context, req *connect.Request[bindin
 }
 
 func (s *service) ResolveIntent(ctx context.Context, req *connect.Request[bindingsv1.ResolveIntentRequest]) (*connect.Response[bindingsv1.ResolveIntentResponse], error) {
-	response, err := s.resolveIntent(ctx, req.Msg.GetIntent(), req.Msg.GetLimit())
+	response, err := s.resolveIntent(ctx, req.Msg.GetIntent(), req.Msg.GetLimit(), req.Msg.GetMode())
+	s.metrics.record(response)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(response), nil
 }
 
-func (s *service) resolveIntent(ctx context.Context, intent string, limit int32) (*bindingsv1.ResolveIntentResponse, error) {
+func (s *service) resolveIntent(ctx context.Context, intent string, limit int32, mode string) (*bindingsv1.ResolveIntentResponse, error) {
 	if strings.TrimSpace(intent) == "" {
 		return nil, fmt.Errorf("intent is required")
 	}
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
-	base, discoveryErr := discovery.ResolveScenarioURLDefault(ctx, "search-hub")
-	if discoveryErr == nil {
-		client := routingconnect.NewRoutingServiceClient(http.DefaultClient, strings.TrimRight(base, "/"))
-		search, err := client.Query(ctx, connect.NewRequest(&routingv1.QueryRequest{Query: intent, All: true, Limit: limit}))
-		if err == nil {
-			joined := joinSearchHits(s.registry, search.Msg.GetRanked(), search.Msg.GetGroups(), int(limit))
-			if len(joined) > 0 {
-				return &bindingsv1.ResolveIntentResponse{Bindings: joined, Reason: "search-hub semantic discovery joined to governed local bindings"}, nil
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		mode = "judged"
+	}
+	if mode != "fast" && mode != "judged" && mode != "deep" {
+		return nil, fmt.Errorf("mode must be fast, judged, or deep")
+	}
+	if mode != "fast" && unboundedDestructiveIntent(intent) {
+		return unavailableDiscoveryResponse(&bindingsv1.ResolveIntentResponse{Mode: mode}, "intent is unbounded or unauthorized; no governed binding is safe to select"), nil
+	}
+	response := &bindingsv1.ResolveIntentResponse{Mode: mode}
+	ranked, err := s.retrieveIntentCandidates(ctx, intent, limit, mode)
+	if err != nil {
+		return unavailableDiscoveryResponse(response, err.Error()), nil
+	}
+	candidates := joinSearchHits(s.registry, ranked, nil, int(limit))
+	response.Bindings = candidates
+	response.Reason = "provider-direct binding discovery"
+	if s.library != nil {
+		libraryHits, libraryErr := s.retrieveLibraryCandidates(ctx, intent, limit)
+		if libraryErr != nil {
+			return unavailableDiscoveryResponse(response, libraryErr.Error()), nil
+		}
+		if len(libraryHits) > 0 && (len(ranked) == 0 || libraryHits[0].GetScore() >= ranked[0].GetScore()) {
+			program, getErr := s.library.Get(ctx, libraryHits[0].GetId(), 0)
+			if getErr == nil && program != nil {
+				response.Result = &bindingsv1.DiscoverResult{Confidence: "high", Method: mode + ".library-verified", Reason: "verified library program outranked raw bindings", Library: program}
+				return response, nil
 			}
-			discoveryErr = fmt.Errorf("search-hub returned no governed binding matches")
-		} else {
-			discoveryErr = err
 		}
 	}
-	local, reason := s.registry.ResolveByIntent(intent)
-	if len(local) > int(limit) {
-		local = local[:limit]
+	if len(candidates) == 0 {
+		return unavailableDiscoveryResponse(response, "no governed binding or library program matched the intent"), nil
 	}
-	if discoveryErr != nil {
-		reason = fmt.Sprintf("local registry fallback: %v; %s", discoveryErr, reason)
+	selected := candidates[0]
+	confidence := "low"
+	method := mode + ".provider-direct"
+	if mode != "fast" {
+		var judgeErr error
+		selected, confidence, judgeErr = s.judgeIntent(ctx, intent, candidates)
+		if judgeErr != nil {
+			return unavailableDiscoveryResponse(response, judgeErr.Error()), nil
+		}
+		if selected == nil {
+			return unavailableDiscoveryResponse(response, "judge returned a null verdict"), nil
+		}
+		method = mode + ".judge.default"
 	}
-	return &bindingsv1.ResolveIntentResponse{Bindings: local, Reason: reason, Fallback: true}, nil
+	result := &bindingsv1.DiscoverResult{BindingId: selected.GetId(), Confidence: confidence, Method: method, Reason: response.Reason, Binding: selected}
+	for _, candidate := range candidates[1:] {
+		result.Alternatives = append(result.Alternatives, candidate.GetId())
+	}
+	if described, describeErr := s.registry.Describe(selected.GetId()); describeErr == nil {
+		result.Arguments = described.GetArguments()
+	}
+	response.Result = result
+	return response, nil
+}
+
+func (s *service) retrieveIntentCandidates(ctx context.Context, intent string, limit int32, mode string) ([]*routingv1.SearchHit, error) {
+	base, err := discovery.ResolveScenarioURLDefault(ctx, "search-hub")
+	if err != nil {
+		return nil, fmt.Errorf("search-hub unavailable: %v", err)
+	}
+	client := routingconnect.NewRoutingServiceClient(http.DefaultClient, strings.TrimRight(base, "/"))
+	variants := []string{intent}
+	if mode == "deep" {
+		variants = []string{intent, "how do I " + intent, "operation for " + intent}
+		if len(variants) > maxDeepParaphrases {
+			variants = variants[:maxDeepParaphrases]
+		}
+	}
+	byID := make(map[string]*routingv1.SearchHit)
+	for _, variant := range variants {
+		search, queryErr := client.Query(ctx, connect.NewRequest(&routingv1.QueryRequest{Query: variant, Types: []string{"binding"}, Limit: limit}))
+		if queryErr != nil {
+			return nil, fmt.Errorf("search-hub unavailable: %v", queryErr)
+		}
+		for _, hit := range orderedSearchHits(search.Msg) {
+			if hit != nil && hit.GetId() != "" {
+				if previous, exists := byID[hit.GetId()]; !exists || hit.GetScore() > previous.GetScore() {
+					byID[hit.GetId()] = hit
+				}
+			}
+		}
+	}
+	ranked := make([]*routingv1.SearchHit, 0, len(byID))
+	for _, hit := range byID {
+		ranked = append(ranked, hit)
+	}
+	sort.SliceStable(ranked, func(i, j int) bool {
+		if ranked[i].GetScore() == ranked[j].GetScore() {
+			return ranked[i].GetId() < ranked[j].GetId()
+		}
+		return ranked[i].GetScore() > ranked[j].GetScore()
+	})
+	return ranked, nil
+}
+
+func (s *service) retrieveLibraryCandidates(ctx context.Context, intent string, limit int32) ([]*routingv1.SearchHit, error) {
+	base, err := discovery.ResolveScenarioURLDefault(ctx, "search-hub")
+	if err != nil {
+		return nil, fmt.Errorf("search-hub unavailable: %v", err)
+	}
+	client := routingconnect.NewRoutingServiceClient(http.DefaultClient, strings.TrimRight(base, "/"))
+	search, err := client.Query(ctx, connect.NewRequest(&routingv1.QueryRequest{Query: intent, Types: []string{"library"}, Limit: limit}))
+	if err != nil {
+		return nil, fmt.Errorf("search-hub unavailable: %v", err)
+	}
+	return orderedSearchHits(search.Msg), nil
+}
+
+func (s *service) judgeIntent(ctx context.Context, intent string, candidates []*bindingsv1.Binding) (*bindingsv1.Binding, string, error) {
+	if len(candidates) == 0 {
+		return nil, "low", nil
+	}
+	judgeCandidates := make([]map[string]any, 0, len(candidates))
+	for rank, candidate := range candidates {
+		if rank >= maxJudgeCandidates {
+			break
+		}
+		described, _ := s.registry.Describe(candidate.GetId())
+		fields := make([]string, 0)
+		if described != nil {
+			for _, argument := range described.GetArguments() {
+				fields = append(fields, argument.GetName())
+			}
+		}
+		judgeCandidates = append(judgeCandidates, map[string]any{"binding_id": candidate.GetId(), "rank": rank + 1, "effect": candidate.GetEffect(), "scenario": candidate.GetScenario(), "group": candidate.GetGroup(), "command": candidate.GetCommand(), "arguments": fields, "description": candidate.GetDescription(), "intent_hints": bindingIntentAliases(candidate)})
+	}
+	source, err := json.Marshal(map[string]any{"intent": intent, "candidates": judgeCandidates})
+	if err != nil {
+		return nil, "low", fmt.Errorf("encode discovery judge input: %w", err)
+	}
+	schema := `{"type":"object","properties":{"binding_id":{"type":"string"},"confidence":{"enum":["high","medium","low"]}},"required":["binding_id","confidence"]}`
+	result, err := s.registry.Execute(ctx, "ai-gateway/inference/run", map[string]any{"source": string(source), "schema_json": schema, "instruction": "Select exactly one candidate when it directly serves the intent. Return an empty binding_id when no candidate is justified. Confidence must reflect evidence in the candidate contract, not guesswork.", "role": "judge.default"}, nil, false, bindings.InvocationMetadata{Provenance: "program-runtime.discovery"}, &http.Client{Timeout: 3 * time.Minute})
+	if err != nil {
+		return nil, "low", fmt.Errorf("judge.default unavailable: %v", err)
+	}
+	valueJSON, _ := result["valueJson"].(string)
+	if valueJSON == "" {
+		valueJSON, _ = result["value_json"].(string)
+	}
+	var verdict struct {
+		BindingID  string `json:"binding_id"`
+		Confidence string `json:"confidence"`
+	}
+	if err := json.Unmarshal([]byte(valueJSON), &verdict); err != nil {
+		return nil, "low", fmt.Errorf("judge.default returned invalid verdict: %w", err)
+	}
+	if verdict.BindingID == "" {
+		return nil, verdict.Confidence, nil
+	}
+	for _, candidate := range candidates {
+		if candidate.GetId() == verdict.BindingID {
+			if verdict.Confidence != "high" && verdict.Confidence != "medium" && verdict.Confidence != "low" {
+				return nil, "low", fmt.Errorf("judge.default returned invalid confidence %q", verdict.Confidence)
+			}
+			return candidate, verdict.Confidence, nil
+		}
+	}
+	return nil, "low", fmt.Errorf("judge.default selected binding %q outside the candidate set", verdict.BindingID)
+}
+
+func unboundedDestructiveIntent(intent string) bool {
+	intent = strings.ToLower(strings.TrimSpace(intent))
+	for _, phrase := range []string{"delete every", "delete all", "erase every", "erase all", "destroy every", "destroy all", "remove every", "without authorization"} {
+		if strings.Contains(intent, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+// orderedSearchHits makes the typed selection honor Search Hub's score
+// contract. A provider's response order is not a stable identity signal: the
+// router may return grouped and federated hits in a transport-dependent order.
+// Score-descending order with an id tie-break is deterministic and remains
+// independent of registry/map iteration order.
+func orderedSearchHits(response *routingv1.QueryResponse) []*routingv1.SearchHit {
+	if response == nil {
+		return nil
+	}
+	hits := append([]*routingv1.SearchHit(nil), response.GetRanked()...)
+	if len(hits) == 0 {
+		for _, group := range response.GetGroups() {
+			if group != nil {
+				hits = append(hits, group.GetHits()...)
+			}
+		}
+	}
+	hits = slices.DeleteFunc(hits, func(hit *routingv1.SearchHit) bool { return hit == nil })
+	sort.SliceStable(hits, func(i, j int) bool {
+		if hits[i].GetScore() == hits[j].GetScore() {
+			return hits[i].GetId() < hits[j].GetId()
+		}
+		return hits[i].GetScore() > hits[j].GetScore()
+	})
+	return hits
+}
+
+func unavailableDiscoveryResponse(response *bindingsv1.ResolveIntentResponse, reason string) *bindingsv1.ResolveIntentResponse {
+	response.Reason = reason
+	response.Fallback = true
+	response.Result = &bindingsv1.DiscoverResult{Method: response.GetMode() + ".null", Reason: reason}
+	return response
+}
+
+func topBindingScore(response *routingv1.QueryResponse) float64 {
+	if response == nil {
+		return 0
+	}
+	var best float64
+	for _, hit := range orderedSearchHits(response) {
+		if hit.GetScore() > best {
+			best = hit.GetScore()
+		}
+	}
+	return best
 }
 
 func joinSearchHits(registry *bindings.Registry, ranked []*routingv1.SearchHit, groups []*routingv1.ProviderResultGroup, limit int) []*bindingsv1.Binding {
@@ -441,12 +726,13 @@ func joinSearchHits(registry *bindings.Registry, ranked []*routingv1.SearchHit, 
 		if hit == nil || len(out) >= limit {
 			return
 		}
-		path := strings.Trim(strings.TrimSpace(hit.GetPath()), "/")
-		parts := strings.FieldsFunc(path, func(r rune) bool { return r == '/' || r == ' ' })
-		if len(parts) < 3 {
+		// Search Hub's binding provider returns the canonical binding id in the
+		// result id. Identity is resolved directly; no path suffix or map order
+		// heuristic is permitted here.
+		id := strings.TrimSpace(hit.GetId())
+		if id == "" {
 			return
 		}
-		id := strings.Join(parts[len(parts)-3:], "/")
 		if _, ok := seen[id]; ok {
 			return
 		}

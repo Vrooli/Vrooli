@@ -31,11 +31,65 @@ import (
 
 var errNoBinding = errors.New("binding does not exist")
 
+// reachabilityTTL bounds how long a scenario URL probe may be reused. It is
+// short enough to observe lifecycle changes during a session while keeping a
+// fleet-wide binding census from probing the same scenario on every call.
+const reachabilityTTL = 30 * time.Second
+
 type methodInfo struct {
 	input   protoreflect.MessageDescriptor
 	output  protoreflect.MessageDescriptor
 	service protoreflect.FullName
 	source  string
+}
+
+type responseProjection struct {
+	rowsField       string
+	metaFields      []string
+	candidateFields []string
+}
+
+// responseProjectionFor resolves the response shape from protobuf descriptors
+// and the owning command declaration. JSON object ordering is deliberately not
+// part of this contract: an ambiguous response is refused until its owner
+// declares which repeated field represents the operation's primary rows.
+func responseProjectionFor(output protoreflect.MessageDescriptor, declaredPrimary string) responseProjection {
+	repeated := make([]string, 0)
+	all := make([]string, 0, output.Fields().Len())
+	for i := 0; i < output.Fields().Len(); i++ {
+		field := output.Fields().Get(i)
+		name := string(field.JSONName())
+		all = append(all, name)
+		if field.IsList() && !field.IsMap() {
+			repeated = append(repeated, name)
+		}
+	}
+	sort.Strings(repeated)
+	sort.Strings(all)
+	projection := responseProjection{metaFields: append([]string(nil), all...)}
+	switch {
+	case len(repeated) == 1:
+		projection.rowsField = repeated[0]
+	case len(repeated) > 1:
+		primary := normalizeField(declaredPrimary)
+		for _, candidate := range repeated {
+			if normalizeField(candidate) == primary {
+				projection.rowsField = candidate
+				break
+			}
+		}
+		if projection.rowsField == "" {
+			projection.candidateFields = repeated
+		}
+	}
+	filtered := projection.metaFields[:0]
+	for _, field := range projection.metaFields {
+		if field != projection.rowsField {
+			filtered = append(filtered, field)
+		}
+	}
+	projection.metaFields = filtered
+	return projection
 }
 
 // ReachabilityResolver resolves a scenario's advertised API base URL. Keeping
@@ -69,7 +123,8 @@ type Registry struct {
 	totalScenarios    int
 	reachabilityMu    sync.Mutex
 	reachabilityCache map[string]reachabilityStatus
-	reachabilityAt    time.Time
+	reachabilityAt    map[string]time.Time
+	now               func() time.Time
 }
 
 type reachabilityStatus struct {
@@ -226,6 +281,8 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 		resolver:          ResolveTargetURLDefault,
 		totalScenarios:    len(manifestPaths),
 		reachabilityCache: make(map[string]reachabilityStatus),
+		reachabilityAt:    make(map[string]time.Time),
+		now:               time.Now,
 		manifestMtimes:    make(map[string]time.Time),
 		manifestPaths:     make(map[string]string),
 	}
@@ -423,6 +480,10 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 	if err := r.ValidateArguments(id, args); err != nil {
 		return nil, err
 	}
+	statuses, _ := r.reachability(ctx, binding.GetScenario())
+	if status := statuses[binding.GetScenario()]; !status.reachable {
+		return nil, fmt.Errorf("binding %s is unreachable: %s", id, status.reason)
+	}
 	info, ok := r.methods[id]
 	if !ok {
 		return nil, fmt.Errorf("binding %q has no descriptor method", id)
@@ -462,6 +523,7 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 	}
 	resp, err := client.Do(req)
 	if err != nil {
+		r.invalidateReachability(binding.GetScenario())
 		return nil, fmt.Errorf("invoke %s: %w", id, err)
 	}
 	defer resp.Body.Close()
@@ -554,6 +616,13 @@ func (r *Registry) addManifest(path string, serviceMethods map[string][]methodIn
 				Permissions: append([]string(nil), command.Governance.Permissions...), Description: command.Description,
 				Signature: fmt.Sprintf("%s.%s(%s) -> %s", b.Service, b.Method, info.input.FullName(), info.output.FullName()),
 			}
+			projection := responseProjectionFor(info.output, "")
+			if command.Architecture != nil {
+				projection = responseProjectionFor(info.output, command.Architecture.PrimaryField)
+			}
+			binding.RowsField = projection.rowsField
+			binding.MetaFields = append([]string(nil), projection.metaFields...)
+			binding.RowFieldCandidates = append([]string(nil), projection.candidateFields...)
 			r.bindings = append(r.bindings, binding)
 			r.byID[id] = binding
 			r.methods[id] = info
@@ -719,6 +788,38 @@ func (r *Registry) ReachabilityCheckedAt(ctx context.Context, scenario string) t
 	return checkedAt
 }
 
+// ReachabilitySnapshot is the live status used by the kernel's reachability
+// surface. The cache is shared by every binding owned by the scenario.
+type ReachabilitySnapshot struct {
+	Reachable bool   `json:"reachable"`
+	Reason    string `json:"reason"`
+	CheckedAt string `json:"checked_at"`
+}
+
+func (r *Registry) ReachabilitySnapshot(ctx context.Context) map[string]ReachabilitySnapshot {
+	r = r.active()
+	statuses, _ := r.reachability(ctx, "")
+	r.reachabilityMu.Lock()
+	defer r.reachabilityMu.Unlock()
+	out := make(map[string]ReachabilitySnapshot, len(statuses))
+	for name, status := range statuses {
+		out[name] = ReachabilitySnapshot{Reachable: status.reachable, Reason: status.reason, CheckedAt: r.reachabilityAt[name].UTC().Format(time.RFC3339Nano)}
+	}
+	return out
+}
+
+// SetClock is a deterministic test seam for TTL behavior. Production always
+// uses time.Now; callers should set it only before concurrent use.
+func (r *Registry) SetClock(clock func() time.Time) {
+	r.reachabilityMu.Lock()
+	defer r.reachabilityMu.Unlock()
+	if clock == nil {
+		r.now = time.Now
+		return
+	}
+	r.now = clock
+}
+
 func (r *Registry) Unbound(scenario string) []*bindingsv1.UnboundCapability {
 	r = r.active()
 	out := make([]*bindingsv1.UnboundCapability, 0)
@@ -861,6 +962,14 @@ func (r *Registry) populateReachability(ctx context.Context, scenario string, re
 	}
 	statuses, checkedAt := r.reachability(ctx, scenario)
 	response.ReachabilityCheckedAt = checkedAt.UTC().Format(time.RFC3339Nano)
+	response.ReachabilityCheckedAtByScenario = make(map[string]string, len(statuses))
+	r.reachabilityMu.Lock()
+	for name := range statuses {
+		if at := r.reachabilityAt[name]; !at.IsZero() {
+			response.ReachabilityCheckedAtByScenario[name] = at.UTC().Format(time.RFC3339Nano)
+		}
+	}
+	r.reachabilityMu.Unlock()
 	for name := range names {
 		item := statuses[name]
 		if item.reachable {
@@ -874,7 +983,8 @@ func (r *Registry) populateReachability(ctx context.Context, scenario string, re
 }
 
 // reachability performs one concurrent discovery probe per scenario and
-// caches the result for the lifetime of the active registry generation.
+// reuses each result only for reachabilityTTL. A caller asking for one
+// scenario still shares the same cache with fleet-wide doctor calls.
 func (r *Registry) reachability(ctx context.Context, scenario string) (map[string]reachabilityStatus, time.Time) {
 	if r.resolver == nil {
 		r.resolver = discovery.ResolveScenarioURLDefault
@@ -887,14 +997,16 @@ func (r *Registry) reachability(ctx context.Context, scenario string) (map[strin
 	}
 	r.reachabilityMu.Lock()
 	missing := make([]string, 0, len(names))
+	now := r.now()
 	for name := range names {
-		if _, ok := r.reachabilityCache[name]; !ok {
+		checkedAt := r.reachabilityAt[name]
+		if _, ok := r.reachabilityCache[name]; !ok || checkedAt.IsZero() || now.Sub(checkedAt) >= reachabilityTTL {
 			missing = append(missing, name)
 		}
 	}
 	if len(missing) == 0 {
 		cached := cloneReachability(r.reachabilityCache)
-		checkedAt := r.reachabilityAt
+		checkedAt := latestReachabilityAt(r.reachabilityAt, names)
 		r.reachabilityMu.Unlock()
 		return cached, checkedAt
 	}
@@ -922,14 +1034,29 @@ func (r *Registry) reachability(ctx context.Context, scenario string) (map[strin
 	for range missing {
 		item := <-results
 		r.reachabilityCache[item.name] = item.status
-	}
-	if r.reachabilityAt.IsZero() {
-		r.reachabilityAt = time.Now().UTC()
+		r.reachabilityAt[item.name] = now
 	}
 	cached := cloneReachability(r.reachabilityCache)
-	checkedAt := r.reachabilityAt
+	checkedAt := latestReachabilityAt(r.reachabilityAt, names)
 	r.reachabilityMu.Unlock()
 	return cached, checkedAt
+}
+
+func latestReachabilityAt(times map[string]time.Time, names map[string]struct{}) time.Time {
+	var latest time.Time
+	for name := range names {
+		if times[name].After(latest) {
+			latest = times[name]
+		}
+	}
+	return latest
+}
+
+func (r *Registry) invalidateReachability(scenario string) {
+	r.reachabilityMu.Lock()
+	delete(r.reachabilityCache, scenario)
+	delete(r.reachabilityAt, scenario)
+	r.reachabilityMu.Unlock()
 }
 
 func cloneReachability(source map[string]reachabilityStatus) map[string]reachabilityStatus {
