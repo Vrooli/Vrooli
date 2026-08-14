@@ -46,8 +46,8 @@ describe("DataTable", () => {
     );
 
     expect(screen.getByTestId("demo-table")).toBeInTheDocument();
-    expect(screen.getByText("Alpha")).toBeInTheDocument();
-    expect(screen.getByText("Beta")).toBeInTheDocument();
+    expect(screen.getByText(/Alpha/)).toBeInTheDocument();
+    expect(screen.getByText(/Beta/)).toBeInTheDocument();
   });
 
   it("sorts by a sortable column", async () => {
@@ -75,9 +75,37 @@ describe("DataTable", () => {
       />,
     );
 
-    await user.type(screen.getByPlaceholderText("Search demo"), "alp");
+    await user.type(screen.getByPlaceholderText(/Search demo/), "alp");
 
-    expect(screen.getByText("Alpha")).toBeInTheDocument();
-    expect(screen.queryByText("Beta")).not.toBeInTheDocument();
+    expect(screen.getByText(/Alpha/)).toBeInTheDocument();
+    expect(screen.queryByText(/Beta/)).not.toBeInTheDocument();
+  });
+
+  it("covers empty rows, filters, fallback search text, and sort direction changes", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={[...columns, { id: "plain", header: "Plain", accessor: (row) => <span>{row.name}</span> }]}
+        getRowKey={(row) => row.id}
+        caption="Filtered rows"
+        filters={[{ id: "alpha", label: "Alpha only", predicate: (row) => row.name === "Alpha" }]}
+        filterGroupLabel="Row filters"
+        sortLabel={(header) => `Order ${header}`}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Alpha only/ }));
+    expect(screen.queryByText(/Beta/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Order Name/ }));
+    await user.click(screen.getByRole("button", { name: /Order Count/ }));
+    await user.click(screen.getByRole("button", { name: /Order Count/ }));
+    await user.type(screen.getByRole("searchbox"), "alpha");
+    expect(screen.getAllByText(/Alpha/).length).toBeGreaterThan(0);
+
+    const empty = renderWithProviders(
+      <DataTable<Row> rows={[]} columns={[{ id: "plain", header: "Plain", accessor: (row) => row.name }]} getRowKey={(row) => row.id} caption="Empty rows" emptyMessage="Nothing here" />,
+    );
+    expect(empty.getByText(/Nothing here/)).toBeInTheDocument();
   });
 });

@@ -3,6 +3,7 @@ package modeltest_test
 import (
 	"errors"
 	"testing"
+
 	"offer-desk/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"
@@ -45,7 +46,7 @@ func validRows() []modeltest.MatrixRow[status, event] {
 	}
 }
 
-func TestValidateTransitionMatrix_AcceptsCompleteMatrix(t *testing.T) {
+func TestValidateTransitionMatrix_AcceptsCompleteMatrix(t *testing.T) { // [REQ:GRAPH-001] [REQ:GRAPH-003]
 	errs := modeltest.ValidateTransitionMatrix(
 		[]status{statusIdle, statusBusy, statusDone},
 		[]event{eventStart, eventFinish},

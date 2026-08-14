@@ -2,15 +2,15 @@
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Offer Desk are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "Offer Desk",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "description": "A governed offer graph that makes promotion decisions and evidence visible."
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
+      "offers": "Offers",
       "settings": "Settings"
     }
   },
@@ -25,12 +25,23 @@
   "pages": {
     "dashboard": {
       "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
+      "description": "Ranked offers, fired triggers, and the current Money Ledger posture.",
+      "priorityBoard": "Priority board",
+      "offerRecords": "{{count}} offer records",
+      "firedTriggers": "Fired triggers rank first.",
+      "ledgerPosture": "Ledger posture",
+      "runwayMonths": "{{months}} months runway",
+      "postureUnavailable": "Unavailable",
+      "postureBasis": "Source: Money Ledger",
+      "earningNothing": "Active and earning nothing",
+      "emptyGuidance": "Create the first offer and trigger to populate the board.",
+      "sourceUnavailable": "{{source}} unavailable: {{reason}}",
+      "sourceUnavailableReason": "source unavailable",
+      "boardUnavailable": "Board unavailable: {{message}}"
     },
-    "notes": {
-      "title": "Notes"
-    },
+    "offers": { "title": "Offers", "cardTitle": "Offer graph", "description": "Offers, variants, channels, revenue lines, and deliverables share one lifecycle.", "statusLabel": "Status is explicit and text-labelled.", "waitingOn": "Waiting conditions remain visible.", "legalTransitions": "Legal transitions are shown from the current status.", "refusalReason": "The requested transition was refused by a catalog rule.", "refusalRemedy": "Choose one of the legal transitions or revise the trigger.", "auditTrail": "Every transition is recorded in the append-only audit trail.", "promoteAction": "Request operator promotion", "roleRequirement": "Only an operator may activate an offer.", "membershipFinding": "Dangling membership is reported as a finding.", "emptyGuidance": "Create the first offer to begin the graph." },
+    "triggers": { "title": "Triggers", "cardTitle": "Facts and evaluations", "description": "Unknown and stale facts remain unknown; they never become false.", "parseReady": "Trigger grammar accepted.", "parseError": "Trigger grammar rejected.", "parseErrorDetail": "Use declared facts, comparisons, and boolean composition only.", "dryRunAction": "Dry-run evaluation", "dryRunVerdict": "Dry-run returns a three-valued verdict.", "factTrace": "Every fact used is returned with its age.", "missingFact": "Missing facts are unknown, never false.", "factRegistry": "Facts have observed dates and staleness windows.", "evaluationFreshness": "Evaluation freshness is visible.", "stalledAlert": "Scheduled evaluation status is visible.", "emptyGuidance": "Declare a trigger and fact to begin evaluation." },
+    "proposals": { "title": "Proposals", "cardTitle": "Operator decisions", "description": "Agents may propose promotion; only an operator may activate an offer.", "proposer": "Proposing actor is visible.", "evidence": "Evidence and facts consulted are visible.", "effect": "The requested effect is previewed before action.", "declineHistory": "Declines remain in the history.", "acceptAction": "Accept proposal", "operatorOnly": "Promotion requires the operator role.", "emptyGuidance": "No promotion proposals are waiting." },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
@@ -52,31 +63,6 @@
     "summary": "{{count}} notifications",
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "table": {
-      "title": "Title",
-      "created": "Created",
-      "attachments": "Attachments",
-      "actions": "Actions",
-      "search": "Search notes"
-    },
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

@@ -18,8 +18,8 @@ describe("Select", () => {
       />,
     );
 
-    await user.selectOptions(screen.getByLabelText("Choice"), "b");
+    await user.selectOptions(screen.getByLabelText(/Choice/), "b");
 
-    expect(screen.getByLabelText<HTMLSelectElement>("Choice").value).toBe("b");
+    expect(screen.getByLabelText<HTMLSelectElement>(/Choice/).value).toBe("b");
   });
 });

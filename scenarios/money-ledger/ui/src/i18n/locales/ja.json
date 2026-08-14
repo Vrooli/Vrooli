@@ -2,15 +2,15 @@
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Money Ledger のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
     "title": "Money Ledger",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "description": "追記のみの台帳から、資金の所在と流れをリアルタイムに確認します。"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "モバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
     "nav": {
       "dashboard": "ダッシュボード",
-      "notes": "ノート",
+      "journal": "仕訳帳",
       "settings": "設定"
     }
   },
@@ -25,16 +25,40 @@
   "pages": {
     "dashboard": {
       "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+      "description": "台帳から計算したランウェイ、入力の完全性、宣言済み目標です。",
+      "runwayLabel": "ランウェイ",
+      "runwayMonths": "{{months}} か月",
+      "runwayUndefined": "未定義",
+      "runwayBasis": "根拠: 読み取り時のポジション",
+      "completenessLabel": "完全性",
+      "partial": "一部欠落",
+      "complete": "完全",
+      "notConfigured": "未設定",
+      "missingAdapter": "{{adapterId}} が利用できません: {{reason}}",
+      "positionUnavailable": "ポジションを取得できません: {{message}}",
+      "sourceUnavailable": "ソースを利用できません",
+      "emptyGuidance": "最初のイベントを記録する前に、ブックと book_id を設定してください。ゼロを意味しません。",
+      "goalsTitle": "目標",
+      "goalsDescription": "継続期間の進捗を含む宣言済みのしきい値です。",
+      "changeTitle": "変化",
+      "changeDescription": "読み取り時に計算される値です。残高は保存されません。"
     },
-    "notes": {
-      "title": "ノート"
-    },
+    "journal": { "title": "仕訳帳", "cardTitle": "不変の記帳", "description": "各イベントのアダプター、根拠、出所を表示します。訂正は反対仕訳です。", "eventBasis": "すべてのイベントに根拠があります。", "eventSource": "出所と取得時点をイベントの横に表示します。", "reversalLink": "反対仕訳は両方の記帳をリンクします。", "reversalReason": "反対仕訳には必ず理由があります。", "auditTrail": "監査履歴は追記のみです。", "manualEntry": "通常の手動アダプターでイベントを記録します。", "emptyGuidance": "手動入力またはアダプターで最初のイベントを記録してください。" },
+    "accounts": { "title": "勘定", "cardTitle": "ブックと勘定", "description": "イベントを記録する前にブックと勘定を作成してください。", "balanceBasis": "残高は読み取り時に記帳から計算されます。", "balanceGap": "利用できないソースはゼロではなく欠落として表示します。", "transferPair": "ブック間移動は対になった記帳で表します。", "emptyGuidance": "最初のブックと勘定を作成してください。" },
+    "adapters": { "title": "アダプター", "cardTitle": "資金イベントのソース", "description": "手動入力とファイル取込は同じ型付きイベント契約を使います。", "manualAdapter": "手動入力は通常のアダプターです。", "available": "利用可能", "unavailable": "利用不可", "failureReason": "失敗理由を表示します。", "lastSuccessAge": "最後の成功時点を保持します。", "missingImpact": "入力の欠落によりポジションは部分的になります。", "credentialGap": "認証情報を台帳に保存しません。", "emptyGuidance": "アダプターを登録して最初のイベントを受け入れてください。" },
+    "statements": { "title": "明細", "cardTitle": "読み取り時の明細", "description": "収入、費用、資産、負債を台帳から計算します。", "periodSelector": "報告期間を選択してください。", "coverageNote": "数値に対象範囲とソースの年齢を添えます。", "categoryBreakdown": "分類は説明用で、税務助言ではありません。", "uncategorisedCount": "未分類イベントも表示します。", "notTaxAdvice": "この明細は税務助言ではありません。", "exportAction": "明細をエクスポート", "emptyGuidance": "明細を表示する前に記帳してください。" },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
-      "localeHeading": "言語"
+      "localeHeading": "言語",
+      "goalsHeading": "目標",
+      "goalDescription": "宣言した目標に、しきい値、比較、継続期間、バッファを表示します。",
+      "goalThreshold": "しきい値: 宣言済み",
+      "goalSustainWindow": "継続期間: 宣言済み",
+      "goalBuffer": "バッファ: 宣言済み",
+      "goalsEmpty": "目標はまだありません。",
+      "defaultBook": "既定の帳簿: 未選択",
+      "currencyDisplay": "通貨表示: 表示のみ"
     }
   },
   "health": {
@@ -49,30 +73,6 @@
   },
   "notifications": {
     "summary": "{{count}} 件の通知"
-  },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "table": {
-      "title": "タイトル",
-      "created": "作成日",
-      "attachments": "添付",
-      "actions": "操作",
-      "search": "ノートを検索"
-    },
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

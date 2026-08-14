@@ -38,10 +38,11 @@ The `triggers` page carries operational targets that had no surface before it ex
 
 Recorded so they are chosen rather than discovered.
 
-- **Mobile is under-declared.** Only `dashboard` declares a `viewport`, and no
-  claim is scoped to a mobile one. This scenario is read a few times a week and
-  often not at a desk, so the board — the team's single address — is the surface
-  that most needs a mobile-scoped claim on its priority-1 content.
+- **Mobile is now explicitly scoped.** Every page carries desktop/mobile
+  viewport coverage, and the dashboard priority-content claim is scoped to the
+  mobile viewport where the board is most likely to be read away from a desk.
+- **First run is explicit.** `first-run.json` covers the empty graph through
+  the first offer and trigger, including the operator-only activation gate.
 - **No cross-scenario journey exists, and the schema cannot express one.**
   `JourneyStep.page` resolves within this scenario, so the pair's headline claim
   — "this offer is active and has earned nothing" — has no journey on either
@@ -54,11 +55,7 @@ Recorded so they are chosen rather than discovered.
   means those claims cannot pass until the second read ships, and the fixtures
   must arrive with it.
 
-The generated `notes` page is part of the removable example domain. Running
-`template-manager detemplate offer-desk` removes its page spec and registry
-entry with the rest of the notes example.
-
-The Notes example also demonstrates the generated semantic foundation: its
-`notes` region is bound to `data-experience-surface="notes"` and reports the
-canonical lifecycle vocabulary. Keep this boundary for every independently
-meaningful async region; passive UI primitives inherit their parent state.
+The product surfaces use semantic regions such as `board`, `offers`, and
+`triggers`, each bound to the corresponding page contract. Keep this boundary
+for every independently meaningful async region; passive UI primitives inherit
+their parent state.

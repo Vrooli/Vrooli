@@ -1,9 +1,15 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { Select } from "../components/ui/select";
 import { useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+const THEME_LABEL_KEYS = {
+  light: strings.theme.choice.light,
+  dark: strings.theme.choice.dark,
+  system: strings.theme.choice.system,
+};
 
 /**
  * Top app bar. Keep high-frequency chrome compact; full preference controls
@@ -30,19 +36,14 @@ export function TopBar() {
           className="flex items-center gap-2 text-xs text-app-muted-foreground"
         >
           <span className="sr-only">{t(strings.theme.switcherLabel)}</span>
-          <select
+          <Select
             value={choice}
             onChange={(e) => setTheme(e.target.value as ThemeChoice)}
             data-testid={selectors.theme.select}
             aria-label={t(strings.theme.switcherLabel)}
-            className="rounded-control border border-app-border bg-app-surface px-2 py-1 text-app-foreground"
-          >
-            {THEME_CHOICES.map((c) => (
-              <option key={c} value={c}>
-                {t(strings.theme.choice[c])}
-              </option>
-            ))}
-          </select>
+            className="min-h-11 rounded-control border border-app-border bg-app-surface px-2 py-1 text-app-foreground"
+            options={THEME_CHOICES.map((c) => ({ value: c, label: t(THEME_LABEL_KEYS[c]) }))}
+          />
         </label>
       </div>
     </header>

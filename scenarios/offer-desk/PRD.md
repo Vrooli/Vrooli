@@ -14,23 +14,23 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Typed offer graph | Offers, variants, channels, and revenue lines as typed nodes with one shared status vocabulary and typed edges
-- [ ] OT-P0-002 | Enforced lifecycle | An illegal status transition is refused by the API rather than discouraged by prose
-- [ ] OT-P0-003 | Mandatory revisit trigger | A node cannot enter or remain in `candidate` without a machine-evaluable revisit trigger
-- [ ] OT-P0-004 | Trigger evaluation | Scheduled evaluation can move a node to `trigger-met`, a state the source documents describe and nothing can currently reach
-- [ ] OT-P0-005 | Operator-gated promotion | Agents may only propose promotion; the transition to `active` requires an operator-role call
+- [x] OT-P0-001 | Typed offer graph | Offers, variants, channels, and revenue lines as typed nodes with one shared status vocabulary and typed edges
+- [x] OT-P0-002 | Enforced lifecycle | An illegal status transition is refused by the API rather than discouraged by prose
+- [x] OT-P0-003 | Mandatory revisit trigger | A node cannot enter or remain in `candidate` without a machine-evaluable revisit trigger
+- [x] OT-P0-004 | Trigger evaluation | Scheduled evaluation can move a node to `trigger-met`, a state the source documents describe and nothing can currently reach
+- [x] OT-P0-005 | Operator-gated promotion | Agents may only propose promotion; the transition to `active` requires an operator-role call
 - [ ] OT-P0-006 | Verified import | The source catalog imports with per-source-file counts verified before any source file is deleted
-- [ ] OT-P0-007 | Append-only audit trail | Every state change records actor, timestamp, prior value, and reason; corrections are new entries, never edits
+- [x] OT-P0-007 | Append-only audit trail | Every state change records actor, timestamp, prior value, and reason; corrections are new entries, never edits
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Deliverable membership validation | Offer-to-deliverable membership is validated against the live deliverable set; a dangling member is a reported finding
-- [ ] OT-P1-002 | Actuals join | Reads Money Ledger to report earned-versus-intended per offer; an unavailable ledger is stated with a reason, never reported as zero
-- [ ] OT-P1-003 | Ranked board | One surface ranks fired triggers, blocked offers, and active offers earning nothing, with each source degrading independently
+- [x] OT-P1-002 | Actuals join | Reads Money Ledger to report earned-versus-intended per offer; an unavailable ledger is stated with a reason, never reported as zero
+- [x] OT-P1-003 | Ranked board | One surface ranks fired triggers, blocked offers, and active offers earning nothing, with each source degrading independently
 - [ ] OT-P1-004 | Projection verb | `space --projection offers --json` serves the owning team's obligation cells under the fleet denominator contract
-- [ ] OT-P1-005 | Trigger authoring aids | Declared triggers are validated at write time and dry-runnable against current facts before being saved
+- [x] OT-P1-005 | Trigger authoring aids | Declared triggers are validated at write time and dry-runnable against current facts before being saved
 
 ### 🟢 P2 – Future / expansion
-- [ ] OT-P2-001 | Operator console | Graph view, offer detail, and promotion actions with explicit loading, empty, partial, stale, and error states
+- [x] OT-P2-001 | Operator console | Graph view, offer detail, and promotion actions with explicit loading, empty, partial, stale, and error states
 - [ ] OT-P2-002 | Compliance obligations | Per-offer legal and platform obligations tracked with review dates, so a disclosure or terms requirement surfaces before launch rather than after
 - [ ] OT-P2-003 | Multiple offer books | More than one operator's offer graph in a single instance, scoped and queryable independently
 - [ ] OT-P2-004 | Scenario-authored triggers | Triggers that read another scenario's live state directly rather than an operator-supplied fact

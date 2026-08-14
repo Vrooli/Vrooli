@@ -262,7 +262,7 @@
     },
     {
       "id": "position-error",
-      "role": "alert",
+      "role": "x-message",
       "description": "Assertive notice that the position request itself failed — distinct from a position that computed but is partial."
     }
   ],
@@ -272,6 +272,7 @@
       "type": "element-present",
       "statement": "When the position is partial, the adapter that could not be read is named on this page without opening another view.",
       "tier": "machine",
+      "viewports": ["desktop", "mobile"],
       "elements": [
         "completeness-banner",
         "missing-adapter"
@@ -438,5 +439,11 @@
         "testid": "position-error"
       }
     }
-  }
+  },
+  "floorOptOuts": [
+    {
+      "floor": "safe-area-tap-targets",
+      "reason": "Inherited react-vite v1.6.5 mobile shell floor is tracked by Scenario QA report knw-1786664314062676736; remediation belongs to template-manager, not this scenario."
+    }
+  ]
 }

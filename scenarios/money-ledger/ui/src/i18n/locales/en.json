@@ -2,15 +2,15 @@
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Money Ledger are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "Money Ledger",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "description": "A read-time, append-only view of where money is and where it went."
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
+      "journal": "Journal",
       "settings": "Settings"
     }
   },
@@ -25,16 +25,40 @@
   "pages": {
     "dashboard": {
       "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
+      "description": "Runway, source completeness, and declared goals from the journal.",
+      "runwayLabel": "Runway",
+      "runwayMonths": "{{months}} months",
+      "runwayUndefined": "Undefined",
+      "runwayBasis": "Basis: read-time position",
+      "completenessLabel": "Completeness",
+      "partial": "Partial",
+      "complete": "Complete",
+      "notConfigured": "Not configured",
+      "missingAdapter": "Missing {{adapterId}}: {{reason}}",
+      "positionUnavailable": "Position unavailable: {{message}}",
+      "sourceUnavailable": "source unavailable",
+      "emptyGuidance": "Create a book and choose its book_id before recording the first event. No zero is implied.",
+      "goalsTitle": "Goals",
+      "goalsDescription": "Declared thresholds with their sustain-window progress.",
+      "changeTitle": "Change",
+      "changeDescription": "Read-time figures; no balance is stored."
     },
-    "notes": {
-      "title": "Notes"
-    },
+    "journal": { "title": "Journal", "cardTitle": "Immutable postings", "description": "Events show their adapter, basis, and provenance. Corrections are reversing entries.", "eventBasis": "Every event carries its basis.", "eventSource": "Source and fetch age are visible beside the event.", "reversalLink": "Reversals link both entries.", "reversalReason": "A reversal always carries a reason.", "auditTrail": "Audit history is append-only.", "manualEntry": "Record an event through the ordinary manual adapter.", "emptyGuidance": "Record an event by hand or run an adapter to begin." },
+    "accounts": { "title": "Accounts", "cardTitle": "Books and accounts", "description": "Create a book and its accounts before recording money events.", "balanceBasis": "Balances are computed from postings at read time.", "balanceGap": "An unavailable source is shown as a gap, never as zero.", "transferPair": "Inter-book movement is represented by paired postings.", "emptyGuidance": "Create the first book and account to begin." },
+    "adapters": { "title": "Adapters", "cardTitle": "Money-event sources", "description": "Manual entry and file import use the same typed money-event contract.", "manualAdapter": "Manual entry is an ordinary adapter.", "available": "Available", "unavailable": "Unavailable", "failureReason": "Failure reason is shown to the operator.", "lastSuccessAge": "Last-success age is retained.", "missingImpact": "Missing inputs make position partial.", "credentialGap": "Credentials are never stored in the journal.", "emptyGuidance": "Register an adapter to admit the first event." },
+    "statements": { "title": "Statements", "cardTitle": "Read-time statements", "description": "Income, expense, assets, and liabilities are computed from the journal.", "periodSelector": "Select a reporting period.", "coverageNote": "Coverage and source age accompany the figures.", "categoryBreakdown": "Category breakdown is descriptive, not tax advice.", "uncategorisedCount": "Uncategorised events remain visible.", "notTaxAdvice": "This statement is not tax advice.", "exportAction": "Export statement", "emptyGuidance": "Record postings before requesting a statement." },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
-      "localeHeading": "Language"
+      "localeHeading": "Language",
+      "goalsHeading": "Goals",
+      "goalDescription": "Declared goals show threshold, comparison, sustain window, and buffer.",
+      "goalThreshold": "Threshold: declared",
+      "goalSustainWindow": "Sustain window: declared",
+      "goalBuffer": "Buffer: declared",
+      "goalsEmpty": "No goals declared yet.",
+      "defaultBook": "Default book: not selected",
+      "currencyDisplay": "Currency display: presentation only"
     }
   },
   "health": {
@@ -52,31 +76,6 @@
     "summary": "{{count}} notifications",
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "table": {
-      "title": "Title",
-      "created": "Created",
-      "attachments": "Attachments",
-      "actions": "Actions",
-      "search": "Search notes"
-    },
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

@@ -1,70 +1,19 @@
-# Runbook — Money Ledger
+# Money Ledger runbook
 
-This document records operator procedures for running, diagnosing,
-recovering, and maintaining the scenario.
+## Start, stop, and inspect
 
-## Purpose Of This Document
+Use `make setup`, `make start`, `make logs`, and `make stop` from this scenario directory. Do not launch the API binary directly. Health is exposed through the scenario lifecycle and API health endpoint.
 
-Use this document to answer:
+## Backup the journal
 
-- How do I start, stop, and inspect the scenario?
-- What checks should I run during an incident?
-- How do I back up or restore state?
-- Where should operational issues be recorded?
+The SQLite database is non-regenerable. Resolve the active scenario data path with the storage resolver used by `api/main.go`; do not guess from a home-directory path. While the API is stopped, copy the database and its WAL/SHM companions to a restricted backup directory, then record the UTC timestamp and SHA-256 checksum. Keep at least three dated copies on separate storage.
 
-## Start / Stop / Status
+For a live backup, use SQLite's backup-capable tooling against the database connection rather than copying only the main file. Verify the backup by opening it read-only and querying `books`, `accounts`, `postings`, and `ingest_receipts`.
 
-Use lifecycle-managed commands from the scenario directory:
+## Restore
 
-```bash
-make setup
-make start
-make status
-make logs
-make stop
-make test
-```
+Stop the scenario, preserve the damaged database as a dated quarantine copy, and restore the selected verified backup plus its checksum record. Start with `make start`, run the health check, query the latest receipt and posting count, and run `make test`. A restore is not complete until the journal count and latest posting ids match the backup verification record.
 
-Do not start API/UI binaries directly. The lifecycle owns process
-naming, ports, health checks, and logs.
+## Adapter outage
 
-## Common Incidents
-
-| Symptom | Checks | Fix | Escalation |
-|---|---|---|---|
-| Scenario does not start | `make status`, `make logs` | `make restart`, then inspect lifecycle logs | Record recurring failures in `../internal/PROBLEMS.md`. |
-| API unhealthy | `/health`, SQLite path, API logs | Run `make setup`, verify writable data dir | Check `INTEGRATIONS.md` for dependency expectations. |
-| UI blank or stale | UI port, browser console, `ui/dist` freshness | `make setup` then `make restart` | Add troubleshooting entry if recurring. |
-| CLI talks to old API | `money-ledger status`, configured API base | Reinstall via `make setup` | Update CLI reference if command changed. |
-
-## Backup / Restore
-
-The generated template uses local SQLite state. Product scenarios must
-define backup and restore procedures before production deployment.
-
-| Data | Backup Procedure | Restore Procedure | Status |
-|---|---|---|---|
-| SQLite database | deferred | deferred | Define before deployment. |
-| Blob files | deferred | deferred | Define if binary/blob domains remain. |
-
-## Maintenance Tasks
-
-| Task | Frequency | Command / Procedure |
-|---|---|---|
-| Validate tests | before handoff | `make test` |
-| Inspect logs | as needed | `make logs` |
-| Regenerate endpoints | after API endpoint changes | `make endpoints` |
-| Regenerate UI strings | after i18n changes | `cd ui && pnpm strings:gen` |
-
-## Escalation
-
-Record known operational issues in
-[`../internal/PROBLEMS.md`](../internal/PROBLEMS.md). Append meaningful
-completed work to [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
-
-## Cross-References
-
-- [`DEPLOYMENT.md`](DEPLOYMENT.md) — deployment tiers and release checklist
-- [`OBSERVABILITY.md`](OBSERVABILITY.md) — logs, metrics, and health signals
-- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — common fixes
-- [`../reference/configuration.md`](../reference/configuration.md) — runtime configuration
+Read adapters and receipts first. A failed adapter should be shown as unavailable with a reason and age. Do not repair an outage by inserting a zero or editing postings. After the source is healthy, rerun its window; idempotency makes overlap safe.

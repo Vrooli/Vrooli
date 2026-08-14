@@ -25,10 +25,12 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "money-ledger/handlers/health"
-	notesH "money-ledger/handlers/notes" // EXAMPLE-DOMAIN:notes
+	ingestH "money-ledger/handlers/ingest"
+	ledgerH "money-ledger/handlers/ledger"
 	localdb "money-ledger/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/notes" // EXAMPLE-DOMAIN:notes
+	ingestv1 "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
+	ledgerv1 "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +41,8 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, ledgerH.Endpoints...)
+	out = append(out, ingestH.Endpoints...)
 	return out
 }
 
@@ -66,7 +69,8 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_money_ledger_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "ledger", File: ledgerv1.File_money_ledger_v1_ledger_ledger_proto},
+		{Module: "ingest", File: ingestv1.File_money_ledger_v1_ingest_ingest_proto},
 	}
 }
 
@@ -81,6 +85,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(ledgerH.Schema),
 	}
 }

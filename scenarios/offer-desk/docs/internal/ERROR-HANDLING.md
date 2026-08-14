@@ -1,51 +1,7 @@
-# Error Handling
+# Error handling
 
-The template uses one error path for proto-typed operations and one
-documented exception path for multipart REST.
+Unknown is not false. A trigger over a missing fact, or a fact past its staleness window, records `UNKNOWN` with an explanation and leaves the node unchanged. A satisfied fact records the evaluation and permits the `candidate -> trigger-met` transition.
 
-## Proto-Typed Operations
+Lifecycle refusals name the rule and legal transitions from the current state. A candidate cannot exist without a machine-evaluable trigger, typed edges reject invalid pairs and self-edges, and only an operator role can activate a node. Agents receive a proposal path that changes no lifecycle state.
 
-Proto-typed UI, CLI, and inter-scenario calls use Connect-RPC. Errors
-move through three layers:
-
-1. Domain/service code returns typed sentinels such as
-   `<domain>.ErrInvalid<Entity>` or `<domain>.Err<Entity>NotFound`.
-2. The API transport edge maps those sentinels to `connect.Error`
-   values in `internal/<domain>/service_error_mapping.go`.
-3. The UI receives `ConnectError`, maps `ConnectError.code` to an
-   `errors.<code>` i18n key with `ui/src/lib/errorMessage.ts`, and
-   renders localized copy.
-
-The CLI uses the same `connect.Error` values through cli-core. Human
-output is English for now; future CLI i18n should use the same code
-names as the UI catalog instead of string-matching messages.
-
-## Sentinel Mapping
-
-| Domain error | Connect code | UI i18n key |
-|---|---|---|
-| `ErrInvalid<Entity>` | `invalid_argument` | `errors.invalid_argument` |
-| `Err<Entity>NotFound` | `not_found` | `errors.not_found` |
-| Unknown service/repository error | `internal` | `errors.internal` |
-
-When you add a domain, keep the mapping file next to that domain's
-service layer. The handler should call the mapper instead of switching
-on domain error types inline.
-
-## Multipart REST Exceptions
-
-Opaque file bytes are not proto payloads. Upload endpoints use REST
-multipart for bytes and return proto-typed metadata. These endpoints
-still use a stable error envelope through `internal/httpx.WriteError`;
-the UI maps `ApiError.code` through the same `errorMessage(...)`
-utility as Connect errors.
-
-Use this split:
-
-- Connect-RPC for messages that can be described by proto.
-- REST multipart for file bytes.
-- Proto metadata responses for REST upload results.
-
-Do not introduce a second general JSON transport for internal scenario
-calls. If the payload is structured and Vrooli-owned, add a proto
-service method.
+The board treats Money Ledger as an optional read source. A timeout, error, or partial posture is a visible availability entry with a reason and age. It never becomes zero actuals, zero runway, or an unmet goal verdict. Catalog data remains readable while the source is degraded.

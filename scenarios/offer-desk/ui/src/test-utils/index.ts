@@ -45,7 +45,13 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import { renderWithProviders as renderWithBaseProviders } from "@vrooli/api-base/testing";
+import type { ReactElement } from "react";
+import { i18n } from "../i18n";
+import type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
+
+export const renderWithProviders = (ui: ReactElement, options: ProviderRenderOptions = {}): ProviderRenderResult =>
+  renderWithBaseProviders(ui, { i18n, ...options });
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";

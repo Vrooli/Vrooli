@@ -2,15 +2,15 @@
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Offer Desk のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
     "title": "Offer Desk",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "description": "昇格の判断と根拠を可視化する、管理されたオファーグラフです。"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "モバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
     "nav": {
       "dashboard": "ダッシュボード",
-      "notes": "ノート",
+      "offers": "オファー",
       "settings": "設定"
     }
   },
@@ -25,12 +25,23 @@
   "pages": {
     "dashboard": {
       "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+      "description": "優先順位付きオファー、発火したトリガー、Money Ledger の状態です。",
+      "priorityBoard": "優先ボード",
+      "offerRecords": "{{count}} 件のオファー",
+      "firedTriggers": "発火したトリガーを先に表示します。",
+      "ledgerPosture": "台帳の状態",
+      "runwayMonths": "ランウェイ {{months}} か月",
+      "postureUnavailable": "利用不可",
+      "postureBasis": "ソース: Money Ledger",
+      "earningNothing": "有効だが収益なし",
+      "emptyGuidance": "最初のオファーとトリガーを作成するとボードに表示されます。",
+      "sourceUnavailable": "{{source}} は利用不可: {{reason}}",
+      "sourceUnavailableReason": "ソースを利用できません",
+      "boardUnavailable": "ボードを利用できません: {{message}}"
     },
-    "notes": {
-      "title": "ノート"
-    },
+    "offers": { "title": "オファー", "cardTitle": "オファーグラフ", "description": "オファー、バリアント、チャネル、収益線、成果物を一つのライフサイクルで管理します。", "statusLabel": "状態は明示的なテキストで表示します。", "waitingOn": "待機条件を表示します。", "legalTransitions": "現在の状態から可能な遷移を表示します。", "refusalReason": "カタログのルールにより遷移を拒否しました。", "refusalRemedy": "可能な遷移を選ぶか、トリガーを修正してください。", "auditTrail": "すべての遷移を追記のみの監査履歴に記録します。", "promoteAction": "オペレーター昇格を申請", "roleRequirement": "オファーを有効化できるのはオペレーターだけです。", "membershipFinding": "無効なメンバーシップは検出結果として報告します。", "emptyGuidance": "最初のオファーを作成してグラフを始めてください。" },
+    "triggers": { "title": "トリガー", "cardTitle": "ファクトと評価", "description": "未知または古いファクトは未知のままで、偽にはなりません。", "parseReady": "トリガー文法を受け付けました。", "parseError": "トリガー文法を拒否しました。", "parseErrorDetail": "宣言済みファクト、比較、論理合成だけを使ってください。", "dryRunAction": "ドライラン評価", "dryRunVerdict": "ドライランは三値の判定を返します。", "factTrace": "使用したすべてのファクトと年齢を返します。", "missingFact": "欠落したファクトは偽ではなく未知です。", "factRegistry": "ファクトには観測日と有効期間があります。", "evaluationFreshness": "評価の新しさを表示します。", "stalledAlert": "スケジュール評価の状態を表示します。", "emptyGuidance": "トリガーとファクトを宣言して評価を始めてください。" },
+    "proposals": { "title": "提案", "cardTitle": "オペレーターの判断", "description": "エージェントは昇格を提案できますが、有効化できるのはオペレーターだけです。", "proposer": "提案者を表示します。", "evidence": "根拠と参照したファクトを表示します。", "effect": "実行前に効果を確認できます。", "declineHistory": "却下履歴を保持します。", "acceptAction": "提案を承認", "operatorOnly": "昇格にはオペレーター権限が必要です。", "emptyGuidance": "待機中の昇格提案はありません。" },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
@@ -49,30 +60,6 @@
   },
   "notifications": {
     "summary": "{{count}} 件の通知"
-  },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "table": {
-      "title": "タイトル",
-      "created": "作成日",
-      "attachments": "添付",
-      "actions": "操作",
-      "search": "ノートを検索"
-    },
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

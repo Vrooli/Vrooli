@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"net/http"
+
 	"money-ledger/internal/capabilities"
 	"money-ledger/internal/module"
 

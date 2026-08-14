@@ -38,14 +38,13 @@ The `statements` page carries operational targets that had no surface before it 
 
 Recorded so they are chosen rather than discovered.
 
-- **Mobile is under-declared.** Only `dashboard` declares a `viewport`, and no
-  claim is scoped to a mobile one. That is a real hole here rather than a
-  cosmetic one: `OT-P0-006` makes manual entry a first-class adapter precisely
-  because some revenue arrives as a cash sale, and a cash sale is recorded
-  standing up, on a phone, away from a desk. The `record-a-source-with-no-api`
-  journey should acquire a mobile-scoped variant before the ingest slice is
-  called done, and `journal` should carry a viewport-scoped claim for the
-  create-event path.
+- **Mobile is now explicitly scoped.** Every page carries desktop/mobile
+  viewport coverage, the journal create-event claims are viewport-scoped, and
+  `record-a-source-with-no-api-mobile` covers the standing cash-sale path that
+  makes `OT-P0-006` a first-class adapter rather than a desktop fallback.
+- **First run is explicit.** `first-run.json` covers the empty-to-first-event
+  path so an installed scenario does not begin in an unexplained mid-product
+  state.
 - **No cross-scenario journey exists, and the schema cannot express one.**
   `JourneyStep.page` resolves within this scenario, so the pair's headline claim
   — "this offer is active and has earned nothing" — has no journey on either
@@ -53,11 +52,7 @@ Recorded so they are chosen rather than discovered.
   `experience-manager` rather than working around it with a page that pretends to
   own both halves.
 
-The generated `notes` page is part of the removable example domain. Running
-`template-manager detemplate money-ledger` removes its page spec and registry
-entry with the rest of the notes example.
-
-The Notes example also demonstrates the generated semantic foundation: its
-`notes` region is bound to `data-experience-surface="notes"` and reports the
-canonical lifecycle vocabulary. Keep this boundary for every independently
-meaningful async region; passive UI primitives inherit their parent state.
+The product surfaces use semantic regions such as `position`, `journal`, and
+`offers`, each bound to the corresponding page contract. Keep this boundary
+for every independently meaningful async region; passive UI primitives inherit
+their parent state.

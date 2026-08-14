@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "console",
     "description": "The operator console and the obligations that only appear once there are users.",
+    "last_validated_at": "2026-08-13T23:59:16-04:00",
+    "module": "console",
     "prd_ref": "PRD.md",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -10,7 +11,7 @@
     {
       "id": "UI-001",
       "title": "Console covers every perceivable state",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P2-001",
       "category": "ui",
       "criticality": "P2",
@@ -21,13 +22,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "ui/src/pages/pages.test.tsx",
+          "status": "implemented",
           "notes": "Feature tests assert each state renders with its documented selector."
         },
         {
-          "type": "business",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "BAS case walks the console and asserts the accessible names of status controls."
         }
       ]
@@ -35,7 +37,7 @@
     {
       "id": "UI-002",
       "title": "Promotion is an explicit operator action",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P2-001",
       "category": "ui",
       "criticality": "P2",
@@ -46,8 +48,9 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "ui/src/pages/pages.test.tsx",
+          "status": "implemented",
           "notes": "The control is absent or disabled for a non-operator role."
         }
       ]
@@ -66,7 +69,7 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "An obligation past its review date surfaces on the offer and on the board."
         }
@@ -86,7 +89,7 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "A query scoped to one book never returns nodes from another."
         }
@@ -106,12 +109,12 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "A scenario-sourced fact resolves through a faked client; an unavailable source yields unknown, never false."
         },
         {
-          "type": "integration",
+          "type": "test",
           "status": "planned",
           "notes": "Evaluation over a mixed operator/scenario fact set records the source of each fact consulted."
         }

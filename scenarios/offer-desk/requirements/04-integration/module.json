@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "integration",
     "description": "Reading actuals, serving the fleet contract, and the ranked board.",
+    "last_validated_at": "2026-08-13T23:59:16-04:00",
+    "module": "integration",
     "prd_ref": "PRD.md",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -21,7 +22,7 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "A membership naming an absent deliverable yields a finding; a valid one does not."
         }
@@ -30,7 +31,7 @@
     {
       "id": "INT-002",
       "title": "Actuals join degrades honestly",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "integration",
       "criticality": "P1",
@@ -41,13 +42,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/handlers/offers/module_test.go",
+          "status": "implemented",
           "notes": "A faked unavailable ledger yields an availability entry, never a zero amount."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "A slow ledger is bounded by the deadline and does not stall the response."
         }
       ]
@@ -55,7 +57,7 @@
     {
       "id": "INT-003",
       "title": "The board ranks across independent sources",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "category": "service",
       "criticality": "P1",
@@ -66,13 +68,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/handlers/offers/module_test.go",
+          "status": "implemented",
           "notes": "With one source faked unavailable, the board still ranks the others and reports the degradation."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "Board ordering is deterministic for a fixed input set."
         }
       ]
@@ -91,12 +94,12 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "The verb emits the declared schema including confidence and rationale."
         },
         {
-          "type": "integration",
+          "type": "test",
           "status": "planned",
           "notes": "Output parses against the shared projection contract."
         }
@@ -105,7 +108,7 @@
     {
       "id": "INT-005",
       "title": "The board carries financial posture as well as offer state",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "category": "integration",
       "criticality": "P1",
@@ -117,23 +120,25 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/handlers/offers/module_test.go",
+          "status": "implemented",
           "notes": "A faked unavailable posture read yields an availability entry with a reason and a last-good age — never a zero runway and never an unmet goal verdict."
         },
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/handlers/offers/module_test.go",
+          "status": "implemented",
           "notes": "The actuals read and the posture read degrade independently: either may be unavailable while the other ranks."
         },
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "A position the ledger marked partial arrives on the board still marked partial."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "No posting, balance, or posture amount is persisted by this scenario; an architecture test asserts the board package owns no amount-bearing storage."
         }
       ]

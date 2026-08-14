@@ -50,7 +50,9 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### Scaffold health gate is not yet run
 
-`make setup` / `make start` / `make test` (Gate 0) have not been run for this scenario. Every gate above it was completed from documentation, so the scaffold is unproven at runtime. **Do this before any code work** — a foundation authored against a scaffold that does not boot is worth less than it appears.
+The scenario now starts through `make start`, reports healthy, and has API,
+CLI, and UI evidence. The remaining completion blocker is live experience
+capture reconciliation, not scaffold boot.
 
 ### The import is the riskiest step, and it is ordered
 
@@ -96,3 +98,26 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+### 2026-08-13 — requirement evidence is not yet promoted
+
+The implementation and focused suites are green, but the registry remains
+`planned` until a fresh comprehensive suite sync and the twelve Level 3
+behavioural drills produce durable evidence. The affected Test Genie rerun is
+The fresh full Test Genie run terminated with only the `ui-health` provider
+failing and no findings payload. Direct experience validation is now clean
+after BAS stabilized. The inherited Phase 1 log did not contain the required
+start-of-plan protected-tree hashes, so the current end hashes are recorded in
+`PROGRESS.md` without claiming a historical comparison.
+
+### 2026-08-14 — final validation boundary and intentional deferrals
+
+The requirement registry is now evidence-backed: `vrooli scenario requirements
+validate offer-desk --json` passes at L3, with 18 requirements complete and 6
+explicitly planned (including source retirement and later catalog capabilities).
+The fresh comprehensive run `20260814-035300-bf1ee069` passed 20/21 phases. The
+remaining failure is not an Offer Desk finding: the shared Test Genie `ui-health`
+execution provider times out without returning a findings payload. Static-only
+UI-health reports zero required findings, and direct experience validation reports
+zero findings. The protected-tree end hashes are recorded in `PROGRESS.md`; no
+historical start hash was available from Phase 1.

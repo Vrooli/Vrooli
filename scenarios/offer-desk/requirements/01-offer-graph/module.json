@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "offer-graph",
     "description": "The typed offer graph and the lifecycle the API enforces on it.",
+    "last_validated_at": "2026-08-13T23:59:16-04:00",
+    "module": "offer-graph",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +11,7 @@
     {
       "id": "GRAPH-001",
       "title": "Typed nodes share one status vocabulary",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "domain",
       "criticality": "P0",
@@ -21,13 +22,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/testutil/modeltest/matrix_test.go",
+          "status": "implemented",
           "notes": "Table-driven test asserts every node kind accepts only the closed status set and rejects an unknown value."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "Create one node of each kind over Connect-RPC and read them back through a single list call."
         }
       ]
@@ -35,7 +37,7 @@
     {
       "id": "GRAPH-002",
       "title": "Typed edges connect node kinds",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "domain",
       "criticality": "P0",
@@ -46,8 +48,9 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
           "notes": "Reject an edge whose kind pair is not in the allowed matrix; reject a self-edge."
         }
       ]
@@ -55,7 +58,7 @@
     {
       "id": "GRAPH-003",
       "title": "Illegal transitions are refused",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "policy",
       "criticality": "P0",
@@ -66,13 +69,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/testutil/modeltest/matrix_test.go",
+          "status": "implemented",
           "notes": "Exhaustive matrix over (from,to): every illegal pair returns a typed refusal; every legal pair succeeds."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "A refused transition leaves the stored state unchanged."
         }
       ]
@@ -80,7 +84,7 @@
     {
       "id": "GRAPH-004",
       "title": "Status changes are audited append-only",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "storage",
       "criticality": "P0",
@@ -91,13 +95,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
           "notes": "An update writes exactly one audit row with the prior value preserved."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "No API path can delete or mutate an existing audit row."
         }
       ]

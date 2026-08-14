@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "gates",
     "description": "Revisit triggers, their evaluation, and the operator-only promotion boundary.",
+    "last_validated_at": "2026-08-13T23:59:16-04:00",
+    "module": "gates",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +11,7 @@
     {
       "id": "GATE-001",
       "title": "A candidate must carry a machine-evaluable trigger",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "policy",
       "criticality": "P0",
@@ -21,13 +22,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
           "notes": "Reject a candidate node with an absent, empty, or unparseable trigger."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "A node already in `candidate` cannot be updated in a way that removes its trigger."
         }
       ]
@@ -35,7 +37,7 @@
     {
       "id": "GATE-002",
       "title": "Triggers are declared over facts, not free text",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "domain",
       "criticality": "P0",
@@ -46,8 +48,9 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
           "notes": "Parse-and-evaluate table covering each operator, composition, unknown fact, and type mismatch."
         }
       ]
@@ -55,7 +58,7 @@
     {
       "id": "GATE-003",
       "title": "Scheduled evaluation reaches trigger-met",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "service",
       "criticality": "P0",
@@ -66,13 +69,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
           "notes": "A satisfied trigger transitions the node and records the satisfying facts; an unsatisfied one does not."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "A full evaluation run over a seeded graph is idempotent — re-running changes nothing."
         }
       ]
@@ -80,7 +84,7 @@
     {
       "id": "GATE-004",
       "title": "Unknown facts block rather than fire",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "policy",
       "criticality": "P0",
@@ -91,8 +95,9 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
           "notes": "A trigger over a missing fact yields unknown; the run output names the fact."
         }
       ]
@@ -100,7 +105,7 @@
     {
       "id": "GATE-005",
       "title": "Promotion to active is operator-only",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "security",
       "criticality": "P0",
@@ -111,13 +116,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
           "notes": "An agent-role transition to `active` is refused; the same call from an operator role succeeds."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "A proposal survives across restarts and carries its proposing actor."
         }
       ]
@@ -125,7 +131,7 @@
     {
       "id": "GATE-006",
       "title": "Triggers can be dry-run before saving",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "category": "service",
       "criticality": "P1",
@@ -136,8 +142,9 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
           "notes": "Dry-run returns the verdict and the facts consulted, and writes nothing."
         }
       ]
@@ -145,7 +152,7 @@
     {
       "id": "GATE-008",
       "title": "A fact may carry a staleness window, and a stale fact is unknown",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "policy",
       "criticality": "P1",
@@ -157,18 +164,20 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
           "notes": "A fact past its window evaluates to unknown, not to false and not to its last value; the evaluation run names it as a gap with its observation date."
         },
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
           "notes": "Window is derived from the fact's declared dimension; a fact with no dimension takes the default window rather than never expiring."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "A trigger referencing a stale comp leaves its node in candidate and reports the stale fact, matching GATE-004's unknown-blocks-rather-than-fires behaviour."
         }
       ]

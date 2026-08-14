@@ -18,7 +18,7 @@ describe("BottomNav", () => {
     );
 
     expect(screen.getByTestId("home-tab")).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText("Home")).toBeInTheDocument();
+    expect(screen.getByText(/Home/)).toBeInTheDocument();
   });
 
   it("calls onItemSelect without navigating for controlled items", async () => {

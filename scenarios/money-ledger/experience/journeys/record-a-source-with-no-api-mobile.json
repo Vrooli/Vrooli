@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "x-viewport": "mobile",
+  "journey": {
+    "id": "record-a-source-with-no-api-mobile",
+    "title": "Record a source with no API on mobile",
+    "purpose": "An operator records a cash sale while standing up, using the same first-class manual-entry path without losing the account, basis, or resulting position.",
+    "prd_refs": ["OT-P0-006", "OT-P0-005"]
+  },
+  "steps": [
+    { "page": "journal", "state": "manual-entry", "intent": "Open the compact journal entry form and choose the book and account" },
+    { "page": "journal", "state": "manual-entry", "intent": "Record the cash sale without horizontal scrolling or a desktop-only control" },
+    { "page": "journal", "state": "manual-entry", "intent": "Confirm operator-asserted basis beside the new event" },
+    { "page": "dashboard", "state": "position-partial", "intent": "See the position update while its source basis remains visible" }
+  ]
+}

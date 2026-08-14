@@ -33,34 +33,6 @@ belong in [`DATA.md`](DATA.md).
 | ingest | Own the money-event contract and the adapters that satisfy it, including manual entry and file import. | Every source — an API, a file, a person typing a number — enters through exactly one door, which is what makes any upstream pluggable. | Adapter registrations, sync cursors, ingestion receipts. | integration | service | Adapter, MoneyEvent, Provenance, Basis, Cursor | `api/internal/ingest/` |
 | position | Compute balances, cash flow, runway, statements, and goal verdicts from the journal. Owns no financial facts. | Every figure is a query, so a stale number is structurally impossible. | Goal declarations and position snapshots only; never a balance. | reporting | policy | Position, Goal, Threshold, Runway, Statement | `api/internal/position/` |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships `notes` as a worked CRUD vertical slice with a binary
-upload exception. Copy its shape for your own domains, then remove it.
-
-| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
-|---|---|---|---|---|---|---|---|
-| notes | Provide the worked CRUD reference with attachment upload exception. | Demonstrate the expected vertical slice for a real domain. | Notes and attachment metadata. | crud | service | Note, Attachment | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/money-ledger/v1/notes/` |
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Shared Concepts
 
 | Concept | Meaning | Owner |

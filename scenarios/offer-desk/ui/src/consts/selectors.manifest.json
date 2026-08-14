@@ -48,70 +48,6 @@
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
     },
-    "notes.card": {
-      "testId": "notes-card",
-      "selector": "[data-testid=\"notes-card\"]"
-    },
-    "notes.list": {
-      "testId": "notes-list",
-      "selector": "[data-testid=\"notes-list\"]"
-    },
-    "notes.loading": {
-      "testId": "notes-loading",
-      "selector": "[data-testid=\"notes-loading\"]"
-    },
-    "notes.empty": {
-      "testId": "notes-empty",
-      "selector": "[data-testid=\"notes-empty\"]"
-    },
-    "notes.error": {
-      "testId": "notes-error",
-      "selector": "[data-testid=\"notes-error\"]"
-    },
-    "notes.createButton": {
-      "testId": "notes-create-button",
-      "selector": "[data-testid=\"notes-create-button\"]"
-    },
-    "notes.createdAt": {
-      "testId": "notes-created-at",
-      "selector": "[data-testid=\"notes-created-at\"]"
-    },
-    "notes.attachmentCount": {
-      "testId": "notes-attachment-count",
-      "selector": "[data-testid=\"notes-attachment-count\"]"
-    },
-    "notes.attachmentUpload": {
-      "testId": "notes-attachment-upload",
-      "selector": "[data-testid=\"notes-attachment-upload\"]"
-    },
-    "notes.attachmentFile": {
-      "testId": "notes-attachment-file",
-      "selector": "[data-testid=\"notes-attachment-file\"]"
-    },
-    "notes.attachmentButton": {
-      "testId": "notes-attachment-button",
-      "selector": "[data-testid=\"notes-attachment-button\"]"
-    },
-    "notes.attachmentStatus": {
-      "testId": "notes-attachment-status",
-      "selector": "[data-testid=\"notes-attachment-status\"]"
-    },
-    "notes.measure.card": {
-      "testId": "notes-measure-card",
-      "selector": "[data-testid=\"notes-measure-card\"]"
-    },
-    "notes.measure.value": {
-      "testId": "notes-measure-value",
-      "selector": "[data-testid=\"notes-measure-value\"]"
-    },
-    "notes.measure.loading": {
-      "testId": "notes-measure-loading",
-      "selector": "[data-testid=\"notes-measure-loading\"]"
-    },
-    "notes.measure.error": {
-      "testId": "notes-measure-error",
-      "selector": "[data-testid=\"notes-measure-error\"]"
-    },
     "layout.shell": {
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
@@ -144,13 +80,201 @@
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
     },
-    "pages.notes": {
-      "testId": "page-notes",
-      "selector": "[data-testid=\"page-notes\"]"
+    "pages.firedTriggers": {
+      "testId": "board-fired-triggers",
+      "selector": "[data-testid=\"board-fired-triggers\"]"
+    },
+    "pages.earningNothing": {
+      "testId": "board-earning-nothing",
+      "selector": "[data-testid=\"board-earning-nothing\"]"
+    },
+    "pages.sourceAvailability": {
+      "testId": "board-source-availability",
+      "selector": "[data-testid=\"board-source-availability\"]"
+    },
+    "pages.ledgerGap": {
+      "testId": "board-ledger-gap",
+      "selector": "[data-testid=\"board-ledger-gap\"]"
+    },
+    "pages.boardRanking": {
+      "testId": "board-ranking",
+      "selector": "[data-testid=\"board-ranking\"]"
+    },
+    "pages.emptyGuidance": {
+      "testId": "board-empty-guidance",
+      "selector": "[data-testid=\"board-empty-guidance\"]"
+    },
+    "pages.postureSummary": {
+      "testId": "board-posture-summary",
+      "selector": "[data-testid=\"board-posture-summary\"]"
+    },
+    "pages.postureGoalVerdicts": {
+      "testId": "board-posture-goal-verdicts",
+      "selector": "[data-testid=\"board-posture-goal-verdicts\"]"
+    },
+    "pages.postureBasis": {
+      "testId": "board-posture-basis",
+      "selector": "[data-testid=\"board-posture-basis\"]"
+    },
+    "pages.postureGap": {
+      "testId": "board-posture-gap",
+      "selector": "[data-testid=\"board-posture-gap\"]"
+    },
+    "pages.offers": {
+      "testId": "page-offers",
+      "selector": "[data-testid=\"page-offers\"]"
+    },
+    "pages.triggers": {
+      "testId": "page-triggers",
+      "selector": "[data-testid=\"page-triggers\"]"
+    },
+    "pages.proposals": {
+      "testId": "page-proposals",
+      "selector": "[data-testid=\"page-proposals\"]"
     },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.offerGraph": {
+      "testId": "offer-graph",
+      "selector": "[data-testid=\"offer-graph\"]"
+    },
+    "pages.offerTable": {
+      "testId": "offer-table",
+      "selector": "[data-testid=\"offer-table\"]"
+    },
+    "pages.offerStatus": {
+      "testId": "offer-status",
+      "selector": "[data-testid=\"offer-status\"]"
+    },
+    "pages.offerWaitingOn": {
+      "testId": "offer-waiting-on",
+      "selector": "[data-testid=\"offer-waiting-on\"]"
+    },
+    "pages.offerLegalTransitions": {
+      "testId": "offer-legal-transitions",
+      "selector": "[data-testid=\"offer-legal-transitions\"]"
+    },
+    "pages.offerRefusalReason": {
+      "testId": "offer-refusal-reason",
+      "selector": "[data-testid=\"offer-refusal-reason\"]"
+    },
+    "pages.offerRefusalRemedy": {
+      "testId": "offer-refusal-remedy",
+      "selector": "[data-testid=\"offer-refusal-remedy\"]"
+    },
+    "pages.offerAuditTrail": {
+      "testId": "offer-audit-trail",
+      "selector": "[data-testid=\"offer-audit-trail\"]"
+    },
+    "pages.offerPromote": {
+      "testId": "offer-promote",
+      "selector": "[data-testid=\"offer-promote\"]"
+    },
+    "pages.offerRoleRequirement": {
+      "testId": "offer-role-requirement",
+      "selector": "[data-testid=\"offer-role-requirement\"]"
+    },
+    "pages.offersEmptyGuidance": {
+      "testId": "offers-empty-guidance",
+      "selector": "[data-testid=\"offers-empty-guidance\"]"
+    },
+    "pages.offerMembershipFinding": {
+      "testId": "offer-membership-finding",
+      "selector": "[data-testid=\"offer-membership-finding\"]"
+    },
+    "pages.triggerEditor": {
+      "testId": "trigger-editor",
+      "selector": "[data-testid=\"trigger-editor\"]"
+    },
+    "pages.triggerParseStatus": {
+      "testId": "trigger-parse-status",
+      "selector": "[data-testid=\"trigger-parse-status\"]"
+    },
+    "pages.triggerParseError": {
+      "testId": "trigger-parse-error",
+      "selector": "[data-testid=\"trigger-parse-error\"]"
+    },
+    "pages.triggerDryRun": {
+      "testId": "trigger-dry-run",
+      "selector": "[data-testid=\"trigger-dry-run\"]"
+    },
+    "pages.triggerDryRunVerdict": {
+      "testId": "trigger-dry-run-verdict",
+      "selector": "[data-testid=\"trigger-dry-run-verdict\"]"
+    },
+    "pages.triggerFactTrace": {
+      "testId": "trigger-fact-trace",
+      "selector": "[data-testid=\"trigger-fact-trace\"]"
+    },
+    "pages.triggerMissingFact": {
+      "testId": "trigger-missing-fact",
+      "selector": "[data-testid=\"trigger-missing-fact\"]"
+    },
+    "pages.factRegistry": {
+      "testId": "fact-registry",
+      "selector": "[data-testid=\"fact-registry\"]"
+    },
+    "pages.evaluationFreshness": {
+      "testId": "evaluation-freshness",
+      "selector": "[data-testid=\"evaluation-freshness\"]"
+    },
+    "pages.evaluationStalledAlert": {
+      "testId": "evaluation-stalled-alert",
+      "selector": "[data-testid=\"evaluation-stalled-alert\"]"
+    },
+    "pages.triggersEmptyGuidance": {
+      "testId": "triggers-empty-guidance",
+      "selector": "[data-testid=\"triggers-empty-guidance\"]"
+    },
+    "pages.proposalList": {
+      "testId": "proposal-list",
+      "selector": "[data-testid=\"proposal-list\"]"
+    },
+    "pages.proposalProposer": {
+      "testId": "proposal-proposer",
+      "selector": "[data-testid=\"proposal-proposer\"]"
+    },
+    "pages.proposalEvidence": {
+      "testId": "proposal-evidence",
+      "selector": "[data-testid=\"proposal-evidence\"]"
+    },
+    "pages.proposalEffect": {
+      "testId": "proposal-effect",
+      "selector": "[data-testid=\"proposal-effect\"]"
+    },
+    "pages.proposalDeclineHistory": {
+      "testId": "proposal-decline-history",
+      "selector": "[data-testid=\"proposal-decline-history\"]"
+    },
+    "pages.proposalAccept": {
+      "testId": "proposal-accept",
+      "selector": "[data-testid=\"proposal-accept\"]"
+    },
+    "pages.proposalOperatorOnly": {
+      "testId": "proposal-operator-only",
+      "selector": "[data-testid=\"proposal-operator-only\"]"
+    },
+    "pages.proposalsEmptyGuidance": {
+      "testId": "proposals-empty-guidance",
+      "selector": "[data-testid=\"proposals-empty-guidance\"]"
+    },
+    "pages.evaluationSchedule": {
+      "testId": "settings-evaluation-schedule",
+      "selector": "[data-testid=\"settings-evaluation-schedule\"]"
+    },
+    "pages.schedulePausedNotice": {
+      "testId": "settings-schedule-paused",
+      "selector": "[data-testid=\"settings-schedule-paused\"]"
+    },
+    "pages.ledgerConnection": {
+      "testId": "settings-ledger-connection",
+      "selector": "[data-testid=\"settings-ledger-connection\"]"
+    },
+    "pages.ledgerConnectionReason": {
+      "testId": "settings-ledger-connection-reason",
+      "selector": "[data-testid=\"settings-ledger-connection-reason\"]"
     },
     "errorBoundary.root": {
       "testId": "error-boundary-root",
@@ -172,7 +296,7 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
+            "offers",
             "settings"
           ]
         }
@@ -188,7 +312,7 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
+            "offers",
             "settings"
           ]
         }

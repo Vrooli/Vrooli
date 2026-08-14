@@ -245,13 +245,13 @@
     },
     {
       "id": "locale-control",
-      "role": "combobox",
+      "role": "radiogroup",
       "name": "Language",
       "description": "Locale switching. Settings owns this control; it is a durable seam of the generated shell, not page content."
     },
     {
       "id": "theme-control",
-      "role": "group",
+      "role": "radiogroup",
       "name": "Theme",
       "description": "Light, dark, and system mode."
     }
@@ -262,6 +262,7 @@
       "type": "element-present",
       "statement": "A declared goal shows its threshold, its comparison, and its sustain window together, not a threshold alone.",
       "tier": "machine",
+      "viewports": ["desktop", "mobile"],
       "elements": [
         "goal-list",
         "goal-threshold",
@@ -386,5 +387,11 @@
         "testid": "settings-theme"
       }
     }
-  }
+  },
+  "floorOptOuts": [
+    {
+      "floor": "safe-area-tap-targets",
+      "reason": "Inherited react-vite v1.6.5 mobile shell floor is tracked by Scenario QA report knw-1786664314062676736; remediation belongs to template-manager, not this scenario."
+    }
+  ]
 }

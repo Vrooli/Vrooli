@@ -27,7 +27,8 @@ export function Sidebar() {
       className="hidden w-56 md:flex"
       contentClassName="p-4"
     >
-      <nav
+      <div
+        role="navigation"
         data-testid={selectors.layout.sidebar}
         aria-label={t(strings.layout.sidebarLabel)}
         className="flex flex-col gap-1"
@@ -53,7 +54,7 @@ export function Sidebar() {
           {t(item.labelKey)}
         </NavLink>
       ))}
-      </nav>
+      </div>
     </SidebarShell>
   );
 }

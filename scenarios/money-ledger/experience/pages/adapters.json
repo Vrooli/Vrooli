@@ -276,6 +276,7 @@
       "type": "element-present",
       "statement": "An unavailable adapter states why it failed and how old its last success is, without opening a detail view.",
       "tier": "machine",
+      "viewports": ["desktop", "mobile"],
       "elements": [
         "failure-reason",
         "last-success-age"

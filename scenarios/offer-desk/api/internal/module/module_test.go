@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
 	"offer-desk/internal/module"
 
 	"github.com/gorilla/mux"

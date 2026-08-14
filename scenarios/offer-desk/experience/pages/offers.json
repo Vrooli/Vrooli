@@ -300,6 +300,7 @@
       "type": "element-present",
       "statement": "The offer graph is accompanied by a table carrying the same nodes and edges.",
       "tier": "machine",
+      "viewports": ["desktop", "mobile"],
       "elements": [
         "offer-graph",
         "offer-table"

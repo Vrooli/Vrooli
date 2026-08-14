@@ -8,7 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
 	"offer-desk/internal/capabilities"
+	"offer-desk/internal/catalog"
 	"offer-desk/internal/modules"
 	"offer-desk/internal/server"
 
@@ -25,7 +27,7 @@ import (
 
 	capsH "offer-desk/handlers/capabilities"
 	healthH "offer-desk/handlers/health"
-	notesH "offer-desk/handlers/notes" // EXAMPLE-DOMAIN:notes
+	offersH "offer-desk/handlers/offers"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -95,17 +97,6 @@ func scenarioStorageRoots() (storage.Paths, error) {
 	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
-// fileRootPath is the template's mandatory file-store seam. Domain stores
-// compose their relative paths from it rather than retaining startup root
-// strings, so X-Vrooli-Test-Mode is honored independently per request.
-func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
-	root, err := roots.Pick(ctx, class)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(root, rel), nil
-}
-
 func sqliteFileDSN(path string) (string, error) {
 	if strings.HasPrefix(path, "file:") {
 		return path, nil
@@ -144,6 +135,9 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	if err := catalog.EnsureMigrations(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("catalog migration failed: %v", err)
+	}
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
 		log.Fatalf("file storage configuration failed: %v", err)
@@ -154,7 +148,7 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "offer-desk-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
+		offersH.Module(db, schedule.System(), log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -162,19 +156,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, schedule.System())
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 

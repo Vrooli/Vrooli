@@ -44,12 +44,6 @@
       "path": "pages/settings.json",
       "title": "Settings",
       "status": "active"
-    },
-    {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
-      "status": "deprecated"
     }
   ],
   "journeys": [
@@ -69,6 +63,18 @@
       "id": "correct-a-mistake",
       "path": "journeys/correct-a-mistake.json",
       "title": "Correct a mistake",
+      "status": "draft"
+    },
+    {
+      "id": "record-a-source-with-no-api-mobile",
+      "path": "journeys/record-a-source-with-no-api-mobile.json",
+      "title": "Record a source with no API on mobile",
+      "status": "draft"
+    },
+    {
+      "id": "first-run",
+      "path": "journeys/first-run.json",
+      "title": "Start a new Money Ledger",
       "status": "draft"
     }
   ]

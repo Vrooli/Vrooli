@@ -258,6 +258,7 @@
       "type": "element-present",
       "statement": "When a source was unavailable for part of the period, the statement names the uncovered span rather than presenting a whole-period total.",
       "tier": "machine",
+      "viewports": ["desktop", "mobile"],
       "elements": [
         "coverage-note"
       ],
@@ -333,6 +334,7 @@
       "type": "custom",
       "statement": "Statement figures share a decimal alignment and use tabular numerals.",
       "tier": "manual",
+      "viewports": ["desktop", "mobile"],
       "elements": [
         "statement-figures"
       ],

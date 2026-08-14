@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "journal",
     "description": "Books, accounts, signed postings, and the audit trail underneath everything else.",
+    "last_validated_at": "2026-08-13T23:50:33-04:00",
+    "module": "journal",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +11,7 @@
     {
       "id": "JRNL-001",
       "title": "Accounts belong to exactly one book",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "domain",
       "criticality": "P0",
@@ -21,8 +22,9 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
           "notes": "An account cannot be created without a book; a book-scoped query never returns another book's accounts."
         }
       ]
@@ -30,7 +32,7 @@
     {
       "id": "JRNL-002",
       "title": "Inter-book movement is modelled, not lost",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "domain",
       "criticality": "P0",
@@ -41,13 +43,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
           "notes": "A transfer writes paired postings that net to zero across books."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "Deleting one side of a transfer is impossible through any API path."
         }
       ]
@@ -55,7 +58,7 @@
     {
       "id": "JRNL-003",
       "title": "Events are signed postings against accounts",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "domain",
       "criticality": "P0",
@@ -66,8 +69,9 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
           "notes": "Postings carry account, signed amount, currency and date; an unsigned or currency-less amount is rejected."
         }
       ]
@@ -75,7 +79,7 @@
     {
       "id": "JRNL-004",
       "title": "The journal is append-only with an audit trail",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "storage",
       "criticality": "P0",
@@ -86,13 +90,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
           "notes": "No API path mutates or deletes an existing posting; a correction creates a reversing entry with a reference."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "The audit trail reconstructs the state of an account at any past date."
         }
       ]
@@ -100,7 +105,7 @@
     {
       "id": "JRNL-005",
       "title": "Balances are computed, never stored",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "service",
       "criticality": "P0",
@@ -111,13 +116,15 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
           "notes": "No balance column exists in the schema; a computed balance equals the sum of its postings."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
           "notes": "Adding a backdated posting changes every affected historical balance on the next read."
         }
       ]

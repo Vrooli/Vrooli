@@ -2,6 +2,7 @@ package modeltest_test
 
 import (
 	"testing"
+
 	"money-ledger/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

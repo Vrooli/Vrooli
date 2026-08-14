@@ -23,8 +23,13 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
+import React from "react";
+import { configureTestProviders } from "@vrooli/api-base/testing";
 import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
+import { Providers } from "./app/providers";
+
+configureTestProviders((children) => React.createElement(Providers, { children }));
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;

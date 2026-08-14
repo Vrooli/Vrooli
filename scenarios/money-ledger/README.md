@@ -12,24 +12,21 @@ Holds where money is and where it went as an auditable journal, admits every sou
 
 **Read first:** [`docs/START-HERE.md`](docs/START-HERE.md) for the initialization gates, then [`PRD.md`](PRD.md) for the operational targets and [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md) for the diagrams showing how the pieces fit together.
 
-> **Status:** documentation gates complete; no product code written. `make orient` reports 6/9 — the three remaining gates require code. See [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) before starting.
+> **Status:** the core journal, ingestion, position, goal, statement, CLI, and console vertical slices are implemented. Run `make test` for the scenario-owned validation suite; see [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) for remaining integration and experience-contract findings.
 
 ---
 
-This scenario was generated from the `react-vite` template and packages
-the standard full-stack Vrooli scenario shape:
+This scenario follows Vrooli's standard full-stack scenario shape:
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)
 - CLI wrapper (`cli/`)
 - Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry, generated L0 experience contract, and progress log
+- Requirements registry, experience contract, and progress log
   (`requirements/`, `experience/`, `docs/internal/PROGRESS.md`)
 
-> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
+> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md), then use
+> `make orient` for the current lifecycle and contract gate status.
 
 ## What's In This Scenario
 
@@ -54,26 +51,16 @@ the standard full-stack Vrooli scenario shape:
   shell, and bottom navigation.
 - Root-level `DESIGN.md` plus generated UI token assets from the
   selected design kit.
-- Generated `experience/` L0 specs for the starter routes. These are UX
-  intent placeholders, not finished claims; grow them as routes become real.
+- Experience contracts for the six operator pages, including live-data,
+  degraded, empty, and mobile journey states.
 - A documentation contract in `docs/manifest.json`, with stubs for
   domains, flows, data, integrations, monetization, deployment,
   runbooks, observability, security, performance, and durable
   decisions.
 
-## Placeholders vs. Durable Scaffolding
+## Durable seams
 
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
-
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- Starter page content such as the dashboard metric placeholders.
-- The bare-minimum settings surface once your scenario needs more than
-  theme and locale.
-
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
+The product-specific implementation preserves these cross-cutting seams:
 
 - i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
 - Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
@@ -93,8 +80,8 @@ an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
 tag; the four allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
+`api/internal/module/module.go`. REST endpoints are limited to the
+explicitly approved exception cases.
 
 [`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
 workflow in full.

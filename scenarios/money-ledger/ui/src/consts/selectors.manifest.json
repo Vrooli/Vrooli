@@ -48,70 +48,6 @@
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
     },
-    "notes.card": {
-      "testId": "notes-card",
-      "selector": "[data-testid=\"notes-card\"]"
-    },
-    "notes.list": {
-      "testId": "notes-list",
-      "selector": "[data-testid=\"notes-list\"]"
-    },
-    "notes.loading": {
-      "testId": "notes-loading",
-      "selector": "[data-testid=\"notes-loading\"]"
-    },
-    "notes.empty": {
-      "testId": "notes-empty",
-      "selector": "[data-testid=\"notes-empty\"]"
-    },
-    "notes.error": {
-      "testId": "notes-error",
-      "selector": "[data-testid=\"notes-error\"]"
-    },
-    "notes.createButton": {
-      "testId": "notes-create-button",
-      "selector": "[data-testid=\"notes-create-button\"]"
-    },
-    "notes.createdAt": {
-      "testId": "notes-created-at",
-      "selector": "[data-testid=\"notes-created-at\"]"
-    },
-    "notes.attachmentCount": {
-      "testId": "notes-attachment-count",
-      "selector": "[data-testid=\"notes-attachment-count\"]"
-    },
-    "notes.attachmentUpload": {
-      "testId": "notes-attachment-upload",
-      "selector": "[data-testid=\"notes-attachment-upload\"]"
-    },
-    "notes.attachmentFile": {
-      "testId": "notes-attachment-file",
-      "selector": "[data-testid=\"notes-attachment-file\"]"
-    },
-    "notes.attachmentButton": {
-      "testId": "notes-attachment-button",
-      "selector": "[data-testid=\"notes-attachment-button\"]"
-    },
-    "notes.attachmentStatus": {
-      "testId": "notes-attachment-status",
-      "selector": "[data-testid=\"notes-attachment-status\"]"
-    },
-    "notes.measure.card": {
-      "testId": "notes-measure-card",
-      "selector": "[data-testid=\"notes-measure-card\"]"
-    },
-    "notes.measure.value": {
-      "testId": "notes-measure-value",
-      "selector": "[data-testid=\"notes-measure-value\"]"
-    },
-    "notes.measure.loading": {
-      "testId": "notes-measure-loading",
-      "selector": "[data-testid=\"notes-measure-loading\"]"
-    },
-    "notes.measure.error": {
-      "testId": "notes-measure-error",
-      "selector": "[data-testid=\"notes-measure-error\"]"
-    },
     "layout.shell": {
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
@@ -144,13 +80,173 @@
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
     },
-    "pages.notes": {
-      "testId": "page-notes",
-      "selector": "[data-testid=\"page-notes\"]"
+    "pages.runwayFigure": {
+      "testId": "position-runway",
+      "selector": "[data-testid=\"position-runway\"]"
+    },
+    "pages.runwayBasis": {
+      "testId": "position-runway-basis",
+      "selector": "[data-testid=\"position-runway-basis\"]"
+    },
+    "pages.completeness": {
+      "testId": "position-completeness",
+      "selector": "[data-testid=\"position-completeness\"]"
+    },
+    "pages.missingAdapter": {
+      "testId": "position-missing-adapter",
+      "selector": "[data-testid=\"position-missing-adapter\"]"
+    },
+    "pages.goalList": {
+      "testId": "position-goal-list",
+      "selector": "[data-testid=\"position-goal-list\"]"
+    },
+    "pages.sustainProgress": {
+      "testId": "goal-sustain-progress",
+      "selector": "[data-testid=\"goal-sustain-progress\"]"
+    },
+    "pages.positionDelta": {
+      "testId": "position-delta",
+      "selector": "[data-testid=\"position-delta\"]"
+    },
+    "pages.emptyGuidance": {
+      "testId": "position-empty-guidance",
+      "selector": "[data-testid=\"position-empty-guidance\"]"
+    },
+    "pages.positionError": {
+      "testId": "position-error",
+      "selector": "[data-testid=\"position-error\"]"
+    },
+    "pages.journal": {
+      "testId": "page-journal",
+      "selector": "[data-testid=\"page-journal\"]"
+    },
+    "pages.accounts": {
+      "testId": "page-accounts",
+      "selector": "[data-testid=\"page-accounts\"]"
+    },
+    "pages.adapters": {
+      "testId": "page-adapters",
+      "selector": "[data-testid=\"page-adapters\"]"
+    },
+    "pages.statements": {
+      "testId": "page-statements",
+      "selector": "[data-testid=\"page-statements\"]"
     },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.bookList": {
+      "testId": "book-list",
+      "selector": "[data-testid=\"book-list\"]"
+    },
+    "pages.bookLabel": {
+      "testId": "account-book-label",
+      "selector": "[data-testid=\"account-book-label\"]"
+    },
+    "pages.accountTable": {
+      "testId": "account-table",
+      "selector": "[data-testid=\"account-table\"]"
+    },
+    "pages.balanceBasis": {
+      "testId": "account-balance-basis",
+      "selector": "[data-testid=\"account-balance-basis\"]"
+    },
+    "pages.balanceGap": {
+      "testId": "account-balance-gap",
+      "selector": "[data-testid=\"account-balance-gap\"]"
+    },
+    "pages.transferPair": {
+      "testId": "account-transfer-pair",
+      "selector": "[data-testid=\"account-transfer-pair\"]"
+    },
+    "pages.adapterList": {
+      "testId": "adapter-list",
+      "selector": "[data-testid=\"adapter-list\"]"
+    },
+    "pages.adapterAvailability": {
+      "testId": "adapter-availability",
+      "selector": "[data-testid=\"adapter-availability\"]"
+    },
+    "pages.failureReason": {
+      "testId": "adapter-failure-reason",
+      "selector": "[data-testid=\"adapter-failure-reason\"]"
+    },
+    "pages.lastSuccessAge": {
+      "testId": "adapter-last-success-age",
+      "selector": "[data-testid=\"adapter-last-success-age\"]"
+    },
+    "pages.missingImpact": {
+      "testId": "adapter-missing-impact",
+      "selector": "[data-testid=\"adapter-missing-impact\"]"
+    },
+    "pages.credentialGap": {
+      "testId": "adapter-credential-gap",
+      "selector": "[data-testid=\"adapter-credential-gap\"]"
+    },
+    "pages.manualAdapterEntry": {
+      "testId": "adapter-row-manual",
+      "selector": "[data-testid=\"adapter-row-manual\"]"
+    },
+    "pages.eventTable": {
+      "testId": "journal-table",
+      "selector": "[data-testid=\"journal-table\"]"
+    },
+    "pages.eventBasis": {
+      "testId": "journal-event-basis",
+      "selector": "[data-testid=\"journal-event-basis\"]"
+    },
+    "pages.eventSource": {
+      "testId": "journal-event-source",
+      "selector": "[data-testid=\"journal-event-source\"]"
+    },
+    "pages.reversalLink": {
+      "testId": "journal-reversal-link",
+      "selector": "[data-testid=\"journal-reversal-link\"]"
+    },
+    "pages.reversalReason": {
+      "testId": "journal-reversal-reason",
+      "selector": "[data-testid=\"journal-reversal-reason\"]"
+    },
+    "pages.reverseAction": {
+      "testId": "journal-reverse",
+      "selector": "[data-testid=\"journal-reverse\"]"
+    },
+    "pages.auditTrail": {
+      "testId": "journal-audit-trail",
+      "selector": "[data-testid=\"journal-audit-trail\"]"
+    },
+    "pages.manualEntry": {
+      "testId": "journal-manual-entry",
+      "selector": "[data-testid=\"journal-manual-entry\"]"
+    },
+    "pages.statementFigures": {
+      "testId": "statement-figures",
+      "selector": "[data-testid=\"statement-figures\"]"
+    },
+    "pages.coverageNote": {
+      "testId": "statement-coverage",
+      "selector": "[data-testid=\"statement-coverage\"]"
+    },
+    "pages.periodSelector": {
+      "testId": "statement-period",
+      "selector": "[data-testid=\"statement-period\"]"
+    },
+    "pages.categoryBreakdown": {
+      "testId": "statement-categories",
+      "selector": "[data-testid=\"statement-categories\"]"
+    },
+    "pages.uncategorisedCount": {
+      "testId": "statement-uncategorised-count",
+      "selector": "[data-testid=\"statement-uncategorised-count\"]"
+    },
+    "pages.notTaxAdvice": {
+      "testId": "statement-not-tax-advice",
+      "selector": "[data-testid=\"statement-not-tax-advice\"]"
+    },
+    "pages.exportAction": {
+      "testId": "statement-export",
+      "selector": "[data-testid=\"statement-export\"]"
     },
     "errorBoundary.root": {
       "testId": "error-boundary-root",
@@ -172,7 +268,7 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
+            "journal",
             "settings"
           ]
         }
@@ -188,7 +284,7 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
+            "journal",
             "settings"
           ]
         }

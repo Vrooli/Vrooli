@@ -25,10 +25,10 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "offer-desk/handlers/health"
-	notesH "offer-desk/handlers/notes" // EXAMPLE-DOMAIN:notes
+	offersH "offer-desk/handlers/offers"
 	localdb "offer-desk/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/notes" // EXAMPLE-DOMAIN:notes
+	offersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +39,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, offersH.Endpoints...)
 	return out
 }
 
@@ -66,7 +66,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_offer_desk_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "offers", File: offersv1.File_offer_desk_v1_offers_offers_proto},
 	}
 }
 
@@ -81,6 +81,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(offersH.Schema),
 	}
 }

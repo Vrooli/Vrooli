@@ -1,0 +1,21 @@
+package offers
+
+import (
+	"fmt"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+const GroupName = "offers"
+
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
+	h := newHandlers(core)
+	b := map[string]cliapp.PrimitiveHandler{
+		"CatalogService.ListNodes": cliapp.ProtoList(h.list, listReport), "CatalogService.CreateNode": cliapp.ProtoMutation(h.create, createReport), "CatalogService.Transition": cliapp.ProtoMutation(h.transition, transitionReport), "CatalogService.CreateEdge": cliapp.ProtoMutation(h.edge, edgeReport), "CatalogService.ListEdges": cliapp.ProtoList(h.edgesList, edgesListReport), "GatesService.DeclareTrigger": cliapp.ProtoMutation(h.trigger, triggerReport), "GatesService.AddFact": cliapp.ProtoMutation(h.fact, factReport), "GatesService.Evaluate": cliapp.ProtoMutation(h.evaluate, evaluateReport), "GatesService.Promote": cliapp.ProtoMutation(h.promote, promoteReport), "BoardService.GetBoard": cliapp.ProtoList(h.board, boardReport),
+	}
+	g, e := cliapp.LoadFromManifestPrimitives(manifest, GroupName, b)
+	if e != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("offers: load from manifest: %w", e)
+	}
+	return g, nil
+}

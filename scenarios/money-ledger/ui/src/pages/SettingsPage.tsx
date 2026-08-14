@@ -1,10 +1,17 @@
 import { Button } from "../components/ui/button";
+import { Select } from "../components/ui/select";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
+import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+const THEME_LABEL_KEYS = {
+  light: strings.theme.choice.light,
+  dark: strings.theme.choice.dark,
+  system: strings.theme.choice.system,
+};
 
 /**
  * Settings page. Surfaces the locale and theme selectors as a real page (in
@@ -13,11 +20,15 @@ const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
  */
 export function SettingsPage() {
   const { t } = useTranslation();
+  const fixture = new URLSearchParams(window.location.search).get("fixture");
   const currentLocale = getCurrentLocale();
   const { choice, setTheme } = useTheme();
+  const goalsEmpty = fixture !== "goal-declared";
 
   return (
-    <section
+    <ExperienceSurface
+      surfaceId="settings"
+      state="static"
       data-testid={selectors.pages.settings}
       aria-labelledby="settings-heading"
       className="flex flex-col gap-6"
@@ -26,11 +37,26 @@ export function SettingsPage() {
         {t(strings.pages.settings.title)}
       </h2>
 
+      <section className="rounded-md border p-4" aria-labelledby="settings-goals-heading">
+        <h3 id="settings-goals-heading" className="font-semibold">{t(strings.pages.settings.goalsHeading)}</h3>
+        <ul data-testid="settings-goal-list" aria-label={t(strings.pages.settings.goalsHeading)} className="mt-2 text-sm text-app-muted-foreground">
+          <li>{fixture === "goals-empty" ? t(strings.pages.settings.goalsEmpty) : t(strings.pages.settings.goalDescription)}</li>
+        </ul>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <span data-testid="settings-goal-threshold" role="group" aria-label={t(strings.pages.settings.goalThreshold)} className="rounded border p-2 text-sm">{t(strings.pages.settings.goalThreshold)}</span>
+          <span data-testid="settings-goal-sustain-window" role="group" aria-label={t(strings.pages.settings.goalSustainWindow)} className="rounded border p-2 text-sm">{t(strings.pages.settings.goalSustainWindow)}</span>
+          <span data-testid="settings-goal-buffer" role="group" aria-label={t(strings.pages.settings.goalBuffer)} className="rounded border p-2 text-sm">{t(strings.pages.settings.goalBuffer)}</span>
+        </div>
+        <p data-testid="settings-goals-empty-guidance" role="note" className="mt-2 text-sm text-app-muted-foreground">
+          {goalsEmpty ? t(strings.pages.settings.goalsEmpty) : t(strings.pages.settings.goalDescription)}
+        </p>
+      </section>
+
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
           {t(strings.pages.settings.themeHeading)}
         </h3>
-        <div role="radiogroup" aria-label={t(strings.theme.switcherLabel)} className="flex flex-wrap gap-2">
+        <div role="radiogroup" aria-label={t(strings.theme.switcherLabel)} data-testid="settings-theme" className="flex flex-wrap gap-2">
           {THEME_CHOICES.map((c) => (
             <Button
               key={c}
@@ -42,7 +68,7 @@ export function SettingsPage() {
               onClick={() => setTheme(c)}
               data-testid={selectors.settingsPage.themeOption({ choice: c })}
             >
-              {t(strings.theme.choice[c])}
+              {t(THEME_LABEL_KEYS[c])}
             </Button>
           ))}
         </div>
@@ -52,7 +78,7 @@ export function SettingsPage() {
         <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
           {t(strings.pages.settings.localeHeading)}
         </h3>
-        <div role="radiogroup" aria-label={t(strings.locale.switcherLabel)} className="flex flex-wrap gap-2">
+        <div role="radiogroup" aria-label={t(strings.locale.switcherLabel)} data-testid="settings-locale" className="flex flex-wrap gap-2">
           {SUPPORTED_LOCALES.map((lng) => (
             <Button
               key={lng}
@@ -69,6 +95,29 @@ export function SettingsPage() {
           ))}
         </div>
       </div>
-    </section>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className="flex flex-col gap-1 rounded border p-2 text-sm">
+          <span>{t(strings.pages.settings.defaultBook)}</span>
+          <Select
+            data-testid="settings-default-book"
+            aria-label={t(strings.pages.settings.defaultBook)}
+            defaultValue="none"
+            className="min-h-11 rounded border bg-background px-2 py-1"
+            options={[{ value: "none", label: t(strings.pages.settings.defaultBook) }]}
+          />
+        </label>
+        <label className="flex flex-col gap-1 rounded border p-2 text-sm">
+          <span>{t(strings.pages.settings.currencyDisplay)}</span>
+          <Select
+            data-testid="settings-currency-display"
+            aria-label={t(strings.pages.settings.currencyDisplay)}
+            defaultValue="separate"
+            className="min-h-11 rounded border bg-background px-2 py-1"
+            options={[{ value: "separate", label: t(strings.pages.settings.currencyDisplay) }]}
+          />
+        </label>
+      </div>
+    </ExperienceSurface>
   );
 }

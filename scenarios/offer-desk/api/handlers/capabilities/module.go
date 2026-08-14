@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"net/http"
+
 	"offer-desk/internal/capabilities"
 	"offer-desk/internal/module"
 

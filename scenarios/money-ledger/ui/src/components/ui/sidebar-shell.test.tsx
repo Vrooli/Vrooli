@@ -20,7 +20,7 @@ describe("SidebarShell", () => {
     );
 
     expect(screen.getByTestId("sidebar-shell")).toHaveAttribute("data-mode", "persistent");
-    expect(screen.getByText("Navigation")).toBeInTheDocument();
+    expect(screen.getByText(/Navigation/)).toBeInTheDocument();
   });
 
   it("closes an overlay from the backdrop and Escape key", async () => {

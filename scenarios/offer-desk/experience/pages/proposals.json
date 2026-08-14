@@ -256,6 +256,7 @@
       "type": "element-present",
       "statement": "Every proposal states which actor authored it.",
       "tier": "machine",
+      "viewports": ["desktop", "mobile"],
       "elements": [
         "proposer-identity"
       ],

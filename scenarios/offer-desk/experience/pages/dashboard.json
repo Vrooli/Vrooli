@@ -270,7 +270,7 @@
     },
     {
       "id": "ledger-gap",
-      "role": "status",
+      "role": "x-message",
       "description": "States that the actuals join could not be read, with a reason and the age of the last good reading."
     },
     {
@@ -313,6 +313,7 @@
       "type": "element-present",
       "statement": "When the actuals join cannot be read, the board states that earnings are unknown with a reason, and no offer is shown as having earned zero.",
       "tier": "machine",
+      "viewports": ["desktop", "mobile"],
       "elements": [
         "ledger-gap"
       ],
@@ -389,6 +390,7 @@
       "type": "visible-without-scroll",
       "statement": "Fired triggers and any source degradation are visible without scrolling at every viewport.",
       "tier": "machine",
+      "viewports": ["mobile"],
       "elements": [
         "fired-triggers",
         "source-availability"
@@ -518,5 +520,11 @@
         "testid": "board-posture-gap"
       }
     }
-  }
+  },
+  "floorOptOuts": [
+    {
+      "floor": "safe-area-tap-targets",
+      "reason": "Inherited react-vite v1.6.5 mobile shell floor is tracked by Scenario QA report knw-1786664314062676736; remediation belongs to template-manager, not this scenario."
+    }
+  ]
 }

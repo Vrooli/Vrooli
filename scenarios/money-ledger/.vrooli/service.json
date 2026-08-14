@@ -1,5 +1,20 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "storage": {
+    "entries": {
+      "data": {
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Measured at 135168 bytes on 2026-08-14; ceiling is two times observed size."
+        },
+        "class": "data",
+        "kind": "dir",
+        "rationale": "SQLite ledger database and scenario-owned durable data surface.",
+        "regenerable": false,
+        "rung": "owned"
+      }
+    }
+  },
   "version": "1.0.0",
   "service": {
     "parent": "vrooli",

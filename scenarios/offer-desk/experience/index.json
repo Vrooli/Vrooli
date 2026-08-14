@@ -38,12 +38,6 @@
       "path": "pages/settings.json",
       "title": "Settings",
       "status": "active"
-    },
-    {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
-      "status": "deprecated"
     }
   ],
   "journeys": [
@@ -63,6 +57,12 @@
       "id": "learn-from-a-refusal",
       "path": "journeys/learn-from-a-refusal.json",
       "title": "Learn from a refusal",
+      "status": "draft"
+    },
+    {
+      "id": "first-run",
+      "path": "journeys/first-run.json",
+      "title": "Start a new Offer Desk",
       "status": "draft"
     }
   ]

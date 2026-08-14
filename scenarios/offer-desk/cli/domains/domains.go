@@ -1,7 +1,7 @@
 package domains
 
 import (
-	"offer-desk/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"offer-desk/cli/domains/offers"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -37,12 +37,10 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	offersGroup, err := offers.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups = append(groups, offersGroup)
 	return groups, nil
 }

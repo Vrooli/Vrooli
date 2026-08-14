@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "expansion",
     "description": "Reconciliation, console, the seams held open for capabilities not yet justified, and the market-driven expansions added 2026-08-13 from the competitive scan (RCR/CAT/ATT/CUR).",
+    "last_validated_at": "2026-08-13T23:50:33-04:00",
+    "module": "expansion",
     "prd_ref": "PRD.md",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -21,7 +22,7 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "A seeded mismatch in each direction produces exactly one finding each."
         }
@@ -30,7 +31,7 @@
     {
       "id": "UI-001",
       "title": "Console covers every perceivable state",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P2-002",
       "category": "ui",
       "criticality": "P2",
@@ -41,13 +42,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "ui/src/pages/pages.test.tsx",
+          "status": "implemented",
           "notes": "Feature tests assert each state renders with its documented selector."
         },
         {
-          "type": "business",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "BAS case asserts figures use tabular numerals and that status carries text."
         }
       ]
@@ -66,7 +68,7 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "A valuation event changes a holding's value without creating an income posting."
         }
@@ -106,7 +108,7 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "A lot reference round-trips and constrains nothing else about the posting."
         }
@@ -126,12 +128,12 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "A projected event never contributes to a balance reported as authoritative."
         },
         {
-          "type": "integration",
+          "type": "test",
           "status": "planned",
           "notes": "Position computed with and without projected events differs, and each response states which basis set it used."
         }
@@ -151,12 +153,12 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "A rule that attempts to write an amount is rejected at declaration time."
         },
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "An accepted model suggestion records basis `derived` and its producing model."
         }
@@ -176,12 +178,12 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "An attachment round-trips and is reachable only through its owning event."
         },
         {
-          "type": "business",
+          "type": "test",
           "status": "planned",
           "notes": "The export includes attachment references for every event that has one."
         }
@@ -201,7 +203,7 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "status": "planned",
           "notes": "A book holding two currencies produces two reported lines and no combined total."
         }

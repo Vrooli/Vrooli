@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "migration",
     "description": "Importing the source catalog without losing anything, and retiring it safely.",
+    "last_validated_at": "2026-08-13T23:59:16-04:00",
+    "module": "migration",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +11,7 @@
     {
       "id": "MIG-001",
       "title": "Import verifies counts per source file",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "migration",
       "criticality": "P0",
@@ -21,13 +22,14 @@
       ],
       "validation": [
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/catalog/importer_test.go",
+          "status": "implemented",
           "notes": "Import a fixture copy of the source tree and assert per-file read/write parity."
         },
         {
           "type": "manual",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Operator reviews the per-file count report before any source file is deleted."
         }
       ]
@@ -35,7 +37,7 @@
     {
       "id": "MIG-002",
       "title": "Broken source references are reported, not silently dropped",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "migration",
       "criticality": "P0",
@@ -46,8 +48,9 @@
       ],
       "validation": [
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/catalog/importer_test.go",
+          "status": "implemented",
           "notes": "A fixture with a known-dangling reference produces exactly one finding and still imports the node."
         }
       ]

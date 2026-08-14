@@ -14,25 +14,25 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Accounts and books | Accounts belong to exactly one book (an accounting entity); queries scope to one book or span several, and inter-book movement is modelled rather than lost
-- [ ] OT-P0-002 | Signed postings journal | Money events are dated, signed postings against accounts, stored append-only with an audit trail
-- [ ] OT-P0-003 | Derived balances | Balances, cash flow, burn and net position are computed at read time and never stored, so a stale figure is structurally impossible
-- [ ] OT-P0-004 | The money-event contract | Exactly one typed contract admits events into the journal; every source is an adapter satisfying it, with no privileged path
-- [ ] OT-P0-005 | Provenance and basis on every event | Each event carries its adapter, external id, fetch time, and a basis of `authoritative`, `derived`, or `operator-asserted`
-- [ ] OT-P0-006 | Manual and file adapters are first-class | Operator entry and file import are ordinary adapters, not a degraded fallback, because several real revenue sources have no API at all
-- [ ] OT-P0-007 | Idempotent ingestion | Re-running an adapter over an overlapping window produces no duplicate postings
+- [x] OT-P0-001 | Accounts and books | Accounts belong to exactly one book (an accounting entity); queries scope to one book or span several, and inter-book movement is modelled rather than lost
+- [x] OT-P0-002 | Signed postings journal | Money events are dated, signed postings against accounts, stored append-only with an audit trail
+- [x] OT-P0-003 | Derived balances | Balances, cash flow, burn and net position are computed at read time and never stored, so a stale figure is structurally impossible
+- [x] OT-P0-004 | The money-event contract | Exactly one typed contract admits events into the journal; every source is an adapter satisfying it, with no privileged path
+- [x] OT-P0-005 | Provenance and basis on every event | Each event carries its adapter, external id, fetch time, and a basis of `authoritative`, `derived`, or `operator-asserted`
+- [x] OT-P0-006 | Manual and file adapters are first-class | Operator entry and file import are ordinary adapters, not a degraded fallback, because several real revenue sources have no API at all
+- [x] OT-P0-007 | Idempotent ingestion | Re-running an adapter over an overlapping window produces no duplicate postings
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Position and runway | Runway, burn, and inflow/outflow over a window are computed from the journal with every input's source and age visible
-- [ ] OT-P1-002 | Goals with thresholds | Financial goals are declared as thresholds with a sustain window and evaluated against position; "default-alive" is one instance rather than the only rule
-- [ ] OT-P1-003 | Statements | Income-versus-expense over a period and assets-minus-liabilities at a date, as queries over the same journal
-- [ ] OT-P1-004 | Adapter health is honest | An adapter that cannot run is reported unavailable with a reason and an age; it is never reported as zero
+- [x] OT-P1-001 | Position and runway | Runway, burn, and inflow/outflow over a window are computed from the journal with every input's source and age visible
+- [x] OT-P1-002 | Goals with thresholds | Financial goals are declared as thresholds with a sustain window and evaluated against position; "default-alive" is one instance rather than the only rule
+- [x] OT-P1-003 | Statements | Income-versus-expense over a period and assets-minus-liabilities at a date, as queries over the same journal
+- [x] OT-P1-004 | Adapter health is honest | An adapter that cannot run is reported unavailable with a reason and an age; it is never reported as zero
 - [ ] OT-P1-005 | Commerce adapter | The Landing Page Business Suite adapter lands subscription and charge events, proving the contract against a real upstream
 - [ ] OT-P1-006 | Tax categorisation | Events carry deductibility category tags, so an accountant gets a clean export
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Reconciliation | Match journal entries against an authoritative source statement and surface unmatched entries on both sides
-- [ ] OT-P2-002 | Operator console | Journal, position, goals and adapter health with explicit loading, empty, partial, stale and error states
+- [x] OT-P2-002 | Operator console | Journal, position, goals and adapter health with explicit loading, empty, partial, stale and error states
 - [ ] OT-P2-003 | Valuation accounts | Holdings whose value changes without a transaction — investments, crypto — as an account kind plus a valuation event
 - [ ] OT-P2-004 | Adapter extraction | Adapters move to their own scenario when credential rotation, independent sync clocks, or a third live adapter justifies the boundary
 - [ ] OT-P2-005 | Cost-basis lots | An event may reference an acquisition lot so a per-unit margin is knowable for resale, once a resale capability exists to need it

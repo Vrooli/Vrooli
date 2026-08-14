@@ -260,6 +260,7 @@
       "type": "element-present",
       "statement": "Every account states which book it belongs to, rather than relying on visual grouping alone.",
       "tier": "machine",
+      "viewports": ["desktop", "mobile"],
       "elements": [
         "account-table",
         "book-label"

@@ -43,7 +43,7 @@ describe("AppShell structure (cimode)", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     for (const key of [
       "dashboard",
-      "notes", // EXAMPLE-DOMAIN:notes
+      "offers",
       "settings",
     ] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();

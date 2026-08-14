@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "contract",
     "description": "The single inbound contract every money source satisfies.",
+    "last_validated_at": "2026-08-13T23:50:33-04:00",
+    "module": "contract",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +11,7 @@
     {
       "id": "CTR-001",
       "title": "One contract admits every event",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "contract",
       "criticality": "P0",
@@ -21,13 +22,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
           "notes": "Architecture test asserts the journal writer is reachable only through the contract type."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "Two different adapters produce byte-identical journal shapes for equivalent events."
         }
       ]
@@ -35,7 +37,7 @@
     {
       "id": "CTR-002",
       "title": "Every event carries provenance and basis",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "contract",
       "criticality": "P0",
@@ -46,13 +48,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
           "notes": "An event missing any provenance field is rejected; each basis value round-trips."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "A position response can attribute every contributing figure to a basis."
         }
       ]
@@ -60,7 +63,7 @@
     {
       "id": "CTR-003",
       "title": "Manual and file adapters are ordinary adapters",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "adapter",
       "criticality": "P0",
@@ -71,13 +74,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ingest/store_test.go",
+          "status": "implemented",
           "notes": "The manual and file adapters satisfy the same interface as an API adapter, asserted structurally."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "A file import and an API sync produce equivalent journal entries for equivalent input."
         }
       ]
@@ -85,7 +89,7 @@
     {
       "id": "CTR-004",
       "title": "Ingestion is idempotent",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "adapter",
       "criticality": "P0",
@@ -96,13 +100,14 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
           "notes": "Ingesting the same payload twice yields one posting set."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "Overlapping windows across two runs produce no duplicate entries."
         }
       ]
@@ -110,7 +115,7 @@
     {
       "id": "CTR-005",
       "title": "Adapters may only emit events",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "architecture",
       "criticality": "P0",
@@ -121,8 +126,9 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
           "notes": "Architecture test asserts no adapter package imports a non-ingestion domain."
         }
       ]
@@ -130,7 +136,7 @@
     {
       "id": "CTR-006",
       "title": "The operator-inputs import is verified before the sources are retired",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "adapter",
       "criticality": "P0",
@@ -142,23 +148,25 @@
       ],
       "validation": [
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ingest/store_test.go",
+          "status": "implemented",
           "notes": "Import of a fixture operator-inputs file yields one event per populated field, each with basis operator-asserted and provenance naming the source file and its read time."
         },
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "A field present in the source and absent from the import produces a verification failure, not a silent skip."
         },
         {
-          "type": "unit",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/ingest/store_test.go",
+          "status": "implemented",
           "notes": "Fields marked pending-operator in the source import as absent rather than as zero."
         },
         {
-          "type": "integration",
-          "status": "planned",
+          "type": "test",
+          "status": "implemented",
           "notes": "The verification report emits per-field counts sufficient to authorise source retirement, and reports any mismatch as a blocking finding."
         }
       ]

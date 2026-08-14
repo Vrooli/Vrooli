@@ -274,6 +274,7 @@
       "type": "affordance-present",
       "statement": "The only correction affordance on an event is reversal; no edit or delete control is offered anywhere on this page.",
       "tier": "machine",
+      "viewports": ["desktop", "mobile"],
       "elements": [
         "reverse-action"
       ],
@@ -372,6 +373,7 @@
       "type": "custom",
       "statement": "Amounts in the journal share a decimal alignment and use tabular numerals, so magnitudes are comparable down the column.",
       "tier": "manual",
+      "viewports": ["desktop", "mobile"],
       "elements": [
         "event-table"
       ],

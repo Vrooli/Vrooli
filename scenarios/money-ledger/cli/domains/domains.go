@@ -1,7 +1,7 @@
 package domains
 
 import (
-	"money-ledger/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"money-ledger/cli/domains/ledger"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -37,12 +37,15 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	ledgerGroup, err := ledger.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups = append(groups, ledgerGroup)
+	ingestGroup, err := ledger.RegisterIngest(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, ingestGroup)
 	return groups, nil
 }
