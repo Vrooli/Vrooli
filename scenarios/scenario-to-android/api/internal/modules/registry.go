@@ -20,6 +20,7 @@ import (
 	"scenario-to-android/internal/module"
 
 	capsH "scenario-to-android/handlers/capabilities"
+	rampH "scenario-to-android/handlers/ramp"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -36,6 +37,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
+	out = append(out, rampH.Module(nil).Endpoints...)
 	return out
 }
 

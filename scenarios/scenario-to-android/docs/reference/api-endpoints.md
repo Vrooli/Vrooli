@@ -65,6 +65,21 @@ The scaffold ships one fully worked CRUD vertical slice as a copyable
 reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
 
+### Android ramp REST routes
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/android/targets` | Probe local, emulator, physical, and bridge-served targets. |
+| `POST` | `/api/v1/android/build` | Generate and build a debug APK/AAB from a scenario web bundle. |
+| `GET` | `/api/v1/android/conformance-plan` | Return the registered twelve-chapter Android journey. |
+| `GET` | `/api/v1/android/readiness` | Return the six-rung Google readiness model. |
+| `GET` | `/api/v1/android/distribution` | Return independent Play, verified-sideload, and ADB channel states. |
+
+The build request is JSON with `source_ref` and optional `package_name`,
+`app_name`, `version_name`, `version_code`, and `target_sdk`. The response is
+the immutable artifact descriptor, including APK checksum and AAB metadata.
+The endpoint never accepts or creates release signing material.
+
 ---
 
 ## Adding a new endpoint

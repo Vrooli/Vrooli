@@ -216,7 +216,7 @@ func parseHealthBody(body io.Reader) bool {
 	if payload.Readiness != nil && !*payload.Readiness {
 		return false
 	}
-	if payload.Status != "" && payload.Status != "healthy" && payload.Status != "degraded" {
+	if payload.Status != "" && payload.Status != "healthy" && payload.Status != "degraded" && payload.Status != "ok" {
 		return false
 	}
 	return true

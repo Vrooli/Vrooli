@@ -16,6 +16,8 @@ export interface StoredTokens {
     accessToken: string;
     refreshToken: string;
     expiresAt: string;
+    /** Signed LPBS entitlement lease; encrypted with the token record. */
+    entitlementLease?: string;
 }
 
 /**
@@ -164,6 +166,9 @@ export interface IAuthManager {
      * @returns The access token, or null if not authenticated
      */
     getAccessToken(): Promise<string | null>;
+
+    /** Return the last signed entitlement lease received from LPBS. */
+    getEntitlementLease(): Promise<string | null>;
 
     /**
      * Get the stored user information.

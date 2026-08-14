@@ -55,6 +55,7 @@ type DefaultService struct {
 	evidenceReporter    EvidenceReporter
 	manifestWriter      EvidenceManifestWriter
 	rendererURLResolver func(context.Context, string) (string, error)
+	apiURLResolver      func(context.Context, string) (string, error)
 }
 
 // NewService creates a new smoke test service with all required dependencies.
@@ -86,6 +87,7 @@ func NewService(
 		port:                port,
 		telemetryExtractor:  telemetryExtractor,
 		rendererURLResolver: resolveScenarioRendererURL,
+		apiURLResolver:      resolveScenarioAPIURL,
 	}
 }
 
@@ -98,6 +100,19 @@ func resolveScenarioRendererURL(ctx context.Context, scenarioName string) (strin
 			err = fmt.Errorf("port detector returned %q", portText)
 		}
 		return "", fmt.Errorf("resolve UI_PORT for %q: %w", scenarioName, err)
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d", port), nil
+}
+
+func resolveScenarioAPIURL(ctx context.Context, scenarioName string) (string, error) {
+	_ = ctx
+	portText := cliutil.DetectPortFromVrooli(scenarioName, "API_PORT")()
+	port, err := strconv.Atoi(portText)
+	if err != nil || port <= 0 {
+		if err == nil {
+			err = fmt.Errorf("port detector returned %q", portText)
+		}
+		return "", fmt.Errorf("resolve API_PORT for %q: %w", scenarioName, err)
 	}
 	return fmt.Sprintf("http://127.0.0.1:%d", port), nil
 }
@@ -151,6 +166,7 @@ func NewDefaultSmokeTestService(
 		envReader:           envReader,
 		telemetryExtractor:  telemetryExtractor,
 		rendererURLResolver: resolveScenarioRendererURL,
+		apiURLResolver:      resolveScenarioAPIURL,
 	}
 }
 

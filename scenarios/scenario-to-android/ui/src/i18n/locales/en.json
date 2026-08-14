@@ -10,7 +10,10 @@
     "bottomNavLabel": "Mobile navigation",
     "nav": {
       "dashboard": "Dashboard",
-      "settings": "Settings"
+      "settings": "Settings",
+      "targets": "Targets",
+      "runs": "Run review",
+      "readiness": "Readiness"
     }
   },
   "theme": {
@@ -31,6 +34,17 @@
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    },
+    "targets": {
+      "title": "Target matrix",
+      "description": "Local emulator, physical device, and bridge discovery with operator next actions.",
+      "kind": "Kind:", "ready": "ready", "unavailable": "unavailable", "readyForSelection": "Ready for selection", "next": "Next:", "empty": "No target inventory is currently available."
+    },
+    "runs": {
+      "title": "Run review", "description": "Chapter dispositions, target identity, and evidence references are durable matrix records.", "gate": "Gate:", "passed": "passed", "notPassed": "not passed", "evidence": "Evidence:", "none": "none", "empty": "No Android validation runs have been recorded."
+    },
+    "readiness": {
+      "title": "Release readiness", "description": "Operational rungs are disposition-driven; no color-only release decisions.", "owner": "Owner:", "next": "Next:", "obligation": "Obligation:", "unknown": "unknown"
     }
   },
   "health": {

@@ -50,7 +50,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-08-10 — The `android-sdk` resource does not exist
+### 2026-08-10 — [Resolved] The `android-sdk` resource did not exist
 
 **Symptom:** `S2A-P0-006` depends on a governed `android-sdk` resource for SDK, platform-tools, emulator, and system images. No such resource exists in the repository, so `.vrooli/service.json` declares `dependencies.resources` as empty rather than naming a resource that lifecycle resolution would fail to find.
 
@@ -64,7 +64,11 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `docs/concepts/INTEGRATIONS.md`, `.vrooli/service.json`, `S2A-P0-006`.
 
-### 2026-08-10 — The `hello-mobile` conformance fixture does not exist
+**Resolution (2026-08-13):** `resources/android-sdk` now installs the declared
+SDK components and owns AVD lifecycle. The scenario declares the resource and
+the resource-backed AVD was created and booted successfully on this host.
+
+### 2026-08-10 — [Resolved] The `hello-mobile` conformance fixture did not exist
 
 **Symptom:** `S2A-P0-012` requires the ramp to be provable end to end without depending on any product scenario's correctness. `hello-desktop` fills that role for the desktop ramp; there is no mobile equivalent.
 
@@ -77,6 +81,9 @@ Use this shape so entries are scannable. Append newest at the bottom.
 **Owner:** unassigned — needs an explicit owner precisely because it is shared.
 
 **Refs:** `scenarios/hello-desktop/`, `S2A-P0-012`.
+
+**Resolution (2026-08-13):** `scenarios/hello-mobile` now supplies the
+deterministic UI bundle, selectors, BAS flow, and focused fixture tests.
 
 ### 2026-08-10 — Capture redaction policy is a cross-scenario gap
 

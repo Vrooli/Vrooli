@@ -121,24 +121,27 @@ type SecretTarget struct {
 }
 
 type Service struct {
-	ID           string                 `json:"id"`
-	Type         string                 `json:"type"`
-	Description  string                 `json:"description,omitempty"`
-	Binaries     map[string]Binary      `json:"binaries"`
-	Build        *BuildConfig           `json:"build,omitempty"`
-	Env          map[string]string      `json:"env,omitempty"`
-	Secrets      []string               `json:"secrets,omitempty"`
-	DataDirs     []string               `json:"data_dirs,omitempty"`
-	LogDir       string                 `json:"log_dir,omitempty"`
-	Ports        *ServicePorts          `json:"ports,omitempty"`
-	Health       HealthCheck            `json:"health"`
-	Readiness    ReadinessCheck         `json:"readiness"`
-	Dependencies []string               `json:"dependencies,omitempty"`
-	Migrations   []Migration            `json:"migrations,omitempty"`
-	Assets       []Asset                `json:"assets,omitempty"`
-	GPU          *GPURequirements       `json:"gpu,omitempty"`
-	Critical     *bool                  `json:"critical,omitempty"`
-	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	ID           string            `json:"id"`
+	Type         string            `json:"type"`
+	Description  string            `json:"description,omitempty"`
+	Binaries     map[string]Binary `json:"binaries"`
+	Build        *BuildConfig      `json:"build,omitempty"`
+	Env          map[string]string `json:"env,omitempty"`
+	Secrets      []string          `json:"secrets,omitempty"`
+	DataDirs     []string          `json:"data_dirs,omitempty"`
+	LogDir       string            `json:"log_dir,omitempty"`
+	Ports        *ServicePorts     `json:"ports,omitempty"`
+	Health       HealthCheck       `json:"health"`
+	Readiness    ReadinessCheck    `json:"readiness"`
+	Dependencies []string          `json:"dependencies,omitempty"`
+	Migrations   []Migration       `json:"migrations,omitempty"`
+	Assets       []Asset           `json:"assets,omitempty"`
+	// AssetDirs contains runtime directories that must be copied and preserved
+	// as part of a service bundle (for example, a Node service's dependencies).
+	AssetDirs []string               `json:"asset_dirs,omitempty"`
+	GPU       *GPURequirements       `json:"gpu,omitempty"`
+	Critical  *bool                  `json:"critical,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 	// DistRoot is the directory to serve static files from for ui-bundle services.
 	// If not specified, the runtime will automatically detect it by finding index.html
 	// in the assets list and using its parent directory.

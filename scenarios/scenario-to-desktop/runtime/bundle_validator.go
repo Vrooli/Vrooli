@@ -62,9 +62,37 @@ func (s *Supervisor) ValidateBundle() *api.BundleValidationResult {
 	for _, svc := range s.opts.Manifest.Services {
 		s.validateServiceBinaries(svc, targetOS, targetArch, result)
 		s.validateServiceAssets(svc, result)
+		s.validateServiceAssetDirs(svc, result)
 	}
 
 	return result
+}
+
+func (s *Supervisor) validateServiceAssetDirs(svc manifest.Service, result *api.BundleValidationResult) {
+	for _, assetDir := range svc.AssetDirs {
+		path := manifest.ResolvePath(s.opts.BundlePath, assetDir)
+		info, err := s.fs.Stat(path)
+		if err != nil {
+			result.Valid = false
+			result.MissingAssets = append(result.MissingAssets, api.MissingAsset{ServiceID: svc.ID, Path: assetDir})
+			result.Errors = append(result.Errors, api.BundleError{
+				Code:    "asset_directory_missing",
+				Service: svc.ID,
+				Path:    assetDir,
+				Message: fmt.Sprintf("asset directory not found for service %s: %s", svc.ID, assetDir),
+			})
+			continue
+		}
+		if !info.IsDir() {
+			result.Valid = false
+			result.Errors = append(result.Errors, api.BundleError{
+				Code:    "asset_directory_not_directory",
+				Service: svc.ID,
+				Path:    assetDir,
+				Message: fmt.Sprintf("asset directory path is not a directory for service %s: %s", svc.ID, assetDir),
+			})
+		}
+	}
 }
 
 func validateCatalogRequirements(bundlePath string, fs FileSystem, requirements []string) []api.BundleError {

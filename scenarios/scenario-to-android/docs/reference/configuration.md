@@ -73,9 +73,9 @@ Single source of truth for everything the lifecycle needs to know.
 | `environment` | static env vars set for every lifecycle step |
 | `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |
 
-The template ships with `dependencies.resources: {}` — SQLite is
-in-process, so no resource is required. Scenarios add resources here
-when they need shared infrastructure.
+This scenario declares the governed `android-sdk` resource because target
+discovery and AVD lifecycle require it. SQLite remains in-process, so no
+database resource is required.
 
 ## Schema bootstrap
 

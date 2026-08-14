@@ -1,4 +1,4 @@
-import { Home, Settings } from "lucide-react";
+import { Home, Settings, ShieldCheck, Smartphone, Workflow } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { BottomNav as CanonicalBottomNav, type BottomNavItem } from "../components/ui/bottom-nav";
@@ -46,5 +46,11 @@ function iconForItem(item: NavItem) {
       return <Settings aria-hidden className={iconClass} />;
     case "dashboard":
       return <Home aria-hidden className={iconClass} />;
+    case "targets":
+      return <Smartphone aria-hidden className={iconClass} />;
+    case "runs":
+      return <Workflow aria-hidden className={iconClass} />;
+    case "readiness":
+      return <ShieldCheck aria-hidden className={iconClass} />;
   }
 }

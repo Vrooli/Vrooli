@@ -116,10 +116,14 @@ func journeyFixture(capability string) (JourneyFixture, bool) {
 }
 
 func capabilityForScenario(scenario string) string {
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "browser-automation-studio" {
+		return "monetization.trust-boundary.v1"
+	}
 	journeyRegistry.RLock()
 	defer journeyRegistry.RUnlock()
-	if _, ok := journeyRegistry.fixtures[strings.TrimSpace(scenario)]; ok {
-		return strings.TrimSpace(scenario)
+	if _, ok := journeyRegistry.fixtures[scenario]; ok {
+		return scenario
 	}
 	return "desktop.launch.baseline"
 }
@@ -351,10 +355,43 @@ func registerCommunicationFixtures() {
 		communicationFixture{capability: "tier2.tier1.shared.v1", mode: "shared-resource", tier: "tier1-local-vrooli", route: "shared-resource", operation: "shared-resource"},
 		communicationFixture{capability: "bundled.private.fallback.v1", mode: "private-fallback", tier: "managed-private", route: "private-bundle", operation: "private-fallback"},
 		unsupportedPeerFixture{},
+		monetizationBoundaryFixture{},
 	}
 	for _, fixture := range fixtures {
 		if err := RegisterJourneyFixture(fixture); err != nil {
 			panic(err)
 		}
+	}
+}
+
+// monetizationBoundaryFixture is deliberately provider-backed rather than a
+// local mock: its probe talks to the bundled scenario API, which patches the
+// local lease view and then exercises the real LPBS Class A boundary.
+type monetizationBoundaryFixture struct{}
+
+func (monetizationBoundaryFixture) Capability() string { return "monetization.trust-boundary.v1" }
+
+func (monetizationBoundaryFixture) Plan(JourneyInput) deliveryramp.JourneyPlan {
+	windowReady := defaultReadiness("target_window_visible", "wait for the usable application window")
+	settle := defaultSettle("visual_settle", "allow the application surface to settle")
+	return deliveryramp.JourneyPlan{
+		SchemaVersion: "2",
+		ID:            "monetization.trust-boundary.v1",
+		Capability:    "monetization.trust-boundary.v1",
+		Purpose:       "Prove a patched local entitlement cannot authorize a Class A operation while a Class B operation remains usable.",
+		Profile:       "normal-review",
+		Steps: []deliveryramp.JourneyStepSpec{
+			{ID: "activate", Purpose: "Bring the bundled application into view before trust-boundary checks.", Action: "window_activate", Capture: true, Readiness: windowReady, Settle: settle},
+			{ID: "tampered_class_a", Purpose: "Patch the local entitlement view and call the real Class A authority.", Action: "tampered_class_a", Capture: true, Readiness: windowReady, Settle: settle, Assertion: &deliveryramp.AssertionSpec{ID: "monetization.class_a.refused", Expected: "class_a=refused"}},
+			{ID: "class_b_local", Purpose: "Run a local-capacity Class B operation under the signed plan lease.", Action: "class_b_local", Capture: true, Readiness: windowReady, Settle: settle, Assertion: &deliveryramp.AssertionSpec{ID: "monetization.class_b.allowed", Expected: "class_b=allowed"}},
+			{ID: "quit", Purpose: "Close the bundled application after the boundary assertions.", Action: "quit_app", Capture: true, Readiness: windowReady, Settle: defaultSettle("shutdown_settle", "allow shutdown to settle")},
+		},
+	}
+}
+
+func (monetizationBoundaryFixture) Actions() map[string]JourneyAction {
+	return map[string]JourneyAction{
+		"tampered_class_a": operationJourneyAction("tampered_class_a"),
+		"class_b_local":    operationJourneyAction("class_b_local"),
 	}
 }

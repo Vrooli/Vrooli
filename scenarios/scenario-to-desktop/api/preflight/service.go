@@ -257,6 +257,9 @@ func (s *DefaultService) collectPreflightData(handle *RuntimeHandle, manifest *b
 	if err != nil {
 		return nil, err
 	}
+	if err := rejectTier2ServiceSecrets(secrets); err != nil {
+		return nil, err
+	}
 
 	ready, waitedSeconds, err := client.Ready(request, timeout)
 	if err != nil {

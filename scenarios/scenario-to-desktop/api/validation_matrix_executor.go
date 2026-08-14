@@ -33,7 +33,7 @@ type validationArtifactByDigestFinder interface {
 type validationDesktopOwner interface {
 	StartSession(context.Context, livedesktop.SessionConfig) (*livedesktop.Session, error)
 	ExecuteAction(context.Context, string, string, json.RawMessage) (*livedesktop.ActionResult, error)
-	LaunchElectronValidation(context.Context, string, string, target.ElectronLaunchOptions, target.RendererExpectation) (*domainv1.ElectronTarget, error)
+	LaunchElectronValidation(context.Context, string, string, target.ElectronLaunchOptions, target.RendererExpectation) (*domainv1.AppTarget, error)
 	StopSession(string) error
 }
 
@@ -249,7 +249,7 @@ func profileID(profile domainv1.ValidationEnvironmentProfile) string {
 	return strings.ToLower(strings.ReplaceAll(name, "_", "-"))
 }
 
-func targetEvidence(info *domainv1.ElectronTarget, request validationmatrix.CellRequest) *domainv1.LayeredEvidence {
+func targetEvidence(info *domainv1.AppTarget, request validationmatrix.CellRequest) *domainv1.LayeredEvidence {
 	value := fmt.Sprintf("target=%s endpoint=%s renderer=%s digest=%s", info.GetTargetId(), info.GetCdpEndpoint(), info.GetRendererId(), request.ArtifactDigest)
 	return evidenceFromText(domainv1.LayeredEvidence_KIND_TARGET, "target-"+request.Cell.GetTargetId(), "validation://target/"+request.Cell.GetTargetId(), value)
 }

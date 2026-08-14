@@ -141,6 +141,7 @@ function createMockAuthManager(): IAuthManager {
         signIn: vi.fn(async (opts?: { state?: string }) => ({ state: opts?.state ?? "test-state" })),
         signOut: vi.fn(async () => {}),
         getAccessToken: vi.fn(async () => "mock-access-token"),
+        getEntitlementLease: vi.fn(async () => null),
         getUser: vi.fn(async () => ({ id: "user1", email: "test@example.com", emailVerified: true })),
         isAuthenticated: vi.fn(async () => true),
         refresh: vi.fn(async () => true),

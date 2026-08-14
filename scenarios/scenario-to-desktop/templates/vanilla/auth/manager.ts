@@ -259,6 +259,7 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
                 refreshToken: newTokens.refresh_token,
                 expiresAt: newTokens.expires_at,
             });
+            await refreshEntitlementLease(newTokens.access_token);
             scheduleTokenRefresh(newTokens.expires_at);
             onAuthChange("tokens-refreshed");
             console.log("[Auth] Tokens refreshed successfully");
@@ -267,6 +268,22 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
             console.error("[Auth] Token refresh error:", error);
             onAuthChange("session-expired");
             return false;
+        }
+    }
+
+    async function refreshEntitlementLease(accessToken: string): Promise<void> {
+        try {
+            const response = await http.fetch(`${config.lpbsUrl}/api/v1/entitlements`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            if (!response.ok) return;
+            const payload = await response.json() as { lease?: string };
+            if (!payload.lease) return;
+            const tokens = await getStoredTokens();
+            if (!tokens) return;
+            await storeAuthTokens({ ...tokens, accessToken, entitlementLease: payload.lease });
+        } catch {
+            // A still-valid cached lease remains usable while LPBS is offline.
         }
     }
 
@@ -327,6 +344,11 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
             }
 
             return tokens.accessToken;
+        },
+
+        async getEntitlementLease(): Promise<string | null> {
+            const tokens = await getStoredTokens();
+            return tokens?.entitlementLease ?? null;
         },
 
         async getUser(): Promise<StoredUser | null> {
@@ -393,6 +415,7 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
                     refreshToken,
                     expiresAt,
                 });
+                await refreshEntitlementLease(accessToken);
                 // Schedule token refresh
                 scheduleTokenRefresh(expiresAt);
 

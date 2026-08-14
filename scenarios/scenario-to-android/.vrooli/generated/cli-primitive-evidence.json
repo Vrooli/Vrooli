@@ -1,0 +1,70 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "scenario-to-android",
+  "generator": "v1.0.0",
+  "manifest_hash": "bca9b240cb7b76be434da7e7c57c9eca6ee8dadc41830fe583d132b874e0fccc",
+  "commands": [
+    {
+      "path": "android build",
+      "group": "android",
+      "command": "build"
+    },
+    {
+      "path": "android conformance-plan",
+      "group": "android",
+      "command": "conformance-plan"
+    },
+    {
+      "path": "android distribution",
+      "group": "android",
+      "command": "distribution"
+    },
+    {
+      "path": "android evidence-paths",
+      "group": "android",
+      "command": "evidence-paths"
+    },
+    {
+      "path": "android matrix-catalog",
+      "group": "android",
+      "command": "matrix-catalog"
+    },
+    {
+      "path": "android matrix-create",
+      "group": "android",
+      "command": "matrix-create"
+    },
+    {
+      "path": "android matrix-list",
+      "group": "android",
+      "command": "matrix-list"
+    },
+    {
+      "path": "android matrix-rerun-failed",
+      "group": "android",
+      "command": "matrix-rerun-failed"
+    },
+    {
+      "path": "android matrix-start",
+      "group": "android",
+      "command": "matrix-start"
+    },
+    {
+      "path": "android matrix-wait",
+      "group": "android",
+      "command": "matrix-wait"
+    },
+    {
+      "path": "android readiness",
+      "group": "android",
+      "command": "readiness"
+    },
+    {
+      "path": "android targets",
+      "group": "android",
+      "command": "targets"
+    }
+  ]
+}

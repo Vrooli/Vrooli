@@ -208,6 +208,70 @@ For detailed product ownership, update [`DOMAINS.md`](DOMAINS.md).
 For persistence and retention, update [`DATA.md`](DATA.md). For
 temporal behavior, update [`FLOWS.md`](FLOWS.md).
 
+## Monetization Contract For Generated Apps
+
+> **Status: recorded, not implemented.** No in-app-purchase code exists in this
+> scenario. This section exists so the tier-2 desktop work does not foreclose
+> tier 3, and so a future implementer starts from decisions rather than
+> re-deriving them. The engineering contract is
+> [`docs/concepts/PAID_FEATURES.md`](../../../../docs/concepts/PAID_FEATURES.md).
+
+### What is the same as every other tier
+
+A generated Android app is a monetized Vrooli app first and a Android app
+second. These do not change:
+
+- **One identity.** Sign-in resolves the shared LPBS consumer session. Signing
+  in on Android signs the user in to their desktop and local installs too,
+  because the durable credential is one logical identity, not a per-app account.
+- **Entitlements are read from a signed lease.** Gate checks verify the lease
+  locally and keep working without a connection until `not_after`.
+- **Class A (cost-bearing) metering is unchanged.** LLM tokens, audio seconds,
+  and hosted compute are charged on LPBS before the work returns. No store takes
+  a cut of inference, and no receipt validation is involved in a Class A charge.
+- **Class B (local-capacity) metering is unchanged.** The operation runs on the
+  device, is checked optimistically against the lease, and syncs through a
+  durable outbox.
+
+### What differs on tier 3
+
+| Concern | Tier 2 desktop | Tier 3 Android |
+|---|---|---|
+| Purchase rail | Stripe through LPBS | Google Play in-app purchase |
+| Sign-in surface | Custom protocol deep link | Custom Tabs |
+| Token store | Electron `safeStorage` + credential authority | Android Keystore |
+| Subscription ingest | Stripe webhook | Real-time developer notifications + receipt validation |
+
+Only the purchase rail and the token store are genuinely new work. Everything
+above the entitlement lease is shared.
+
+### The decision that constrains LPBS
+
+**Entitlements must be source-agnostic.** A subscription resolves identically
+whether Stripe, Apple, or Google issued it. A user who subscribes on their phone
+and then opens the desktop app must see their subscription.
+
+This is not a tier-3 implementation detail — it is a schema requirement on LPBS
+that must land before the first paying customer exists, because afterwards it
+becomes a migration of live billing data. Two couplings in LPBS block it today:
+
+1. `credit_transactions.stripe_event_id` is a Stripe-specific uniqueness key.
+   Top-up idempotency needs a generic `(source, external_event_id)` pair.
+2. Entitlement features resolve through `GetPlanByPriceID(stripe_price_id)`.
+   A subscription with no Stripe price returns an **empty `features[]`**, so
+   every feature gate would silently fail closed for store-sourced subscribers.
+
+The fix is a `source` discriminator plus generic external identifiers. It is
+tracked in the monetization foundation plan and is owned by LPBS, not here.
+
+### Store policy
+
+Store rules for digital-goods purchase and external purchase links move, and
+have moved materially in recent years. Do not encode a policy claim in this
+document. Confirm current Google Play Payments policy rules at implementation time, and treat the
+answer as an input to the purchase-rail design only — never to the entitlement
+model, which stays source-agnostic regardless.
+
 ## Architecture Maturity
 
 Generated scenarios start with a mature template shape and starter

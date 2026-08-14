@@ -6,12 +6,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -248,6 +250,19 @@ func TestWaitForServiceHealthHonorsDeclaredHTTPStatus(t *testing.T) {
 	defer healthy.Close()
 	if err := waitForServiceHealth(context.Background(), []HealthCheck{{Type: "http", Target: healthy.URL, ExpectedStatus: []int{http.StatusOK}}}, nil); err != nil {
 		t.Fatalf("expected declared healthy response: %v", err)
+	}
+}
+
+func TestWaitForServiceHealthResolvesDeclaredPortAgainstAllocatedPort(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	port := server.Listener.Addr().(*net.TCPAddr).Port
+	values := map[string]string{"RESOURCE_PORT_API": strconv.Itoa(port)}
+	checks := []HealthCheck{{Type: "http", Target: "http://127.0.0.1:9000/health", ExpectedStatus: []int{http.StatusOK}}}
+	if err := waitForServiceHealth(context.Background(), checks, values, []ServicePort{{Name: "api", Host: 9000}}); err != nil {
+		t.Fatalf("expected allocated health target to be used: %v", err)
 	}
 }
 

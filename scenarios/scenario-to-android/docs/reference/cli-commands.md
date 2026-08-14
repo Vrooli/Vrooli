@@ -141,6 +141,23 @@ non-proto report, use the `RunContext` render helpers directly
 (`ctx.RenderList`, `ctx.RenderMutation`, or the operational report
 helpers).
 
+## Android ramp commands
+
+The `android` group is the complete operator surface for target discovery,
+artifact creation, readiness, distribution, and durable validation runs:
+
+```text
+targets · build · conformance-plan · readiness · distribution
+matrix-catalog · matrix-list · matrix-create · matrix-start
+matrix-wait · matrix-rerun-failed · evidence-paths
+```
+
+`android build` reads `ANDROID_SOURCE_REF` and optional artifact settings from
+the environment, then calls `/api/v1/android/build`. Matrix lifecycle commands
+use `ANDROID_MATRIX_RUN_ID`; `matrix-create` uses
+`ANDROID_ARTIFACT_DIGEST`. `evidence-paths` refuses relative paths so the two
+reviewable recording locations are always unambiguous.
+
 **`--json` is an output contract, never an operation selector.** Declare each
 command's `architecture.primitive` in the manifest (`proto_list` /
 `proto_mutation` / `operational` / `action`) and either bind the matching

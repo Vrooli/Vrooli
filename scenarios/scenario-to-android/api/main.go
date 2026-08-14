@@ -7,8 +7,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
+	"scenario-to-android/internal/androidbuild"
+	"scenario-to-android/internal/androidmatrix"
+	"scenario-to-android/internal/androidprobe"
 	"scenario-to-android/internal/capabilities"
 	"scenario-to-android/internal/modules"
 	"scenario-to-android/internal/server"
@@ -22,10 +26,12 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
 	_ "modernc.org/sqlite"
 
 	capsH "scenario-to-android/handlers/capabilities"
 	healthH "scenario-to-android/handlers/health"
+	rampH "scenario-to-android/handlers/ramp"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -95,17 +101,6 @@ func scenarioStorageRoots() (storage.Paths, error) {
 	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
-// fileRootPath is the template's mandatory file-store seam. Domain stores
-// compose their relative paths from it rather than retaining startup root
-// strings, so X-Vrooli-Test-Mode is honored independently per request.
-func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
-	root, err := roots.Pick(ctx, class)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(root, rel), nil
-}
-
 func sqliteFileDSN(path string) (string, error) {
 	if strings.HasPrefix(path, "file:") {
 		return path, nil
@@ -149,11 +144,41 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	matrixStore, err := validationmatrix.NewFileStore(filepath.Join(primaryFileRoots.DataDir, "validation-matrices"))
+	if err != nil {
+		log.Fatalf("validation matrix storage configuration failed: %v", err)
+	}
+	executors := validationmatrix.Executors{Local: androidmatrix.Executor{}}
+	if bridgeExecutor := validationmatrix.NewClientFromEnv(); bridgeExecutor != nil {
+		executors.Bridge = bridgeExecutor
+	}
+	matrixOptions := []validationmatrix.ServiceOption{
+		validationmatrix.WithCatalogResolver(androidmatrix.Catalog{Probe: androidprobe.Prober{Devices: androidprobe.NewDeviceControlInventory()}}),
+	}
+	if deploymentURL := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_URL")); deploymentURL != "" {
+		profileID := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_PROFILE_ID"))
+		gitCommit := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_GIT_COMMIT"))
+		if profileID != "" && gitCommit != "" {
+			matrixOptions = append(matrixOptions, validationmatrix.WithReleaseReporter(
+				validationmatrix.NewDeploymentReporterFromURL(
+					deploymentURL,
+					profileID,
+					gitCommit,
+					nil,
+					validationmatrix.WithDeploymentIdentity("scenario-to-android", "scenario-to-android", "android", runtime.GOOS),
+				),
+			))
+		}
+	}
+	matrixService := validationmatrix.NewService(matrixStore, executors, matrixOptions...)
+	matrixService.RecoverStale()
+	matrixHandler := validationmatrix.NewHandler(matrixService)
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "scenario-to-android-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
+		rampH.Module([]*validationmatrix.Handler{matrixHandler}, androidbuild.Builder{}),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

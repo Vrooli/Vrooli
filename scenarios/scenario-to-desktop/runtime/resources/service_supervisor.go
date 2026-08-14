@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -195,7 +197,7 @@ func (s *ServiceSupervisor) startOne(ctx context.Context, item Item) error {
 		_ = cmd.Process.Kill()
 		return fmt.Errorf("bootstrap bundled service %s: %w", item.Resource, err)
 	}
-	if err := waitForServiceHealth(ctx, service.HealthChecks, environmentMap); err != nil {
+	if err := waitForServiceHealth(ctx, service.HealthChecks, environmentMap, service.Ports); err != nil {
 		_ = cmd.Process.Kill()
 		return fmt.Errorf("bundled service %s did not become healthy: %w", item.Resource, err)
 	}
@@ -391,7 +393,7 @@ func writeServiceConfig(config *resourcedeployment.ServiceConfig, configDir stri
 	return os.WriteFile(path, []byte(expandServiceTemplate(config.Content, values)), 0o600)
 }
 
-func waitForServiceHealth(parent context.Context, checks []HealthCheck, values map[string]string) error {
+func waitForServiceHealth(parent context.Context, checks []HealthCheck, values map[string]string, ports ...[]ServicePort) error {
 	if len(checks) == 0 {
 		return nil
 	}
@@ -409,7 +411,12 @@ func waitForServiceHealth(parent context.Context, checks []HealthCheck, values m
 	for {
 		ready := true
 		for _, check := range checks {
-			request, err := http.NewRequestWithContext(ctx, http.MethodGet, expandServiceTemplate(check.Target, values), nil)
+			var servicePorts []ServicePort
+			if len(ports) > 0 {
+				servicePorts = ports[0]
+			}
+			target := expandHealthCheckTarget(check.Target, values, servicePorts)
+			request, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 			if err != nil {
 				return fmt.Errorf("build health request: %w", err)
 			}
@@ -441,6 +448,40 @@ func waitForServiceHealth(parent context.Context, checks []HealthCheck, values m
 		case <-ticker.C:
 		}
 	}
+}
+
+// expandHealthCheckTarget keeps legacy resource plans compatible with runtime
+// port allocation. Resource manifests historically recorded health targets
+// with their default host port (for example, MinIO on 9000), while the
+// desktop supervisor deliberately allocates a private ephemeral port. When a
+// check points at a declared loopback port, resolve that port through the
+// corresponding RESOURCE_PORT_* value before probing it.
+func expandHealthCheckTarget(target string, values map[string]string, ports []ServicePort) string {
+	expanded := expandServiceTemplate(target, values)
+	parsed, err := url.Parse(expanded)
+	if err != nil || parsed.Hostname() == "" {
+		return expanded
+	}
+	host := parsed.Hostname()
+	if host != "127.0.0.1" && host != "localhost" {
+		return expanded
+	}
+	declaredPort, err := strconv.Atoi(parsed.Port())
+	if err != nil {
+		return expanded
+	}
+	for _, port := range ports {
+		if port.Host != declaredPort {
+			continue
+		}
+		actual, ok := values[servicePortEnvName(port.Name)]
+		if !ok || strings.TrimSpace(actual) == "" {
+			return expanded
+		}
+		parsed.Host = net.JoinHostPort(host, actual)
+		return parsed.String()
+	}
+	return expanded
 }
 
 func containsHealthStatus(expected []int, actual int) bool {

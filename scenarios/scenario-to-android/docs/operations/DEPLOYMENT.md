@@ -17,7 +17,8 @@ Use this document to answer:
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
 | Local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, SQLite path | Replace template reference domains before product deployment. |
-| Desktop/mobile app | deferred | Cross-platform runtime, packaged UI/API, storage resolver | Run cross-platform readiness before adoption. |
+| Android app | active with prerequisites | Governed `android-sdk` (including JDK/Gradle), device-control, BAS, and evidence-backed matrix | Physical/emulator evidence remains unavailable until the target has all required capabilities and the governed resource is healthy. |
+| iOS app | deferred | Capacitor/WKWebView and trusted macOS/Xcode host | Implement the iOS ramp separately. |
 | Managed cloud/SaaS | deferred | Hosted runtime, auth, observability, cost model | Requires deployment and monetization review. |
 | Enterprise/self-host | deferred | Install docs, backup/restore, support model | Requires operational hardening. |
 
@@ -26,7 +27,7 @@ Use this document to answer:
 - API port: assigned by lifecycle as `API_PORT`.
 - UI port: assigned by lifecycle as `UI_PORT`.
 - Storage: `SQLITE_PATH` local file by default.
-- Resources: none external by default.
+- Resources: governed `android-sdk` owns SDK, JDK 17, Gradle, platform-tools, emulator, and system images; ffmpeg and `/dev/kvm` remain host capabilities that are probed.
 - Network: local API/UI communication.
 
 ## Packaging

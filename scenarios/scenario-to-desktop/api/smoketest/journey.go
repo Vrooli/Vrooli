@@ -141,6 +141,63 @@ func (w defaultJourneyWaiter) Settle(ctx context.Context, policy deliveryramp.Se
 
 type loopbackJourneyAPI struct{}
 
+type monetizationJourneyAPI struct {
+	resolver     func(context.Context, string) (string, error)
+	scenarioName string
+}
+
+func (monetizationJourneyAPI) Greet(context.Context, string) (string, error) {
+	return "", fmt.Errorf("greeting is not part of the monetization journey")
+}
+
+func (api monetizationJourneyAPI) Probe(ctx context.Context, operation string) (JourneyOperationResult, error) {
+	baseURL := strings.TrimRight(os.Getenv("S2D_MONETIZATION_JOURNEY_URL"), "/")
+	if baseURL == "" {
+		baseURL = strings.TrimRight(os.Getenv("VROOLI_VALIDATION_RENDERER_URL"), "/")
+	}
+	if baseURL == "" && api.resolver != nil {
+		resolved, err := api.resolver(ctx, api.scenarioName)
+		if err != nil {
+			return JourneyOperationResult{}, fmt.Errorf("resolve monetization journey renderer URL: %w", err)
+		}
+		baseURL = strings.TrimRight(resolved, "/")
+	}
+	if baseURL == "" {
+		return JourneyOperationResult{}, fmt.Errorf("bundled scenario renderer URL is unavailable")
+	}
+	parsed, err := url.Parse(baseURL)
+	if err != nil || parsed.Scheme != "http" || parsed.Hostname() != "127.0.0.1" {
+		return JourneyOperationResult{}, fmt.Errorf("monetization journey URL must target loopback HTTP")
+	}
+	parsed.Path = "/api/v1/internal/monetization/journey"
+	query := parsed.Query()
+	query.Set("operation", operation)
+	parsed.RawQuery = query.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil) // #nosec G704 -- URL is restricted to loopback above.
+	if err != nil {
+		return JourneyOperationResult{}, err
+	}
+	if authorization := strings.TrimSpace(os.Getenv("S2D_MONETIZATION_AUTHORIZATION")); authorization != "" {
+		req.Header.Set("Authorization", authorization)
+	}
+	if identity := strings.TrimSpace(os.Getenv("S2D_MONETIZATION_USER_IDENTITY")); identity != "" {
+		req.Header.Set("X-User-Email", identity)
+	}
+	resp, err := (&http.Client{Timeout: 15 * time.Second}).Do(req) // #nosec G704 -- request target is validated loopback-only.
+	if err != nil {
+		return JourneyOperationResult{}, fmt.Errorf("monetization journey request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return JourneyOperationResult{}, fmt.Errorf("monetization journey returned HTTP %d", resp.StatusCode)
+	}
+	var result JourneyOperationResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return JourneyOperationResult{}, fmt.Errorf("decode monetization journey result: %w", err)
+	}
+	return result, nil
+}
+
 func (loopbackJourneyAPI) Greet(ctx context.Context, expectedName string) (string, error) {
 	baseURL := strings.TrimRight(os.Getenv("HELLO_DESKTOP_API_URL"), "/")
 	if baseURL == "" {
@@ -268,7 +325,11 @@ func (s *DefaultService) runDesktopJourneyCapabilityLegacy(ctx context.Context, 
 	}
 	api := s.journeyAPI
 	if api == nil {
-		api = loopbackJourneyAPI{}
+		if capability == "monetization.trust-boundary.v1" {
+			api = monetizationJourneyAPI{resolver: s.apiURLResolver, scenarioName: scenarioName}
+		} else {
+			api = loopbackJourneyAPI{}
+		}
 	}
 	actions := fixture.Actions()
 	cleanupNeeded := true

@@ -34,6 +34,28 @@ outcome, statefulness, and validation level.
 | Distribution attempt | distribution | An artifact plus a selected channel. | An upload receipt, or `unavailable` naming the blocking rung. | Per-channel; one channel's failure never changes another's availability. Retries are idempotent against the receipt. | Level 3 — per-channel matrix. |
 | Readiness probe | readiness | Scheduled, or on demand from CLI/UI. | Current rung states with next actions. | Stateless read modelled as a flow because rung order matters — a later rung cannot report ready while an earlier one is not. | Level 2 — ordering invariant. |
 
+## Android generated-app conformance chapters
+
+The registered plan `android-generated-app-conformance-v1` is owned by this
+ramp. It is deliberately fixture-agnostic at execution time: a native step
+references a device-control verb and the web-content step references the
+scenario's registered BAS flow. The runner does not branch on a scenario name.
+
+The twelve chapter IDs are:
+
+`install_cold_start`, `permission_deny_grace`, `background_resume`,
+`process_death_restore`, `rotation_size_class`, `keyboard_avoidance`,
+`offline_transition`, `deep_link`, `notification_tap`, `back_navigation`,
+`update_migration`, and `clean_uninstall`.
+
+Every chapter carries a bounded readiness policy and settle policy, expected
+behavior, required capabilities, and ordered verb references. When a target
+does not advertise a required capability, the chapter is terminal
+`unsupported` with the capability and next action; it is never omitted or
+promoted to pass. For example, the connected phone's missing
+`network-control` capability makes `offline_transition` honestly unsupported
+on that target while leaving the other chapters eligible.
+
 ## Flow Details
 
 Document each real flow here with its owner domain, trigger, inputs,

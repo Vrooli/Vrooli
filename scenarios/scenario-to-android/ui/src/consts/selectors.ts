@@ -347,6 +347,9 @@ const dynamicSelectorDefinitions = {
           values: [
             "dashboard",
             "settings",
+            "targets",
+            "runs",
+            "readiness",
           ] as const,
         },
       },
@@ -360,6 +363,9 @@ const dynamicSelectorDefinitions = {
           values: [
             "dashboard",
             "settings",
+            "targets",
+            "runs",
+            "readiness",
           ] as const,
         },
       },

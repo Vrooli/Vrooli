@@ -56,6 +56,34 @@ define backup and restore procedures before production deployment.
 | Regenerate endpoints | after API endpoint changes | `make endpoints` |
 | Regenerate UI strings | after i18n changes | `cd ui && pnpm strings:gen` |
 
+## Android Ramp Operations
+
+The ramp owns artifact orchestration and evidence review; device verbs remain
+owned by `device-control`, and web-content automation remains owned by BAS.
+Use the CLI or equivalent API routes:
+
+```bash
+ANDROID_SOURCE_REF=/absolute/path/to/scenario/ui/dist \
+  scenario-to-android android build
+scenario-to-android android targets
+scenario-to-android android matrix-catalog
+ANDROID_ARTIFACT_DIGEST=sha256:<apk-sha256> scenario-to-android android matrix-create
+ANDROID_MATRIX_RUN_ID=<run-id> scenario-to-android android matrix-start
+ANDROID_MATRIX_RUN_ID=<run-id> scenario-to-android android matrix-wait
+```
+
+`android build` produces a debug APK and AAB without an operator signing
+identity. A matrix cell is pass-eligible only when device-control proves the
+target, BAS completes the registered flow, and the redacted recording has
+bounded offsets and a checksum. Unavailable targets must remain unavailable;
+do not substitute a host-only or idle recording.
+
+For review tooling, open the UI target matrix, run review, and readiness pages
+at `/targets`, `/runs`, and `/readiness`. When deployment-manager identity is
+configured (`DEPLOYMENT_MANAGER_URL`, `DEPLOYMENT_MANAGER_PROFILE_ID`, and
+`DEPLOYMENT_MANAGER_GIT_COMMIT`), completed matrix gates report reference-only
+verdicts to its evidence service.
+
 ## Escalation
 
 Record known operational issues in

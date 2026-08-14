@@ -1361,7 +1361,7 @@ app.whenReady().then(async () => {
                     const result = await runtimeControlClient.request<{ value?: string }>(
                         "/credentials/resolve?identity=vrooli%2Flpbs-account&field=refresh-token",
                     );
-                    return result.value ?? null;
+                    return typeof result === "string" ? result : result.value ?? null;
                 } catch {
                     return null;
                 }

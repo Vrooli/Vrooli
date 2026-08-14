@@ -271,6 +271,11 @@ export function registerAuthHandlers(
     });
     channels.push(AUTH_CHANNELS.GET_ACCESS_TOKEN);
 
+    ipcMain.handle(AUTH_CHANNELS.GET_ENTITLEMENT_LEASE, async () => {
+        return authManager.getEntitlementLease();
+    });
+    channels.push(AUTH_CHANNELS.GET_ENTITLEMENT_LEASE);
+
     // auth:get-user - Get user info
     ipcMain.handle(AUTH_CHANNELS.GET_USER, async () => {
         return authManager.getUser();

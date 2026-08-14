@@ -191,6 +191,9 @@ func (s *DefaultService) runJobValidateAndSecrets(jobID string, client RuntimeCl
 	if err != nil {
 		return nil, nil, fmt.Errorf("fetch secrets: %w", err)
 	}
+	if err := rejectTier2ServiceSecrets(secrets); err != nil {
+		return nil, nil, err
+	}
 	s.jobs.SetResult(jobID, func(prev *Response) *Response {
 		return updatePreflightResult(prev, func(next *Response) {
 			next.Secrets = secrets
@@ -507,6 +510,18 @@ func buildPreflightChecks(manifest *bundlemanifest.Manifest, validation *runtime
 
 	checks = append(checks, collectAssetChecks(validation)...)
 	return checks
+}
+
+// rejectTier2ServiceSecrets keeps shared service credentials out of desktop
+// bundles. User-scoped keys and tokens may still be requested interactively;
+// a service-classified secret is a cross-customer trust-boundary violation.
+func rejectTier2ServiceSecrets(secrets []Secret) error {
+	for _, secret := range secrets {
+		if strings.EqualFold(strings.TrimSpace(secret.Class), "service") {
+			return fmt.Errorf("tier-2 bundle cannot contain service-classified secret %q", secret.ID)
+		}
+	}
+	return nil
 }
 
 // collectAssetChecks extracts per-asset validation checks from the validation result.

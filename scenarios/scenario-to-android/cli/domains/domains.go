@@ -2,6 +2,7 @@ package domains
 
 import (
 	"github.com/vrooli/cli-core/cliapp"
+	"scenario-to-android/cli/domains/android"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
@@ -34,6 +35,6 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
+	groups := []cliapp.SubcommandGroup{android.Register(core)}
 	return groups, nil
 }

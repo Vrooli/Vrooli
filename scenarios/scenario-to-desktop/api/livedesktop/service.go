@@ -322,7 +322,7 @@ func (s *Service) LaunchApp(sessionID, appPath string) error {
 // LaunchElectronValidation starts the explicit validation target path. Normal
 // live-desktop launches remain unchanged and do not expose CDP. The target
 // session owns the process, profile, port, renderer selection, and cleanup.
-func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPath string, opts target.ElectronLaunchOptions, renderer target.RendererExpectation) (*domainv1.ElectronTarget, error) {
+func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPath string, opts target.ElectronLaunchOptions, renderer target.RendererExpectation) (*domainv1.AppTarget, error) {
 	session, err := s.store.Get(sessionID)
 	if err != nil {
 		return nil, err

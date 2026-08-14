@@ -19,6 +19,15 @@ type jobRuntimeClient struct {
 	portsErr, telemetryErr    error
 }
 
+func TestRejectTier2ServiceSecrets(t *testing.T) {
+	if err := rejectTier2ServiceSecrets([]Secret{{ID: "consumer-token", Class: "user"}}); err != nil {
+		t.Fatalf("user-scoped secret rejected: %v", err)
+	}
+	if err := rejectTier2ServiceSecrets([]Secret{{ID: "shared-secret", Class: "service"}}); err == nil {
+		t.Fatal("service-classified secret was accepted")
+	}
+}
+
 func (c *jobRuntimeClient) Status() (*Runtime, error) {
 	return &Runtime{InstanceID: "dry-run", DryRun: true}, nil
 }

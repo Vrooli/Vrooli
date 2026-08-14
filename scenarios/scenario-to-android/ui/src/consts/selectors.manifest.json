@@ -124,7 +124,10 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "settings"
+            "settings",
+            "targets",
+            "runs",
+            "readiness"
           ]
         }
       ]
@@ -139,7 +142,10 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "settings"
+            "settings",
+            "targets",
+            "runs",
+            "readiness"
           ]
         }
       ]

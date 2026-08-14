@@ -173,6 +173,9 @@ interface DesktopAPI {
          */
         getAccessToken: () => Promise<string | null>;
 
+        /** Get the encrypted-and-cached signed LPBS entitlement lease. */
+        getEntitlementLease: () => Promise<string | null>;
+
         /**
          * Get the current authenticated user's information.
          * Returns null if not authenticated.
@@ -242,6 +245,7 @@ const ALLOWED_CHANNELS = {
         "auth:sign-in",
         "auth:sign-out",
         "auth:get-access-token",
+        "auth:get-entitlement-lease",
         "auth:get-user",
         "auth:is-authenticated",
         "auth:refresh",
@@ -360,6 +364,10 @@ const desktopAPI: DesktopAPI = {
 
         getAccessToken: async () => {
             return ipcRenderer.invoke("auth:get-access-token");
+        },
+
+        getEntitlementLease: async () => {
+            return ipcRenderer.invoke("auth:get-entitlement-lease");
         },
 
         getUser: async () => {

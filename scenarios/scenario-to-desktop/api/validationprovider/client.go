@@ -42,7 +42,7 @@ type Request struct {
 	ScenarioPath   string
 	WorkflowPath   string
 	WorkflowID     string
-	Target         *domainv1.ElectronTarget
+	Target         *domainv1.AppTarget
 	ProfileID      string
 	ContextID      string
 	ArtifactDigest string

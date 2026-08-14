@@ -10,7 +10,10 @@
     "bottomNavLabel": "التنقل على الهاتف",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "settings": "الإعدادات"
+      "settings": "الإعدادات",
+      "targets": "الأهداف",
+      "runs": "مراجعة التشغيل",
+      "readiness": "الجاهزية"
     }
   },
   "theme": {
@@ -31,7 +34,10 @@
       "title": "الإعدادات",
       "themeHeading": "المظهر",
       "localeHeading": "اللغة"
-    }
+    },
+    "targets": { "title": "مصفوفة الأهداف", "description": "اكتشاف المحاكي والجهاز والجسر مع خطوات تالية واضحة.", "kind": "النوع:", "ready": "جاهز", "unavailable": "غير متاح", "readyForSelection": "جاهز للاختيار", "next": "التالي:", "empty": "لا توجد أهداف متاحة." },
+    "runs": { "title": "مراجعة التشغيل", "description": "النتائج والأهداف ومراجع الأدلة محفوظة في المصفوفة.", "gate": "البوابة:", "passed": "ناجح", "notPassed": "غير ناجح", "evidence": "الدليل:", "none": "لا شيء", "empty": "لم تسجل عمليات تحقق Android." },
+    "readiness": { "title": "جاهزية الإصدار", "description": "تعتمد الرتب التشغيلية على حالات واضحة.", "owner": "المالك:", "next": "التالي:", "obligation": "الالتزام:", "unknown": "غير معروف" }
   },
   "health": {
     "title": "حالة API",

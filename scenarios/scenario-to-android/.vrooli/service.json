@@ -195,8 +195,13 @@
     }
   },
   "dependencies": {
-    "resources": {},
-    "resources_rationale": "No resource is declared yet. The Android toolchain (SDK, platform-tools, emulator, system images) is fully scriptable and belongs in a governed `android-sdk` resource, which does not exist in the repository yet; declaring it before it exists would break lifecycle resolution. Until it is created, the targets domain probes for the toolchain and reports `unavailable` with the acquisition next action. JDK 17, ffmpeg, and /dev/kvm are host capabilities that are probed rather than acquired. See docs/concepts/INTEGRATIONS.md.",
+    "resources": {
+      "android-sdk": {
+        "required": true,
+        "purpose": "Governed Android SDK, platform-tools, emulator, system images, and AVD lifecycle for mobile validation."
+      }
+    },
+    "resources_rationale": "The governed android-sdk resource supplies platform-tools, cmdline-tools, the emulator, and an API 36 system image. JDK 17, ffmpeg, and /dev/kvm remain host capabilities that are probed rather than acquired. See docs/concepts/INTEGRATIONS.md.",
     "scenarios": {
       "device-control": {
         "purpose": "Every device verb — install, launch, input, permission control, screenshot, screen recording — under a held lease. This ramp implements no device driving of its own.",

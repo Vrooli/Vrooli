@@ -175,7 +175,7 @@ func (p *DefaultPackager) stageAllServices(m *bundlemanifest.Manifest, platforms
 		}
 		copied = append(copied, binCopied...)
 
-		assetCopied, err := p.stageServiceAssets(svc, bundleDir, manifestRoot)
+		assetCopied, err := p.stageServiceAssets(svc, bundleDir, manifestRoot, appAbs)
 		if err != nil {
 			return nil, err
 		}
@@ -434,12 +434,25 @@ func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platf
 }
 
 // stageServiceAssets copies all declared assets for a single service into the bundle directory.
-func (p *DefaultPackager) stageServiceAssets(svc bundlemanifest.Service, bundleDir, manifestRoot string) ([]string, error) {
+func (p *DefaultPackager) stageServiceAssets(svc bundlemanifest.Service, bundleDir, manifestRoot string, appRoots ...string) ([]string, error) {
 	var copied []string
 	for _, asset := range svc.Assets {
 		src, err := resolveManifestPath(p.fileOps, manifestRoot, asset.Path)
-		if err != nil {
-			return nil, fmt.Errorf("resolve asset %s: %w", asset.Path, err)
+		if err != nil || !pathExists(src) {
+			for _, appRoot := range appRoots {
+				candidate := filepath.Join(appRoot, asset.Path)
+				if pathExists(candidate) {
+					src = candidate
+					err = nil
+					break
+				}
+			}
+			if err != nil || !pathExists(src) {
+				if err == nil {
+					err = os.ErrNotExist
+				}
+				return nil, fmt.Errorf("resolve asset %s: %w", asset.Path, err)
+			}
 		}
 		assetDstPath := p.fileOps.NormalizeBundlePath(asset.Path)
 		dst, err := resolveBundlePath(p.fileOps, bundleDir, assetDstPath)
@@ -451,7 +464,40 @@ func (p *DefaultPackager) stageServiceAssets(svc bundlemanifest.Service, bundleD
 		}
 		copied = append(copied, dst)
 	}
+	for _, assetDir := range svc.AssetDirs {
+		src, err := resolveManifestPath(p.fileOps, manifestRoot, assetDir)
+		if err != nil || !pathExists(src) {
+			for _, appRoot := range appRoots {
+				candidate := filepath.Join(appRoot, assetDir)
+				if pathExists(candidate) {
+					src = candidate
+					err = nil
+					break
+				}
+			}
+			if err != nil || !pathExists(src) {
+				if err == nil {
+					err = os.ErrNotExist
+				}
+				return nil, fmt.Errorf("resolve asset directory %s: %w", assetDir, err)
+			}
+		}
+		dstPath := p.fileOps.NormalizeBundlePath(assetDir)
+		dst, err := resolveBundlePath(p.fileOps, bundleDir, dstPath)
+		if err != nil {
+			return nil, fmt.Errorf("stage asset directory %s: %w", assetDir, err)
+		}
+		if err := p.fileOps.CopyPath(src, dst); err != nil {
+			return nil, fmt.Errorf("copy asset directory %s: %w", assetDir, err)
+		}
+		copied = append(copied, dst)
+	}
 	return copied, nil
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // stageCLIHelpers stages CLI helper binaries for each requested platform.

@@ -1,0 +1,53 @@
+{
+  "_metadata": {
+    "module": "foundation",
+    "description": "Deterministic mobile fixture requirements shared by Android and iOS delivery ramps.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MOBILE-001",
+      "title": "Expose deterministic conformance selectors",
+      "status": "implemented",
+      "prd_ref": "OT-P0-001",
+      "category": "foundation",
+      "criticality": "P0",
+      "description": "The fixture exposes stable selectors for state, input, response, route, connectivity, and notification transitions.",
+      "tags": [
+        "mobile",
+        "conformance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "implemented",
+          "ref": "ui/src/MobileFixture.test.tsx",
+          "notes": "The focused UI test proves persistence and explicit connectivity/notification state transitions."
+        }
+      ]
+    },
+    {
+      "id": "MOBILE-002",
+      "title": "Provide a BAS-compatible mobile smoke flow",
+      "status": "implemented",
+      "prd_ref": "OT-P0-002",
+      "category": "foundation",
+      "criticality": "P0",
+      "description": "The fixture's selector manifest and BAS case provide a deterministic navigate, input, submit, and assertion flow.",
+      "tags": [
+        "mobile",
+        "bas"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "implemented",
+          "ref": "bas/cases/mobile/conformance-flow.json",
+          "notes": "The flow uses selector-manifest IDs and does not depend on timing-sensitive or backend state."
+        }
+      ]
+    }
+  ]
+}

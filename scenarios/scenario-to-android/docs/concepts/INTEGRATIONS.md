@@ -25,7 +25,7 @@ Use this document to answer:
 | `deployment-manager` | scenario | yes | releases | `common.v1.TargetVerdict` with `EvidenceRef` entries | Gate computes locally; verdict emission retries. Evidence is never discarded because the consumer is down. |
 | `browser-automation-studio` | scenario | yes | journeys | Named BAS flow executed against the app WebView via CDP over `adb forward` | Web-content chapters report `unavailable`; native shell chapters still run and report honestly. |
 | `secrets-manager` | scenario | yes | builds | Signing identity by reference; key material never returned into this scenario | Build reports `unavailable` naming the signing rung. Never generates an ad-hoc local key as a fallback. |
-| `android-sdk` | Vrooli resource | yes | targets, builds | SDK, platform-tools, emulator binary, system images | Targets report `unavailable` with the acquisition next action. |
+| `android-sdk` | Vrooli resource | yes | targets, builds | SDK, platform-tools, emulator binary, API 36+ system image, and AVD lifecycle | Targets report `unavailable` with the exact missing component and acquisition next action. |
 | `hello-mobile` | scenario (fixture) | yes for conformance | journeys | Generated, built, and driven as the ramp's own proof | Conformance proof cannot run; product scenarios are unaffected. |
 | Google Play | third-party service | no | distribution, readiness | Play Developer API; AAB upload, track management | Channel reports `unavailable` with the blocking rung. Other channels are unaffected. |
 
@@ -33,8 +33,8 @@ Use this document to answer:
 
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
-| `android-sdk` | required, to be created | The Android SDK, platform-tools, emulator, and system images are fully scriptable, so they earn real governed-resource treatment rather than being acquired ad hoc by this scenario. | Resource exists and is declared in `.vrooli/service.json`. |
-| JDK 17 | host prerequisite | Required by the Android Gradle Plugin. Present on the development host; probed rather than assumed. | A node lacks it, or AGP raises its floor. |
+| `android-sdk` | required, governed | The resource owns SDK acquisition, binary health checks, API 36+ system-image selection, KVM probing, and AVD lifecycle. | Android SDK packaging or Google Play's target-API floor changes. |
+| JDK 17 + Gradle 8.10.2 | governed `android-sdk` toolchain | Installed and exposed by the `android-sdk` resource; the builder consumes the resource-owned wrappers and does not acquire build-tool bytes itself. | The resource cannot download or verify the pinned archive, or AGP raises its floor. |
 | `ffmpeg` | host prerequisite | Used by the spine for recording verification. Present on the development host. | A node lacks it. |
 | `/dev/kvm` | host capability | Hardware acceleration is the difference between a ~30 second emulator boot and an unusable 3–5 FPS. Video evidence without it is worthless. | Probed per host; absence yields `unavailable`, never a slow pass. |
 
