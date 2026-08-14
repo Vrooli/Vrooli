@@ -69,7 +69,7 @@ class CapabilityLabels(_message.Message):
     def __init__(self, nsfw_capable: _Optional[bool] = ..., license: _Optional[str] = ..., commercial_use: _Optional[_Union[CommercialUse, str]] = ..., commercial_use_notes: _Optional[str] = ..., base_model_lineage: _Optional[str] = ..., known_risks: _Optional[str] = ...) -> None: ...
 
 class Model(_message.Message):
-    __slots__ = ("id", "name", "operations", "default_for", "tier", "backend", "alt_backends", "requires_comfyui", "size_mb_approx", "quant_variants", "hardware", "capability_labels", "enabled", "install", "custom")
+    __slots__ = ("id", "name", "operations", "default_for", "tier", "backend", "alt_backends", "requires_comfyui", "size_mb_approx", "quant_variants", "hardware", "capability_labels", "enabled", "install", "custom", "geometry")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     OPERATIONS_FIELD_NUMBER: _ClassVar[int]
@@ -85,6 +85,7 @@ class Model(_message.Message):
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     INSTALL_FIELD_NUMBER: _ClassVar[int]
     CUSTOM_FIELD_NUMBER: _ClassVar[int]
+    GEOMETRY_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     operations: _containers.RepeatedScalarFieldContainer[str]
@@ -100,7 +101,20 @@ class Model(_message.Message):
     enabled: bool
     install: InstallState
     custom: bool
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., operations: _Optional[_Iterable[str]] = ..., default_for: _Optional[_Iterable[str]] = ..., tier: _Optional[str] = ..., backend: _Optional[str] = ..., alt_backends: _Optional[_Iterable[str]] = ..., requires_comfyui: _Optional[bool] = ..., size_mb_approx: _Optional[int] = ..., quant_variants: _Optional[_Iterable[str]] = ..., hardware: _Optional[_Union[Hardware, _Mapping]] = ..., capability_labels: _Optional[_Union[CapabilityLabels, _Mapping]] = ..., enabled: _Optional[bool] = ..., install: _Optional[_Union[InstallState, _Mapping]] = ..., custom: _Optional[bool] = ...) -> None: ...
+    geometry: Geometry
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., operations: _Optional[_Iterable[str]] = ..., default_for: _Optional[_Iterable[str]] = ..., tier: _Optional[str] = ..., backend: _Optional[str] = ..., alt_backends: _Optional[_Iterable[str]] = ..., requires_comfyui: _Optional[bool] = ..., size_mb_approx: _Optional[int] = ..., quant_variants: _Optional[_Iterable[str]] = ..., hardware: _Optional[_Union[Hardware, _Mapping]] = ..., capability_labels: _Optional[_Union[CapabilityLabels, _Mapping]] = ..., enabled: _Optional[bool] = ..., install: _Optional[_Union[InstallState, _Mapping]] = ..., custom: _Optional[bool] = ..., geometry: _Optional[_Union[Geometry, _Mapping]] = ...) -> None: ...
+
+class Geometry(_message.Message):
+    __slots__ = ("native_width", "native_height", "size_quantum", "max_edge")
+    NATIVE_WIDTH_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    SIZE_QUANTUM_FIELD_NUMBER: _ClassVar[int]
+    MAX_EDGE_FIELD_NUMBER: _ClassVar[int]
+    native_width: int
+    native_height: int
+    size_quantum: int
+    max_edge: int
+    def __init__(self, native_width: _Optional[int] = ..., native_height: _Optional[int] = ..., size_quantum: _Optional[int] = ..., max_edge: _Optional[int] = ...) -> None: ...
 
 class InstallState(_message.Message):
     __slots__ = ("installed", "path", "checksum", "size_bytes", "installed_at")
@@ -165,12 +179,16 @@ class ListOperationsResponse(_message.Message):
     def __init__(self, operations: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SelectModelRequest(_message.Message):
-    __slots__ = ("operation", "override_id")
+    __slots__ = ("operation", "override_id", "quality_policy", "allow_byok")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     OVERRIDE_ID_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_POLICY_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_BYOK_FIELD_NUMBER: _ClassVar[int]
     operation: str
     override_id: str
-    def __init__(self, operation: _Optional[str] = ..., override_id: _Optional[str] = ...) -> None: ...
+    quality_policy: str
+    allow_byok: bool
+    def __init__(self, operation: _Optional[str] = ..., override_id: _Optional[str] = ..., quality_policy: _Optional[str] = ..., allow_byok: _Optional[bool] = ...) -> None: ...
 
 class SelectModelResponse(_message.Message):
     __slots__ = ("model", "gpu_viable", "reason", "warnings")

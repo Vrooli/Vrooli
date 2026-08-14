@@ -519,9 +519,18 @@ type Component struct {
 	// Version-pinned dependencies declared by this asset's manifest.
 	Dependencies []*AssetDependency `protobuf:"bytes,19,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
 	// Server-projected catalog counts.
-	Metrics       *AssetMetrics `protobuf:"bytes,20,opt,name=metrics,proto3" json:"metrics,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Metrics *AssetMetrics `protobuf:"bytes,20,opt,name=metrics,proto3" json:"metrics,omitempty"`
+	// Desired-state catalog placement. These fields are populated when the
+	// indexed row has a catalogId; supplemental implementation rows retain
+	// their ordinary registry shape.
+	CatalogDomain            string `protobuf:"bytes,21,opt,name=catalog_domain,json=catalogDomain,proto3" json:"catalog_domain,omitempty"`
+	CatalogDomainOrder       int32  `protobuf:"varint,22,opt,name=catalog_domain_order,json=catalogDomainOrder,proto3" json:"catalog_domain_order,omitempty"`
+	CatalogRung              int32  `protobuf:"varint,23,opt,name=catalog_rung,json=catalogRung,proto3" json:"catalog_rung,omitempty"`
+	CatalogRungName          string `protobuf:"bytes,24,opt,name=catalog_rung_name,json=catalogRungName,proto3" json:"catalog_rung_name,omitempty"`
+	TransitiveDependentCount int32  `protobuf:"varint,25,opt,name=transitive_dependent_count,json=transitiveDependentCount,proto3" json:"transitive_dependent_count,omitempty"`
+	CatalogId                string `protobuf:"bytes,26,opt,name=catalog_id,json=catalogId,proto3" json:"catalog_id,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *Component) Reset() {
@@ -692,6 +701,48 @@ func (x *Component) GetMetrics() *AssetMetrics {
 		return x.Metrics
 	}
 	return nil
+}
+
+func (x *Component) GetCatalogDomain() string {
+	if x != nil {
+		return x.CatalogDomain
+	}
+	return ""
+}
+
+func (x *Component) GetCatalogDomainOrder() int32 {
+	if x != nil {
+		return x.CatalogDomainOrder
+	}
+	return 0
+}
+
+func (x *Component) GetCatalogRung() int32 {
+	if x != nil {
+		return x.CatalogRung
+	}
+	return 0
+}
+
+func (x *Component) GetCatalogRungName() string {
+	if x != nil {
+		return x.CatalogRungName
+	}
+	return ""
+}
+
+func (x *Component) GetTransitiveDependentCount() int32 {
+	if x != nil {
+		return x.TransitiveDependentCount
+	}
+	return 0
+}
+
+func (x *Component) GetCatalogId() string {
+	if x != nil {
+		return x.CatalogId
+	}
+	return ""
 }
 
 // ListComponentsRequest filters the registry view.
@@ -3671,7 +3722,8 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12#\n" +
 	"\rcurrent_count\x18\x02 \x01(\x05R\fcurrentCount\x12\x1d\n" +
 	"\n" +
-	"peak_count\x18\x03 \x01(\x05R\tpeakCount\"\x92\b\n" +
+	"peak_count\x18\x03 \x01(\x05R\tpeakCount\"\x97\n" +
+	"\n" +
 	"\tComponent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -3698,7 +3750,14 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\n" +
 	"asset_kind\x18\x12 \x01(\x0e27.vrooli.react_component_library.v1.components.AssetKindR\tassetKind\x12a\n" +
 	"\fdependencies\x18\x13 \x03(\v2=.vrooli.react_component_library.v1.components.AssetDependencyR\fdependencies\x12T\n" +
-	"\ametrics\x18\x14 \x01(\v2:.vrooli.react_component_library.v1.components.AssetMetricsR\ametrics\x1a:\n" +
+	"\ametrics\x18\x14 \x01(\v2:.vrooli.react_component_library.v1.components.AssetMetricsR\ametrics\x12%\n" +
+	"\x0ecatalog_domain\x18\x15 \x01(\tR\rcatalogDomain\x120\n" +
+	"\x14catalog_domain_order\x18\x16 \x01(\x05R\x12catalogDomainOrder\x12!\n" +
+	"\fcatalog_rung\x18\x17 \x01(\x05R\vcatalogRung\x12*\n" +
+	"\x11catalog_rung_name\x18\x18 \x01(\tR\x0fcatalogRungName\x12<\n" +
+	"\x1atransitive_dependent_count\x18\x19 \x01(\x05R\x18transitiveDependentCount\x12\x1d\n" +
+	"\n" +
+	"catalog_id\x18\x1a \x01(\tR\tcatalogId\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x94\x02\n" +

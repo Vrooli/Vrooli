@@ -54,7 +54,7 @@ func resolveSecret(key string) string {
 		return strings.TrimSpace(envx.Get(key))
 	}
 	switch key {
-	case "ADMIN_DEFAULT_PASSWORD", "SESSION_SECRET", "LPBS_SERVICE_SECRET", "LPBS_API_KEY_ENCRYPTION_KEY", "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY", "JWT_SECRET", "SENDGRID_API_KEY":
+	case "ADMIN_DEFAULT_PASSWORD", "SESSION_SECRET", "LPBS_API_KEY_ENCRYPTION_KEY", "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY", "JWT_SECRET", "SENDGRID_API_KEY":
 		// authority-backed operator credentials
 	default:
 		return resolveConfig(key)
@@ -68,8 +68,6 @@ func resolveSecret(key string) string {
 	switch key {
 	case "SESSION_SECRET":
 		field = "session-secret"
-	case "LPBS_SERVICE_SECRET":
-		field = "service-secret"
 	case "LPBS_API_KEY_ENCRYPTION_KEY":
 		field = "api-key-encryption-key"
 	case "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY":
@@ -203,21 +201,10 @@ func (s *Server) adminAuth() *administration.AdminAuthService {
 	return administration.NewAdminAuthService(s.db)
 }
 
-// requireAdminOrService accepts either admin session cookie OR service bearer token.
-// Used for endpoints that need admin-level access from both the UI and inter-scenario calls.
+// requireAdminOrService is retained as a route-composition seam for legacy
+// admin handlers, but no longer accepts a shared service bearer token.
 func (s *Server) requireAdminOrService(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Try service token first (inter-scenario calls)
-		if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
-			token := strings.TrimPrefix(auth, "Bearer ")
-			if s.usageService != nil && s.usageService.ValidateServiceToken(token) {
-				next(w, r)
-				return
-			}
-		}
-		// Fall back to admin session (browser/CLI calls)
-		s.requireAdmin(next)(w, r)
-	}
+	return s.requireAdmin(next)
 }
 
 // requireAdmin is middleware to protect admin routes

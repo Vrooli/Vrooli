@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/health"
+	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 	accounthttp "landing-page-business-suite-api/handlers/account"
 	remoteprofilehttp "landing-page-business-suite-api/handlers/administration"
 	userauthhttp "landing-page-business-suite-api/handlers/administration"
@@ -26,6 +27,7 @@ import (
 	pricinghandler "landing-page-business-suite-api/handlers/pricing"
 	seohttp "landing-page-business-suite-api/handlers/seo"
 	variantspacehttp "landing-page-business-suite-api/handlers/variant_space"
+	"landing-page-business-suite-api/internal/monetization"
 )
 
 func (s *Server) setupRoutes() {
@@ -44,6 +46,7 @@ func (s *Server) setupRoutes() {
 	registerVariantRoutes(s)
 	registerContentRoutes(s)
 	registerMetricsRoutes(s)
+	monetization.RegisterRoutes(s.router)
 	registerFeedbackRoutes(s)
 	registerWaitlistRoutes(s)
 	registerCreditsRoutes(s)
@@ -149,6 +152,24 @@ func registerEntitlementRoute(s *Server) {
 			writeJSONError(w, http.StatusServiceUnavailable, "entitlement service unavailable", ApiErrorTypeServerError)
 			return
 		}
+		lease, err := s.userAuthService.SignEntitlementLease(entitlementclient.Payload{
+			UserIdentity:      identity,
+			Status:            payload.Status,
+			PlanTier:          payload.PlanTier,
+			PlanRank:          payload.PlanRank,
+			PriceID:           payload.PriceID,
+			Features:          payload.Features,
+			Limits:            payload.Limits,
+			NotAfter:          payload.NotAfter,
+			BillingCycleStart: payload.BillingCycleStart,
+			Credits:           payload.Credits,
+			Subscription:      payload.Subscription,
+		})
+		if err != nil {
+			writeJSONError(w, http.StatusServiceUnavailable, "entitlement signing unavailable", ApiErrorTypeServerError)
+			return
+		}
+		payload.Lease = lease
 		writeJSON(w, payload)
 	})).Methods(http.MethodGet)
 }
@@ -289,9 +310,13 @@ func registerCreditsRoutes(s *Server) {
 	// Credit System: App Limits (Admin)
 	s.router.HandleFunc("/api/v1/admin/apps/{app}/limits", s.requireAdmin(billinghttp.GetAppLimits(s.limitsService, limitsDeps))).Methods("GET")
 
-	// Credit System: Usage (Service-to-Service + User Auth + Admin)
+	// Credit System: Usage (User Auth + Admin). The write path derives identity
+	// from the verified access token; no shared service credential is accepted.
 	usageDeps := usageHTTPDependencies()
-	s.router.HandleFunc("/api/v1/usage/report", billinghttp.RequireUsageServiceAuth(s.usageService, usageDeps, billinghttp.ReportUsage(s.usageService, usageDeps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/usage/report", s.requireUserAuth(billinghttp.ReportUsage(s.usageService, usageDeps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/usage/reservations", s.requireUserAuth(billinghttp.ReserveCredits(s.usageService, s.accountService, usageDeps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/usage/reservations/{reservationID}/finalize", s.requireUserAuth(billinghttp.FinalizeReservation(s.usageService, usageDeps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/usage/reservations/{reservationID}/release", s.requireUserAuth(billinghttp.ReleaseReservation(s.usageService, usageDeps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/usage/summary", s.requireUserAuth(billinghttp.GetUsageSummary(s.usageService, s.accountService, usageDeps))).Methods("GET")
 	s.router.HandleFunc("/api/v1/usage/check", s.requireUserAuth(billinghttp.CheckLimit(s.usageService, usageDeps))).Methods("GET")
 	s.router.HandleFunc("/api/v1/usage/health", billinghttp.UsageHealth(s.usageService, usageDeps)).Methods("GET") // Unauthenticated for monitoring

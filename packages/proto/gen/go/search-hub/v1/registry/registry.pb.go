@@ -196,6 +196,61 @@ func (ProviderState) EnumDescriptor() ([]byte, []int) {
 	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{2}
 }
 
+// Lifecycle policy for automatic routing. UNSPECIFIED is intentionally
+// observable at the RPC boundary so registration cannot silently inherit a
+// fail-open production policy; descriptor migration writes explicit values.
+type Lifecycle int32
+
+const (
+	Lifecycle_LIFECYCLE_UNSPECIFIED  Lifecycle = 0
+	Lifecycle_LIFECYCLE_PRODUCTION   Lifecycle = 1
+	Lifecycle_LIFECYCLE_FIXTURE      Lifecycle = 2
+	Lifecycle_LIFECYCLE_EXPERIMENTAL Lifecycle = 3
+)
+
+// Enum value maps for Lifecycle.
+var (
+	Lifecycle_name = map[int32]string{
+		0: "LIFECYCLE_UNSPECIFIED",
+		1: "LIFECYCLE_PRODUCTION",
+		2: "LIFECYCLE_FIXTURE",
+		3: "LIFECYCLE_EXPERIMENTAL",
+	}
+	Lifecycle_value = map[string]int32{
+		"LIFECYCLE_UNSPECIFIED":  0,
+		"LIFECYCLE_PRODUCTION":   1,
+		"LIFECYCLE_FIXTURE":      2,
+		"LIFECYCLE_EXPERIMENTAL": 3,
+	}
+)
+
+func (x Lifecycle) Enum() *Lifecycle {
+	p := new(Lifecycle)
+	*p = x
+	return p
+}
+
+func (x Lifecycle) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Lifecycle) Descriptor() protoreflect.EnumDescriptor {
+	return file_search_hub_v1_registry_registry_proto_enumTypes[3].Descriptor()
+}
+
+func (Lifecycle) Type() protoreflect.EnumType {
+	return &file_search_hub_v1_registry_registry_proto_enumTypes[3]
+}
+
+func (x Lifecycle) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Lifecycle.Descriptor instead.
+func (Lifecycle) EnumDescriptor() ([]byte, []int) {
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{3}
+}
+
 // The scale a provider returns scores on, so the router normalizes to [0,1].
 type ScoreScale int32
 
@@ -233,11 +288,11 @@ func (x ScoreScale) String() string {
 }
 
 func (ScoreScale) Descriptor() protoreflect.EnumDescriptor {
-	return file_search_hub_v1_registry_registry_proto_enumTypes[3].Descriptor()
+	return file_search_hub_v1_registry_registry_proto_enumTypes[4].Descriptor()
 }
 
 func (ScoreScale) Type() protoreflect.EnumType {
-	return &file_search_hub_v1_registry_registry_proto_enumTypes[3]
+	return &file_search_hub_v1_registry_registry_proto_enumTypes[4]
 }
 
 func (x ScoreScale) Number() protoreflect.EnumNumber {
@@ -246,7 +301,7 @@ func (x ScoreScale) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ScoreScale.Descriptor instead.
 func (ScoreScale) EnumDescriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{3}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{4}
 }
 
 type HttpMethod int32
@@ -282,11 +337,11 @@ func (x HttpMethod) String() string {
 }
 
 func (HttpMethod) Descriptor() protoreflect.EnumDescriptor {
-	return file_search_hub_v1_registry_registry_proto_enumTypes[4].Descriptor()
+	return file_search_hub_v1_registry_registry_proto_enumTypes[5].Descriptor()
 }
 
 func (HttpMethod) Type() protoreflect.EnumType {
-	return &file_search_hub_v1_registry_registry_proto_enumTypes[4]
+	return &file_search_hub_v1_registry_registry_proto_enumTypes[5]
 }
 
 func (x HttpMethod) Number() protoreflect.EnumNumber {
@@ -295,7 +350,7 @@ func (x HttpMethod) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use HttpMethod.Descriptor instead.
 func (HttpMethod) EnumDescriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{4}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{5}
 }
 
 // How the router reaches one leaf. Logical target; base URL resolved at
@@ -943,8 +998,9 @@ type ProviderDescriptor struct {
 	// aisearch-go defaults).
 	Tuning *Tuning `protobuf:"bytes,15,opt,name=tuning,proto3" json:"tuning,omitempty"`
 	// production participates in automatic routing; fixture and experimental
-	// providers require an explicit selector. Empty is normalized to production.
-	Lifecycle string `protobuf:"bytes,16,opt,name=lifecycle,proto3" json:"lifecycle,omitempty"`
+	// providers require an explicit selector. UNSPECIFIED is rejected at
+	// registration and is only valid while decoding legacy persisted data.
+	Lifecycle Lifecycle `protobuf:"varint,16,opt,name=lifecycle,proto3,enum=vrooli.search_hub.v1.registry.Lifecycle" json:"lifecycle,omitempty"`
 	// Registrant-declared minimum reviewed evidence for ACTIVE production leaves.
 	TestsMinimum *EvalMinimum `protobuf:"bytes,17,opt,name=tests_minimum,json=testsMinimum,proto3" json:"tests_minimum,omitempty"`
 	// Explicit owner rationale for opting out of automatic junk-leak withholding.
@@ -954,8 +1010,11 @@ type ProviderDescriptor struct {
 	// Search Hub reads this field as the primary freshness contract; the legacy
 	// key sniffer remains only as a compatibility fallback with a warning.
 	IndexTimestampField string `protobuf:"bytes,19,opt,name=index_timestamp_field,json=indexTimestampField,proto3" json:"index_timestamp_field,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// RFC3339 timestamp first registered/declared by the owning scenario. Used
+	// to make experimental providers age-visible without scenario knowledge.
+	DeclaredAt    string `protobuf:"bytes,20,opt,name=declared_at,json=declaredAt,proto3" json:"declared_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ProviderDescriptor) Reset() {
@@ -1093,11 +1152,11 @@ func (x *ProviderDescriptor) GetTuning() *Tuning {
 	return nil
 }
 
-func (x *ProviderDescriptor) GetLifecycle() string {
+func (x *ProviderDescriptor) GetLifecycle() Lifecycle {
 	if x != nil {
 		return x.Lifecycle
 	}
-	return ""
+	return Lifecycle_LIFECYCLE_UNSPECIFIED
 }
 
 func (x *ProviderDescriptor) GetTestsMinimum() *EvalMinimum {
@@ -1117,6 +1176,13 @@ func (x *ProviderDescriptor) GetJunkLeakOptOutReason() string {
 func (x *ProviderDescriptor) GetIndexTimestampField() string {
 	if x != nil {
 		return x.IndexTimestampField
+	}
+	return ""
+}
+
+func (x *ProviderDescriptor) GetDeclaredAt() string {
+	if x != nil {
+		return x.DeclaredAt
 	}
 	return ""
 }
@@ -1181,6 +1247,90 @@ func (x *EvalMinimum) GetRequiredTags() []string {
 	return nil
 }
 
+type IncubatingProvider struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	DeclaredAt    string                 `protobuf:"bytes,2,opt,name=declared_at,json=declaredAt,proto3" json:"declared_at,omitempty"`
+	TimesRouted   int64                  `protobuf:"varint,3,opt,name=times_routed,json=timesRouted,proto3" json:"times_routed,omitempty"`
+	TotalHits     int64                  `protobuf:"varint,4,opt,name=total_hits,json=totalHits,proto3" json:"total_hits,omitempty"`
+	SuitePresent  bool                   `protobuf:"varint,5,opt,name=suite_present,json=suitePresent,proto3" json:"suite_present,omitempty"`
+	NextAction    string                 `protobuf:"bytes,6,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IncubatingProvider) Reset() {
+	*x = IncubatingProvider{}
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IncubatingProvider) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IncubatingProvider) ProtoMessage() {}
+
+func (x *IncubatingProvider) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IncubatingProvider.ProtoReflect.Descriptor instead.
+func (*IncubatingProvider) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *IncubatingProvider) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *IncubatingProvider) GetDeclaredAt() string {
+	if x != nil {
+		return x.DeclaredAt
+	}
+	return ""
+}
+
+func (x *IncubatingProvider) GetTimesRouted() int64 {
+	if x != nil {
+		return x.TimesRouted
+	}
+	return 0
+}
+
+func (x *IncubatingProvider) GetTotalHits() int64 {
+	if x != nil {
+		return x.TotalHits
+	}
+	return 0
+}
+
+func (x *IncubatingProvider) GetSuitePresent() bool {
+	if x != nil {
+		return x.SuitePresent
+	}
+	return false
+}
+
+func (x *IncubatingProvider) GetNextAction() string {
+	if x != nil {
+		return x.NextAction
+	}
+	return ""
+}
+
 type RegisterProviderRequest struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	Descriptor_ *ProviderDescriptor    `protobuf:"bytes,1,opt,name=descriptor,proto3" json:"descriptor,omitempty"`
@@ -1195,7 +1345,7 @@ type RegisterProviderRequest struct {
 
 func (x *RegisterProviderRequest) Reset() {
 	*x = RegisterProviderRequest{}
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[8]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1207,7 +1357,7 @@ func (x *RegisterProviderRequest) String() string {
 func (*RegisterProviderRequest) ProtoMessage() {}
 
 func (x *RegisterProviderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[8]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1220,7 +1370,7 @@ func (x *RegisterProviderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterProviderRequest.ProtoReflect.Descriptor instead.
 func (*RegisterProviderRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{8}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RegisterProviderRequest) GetDescriptor_() *ProviderDescriptor {
@@ -1256,7 +1406,7 @@ type RegisterProviderResponse struct {
 
 func (x *RegisterProviderResponse) Reset() {
 	*x = RegisterProviderResponse{}
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[9]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1268,7 +1418,7 @@ func (x *RegisterProviderResponse) String() string {
 func (*RegisterProviderResponse) ProtoMessage() {}
 
 func (x *RegisterProviderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[9]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1281,7 +1431,7 @@ func (x *RegisterProviderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterProviderResponse.ProtoReflect.Descriptor instead.
 func (*RegisterProviderResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{9}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RegisterProviderResponse) GetDescriptor_() *ProviderDescriptor {
@@ -1317,7 +1467,7 @@ type ListProvidersRequest struct {
 
 func (x *ListProvidersRequest) Reset() {
 	*x = ListProvidersRequest{}
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[10]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1329,7 +1479,7 @@ func (x *ListProvidersRequest) String() string {
 func (*ListProvidersRequest) ProtoMessage() {}
 
 func (x *ListProvidersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[10]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1342,7 +1492,7 @@ func (x *ListProvidersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProvidersRequest.ProtoReflect.Descriptor instead.
 func (*ListProvidersRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{10}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListProvidersRequest) GetBucket() Bucket {
@@ -1369,13 +1519,14 @@ func (x *ListProvidersRequest) GetState() ProviderState {
 type ListProvidersResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Providers     []*ProviderDescriptor  `protobuf:"bytes,1,rep,name=providers,proto3" json:"providers,omitempty"`
+	Incubating    []*IncubatingProvider  `protobuf:"bytes,2,rep,name=incubating,proto3" json:"incubating,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListProvidersResponse) Reset() {
 	*x = ListProvidersResponse{}
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[11]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1387,7 +1538,7 @@ func (x *ListProvidersResponse) String() string {
 func (*ListProvidersResponse) ProtoMessage() {}
 
 func (x *ListProvidersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[11]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1400,12 +1551,19 @@ func (x *ListProvidersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProvidersResponse.ProtoReflect.Descriptor instead.
 func (*ListProvidersResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{11}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListProvidersResponse) GetProviders() []*ProviderDescriptor {
 	if x != nil {
 		return x.Providers
+	}
+	return nil
+}
+
+func (x *ListProvidersResponse) GetIncubating() []*IncubatingProvider {
+	if x != nil {
+		return x.Incubating
 	}
 	return nil
 }
@@ -1429,7 +1587,7 @@ type ExecuteEmbeddingMigrationRequest struct {
 
 func (x *ExecuteEmbeddingMigrationRequest) Reset() {
 	*x = ExecuteEmbeddingMigrationRequest{}
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[12]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1441,7 +1599,7 @@ func (x *ExecuteEmbeddingMigrationRequest) String() string {
 func (*ExecuteEmbeddingMigrationRequest) ProtoMessage() {}
 
 func (x *ExecuteEmbeddingMigrationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[12]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1454,7 +1612,7 @@ func (x *ExecuteEmbeddingMigrationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteEmbeddingMigrationRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteEmbeddingMigrationRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{12}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ExecuteEmbeddingMigrationRequest) GetProviderId() string {
@@ -1549,7 +1707,7 @@ type ExecuteEmbeddingMigrationResponse struct {
 
 func (x *ExecuteEmbeddingMigrationResponse) Reset() {
 	*x = ExecuteEmbeddingMigrationResponse{}
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[13]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1561,7 +1719,7 @@ func (x *ExecuteEmbeddingMigrationResponse) String() string {
 func (*ExecuteEmbeddingMigrationResponse) ProtoMessage() {}
 
 func (x *ExecuteEmbeddingMigrationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[13]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1574,7 +1732,7 @@ func (x *ExecuteEmbeddingMigrationResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ExecuteEmbeddingMigrationResponse.ProtoReflect.Descriptor instead.
 func (*ExecuteEmbeddingMigrationResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{13}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ExecuteEmbeddingMigrationResponse) GetJobId() string {
@@ -1634,7 +1792,7 @@ type ListMaturityTargetsRequest struct {
 
 func (x *ListMaturityTargetsRequest) Reset() {
 	*x = ListMaturityTargetsRequest{}
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[14]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1646,7 +1804,7 @@ func (x *ListMaturityTargetsRequest) String() string {
 func (*ListMaturityTargetsRequest) ProtoMessage() {}
 
 func (x *ListMaturityTargetsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[14]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1659,7 +1817,7 @@ func (x *ListMaturityTargetsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMaturityTargetsRequest.ProtoReflect.Descriptor instead.
 func (*ListMaturityTargetsRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{14}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{15}
 }
 
 type ListMaturityTargetsResponse struct {
@@ -1671,7 +1829,7 @@ type ListMaturityTargetsResponse struct {
 
 func (x *ListMaturityTargetsResponse) Reset() {
 	*x = ListMaturityTargetsResponse{}
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[15]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1683,7 +1841,7 @@ func (x *ListMaturityTargetsResponse) String() string {
 func (*ListMaturityTargetsResponse) ProtoMessage() {}
 
 func (x *ListMaturityTargetsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[15]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1696,7 +1854,7 @@ func (x *ListMaturityTargetsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMaturityTargetsResponse.ProtoReflect.Descriptor instead.
 func (*ListMaturityTargetsResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{15}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListMaturityTargetsResponse) GetTargets() []*MaturityTarget {
@@ -1717,7 +1875,7 @@ type MaturityTarget struct {
 
 func (x *MaturityTarget) Reset() {
 	*x = MaturityTarget{}
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[16]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1729,7 +1887,7 @@ func (x *MaturityTarget) String() string {
 func (*MaturityTarget) ProtoMessage() {}
 
 func (x *MaturityTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[16]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1742,7 +1900,7 @@ func (x *MaturityTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaturityTarget.ProtoReflect.Descriptor instead.
 func (*MaturityTarget) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{16}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *MaturityTarget) GetScenario() string {
@@ -1775,7 +1933,7 @@ type DeregisterProviderRequest struct {
 
 func (x *DeregisterProviderRequest) Reset() {
 	*x = DeregisterProviderRequest{}
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[17]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1787,7 +1945,7 @@ func (x *DeregisterProviderRequest) String() string {
 func (*DeregisterProviderRequest) ProtoMessage() {}
 
 func (x *DeregisterProviderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[17]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1800,7 +1958,7 @@ func (x *DeregisterProviderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeregisterProviderRequest.ProtoReflect.Descriptor instead.
 func (*DeregisterProviderRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{17}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DeregisterProviderRequest) GetProviderId() string {
@@ -1819,7 +1977,7 @@ type DeregisterProviderResponse struct {
 
 func (x *DeregisterProviderResponse) Reset() {
 	*x = DeregisterProviderResponse{}
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[18]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1831,7 +1989,7 @@ func (x *DeregisterProviderResponse) String() string {
 func (*DeregisterProviderResponse) ProtoMessage() {}
 
 func (x *DeregisterProviderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[18]
+	mi := &file_search_hub_v1_registry_registry_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1844,7 +2002,7 @@ func (x *DeregisterProviderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeregisterProviderResponse.ProtoReflect.Descriptor instead.
 func (*DeregisterProviderResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{18}
+	return file_search_hub_v1_registry_registry_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DeregisterProviderResponse) GetRemoved() bool {
@@ -1912,7 +2070,7 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\x10rerank_shortlist\x18\x06 \x01(\x05R\x0frerankShortlist\x12@\n" +
 	"\x05floor\x18\a \x01(\v2*.vrooli.search_hub.v1.registry.FloorConfigR\x05floor\x12#\n" +
 	"\rhybrid_fusion\x18\b \x01(\tR\fhybridFusion\x12+\n" +
-	"\x11rerank_preference\x18\t \x01(\tR\x10rerankPreference\"\xc1\b\n" +
+	"\x11rerank_preference\x18\t \x01(\tR\x10rerankPreference\"\x8c\t\n" +
 	"\x12ProviderDescriptor\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12%\n" +
@@ -1931,15 +2089,28 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\rintended_home\x18\f \x01(\tR\fintendedHome\x12R\n" +
 	"\x10reindex_endpoint\x18\r \x01(\v2'.vrooli.search_hub.v1.registry.EndpointR\x0freindexEndpoint\x12P\n" +
 	"\x0fconfig_endpoint\x18\x0e \x01(\v2'.vrooli.search_hub.v1.registry.EndpointR\x0econfigEndpoint\x12=\n" +
-	"\x06tuning\x18\x0f \x01(\v2%.vrooli.search_hub.v1.registry.TuningR\x06tuning\x12\x1c\n" +
-	"\tlifecycle\x18\x10 \x01(\tR\tlifecycle\x12O\n" +
+	"\x06tuning\x18\x0f \x01(\v2%.vrooli.search_hub.v1.registry.TuningR\x06tuning\x12F\n" +
+	"\tlifecycle\x18\x10 \x01(\x0e2(.vrooli.search_hub.v1.registry.LifecycleR\tlifecycle\x12O\n" +
 	"\rtests_minimum\x18\x11 \x01(\v2*.vrooli.search_hub.v1.registry.EvalMinimumR\ftestsMinimum\x126\n" +
 	"\x18junk_leak_opt_out_reason\x18\x12 \x01(\tR\x14junkLeakOptOutReason\x122\n" +
-	"\x15index_timestamp_field\x18\x13 \x01(\tR\x13indexTimestampField\"{\n" +
+	"\x15index_timestamp_field\x18\x13 \x01(\tR\x13indexTimestampField\x12\x1f\n" +
+	"\vdeclared_at\x18\x14 \x01(\tR\n" +
+	"declaredAt\"{\n" +
 	"\vEvalMinimum\x12+\n" +
 	"\x11reviewed_positive\x18\x01 \x01(\x05R\x10reviewedPositive\x12\x1a\n" +
 	"\bnegative\x18\x02 \x01(\x05R\bnegative\x12#\n" +
-	"\rrequired_tags\x18\x03 \x03(\tR\frequiredTags\"\x91\x01\n" +
+	"\rrequired_tags\x18\x03 \x03(\tR\frequiredTags\"\xde\x01\n" +
+	"\x12IncubatingProvider\x12\x1f\n" +
+	"\vprovider_id\x18\x01 \x01(\tR\n" +
+	"providerId\x12\x1f\n" +
+	"\vdeclared_at\x18\x02 \x01(\tR\n" +
+	"declaredAt\x12!\n" +
+	"\ftimes_routed\x18\x03 \x01(\x03R\vtimesRouted\x12\x1d\n" +
+	"\n" +
+	"total_hits\x18\x04 \x01(\x03R\ttotalHits\x12#\n" +
+	"\rsuite_present\x18\x05 \x01(\bR\fsuitePresent\x12\x1f\n" +
+	"\vnext_action\x18\x06 \x01(\tR\n" +
+	"nextAction\"\x91\x01\n" +
 	"\x17RegisterProviderRequest\x12Q\n" +
 	"\n" +
 	"descriptor\x18\x01 \x01(\v21.vrooli.search_hub.v1.registry.ProviderDescriptorR\n" +
@@ -1954,9 +2125,12 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\x14ListProvidersRequest\x12=\n" +
 	"\x06bucket\x18\x01 \x01(\x0e2%.vrooli.search_hub.v1.registry.BucketR\x06bucket\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12B\n" +
-	"\x05state\x18\x03 \x01(\x0e2,.vrooli.search_hub.v1.registry.ProviderStateR\x05state\"h\n" +
+	"\x05state\x18\x03 \x01(\x0e2,.vrooli.search_hub.v1.registry.ProviderStateR\x05state\"\xbb\x01\n" +
 	"\x15ListProvidersResponse\x12O\n" +
-	"\tproviders\x18\x01 \x03(\v21.vrooli.search_hub.v1.registry.ProviderDescriptorR\tproviders\"\xc9\x03\n" +
+	"\tproviders\x18\x01 \x03(\v21.vrooli.search_hub.v1.registry.ProviderDescriptorR\tproviders\x12Q\n" +
+	"\n" +
+	"incubating\x18\x02 \x03(\v21.vrooli.search_hub.v1.registry.IncubatingProviderR\n" +
+	"incubating\"\xc9\x03\n" +
 	" ExecuteEmbeddingMigrationRequest\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12\x16\n" +
@@ -2005,7 +2179,12 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\rProviderState\x12\x1e\n" +
 	"\x1aPROVIDER_STATE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15PROVIDER_STATE_ACTIVE\x10\x01\x12!\n" +
-	"\x1dPROVIDER_STATE_CAPABILITY_GAP\x10\x02*y\n" +
+	"\x1dPROVIDER_STATE_CAPABILITY_GAP\x10\x02*s\n" +
+	"\tLifecycle\x12\x19\n" +
+	"\x15LIFECYCLE_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14LIFECYCLE_PRODUCTION\x10\x01\x12\x15\n" +
+	"\x11LIFECYCLE_FIXTURE\x10\x02\x12\x1a\n" +
+	"\x16LIFECYCLE_EXPERIMENTAL\x10\x03*y\n" +
 	"\n" +
 	"ScoreScale\x12\x1b\n" +
 	"\x17SCORE_SCALE_UNSPECIFIED\x10\x00\x12\x1a\n" +
@@ -2036,73 +2215,77 @@ func file_search_hub_v1_registry_registry_proto_rawDescGZIP() []byte {
 	return file_search_hub_v1_registry_registry_proto_rawDescData
 }
 
-var file_search_hub_v1_registry_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_search_hub_v1_registry_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_search_hub_v1_registry_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
+var file_search_hub_v1_registry_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_search_hub_v1_registry_registry_proto_goTypes = []any{
 	(Bucket)(0),                               // 0: vrooli.search_hub.v1.registry.Bucket
 	(Scope)(0),                                // 1: vrooli.search_hub.v1.registry.Scope
 	(ProviderState)(0),                        // 2: vrooli.search_hub.v1.registry.ProviderState
-	(ScoreScale)(0),                           // 3: vrooli.search_hub.v1.registry.ScoreScale
-	(HttpMethod)(0),                           // 4: vrooli.search_hub.v1.registry.HttpMethod
-	(*Endpoint)(nil),                          // 5: vrooli.search_hub.v1.registry.Endpoint
-	(*HttpJsonEndpoint)(nil),                  // 6: vrooli.search_hub.v1.registry.HttpJsonEndpoint
-	(*CliEndpoint)(nil),                       // 7: vrooli.search_hub.v1.registry.CliEndpoint
-	(*ResultMapping)(nil),                     // 8: vrooli.search_hub.v1.registry.ResultMapping
-	(*FloorConfig)(nil),                       // 9: vrooli.search_hub.v1.registry.FloorConfig
-	(*Tuning)(nil),                            // 10: vrooli.search_hub.v1.registry.Tuning
-	(*ProviderDescriptor)(nil),                // 11: vrooli.search_hub.v1.registry.ProviderDescriptor
-	(*EvalMinimum)(nil),                       // 12: vrooli.search_hub.v1.registry.EvalMinimum
-	(*RegisterProviderRequest)(nil),           // 13: vrooli.search_hub.v1.registry.RegisterProviderRequest
-	(*RegisterProviderResponse)(nil),          // 14: vrooli.search_hub.v1.registry.RegisterProviderResponse
-	(*ListProvidersRequest)(nil),              // 15: vrooli.search_hub.v1.registry.ListProvidersRequest
-	(*ListProvidersResponse)(nil),             // 16: vrooli.search_hub.v1.registry.ListProvidersResponse
-	(*ExecuteEmbeddingMigrationRequest)(nil),  // 17: vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationRequest
-	(*ExecuteEmbeddingMigrationResponse)(nil), // 18: vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationResponse
-	(*ListMaturityTargetsRequest)(nil),        // 19: vrooli.search_hub.v1.registry.ListMaturityTargetsRequest
-	(*ListMaturityTargetsResponse)(nil),       // 20: vrooli.search_hub.v1.registry.ListMaturityTargetsResponse
-	(*MaturityTarget)(nil),                    // 21: vrooli.search_hub.v1.registry.MaturityTarget
-	(*DeregisterProviderRequest)(nil),         // 22: vrooli.search_hub.v1.registry.DeregisterProviderRequest
-	(*DeregisterProviderResponse)(nil),        // 23: vrooli.search_hub.v1.registry.DeregisterProviderResponse
-	nil,                                       // 24: vrooli.search_hub.v1.registry.HttpJsonEndpoint.HeadersEntry
+	(Lifecycle)(0),                            // 3: vrooli.search_hub.v1.registry.Lifecycle
+	(ScoreScale)(0),                           // 4: vrooli.search_hub.v1.registry.ScoreScale
+	(HttpMethod)(0),                           // 5: vrooli.search_hub.v1.registry.HttpMethod
+	(*Endpoint)(nil),                          // 6: vrooli.search_hub.v1.registry.Endpoint
+	(*HttpJsonEndpoint)(nil),                  // 7: vrooli.search_hub.v1.registry.HttpJsonEndpoint
+	(*CliEndpoint)(nil),                       // 8: vrooli.search_hub.v1.registry.CliEndpoint
+	(*ResultMapping)(nil),                     // 9: vrooli.search_hub.v1.registry.ResultMapping
+	(*FloorConfig)(nil),                       // 10: vrooli.search_hub.v1.registry.FloorConfig
+	(*Tuning)(nil),                            // 11: vrooli.search_hub.v1.registry.Tuning
+	(*ProviderDescriptor)(nil),                // 12: vrooli.search_hub.v1.registry.ProviderDescriptor
+	(*EvalMinimum)(nil),                       // 13: vrooli.search_hub.v1.registry.EvalMinimum
+	(*IncubatingProvider)(nil),                // 14: vrooli.search_hub.v1.registry.IncubatingProvider
+	(*RegisterProviderRequest)(nil),           // 15: vrooli.search_hub.v1.registry.RegisterProviderRequest
+	(*RegisterProviderResponse)(nil),          // 16: vrooli.search_hub.v1.registry.RegisterProviderResponse
+	(*ListProvidersRequest)(nil),              // 17: vrooli.search_hub.v1.registry.ListProvidersRequest
+	(*ListProvidersResponse)(nil),             // 18: vrooli.search_hub.v1.registry.ListProvidersResponse
+	(*ExecuteEmbeddingMigrationRequest)(nil),  // 19: vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationRequest
+	(*ExecuteEmbeddingMigrationResponse)(nil), // 20: vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationResponse
+	(*ListMaturityTargetsRequest)(nil),        // 21: vrooli.search_hub.v1.registry.ListMaturityTargetsRequest
+	(*ListMaturityTargetsResponse)(nil),       // 22: vrooli.search_hub.v1.registry.ListMaturityTargetsResponse
+	(*MaturityTarget)(nil),                    // 23: vrooli.search_hub.v1.registry.MaturityTarget
+	(*DeregisterProviderRequest)(nil),         // 24: vrooli.search_hub.v1.registry.DeregisterProviderRequest
+	(*DeregisterProviderResponse)(nil),        // 25: vrooli.search_hub.v1.registry.DeregisterProviderResponse
+	nil,                                       // 26: vrooli.search_hub.v1.registry.HttpJsonEndpoint.HeadersEntry
 }
 var file_search_hub_v1_registry_registry_proto_depIdxs = []int32{
-	6,  // 0: vrooli.search_hub.v1.registry.Endpoint.http_json:type_name -> vrooli.search_hub.v1.registry.HttpJsonEndpoint
-	7,  // 1: vrooli.search_hub.v1.registry.Endpoint.cli:type_name -> vrooli.search_hub.v1.registry.CliEndpoint
-	4,  // 2: vrooli.search_hub.v1.registry.HttpJsonEndpoint.method:type_name -> vrooli.search_hub.v1.registry.HttpMethod
-	24, // 3: vrooli.search_hub.v1.registry.HttpJsonEndpoint.headers:type_name -> vrooli.search_hub.v1.registry.HttpJsonEndpoint.HeadersEntry
-	3,  // 4: vrooli.search_hub.v1.registry.ResultMapping.score_scale:type_name -> vrooli.search_hub.v1.registry.ScoreScale
-	9,  // 5: vrooli.search_hub.v1.registry.Tuning.floor:type_name -> vrooli.search_hub.v1.registry.FloorConfig
+	7,  // 0: vrooli.search_hub.v1.registry.Endpoint.http_json:type_name -> vrooli.search_hub.v1.registry.HttpJsonEndpoint
+	8,  // 1: vrooli.search_hub.v1.registry.Endpoint.cli:type_name -> vrooli.search_hub.v1.registry.CliEndpoint
+	5,  // 2: vrooli.search_hub.v1.registry.HttpJsonEndpoint.method:type_name -> vrooli.search_hub.v1.registry.HttpMethod
+	26, // 3: vrooli.search_hub.v1.registry.HttpJsonEndpoint.headers:type_name -> vrooli.search_hub.v1.registry.HttpJsonEndpoint.HeadersEntry
+	4,  // 4: vrooli.search_hub.v1.registry.ResultMapping.score_scale:type_name -> vrooli.search_hub.v1.registry.ScoreScale
+	10, // 5: vrooli.search_hub.v1.registry.Tuning.floor:type_name -> vrooli.search_hub.v1.registry.FloorConfig
 	0,  // 6: vrooli.search_hub.v1.registry.ProviderDescriptor.bucket:type_name -> vrooli.search_hub.v1.registry.Bucket
-	5,  // 7: vrooli.search_hub.v1.registry.ProviderDescriptor.endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
-	8,  // 8: vrooli.search_hub.v1.registry.ProviderDescriptor.result_mapping:type_name -> vrooli.search_hub.v1.registry.ResultMapping
-	5,  // 9: vrooli.search_hub.v1.registry.ProviderDescriptor.status_endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
+	6,  // 7: vrooli.search_hub.v1.registry.ProviderDescriptor.endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
+	9,  // 8: vrooli.search_hub.v1.registry.ProviderDescriptor.result_mapping:type_name -> vrooli.search_hub.v1.registry.ResultMapping
+	6,  // 9: vrooli.search_hub.v1.registry.ProviderDescriptor.status_endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
 	1,  // 10: vrooli.search_hub.v1.registry.ProviderDescriptor.scope:type_name -> vrooli.search_hub.v1.registry.Scope
 	2,  // 11: vrooli.search_hub.v1.registry.ProviderDescriptor.state:type_name -> vrooli.search_hub.v1.registry.ProviderState
-	5,  // 12: vrooli.search_hub.v1.registry.ProviderDescriptor.reindex_endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
-	5,  // 13: vrooli.search_hub.v1.registry.ProviderDescriptor.config_endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
-	10, // 14: vrooli.search_hub.v1.registry.ProviderDescriptor.tuning:type_name -> vrooli.search_hub.v1.registry.Tuning
-	12, // 15: vrooli.search_hub.v1.registry.ProviderDescriptor.tests_minimum:type_name -> vrooli.search_hub.v1.registry.EvalMinimum
-	11, // 16: vrooli.search_hub.v1.registry.RegisterProviderRequest.descriptor:type_name -> vrooli.search_hub.v1.registry.ProviderDescriptor
-	11, // 17: vrooli.search_hub.v1.registry.RegisterProviderResponse.descriptor:type_name -> vrooli.search_hub.v1.registry.ProviderDescriptor
-	0,  // 18: vrooli.search_hub.v1.registry.ListProvidersRequest.bucket:type_name -> vrooli.search_hub.v1.registry.Bucket
-	2,  // 19: vrooli.search_hub.v1.registry.ListProvidersRequest.state:type_name -> vrooli.search_hub.v1.registry.ProviderState
-	11, // 20: vrooli.search_hub.v1.registry.ListProvidersResponse.providers:type_name -> vrooli.search_hub.v1.registry.ProviderDescriptor
-	21, // 21: vrooli.search_hub.v1.registry.ListMaturityTargetsResponse.targets:type_name -> vrooli.search_hub.v1.registry.MaturityTarget
-	13, // 22: vrooli.search_hub.v1.registry.RegistryService.RegisterProvider:input_type -> vrooli.search_hub.v1.registry.RegisterProviderRequest
-	15, // 23: vrooli.search_hub.v1.registry.RegistryService.ListProviders:input_type -> vrooli.search_hub.v1.registry.ListProvidersRequest
-	17, // 24: vrooli.search_hub.v1.registry.RegistryService.ExecuteEmbeddingMigration:input_type -> vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationRequest
-	19, // 25: vrooli.search_hub.v1.registry.RegistryService.ListMaturityTargets:input_type -> vrooli.search_hub.v1.registry.ListMaturityTargetsRequest
-	22, // 26: vrooli.search_hub.v1.registry.RegistryService.DeregisterProvider:input_type -> vrooli.search_hub.v1.registry.DeregisterProviderRequest
-	14, // 27: vrooli.search_hub.v1.registry.RegistryService.RegisterProvider:output_type -> vrooli.search_hub.v1.registry.RegisterProviderResponse
-	16, // 28: vrooli.search_hub.v1.registry.RegistryService.ListProviders:output_type -> vrooli.search_hub.v1.registry.ListProvidersResponse
-	18, // 29: vrooli.search_hub.v1.registry.RegistryService.ExecuteEmbeddingMigration:output_type -> vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationResponse
-	20, // 30: vrooli.search_hub.v1.registry.RegistryService.ListMaturityTargets:output_type -> vrooli.search_hub.v1.registry.ListMaturityTargetsResponse
-	23, // 31: vrooli.search_hub.v1.registry.RegistryService.DeregisterProvider:output_type -> vrooli.search_hub.v1.registry.DeregisterProviderResponse
-	27, // [27:32] is the sub-list for method output_type
-	22, // [22:27] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	6,  // 12: vrooli.search_hub.v1.registry.ProviderDescriptor.reindex_endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
+	6,  // 13: vrooli.search_hub.v1.registry.ProviderDescriptor.config_endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
+	11, // 14: vrooli.search_hub.v1.registry.ProviderDescriptor.tuning:type_name -> vrooli.search_hub.v1.registry.Tuning
+	3,  // 15: vrooli.search_hub.v1.registry.ProviderDescriptor.lifecycle:type_name -> vrooli.search_hub.v1.registry.Lifecycle
+	13, // 16: vrooli.search_hub.v1.registry.ProviderDescriptor.tests_minimum:type_name -> vrooli.search_hub.v1.registry.EvalMinimum
+	12, // 17: vrooli.search_hub.v1.registry.RegisterProviderRequest.descriptor:type_name -> vrooli.search_hub.v1.registry.ProviderDescriptor
+	12, // 18: vrooli.search_hub.v1.registry.RegisterProviderResponse.descriptor:type_name -> vrooli.search_hub.v1.registry.ProviderDescriptor
+	0,  // 19: vrooli.search_hub.v1.registry.ListProvidersRequest.bucket:type_name -> vrooli.search_hub.v1.registry.Bucket
+	2,  // 20: vrooli.search_hub.v1.registry.ListProvidersRequest.state:type_name -> vrooli.search_hub.v1.registry.ProviderState
+	12, // 21: vrooli.search_hub.v1.registry.ListProvidersResponse.providers:type_name -> vrooli.search_hub.v1.registry.ProviderDescriptor
+	14, // 22: vrooli.search_hub.v1.registry.ListProvidersResponse.incubating:type_name -> vrooli.search_hub.v1.registry.IncubatingProvider
+	23, // 23: vrooli.search_hub.v1.registry.ListMaturityTargetsResponse.targets:type_name -> vrooli.search_hub.v1.registry.MaturityTarget
+	15, // 24: vrooli.search_hub.v1.registry.RegistryService.RegisterProvider:input_type -> vrooli.search_hub.v1.registry.RegisterProviderRequest
+	17, // 25: vrooli.search_hub.v1.registry.RegistryService.ListProviders:input_type -> vrooli.search_hub.v1.registry.ListProvidersRequest
+	19, // 26: vrooli.search_hub.v1.registry.RegistryService.ExecuteEmbeddingMigration:input_type -> vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationRequest
+	21, // 27: vrooli.search_hub.v1.registry.RegistryService.ListMaturityTargets:input_type -> vrooli.search_hub.v1.registry.ListMaturityTargetsRequest
+	24, // 28: vrooli.search_hub.v1.registry.RegistryService.DeregisterProvider:input_type -> vrooli.search_hub.v1.registry.DeregisterProviderRequest
+	16, // 29: vrooli.search_hub.v1.registry.RegistryService.RegisterProvider:output_type -> vrooli.search_hub.v1.registry.RegisterProviderResponse
+	18, // 30: vrooli.search_hub.v1.registry.RegistryService.ListProviders:output_type -> vrooli.search_hub.v1.registry.ListProvidersResponse
+	20, // 31: vrooli.search_hub.v1.registry.RegistryService.ExecuteEmbeddingMigration:output_type -> vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationResponse
+	22, // 32: vrooli.search_hub.v1.registry.RegistryService.ListMaturityTargets:output_type -> vrooli.search_hub.v1.registry.ListMaturityTargetsResponse
+	25, // 33: vrooli.search_hub.v1.registry.RegistryService.DeregisterProvider:output_type -> vrooli.search_hub.v1.registry.DeregisterProviderResponse
+	29, // [29:34] is the sub-list for method output_type
+	24, // [24:29] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_registry_registry_proto_init() }
@@ -2119,8 +2302,8 @@ func file_search_hub_v1_registry_registry_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_hub_v1_registry_registry_proto_rawDesc), len(file_search_hub_v1_registry_registry_proto_rawDesc)),
-			NumEnums:      5,
-			NumMessages:   20,
+			NumEnums:      6,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

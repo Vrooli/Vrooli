@@ -102,7 +102,116 @@ message OpParams {
     AsciiMosaicParams ascii_mosaic = 29;
     PixelSortParams pixel_sort = 30;
     DisplacementParams displacement = 31;
+    CompositeParams composite = 32;
   }
+
+  // Space no colour operation may print into, whichever one is selected above.
+  //
+  // A sibling of the oneof rather than a field repeated across every parameter
+  // message, because reserving space is a property of the picture being made
+  // and not of the treatment making it: a caller declares where the headline
+  // goes once, and every operation in the chain honours the same rectangle. The
+  // alternative — the same five fields on seventeen messages — guarantees that
+  // some of them eventually differ.
+  Knockout knockout = 33;
+}
+
+// Knockout reserves an area of the frame that must come out as paper.
+//
+// The printer's term, and the printer's mechanism: a hole left in an ink layer
+// so something else can occupy that space. It exists so a headline can be laid
+// over a picture and still be read, which on a screened or dithered backdrop is
+// otherwise close to impossible — a screen puts ink and paper everywhere, so
+// dark type always meets a dot somewhere inside its own box and worst-pixel
+// contrast collapses however light the area looks on average.
+//
+// Honoured by lifting the area to the top of the tonal ramp BEFORE the
+// operation runs. Fed white, a tone-driven operation lays no ink and returns
+// its own paper colour, so the reserve comes out as the same cream or blue the
+// rest of the picture is printed on rather than as a white hole.
+//
+// Geometry operations ignore it. A resize or a crop moves the frame underneath
+// the rectangle, so a reserve declared against the old frame would name the
+// wrong part of the new one; declare it against the frame the treatment runs on.
+message Knockout {
+  // Bounds as fractions of the frame, so one declaration survives every
+  // delivery size. Zero width or height reserves nothing.
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+  // How far the reserve eases back into the picture, as a fraction of the SHORT
+  // edge so its softness is the same shape on a hero and on a phone. Zero takes
+  // a default rather than a hard rectangle: a visible box is worse than no
+  // reserve at all.
+  //
+  // It also does load-bearing work beyond softness. Operations that read
+  // neighbouring pixels — defocus, motion blur, displacement — drag ink inward
+  // from outside the edge, and this margin is what absorbs it before it reaches
+  // the copy.
+  double feather = 5;
+  // solid cuts the reserve the other way: full ink instead of none.
+  //
+  // The two are one decision in opposite directions, and which one is right is
+  // decided by the copy, not by the picture. Dark copy needs light ground and
+  // the plate carries no ink there — a knockout. Light copy needs dark ground
+  // and the plate carries full ink — a solid. Offering only the first would
+  // reserve space for light copy by making it harder to read, not easier.
+  //
+  // Honoured by pushing the area to the BOTTOM of the tonal ramp before the
+  // operation runs, exactly as the default pushes it to the top. Fed black, a
+  // tone-driven operation lays its heaviest ink and returns its own darkest
+  // value, so the area comes out as the picture's own ink rather than as a
+  // black rectangle dropped onto it.
+  bool solid = 6;
+}
+
+// CompositeParams merges an ordered stack of plates into one raster.
+//
+// A plate is one depth layer of a picture — a sky, a sea, a colonnade, a figure
+// — carried separately so a consumer can move them against each other and so a
+// treatment can be applied to one without touching the others. The flat raster
+// this returns stays the default deliverable: everything downstream decodes one
+// image, and a stack that could not be flattened would be a contract change
+// rather than a capability.
+//
+// The plates themselves arrive as multipart parts named `plate0`, `plate1`, …
+// in the same order as this list, because a stack of full-size rasters does not
+// belong in a JSON parameter.
+message CompositeParams {
+  repeated Plate plates = 1;
+  // Output geometry. Zero takes the first plate's size, which is the common
+  // case: every plate of one picture is drawn at the delivery size.
+  int32 width = 2;
+  int32 height = 3;
+  // Background painted before the first plate, as #rrggbb or #rrggbbaa. Empty
+  // leaves it transparent — which is correct when the first plate is opaque and
+  // visible when it is not, rather than silently filling with a colour nobody
+  // chose.
+  string background = 4;
+}
+
+// Plate is one layer in a composite stack.
+message Plate {
+  // Human-readable name of what this layer depicts ("sky", "colonnade"). It is
+  // carried through so an operator reading a job can tell which layer misbehaved
+  // without counting indices.
+  string name = 1;
+  // Depth orders the stack, lowest first. It is explicit rather than implied by
+  // list position so a caller can reorder plates without rebuilding the list,
+  // and so two plates cannot silently claim the same layer.
+  int32 depth = 2;
+  // blend is how this plate merges with everything beneath it: "normal",
+  // "multiply" or "screen". Empty means normal.
+  //
+  // The three are not an arbitrary subset. Normal is placement; multiply is how
+  // ink sits on paper, which is what every screen and duotone in this system
+  // models; screen is how light adds, which is what a glow or a star field
+  // needs. A blend mode outside this set is refused rather than approximated.
+  string blend = 3;
+  // opacity scales this plate's contribution, 0..1. Zero means fully
+  // transparent; a caller wanting the default must send 1.
+  double opacity = 4;
 }
 
 // ResizeParams: width/height in px (0 = derive from aspect). fit is
@@ -277,6 +386,23 @@ message ScrimParams {
   string color = 1;
   double opacity = 2;
   string direction = 3;
+  // A region-scoped scrim shades only where copy actually sits, as fractions
+  // of the frame. Zero width or height leaves the whole-frame directional
+  // gradient a scrim has always been.
+  //
+  // The whole-frame gradient is the right tool for setting a mood and the wrong
+  // one for making a headline readable: it dims a picture chosen for its beauty
+  // everywhere in order to fix one corner. Shading the region is what every
+  // design system that puts type on photography actually does.
+  double region_x = 4;
+  double region_y = 5;
+  double region_width = 6;
+  double region_height = 7;
+  // How far the pool eases out past the region, as a fraction of the SHORT
+  // edge so its softness is the same shape on a hero and on a phone. Zero
+  // takes a default rather than a hard rectangle: a visible box is worse than
+  // no scrim, because a reader sees the box before they read the headline.
+  double region_feather = 8;
 }
 
 message LineScreenParams {

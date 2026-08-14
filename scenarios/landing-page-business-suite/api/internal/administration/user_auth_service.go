@@ -15,6 +15,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/vrooli/api-core/consumeridentity"
+	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 )
 
 // MagicLinkSender sends a completed magic-link URL without coupling identity
@@ -530,6 +531,16 @@ func (s *UserAuthService) GenerateAccessToken(userID, email, sessionID string) (
 		Email:     email,
 		SessionID: sessionID,
 	})
+}
+
+// SignEntitlementLease signs the authority-owned entitlement snapshot. The
+// private consumer key never leaves LPBS; bundled apps receive only the
+// short-lived lease and the public JWKS needed to verify it.
+func (s *UserAuthService) SignEntitlementLease(payload entitlementclient.Payload) (string, error) {
+	if s == nil || s.consumerSigner == nil {
+		return "", errors.New("consumer signing key is unavailable")
+	}
+	return entitlementclient.Sign(payload, s.consumerSigner.KeyID, s.consumerSigner.Private)
 }
 
 // HashToken returns the SHA-256 hash of a token for persistence comparisons.

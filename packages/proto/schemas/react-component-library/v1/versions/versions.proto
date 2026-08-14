@@ -49,6 +49,7 @@ message Version {
 	// CSS custom properties referenced by the version but not defined by its
 	// own source files. Derived at catalog index time.
 	repeated string required_tokens = 12;
+	repeated string required_token_patterns = 13;
 }
 
 message ListVersionsRequest {

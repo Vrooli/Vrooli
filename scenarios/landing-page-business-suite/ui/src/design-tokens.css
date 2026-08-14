@@ -13,6 +13,36 @@
   --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
 }
+/* rcl:tokens:begin */
+  --border-hairline: 1px;
+  --border-strong: 2px;
+  --color-danger: #f87171;
+  --color-focus: #60a5fa;
+  --color-info: #38bdf8;
+  --color-muted-foreground: #94a3b8;
+  --color-on-primary: var(--color-primary-foreground);
+  --color-primary-hover: #93c5fd;
+  --dur-quick: 180ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --elev-flat: none;
+  --opacity-disabled: 0.4;
+  --opacity-muted: 0.64;
+  --radius-control: 0.375rem;
+  --radius-panel: 0.5rem;
+  --radius-pill: 9999px;
+  --space-2xs: 8px;
+  --space-3xs: 4px;
+  --space-lg: 32px;
+  --space-md: 24px;
+  --space-sm: 16px;
+  --space-xl: 40px;
+  --space-xs: 12px;
+  --tap-target-min: 44px;
+  --text-body-sm: 400 var(--text-body-sm-size) / var(--text-body-sm-line) var(--font-sans);
+  --text-label: 500 var(--text-label-size) / var(--text-label-line) var(--font-sans);
+  --text-label-line: 16px;
+  --text-title: 700 var(--text-title-size) / var(--text-title-line) var(--font-sans);
+/* rcl:tokens:end */
 
 @media (prefers-reduced-motion: reduce) {
   *,

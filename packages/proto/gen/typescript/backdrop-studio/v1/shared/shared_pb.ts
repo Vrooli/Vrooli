@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backdrop-studio/v1/shared/shared.proto.
  */
 export const file_backdrop_studio_v1_shared_shared: GenFile = /*@__PURE__*/
-  fileDesc("CiZiYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkL3NoYXJlZC5wcm90bxIgdnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQiZwoOUmVzZXJ2ZWRSZWdpb24SCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoARIMCgRraW5kGAUgASgJEhIKCnRleHRfY29sb3IYBiABKAkiSwoPU2NhZmZvbGRCaW5kaW5nEg4KBnByZXNldBgBIAEoCRITCgtjb25kaXRpb25lchgCIAEoCRITCgtwYXJhbXNfanNvbhgDIAEoCSKQAQoPR2VuZXJhdGlvbkJsb2NrEhcKD3Byb21wdF90ZW1wbGF0ZRgDIAEoCRIQCghuZWdhdGl2ZRgEIAEoCRINCgVtb2RlbBgFIAEoCRIUCgxwcm92aWRlcl91cmwYBiABKAkSEgoKY3JlZGVudGlhbBgHIAEoCUoECAEQAkoECAIQA1IEcm9sZVIHcHJvZmlsZSLYAQoNUm91dGluZ1JlY29yZBJECg1kZWNsYXJlZF90aWVyGAEgASgOMi0udnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuUXVhbGl0eVRpZXISEwoLc2VydmVkX2xhbmUYAiABKAkSEAoIbW9kZWxfaWQYAyABKAkSFgoOZXhlY3V0aW9uX3RpZXIYBCABKAkSEAoIY29zdF91c2QYBSABKAESFwoPYXR0ZW1wdGVkX2xhbmVzGAYgAygJEhcKD2F0dGVtcHRfZGV0YWlscxgHIAMoCSLdBQoFU3R5bGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgFEgwKBHJvbGUYBCABKAkSDwoHc3ViamVjdBgFIAEoCRISCgp0cmVhdG1lbnRzGAYgAygJEg8KB2xpbmVhZ2UYByABKAkSEgoKcGxhY2VtZW50cxgIIAMoCRIQCghzdHJhdGVneRgJIAEoCRJBCgdyZWdpb25zGAogAygLMjAudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuUmVzZXJ2ZWRSZWdpb24SGgoSY29udHJhc3RfdGhyZXNob2xkGAsgASgBEkMKCHNjYWZmb2xkGAwgASgLMjEudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuU2NhZmZvbGRCaW5kaW5nEkUKCmdlbmVyYXRpb24YDSABKAsyMS52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5HZW5lcmF0aW9uQmxvY2sSVgoQdHJlYXRtZW50X3BhcmFtcxgOIAMoCzI8LnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEuc2hhcmVkLlN0eWxlLlRyZWF0bWVudFBhcmFtc0VudHJ5Ej8KBGlua3MYDyADKAsyMS52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5TdHlsZS5JbmtzRW50cnkSEQoJcGFyZW50X2lkGBAgASgJEkMKDHF1YWxpdHlfdGllchgRIAEoDjItLnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEuc2hhcmVkLlF1YWxpdHlUaWVyGjYKFFRyZWF0bWVudFBhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaKwoJSW5rc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEqhwEKC1F1YWxpdHlUaWVyEhwKGFFVQUxJVFlfVElFUl9VTlNQRUNJRklFRBAAEhsKF1FVQUxJVFlfVElFUl9QUk9DRURVUkFMEAESHAoYUVVBTElUWV9USUVSX0xPQ0FMX01PREVMEAISHwobUVVBTElUWV9USUVSX0ZST05USUVSX01PREVMEANCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9iYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("CiZiYWNrZHJvcC1zdHVkaW8vdjEvc2hhcmVkL3NoYXJlZC5wcm90bxIgdnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQiZwoOUmVzZXJ2ZWRSZWdpb24SCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoARIMCgRraW5kGAUgASgJEhIKCnRleHRfY29sb3IYBiABKAkiSwoPU2NhZmZvbGRCaW5kaW5nEg4KBnByZXNldBgBIAEoCRITCgtjb25kaXRpb25lchgCIAEoCRITCgtwYXJhbXNfanNvbhgDIAEoCSKQAQoPR2VuZXJhdGlvbkJsb2NrEhcKD3Byb21wdF90ZW1wbGF0ZRgDIAEoCRIQCghuZWdhdGl2ZRgEIAEoCRINCgVtb2RlbBgFIAEoCRIUCgxwcm92aWRlcl91cmwYBiABKAkSEgoKY3JlZGVudGlhbBgHIAEoCUoECAEQAkoECAIQA1IEcm9sZVIHcHJvZmlsZSLYAQoNUm91dGluZ1JlY29yZBJECg1kZWNsYXJlZF90aWVyGAEgASgOMi0udnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuUXVhbGl0eVRpZXISEwoLc2VydmVkX2xhbmUYAiABKAkSEAoIbW9kZWxfaWQYAyABKAkSFgoOZXhlY3V0aW9uX3RpZXIYBCABKAkSEAoIY29zdF91c2QYBSABKAESFwoPYXR0ZW1wdGVkX2xhbmVzGAYgAygJEhcKD2F0dGVtcHRfZGV0YWlscxgHIAMoCSKmAQoFUGxhdGUSDAoEbmFtZRgBIAEoCRINCgVkZXB0aBgCIAEoBRINCgVibGVuZBgDIAEoCRIPCgdvcGFjaXR5GAQgASgBEgsKA3JlZhgFIAEoCRISCgp0cmVhdG1lbnRzGAYgAygJEj8KBm1vdGlvbhgHIAEoCzIvLnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEuc2hhcmVkLk1vdGlvblByb2ZpbGUiZgoNTW90aW9uUHJvZmlsZRIQCghwYXJhbGxheBgBIAEoARIPCgdhbWJpZW50GAIgASgJEhcKD2FtYmllbnRfc2Vjb25kcxgDIAEoARIZChFhbWJpZW50X2FtcGxpdHVkZRgEIAEoASLBAgoJUGxhdGVTcGVjEgwKBG5hbWUYASABKAkSDQoFZGVwdGgYAiABKAUSDQoFYmxlbmQYAyABKAkSDwoHb3BhY2l0eRgEIAEoARISCgp0cmVhdG1lbnRzGAUgAygJEj8KBm1vdGlvbhgIIAEoCzIvLnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEuc2hhcmVkLk1vdGlvblByb2ZpbGUSDgoGcGxhbmVzGAYgAygJEloKEHRyZWF0bWVudF9wYXJhbXMYByADKAsyQC52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5QbGF0ZVNwZWMuVHJlYXRtZW50UGFyYW1zRW50cnkaNgoUVHJlYXRtZW50UGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKeBgoFU3R5bGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgFEgwKBHJvbGUYBCABKAkSDwoHc3ViamVjdBgFIAEoCRISCgp0cmVhdG1lbnRzGAYgAygJEg8KB2xpbmVhZ2UYByABKAkSEgoKcGxhY2VtZW50cxgIIAMoCRIQCghzdHJhdGVneRgJIAEoCRJBCgdyZWdpb25zGAogAygLMjAudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuUmVzZXJ2ZWRSZWdpb24SGgoSY29udHJhc3RfdGhyZXNob2xkGAsgASgBEkMKCHNjYWZmb2xkGAwgASgLMjEudnJvb2xpLmJhY2tkcm9wX3N0dWRpby52MS5zaGFyZWQuU2NhZmZvbGRCaW5kaW5nEkUKCmdlbmVyYXRpb24YDSABKAsyMS52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5HZW5lcmF0aW9uQmxvY2sSVgoQdHJlYXRtZW50X3BhcmFtcxgOIAMoCzI8LnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEuc2hhcmVkLlN0eWxlLlRyZWF0bWVudFBhcmFtc0VudHJ5Ej8KBGlua3MYDyADKAsyMS52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5TdHlsZS5JbmtzRW50cnkSEQoJcGFyZW50X2lkGBAgASgJEkMKDHF1YWxpdHlfdGllchgRIAEoDjItLnZyb29saS5iYWNrZHJvcF9zdHVkaW8udjEuc2hhcmVkLlF1YWxpdHlUaWVyEj8KCnBsYXRlX3NwZWMYEiADKAsyKy52cm9vbGkuYmFja2Ryb3Bfc3R1ZGlvLnYxLnNoYXJlZC5QbGF0ZVNwZWMaNgoUVHJlYXRtZW50UGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARorCglJbmtzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASqHAQoLUXVhbGl0eVRpZXISHAoYUVVBTElUWV9USUVSX1VOU1BFQ0lGSUVEEAASGwoXUVVBTElUWV9USUVSX1BST0NFRFVSQUwQARIcChhRVUFMSVRZX1RJRVJfTE9DQUxfTU9ERUwQAhIfChtRVUFMSVRZX1RJRVJfRlJPTlRJRVJfTU9ERUwQA0JUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2JhY2tkcm9wLXN0dWRpby92MS9zaGFyZWQ7c2hhcmVkX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.backdrop_studio.v1.shared.ReservedRegion
@@ -207,6 +207,238 @@ export const RoutingRecordSchema: GenMessage<RoutingRecord> = /*@__PURE__*/
   messageDesc(file_backdrop_studio_v1_shared_shared, 3);
 
 /**
+ * Plate is one depth layer of a candidate.
+ *
+ * A backdrop is not flat. A colonnade sits in front of a sea which sits in
+ * front of a sky, and the generators already know that — the vector family
+ * draws each as its own SVG group. Flattening at the moment of render threw the
+ * separation away, so a consumer wanting parallax had to infer depth from a
+ * picture that no longer contained it.
+ *
+ * The image bytes are NOT carried here. A three-plate candidate at store
+ * geometry is tens of megabytes, and a job record that inlined them would make
+ * every list call expensive for a field most callers ignore. `ref` names where
+ * the bytes are; the flat composite on the candidate is what a consumer reads
+ * when it just wants a picture.
+ *
+ * @generated from message vrooli.backdrop_studio.v1.shared.Plate
+ */
+export type Plate = Message<"vrooli.backdrop_studio.v1.shared.Plate"> & {
+  /**
+   * What this layer depicts: "sky", "sea", "colonnade", "figure".
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Depth orders the stack, lowest first and furthest from the viewer.
+   *
+   * @generated from field: int32 depth = 2;
+   */
+  depth: number;
+
+  /**
+   * Blend with everything beneath: "normal", "multiply" or "screen". Empty is
+   * normal. The set matches image-tools' compositor exactly — a mode this
+   * scenario could name and that scenario could not run would be a contract
+   * that only looks complete.
+   *
+   * @generated from field: string blend = 3;
+   */
+  blend: string;
+
+  /**
+   * Opacity 0..1.
+   *
+   * @generated from field: double opacity = 4;
+   */
+  opacity: number;
+
+  /**
+   * ref locates the plate's pixels. Empty on a single-plate candidate, whose
+   * only plate IS the composite.
+   *
+   * @generated from field: string ref = 5;
+   */
+  ref: string;
+
+  /**
+   * The treatment chain applied to this plate alone, in order. Empty means the
+   * plate ships as its generator drew it.
+   *
+   * @generated from field: repeated string treatments = 6;
+   */
+  treatments: string[];
+
+  /**
+   * motion is how this layer moves relative to the viewport. Absent means it
+   * does not move, which is the honest default: a plate with no declared
+   * parallax is a plate the art direction did not decide about.
+   *
+   * @generated from field: vrooli.backdrop_studio.v1.shared.MotionProfile motion = 7;
+   */
+  motion?: MotionProfile | undefined;
+};
+
+/**
+ * Describes the message vrooli.backdrop_studio.v1.shared.Plate.
+ * Use `create(PlateSchema)` to create a new message.
+ */
+export const PlateSchema: GenMessage<Plate> = /*@__PURE__*/
+  messageDesc(file_backdrop_studio_v1_shared_shared, 4);
+
+/**
+ * MotionProfile is how one plate moves.
+ *
+ * Motion ships as a CSS transform descriptor over plate images, never as video
+ * or an animated GIF. That is a boundary rather than a limitation: `image-tools`
+ * records motion content as a non-goal, a landing page pays a video decode for
+ * something a transform does for free, and a descriptor degrades to the flat
+ * composite when a viewer asks for reduced motion. The revisit trigger is the
+ * first ambient loop CSS genuinely cannot express — which is the signal to
+ * build a rich-media capability, not to add an encoder here.
+ *
+ * @generated from message vrooli.backdrop_studio.v1.shared.MotionProfile
+ */
+export type MotionProfile = Message<"vrooli.backdrop_studio.v1.shared.MotionProfile"> & {
+  /**
+   * parallax is how far this plate travels against the scroll, as a fraction of
+   * the viewport's travel. 0 is pinned to the page, 1 moves with it. A far
+   * plate takes a small factor and a near plate a large one, which is what
+   * produces the depth impression.
+   *
+   * @generated from field: double parallax = 1;
+   */
+  parallax: number;
+
+  /**
+   * ambient names an optional continuous loop: "drift", "sway" or "breathe".
+   * Empty means the plate only responds to scroll.
+   *
+   * @generated from field: string ambient = 2;
+   */
+  ambient: string;
+
+  /**
+   * ambient_seconds is one period of that loop. Long, because an ambient
+   * motion a reader can time is a distraction rather than an atmosphere.
+   *
+   * @generated from field: double ambient_seconds = 3;
+   */
+  ambientSeconds: number;
+
+  /**
+   * ambient_amplitude is the loop's travel, as a fraction of the frame's short
+   * edge. Small: this is the difference between a picture that breathes and one
+   * that wobbles.
+   *
+   * @generated from field: double ambient_amplitude = 4;
+   */
+  ambientAmplitude: number;
+};
+
+/**
+ * Describes the message vrooli.backdrop_studio.v1.shared.MotionProfile.
+ * Use `create(MotionProfileSchema)` to create a new message.
+ */
+export const MotionProfileSchema: GenMessage<MotionProfile> = /*@__PURE__*/
+  messageDesc(file_backdrop_studio_v1_shared_shared, 5);
+
+/**
+ * PlateSpec is a style's declaration of one layer it draws.
+ *
+ * It is the catalog's half of the plate model: the render path fills a stack
+ * from it, and a style whose spec names a layer no generator draws is refused
+ * at write time rather than rendering a stack with a hole in it. Separate from
+ * Plate — which is what a *candidate* actually got — because a declaration and
+ * a result are different facts and conflating them is how a catalog comes to
+ * describe pictures it does not produce.
+ *
+ * @generated from message vrooli.backdrop_studio.v1.shared.PlateSpec
+ */
+export type PlateSpec = Message<"vrooli.backdrop_studio.v1.shared.PlateSpec"> & {
+  /**
+   * What this layer should depict. The generators name their own planes, and a
+   * spec entry binds to one of those names.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Depth orders the stack, lowest first.
+   *
+   * @generated from field: int32 depth = 2;
+   */
+  depth: number;
+
+  /**
+   * Blend with everything beneath: "normal", "multiply" or "screen".
+   *
+   * @generated from field: string blend = 3;
+   */
+  blend: string;
+
+  /**
+   * Opacity 0..1.
+   *
+   * @generated from field: double opacity = 4;
+   */
+  opacity: number;
+
+  /**
+   * The treatment chain for this plate alone. A per-plate chain is the point of
+   * separating them: a screen over the sea and none over the sky is a picture
+   * the flat lane cannot make.
+   *
+   * @generated from field: repeated string treatments = 5;
+   */
+  treatments: string[];
+
+  /**
+   * motion is how this layer should move. Absent means it does not.
+   *
+   * @generated from field: vrooli.backdrop_studio.v1.shared.MotionProfile motion = 8;
+   */
+  motion?: MotionProfile | undefined;
+
+  /**
+   * planes are the generator planes this plate merges, in the generator's own
+   * depth order. Empty means the single plane whose name matches `name`.
+   *
+   * The indirection lets a style ship fewer plates than its generator
+   * separates. The colonnade draws four planes against a three-plate cap, and
+   * merging "the far ground" loses no parallax where dropping a layer would
+   * lose picture — so a cap is enforced by composition rather than by deletion.
+   *
+   * @generated from field: repeated string planes = 6;
+   */
+  planes: string[];
+
+  /**
+   * treatment_params are this plate's own parameters, keyed by operation name
+   * and overlaid on the style's.
+   *
+   * Depth-grading is exactly a parameter difference: a coarser screen on the
+   * far plane and a finer one on the near is the same operation at two
+   * rulings. Without these, per-plate chains could express "screen this layer
+   * and not that one" but never "screen both, differently" — which is the
+   * depth cue itself.
+   *
+   * @generated from field: map<string, string> treatment_params = 7;
+   */
+  treatmentParams: { [key: string]: string };
+};
+
+/**
+ * Describes the message vrooli.backdrop_studio.v1.shared.PlateSpec.
+ * Use `create(PlateSpecSchema)` to create a new message.
+ */
+export const PlateSpecSchema: GenMessage<PlateSpec> = /*@__PURE__*/
+  messageDesc(file_backdrop_studio_v1_shared_shared, 6);
+
+/**
  * @generated from message vrooli.backdrop_studio.v1.shared.Style
  */
 export type Style = Message<"vrooli.backdrop_studio.v1.shared.Style"> & {
@@ -321,6 +553,15 @@ export type Style = Message<"vrooli.backdrop_studio.v1.shared.Style"> & {
    * @generated from field: vrooli.backdrop_studio.v1.shared.QualityTier quality_tier = 17;
    */
   qualityTier: QualityTier;
+
+  /**
+   * plate_spec declares how many plates this style draws and what each depicts.
+   * Absent means one plate — the whole picture — which is what every style
+   * drew before the plate model existed and what most still draw.
+   *
+   * @generated from field: repeated vrooli.backdrop_studio.v1.shared.PlateSpec plate_spec = 18;
+   */
+  plateSpec: PlateSpec[];
 };
 
 /**
@@ -328,7 +569,7 @@ export type Style = Message<"vrooli.backdrop_studio.v1.shared.Style"> & {
  * Use `create(StyleSchema)` to create a new message.
  */
 export const StyleSchema: GenMessage<Style> = /*@__PURE__*/
-  messageDesc(file_backdrop_studio_v1_shared_shared, 4);
+  messageDesc(file_backdrop_studio_v1_shared_shared, 7);
 
 /**
  * QualityTier is the quality bar a style's SOURCE must meet, which the

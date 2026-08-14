@@ -42,6 +42,19 @@ type Generator struct {
 
 var processLock sync.Mutex
 
+// bufGenerationTimeout is intentionally longer than Buf's two-minute default.
+// A full repository generation invokes several local plugins for every schema
+// directory, and a fresh Intel macOS host can legitimately need more than two
+// minutes before the slowest built-in Python plugin completes. Keep the bound
+// finite so a genuinely wedged plugin still fails with actionable evidence.
+const bufGenerationTimeout = 15 * time.Minute
+
+func bufCommandArgs(command string, args ...string) []string {
+	out := make([]string, 0, 3+len(args))
+	out = append(out, command, "--timeout", bufGenerationTimeout.String())
+	return append(out, args...)
+}
+
 func New(config Config) (*Generator, error) {
 	config.RepoRoot = filepath.Clean(strings.TrimSpace(config.RepoRoot))
 	config.ProtoRoot = filepath.Clean(strings.TrimSpace(config.ProtoRoot))
@@ -61,7 +74,7 @@ func New(config Config) (*Generator, error) {
 		config.LockPoll = 25 * time.Millisecond
 	}
 	if config.StageParent == "" {
-		config.StageParent = filepath.Dir(config.ProtoRoot)
+		config.StageParent = DefaultStageParent(config.ProtoRoot)
 	}
 	return &Generator{cfg: config}, nil
 }
@@ -69,6 +82,94 @@ func New(config Config) (*Generator, error) {
 func DefaultConfig(repoRoot string) Config {
 	protoRoot := filepath.Join(repoRoot, "packages", "proto")
 	return Config{RepoRoot: repoRoot, ProtoRoot: protoRoot}
+}
+
+// DefaultStageParent resolves where staging trees are created when a Config
+// leaves StageParent empty. It is exported so callers that reap staging trees
+// without building a Generator -- `protogen clean` -- target exactly the
+// directory the generator writes to, from a single definition.
+func DefaultStageParent(protoRoot string) string {
+	return filepath.Dir(filepath.Clean(protoRoot))
+}
+
+// stagePrefixes names every staging directory protogen creates. Reaping keys
+// on the whole set rather than one literal so a future staging kind cannot
+// silently escape the retention bound.
+var stagePrefixes = []string{".proto-gen-stage-", ".proto-gen-verify-", ".proto-descriptor-"}
+
+// stageRetention bounds how long a retained staging tree survives. Retention
+// exists so a failed run can be inspected, but a full staging tree is a copy of
+// the entire generated fleet: without a bound, every failure permanently adds
+// tens of megabytes that nothing removes. One day is long enough to debug the
+// run that produced the tree and short enough that trees cannot accumulate.
+const stageRetention = 24 * time.Hour
+
+func hasStagePrefix(name string) bool {
+	for _, prefix := range stagePrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// stageRetainable reports whether a finished run's staging tree is worth
+// keeping. Only a genuine failure is: a cancelled or timed-out run leaves a
+// partial tree that says nothing the logs do not, and cancellation is the
+// common case when generation runs under an agent or a test harness.
+func stageRetainable(err error) bool {
+	if err == nil {
+		return false
+	}
+	return !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded)
+}
+
+// reapStaleStages removes staging trees left behind by earlier runs. Callers
+// hold the generator lock, so no live run owns a tree here. A tree that cannot
+// be removed is logged and skipped: stale staging output is garbage, never a
+// reason to fail the run that encountered it.
+func (g *Generator) reapStaleStages(now time.Time) {
+	entries, err := os.ReadDir(g.cfg.StageParent)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() || !hasStagePrefix(entry.Name()) {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil || now.Sub(info.ModTime()) < stageRetention {
+			continue
+		}
+		path := filepath.Join(g.cfg.StageParent, entry.Name())
+		if err := os.RemoveAll(path); err != nil {
+			logf(g.cfg.Logger, "protogen: could not reap stale staging tree %s: %v", path, err)
+			continue
+		}
+		logf(g.cfg.Logger, "protogen: reaped stale staging tree %s", path)
+	}
+}
+
+// CleanStages removes every staging tree under stageParent regardless of age.
+// Clean is an explicit operator request, so unlike reapStaleStages it does not
+// honour stageRetention -- an operator asking to clean means all of it.
+func CleanStages(stageParent string) error {
+	entries, err := os.ReadDir(stageParent)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() || !hasStagePrefix(entry.Name()) {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(stageParent, entry.Name())); err != nil {
+			return fmt.Errorf("remove staging tree %s: %w", entry.Name(), err)
+		}
+	}
+	return nil
 }
 
 // Clean removes generated outputs while preserving the generated directory
@@ -90,12 +191,16 @@ func Clean(genRoot string) error {
 	return nil
 }
 
-func (g *Generator) Generate(ctx context.Context) error {
+// Generate publishes the generated tree. The named error return is what drives
+// staging-tree retention in the deferred cleanup below, so every failure path
+// must return through it rather than exiting by another route.
+func (g *Generator) Generate(ctx context.Context) (err error) {
 	unlock, err := g.acquireLock(ctx)
 	if err != nil {
 		return err
 	}
 	defer unlock()
+	g.reapStaleStages(time.Now())
 
 	allScenarios, err := genmanifest.ScenarioNames(g.cfg.ProtoRoot)
 	if err != nil {
@@ -114,13 +219,12 @@ func (g *Generator) Generate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create generation staging directory: %w", err)
 	}
-	removeStage := true
 	defer func() {
-		if removeStage {
+		if stageRetainable(err) {
 			logf(g.cfg.Logger, "protogen: generation failed; staging tree retained at %s", stage)
-		} else {
-			_ = os.RemoveAll(stage)
+			return
 		}
+		_ = os.RemoveAll(stage)
 	}()
 	stageGen := filepath.Join(stage, "gen")
 	if err := os.MkdirAll(stageGen, 0o755); err != nil {
@@ -130,7 +234,7 @@ func (g *Generator) Generate(ctx context.Context) error {
 		return err
 	}
 
-	args := []string{"generate", "--output", stage}
+	args := bufCommandArgs("generate", "--output", stage)
 	if len(g.cfg.Scenarios) > 0 {
 		for _, scenario := range scope {
 			args = append(args, "--path", filepath.ToSlash(filepath.Join("schemas", scenario)))
@@ -145,7 +249,7 @@ func (g *Generator) Generate(ctx context.Context) error {
 	if err := os.MkdirAll(filepath.Join(stageGen, "descriptor"), 0o755); err != nil {
 		return fmt.Errorf("create staged descriptor directory: %w", err)
 	}
-	if err := g.cfg.RunTool(ctx, g.cfg.ProtoRoot, "buf", "build", "-o", filepath.Join(stageGen, "descriptor", "image.binpb")); err != nil {
+	if err := g.cfg.RunTool(ctx, g.cfg.ProtoRoot, "buf", bufCommandArgs("build", "-o", filepath.Join(stageGen, "descriptor", "image.binpb"))...); err != nil {
 		return fmt.Errorf("buf build descriptor: %w", err)
 	}
 	if err := g.writeManifests(stageGen, scope); err != nil {
@@ -154,16 +258,19 @@ func (g *Generator) Generate(ctx context.Context) error {
 	if err := g.publish(stageGen, scope, len(g.cfg.Scenarios) == 0); err != nil {
 		return err
 	}
-	removeStage = false
 	return nil
 }
 
-func (g *Generator) Verify(ctx context.Context) error {
+// Verify carries the same named-error retention contract as Generate: a real
+// mismatch keeps its staging tree so the diff can be inspected, a cancellation
+// does not.
+func (g *Generator) Verify(ctx context.Context) (err error) {
 	unlock, err := g.acquireLock(ctx)
 	if err != nil {
 		return err
 	}
 	defer unlock()
+	g.reapStaleStages(time.Now())
 
 	allScenarios, err := genmanifest.ScenarioNames(g.cfg.ProtoRoot)
 	if err != nil {
@@ -173,13 +280,12 @@ func (g *Generator) Verify(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create verification staging directory: %w", err)
 	}
-	removeStage := true
 	defer func() {
-		if removeStage {
+		if stageRetainable(err) {
 			logf(g.cfg.Logger, "protogen: verification failed; staging tree retained at %s", stage)
-		} else {
-			_ = os.RemoveAll(stage)
+			return
 		}
+		_ = os.RemoveAll(stage)
 	}()
 	stageGen := filepath.Join(stage, "gen")
 	if err := os.MkdirAll(stageGen, 0o755); err != nil {
@@ -188,7 +294,7 @@ func (g *Generator) Verify(ctx context.Context) error {
 	if err := g.seedGeneratedMetadata(stageGen); err != nil {
 		return err
 	}
-	if err := g.cfg.RunTool(ctx, g.cfg.ProtoRoot, "buf", "generate", "--output", stage); err != nil {
+	if err := g.cfg.RunTool(ctx, g.cfg.ProtoRoot, "buf", bufCommandArgs("generate", "--output", stage)...); err != nil {
 		return fmt.Errorf("buf generate: %w", err)
 	}
 	if err := markPythonPackages(stageGen); err != nil {
@@ -197,7 +303,7 @@ func (g *Generator) Verify(ctx context.Context) error {
 	if err := os.MkdirAll(filepath.Join(stageGen, "descriptor"), 0o755); err != nil {
 		return fmt.Errorf("create staged descriptor directory: %w", err)
 	}
-	if err := g.cfg.RunTool(ctx, g.cfg.ProtoRoot, "buf", "build", "-o", filepath.Join(stageGen, "descriptor", "image.binpb")); err != nil {
+	if err := g.cfg.RunTool(ctx, g.cfg.ProtoRoot, "buf", bufCommandArgs("build", "-o", filepath.Join(stageGen, "descriptor", "image.binpb"))...); err != nil {
 		return fmt.Errorf("buf build descriptor: %w", err)
 	}
 	if err := g.writeManifests(stageGen, allScenarios); err != nil {
@@ -210,7 +316,6 @@ func (g *Generator) Verify(ctx context.Context) error {
 	if len(findings) > 0 {
 		return fmt.Errorf("generated artifacts differ (%d findings): %s", len(findings), strings.Join(findings, ", "))
 	}
-	removeStage = false
 	return nil
 }
 
@@ -229,7 +334,7 @@ func (g *Generator) Descriptor(ctx context.Context) error {
 	}
 	defer os.RemoveAll(stage)
 	target := filepath.Join(stage, "image.binpb")
-	if err := g.cfg.RunTool(ctx, g.cfg.ProtoRoot, "buf", "build", "-o", target); err != nil {
+	if err := g.cfg.RunTool(ctx, g.cfg.ProtoRoot, "buf", bufCommandArgs("build", "-o", target)...); err != nil {
 		return fmt.Errorf("buf build descriptor: %w", err)
 	}
 	return publishFile(target, filepath.Join(g.cfg.ProtoRoot, "gen", "descriptor", "image.binpb"))

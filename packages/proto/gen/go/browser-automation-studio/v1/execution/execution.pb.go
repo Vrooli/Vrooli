@@ -974,12 +974,9 @@ type ExecuteWorkflowOptions struct {
 	SeedMode string `protobuf:"bytes,7,opt,name=seed_mode,json=seedMode,proto3" json:"seed_mode,omitempty"`
 	// Optional seed-scenario identifier. Defaults to "browser-automation-studio"
 	// when seed_mode is set without an explicit scenario.
-	SeedScenario string `protobuf:"bytes,8,opt,name=seed_scenario,json=seedScenario,proto3" json:"seed_scenario,omitempty"`
-	// Target-owned Electron renderer to attach for desktop validation. When
-	// present, BAS never launches or owns the desktop process; it attaches to
-	// the renderer identified by the target adapter.
-	ElectronTarget *ElectronTarget `protobuf:"bytes,9,opt,name=electron_target,json=electronTarget,proto3" json:"electron_target,omitempty"`
-	// Immutable validation-cell identity required with electron_target. BAS
+	SeedScenario string     `protobuf:"bytes,8,opt,name=seed_scenario,json=seedScenario,proto3" json:"seed_scenario,omitempty"`
+	AppTarget    *AppTarget `protobuf:"bytes,11,opt,name=app_target,json=appTarget,proto3" json:"app_target,omitempty"`
+	// Immutable validation-cell identity required with app_target. BAS
 	// refuses target execution without the leased isolation binding.
 	ValidationContext *ValidationContext `protobuf:"bytes,10,opt,name=validation_context,json=validationContext,proto3" json:"validation_context,omitempty"`
 	unknownFields     protoimpl.UnknownFields
@@ -1072,9 +1069,9 @@ func (x *ExecuteWorkflowOptions) GetSeedScenario() string {
 	return ""
 }
 
-func (x *ExecuteWorkflowOptions) GetElectronTarget() *ElectronTarget {
+func (x *ExecuteWorkflowOptions) GetAppTarget() *AppTarget {
 	if x != nil {
-		return x.ElectronTarget
+		return x.AppTarget
 	}
 	return nil
 }
@@ -1086,38 +1083,42 @@ func (x *ExecuteWorkflowOptions) GetValidationContext() *ValidationContext {
 	return nil
 }
 
-// ElectronTarget describes an already-running renderer owned by a desktop
+// AppTarget describes an already-running renderer owned by a desktop
 // target adapter. The endpoint must be loopback-only or authenticated by the
 // target transport; BAS does not open or expose a debugging port.
-type ElectronTarget struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TargetId       string                 `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
-	CdpEndpoint    string                 `protobuf:"bytes,2,opt,name=cdp_endpoint,json=cdpEndpoint,proto3" json:"cdp_endpoint,omitempty"`
-	RendererId     string                 `protobuf:"bytes,3,opt,name=renderer_id,json=rendererId,proto3" json:"renderer_id,omitempty"`
-	RendererUrl    string                 `protobuf:"bytes,4,opt,name=renderer_url,json=rendererUrl,proto3" json:"renderer_url,omitempty"`
-	RendererTitle  string                 `protobuf:"bytes,5,opt,name=renderer_title,json=rendererTitle,proto3" json:"renderer_title,omitempty"`
-	ScenarioName   string                 `protobuf:"bytes,6,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
-	ArtifactDigest string                 `protobuf:"bytes,7,opt,name=artifact_digest,json=artifactDigest,proto3" json:"artifact_digest,omitempty"`
-	ContextId      string                 `protobuf:"bytes,8,opt,name=context_id,json=contextId,proto3" json:"context_id,omitempty"`
-	CdpTransport   string                 `protobuf:"bytes,9,opt,name=cdp_transport,json=cdpTransport,proto3" json:"cdp_transport,omitempty"`
+type AppTarget struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Target kind selects the admitted URL policy. Supported values are
+	// "electron" and "android-webview"; future WebView kinds reuse this
+	// descriptor rather than adding another target message.
+	TargetKind     string `protobuf:"bytes,10,opt,name=target_kind,json=targetKind,proto3" json:"target_kind,omitempty"`
+	TargetId       string `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	CdpEndpoint    string `protobuf:"bytes,2,opt,name=cdp_endpoint,json=cdpEndpoint,proto3" json:"cdp_endpoint,omitempty"`
+	RendererId     string `protobuf:"bytes,3,opt,name=renderer_id,json=rendererId,proto3" json:"renderer_id,omitempty"`
+	RendererUrl    string `protobuf:"bytes,4,opt,name=renderer_url,json=rendererUrl,proto3" json:"renderer_url,omitempty"`
+	RendererTitle  string `protobuf:"bytes,5,opt,name=renderer_title,json=rendererTitle,proto3" json:"renderer_title,omitempty"`
+	ScenarioName   string `protobuf:"bytes,6,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	ArtifactDigest string `protobuf:"bytes,7,opt,name=artifact_digest,json=artifactDigest,proto3" json:"artifact_digest,omitempty"`
+	ContextId      string `protobuf:"bytes,8,opt,name=context_id,json=contextId,proto3" json:"context_id,omitempty"`
+	CdpTransport   string `protobuf:"bytes,9,opt,name=cdp_transport,json=cdpTransport,proto3" json:"cdp_transport,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *ElectronTarget) Reset() {
-	*x = ElectronTarget{}
+func (x *AppTarget) Reset() {
+	*x = AppTarget{}
 	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ElectronTarget) String() string {
+func (x *AppTarget) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ElectronTarget) ProtoMessage() {}
+func (*AppTarget) ProtoMessage() {}
 
-func (x *ElectronTarget) ProtoReflect() protoreflect.Message {
+func (x *AppTarget) ProtoReflect() protoreflect.Message {
 	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1129,68 +1130,75 @@ func (x *ElectronTarget) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ElectronTarget.ProtoReflect.Descriptor instead.
-func (*ElectronTarget) Descriptor() ([]byte, []int) {
+// Deprecated: Use AppTarget.ProtoReflect.Descriptor instead.
+func (*AppTarget) Descriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ElectronTarget) GetTargetId() string {
+func (x *AppTarget) GetTargetKind() string {
+	if x != nil {
+		return x.TargetKind
+	}
+	return ""
+}
+
+func (x *AppTarget) GetTargetId() string {
 	if x != nil {
 		return x.TargetId
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetCdpEndpoint() string {
+func (x *AppTarget) GetCdpEndpoint() string {
 	if x != nil {
 		return x.CdpEndpoint
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetRendererId() string {
+func (x *AppTarget) GetRendererId() string {
 	if x != nil {
 		return x.RendererId
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetRendererUrl() string {
+func (x *AppTarget) GetRendererUrl() string {
 	if x != nil {
 		return x.RendererUrl
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetRendererTitle() string {
+func (x *AppTarget) GetRendererTitle() string {
 	if x != nil {
 		return x.RendererTitle
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetScenarioName() string {
+func (x *AppTarget) GetScenarioName() string {
 	if x != nil {
 		return x.ScenarioName
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetArtifactDigest() string {
+func (x *AppTarget) GetArtifactDigest() string {
 	if x != nil {
 		return x.ArtifactDigest
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetContextId() string {
+func (x *AppTarget) GetContextId() string {
 	if x != nil {
 		return x.ContextId
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetCdpTransport() string {
+func (x *AppTarget) GetCdpTransport() string {
 	if x != nil {
 		return x.CdpTransport
 	}
@@ -2040,7 +2048,7 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
 	"parameters\x18\x06 \x01(\v21.browser_automation_studio.v1.ExecutionParametersR\n" +
 	"parameters\x12N\n" +
-	"\aoptions\x18\a \x01(\v24.browser_automation_studio.v1.ExecuteWorkflowOptionsR\aoptionsJ\x04\b\x02\x10\x03J\x04\b\x05\x10\x06\"\xe7\x04\n" +
+	"\aoptions\x18\a \x01(\v24.browser_automation_studio.v1.ExecuteWorkflowOptionsR\aoptionsJ\x04\b\x02\x10\x03J\x04\b\x05\x10\x06\"\xef\x04\n" +
 	"\x16ExecuteWorkflowOptions\x12%\n" +
 	"\x0erequires_video\x18\x01 \x01(\bR\rrequiresVideo\x12%\n" +
 	"\x0erequires_trace\x18\x02 \x01(\bR\rrequiresTrace\x12!\n" +
@@ -2049,13 +2057,18 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\x17frame_streaming_quality\x18\x05 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x01H\x00R\x15frameStreamingQuality\x88\x01\x01\x12>\n" +
 	"\x13frame_streaming_fps\x18\x06 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x1e(\x01H\x01R\x11frameStreamingFps\x88\x01\x01\x12\x1b\n" +
 	"\tseed_mode\x18\a \x01(\tR\bseedMode\x12#\n" +
-	"\rseed_scenario\x18\b \x01(\tR\fseedScenario\x12U\n" +
-	"\x0felectron_target\x18\t \x01(\v2,.browser_automation_studio.v1.ElectronTargetR\x0eelectronTarget\x12^\n" +
+	"\rseed_scenario\x18\b \x01(\tR\fseedScenario\x12F\n" +
+	"\n" +
+	"app_target\x18\v \x01(\v2'.browser_automation_studio.v1.AppTargetR\tappTarget\x12^\n" +
 	"\x12validation_context\x18\n" +
 	" \x01(\v2/.browser_automation_studio.v1.ValidationContextR\x11validationContextB\x1a\n" +
 	"\x18_frame_streaming_qualityB\x16\n" +
-	"\x14_frame_streaming_fps\"\xcd\x02\n" +
-	"\x0eElectronTarget\x12\x1b\n" +
+	"\x14_frame_streaming_fpsJ\x04\b\t\x10\n" +
+	"R\x0felectron_target\"\xe9\x02\n" +
+	"\tAppTarget\x12\x1f\n" +
+	"\vtarget_kind\x18\n" +
+	" \x01(\tR\n" +
+	"targetKind\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12!\n" +
 	"\fcdp_endpoint\x18\x02 \x01(\tR\vcdpEndpoint\x12\x1f\n" +
 	"\vrenderer_id\x18\x03 \x01(\tR\n" +
@@ -2165,7 +2178,7 @@ var file_browser_automation_studio_v1_execution_execution_proto_goTypes = []any{
 	(*Execution)(nil),                      // 4: browser_automation_studio.v1.Execution
 	(*ExecuteAdhocRequest)(nil),            // 5: browser_automation_studio.v1.ExecuteAdhocRequest
 	(*ExecuteWorkflowOptions)(nil),         // 6: browser_automation_studio.v1.ExecuteWorkflowOptions
-	(*ElectronTarget)(nil),                 // 7: browser_automation_studio.v1.ElectronTarget
+	(*AppTarget)(nil),                      // 7: browser_automation_studio.v1.AppTarget
 	(*ValidationContext)(nil),              // 8: browser_automation_studio.v1.ValidationContext
 	(*ExecutionMetadata)(nil),              // 9: browser_automation_studio.v1.ExecutionMetadata
 	(*ExecuteAdhocResponse)(nil),           // 10: browser_automation_studio.v1.ExecuteAdhocResponse
@@ -2215,7 +2228,7 @@ var file_browser_automation_studio_v1_execution_execution_proto_depIdxs = []int3
 	9,  // 20: browser_automation_studio.v1.ExecuteAdhocRequest.metadata:type_name -> browser_automation_studio.v1.ExecutionMetadata
 	1,  // 21: browser_automation_studio.v1.ExecuteAdhocRequest.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
 	6,  // 22: browser_automation_studio.v1.ExecuteAdhocRequest.options:type_name -> browser_automation_studio.v1.ExecuteWorkflowOptions
-	7,  // 23: browser_automation_studio.v1.ExecuteWorkflowOptions.electron_target:type_name -> browser_automation_studio.v1.ElectronTarget
+	7,  // 23: browser_automation_studio.v1.ExecuteWorkflowOptions.app_target:type_name -> browser_automation_studio.v1.AppTarget
 	8,  // 24: browser_automation_studio.v1.ExecuteWorkflowOptions.validation_context:type_name -> browser_automation_studio.v1.ValidationContext
 	24, // 25: browser_automation_studio.v1.ExecuteAdhocResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
 	26, // 26: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp

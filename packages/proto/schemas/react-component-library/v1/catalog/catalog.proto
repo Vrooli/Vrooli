@@ -5,10 +5,84 @@ package vrooli.react_component_library.v1.catalog;
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog;catalog_v1";
 
 service CatalogService {
-  rpc GetCoverage(GetCoverageRequest) returns (GetCoverageResponse);
-  rpc ListNextWork(ListNextWorkRequest) returns (ListNextWorkResponse);
-  rpc RunGate(RunGateRequest) returns (RunGateResponse);
+	rpc GetCoverage(GetCoverageRequest) returns (GetCoverageResponse);
+	rpc ListNextWork(ListNextWorkRequest) returns (ListNextWorkResponse);
+	rpc RunGate(RunGateRequest) returns (RunGateResponse);
+	rpc GetAssetRelationships(GetAssetRelationshipsRequest) returns (GetAssetRelationshipsResponse);
+	rpc GetCatalogStructure(GetCatalogStructureRequest) returns (GetCatalogStructureResponse);
+	rpc ReconcileGraph(ReconcileGraphRequest) returns (ReconcileGraphResponse);
+	rpc GetAssetPortContract(GetAssetPortContractRequest) returns (GetAssetPortContractResponse);
 }
+
+message AssetNode {
+	string asset_id = 1;
+	string name = 2;
+	string kind = 3;
+	int32 rung = 4;
+	string rung_name = 5;
+	string domain = 6;
+	int32 domain_order = 7;
+}
+
+message RungBand {
+	int32 rung = 1;
+	string rung_name = 2;
+	repeated AssetNode assets = 3;
+	int32 count = 4;
+}
+
+message AssetRelationships {
+	AssetNode root = 1;
+	repeated AssetNode direct_dependencies = 2;
+	repeated AssetNode closure = 3;
+	repeated RungBand closure_bands = 4;
+	repeated AssetNode direct_dependents = 5;
+	repeated AssetNode transitive_dependents = 6;
+	int32 transitive_dependent_count = 7;
+}
+
+message GetAssetRelationshipsRequest { string asset_id = 1; }
+message GetAssetRelationshipsResponse { AssetRelationships relationships = 1; }
+
+message GetCatalogStructureRequest {}
+message RungPopulation { int32 rung = 1; string rung_name = 2; int32 count = 3; }
+message StructureInvariant { string id = 1; string label = 2; string status = 3; string detail = 4; }
+message BlastRadiusRow { AssetNode asset = 1; int32 transitive_dependent_count = 2; }
+message CatalogStructure {
+	repeated RungPopulation population = 1;
+	repeated StructureInvariant invariants = 2;
+	repeated BlastRadiusRow blast_radius = 3;
+}
+message GetCatalogStructureResponse { CatalogStructure structure = 1; }
+
+message ReconcileGraphRequest {}
+message ReconciliationAsset {
+	string asset_id = 1;
+	string verdict = 2;
+	string cause = 3;
+	repeated string catalog_edges = 4;
+	repeated string manifest_edges = 5;
+	repeated string import_edges = 6;
+}
+message ReconciliationDistribution { map<string, int32> counts = 1; }
+message ReconcileGraphResponse {
+	repeated ReconciliationAsset assets = 1;
+	ReconciliationDistribution distribution = 2;
+}
+
+message GetAssetPortContractRequest { string asset_id = 1; }
+message UnmetPort {
+	string capability_id = 1;
+	repeated AssetNode demanding_assets = 2;
+	repeated AssetNode candidate_satisfiers = 3;
+}
+message AssetPortContract {
+	string asset_id = 1;
+	int32 closure_count = 2;
+	bool self_contained = 3;
+	repeated UnmetPort unmet_ports = 4;
+}
+message GetAssetPortContractResponse { AssetPortContract contract = 1; }
 
 message GetCoverageRequest {}
 
@@ -24,6 +98,9 @@ message CoverageRow {
   string achieved = 9;
   string implementation = 10;
   int32 blocks_downstream = 11;
+  int32 rung = 12;
+  string rung_name = 13;
+  int32 domain_order = 14;
 }
 
 message Rollup {

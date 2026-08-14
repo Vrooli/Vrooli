@@ -164,7 +164,19 @@ type Job struct {
 	// Server time a worker began executing it; unset while queued.
 	StartedAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	// Server time the job reached a terminal state; unset until terminal.
-	FinishedAt    *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	FinishedAt *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	// result_meta is the backend's own record of the run, keyed by the backend's
+	// vocabulary: "model" (what actually served it), "backend", "tier",
+	// "cost_usd" (what the route cost, always written by the BYOK/gateway path
+	// even when zero), and "warnings".
+	//
+	// It exists because these facts are learned only while the job runs and were
+	// previously discarded one stack frame after they were assembled — so a
+	// caller could be billed for a cloud generation with no record of the charge
+	// anywhere in the system. Present only on a succeeded job, and only for
+	// backends that report it: an empty map means "nobody reported", which is a
+	// different fact from a reported zero.
+	ResultMeta    map[string]string `protobuf:"bytes,13,rep,name=result_meta,json=resultMeta,proto3" json:"result_meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -279,6 +291,13 @@ func (x *Job) GetStartedAt() *timestamppb.Timestamp {
 func (x *Job) GetFinishedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.FinishedAt
+	}
+	return nil
+}
+
+func (x *Job) GetResultMeta() map[string]string {
+	if x != nil {
+		return x.ResultMeta
 	}
 	return nil
 }
@@ -762,7 +781,7 @@ var File_image_tools_v1_jobs_jobs_proto protoreflect.FileDescriptor
 
 const file_image_tools_v1_jobs_jobs_proto_rawDesc = "" +
 	"\n" +
-	"\x1eimage-tools/v1/jobs/jobs.proto\x12\x1avrooli.image_tools.v1.jobs\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf3\x03\n" +
+	"\x1eimage-tools/v1/jobs/jobs.proto\x12\x1avrooli.image_tools.v1.jobs\x1a\x1fgoogle/protobuf/timestamp.proto\"\x84\x05\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\toperation\x18\x02 \x01(\tR\toperation\x127\n" +
@@ -780,7 +799,12 @@ const file_image_tools_v1_jobs_jobs_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n" +
 	"\vfinished_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"finishedAt\"\xc4\x01\n" +
+	"finishedAt\x12P\n" +
+	"\vresult_meta\x18\r \x03(\v2/.vrooli.image_tools.v1.jobs.Job.ResultMetaEntryR\n" +
+	"resultMeta\x1a=\n" +
+	"\x0fResultMetaEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc4\x01\n" +
 	"\rProgressEvent\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12:\n" +
 	"\x05state\x18\x02 \x01(\x0e2$.vrooli.image_tools.v1.jobs.JobStateR\x05state\x12\x1a\n" +
@@ -836,7 +860,7 @@ func file_image_tools_v1_jobs_jobs_proto_rawDescGZIP() []byte {
 }
 
 var file_image_tools_v1_jobs_jobs_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_image_tools_v1_jobs_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_image_tools_v1_jobs_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_image_tools_v1_jobs_jobs_proto_goTypes = []any{
 	(JobState)(0),                 // 0: vrooli.image_tools.v1.jobs.JobState
 	(JobLane)(0),                  // 1: vrooli.image_tools.v1.jobs.JobLane
@@ -851,35 +875,37 @@ var file_image_tools_v1_jobs_jobs_proto_goTypes = []any{
 	(*CancelJobRequest)(nil),      // 10: vrooli.image_tools.v1.jobs.CancelJobRequest
 	(*CancelJobResponse)(nil),     // 11: vrooli.image_tools.v1.jobs.CancelJobResponse
 	(*WatchJobRequest)(nil),       // 12: vrooli.image_tools.v1.jobs.WatchJobRequest
-	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
+	nil,                           // 13: vrooli.image_tools.v1.jobs.Job.ResultMetaEntry
+	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
 }
 var file_image_tools_v1_jobs_jobs_proto_depIdxs = []int32{
 	1,  // 0: vrooli.image_tools.v1.jobs.Job.lane:type_name -> vrooli.image_tools.v1.jobs.JobLane
 	0,  // 1: vrooli.image_tools.v1.jobs.Job.state:type_name -> vrooli.image_tools.v1.jobs.JobState
-	13, // 2: vrooli.image_tools.v1.jobs.Job.created_at:type_name -> google.protobuf.Timestamp
-	13, // 3: vrooli.image_tools.v1.jobs.Job.started_at:type_name -> google.protobuf.Timestamp
-	13, // 4: vrooli.image_tools.v1.jobs.Job.finished_at:type_name -> google.protobuf.Timestamp
-	0,  // 5: vrooli.image_tools.v1.jobs.ProgressEvent.state:type_name -> vrooli.image_tools.v1.jobs.JobState
-	13, // 6: vrooli.image_tools.v1.jobs.ProgressEvent.at:type_name -> google.protobuf.Timestamp
-	2,  // 7: vrooli.image_tools.v1.jobs.GetJobResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
-	2,  // 8: vrooli.image_tools.v1.jobs.WaitJobResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
-	2,  // 9: vrooli.image_tools.v1.jobs.ListJobsResponse.jobs:type_name -> vrooli.image_tools.v1.jobs.Job
-	2,  // 10: vrooli.image_tools.v1.jobs.CancelJobResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
-	4,  // 11: vrooli.image_tools.v1.jobs.JobsService.GetJob:input_type -> vrooli.image_tools.v1.jobs.GetJobRequest
-	6,  // 12: vrooli.image_tools.v1.jobs.JobsService.WaitJob:input_type -> vrooli.image_tools.v1.jobs.WaitJobRequest
-	8,  // 13: vrooli.image_tools.v1.jobs.JobsService.ListJobs:input_type -> vrooli.image_tools.v1.jobs.ListJobsRequest
-	10, // 14: vrooli.image_tools.v1.jobs.JobsService.CancelJob:input_type -> vrooli.image_tools.v1.jobs.CancelJobRequest
-	12, // 15: vrooli.image_tools.v1.jobs.JobsService.WatchJob:input_type -> vrooli.image_tools.v1.jobs.WatchJobRequest
-	5,  // 16: vrooli.image_tools.v1.jobs.JobsService.GetJob:output_type -> vrooli.image_tools.v1.jobs.GetJobResponse
-	7,  // 17: vrooli.image_tools.v1.jobs.JobsService.WaitJob:output_type -> vrooli.image_tools.v1.jobs.WaitJobResponse
-	9,  // 18: vrooli.image_tools.v1.jobs.JobsService.ListJobs:output_type -> vrooli.image_tools.v1.jobs.ListJobsResponse
-	11, // 19: vrooli.image_tools.v1.jobs.JobsService.CancelJob:output_type -> vrooli.image_tools.v1.jobs.CancelJobResponse
-	3,  // 20: vrooli.image_tools.v1.jobs.JobsService.WatchJob:output_type -> vrooli.image_tools.v1.jobs.ProgressEvent
-	16, // [16:21] is the sub-list for method output_type
-	11, // [11:16] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	14, // 2: vrooli.image_tools.v1.jobs.Job.created_at:type_name -> google.protobuf.Timestamp
+	14, // 3: vrooli.image_tools.v1.jobs.Job.started_at:type_name -> google.protobuf.Timestamp
+	14, // 4: vrooli.image_tools.v1.jobs.Job.finished_at:type_name -> google.protobuf.Timestamp
+	13, // 5: vrooli.image_tools.v1.jobs.Job.result_meta:type_name -> vrooli.image_tools.v1.jobs.Job.ResultMetaEntry
+	0,  // 6: vrooli.image_tools.v1.jobs.ProgressEvent.state:type_name -> vrooli.image_tools.v1.jobs.JobState
+	14, // 7: vrooli.image_tools.v1.jobs.ProgressEvent.at:type_name -> google.protobuf.Timestamp
+	2,  // 8: vrooli.image_tools.v1.jobs.GetJobResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
+	2,  // 9: vrooli.image_tools.v1.jobs.WaitJobResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
+	2,  // 10: vrooli.image_tools.v1.jobs.ListJobsResponse.jobs:type_name -> vrooli.image_tools.v1.jobs.Job
+	2,  // 11: vrooli.image_tools.v1.jobs.CancelJobResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
+	4,  // 12: vrooli.image_tools.v1.jobs.JobsService.GetJob:input_type -> vrooli.image_tools.v1.jobs.GetJobRequest
+	6,  // 13: vrooli.image_tools.v1.jobs.JobsService.WaitJob:input_type -> vrooli.image_tools.v1.jobs.WaitJobRequest
+	8,  // 14: vrooli.image_tools.v1.jobs.JobsService.ListJobs:input_type -> vrooli.image_tools.v1.jobs.ListJobsRequest
+	10, // 15: vrooli.image_tools.v1.jobs.JobsService.CancelJob:input_type -> vrooli.image_tools.v1.jobs.CancelJobRequest
+	12, // 16: vrooli.image_tools.v1.jobs.JobsService.WatchJob:input_type -> vrooli.image_tools.v1.jobs.WatchJobRequest
+	5,  // 17: vrooli.image_tools.v1.jobs.JobsService.GetJob:output_type -> vrooli.image_tools.v1.jobs.GetJobResponse
+	7,  // 18: vrooli.image_tools.v1.jobs.JobsService.WaitJob:output_type -> vrooli.image_tools.v1.jobs.WaitJobResponse
+	9,  // 19: vrooli.image_tools.v1.jobs.JobsService.ListJobs:output_type -> vrooli.image_tools.v1.jobs.ListJobsResponse
+	11, // 20: vrooli.image_tools.v1.jobs.JobsService.CancelJob:output_type -> vrooli.image_tools.v1.jobs.CancelJobResponse
+	3,  // 21: vrooli.image_tools.v1.jobs.JobsService.WatchJob:output_type -> vrooli.image_tools.v1.jobs.ProgressEvent
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_image_tools_v1_jobs_jobs_proto_init() }
@@ -893,7 +919,7 @@ func file_image_tools_v1_jobs_jobs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_image_tools_v1_jobs_jobs_proto_rawDesc), len(file_image_tools_v1_jobs_jobs_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

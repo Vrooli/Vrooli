@@ -69,6 +69,16 @@ enum ProviderState {
   PROVIDER_STATE_CAPABILITY_GAP = 2;
 }
 
+// Lifecycle policy for automatic routing. UNSPECIFIED is intentionally
+// observable at the RPC boundary so registration cannot silently inherit a
+// fail-open production policy; descriptor migration writes explicit values.
+enum Lifecycle {
+  LIFECYCLE_UNSPECIFIED = 0;
+  LIFECYCLE_PRODUCTION = 1;
+  LIFECYCLE_FIXTURE = 2;
+  LIFECYCLE_EXPERIMENTAL = 3;
+}
+
 // The scale a provider returns scores on, so the router normalizes to [0,1].
 enum ScoreScale {
   SCORE_SCALE_UNSPECIFIED = 0;
@@ -256,8 +266,9 @@ message ProviderDescriptor {
   // aisearch-go defaults).
   Tuning tuning = 15;
   // production participates in automatic routing; fixture and experimental
-  // providers require an explicit selector. Empty is normalized to production.
-  string lifecycle = 16;
+  // providers require an explicit selector. UNSPECIFIED is rejected at
+  // registration and is only valid while decoding legacy persisted data.
+  Lifecycle lifecycle = 16;
   // Registrant-declared minimum reviewed evidence for ACTIVE production leaves.
   EvalMinimum tests_minimum = 17;
   // Explicit owner rationale for opting out of automatic junk-leak withholding.
@@ -267,12 +278,24 @@ message ProviderDescriptor {
   // Search Hub reads this field as the primary freshness contract; the legacy
   // key sniffer remains only as a compatibility fallback with a warning.
   string index_timestamp_field = 19;
+  // RFC3339 timestamp first registered/declared by the owning scenario. Used
+  // to make experimental providers age-visible without scenario knowledge.
+  string declared_at = 20;
 }
 
 message EvalMinimum {
   int32 reviewed_positive = 1;
   int32 negative = 2;
   repeated string required_tags = 3;
+}
+
+message IncubatingProvider {
+  string provider_id = 1;
+  string declared_at = 2;
+  int64 times_routed = 3;
+  int64 total_hits = 4;
+  bool suite_present = 5;
+  string next_action = 6;
 }
 
 service RegistryService {
@@ -322,6 +345,7 @@ message ListProvidersRequest {
 
 message ListProvidersResponse {
   repeated ProviderDescriptor providers = 1;
+  repeated IncubatingProvider incubating = 2;
 }
 
 message ExecuteEmbeddingMigrationRequest {

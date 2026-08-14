@@ -39,12 +39,16 @@ const (
 	// DeviceServiceConnectDeviceProcedure is the fully-qualified name of the DeviceService's
 	// ConnectDevice RPC.
 	DeviceServiceConnectDeviceProcedure = "/vrooli.device_control.v1.devices.DeviceService/ConnectDevice"
+	// DeviceServiceReconnectDeviceProcedure is the fully-qualified name of the DeviceService's
+	// ReconnectDevice RPC.
+	DeviceServiceReconnectDeviceProcedure = "/vrooli.device_control.v1.devices.DeviceService/ReconnectDevice"
 )
 
 // DeviceServiceClient is a client for the vrooli.device_control.v1.devices.DeviceService service.
 type DeviceServiceClient interface {
 	ListDevices(context.Context, *connect.Request[devices.ListDevicesRequest]) (*connect.Response[devices.ListDevicesResponse], error)
 	ConnectDevice(context.Context, *connect.Request[devices.ConnectDeviceRequest]) (*connect.Response[devices.ConnectDeviceResponse], error)
+	ReconnectDevice(context.Context, *connect.Request[devices.ReconnectDeviceRequest]) (*connect.Response[devices.ReconnectDeviceResponse], error)
 }
 
 // NewDeviceServiceClient constructs a client for the vrooli.device_control.v1.devices.DeviceService
@@ -70,13 +74,20 @@ func NewDeviceServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(deviceServiceMethods.ByName("ConnectDevice")),
 			connect.WithClientOptions(opts...),
 		),
+		reconnectDevice: connect.NewClient[devices.ReconnectDeviceRequest, devices.ReconnectDeviceResponse](
+			httpClient,
+			baseURL+DeviceServiceReconnectDeviceProcedure,
+			connect.WithSchema(deviceServiceMethods.ByName("ReconnectDevice")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // deviceServiceClient implements DeviceServiceClient.
 type deviceServiceClient struct {
-	listDevices   *connect.Client[devices.ListDevicesRequest, devices.ListDevicesResponse]
-	connectDevice *connect.Client[devices.ConnectDeviceRequest, devices.ConnectDeviceResponse]
+	listDevices     *connect.Client[devices.ListDevicesRequest, devices.ListDevicesResponse]
+	connectDevice   *connect.Client[devices.ConnectDeviceRequest, devices.ConnectDeviceResponse]
+	reconnectDevice *connect.Client[devices.ReconnectDeviceRequest, devices.ReconnectDeviceResponse]
 }
 
 // ListDevices calls vrooli.device_control.v1.devices.DeviceService.ListDevices.
@@ -89,11 +100,17 @@ func (c *deviceServiceClient) ConnectDevice(ctx context.Context, req *connect.Re
 	return c.connectDevice.CallUnary(ctx, req)
 }
 
+// ReconnectDevice calls vrooli.device_control.v1.devices.DeviceService.ReconnectDevice.
+func (c *deviceServiceClient) ReconnectDevice(ctx context.Context, req *connect.Request[devices.ReconnectDeviceRequest]) (*connect.Response[devices.ReconnectDeviceResponse], error) {
+	return c.reconnectDevice.CallUnary(ctx, req)
+}
+
 // DeviceServiceHandler is an implementation of the vrooli.device_control.v1.devices.DeviceService
 // service.
 type DeviceServiceHandler interface {
 	ListDevices(context.Context, *connect.Request[devices.ListDevicesRequest]) (*connect.Response[devices.ListDevicesResponse], error)
 	ConnectDevice(context.Context, *connect.Request[devices.ConnectDeviceRequest]) (*connect.Response[devices.ConnectDeviceResponse], error)
+	ReconnectDevice(context.Context, *connect.Request[devices.ReconnectDeviceRequest]) (*connect.Response[devices.ReconnectDeviceResponse], error)
 }
 
 // NewDeviceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -115,12 +132,20 @@ func NewDeviceServiceHandler(svc DeviceServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(deviceServiceMethods.ByName("ConnectDevice")),
 		connect.WithHandlerOptions(opts...),
 	)
+	deviceServiceReconnectDeviceHandler := connect.NewUnaryHandler(
+		DeviceServiceReconnectDeviceProcedure,
+		svc.ReconnectDevice,
+		connect.WithSchema(deviceServiceMethods.ByName("ReconnectDevice")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.device_control.v1.devices.DeviceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DeviceServiceListDevicesProcedure:
 			deviceServiceListDevicesHandler.ServeHTTP(w, r)
 		case DeviceServiceConnectDeviceProcedure:
 			deviceServiceConnectDeviceHandler.ServeHTTP(w, r)
+		case DeviceServiceReconnectDeviceProcedure:
+			deviceServiceReconnectDeviceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -136,4 +161,8 @@ func (UnimplementedDeviceServiceHandler) ListDevices(context.Context, *connect.R
 
 func (UnimplementedDeviceServiceHandler) ConnectDevice(context.Context, *connect.Request[devices.ConnectDeviceRequest]) (*connect.Response[devices.ConnectDeviceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.devices.DeviceService.ConnectDevice is not implemented"))
+}
+
+func (UnimplementedDeviceServiceHandler) ReconnectDevice(context.Context, *connect.Request[devices.ReconnectDeviceRequest]) (*connect.Response[devices.ReconnectDeviceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.devices.DeviceService.ReconnectDevice is not implemented"))
 }

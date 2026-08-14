@@ -2,7 +2,6 @@ package commerce
 
 import (
 	"context"
-	"crypto/subtle"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 type UsageService struct {
 	db                  UsageStore
 	limitsSvc           LimitsServicer
-	serviceToken        string
 	dialect             string
 	logf                func(string, map[string]interface{})
 	insufficientCredits error
@@ -26,7 +24,6 @@ type UsageServiceOptions struct {
 	DB                  UsageStore
 	LimitsService       LimitsServicer
 	Dialect             string
-	ServiceToken        string
 	Log                 func(string, map[string]interface{})
 	InsufficientCredits error
 }
@@ -36,7 +33,6 @@ func NewUsageServiceWithOptions(opts UsageServiceOptions) *UsageService {
 	return &UsageService{
 		db:                  opts.DB,
 		limitsSvc:           opts.LimitsService,
-		serviceToken:        opts.ServiceToken,
 		dialect:             opts.Dialect,
 		logf:                opts.Log,
 		insufficientCredits: opts.InsufficientCredits,
@@ -72,8 +68,16 @@ func (s *UsageService) FinalizeReservation(ctx context.Context, reservationID st
 	return s.reservationService().FinalizeReservation(ctx, reservationID, actualAmount)
 }
 
+func (s *UsageService) FinalizeReservationForUser(ctx context.Context, userIdentity, reservationID string, actualAmount int64) error {
+	return s.reservationService().FinalizeReservationForUser(ctx, userIdentity, reservationID, actualAmount)
+}
+
 func (s *UsageService) ReleaseReservation(ctx context.Context, reservationID string) error {
 	return s.reservationService().ReleaseReservation(ctx, reservationID)
+}
+
+func (s *UsageService) ReleaseReservationForUser(ctx context.Context, userIdentity, reservationID string) error {
+	return s.reservationService().ReleaseReservationForUser(ctx, userIdentity, reservationID)
 }
 
 func (s *UsageService) CleanupExpiredReservations(ctx context.Context) (int, error) {
@@ -420,28 +424,12 @@ func (s *UsageService) GetAllUsageForPeriod(ctx context.Context, billingPeriod s
 	return records, rows.Err()
 }
 
-// ValidateServiceToken validates the service-to-service auth token.
-// Uses constant-time comparison to prevent timing attacks where an attacker
-// could deduce token characters by measuring response times.
-func (s *UsageService) ValidateServiceToken(token string) bool {
-	if s.serviceToken == "" {
-		// No token configured - reject all
-		return false
-	}
-	// Use constant-time comparison to prevent timing attacks
-	return subtle.ConstantTimeCompare([]byte(token), []byte(s.serviceToken)) == 1
-}
-
 // HealthCheck returns the health status of the usage service.
 func (s *UsageService) HealthCheck(ctx context.Context) (*UsageHealthStatus, error) {
 	status := &UsageHealthStatus{
-		Healthy:               true,
-		DatabaseConnected:     true,
-		ServiceAuthConfigured: strings.TrimSpace(s.serviceToken) != "",
-		ServiceAuthMode:       "disabled",
-	}
-	if status.ServiceAuthConfigured {
-		status.ServiceAuthMode = "token"
+		Healthy:           true,
+		DatabaseConnected: true,
+		ServiceAuthMode:   "disabled",
 	}
 
 	// Check database connectivity

@@ -31,17 +31,19 @@ func NewStripeRepository(db StripeStore) *StripeRepository {
 
 // SubscriptionRecord represents a subscription stored in the database.
 type SubscriptionRecord struct {
-	SubscriptionID    string
-	CustomerID        string
-	CustomerEmail     string
-	Status            string
-	PlanTier          sql.NullString
-	PriceID           sql.NullString
-	BundleKey         sql.NullString
-	BillingCycleStart int
-	CanceledAt        *time.Time
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	SubscriptionID         string
+	CustomerID             string
+	CustomerEmail          string
+	Status                 string
+	Source                 sql.NullString
+	ExternalSubscriptionID sql.NullString
+	PlanTier               sql.NullString
+	PriceID                sql.NullString
+	BundleKey              sql.NullString
+	BillingCycleStart      int
+	CanceledAt             *time.Time
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
 }
 
 // CheckoutSessionRecord represents a checkout session stored in the database.
@@ -76,6 +78,7 @@ type CreditTransactionRecord struct {
 	AmountCredits   int64
 	TransactionType string
 	Source          sql.NullString
+	ExternalEventID sql.NullString
 	StripeEventID   sql.NullString
 	Metadata        map[string]interface{}
 	CreatedAt       time.Time

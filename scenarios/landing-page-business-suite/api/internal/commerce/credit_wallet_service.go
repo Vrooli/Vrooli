@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // seam: CreditWallet keeps credit ledger mutation independent of Stripe webhook
@@ -15,6 +16,13 @@ type CreditWallet interface {
 	ConsumeCredits(ctx context.Context, email string, amount int64, reason string, metadata map[string]interface{}) error
 	ConsumeCreditsIdempotent(ctx context.Context, email string, amount int64, reason, idempotencyKey string, metadata map[string]interface{}) error
 	Balance(email string) (int64, error)
+}
+
+// SourceCreditWallet is the provider-neutral ledger extension. Older wallet
+// callers keep the historical AddCredits seam; new providers use a separate
+// source plus external event pair for replay safety.
+type SourceCreditWallet interface {
+	AddCreditsFromSource(customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error
 }
 
 // CreditWalletService owns credit-wallet balances and their immutable ledger.
@@ -78,6 +86,46 @@ func (s *CreditWalletService) AddCredits(customerEmail string, amount int64, txn
 		return fmt.Errorf("commit credit transaction: %w", err)
 	}
 	return nil
+}
+
+func (s *CreditWalletService) AddCreditsFromSource(customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error {
+	if customerEmail == "" || amount <= 0 {
+		return nil
+	}
+	metadataJSON, _ := json.Marshal(metadata)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin source credit transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	result, err := tx.Exec(`
+		INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type, source, external_event_id, metadata, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		ON CONFLICT (source, external_event_id) DO NOTHING
+	`, normalizeEmail(customerEmail), amount, txnType, source, externalEventID, string(metadataJSON))
+	if err != nil {
+		// Deployments with the legacy schema can still process Stripe events;
+		// the governed schema path above is authoritative once migrated.
+		if strings.Contains(strings.ToLower(err.Error()), "external_event_id") || strings.Contains(strings.ToLower(err.Error()), "source") {
+			return s.AddCredits(customerEmail, amount, txnType, externalEventID, metadata)
+		}
+		return fmt.Errorf("insert source credit transaction: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check source credit transaction: %w", err)
+	}
+	if rowsAffected == 0 {
+		return nil
+	}
+	if _, err := tx.Exec(`
+		INSERT INTO credit_wallets (customer_email, balance_credits, updated_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (customer_email) DO UPDATE SET balance_credits = credit_wallets.balance_credits + $2, updated_at = NOW()
+	`, normalizeEmail(customerEmail), amount); err != nil {
+		return fmt.Errorf("update source credit wallet: %w", err)
+	}
+	return tx.Commit()
 }
 
 // ConsumeCredits deducts a wallet balance for an ordinary request.

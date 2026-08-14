@@ -49,7 +49,7 @@ message ProjectionCoverage {
   int32 missing_count = 4;
   int32 total_cells = 5;
   // now_count / total_cells in [0,1]. Computed live, never persisted.
-  double coverage_ratio = 6;
+  optional double coverage_ratio = 6;
   shared.DenominatorConfidence denominator_confidence = 7;
   string confidence_rationale = 8;
   // false when the owner's `space` verb or registry was unreachable; coverage
@@ -88,6 +88,16 @@ message GetStatusResponse {
   bool determinism_checked = 4;
   bool deterministic = 5;
   string determinism_evidence = 6;
+  // Change from the previous persisted projection snapshot. Empty on the
+  // first observation; never fabricated as zero.
+  repeated ProjectionDelta deltas = 7;
+}
+
+message ProjectionDelta {
+  shared.Projection projection = 1;
+  double previous_ratio = 2;
+  double current_ratio = 3;
+  double delta = 4;
 }
 
 // Citation is a single provenance pointer behind an answer/cell.

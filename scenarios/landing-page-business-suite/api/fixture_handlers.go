@@ -112,6 +112,22 @@ func (s *Server) fixtureSeed(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, "seed fixture tier limit failed", ApiErrorTypeServerError)
 		return
 	}
+	leaseBundleKey := strings.TrimSpace(resolveConfig("BUNDLE_KEY"))
+	if leaseBundleKey == "" {
+		leaseBundleKey = "business_suite"
+	}
+	workflowLimit := int64(0)
+	if request.Tier != "free" {
+		workflowLimit = 100
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO subscription_tier_limits (tier_id, limit_type, limit_key, limit_value, app_bundle_key, reset_period)
+		VALUES ($1, 'count_based', 'workflow_executions', $2, $3, 'monthly')
+		ON CONFLICT (tier_id, limit_type, limit_key, app_bundle_key) DO UPDATE SET limit_value = EXCLUDED.limit_value, updated_at = NOW()`,
+		request.Tier, workflowLimit, leaseBundleKey); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "seed fixture workflow limit failed", ApiErrorTypeServerError)
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "commit fixture seed failed", ApiErrorTypeServerError)
 		return

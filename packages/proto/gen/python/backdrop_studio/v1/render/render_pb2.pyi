@@ -83,7 +83,7 @@ class RenderJob(_message.Message):
     def __init__(self, id: _Optional[str] = ..., style_id: _Optional[str] = ..., status: _Optional[str] = ..., seed: _Optional[int] = ..., execution_path: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[Candidate, _Mapping]]] = ..., selected_candidate_id: _Optional[str] = ..., selected_by: _Optional[str] = ..., surface_id: _Optional[str] = ...) -> None: ...
 
 class Candidate(_message.Message):
-    __slots__ = ("id", "job_id", "image_png", "width", "height", "strategy", "execution_path", "treatment_applied", "seed", "conditioning_submitted", "disclosure_required", "prompt", "provenance_json", "quality_json", "routing")
+    __slots__ = ("id", "job_id", "image_png", "width", "height", "strategy", "execution_path", "treatment_applied", "seed", "conditioning_submitted", "disclosure_required", "prompt", "provenance_json", "quality_json", "routing", "plates")
     ID_FIELD_NUMBER: _ClassVar[int]
     JOB_ID_FIELD_NUMBER: _ClassVar[int]
     IMAGE_PNG_FIELD_NUMBER: _ClassVar[int]
@@ -99,6 +99,7 @@ class Candidate(_message.Message):
     PROVENANCE_JSON_FIELD_NUMBER: _ClassVar[int]
     QUALITY_JSON_FIELD_NUMBER: _ClassVar[int]
     ROUTING_FIELD_NUMBER: _ClassVar[int]
+    PLATES_FIELD_NUMBER: _ClassVar[int]
     id: str
     job_id: str
     image_png: bytes
@@ -114,4 +115,5 @@ class Candidate(_message.Message):
     provenance_json: str
     quality_json: str
     routing: _shared_pb2.RoutingRecord
-    def __init__(self, id: _Optional[str] = ..., job_id: _Optional[str] = ..., image_png: _Optional[bytes] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., strategy: _Optional[str] = ..., execution_path: _Optional[str] = ..., treatment_applied: _Optional[bool] = ..., seed: _Optional[int] = ..., conditioning_submitted: _Optional[bool] = ..., disclosure_required: _Optional[bool] = ..., prompt: _Optional[str] = ..., provenance_json: _Optional[str] = ..., quality_json: _Optional[str] = ..., routing: _Optional[_Union[_shared_pb2.RoutingRecord, _Mapping]] = ...) -> None: ...
+    plates: _containers.RepeatedCompositeFieldContainer[_shared_pb2.Plate]
+    def __init__(self, id: _Optional[str] = ..., job_id: _Optional[str] = ..., image_png: _Optional[bytes] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., strategy: _Optional[str] = ..., execution_path: _Optional[str] = ..., treatment_applied: _Optional[bool] = ..., seed: _Optional[int] = ..., conditioning_submitted: _Optional[bool] = ..., disclosure_required: _Optional[bool] = ..., prompt: _Optional[str] = ..., provenance_json: _Optional[str] = ..., quality_json: _Optional[str] = ..., routing: _Optional[_Union[_shared_pb2.RoutingRecord, _Mapping]] = ..., plates: _Optional[_Iterable[_Union[_shared_pb2.Plate, _Mapping]]] = ...) -> None: ...

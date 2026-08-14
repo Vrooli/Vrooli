@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Provider execution boundaries for Ollama and OpenRouter resources.",
-    "last_validated_at": "2026-08-10T18:46:19-04:00",
+    "last_validated_at": "2026-08-14T03:29:05-04:00",
     "module": "provider-execution",
     "prd_ref": "OT-P0-002",
     "priority": "P0",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "api/internal/routing/service_test.go::TestExecutePersistsRedactedEvidenceAndKeepsInputOutOfCommandString",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates provider execution uses controlled resource commands and keeps prompt text out of argv and evidence."
         },
         {
@@ -42,7 +42,7 @@
     {
       "id": "AIGW-PROVIDER-FAILURES",
       "title": "Provider failures are normalized without hiding resource details",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "provider.execution",
       "criticality": "P0",
@@ -57,14 +57,14 @@
           "type": "test",
           "ref": "api/internal/providers/adapter_test.go::TestAdapter_ListRoles_MapsMalformedJSON",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates malformed resource output maps to a typed provider failure."
         },
         {
           "type": "test",
           "ref": "api/internal/providers/adapter_test.go::TestAdapter_Smoke_MapsMissingBinary",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates missing resource commands map to typed unavailable smoke status."
         }
       ]
@@ -72,7 +72,7 @@
     {
       "id": "AIGW-PROVIDER-BREAKER",
       "title": "Repeated provider failures open a persisted circuit breaker",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-006",
       "category": "provider.resilience",
       "criticality": "P0",
@@ -87,14 +87,14 @@
           "type": "test",
           "ref": "api/internal/routing/health_test.go::TestBreakerOpensAfterConsecutiveFailures",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Pure breaker transitions: threshold opening, cooldown, half-open success close, half-open failure reopen, failure classification, and repository round-trip."
         },
         {
           "type": "test",
           "ref": "api/internal/routing/breaker_service_test.go::TestExecuteOpensBreakerAfterFailureAndFallsBackToHealthyProvider",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Service-level: preview skips open breakers and probes half-open, execution falls back to a healthy provider, and breakers isolate by provider/role/kind."
         }
       ]

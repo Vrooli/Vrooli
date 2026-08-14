@@ -1,0 +1,69 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "landing-page-business-suite",
+  "phase": "monetization-conformance",
+  "displayName": "Monetization Conformance",
+  "description": "Validates monetization trust boundaries, declarations, and local metering posture.",
+  "source": "validation-provider",
+  "orderHint": 19,
+  "timeout": "90s",
+  "findingSource": null,
+  "validation": { "contract": "scenario-validation/v1" },
+  "comparison": { "mode": "additive" },
+  "targets": { "kinds": ["scenario"], "selection": "enumerate" },
+  "applicability": {
+    "default": "not_applicable",
+    "any": [
+      { "fileExists": ".vrooli/monetization.json" },
+      { "pathGlob": "api/middleware/entitlement.go" },
+      { "pathGlob": "api/services/entitlement/*.go" },
+      { "pathGlob": "api/handlers/entitlement/*.go" },
+      { "scenarioDependency": "landing-page-business-suite" }
+    ]
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": { "needsAPI": true, "needsUI": false, "mutatesLifecycle": false, "dbIsolation": "none" },
+  "docs": { "path": "scenarios/test-genie/docs/phases/monetization-conformance/README.md" },
+  "concurrency": { "mode": "provider-serial" },
+  "determinism": { "default": "file-determined", "inputs": [".vrooli/monetization.json", "**/*.go"], "reason": "The provider scans scenario source and manifest state." },
+  "maturity": {
+    "version": "1.0.0",
+    "levels": [
+      { "id": "L0", "name": "Inventory unavailable", "description": "Monetization surfaces cannot be inspected.", "entry_criteria": ["The target is applicable."], "exit_criteria": ["Source and declaration surfaces are readable."] },
+      { "id": "L1", "name": "Trust boundary", "description": "The static trust-boundary checks run and findings are visible.", "entry_criteria": ["Source surfaces are readable."], "exit_criteria": ["No shared service secret or symmetric verifier is present."] },
+      { "id": "L2", "name": "Declared", "description": "The monetization surface is declared and enforcement paths are inspectable.", "entry_criteria": ["Trust-boundary checks are clean."], "exit_criteria": ["Manifest and enforcement paths are present."] },
+      { "id": "L3", "name": "Hardened", "description": "Class A and Class B meters have the required server or durable-local posture.", "entry_criteria": ["Declaration is valid."], "exit_criteria": ["Meter posture is clean."] },
+      { "id": "L4", "name": "Complete", "description": "The scenario is ready for monetization assurance.", "entry_criteria": ["All gating checks are clean."], "exit_criteria": ["All declared monetization checks pass."] }
+    ],
+    "capabilities": [
+      { "id": "monetization_boundary", "label": "Monetization Boundary", "levels": [
+        { "id": "L0", "name": "Unknown", "description": "Inventory unavailable.", "entry_criteria": ["Applicable target."], "exit_criteria": ["Readable source."], "status_label": "Unknown", "next_unlock": "Make source readable." },
+        { "id": "L1", "name": "Unsafe", "description": "Trust-boundary findings exist.", "entry_criteria": ["Readable source."], "exit_criteria": ["Clear service-token and symmetric-verifier findings."], "status_label": "Unsafe", "next_unlock": "Remove shared secrets and symmetric verification." },
+      { "id": "L2", "name": "Governed", "description": "Trust boundary is clean.", "entry_criteria": ["No gating boundary findings."], "exit_criteria": ["Declaration and meters are validated."], "status_label": "Governed", "capability_summary": "A scenario has a declared, server-authoritative monetization boundary with clean trust-boundary checks." }
+      ] }
+    ],
+    "findings": {
+      "money.undeclared_monetization": { "capability_id": "monetization_boundary", "local_level_impact": "L1", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Add or repair the governed monetization declaration." },
+      "money.service_token_in_client_bundle": { "capability_id": "monetization_boundary", "local_level_impact": "L1", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Remove shared service credentials from desktop and client surfaces." },
+      "money.symmetric_token_verification": { "capability_id": "monetization_boundary", "local_level_impact": "L1", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Use asymmetric consumer leases." },
+      "money.feature_not_enforced": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Declare and implement the authoritative feature enforcement path." },
+      "money.meter_missing_tier_limits": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Declare and implement the authoritative meter limits." }
+    },
+    "fallback": {
+      "capability_id": "monetization_boundary",
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "operational-targets",
+      "severity_default": "SEVERITY_INFO",
+      "clean_requirement": "advisory"
+    }
+  }
+}

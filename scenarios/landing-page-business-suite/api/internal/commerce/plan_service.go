@@ -98,6 +98,13 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 	return s.planStore.GetPlanByPriceID(priceID)
 }
 
+// GetPlanByExternalProductID resolves a store-issued product identifier from
+// plan metadata. Store catalog ingestion can populate this metadata without
+// coupling the account service to Apple or Google APIs.
+func (s *PlanService) GetPlanByExternalProductID(productID string) (*PlanOption, error) {
+	return s.planStore.GetPlanByExternalProductID(productID)
+}
+
 // GetBundleProduct returns the configured bundle product metadata.
 func (s *PlanService) GetBundleProduct() (*BundleProduct, error) {
 	bundle := s.planStore.GetBundle()

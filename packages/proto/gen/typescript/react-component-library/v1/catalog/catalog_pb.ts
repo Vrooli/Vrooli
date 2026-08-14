@@ -10,7 +10,492 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file react-component-library/v1/catalog/catalog.proto.
  */
 export const file_react_component_library_v1_catalog_catalog: GenFile = /*@__PURE__*/
-  fileDesc("CjByZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9jYXRhbG9nL2NhdGFsb2cucHJvdG8SKXZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nIhQKEkdldENvdmVyYWdlUmVxdWVzdCLUAQoLQ292ZXJhZ2VSb3cSEAoIYXNzZXRfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZkb21haW4YAyABKAkSDAoEa2luZBgEIAEoCRIQCghwcmlvcml0eRgFIAEoCRIOCgZidWNrZXQYBiABKAkSEAoIcGxhdGZvcm0YByABKAkSDgoGdGFyZ2V0GAggASgJEhAKCGFjaGlldmVkGAkgASgJEhYKDmltcGxlbWVudGF0aW9uGAogASgJEhkKEWJsb2Nrc19kb3duc3RyZWFtGAsgASgFIjUKBlJvbGx1cBILCgNrZXkYASABKAkSDwoHcGxhbm5lZBgCIAEoBRINCgVidWlsdBgDIAEoBSKqBAoPTWF0dXJpdHlTdW1tYXJ5Eg0KBXRvdGFsGAEgASgFEhoKEmF0X29yX2Fib3ZlX3RhcmdldBgCIAEoBRJXCgdieV9ydW5nGAMgAygLMkYudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuTWF0dXJpdHlTdW1tYXJ5LkJ5UnVuZ0VudHJ5ElUKEmNhdGFsb2dfY29tcGxldGlvbhgEIAEoCzI5LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkNvdmVyYWdlTWV0cmljEloKF21hbmRhdG9yeV9nYXRlX2NvdmVyYWdlGAUgASgLMjkudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQ292ZXJhZ2VNZXRyaWMSUwoQd2VpZ2h0ZWRfcXVhbGl0eRgGIAEoCzI5LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkNvdmVyYWdlTWV0cmljElwKGXByb2R1Y3Rpb25fcmVhZHlfY292ZXJhZ2UYByABKAsyOS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5Db3ZlcmFnZU1ldHJpYxotCgtCeVJ1bmdFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBIkcKDkNvdmVyYWdlTWV0cmljEhEKCW51bWVyYXRvchgBIAEoBRITCgtkZW5vbWluYXRvchgCIAEoBRINCgVyYXRpbxgDIAEoASK4AwoOQ292ZXJhZ2VSZXBvcnQSRAoEcm93cxgBIAMoCzI2LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkNvdmVyYWdlUm93ElUKBnRvdGFscxgCIAMoCzJFLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkNvdmVyYWdlUmVwb3J0LlRvdGFsc0VudHJ5EkQKCWJ5X2RvbWFpbhgDIAMoCzIxLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLlJvbGx1cBJGCgtieV9wcmlvcml0eRgEIAMoCzIxLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLlJvbGx1cBJMCghtYXR1cml0eRgFIAEoCzI6LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLk1hdHVyaXR5U3VtbWFyeRotCgtUb3RhbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBImAKE0dldENvdmVyYWdlUmVzcG9uc2USSQoGcmVwb3J0GAEgASgLMjkudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQ292ZXJhZ2VSZXBvcnQiJAoTTGlzdE5leHRXb3JrUmVxdWVzdBINCgVsaW1pdBgBIAEoBSKqAQoUTGlzdE5leHRXb3JrUmVzcG9uc2USRAoEcm93cxgBIAMoCzI2LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkNvdmVyYWdlUm93EkwKCG1hdHVyaXR5GAIgASgLMjoudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuTWF0dXJpdHlTdW1tYXJ5Ih4KDlJ1bkdhdGVSZXF1ZXN0EgwKBGdhdGUYASABKAkiUAoLR2F0ZUZpbmRpbmcSDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEhAKCGFzc2V0X2lkGAMgASgJEhAKCHNldmVyaXR5GAQgASgJIoIBCg9SdW5HYXRlUmVzcG9uc2USDAoEZ2F0ZRgBIAEoCRJICghmaW5kaW5ncxgCIAMoCzI2LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkdhdGVGaW5kaW5nEhcKD2luc3BlY3RlZF9maWxlcxgDIAEoBTK0AwoOQ2F0YWxvZ1NlcnZpY2USjAEKC0dldENvdmVyYWdlEj0udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuR2V0Q292ZXJhZ2VSZXF1ZXN0Gj4udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuR2V0Q292ZXJhZ2VSZXNwb25zZRKPAQoMTGlzdE5leHRXb3JrEj4udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuTGlzdE5leHRXb3JrUmVxdWVzdBo/LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkxpc3ROZXh0V29ya1Jlc3BvbnNlEoABCgdSdW5HYXRlEjkudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuUnVuR2F0ZVJlcXVlc3QaOi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5SdW5HYXRlUmVzcG9uc2VCXlpcZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9yZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9jYXRhbG9nO2NhdGFsb2dfdjFiBnByb3RvMw");
+  fileDesc("CjByZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9jYXRhbG9nL2NhdGFsb2cucHJvdG8SKXZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nIoABCglBc3NldE5vZGUSEAoIYXNzZXRfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRraW5kGAMgASgJEgwKBHJ1bmcYBCABKAUSEQoJcnVuZ19uYW1lGAUgASgJEg4KBmRvbWFpbhgGIAEoCRIUCgxkb21haW5fb3JkZXIYByABKAUigAEKCFJ1bmdCYW5kEgwKBHJ1bmcYASABKAUSEQoJcnVuZ19uYW1lGAIgASgJEkQKBmFzc2V0cxgDIAMoCzI0LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkFzc2V0Tm9kZRINCgVjb3VudBgEIAEoBSKIBAoSQXNzZXRSZWxhdGlvbnNoaXBzEkIKBHJvb3QYASABKAsyNC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5Bc3NldE5vZGUSUQoTZGlyZWN0X2RlcGVuZGVuY2llcxgCIAMoCzI0LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkFzc2V0Tm9kZRJFCgdjbG9zdXJlGAMgAygLMjQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQXNzZXROb2RlEkoKDWNsb3N1cmVfYmFuZHMYBCADKAsyMy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5SdW5nQmFuZBJPChFkaXJlY3RfZGVwZW5kZW50cxgFIAMoCzI0LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkFzc2V0Tm9kZRJTChV0cmFuc2l0aXZlX2RlcGVuZGVudHMYBiADKAsyNC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5Bc3NldE5vZGUSIgoadHJhbnNpdGl2ZV9kZXBlbmRlbnRfY291bnQYByABKAUiMAocR2V0QXNzZXRSZWxhdGlvbnNoaXBzUmVxdWVzdBIQCghhc3NldF9pZBgBIAEoCSJ1Ch1HZXRBc3NldFJlbGF0aW9uc2hpcHNSZXNwb25zZRJUCg1yZWxhdGlvbnNoaXBzGAEgASgLMj0udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQXNzZXRSZWxhdGlvbnNoaXBzIhwKGkdldENhdGFsb2dTdHJ1Y3R1cmVSZXF1ZXN0IkAKDlJ1bmdQb3B1bGF0aW9uEgwKBHJ1bmcYASABKAUSEQoJcnVuZ19uYW1lGAIgASgJEg0KBWNvdW50GAMgASgFIk8KElN0cnVjdHVyZUludmFyaWFudBIKCgJpZBgBIAEoCRINCgVsYWJlbBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSDgoGZGV0YWlsGAQgASgJInkKDkJsYXN0UmFkaXVzUm93EkMKBWFzc2V0GAEgASgLMjQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQXNzZXROb2RlEiIKGnRyYW5zaXRpdmVfZGVwZW5kZW50X2NvdW50GAIgASgFIoUCChBDYXRhbG9nU3RydWN0dXJlEk0KCnBvcHVsYXRpb24YASADKAsyOS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5SdW5nUG9wdWxhdGlvbhJRCgppbnZhcmlhbnRzGAIgAygLMj0udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuU3RydWN0dXJlSW52YXJpYW50Ek8KDGJsYXN0X3JhZGl1cxgDIAMoCzI5LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkJsYXN0UmFkaXVzUm93Im0KG0dldENhdGFsb2dTdHJ1Y3R1cmVSZXNwb25zZRJOCglzdHJ1Y3R1cmUYASABKAsyOy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5DYXRhbG9nU3RydWN0dXJlIhcKFVJlY29uY2lsZUdyYXBoUmVxdWVzdCKMAQoTUmVjb25jaWxpYXRpb25Bc3NldBIQCghhc3NldF9pZBgBIAEoCRIPCgd2ZXJkaWN0GAIgASgJEg0KBWNhdXNlGAMgASgJEhUKDWNhdGFsb2dfZWRnZXMYBCADKAkSFgoObWFuaWZlc3RfZWRnZXMYBSADKAkSFAoMaW1wb3J0X2VkZ2VzGAYgAygJIq4BChpSZWNvbmNpbGlhdGlvbkRpc3RyaWJ1dGlvbhJhCgZjb3VudHMYASADKAsyUS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5SZWNvbmNpbGlhdGlvbkRpc3RyaWJ1dGlvbi5Db3VudHNFbnRyeRotCgtDb3VudHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBIsUBChZSZWNvbmNpbGVHcmFwaFJlc3BvbnNlEk4KBmFzc2V0cxgBIAMoCzI+LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLlJlY29uY2lsaWF0aW9uQXNzZXQSWwoMZGlzdHJpYnV0aW9uGAIgASgLMkUudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuUmVjb25jaWxpYXRpb25EaXN0cmlidXRpb24iLwobR2V0QXNzZXRQb3J0Q29udHJhY3RSZXF1ZXN0EhAKCGFzc2V0X2lkGAEgASgJIsYBCglVbm1ldFBvcnQSFQoNY2FwYWJpbGl0eV9pZBgBIAEoCRJOChBkZW1hbmRpbmdfYXNzZXRzGAIgAygLMjQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQXNzZXROb2RlElIKFGNhbmRpZGF0ZV9zYXRpc2ZpZXJzGAMgAygLMjQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQXNzZXROb2RlIp8BChFBc3NldFBvcnRDb250cmFjdBIQCghhc3NldF9pZBgBIAEoCRIVCg1jbG9zdXJlX2NvdW50GAIgASgFEhYKDnNlbGZfY29udGFpbmVkGAMgASgIEkkKC3VubWV0X3BvcnRzGAQgAygLMjQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuVW5tZXRQb3J0Im4KHEdldEFzc2V0UG9ydENvbnRyYWN0UmVzcG9uc2USTgoIY29udHJhY3QYASABKAsyPC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5Bc3NldFBvcnRDb250cmFjdCIUChJHZXRDb3ZlcmFnZVJlcXVlc3QiiwIKC0NvdmVyYWdlUm93EhAKCGFzc2V0X2lkGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGZG9tYWluGAMgASgJEgwKBGtpbmQYBCABKAkSEAoIcHJpb3JpdHkYBSABKAkSDgoGYnVja2V0GAYgASgJEhAKCHBsYXRmb3JtGAcgASgJEg4KBnRhcmdldBgIIAEoCRIQCghhY2hpZXZlZBgJIAEoCRIWCg5pbXBsZW1lbnRhdGlvbhgKIAEoCRIZChFibG9ja3NfZG93bnN0cmVhbRgLIAEoBRIMCgRydW5nGAwgASgFEhEKCXJ1bmdfbmFtZRgNIAEoCRIUCgxkb21haW5fb3JkZXIYDiABKAUiNQoGUm9sbHVwEgsKA2tleRgBIAEoCRIPCgdwbGFubmVkGAIgASgFEg0KBWJ1aWx0GAMgASgFIqoECg9NYXR1cml0eVN1bW1hcnkSDQoFdG90YWwYASABKAUSGgoSYXRfb3JfYWJvdmVfdGFyZ2V0GAIgASgFElcKB2J5X3J1bmcYAyADKAsyRi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5NYXR1cml0eVN1bW1hcnkuQnlSdW5nRW50cnkSVQoSY2F0YWxvZ19jb21wbGV0aW9uGAQgASgLMjkudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQ292ZXJhZ2VNZXRyaWMSWgoXbWFuZGF0b3J5X2dhdGVfY292ZXJhZ2UYBSABKAsyOS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5Db3ZlcmFnZU1ldHJpYxJTChB3ZWlnaHRlZF9xdWFsaXR5GAYgASgLMjkudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQ292ZXJhZ2VNZXRyaWMSXAoZcHJvZHVjdGlvbl9yZWFkeV9jb3ZlcmFnZRgHIAEoCzI5LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkNvdmVyYWdlTWV0cmljGi0KC0J5UnVuZ0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEiRwoOQ292ZXJhZ2VNZXRyaWMSEQoJbnVtZXJhdG9yGAEgASgFEhMKC2Rlbm9taW5hdG9yGAIgASgFEg0KBXJhdGlvGAMgASgBIrgDCg5Db3ZlcmFnZVJlcG9ydBJECgRyb3dzGAEgAygLMjYudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQ292ZXJhZ2VSb3cSVQoGdG90YWxzGAIgAygLMkUudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQ292ZXJhZ2VSZXBvcnQuVG90YWxzRW50cnkSRAoJYnlfZG9tYWluGAMgAygLMjEudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuUm9sbHVwEkYKC2J5X3ByaW9yaXR5GAQgAygLMjEudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuUm9sbHVwEkwKCG1hdHVyaXR5GAUgASgLMjoudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuTWF0dXJpdHlTdW1tYXJ5Gi0KC1RvdGFsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEiYAoTR2V0Q292ZXJhZ2VSZXNwb25zZRJJCgZyZXBvcnQYASABKAsyOS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5Db3ZlcmFnZVJlcG9ydCIkChNMaXN0TmV4dFdvcmtSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFIqoBChRMaXN0TmV4dFdvcmtSZXNwb25zZRJECgRyb3dzGAEgAygLMjYudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuQ292ZXJhZ2VSb3cSTAoIbWF0dXJpdHkYAiABKAsyOi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5NYXR1cml0eVN1bW1hcnkiHgoOUnVuR2F0ZVJlcXVlc3QSDAoEZ2F0ZRgBIAEoCSJQCgtHYXRlRmluZGluZxIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEAoIYXNzZXRfaWQYAyABKAkSEAoIc2V2ZXJpdHkYBCABKAkiggEKD1J1bkdhdGVSZXNwb25zZRIMCgRnYXRlGAEgASgJEkgKCGZpbmRpbmdzGAIgAygLMjYudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuR2F0ZUZpbmRpbmcSFwoPaW5zcGVjdGVkX2ZpbGVzGAMgASgFMsoICg5DYXRhbG9nU2VydmljZRKMAQoLR2V0Q292ZXJhZ2USPS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5HZXRDb3ZlcmFnZVJlcXVlc3QaPi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5HZXRDb3ZlcmFnZVJlc3BvbnNlEo8BCgxMaXN0TmV4dFdvcmsSPi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5MaXN0TmV4dFdvcmtSZXF1ZXN0Gj8udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuTGlzdE5leHRXb3JrUmVzcG9uc2USgAEKB1J1bkdhdGUSOS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5SdW5HYXRlUmVxdWVzdBo6LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLlJ1bkdhdGVSZXNwb25zZRKqAQoVR2V0QXNzZXRSZWxhdGlvbnNoaXBzEkcudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuR2V0QXNzZXRSZWxhdGlvbnNoaXBzUmVxdWVzdBpILnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jYXRhbG9nLkdldEFzc2V0UmVsYXRpb25zaGlwc1Jlc3BvbnNlEqQBChNHZXRDYXRhbG9nU3RydWN0dXJlEkUudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuR2V0Q2F0YWxvZ1N0cnVjdHVyZVJlcXVlc3QaRi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5HZXRDYXRhbG9nU3RydWN0dXJlUmVzcG9uc2USlQEKDlJlY29uY2lsZUdyYXBoEkAudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuUmVjb25jaWxlR3JhcGhSZXF1ZXN0GkEudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNhdGFsb2cuUmVjb25jaWxlR3JhcGhSZXNwb25zZRKnAQoUR2V0QXNzZXRQb3J0Q29udHJhY3QSRi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5HZXRBc3NldFBvcnRDb250cmFjdFJlcXVlc3QaRy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY2F0YWxvZy5HZXRBc3NldFBvcnRDb250cmFjdFJlc3BvbnNlQl5aXGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcmVhY3QtY29tcG9uZW50LWxpYnJhcnkvdjEvY2F0YWxvZztjYXRhbG9nX3YxYgZwcm90bzM");
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.AssetNode
+ */
+export type AssetNode = Message<"vrooli.react_component_library.v1.catalog.AssetNode"> & {
+  /**
+   * @generated from field: string asset_id = 1;
+   */
+  assetId: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: int32 rung = 4;
+   */
+  rung: number;
+
+  /**
+   * @generated from field: string rung_name = 5;
+   */
+  rungName: string;
+
+  /**
+   * @generated from field: string domain = 6;
+   */
+  domain: string;
+
+  /**
+   * @generated from field: int32 domain_order = 7;
+   */
+  domainOrder: number;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.AssetNode.
+ * Use `create(AssetNodeSchema)` to create a new message.
+ */
+export const AssetNodeSchema: GenMessage<AssetNode> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 0);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.RungBand
+ */
+export type RungBand = Message<"vrooli.react_component_library.v1.catalog.RungBand"> & {
+  /**
+   * @generated from field: int32 rung = 1;
+   */
+  rung: number;
+
+  /**
+   * @generated from field: string rung_name = 2;
+   */
+  rungName: string;
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.AssetNode assets = 3;
+   */
+  assets: AssetNode[];
+
+  /**
+   * @generated from field: int32 count = 4;
+   */
+  count: number;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.RungBand.
+ * Use `create(RungBandSchema)` to create a new message.
+ */
+export const RungBandSchema: GenMessage<RungBand> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 1);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.AssetRelationships
+ */
+export type AssetRelationships = Message<"vrooli.react_component_library.v1.catalog.AssetRelationships"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.catalog.AssetNode root = 1;
+   */
+  root?: AssetNode | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.AssetNode direct_dependencies = 2;
+   */
+  directDependencies: AssetNode[];
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.AssetNode closure = 3;
+   */
+  closure: AssetNode[];
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.RungBand closure_bands = 4;
+   */
+  closureBands: RungBand[];
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.AssetNode direct_dependents = 5;
+   */
+  directDependents: AssetNode[];
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.AssetNode transitive_dependents = 6;
+   */
+  transitiveDependents: AssetNode[];
+
+  /**
+   * @generated from field: int32 transitive_dependent_count = 7;
+   */
+  transitiveDependentCount: number;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.AssetRelationships.
+ * Use `create(AssetRelationshipsSchema)` to create a new message.
+ */
+export const AssetRelationshipsSchema: GenMessage<AssetRelationships> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 2);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest
+ */
+export type GetAssetRelationshipsRequest = Message<"vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest"> & {
+  /**
+   * @generated from field: string asset_id = 1;
+   */
+  assetId: string;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest.
+ * Use `create(GetAssetRelationshipsRequestSchema)` to create a new message.
+ */
+export const GetAssetRelationshipsRequestSchema: GenMessage<GetAssetRelationshipsRequest> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 3);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse
+ */
+export type GetAssetRelationshipsResponse = Message<"vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.catalog.AssetRelationships relationships = 1;
+   */
+  relationships?: AssetRelationships | undefined;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse.
+ * Use `create(GetAssetRelationshipsResponseSchema)` to create a new message.
+ */
+export const GetAssetRelationshipsResponseSchema: GenMessage<GetAssetRelationshipsResponse> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 4);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest
+ */
+export type GetCatalogStructureRequest = Message<"vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest.
+ * Use `create(GetCatalogStructureRequestSchema)` to create a new message.
+ */
+export const GetCatalogStructureRequestSchema: GenMessage<GetCatalogStructureRequest> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 5);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.RungPopulation
+ */
+export type RungPopulation = Message<"vrooli.react_component_library.v1.catalog.RungPopulation"> & {
+  /**
+   * @generated from field: int32 rung = 1;
+   */
+  rung: number;
+
+  /**
+   * @generated from field: string rung_name = 2;
+   */
+  rungName: string;
+
+  /**
+   * @generated from field: int32 count = 3;
+   */
+  count: number;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.RungPopulation.
+ * Use `create(RungPopulationSchema)` to create a new message.
+ */
+export const RungPopulationSchema: GenMessage<RungPopulation> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 6);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.StructureInvariant
+ */
+export type StructureInvariant = Message<"vrooli.react_component_library.v1.catalog.StructureInvariant"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string detail = 4;
+   */
+  detail: string;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.StructureInvariant.
+ * Use `create(StructureInvariantSchema)` to create a new message.
+ */
+export const StructureInvariantSchema: GenMessage<StructureInvariant> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 7);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.BlastRadiusRow
+ */
+export type BlastRadiusRow = Message<"vrooli.react_component_library.v1.catalog.BlastRadiusRow"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.catalog.AssetNode asset = 1;
+   */
+  asset?: AssetNode | undefined;
+
+  /**
+   * @generated from field: int32 transitive_dependent_count = 2;
+   */
+  transitiveDependentCount: number;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.BlastRadiusRow.
+ * Use `create(BlastRadiusRowSchema)` to create a new message.
+ */
+export const BlastRadiusRowSchema: GenMessage<BlastRadiusRow> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 8);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.CatalogStructure
+ */
+export type CatalogStructure = Message<"vrooli.react_component_library.v1.catalog.CatalogStructure"> & {
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.RungPopulation population = 1;
+   */
+  population: RungPopulation[];
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.StructureInvariant invariants = 2;
+   */
+  invariants: StructureInvariant[];
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.BlastRadiusRow blast_radius = 3;
+   */
+  blastRadius: BlastRadiusRow[];
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.CatalogStructure.
+ * Use `create(CatalogStructureSchema)` to create a new message.
+ */
+export const CatalogStructureSchema: GenMessage<CatalogStructure> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 9);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse
+ */
+export type GetCatalogStructureResponse = Message<"vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.catalog.CatalogStructure structure = 1;
+   */
+  structure?: CatalogStructure | undefined;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse.
+ * Use `create(GetCatalogStructureResponseSchema)` to create a new message.
+ */
+export const GetCatalogStructureResponseSchema: GenMessage<GetCatalogStructureResponse> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 10);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.ReconcileGraphRequest
+ */
+export type ReconcileGraphRequest = Message<"vrooli.react_component_library.v1.catalog.ReconcileGraphRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.ReconcileGraphRequest.
+ * Use `create(ReconcileGraphRequestSchema)` to create a new message.
+ */
+export const ReconcileGraphRequestSchema: GenMessage<ReconcileGraphRequest> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 11);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.ReconciliationAsset
+ */
+export type ReconciliationAsset = Message<"vrooli.react_component_library.v1.catalog.ReconciliationAsset"> & {
+  /**
+   * @generated from field: string asset_id = 1;
+   */
+  assetId: string;
+
+  /**
+   * @generated from field: string verdict = 2;
+   */
+  verdict: string;
+
+  /**
+   * @generated from field: string cause = 3;
+   */
+  cause: string;
+
+  /**
+   * @generated from field: repeated string catalog_edges = 4;
+   */
+  catalogEdges: string[];
+
+  /**
+   * @generated from field: repeated string manifest_edges = 5;
+   */
+  manifestEdges: string[];
+
+  /**
+   * @generated from field: repeated string import_edges = 6;
+   */
+  importEdges: string[];
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.ReconciliationAsset.
+ * Use `create(ReconciliationAssetSchema)` to create a new message.
+ */
+export const ReconciliationAssetSchema: GenMessage<ReconciliationAsset> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 12);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.ReconciliationDistribution
+ */
+export type ReconciliationDistribution = Message<"vrooli.react_component_library.v1.catalog.ReconciliationDistribution"> & {
+  /**
+   * @generated from field: map<string, int32> counts = 1;
+   */
+  counts: { [key: string]: number };
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.ReconciliationDistribution.
+ * Use `create(ReconciliationDistributionSchema)` to create a new message.
+ */
+export const ReconciliationDistributionSchema: GenMessage<ReconciliationDistribution> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 13);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.ReconcileGraphResponse
+ */
+export type ReconcileGraphResponse = Message<"vrooli.react_component_library.v1.catalog.ReconcileGraphResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.ReconciliationAsset assets = 1;
+   */
+  assets: ReconciliationAsset[];
+
+  /**
+   * @generated from field: vrooli.react_component_library.v1.catalog.ReconciliationDistribution distribution = 2;
+   */
+  distribution?: ReconciliationDistribution | undefined;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.ReconcileGraphResponse.
+ * Use `create(ReconcileGraphResponseSchema)` to create a new message.
+ */
+export const ReconcileGraphResponseSchema: GenMessage<ReconcileGraphResponse> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 14);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest
+ */
+export type GetAssetPortContractRequest = Message<"vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest"> & {
+  /**
+   * @generated from field: string asset_id = 1;
+   */
+  assetId: string;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest.
+ * Use `create(GetAssetPortContractRequestSchema)` to create a new message.
+ */
+export const GetAssetPortContractRequestSchema: GenMessage<GetAssetPortContractRequest> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 15);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.UnmetPort
+ */
+export type UnmetPort = Message<"vrooli.react_component_library.v1.catalog.UnmetPort"> & {
+  /**
+   * @generated from field: string capability_id = 1;
+   */
+  capabilityId: string;
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.AssetNode demanding_assets = 2;
+   */
+  demandingAssets: AssetNode[];
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.AssetNode candidate_satisfiers = 3;
+   */
+  candidateSatisfiers: AssetNode[];
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.UnmetPort.
+ * Use `create(UnmetPortSchema)` to create a new message.
+ */
+export const UnmetPortSchema: GenMessage<UnmetPort> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 16);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.AssetPortContract
+ */
+export type AssetPortContract = Message<"vrooli.react_component_library.v1.catalog.AssetPortContract"> & {
+  /**
+   * @generated from field: string asset_id = 1;
+   */
+  assetId: string;
+
+  /**
+   * @generated from field: int32 closure_count = 2;
+   */
+  closureCount: number;
+
+  /**
+   * @generated from field: bool self_contained = 3;
+   */
+  selfContained: boolean;
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.catalog.UnmetPort unmet_ports = 4;
+   */
+  unmetPorts: UnmetPort[];
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.AssetPortContract.
+ * Use `create(AssetPortContractSchema)` to create a new message.
+ */
+export const AssetPortContractSchema: GenMessage<AssetPortContract> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 17);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse
+ */
+export type GetAssetPortContractResponse = Message<"vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.catalog.AssetPortContract contract = 1;
+   */
+  contract?: AssetPortContract | undefined;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse.
+ * Use `create(GetAssetPortContractResponseSchema)` to create a new message.
+ */
+export const GetAssetPortContractResponseSchema: GenMessage<GetAssetPortContractResponse> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_catalog_catalog, 18);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.GetCoverageRequest
@@ -23,7 +508,7 @@ export type GetCoverageRequest = Message<"vrooli.react_component_library.v1.cata
  * Use `create(GetCoverageRequestSchema)` to create a new message.
  */
 export const GetCoverageRequestSchema: GenMessage<GetCoverageRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 0);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 19);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.CoverageRow
@@ -83,6 +568,21 @@ export type CoverageRow = Message<"vrooli.react_component_library.v1.catalog.Cov
    * @generated from field: int32 blocks_downstream = 11;
    */
   blocksDownstream: number;
+
+  /**
+   * @generated from field: int32 rung = 12;
+   */
+  rung: number;
+
+  /**
+   * @generated from field: string rung_name = 13;
+   */
+  rungName: string;
+
+  /**
+   * @generated from field: int32 domain_order = 14;
+   */
+  domainOrder: number;
 };
 
 /**
@@ -90,7 +590,7 @@ export type CoverageRow = Message<"vrooli.react_component_library.v1.catalog.Cov
  * Use `create(CoverageRowSchema)` to create a new message.
  */
 export const CoverageRowSchema: GenMessage<CoverageRow> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 1);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 20);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.Rollup
@@ -117,7 +617,7 @@ export type Rollup = Message<"vrooli.react_component_library.v1.catalog.Rollup">
  * Use `create(RollupSchema)` to create a new message.
  */
 export const RollupSchema: GenMessage<Rollup> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 2);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 21);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.MaturitySummary
@@ -164,7 +664,7 @@ export type MaturitySummary = Message<"vrooli.react_component_library.v1.catalog
  * Use `create(MaturitySummarySchema)` to create a new message.
  */
 export const MaturitySummarySchema: GenMessage<MaturitySummary> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 3);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 22);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.CoverageMetric
@@ -191,7 +691,7 @@ export type CoverageMetric = Message<"vrooli.react_component_library.v1.catalog.
  * Use `create(CoverageMetricSchema)` to create a new message.
  */
 export const CoverageMetricSchema: GenMessage<CoverageMetric> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 4);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 23);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.CoverageReport
@@ -228,7 +728,7 @@ export type CoverageReport = Message<"vrooli.react_component_library.v1.catalog.
  * Use `create(CoverageReportSchema)` to create a new message.
  */
 export const CoverageReportSchema: GenMessage<CoverageReport> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 5);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 24);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.GetCoverageResponse
@@ -245,7 +745,7 @@ export type GetCoverageResponse = Message<"vrooli.react_component_library.v1.cat
  * Use `create(GetCoverageResponseSchema)` to create a new message.
  */
 export const GetCoverageResponseSchema: GenMessage<GetCoverageResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 6);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 25);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.ListNextWorkRequest
@@ -262,7 +762,7 @@ export type ListNextWorkRequest = Message<"vrooli.react_component_library.v1.cat
  * Use `create(ListNextWorkRequestSchema)` to create a new message.
  */
 export const ListNextWorkRequestSchema: GenMessage<ListNextWorkRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 7);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 26);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.ListNextWorkResponse
@@ -284,7 +784,7 @@ export type ListNextWorkResponse = Message<"vrooli.react_component_library.v1.ca
  * Use `create(ListNextWorkResponseSchema)` to create a new message.
  */
 export const ListNextWorkResponseSchema: GenMessage<ListNextWorkResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 8);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 27);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.RunGateRequest
@@ -301,7 +801,7 @@ export type RunGateRequest = Message<"vrooli.react_component_library.v1.catalog.
  * Use `create(RunGateRequestSchema)` to create a new message.
  */
 export const RunGateRequestSchema: GenMessage<RunGateRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 9);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 28);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.GateFinding
@@ -333,7 +833,7 @@ export type GateFinding = Message<"vrooli.react_component_library.v1.catalog.Gat
  * Use `create(GateFindingSchema)` to create a new message.
  */
 export const GateFindingSchema: GenMessage<GateFinding> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 10);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 29);
 
 /**
  * @generated from message vrooli.react_component_library.v1.catalog.RunGateResponse
@@ -360,7 +860,7 @@ export type RunGateResponse = Message<"vrooli.react_component_library.v1.catalog
  * Use `create(RunGateResponseSchema)` to create a new message.
  */
 export const RunGateResponseSchema: GenMessage<RunGateResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_catalog_catalog, 11);
+  messageDesc(file_react_component_library_v1_catalog_catalog, 30);
 
 /**
  * @generated from service vrooli.react_component_library.v1.catalog.CatalogService
@@ -389,6 +889,38 @@ export const CatalogService: GenService<{
     methodKind: "unary";
     input: typeof RunGateRequestSchema;
     output: typeof RunGateResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships
+   */
+  getAssetRelationships: {
+    methodKind: "unary";
+    input: typeof GetAssetRelationshipsRequestSchema;
+    output: typeof GetAssetRelationshipsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure
+   */
+  getCatalogStructure: {
+    methodKind: "unary";
+    input: typeof GetCatalogStructureRequestSchema;
+    output: typeof GetCatalogStructureResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph
+   */
+  reconcileGraph: {
+    methodKind: "unary";
+    input: typeof ReconcileGraphRequestSchema;
+    output: typeof ReconcileGraphResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract
+   */
+  getAssetPortContract: {
+    methodKind: "unary";
+    input: typeof GetAssetPortContractRequestSchema;
+    output: typeof GetAssetPortContractResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_react_component_library_v1_catalog_catalog, 0);

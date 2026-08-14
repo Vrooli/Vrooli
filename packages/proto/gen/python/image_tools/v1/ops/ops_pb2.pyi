@@ -31,7 +31,7 @@ class ListOperationsResponse(_message.Message):
     def __init__(self, operations: _Optional[_Iterable[_Union[OperationInfo, _Mapping]]] = ..., decodable_formats: _Optional[_Iterable[str]] = ..., encodable_formats: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class OpParams(_message.Message):
-    __slots__ = ("resize", "crop", "rotate", "flip", "deskew", "thumbnail", "canvas", "adjust", "filter", "convert", "compress", "overlay", "metadata", "duotone", "posterize", "halftone", "dither_ordered", "dither_diffusion", "grain", "scrim", "line_screen", "stipple", "engraving", "aberration", "bloom", "curve", "defocus", "motion_blur", "ascii_mosaic", "pixel_sort", "displacement")
+    __slots__ = ("resize", "crop", "rotate", "flip", "deskew", "thumbnail", "canvas", "adjust", "filter", "convert", "compress", "overlay", "metadata", "duotone", "posterize", "halftone", "dither_ordered", "dither_diffusion", "grain", "scrim", "line_screen", "stipple", "engraving", "aberration", "bloom", "curve", "defocus", "motion_blur", "ascii_mosaic", "pixel_sort", "displacement", "composite", "knockout")
     RESIZE_FIELD_NUMBER: _ClassVar[int]
     CROP_FIELD_NUMBER: _ClassVar[int]
     ROTATE_FIELD_NUMBER: _ClassVar[int]
@@ -63,6 +63,8 @@ class OpParams(_message.Message):
     ASCII_MOSAIC_FIELD_NUMBER: _ClassVar[int]
     PIXEL_SORT_FIELD_NUMBER: _ClassVar[int]
     DISPLACEMENT_FIELD_NUMBER: _ClassVar[int]
+    COMPOSITE_FIELD_NUMBER: _ClassVar[int]
+    KNOCKOUT_FIELD_NUMBER: _ClassVar[int]
     resize: ResizeParams
     crop: CropParams
     rotate: RotateParams
@@ -94,7 +96,49 @@ class OpParams(_message.Message):
     ascii_mosaic: AsciiMosaicParams
     pixel_sort: PixelSortParams
     displacement: DisplacementParams
-    def __init__(self, resize: _Optional[_Union[ResizeParams, _Mapping]] = ..., crop: _Optional[_Union[CropParams, _Mapping]] = ..., rotate: _Optional[_Union[RotateParams, _Mapping]] = ..., flip: _Optional[_Union[FlipParams, _Mapping]] = ..., deskew: _Optional[_Union[DeskewParams, _Mapping]] = ..., thumbnail: _Optional[_Union[ThumbnailParams, _Mapping]] = ..., canvas: _Optional[_Union[CanvasParams, _Mapping]] = ..., adjust: _Optional[_Union[AdjustParams, _Mapping]] = ..., filter: _Optional[_Union[FilterParams, _Mapping]] = ..., convert: _Optional[_Union[ConvertParams, _Mapping]] = ..., compress: _Optional[_Union[CompressParams, _Mapping]] = ..., overlay: _Optional[_Union[OverlayParams, _Mapping]] = ..., metadata: _Optional[_Union[MetadataParams, _Mapping]] = ..., duotone: _Optional[_Union[DuotoneParams, _Mapping]] = ..., posterize: _Optional[_Union[PosterizeParams, _Mapping]] = ..., halftone: _Optional[_Union[HalftoneParams, _Mapping]] = ..., dither_ordered: _Optional[_Union[DitherParams, _Mapping]] = ..., dither_diffusion: _Optional[_Union[DitherParams, _Mapping]] = ..., grain: _Optional[_Union[GrainParams, _Mapping]] = ..., scrim: _Optional[_Union[ScrimParams, _Mapping]] = ..., line_screen: _Optional[_Union[LineScreenParams, _Mapping]] = ..., stipple: _Optional[_Union[StippleParams, _Mapping]] = ..., engraving: _Optional[_Union[EngravingParams, _Mapping]] = ..., aberration: _Optional[_Union[AberrationParams, _Mapping]] = ..., bloom: _Optional[_Union[BloomParams, _Mapping]] = ..., curve: _Optional[_Union[CurveParams, _Mapping]] = ..., defocus: _Optional[_Union[DefocusParams, _Mapping]] = ..., motion_blur: _Optional[_Union[MotionBlurParams, _Mapping]] = ..., ascii_mosaic: _Optional[_Union[AsciiMosaicParams, _Mapping]] = ..., pixel_sort: _Optional[_Union[PixelSortParams, _Mapping]] = ..., displacement: _Optional[_Union[DisplacementParams, _Mapping]] = ...) -> None: ...
+    composite: CompositeParams
+    knockout: Knockout
+    def __init__(self, resize: _Optional[_Union[ResizeParams, _Mapping]] = ..., crop: _Optional[_Union[CropParams, _Mapping]] = ..., rotate: _Optional[_Union[RotateParams, _Mapping]] = ..., flip: _Optional[_Union[FlipParams, _Mapping]] = ..., deskew: _Optional[_Union[DeskewParams, _Mapping]] = ..., thumbnail: _Optional[_Union[ThumbnailParams, _Mapping]] = ..., canvas: _Optional[_Union[CanvasParams, _Mapping]] = ..., adjust: _Optional[_Union[AdjustParams, _Mapping]] = ..., filter: _Optional[_Union[FilterParams, _Mapping]] = ..., convert: _Optional[_Union[ConvertParams, _Mapping]] = ..., compress: _Optional[_Union[CompressParams, _Mapping]] = ..., overlay: _Optional[_Union[OverlayParams, _Mapping]] = ..., metadata: _Optional[_Union[MetadataParams, _Mapping]] = ..., duotone: _Optional[_Union[DuotoneParams, _Mapping]] = ..., posterize: _Optional[_Union[PosterizeParams, _Mapping]] = ..., halftone: _Optional[_Union[HalftoneParams, _Mapping]] = ..., dither_ordered: _Optional[_Union[DitherParams, _Mapping]] = ..., dither_diffusion: _Optional[_Union[DitherParams, _Mapping]] = ..., grain: _Optional[_Union[GrainParams, _Mapping]] = ..., scrim: _Optional[_Union[ScrimParams, _Mapping]] = ..., line_screen: _Optional[_Union[LineScreenParams, _Mapping]] = ..., stipple: _Optional[_Union[StippleParams, _Mapping]] = ..., engraving: _Optional[_Union[EngravingParams, _Mapping]] = ..., aberration: _Optional[_Union[AberrationParams, _Mapping]] = ..., bloom: _Optional[_Union[BloomParams, _Mapping]] = ..., curve: _Optional[_Union[CurveParams, _Mapping]] = ..., defocus: _Optional[_Union[DefocusParams, _Mapping]] = ..., motion_blur: _Optional[_Union[MotionBlurParams, _Mapping]] = ..., ascii_mosaic: _Optional[_Union[AsciiMosaicParams, _Mapping]] = ..., pixel_sort: _Optional[_Union[PixelSortParams, _Mapping]] = ..., displacement: _Optional[_Union[DisplacementParams, _Mapping]] = ..., composite: _Optional[_Union[CompositeParams, _Mapping]] = ..., knockout: _Optional[_Union[Knockout, _Mapping]] = ...) -> None: ...
+
+class Knockout(_message.Message):
+    __slots__ = ("x", "y", "width", "height", "feather", "solid")
+    X_FIELD_NUMBER: _ClassVar[int]
+    Y_FIELD_NUMBER: _ClassVar[int]
+    WIDTH_FIELD_NUMBER: _ClassVar[int]
+    HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    FEATHER_FIELD_NUMBER: _ClassVar[int]
+    SOLID_FIELD_NUMBER: _ClassVar[int]
+    x: float
+    y: float
+    width: float
+    height: float
+    feather: float
+    solid: bool
+    def __init__(self, x: _Optional[float] = ..., y: _Optional[float] = ..., width: _Optional[float] = ..., height: _Optional[float] = ..., feather: _Optional[float] = ..., solid: _Optional[bool] = ...) -> None: ...
+
+class CompositeParams(_message.Message):
+    __slots__ = ("plates", "width", "height", "background")
+    PLATES_FIELD_NUMBER: _ClassVar[int]
+    WIDTH_FIELD_NUMBER: _ClassVar[int]
+    HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    BACKGROUND_FIELD_NUMBER: _ClassVar[int]
+    plates: _containers.RepeatedCompositeFieldContainer[Plate]
+    width: int
+    height: int
+    background: str
+    def __init__(self, plates: _Optional[_Iterable[_Union[Plate, _Mapping]]] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., background: _Optional[str] = ...) -> None: ...
+
+class Plate(_message.Message):
+    __slots__ = ("name", "depth", "blend", "opacity")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DEPTH_FIELD_NUMBER: _ClassVar[int]
+    BLEND_FIELD_NUMBER: _ClassVar[int]
+    OPACITY_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    depth: int
+    blend: str
+    opacity: float
+    def __init__(self, name: _Optional[str] = ..., depth: _Optional[int] = ..., blend: _Optional[str] = ..., opacity: _Optional[float] = ...) -> None: ...
 
 class ResizeParams(_message.Message):
     __slots__ = ("width", "height", "fit", "gravity")
@@ -297,14 +341,24 @@ class GrainParams(_message.Message):
     def __init__(self, seed: _Optional[int] = ..., amount: _Optional[float] = ..., contrast_multiplier: _Optional[float] = ...) -> None: ...
 
 class ScrimParams(_message.Message):
-    __slots__ = ("color", "opacity", "direction")
+    __slots__ = ("color", "opacity", "direction", "region_x", "region_y", "region_width", "region_height", "region_feather")
     COLOR_FIELD_NUMBER: _ClassVar[int]
     OPACITY_FIELD_NUMBER: _ClassVar[int]
     DIRECTION_FIELD_NUMBER: _ClassVar[int]
+    REGION_X_FIELD_NUMBER: _ClassVar[int]
+    REGION_Y_FIELD_NUMBER: _ClassVar[int]
+    REGION_WIDTH_FIELD_NUMBER: _ClassVar[int]
+    REGION_HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    REGION_FEATHER_FIELD_NUMBER: _ClassVar[int]
     color: str
     opacity: float
     direction: str
-    def __init__(self, color: _Optional[str] = ..., opacity: _Optional[float] = ..., direction: _Optional[str] = ...) -> None: ...
+    region_x: float
+    region_y: float
+    region_width: float
+    region_height: float
+    region_feather: float
+    def __init__(self, color: _Optional[str] = ..., opacity: _Optional[float] = ..., direction: _Optional[str] = ..., region_x: _Optional[float] = ..., region_y: _Optional[float] = ..., region_width: _Optional[float] = ..., region_height: _Optional[float] = ..., region_feather: _Optional[float] = ...) -> None: ...
 
 class LineScreenParams(_message.Message):
     __slots__ = ("spacing", "angle", "dark", "light", "normalize", "spacing_rel")

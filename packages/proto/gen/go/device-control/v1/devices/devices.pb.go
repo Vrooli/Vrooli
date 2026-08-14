@@ -198,6 +198,94 @@ func (x *ConnectDeviceResponse) GetFirstNextAction() string {
 	return ""
 }
 
+type ReconnectDeviceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId      string                 `protobuf:"bytes,1,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReconnectDeviceRequest) Reset() {
+	*x = ReconnectDeviceRequest{}
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReconnectDeviceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReconnectDeviceRequest) ProtoMessage() {}
+
+func (x *ReconnectDeviceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReconnectDeviceRequest.ProtoReflect.Descriptor instead.
+func (*ReconnectDeviceRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ReconnectDeviceRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+type ReconnectDeviceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Device        *Device                `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReconnectDeviceResponse) Reset() {
+	*x = ReconnectDeviceResponse{}
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReconnectDeviceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReconnectDeviceResponse) ProtoMessage() {}
+
+func (x *ReconnectDeviceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReconnectDeviceResponse.ProtoReflect.Descriptor instead.
+func (*ReconnectDeviceResponse) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ReconnectDeviceResponse) GetDevice() *Device {
+	if x != nil {
+		return x.Device
+	}
+	return nil
+}
+
 type Device struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -222,7 +310,7 @@ type Device struct {
 
 func (x *Device) Reset() {
 	*x = Device{}
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[4]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -234,7 +322,7 @@ func (x *Device) String() string {
 func (*Device) ProtoMessage() {}
 
 func (x *Device) ProtoReflect() protoreflect.Message {
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[4]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -247,7 +335,7 @@ func (x *Device) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Device.ProtoReflect.Descriptor instead.
 func (*Device) Descriptor() ([]byte, []int) {
-	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{4}
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Device) GetId() string {
@@ -374,7 +462,7 @@ type CapabilitySnapshot struct {
 
 func (x *CapabilitySnapshot) Reset() {
 	*x = CapabilitySnapshot{}
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[5]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -386,7 +474,7 @@ func (x *CapabilitySnapshot) String() string {
 func (*CapabilitySnapshot) ProtoMessage() {}
 
 func (x *CapabilitySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[5]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -399,7 +487,7 @@ func (x *CapabilitySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilitySnapshot.ProtoReflect.Descriptor instead.
 func (*CapabilitySnapshot) Descriptor() ([]byte, []int) {
-	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{5}
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CapabilitySnapshot) GetName() string {
@@ -443,7 +531,7 @@ type OnboardingRung struct {
 
 func (x *OnboardingRung) Reset() {
 	*x = OnboardingRung{}
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[6]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -455,7 +543,7 @@ func (x *OnboardingRung) String() string {
 func (*OnboardingRung) ProtoMessage() {}
 
 func (x *OnboardingRung) ProtoReflect() protoreflect.Message {
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[6]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -468,7 +556,7 @@ func (x *OnboardingRung) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OnboardingRung.ProtoReflect.Descriptor instead.
 func (*OnboardingRung) Descriptor() ([]byte, []int) {
-	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{6}
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *OnboardingRung) GetId() string {
@@ -518,7 +606,11 @@ const file_device_control_v1_devices_devices_proto_rawDesc = "" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\"\x8b\x01\n" +
 	"\x15ConnectDeviceResponse\x12F\n" +
 	"\x05rungs\x18\x01 \x03(\v20.vrooli.device_control.v1.devices.OnboardingRungR\x05rungs\x12*\n" +
-	"\x11first_next_action\x18\x02 \x01(\tR\x0ffirstNextAction\"\xa0\x04\n" +
+	"\x11first_next_action\x18\x02 \x01(\tR\x0ffirstNextAction\"5\n" +
+	"\x16ReconnectDeviceRequest\x12\x1b\n" +
+	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\"[\n" +
+	"\x17ReconnectDeviceResponse\x12@\n" +
+	"\x06device\x18\x01 \x01(\v2(.vrooli.device_control.v1.devices.DeviceR\x06device\"\xa0\x04\n" +
 	"\x06Device\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -554,10 +646,11 @@ const file_device_control_v1_devices_devices_proto_rawDesc = "" +
 	"\x05owner\x18\x03 \x01(\tR\x05owner\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1f\n" +
 	"\vnext_action\x18\x05 \x01(\tR\n" +
-	"nextAction2\x8e\x02\n" +
+	"nextAction2\x97\x03\n" +
 	"\rDeviceService\x12z\n" +
 	"\vListDevices\x124.vrooli.device_control.v1.devices.ListDevicesRequest\x1a5.vrooli.device_control.v1.devices.ListDevicesResponse\x12\x80\x01\n" +
-	"\rConnectDevice\x126.vrooli.device_control.v1.devices.ConnectDeviceRequest\x1a7.vrooli.device_control.v1.devices.ConnectDeviceResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices;devices_v1b\x06proto3"
+	"\rConnectDevice\x126.vrooli.device_control.v1.devices.ConnectDeviceRequest\x1a7.vrooli.device_control.v1.devices.ConnectDeviceResponse\x12\x86\x01\n" +
+	"\x0fReconnectDevice\x128.vrooli.device_control.v1.devices.ReconnectDeviceRequest\x1a9.vrooli.device_control.v1.devices.ReconnectDeviceResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices;devices_v1b\x06proto3"
 
 var (
 	file_device_control_v1_devices_devices_proto_rawDescOnce sync.Once
@@ -571,31 +664,36 @@ func file_device_control_v1_devices_devices_proto_rawDescGZIP() []byte {
 	return file_device_control_v1_devices_devices_proto_rawDescData
 }
 
-var file_device_control_v1_devices_devices_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_device_control_v1_devices_devices_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_device_control_v1_devices_devices_proto_goTypes = []any{
-	(*ListDevicesRequest)(nil),    // 0: vrooli.device_control.v1.devices.ListDevicesRequest
-	(*ListDevicesResponse)(nil),   // 1: vrooli.device_control.v1.devices.ListDevicesResponse
-	(*ConnectDeviceRequest)(nil),  // 2: vrooli.device_control.v1.devices.ConnectDeviceRequest
-	(*ConnectDeviceResponse)(nil), // 3: vrooli.device_control.v1.devices.ConnectDeviceResponse
-	(*Device)(nil),                // 4: vrooli.device_control.v1.devices.Device
-	(*CapabilitySnapshot)(nil),    // 5: vrooli.device_control.v1.devices.CapabilitySnapshot
-	(*OnboardingRung)(nil),        // 6: vrooli.device_control.v1.devices.OnboardingRung
-	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
+	(*ListDevicesRequest)(nil),      // 0: vrooli.device_control.v1.devices.ListDevicesRequest
+	(*ListDevicesResponse)(nil),     // 1: vrooli.device_control.v1.devices.ListDevicesResponse
+	(*ConnectDeviceRequest)(nil),    // 2: vrooli.device_control.v1.devices.ConnectDeviceRequest
+	(*ConnectDeviceResponse)(nil),   // 3: vrooli.device_control.v1.devices.ConnectDeviceResponse
+	(*ReconnectDeviceRequest)(nil),  // 4: vrooli.device_control.v1.devices.ReconnectDeviceRequest
+	(*ReconnectDeviceResponse)(nil), // 5: vrooli.device_control.v1.devices.ReconnectDeviceResponse
+	(*Device)(nil),                  // 6: vrooli.device_control.v1.devices.Device
+	(*CapabilitySnapshot)(nil),      // 7: vrooli.device_control.v1.devices.CapabilitySnapshot
+	(*OnboardingRung)(nil),          // 8: vrooli.device_control.v1.devices.OnboardingRung
+	(*timestamppb.Timestamp)(nil),   // 9: google.protobuf.Timestamp
 }
 var file_device_control_v1_devices_devices_proto_depIdxs = []int32{
-	4, // 0: vrooli.device_control.v1.devices.ListDevicesResponse.devices:type_name -> vrooli.device_control.v1.devices.Device
-	6, // 1: vrooli.device_control.v1.devices.ConnectDeviceResponse.rungs:type_name -> vrooli.device_control.v1.devices.OnboardingRung
-	5, // 2: vrooli.device_control.v1.devices.Device.capabilities:type_name -> vrooli.device_control.v1.devices.CapabilitySnapshot
-	7, // 3: vrooli.device_control.v1.devices.Device.observed_at:type_name -> google.protobuf.Timestamp
-	0, // 4: vrooli.device_control.v1.devices.DeviceService.ListDevices:input_type -> vrooli.device_control.v1.devices.ListDevicesRequest
-	2, // 5: vrooli.device_control.v1.devices.DeviceService.ConnectDevice:input_type -> vrooli.device_control.v1.devices.ConnectDeviceRequest
-	1, // 6: vrooli.device_control.v1.devices.DeviceService.ListDevices:output_type -> vrooli.device_control.v1.devices.ListDevicesResponse
-	3, // 7: vrooli.device_control.v1.devices.DeviceService.ConnectDevice:output_type -> vrooli.device_control.v1.devices.ConnectDeviceResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	6, // 0: vrooli.device_control.v1.devices.ListDevicesResponse.devices:type_name -> vrooli.device_control.v1.devices.Device
+	8, // 1: vrooli.device_control.v1.devices.ConnectDeviceResponse.rungs:type_name -> vrooli.device_control.v1.devices.OnboardingRung
+	6, // 2: vrooli.device_control.v1.devices.ReconnectDeviceResponse.device:type_name -> vrooli.device_control.v1.devices.Device
+	7, // 3: vrooli.device_control.v1.devices.Device.capabilities:type_name -> vrooli.device_control.v1.devices.CapabilitySnapshot
+	9, // 4: vrooli.device_control.v1.devices.Device.observed_at:type_name -> google.protobuf.Timestamp
+	0, // 5: vrooli.device_control.v1.devices.DeviceService.ListDevices:input_type -> vrooli.device_control.v1.devices.ListDevicesRequest
+	2, // 6: vrooli.device_control.v1.devices.DeviceService.ConnectDevice:input_type -> vrooli.device_control.v1.devices.ConnectDeviceRequest
+	4, // 7: vrooli.device_control.v1.devices.DeviceService.ReconnectDevice:input_type -> vrooli.device_control.v1.devices.ReconnectDeviceRequest
+	1, // 8: vrooli.device_control.v1.devices.DeviceService.ListDevices:output_type -> vrooli.device_control.v1.devices.ListDevicesResponse
+	3, // 9: vrooli.device_control.v1.devices.DeviceService.ConnectDevice:output_type -> vrooli.device_control.v1.devices.ConnectDeviceResponse
+	5, // 10: vrooli.device_control.v1.devices.DeviceService.ReconnectDevice:output_type -> vrooli.device_control.v1.devices.ReconnectDeviceResponse
+	8, // [8:11] is the sub-list for method output_type
+	5, // [5:8] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_device_control_v1_devices_devices_proto_init() }
@@ -609,7 +707,7 @@ func file_device_control_v1_devices_devices_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_device_control_v1_devices_devices_proto_rawDesc), len(file_device_control_v1_devices_devices_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

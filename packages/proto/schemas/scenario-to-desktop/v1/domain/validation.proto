@@ -7,11 +7,11 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
 
-// ElectronTarget is the target-owned contract for attaching BAS to a running
+// AppTarget is the target-owned contract for attaching BAS to a running
 // generated desktop application. The CDP endpoint is loopback-only; bridge
 // transports must be represented by a target-owned authenticated adapter and
 // must not put a raw debugging port on a LAN interface.
-message ElectronTarget {
+message AppTarget {
   string target_id = 1 [(buf.validate.field).string.min_len = 1];
   string scenario_name = 2 [(buf.validate.field).string.min_len = 1];
   string artifact_digest = 3 [(buf.validate.field).string.min_len = 1];

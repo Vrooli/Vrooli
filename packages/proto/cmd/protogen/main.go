@@ -85,6 +85,12 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return runExternal(context.Background(), "proto-health", "impact", "scenario", *scenario)
 	case "clean":
+		// Staging trees are protogen's own output too. Leaving them behind made
+		// the one command named "clean" the one command that did not remove the
+		// largest thing protogen writes.
+		if err := protogen.CleanStages(protogen.DefaultStageParent(protoRoot)); err != nil {
+			return err
+		}
 		return protogen.Clean(filepath.Join(protoRoot, "gen"))
 	case "refresh-vendor":
 		if err := runBuf(context.Background(), protoRoot, "export", "buf.build/googleapis/googleapis", "-o", filepath.Join(protoRoot, "vendor", "googleapis")); err != nil {

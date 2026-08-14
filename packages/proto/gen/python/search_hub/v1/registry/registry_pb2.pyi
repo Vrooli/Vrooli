@@ -28,6 +28,13 @@ class ProviderState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PROVIDER_STATE_ACTIVE: _ClassVar[ProviderState]
     PROVIDER_STATE_CAPABILITY_GAP: _ClassVar[ProviderState]
 
+class Lifecycle(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    LIFECYCLE_UNSPECIFIED: _ClassVar[Lifecycle]
+    LIFECYCLE_PRODUCTION: _ClassVar[Lifecycle]
+    LIFECYCLE_FIXTURE: _ClassVar[Lifecycle]
+    LIFECYCLE_EXPERIMENTAL: _ClassVar[Lifecycle]
+
 class ScoreScale(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SCORE_SCALE_UNSPECIFIED: _ClassVar[ScoreScale]
@@ -52,6 +59,10 @@ SCOPE_EXTERNAL: Scope
 PROVIDER_STATE_UNSPECIFIED: ProviderState
 PROVIDER_STATE_ACTIVE: ProviderState
 PROVIDER_STATE_CAPABILITY_GAP: ProviderState
+LIFECYCLE_UNSPECIFIED: Lifecycle
+LIFECYCLE_PRODUCTION: Lifecycle
+LIFECYCLE_FIXTURE: Lifecycle
+LIFECYCLE_EXPERIMENTAL: Lifecycle
 SCORE_SCALE_UNSPECIFIED: ScoreScale
 SCORE_SCALE_COSINE_0_1: ScoreScale
 SCORE_SCALE_PERCENT_0_100: ScoreScale
@@ -162,7 +173,7 @@ class Tuning(_message.Message):
     def __init__(self, engine: _Optional[str] = ..., embed_model: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor: _Optional[_Union[FloorConfig, _Mapping]] = ..., hybrid_fusion: _Optional[str] = ..., rerank_preference: _Optional[str] = ...) -> None: ...
 
 class ProviderDescriptor(_message.Message):
-    __slots__ = ("provider_id", "provider_group", "bucket", "type", "description", "endpoint", "result_mapping", "query_hint", "status_endpoint", "scope", "state", "intended_home", "reindex_endpoint", "config_endpoint", "tuning", "lifecycle", "tests_minimum", "junk_leak_opt_out_reason", "index_timestamp_field")
+    __slots__ = ("provider_id", "provider_group", "bucket", "type", "description", "endpoint", "result_mapping", "query_hint", "status_endpoint", "scope", "state", "intended_home", "reindex_endpoint", "config_endpoint", "tuning", "lifecycle", "tests_minimum", "junk_leak_opt_out_reason", "index_timestamp_field", "declared_at")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_GROUP_FIELD_NUMBER: _ClassVar[int]
     BUCKET_FIELD_NUMBER: _ClassVar[int]
@@ -182,6 +193,7 @@ class ProviderDescriptor(_message.Message):
     TESTS_MINIMUM_FIELD_NUMBER: _ClassVar[int]
     JUNK_LEAK_OPT_OUT_REASON_FIELD_NUMBER: _ClassVar[int]
     INDEX_TIMESTAMP_FIELD_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_AT_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     provider_group: str
     bucket: Bucket
@@ -197,11 +209,12 @@ class ProviderDescriptor(_message.Message):
     reindex_endpoint: Endpoint
     config_endpoint: Endpoint
     tuning: Tuning
-    lifecycle: str
+    lifecycle: Lifecycle
     tests_minimum: EvalMinimum
     junk_leak_opt_out_reason: str
     index_timestamp_field: str
-    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., bucket: _Optional[_Union[Bucket, str]] = ..., type: _Optional[str] = ..., description: _Optional[str] = ..., endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., result_mapping: _Optional[_Union[ResultMapping, _Mapping]] = ..., query_hint: _Optional[str] = ..., status_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., scope: _Optional[_Union[Scope, str]] = ..., state: _Optional[_Union[ProviderState, str]] = ..., intended_home: _Optional[str] = ..., reindex_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., config_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., tuning: _Optional[_Union[Tuning, _Mapping]] = ..., lifecycle: _Optional[str] = ..., tests_minimum: _Optional[_Union[EvalMinimum, _Mapping]] = ..., junk_leak_opt_out_reason: _Optional[str] = ..., index_timestamp_field: _Optional[str] = ...) -> None: ...
+    declared_at: str
+    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., bucket: _Optional[_Union[Bucket, str]] = ..., type: _Optional[str] = ..., description: _Optional[str] = ..., endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., result_mapping: _Optional[_Union[ResultMapping, _Mapping]] = ..., query_hint: _Optional[str] = ..., status_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., scope: _Optional[_Union[Scope, str]] = ..., state: _Optional[_Union[ProviderState, str]] = ..., intended_home: _Optional[str] = ..., reindex_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., config_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., tuning: _Optional[_Union[Tuning, _Mapping]] = ..., lifecycle: _Optional[_Union[Lifecycle, str]] = ..., tests_minimum: _Optional[_Union[EvalMinimum, _Mapping]] = ..., junk_leak_opt_out_reason: _Optional[str] = ..., index_timestamp_field: _Optional[str] = ..., declared_at: _Optional[str] = ...) -> None: ...
 
 class EvalMinimum(_message.Message):
     __slots__ = ("reviewed_positive", "negative", "required_tags")
@@ -212,6 +225,22 @@ class EvalMinimum(_message.Message):
     negative: int
     required_tags: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, reviewed_positive: _Optional[int] = ..., negative: _Optional[int] = ..., required_tags: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class IncubatingProvider(_message.Message):
+    __slots__ = ("provider_id", "declared_at", "times_routed", "total_hits", "suite_present", "next_action")
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_AT_FIELD_NUMBER: _ClassVar[int]
+    TIMES_ROUTED_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_HITS_FIELD_NUMBER: _ClassVar[int]
+    SUITE_PRESENT_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
+    provider_id: str
+    declared_at: str
+    times_routed: int
+    total_hits: int
+    suite_present: bool
+    next_action: str
+    def __init__(self, provider_id: _Optional[str] = ..., declared_at: _Optional[str] = ..., times_routed: _Optional[int] = ..., total_hits: _Optional[int] = ..., suite_present: _Optional[bool] = ..., next_action: _Optional[str] = ...) -> None: ...
 
 class RegisterProviderRequest(_message.Message):
     __slots__ = ("descriptor", "control_token")
@@ -242,10 +271,12 @@ class ListProvidersRequest(_message.Message):
     def __init__(self, bucket: _Optional[_Union[Bucket, str]] = ..., type: _Optional[str] = ..., state: _Optional[_Union[ProviderState, str]] = ...) -> None: ...
 
 class ListProvidersResponse(_message.Message):
-    __slots__ = ("providers",)
+    __slots__ = ("providers", "incubating")
     PROVIDERS_FIELD_NUMBER: _ClassVar[int]
+    INCUBATING_FIELD_NUMBER: _ClassVar[int]
     providers: _containers.RepeatedCompositeFieldContainer[ProviderDescriptor]
-    def __init__(self, providers: _Optional[_Iterable[_Union[ProviderDescriptor, _Mapping]]] = ...) -> None: ...
+    incubating: _containers.RepeatedCompositeFieldContainer[IncubatingProvider]
+    def __init__(self, providers: _Optional[_Iterable[_Union[ProviderDescriptor, _Mapping]]] = ..., incubating: _Optional[_Iterable[_Union[IncubatingProvider, _Mapping]]] = ...) -> None: ...
 
 class ExecuteEmbeddingMigrationRequest(_message.Message):
     __slots__ = ("provider_id", "action", "shadow_collection", "rollback_collection", "embedding_model", "embedding_role", "embedding_dimensions", "embedding_policy_schema_version", "scope", "dry_run", "job_id")

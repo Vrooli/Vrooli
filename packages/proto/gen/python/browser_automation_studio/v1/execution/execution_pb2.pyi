@@ -227,7 +227,7 @@ class ExecuteAdhocRequest(_message.Message):
     def __init__(self, flow_definition: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ..., wait_for_completion: _Optional[bool] = ..., metadata: _Optional[_Union[ExecutionMetadata, _Mapping]] = ..., parameters: _Optional[_Union[ExecutionParameters, _Mapping]] = ..., options: _Optional[_Union[ExecuteWorkflowOptions, _Mapping]] = ...) -> None: ...
 
 class ExecuteWorkflowOptions(_message.Message):
-    __slots__ = ("requires_video", "requires_trace", "requires_har", "frame_streaming", "frame_streaming_quality", "frame_streaming_fps", "seed_mode", "seed_scenario", "electron_target", "validation_context")
+    __slots__ = ("requires_video", "requires_trace", "requires_har", "frame_streaming", "frame_streaming_quality", "frame_streaming_fps", "seed_mode", "seed_scenario", "app_target", "validation_context")
     REQUIRES_VIDEO_FIELD_NUMBER: _ClassVar[int]
     REQUIRES_TRACE_FIELD_NUMBER: _ClassVar[int]
     REQUIRES_HAR_FIELD_NUMBER: _ClassVar[int]
@@ -236,7 +236,7 @@ class ExecuteWorkflowOptions(_message.Message):
     FRAME_STREAMING_FPS_FIELD_NUMBER: _ClassVar[int]
     SEED_MODE_FIELD_NUMBER: _ClassVar[int]
     SEED_SCENARIO_FIELD_NUMBER: _ClassVar[int]
-    ELECTRON_TARGET_FIELD_NUMBER: _ClassVar[int]
+    APP_TARGET_FIELD_NUMBER: _ClassVar[int]
     VALIDATION_CONTEXT_FIELD_NUMBER: _ClassVar[int]
     requires_video: bool
     requires_trace: bool
@@ -246,12 +246,13 @@ class ExecuteWorkflowOptions(_message.Message):
     frame_streaming_fps: int
     seed_mode: str
     seed_scenario: str
-    electron_target: ElectronTarget
+    app_target: AppTarget
     validation_context: ValidationContext
-    def __init__(self, requires_video: _Optional[bool] = ..., requires_trace: _Optional[bool] = ..., requires_har: _Optional[bool] = ..., frame_streaming: _Optional[bool] = ..., frame_streaming_quality: _Optional[int] = ..., frame_streaming_fps: _Optional[int] = ..., seed_mode: _Optional[str] = ..., seed_scenario: _Optional[str] = ..., electron_target: _Optional[_Union[ElectronTarget, _Mapping]] = ..., validation_context: _Optional[_Union[ValidationContext, _Mapping]] = ...) -> None: ...
+    def __init__(self, requires_video: _Optional[bool] = ..., requires_trace: _Optional[bool] = ..., requires_har: _Optional[bool] = ..., frame_streaming: _Optional[bool] = ..., frame_streaming_quality: _Optional[int] = ..., frame_streaming_fps: _Optional[int] = ..., seed_mode: _Optional[str] = ..., seed_scenario: _Optional[str] = ..., app_target: _Optional[_Union[AppTarget, _Mapping]] = ..., validation_context: _Optional[_Union[ValidationContext, _Mapping]] = ...) -> None: ...
 
-class ElectronTarget(_message.Message):
-    __slots__ = ("target_id", "cdp_endpoint", "renderer_id", "renderer_url", "renderer_title", "scenario_name", "artifact_digest", "context_id", "cdp_transport")
+class AppTarget(_message.Message):
+    __slots__ = ("target_kind", "target_id", "cdp_endpoint", "renderer_id", "renderer_url", "renderer_title", "scenario_name", "artifact_digest", "context_id", "cdp_transport")
+    TARGET_KIND_FIELD_NUMBER: _ClassVar[int]
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     CDP_ENDPOINT_FIELD_NUMBER: _ClassVar[int]
     RENDERER_ID_FIELD_NUMBER: _ClassVar[int]
@@ -261,6 +262,7 @@ class ElectronTarget(_message.Message):
     ARTIFACT_DIGEST_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_ID_FIELD_NUMBER: _ClassVar[int]
     CDP_TRANSPORT_FIELD_NUMBER: _ClassVar[int]
+    target_kind: str
     target_id: str
     cdp_endpoint: str
     renderer_id: str
@@ -270,7 +272,7 @@ class ElectronTarget(_message.Message):
     artifact_digest: str
     context_id: str
     cdp_transport: str
-    def __init__(self, target_id: _Optional[str] = ..., cdp_endpoint: _Optional[str] = ..., renderer_id: _Optional[str] = ..., renderer_url: _Optional[str] = ..., renderer_title: _Optional[str] = ..., scenario_name: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., context_id: _Optional[str] = ..., cdp_transport: _Optional[str] = ...) -> None: ...
+    def __init__(self, target_kind: _Optional[str] = ..., target_id: _Optional[str] = ..., cdp_endpoint: _Optional[str] = ..., renderer_id: _Optional[str] = ..., renderer_url: _Optional[str] = ..., renderer_title: _Optional[str] = ..., scenario_name: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., context_id: _Optional[str] = ..., cdp_transport: _Optional[str] = ...) -> None: ...
 
 class ValidationContext(_message.Message):
     __slots__ = ("context_id", "scenario_name", "artifact_digest", "target_id", "workflow_id", "profile_id", "isolation_lease_id")

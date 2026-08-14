@@ -49,7 +49,10 @@
   ],
   "bindings": {
     "regions": {
-      "public-landing": { "testid": "landing-experience-surface" }
+      "public-landing": {
+        "testid": "landing-experience-surface",
+        "selector": "[data-testid=\"landing-experience-surface\"]"
+      }
     },
     "elements": {
       "experience-header": { "testid": "landing-experience-header" }

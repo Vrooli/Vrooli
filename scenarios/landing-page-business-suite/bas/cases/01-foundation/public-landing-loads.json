@@ -34,7 +34,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid=\"landing-experience-surface\"][data-experience-state=\"loading\"]",
+          "selector": "[data-testid=\"landing-experience-surface\"][data-experience-surface=\"public-landing\"][data-experience-state=\"loading\"]",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
@@ -46,7 +46,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid=\"landing-experience-surface\"][data-experience-state=\"ready\"]",
+          "selector": "[data-testid=\"landing-experience-surface\"][data-experience-surface=\"public-landing\"][data-experience-state=\"ready\"]",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },

@@ -437,6 +437,345 @@ func (x *RoutingRecord) GetAttemptDetails() []string {
 	return nil
 }
 
+// Plate is one depth layer of a candidate.
+//
+// A backdrop is not flat. A colonnade sits in front of a sea which sits in
+// front of a sky, and the generators already know that — the vector family
+// draws each as its own SVG group. Flattening at the moment of render threw the
+// separation away, so a consumer wanting parallax had to infer depth from a
+// picture that no longer contained it.
+//
+// The image bytes are NOT carried here. A three-plate candidate at store
+// geometry is tens of megabytes, and a job record that inlined them would make
+// every list call expensive for a field most callers ignore. `ref` names where
+// the bytes are; the flat composite on the candidate is what a consumer reads
+// when it just wants a picture.
+type Plate struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What this layer depicts: "sky", "sea", "colonnade", "figure".
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Depth orders the stack, lowest first and furthest from the viewer.
+	Depth int32 `protobuf:"varint,2,opt,name=depth,proto3" json:"depth,omitempty"`
+	// Blend with everything beneath: "normal", "multiply" or "screen". Empty is
+	// normal. The set matches image-tools' compositor exactly — a mode this
+	// scenario could name and that scenario could not run would be a contract
+	// that only looks complete.
+	Blend string `protobuf:"bytes,3,opt,name=blend,proto3" json:"blend,omitempty"`
+	// Opacity 0..1.
+	Opacity float64 `protobuf:"fixed64,4,opt,name=opacity,proto3" json:"opacity,omitempty"`
+	// ref locates the plate's pixels. Empty on a single-plate candidate, whose
+	// only plate IS the composite.
+	Ref string `protobuf:"bytes,5,opt,name=ref,proto3" json:"ref,omitempty"`
+	// The treatment chain applied to this plate alone, in order. Empty means the
+	// plate ships as its generator drew it.
+	Treatments []string `protobuf:"bytes,6,rep,name=treatments,proto3" json:"treatments,omitempty"`
+	// motion is how this layer moves relative to the viewport. Absent means it
+	// does not move, which is the honest default: a plate with no declared
+	// parallax is a plate the art direction did not decide about.
+	Motion        *MotionProfile `protobuf:"bytes,7,opt,name=motion,proto3" json:"motion,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Plate) Reset() {
+	*x = Plate{}
+	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Plate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Plate) ProtoMessage() {}
+
+func (x *Plate) ProtoReflect() protoreflect.Message {
+	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Plate.ProtoReflect.Descriptor instead.
+func (*Plate) Descriptor() ([]byte, []int) {
+	return file_backdrop_studio_v1_shared_shared_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Plate) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Plate) GetDepth() int32 {
+	if x != nil {
+		return x.Depth
+	}
+	return 0
+}
+
+func (x *Plate) GetBlend() string {
+	if x != nil {
+		return x.Blend
+	}
+	return ""
+}
+
+func (x *Plate) GetOpacity() float64 {
+	if x != nil {
+		return x.Opacity
+	}
+	return 0
+}
+
+func (x *Plate) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *Plate) GetTreatments() []string {
+	if x != nil {
+		return x.Treatments
+	}
+	return nil
+}
+
+func (x *Plate) GetMotion() *MotionProfile {
+	if x != nil {
+		return x.Motion
+	}
+	return nil
+}
+
+// MotionProfile is how one plate moves.
+//
+// Motion ships as a CSS transform descriptor over plate images, never as video
+// or an animated GIF. That is a boundary rather than a limitation: `image-tools`
+// records motion content as a non-goal, a landing page pays a video decode for
+// something a transform does for free, and a descriptor degrades to the flat
+// composite when a viewer asks for reduced motion. The revisit trigger is the
+// first ambient loop CSS genuinely cannot express — which is the signal to
+// build a rich-media capability, not to add an encoder here.
+type MotionProfile struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// parallax is how far this plate travels against the scroll, as a fraction of
+	// the viewport's travel. 0 is pinned to the page, 1 moves with it. A far
+	// plate takes a small factor and a near plate a large one, which is what
+	// produces the depth impression.
+	Parallax float64 `protobuf:"fixed64,1,opt,name=parallax,proto3" json:"parallax,omitempty"`
+	// ambient names an optional continuous loop: "drift", "sway" or "breathe".
+	// Empty means the plate only responds to scroll.
+	Ambient string `protobuf:"bytes,2,opt,name=ambient,proto3" json:"ambient,omitempty"`
+	// ambient_seconds is one period of that loop. Long, because an ambient
+	// motion a reader can time is a distraction rather than an atmosphere.
+	AmbientSeconds float64 `protobuf:"fixed64,3,opt,name=ambient_seconds,json=ambientSeconds,proto3" json:"ambient_seconds,omitempty"`
+	// ambient_amplitude is the loop's travel, as a fraction of the frame's short
+	// edge. Small: this is the difference between a picture that breathes and one
+	// that wobbles.
+	AmbientAmplitude float64 `protobuf:"fixed64,4,opt,name=ambient_amplitude,json=ambientAmplitude,proto3" json:"ambient_amplitude,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *MotionProfile) Reset() {
+	*x = MotionProfile{}
+	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MotionProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MotionProfile) ProtoMessage() {}
+
+func (x *MotionProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MotionProfile.ProtoReflect.Descriptor instead.
+func (*MotionProfile) Descriptor() ([]byte, []int) {
+	return file_backdrop_studio_v1_shared_shared_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *MotionProfile) GetParallax() float64 {
+	if x != nil {
+		return x.Parallax
+	}
+	return 0
+}
+
+func (x *MotionProfile) GetAmbient() string {
+	if x != nil {
+		return x.Ambient
+	}
+	return ""
+}
+
+func (x *MotionProfile) GetAmbientSeconds() float64 {
+	if x != nil {
+		return x.AmbientSeconds
+	}
+	return 0
+}
+
+func (x *MotionProfile) GetAmbientAmplitude() float64 {
+	if x != nil {
+		return x.AmbientAmplitude
+	}
+	return 0
+}
+
+// PlateSpec is a style's declaration of one layer it draws.
+//
+// It is the catalog's half of the plate model: the render path fills a stack
+// from it, and a style whose spec names a layer no generator draws is refused
+// at write time rather than rendering a stack with a hole in it. Separate from
+// Plate — which is what a *candidate* actually got — because a declaration and
+// a result are different facts and conflating them is how a catalog comes to
+// describe pictures it does not produce.
+type PlateSpec struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What this layer should depict. The generators name their own planes, and a
+	// spec entry binds to one of those names.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Depth orders the stack, lowest first.
+	Depth int32 `protobuf:"varint,2,opt,name=depth,proto3" json:"depth,omitempty"`
+	// Blend with everything beneath: "normal", "multiply" or "screen".
+	Blend string `protobuf:"bytes,3,opt,name=blend,proto3" json:"blend,omitempty"`
+	// Opacity 0..1.
+	Opacity float64 `protobuf:"fixed64,4,opt,name=opacity,proto3" json:"opacity,omitempty"`
+	// The treatment chain for this plate alone. A per-plate chain is the point of
+	// separating them: a screen over the sea and none over the sky is a picture
+	// the flat lane cannot make.
+	Treatments []string `protobuf:"bytes,5,rep,name=treatments,proto3" json:"treatments,omitempty"`
+	// motion is how this layer should move. Absent means it does not.
+	Motion *MotionProfile `protobuf:"bytes,8,opt,name=motion,proto3" json:"motion,omitempty"`
+	// planes are the generator planes this plate merges, in the generator's own
+	// depth order. Empty means the single plane whose name matches `name`.
+	//
+	// The indirection lets a style ship fewer plates than its generator
+	// separates. The colonnade draws four planes against a three-plate cap, and
+	// merging "the far ground" loses no parallax where dropping a layer would
+	// lose picture — so a cap is enforced by composition rather than by deletion.
+	Planes []string `protobuf:"bytes,6,rep,name=planes,proto3" json:"planes,omitempty"`
+	// treatment_params are this plate's own parameters, keyed by operation name
+	// and overlaid on the style's.
+	//
+	// Depth-grading is exactly a parameter difference: a coarser screen on the
+	// far plane and a finer one on the near is the same operation at two
+	// rulings. Without these, per-plate chains could express "screen this layer
+	// and not that one" but never "screen both, differently" — which is the
+	// depth cue itself.
+	TreatmentParams map[string]string `protobuf:"bytes,7,rep,name=treatment_params,json=treatmentParams,proto3" json:"treatment_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PlateSpec) Reset() {
+	*x = PlateSpec{}
+	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlateSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlateSpec) ProtoMessage() {}
+
+func (x *PlateSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlateSpec.ProtoReflect.Descriptor instead.
+func (*PlateSpec) Descriptor() ([]byte, []int) {
+	return file_backdrop_studio_v1_shared_shared_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PlateSpec) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PlateSpec) GetDepth() int32 {
+	if x != nil {
+		return x.Depth
+	}
+	return 0
+}
+
+func (x *PlateSpec) GetBlend() string {
+	if x != nil {
+		return x.Blend
+	}
+	return ""
+}
+
+func (x *PlateSpec) GetOpacity() float64 {
+	if x != nil {
+		return x.Opacity
+	}
+	return 0
+}
+
+func (x *PlateSpec) GetTreatments() []string {
+	if x != nil {
+		return x.Treatments
+	}
+	return nil
+}
+
+func (x *PlateSpec) GetMotion() *MotionProfile {
+	if x != nil {
+		return x.Motion
+	}
+	return nil
+}
+
+func (x *PlateSpec) GetPlanes() []string {
+	if x != nil {
+		return x.Planes
+	}
+	return nil
+}
+
+func (x *PlateSpec) GetTreatmentParams() map[string]string {
+	if x != nil {
+		return x.TreatmentParams
+	}
+	return nil
+}
+
 type Style struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -478,14 +817,18 @@ type Style struct {
 	// quality_tier is the bar this style's source must meet. See QualityTier:
 	// the router resolves it to the cheapest lane that meets it, records what
 	// served, and refuses by name when nothing does.
-	QualityTier   QualityTier `protobuf:"varint,17,opt,name=quality_tier,json=qualityTier,proto3,enum=vrooli.backdrop_studio.v1.shared.QualityTier" json:"quality_tier,omitempty"`
+	QualityTier QualityTier `protobuf:"varint,17,opt,name=quality_tier,json=qualityTier,proto3,enum=vrooli.backdrop_studio.v1.shared.QualityTier" json:"quality_tier,omitempty"`
+	// plate_spec declares how many plates this style draws and what each depicts.
+	// Absent means one plate — the whole picture — which is what every style
+	// drew before the plate model existed and what most still draw.
+	PlateSpec     []*PlateSpec `protobuf:"bytes,18,rep,name=plate_spec,json=plateSpec,proto3" json:"plate_spec,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Style) Reset() {
 	*x = Style{}
-	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[4]
+	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -497,7 +840,7 @@ func (x *Style) String() string {
 func (*Style) ProtoMessage() {}
 
 func (x *Style) ProtoReflect() protoreflect.Message {
-	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[4]
+	mi := &file_backdrop_studio_v1_shared_shared_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -510,7 +853,7 @@ func (x *Style) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Style.ProtoReflect.Descriptor instead.
 func (*Style) Descriptor() ([]byte, []int) {
-	return file_backdrop_studio_v1_shared_shared_proto_rawDescGZIP(), []int{4}
+	return file_backdrop_studio_v1_shared_shared_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Style) GetId() string {
@@ -632,6 +975,13 @@ func (x *Style) GetQualityTier() QualityTier {
 	return QualityTier_QUALITY_TIER_UNSPECIFIED
 }
 
+func (x *Style) GetPlateSpec() []*PlateSpec {
+	if x != nil {
+		return x.PlateSpec
+	}
+	return nil
+}
+
 var File_backdrop_studio_v1_shared_shared_proto protoreflect.FileDescriptor
 
 const file_backdrop_studio_v1_shared_shared_proto_rawDesc = "" +
@@ -666,7 +1016,36 @@ const file_backdrop_studio_v1_shared_shared_proto_rawDesc = "" +
 	"\x0eexecution_tier\x18\x04 \x01(\tR\rexecutionTier\x12\x19\n" +
 	"\bcost_usd\x18\x05 \x01(\x01R\acostUsd\x12'\n" +
 	"\x0fattempted_lanes\x18\x06 \x03(\tR\x0eattemptedLanes\x12'\n" +
-	"\x0fattempt_details\x18\a \x03(\tR\x0eattemptDetails\"\xa2\a\n" +
+	"\x0fattempt_details\x18\a \x03(\tR\x0eattemptDetails\"\xdc\x01\n" +
+	"\x05Plate\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05depth\x18\x02 \x01(\x05R\x05depth\x12\x14\n" +
+	"\x05blend\x18\x03 \x01(\tR\x05blend\x12\x18\n" +
+	"\aopacity\x18\x04 \x01(\x01R\aopacity\x12\x10\n" +
+	"\x03ref\x18\x05 \x01(\tR\x03ref\x12\x1e\n" +
+	"\n" +
+	"treatments\x18\x06 \x03(\tR\n" +
+	"treatments\x12G\n" +
+	"\x06motion\x18\a \x01(\v2/.vrooli.backdrop_studio.v1.shared.MotionProfileR\x06motion\"\x9b\x01\n" +
+	"\rMotionProfile\x12\x1a\n" +
+	"\bparallax\x18\x01 \x01(\x01R\bparallax\x12\x18\n" +
+	"\aambient\x18\x02 \x01(\tR\aambient\x12'\n" +
+	"\x0fambient_seconds\x18\x03 \x01(\x01R\x0eambientSeconds\x12+\n" +
+	"\x11ambient_amplitude\x18\x04 \x01(\x01R\x10ambientAmplitude\"\x97\x03\n" +
+	"\tPlateSpec\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05depth\x18\x02 \x01(\x05R\x05depth\x12\x14\n" +
+	"\x05blend\x18\x03 \x01(\tR\x05blend\x12\x18\n" +
+	"\aopacity\x18\x04 \x01(\x01R\aopacity\x12\x1e\n" +
+	"\n" +
+	"treatments\x18\x05 \x03(\tR\n" +
+	"treatments\x12G\n" +
+	"\x06motion\x18\b \x01(\v2/.vrooli.backdrop_studio.v1.shared.MotionProfileR\x06motion\x12\x16\n" +
+	"\x06planes\x18\x06 \x03(\tR\x06planes\x12k\n" +
+	"\x10treatment_params\x18\a \x03(\v2@.vrooli.backdrop_studio.v1.shared.PlateSpec.TreatmentParamsEntryR\x0ftreatmentParams\x1aB\n" +
+	"\x14TreatmentParamsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xee\a\n" +
 	"\x05Style\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
@@ -691,7 +1070,9 @@ const file_backdrop_studio_v1_shared_shared_proto_rawDesc = "" +
 	"\x10treatment_params\x18\x0e \x03(\v2<.vrooli.backdrop_studio.v1.shared.Style.TreatmentParamsEntryR\x0ftreatmentParams\x12E\n" +
 	"\x04inks\x18\x0f \x03(\v21.vrooli.backdrop_studio.v1.shared.Style.InksEntryR\x04inks\x12\x1b\n" +
 	"\tparent_id\x18\x10 \x01(\tR\bparentId\x12P\n" +
-	"\fquality_tier\x18\x11 \x01(\x0e2-.vrooli.backdrop_studio.v1.shared.QualityTierR\vqualityTier\x1aB\n" +
+	"\fquality_tier\x18\x11 \x01(\x0e2-.vrooli.backdrop_studio.v1.shared.QualityTierR\vqualityTier\x12J\n" +
+	"\n" +
+	"plate_spec\x18\x12 \x03(\v2+.vrooli.backdrop_studio.v1.shared.PlateSpecR\tplateSpec\x1aB\n" +
 	"\x14TreatmentParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a7\n" +
@@ -717,30 +1098,38 @@ func file_backdrop_studio_v1_shared_shared_proto_rawDescGZIP() []byte {
 }
 
 var file_backdrop_studio_v1_shared_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_backdrop_studio_v1_shared_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_backdrop_studio_v1_shared_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_backdrop_studio_v1_shared_shared_proto_goTypes = []any{
 	(QualityTier)(0),        // 0: vrooli.backdrop_studio.v1.shared.QualityTier
 	(*ReservedRegion)(nil),  // 1: vrooli.backdrop_studio.v1.shared.ReservedRegion
 	(*ScaffoldBinding)(nil), // 2: vrooli.backdrop_studio.v1.shared.ScaffoldBinding
 	(*GenerationBlock)(nil), // 3: vrooli.backdrop_studio.v1.shared.GenerationBlock
 	(*RoutingRecord)(nil),   // 4: vrooli.backdrop_studio.v1.shared.RoutingRecord
-	(*Style)(nil),           // 5: vrooli.backdrop_studio.v1.shared.Style
-	nil,                     // 6: vrooli.backdrop_studio.v1.shared.Style.TreatmentParamsEntry
-	nil,                     // 7: vrooli.backdrop_studio.v1.shared.Style.InksEntry
+	(*Plate)(nil),           // 5: vrooli.backdrop_studio.v1.shared.Plate
+	(*MotionProfile)(nil),   // 6: vrooli.backdrop_studio.v1.shared.MotionProfile
+	(*PlateSpec)(nil),       // 7: vrooli.backdrop_studio.v1.shared.PlateSpec
+	(*Style)(nil),           // 8: vrooli.backdrop_studio.v1.shared.Style
+	nil,                     // 9: vrooli.backdrop_studio.v1.shared.PlateSpec.TreatmentParamsEntry
+	nil,                     // 10: vrooli.backdrop_studio.v1.shared.Style.TreatmentParamsEntry
+	nil,                     // 11: vrooli.backdrop_studio.v1.shared.Style.InksEntry
 }
 var file_backdrop_studio_v1_shared_shared_proto_depIdxs = []int32{
-	0, // 0: vrooli.backdrop_studio.v1.shared.RoutingRecord.declared_tier:type_name -> vrooli.backdrop_studio.v1.shared.QualityTier
-	1, // 1: vrooli.backdrop_studio.v1.shared.Style.regions:type_name -> vrooli.backdrop_studio.v1.shared.ReservedRegion
-	2, // 2: vrooli.backdrop_studio.v1.shared.Style.scaffold:type_name -> vrooli.backdrop_studio.v1.shared.ScaffoldBinding
-	3, // 3: vrooli.backdrop_studio.v1.shared.Style.generation:type_name -> vrooli.backdrop_studio.v1.shared.GenerationBlock
-	6, // 4: vrooli.backdrop_studio.v1.shared.Style.treatment_params:type_name -> vrooli.backdrop_studio.v1.shared.Style.TreatmentParamsEntry
-	7, // 5: vrooli.backdrop_studio.v1.shared.Style.inks:type_name -> vrooli.backdrop_studio.v1.shared.Style.InksEntry
-	0, // 6: vrooli.backdrop_studio.v1.shared.Style.quality_tier:type_name -> vrooli.backdrop_studio.v1.shared.QualityTier
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	0,  // 0: vrooli.backdrop_studio.v1.shared.RoutingRecord.declared_tier:type_name -> vrooli.backdrop_studio.v1.shared.QualityTier
+	6,  // 1: vrooli.backdrop_studio.v1.shared.Plate.motion:type_name -> vrooli.backdrop_studio.v1.shared.MotionProfile
+	6,  // 2: vrooli.backdrop_studio.v1.shared.PlateSpec.motion:type_name -> vrooli.backdrop_studio.v1.shared.MotionProfile
+	9,  // 3: vrooli.backdrop_studio.v1.shared.PlateSpec.treatment_params:type_name -> vrooli.backdrop_studio.v1.shared.PlateSpec.TreatmentParamsEntry
+	1,  // 4: vrooli.backdrop_studio.v1.shared.Style.regions:type_name -> vrooli.backdrop_studio.v1.shared.ReservedRegion
+	2,  // 5: vrooli.backdrop_studio.v1.shared.Style.scaffold:type_name -> vrooli.backdrop_studio.v1.shared.ScaffoldBinding
+	3,  // 6: vrooli.backdrop_studio.v1.shared.Style.generation:type_name -> vrooli.backdrop_studio.v1.shared.GenerationBlock
+	10, // 7: vrooli.backdrop_studio.v1.shared.Style.treatment_params:type_name -> vrooli.backdrop_studio.v1.shared.Style.TreatmentParamsEntry
+	11, // 8: vrooli.backdrop_studio.v1.shared.Style.inks:type_name -> vrooli.backdrop_studio.v1.shared.Style.InksEntry
+	0,  // 9: vrooli.backdrop_studio.v1.shared.Style.quality_tier:type_name -> vrooli.backdrop_studio.v1.shared.QualityTier
+	7,  // 10: vrooli.backdrop_studio.v1.shared.Style.plate_spec:type_name -> vrooli.backdrop_studio.v1.shared.PlateSpec
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_backdrop_studio_v1_shared_shared_proto_init() }
@@ -754,7 +1143,7 @@ func file_backdrop_studio_v1_shared_shared_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_backdrop_studio_v1_shared_shared_proto_rawDesc), len(file_backdrop_studio_v1_shared_shared_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

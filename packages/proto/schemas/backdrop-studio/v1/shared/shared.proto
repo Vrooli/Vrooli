@@ -98,6 +98,113 @@ message RoutingRecord {
   repeated string attempt_details = 7;
 }
 
+// Plate is one depth layer of a candidate.
+//
+// A backdrop is not flat. A colonnade sits in front of a sea which sits in
+// front of a sky, and the generators already know that — the vector family
+// draws each as its own SVG group. Flattening at the moment of render threw the
+// separation away, so a consumer wanting parallax had to infer depth from a
+// picture that no longer contained it.
+//
+// The image bytes are NOT carried here. A three-plate candidate at store
+// geometry is tens of megabytes, and a job record that inlined them would make
+// every list call expensive for a field most callers ignore. `ref` names where
+// the bytes are; the flat composite on the candidate is what a consumer reads
+// when it just wants a picture.
+message Plate {
+  // What this layer depicts: "sky", "sea", "colonnade", "figure".
+  string name = 1;
+  // Depth orders the stack, lowest first and furthest from the viewer.
+  int32 depth = 2;
+  // Blend with everything beneath: "normal", "multiply" or "screen". Empty is
+  // normal. The set matches image-tools' compositor exactly — a mode this
+  // scenario could name and that scenario could not run would be a contract
+  // that only looks complete.
+  string blend = 3;
+  // Opacity 0..1.
+  double opacity = 4;
+  // ref locates the plate's pixels. Empty on a single-plate candidate, whose
+  // only plate IS the composite.
+  string ref = 5;
+  // The treatment chain applied to this plate alone, in order. Empty means the
+  // plate ships as its generator drew it.
+  repeated string treatments = 6;
+  // motion is how this layer moves relative to the viewport. Absent means it
+  // does not move, which is the honest default: a plate with no declared
+  // parallax is a plate the art direction did not decide about.
+  MotionProfile motion = 7;
+}
+
+// MotionProfile is how one plate moves.
+//
+// Motion ships as a CSS transform descriptor over plate images, never as video
+// or an animated GIF. That is a boundary rather than a limitation: `image-tools`
+// records motion content as a non-goal, a landing page pays a video decode for
+// something a transform does for free, and a descriptor degrades to the flat
+// composite when a viewer asks for reduced motion. The revisit trigger is the
+// first ambient loop CSS genuinely cannot express — which is the signal to
+// build a rich-media capability, not to add an encoder here.
+message MotionProfile {
+  // parallax is how far this plate travels against the scroll, as a fraction of
+  // the viewport's travel. 0 is pinned to the page, 1 moves with it. A far
+  // plate takes a small factor and a near plate a large one, which is what
+  // produces the depth impression.
+  double parallax = 1;
+  // ambient names an optional continuous loop: "drift", "sway" or "breathe".
+  // Empty means the plate only responds to scroll.
+  string ambient = 2;
+  // ambient_seconds is one period of that loop. Long, because an ambient
+  // motion a reader can time is a distraction rather than an atmosphere.
+  double ambient_seconds = 3;
+  // ambient_amplitude is the loop's travel, as a fraction of the frame's short
+  // edge. Small: this is the difference between a picture that breathes and one
+  // that wobbles.
+  double ambient_amplitude = 4;
+}
+
+// PlateSpec is a style's declaration of one layer it draws.
+//
+// It is the catalog's half of the plate model: the render path fills a stack
+// from it, and a style whose spec names a layer no generator draws is refused
+// at write time rather than rendering a stack with a hole in it. Separate from
+// Plate — which is what a *candidate* actually got — because a declaration and
+// a result are different facts and conflating them is how a catalog comes to
+// describe pictures it does not produce.
+message PlateSpec {
+  // What this layer should depict. The generators name their own planes, and a
+  // spec entry binds to one of those names.
+  string name = 1;
+  // Depth orders the stack, lowest first.
+  int32 depth = 2;
+  // Blend with everything beneath: "normal", "multiply" or "screen".
+  string blend = 3;
+  // Opacity 0..1.
+  double opacity = 4;
+  // The treatment chain for this plate alone. A per-plate chain is the point of
+  // separating them: a screen over the sea and none over the sky is a picture
+  // the flat lane cannot make.
+  repeated string treatments = 5;
+  // motion is how this layer should move. Absent means it does not.
+  MotionProfile motion = 8;
+  // planes are the generator planes this plate merges, in the generator's own
+  // depth order. Empty means the single plane whose name matches `name`.
+  //
+  // The indirection lets a style ship fewer plates than its generator
+  // separates. The colonnade draws four planes against a three-plate cap, and
+  // merging "the far ground" loses no parallax where dropping a layer would
+  // lose picture — so a cap is enforced by composition rather than by deletion.
+  repeated string planes = 6;
+  // treatment_params are this plate's own parameters, keyed by operation name
+  // and overlaid on the style's.
+  //
+  // Depth-grading is exactly a parameter difference: a coarser screen on the
+  // far plane and a finer one on the near is the same operation at two
+  // rulings. Without these, per-plate chains could express "screen this layer
+  // and not that one" but never "screen both, differently" — which is the
+  // depth cue itself.
+  map<string, string> treatment_params = 7;
+}
+
 message Style {
   string id = 1;
   string name = 2;
@@ -139,4 +246,8 @@ message Style {
   // the router resolves it to the cheapest lane that meets it, records what
   // served, and refuses by name when nothing does.
   QualityTier quality_tier = 17;
+  // plate_spec declares how many plates this style draws and what each depicts.
+  // Absent means one plate — the whole picture — which is what every style
+  // drew before the plate model existed and what most still draw.
+  repeated PlateSpec plate_spec = 18;
 }

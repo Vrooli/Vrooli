@@ -32,6 +32,20 @@ For project-level architecture, start with:
 - [../../../../docs/strategy/context.md](../../../../docs/strategy/context.md)
 - [../../../../docs/strategy/decisions.md](../../../../docs/strategy/decisions.md)
 
+## Signed entitlement lease
+
+`GET /api/v1/entitlements` is user-authenticated and returns the account
+payload plus a compact RS256 `lease`. The lease payload contains the verified
+`user_identity`, subscription `status`, `plan_tier`, `plan_rank`, `features`,
+authoritative `limits`, and UTC `not_after`. Its header carries `kid` and
+`typ: ENTITLEMENT_LEASE`; the public key is available from
+`/.well-known/jwks.json`.
+
+Bundled consumers verify the lease locally and may use a cached lease until
+`not_after`. A refresh failure never extends that deadline. LPBS remains the
+authority for Class A reservations and metered work, while the lease supplies
+the offline UX decision and Class B local-capacity limits.
+
 ## Maintenance Guidance
 
 If you update the underlying scenarios:

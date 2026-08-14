@@ -255,6 +255,23 @@ func TestGetPlanByPriceID_EmptyID(t *testing.T) {
 	assert.Contains(t, err.Error(), "required")
 }
 
+func TestGetPlanByExternalProductID(t *testing.T) {
+	ps := NewPlanStore("/tmp/test")
+	ps.plans = []*PlanOption{{
+		PlanName: "Apple Studio",
+		PlanTier: "studio",
+		Metadata: map[string]*commonv1.JsonValue{"external_product_id": newStringJsonValue("apple.studio")},
+	}}
+
+	plan, err := ps.GetPlanByExternalProductID("apple.studio")
+	require.NoError(t, err)
+	assert.Equal(t, "Apple Studio", plan.PlanName)
+
+	missing, err := ps.GetPlanByExternalProductID("google.missing")
+	assert.Error(t, err)
+	assert.Nil(t, missing)
+}
+
 func TestGetPricingOverview(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
 	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})

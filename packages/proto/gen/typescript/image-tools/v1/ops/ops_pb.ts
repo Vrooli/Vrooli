@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/ops/ops.proto.
  */
 export const file_image_tools_v1_ops_ops: GenFile = /*@__PURE__*/
-  fileDesc("ChxpbWFnZS10b29scy92MS9vcHMvb3BzLnByb3RvEhl2cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzIkAKDU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCKMAQoWTGlzdE9wZXJhdGlvbnNSZXNwb25zZRI8CgpvcGVyYXRpb25zGAEgAygLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcGVyYXRpb25JbmZvEhkKEWRlY29kYWJsZV9mb3JtYXRzGAIgAygJEhkKEWVuY29kYWJsZV9mb3JtYXRzGAMgAygJIpcPCghPcFBhcmFtcxI5CgZyZXNpemUYASABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJlc2l6ZVBhcmFtc0gAEjUKBGNyb3AYAiABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkNyb3BQYXJhbXNIABI5CgZyb3RhdGUYAyABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJvdGF0ZVBhcmFtc0gAEjUKBGZsaXAYBCABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkZsaXBQYXJhbXNIABI5CgZkZXNrZXcYBSABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkRlc2tld1BhcmFtc0gAEj8KCXRodW1ibmFpbBgGIAEoCzIqLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuVGh1bWJuYWlsUGFyYW1zSAASOQoGY2FudmFzGAcgASgLMicudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5DYW52YXNQYXJhbXNIABI5CgZhZGp1c3QYCCABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkFkanVzdFBhcmFtc0gAEjkKBmZpbHRlchgJIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRmlsdGVyUGFyYW1zSAASOwoHY29udmVydBgKIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuQ29udmVydFBhcmFtc0gAEj0KCGNvbXByZXNzGAsgASgLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Db21wcmVzc1BhcmFtc0gAEjsKB292ZXJsYXkYDCABKAsyKC52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLk92ZXJsYXlQYXJhbXNIABI9CghtZXRhZGF0YRgNIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTWV0YWRhdGFQYXJhbXNIABI7CgdkdW90b25lGA4gASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5EdW90b25lUGFyYW1zSAASPwoJcG9zdGVyaXplGA8gASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Qb3N0ZXJpemVQYXJhbXNIABI9CghoYWxmdG9uZRgQIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuSGFsZnRvbmVQYXJhbXNIABJBCg5kaXRoZXJfb3JkZXJlZBgRIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASQwoQZGl0aGVyX2RpZmZ1c2lvbhgSIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASNwoFZ3JhaW4YEyABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkdyYWluUGFyYW1zSAASNwoFc2NyaW0YFCABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlNjcmltUGFyYW1zSAASQgoLbGluZV9zY3JlZW4YFSABKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkxpbmVTY3JlZW5QYXJhbXNIABI7CgdzdGlwcGxlGBYgASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5TdGlwcGxlUGFyYW1zSAASPwoJZW5ncmF2aW5nGBcgASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5FbmdyYXZpbmdQYXJhbXNIABJBCgphYmVycmF0aW9uGBggASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5BYmVycmF0aW9uUGFyYW1zSAASNwoFYmxvb20YGSABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkJsb29tUGFyYW1zSAASNwoFY3VydmUYGiABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkN1cnZlUGFyYW1zSAASOwoHZGVmb2N1cxgbIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGVmb2N1c1BhcmFtc0gAEkIKC21vdGlvbl9ibHVyGBwgASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Nb3Rpb25CbHVyUGFyYW1zSAASRAoMYXNjaWlfbW9zYWljGB0gASgLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Bc2NpaU1vc2FpY1BhcmFtc0gAEkAKCnBpeGVsX3NvcnQYHiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlBpeGVsU29ydFBhcmFtc0gAEkUKDGRpc3BsYWNlbWVudBgfIAEoCzItLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGlzcGxhY2VtZW50UGFyYW1zSABCBAoCb3AiSwoMUmVzaXplUGFyYW1zEg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRILCgNmaXQYAyABKAkSDwoHZ3Jhdml0eRgEIAEoCSJSCgpDcm9wUGFyYW1zEgkKAXgYASABKAUSCQoBeRgCIAEoBRINCgV3aWR0aBgDIAEoBRIOCgZoZWlnaHQYBCABKAUSDwoHZ3Jhdml0eRgFIAEoCSJBCgxSb3RhdGVQYXJhbXMSDQoFYW5nbGUYASABKAESDgoGZXhwYW5kGAIgASgIEhIKCmJhY2tncm91bmQYAyABKAkiGgoKRmxpcFBhcmFtcxIMCgRheGlzGAEgASgJIiIKDERlc2tld1BhcmFtcxISCgpiYWNrZ3JvdW5kGAEgASgJIjAKD1RodW1ibmFpbFBhcmFtcxINCgV3aWR0aBgBIAEoBRIOCgZoZWlnaHQYAiABKAUiUgoMQ2FudmFzUGFyYW1zEg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRISCgpiYWNrZ3JvdW5kGAMgASgJEg8KB2dyYXZpdHkYBCABKAkiZAoMQWRqdXN0UGFyYW1zEhIKCmJyaWdodG5lc3MYASABKAESEAoIY29udHJhc3QYAiABKAESDQoFZ2FtbWEYAyABKAESEgoKc2F0dXJhdGlvbhgEIAEoARILCgNodWUYBSABKAEiLgoMRmlsdGVyUGFyYW1zEg4KBmZpbHRlchgBIAEoCRIOCgZhbW91bnQYAiABKAEiQgoNQ29udmVydFBhcmFtcxIOCgZmb3JtYXQYASABKAkSDwoHcXVhbGl0eRgCIAEoBRIQCghsb3NzbGVzcxgDIAEoCCJZCg5Db21wcmVzc1BhcmFtcxIOCgZmb3JtYXQYASABKAkSDwoHcXVhbGl0eRgCIAEoBRIQCghsb3NzbGVzcxgDIAEoCBIUCgx0YXJnZXRfYnl0ZXMYBCABKAMiYgoNT3ZlcmxheVBhcmFtcxIMCgR0ZXh0GAEgASgJEhAKCHBvc2l0aW9uGAIgASgJEg8KB29wYWNpdHkYAyABKAESDQoFY29sb3IYBCABKAkSEQoJZm9udF9zaXplGAUgASgBIksKDk1ldGFkYXRhUGFyYW1zEhEKCXN0cmlwX2FsbBgBIAEoCBIRCglzdHJpcF9ncHMYAiABKAgSEwoLYXV0b19vcmllbnQYAyABKAgibwoNRHVvdG9uZVBhcmFtcxIMCgRkYXJrGAEgASgJEg0KBWxpZ2h0GAIgASgJEgsKA21pZBgDIAEoCRIPCgdtaWRfbG93GAQgASgBEhAKCG1pZF9oaWdoGAUgASgBEhEKCW5vcm1hbGl6ZRgGIAEoCCJRCg9Qb3N0ZXJpemVQYXJhbXMSDgoGbGV2ZWxzGAEgASgFEgwKBGRhcmsYAiABKAkSDQoFbGlnaHQYAyABKAkSEQoJbm9ybWFsaXplGAQgASgIImkKDkhhbGZ0b25lUGFyYW1zEgsKA2xwaRgBIAEoBRINCgVhbmdsZRgCIAEoARILCgNkb3QYAyABKAkSDAoEZGFyaxgEIAEoCRINCgVsaWdodBgFIAEoCRIRCglub3JtYWxpemUYBiABKAgiPgoMRGl0aGVyUGFyYW1zEgwKBGRhcmsYASABKAkSDQoFbGlnaHQYAiABKAkSEQoJbm9ybWFsaXplGAMgASgIIkgKC0dyYWluUGFyYW1zEgwKBHNlZWQYASABKAMSDgoGYW1vdW50GAIgASgBEhsKE2NvbnRyYXN0X211bHRpcGxpZXIYAyABKAEiQAoLU2NyaW1QYXJhbXMSDQoFY29sb3IYASABKAkSDwoHb3BhY2l0eRgCIAEoARIRCglkaXJlY3Rpb24YAyABKAkidwoQTGluZVNjcmVlblBhcmFtcxIPCgdzcGFjaW5nGAEgASgBEg0KBWFuZ2xlGAIgASgBEgwKBGRhcmsYAyABKAkSDQoFbGlnaHQYBCABKAkSEQoJbm9ybWFsaXplGAUgASgIEhMKC3NwYWNpbmdfcmVsGAYgASgBInMKDVN0aXBwbGVQYXJhbXMSDwoHc3BhY2luZxgBIAEoARIMCgRzZWVkGAIgASgDEgwKBGRhcmsYAyABKAkSDQoFbGlnaHQYBCABKAkSEQoJbm9ybWFsaXplGAUgASgIEhMKC3NwYWNpbmdfcmVsGAYgASgBImcKD0VuZ3JhdmluZ1BhcmFtcxIPCgdzcGFjaW5nGAEgASgBEgwKBGRhcmsYAiABKAkSDQoFbGlnaHQYAyABKAkSEQoJbm9ybWFsaXplGAQgASgIEhMKC3NwYWNpbmdfcmVsGAUgASgBIk0KEEFiZXJyYXRpb25QYXJhbXMSEQoJYW1wbGl0dWRlGAEgASgBEhAKCGRpc3RhbmNlGAIgASgFEhQKDGRpc3RhbmNlX3JlbBgDIAEoASJECgtCbG9vbVBhcmFtcxIOCgZyYWRpdXMYASABKAUSEQoJdGhyZXNob2xkGAIgASgBEhIKCnJhZGl1c19yZWwYAyABKAEiHwoLQ3VydmVQYXJhbXMSEAoIZXhwb25lbnQYASABKAEiSAoNRGVmb2N1c1BhcmFtcxIOCgZyYWRpdXMYASABKAUSEwoLYmxhZGVfY291bnQYAiABKAUSEgoKcmFkaXVzX3JlbBgDIAEoASJJChBNb3Rpb25CbHVyUGFyYW1zEhAKCGRpc3RhbmNlGAEgASgFEg0KBWFuZ2xlGAIgASgBEhQKDGRpc3RhbmNlX3JlbBgDIAEoASJvChFBc2NpaU1vc2FpY1BhcmFtcxISCgpibG9ja19zaXplGAEgASgFEgwKBGRhcmsYAiABKAkSDQoFbGlnaHQYAyABKAkSEQoJbm9ybWFsaXplGAQgASgIEhYKDmJsb2NrX3NpemVfcmVsGAUgASgBIjIKD1BpeGVsU29ydFBhcmFtcxIRCgl0aHJlc2hvbGQYASABKAESDAoEYXhpcxgCIAEoCSJyChJEaXNwbGFjZW1lbnRQYXJhbXMSEQoJYW1wbGl0dWRlGAEgASgBEgwKBHNlZWQYAiABKAMSDwoHc3BhY2luZxgDIAEoARITCgtzcGFjaW5nX3JlbBgEIAEoARIVCg1hbXBsaXR1ZGVfcmVsGAUgASgBIvEBCghPcFJlc3VsdBILCgNyZWYYASABKAkSDgoGZm9ybWF0GAIgASgJEgwKBG1pbWUYAyABKAkSDQoFd2lkdGgYBCABKAUSDgoGaGVpZ2h0GAUgASgFEhIKCnNpemVfYnl0ZXMYBiABKAMSUAoPcmVzb2x2ZWRfcGFyYW1zGAcgAygLMjcudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcFJlc3VsdC5SZXNvbHZlZFBhcmFtc0VudHJ5GjUKE1Jlc29sdmVkUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4ASJUCg1SdW5PcFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRIzCgZyZXN1bHQYAiABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLk9wUmVzdWx0MoMBCgpPcHNTZXJ2aWNlEnUKDkxpc3RPcGVyYXRpb25zEjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5MaXN0T3BlcmF0aW9uc1JlcXVlc3QaMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkxpc3RPcGVyYXRpb25zUmVzcG9uc2VCSlpIZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9vcHM7b3BzX3YxYgZwcm90bzM");
+  fileDesc("ChxpbWFnZS10b29scy92MS9vcHMvb3BzLnByb3RvEhl2cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzIkAKDU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCKMAQoWTGlzdE9wZXJhdGlvbnNSZXNwb25zZRI8CgpvcGVyYXRpb25zGAEgAygLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcGVyYXRpb25JbmZvEhkKEWRlY29kYWJsZV9mb3JtYXRzGAIgAygJEhkKEWVuY29kYWJsZV9mb3JtYXRzGAMgAygJIo8QCghPcFBhcmFtcxI5CgZyZXNpemUYASABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJlc2l6ZVBhcmFtc0gAEjUKBGNyb3AYAiABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkNyb3BQYXJhbXNIABI5CgZyb3RhdGUYAyABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJvdGF0ZVBhcmFtc0gAEjUKBGZsaXAYBCABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkZsaXBQYXJhbXNIABI5CgZkZXNrZXcYBSABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkRlc2tld1BhcmFtc0gAEj8KCXRodW1ibmFpbBgGIAEoCzIqLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuVGh1bWJuYWlsUGFyYW1zSAASOQoGY2FudmFzGAcgASgLMicudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5DYW52YXNQYXJhbXNIABI5CgZhZGp1c3QYCCABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkFkanVzdFBhcmFtc0gAEjkKBmZpbHRlchgJIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRmlsdGVyUGFyYW1zSAASOwoHY29udmVydBgKIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuQ29udmVydFBhcmFtc0gAEj0KCGNvbXByZXNzGAsgASgLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Db21wcmVzc1BhcmFtc0gAEjsKB292ZXJsYXkYDCABKAsyKC52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLk92ZXJsYXlQYXJhbXNIABI9CghtZXRhZGF0YRgNIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTWV0YWRhdGFQYXJhbXNIABI7CgdkdW90b25lGA4gASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5EdW90b25lUGFyYW1zSAASPwoJcG9zdGVyaXplGA8gASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Qb3N0ZXJpemVQYXJhbXNIABI9CghoYWxmdG9uZRgQIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuSGFsZnRvbmVQYXJhbXNIABJBCg5kaXRoZXJfb3JkZXJlZBgRIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASQwoQZGl0aGVyX2RpZmZ1c2lvbhgSIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASNwoFZ3JhaW4YEyABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkdyYWluUGFyYW1zSAASNwoFc2NyaW0YFCABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlNjcmltUGFyYW1zSAASQgoLbGluZV9zY3JlZW4YFSABKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkxpbmVTY3JlZW5QYXJhbXNIABI7CgdzdGlwcGxlGBYgASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5TdGlwcGxlUGFyYW1zSAASPwoJZW5ncmF2aW5nGBcgASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5FbmdyYXZpbmdQYXJhbXNIABJBCgphYmVycmF0aW9uGBggASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5BYmVycmF0aW9uUGFyYW1zSAASNwoFYmxvb20YGSABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkJsb29tUGFyYW1zSAASNwoFY3VydmUYGiABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkN1cnZlUGFyYW1zSAASOwoHZGVmb2N1cxgbIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGVmb2N1c1BhcmFtc0gAEkIKC21vdGlvbl9ibHVyGBwgASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Nb3Rpb25CbHVyUGFyYW1zSAASRAoMYXNjaWlfbW9zYWljGB0gASgLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Bc2NpaU1vc2FpY1BhcmFtc0gAEkAKCnBpeGVsX3NvcnQYHiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlBpeGVsU29ydFBhcmFtc0gAEkUKDGRpc3BsYWNlbWVudBgfIAEoCzItLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGlzcGxhY2VtZW50UGFyYW1zSAASPwoJY29tcG9zaXRlGCAgASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Db21wb3NpdGVQYXJhbXNIABI1Cghrbm9ja291dBghIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuS25vY2tvdXRCBAoCb3AiXwoIS25vY2tvdXQSCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoARIPCgdmZWF0aGVyGAUgASgBEg0KBXNvbGlkGAYgASgIInYKD0NvbXBvc2l0ZVBhcmFtcxIwCgZwbGF0ZXMYASADKAsyIC52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlBsYXRlEg0KBXdpZHRoGAIgASgFEg4KBmhlaWdodBgDIAEoBRISCgpiYWNrZ3JvdW5kGAQgASgJIkQKBVBsYXRlEgwKBG5hbWUYASABKAkSDQoFZGVwdGgYAiABKAUSDQoFYmxlbmQYAyABKAkSDwoHb3BhY2l0eRgEIAEoASJLCgxSZXNpemVQYXJhbXMSDQoFd2lkdGgYASABKAUSDgoGaGVpZ2h0GAIgASgFEgsKA2ZpdBgD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bmdfcmVsGAUgASgBIk0KEEFiZXJyYXRpb25QYXJhbXMSEQoJYW1wbGl0dWRlGAEgASgBEhAKCGRpc3RhbmNlGAIgASgFEhQKDGRpc3RhbmNlX3JlbBgDIAEoASJECgtCbG9vbVBhcmFtcxIOCgZyYWRpdXMYASABKAUSEQoJdGhyZXNob2xkGAIgASgBEhIKCnJhZGl1c19yZWwYAyABKAEiHwoLQ3VydmVQYXJhbXMSEAoIZXhwb25lbnQYASABKAEiSAoNRGVmb2N1c1BhcmFtcxIOCgZyYWRpdXMYASABKAUSEwoLYmxhZGVfY291bnQYAiABKAUSEgoKcmFkaXVzX3JlbBgDIAEoASJJChBNb3Rpb25CbHVyUGFyYW1zEhAKCGRpc3RhbmNlGAEgASgFEg0KBWFuZ2xlGAIgASgBEhQKDGRpc3RhbmNlX3JlbBgDIAEoASJvChFBc2NpaU1vc2FpY1BhcmFtcxISCgpibG9ja19zaXplGAEgASgFEgwKBGRhcmsYAiABKAkSDQoFbGlnaHQYAyABKAkSEQoJbm9ybWFsaXplGAQgASgIEhYKDmJsb2NrX3NpemVfcmVsGAUgASgBIjIKD1BpeGVsU29ydFBhcmFtcxIRCgl0aHJlc2hvbGQYASABKAESDAoEYXhpcxgCIAEoCSJyChJEaXNwbGFjZW1lbnRQYXJhbXMSEQoJYW1wbGl0dWRlGAEgASgBEgwKBHNlZWQYAiABKAMSDwoHc3BhY2luZxgDIAEoARITCgtzcGFjaW5nX3JlbBgEIAEoARIVCg1hbXBsaXR1ZGVfcmVsGAUgASgBIvEBCghPcFJlc3VsdBILCgNyZWYYASABKAkSDgoGZm9ybWF0GAIgASgJEgwKBG1pbWUYAyABKAkSDQoFd2lkdGgYBCABKAUSDgoGaGVpZ2h0GAUgASgFEhIKCnNpemVfYnl0ZXMYBiABKAMSUAoPcmVzb2x2ZWRfcGFyYW1zGAcgAygLMjcudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcFJlc3VsdC5SZXNvbHZlZFBhcmFtc0VudHJ5GjUKE1Jlc29sdmVkUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4ASJUCg1SdW5PcFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRIzCgZyZXN1bHQYAiABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLk9wUmVzdWx0MoMBCgpPcHNTZXJ2aWNlEnUKDkxpc3RPcGVyYXRpb25zEjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5MaXN0T3BlcmF0aW9uc1JlcXVlc3QaMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkxpc3RPcGVyYXRpb25zUmVzcG9uc2VCSlpIZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9vcHM7b3BzX3YxYgZwcm90bzM");
 
 /**
  * OperationInfo describes one deterministic operation for discovery.
@@ -287,7 +287,27 @@ export type OpParams = Message<"vrooli.image_tools.v1.ops.OpParams"> & {
      */
     value: DisplacementParams;
     case: "displacement";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.CompositeParams composite = 32;
+     */
+    value: CompositeParams;
+    case: "composite";
   } | { case: undefined; value?: undefined };
+
+  /**
+   * Space no colour operation may print into, whichever one is selected above.
+   *
+   * A sibling of the oneof rather than a field repeated across every parameter
+   * message, because reserving space is a property of the picture being made
+   * and not of the treatment making it: a caller declares where the headline
+   * goes once, and every operation in the chain honours the same rectangle. The
+   * alternative — the same five fields on seventeen messages — guarantees that
+   * some of them eventually differ.
+   *
+   * @generated from field: vrooli.image_tools.v1.ops.Knockout knockout = 33;
+   */
+  knockout?: Knockout | undefined;
 };
 
 /**
@@ -296,6 +316,199 @@ export type OpParams = Message<"vrooli.image_tools.v1.ops.OpParams"> & {
  */
 export const OpParamsSchema: GenMessage<OpParams> = /*@__PURE__*/
   messageDesc(file_image_tools_v1_ops_ops, 3);
+
+/**
+ * Knockout reserves an area of the frame that must come out as paper.
+ *
+ * The printer's term, and the printer's mechanism: a hole left in an ink layer
+ * so something else can occupy that space. It exists so a headline can be laid
+ * over a picture and still be read, which on a screened or dithered backdrop is
+ * otherwise close to impossible — a screen puts ink and paper everywhere, so
+ * dark type always meets a dot somewhere inside its own box and worst-pixel
+ * contrast collapses however light the area looks on average.
+ *
+ * Honoured by lifting the area to the top of the tonal ramp BEFORE the
+ * operation runs. Fed white, a tone-driven operation lays no ink and returns
+ * its own paper colour, so the reserve comes out as the same cream or blue the
+ * rest of the picture is printed on rather than as a white hole.
+ *
+ * Geometry operations ignore it. A resize or a crop moves the frame underneath
+ * the rectangle, so a reserve declared against the old frame would name the
+ * wrong part of the new one; declare it against the frame the treatment runs on.
+ *
+ * @generated from message vrooli.image_tools.v1.ops.Knockout
+ */
+export type Knockout = Message<"vrooli.image_tools.v1.ops.Knockout"> & {
+  /**
+   * Bounds as fractions of the frame, so one declaration survives every
+   * delivery size. Zero width or height reserves nothing.
+   *
+   * @generated from field: double x = 1;
+   */
+  x: number;
+
+  /**
+   * @generated from field: double y = 2;
+   */
+  y: number;
+
+  /**
+   * @generated from field: double width = 3;
+   */
+  width: number;
+
+  /**
+   * @generated from field: double height = 4;
+   */
+  height: number;
+
+  /**
+   * How far the reserve eases back into the picture, as a fraction of the SHORT
+   * edge so its softness is the same shape on a hero and on a phone. Zero takes
+   * a default rather than a hard rectangle: a visible box is worse than no
+   * reserve at all.
+   *
+   * It also does load-bearing work beyond softness. Operations that read
+   * neighbouring pixels — defocus, motion blur, displacement — drag ink inward
+   * from outside the edge, and this margin is what absorbs it before it reaches
+   * the copy.
+   *
+   * @generated from field: double feather = 5;
+   */
+  feather: number;
+
+  /**
+   * solid cuts the reserve the other way: full ink instead of none.
+   *
+   * The two are one decision in opposite directions, and which one is right is
+   * decided by the copy, not by the picture. Dark copy needs light ground and
+   * the plate carries no ink there — a knockout. Light copy needs dark ground
+   * and the plate carries full ink — a solid. Offering only the first would
+   * reserve space for light copy by making it harder to read, not easier.
+   *
+   * Honoured by pushing the area to the BOTTOM of the tonal ramp before the
+   * operation runs, exactly as the default pushes it to the top. Fed black, a
+   * tone-driven operation lays its heaviest ink and returns its own darkest
+   * value, so the area comes out as the picture's own ink rather than as a
+   * black rectangle dropped onto it.
+   *
+   * @generated from field: bool solid = 6;
+   */
+  solid: boolean;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.Knockout.
+ * Use `create(KnockoutSchema)` to create a new message.
+ */
+export const KnockoutSchema: GenMessage<Knockout> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 4);
+
+/**
+ * CompositeParams merges an ordered stack of plates into one raster.
+ *
+ * A plate is one depth layer of a picture — a sky, a sea, a colonnade, a figure
+ * — carried separately so a consumer can move them against each other and so a
+ * treatment can be applied to one without touching the others. The flat raster
+ * this returns stays the default deliverable: everything downstream decodes one
+ * image, and a stack that could not be flattened would be a contract change
+ * rather than a capability.
+ *
+ * The plates themselves arrive as multipart parts named `plate0`, `plate1`, …
+ * in the same order as this list, because a stack of full-size rasters does not
+ * belong in a JSON parameter.
+ *
+ * @generated from message vrooli.image_tools.v1.ops.CompositeParams
+ */
+export type CompositeParams = Message<"vrooli.image_tools.v1.ops.CompositeParams"> & {
+  /**
+   * @generated from field: repeated vrooli.image_tools.v1.ops.Plate plates = 1;
+   */
+  plates: Plate[];
+
+  /**
+   * Output geometry. Zero takes the first plate's size, which is the common
+   * case: every plate of one picture is drawn at the delivery size.
+   *
+   * @generated from field: int32 width = 2;
+   */
+  width: number;
+
+  /**
+   * @generated from field: int32 height = 3;
+   */
+  height: number;
+
+  /**
+   * Background painted before the first plate, as #rrggbb or #rrggbbaa. Empty
+   * leaves it transparent — which is correct when the first plate is opaque and
+   * visible when it is not, rather than silently filling with a colour nobody
+   * chose.
+   *
+   * @generated from field: string background = 4;
+   */
+  background: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.CompositeParams.
+ * Use `create(CompositeParamsSchema)` to create a new message.
+ */
+export const CompositeParamsSchema: GenMessage<CompositeParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 5);
+
+/**
+ * Plate is one layer in a composite stack.
+ *
+ * @generated from message vrooli.image_tools.v1.ops.Plate
+ */
+export type Plate = Message<"vrooli.image_tools.v1.ops.Plate"> & {
+  /**
+   * Human-readable name of what this layer depicts ("sky", "colonnade"). It is
+   * carried through so an operator reading a job can tell which layer misbehaved
+   * without counting indices.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Depth orders the stack, lowest first. It is explicit rather than implied by
+   * list position so a caller can reorder plates without rebuilding the list,
+   * and so two plates cannot silently claim the same layer.
+   *
+   * @generated from field: int32 depth = 2;
+   */
+  depth: number;
+
+  /**
+   * blend is how this plate merges with everything beneath it: "normal",
+   * "multiply" or "screen". Empty means normal.
+   *
+   * The three are not an arbitrary subset. Normal is placement; multiply is how
+   * ink sits on paper, which is what every screen and duotone in this system
+   * models; screen is how light adds, which is what a glow or a star field
+   * needs. A blend mode outside this set is refused rather than approximated.
+   *
+   * @generated from field: string blend = 3;
+   */
+  blend: string;
+
+  /**
+   * opacity scales this plate's contribution, 0..1. Zero means fully
+   * transparent; a caller wanting the default must send 1.
+   *
+   * @generated from field: double opacity = 4;
+   */
+  opacity: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.Plate.
+ * Use `create(PlateSchema)` to create a new message.
+ */
+export const PlateSchema: GenMessage<Plate> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 6);
 
 /**
  * ResizeParams: width/height in px (0 = derive from aspect). fit is
@@ -331,7 +544,7 @@ export type ResizeParams = Message<"vrooli.image_tools.v1.ops.ResizeParams"> & {
  * Use `create(ResizeParamsSchema)` to create a new message.
  */
 export const ResizeParamsSchema: GenMessage<ResizeParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 4);
+  messageDesc(file_image_tools_v1_ops_ops, 7);
 
 /**
  * CropParams cuts the x,y,width,height rectangle; with gravity set and x=y=0 it
@@ -371,7 +584,7 @@ export type CropParams = Message<"vrooli.image_tools.v1.ops.CropParams"> & {
  * Use `create(CropParamsSchema)` to create a new message.
  */
 export const CropParamsSchema: GenMessage<CropParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 5);
+  messageDesc(file_image_tools_v1_ops_ops, 8);
 
 /**
  * RotateParams rotates by angle degrees counter-clockwise. background fills
@@ -401,7 +614,7 @@ export type RotateParams = Message<"vrooli.image_tools.v1.ops.RotateParams"> & {
  * Use `create(RotateParamsSchema)` to create a new message.
  */
 export const RotateParamsSchema: GenMessage<RotateParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 6);
+  messageDesc(file_image_tools_v1_ops_ops, 9);
 
 /**
  * FlipParams mirrors along axis "horizontal" or "vertical".
@@ -420,7 +633,7 @@ export type FlipParams = Message<"vrooli.image_tools.v1.ops.FlipParams"> & {
  * Use `create(FlipParamsSchema)` to create a new message.
  */
 export const FlipParamsSchema: GenMessage<FlipParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 7);
+  messageDesc(file_image_tools_v1_ops_ops, 10);
 
 /**
  * DeskewParams auto-straightens a skewed scan; background fills exposed corners.
@@ -439,7 +652,7 @@ export type DeskewParams = Message<"vrooli.image_tools.v1.ops.DeskewParams"> & {
  * Use `create(DeskewParamsSchema)` to create a new message.
  */
 export const DeskewParamsSchema: GenMessage<DeskewParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 8);
+  messageDesc(file_image_tools_v1_ops_ops, 11);
 
 /**
  * ThumbnailParams produces a width×height fill-cropped thumbnail.
@@ -463,7 +676,7 @@ export type ThumbnailParams = Message<"vrooli.image_tools.v1.ops.ThumbnailParams
  * Use `create(ThumbnailParamsSchema)` to create a new message.
  */
 export const ThumbnailParamsSchema: GenMessage<ThumbnailParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 9);
+  messageDesc(file_image_tools_v1_ops_ops, 12);
 
 /**
  * CanvasParams pads/extends onto a width×height background, anchored by gravity.
@@ -497,7 +710,7 @@ export type CanvasParams = Message<"vrooli.image_tools.v1.ops.CanvasParams"> & {
  * Use `create(CanvasParamsSchema)` to create a new message.
  */
 export const CanvasParamsSchema: GenMessage<CanvasParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 10);
+  messageDesc(file_image_tools_v1_ops_ops, 13);
 
 /**
  * AdjustParams applies tonal/color deltas (percent; 0 = no change). gamma 0 or
@@ -537,7 +750,7 @@ export type AdjustParams = Message<"vrooli.image_tools.v1.ops.AdjustParams"> & {
  * Use `create(AdjustParamsSchema)` to create a new message.
  */
 export const AdjustParamsSchema: GenMessage<AdjustParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 11);
+  messageDesc(file_image_tools_v1_ops_ops, 14);
 
 /**
  * FilterParams applies one effect: grayscale|sepia|invert|blur|sharpen. amount
@@ -562,7 +775,7 @@ export type FilterParams = Message<"vrooli.image_tools.v1.ops.FilterParams"> & {
  * Use `create(FilterParamsSchema)` to create a new message.
  */
 export const FilterParamsSchema: GenMessage<FilterParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 12);
+  messageDesc(file_image_tools_v1_ops_ops, 15);
 
 /**
  * ConvertParams re-encodes to format (png|jpeg|gif|webp|tiff|bmp|avif) at the
@@ -592,7 +805,7 @@ export type ConvertParams = Message<"vrooli.image_tools.v1.ops.ConvertParams"> &
  * Use `create(ConvertParamsSchema)` to create a new message.
  */
 export const ConvertParamsSchema: GenMessage<ConvertParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 13);
+  messageDesc(file_image_tools_v1_ops_ops, 16);
 
 /**
  * CompressParams re-encodes at quality, or — when target_bytes > 0 — searches
@@ -627,7 +840,7 @@ export type CompressParams = Message<"vrooli.image_tools.v1.ops.CompressParams">
  * Use `create(CompressParamsSchema)` to create a new message.
  */
 export const CompressParamsSchema: GenMessage<CompressParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 14);
+  messageDesc(file_image_tools_v1_ops_ops, 17);
 
 /**
  * OverlayParams composites a text watermark (text + color + font_size) or an
@@ -668,7 +881,7 @@ export type OverlayParams = Message<"vrooli.image_tools.v1.ops.OverlayParams"> &
  * Use `create(OverlayParamsSchema)` to create a new message.
  */
 export const OverlayParamsSchema: GenMessage<OverlayParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 15);
+  messageDesc(file_image_tools_v1_ops_ops, 18);
 
 /**
  * MetadataParams reads (default), strips, or auto-orients image metadata.
@@ -697,7 +910,7 @@ export type MetadataParams = Message<"vrooli.image_tools.v1.ops.MetadataParams">
  * Use `create(MetadataParamsSchema)` to create a new message.
  */
 export const MetadataParamsSchema: GenMessage<MetadataParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 16);
+  messageDesc(file_image_tools_v1_ops_ops, 19);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.DuotoneParams
@@ -742,7 +955,7 @@ export type DuotoneParams = Message<"vrooli.image_tools.v1.ops.DuotoneParams"> &
  * Use `create(DuotoneParamsSchema)` to create a new message.
  */
 export const DuotoneParamsSchema: GenMessage<DuotoneParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 17);
+  messageDesc(file_image_tools_v1_ops_ops, 20);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.PosterizeParams
@@ -777,7 +990,7 @@ export type PosterizeParams = Message<"vrooli.image_tools.v1.ops.PosterizeParams
  * Use `create(PosterizeParamsSchema)` to create a new message.
  */
 export const PosterizeParamsSchema: GenMessage<PosterizeParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 18);
+  messageDesc(file_image_tools_v1_ops_ops, 21);
 
 /**
  * Relative spatial parameters
@@ -843,7 +1056,7 @@ export type HalftoneParams = Message<"vrooli.image_tools.v1.ops.HalftoneParams">
  * Use `create(HalftoneParamsSchema)` to create a new message.
  */
 export const HalftoneParamsSchema: GenMessage<HalftoneParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 19);
+  messageDesc(file_image_tools_v1_ops_ops, 22);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.DitherParams
@@ -873,7 +1086,7 @@ export type DitherParams = Message<"vrooli.image_tools.v1.ops.DitherParams"> & {
  * Use `create(DitherParamsSchema)` to create a new message.
  */
 export const DitherParamsSchema: GenMessage<DitherParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 20);
+  messageDesc(file_image_tools_v1_ops_ops, 23);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.GrainParams
@@ -900,7 +1113,7 @@ export type GrainParams = Message<"vrooli.image_tools.v1.ops.GrainParams"> & {
  * Use `create(GrainParamsSchema)` to create a new message.
  */
 export const GrainParamsSchema: GenMessage<GrainParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 21);
+  messageDesc(file_image_tools_v1_ops_ops, 24);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.ScrimParams
@@ -920,6 +1133,45 @@ export type ScrimParams = Message<"vrooli.image_tools.v1.ops.ScrimParams"> & {
    * @generated from field: string direction = 3;
    */
   direction: string;
+
+  /**
+   * A region-scoped scrim shades only where copy actually sits, as fractions
+   * of the frame. Zero width or height leaves the whole-frame directional
+   * gradient a scrim has always been.
+   *
+   * The whole-frame gradient is the right tool for setting a mood and the wrong
+   * one for making a headline readable: it dims a picture chosen for its beauty
+   * everywhere in order to fix one corner. Shading the region is what every
+   * design system that puts type on photography actually does.
+   *
+   * @generated from field: double region_x = 4;
+   */
+  regionX: number;
+
+  /**
+   * @generated from field: double region_y = 5;
+   */
+  regionY: number;
+
+  /**
+   * @generated from field: double region_width = 6;
+   */
+  regionWidth: number;
+
+  /**
+   * @generated from field: double region_height = 7;
+   */
+  regionHeight: number;
+
+  /**
+   * How far the pool eases out past the region, as a fraction of the SHORT
+   * edge so its softness is the same shape on a hero and on a phone. Zero
+   * takes a default rather than a hard rectangle: a visible box is worse than
+   * no scrim, because a reader sees the box before they read the headline.
+   *
+   * @generated from field: double region_feather = 8;
+   */
+  regionFeather: number;
 };
 
 /**
@@ -927,7 +1179,7 @@ export type ScrimParams = Message<"vrooli.image_tools.v1.ops.ScrimParams"> & {
  * Use `create(ScrimParamsSchema)` to create a new message.
  */
 export const ScrimParamsSchema: GenMessage<ScrimParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 22);
+  messageDesc(file_image_tools_v1_ops_ops, 25);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.LineScreenParams
@@ -974,7 +1226,7 @@ export type LineScreenParams = Message<"vrooli.image_tools.v1.ops.LineScreenPara
  * Use `create(LineScreenParamsSchema)` to create a new message.
  */
 export const LineScreenParamsSchema: GenMessage<LineScreenParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 23);
+  messageDesc(file_image_tools_v1_ops_ops, 26);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.StippleParams
@@ -1021,7 +1273,7 @@ export type StippleParams = Message<"vrooli.image_tools.v1.ops.StippleParams"> &
  * Use `create(StippleParamsSchema)` to create a new message.
  */
 export const StippleParamsSchema: GenMessage<StippleParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 24);
+  messageDesc(file_image_tools_v1_ops_ops, 27);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.EngravingParams
@@ -1063,7 +1315,7 @@ export type EngravingParams = Message<"vrooli.image_tools.v1.ops.EngravingParams
  * Use `create(EngravingParamsSchema)` to create a new message.
  */
 export const EngravingParamsSchema: GenMessage<EngravingParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 25);
+  messageDesc(file_image_tools_v1_ops_ops, 28);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.AberrationParams
@@ -1096,7 +1348,7 @@ export type AberrationParams = Message<"vrooli.image_tools.v1.ops.AberrationPara
  * Use `create(AberrationParamsSchema)` to create a new message.
  */
 export const AberrationParamsSchema: GenMessage<AberrationParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 26);
+  messageDesc(file_image_tools_v1_ops_ops, 29);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.BloomParams
@@ -1125,7 +1377,7 @@ export type BloomParams = Message<"vrooli.image_tools.v1.ops.BloomParams"> & {
  * Use `create(BloomParamsSchema)` to create a new message.
  */
 export const BloomParamsSchema: GenMessage<BloomParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 27);
+  messageDesc(file_image_tools_v1_ops_ops, 30);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.CurveParams
@@ -1142,7 +1394,7 @@ export type CurveParams = Message<"vrooli.image_tools.v1.ops.CurveParams"> & {
  * Use `create(CurveParamsSchema)` to create a new message.
  */
 export const CurveParamsSchema: GenMessage<CurveParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 28);
+  messageDesc(file_image_tools_v1_ops_ops, 31);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.DefocusParams
@@ -1171,7 +1423,7 @@ export type DefocusParams = Message<"vrooli.image_tools.v1.ops.DefocusParams"> &
  * Use `create(DefocusParamsSchema)` to create a new message.
  */
 export const DefocusParamsSchema: GenMessage<DefocusParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 29);
+  messageDesc(file_image_tools_v1_ops_ops, 32);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.MotionBlurParams
@@ -1200,7 +1452,7 @@ export type MotionBlurParams = Message<"vrooli.image_tools.v1.ops.MotionBlurPara
  * Use `create(MotionBlurParamsSchema)` to create a new message.
  */
 export const MotionBlurParamsSchema: GenMessage<MotionBlurParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 30);
+  messageDesc(file_image_tools_v1_ops_ops, 33);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.AsciiMosaicParams
@@ -1248,7 +1500,7 @@ export type AsciiMosaicParams = Message<"vrooli.image_tools.v1.ops.AsciiMosaicPa
  * Use `create(AsciiMosaicParamsSchema)` to create a new message.
  */
 export const AsciiMosaicParamsSchema: GenMessage<AsciiMosaicParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 31);
+  messageDesc(file_image_tools_v1_ops_ops, 34);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.PixelSortParams
@@ -1270,7 +1522,7 @@ export type PixelSortParams = Message<"vrooli.image_tools.v1.ops.PixelSortParams
  * Use `create(PixelSortParamsSchema)` to create a new message.
  */
 export const PixelSortParamsSchema: GenMessage<PixelSortParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 32);
+  messageDesc(file_image_tools_v1_ops_ops, 35);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.DisplacementParams
@@ -1312,7 +1564,7 @@ export type DisplacementParams = Message<"vrooli.image_tools.v1.ops.Displacement
  * Use `create(DisplacementParamsSchema)` to create a new message.
  */
 export const DisplacementParamsSchema: GenMessage<DisplacementParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 33);
+  messageDesc(file_image_tools_v1_ops_ops, 36);
 
 /**
  * OpResult is the proto-typed result metadata of a run. ref is the managed blob
@@ -1368,7 +1620,7 @@ export type OpResult = Message<"vrooli.image_tools.v1.ops.OpResult"> & {
  * Use `create(OpResultSchema)` to create a new message.
  */
 export const OpResultSchema: GenMessage<OpResult> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 34);
+  messageDesc(file_image_tools_v1_ops_ops, 37);
 
 /**
  * RunOpResponse is the JSON (protojson) body returned by the REST run edge: a
@@ -1397,7 +1649,7 @@ export type RunOpResponse = Message<"vrooli.image_tools.v1.ops.RunOpResponse"> &
  * Use `create(RunOpResponseSchema)` to create a new message.
  */
 export const RunOpResponseSchema: GenMessage<RunOpResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 35);
+  messageDesc(file_image_tools_v1_ops_ops, 38);
 
 /**
  * @generated from service vrooli.image_tools.v1.ops.OpsService

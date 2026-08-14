@@ -9,10 +9,27 @@ import (
 	"landing-page-business-suite-api/internal/envx"
 )
 
-func newAccountService(db commerce.Store, planService *commerce.PlanService) *commerce.Service {
+func newAccountService(db commerce.Store, planService *commerce.PlanService, limits ...commerce.LimitsServicer) *commerce.Service {
+	var limitsSvc commerce.LimitsServicer
+	if len(limits) > 0 {
+		limitsSvc = limits[0]
+	}
 	return commerce.NewService(db, planService, commerce.Runtime{
-		CacheTTL: accountCacheTTL(), NormalizeEmail: NormalizeEmail, Log: logStructured,
+		CacheTTL: accountCacheTTL(), LeaseTTL: entitlementLeaseTTL(), LimitsService: limitsSvc, NormalizeEmail: NormalizeEmail, Log: logStructured,
 	})
+}
+
+func entitlementLeaseTTL() time.Duration {
+	const defaultTTL = 7 * 24 * time.Hour
+	value := strings.TrimSpace(envx.Get("LPBS_ENTITLEMENT_LEASE_TTL_SECONDS"))
+	if value == "" {
+		return defaultTTL
+	}
+	seconds, err := strconv.Atoi(value)
+	if err != nil || seconds <= 0 {
+		return defaultTTL
+	}
+	return time.Duration(seconds) * time.Second
 }
 
 func accountCacheTTL() time.Duration {

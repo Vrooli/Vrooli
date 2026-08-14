@@ -8,6 +8,8 @@ enum Provenance {
   PROVENANCE_UNSPECIFIED = 0;
   PROVENANCE_AGENT = 1;
   PROVENANCE_OPERATOR = 2;
+  PROVENANCE_TEST = 3;
+  PROVENANCE_REPLAY = 4;
 }
 
 enum ProgramStatus {
@@ -35,6 +37,7 @@ message Program {
   string completed_at = 13;
   int64 wall_time_millis = 14;
   int64 cpu_time_millis = 15;
+  string library_version = 16;
 }
 
 message SubmitProgramRequest {

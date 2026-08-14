@@ -35,7 +35,14 @@ JOB_LANE_GPU: JobLane
 JOB_LANE_CPU: JobLane
 
 class Job(_message.Message):
-    __slots__ = ("id", "operation", "lane", "state", "progress", "message", "error", "result_ref", "estimated_seconds", "created_at", "started_at", "finished_at")
+    __slots__ = ("id", "operation", "lane", "state", "progress", "message", "error", "result_ref", "estimated_seconds", "created_at", "started_at", "finished_at", "result_meta")
+    class ResultMetaEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     ID_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     LANE_FIELD_NUMBER: _ClassVar[int]
@@ -48,6 +55,7 @@ class Job(_message.Message):
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
+    RESULT_META_FIELD_NUMBER: _ClassVar[int]
     id: str
     operation: str
     lane: JobLane
@@ -60,7 +68,8 @@ class Job(_message.Message):
     created_at: _timestamp_pb2.Timestamp
     started_at: _timestamp_pb2.Timestamp
     finished_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., operation: _Optional[str] = ..., lane: _Optional[_Union[JobLane, str]] = ..., state: _Optional[_Union[JobState, str]] = ..., progress: _Optional[int] = ..., message: _Optional[str] = ..., error: _Optional[str] = ..., result_ref: _Optional[str] = ..., estimated_seconds: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    result_meta: _containers.ScalarMap[str, str]
+    def __init__(self, id: _Optional[str] = ..., operation: _Optional[str] = ..., lane: _Optional[_Union[JobLane, str]] = ..., state: _Optional[_Union[JobState, str]] = ..., progress: _Optional[int] = ..., message: _Optional[str] = ..., error: _Optional[str] = ..., result_ref: _Optional[str] = ..., estimated_seconds: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., result_meta: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class ProgressEvent(_message.Message):
     __slots__ = ("job_id", "state", "progress", "message", "at")

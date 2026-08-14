@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 
+	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/credentials"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -28,10 +29,19 @@ var (
 		}
 		return credentials.DefaultKeyringPath(filepath.Join(account.HomeDir, ".local", "share", "keyrings", "login.keyring"))
 	}
-	passwordlessFn  = credentials.IsPasswordless
-	backupFn        = backupKeyring
-	runUserFn       = hostreqkit.RunAsInvokingUserWithSession
-	runUserOutputFn = hostreqkit.RunAsInvokingUserWithSessionOutput
+	passwordlessFn = credentials.IsPasswordless
+	backupFn       = backupKeyring
+	runUserFn      = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
+		return platform.RunAsInvokingUserInSession(context.Background(), name, args, platform.IdentityCommandOptions{
+			Stdout: opts.Stdout,
+			Stderr: opts.Stderr,
+		})
+	}
+	runUserOutputFn = func(name string, args []string, opts hostreqkit.EnsureOptions) ([]byte, error) {
+		return platform.RunAsInvokingUserInSessionOutput(context.Background(), name, args, platform.IdentityCommandOptions{
+			Stderr: opts.Stderr,
+		})
+	}
 )
 
 var keyringPromptPathPattern = regexp.MustCompile(`['"](/org/gnome/keyring/Prompt/[A-Za-z0-9_./:@-]+)['"]`)

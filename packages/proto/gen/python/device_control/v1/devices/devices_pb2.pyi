@@ -33,6 +33,18 @@ class ConnectDeviceResponse(_message.Message):
     first_next_action: str
     def __init__(self, rungs: _Optional[_Iterable[_Union[OnboardingRung, _Mapping]]] = ..., first_next_action: _Optional[str] = ...) -> None: ...
 
+class ReconnectDeviceRequest(_message.Message):
+    __slots__ = ("device_id",)
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    device_id: str
+    def __init__(self, device_id: _Optional[str] = ...) -> None: ...
+
+class ReconnectDeviceResponse(_message.Message):
+    __slots__ = ("device",)
+    DEVICE_FIELD_NUMBER: _ClassVar[int]
+    device: Device
+    def __init__(self, device: _Optional[_Union[Device, _Mapping]] = ...) -> None: ...
+
 class Device(_message.Message):
     __slots__ = ("id", "name", "kind", "strategy_id", "status", "health_reason", "host_node_id", "capabilities", "observed_at", "serial", "model", "os_version", "transport", "health", "first_seen_at", "last_seen_at")
     ID_FIELD_NUMBER: _ClassVar[int]

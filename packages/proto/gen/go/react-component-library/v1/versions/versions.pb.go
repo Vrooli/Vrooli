@@ -102,9 +102,10 @@ type Version struct {
 	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// CSS custom properties referenced by the version but not defined by its
 	// own source files. Derived at catalog index time.
-	RequiredTokens []string `protobuf:"bytes,12,rep,name=required_tokens,json=requiredTokens,proto3" json:"required_tokens,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	RequiredTokens        []string `protobuf:"bytes,12,rep,name=required_tokens,json=requiredTokens,proto3" json:"required_tokens,omitempty"`
+	RequiredTokenPatterns []string `protobuf:"bytes,13,rep,name=required_token_patterns,json=requiredTokenPatterns,proto3" json:"required_token_patterns,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Version) Reset() {
@@ -218,6 +219,13 @@ func (x *Version) GetCreatedAt() *timestamppb.Timestamp {
 func (x *Version) GetRequiredTokens() []string {
 	if x != nil {
 		return x.RequiredTokens
+	}
+	return nil
+}
+
+func (x *Version) GetRequiredTokenPatterns() []string {
+	if x != nil {
+		return x.RequiredTokenPatterns
 	}
 	return nil
 }
@@ -697,7 +705,7 @@ var File_react_component_library_v1_versions_versions_proto protoreflect.FileDes
 
 const file_react_component_library_v1_versions_versions_proto_rawDesc = "" +
 	"\n" +
-	"2react-component-library/v1/versions/versions.proto\x12*vrooli.react_component_library.v1.versions\x1a\x1fgoogle/protobuf/timestamp.proto\"\xda\x03\n" +
+	"2react-component-library/v1/versions/versions.proto\x12*vrooli.react_component_library.v1.versions\x1a\x1fgoogle/protobuf/timestamp.proto\"\x92\x04\n" +
 	"\aVersion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fcomponent_id\x18\x02 \x01(\tR\vcomponentId\x12\x1d\n" +
@@ -716,7 +724,8 @@ const file_react_component_library_v1_versions_versions_proto_rawDesc = "" +
 	"releasedAt\x129\n" +
 	"\n" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12'\n" +
-	"\x0frequired_tokens\x18\f \x03(\tR\x0erequiredTokens\"N\n" +
+	"\x0frequired_tokens\x18\f \x03(\tR\x0erequiredTokens\x126\n" +
+	"\x17required_token_patterns\x18\r \x03(\tR\x15requiredTokenPatterns\"N\n" +
 	"\x13ListVersionsRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"g\n" +

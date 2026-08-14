@@ -454,7 +454,16 @@ type Candidate struct {
 	// routing is the lane, model and cost that produced this candidate. It is on
 	// the candidate rather than the job because a job may render several
 	// candidates and a retry can escalate one of them further than the others.
-	Routing       *shared.RoutingRecord `protobuf:"bytes,15,opt,name=routing,proto3" json:"routing,omitempty"`
+	Routing *shared.RoutingRecord `protobuf:"bytes,15,opt,name=routing,proto3" json:"routing,omitempty"`
+	// plates is the ordered depth stack this candidate was assembled from, back
+	// to front. It is repeated from the start so the count can grow without a
+	// migration; today every strategy produces at least one.
+	//
+	// image_png above stays the deliverable and is always present: it is the flat
+	// composite of exactly these plates. A consumer that wants one image ignores
+	// this field entirely, which is the whole reason the composite is not
+	// optional.
+	Plates        []*shared.Plate `protobuf:"bytes,16,rep,name=plates,proto3" json:"plates,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -594,6 +603,13 @@ func (x *Candidate) GetRouting() *shared.RoutingRecord {
 	return nil
 }
 
+func (x *Candidate) GetPlates() []*shared.Plate {
+	if x != nil {
+		return x.Plates
+	}
+	return nil
+}
+
 var File_backdrop_studio_v1_render_render_proto protoreflect.FileDescriptor
 
 const file_backdrop_studio_v1_render_render_proto_rawDesc = "" +
@@ -636,7 +652,7 @@ const file_backdrop_studio_v1_render_render_proto_rawDesc = "" +
 	"\vselected_by\x18\b \x01(\tR\n" +
 	"selectedBy\x12\x1d\n" +
 	"\n" +
-	"surface_id\x18\t \x01(\tR\tsurfaceId\"\x98\x04\n" +
+	"surface_id\x18\t \x01(\tR\tsurfaceId\"\xd9\x04\n" +
 	"\tCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06job_id\x18\x02 \x01(\tR\x05jobId\x12\x1b\n" +
@@ -653,7 +669,8 @@ const file_backdrop_studio_v1_render_render_proto_rawDesc = "" +
 	"\x06prompt\x18\f \x01(\tR\x06prompt\x12'\n" +
 	"\x0fprovenance_json\x18\r \x01(\tR\x0eprovenanceJson\x12!\n" +
 	"\fquality_json\x18\x0e \x01(\tR\vqualityJson\x12I\n" +
-	"\arouting\x18\x0f \x01(\v2/.vrooli.backdrop_studio.v1.shared.RoutingRecordR\arouting2\xdf\x03\n" +
+	"\arouting\x18\x0f \x01(\v2/.vrooli.backdrop_studio.v1.shared.RoutingRecordR\arouting\x12?\n" +
+	"\x06plates\x18\x10 \x03(\v2'.vrooli.backdrop_studio.v1.shared.PlateR\x06plates2\xdf\x03\n" +
 	"\rRenderService\x12f\n" +
 	"\x06Submit\x12/.vrooli.backdrop_studio.v1.render.SubmitRequest\x1a+.vrooli.backdrop_studio.v1.render.RenderJob\x12f\n" +
 	"\x06GetJob\x12/.vrooli.backdrop_studio.v1.render.GetJobRequest\x1a+.vrooli.backdrop_studio.v1.render.RenderJob\x12\x83\x01\n" +
@@ -684,26 +701,28 @@ var file_backdrop_studio_v1_render_render_proto_goTypes = []any{
 	nil,                            // 7: vrooli.backdrop_studio.v1.render.SubmitRequest.BrandTokensEntry
 	(*shared.Style)(nil),           // 8: vrooli.backdrop_studio.v1.shared.Style
 	(*shared.RoutingRecord)(nil),   // 9: vrooli.backdrop_studio.v1.shared.RoutingRecord
+	(*shared.Plate)(nil),           // 10: vrooli.backdrop_studio.v1.shared.Plate
 }
 var file_backdrop_studio_v1_render_render_proto_depIdxs = []int32{
-	8, // 0: vrooli.backdrop_studio.v1.render.SubmitRequest.style:type_name -> vrooli.backdrop_studio.v1.shared.Style
-	7, // 1: vrooli.backdrop_studio.v1.render.SubmitRequest.brand_tokens:type_name -> vrooli.backdrop_studio.v1.render.SubmitRequest.BrandTokensEntry
-	6, // 2: vrooli.backdrop_studio.v1.render.ListCandidatesResponse.candidates:type_name -> vrooli.backdrop_studio.v1.render.Candidate
-	6, // 3: vrooli.backdrop_studio.v1.render.RenderJob.candidates:type_name -> vrooli.backdrop_studio.v1.render.Candidate
-	9, // 4: vrooli.backdrop_studio.v1.render.Candidate.routing:type_name -> vrooli.backdrop_studio.v1.shared.RoutingRecord
-	0, // 5: vrooli.backdrop_studio.v1.render.RenderService.Submit:input_type -> vrooli.backdrop_studio.v1.render.SubmitRequest
-	1, // 6: vrooli.backdrop_studio.v1.render.RenderService.GetJob:input_type -> vrooli.backdrop_studio.v1.render.GetJobRequest
-	2, // 7: vrooli.backdrop_studio.v1.render.RenderService.ListCandidates:input_type -> vrooli.backdrop_studio.v1.render.ListCandidatesRequest
-	4, // 8: vrooli.backdrop_studio.v1.render.RenderService.SelectCandidate:input_type -> vrooli.backdrop_studio.v1.render.SelectCandidateRequest
-	5, // 9: vrooli.backdrop_studio.v1.render.RenderService.Submit:output_type -> vrooli.backdrop_studio.v1.render.RenderJob
-	5, // 10: vrooli.backdrop_studio.v1.render.RenderService.GetJob:output_type -> vrooli.backdrop_studio.v1.render.RenderJob
-	3, // 11: vrooli.backdrop_studio.v1.render.RenderService.ListCandidates:output_type -> vrooli.backdrop_studio.v1.render.ListCandidatesResponse
-	5, // 12: vrooli.backdrop_studio.v1.render.RenderService.SelectCandidate:output_type -> vrooli.backdrop_studio.v1.render.RenderJob
-	9, // [9:13] is the sub-list for method output_type
-	5, // [5:9] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	8,  // 0: vrooli.backdrop_studio.v1.render.SubmitRequest.style:type_name -> vrooli.backdrop_studio.v1.shared.Style
+	7,  // 1: vrooli.backdrop_studio.v1.render.SubmitRequest.brand_tokens:type_name -> vrooli.backdrop_studio.v1.render.SubmitRequest.BrandTokensEntry
+	6,  // 2: vrooli.backdrop_studio.v1.render.ListCandidatesResponse.candidates:type_name -> vrooli.backdrop_studio.v1.render.Candidate
+	6,  // 3: vrooli.backdrop_studio.v1.render.RenderJob.candidates:type_name -> vrooli.backdrop_studio.v1.render.Candidate
+	9,  // 4: vrooli.backdrop_studio.v1.render.Candidate.routing:type_name -> vrooli.backdrop_studio.v1.shared.RoutingRecord
+	10, // 5: vrooli.backdrop_studio.v1.render.Candidate.plates:type_name -> vrooli.backdrop_studio.v1.shared.Plate
+	0,  // 6: vrooli.backdrop_studio.v1.render.RenderService.Submit:input_type -> vrooli.backdrop_studio.v1.render.SubmitRequest
+	1,  // 7: vrooli.backdrop_studio.v1.render.RenderService.GetJob:input_type -> vrooli.backdrop_studio.v1.render.GetJobRequest
+	2,  // 8: vrooli.backdrop_studio.v1.render.RenderService.ListCandidates:input_type -> vrooli.backdrop_studio.v1.render.ListCandidatesRequest
+	4,  // 9: vrooli.backdrop_studio.v1.render.RenderService.SelectCandidate:input_type -> vrooli.backdrop_studio.v1.render.SelectCandidateRequest
+	5,  // 10: vrooli.backdrop_studio.v1.render.RenderService.Submit:output_type -> vrooli.backdrop_studio.v1.render.RenderJob
+	5,  // 11: vrooli.backdrop_studio.v1.render.RenderService.GetJob:output_type -> vrooli.backdrop_studio.v1.render.RenderJob
+	3,  // 12: vrooli.backdrop_studio.v1.render.RenderService.ListCandidates:output_type -> vrooli.backdrop_studio.v1.render.ListCandidatesResponse
+	5,  // 13: vrooli.backdrop_studio.v1.render.RenderService.SelectCandidate:output_type -> vrooli.backdrop_studio.v1.render.RenderJob
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_backdrop_studio_v1_render_render_proto_init() }

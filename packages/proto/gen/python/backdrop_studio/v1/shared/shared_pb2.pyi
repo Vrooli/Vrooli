@@ -76,8 +76,65 @@ class RoutingRecord(_message.Message):
     attempt_details: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, declared_tier: _Optional[_Union[QualityTier, str]] = ..., served_lane: _Optional[str] = ..., model_id: _Optional[str] = ..., execution_tier: _Optional[str] = ..., cost_usd: _Optional[float] = ..., attempted_lanes: _Optional[_Iterable[str]] = ..., attempt_details: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class Plate(_message.Message):
+    __slots__ = ("name", "depth", "blend", "opacity", "ref", "treatments", "motion")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DEPTH_FIELD_NUMBER: _ClassVar[int]
+    BLEND_FIELD_NUMBER: _ClassVar[int]
+    OPACITY_FIELD_NUMBER: _ClassVar[int]
+    REF_FIELD_NUMBER: _ClassVar[int]
+    TREATMENTS_FIELD_NUMBER: _ClassVar[int]
+    MOTION_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    depth: int
+    blend: str
+    opacity: float
+    ref: str
+    treatments: _containers.RepeatedScalarFieldContainer[str]
+    motion: MotionProfile
+    def __init__(self, name: _Optional[str] = ..., depth: _Optional[int] = ..., blend: _Optional[str] = ..., opacity: _Optional[float] = ..., ref: _Optional[str] = ..., treatments: _Optional[_Iterable[str]] = ..., motion: _Optional[_Union[MotionProfile, _Mapping]] = ...) -> None: ...
+
+class MotionProfile(_message.Message):
+    __slots__ = ("parallax", "ambient", "ambient_seconds", "ambient_amplitude")
+    PARALLAX_FIELD_NUMBER: _ClassVar[int]
+    AMBIENT_FIELD_NUMBER: _ClassVar[int]
+    AMBIENT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    AMBIENT_AMPLITUDE_FIELD_NUMBER: _ClassVar[int]
+    parallax: float
+    ambient: str
+    ambient_seconds: float
+    ambient_amplitude: float
+    def __init__(self, parallax: _Optional[float] = ..., ambient: _Optional[str] = ..., ambient_seconds: _Optional[float] = ..., ambient_amplitude: _Optional[float] = ...) -> None: ...
+
+class PlateSpec(_message.Message):
+    __slots__ = ("name", "depth", "blend", "opacity", "treatments", "motion", "planes", "treatment_params")
+    class TreatmentParamsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DEPTH_FIELD_NUMBER: _ClassVar[int]
+    BLEND_FIELD_NUMBER: _ClassVar[int]
+    OPACITY_FIELD_NUMBER: _ClassVar[int]
+    TREATMENTS_FIELD_NUMBER: _ClassVar[int]
+    MOTION_FIELD_NUMBER: _ClassVar[int]
+    PLANES_FIELD_NUMBER: _ClassVar[int]
+    TREATMENT_PARAMS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    depth: int
+    blend: str
+    opacity: float
+    treatments: _containers.RepeatedScalarFieldContainer[str]
+    motion: MotionProfile
+    planes: _containers.RepeatedScalarFieldContainer[str]
+    treatment_params: _containers.ScalarMap[str, str]
+    def __init__(self, name: _Optional[str] = ..., depth: _Optional[int] = ..., blend: _Optional[str] = ..., opacity: _Optional[float] = ..., treatments: _Optional[_Iterable[str]] = ..., motion: _Optional[_Union[MotionProfile, _Mapping]] = ..., planes: _Optional[_Iterable[str]] = ..., treatment_params: _Optional[_Mapping[str, str]] = ...) -> None: ...
+
 class Style(_message.Message):
-    __slots__ = ("id", "name", "version", "role", "subject", "treatments", "lineage", "placements", "strategy", "regions", "contrast_threshold", "scaffold", "generation", "treatment_params", "inks", "parent_id", "quality_tier")
+    __slots__ = ("id", "name", "version", "role", "subject", "treatments", "lineage", "placements", "strategy", "regions", "contrast_threshold", "scaffold", "generation", "treatment_params", "inks", "parent_id", "quality_tier", "plate_spec")
     class TreatmentParamsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -109,6 +166,7 @@ class Style(_message.Message):
     INKS_FIELD_NUMBER: _ClassVar[int]
     PARENT_ID_FIELD_NUMBER: _ClassVar[int]
     QUALITY_TIER_FIELD_NUMBER: _ClassVar[int]
+    PLATE_SPEC_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     version: int
@@ -126,4 +184,5 @@ class Style(_message.Message):
     inks: _containers.ScalarMap[str, str]
     parent_id: str
     quality_tier: QualityTier
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., version: _Optional[int] = ..., role: _Optional[str] = ..., subject: _Optional[str] = ..., treatments: _Optional[_Iterable[str]] = ..., lineage: _Optional[str] = ..., placements: _Optional[_Iterable[str]] = ..., strategy: _Optional[str] = ..., regions: _Optional[_Iterable[_Union[ReservedRegion, _Mapping]]] = ..., contrast_threshold: _Optional[float] = ..., scaffold: _Optional[_Union[ScaffoldBinding, _Mapping]] = ..., generation: _Optional[_Union[GenerationBlock, _Mapping]] = ..., treatment_params: _Optional[_Mapping[str, str]] = ..., inks: _Optional[_Mapping[str, str]] = ..., parent_id: _Optional[str] = ..., quality_tier: _Optional[_Union[QualityTier, str]] = ...) -> None: ...
+    plate_spec: _containers.RepeatedCompositeFieldContainer[PlateSpec]
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., version: _Optional[int] = ..., role: _Optional[str] = ..., subject: _Optional[str] = ..., treatments: _Optional[_Iterable[str]] = ..., lineage: _Optional[str] = ..., placements: _Optional[_Iterable[str]] = ..., strategy: _Optional[str] = ..., regions: _Optional[_Iterable[_Union[ReservedRegion, _Mapping]]] = ..., contrast_threshold: _Optional[float] = ..., scaffold: _Optional[_Union[ScaffoldBinding, _Mapping]] = ..., generation: _Optional[_Union[GenerationBlock, _Mapping]] = ..., treatment_params: _Optional[_Mapping[str, str]] = ..., inks: _Optional[_Mapping[str, str]] = ..., parent_id: _Optional[str] = ..., quality_tier: _Optional[_Union[QualityTier, str]] = ..., plate_spec: _Optional[_Iterable[_Union[PlateSpec, _Mapping]]] = ...) -> None: ...

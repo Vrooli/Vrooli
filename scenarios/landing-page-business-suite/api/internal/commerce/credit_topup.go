@@ -69,5 +69,8 @@ func (s *CreditTopupService) Apply(customerEmail string, amountCents int64, plan
 	if s.wallet == nil {
 		return errors.New("credit wallet unavailable for credit top-up")
 	}
+	if sourceWallet, ok := s.wallet.(SourceCreditWallet); ok {
+		return sourceWallet.AddCreditsFromSource(customerEmail, credits, "credit_topup", "stripe", providerEventID, metadata)
+	}
 	return s.wallet.AddCredits(customerEmail, credits, "credit_topup", providerEventID, metadata)
 }

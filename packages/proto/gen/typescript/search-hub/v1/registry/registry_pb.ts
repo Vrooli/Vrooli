@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file search-hub/v1/registry/registry.proto.
  */
 export const file_search_hub_v1_registry_registry: GenFile = /*@__PURE__*/
-  fileDesc("CiVzZWFyY2gtaHViL3YxL3JlZ2lzdHJ5L3JlZ2lzdHJ5LnByb3RvEh12cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeSKTAQoIRW5kcG9pbnQSRAoJaHR0cF9qc29uGAEgASgLMi8udnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuSHR0cEpzb25FbmRwb2ludEgAEjkKA2NsaRgCIAEoCzIqLnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5LkNsaUVuZHBvaW50SABCBgoEa2luZCKGAgoQSHR0cEpzb25FbmRwb2ludBITCgtzY2VuYXJpb19pZBgBIAEoCRIMCgRwYXRoGAIgASgJEjkKBm1ldGhvZBgDIAEoDjIpLnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5Lkh0dHBNZXRob2QSFQoNYm9keV90ZW1wbGF0ZRgEIAEoCRJNCgdoZWFkZXJzGAUgAygLMjwudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuSHR0cEpzb25FbmRwb2ludC5IZWFkZXJzRW50cnkaLgoMSGVhZGVyc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiJAoLQ2xpRW5kcG9pbnQSFQoNYXJndl90ZW1wbGF0ZRgBIAMoCSKfAwoNUmVzdWx0TWFwcGluZxIUCgxyZXN1bHRzX3BhdGgYASABKAkSEAoIaWRfZmllbGQYAiABKAkSEwoLdGl0bGVfZmllbGQYAyABKAkSEwoLc2NvcmVfZmllbGQYBCABKAkSFQoNc25pcHBldF9maWVsZBgFIAEoCRISCgpwYXRoX2ZpZWxkGAYgASgJEj4KC3Njb3JlX3NjYWxlGAcgASgOMikudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuU2NvcmVTY2FsZRIUCgxmaWx0ZXJfZmllbGQYCCABKAkSFAoMZmlsdGVyX3ZhbHVlGAkgASgJEhYKDnByZXNlbmNlX2ZpZWxkGAogASgJEhUKDW1lYXN1cmVfZmllbGQYCyABKAkSGQoRYXR0ZXN0YXRpb25fZmllbGQYDCABKAkSGAoQY29uZmlkZW5jZV9maWVsZBgNIAEoCRIXCg9sb2NhdGlvbnNfZmllbGQYDiABKAkSEgoKd2Vha19maWVsZBgPIAEoCRIUCgxyZWdpbWVfZmllbGQYECABKAkiMgoLRmxvb3JDb25maWcSDwoHbWF4X2dhcBgBIAEoARISCgpoYXJkX2Zsb29yGAIgASgBIv0BCgZUdW5pbmcSDgoGZW5naW5lGAEgASgJEhMKC2VtYmVkX21vZGVsGAIgASgJEhkKEWVtYmVkX3Rhc2tfcHJlZml4GAMgASgIEhYKDnJlcmFua19lbmFibGVkGAQgASgIEhQKDHJlcmFua19ibGVuZBgFIAEoCBIYChByZXJhbmtfc2hvcnRsaXN0GAYgASgFEjkKBWZsb29yGAcgASgLMioudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRmxvb3JDb25maWcSFQoNaHlicmlkX2Z1c2lvbhgIIAEoCRIZChFyZXJhbmtfcHJlZmVyZW5jZRgJIAEoCSLOBgoSUHJvdmlkZXJEZXNjcmlwdG9yEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhYKDnByb3ZpZGVyX2dyb3VwGAIgASgJEjUKBmJ1Y2tldBgDIAEoDjIlLnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5LkJ1Y2tldBIMCgR0eXBlGAQgASgJEhMKC2Rlc2NyaXB0aW9uGAUgASgJEjkKCGVuZHBvaW50GAYgASgLMicudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRW5kcG9pbnQSRAoOcmVzdWx0X21hcHBpbmcYByABKAsyLC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5SZXN1bHRNYXBwaW5nEhIKCnF1ZXJ5X2hpbnQYCCABKAkSQAoPc3RhdHVzX2VuZHBvaW50GAkgASgLMicudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRW5kcG9pbnQSMwoFc2NvcGUYCiABKA4yJC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5TY29wZRI7CgVzdGF0ZRgLIAEoDjIsLnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5LlByb3ZpZGVyU3RhdGUSFQoNaW50ZW5kZWRfaG9tZRgMIAEoCRJBChByZWluZGV4X2VuZHBvaW50GA0gASgLMicudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRW5kcG9pbnQSQAoPY29uZmlnX2VuZHBvaW50GA4gASgLMicudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRW5kcG9pbnQSNQoGdHVuaW5nGA8gASgLMiUudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuVHVuaW5nEhEKCWxpZmVjeWNsZRgQIAEoCRJBCg10ZXN0c19taW5pbXVtGBEgASgLMioudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRXZhbE1pbmltdW0SIAoYanVua19sZWFrX29wdF9vdXRfcmVhc29uGBIgASgJEh0KFWluZGV4X3RpbWVzdGFtcF9maWVsZBgTIAEoCSJRCgtFdmFsTWluaW11bRIZChFyZXZpZXdlZF9wb3NpdGl2ZRgBIAEoBRIQCghuZWdhdGl2ZRgCIAEoBRIVCg1yZXF1aXJlZF90YWdzGAMgAygJIncKF1JlZ2lzdGVyUHJvdmlkZXJSZXF1ZXN0EkUKCmRlc2NyaXB0b3IYASABKAsyMS52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5Qcm92aWRlckRlc2NyaXB0b3ISFQoNY29udHJvbF90b2tlbhgCIAEoCSKJAQoYUmVnaXN0ZXJQcm92aWRlclJlc3BvbnNlEkUKCmRlc2NyaXB0b3IYASABKAsyMS52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5Qcm92aWRlckRlc2NyaXB0b3ISDwoHY3JlYXRlZBgCIAEoCBIVCg1jb250cm9sX3Rva2VuGAMgASgJIpgBChRMaXN0UHJvdmlkZXJzUmVxdWVzdBI1CgZidWNrZXQYASABKA4yJS52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5CdWNrZXQSDAoEdHlwZRgCIAEoCRI7CgVzdGF0ZRgDIAEoDjIsLnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5LlByb3ZpZGVyU3RhdGUiXQoVTGlzdFByb3ZpZGVyc1Jlc3BvbnNlEkQKCXByb3ZpZGVycxgBIAMoCzIxLnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5LlByb3ZpZGVyRGVzY3JpcHRvciKnAgogRXhlY3V0ZUVtYmVkZGluZ01pZ3JhdGlvblJlcXVlc3QSEwoLcHJvdmlkZXJfaWQYASABKAkSDgoGYWN0aW9uGAIgASgJEhkKEXNoYWRvd19jb2xsZWN0aW9uGAMgASgJEhsKE3JvbGxiYWNrX2NvbGxlY3Rpb24YBCABKAkSFwoPZW1iZWRkaW5nX21vZGVsGAUgASgJEhYKDmVtYmVkZGluZ19yb2xlGAYgASgJEhwKFGVtYmVkZGluZ19kaW1lbnNpb25zGAcgASgFEicKH2VtYmVkZGluZ19wb2xpY3lfc2NoZW1hX3ZlcnNpb24YCCABKAkSDQoFc2NvcGUYCSABKAkSDwoHZHJ5X3J1bhgKIAEoCBIOCgZqb2JfaWQYCyABKAkipQEKIUV4ZWN1dGVFbWJlZGRpbmdNaWdyYXRpb25SZXNwb25zZRIOCgZqb2JfaWQYASABKAkSDQoFc3RhdGUYAiABKAkSFwoPcGxhbm5lZF91cHNlcnRzGAMgASgFEhcKD3BsYW5uZWRfZGVsZXRlcxgEIAEoBRIRCglwcm9jZXNzZWQYBSABKAUSDQoFdG90YWwYBiABKAUSDQoFZXJyb3IYByABKAkiHAoaTGlzdE1hdHVyaXR5VGFyZ2V0c1JlcXVlc3QiXQobTGlzdE1hdHVyaXR5VGFyZ2V0c1Jlc3BvbnNlEj4KB3RhcmdldHMYASADKAsyLS52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5NYXR1cml0eVRhcmdldCJOCg5NYXR1cml0eVRhcmdldBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhwKFGFwcGxpY2FiaWxpdHlfcmVhc29uGAMgASgJIjAKGURlcmVnaXN0ZXJQcm92aWRlclJlcXVlc3QSEwoLcHJvdmlkZXJfaWQYASABKAkiLQoaRGVyZWdpc3RlclByb3ZpZGVyUmVzcG9uc2USDwoHcmVtb3ZlZBgBIAEoCCp3CgZCdWNrZXQSFgoSQlVDS0VUX1VOU1BFQ0lGSUVEEAASDQoJQlVDS0VUX0RPEAESEAoMQlVDS0VUX1JFVVNFEAISDwoLQlVDS0VUX0tOT1cQAxIQCgxCVUNLRVRfU1RBVEUQBBIRCg1CVUNLRVRfRU5USVRZEAUqRQoFU2NvcGUSFQoRU0NPUEVfVU5TUEVDSUZJRUQQABIRCg1TQ09QRV9QUk9KRUNUEAESEgoOU0NPUEVfRVhURVJOQUwQAiptCg1Qcm92aWRlclN0YXRlEh4KGlBST1ZJREVSX1NUQVRFX1VOU1BFQ0lGSUVEEAASGQoVUFJPVklERVJfU1RBVEVfQUNUSVZFEAESIQodUFJPVklERVJfU1RBVEVfQ0FQQUJJTElUWV9HQVAQAip5CgpTY29yZVNjYWxlEhsKF1NDT1JFX1NDQUxFX1VOU1BFQ0lGSUVEEAASGgoWU0NPUkVfU0NBTEVfQ09TSU5FXzBfMRABEh0KGVNDT1JFX1NDQUxFX1BFUkNFTlRfMF8xMDAQAhITCg9TQ09SRV9TQ0FMRV9SQVcQAypUCgpIdHRwTWV0aG9kEhsKF0hUVFBfTUVUSE9EX1VOU1BFQ0lGSUVEEAASFAoQSFRUUF9NRVRIT0RfUE9TVBABEhMKD0hUVFBfTUVUSE9EX0dFVBACMs8FCg9SZWdpc3RyeVNlcnZpY2USgwEKEFJlZ2lzdGVyUHJvdmlkZXISNi52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5SZWdpc3RlclByb3ZpZGVyUmVxdWVzdBo3LnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5LlJlZ2lzdGVyUHJvdmlkZXJSZXNwb25zZRJ6Cg1MaXN0UHJvdmlkZXJzEjMudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuTGlzdFByb3ZpZGVyc1JlcXVlc3QaNC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5MaXN0UHJvdmlkZXJzUmVzcG9uc2USngEKGUV4ZWN1dGVFbWJlZGRpbmdNaWdyYXRpb24SPy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5FeGVjdXRlRW1iZWRkaW5nTWlncmF0aW9uUmVxdWVzdBpALnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5LkV4ZWN1dGVFbWJlZGRpbmdNaWdyYXRpb25SZXNwb25zZRKMAQoTTGlzdE1hdHVyaXR5VGFyZ2V0cxI5LnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5Lkxpc3RNYXR1cml0eVRhcmdldHNSZXF1ZXN0GjoudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuTGlzdE1hdHVyaXR5VGFyZ2V0c1Jlc3BvbnNlEokBChJEZXJlZ2lzdGVyUHJvdmlkZXISOC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5EZXJlZ2lzdGVyUHJvdmlkZXJSZXF1ZXN0GjkudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRGVyZWdpc3RlclByb3ZpZGVyUmVzcG9uc2VCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zZWFyY2gtaHViL3YxL3JlZ2lzdHJ5O3JlZ2lzdHJ5X3YxYgZwcm90bzM");
+  fileDesc("CiVzZWFyY2gtaHViL3YxL3JlZ2lzdHJ5L3JlZ2lzdHJ5LnByb3RvEh12cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeSKTAQoIRW5kcG9pbnQSRAoJaHR0cF9qc29uGAEgASgLMi8udnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuSHR0cEpzb25FbmRwb2ludEgAEjkKA2NsaRgCIAEoCzIqLnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5LkNsaUVuZHBvaW50SABCBgoEa2luZCKGAgoQSHR0cEpzb25FbmRwb2ludBITCgtzY2VuYXJpb19pZBgBIAEoCRIMCgRwYXRoGAIgASgJEjkKBm1ldGhvZBgDIAEoDjIpLnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5Lkh0dHBNZXRob2QSFQoNYm9keV90ZW1wbGF0ZRgEIAEoCRJNCgdoZWFkZXJzGAUgAygLMjwudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuSHR0cEpzb25FbmRwb2ludC5IZWFkZXJzRW50cnkaLgoMSGVhZGVyc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiJAoLQ2xpRW5kcG9pbnQSFQoNYXJndl90ZW1wbGF0ZRgBIAMoCSKfAwoNUmVzdWx0TWFwcGluZxIUCgxyZXN1bHRzX3BhdGgYASABKAkSEAoIaWRfZmllbGQYAiABKAkSEwoLdGl0bGVfZmllbGQYAyABKAkSEwoLc2NvcmVfZmllbGQYBCABKAkSFQoNc25pcHBldF9maWVsZBgFIAEoCRISCgpwYXRoX2ZpZWxkGAYgASgJEj4KC3Njb3JlX3NjYWxlGAcgASgOMikudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuU2NvcmVTY2FsZRIUCgxmaWx0ZXJfZmllbGQYCCABKAkSFAoMZmlsdGVyX3ZhbHVlGAkgASgJEhYKDnByZXNlbmNlX2ZpZWxkGAogASgJEhUKDW1lYXN1cmVfZmllbGQYCyABKAkSGQoRYXR0ZXN0YXRpb25fZmllbGQYDCABKAkSGAoQY29uZmlkZW5jZV9maWVsZBgNIAEoCRIXCg9sb2NhdGlvbnNfZmllbGQYDiABKAkSEgoKd2Vha19maWVsZBgPIAEoCRIUCgxyZWdpbWVfZmllbGQYECABKAkiMgoLRmxvb3JDb25maWcSDwoHbWF4X2dhcBgBIAEoARISCgpoYXJkX2Zsb29yGAIgASgBIv0BCgZUdW5pbmcSDgoGZW5naW5lGAEgASgJEhMKC2VtYmVkX21vZGVsGAIgASgJEhkKEWVtYmVkX3Rhc2tfcHJlZml4GAMgASgIEhYKDnJlcmFua19lbmFibGVkGAQgASgIEhQKDHJlcmFua19ibGVuZBgFIAEoCBIYChByZXJhbmtfc2hvcnRsaXN0GAYgASgFEjkKBWZsb29yGAcgASgLMioudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRmxvb3JDb25maWcSFQoNaHlicmlkX2Z1c2lvbhgIIAEoCRIZChFyZXJhbmtfcHJlZmVyZW5jZRgJIAEoCSKNBwoSUHJvdmlkZXJEZXNjcmlwdG9yEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhYKDnByb3ZpZGVyX2dyb3VwGAIgASgJEjUKBmJ1Y2tldBgDIAEoDjIlLnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5LkJ1Y2tldBIMCgR0eXBlGAQgASgJEhMKC2Rlc2NyaXB0aW9uGAUgASgJEjkKCGVuZHBvaW50GAYgASgLMicudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRW5kcG9pbnQSRAoOcmVzdWx0X21hcHBpbmcYByABKAsyLC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5SZXN1bHRNYXBwaW5nEhIKCnF1ZXJ5X2hpbnQYCCABKAkSQAoPc3RhdHVzX2VuZHBvaW50GAkgASgLMicudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRW5kcG9pbnQSMwoFc2NvcGUYCiABKA4yJC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5TY29wZRI7CgVzdGF0ZRgLIAEoDjIsLnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5LlByb3ZpZGVyU3RhdGUSFQoNaW50ZW5kZWRfaG9tZRgMIAEoCRJBChByZWluZGV4X2VuZHBvaW50GA0gASgLMicudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRW5kcG9pbnQSQAoPY29uZmlnX2VuZHBvaW50GA4gASgLMicudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRW5kcG9pbnQSNQoGdHVuaW5nGA8gASgLMiUudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuVHVuaW5nEjsKCWxpZmVjeWNsZRgQIAEoDjIoLnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5LkxpZmVjeWNsZRJBCg10ZXN0c19taW5pbXVtGBEgASgLMioudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRXZhbE1pbmltdW0SIAoYanVua19sZWFrX29wdF9vdXRfcmVhc29uGBIgASgJEh0KFWluZGV4X3RpbWVzdGFtcF9maWVsZBgTIAEoCRITCgtkZWNsYXJlZF9hdBgUIAEoCSJRCgtFdmFsTWluaW11bRIZChFyZXZpZXdlZF9wb3NpdGl2ZRgBIAEoBRIQCghuZWdhdGl2ZRgCIAEoBRIVCg1yZXF1aXJlZF90YWdzGAMgAygJIpQBChJJbmN1YmF0aW5nUHJvdmlkZXISEwoLcHJvdmlkZXJfaWQYASABKAkSEwoLZGVjbGFyZWRfYXQYAiABKAkSFAoMdGltZXNfcm91dGVkGAMgASgDEhIKCnRvdGFsX2hpdHMYBCABKAMSFQoNc3VpdGVfcHJlc2VudBgFIAEoCBITCgtuZXh0X2FjdGlvbhgGIAEoCSJ3ChdSZWdpc3RlclByb3ZpZGVyUmVxdWVzdBJFCgpkZXNjcmlwdG9yGAEgASgLMjEudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuUHJvdmlkZXJEZXNjcmlwdG9yEhUKDWNvbnRyb2xfdG9rZW4YAiABKAkiiQEKGFJlZ2lzdGVyUHJvdmlkZXJSZXNwb25zZRJFCgpkZXNjcmlwdG9yGAEgASgLMjEudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuUHJvdmlkZXJEZXNjcmlwdG9yEg8KB2NyZWF0ZWQYAiABKAgSFQoNY29udHJvbF90b2tlbhgDIAEoCSKYAQoUTGlzdFByb3ZpZGVyc1JlcXVlc3QSNQoGYnVja2V0GAEgASgOMiUudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuQnVja2V0EgwKBHR5cGUYAiABKAkSOwoFc3RhdGUYAyABKA4yLC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5Qcm92aWRlclN0YXRlIqQBChVMaXN0UHJvdmlkZXJzUmVzcG9uc2USRAoJcHJvdmlkZXJzGAEgAygLMjEudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuUHJvdmlkZXJEZXNjcmlwdG9yEkUKCmluY3ViYXRpbmcYAiADKAsyMS52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5JbmN1YmF0aW5nUHJvdmlkZXIipwIKIEV4ZWN1dGVFbWJlZGRpbmdNaWdyYXRpb25SZXF1ZXN0EhMKC3Byb3ZpZGVyX2lkGAEgASgJEg4KBmFjdGlvbhgCIAEoCRIZChFzaGFkb3dfY29sbGVjdGlvbhgDIAEoCRIbChNyb2xsYmFja19jb2xsZWN0aW9uGAQgASgJEhcKD2VtYmVkZGluZ19tb2RlbBgFIAEoCRIWCg5lbWJlZGRpbmdfcm9sZRgGIAEoCRIcChRlbWJlZGRpbmdfZGltZW5zaW9ucxgHIAEoBRInCh9lbWJlZGRpbmdfcG9saWN5X3NjaGVtYV92ZXJzaW9uGAggASgJEg0KBXNjb3BlGAkgASgJEg8KB2RyeV9ydW4YCiABKAgSDgoGam9iX2lkGAsgASgJIqUBCiFFeGVjdXRlRW1iZWRkaW5nTWlncmF0aW9uUmVzcG9uc2USDgoGam9iX2lkGAEgASgJEg0KBXN0YXRlGAIgASgJEhcKD3BsYW5uZWRfdXBzZXJ0cxgDIAEoBRIXCg9wbGFubmVkX2RlbGV0ZXMYBCABKAUSEQoJcHJvY2Vzc2VkGAUgASgFEg0KBXRvdGFsGAYgASgFEg0KBWVycm9yGAcgASgJIhwKGkxpc3RNYXR1cml0eVRhcmdldHNSZXF1ZXN0Il0KG0xpc3RNYXR1cml0eVRhcmdldHNSZXNwb25zZRI+Cgd0YXJnZXRzGAEgAygLMi0udnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuTWF0dXJpdHlUYXJnZXQiTgoOTWF0dXJpdHlUYXJnZXQSEAoIc2NlbmFyaW8YASABKAkSDAoEcGF0aBgCIAEoCRIcChRhcHBsaWNhYmlsaXR5X3JlYXNvbhgDIAEoCSIwChlEZXJlZ2lzdGVyUHJvdmlkZXJSZXF1ZXN0EhMKC3Byb3ZpZGVyX2lkGAEgASgJIi0KGkRlcmVnaXN0ZXJQcm92aWRlclJlc3BvbnNlEg8KB3JlbW92ZWQYASABKAgqdwoGQnVja2V0EhYKEkJVQ0tFVF9VTlNQRUNJRklFRBAAEg0KCUJVQ0tFVF9ETxABEhAKDEJVQ0tFVF9SRVVTRRACEg8KC0JVQ0tFVF9LTk9XEAMSEAoMQlVDS0VUX1NUQVRFEAQSEQoNQlVDS0VUX0VOVElUWRAFKkUKBVNjb3BlEhUKEVNDT1BFX1VOU1BFQ0lGSUVEEAASEQoNU0NPUEVfUFJPSkVDVBABEhIKDlNDT1BFX0VYVEVSTkFMEAIqbQoNUHJvdmlkZXJTdGF0ZRIeChpQUk9WSURFUl9TVEFURV9VTlNQRUNJRklFRBAAEhkKFVBST1ZJREVSX1NUQVRFX0FDVElWRRABEiEKHVBST1ZJREVSX1NUQVRFX0NBUEFCSUxJVFlfR0FQEAIqcwoJTGlmZWN5Y2xlEhkKFUxJRkVDWUNMRV9VTlNQRUNJRklFRBAAEhgKFExJRkVDWUNMRV9QUk9EVUNUSU9OEAESFQoRTElGRUNZQ0xFX0ZJWFRVUkUQAhIaChZMSUZFQ1lDTEVfRVhQRVJJTUVOVEFMEAMqeQoKU2NvcmVTY2FsZRIbChdTQ09SRV9TQ0FMRV9VTlNQRUNJRklFRBAAEhoKFlNDT1JFX1NDQUxFX0NPU0lORV8wXzEQARIdChlTQ09SRV9TQ0FMRV9QRVJDRU5UXzBfMTAwEAISEwoPU0NPUkVfU0NBTEVfUkFXEAMqVAoKSHR0cE1ldGhvZBIbChdIVFRQX01FVEhPRF9VTlNQRUNJRklFRBAAEhQKEEhUVFBfTUVUSE9EX1BPU1QQARITCg9IVFRQX01FVEhPRF9HRVQQAjLPBQoPUmVnaXN0cnlTZXJ2aWNlEoMBChBSZWdpc3RlclByb3ZpZGVyEjYudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuUmVnaXN0ZXJQcm92aWRlclJlcXVlc3QaNy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5SZWdpc3RlclByb3ZpZGVyUmVzcG9uc2USegoNTGlzdFByb3ZpZGVycxIzLnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5Lkxpc3RQcm92aWRlcnNSZXF1ZXN0GjQudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuTGlzdFByb3ZpZGVyc1Jlc3BvbnNlEp4BChlFeGVjdXRlRW1iZWRkaW5nTWlncmF0aW9uEj8udnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRXhlY3V0ZUVtYmVkZGluZ01pZ3JhdGlvblJlcXVlc3QaQC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5FeGVjdXRlRW1iZWRkaW5nTWlncmF0aW9uUmVzcG9uc2USjAEKE0xpc3RNYXR1cml0eVRhcmdldHMSOS52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5MaXN0TWF0dXJpdHlUYXJnZXRzUmVxdWVzdBo6LnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5Lkxpc3RNYXR1cml0eVRhcmdldHNSZXNwb25zZRKJAQoSRGVyZWdpc3RlclByb3ZpZGVyEjgudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuRGVyZWdpc3RlclByb3ZpZGVyUmVxdWVzdBo5LnZyb29saS5zZWFyY2hfaHViLnYxLnJlZ2lzdHJ5LkRlcmVnaXN0ZXJQcm92aWRlclJlc3BvbnNlQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2VhcmNoLWh1Yi92MS9yZWdpc3RyeTtyZWdpc3RyeV92MWIGcHJvdG8z");
 
 /**
  * How the router reaches one leaf. Logical target; base URL resolved at
@@ -486,11 +486,12 @@ export type ProviderDescriptor = Message<"vrooli.search_hub.v1.registry.Provider
 
   /**
    * production participates in automatic routing; fixture and experimental
-   * providers require an explicit selector. Empty is normalized to production.
+   * providers require an explicit selector. UNSPECIFIED is rejected at
+   * registration and is only valid while decoding legacy persisted data.
    *
-   * @generated from field: string lifecycle = 16;
+   * @generated from field: vrooli.search_hub.v1.registry.Lifecycle lifecycle = 16;
    */
-  lifecycle: string;
+  lifecycle: Lifecycle;
 
   /**
    * Registrant-declared minimum reviewed evidence for ACTIVE production leaves.
@@ -515,6 +516,14 @@ export type ProviderDescriptor = Message<"vrooli.search_hub.v1.registry.Provider
    * @generated from field: string index_timestamp_field = 19;
    */
   indexTimestampField: string;
+
+  /**
+   * RFC3339 timestamp first registered/declared by the owning scenario. Used
+   * to make experimental providers age-visible without scenario knowledge.
+   *
+   * @generated from field: string declared_at = 20;
+   */
+  declaredAt: string;
 };
 
 /**
@@ -552,6 +561,48 @@ export const EvalMinimumSchema: GenMessage<EvalMinimum> = /*@__PURE__*/
   messageDesc(file_search_hub_v1_registry_registry, 7);
 
 /**
+ * @generated from message vrooli.search_hub.v1.registry.IncubatingProvider
+ */
+export type IncubatingProvider = Message<"vrooli.search_hub.v1.registry.IncubatingProvider"> & {
+  /**
+   * @generated from field: string provider_id = 1;
+   */
+  providerId: string;
+
+  /**
+   * @generated from field: string declared_at = 2;
+   */
+  declaredAt: string;
+
+  /**
+   * @generated from field: int64 times_routed = 3;
+   */
+  timesRouted: bigint;
+
+  /**
+   * @generated from field: int64 total_hits = 4;
+   */
+  totalHits: bigint;
+
+  /**
+   * @generated from field: bool suite_present = 5;
+   */
+  suitePresent: boolean;
+
+  /**
+   * @generated from field: string next_action = 6;
+   */
+  nextAction: string;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.registry.IncubatingProvider.
+ * Use `create(IncubatingProviderSchema)` to create a new message.
+ */
+export const IncubatingProviderSchema: GenMessage<IncubatingProvider> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_registry_registry, 8);
+
+/**
  * @generated from message vrooli.search_hub.v1.registry.RegisterProviderRequest
  */
 export type RegisterProviderRequest = Message<"vrooli.search_hub.v1.registry.RegisterProviderRequest"> & {
@@ -576,7 +627,7 @@ export type RegisterProviderRequest = Message<"vrooli.search_hub.v1.registry.Reg
  * Use `create(RegisterProviderRequestSchema)` to create a new message.
  */
 export const RegisterProviderRequestSchema: GenMessage<RegisterProviderRequest> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_registry_registry, 8);
+  messageDesc(file_search_hub_v1_registry_registry, 9);
 
 /**
  * Registration is an upsert; `created` is false when an existing leaf was
@@ -613,7 +664,7 @@ export type RegisterProviderResponse = Message<"vrooli.search_hub.v1.registry.Re
  * Use `create(RegisterProviderResponseSchema)` to create a new message.
  */
 export const RegisterProviderResponseSchema: GenMessage<RegisterProviderResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_registry_registry, 9);
+  messageDesc(file_search_hub_v1_registry_registry, 10);
 
 /**
  * All filters optional; an UNSPECIFIED enum or empty string means "no filter".
@@ -642,7 +693,7 @@ export type ListProvidersRequest = Message<"vrooli.search_hub.v1.registry.ListPr
  * Use `create(ListProvidersRequestSchema)` to create a new message.
  */
 export const ListProvidersRequestSchema: GenMessage<ListProvidersRequest> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_registry_registry, 10);
+  messageDesc(file_search_hub_v1_registry_registry, 11);
 
 /**
  * @generated from message vrooli.search_hub.v1.registry.ListProvidersResponse
@@ -652,6 +703,11 @@ export type ListProvidersResponse = Message<"vrooli.search_hub.v1.registry.ListP
    * @generated from field: repeated vrooli.search_hub.v1.registry.ProviderDescriptor providers = 1;
    */
   providers: ProviderDescriptor[];
+
+  /**
+   * @generated from field: repeated vrooli.search_hub.v1.registry.IncubatingProvider incubating = 2;
+   */
+  incubating: IncubatingProvider[];
 };
 
 /**
@@ -659,7 +715,7 @@ export type ListProvidersResponse = Message<"vrooli.search_hub.v1.registry.ListP
  * Use `create(ListProvidersResponseSchema)` to create a new message.
  */
 export const ListProvidersResponseSchema: GenMessage<ListProvidersResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_registry_registry, 11);
+  messageDesc(file_search_hub_v1_registry_registry, 12);
 
 /**
  * @generated from message vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationRequest
@@ -726,7 +782,7 @@ export type ExecuteEmbeddingMigrationRequest = Message<"vrooli.search_hub.v1.reg
  * Use `create(ExecuteEmbeddingMigrationRequestSchema)` to create a new message.
  */
 export const ExecuteEmbeddingMigrationRequestSchema: GenMessage<ExecuteEmbeddingMigrationRequest> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_registry_registry, 12);
+  messageDesc(file_search_hub_v1_registry_registry, 13);
 
 /**
  * @generated from message vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationResponse
@@ -773,7 +829,7 @@ export type ExecuteEmbeddingMigrationResponse = Message<"vrooli.search_hub.v1.re
  * Use `create(ExecuteEmbeddingMigrationResponseSchema)` to create a new message.
  */
 export const ExecuteEmbeddingMigrationResponseSchema: GenMessage<ExecuteEmbeddingMigrationResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_registry_registry, 13);
+  messageDesc(file_search_hub_v1_registry_registry, 14);
 
 /**
  * @generated from message vrooli.search_hub.v1.registry.ListMaturityTargetsRequest
@@ -786,7 +842,7 @@ export type ListMaturityTargetsRequest = Message<"vrooli.search_hub.v1.registry.
  * Use `create(ListMaturityTargetsRequestSchema)` to create a new message.
  */
 export const ListMaturityTargetsRequestSchema: GenMessage<ListMaturityTargetsRequest> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_registry_registry, 14);
+  messageDesc(file_search_hub_v1_registry_registry, 15);
 
 /**
  * @generated from message vrooli.search_hub.v1.registry.ListMaturityTargetsResponse
@@ -803,7 +859,7 @@ export type ListMaturityTargetsResponse = Message<"vrooli.search_hub.v1.registry
  * Use `create(ListMaturityTargetsResponseSchema)` to create a new message.
  */
 export const ListMaturityTargetsResponseSchema: GenMessage<ListMaturityTargetsResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_registry_registry, 15);
+  messageDesc(file_search_hub_v1_registry_registry, 16);
 
 /**
  * @generated from message vrooli.search_hub.v1.registry.MaturityTarget
@@ -830,7 +886,7 @@ export type MaturityTarget = Message<"vrooli.search_hub.v1.registry.MaturityTarg
  * Use `create(MaturityTargetSchema)` to create a new message.
  */
 export const MaturityTargetSchema: GenMessage<MaturityTarget> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_registry_registry, 16);
+  messageDesc(file_search_hub_v1_registry_registry, 17);
 
 /**
  * @generated from message vrooli.search_hub.v1.registry.DeregisterProviderRequest
@@ -847,7 +903,7 @@ export type DeregisterProviderRequest = Message<"vrooli.search_hub.v1.registry.D
  * Use `create(DeregisterProviderRequestSchema)` to create a new message.
  */
 export const DeregisterProviderRequestSchema: GenMessage<DeregisterProviderRequest> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_registry_registry, 17);
+  messageDesc(file_search_hub_v1_registry_registry, 18);
 
 /**
  * @generated from message vrooli.search_hub.v1.registry.DeregisterProviderResponse
@@ -864,7 +920,7 @@ export type DeregisterProviderResponse = Message<"vrooli.search_hub.v1.registry.
  * Use `create(DeregisterProviderResponseSchema)` to create a new message.
  */
 export const DeregisterProviderResponseSchema: GenMessage<DeregisterProviderResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_registry_registry, 18);
+  messageDesc(file_search_hub_v1_registry_registry, 19);
 
 /**
  * Routing facet — the search-context buckets. Each names what the *consumer*
@@ -980,6 +1036,41 @@ export const ProviderStateSchema: GenEnum<ProviderState> = /*@__PURE__*/
   enumDesc(file_search_hub_v1_registry_registry, 2);
 
 /**
+ * Lifecycle policy for automatic routing. UNSPECIFIED is intentionally
+ * observable at the RPC boundary so registration cannot silently inherit a
+ * fail-open production policy; descriptor migration writes explicit values.
+ *
+ * @generated from enum vrooli.search_hub.v1.registry.Lifecycle
+ */
+export enum Lifecycle {
+  /**
+   * @generated from enum value: LIFECYCLE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: LIFECYCLE_PRODUCTION = 1;
+   */
+  PRODUCTION = 1,
+
+  /**
+   * @generated from enum value: LIFECYCLE_FIXTURE = 2;
+   */
+  FIXTURE = 2,
+
+  /**
+   * @generated from enum value: LIFECYCLE_EXPERIMENTAL = 3;
+   */
+  EXPERIMENTAL = 3,
+}
+
+/**
+ * Describes the enum vrooli.search_hub.v1.registry.Lifecycle.
+ */
+export const LifecycleSchema: GenEnum<Lifecycle> = /*@__PURE__*/
+  enumDesc(file_search_hub_v1_registry_registry, 3);
+
+/**
  * The scale a provider returns scores on, so the router normalizes to [0,1].
  *
  * @generated from enum vrooli.search_hub.v1.registry.ScoreScale
@@ -1010,7 +1101,7 @@ export enum ScoreScale {
  * Describes the enum vrooli.search_hub.v1.registry.ScoreScale.
  */
 export const ScoreScaleSchema: GenEnum<ScoreScale> = /*@__PURE__*/
-  enumDesc(file_search_hub_v1_registry_registry, 3);
+  enumDesc(file_search_hub_v1_registry_registry, 4);
 
 /**
  * @generated from enum vrooli.search_hub.v1.registry.HttpMethod
@@ -1036,7 +1127,7 @@ export enum HttpMethod {
  * Describes the enum vrooli.search_hub.v1.registry.HttpMethod.
  */
 export const HttpMethodSchema: GenEnum<HttpMethod> = /*@__PURE__*/
-  enumDesc(file_search_hub_v1_registry_registry, 4);
+  enumDesc(file_search_hub_v1_registry_registry, 5);
 
 /**
  * @generated from service vrooli.search_hub.v1.registry.RegistryService

@@ -215,8 +215,11 @@ type EvalCase struct {
 	// Optional minimum rank-1/rank-2 margin for the federated tier. Empty/zero
 	// uses the tier's documented default floor.
 	ExpectMinMargin float64 `protobuf:"fixed64,12,opt,name=expect_min_margin,json=expectMinMargin,proto3" json:"expect_min_margin,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Composed suites use this to retain the corpus owner per case. Empty means
+	// the suite provider_id owns the case, preserving the provider-suite shape.
+	ExpectedProviderId string `protobuf:"bytes,13,opt,name=expected_provider_id,json=expectedProviderId,proto3" json:"expected_provider_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *EvalCase) Reset() {
@@ -331,6 +334,13 @@ func (x *EvalCase) GetExpectMinMargin() float64 {
 		return x.ExpectMinMargin
 	}
 	return 0
+}
+
+func (x *EvalCase) GetExpectedProviderId() string {
+	if x != nil {
+		return x.ExpectedProviderId
+	}
+	return ""
 }
 
 // An immutable execution of a suite. The TAG is the experimentation lever.
@@ -840,9 +850,15 @@ type EvalAggregate struct {
 	// Infrastructure-excluded cases; never part of the quality denominator.
 	UnavailableCases int32 `protobuf:"varint,8,opt,name=unavailable_cases,json=unavailableCases,proto3" json:"unavailable_cases,omitempty"`
 	// met / graded_cases when graded_cases is non-zero, otherwise zero.
-	PassRate      float64 `protobuf:"fixed64,9,opt,name=pass_rate,json=passRate,proto3" json:"pass_rate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	PassRate float64 `protobuf:"fixed64,9,opt,name=pass_rate,json=passRate,proto3" json:"pass_rate,omitempty"`
+	// Federated-only: owning-provider-routed gradeable cases / gradeable cases.
+	// Optional keeps an unset (not measured) value distinct from a measured 0.
+	RoutingPrecision *float64 `protobuf:"fixed64,10,opt,name=routing_precision,json=routingPrecision,proto3,oneof" json:"routing_precision,omitempty"`
+	// Federated-only: expected-id-within-top-k cases / owning-provider-routed
+	// gradeable cases. Optional for the same not-measured versus zero distinction.
+	RetrievalRecall *float64 `protobuf:"fixed64,11,opt,name=retrieval_recall,json=retrievalRecall,proto3,oneof" json:"retrieval_recall,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *EvalAggregate) Reset() {
@@ -934,6 +950,20 @@ func (x *EvalAggregate) GetUnavailableCases() int32 {
 func (x *EvalAggregate) GetPassRate() float64 {
 	if x != nil {
 		return x.PassRate
+	}
+	return 0
+}
+
+func (x *EvalAggregate) GetRoutingPrecision() float64 {
+	if x != nil && x.RoutingPrecision != nil {
+		return *x.RoutingPrecision
+	}
+	return 0
+}
+
+func (x *EvalAggregate) GetRetrievalRecall() float64 {
+	if x != nil && x.RetrievalRecall != nil {
+		return *x.RetrievalRecall
 	}
 	return 0
 }
@@ -3097,7 +3127,7 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\b \x01(\tR\tupdatedAt\"\x8e\x03\n" +
+	"updated_at\x18\b \x01(\tR\tupdatedAt\"\xc0\x03\n" +
 	"\bEvalCase\x12\x17\n" +
 	"\acase_id\x18\x01 \x01(\tR\x06caseId\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12\x12\n" +
@@ -3112,7 +3142,8 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\x06status\x18\n" +
 	" \x01(\tR\x06status\x12\x14\n" +
 	"\x05scope\x18\v \x01(\tR\x05scope\x12*\n" +
-	"\x11expect_min_margin\x18\f \x01(\x01R\x0fexpectMinMargin\"\x99\x04\n" +
+	"\x11expect_min_margin\x18\f \x01(\x01R\x0fexpectMinMargin\x120\n" +
+	"\x14expected_provider_id\x18\r \x01(\tR\x12expectedProviderId\"\x99\x04\n" +
 	"\aEvalRun\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x19\n" +
 	"\bsuite_id\x18\x02 \x01(\tR\asuiteId\x12\x10\n" +
@@ -3156,7 +3187,7 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\tScoredHit\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x14\n" +
-	"\x05score\x18\x03 \x01(\x01R\x05score\"\xba\x02\n" +
+	"\x05score\x18\x03 \x01(\x01R\x05score\"\xc7\x03\n" +
 	"\rEvalAggregate\x12\x14\n" +
 	"\x05cases\x18\x01 \x01(\x05R\x05cases\x12\x10\n" +
 	"\x03met\x18\x02 \x01(\x05R\x03met\x12\x14\n" +
@@ -3166,7 +3197,12 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\x0elatency_p95_ms\x18\x06 \x01(\x05R\flatencyP95Ms\x12!\n" +
 	"\fgraded_cases\x18\a \x01(\x05R\vgradedCases\x12+\n" +
 	"\x11unavailable_cases\x18\b \x01(\x05R\x10unavailableCases\x12\x1b\n" +
-	"\tpass_rate\x18\t \x01(\x01R\bpassRate\"R\n" +
+	"\tpass_rate\x18\t \x01(\x01R\bpassRate\x120\n" +
+	"\x11routing_precision\x18\n" +
+	" \x01(\x01H\x00R\x10routingPrecision\x88\x01\x01\x12.\n" +
+	"\x10retrieval_recall\x18\v \x01(\x01H\x01R\x0fretrievalRecall\x88\x01\x01B\x14\n" +
+	"\x12_routing_precisionB\x13\n" +
+	"\x11_retrieval_recall\"R\n" +
 	"\x14RegisterSuiteRequest\x12:\n" +
 	"\x05suite\x18\x01 \x01(\v2$.vrooli.search_hub.v1.eval.EvalSuiteR\x05suite\"m\n" +
 	"\x15RegisterSuiteResponse\x12:\n" +
@@ -3468,6 +3504,7 @@ func file_search_hub_v1_eval_eval_proto_init() {
 	if File_search_hub_v1_eval_eval_proto != nil {
 		return
 	}
+	file_search_hub_v1_eval_eval_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

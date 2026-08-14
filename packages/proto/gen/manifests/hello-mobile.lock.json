@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "hello-mobile",
+  "input_digest": "sha256:47d7141f734213032360212e8824124892ea5d682e99c7101776a9e1f24e87f5",
+  "input_files": [
+    "schemas/hello-mobile/v1/notes/attachments.proto",
+    "schemas/hello-mobile/v1/notes/notes.proto",
+    "schemas/hello-mobile/v1/shared/errors.proto",
+    "schemas/hello-mobile/v1/shared/health.proto",
+    "schemas/measures/v1/measures.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/hello-mobile/v1/notes/attachments.pb.go": "sha256:6ee9cbfb92aabeb37a9a4cde6d7399be2182263bc83d2cf648fe314d4663cb8e",
+    "gen/go/hello-mobile/v1/notes/notes.pb.go": "sha256:17f76cb3d55a641a38703da2d6136aaad0dbc3d1aeec89600a13b5d1ed3731a3",
+    "gen/go/hello-mobile/v1/notes/notes_v1connect/notes.connect.go": "sha256:e1b91c6c9b58e98b96866d8cbbdb1e69920b1a158097cb7f760aa3b5a4f69b82",
+    "gen/go/hello-mobile/v1/shared/errors.pb.go": "sha256:3c326253357d8d4179e3506a6e8147d80c4e69d033459353fd58333d6e720e86",
+    "gen/go/hello-mobile/v1/shared/health.pb.go": "sha256:970fb2c466c097b60edeb6a59b3aa92ebec557bfe08c14b6a2d9eea6ee160e59",
+    "gen/python/hello_mobile/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/hello_mobile/v1/notes/attachments_pb2.py": "sha256:9c67a615470b18f7c3830322f0ad412f118734e48ab6dc60ca29568d75f19180",
+    "gen/python/hello_mobile/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/hello_mobile/v1/notes/notes_pb2.py": "sha256:56492a5cfc093a57b83c5ae0415d84dabbef5dc4c1299eea53ee8decbc90c111",
+    "gen/python/hello_mobile/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/hello_mobile/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/hello_mobile/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/hello_mobile/v1/shared/errors_pb2.py": "sha256:a3150c571e8c378490feac05e5bcf9c0fc424b04a916ffde84fbc71c0dbb762e",
+    "gen/python/hello_mobile/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/hello_mobile/v1/shared/health_pb2.py": "sha256:7b56044ea6931ef3a3acb25c2cc3100b96f3981c83a2cc55f92e79dcebb1877e",
+    "gen/python/hello_mobile/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/hello_mobile/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/hello-mobile/v1/notes/attachments_pb.ts": "sha256:3f00b524744408b2b0bd9991afddd20f45e0a072f535bdd4bd5f14365396cd47",
+    "gen/typescript/hello-mobile/v1/notes/notes_pb.ts": "sha256:a8e155ddbdc0c874d2d063ce4c27613703512b789a739d0fac8fecae2f197505",
+    "gen/typescript/hello-mobile/v1/shared/errors_pb.ts": "sha256:bc7d45c3ed3b5eb3d8f5a7e33baf103d479926c0d2205f6a3c31768fa2bd776f",
+    "gen/typescript/hello-mobile/v1/shared/health_pb.ts": "sha256:b67e9caf672ce582216298dd11c22115f07161ef02b90059346021849a77831b",
+    "gen/typescript/js/hello-mobile/v1/notes/attachments_pb.js": "sha256:2196731029b82350c9ba9661d9db3ef95b7943874dc6dc159947292d4af06908",
+    "gen/typescript/js/hello-mobile/v1/notes/notes_pb.js": "sha256:63fd6563467a3488db455a80a847e31046d7d9ee343c5ac3059dc47da3ac1309",
+    "gen/typescript/js/hello-mobile/v1/shared/errors_pb.js": "sha256:dfb9bee7e9b614bddcc4ea33150c23a8e5c327611ceaf79b479dc60ce3bb4cbd",
+    "gen/typescript/js/hello-mobile/v1/shared/health_pb.js": "sha256:5a6a02eb9b3fb32d8688b2ae8b708b7033d03d089660246b2b3de4f2eeeaf793"
+  }
+}

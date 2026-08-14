@@ -191,6 +191,31 @@ message Model {
   InstallState install = 14;
   // True for operator-registered custom/local entries (not in the seed catalog).
   bool custom = 15;
+  // The canvas this model draws well, derived from its declared native
+  // resolution and its architecture's latent stride. Callers size a generation
+  // from this instead of hardcoding one model family's constants.
+  Geometry geometry = 16;
+}
+
+// Geometry is the canvas a model can actually draw well — a property of the
+// weights, answered by the scenario that owns the model registry.
+//
+// It is on the wire because callers were otherwise guessing it. Backdrop Studio
+// carried three constants named for Stable Diffusion 1.5 and applied them to
+// whichever model the selector chose, which on an SDXL or FLUX host discards
+// half the trained resolution and quantises to a stride the model does not use.
+message Geometry {
+  // The resolution the model was trained at. Zero means the model declares
+  // none — the BYOK/cloud entries, where the provider owns geometry and a
+  // caller may ask for the size it actually wants.
+  int32 native_width = 1;
+  int32 native_height = 2;
+  // The pixel stride both axes must be a multiple of, imposed by the latent
+  // downsampling factor. 1 means no constraint.
+  int32 size_quantum = 3;
+  // Cap on the long axis. Past roughly this ratio to native a diffusion model
+  // repeats the composition rather than extending it. Zero means uncapped.
+  int32 max_edge = 4;
 }
 
 // InstallState is a model's on-disk weight status (IMG-P0-007).
@@ -246,6 +271,13 @@ message SelectModelRequest {
   // Optional: force a specific model id (still validated for op-support,
   // enabled-state, and host-runnability).
   string override_id = 2;
+  // The routing policy the caller would submit with. Selection depends on
+  // both, so a preview given neither previews a different run than the one it
+  // is standing in for: a caller routing to the BYOK rung was shown the local
+  // default's identity and geometry, and sized its request from the wrong
+  // model. Empty quality_policy keeps the historical "balanced" ordering.
+  string quality_policy = 3;
+  bool allow_byok = 4;
 }
 
 message SelectModelResponse {

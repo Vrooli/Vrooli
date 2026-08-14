@@ -94,7 +94,7 @@ class VersionAdoptionMetric(_message.Message):
     def __init__(self, version: _Optional[str] = ..., current_count: _Optional[int] = ..., peak_count: _Optional[int] = ...) -> None: ...
 
 class Component(_message.Message):
-    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles", "category", "asset_kind", "dependencies", "metrics")
+    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles", "category", "asset_kind", "dependencies", "metrics", "catalog_domain", "catalog_domain_order", "catalog_rung", "catalog_rung_name", "transitive_dependent_count", "catalog_id")
     class HeadersEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -122,6 +122,12 @@ class Component(_message.Message):
     ASSET_KIND_FIELD_NUMBER: _ClassVar[int]
     DEPENDENCIES_FIELD_NUMBER: _ClassVar[int]
     METRICS_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_DOMAIN_ORDER_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_RUNG_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_RUNG_NAME_FIELD_NUMBER: _ClassVar[int]
+    TRANSITIVE_DEPENDENT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     library_id: str
     display_name: str
@@ -142,7 +148,13 @@ class Component(_message.Message):
     asset_kind: AssetKind
     dependencies: _containers.RepeatedCompositeFieldContainer[AssetDependency]
     metrics: AssetMetrics
-    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ..., slot: _Optional[str] = ..., design_styles: _Optional[_Iterable[_Union[ComponentDesignAffinity, _Mapping]]] = ..., category: _Optional[str] = ..., asset_kind: _Optional[_Union[AssetKind, str]] = ..., dependencies: _Optional[_Iterable[_Union[AssetDependency, _Mapping]]] = ..., metrics: _Optional[_Union[AssetMetrics, _Mapping]] = ...) -> None: ...
+    catalog_domain: str
+    catalog_domain_order: int
+    catalog_rung: int
+    catalog_rung_name: str
+    transitive_dependent_count: int
+    catalog_id: str
+    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ..., slot: _Optional[str] = ..., design_styles: _Optional[_Iterable[_Union[ComponentDesignAffinity, _Mapping]]] = ..., category: _Optional[str] = ..., asset_kind: _Optional[_Union[AssetKind, str]] = ..., dependencies: _Optional[_Iterable[_Union[AssetDependency, _Mapping]]] = ..., metrics: _Optional[_Union[AssetMetrics, _Mapping]] = ..., catalog_domain: _Optional[str] = ..., catalog_domain_order: _Optional[int] = ..., catalog_rung: _Optional[int] = ..., catalog_rung_name: _Optional[str] = ..., transitive_dependent_count: _Optional[int] = ..., catalog_id: _Optional[str] = ...) -> None: ...
 
 class ListComponentsRequest(_message.Message):
     __slots__ = ("match", "tag", "limit", "tags", "category", "style_id", "affinity", "asset_kind")

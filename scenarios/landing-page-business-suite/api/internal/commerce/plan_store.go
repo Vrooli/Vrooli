@@ -229,6 +229,23 @@ func (ps *PlanStore) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 	return nil, fmt.Errorf("price %s not found", priceID)
 }
 
+func (ps *PlanStore) GetPlanByExternalProductID(productID string) (*PlanOption, error) {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+	productID = strings.TrimSpace(productID)
+	if productID == "" {
+		return nil, fmt.Errorf("external product id is required")
+	}
+	for _, plan := range ps.plans {
+		for _, key := range []string{"external_product_id", "product_id"} {
+			if value, ok := plan.Metadata[key]; ok && value.GetStringValue() == productID {
+				return proto.Clone(plan).(*PlanOption), nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("external product %s not found", productID)
+}
+
 // GetCouponMappings returns all coupon-to-plan mappings.
 func (ps *PlanStore) GetCouponMappings() map[string]string {
 	ps.mu.RLock()

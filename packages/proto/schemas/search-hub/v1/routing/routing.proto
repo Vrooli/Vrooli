@@ -5,6 +5,7 @@ package vrooli.search_hub.v1.routing;
 import "common/v1/attestation.proto";
 import "common/v1/confidence.proto";
 import "google/protobuf/timestamp.proto";
+import "search-hub/v1/registry/registry.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1";
 
@@ -194,6 +195,10 @@ message QueryResponse {
   string reranker_leg = 10;
   // Stable reason for routing-path degradation, e.g. routing_index_unavailable.
   string routing_degrade_reason = 11;
+  // Ordering contract for ranked: rerank_score when reranking succeeded,
+  // otherwise score. Consumers must use this field rather than guessing from
+  // which score happens to be populated.
+  string ordered_by = 12;
 }
 
 message StatusRequest {}
@@ -243,6 +248,13 @@ message ProviderHealth {
   // Typed source timestamp behind index_age. Providers that declare an
   // index_timestamp_field must populate this when their status is reachable.
   google.protobuf.Timestamp last_indexed_at = 20;
+  // True when a demoted provider still holds an elapsed probation slot and
+  // cannot be selected again until the state is reconciled.
+  optional bool stuck = 21;
+  // healthy, demoted, probe_due, probing, or stuck.
+  string recovery_state = 22;
+  string lifecycle = 23;
+  string declared_at = 24;
 }
 
 message StatusResponse {
@@ -253,6 +265,7 @@ message StatusResponse {
   double circuit_open_share = 4;
   double circuit_open_quorum = 5;
   bool federation_degraded = 6;
+	 repeated registry.IncubatingProvider incubating = 8;
   // Current shared reranker leg (cross-encoder, LLM fallback, or none).
   string reranker_leg = 7;
 }

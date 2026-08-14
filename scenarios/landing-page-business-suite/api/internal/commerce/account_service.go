@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	"google.golang.org/protobuf/proto"
@@ -34,6 +35,8 @@ type PlanCatalog interface {
 // Runtime carries root-owned infrastructure policy into the account domain.
 type Runtime struct {
 	CacheTTL       time.Duration
+	LeaseTTL       time.Duration
+	LimitsService  LimitsServicer
 	NormalizeEmail func(string) string
 	Log            func(string, map[string]interface{})
 }
@@ -45,6 +48,8 @@ type Service struct {
 	planService    PlanCatalog
 	bundleKey      string
 	cacheTTL       time.Duration
+	leaseTTL       time.Duration
+	limitsSvc      LimitsServicer
 	normalizeEmail func(string) string
 	logf           func(string, map[string]interface{})
 	cacheMutex     sync.RWMutex
@@ -57,13 +62,15 @@ type subscriptionCacheEntry struct {
 }
 
 type subscriptionRecord struct {
-	id         string
-	status     string
-	planTier   string
-	priceID    string
-	bundleKey  string
-	canceledAt sql.NullTime
-	updatedAt  time.Time
+	id                     string
+	status                 string
+	source                 string
+	externalSubscriptionID string
+	planTier               string
+	priceID                string
+	bundleKey              string
+	canceledAt             sql.NullTime
+	updatedAt              time.Time
 }
 
 func NewService(db Store, planService PlanCatalog, runtime Runtime) *Service {
@@ -76,9 +83,12 @@ func NewService(db Store, planService PlanCatalog, runtime Runtime) *Service {
 	if runtime.CacheTTL <= 0 {
 		runtime.CacheTTL = defaultCacheTTL
 	}
+	if runtime.LeaseTTL <= 0 {
+		runtime.LeaseTTL = 7 * 24 * time.Hour
+	}
 	return &Service{
 		db: db, planService: planService, bundleKey: planService.BundleKey(),
-		cacheTTL: runtime.CacheTTL, cache: make(map[string]subscriptionCacheEntry),
+		cacheTTL: runtime.CacheTTL, leaseTTL: runtime.LeaseTTL, limitsSvc: runtime.LimitsService, cache: make(map[string]subscriptionCacheEntry),
 		normalizeEmail: runtime.NormalizeEmail, logf: runtime.Log,
 	}
 }
@@ -119,7 +129,7 @@ func (s *Service) GetSubscriptionContext(ctx context.Context, userIdentity strin
 
 func (s *Service) loadSubscriptionRecord(ctx context.Context, user string) (*subscriptionRecord, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT subscription_id, status, plan_tier, price_id, bundle_key, canceled_at, updated_at
+		SELECT subscription_id, status, source, external_subscription_id, plan_tier, price_id, bundle_key, canceled_at, updated_at
 		FROM subscriptions
 		WHERE (customer_email = $1 OR customer_id = $1)
 		ORDER BY updated_at DESC
@@ -127,10 +137,12 @@ func (s *Service) loadSubscriptionRecord(ctx context.Context, user string) (*sub
 	`, user)
 
 	record := &subscriptionRecord{}
-	var planTier, priceID, bundleKey sql.NullString
+	var source, externalSubscriptionID, planTier, priceID, bundleKey sql.NullString
 	if err := row.Scan(
 		&record.id,
 		&record.status,
+		&source,
+		&externalSubscriptionID,
 		&planTier,
 		&priceID,
 		&bundleKey,
@@ -145,6 +157,8 @@ func (s *Service) loadSubscriptionRecord(ctx context.Context, user string) (*sub
 	record.planTier = planTier.String
 	record.priceID = priceID.String
 	record.bundleKey = bundleKey.String
+	record.source = source.String
+	record.externalSubscriptionID = externalSubscriptionID.String
 	return record, nil
 }
 
@@ -333,19 +347,66 @@ func (s *Service) GetEntitlementsContext(ctx context.Context, userIdentity strin
 	payload := &EntitlementPayload{
 		Status:            SubscriptionStateLabel(subscription.State),
 		PlanTier:          subscription.GetPlanTier(),
+		PlanRank:          PlanRankForTier(subscription.GetPlanTier()),
 		PriceID:           subscription.GetStripePriceId(),
+		NotAfter:          time.Now().UTC().Add(s.leaseTTL),
 		BillingCycleStart: s.billingCycleStartContext(ctx, userIdentity),
 		Credits:           flattenCredits(credits),
 		Subscription:      subscription,
 	}
+	if s.limitsSvc != nil && payload.PlanTier != "" {
+		if configured, err := s.limitsSvc.GetTierLimits(ctx, payload.PlanTier); err == nil {
+			for _, limit := range configured {
+				if limit.AppBundleKey != nil && *limit.AppBundleKey != s.bundleKey {
+					continue
+				}
+				payload.Limits = append(payload.Limits, entitlementclient.Limit{Key: limit.LimitKey, Value: limit.LimitValue, BundleKey: s.bundleKey})
+			}
+		} else {
+			s.logf("entitlement_limits_unavailable", map[string]interface{}{"level": "warn", "plan_tier": payload.PlanTier, "error": err.Error()})
+		}
+	}
 
-	if subscription.GetStripePriceId() != "" {
+	if subscriptionRecordSource, externalID := s.subscriptionSourceAndExternalID(userIdentity, subscription); subscriptionRecordSource != "stripe" && externalID != "" {
+		if resolver, ok := s.planService.(interface {
+			GetPlanByExternalProductID(string) (*shared.PlanOption, error)
+		}); ok {
+			if plan, err := resolver.GetPlanByExternalProductID(externalID); err == nil {
+				payload.Features = extractFeatureFlags(plan.Metadata)
+			}
+		}
+	}
+	if len(payload.Features) == 0 && subscription.GetStripePriceId() != "" {
 		if plan, err := s.planService.GetPlanByPriceID(subscription.GetStripePriceId()); err == nil {
 			payload.Features = extractFeatureFlags(plan.Metadata)
+		}
+	} else if payload.PlanTier != "" {
+		// Store-issued subscriptions may not have a Stripe price. Resolve the
+		// canonical feature flags by tier so non-Stripe subscribers do not fail
+		// closed merely because the Stripe identifier is absent.
+		if overview, err := s.planService.GetPricingOverview(); err == nil {
+			plans := append(append([]*shared.PlanOption{}, overview.GetMonthly()...), overview.GetYearly()...)
+			for _, plan := range plans {
+				if strings.EqualFold(plan.GetPlanTier(), payload.PlanTier) {
+					payload.Features = extractFeatureFlags(plan.Metadata)
+					break
+				}
+			}
 		}
 	}
 
 	return payload, nil
+}
+
+func (s *Service) subscriptionSourceAndExternalID(userIdentity string, subscription *shared.SubscriptionStatus) (string, string) {
+	// SubscriptionStatus intentionally remains source-neutral and compact for
+	// existing API consumers. The source-specific identifier is resolved from
+	// the authoritative row only when the lease is assembled.
+	record, err := s.loadSubscriptionRecord(context.Background(), userIdentity)
+	if err != nil || record == nil {
+		return "stripe", ""
+	}
+	return strings.ToLower(strings.TrimSpace(record.source)), strings.TrimSpace(record.externalSubscriptionID)
 }
 
 func (s *Service) getCachedSubscription(user string) (*shared.SubscriptionStatus, bool) {

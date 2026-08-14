@@ -185,7 +185,8 @@ func NewServer() (*Server, error) {
 	planService := NewPlanService(db)
 	downloadService := delivery.NewCatalogService(delivery.NewRoutedCatalogStore(routedDB))
 	downloadHosting := delivery.NewService(db, delivery.S3StorageProvider{})
-	accountService := newAccountService(routedDB, planService)
+	limitsService := commerce.NewLimitsService(routedDB, "postgres", logStructured)
+	accountService := newAccountService(routedDB, planService, limitsService)
 	downloadAuthorizer := delivery.NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
 	paymentSettings := commerce.NewPaymentSettingsService(routedDB)
 	paymentAnomaly := commerce.NewPaymentAnomalyService(context.Background(), routedDB, context.Background(), commerce.PaymentAnomalyRuntime{
@@ -225,7 +226,6 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to initialize remote profile service: %w", err)
 	}
 	logStructured("server_remote_profile_service_initialized", nil)
-	limitsService := commerce.NewLimitsService(routedDB, "postgres", logStructured)
 	usageService := newRuntimeUsageService(routedDB, limitsService, "postgres")
 
 	// Initialize user authentication services
@@ -408,19 +408,10 @@ func resolveConsumerSigningKey() (string, error) {
 // boundary. Commerce owns usage rules; this function owns only environment and
 // logging policy needed to start the process.
 func newRuntimeUsageService(db commerce.UsageStore, limitsSvc commerce.LimitsServicer, dialect string) *commerce.UsageService {
-	serviceToken := resolveSecret("LPBS_SERVICE_SECRET")
-	if serviceToken == "" {
-		logStructured("usage_service_no_token", map[string]interface{}{
-			"level":   "warn",
-			"message": "LPBS_SERVICE_SECRET not set; service-to-service auth disabled",
-		})
-	}
-
 	return commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
 		DB:                  db,
 		LimitsService:       limitsSvc,
 		Dialect:             dialect,
-		ServiceToken:        serviceToken,
 		Log:                 logStructured,
 		InsufficientCredits: intelligence.ErrInsufficientCredits,
 	})

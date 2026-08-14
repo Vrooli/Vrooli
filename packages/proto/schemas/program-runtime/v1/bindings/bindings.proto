@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.program_runtime.v1.bindings;
 
+import "program-runtime/v1/shared/library.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings;bindings_v1";
 
 // BindingRegistryService projects the repository's typed Connect-RPC surface
@@ -47,6 +49,15 @@ message Binding {
   string signature = 14;
   bool reachable = 15;
   string reachability_reason = 16;
+  // rows_field is the descriptor/manifest-selected repeated response field
+  // that becomes the primary Handle row collection. It is empty when the
+  // response is scalar-only or when selection is deliberately refused.
+  string rows_field = 17;
+  // meta_fields are the response fields retained outside the primary rows.
+  repeated string meta_fields = 18;
+  // row_field_candidates makes an ambiguous response fail closed with an
+  // actionable diagnostic instead of relying on JSON map ordering.
+  repeated string row_field_candidates = 19;
 }
 
 message UnboundCapability {
@@ -152,6 +163,7 @@ message DoctorBindingsResponse {
   int32 manifest_scenarios = 17;
   int32 total_scenarios = 18;
   string reachability_checked_at = 19;
+  map<string, string> reachability_checked_at_by_scenario = 20;
 }
 
 enum ConditionStatus {
@@ -278,10 +290,31 @@ message ResolveActCellsResponse {
 message ResolveIntentRequest {
   string intent = 1;
   int32 limit = 2;
+  // fast is provider-direct, judged is conservative single-selection, and
+  // deep permits bounded intent expansion before judging. Empty defaults to
+  // judged at the API boundary.
+  string mode = 3;
+}
+
+message DiscoverResult {
+  // Empty is an intentional null verdict. Consumers must inspect reason.
+  string binding_id = 1;
+  string confidence = 2;
+  string method = 3;
+  string reason = 4;
+  repeated string alternatives = 5;
+  Binding binding = 6;
+  repeated BindingArgument arguments = 7;
+  // A library result is mutually exclusive with binding. It is returned when
+  // a seeded or explicitly promoted reusable program is the best governed
+  // capability for the intent.
+  vrooli.program_runtime.v1.shared.LibraryProgram library = 8;
 }
 
 message ResolveIntentResponse {
   repeated Binding bindings = 1;
   string reason = 2;
   bool fallback = 3;
+  DiscoverResult result = 4;
+  string mode = 5;
 }

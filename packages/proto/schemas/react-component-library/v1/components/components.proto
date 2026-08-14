@@ -146,6 +146,16 @@ message Component {
 
   // Server-projected catalog counts.
   AssetMetrics metrics = 20;
+
+  // Desired-state catalog placement. These fields are populated when the
+  // indexed row has a catalogId; supplemental implementation rows retain
+  // their ordinary registry shape.
+  string catalog_domain = 21;
+  int32 catalog_domain_order = 22;
+  int32 catalog_rung = 23;
+  string catalog_rung_name = 24;
+  int32 transitive_dependent_count = 25;
+  string catalog_id = 26;
 }
 
 // ListComponentsRequest filters the registry view.

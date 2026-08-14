@@ -3,10 +3,12 @@ package billing
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
 	"landing-page-business-suite-api/internal/commerce"
 )
 
@@ -18,35 +20,54 @@ type UsageDependencies struct {
 	LogError   func(string, map[string]any)
 }
 
-func RequireUsageServiceAuth(svc *commerce.UsageService, deps UsageDependencies, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		auth := r.Header.Get("Authorization")
-		if !strings.HasPrefix(auth, "Bearer ") {
-			deps.WriteError(w, http.StatusUnauthorized, "Missing or invalid authorization header", "unauthorized")
-			return
-		}
-		if !svc.ValidateServiceToken(strings.TrimPrefix(auth, "Bearer ")) {
-			deps.WriteError(w, http.StatusUnauthorized, "Invalid service token", "unauthorized")
-			return
-		}
-		next(w, r)
-	}
-}
-
 func ReportUsage(svc *commerce.UsageService, deps UsageDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req commerce.UsageReportRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		userIdentity := deps.UserEmail(r.Context())
+		if userIdentity == "" {
+			deps.WriteError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
+			return
+		}
+
+		// The endpoint is intentionally batch-shaped. A single object remains
+		// accepted as a one-item batch so older clients fail closed on identity
+		// while they migrate to the durable outbox protocol.
+		var raw json.RawMessage
+		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			deps.WriteError(w, http.StatusBadRequest, "Invalid request body", "validation")
 			return
 		}
-		if err := svc.RecordUsage(r.Context(), req); err != nil {
-			deps.LogError("report_usage_failed", map[string]any{"error": err.Error(), "user_identity": req.UserIdentity, "limit_key": req.LimitKey})
-			deps.WriteError(w, http.StatusBadRequest, err.Error(), "validation")
+
+		var requests []commerce.UsageReportRequest
+		if len(raw) > 0 && raw[0] == '[' {
+			if err := json.Unmarshal(raw, &requests); err != nil {
+				deps.WriteError(w, http.StatusBadRequest, "Invalid request body", "validation")
+				return
+			}
+		} else {
+			var request commerce.UsageReportRequest
+			if err := json.Unmarshal(raw, &request); err != nil {
+				deps.WriteError(w, http.StatusBadRequest, "Invalid request body", "validation")
+				return
+			}
+			requests = []commerce.UsageReportRequest{request}
+		}
+		if len(requests) == 0 {
+			deps.WriteError(w, http.StatusBadRequest, "At least one usage item is required", "validation")
 			return
 		}
+
+		for i := range requests {
+			// Never trust user_identity from the wire. The only accepted identity
+			// is the one established by requireUserAuth and stored in context.
+			requests[i].UserIdentity = userIdentity
+			if err := svc.RecordUsage(r.Context(), requests[i]); err != nil {
+				deps.LogError("report_usage_failed", map[string]any{"error": err.Error(), "user_identity": userIdentity, "limit_key": requests[i].LimitKey, "operation_id": requests[i].OperationID})
+				deps.WriteError(w, http.StatusBadRequest, err.Error(), "validation")
+				return
+			}
+		}
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]any{"success": true}); err != nil {
+		if err := json.NewEncoder(w).Encode(map[string]any{"success": true, "recorded": len(requests)}); err != nil {
 			deps.LogError("encode_response_failed", map[string]any{"error": err.Error()})
 		}
 	}
@@ -127,6 +148,111 @@ func CheckLimit(svc *commerce.UsageService, deps UsageDependencies) http.Handler
 			deps.LogError("encode_response_failed", map[string]any{"error": err.Error()})
 		}
 	}
+}
+
+type reservationRequest struct {
+	LimitKey string `json:"limit_key"`
+	Amount   int64  `json:"amount"`
+}
+
+// ReserveCredits exposes the authenticated reservation boundary. Tier is
+// resolved from LPBS subscription state; clients cannot choose a stronger
+// plan by putting one in the request body.
+func ReserveCredits(svc *commerce.UsageService, accountSvc *commerce.Service, deps UsageDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userIdentity := deps.UserEmail(r.Context())
+		if userIdentity == "" {
+			deps.WriteError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
+			return
+		}
+		var request reservationRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			deps.WriteError(w, http.StatusBadRequest, "Invalid request body", "validation")
+			return
+		}
+		tier := ""
+		if accountSvc != nil {
+			subscription, err := accountSvc.GetSubscriptionContext(r.Context(), userIdentity)
+			if err != nil {
+				deps.WriteError(w, http.StatusServiceUnavailable, "Subscription service unavailable", "server_error")
+				return
+			}
+			if subscription != nil {
+				tier = subscription.GetPlanTier()
+			}
+		}
+		reservationID, err := svc.ReserveCredits(r.Context(), userIdentity, tier, request.LimitKey, request.Amount)
+		if err != nil {
+			status := http.StatusBadRequest
+			if strings.Contains(strings.ToLower(err.Error()), "insufficient credits") {
+				status = http.StatusPaymentRequired
+			} else if !strings.Contains(strings.ToLower(err.Error()), "required") && !strings.Contains(strings.ToLower(err.Error()), "positive") {
+				status = http.StatusInternalServerError
+			}
+			deps.LogError("reserve_credits_failed", map[string]any{"error": err.Error(), "user_identity": userIdentity, "limit_key": request.LimitKey})
+			deps.WriteError(w, status, err.Error(), "reservation")
+			return
+		}
+		writeReservationJSON(w, map[string]any{"reservation_id": reservationID, "status": "pending"})
+	}
+}
+
+func FinalizeReservation(svc *commerce.UsageService, deps UsageDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userIdentity := deps.UserEmail(r.Context())
+		if userIdentity == "" {
+			deps.WriteError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
+			return
+		}
+		var request struct {
+			ActualAmount int64 `json:"actual_amount"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			deps.WriteError(w, http.StatusBadRequest, "Invalid request body", "validation")
+			return
+		}
+		reservationID := mux.Vars(r)["reservationID"]
+		if err := svc.FinalizeReservationForUser(r.Context(), userIdentity, reservationID, request.ActualAmount); err != nil {
+			reservationError(w, deps, err, "finalize_reservation_failed")
+			return
+		}
+		writeReservationJSON(w, map[string]any{"reservation_id": reservationID, "status": "finalized"})
+	}
+}
+
+func ReleaseReservation(svc *commerce.UsageService, deps UsageDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userIdentity := deps.UserEmail(r.Context())
+		if userIdentity == "" {
+			deps.WriteError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
+			return
+		}
+		reservationID := mux.Vars(r)["reservationID"]
+		if err := svc.ReleaseReservationForUser(r.Context(), userIdentity, reservationID); err != nil {
+			reservationError(w, deps, err, "release_reservation_failed")
+			return
+		}
+		writeReservationJSON(w, map[string]any{"reservation_id": reservationID, "status": "released"})
+	}
+}
+
+func reservationError(w http.ResponseWriter, deps UsageDependencies, err error, event string) {
+	status := http.StatusInternalServerError
+	code := "server_error"
+	if errors.Is(err, commerce.ErrReservationNotOwned) {
+		status, code = http.StatusForbidden, "forbidden"
+	} else if strings.Contains(strings.ToLower(err.Error()), "required") || strings.Contains(strings.ToLower(err.Error()), "non-negative") {
+		status, code = http.StatusBadRequest, "validation"
+	} else if strings.Contains(strings.ToLower(err.Error()), "not found") {
+		status, code = http.StatusNotFound, "not_found"
+	}
+	deps.LogError(event, map[string]any{"error": err.Error()})
+	deps.WriteError(w, status, err.Error(), code)
+}
+
+func writeReservationJSON(w http.ResponseWriter, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(value)
 }
 
 // UsageHealth is an unauthenticated monitoring endpoint. Its timeout remains

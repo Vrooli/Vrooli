@@ -392,20 +392,26 @@ message ExecuteWorkflowOptions {
   // when seed_mode is set without an explicit scenario.
   string seed_scenario = 8;
 
-  // Target-owned Electron renderer to attach for desktop validation. When
+  // Target-owned renderer to attach for cross-platform validation. When
   // present, BAS never launches or owns the desktop process; it attaches to
   // the renderer identified by the target adapter.
-  ElectronTarget electron_target = 9;
+  reserved 9;
+  reserved "electron_target";
+  AppTarget app_target = 11;
 
-  // Immutable validation-cell identity required with electron_target. BAS
+  // Immutable validation-cell identity required with app_target. BAS
   // refuses target execution without the leased isolation binding.
   ValidationContext validation_context = 10;
 }
 
-// ElectronTarget describes an already-running renderer owned by a desktop
+// AppTarget describes an already-running renderer owned by a desktop
 // target adapter. The endpoint must be loopback-only or authenticated by the
 // target transport; BAS does not open or expose a debugging port.
-message ElectronTarget {
+message AppTarget {
+  // Target kind selects the admitted URL policy. Supported values are
+  // "electron" and "android-webview"; future WebView kinds reuse this
+  // descriptor rather than adding another target message.
+  string target_kind = 10;
   string target_id = 1;
   string cdp_endpoint = 2;
   string renderer_id = 3;

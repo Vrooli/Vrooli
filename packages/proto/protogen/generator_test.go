@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -408,6 +410,14 @@ func TestConcurrentGeneratorsKeepPublishedArtifactsReadable(t *testing.T) {
 	}
 }
 
+func TestBufCommandArgsUseExtendedBoundedTimeout(t *testing.T) {
+	args := bufCommandArgs("generate", "--output", "/tmp/stage")
+	want := []string{"generate", "--timeout", "15m0s", "--output", "/tmp/stage"}
+	if !reflect.DeepEqual(args, want) {
+		t.Fatalf("buf command args = %#v, want %#v", args, want)
+	}
+}
+
 func argumentAfter(args []string, flag string) string {
 	for i := 0; i+1 < len(args); i++ {
 		if args[i] == flag {
@@ -431,4 +441,212 @@ func artifactCounts(t *testing.T, root string) map[string]int {
 		counts[name] = count
 	}
 	return counts
+}
+
+func TestStageRetainableKeepsFailuresAndDropsCancellations(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "success", err: nil, want: false},
+		{name: "real failure", err: fmt.Errorf("buf generate: plugin exploded"), want: true},
+		{name: "cancelled", err: fmt.Errorf("buf generate: %w", context.Canceled), want: false},
+		{name: "timed out", err: fmt.Errorf("buf generate: %w", context.DeadlineExceeded), want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := stageRetainable(tc.err); got != tc.want {
+				t.Fatalf("stageRetainable(%v) = %t, want %t", tc.err, got, tc.want)
+			}
+		})
+	}
+}
+
+// writeStageTree creates a staging tree with a file in it and backdates both to
+// age. Directory modification time is what reaping keys on, so it is set last.
+func writeStageTree(t *testing.T, parent, name string, age time.Duration) string {
+	t.Helper()
+	path := filepath.Join(parent, name)
+	if err := os.MkdirAll(filepath.Join(path, "gen", "go"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "gen", "go", "demo.go"), []byte("package demo"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stamp := time.Now().Add(-age)
+	if err := os.Chtimes(path, stamp, stamp); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func stageTreeNames(t *testing.T, parent string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	sort.Strings(names)
+	return names
+}
+
+func newStageParentGenerator(t *testing.T) (*Generator, string) {
+	t.Helper()
+	root := t.TempDir()
+	stageParent := filepath.Join(root, "packages")
+	protoRoot := filepath.Join(stageParent, "proto")
+	if err := os.MkdirAll(protoRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	generator, err := New(Config{RepoRoot: root, ProtoRoot: protoRoot, StageParent: stageParent, Logger: io.Discard})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return generator, stageParent
+}
+
+func TestReapStaleStagesRemovesOnlyExpiredStagingTrees(t *testing.T) {
+	generator, stageParent := newStageParentGenerator(t)
+
+	writeStageTree(t, stageParent, ".proto-gen-stage-expired", stageRetention+time.Hour)
+	writeStageTree(t, stageParent, ".proto-gen-verify-expired", stageRetention+time.Hour)
+	writeStageTree(t, stageParent, ".proto-descriptor-expired", stageRetention+time.Hour)
+	writeStageTree(t, stageParent, ".proto-gen-stage-fresh", time.Minute)
+	// An unrelated sibling proves reaping is keyed on the staging prefixes and
+	// never treats the packages directory as disposable.
+	writeStageTree(t, stageParent, "api-core", stageRetention+time.Hour)
+
+	generator.reapStaleStages(time.Now())
+
+	got := stageTreeNames(t, stageParent)
+	want := []string{".proto-gen-stage-fresh", "api-core", "proto"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("surviving entries = %v, want %v", got, want)
+	}
+}
+
+func TestCleanStagesRemovesEveryStagingTreeRegardlessOfAge(t *testing.T) {
+	_, stageParent := newStageParentGenerator(t)
+
+	writeStageTree(t, stageParent, ".proto-gen-stage-fresh", time.Minute)
+	writeStageTree(t, stageParent, ".proto-gen-verify-fresh", time.Minute)
+	writeStageTree(t, stageParent, "api-core", time.Minute)
+
+	if err := CleanStages(stageParent); err != nil {
+		t.Fatal(err)
+	}
+
+	got := stageTreeNames(t, stageParent)
+	want := []string{"api-core", "proto"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("surviving entries = %v, want %v", got, want)
+	}
+}
+
+func TestCleanStagesTargetsTheDirectoryTheGeneratorWritesTo(t *testing.T) {
+	root := t.TempDir()
+	protoRoot := filepath.Join(root, "packages", "proto")
+	if err := os.MkdirAll(protoRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	generator, err := New(Config{RepoRoot: root, ProtoRoot: protoRoot, Logger: io.Discard})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := DefaultStageParent(protoRoot); got != generator.cfg.StageParent {
+		t.Fatalf("DefaultStageParent = %q, but generator stages into %q", got, generator.cfg.StageParent)
+	}
+}
+
+// newStagingGenerator builds the minimal fixture Generate needs, with a tool
+// runner whose failure mode the caller chooses.
+func newStagingGenerator(t *testing.T, toolErr error) (*Generator, string) {
+	t.Helper()
+	root := t.TempDir()
+	stageParent := filepath.Join(root, "packages")
+	protoRoot := filepath.Join(stageParent, "proto")
+	schemaRoot := filepath.Join(protoRoot, "schemas", "demo", "v1")
+	if err := os.MkdirAll(schemaRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(schemaRoot, "demo.proto"), []byte("syntax = \"proto3\";\npackage demo.v1;\nmessage Demo {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fakeTool := func(_ context.Context, _ string, _ string, args ...string) error {
+		if len(args) > 0 && args[0] == "generate" {
+			// Emit into the staging tree first so the retained-vs-removed
+			// assertion is about cleanup, not about an empty directory.
+			output := argumentAfter(args, "--output")
+			path := filepath.Join(output, "gen", "go", "demo", "demo.go")
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				return err
+			}
+			if err := os.WriteFile(path, []byte("package demo"), 0o644); err != nil {
+				return err
+			}
+			return toolErr
+		}
+		return toolErr
+	}
+	generator, err := New(Config{
+		RepoRoot:    root,
+		ProtoRoot:   protoRoot,
+		StageParent: stageParent,
+		LockPath:    filepath.Join(root, "generator.lock"),
+		Logger:      io.Discard,
+		RunTool:     fakeTool,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return generator, stageParent
+}
+
+func TestGenerateRemovesStagingTreeWhenCancelled(t *testing.T) {
+	generator, stageParent := newStagingGenerator(t, context.Canceled)
+
+	if err := generator.Generate(context.Background()); err == nil {
+		t.Fatal("expected generation to fail")
+	}
+
+	if got := stageTreeNames(t, stageParent); !reflect.DeepEqual(got, []string{"proto"}) {
+		t.Fatalf("cancelled run left staging trees behind: %v", got)
+	}
+}
+
+func TestGenerateRetainsStagingTreeOnRealFailure(t *testing.T) {
+	generator, stageParent := newStagingGenerator(t, fmt.Errorf("plugin exploded"))
+
+	if err := generator.Generate(context.Background()); err == nil {
+		t.Fatal("expected generation to fail")
+	}
+
+	var retained int
+	for _, name := range stageTreeNames(t, stageParent) {
+		if hasStagePrefix(name) {
+			retained++
+		}
+	}
+	if retained != 1 {
+		t.Fatalf("retained staging trees = %d, want 1 (a real failure stays inspectable)", retained)
+	}
+}
+
+func TestGenerateReapsExpiredStagingTreesFromEarlierRuns(t *testing.T) {
+	generator, stageParent := newStagingGenerator(t, fmt.Errorf("plugin exploded"))
+	writeStageTree(t, stageParent, ".proto-gen-stage-ancient", stageRetention+time.Hour)
+
+	if err := generator.Generate(context.Background()); err == nil {
+		t.Fatal("expected generation to fail")
+	}
+
+	for _, name := range stageTreeNames(t, stageParent) {
+		if name == ".proto-gen-stage-ancient" {
+			t.Fatal("expired staging tree from an earlier run survived a later run")
+		}
+	}
 }

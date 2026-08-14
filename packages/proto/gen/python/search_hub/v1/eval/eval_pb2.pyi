@@ -43,7 +43,7 @@ class EvalSuite(_message.Message):
     def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., cases: _Optional[_Iterable[_Union[EvalCase, _Mapping]]] = ..., state: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
 class EvalCase(_message.Message):
-    __slots__ = ("case_id", "query", "tags", "expect_ids", "expect_within_top_k", "expect_min_score", "expect_max_score", "expect_no_strong_hit", "note", "status", "scope", "expect_min_margin")
+    __slots__ = ("case_id", "query", "tags", "expect_ids", "expect_within_top_k", "expect_min_score", "expect_max_score", "expect_no_strong_hit", "note", "status", "scope", "expect_min_margin", "expected_provider_id")
     CASE_ID_FIELD_NUMBER: _ClassVar[int]
     QUERY_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
@@ -56,6 +56,7 @@ class EvalCase(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     EXPECT_MIN_MARGIN_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     case_id: str
     query: str
     tags: _containers.RepeatedScalarFieldContainer[str]
@@ -68,7 +69,8 @@ class EvalCase(_message.Message):
     status: str
     scope: str
     expect_min_margin: float
-    def __init__(self, case_id: _Optional[str] = ..., query: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., expect_ids: _Optional[_Iterable[str]] = ..., expect_within_top_k: _Optional[int] = ..., expect_min_score: _Optional[float] = ..., expect_max_score: _Optional[float] = ..., expect_no_strong_hit: _Optional[bool] = ..., note: _Optional[str] = ..., status: _Optional[str] = ..., scope: _Optional[str] = ..., expect_min_margin: _Optional[float] = ...) -> None: ...
+    expected_provider_id: str
+    def __init__(self, case_id: _Optional[str] = ..., query: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., expect_ids: _Optional[_Iterable[str]] = ..., expect_within_top_k: _Optional[int] = ..., expect_min_score: _Optional[float] = ..., expect_max_score: _Optional[float] = ..., expect_no_strong_hit: _Optional[bool] = ..., note: _Optional[str] = ..., status: _Optional[str] = ..., scope: _Optional[str] = ..., expect_min_margin: _Optional[float] = ..., expected_provider_id: _Optional[str] = ...) -> None: ...
 
 class EvalRun(_message.Message):
     __slots__ = ("run_id", "suite_id", "tag", "created_at", "config", "results", "aggregate", "tier", "degraded", "degraded_reason", "unavailable_cases", "unavailable_reason")
@@ -161,7 +163,7 @@ class ScoredHit(_message.Message):
     def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., score: _Optional[float] = ...) -> None: ...
 
 class EvalAggregate(_message.Message):
-    __slots__ = ("cases", "met", "below", "mean_strong_top1", "max_gibberish_score", "latency_p95_ms", "graded_cases", "unavailable_cases", "pass_rate")
+    __slots__ = ("cases", "met", "below", "mean_strong_top1", "max_gibberish_score", "latency_p95_ms", "graded_cases", "unavailable_cases", "pass_rate", "routing_precision", "retrieval_recall")
     CASES_FIELD_NUMBER: _ClassVar[int]
     MET_FIELD_NUMBER: _ClassVar[int]
     BELOW_FIELD_NUMBER: _ClassVar[int]
@@ -171,6 +173,8 @@ class EvalAggregate(_message.Message):
     GRADED_CASES_FIELD_NUMBER: _ClassVar[int]
     UNAVAILABLE_CASES_FIELD_NUMBER: _ClassVar[int]
     PASS_RATE_FIELD_NUMBER: _ClassVar[int]
+    ROUTING_PRECISION_FIELD_NUMBER: _ClassVar[int]
+    RETRIEVAL_RECALL_FIELD_NUMBER: _ClassVar[int]
     cases: int
     met: int
     below: int
@@ -180,7 +184,9 @@ class EvalAggregate(_message.Message):
     graded_cases: int
     unavailable_cases: int
     pass_rate: float
-    def __init__(self, cases: _Optional[int] = ..., met: _Optional[int] = ..., below: _Optional[int] = ..., mean_strong_top1: _Optional[float] = ..., max_gibberish_score: _Optional[float] = ..., latency_p95_ms: _Optional[int] = ..., graded_cases: _Optional[int] = ..., unavailable_cases: _Optional[int] = ..., pass_rate: _Optional[float] = ...) -> None: ...
+    routing_precision: float
+    retrieval_recall: float
+    def __init__(self, cases: _Optional[int] = ..., met: _Optional[int] = ..., below: _Optional[int] = ..., mean_strong_top1: _Optional[float] = ..., max_gibberish_score: _Optional[float] = ..., latency_p95_ms: _Optional[int] = ..., graded_cases: _Optional[int] = ..., unavailable_cases: _Optional[int] = ..., pass_rate: _Optional[float] = ..., routing_precision: _Optional[float] = ..., retrieval_recall: _Optional[float] = ...) -> None: ...
 
 class RegisterSuiteRequest(_message.Message):
     __slots__ = ("suite",)

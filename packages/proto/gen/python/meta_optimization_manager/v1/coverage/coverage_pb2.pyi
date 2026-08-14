@@ -64,20 +64,34 @@ class GetStatusRequest(_message.Message):
     def __init__(self, projection: _Optional[_Union[_model_pb2.Projection, str]] = ...) -> None: ...
 
 class GetStatusResponse(_message.Message):
-    __slots__ = ("projections", "latest_trial_trend", "computed_at", "determinism_checked", "deterministic", "determinism_evidence")
+    __slots__ = ("projections", "latest_trial_trend", "computed_at", "determinism_checked", "deterministic", "determinism_evidence", "deltas")
     PROJECTIONS_FIELD_NUMBER: _ClassVar[int]
     LATEST_TRIAL_TREND_FIELD_NUMBER: _ClassVar[int]
     COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
     DETERMINISM_CHECKED_FIELD_NUMBER: _ClassVar[int]
     DETERMINISTIC_FIELD_NUMBER: _ClassVar[int]
     DETERMINISM_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    DELTAS_FIELD_NUMBER: _ClassVar[int]
     projections: _containers.RepeatedCompositeFieldContainer[ProjectionCoverage]
     latest_trial_trend: EmpiricalTrendPoint
     computed_at: _timestamp_pb2.Timestamp
     determinism_checked: bool
     deterministic: bool
     determinism_evidence: str
-    def __init__(self, projections: _Optional[_Iterable[_Union[ProjectionCoverage, _Mapping]]] = ..., latest_trial_trend: _Optional[_Union[EmpiricalTrendPoint, _Mapping]] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., determinism_checked: _Optional[bool] = ..., deterministic: _Optional[bool] = ..., determinism_evidence: _Optional[str] = ...) -> None: ...
+    deltas: _containers.RepeatedCompositeFieldContainer[ProjectionDelta]
+    def __init__(self, projections: _Optional[_Iterable[_Union[ProjectionCoverage, _Mapping]]] = ..., latest_trial_trend: _Optional[_Union[EmpiricalTrendPoint, _Mapping]] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., determinism_checked: _Optional[bool] = ..., deterministic: _Optional[bool] = ..., determinism_evidence: _Optional[str] = ..., deltas: _Optional[_Iterable[_Union[ProjectionDelta, _Mapping]]] = ...) -> None: ...
+
+class ProjectionDelta(_message.Message):
+    __slots__ = ("projection", "previous_ratio", "current_ratio", "delta")
+    PROJECTION_FIELD_NUMBER: _ClassVar[int]
+    PREVIOUS_RATIO_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_RATIO_FIELD_NUMBER: _ClassVar[int]
+    DELTA_FIELD_NUMBER: _ClassVar[int]
+    projection: _model_pb2.Projection
+    previous_ratio: float
+    current_ratio: float
+    delta: float
+    def __init__(self, projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., previous_ratio: _Optional[float] = ..., current_ratio: _Optional[float] = ..., delta: _Optional[float] = ...) -> None: ...
 
 class Citation(_message.Message):
     __slots__ = ("locator", "kind", "note")

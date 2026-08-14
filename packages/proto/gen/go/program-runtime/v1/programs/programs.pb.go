@@ -27,6 +27,8 @@ const (
 	Provenance_PROVENANCE_UNSPECIFIED Provenance = 0
 	Provenance_PROVENANCE_AGENT       Provenance = 1
 	Provenance_PROVENANCE_OPERATOR    Provenance = 2
+	Provenance_PROVENANCE_TEST        Provenance = 3
+	Provenance_PROVENANCE_REPLAY      Provenance = 4
 )
 
 // Enum value maps for Provenance.
@@ -35,11 +37,15 @@ var (
 		0: "PROVENANCE_UNSPECIFIED",
 		1: "PROVENANCE_AGENT",
 		2: "PROVENANCE_OPERATOR",
+		3: "PROVENANCE_TEST",
+		4: "PROVENANCE_REPLAY",
 	}
 	Provenance_value = map[string]int32{
 		"PROVENANCE_UNSPECIFIED": 0,
 		"PROVENANCE_AGENT":       1,
 		"PROVENANCE_OPERATOR":    2,
+		"PROVENANCE_TEST":        3,
+		"PROVENANCE_REPLAY":      4,
 	}
 )
 
@@ -145,6 +151,7 @@ type Program struct {
 	CompletedAt      string                 `protobuf:"bytes,13,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
 	WallTimeMillis   int64                  `protobuf:"varint,14,opt,name=wall_time_millis,json=wallTimeMillis,proto3" json:"wall_time_millis,omitempty"`
 	CpuTimeMillis    int64                  `protobuf:"varint,15,opt,name=cpu_time_millis,json=cpuTimeMillis,proto3" json:"cpu_time_millis,omitempty"`
+	LibraryVersion   string                 `protobuf:"bytes,16,opt,name=library_version,json=libraryVersion,proto3" json:"library_version,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -282,6 +289,13 @@ func (x *Program) GetCpuTimeMillis() int64 {
 		return x.CpuTimeMillis
 	}
 	return 0
+}
+
+func (x *Program) GetLibraryVersion() string {
+	if x != nil {
+		return x.LibraryVersion
+	}
+	return ""
 }
 
 type SubmitProgramRequest struct {
@@ -1076,7 +1090,7 @@ var File_program_runtime_v1_programs_programs_proto protoreflect.FileDescriptor
 
 const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\n" +
-	"*program-runtime/v1/programs/programs.proto\x12\"vrooli.program_runtime.v1.programs\"\xd7\x04\n" +
+	"*program-runtime/v1/programs/programs.proto\x12\"vrooli.program_runtime.v1.programs\"\x80\x05\n" +
 	"\aProgram\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1098,7 +1112,8 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"agentBytes\x12!\n" +
 	"\fcompleted_at\x18\r \x01(\tR\vcompletedAt\x12(\n" +
 	"\x10wall_time_millis\x18\x0e \x01(\x03R\x0ewallTimeMillis\x12&\n" +
-	"\x0fcpu_time_millis\x18\x0f \x01(\x03R\rcpuTimeMillis\"\xe6\x01\n" +
+	"\x0fcpu_time_millis\x18\x0f \x01(\x03R\rcpuTimeMillis\x12'\n" +
+	"\x0flibrary_version\x18\x10 \x01(\tR\x0elibraryVersion\"\xe6\x01\n" +
 	"\x14SubmitProgramRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x16\n" +
@@ -1150,12 +1165,14 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\tlast_seen\x18\x03 \x01(\tR\blastSeen\"\x8a\x01\n" +
 	"\x1eMineUnresolvedBindingsResponse\x12R\n" +
 	"\x06shapes\x18\x01 \x03(\v2:.vrooli.program_runtime.v1.programs.UnresolvedBindingShapeR\x06shapes\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x03R\x05count*W\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count*\x83\x01\n" +
 	"\n" +
 	"Provenance\x12\x1a\n" +
 	"\x16PROVENANCE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10PROVENANCE_AGENT\x10\x01\x12\x17\n" +
-	"\x13PROVENANCE_OPERATOR\x10\x02*\xbf\x01\n" +
+	"\x13PROVENANCE_OPERATOR\x10\x02\x12\x13\n" +
+	"\x0fPROVENANCE_TEST\x10\x03\x12\x15\n" +
+	"\x11PROVENANCE_REPLAY\x10\x04*\xbf\x01\n" +
 	"\rProgramStatus\x12\x1e\n" +
 	"\x1aPROGRAM_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17PROGRAM_STATUS_ACCEPTED\x10\x01\x12\x1a\n" +

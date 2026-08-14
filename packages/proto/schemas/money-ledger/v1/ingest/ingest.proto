@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package vrooli.money_ledger.v1.ingest;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "money-ledger/v1/shared/ledger_types.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest;ingest_v1";
+
+enum AdapterKind {
+  ADAPTER_KIND_UNSPECIFIED = 0;
+  ADAPTER_KIND_MANUAL = 1;
+  ADAPTER_KIND_FILE = 2;
+  ADAPTER_KIND_AGGREGATOR = 3;
+}
+
+message Adapter {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  AdapterKind kind = 3 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  bool enabled = 4;
+  google.protobuf.Timestamp last_success_at = 5;
+  string availability_reason = 6;
+}
+
+message Receipt {
+  string id = 1;
+  string adapter_id = 2;
+  google.protobuf.Timestamp from = 3;
+  google.protobuf.Timestamp to = 4;
+  int32 read = 5;
+  int32 written = 6;
+  int32 skipped_duplicates = 7;
+  string status = 8;
+  string error = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+message Availability {
+  string adapter_id = 1 [(buf.validate.field).string.min_len = 1];
+  string reason = 2 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp last_success_at = 3;
+}
+
+message RegisterAdapterRequest { Adapter adapter = 1 [(buf.validate.field).required = true]; }
+message RegisterAdapterResponse { Adapter adapter = 1; }
+message ListAdaptersRequest {}
+message ListAdaptersResponse { repeated Adapter adapters = 1; }
+
+// This is the one inbound money-event door. Manual entry uses the same shape
+// as every other adapter and is normalized by the service before journaling.
+message IngestEventRequest { shared.MoneyEvent event = 1 [(buf.validate.field).required = true]; }
+message IngestEventResponse { shared.Posting posting = 1; bool duplicate = 2; Receipt receipt = 3; }
+
+message RunAdapterRequest {
+  string adapter_id = 1 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp from = 2;
+  google.protobuf.Timestamp to = 3;
+}
+message RunAdapterResponse { Receipt receipt = 1; repeated Availability availability = 2; }
+
+// File imports are supplied as UTF-8 CSV so the API never opens an arbitrary
+// path on the host. Header: external_id,account_id,book_id,amount_minor,
+// currency,occurred_at,description,category.
+message ImportFileRequest {
+  string adapter_id = 1 [(buf.validate.field).string.min_len = 1];
+  bytes csv = 2 [(buf.validate.field).bytes.min_len = 1];
+  google.protobuf.Timestamp from = 3;
+  google.protobuf.Timestamp to = 4;
+}
+message ImportFileResponse { Receipt receipt = 1; }
+
+service IngestService {
+  rpc RegisterAdapter(RegisterAdapterRequest) returns (RegisterAdapterResponse);
+  rpc ListAdapters(ListAdaptersRequest) returns (ListAdaptersResponse);
+  rpc IngestEvent(IngestEventRequest) returns (IngestEventResponse);
+  rpc RunAdapter(RunAdapterRequest) returns (RunAdapterResponse);
+  rpc ImportFile(ImportFileRequest) returns (ImportFileResponse);
+}

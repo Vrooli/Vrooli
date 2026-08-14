@@ -42,9 +42,21 @@ const (
 	// AdoptionsServiceListEffectiveAdoptionsProcedure is the fully-qualified name of the
 	// AdoptionsService's ListEffectiveAdoptions RPC.
 	AdoptionsServiceListEffectiveAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListEffectiveAdoptions"
+	// AdoptionsServicePreflightAdoptionProcedure is the fully-qualified name of the AdoptionsService's
+	// PreflightAdoption RPC.
+	AdoptionsServicePreflightAdoptionProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/PreflightAdoption"
+	// AdoptionsServiceSyncScenarioTokensProcedure is the fully-qualified name of the AdoptionsService's
+	// SyncScenarioTokens RPC.
+	AdoptionsServiceSyncScenarioTokensProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/SyncScenarioTokens"
+	// AdoptionsServicePruneScenarioTokensProcedure is the fully-qualified name of the
+	// AdoptionsService's PruneScenarioTokens RPC.
+	AdoptionsServicePruneScenarioTokensProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/PruneScenarioTokens"
 	// AdoptionsServiceApplyAdoptionProcedure is the fully-qualified name of the AdoptionsService's
 	// ApplyAdoption RPC.
 	AdoptionsServiceApplyAdoptionProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ApplyAdoption"
+	// AdoptionsServiceBatchApplyAdoptionsProcedure is the fully-qualified name of the
+	// AdoptionsService's BatchApplyAdoptions RPC.
+	AdoptionsServiceBatchApplyAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/BatchApplyAdoptions"
 	// AdoptionsServiceReapplyAdoptionProcedure is the fully-qualified name of the AdoptionsService's
 	// ReapplyAdoption RPC.
 	AdoptionsServiceReapplyAdoptionProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReapplyAdoption"
@@ -82,7 +94,11 @@ type AdoptionsServiceClient interface {
 	ListScenarios(context.Context, *connect.Request[adoptions.ListScenariosRequest]) (*connect.Response[adoptions.ListScenariosResponse], error)
 	ListAdoptions(context.Context, *connect.Request[adoptions.ListAdoptionsRequest]) (*connect.Response[adoptions.ListAdoptionsResponse], error)
 	ListEffectiveAdoptions(context.Context, *connect.Request[adoptions.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptions.ListEffectiveAdoptionsResponse], error)
+	PreflightAdoption(context.Context, *connect.Request[adoptions.PreflightAdoptionRequest]) (*connect.Response[adoptions.PreflightAdoptionResponse], error)
+	SyncScenarioTokens(context.Context, *connect.Request[adoptions.SyncScenarioTokensRequest]) (*connect.Response[adoptions.SyncScenarioTokensResponse], error)
+	PruneScenarioTokens(context.Context, *connect.Request[adoptions.PruneScenarioTokensRequest]) (*connect.Response[adoptions.PruneScenarioTokensResponse], error)
 	ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error)
+	BatchApplyAdoptions(context.Context, *connect.Request[adoptions.BatchApplyAdoptionsRequest]) (*connect.Response[adoptions.BatchApplyAdoptionsResponse], error)
 	ReapplyAdoption(context.Context, *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error)
 	DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error)
 	RefreshAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error)
@@ -143,10 +159,34 @@ func NewAdoptionsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(adoptionsServiceMethods.ByName("ListEffectiveAdoptions")),
 			connect.WithClientOptions(opts...),
 		),
+		preflightAdoption: connect.NewClient[adoptions.PreflightAdoptionRequest, adoptions.PreflightAdoptionResponse](
+			httpClient,
+			baseURL+AdoptionsServicePreflightAdoptionProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("PreflightAdoption")),
+			connect.WithClientOptions(opts...),
+		),
+		syncScenarioTokens: connect.NewClient[adoptions.SyncScenarioTokensRequest, adoptions.SyncScenarioTokensResponse](
+			httpClient,
+			baseURL+AdoptionsServiceSyncScenarioTokensProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("SyncScenarioTokens")),
+			connect.WithClientOptions(opts...),
+		),
+		pruneScenarioTokens: connect.NewClient[adoptions.PruneScenarioTokensRequest, adoptions.PruneScenarioTokensResponse](
+			httpClient,
+			baseURL+AdoptionsServicePruneScenarioTokensProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("PruneScenarioTokens")),
+			connect.WithClientOptions(opts...),
+		),
 		applyAdoption: connect.NewClient[adoptions.ApplyAdoptionRequest, adoptions.ApplyAdoptionResponse](
 			httpClient,
 			baseURL+AdoptionsServiceApplyAdoptionProcedure,
 			connect.WithSchema(adoptionsServiceMethods.ByName("ApplyAdoption")),
+			connect.WithClientOptions(opts...),
+		),
+		batchApplyAdoptions: connect.NewClient[adoptions.BatchApplyAdoptionsRequest, adoptions.BatchApplyAdoptionsResponse](
+			httpClient,
+			baseURL+AdoptionsServiceBatchApplyAdoptionsProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("BatchApplyAdoptions")),
 			connect.WithClientOptions(opts...),
 		),
 		reapplyAdoption: connect.NewClient[adoptions.ReapplyAdoptionRequest, adoptions.ReapplyAdoptionResponse](
@@ -211,7 +251,11 @@ type adoptionsServiceClient struct {
 	listScenarios          *connect.Client[adoptions.ListScenariosRequest, adoptions.ListScenariosResponse]
 	listAdoptions          *connect.Client[adoptions.ListAdoptionsRequest, adoptions.ListAdoptionsResponse]
 	listEffectiveAdoptions *connect.Client[adoptions.ListEffectiveAdoptionsRequest, adoptions.ListEffectiveAdoptionsResponse]
+	preflightAdoption      *connect.Client[adoptions.PreflightAdoptionRequest, adoptions.PreflightAdoptionResponse]
+	syncScenarioTokens     *connect.Client[adoptions.SyncScenarioTokensRequest, adoptions.SyncScenarioTokensResponse]
+	pruneScenarioTokens    *connect.Client[adoptions.PruneScenarioTokensRequest, adoptions.PruneScenarioTokensResponse]
 	applyAdoption          *connect.Client[adoptions.ApplyAdoptionRequest, adoptions.ApplyAdoptionResponse]
+	batchApplyAdoptions    *connect.Client[adoptions.BatchApplyAdoptionsRequest, adoptions.BatchApplyAdoptionsResponse]
 	reapplyAdoption        *connect.Client[adoptions.ReapplyAdoptionRequest, adoptions.ReapplyAdoptionResponse]
 	deleteAdoption         *connect.Client[adoptions.DeleteAdoptionRequest, adoptions.DeleteAdoptionResponse]
 	refreshAdoptions       *connect.Client[adoptions.RefreshAdoptionsRequest, adoptions.RefreshAdoptionsResponse]
@@ -239,9 +283,33 @@ func (c *adoptionsServiceClient) ListEffectiveAdoptions(ctx context.Context, req
 	return c.listEffectiveAdoptions.CallUnary(ctx, req)
 }
 
+// PreflightAdoption calls
+// vrooli.react_component_library.v1.adoptions.AdoptionsService.PreflightAdoption.
+func (c *adoptionsServiceClient) PreflightAdoption(ctx context.Context, req *connect.Request[adoptions.PreflightAdoptionRequest]) (*connect.Response[adoptions.PreflightAdoptionResponse], error) {
+	return c.preflightAdoption.CallUnary(ctx, req)
+}
+
+// SyncScenarioTokens calls
+// vrooli.react_component_library.v1.adoptions.AdoptionsService.SyncScenarioTokens.
+func (c *adoptionsServiceClient) SyncScenarioTokens(ctx context.Context, req *connect.Request[adoptions.SyncScenarioTokensRequest]) (*connect.Response[adoptions.SyncScenarioTokensResponse], error) {
+	return c.syncScenarioTokens.CallUnary(ctx, req)
+}
+
+// PruneScenarioTokens calls
+// vrooli.react_component_library.v1.adoptions.AdoptionsService.PruneScenarioTokens.
+func (c *adoptionsServiceClient) PruneScenarioTokens(ctx context.Context, req *connect.Request[adoptions.PruneScenarioTokensRequest]) (*connect.Response[adoptions.PruneScenarioTokensResponse], error) {
+	return c.pruneScenarioTokens.CallUnary(ctx, req)
+}
+
 // ApplyAdoption calls vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption.
 func (c *adoptionsServiceClient) ApplyAdoption(ctx context.Context, req *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error) {
 	return c.applyAdoption.CallUnary(ctx, req)
+}
+
+// BatchApplyAdoptions calls
+// vrooli.react_component_library.v1.adoptions.AdoptionsService.BatchApplyAdoptions.
+func (c *adoptionsServiceClient) BatchApplyAdoptions(ctx context.Context, req *connect.Request[adoptions.BatchApplyAdoptionsRequest]) (*connect.Response[adoptions.BatchApplyAdoptionsResponse], error) {
+	return c.batchApplyAdoptions.CallUnary(ctx, req)
 }
 
 // ReapplyAdoption calls
@@ -305,7 +373,11 @@ type AdoptionsServiceHandler interface {
 	ListScenarios(context.Context, *connect.Request[adoptions.ListScenariosRequest]) (*connect.Response[adoptions.ListScenariosResponse], error)
 	ListAdoptions(context.Context, *connect.Request[adoptions.ListAdoptionsRequest]) (*connect.Response[adoptions.ListAdoptionsResponse], error)
 	ListEffectiveAdoptions(context.Context, *connect.Request[adoptions.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptions.ListEffectiveAdoptionsResponse], error)
+	PreflightAdoption(context.Context, *connect.Request[adoptions.PreflightAdoptionRequest]) (*connect.Response[adoptions.PreflightAdoptionResponse], error)
+	SyncScenarioTokens(context.Context, *connect.Request[adoptions.SyncScenarioTokensRequest]) (*connect.Response[adoptions.SyncScenarioTokensResponse], error)
+	PruneScenarioTokens(context.Context, *connect.Request[adoptions.PruneScenarioTokensRequest]) (*connect.Response[adoptions.PruneScenarioTokensResponse], error)
 	ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error)
+	BatchApplyAdoptions(context.Context, *connect.Request[adoptions.BatchApplyAdoptionsRequest]) (*connect.Response[adoptions.BatchApplyAdoptionsResponse], error)
 	ReapplyAdoption(context.Context, *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error)
 	DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error)
 	RefreshAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error)
@@ -361,10 +433,34 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 		connect.WithSchema(adoptionsServiceMethods.ByName("ListEffectiveAdoptions")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adoptionsServicePreflightAdoptionHandler := connect.NewUnaryHandler(
+		AdoptionsServicePreflightAdoptionProcedure,
+		svc.PreflightAdoption,
+		connect.WithSchema(adoptionsServiceMethods.ByName("PreflightAdoption")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adoptionsServiceSyncScenarioTokensHandler := connect.NewUnaryHandler(
+		AdoptionsServiceSyncScenarioTokensProcedure,
+		svc.SyncScenarioTokens,
+		connect.WithSchema(adoptionsServiceMethods.ByName("SyncScenarioTokens")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adoptionsServicePruneScenarioTokensHandler := connect.NewUnaryHandler(
+		AdoptionsServicePruneScenarioTokensProcedure,
+		svc.PruneScenarioTokens,
+		connect.WithSchema(adoptionsServiceMethods.ByName("PruneScenarioTokens")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adoptionsServiceApplyAdoptionHandler := connect.NewUnaryHandler(
 		AdoptionsServiceApplyAdoptionProcedure,
 		svc.ApplyAdoption,
 		connect.WithSchema(adoptionsServiceMethods.ByName("ApplyAdoption")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adoptionsServiceBatchApplyAdoptionsHandler := connect.NewUnaryHandler(
+		AdoptionsServiceBatchApplyAdoptionsProcedure,
+		svc.BatchApplyAdoptions,
+		connect.WithSchema(adoptionsServiceMethods.ByName("BatchApplyAdoptions")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adoptionsServiceReapplyAdoptionHandler := connect.NewUnaryHandler(
@@ -429,8 +525,16 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 			adoptionsServiceListAdoptionsHandler.ServeHTTP(w, r)
 		case AdoptionsServiceListEffectiveAdoptionsProcedure:
 			adoptionsServiceListEffectiveAdoptionsHandler.ServeHTTP(w, r)
+		case AdoptionsServicePreflightAdoptionProcedure:
+			adoptionsServicePreflightAdoptionHandler.ServeHTTP(w, r)
+		case AdoptionsServiceSyncScenarioTokensProcedure:
+			adoptionsServiceSyncScenarioTokensHandler.ServeHTTP(w, r)
+		case AdoptionsServicePruneScenarioTokensProcedure:
+			adoptionsServicePruneScenarioTokensHandler.ServeHTTP(w, r)
 		case AdoptionsServiceApplyAdoptionProcedure:
 			adoptionsServiceApplyAdoptionHandler.ServeHTTP(w, r)
+		case AdoptionsServiceBatchApplyAdoptionsProcedure:
+			adoptionsServiceBatchApplyAdoptionsHandler.ServeHTTP(w, r)
 		case AdoptionsServiceReapplyAdoptionProcedure:
 			adoptionsServiceReapplyAdoptionHandler.ServeHTTP(w, r)
 		case AdoptionsServiceDeleteAdoptionProcedure:
@@ -470,8 +574,24 @@ func (UnimplementedAdoptionsServiceHandler) ListEffectiveAdoptions(context.Conte
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ListEffectiveAdoptions is not implemented"))
 }
 
+func (UnimplementedAdoptionsServiceHandler) PreflightAdoption(context.Context, *connect.Request[adoptions.PreflightAdoptionRequest]) (*connect.Response[adoptions.PreflightAdoptionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.PreflightAdoption is not implemented"))
+}
+
+func (UnimplementedAdoptionsServiceHandler) SyncScenarioTokens(context.Context, *connect.Request[adoptions.SyncScenarioTokensRequest]) (*connect.Response[adoptions.SyncScenarioTokensResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.SyncScenarioTokens is not implemented"))
+}
+
+func (UnimplementedAdoptionsServiceHandler) PruneScenarioTokens(context.Context, *connect.Request[adoptions.PruneScenarioTokensRequest]) (*connect.Response[adoptions.PruneScenarioTokensResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.PruneScenarioTokens is not implemented"))
+}
+
 func (UnimplementedAdoptionsServiceHandler) ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption is not implemented"))
+}
+
+func (UnimplementedAdoptionsServiceHandler) BatchApplyAdoptions(context.Context, *connect.Request[adoptions.BatchApplyAdoptionsRequest]) (*connect.Response[adoptions.BatchApplyAdoptionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.BatchApplyAdoptions is not implemented"))
 }
 
 func (UnimplementedAdoptionsServiceHandler) ReapplyAdoption(context.Context, *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error) {

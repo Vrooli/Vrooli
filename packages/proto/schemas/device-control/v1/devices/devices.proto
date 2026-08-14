@@ -7,6 +7,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-contr
 service DeviceService {
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
   rpc ConnectDevice(ConnectDeviceRequest) returns (ConnectDeviceResponse);
+  rpc ReconnectDevice(ReconnectDeviceRequest) returns (ReconnectDeviceResponse);
 }
 message ListDevicesRequest {}
 message ListDevicesResponse {
@@ -19,6 +20,8 @@ message ConnectDeviceResponse {
   repeated OnboardingRung rungs = 1;
   string first_next_action = 2;
 }
+message ReconnectDeviceRequest { string device_id = 1; }
+message ReconnectDeviceResponse { Device device = 1; }
 message Device {
   string id = 1;
   string name = 2;

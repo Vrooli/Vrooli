@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package vrooli.offer_desk.v1.offers;
+
+import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
+import "money-ledger/v1/ledger/ledger.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers;offers_v1";
+
+enum NodeKind { NODE_KIND_UNSPECIFIED = 0; OFFER = 1; VARIANT = 2; CHANNEL = 3; REVENUE_LINE = 4; DELIVERABLE = 5; }
+enum Status { STATUS_UNSPECIFIED = 0; IDEA = 1; CANDIDATE = 2; TRIGGER_MET = 3; ACTIVE = 4; SHIPPED = 5; RETIRED = 6; }
+enum Verdict { VERDICT_UNSPECIFIED = 0; SATISFIED = 1; UNSATISFIED = 2; UNKNOWN = 3; }
+
+message Node { string id = 1; NodeKind kind = 2; string name = 3; Status status = 4; string trigger_id = 5; google.protobuf.Timestamp created_at = 6; string actual_account_id = 7; }
+message Edge { string id = 1; string from_id = 2; string to_id = 3; string kind = 4; int64 intended_price_minor = 5; string currency = 6; }
+enum TriggerComposition { TRIGGER_COMPOSITION_UNSPECIFIED = 0; ALL = 1; ANY = 2; }
+message TriggerClause { string fact_name = 1; string operator = 2; double threshold = 3; }
+message Fact { string name = 1; double value = 2; google.protobuf.Timestamp observed_at = 3; int32 stale_after_days = 4; string dimension = 5; }
+message Trigger { string id = 1; string node_id = 2; string fact_name = 3; string operator = 4; double threshold = 5; string expression = 6; repeated TriggerClause clauses = 7; TriggerComposition composition = 8; }
+message Evaluation { string id = 1; string node_id = 2; Verdict verdict = 3; string fact_name = 4; string explanation = 5; google.protobuf.Timestamp evaluated_at = 6; int64 fact_age_seconds = 7; repeated string fact_names = 8; }
+message Proposal { string id = 1; string node_id = 2; string actor = 3; Status requested_status = 4; string reason = 5; }
+message Availability { string source = 1; string reason = 2; google.protobuf.Timestamp last_success_at = 3; }
+message BoardEntry { string node_id = 1; string title = 2; string rank_reason = 3; Status status = 4; int64 actual_minor = 5; bool actuals_available = 6; repeated Availability availability = 7; }
+message BoardResponse { repeated BoardEntry entries = 1; vrooli.money_ledger.v1.ledger.PositionResponse position = 2; repeated Availability availability = 3; }
+
+message CreateNodeRequest { NodeKind kind = 1; string name = 2; Status status = 3; string trigger_id = 4; string actual_account_id = 5; }
+message CreateNodeResponse { Node node = 1; }
+message ListNodesRequest { NodeKind kind = 1; Status status = 2; }
+message ListNodesResponse { repeated Node nodes = 1; }
+message TransitionRequest { string node_id = 1; Status status = 2; string actor = 3; }
+message TransitionResponse { Node node = 1; }
+message CreateEdgeRequest { Edge edge = 1 [(buf.validate.field).required = true]; }
+message CreateEdgeResponse { Edge edge = 1; }
+message DeclareTriggerRequest { Trigger trigger = 1 [(buf.validate.field).required = true]; }
+message DeclareTriggerResponse { Trigger trigger = 1; }
+message AddFactRequest { Fact fact = 1 [(buf.validate.field).required = true]; }
+message AddFactResponse { Fact fact = 1; }
+message EvaluateRequest { bool dry_run = 1; }
+message EvaluateResponse { repeated Evaluation evaluations = 1; }
+message PromoteRequest { string node_id = 1; string actor = 2; string role = 3; }
+message PromoteResponse { Proposal proposal = 1; }
+message ListAuditRequest { string node_id = 1; }
+message ListAuditResponse { repeated string entries = 1; }
+message ListEdgesRequest { string node_id = 1; }
+message ListEdgesResponse { repeated Edge edges = 1; }
+message ProjectionRequest {}
+
+service CatalogService {
+  rpc CreateNode(CreateNodeRequest) returns (CreateNodeResponse);
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+  rpc Transition(TransitionRequest) returns (TransitionResponse);
+  rpc CreateEdge(CreateEdgeRequest) returns (CreateEdgeResponse);
+  rpc ListEdges(ListEdgesRequest) returns (ListEdgesResponse);
+}
+service GatesService {
+  rpc DeclareTrigger(DeclareTriggerRequest) returns (DeclareTriggerResponse);
+  rpc AddFact(AddFactRequest) returns (AddFactResponse);
+  rpc Evaluate(EvaluateRequest) returns (EvaluateResponse);
+  rpc Promote(PromoteRequest) returns (PromoteResponse);
+}
+service BoardService { rpc GetBoard(ProjectionRequest) returns (BoardResponse); }

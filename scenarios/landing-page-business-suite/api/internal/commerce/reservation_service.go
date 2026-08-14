@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var ErrReservationNotOwned = errors.New("reservation does not belong to authenticated user")
+
 // ReservationService owns atomic credit reservations, settlement, expiry, and
 // adjustments. Its collaborators are explicit so monetization policy remains
 // testable without the root API package.
@@ -83,6 +85,10 @@ func (s *ReservationService) ReserveAndCharge(ctx context.Context, userIdentity,
 	}
 
 	billingPeriod := s.billingPeriod()
+	var appBundleKey *string
+	if value := strings.TrimSpace(metadata.AppBundleKey); value != "" {
+		appBundleKey = &value
+	}
 
 	// Start a serializable transaction to prevent concurrent limit bypass
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -104,9 +110,12 @@ func (s *ReservationService) ReserveAndCharge(ctx context.Context, userIdentity,
 	} else {
 		query = `
 			SELECT COALESCE(SUM(usage_amount), 0)
-			FROM usage_records
-			WHERE user_identity = $1 AND billing_period = $2 AND limit_key = $3
-			FOR UPDATE
+			FROM (
+				SELECT usage_amount
+				FROM usage_records
+				WHERE user_identity = $1 AND billing_period = $2 AND limit_key = $3
+				FOR UPDATE
+			) AS locked_usage
 		`
 	}
 
@@ -117,7 +126,7 @@ func (s *ReservationService) ReserveAndCharge(ctx context.Context, userIdentity,
 
 	// Check the limit if tier is specified
 	if tier != "" && s.limitsSvc != nil {
-		limit, err := s.limitsSvc.GetLimit(ctx, tier, limitKey, nil)
+		limit, err := s.limitsSvc.GetLimit(ctx, tier, limitKey, appBundleKey)
 		if err != nil {
 			return fmt.Errorf("get limit: %w", err)
 		}
@@ -240,9 +249,12 @@ func (s *ReservationService) ReserveCredits(ctx context.Context, userIdentity, t
 		// Get current usage with FOR UPDATE lock
 		err = tx.QueryRowContext(ctx, `
 			SELECT COALESCE(SUM(usage_amount), 0)
-			FROM usage_records
-			WHERE user_identity = $1 AND billing_period = $2 AND limit_key = $3
-			FOR UPDATE
+			FROM (
+				SELECT usage_amount
+				FROM usage_records
+				WHERE user_identity = $1 AND billing_period = $2 AND limit_key = $3
+				FOR UPDATE
+			) AS locked_usage
 		`, userIdentity, billingPeriod, limitKey).Scan(&currentUsage)
 		if err != nil && err != sql.ErrNoRows {
 			return "", fmt.Errorf("get current usage: %w", err)
@@ -251,9 +263,12 @@ func (s *ReservationService) ReserveCredits(ctx context.Context, userIdentity, t
 		// Get pending reservations with FOR UPDATE lock
 		err = tx.QueryRowContext(ctx, `
 			SELECT COALESCE(SUM(reserved_amount), 0)
-			FROM credit_reservations
-			WHERE user_identity = $1 AND billing_period = $2 AND limit_key = $3 AND status = 'pending'
-			FOR UPDATE
+			FROM (
+				SELECT reserved_amount
+				FROM credit_reservations
+				WHERE user_identity = $1 AND billing_period = $2 AND limit_key = $3 AND status = 'pending'
+				FOR UPDATE
+			) AS locked_reservations
 		`, userIdentity, billingPeriod, limitKey).Scan(&pendingReservations)
 		if err != nil && err != sql.ErrNoRows {
 			return "", fmt.Errorf("get pending reservations: %w", err)
@@ -431,6 +446,15 @@ func (s *ReservationService) FinalizeReservation(ctx context.Context, reservatio
 	return nil
 }
 
+// FinalizeReservationForUser binds settlement to the authenticated identity
+// before performing the existing atomic settlement transaction.
+func (s *ReservationService) FinalizeReservationForUser(ctx context.Context, userIdentity, reservationID string, actualAmount int64) error {
+	if err := s.verifyOwner(ctx, userIdentity, reservationID); err != nil {
+		return err
+	}
+	return s.FinalizeReservation(ctx, reservationID, actualAmount)
+}
+
 // ReleaseReservation marks a reservation as released without recording usage.
 // Call this when a streaming request is cancelled or fails before completing.
 func (s *ReservationService) ReleaseReservation(ctx context.Context, reservationID string) error {
@@ -472,6 +496,41 @@ func (s *ReservationService) ReleaseReservation(ctx context.Context, reservation
 		})
 	}
 
+	return nil
+}
+
+// ReleaseReservationForUser prevents one authenticated user from releasing a
+// reservation created by another user.
+func (s *ReservationService) ReleaseReservationForUser(ctx context.Context, userIdentity, reservationID string) error {
+	if err := s.verifyOwner(ctx, userIdentity, reservationID); err != nil {
+		return err
+	}
+	return s.ReleaseReservation(ctx, reservationID)
+}
+
+func (s *ReservationService) verifyOwner(ctx context.Context, userIdentity, reservationID string) error {
+	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
+	reservationID = strings.TrimSpace(reservationID)
+	if userIdentity == "" {
+		return fmt.Errorf("user_identity is required")
+	}
+	if reservationID == "" {
+		return fmt.Errorf("reservation_id is required")
+	}
+	placeholder := "$1"
+	if s.dialect == "sqlite" {
+		placeholder = "?"
+	}
+	var owner string
+	if err := s.db.QueryRowContext(ctx, "SELECT user_identity FROM credit_reservations WHERE id = "+placeholder, reservationID).Scan(&owner); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("reservation not found: %s", reservationID)
+		}
+		return fmt.Errorf("get reservation owner: %w", err)
+	}
+	if !strings.EqualFold(owner, userIdentity) {
+		return ErrReservationNotOwned
+	}
 	return nil
 }
 

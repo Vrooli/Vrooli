@@ -32,7 +32,11 @@ service AdoptionsService {
   rpc ListScenarios(ListScenariosRequest) returns (ListScenariosResponse);
   rpc ListAdoptions(ListAdoptionsRequest) returns (ListAdoptionsResponse);
   rpc ListEffectiveAdoptions(ListEffectiveAdoptionsRequest) returns (ListEffectiveAdoptionsResponse);
+  rpc PreflightAdoption(PreflightAdoptionRequest) returns (PreflightAdoptionResponse);
+  rpc SyncScenarioTokens(SyncScenarioTokensRequest) returns (SyncScenarioTokensResponse);
+  rpc PruneScenarioTokens(PruneScenarioTokensRequest) returns (PruneScenarioTokensResponse);
   rpc ApplyAdoption(ApplyAdoptionRequest) returns (ApplyAdoptionResponse);
+  rpc BatchApplyAdoptions(BatchApplyAdoptionsRequest) returns (BatchApplyAdoptionsResponse);
   rpc ReapplyAdoption(ReapplyAdoptionRequest) returns (ReapplyAdoptionResponse);
   rpc DeleteAdoption(DeleteAdoptionRequest) returns (DeleteAdoptionResponse);
   rpc RefreshAdoptions(RefreshAdoptionsRequest) returns (RefreshAdoptionsResponse);
@@ -85,6 +89,7 @@ enum LibraryVersionStatus {
   LIBRARY_VERSION_STATUS_DEPRECATED = 3;
   LIBRARY_VERSION_STATUS_MISSING = 4;
   LIBRARY_VERSION_STATUS_UNKNOWN = 5;
+  LIBRARY_VERSION_STATUS_SOURCE_DRIFTED = 6;
 }
 
 enum LocalStatus {
@@ -204,6 +209,53 @@ message ApplyAdoptionRequest {
   repeated string include_suggestions = 8;
 }
 
+message PreflightAdoptionRequest {
+  string component_id = 1;
+  string scenario = 2;
+  string version = 3;
+}
+
+message PreflightAdoptionResponse {
+  string component_id = 1;
+  string scenario = 2;
+  string version = 3;
+  repeated string required_tokens = 4;
+  repeated string required_token_patterns = 5;
+  repeated string defined_tokens = 6;
+  repeated string unsatisfied_tokens = 7;
+  string dependency_verdict = 8;
+  string style_fit = 9;
+  bool blocking = 10;
+  string version_status = 11;
+  string maturity_rung = 12;
+  string maturity_floor = 13;
+  repeated string warnings = 14;
+}
+
+message SyncScenarioTokensRequest {
+  string scenario = 1;
+  bool dry_run = 2;
+}
+
+message SyncScenarioTokensResponse {
+  string scenario = 1;
+  repeated string added = 2;
+  repeated string collisions = 3;
+  bool changed = 4;
+}
+
+message PruneScenarioTokensRequest {
+  string scenario = 1;
+  bool apply = 2;
+}
+
+message PruneScenarioTokensResponse {
+  string scenario = 1;
+  repeated string removed = 2;
+  repeated string retained = 3;
+  bool changed = 4;
+}
+
 message ApplyAdoptionResponse {
   Adoption adoption = 1;
   string written_path = 2;
@@ -219,6 +271,35 @@ message ApplyAdoptionResponse {
   repeated string available_suggestions = 8;
 }
 
+message BatchApplyItem {
+  string component_id = 1;
+  string scenario = 2;
+  string adopted_path = 3;
+  string version = 4;
+  bool confirm_overwrite = 5;
+  bool override_validation = 6;
+  bool replace_existing = 7;
+  repeated string include_suggestions = 8;
+}
+
+message BatchApplyAdoptionsRequest { repeated BatchApplyItem items = 1; }
+
+message BatchApplyItemResult {
+  Adoption adoption = 1;
+  string written_path = 2;
+  repeated string import_sites = 3;
+  string style_fit_affinity = 4;
+  string style_fit_detail = 5;
+  repeated string copied_assets = 6;
+  repeated string satisfied_ports = 7;
+  repeated string available_suggestions = 8;
+}
+
+message BatchApplyAdoptionsResponse {
+  repeated BatchApplyItemResult results = 1;
+  repeated string shared_dependencies = 2;
+}
+
 message ReapplyAdoptionRequest {
   string id = 1;
   // Optional. Defaults to component.latest.
@@ -228,6 +309,8 @@ message ReapplyAdoptionRequest {
   // Explicitly permits a reapply that dependency validation classifies as
   // blocking. Both validation checks still run.
   bool override_validation = 4;
+  // Validate the replacement closure without writing files or the registry.
+  bool dry_run = 5;
 }
 
 message ReapplyAdoptionResponse {
@@ -237,9 +320,14 @@ message ReapplyAdoptionResponse {
 
 message DeleteAdoptionRequest {
   string id = 1;
+  bool confirm_remove_files = 2;
 }
 
-message DeleteAdoptionResponse {}
+message DeleteAdoptionResponse {
+  repeated string removable_files = 1;
+  repeated string removed_files = 2;
+  bool requires_confirmation = 3;
+}
 
 message RefreshAdoptionsRequest {
   // Optional: scope the refresh to a single component_id. Empty =
@@ -367,6 +455,7 @@ message RefreshAdoptionsResponse {
   int32 library_deprecated = 4;
   int32 library_missing = 5;
   int32 library_unknown = 6;
+  int32 library_source_drifted = 11;
   int32 local_clean = 7;
   int32 local_modified = 8;
   int32 local_missing = 9;
@@ -409,6 +498,8 @@ enum ReconvergeAction {
   RECONVERGE_ACTION_SKIPPED_UNRESOLVED = 4;
   // An apply-mode re-apply attempt failed (e.g. dependency validation blocked).
   RECONVERGE_ACTION_ERROR = 5;
+  // An apply-mode re-apply was blocked by unsatisfied target CSS tokens.
+  RECONVERGE_ACTION_BLOCKED_TOKENS = 6;
 }
 
 // ReconvergeAdoptions batch-reconverges BEHIND adoptions. Dry-run by default.
@@ -442,6 +533,9 @@ message ReconvergeOutcome {
   ReconvergeAction action = 9;
   string detail = 10;
   repeated ReconvergeFileOutcome files = 11;
+  // Named classification for modified copies: translation_only,
+  // local_addition, local_fork, or token_blocked.
+  string disposition = 12;
 }
 
 message ReconvergeAdoptionsResponse {
@@ -458,6 +552,10 @@ message ReconvergeAdoptionsResponse {
   // Apply attempts that failed.
   int32 errored = 6;
   repeated ReconvergeOutcome outcomes = 7;
+  int32 translation_only = 8;
+  int32 local_addition = 9;
+  int32 local_fork = 10;
+  int32 token_blocked = 11;
 }
 
 // DiscoverAdoptions surfaces header-less scenario UI files that resemble a

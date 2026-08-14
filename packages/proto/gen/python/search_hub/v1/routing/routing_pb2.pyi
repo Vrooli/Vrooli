@@ -3,6 +3,7 @@ import datetime
 from common.v1 import attestation_pb2 as _attestation_pb2
 from common.v1 import confidence_pb2 as _confidence_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from search_hub.v1.registry import registry_pb2 as _registry_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -125,7 +126,7 @@ class ProviderResultGroup(_message.Message):
     def __init__(self, provider_id: _Optional[str] = ..., hits: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., count: _Optional[int] = ..., degraded: _Optional[bool] = ..., note: _Optional[str] = ..., latency_ms: _Optional[int] = ...) -> None: ...
 
 class QueryResponse(_message.Message):
-    __slots__ = ("ranked", "groups", "corpora_searched", "routing_explanation", "reranked", "degraded", "latency_ms", "partial", "pending_providers", "reranker_leg", "routing_degrade_reason")
+    __slots__ = ("ranked", "groups", "corpora_searched", "routing_explanation", "reranked", "degraded", "latency_ms", "partial", "pending_providers", "reranker_leg", "routing_degrade_reason", "ordered_by")
     RANKED_FIELD_NUMBER: _ClassVar[int]
     GROUPS_FIELD_NUMBER: _ClassVar[int]
     CORPORA_SEARCHED_FIELD_NUMBER: _ClassVar[int]
@@ -137,6 +138,7 @@ class QueryResponse(_message.Message):
     PENDING_PROVIDERS_FIELD_NUMBER: _ClassVar[int]
     RERANKER_LEG_FIELD_NUMBER: _ClassVar[int]
     ROUTING_DEGRADE_REASON_FIELD_NUMBER: _ClassVar[int]
+    ORDERED_BY_FIELD_NUMBER: _ClassVar[int]
     ranked: _containers.RepeatedCompositeFieldContainer[SearchHit]
     groups: _containers.RepeatedCompositeFieldContainer[ProviderResultGroup]
     corpora_searched: _containers.RepeatedScalarFieldContainer[str]
@@ -148,7 +150,8 @@ class QueryResponse(_message.Message):
     pending_providers: int
     reranker_leg: str
     routing_degrade_reason: str
-    def __init__(self, ranked: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., groups: _Optional[_Iterable[_Union[ProviderResultGroup, _Mapping]]] = ..., corpora_searched: _Optional[_Iterable[str]] = ..., routing_explanation: _Optional[_Iterable[str]] = ..., reranked: _Optional[bool] = ..., degraded: _Optional[bool] = ..., latency_ms: _Optional[int] = ..., partial: _Optional[bool] = ..., pending_providers: _Optional[int] = ..., reranker_leg: _Optional[str] = ..., routing_degrade_reason: _Optional[str] = ...) -> None: ...
+    ordered_by: str
+    def __init__(self, ranked: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., groups: _Optional[_Iterable[_Union[ProviderResultGroup, _Mapping]]] = ..., corpora_searched: _Optional[_Iterable[str]] = ..., routing_explanation: _Optional[_Iterable[str]] = ..., reranked: _Optional[bool] = ..., degraded: _Optional[bool] = ..., latency_ms: _Optional[int] = ..., partial: _Optional[bool] = ..., pending_providers: _Optional[int] = ..., reranker_leg: _Optional[str] = ..., routing_degrade_reason: _Optional[str] = ..., ordered_by: _Optional[str] = ...) -> None: ...
 
 class StatusRequest(_message.Message):
     __slots__ = ()
@@ -171,7 +174,7 @@ class RepromoteResponse(_message.Message):
     def __init__(self, provider_id: _Optional[str] = ..., reset: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
 
 class ProviderHealth(_message.Message):
-    __slots__ = ("provider_id", "reachable", "point_count", "degraded", "demoted", "demotion_reason", "times_routed", "total_hits", "reachability", "index_age", "automatic_eligible", "automatic_exclusion_reason", "circuit_state", "quality_withheld", "quality_withheld_reason", "quality_evidence_run_id", "quality_gate_opted_out", "quality_gate_opt_out_reason", "last_indexed_at")
+    __slots__ = ("provider_id", "reachable", "point_count", "degraded", "demoted", "demotion_reason", "times_routed", "total_hits", "reachability", "index_age", "automatic_eligible", "automatic_exclusion_reason", "circuit_state", "quality_withheld", "quality_withheld_reason", "quality_evidence_run_id", "quality_gate_opted_out", "quality_gate_opt_out_reason", "last_indexed_at", "stuck", "recovery_state", "lifecycle", "declared_at")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     REACHABLE_FIELD_NUMBER: _ClassVar[int]
     POINT_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -191,6 +194,10 @@ class ProviderHealth(_message.Message):
     QUALITY_GATE_OPTED_OUT_FIELD_NUMBER: _ClassVar[int]
     QUALITY_GATE_OPT_OUT_REASON_FIELD_NUMBER: _ClassVar[int]
     LAST_INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
+    STUCK_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_STATE_FIELD_NUMBER: _ClassVar[int]
+    LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_AT_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     reachable: bool
     point_count: int
@@ -210,16 +217,21 @@ class ProviderHealth(_message.Message):
     quality_gate_opted_out: bool
     quality_gate_opt_out_reason: str
     last_indexed_at: _timestamp_pb2.Timestamp
-    def __init__(self, provider_id: _Optional[str] = ..., reachable: _Optional[bool] = ..., point_count: _Optional[int] = ..., degraded: _Optional[bool] = ..., demoted: _Optional[bool] = ..., demotion_reason: _Optional[str] = ..., times_routed: _Optional[int] = ..., total_hits: _Optional[int] = ..., reachability: _Optional[str] = ..., index_age: _Optional[str] = ..., automatic_eligible: _Optional[bool] = ..., automatic_exclusion_reason: _Optional[str] = ..., circuit_state: _Optional[str] = ..., quality_withheld: _Optional[bool] = ..., quality_withheld_reason: _Optional[str] = ..., quality_evidence_run_id: _Optional[str] = ..., quality_gate_opted_out: _Optional[bool] = ..., quality_gate_opt_out_reason: _Optional[str] = ..., last_indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    stuck: bool
+    recovery_state: str
+    lifecycle: str
+    declared_at: str
+    def __init__(self, provider_id: _Optional[str] = ..., reachable: _Optional[bool] = ..., point_count: _Optional[int] = ..., degraded: _Optional[bool] = ..., demoted: _Optional[bool] = ..., demotion_reason: _Optional[str] = ..., times_routed: _Optional[int] = ..., total_hits: _Optional[int] = ..., reachability: _Optional[str] = ..., index_age: _Optional[str] = ..., automatic_eligible: _Optional[bool] = ..., automatic_exclusion_reason: _Optional[str] = ..., circuit_state: _Optional[str] = ..., quality_withheld: _Optional[bool] = ..., quality_withheld_reason: _Optional[str] = ..., quality_evidence_run_id: _Optional[str] = ..., quality_gate_opted_out: _Optional[bool] = ..., quality_gate_opt_out_reason: _Optional[str] = ..., last_indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., stuck: _Optional[bool] = ..., recovery_state: _Optional[str] = ..., lifecycle: _Optional[str] = ..., declared_at: _Optional[str] = ...) -> None: ...
 
 class StatusResponse(_message.Message):
-    __slots__ = ("providers", "classifier_available", "reranker_available", "circuit_open_share", "circuit_open_quorum", "federation_degraded", "reranker_leg")
+    __slots__ = ("providers", "classifier_available", "reranker_available", "circuit_open_share", "circuit_open_quorum", "federation_degraded", "incubating", "reranker_leg")
     PROVIDERS_FIELD_NUMBER: _ClassVar[int]
     CLASSIFIER_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     RERANKER_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     CIRCUIT_OPEN_SHARE_FIELD_NUMBER: _ClassVar[int]
     CIRCUIT_OPEN_QUORUM_FIELD_NUMBER: _ClassVar[int]
     FEDERATION_DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    INCUBATING_FIELD_NUMBER: _ClassVar[int]
     RERANKER_LEG_FIELD_NUMBER: _ClassVar[int]
     providers: _containers.RepeatedCompositeFieldContainer[ProviderHealth]
     classifier_available: bool
@@ -227,5 +239,6 @@ class StatusResponse(_message.Message):
     circuit_open_share: float
     circuit_open_quorum: float
     federation_degraded: bool
+    incubating: _containers.RepeatedCompositeFieldContainer[_registry_pb2.IncubatingProvider]
     reranker_leg: str
-    def __init__(self, providers: _Optional[_Iterable[_Union[ProviderHealth, _Mapping]]] = ..., classifier_available: _Optional[bool] = ..., reranker_available: _Optional[bool] = ..., circuit_open_share: _Optional[float] = ..., circuit_open_quorum: _Optional[float] = ..., federation_degraded: _Optional[bool] = ..., reranker_leg: _Optional[str] = ...) -> None: ...
+    def __init__(self, providers: _Optional[_Iterable[_Union[ProviderHealth, _Mapping]]] = ..., classifier_available: _Optional[bool] = ..., reranker_available: _Optional[bool] = ..., circuit_open_share: _Optional[float] = ..., circuit_open_quorum: _Optional[float] = ..., federation_degraded: _Optional[bool] = ..., incubating: _Optional[_Iterable[_Union[_registry_pb2.IncubatingProvider, _Mapping]]] = ..., reranker_leg: _Optional[str] = ...) -> None: ...

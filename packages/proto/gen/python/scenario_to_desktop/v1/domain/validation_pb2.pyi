@@ -124,7 +124,7 @@ VALIDATION_DISPOSITION_UNSUPPORTED: ValidationDisposition
 VALIDATION_DISPOSITION_REFUSED: ValidationDisposition
 VALIDATION_DISPOSITION_NOT_RUN: ValidationDisposition
 
-class ElectronTarget(_message.Message):
+class AppTarget(_message.Message):
     __slots__ = ("target_id", "scenario_name", "artifact_digest", "process_id", "cdp_endpoint", "cdp_transport", "loopback_only", "authenticated", "renderer_id", "bridge_node_id", "launched_at", "context_id", "renderer_url", "renderer_title")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]

@@ -89,21 +89,7 @@ func createTestUsageService(t *testing.T) (*commerce.UsageService, *commerce.Lim
 	// Construct the domain service directly so unit tests never inherit a
 	// process-level production secret from the composition root.
 	usageSvc := commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
-		DB: db, LimitsService: limitsSvc, Dialect: "sqlite", ServiceToken: "",
-	})
-
-	return usageSvc, limitsSvc, db
-}
-
-// createTestUsageServiceWithToken creates a usage service with a service token.
-func createTestUsageServiceWithToken(t *testing.T, token string) (*commerce.UsageService, *commerce.LimitsService, *sql.DB) {
-	t.Helper()
-
-	db := createTestUsageDB(t)
-	limitsSvc := NewLimitsService(db, "sqlite")
-
-	usageSvc := commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
-		DB: db, LimitsService: limitsSvc, Dialect: "sqlite", ServiceToken: token,
+		DB: db, LimitsService: limitsSvc, Dialect: "sqlite",
 	})
 
 	return usageSvc, limitsSvc, db
@@ -182,7 +168,7 @@ func createTestUsageServiceWithMock(t *testing.T, mock *MockLimitsService) (*com
 	db := createTestUsageDB(t)
 
 	usageSvc := commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
-		DB: db, LimitsService: mock, Dialect: "sqlite", ServiceToken: "",
+		DB: db, LimitsService: mock, Dialect: "sqlite",
 	})
 
 	return usageSvc, db
@@ -625,104 +611,8 @@ func TestUsageService_CheckLimit_NoTier_AllowsAll(t *testing.T) {
 	}
 }
 
-// ============================================================================
-// ValidateServiceToken Tests
-// ============================================================================
-
-func TestUsageService_ValidateServiceToken_ValidToken(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "secret-token-123")
-	defer db.Close()
-
-	valid := svc.ValidateServiceToken("secret-token-123")
-	if !valid {
-		t.Error("Expected valid=true for correct token")
-	}
-}
-
-func TestUsageService_ValidateServiceToken_InvalidToken(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "secret-token-123")
-	defer db.Close()
-
-	valid := svc.ValidateServiceToken("wrong-token")
-	if valid {
-		t.Error("Expected valid=false for incorrect token")
-	}
-}
-
-func TestUsageService_ValidateServiceToken_EmptyConfigured_RejectsAll(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "")
-	defer db.Close()
-
-	// When no token is configured, should reject all tokens
-	valid := svc.ValidateServiceToken("any-token")
-	if valid {
-		t.Error("Expected valid=false when no service token configured")
-	}
-
-	valid = svc.ValidateServiceToken("")
-	if valid {
-		t.Error("Expected valid=false for empty token when none configured")
-	}
-}
-
-// TestUsageService_ValidateServiceToken_ConstantTime tests that token validation
-// works correctly with constant-time comparison (functional test, not timing test).
-// This verifies that subtle.ConstantTimeCompare is used correctly.
-func TestUsageService_ValidateServiceToken_ConstantTime(t *testing.T) {
-	// Test with various token lengths to ensure constant-time compare works
-	testCases := []struct {
-		name       string
-		configured string
-		provided   string
-		expectOK   bool
-	}{
-		{"exact match", "secret-token-123", "secret-token-123", true},
-		{"same length different content", "secret-token-123", "secret-token-456", false},
-		{"shorter provided", "secret-token-123", "short", false},
-		{"longer provided", "secret-token-123", "secret-token-123-extra-long", false},
-		{"prefix match only", "secret-token-123", "secret-token", false},
-		{"suffix match only", "secret-token-123", "token-123", false},
-		{"case sensitive", "Secret-Token-123", "secret-token-123", false},
-		{"empty provided", "secret-token-123", "", false},
-		{"single char match", "x", "x", true},
-		{"single char mismatch", "x", "y", false},
-		{"unicode tokens", "tökën-123", "tökën-123", true},
-		{"unicode mismatch", "tökën-123", "token-123", false},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			svc, _, db := createTestUsageServiceWithToken(t, tc.configured)
-			defer db.Close()
-
-			valid := svc.ValidateServiceToken(tc.provided)
-			if valid != tc.expectOK {
-				t.Errorf("ValidateServiceToken(%q) = %v, expected %v (configured: %q)",
-					tc.provided, valid, tc.expectOK, tc.configured)
-			}
-		})
-	}
-}
-
-func TestUsageService_HealthCheck_ServiceAuthConfigured_True(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "service-secret")
-	defer db.Close()
-
-	status, err := svc.HealthCheck(context.Background())
-	if err != nil {
-		t.Fatalf("HealthCheck() returned error: %v", err)
-	}
-
-	if !status.ServiceAuthConfigured {
-		t.Fatal("expected service_auth_configured=true")
-	}
-	if status.ServiceAuthMode != "token" {
-		t.Fatalf("expected service_auth_mode=token, got %q", status.ServiceAuthMode)
-	}
-}
-
-func TestUsageService_HealthCheck_ServiceAuthConfigured_False(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "")
+func TestUsageService_HealthCheck_DoesNotExposeServiceAuth(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
 	defer db.Close()
 
 	status, err := svc.HealthCheck(context.Background())
@@ -731,7 +621,7 @@ func TestUsageService_HealthCheck_ServiceAuthConfigured_False(t *testing.T) {
 	}
 
 	if status.ServiceAuthConfigured {
-		t.Fatal("expected service_auth_configured=false")
+		t.Fatal("service auth must remain unavailable")
 	}
 	if status.ServiceAuthMode != "disabled" {
 		t.Fatalf("expected service_auth_mode=disabled, got %q", status.ServiceAuthMode)

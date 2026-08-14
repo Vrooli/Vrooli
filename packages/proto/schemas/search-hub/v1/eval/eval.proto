@@ -76,6 +76,9 @@ message EvalCase {
   // Optional minimum rank-1/rank-2 margin for the federated tier. Empty/zero
   // uses the tier's documented default floor.
   double expect_min_margin = 12;
+  // Composed suites use this to retain the corpus owner per case. Empty means
+  // the suite provider_id owns the case, preserving the provider-suite shape.
+  string expected_provider_id = 13;
 }
 
 // An immutable execution of a suite. The TAG is the experimentation lever.
@@ -175,6 +178,12 @@ message EvalAggregate {
   int32 unavailable_cases = 8;
   // met / graded_cases when graded_cases is non-zero, otherwise zero.
   double pass_rate = 9;
+  // Federated-only: owning-provider-routed gradeable cases / gradeable cases.
+  // Optional keeps an unset (not measured) value distinct from a measured 0.
+  optional double routing_precision = 10;
+  // Federated-only: expected-id-within-top-k cases / owning-provider-routed
+  // gradeable cases. Optional for the same not-measured versus zero distinction.
+  optional double retrieval_recall = 11;
 }
 
 service EvalService {

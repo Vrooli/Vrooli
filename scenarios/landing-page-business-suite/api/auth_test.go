@@ -15,7 +15,6 @@ import (
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	"golang.org/x/crypto/bcrypt"
 	adminhttp "landing-page-business-suite-api/handlers/administration"
-	"landing-page-business-suite-api/internal/commerce"
 )
 
 func TestHandleAdminLogin_Success(t *testing.T) {
@@ -309,56 +308,19 @@ func TestRequireAdmin_NoSession(t *testing.T) {
 	}
 }
 
-func TestRequireAdminOrService_ValidatesServiceTokenAndFallsBackToAdminSession(t *testing.T) {
-	db := setupTestDB(t)
-	service := commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{ServiceToken: "service-token"})
-
-	for _, tc := range []struct {
-		name          string
-		usageService  *commerce.UsageService
-		authorization string
-		wantStatus    int
-		wantCalled    bool
-	}{
-		{
-			name:          "configured bearer token",
-			usageService:  service,
-			authorization: "Bearer service-token",
-			wantStatus:    http.StatusNoContent,
-			wantCalled:    true,
-		},
-		{
-			name:          "invalid bearer token",
-			usageService:  service,
-			authorization: "Bearer wrong-token",
-			wantStatus:    http.StatusUnauthorized,
-		},
-		{
-			name:          "usage service unavailable",
-			authorization: "Bearer service-token",
-			wantStatus:    http.StatusUnauthorized,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			server := &Server{db: db, sessionManager: NewMockSessionManager(), usageService: tc.usageService}
-			called := false
-			handler := server.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
-				called = true
-				w.WriteHeader(http.StatusNoContent)
-			})
-			req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/protected", nil)
-			req.Header.Set("Authorization", tc.authorization)
-			rr := httptest.NewRecorder()
-
-			handler.ServeHTTP(rr, req)
-
-			if rr.Code != tc.wantStatus {
-				t.Errorf("status = %d, want %d", rr.Code, tc.wantStatus)
-			}
-			if called != tc.wantCalled {
-				t.Errorf("handler called = %v, want %v", called, tc.wantCalled)
-			}
-		})
+func TestRequireAdminOrService_RejectsBearerWithoutAdminSession(t *testing.T) {
+	server := &Server{db: setupTestDB(t), sessionManager: NewMockSessionManager()}
+	called := false
+	handler := server.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/protected", nil)
+	req.Header.Set("Authorization", "Bearer service-token")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if called || rr.Code != http.StatusUnauthorized {
+		t.Fatalf("shared bearer token must be rejected: called=%v status=%d", called, rr.Code)
 	}
 }
 
@@ -367,10 +329,7 @@ func TestRequireAdminOrService_AllowsValidAdminSessionFallback(t *testing.T) {
 	mockSession.SetSessionValues("admin_session", map[interface{}]interface{}{
 		"email": "admin@test.com",
 	})
-	server := &Server{
-		sessionManager: mockSession,
-		usageService:   commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{ServiceToken: "service-token"}),
-	}
+	server := &Server{sessionManager: mockSession}
 	called := false
 	handler := server.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
 		called = true

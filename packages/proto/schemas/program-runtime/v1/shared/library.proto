@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package vrooli.program_runtime.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared;shared_v1";
+
+// LibraryProgram is the frozen, versioned representation of a reusable
+// program. It is shared by the library service and discovery because the
+// discovery result may carry the exact program selected for execution.
+message LibraryProgram {
+  string id = 1;
+  string name = 2;
+  int64 version = 3;
+  string source = 4;
+  string description = 5;
+  string origin = 6;
+  string created_at = 7;
+  string source_program_id = 8;
+  string promoted_by = 9;
+  string promotion_reason = 10;
+  bool current = 11;
+  repeated string called_binding_ids = 12;
+}

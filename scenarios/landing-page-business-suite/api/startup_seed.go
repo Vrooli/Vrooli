@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/database"
+	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/delivery"
 	"landing-page-business-suite-api/internal/landing"
 )
@@ -20,7 +21,14 @@ func applyRuntimeSchema(db StartupStore) error {
 	if !ok {
 		return fmt.Errorf("schema initialization requires a concrete database connection")
 	}
-	return database.EnsureSchemas(context.Background(), concrete, database.SchemaProviderFunc(runtimeSchema))
+	ctx := context.Background()
+	if err := database.EnsureSchemas(ctx, concrete, database.SchemaProviderFunc(runtimeSchema)); err != nil {
+		return err
+	}
+	if _, err := concrete.ExecContext(ctx, commerce.FinancialIndexesSchema()); err != nil {
+		return fmt.Errorf("apply financial indexes: %w", err)
+	}
+	return nil
 }
 
 // seedDefaultData sets up baseline records that are not variant-specific.

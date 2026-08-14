@@ -354,11 +354,11 @@ func (LayeredEvidence_Kind) EnumDescriptor() ([]byte, []int) {
 	return file_scenario_to_desktop_v1_domain_validation_proto_rawDescGZIP(), []int{4, 0}
 }
 
-// ElectronTarget is the target-owned contract for attaching BAS to a running
+// AppTarget is the target-owned contract for attaching BAS to a running
 // generated desktop application. The CDP endpoint is loopback-only; bridge
 // transports must be represented by a target-owned authenticated adapter and
 // must not put a raw debugging port on a LAN interface.
-type ElectronTarget struct {
+type AppTarget struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TargetId       string                 `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
 	ScenarioName   string                 `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
@@ -378,20 +378,20 @@ type ElectronTarget struct {
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *ElectronTarget) Reset() {
-	*x = ElectronTarget{}
+func (x *AppTarget) Reset() {
+	*x = AppTarget{}
 	mi := &file_scenario_to_desktop_v1_domain_validation_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ElectronTarget) String() string {
+func (x *AppTarget) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ElectronTarget) ProtoMessage() {}
+func (*AppTarget) ProtoMessage() {}
 
-func (x *ElectronTarget) ProtoReflect() protoreflect.Message {
+func (x *AppTarget) ProtoReflect() protoreflect.Message {
 	mi := &file_scenario_to_desktop_v1_domain_validation_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -403,103 +403,103 @@ func (x *ElectronTarget) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ElectronTarget.ProtoReflect.Descriptor instead.
-func (*ElectronTarget) Descriptor() ([]byte, []int) {
+// Deprecated: Use AppTarget.ProtoReflect.Descriptor instead.
+func (*AppTarget) Descriptor() ([]byte, []int) {
 	return file_scenario_to_desktop_v1_domain_validation_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ElectronTarget) GetTargetId() string {
+func (x *AppTarget) GetTargetId() string {
 	if x != nil {
 		return x.TargetId
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetScenarioName() string {
+func (x *AppTarget) GetScenarioName() string {
 	if x != nil {
 		return x.ScenarioName
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetArtifactDigest() string {
+func (x *AppTarget) GetArtifactDigest() string {
 	if x != nil {
 		return x.ArtifactDigest
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetProcessId() string {
+func (x *AppTarget) GetProcessId() string {
 	if x != nil {
 		return x.ProcessId
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetCdpEndpoint() string {
+func (x *AppTarget) GetCdpEndpoint() string {
 	if x != nil {
 		return x.CdpEndpoint
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetCdpTransport() string {
+func (x *AppTarget) GetCdpTransport() string {
 	if x != nil {
 		return x.CdpTransport
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetLoopbackOnly() bool {
+func (x *AppTarget) GetLoopbackOnly() bool {
 	if x != nil {
 		return x.LoopbackOnly
 	}
 	return false
 }
 
-func (x *ElectronTarget) GetAuthenticated() bool {
+func (x *AppTarget) GetAuthenticated() bool {
 	if x != nil {
 		return x.Authenticated
 	}
 	return false
 }
 
-func (x *ElectronTarget) GetRendererId() string {
+func (x *AppTarget) GetRendererId() string {
 	if x != nil {
 		return x.RendererId
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetBridgeNodeId() string {
+func (x *AppTarget) GetBridgeNodeId() string {
 	if x != nil && x.BridgeNodeId != nil {
 		return *x.BridgeNodeId
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetLaunchedAt() *timestamppb.Timestamp {
+func (x *AppTarget) GetLaunchedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.LaunchedAt
 	}
 	return nil
 }
 
-func (x *ElectronTarget) GetContextId() string {
+func (x *AppTarget) GetContextId() string {
 	if x != nil {
 		return x.ContextId
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetRendererUrl() string {
+func (x *AppTarget) GetRendererUrl() string {
 	if x != nil {
 		return x.RendererUrl
 	}
 	return ""
 }
 
-func (x *ElectronTarget) GetRendererTitle() string {
+func (x *AppTarget) GetRendererTitle() string {
 	if x != nil && x.RendererTitle != nil {
 		return *x.RendererTitle
 	}
@@ -1311,8 +1311,8 @@ var File_scenario_to_desktop_v1_domain_validation_proto protoreflect.FileDescrip
 
 const file_scenario_to_desktop_v1_domain_validation_proto_rawDesc = "" +
 	"\n" +
-	".scenario-to-desktop/v1/domain/validation.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9b\x05\n" +
-	"\x0eElectronTarget\x12$\n" +
+	".scenario-to-desktop/v1/domain/validation.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x96\x05\n" +
+	"\tAppTarget\x12$\n" +
 	"\ttarget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\btargetId\x12,\n" +
 	"\rscenario_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x120\n" +
 	"\x0fartifact_digest\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0eartifactDigest\x12&\n" +
@@ -1509,7 +1509,7 @@ var file_scenario_to_desktop_v1_domain_validation_proto_goTypes = []any{
 	(ValidationEnvironmentProfile)(0),  // 1: vrooli.scenario_to_desktop.v1.domain.ValidationEnvironmentProfile
 	(ValidationDisposition)(0),         // 2: vrooli.scenario_to_desktop.v1.domain.ValidationDisposition
 	(LayeredEvidence_Kind)(0),          // 3: vrooli.scenario_to_desktop.v1.domain.LayeredEvidence.Kind
-	(*ElectronTarget)(nil),             // 4: vrooli.scenario_to_desktop.v1.domain.ElectronTarget
+	(*AppTarget)(nil),                  // 4: vrooli.scenario_to_desktop.v1.domain.AppTarget
 	(*ElectronLaunchRequest)(nil),      // 5: vrooli.scenario_to_desktop.v1.domain.ElectronLaunchRequest
 	(*ValidationContext)(nil),          // 6: vrooli.scenario_to_desktop.v1.domain.ValidationContext
 	(*ValidationCell)(nil),             // 7: vrooli.scenario_to_desktop.v1.domain.ValidationCell
@@ -1521,7 +1521,7 @@ var file_scenario_to_desktop_v1_domain_validation_proto_goTypes = []any{
 	(*timestamppb.Timestamp)(nil),      // 13: google.protobuf.Timestamp
 }
 var file_scenario_to_desktop_v1_domain_validation_proto_depIdxs = []int32{
-	13, // 0: vrooli.scenario_to_desktop.v1.domain.ElectronTarget.launched_at:type_name -> google.protobuf.Timestamp
+	13, // 0: vrooli.scenario_to_desktop.v1.domain.AppTarget.launched_at:type_name -> google.protobuf.Timestamp
 	13, // 1: vrooli.scenario_to_desktop.v1.domain.ValidationContext.expires_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: vrooli.scenario_to_desktop.v1.domain.ValidationCell.environment_profile:type_name -> vrooli.scenario_to_desktop.v1.domain.ValidationEnvironmentProfile
 	2,  // 3: vrooli.scenario_to_desktop.v1.domain.ValidationCell.disposition:type_name -> vrooli.scenario_to_desktop.v1.domain.ValidationDisposition

@@ -90,4 +90,13 @@ message Candidate {
   // the candidate rather than the job because a job may render several
   // candidates and a retry can escalate one of them further than the others.
   shared.RoutingRecord routing = 15;
+  // plates is the ordered depth stack this candidate was assembled from, back
+  // to front. It is repeated from the start so the count can grow without a
+  // migration; today every strategy produces at least one.
+  //
+  // image_png above stays the deliverable and is always present: it is the flat
+  // composite of exactly these plates. A consumer that wants one image ignores
+  // this field entirely, which is the whole reason the composite is not
+  // optional.
+  repeated shared.Plate plates = 16;
 }

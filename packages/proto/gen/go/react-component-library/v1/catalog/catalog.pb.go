@@ -21,6 +21,1098 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type AssetNode struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Rung          int32                  `protobuf:"varint,4,opt,name=rung,proto3" json:"rung,omitempty"`
+	RungName      string                 `protobuf:"bytes,5,opt,name=rung_name,json=rungName,proto3" json:"rung_name,omitempty"`
+	Domain        string                 `protobuf:"bytes,6,opt,name=domain,proto3" json:"domain,omitempty"`
+	DomainOrder   int32                  `protobuf:"varint,7,opt,name=domain_order,json=domainOrder,proto3" json:"domain_order,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetNode) Reset() {
+	*x = AssetNode{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetNode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetNode) ProtoMessage() {}
+
+func (x *AssetNode) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetNode.ProtoReflect.Descriptor instead.
+func (*AssetNode) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *AssetNode) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *AssetNode) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AssetNode) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *AssetNode) GetRung() int32 {
+	if x != nil {
+		return x.Rung
+	}
+	return 0
+}
+
+func (x *AssetNode) GetRungName() string {
+	if x != nil {
+		return x.RungName
+	}
+	return ""
+}
+
+func (x *AssetNode) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *AssetNode) GetDomainOrder() int32 {
+	if x != nil {
+		return x.DomainOrder
+	}
+	return 0
+}
+
+type RungBand struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rung          int32                  `protobuf:"varint,1,opt,name=rung,proto3" json:"rung,omitempty"`
+	RungName      string                 `protobuf:"bytes,2,opt,name=rung_name,json=rungName,proto3" json:"rung_name,omitempty"`
+	Assets        []*AssetNode           `protobuf:"bytes,3,rep,name=assets,proto3" json:"assets,omitempty"`
+	Count         int32                  `protobuf:"varint,4,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RungBand) Reset() {
+	*x = RungBand{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RungBand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RungBand) ProtoMessage() {}
+
+func (x *RungBand) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RungBand.ProtoReflect.Descriptor instead.
+func (*RungBand) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RungBand) GetRung() int32 {
+	if x != nil {
+		return x.Rung
+	}
+	return 0
+}
+
+func (x *RungBand) GetRungName() string {
+	if x != nil {
+		return x.RungName
+	}
+	return ""
+}
+
+func (x *RungBand) GetAssets() []*AssetNode {
+	if x != nil {
+		return x.Assets
+	}
+	return nil
+}
+
+func (x *RungBand) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+type AssetRelationships struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	Root                     *AssetNode             `protobuf:"bytes,1,opt,name=root,proto3" json:"root,omitempty"`
+	DirectDependencies       []*AssetNode           `protobuf:"bytes,2,rep,name=direct_dependencies,json=directDependencies,proto3" json:"direct_dependencies,omitempty"`
+	Closure                  []*AssetNode           `protobuf:"bytes,3,rep,name=closure,proto3" json:"closure,omitempty"`
+	ClosureBands             []*RungBand            `protobuf:"bytes,4,rep,name=closure_bands,json=closureBands,proto3" json:"closure_bands,omitempty"`
+	DirectDependents         []*AssetNode           `protobuf:"bytes,5,rep,name=direct_dependents,json=directDependents,proto3" json:"direct_dependents,omitempty"`
+	TransitiveDependents     []*AssetNode           `protobuf:"bytes,6,rep,name=transitive_dependents,json=transitiveDependents,proto3" json:"transitive_dependents,omitempty"`
+	TransitiveDependentCount int32                  `protobuf:"varint,7,opt,name=transitive_dependent_count,json=transitiveDependentCount,proto3" json:"transitive_dependent_count,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *AssetRelationships) Reset() {
+	*x = AssetRelationships{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetRelationships) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetRelationships) ProtoMessage() {}
+
+func (x *AssetRelationships) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetRelationships.ProtoReflect.Descriptor instead.
+func (*AssetRelationships) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *AssetRelationships) GetRoot() *AssetNode {
+	if x != nil {
+		return x.Root
+	}
+	return nil
+}
+
+func (x *AssetRelationships) GetDirectDependencies() []*AssetNode {
+	if x != nil {
+		return x.DirectDependencies
+	}
+	return nil
+}
+
+func (x *AssetRelationships) GetClosure() []*AssetNode {
+	if x != nil {
+		return x.Closure
+	}
+	return nil
+}
+
+func (x *AssetRelationships) GetClosureBands() []*RungBand {
+	if x != nil {
+		return x.ClosureBands
+	}
+	return nil
+}
+
+func (x *AssetRelationships) GetDirectDependents() []*AssetNode {
+	if x != nil {
+		return x.DirectDependents
+	}
+	return nil
+}
+
+func (x *AssetRelationships) GetTransitiveDependents() []*AssetNode {
+	if x != nil {
+		return x.TransitiveDependents
+	}
+	return nil
+}
+
+func (x *AssetRelationships) GetTransitiveDependentCount() int32 {
+	if x != nil {
+		return x.TransitiveDependentCount
+	}
+	return 0
+}
+
+type GetAssetRelationshipsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAssetRelationshipsRequest) Reset() {
+	*x = GetAssetRelationshipsRequest{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAssetRelationshipsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAssetRelationshipsRequest) ProtoMessage() {}
+
+func (x *GetAssetRelationshipsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAssetRelationshipsRequest.ProtoReflect.Descriptor instead.
+func (*GetAssetRelationshipsRequest) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetAssetRelationshipsRequest) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+type GetAssetRelationshipsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Relationships *AssetRelationships    `protobuf:"bytes,1,opt,name=relationships,proto3" json:"relationships,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAssetRelationshipsResponse) Reset() {
+	*x = GetAssetRelationshipsResponse{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAssetRelationshipsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAssetRelationshipsResponse) ProtoMessage() {}
+
+func (x *GetAssetRelationshipsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAssetRelationshipsResponse.ProtoReflect.Descriptor instead.
+func (*GetAssetRelationshipsResponse) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetAssetRelationshipsResponse) GetRelationships() *AssetRelationships {
+	if x != nil {
+		return x.Relationships
+	}
+	return nil
+}
+
+type GetCatalogStructureRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCatalogStructureRequest) Reset() {
+	*x = GetCatalogStructureRequest{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCatalogStructureRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCatalogStructureRequest) ProtoMessage() {}
+
+func (x *GetCatalogStructureRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCatalogStructureRequest.ProtoReflect.Descriptor instead.
+func (*GetCatalogStructureRequest) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{5}
+}
+
+type RungPopulation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rung          int32                  `protobuf:"varint,1,opt,name=rung,proto3" json:"rung,omitempty"`
+	RungName      string                 `protobuf:"bytes,2,opt,name=rung_name,json=rungName,proto3" json:"rung_name,omitempty"`
+	Count         int32                  `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RungPopulation) Reset() {
+	*x = RungPopulation{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RungPopulation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RungPopulation) ProtoMessage() {}
+
+func (x *RungPopulation) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RungPopulation.ProtoReflect.Descriptor instead.
+func (*RungPopulation) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RungPopulation) GetRung() int32 {
+	if x != nil {
+		return x.Rung
+	}
+	return 0
+}
+
+func (x *RungPopulation) GetRungName() string {
+	if x != nil {
+		return x.RungName
+	}
+	return ""
+}
+
+func (x *RungPopulation) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+type StructureInvariant struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Detail        string                 `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StructureInvariant) Reset() {
+	*x = StructureInvariant{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StructureInvariant) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StructureInvariant) ProtoMessage() {}
+
+func (x *StructureInvariant) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StructureInvariant.ProtoReflect.Descriptor instead.
+func (*StructureInvariant) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *StructureInvariant) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *StructureInvariant) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *StructureInvariant) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *StructureInvariant) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+type BlastRadiusRow struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	Asset                    *AssetNode             `protobuf:"bytes,1,opt,name=asset,proto3" json:"asset,omitempty"`
+	TransitiveDependentCount int32                  `protobuf:"varint,2,opt,name=transitive_dependent_count,json=transitiveDependentCount,proto3" json:"transitive_dependent_count,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *BlastRadiusRow) Reset() {
+	*x = BlastRadiusRow{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BlastRadiusRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BlastRadiusRow) ProtoMessage() {}
+
+func (x *BlastRadiusRow) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BlastRadiusRow.ProtoReflect.Descriptor instead.
+func (*BlastRadiusRow) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *BlastRadiusRow) GetAsset() *AssetNode {
+	if x != nil {
+		return x.Asset
+	}
+	return nil
+}
+
+func (x *BlastRadiusRow) GetTransitiveDependentCount() int32 {
+	if x != nil {
+		return x.TransitiveDependentCount
+	}
+	return 0
+}
+
+type CatalogStructure struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Population    []*RungPopulation      `protobuf:"bytes,1,rep,name=population,proto3" json:"population,omitempty"`
+	Invariants    []*StructureInvariant  `protobuf:"bytes,2,rep,name=invariants,proto3" json:"invariants,omitempty"`
+	BlastRadius   []*BlastRadiusRow      `protobuf:"bytes,3,rep,name=blast_radius,json=blastRadius,proto3" json:"blast_radius,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CatalogStructure) Reset() {
+	*x = CatalogStructure{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CatalogStructure) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CatalogStructure) ProtoMessage() {}
+
+func (x *CatalogStructure) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CatalogStructure.ProtoReflect.Descriptor instead.
+func (*CatalogStructure) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CatalogStructure) GetPopulation() []*RungPopulation {
+	if x != nil {
+		return x.Population
+	}
+	return nil
+}
+
+func (x *CatalogStructure) GetInvariants() []*StructureInvariant {
+	if x != nil {
+		return x.Invariants
+	}
+	return nil
+}
+
+func (x *CatalogStructure) GetBlastRadius() []*BlastRadiusRow {
+	if x != nil {
+		return x.BlastRadius
+	}
+	return nil
+}
+
+type GetCatalogStructureResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Structure     *CatalogStructure      `protobuf:"bytes,1,opt,name=structure,proto3" json:"structure,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCatalogStructureResponse) Reset() {
+	*x = GetCatalogStructureResponse{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCatalogStructureResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCatalogStructureResponse) ProtoMessage() {}
+
+func (x *GetCatalogStructureResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCatalogStructureResponse.ProtoReflect.Descriptor instead.
+func (*GetCatalogStructureResponse) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetCatalogStructureResponse) GetStructure() *CatalogStructure {
+	if x != nil {
+		return x.Structure
+	}
+	return nil
+}
+
+type ReconcileGraphRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReconcileGraphRequest) Reset() {
+	*x = ReconcileGraphRequest{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReconcileGraphRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReconcileGraphRequest) ProtoMessage() {}
+
+func (x *ReconcileGraphRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReconcileGraphRequest.ProtoReflect.Descriptor instead.
+func (*ReconcileGraphRequest) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{11}
+}
+
+type ReconciliationAsset struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	Verdict       string                 `protobuf:"bytes,2,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	Cause         string                 `protobuf:"bytes,3,opt,name=cause,proto3" json:"cause,omitempty"`
+	CatalogEdges  []string               `protobuf:"bytes,4,rep,name=catalog_edges,json=catalogEdges,proto3" json:"catalog_edges,omitempty"`
+	ManifestEdges []string               `protobuf:"bytes,5,rep,name=manifest_edges,json=manifestEdges,proto3" json:"manifest_edges,omitempty"`
+	ImportEdges   []string               `protobuf:"bytes,6,rep,name=import_edges,json=importEdges,proto3" json:"import_edges,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReconciliationAsset) Reset() {
+	*x = ReconciliationAsset{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReconciliationAsset) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReconciliationAsset) ProtoMessage() {}
+
+func (x *ReconciliationAsset) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReconciliationAsset.ProtoReflect.Descriptor instead.
+func (*ReconciliationAsset) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ReconciliationAsset) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *ReconciliationAsset) GetVerdict() string {
+	if x != nil {
+		return x.Verdict
+	}
+	return ""
+}
+
+func (x *ReconciliationAsset) GetCause() string {
+	if x != nil {
+		return x.Cause
+	}
+	return ""
+}
+
+func (x *ReconciliationAsset) GetCatalogEdges() []string {
+	if x != nil {
+		return x.CatalogEdges
+	}
+	return nil
+}
+
+func (x *ReconciliationAsset) GetManifestEdges() []string {
+	if x != nil {
+		return x.ManifestEdges
+	}
+	return nil
+}
+
+func (x *ReconciliationAsset) GetImportEdges() []string {
+	if x != nil {
+		return x.ImportEdges
+	}
+	return nil
+}
+
+type ReconciliationDistribution struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Counts        map[string]int32       `protobuf:"bytes,1,rep,name=counts,proto3" json:"counts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReconciliationDistribution) Reset() {
+	*x = ReconciliationDistribution{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReconciliationDistribution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReconciliationDistribution) ProtoMessage() {}
+
+func (x *ReconciliationDistribution) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReconciliationDistribution.ProtoReflect.Descriptor instead.
+func (*ReconciliationDistribution) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ReconciliationDistribution) GetCounts() map[string]int32 {
+	if x != nil {
+		return x.Counts
+	}
+	return nil
+}
+
+type ReconcileGraphResponse struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Assets        []*ReconciliationAsset      `protobuf:"bytes,1,rep,name=assets,proto3" json:"assets,omitempty"`
+	Distribution  *ReconciliationDistribution `protobuf:"bytes,2,opt,name=distribution,proto3" json:"distribution,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReconcileGraphResponse) Reset() {
+	*x = ReconcileGraphResponse{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReconcileGraphResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReconcileGraphResponse) ProtoMessage() {}
+
+func (x *ReconcileGraphResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReconcileGraphResponse.ProtoReflect.Descriptor instead.
+func (*ReconcileGraphResponse) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ReconcileGraphResponse) GetAssets() []*ReconciliationAsset {
+	if x != nil {
+		return x.Assets
+	}
+	return nil
+}
+
+func (x *ReconcileGraphResponse) GetDistribution() *ReconciliationDistribution {
+	if x != nil {
+		return x.Distribution
+	}
+	return nil
+}
+
+type GetAssetPortContractRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAssetPortContractRequest) Reset() {
+	*x = GetAssetPortContractRequest{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAssetPortContractRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAssetPortContractRequest) ProtoMessage() {}
+
+func (x *GetAssetPortContractRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAssetPortContractRequest.ProtoReflect.Descriptor instead.
+func (*GetAssetPortContractRequest) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetAssetPortContractRequest) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+type UnmetPort struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	CapabilityId        string                 `protobuf:"bytes,1,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
+	DemandingAssets     []*AssetNode           `protobuf:"bytes,2,rep,name=demanding_assets,json=demandingAssets,proto3" json:"demanding_assets,omitempty"`
+	CandidateSatisfiers []*AssetNode           `protobuf:"bytes,3,rep,name=candidate_satisfiers,json=candidateSatisfiers,proto3" json:"candidate_satisfiers,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *UnmetPort) Reset() {
+	*x = UnmetPort{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnmetPort) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnmetPort) ProtoMessage() {}
+
+func (x *UnmetPort) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnmetPort.ProtoReflect.Descriptor instead.
+func (*UnmetPort) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *UnmetPort) GetCapabilityId() string {
+	if x != nil {
+		return x.CapabilityId
+	}
+	return ""
+}
+
+func (x *UnmetPort) GetDemandingAssets() []*AssetNode {
+	if x != nil {
+		return x.DemandingAssets
+	}
+	return nil
+}
+
+func (x *UnmetPort) GetCandidateSatisfiers() []*AssetNode {
+	if x != nil {
+		return x.CandidateSatisfiers
+	}
+	return nil
+}
+
+type AssetPortContract struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	ClosureCount  int32                  `protobuf:"varint,2,opt,name=closure_count,json=closureCount,proto3" json:"closure_count,omitempty"`
+	SelfContained bool                   `protobuf:"varint,3,opt,name=self_contained,json=selfContained,proto3" json:"self_contained,omitempty"`
+	UnmetPorts    []*UnmetPort           `protobuf:"bytes,4,rep,name=unmet_ports,json=unmetPorts,proto3" json:"unmet_ports,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetPortContract) Reset() {
+	*x = AssetPortContract{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetPortContract) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetPortContract) ProtoMessage() {}
+
+func (x *AssetPortContract) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetPortContract.ProtoReflect.Descriptor instead.
+func (*AssetPortContract) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *AssetPortContract) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *AssetPortContract) GetClosureCount() int32 {
+	if x != nil {
+		return x.ClosureCount
+	}
+	return 0
+}
+
+func (x *AssetPortContract) GetSelfContained() bool {
+	if x != nil {
+		return x.SelfContained
+	}
+	return false
+}
+
+func (x *AssetPortContract) GetUnmetPorts() []*UnmetPort {
+	if x != nil {
+		return x.UnmetPorts
+	}
+	return nil
+}
+
+type GetAssetPortContractResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Contract      *AssetPortContract     `protobuf:"bytes,1,opt,name=contract,proto3" json:"contract,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAssetPortContractResponse) Reset() {
+	*x = GetAssetPortContractResponse{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAssetPortContractResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAssetPortContractResponse) ProtoMessage() {}
+
+func (x *GetAssetPortContractResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAssetPortContractResponse.ProtoReflect.Descriptor instead.
+func (*GetAssetPortContractResponse) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *GetAssetPortContractResponse) GetContract() *AssetPortContract {
+	if x != nil {
+		return x.Contract
+	}
+	return nil
+}
+
 type GetCoverageRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -29,7 +1121,7 @@ type GetCoverageRequest struct {
 
 func (x *GetCoverageRequest) Reset() {
 	*x = GetCoverageRequest{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[0]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41,7 +1133,7 @@ func (x *GetCoverageRequest) String() string {
 func (*GetCoverageRequest) ProtoMessage() {}
 
 func (x *GetCoverageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[0]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,7 +1146,7 @@ func (x *GetCoverageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCoverageRequest.ProtoReflect.Descriptor instead.
 func (*GetCoverageRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{0}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{19}
 }
 
 type CoverageRow struct {
@@ -70,13 +1162,16 @@ type CoverageRow struct {
 	Achieved         string                 `protobuf:"bytes,9,opt,name=achieved,proto3" json:"achieved,omitempty"`
 	Implementation   string                 `protobuf:"bytes,10,opt,name=implementation,proto3" json:"implementation,omitempty"`
 	BlocksDownstream int32                  `protobuf:"varint,11,opt,name=blocks_downstream,json=blocksDownstream,proto3" json:"blocks_downstream,omitempty"`
+	Rung             int32                  `protobuf:"varint,12,opt,name=rung,proto3" json:"rung,omitempty"`
+	RungName         string                 `protobuf:"bytes,13,opt,name=rung_name,json=rungName,proto3" json:"rung_name,omitempty"`
+	DomainOrder      int32                  `protobuf:"varint,14,opt,name=domain_order,json=domainOrder,proto3" json:"domain_order,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CoverageRow) Reset() {
 	*x = CoverageRow{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[1]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -88,7 +1183,7 @@ func (x *CoverageRow) String() string {
 func (*CoverageRow) ProtoMessage() {}
 
 func (x *CoverageRow) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[1]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -101,7 +1196,7 @@ func (x *CoverageRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverageRow.ProtoReflect.Descriptor instead.
 func (*CoverageRow) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{1}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CoverageRow) GetAssetId() string {
@@ -181,6 +1276,27 @@ func (x *CoverageRow) GetBlocksDownstream() int32 {
 	return 0
 }
 
+func (x *CoverageRow) GetRung() int32 {
+	if x != nil {
+		return x.Rung
+	}
+	return 0
+}
+
+func (x *CoverageRow) GetRungName() string {
+	if x != nil {
+		return x.RungName
+	}
+	return ""
+}
+
+func (x *CoverageRow) GetDomainOrder() int32 {
+	if x != nil {
+		return x.DomainOrder
+	}
+	return 0
+}
+
 type Rollup struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -192,7 +1308,7 @@ type Rollup struct {
 
 func (x *Rollup) Reset() {
 	*x = Rollup{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[2]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -204,7 +1320,7 @@ func (x *Rollup) String() string {
 func (*Rollup) ProtoMessage() {}
 
 func (x *Rollup) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[2]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -217,7 +1333,7 @@ func (x *Rollup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Rollup.ProtoReflect.Descriptor instead.
 func (*Rollup) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{2}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Rollup) GetKey() string {
@@ -256,7 +1372,7 @@ type MaturitySummary struct {
 
 func (x *MaturitySummary) Reset() {
 	*x = MaturitySummary{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[3]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -268,7 +1384,7 @@ func (x *MaturitySummary) String() string {
 func (*MaturitySummary) ProtoMessage() {}
 
 func (x *MaturitySummary) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[3]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -281,7 +1397,7 @@ func (x *MaturitySummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaturitySummary.ProtoReflect.Descriptor instead.
 func (*MaturitySummary) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{3}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *MaturitySummary) GetTotal() int32 {
@@ -344,7 +1460,7 @@ type CoverageMetric struct {
 
 func (x *CoverageMetric) Reset() {
 	*x = CoverageMetric{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[4]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -356,7 +1472,7 @@ func (x *CoverageMetric) String() string {
 func (*CoverageMetric) ProtoMessage() {}
 
 func (x *CoverageMetric) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[4]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -369,7 +1485,7 @@ func (x *CoverageMetric) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverageMetric.ProtoReflect.Descriptor instead.
 func (*CoverageMetric) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{4}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CoverageMetric) GetNumerator() int32 {
@@ -406,7 +1522,7 @@ type CoverageReport struct {
 
 func (x *CoverageReport) Reset() {
 	*x = CoverageReport{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[5]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -418,7 +1534,7 @@ func (x *CoverageReport) String() string {
 func (*CoverageReport) ProtoMessage() {}
 
 func (x *CoverageReport) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[5]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -431,7 +1547,7 @@ func (x *CoverageReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverageReport.ProtoReflect.Descriptor instead.
 func (*CoverageReport) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{5}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CoverageReport) GetRows() []*CoverageRow {
@@ -478,7 +1594,7 @@ type GetCoverageResponse struct {
 
 func (x *GetCoverageResponse) Reset() {
 	*x = GetCoverageResponse{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[6]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -490,7 +1606,7 @@ func (x *GetCoverageResponse) String() string {
 func (*GetCoverageResponse) ProtoMessage() {}
 
 func (x *GetCoverageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[6]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -503,7 +1619,7 @@ func (x *GetCoverageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCoverageResponse.ProtoReflect.Descriptor instead.
 func (*GetCoverageResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{6}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetCoverageResponse) GetReport() *CoverageReport {
@@ -522,7 +1638,7 @@ type ListNextWorkRequest struct {
 
 func (x *ListNextWorkRequest) Reset() {
 	*x = ListNextWorkRequest{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[7]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +1650,7 @@ func (x *ListNextWorkRequest) String() string {
 func (*ListNextWorkRequest) ProtoMessage() {}
 
 func (x *ListNextWorkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[7]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +1663,7 @@ func (x *ListNextWorkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNextWorkRequest.ProtoReflect.Descriptor instead.
 func (*ListNextWorkRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{7}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ListNextWorkRequest) GetLimit() int32 {
@@ -567,7 +1683,7 @@ type ListNextWorkResponse struct {
 
 func (x *ListNextWorkResponse) Reset() {
 	*x = ListNextWorkResponse{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[8]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -579,7 +1695,7 @@ func (x *ListNextWorkResponse) String() string {
 func (*ListNextWorkResponse) ProtoMessage() {}
 
 func (x *ListNextWorkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[8]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -592,7 +1708,7 @@ func (x *ListNextWorkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNextWorkResponse.ProtoReflect.Descriptor instead.
 func (*ListNextWorkResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{8}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListNextWorkResponse) GetRows() []*CoverageRow {
@@ -618,7 +1734,7 @@ type RunGateRequest struct {
 
 func (x *RunGateRequest) Reset() {
 	*x = RunGateRequest{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[9]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -630,7 +1746,7 @@ func (x *RunGateRequest) String() string {
 func (*RunGateRequest) ProtoMessage() {}
 
 func (x *RunGateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[9]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -643,7 +1759,7 @@ func (x *RunGateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunGateRequest.ProtoReflect.Descriptor instead.
 func (*RunGateRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{9}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *RunGateRequest) GetGate() string {
@@ -665,7 +1781,7 @@ type GateFinding struct {
 
 func (x *GateFinding) Reset() {
 	*x = GateFinding{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[10]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -677,7 +1793,7 @@ func (x *GateFinding) String() string {
 func (*GateFinding) ProtoMessage() {}
 
 func (x *GateFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[10]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -690,7 +1806,7 @@ func (x *GateFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GateFinding.ProtoReflect.Descriptor instead.
 func (*GateFinding) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{10}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GateFinding) GetCode() string {
@@ -732,7 +1848,7 @@ type RunGateResponse struct {
 
 func (x *RunGateResponse) Reset() {
 	*x = RunGateResponse{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[11]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -744,7 +1860,7 @@ func (x *RunGateResponse) String() string {
 func (*RunGateResponse) ProtoMessage() {}
 
 func (x *RunGateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[11]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -757,7 +1873,7 @@ func (x *RunGateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunGateResponse.ProtoReflect.Descriptor instead.
 func (*RunGateResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{11}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RunGateResponse) GetGate() string {
@@ -785,8 +1901,86 @@ var File_react_component_library_v1_catalog_catalog_proto protoreflect.FileDescr
 
 const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\n" +
-	"0react-component-library/v1/catalog/catalog.proto\x12)vrooli.react_component_library.v1.catalog\"\x14\n" +
-	"\x12GetCoverageRequest\"\xc1\x02\n" +
+	"0react-component-library/v1/catalog/catalog.proto\x12)vrooli.react_component_library.v1.catalog\"\xba\x01\n" +
+	"\tAssetNode\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x12\n" +
+	"\x04rung\x18\x04 \x01(\x05R\x04rung\x12\x1b\n" +
+	"\trung_name\x18\x05 \x01(\tR\brungName\x12\x16\n" +
+	"\x06domain\x18\x06 \x01(\tR\x06domain\x12!\n" +
+	"\fdomain_order\x18\a \x01(\x05R\vdomainOrder\"\x9f\x01\n" +
+	"\bRungBand\x12\x12\n" +
+	"\x04rung\x18\x01 \x01(\x05R\x04rung\x12\x1b\n" +
+	"\trung_name\x18\x02 \x01(\tR\brungName\x12L\n" +
+	"\x06assets\x18\x03 \x03(\v24.vrooli.react_component_library.v1.catalog.AssetNodeR\x06assets\x12\x14\n" +
+	"\x05count\x18\x04 \x01(\x05R\x05count\"\xfb\x04\n" +
+	"\x12AssetRelationships\x12H\n" +
+	"\x04root\x18\x01 \x01(\v24.vrooli.react_component_library.v1.catalog.AssetNodeR\x04root\x12e\n" +
+	"\x13direct_dependencies\x18\x02 \x03(\v24.vrooli.react_component_library.v1.catalog.AssetNodeR\x12directDependencies\x12N\n" +
+	"\aclosure\x18\x03 \x03(\v24.vrooli.react_component_library.v1.catalog.AssetNodeR\aclosure\x12X\n" +
+	"\rclosure_bands\x18\x04 \x03(\v23.vrooli.react_component_library.v1.catalog.RungBandR\fclosureBands\x12a\n" +
+	"\x11direct_dependents\x18\x05 \x03(\v24.vrooli.react_component_library.v1.catalog.AssetNodeR\x10directDependents\x12i\n" +
+	"\x15transitive_dependents\x18\x06 \x03(\v24.vrooli.react_component_library.v1.catalog.AssetNodeR\x14transitiveDependents\x12<\n" +
+	"\x1atransitive_dependent_count\x18\a \x01(\x05R\x18transitiveDependentCount\"9\n" +
+	"\x1cGetAssetRelationshipsRequest\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\"\x84\x01\n" +
+	"\x1dGetAssetRelationshipsResponse\x12c\n" +
+	"\rrelationships\x18\x01 \x01(\v2=.vrooli.react_component_library.v1.catalog.AssetRelationshipsR\rrelationships\"\x1c\n" +
+	"\x1aGetCatalogStructureRequest\"W\n" +
+	"\x0eRungPopulation\x12\x12\n" +
+	"\x04rung\x18\x01 \x01(\x05R\x04rung\x12\x1b\n" +
+	"\trung_name\x18\x02 \x01(\tR\brungName\x12\x14\n" +
+	"\x05count\x18\x03 \x01(\x05R\x05count\"j\n" +
+	"\x12StructureInvariant\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x16\n" +
+	"\x06detail\x18\x04 \x01(\tR\x06detail\"\x9a\x01\n" +
+	"\x0eBlastRadiusRow\x12J\n" +
+	"\x05asset\x18\x01 \x01(\v24.vrooli.react_component_library.v1.catalog.AssetNodeR\x05asset\x12<\n" +
+	"\x1atransitive_dependent_count\x18\x02 \x01(\x05R\x18transitiveDependentCount\"\xaa\x02\n" +
+	"\x10CatalogStructure\x12Y\n" +
+	"\n" +
+	"population\x18\x01 \x03(\v29.vrooli.react_component_library.v1.catalog.RungPopulationR\n" +
+	"population\x12]\n" +
+	"\n" +
+	"invariants\x18\x02 \x03(\v2=.vrooli.react_component_library.v1.catalog.StructureInvariantR\n" +
+	"invariants\x12\\\n" +
+	"\fblast_radius\x18\x03 \x03(\v29.vrooli.react_component_library.v1.catalog.BlastRadiusRowR\vblastRadius\"x\n" +
+	"\x1bGetCatalogStructureResponse\x12Y\n" +
+	"\tstructure\x18\x01 \x01(\v2;.vrooli.react_component_library.v1.catalog.CatalogStructureR\tstructure\"\x17\n" +
+	"\x15ReconcileGraphRequest\"\xcf\x01\n" +
+	"\x13ReconciliationAsset\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x18\n" +
+	"\averdict\x18\x02 \x01(\tR\averdict\x12\x14\n" +
+	"\x05cause\x18\x03 \x01(\tR\x05cause\x12#\n" +
+	"\rcatalog_edges\x18\x04 \x03(\tR\fcatalogEdges\x12%\n" +
+	"\x0emanifest_edges\x18\x05 \x03(\tR\rmanifestEdges\x12!\n" +
+	"\fimport_edges\x18\x06 \x03(\tR\vimportEdges\"\xc2\x01\n" +
+	"\x1aReconciliationDistribution\x12i\n" +
+	"\x06counts\x18\x01 \x03(\v2Q.vrooli.react_component_library.v1.catalog.ReconciliationDistribution.CountsEntryR\x06counts\x1a9\n" +
+	"\vCountsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xdb\x01\n" +
+	"\x16ReconcileGraphResponse\x12V\n" +
+	"\x06assets\x18\x01 \x03(\v2>.vrooli.react_component_library.v1.catalog.ReconciliationAssetR\x06assets\x12i\n" +
+	"\fdistribution\x18\x02 \x01(\v2E.vrooli.react_component_library.v1.catalog.ReconciliationDistributionR\fdistribution\"8\n" +
+	"\x1bGetAssetPortContractRequest\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\"\xfa\x01\n" +
+	"\tUnmetPort\x12#\n" +
+	"\rcapability_id\x18\x01 \x01(\tR\fcapabilityId\x12_\n" +
+	"\x10demanding_assets\x18\x02 \x03(\v24.vrooli.react_component_library.v1.catalog.AssetNodeR\x0fdemandingAssets\x12g\n" +
+	"\x14candidate_satisfiers\x18\x03 \x03(\v24.vrooli.react_component_library.v1.catalog.AssetNodeR\x13candidateSatisfiers\"\xd1\x01\n" +
+	"\x11AssetPortContract\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12#\n" +
+	"\rclosure_count\x18\x02 \x01(\x05R\fclosureCount\x12%\n" +
+	"\x0eself_contained\x18\x03 \x01(\bR\rselfContained\x12U\n" +
+	"\vunmet_ports\x18\x04 \x03(\v24.vrooli.react_component_library.v1.catalog.UnmetPortR\n" +
+	"unmetPorts\"x\n" +
+	"\x1cGetAssetPortContractResponse\x12X\n" +
+	"\bcontract\x18\x01 \x01(\v2<.vrooli.react_component_library.v1.catalog.AssetPortContractR\bcontract\"\x14\n" +
+	"\x12GetCoverageRequest\"\x95\x03\n" +
 	"\vCoverageRow\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
@@ -799,7 +1993,10 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\bachieved\x18\t \x01(\tR\bachieved\x12&\n" +
 	"\x0eimplementation\x18\n" +
 	" \x01(\tR\x0eimplementation\x12+\n" +
-	"\x11blocks_downstream\x18\v \x01(\x05R\x10blocksDownstream\"J\n" +
+	"\x11blocks_downstream\x18\v \x01(\x05R\x10blocksDownstream\x12\x12\n" +
+	"\x04rung\x18\f \x01(\x05R\x04rung\x12\x1b\n" +
+	"\trung_name\x18\r \x01(\tR\brungName\x12!\n" +
+	"\fdomain_order\x18\x0e \x01(\x05R\vdomainOrder\"J\n" +
 	"\x06Rollup\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x18\n" +
 	"\aplanned\x18\x02 \x01(\x05R\aplanned\x12\x14\n" +
@@ -846,11 +2043,15 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x0fRunGateResponse\x12\x12\n" +
 	"\x04gate\x18\x01 \x01(\tR\x04gate\x12R\n" +
 	"\bfindings\x18\x02 \x03(\v26.vrooli.react_component_library.v1.catalog.GateFindingR\bfindings\x12'\n" +
-	"\x0finspected_files\x18\x03 \x01(\x05R\x0einspectedFiles2\xb4\x03\n" +
+	"\x0finspected_files\x18\x03 \x01(\x05R\x0einspectedFiles2\xca\b\n" +
 	"\x0eCatalogService\x12\x8c\x01\n" +
 	"\vGetCoverage\x12=.vrooli.react_component_library.v1.catalog.GetCoverageRequest\x1a>.vrooli.react_component_library.v1.catalog.GetCoverageResponse\x12\x8f\x01\n" +
 	"\fListNextWork\x12>.vrooli.react_component_library.v1.catalog.ListNextWorkRequest\x1a?.vrooli.react_component_library.v1.catalog.ListNextWorkResponse\x12\x80\x01\n" +
-	"\aRunGate\x129.vrooli.react_component_library.v1.catalog.RunGateRequest\x1a:.vrooli.react_component_library.v1.catalog.RunGateResponseB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog;catalog_v1b\x06proto3"
+	"\aRunGate\x129.vrooli.react_component_library.v1.catalog.RunGateRequest\x1a:.vrooli.react_component_library.v1.catalog.RunGateResponse\x12\xaa\x01\n" +
+	"\x15GetAssetRelationships\x12G.vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest\x1aH.vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse\x12\xa4\x01\n" +
+	"\x13GetCatalogStructure\x12E.vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest\x1aF.vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse\x12\x95\x01\n" +
+	"\x0eReconcileGraph\x12@.vrooli.react_component_library.v1.catalog.ReconcileGraphRequest\x1aA.vrooli.react_component_library.v1.catalog.ReconcileGraphResponse\x12\xa7\x01\n" +
+	"\x14GetAssetPortContract\x12F.vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest\x1aG.vrooli.react_component_library.v1.catalog.GetAssetPortContractResponseB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog;catalog_v1b\x06proto3"
 
 var (
 	file_react_component_library_v1_catalog_catalog_proto_rawDescOnce sync.Once
@@ -864,49 +2065,97 @@ func file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP() []byte 
 	return file_react_component_library_v1_catalog_catalog_proto_rawDescData
 }
 
-var file_react_component_library_v1_catalog_catalog_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_react_component_library_v1_catalog_catalog_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_react_component_library_v1_catalog_catalog_proto_goTypes = []any{
-	(*GetCoverageRequest)(nil),   // 0: vrooli.react_component_library.v1.catalog.GetCoverageRequest
-	(*CoverageRow)(nil),          // 1: vrooli.react_component_library.v1.catalog.CoverageRow
-	(*Rollup)(nil),               // 2: vrooli.react_component_library.v1.catalog.Rollup
-	(*MaturitySummary)(nil),      // 3: vrooli.react_component_library.v1.catalog.MaturitySummary
-	(*CoverageMetric)(nil),       // 4: vrooli.react_component_library.v1.catalog.CoverageMetric
-	(*CoverageReport)(nil),       // 5: vrooli.react_component_library.v1.catalog.CoverageReport
-	(*GetCoverageResponse)(nil),  // 6: vrooli.react_component_library.v1.catalog.GetCoverageResponse
-	(*ListNextWorkRequest)(nil),  // 7: vrooli.react_component_library.v1.catalog.ListNextWorkRequest
-	(*ListNextWorkResponse)(nil), // 8: vrooli.react_component_library.v1.catalog.ListNextWorkResponse
-	(*RunGateRequest)(nil),       // 9: vrooli.react_component_library.v1.catalog.RunGateRequest
-	(*GateFinding)(nil),          // 10: vrooli.react_component_library.v1.catalog.GateFinding
-	(*RunGateResponse)(nil),      // 11: vrooli.react_component_library.v1.catalog.RunGateResponse
-	nil,                          // 12: vrooli.react_component_library.v1.catalog.MaturitySummary.ByRungEntry
-	nil,                          // 13: vrooli.react_component_library.v1.catalog.CoverageReport.TotalsEntry
+	(*AssetNode)(nil),                     // 0: vrooli.react_component_library.v1.catalog.AssetNode
+	(*RungBand)(nil),                      // 1: vrooli.react_component_library.v1.catalog.RungBand
+	(*AssetRelationships)(nil),            // 2: vrooli.react_component_library.v1.catalog.AssetRelationships
+	(*GetAssetRelationshipsRequest)(nil),  // 3: vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest
+	(*GetAssetRelationshipsResponse)(nil), // 4: vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse
+	(*GetCatalogStructureRequest)(nil),    // 5: vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest
+	(*RungPopulation)(nil),                // 6: vrooli.react_component_library.v1.catalog.RungPopulation
+	(*StructureInvariant)(nil),            // 7: vrooli.react_component_library.v1.catalog.StructureInvariant
+	(*BlastRadiusRow)(nil),                // 8: vrooli.react_component_library.v1.catalog.BlastRadiusRow
+	(*CatalogStructure)(nil),              // 9: vrooli.react_component_library.v1.catalog.CatalogStructure
+	(*GetCatalogStructureResponse)(nil),   // 10: vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse
+	(*ReconcileGraphRequest)(nil),         // 11: vrooli.react_component_library.v1.catalog.ReconcileGraphRequest
+	(*ReconciliationAsset)(nil),           // 12: vrooli.react_component_library.v1.catalog.ReconciliationAsset
+	(*ReconciliationDistribution)(nil),    // 13: vrooli.react_component_library.v1.catalog.ReconciliationDistribution
+	(*ReconcileGraphResponse)(nil),        // 14: vrooli.react_component_library.v1.catalog.ReconcileGraphResponse
+	(*GetAssetPortContractRequest)(nil),   // 15: vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest
+	(*UnmetPort)(nil),                     // 16: vrooli.react_component_library.v1.catalog.UnmetPort
+	(*AssetPortContract)(nil),             // 17: vrooli.react_component_library.v1.catalog.AssetPortContract
+	(*GetAssetPortContractResponse)(nil),  // 18: vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse
+	(*GetCoverageRequest)(nil),            // 19: vrooli.react_component_library.v1.catalog.GetCoverageRequest
+	(*CoverageRow)(nil),                   // 20: vrooli.react_component_library.v1.catalog.CoverageRow
+	(*Rollup)(nil),                        // 21: vrooli.react_component_library.v1.catalog.Rollup
+	(*MaturitySummary)(nil),               // 22: vrooli.react_component_library.v1.catalog.MaturitySummary
+	(*CoverageMetric)(nil),                // 23: vrooli.react_component_library.v1.catalog.CoverageMetric
+	(*CoverageReport)(nil),                // 24: vrooli.react_component_library.v1.catalog.CoverageReport
+	(*GetCoverageResponse)(nil),           // 25: vrooli.react_component_library.v1.catalog.GetCoverageResponse
+	(*ListNextWorkRequest)(nil),           // 26: vrooli.react_component_library.v1.catalog.ListNextWorkRequest
+	(*ListNextWorkResponse)(nil),          // 27: vrooli.react_component_library.v1.catalog.ListNextWorkResponse
+	(*RunGateRequest)(nil),                // 28: vrooli.react_component_library.v1.catalog.RunGateRequest
+	(*GateFinding)(nil),                   // 29: vrooli.react_component_library.v1.catalog.GateFinding
+	(*RunGateResponse)(nil),               // 30: vrooli.react_component_library.v1.catalog.RunGateResponse
+	nil,                                   // 31: vrooli.react_component_library.v1.catalog.ReconciliationDistribution.CountsEntry
+	nil,                                   // 32: vrooli.react_component_library.v1.catalog.MaturitySummary.ByRungEntry
+	nil,                                   // 33: vrooli.react_component_library.v1.catalog.CoverageReport.TotalsEntry
 }
 var file_react_component_library_v1_catalog_catalog_proto_depIdxs = []int32{
-	12, // 0: vrooli.react_component_library.v1.catalog.MaturitySummary.by_rung:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary.ByRungEntry
-	4,  // 1: vrooli.react_component_library.v1.catalog.MaturitySummary.catalog_completion:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
-	4,  // 2: vrooli.react_component_library.v1.catalog.MaturitySummary.mandatory_gate_coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
-	4,  // 3: vrooli.react_component_library.v1.catalog.MaturitySummary.weighted_quality:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
-	4,  // 4: vrooli.react_component_library.v1.catalog.MaturitySummary.production_ready_coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
-	1,  // 5: vrooli.react_component_library.v1.catalog.CoverageReport.rows:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
-	13, // 6: vrooli.react_component_library.v1.catalog.CoverageReport.totals:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport.TotalsEntry
-	2,  // 7: vrooli.react_component_library.v1.catalog.CoverageReport.by_domain:type_name -> vrooli.react_component_library.v1.catalog.Rollup
-	2,  // 8: vrooli.react_component_library.v1.catalog.CoverageReport.by_priority:type_name -> vrooli.react_component_library.v1.catalog.Rollup
-	3,  // 9: vrooli.react_component_library.v1.catalog.CoverageReport.maturity:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary
-	5,  // 10: vrooli.react_component_library.v1.catalog.GetCoverageResponse.report:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport
-	1,  // 11: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.rows:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
-	3,  // 12: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.maturity:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary
-	10, // 13: vrooli.react_component_library.v1.catalog.RunGateResponse.findings:type_name -> vrooli.react_component_library.v1.catalog.GateFinding
-	0,  // 14: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:input_type -> vrooli.react_component_library.v1.catalog.GetCoverageRequest
-	7,  // 15: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:input_type -> vrooli.react_component_library.v1.catalog.ListNextWorkRequest
-	9,  // 16: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:input_type -> vrooli.react_component_library.v1.catalog.RunGateRequest
-	6,  // 17: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:output_type -> vrooli.react_component_library.v1.catalog.GetCoverageResponse
-	8,  // 18: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:output_type -> vrooli.react_component_library.v1.catalog.ListNextWorkResponse
-	11, // 19: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:output_type -> vrooli.react_component_library.v1.catalog.RunGateResponse
-	17, // [17:20] is the sub-list for method output_type
-	14, // [14:17] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	0,  // 0: vrooli.react_component_library.v1.catalog.RungBand.assets:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	0,  // 1: vrooli.react_component_library.v1.catalog.AssetRelationships.root:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	0,  // 2: vrooli.react_component_library.v1.catalog.AssetRelationships.direct_dependencies:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	0,  // 3: vrooli.react_component_library.v1.catalog.AssetRelationships.closure:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	1,  // 4: vrooli.react_component_library.v1.catalog.AssetRelationships.closure_bands:type_name -> vrooli.react_component_library.v1.catalog.RungBand
+	0,  // 5: vrooli.react_component_library.v1.catalog.AssetRelationships.direct_dependents:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	0,  // 6: vrooli.react_component_library.v1.catalog.AssetRelationships.transitive_dependents:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	2,  // 7: vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse.relationships:type_name -> vrooli.react_component_library.v1.catalog.AssetRelationships
+	0,  // 8: vrooli.react_component_library.v1.catalog.BlastRadiusRow.asset:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	6,  // 9: vrooli.react_component_library.v1.catalog.CatalogStructure.population:type_name -> vrooli.react_component_library.v1.catalog.RungPopulation
+	7,  // 10: vrooli.react_component_library.v1.catalog.CatalogStructure.invariants:type_name -> vrooli.react_component_library.v1.catalog.StructureInvariant
+	8,  // 11: vrooli.react_component_library.v1.catalog.CatalogStructure.blast_radius:type_name -> vrooli.react_component_library.v1.catalog.BlastRadiusRow
+	9,  // 12: vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse.structure:type_name -> vrooli.react_component_library.v1.catalog.CatalogStructure
+	31, // 13: vrooli.react_component_library.v1.catalog.ReconciliationDistribution.counts:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationDistribution.CountsEntry
+	12, // 14: vrooli.react_component_library.v1.catalog.ReconcileGraphResponse.assets:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationAsset
+	13, // 15: vrooli.react_component_library.v1.catalog.ReconcileGraphResponse.distribution:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationDistribution
+	0,  // 16: vrooli.react_component_library.v1.catalog.UnmetPort.demanding_assets:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	0,  // 17: vrooli.react_component_library.v1.catalog.UnmetPort.candidate_satisfiers:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	16, // 18: vrooli.react_component_library.v1.catalog.AssetPortContract.unmet_ports:type_name -> vrooli.react_component_library.v1.catalog.UnmetPort
+	17, // 19: vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse.contract:type_name -> vrooli.react_component_library.v1.catalog.AssetPortContract
+	32, // 20: vrooli.react_component_library.v1.catalog.MaturitySummary.by_rung:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary.ByRungEntry
+	23, // 21: vrooli.react_component_library.v1.catalog.MaturitySummary.catalog_completion:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
+	23, // 22: vrooli.react_component_library.v1.catalog.MaturitySummary.mandatory_gate_coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
+	23, // 23: vrooli.react_component_library.v1.catalog.MaturitySummary.weighted_quality:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
+	23, // 24: vrooli.react_component_library.v1.catalog.MaturitySummary.production_ready_coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
+	20, // 25: vrooli.react_component_library.v1.catalog.CoverageReport.rows:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
+	33, // 26: vrooli.react_component_library.v1.catalog.CoverageReport.totals:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport.TotalsEntry
+	21, // 27: vrooli.react_component_library.v1.catalog.CoverageReport.by_domain:type_name -> vrooli.react_component_library.v1.catalog.Rollup
+	21, // 28: vrooli.react_component_library.v1.catalog.CoverageReport.by_priority:type_name -> vrooli.react_component_library.v1.catalog.Rollup
+	22, // 29: vrooli.react_component_library.v1.catalog.CoverageReport.maturity:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary
+	24, // 30: vrooli.react_component_library.v1.catalog.GetCoverageResponse.report:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport
+	20, // 31: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.rows:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
+	22, // 32: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.maturity:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary
+	29, // 33: vrooli.react_component_library.v1.catalog.RunGateResponse.findings:type_name -> vrooli.react_component_library.v1.catalog.GateFinding
+	19, // 34: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:input_type -> vrooli.react_component_library.v1.catalog.GetCoverageRequest
+	26, // 35: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:input_type -> vrooli.react_component_library.v1.catalog.ListNextWorkRequest
+	28, // 36: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:input_type -> vrooli.react_component_library.v1.catalog.RunGateRequest
+	3,  // 37: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:input_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest
+	5,  // 38: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:input_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest
+	11, // 39: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:input_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphRequest
+	15, // 40: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:input_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest
+	25, // 41: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:output_type -> vrooli.react_component_library.v1.catalog.GetCoverageResponse
+	27, // 42: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:output_type -> vrooli.react_component_library.v1.catalog.ListNextWorkResponse
+	30, // 43: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:output_type -> vrooli.react_component_library.v1.catalog.RunGateResponse
+	4,  // 44: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:output_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse
+	10, // 45: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:output_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse
+	14, // 46: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:output_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphResponse
+	18, // 47: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:output_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse
+	41, // [41:48] is the sub-list for method output_type
+	34, // [34:41] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_react_component_library_v1_catalog_catalog_proto_init() }
@@ -920,7 +2169,7 @@ func file_react_component_library_v1_catalog_catalog_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_react_component_library_v1_catalog_catalog_proto_rawDesc), len(file_react_component_library_v1_catalog_catalog_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
