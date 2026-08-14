@@ -4,8 +4,9 @@ import (
 	"time"
 
 	"audio-tools/internal/ai/chains/tiered"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Chain composes Local + BYOK + Vrooli providers under the fixed
@@ -51,7 +52,7 @@ type Options struct {
 	AvailTTLByOK   time.Duration
 	AvailTTLVrooli time.Duration
 
-	Clock clock.Clock
+	Clock schedule.Clock
 
 	// Logx, when set, receives a structured `event=tier_fallback` line
 	// each time a request is served from a tier other than the first-

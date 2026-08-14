@@ -12,7 +12,7 @@ import (
 
 	"audio-tools/internal/logx"
 	"audio-tools/internal/store"
-	"audio-tools/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func newSchemaDB(t *testing.T) *apidb.RoutedDB {

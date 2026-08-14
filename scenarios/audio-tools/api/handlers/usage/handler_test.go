@@ -13,11 +13,12 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	usageH "audio-tools/handlers/usage"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/store"
-	"audio-tools/internal/testutil/db"
 	"audio-tools/internal/testutil/mocks"
 	"audio-tools/internal/usagereport"
+	db "github.com/vrooli/api-core/databasetest"
+
+	"github.com/vrooli/api-core/schedule"
 
 	usagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage"
 	usageconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage/usage_v1connect"
@@ -28,7 +29,7 @@ func newServer(t *testing.T) (usageconnect.UsageServiceClient, *store.UsageStore
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(usagereport.Schema)))
 	us := store.NewUsageStore(apidb.NewFromPrimary(d))
-	mod := usageH.Module(usageH.Deps{Store: us, Logger: &mocks.FakeLogger{}, Clock: clock.System{}})
+	mod := usageH.Module(usageH.Deps{Store: us, Logger: &mocks.FakeLogger{}, Clock: schedule.System()})
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewServer(r)
@@ -84,7 +85,7 @@ func TestUsageHandler_GetSummary_DistributionAndTotals(t *testing.T) {
 }
 
 func TestUsageHandler_NoStoreReturnsFailedPrecondition(t *testing.T) {
-	mod := usageH.Module(usageH.Deps{Logger: &mocks.FakeLogger{}, Clock: clock.System{}})
+	mod := usageH.Module(usageH.Deps{Logger: &mocks.FakeLogger{}, Clock: schedule.System()})
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewServer(r)

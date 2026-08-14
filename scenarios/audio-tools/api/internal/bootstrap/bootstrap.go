@@ -13,7 +13,6 @@ import (
 	"audio-tools/internal/blobbytes"
 	"audio-tools/internal/byok"
 	"audio-tools/internal/capabilities"
-	"audio-tools/internal/clock"
 	intcorpus "audio-tools/internal/corpus"
 	intexp "audio-tools/internal/experiment"
 	"audio-tools/internal/experiment/evaldeps"
@@ -30,6 +29,8 @@ import (
 	intsumm "audio-tools/internal/summarize"
 	inttts "audio-tools/internal/tts"
 	"audio-tools/internal/usagereport"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
@@ -238,11 +239,11 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 	} else if blobs, berr := blobbytes.NewFilesystem(ns, "corpus-blobs", "corpus"); berr != nil {
 		logger.Printf("corpus blob store disabled: %v", berr)
 	} else {
-		corpusSvc = intcorpus.NewService(intcorpus.NewSQLiteRepository(db, clock.System{}), blobs, clock.System{})
+		corpusSvc = intcorpus.NewService(intcorpus.NewSQLiteRepository(db, schedule.System()), blobs, schedule.System())
 		if expBlobs, eerr := blobbytes.NewFilesystem(ns, "experiment-blobs", "experiment"); eerr != nil {
 			logger.Printf("experiment blob store disabled: %v", eerr)
 		} else {
-			experimentSvc = intexp.NewService(intexp.NewSQLiteRepository(db, clock.System{}), expBlobs)
+			experimentSvc = intexp.NewService(intexp.NewSQLiteRepository(db, schedule.System()), expBlobs)
 		}
 	}
 	// Each experiment replay receives a fresh provider. Provider-neutral cells
@@ -261,7 +262,7 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 	if experimentSvc != nil {
 		experimentMgr = intexp.NewManager(intexp.Config{
 			Service: experimentSvc,
-			Clock:   clock.System{},
+			Clock:   schedule.System(),
 			Logger:  logger,
 			Runner: func(runCtx context.Context, exp intexp.Experiment, emit func(int, string)) (intexp.RunResult, error) {
 				recipe := &experimentv1.ExperimentRecipe{}

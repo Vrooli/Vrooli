@@ -16,7 +16,7 @@ import (
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 	experimentconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment/experiment_v1connect"
 
-	"audio-tools/cli/internal/testutil"
+	testutil "github.com/vrooli/cli-core/cliapptest"
 )
 
 type fakeExperimentSvc struct {

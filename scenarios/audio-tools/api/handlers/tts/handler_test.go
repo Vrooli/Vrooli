@@ -14,8 +14,9 @@ import (
 	"audio-tools/internal/ai/ttschain"
 	ttsmocks "audio-tools/internal/ai/ttschain/mocks"
 	"audio-tools/internal/byok/envelope"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
+
+	"github.com/vrooli/api-core/schedule"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
@@ -28,7 +29,7 @@ func newServer(t *testing.T, deps ttsH.Deps) ttsconnect.TTSServiceClient {
 		deps.Logger = logx.Std{}
 	}
 	if deps.Clock == nil {
-		deps.Clock = clock.System{}
+		deps.Clock = schedule.System()
 	}
 	mod := ttsH.Module(deps)
 	r := mux.NewRouter()

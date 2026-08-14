@@ -173,8 +173,15 @@ func (s *Segmenter) Run(
 	inner := make(chan sttchain.StreamEvent)
 	forwardDone := make(chan struct{})
 	go runEgress(ctx, gate, timeline, inner, events, forwardDone)
+	cursor := sttchain.NewConsumptionCursor(func(ev sttchain.StreamEvent) {
+		select {
+		case inner <- ev:
+		case <-ctx.Done():
+		}
+	}, 1600)
 
-	err = selection.Strategy.Run(ctx, start, pcmChunks, inner)
+	err = selection.Strategy.Run(ctx, start, pcmChunks, inner, cursor)
+	cursor.Flush()
 	close(inner)
 	<-forwardDone
 	return err

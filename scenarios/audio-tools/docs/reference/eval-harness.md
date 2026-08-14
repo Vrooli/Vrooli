@@ -336,7 +336,7 @@ warning as a capture problem and retry before saving the clip.
 `overlap_max_stall_rejects` (see
 [configuration.md](./configuration.md#streaming-stt-control-surface))
 force-commits the freshest hypothesis tail after N consecutive
-LocalAgreement divergence-rejects, bounding tail growth before the 25s
+LocalAgreement divergence-rejects, bounding tail growth before the 10s
 `max_window_ms` net — the fix for "overlap-agree finalizes slower than
 batch". Experiments can also override `overlap_max_window_ms`, the hard
 ceiling on uncommitted tail growth before force-commit. The harness answers,

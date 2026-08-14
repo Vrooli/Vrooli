@@ -11,8 +11,10 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	"audio-tools/internal/database"
-	"audio-tools/internal/testutil/db"
 	"audio-tools/internal/testutil/mocks"
+	db "github.com/vrooli/api-core/databasetest"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newInternalSchemaDB(t *testing.T) *sql.DB {
@@ -26,7 +28,7 @@ func newInternalSchemaDB(t *testing.T) *sql.DB {
 }
 
 func TestManager_EvictsTerminalEntriesAndFallsBackToDB(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
 	repo := NewSQLiteRepository(newInternalSchemaDB(t), clk)
 	svc := NewService(repo, mocks.NewFakeBlobStore())
 	mgr := NewManager(Config{

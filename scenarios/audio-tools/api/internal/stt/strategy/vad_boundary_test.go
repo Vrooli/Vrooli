@@ -145,6 +145,35 @@ func TestVADSegmenter_InitialPromptRolloverAndDedup(t *testing.T) {
 		"dedup should remove the duplicate 'world'; got %q", joined)
 }
 
+func TestVADSegmenter_DoesNotTreatARepeatedPhraseAsPreRoll(t *testing.T) {
+	phrase := "alpha beta gamma delta epsilon zeta"
+	prov := &recorderProvider{replies: []string{phrase, phrase + " new"}}
+	strat := &strategy.VADSegmenter{
+		Provider:           prov,
+		SilenceMs:          200,
+		PreRollMs:          0,
+		TrailingPadMs:      0,
+		InitialPromptWords: 0,
+		SilenceRMS:         100,
+	}
+	audio := testaudio.SineSamples(440, 100)
+	audio = append(audio, testaudio.SilenceSamples(400)...)
+	audio = append(audio, testaudio.SineSamples(660, 100)...)
+	audio = append(audio, testaudio.SilenceSamples(400)...)
+
+	events := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(audio))
+	var emitted []string
+	for _, ev := range events {
+		if ev.Kind == sttchain.StreamEventSegment && ev.Segment != nil {
+			emitted = append(emitted, ev.Segment.Text)
+		}
+	}
+	joined := strings.Join(emitted, " ")
+	require.Equal(t, 2, strings.Count(strings.ToLower(joined), "alpha"),
+		"a repeated phrase is real speech when no audio pre-roll exists: %q", joined)
+	require.Contains(t, joined, "new")
+}
+
 // TestVADSegmenter_InitialPromptHonorsOperatorPrefix asserts that the
 // operator-supplied StreamStart.InitialPrompt stays in front of the
 // rolling tail.

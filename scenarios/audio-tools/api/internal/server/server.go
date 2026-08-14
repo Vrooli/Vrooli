@@ -12,10 +12,11 @@ package server
 import (
 	"net/http"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/middleware"
 	"audio-tools/internal/modulekit"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -23,10 +24,10 @@ import (
 
 // Deps holds the cross-cutting interfaces the Server depends on
 // regardless of which modules are mounted. Production wires concrete
-// implementations (clock.System{}, logx.Std{...}) in main.go; tests
+// implementations (schedule.System(), logx.Std{...}) in main.go; tests
 // wire fakes from internal/testutil/mocks. Both fields are required.
 type Deps struct {
-	Clock  clock.Clock
+	Clock  schedule.Clock
 	Logger logx.Logger
 }
 

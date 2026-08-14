@@ -66,6 +66,24 @@ func TestDeduplicateOverlap(t *testing.T) {
 	}
 }
 
+func TestDeduplicateOverlapBoundedDoesNotDeleteARepeatedPhrase(t *testing.T) {
+	accumulated := "the quick brown fox jumps over the lazy dog and then the team reviews the final checklist"
+	newText := "the team reviews the final checklist before the release"
+
+	got := DeduplicateOverlapBounded(accumulated, newText, 5)
+	want := accumulated + " " + newText
+	if got != want {
+		t.Fatalf("bounded overlap deleted a repeated phrase: got %q, want %q", got, want)
+	}
+}
+
+func TestDeduplicateOverlapBoundedStillRemovesPhysicalOverlap(t *testing.T) {
+	got := DeduplicateOverlapBounded("one two three four five", "four five six seven", 2)
+	if got != "one two three four five six seven" {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func TestResolveWhisperURLDefault(t *testing.T) {
 	t.Setenv("AUDIO_WHISPER_URL", "")
 	t.Setenv("WC_WHISPER_URL", "")

@@ -276,6 +276,18 @@ func (h reportRunner) streamConfigForEngine(preference stt.StrategyPreference, e
 }
 
 func (h reportRunner) segmenterSession(meter *MeteredProvider, cfg stt.StreamConfig, clip Clip, engineID string) Session {
+	// Legacy strategy requests do not carry an explicit engine id. The
+	// stream config has already resolved that request to the evaluation
+	// engine, and the chain's LocalEngines map must use the same key or the
+	// segmenter sees no eligible provider and silently selects
+	// BufferedFallback. Keep the resolved id in one place so the harness
+	// actually exercises the requested VAD/Overlap strategy.
+	if engineID == "" {
+		engineID = cfg.EngineID
+	}
+	if engineID == "" {
+		engineID = evalEngineID
+	}
 	chain := sttchain.NewChain(sttchain.Options{EnableLocal: true, LocalEngines: map[string]sttchain.Provider{engineID: meter}})
 	deps := segmenter.Deps{Chain: chain, Selector: stt.NewSelector(providerBatchExecutor{provider: meter})}
 	if h.deps.NewSpeakerIsolation != nil {

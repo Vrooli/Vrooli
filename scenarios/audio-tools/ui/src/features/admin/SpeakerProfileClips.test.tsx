@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
-import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 
 const listClipsMock = vi.hoisted(() => vi.fn());
 const deleteClipMock = vi.hoisted(() => vi.fn());

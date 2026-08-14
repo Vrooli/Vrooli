@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"audio-tools/internal/clock"
-	"audio-tools/internal/testutil/mocks"
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func mkServiceRuntime(t *testing.T, response map[string]any) *SummarizationService {
@@ -23,7 +23,7 @@ func mkServiceRuntime(t *testing.T, response map[string]any) *SummarizationServi
 	cfg := DefaultSummarizeConfig()
 	cfg.Level = "moderate"
 	cfg.Model = DefaultSummarizeModel
-	return NewSummarizationServiceWith(s, func() SummarizeConfig { return cfg }, clock.System{})
+	return NewSummarizationServiceWith(s, func() SummarizeConfig { return cfg }, schedule.System())
 }
 
 func TestSummarizationService_HappyPath(t *testing.T) {
@@ -60,7 +60,7 @@ func TestSummarizationService_NilSummarizer(t *testing.T) {
 }
 
 func TestSummarizationService_AutoBackoffPath(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Unix(1000, 0))
+	clk := scheduletest.New(time.Unix(1000, 0))
 	cfg := DefaultSummarizeConfig()
 	cfg.TimeoutSeconds = 1
 	s := NewSummarizerWithRunner("resource-ollama-test", func(context.Context, []string, string) ([]byte, error) {

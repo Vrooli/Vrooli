@@ -16,9 +16,10 @@ import (
 	"audio-tools/internal/ai/summarizechain"
 	summocks "audio-tools/internal/ai/summarizechain/mocks"
 	"audio-tools/internal/byok/envelope"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	intsumm "audio-tools/internal/summarize"
+
+	"github.com/vrooli/api-core/schedule"
 
 	summv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize"
 	summconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize/summarize_v1connect"
@@ -39,7 +40,7 @@ func newServerForFallback(t *testing.T, chain *summarizechain.Chain) summconnect
 		cfg = c
 	}, func(context.Context) ([]intsumm.SummarizeModelInfo, error) {
 		return intsumm.MergeSummarizeModels(nil), nil
-	}, logx.Std{}, clock.System{}, nil)
+	}, logx.Std{}, schedule.System(), nil)
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewServer(r)

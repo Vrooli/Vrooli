@@ -15,7 +15,6 @@ func TestCoverageFloors(t *testing.T) {
 	floors := map[string]int{
 		"audio-tools/internal/byok/envelope":      90,
 		"audio-tools/internal/protomap":           80,
-		"audio-tools/internal/clock":              100,
 		"audio-tools/internal/database":           80,
 		"audio-tools/internal/middleware":         80,
 		"audio-tools/internal/modules":            80,

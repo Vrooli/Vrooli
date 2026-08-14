@@ -8,7 +8,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	localdb "audio-tools/internal/database"
-	"audio-tools/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 // TestApplyMigrations_AddsColumnsToLegacyTable proves the forward-only ALTERs

@@ -14,8 +14,10 @@ import (
 	"audio-tools/internal/experiment/evaldeps"
 	exprecipe "audio-tools/internal/experiment/recipe"
 	sttpkg "audio-tools/internal/stt"
-	"audio-tools/internal/testutil/db"
 	"audio-tools/internal/testutil/mocks"
+	db "github.com/vrooli/api-core/databasetest"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	apidb "github.com/vrooli/api-core/database"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
@@ -28,7 +30,7 @@ func experimentCorpus(t *testing.T) *intcorpus.Service {
 	if err := apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(intcorpus.Schema)); err != nil {
 		t.Fatalf("apply corpus schema: %v", err)
 	}
-	clk := mocks.NewFakeClock(time.Date(2026, 7, 23, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 7, 23, 0, 0, 0, 0, time.UTC))
 	return intcorpus.NewService(intcorpus.NewSQLiteRepository(database, clk), mocks.NewFakeBlobStore(), clk)
 }
 

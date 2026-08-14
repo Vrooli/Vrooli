@@ -17,7 +17,7 @@ import (
 	summv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize"
 	summconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize/summarize_v1connect"
 
-	"audio-tools/cli/internal/testutil"
+	testutil "github.com/vrooli/cli-core/cliapptest"
 )
 
 type fakeSvc struct {

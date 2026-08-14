@@ -15,6 +15,8 @@ import (
 	capmocks "audio-tools/internal/capabilities/mocks"
 	"audio-tools/internal/testutil/mocks"
 
+	"github.com/vrooli/api-core/scheduletest"
+
 	plv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/provider_lifecycle"
 )
 
@@ -43,7 +45,7 @@ func newHandlerHarness(t *testing.T, ctrl capabilities.ResourceController, check
 		Registry:   reg,
 		Controller: ctrl,
 		Logger:     logger,
-		Clock:      mocks.NewFakeClock(canonicalNow),
+		Clock:      scheduletest.New(canonicalNow),
 	}
 	return deps, reg, logger
 }

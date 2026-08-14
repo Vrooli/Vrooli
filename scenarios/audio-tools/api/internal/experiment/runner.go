@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"audio-tools/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 var (
@@ -36,7 +36,7 @@ func (noopLogger) Printf(string, ...any) {}
 type Manager struct {
 	service *Service
 	runner  Runner
-	clock   clock.Clock
+	clock   schedule.Clock
 	logger  Logger
 
 	baseCtx context.Context
@@ -70,14 +70,14 @@ type entry struct {
 type Config struct {
 	Service *Service
 	Runner  Runner
-	Clock   clock.Clock
+	Clock   schedule.Clock
 	Logger  Logger
 }
 
 func NewManager(cfg Config) *Manager {
 	clk := cfg.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	lg := cfg.Logger
 	if lg == nil {

@@ -94,7 +94,7 @@ func TestIntegration_SmokeFixtureThreeStrategies(t *testing.T) {
 				meter := NewMeteredProvider(newProvider(), float64(clip.bytesPerSecond()))
 				strat := &strategy.VADSegmenter{Provider: meter}
 				return StrategySession(func(c context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
-					return strat.Run(c, sttchain.StreamStart{InputFormat: "pcm_s16le"}, chunks, events)
+					return strat.Run(c, sttchain.StreamStart{InputFormat: "pcm_s16le"}, chunks, events, nil)
 				}), meter
 			},
 		},
@@ -104,7 +104,7 @@ func TestIntegration_SmokeFixtureThreeStrategies(t *testing.T) {
 				meter := NewMeteredProvider(newProvider(), float64(clip.bytesPerSecond()))
 				strat := &strategy.OverlapAgree{Provider: meter, Trigger: strategy.TriggerVAD, MaxStallRejects: 3, SampleRate: 16000}
 				return StrategySession(func(c context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
-					return strat.Run(c, sttchain.StreamStart{InputFormat: "pcm_s16le"}, chunks, events)
+					return strat.Run(c, sttchain.StreamStart{InputFormat: "pcm_s16le"}, chunks, events, nil)
 				}), meter
 			},
 		},

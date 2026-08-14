@@ -13,10 +13,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"audio-tools/internal/ai/sttchain"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	sttpipeline "audio-tools/internal/stt/pipeline"
 	"audio-tools/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/schedule"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
@@ -62,7 +63,7 @@ func TestConnectTranscribe_RejectsOversize(t *testing.T) {
 	h := NewConnectHandler(Deps{
 		Chain:  sttchain.NewChain(sttchain.Options{}),
 		Logger: logx.Std{},
-		Clock:  clock.System{},
+		Clock:  schedule.System(),
 	})
 
 	_, err := h.Transcribe(context.Background(), connect.NewRequest(&sttv1.TranscribeRequest{

@@ -4,24 +4,25 @@ import (
 	"context"
 	"fmt"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/tts"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // LocalProvider wraps tts.Service.Synthesize (Kokoro backend).
 type LocalProvider struct {
 	svc *tts.Service
-	clk clock.Clock
+	clk schedule.Clock
 }
 
 func NewLocalProvider(svc *tts.Service) *LocalProvider {
-	return &LocalProvider{svc: svc, clk: clock.System{}}
+	return &LocalProvider{svc: svc, clk: schedule.System()}
 }
 
-// NewLocalProviderWith constructs a LocalProvider with a custom clock.
-func NewLocalProviderWith(svc *tts.Service, clk clock.Clock) *LocalProvider {
+// NewLocalProviderWith constructs a LocalProvider with a custom schedule.
+func NewLocalProviderWith(svc *tts.Service, clk schedule.Clock) *LocalProvider {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &LocalProvider{svc: svc, clk: clk}
 }
@@ -44,7 +45,7 @@ func (p *LocalProvider) Synthesize(ctx context.Context, req Request) (*Result, e
 	}
 	clk := p.clk
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	start := clk.Now()
 	in := tts.SynthesizeInput{

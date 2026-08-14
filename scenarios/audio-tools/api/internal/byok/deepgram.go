@@ -12,8 +12,9 @@ import (
 	"github.com/gorilla/websocket"
 
 	"audio-tools/internal/ai/sttchain"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/httpc"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // DeepgramSTT calls Deepgram's /v1/listen endpoint. StreamEndpoint, if
@@ -24,14 +25,14 @@ type DeepgramSTT struct {
 	Endpoint       string
 	StreamEndpoint string
 	Doer           httpc.Doer
-	Clock          clock.Clock
+	Clock          schedule.Clock
 }
 
 func NewDeepgramSTT() *DeepgramSTT {
 	return &DeepgramSTT{
 		Endpoint: "https://api.deepgram.com/v1/listen",
 		Doer:     httpc.DefaultDoer(),
-		Clock:    clock.System{},
+		Clock:    schedule.System(),
 	}
 }
 
@@ -190,7 +191,7 @@ func (a *DeepgramSTT) Transcribe(ctx context.Context, key string, req sttchain.R
 
 	clk := a.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	start := clk.Now()
 	resp, err := a.Doer.Do(httpReq)

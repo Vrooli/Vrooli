@@ -6,9 +6,10 @@ import (
 	"strings"
 
 	"audio-tools/internal/ai/sttchain"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	voice "audio-tools/internal/stt/pipeline"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // OverlapAgree is the LocalAgreement-N streaming strategy (Macháček et
@@ -42,8 +43,7 @@ import (
 //     WindowMs/2.
 //   - MaxWindowMs: cap on the uncommitted audio buffer. If no commit
 //     happens in this much audio, force-advance the cursor so per-call
-//     latency stays bounded (default 25 000ms, matches faster-whisper's
-//     preferred chunk size).
+//     latency stays bounded (default 10 000ms, tuned for long-form safety).
 //
 // TriggerVAD makes the strategy run a settle attempt on silence
 // boundaries detected from frame RMS analysis (production default).
@@ -58,6 +58,18 @@ const TriggerVAD = "vad"
 // fixture audio is silent zeros that the VAD trigger would never
 // classify as voiced.
 const TriggerStopwatch = "stopwatch"
+
+// Post-cursor hypotheses begin after the committed audio. Only a small
+// prompt-regurgitation overlap is therefore legitimate; a long unbounded
+// search can delete a genuinely repeated phrase from a long dictation.
+const maxPromptOverlapWords = 8
+
+// forceCommitRetainMs is the physical tail kept after a forced batch
+// transcription. Whisper can omit words at a hard right edge, so claiming
+// coverage through the exact end would make that omission unrecoverable. This
+// mirrors the VAD segmenter's pre-roll and stays below the bounded prompt
+// overlap used when merging the next result.
+const forceCommitRetainMs = 300
 
 type OverlapAgree struct {
 	Provider sttchain.Provider
@@ -83,16 +95,23 @@ type OverlapAgree struct {
 	// batch call. After this many CONSECUTIVE divergence-rejects, the
 	// strategy force-commits the freshest hypothesis tail and advances
 	// the cursor, bounding tail growth / re-transcription cost well
-	// before the 25s net. The counter resets on any forward commit.
+	// before the 10s net. The counter resets on any forward commit.
 	//
 	// 0 disables the fallback (only the MaxWindowMs net applies — the
 	// pre-fallback behavior). This field carries no applyDefaults
 	// default precisely so that a directly-constructed OverlapAgree
 	// preserves legacy behavior and so 0 ("disabled") survives end to
-	// end; the operator default (3) is applied at the config layer
+	// end; the quality-first operator default (0) is applied at the config layer
 	// (selector.Defaults / streamCfgDoc). Acceptable operator range
 	// [1,10].
 	MaxStallRejects int
+
+	// UseWordTimestampAdvance enables the latency optimization that moves the
+	// audio cursor to Whisper's last committed word timestamp. It is disabled
+	// in production because batch word timestamps are not durable coverage
+	// acknowledgements: an over-optimistic timestamp can skip speech. The
+	// growing-window merge plus MaxWindowMs fallback is the safe default.
+	UseWordTimestampAdvance bool
 
 	// Trigger selects the settle-attempt source: TriggerVAD (default)
 	// or TriggerStopwatch. See the constants above.
@@ -105,7 +124,7 @@ type OverlapAgree struct {
 	SilenceRMS float64 // amplitude threshold below which a frame is silent (default 250)
 	FrameMs    int     // frame size for RMS evaluation (default 20)
 
-	Clock clock.Clock
+	Clock schedule.Clock
 	// Logger records strategy diagnostics through the scenario logging seam.
 	// Nil uses logx.Std, preserving direct construction in focused tests.
 	Logger logx.Logger
@@ -130,6 +149,7 @@ func (o *OverlapAgree) Run(
 	start sttchain.StreamStart,
 	chunks <-chan sttchain.AudioChunk,
 	events chan<- sttchain.StreamEvent,
+	cursor *sttchain.ConsumptionCursor,
 ) error {
 	if o.Provider == nil {
 		err := fmt.Errorf("audio-tools/stt/strategy: OverlapAgree requires a Provider")
@@ -161,6 +181,14 @@ func (o *OverlapAgree) Run(
 		minWindowBytes = cap
 	}
 	maxWindowBytes := o.SampleRate * o.MaxWindowMs / 1000 * sampleBytes
+	forceRetryAfterBytes := 0
+	forceRetryStepBytes := advanceBytes
+	if forceRetryStepBytes <= 0 {
+		forceRetryStepBytes = o.SampleRate * 100 / 1000 * sampleBytes
+	}
+	if forceRetryStepBytes <= 0 {
+		forceRetryStepBytes = 1
+	}
 
 	var pcm []byte
 	committedAudioBytes := 0
@@ -202,11 +230,20 @@ func (o *OverlapAgree) Run(
 	}
 
 	transcribe := func(audio []byte) (*sttchain.Result, error) {
+		// Whisper's initial_prompt is context, not a second transcript
+		// channel. Passing the entire committed turn causes prompt
+		// regurgitation and grows the model's conditioning cost with session
+		// length. Keep only the bounded physical-overlap tail; the merge
+		// functions below already defend against that tail being echoed.
+		prompt := start.InitialPrompt
+		if committed != "" {
+			prompt = strings.TrimSpace(prompt + " " + voice.LastNWords(committed, maxPromptOverlapWords))
+		}
 		req := sttchain.Request{
 			Audio:                   audio,
 			Format:                  start.InputFormat,
 			Language:                start.Language,
-			InitialPrompt:           committed,
+			InitialPrompt:           prompt,
 			SkipSpeakerVerification: start.SkipSpeakerVerification,
 			VADFilter:               start.VADFilter,
 			BYOKProvider:            start.BYOKProvider,
@@ -216,7 +253,7 @@ func (o *OverlapAgree) Run(
 		}
 		clk := o.Clock
 		if clk == nil {
-			clk = clock.System{}
+			clk = schedule.System()
 		}
 		t0 := clk.Now()
 		res, err := o.Provider.Transcribe(ctx, req)
@@ -313,10 +350,18 @@ func (o *OverlapAgree) Run(
 	// force-commit was performed so the caller can skip the normal
 	// iteration body.
 	forceCommitAll := func() bool {
-		if maxWindowBytes <= 0 || len(pcm)-committedAudioBytes <= maxWindowBytes {
+		uncommittedBytes := len(pcm) - committedAudioBytes
+		if maxWindowBytes <= 0 || uncommittedBytes <= maxWindowBytes {
 			return false
 		}
-		uncommittedMs := (len(pcm) - committedAudioBytes) * 1000 / (o.SampleRate * sampleBytes)
+		// A failed/empty force attempt retains the audio, but do not
+		// immediately retry it for every incoming frame. The retry point
+		// advances by one normal settle step, keeping provider work bounded
+		// while still retrying during a continuing utterance.
+		if forceRetryAfterBytes > 0 && uncommittedBytes < forceRetryAfterBytes {
+			return false
+		}
+		uncommittedMs := uncommittedBytes * 1000 / (o.SampleRate * sampleBytes)
 		logger.Printf("[overlap-agree] force commit: max_window_ms=%d exceeded, transcribing %dms of uncommitted audio (no silence boundary detected)",
 			o.MaxWindowMs, uncommittedMs)
 		n := len(pcm) - committedAudioBytes
@@ -324,31 +369,43 @@ func (o *OverlapAgree) Run(
 		copy(audio, pcm[committedAudioBytes:])
 		res, err := transcribe(audio)
 		if err != nil {
-			// Transcribe genuinely failed — only path that actually
-			// loses audio. Surface the error and advance the cursor
-			// (otherwise we'd retry forever and the buffer would only
-			// grow). The error event is the user-visible signal that
-			// audio was lost.
+			forceRetryAfterBytes = uncommittedBytes + forceRetryStepBytes
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
-				"overlap-agree: force-commit transcribe failed after max_window_ms=%d; %dms of audio unavailable: %w",
+				"overlap-agree: force-commit transcribe failed after max_window_ms=%d; retaining %dms of audio for retry: %w",
 				o.MaxWindowMs, uncommittedMs, err)}
-			committedAudioBytes = len(pcm)
-			recent = nil
-			lastAdvanced = true
-			stallRejects = 0
 			return true
 		}
-		if res.Text != "" {
-			newCommit, tail, _ := appendAfterAdvance(committed, strings.TrimSpace(res.Text))
-			if len(newCommit) > len(committed) && tail != "" {
-				emitSegment(tail, res)
-				committed = newCommit
-				lastTier = res.Tier
-				lastProviderID = res.ProviderID
-				lastModelID = res.ModelID
-			}
+		if res == nil {
+			forceRetryAfterBytes = uncommittedBytes + forceRetryStepBytes
+			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+				"overlap-agree: force-commit returned no result; retaining %dms of audio for retry", uncommittedMs)}
+			return true
 		}
-		committedAudioBytes = len(pcm)
+		newCommit, tail, _ := appendAfterAdvance(committed, strings.TrimSpace(res.Text))
+		if len(newCommit) <= len(committed) || tail == "" {
+			forceRetryAfterBytes = uncommittedBytes + forceRetryStepBytes
+			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+				"overlap-agree: force-commit produced no new transcript for %dms; retaining audio for retry", uncommittedMs)}
+			return true
+		}
+		emitSegment(tail, res)
+		committed = newCommit
+		lastTier = res.Tier
+		lastProviderID = res.ProviderID
+		lastModelID = res.ModelID
+		// Do not acknowledge text coverage through the exact right edge of
+		// a forced batch. Retain a small physical tail so a word omitted at
+		// the hard boundary is present in the next request and can be
+		// recovered. The text merge remains bounded by
+		// maxPromptOverlapWords, so the retained audio cannot duplicate an
+		// arbitrarily long repeated phrase.
+		retainedBytes := o.SampleRate * forceCommitRetainMs / 1000 * sampleBytes
+		newCursor := len(pcm) - retainedBytes
+		if newCursor < committedAudioBytes {
+			newCursor = committedAudioBytes
+		}
+		committedAudioBytes = newCursor
+		forceRetryAfterBytes = 0
 		recent = nil
 		lastAdvanced = true
 		stallRejects = 0
@@ -363,6 +420,12 @@ func (o *OverlapAgree) Run(
 		// contract even under continuous speech.
 		if forceCommitAll() {
 			return
+		}
+		if maxWindowBytes > 0 {
+			uncommittedBytes := len(pcm) - committedAudioBytes
+			if uncommittedBytes > maxWindowBytes && forceRetryAfterBytes > 0 && uncommittedBytes < forceRetryAfterBytes {
+				return
+			}
 		}
 
 		if rightEdge <= committedAudioBytes {
@@ -388,9 +451,48 @@ func (o *OverlapAgree) Run(
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
 			return
 		}
+		if res == nil {
+			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+				"overlap-agree: provider returned no result for %d bytes; retaining audio for retry", n)}
+			return
+		}
+		if strings.TrimSpace(res.Text) == "" {
+			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+				"overlap-agree: provider returned an empty transcript for %d bytes; retaining audio for retry", n)}
+			return
+		}
 		lastTier = res.Tier
 		lastProviderID = res.ProviderID
 		lastModelID = res.ModelID
+
+		// A successful force-commit has already advanced the audio cursor
+		// through the preceding window. In production VAD mode, the next
+		// result ends at a clean silence boundary and therefore does not
+		// need a second LocalAgreement hypothesis before it is useful: the
+		// force commit plus this boundary call are independent windows. If
+		// we queue this result as hypothesis 1/2, the strategy spends one
+		// extra Whisper call on audio it cannot commit before the next
+		// MaxWindowMs force, which can make real-time consumption fall
+		// behind the speaker. Stopwatch mode and the timestamp-advance
+		// behavior tests retain the stricter LocalAgreement contract.
+		if o.Trigger == TriggerVAD && !o.UseWordTimestampAdvance && lastAdvanced && len(recent) == 0 {
+			newCommit, tail, _ := appendAfterAdvance(committed, strings.TrimSpace(res.Text))
+			if len(newCommit) <= len(committed) || tail == "" {
+				events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+					"overlap-agree: clean post-force boundary produced no new transcript; retaining audio for retry")}
+				return
+			}
+			emitSegment(tail, res)
+			committed = newCommit
+			forceRetryAfterBytes = 0
+			if rightEdge > committedAudioBytes && rightEdge <= len(pcm) {
+				committedAudioBytes = rightEdge
+			}
+			recent = nil
+			lastAdvanced = true
+			stallRejects = 0
+			return
+		}
 
 		recent = append(recent, hypothesis{text: res.Text, words: res.Words})
 		if len(recent) > o.CommitRuns {
@@ -435,16 +537,18 @@ func (o *OverlapAgree) Run(
 			if o.MaxStallRejects > 0 && stallRejects >= o.MaxStallRejects {
 				logger.Printf("[stt-overlap] stall-fallback: %d consecutive divergence-rejects >= max_stall_rejects=%d — force-committing freshest hypothesis tail=%q",
 					stallRejects, o.MaxStallRejects, voice.TruncateForLog(res.Text, 80))
-				if res.Text != "" {
-					newCommit, tail, _ := appendAfterAdvance(committed, strings.TrimSpace(res.Text))
-					if len(newCommit) > len(committed) && tail != "" {
-						emitSegment(tail, res)
-						committed = newCommit
-						lastTier = res.Tier
-						lastProviderID = res.ProviderID
-						lastModelID = res.ModelID
-					}
+				newCommit, tail, _ := appendAfterAdvance(committed, strings.TrimSpace(res.Text))
+				if len(newCommit) <= len(committed) || tail == "" {
+					events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+						"overlap-agree: stall fallback produced no new transcript; retaining audio for retry")}
+					return
 				}
+				emitSegment(tail, res)
+				committed = newCommit
+				forceRetryAfterBytes = 0
+				lastTier = res.Tier
+				lastProviderID = res.ProviderID
+				lastModelID = res.ModelID
 				// Advance the cursor past the window we just force-
 				// committed (its whole transcript is now committed), so
 				// the next iteration starts on genuinely new audio.
@@ -469,6 +573,7 @@ func (o *OverlapAgree) Run(
 			// A forward commit happened — the model is making progress
 			// again, so the consecutive-divergence streak resets.
 			stallRejects = 0
+			forceRetryAfterBytes = 0
 			// Advance committedAudioBytes to the END time of the last
 			// agreed word so the next iteration's audio starts where
 			// the committed material ends. When word timestamps are
@@ -476,18 +581,20 @@ func (o *OverlapAgree) Run(
 			// providers), the cursor stays put and mergeAgreed
 			// continues to prevent re-emission — buffer growth is
 			// bounded by the MaxWindowMs forced advance.
-			if adv := wordEndBytes(res.Words, len(strings.Fields(agreed))); adv > 0 {
-				newOffset := committedAudioBytes + adv
-				if newOffset > len(pcm) {
-					newOffset = len(pcm)
+			if o.UseWordTimestampAdvance {
+				if adv := wordEndBytes(res.Words, len(strings.Fields(agreed))); adv > 0 {
+					newOffset := committedAudioBytes + adv
+					if newOffset > len(pcm) {
+						newOffset = len(pcm)
+					}
+					committedAudioBytes = newOffset
+					// Stale pre-advance hypotheses would block future
+					// agreement (they share no first-word with post-advance
+					// hypotheses), so clear them and switch to
+					// appendAfterAdvance for the next merge.
+					recent = nil
+					lastAdvanced = true
 				}
-				committedAudioBytes = newOffset
-				// Stale pre-advance hypotheses would block future
-				// agreement (they share no first-word with post-advance
-				// hypotheses), so clear them and switch to
-				// appendAfterAdvance for the next merge.
-				recent = nil
-				lastAdvanced = true
 			} else {
 				// No audio advance: keep the sliding window of
 				// hypotheses so consecutive commits agree on growing
@@ -522,7 +629,23 @@ func (o *OverlapAgree) Run(
 					tailBytes := make([]byte, len(pcm)-committedAudioBytes)
 					copy(tailBytes, pcm[committedAudioBytes:])
 					res, err := transcribe(tailBytes)
-					if err == nil && res.Text != "" {
+					if err != nil {
+						events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+							"overlap-agree: final transcription failed for %d bytes; audio was not committed: %w", len(tailBytes), err)}
+					} else if res == nil {
+						events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+							"overlap-agree: final transcription returned no result for %d bytes; audio was not committed", len(tailBytes))}
+					} else if strings.TrimSpace(res.Text) == "" {
+						// An empty terminal result is expected when the remaining
+						// bytes are only trailing silence (the VAD state has no
+						// voiced audio after the last boundary). It is a real
+						// provider failure only when the tail contained speech;
+						// preserve that diagnostic and retry contract in that case.
+						if hasVoiced {
+							events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+								"overlap-agree: final transcription returned an empty transcript for %d bytes; audio was not committed", len(tailBytes))}
+						}
+					} else {
 						newCommit, tail, _ := appendAfterAdvance(committed, strings.TrimSpace(res.Text))
 						if len(newCommit) > len(committed) && tail != "" {
 							events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
@@ -539,6 +662,7 @@ func (o *OverlapAgree) Run(
 				emitDone()
 				return nil
 			}
+			cursor.Observe(ch)
 			pcm = append(pcm, ch.Audio...)
 			switch o.Trigger {
 			case TriggerStopwatch:
@@ -584,7 +708,7 @@ func (o *OverlapAgree) applyDefaults() {
 		o.AdvanceMs = o.WindowMs / 2
 	}
 	if o.MaxWindowMs == 0 {
-		o.MaxWindowMs = 25000
+		o.MaxWindowMs = 10000
 	}
 	if o.MaxAgreedTokens == 0 {
 		o.MaxAgreedTokens = 30
@@ -649,7 +773,7 @@ func mergeAgreed(committed, agreed string) (newCommit, tail string, ok bool) {
 		if candidateTrimmed == "" {
 			return committed, "", true
 		}
-		merged := voice.DeduplicateOverlap(committed, candidateTrimmed)
+		merged := voice.DeduplicateOverlapBounded(committed, candidateTrimmed, maxPromptOverlapWords)
 		if len(merged) <= len(committed) {
 			return committed, "", true
 		}
@@ -658,7 +782,7 @@ func mergeAgreed(committed, agreed string) (newCommit, tail string, ok bool) {
 	if strings.HasPrefix(committed, agreed) {
 		return committed, "", true
 	}
-	merged := voice.DeduplicateOverlap(committed, agreed)
+	merged := voice.DeduplicateOverlapBounded(committed, agreed, maxPromptOverlapWords)
 	if merged == committed+" "+agreed {
 		return committed, "", false
 	}
@@ -718,13 +842,13 @@ func appendAfterAdvance(committed, agreed string) (newCommit, tail string, ok bo
 		if tail == "" {
 			return committed, "", true
 		}
-		merged := voice.DeduplicateOverlap(committed, tail)
+		merged := voice.DeduplicateOverlapBounded(committed, tail, maxPromptOverlapWords)
 		if len(merged) <= len(committed) {
 			return committed, "", true
 		}
 		return merged, strings.TrimPrefix(merged, committed), true
 	}
-	merged := voice.DeduplicateOverlap(committed, candidate)
+	merged := voice.DeduplicateOverlapBounded(committed, candidate, maxPromptOverlapWords)
 	if len(merged) <= len(committed) {
 		return committed, "", true
 	}

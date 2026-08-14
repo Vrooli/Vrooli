@@ -19,7 +19,6 @@ import (
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
 	intaudio "audio-tools/internal/audio"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/diagnostics/smokedata"
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
@@ -27,6 +26,8 @@ import (
 	"audio-tools/internal/sttengine"
 	intsumm "audio-tools/internal/summarize"
 	"audio-tools/internal/usagereport"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -108,14 +109,14 @@ type Run struct {
 
 // Deps wires the orchestrator. All four runners are required; tests
 // pass mocks. The PerStepTimeout defaults to 30s and the Clock defaults
-// to clock.System{}.
+// to schedule.System().
 type Deps struct {
 	STT            SttRunner
 	TTS            TtsRunner
 	Summarize      SummaryRunner
 	Transcode      Transcoder
 	Store          LastRunStore
-	Clock          clock.Clock
+	Clock          schedule.Clock
 	PerStepTimeout time.Duration
 	// Usage, when non-nil, receives one row per executed step tagged
 	// operation="diagnostics" so operator probes show up alongside real
@@ -149,7 +150,7 @@ type Orchestrator struct {
 // not_configured rather than panicking.
 func New(deps Deps) *Orchestrator {
 	if deps.Clock == nil {
-		deps.Clock = clock.System{}
+		deps.Clock = schedule.System()
 	}
 	if deps.PerStepTimeout == 0 {
 		deps.PerStepTimeout = 30 * time.Second

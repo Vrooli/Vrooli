@@ -11,7 +11,8 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	sttmocks "audio-tools/internal/ai/sttchain/mocks"
-	"audio-tools/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func TestChain_Execute_PrecedenceAndShortCircuits(t *testing.T) {
@@ -155,7 +156,7 @@ func TestChain_Reconfigure_InvalidatesAvailabilityCache(t *testing.T) {
 func TestChain_AvailabilityCache_HitAndExpiry(t *testing.T) {
 	fakeBYOK := &sttmocks.FakeBYOK{IDStr: "x", Available: true}
 	byok := sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"x": fakeBYOK})
-	clk := mocks.NewFakeClock(time.Unix(1000, 0))
+	clk := scheduletest.New(time.Unix(1000, 0))
 	c := sttchain.NewChain(sttchain.Options{
 		EnableBYOK:   true,
 		BYOK:         byok,

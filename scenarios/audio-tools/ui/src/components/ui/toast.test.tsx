@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, screen, act, fireEvent } from "@testing-library/react";
 
-import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { Toaster, pushToast, dismissToast } from "./toast";
 import { strings } from "../../consts/strings";
 

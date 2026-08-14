@@ -5,19 +5,20 @@ package usage
 import (
 	"time"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
+
+	"github.com/vrooli/api-core/schedule"
 
 	usagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage"
 )
 
-func resolveSince(clk clock.Clock, sinceSeconds int64) time.Time {
+func resolveSince(clk schedule.Clock, sinceSeconds int64) time.Time {
 	if sinceSeconds <= 0 {
 		sinceSeconds = 86400
 	}
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return clk.Now().UTC().Add(-time.Duration(sinceSeconds) * time.Second)
 }

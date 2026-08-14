@@ -3,7 +3,7 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
-import { expectNoA11yViolations } from "../../test-utils/a11y";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { DICTATION_SCRIPTS } from "./scripts";

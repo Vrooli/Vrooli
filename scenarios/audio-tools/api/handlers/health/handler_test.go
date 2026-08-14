@@ -12,13 +12,14 @@ import (
 	"audio-tools/handlers/health"
 	"audio-tools/internal/capabilities"
 	capmocks "audio-tools/internal/capabilities/mocks"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/server"
-	"audio-tools/internal/testutil/assertx"
-	"audio-tools/internal/testutil/httpx"
 	"audio-tools/internal/testutil/mocks"
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health"
@@ -41,7 +42,7 @@ import (
 // The pattern: spin up a *server.Server with mocked deps, wrap it in
 // httpx.NewLiveServer (real httptest.Server over real socket), issue a
 // real HTTP request, decode JSON straight into the generated proto
-// type via assertx.MustUnmarshalProto, assert on typed fields. Same
+// type via apihttptest.MustUnmarshalProto, assert on typed fields. Same
 // shape every future handler test in this scenario should follow —
 // when the endpoint's wire shape lives in packages/proto/, decode
 // through protojson; when it doesn't yet, MustDecodeJSON is the
@@ -98,15 +99,15 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: clock.System{}, Logger: logx.Std{L: log.New(io.Discard, "", 0)}},
+				server.Deps{Clock: schedule.System(), Logger: logx.Std{L: log.New(io.Discard, "", 0)}},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)
 
 			resp, body := live.Do(t, http.MethodGet, "/health", nil)
-			assertx.AssertStatus(t, resp, tc.wantStatusCode)
+			apihttptest.AssertStatus(t, resp, tc.wantStatusCode)
 
-			got := assertx.MustUnmarshalProto[healthv1.Response](t, body)
+			got := apihttptest.MustUnmarshalProto[healthv1.Response](t, body)
 			require.Equal(t, tc.wantStatus, got.Status, "response.status")
 			require.Equal(t, "react-vite-test", got.Service, "response.service")
 			require.Equal(t, "1.0.0", got.Version, "response.version")
@@ -152,15 +153,15 @@ func TestHealthHandler_ProvidersDownDoesNotFlipReadiness(t *testing.T) {
 		Mount: func(r *mux.Router) { r.HandleFunc("/health", h).Methods(http.MethodGet) },
 	}
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: logx.Std{L: log.New(io.Discard, "", 0)}},
+		server.Deps{Clock: schedule.System(), Logger: logx.Std{L: log.New(io.Discard, "", 0)}},
 		mod,
 	)
 	live := httpx.NewLiveServer(t, srv)
 
 	resp, body := live.Do(t, http.MethodGet, "/health", nil)
-	assertx.AssertStatus(t, resp, http.StatusOK)
+	apihttptest.AssertStatus(t, resp, http.StatusOK)
 
-	got := assertx.MustUnmarshalProto[healthv1.Response](t, body)
+	got := apihttptest.MustUnmarshalProto[healthv1.Response](t, body)
 	require.True(t, got.Readiness, "providers being down must NOT flip readiness (non-Critical)")
 	providers, ok := got.Dependencies["providers"]
 	require.True(t, ok)

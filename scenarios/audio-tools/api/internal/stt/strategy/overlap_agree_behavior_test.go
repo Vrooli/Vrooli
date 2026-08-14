@@ -163,7 +163,7 @@ func TestOverlapAgree_WordAlignedAdvance(t *testing.T) {
 		scriptedHypothesis{text: "hello world", wordEnds: []float64{0.05, 0.15}, gotAudio: &calls},
 		scriptedHypothesis{text: "hello world", wordEnds: []float64{0.05, 0.15}, gotAudio: &calls},
 	)
-	strat := &strategy.OverlapAgree{Provider: prov, Trigger: strategy.TriggerStopwatch, WindowMs: useWindowMs, AdvanceMs: useWindowMs, CommitRuns: 2, SampleRate: sampleRate}
+	strat := &strategy.OverlapAgree{Provider: prov, Trigger: strategy.TriggerStopwatch, WindowMs: useWindowMs, AdvanceMs: useWindowMs, CommitRuns: 2, SampleRate: sampleRate, UseWordTimestampAdvance: true}
 	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksOfWindows(4, useWindowMs, 0))
 
 	segs, _, final := segmentsAndFinal(t, got)
@@ -351,6 +351,31 @@ func TestOverlapAgree_PromptRegurgitationNoDuplicate(t *testing.T) {
 	require.Equal(t, "hello world how are you", final)
 }
 
+func TestOverlapAgree_BoundsRollingPromptContext(t *testing.T) {
+	var prompts []string
+	provider := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	provider.TranscribeFn = func(_ context.Context, req sttchain.Request) (*sttchain.Result, error) {
+		prompts = append(prompts, req.InitialPrompt)
+		return &sttchain.Result{
+			Text:       "one two three four five six seven eight nine ten eleven twelve",
+			Tier:       sttchain.TierLocal,
+			ProviderID: "whisper",
+			ModelID:    "base",
+		}, nil
+	}
+	strat := &strategy.OverlapAgree{Provider: provider, Trigger: strategy.TriggerStopwatch, WindowMs: useWindowMs, AdvanceMs: useWindowMs, CommitRuns: 2}
+	_ = runStrategy(t, context.Background(), strat, sttchain.StreamStart{InitialPrompt: "operator hint"}, chunksOfWindows(6, useWindowMs, 0))
+
+	require.GreaterOrEqual(t, len(prompts), 2)
+	for _, prompt := range prompts[1:] {
+		require.LessOrEqual(t, len(strings.Fields(prompt)), 10, "rolling prompt must stay bounded: %q", prompt)
+		require.Contains(t, prompt, "operator hint")
+	}
+	// The committed transcript is deliberately longer than the eight-word
+	// overlap budget; its oldest words must not be re-fed on later calls.
+	require.NotContains(t, prompts[len(prompts)-1], "one two three four")
+}
+
 // TestOverlapAgree_SlidingWindowsWordBoundaryAlignment proves
 // mergeAgreed's Case 3 (suffix↔prefix overlap) still kicks in when the
 // next agreement's first words overlap the prior commit's tail words.
@@ -490,7 +515,7 @@ func TestOverlapAgree_PostAdvanceCommitsContinue(t *testing.T) {
 		scriptedHypothesis{text: "how are you doing", wordEnds: []float64{0.05, 0.10, 0.20, 0.30}},
 		scriptedHypothesis{text: "how are you doing today", wordEnds: []float64{0.05, 0.10, 0.20, 0.30, 0.45}},
 	)
-	strat := &strategy.OverlapAgree{Provider: prov, Trigger: strategy.TriggerStopwatch, WindowMs: useWindowMs, AdvanceMs: useWindowMs, CommitRuns: 2, SampleRate: sampleRate}
+	strat := &strategy.OverlapAgree{Provider: prov, Trigger: strategy.TriggerStopwatch, WindowMs: useWindowMs, AdvanceMs: useWindowMs, CommitRuns: 2, SampleRate: sampleRate, UseWordTimestampAdvance: true}
 	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksOfWindows(5, useWindowMs, 0))
 
 	segs, _, final := segmentsAndFinal(t, got)
@@ -721,6 +746,138 @@ func TestOverlapAgree_VAD_MaxWindowForceCommitsAudio(t *testing.T) {
 				"successful force-commit must not emit a drop-audio Error")
 		}
 	}
+}
+
+// TestOverlapAgree_VAD_EmptyForceResultBacksOff proves an empty provider
+// result retains the pending audio without issuing one force request per
+// incoming frame. The retry point advances by one settle step and the
+// terminal event remains explicit.
+func TestOverlapAgree_VAD_EmptyForceResultBacksOff(t *testing.T) {
+	const sampleRate = 16000
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		return &sttchain.Result{Text: "", Tier: sttchain.TierLocal}, nil
+	}
+	strat := &strategy.OverlapAgree{
+		Provider: prov, Trigger: strategy.TriggerVAD,
+		WindowMs: 200, AdvanceMs: 100, CommitRuns: 2,
+		SampleRate: sampleRate, SilenceMs: 200, SilenceRMS: 250, FrameMs: 20,
+		MaxWindowMs: 300,
+	}
+	chunks := make(chan sttchain.AudioChunk, 60)
+	for i := 0; i < 60; i++ {
+		chunks <- sttchain.AudioChunk{Audio: voicedFrame(sampleRate, 20)}
+	}
+	close(chunks)
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunks)
+
+	require.LessOrEqual(t, prov.Calls, 12, "empty force results must not trigger one provider call per 20ms frame")
+	var sawError bool
+	for _, ev := range got {
+		if ev.Kind == sttchain.StreamEventError {
+			sawError = true
+		}
+	}
+	require.True(t, sawError, "the uncommitted speech failure must remain visible")
+	require.Equal(t, sttchain.StreamEventDone, got[len(got)-1].Kind)
+}
+
+// TestOverlapAgree_ForceCommitRetainsPhysicalTail proves a force commit does
+// not claim coverage through the exact end of a batch transcription. Whisper
+// can omit the final few words at a hard window boundary; the next request
+// must re-read a small physical tail so that omission is recoverable.
+func TestOverlapAgree_ForceCommitRetainsPhysicalTail(t *testing.T) {
+	const sampleRate = 16000
+	var requests [][]byte
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.TranscribeFn = func(_ context.Context, req sttchain.Request) (*sttchain.Result, error) {
+		requests = append(requests, append([]byte(nil), req.Audio...))
+		return &sttchain.Result{Text: "covered words", Tier: sttchain.TierLocal}, nil
+	}
+	strat := &strategy.OverlapAgree{
+		Provider: prov, Trigger: strategy.TriggerStopwatch,
+		WindowMs: 100, AdvanceMs: 100, CommitRuns: 2,
+		SampleRate: sampleRate, MaxWindowMs: 500,
+	}
+	// Each 800ms chunk force-commits. The second request must include the
+	// retained tail from the first window, so it is larger than a fresh 800ms
+	// request rather than silently starting at the previous window's end.
+	runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksOfWindows(2, 800, 0))
+	require.GreaterOrEqual(t, len(requests), 2)
+	require.Greater(t, len(requests[1]), len(requests[0]),
+		"the second force window must retain physical overlap from the first")
+}
+
+// TestOverlapAgree_VAD_CommitsFirstPostForceBoundary proves a successful
+// force-commit can hand the cursor to the next clean VAD boundary. The
+// production path must not spend a second LocalAgreement call building a
+// two-hypothesis run over audio that already has a clean boundary: that call
+// cannot commit before the next force window and makes the real-time lane
+// slower than the audio it is consuming.
+func TestOverlapAgree_VAD_CommitsFirstPostForceBoundary(t *testing.T) {
+	const sampleRate = 16000
+	var calls int
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		calls++
+		return &sttchain.Result{Text: "boundary text " + intToString(calls), Tier: sttchain.TierLocal}, nil
+	}
+	strat := &strategy.OverlapAgree{
+		Provider: prov, Trigger: strategy.TriggerVAD,
+		WindowMs: 200, AdvanceMs: 100, CommitRuns: 2,
+		SampleRate: sampleRate, SilenceMs: 200, SilenceRMS: 250, FrameMs: 20,
+		MaxWindowMs: 500,
+	}
+	// The first utterance trips MaxWindowMs while voiced. The second ends
+	// with a clean boundary immediately after that force commit.
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{},
+		vadChunks(sampleRate, [2]int{800, 0}, [2]int{100, 240}))
+
+	segs, _, final := segmentsAndFinal(t, got)
+	require.GreaterOrEqual(t, len(segs), 2, "the clean post-force boundary must commit immediately")
+	require.Contains(t, strings.Join(segs, " "), "boundary text 2")
+	require.Contains(t, final, "boundary text 2")
+	var partials int
+	for _, ev := range got {
+		if ev.Kind == sttchain.StreamEventPartial {
+			partials++
+		}
+	}
+	require.Zero(t, partials, "a clean post-force boundary must not spend a call on an uncommittable partial")
+	require.GreaterOrEqual(t, calls, 2)
+}
+
+// TestOverlapAgree_RetainsAudioAfterProviderFailure proves a transient
+// provider error does not advance committedAudioBytes. A subsequent settle
+// attempt can therefore transcribe the same audio and commit the recovery.
+func TestOverlapAgree_RetainsAudioAfterProviderFailure(t *testing.T) {
+	var calls int
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		calls++
+		if calls == 1 {
+			return nil, errors.New("temporary provider outage")
+		}
+		return &sttchain.Result{Text: "recovered speech", Tier: sttchain.TierLocal, ProviderID: "fake", ModelID: "fake"}, nil
+	}
+	strat := &strategy.OverlapAgree{
+		Provider: prov, Trigger: strategy.TriggerStopwatch,
+		WindowMs: 200, AdvanceMs: 100, CommitRuns: 2,
+		MaxWindowMs: 2000,
+	}
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksOfWindows(5, 200, 0))
+
+	segs, _, final := segmentsAndFinal(t, got)
+	var errorsSeen int
+	for _, ev := range got {
+		if ev.Kind == sttchain.StreamEventError {
+			errorsSeen++
+		}
+	}
+	require.GreaterOrEqual(t, calls, 2, "a later settle attempt must retry retained audio")
+	require.GreaterOrEqual(t, errorsSeen, 1, "the provider failure must be observable")
+	require.Contains(t, strings.Join(segs, " "), "recovered speech")
+	require.Contains(t, final, "recovered speech")
 }
 
 // TestOverlapAgree_VAD_TailFlushOnChannelClose proves the channel-close

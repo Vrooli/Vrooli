@@ -651,6 +651,101 @@ all 15 long-session recovery tests; the package-local
 **Refs:** `packages/audio-capture-browser/package.json`,
 `internal/cli/packagecli/`, `internal/packagegov/`.
 
+### 2026-08-09 — Reliability contract is repaired; strategy qualification remains provider-scoped
+
+**Resolution update:** Kyutai now emits durable processed-coverage acknowledgements
+only after its backend `processed_batches` cursor confirms the exact audio range;
+the resource orders the final processed cursor before terminal `done`. The
+accelerated browser lane passes 60 simulated minutes, bounded retention, exact
+interval accounting, zero duplicate committed segments, zero silent terminals,
+and a 10 messages/second wire rate. The full audio-tools Go suite and the
+browser package suite pass.
+
+**Qualification boundary:** Kyutai declares streaming-only capability and
+therefore correctly refuses the batch-oriented `OverlapAgree` and `VADSegment`
+provider cells; their explicit 60-minute Kyutai runs produced zero commits and
+failed safety rather than being counted as success. The valid batch-provider
+cells `whisper-local/overlap_agree/realtime` and
+`whisper-local/vad_segment/realtime` completed under durable experiment ids
+`21a7ca20-afb8-4e3b-8568-7503588dae2c` and
+`e8df3a39-835f-4b6e-9f09-6265af481ab8`. Both realized 3,602,659 ms, but both
+failed the configured safety threshold: Overlap committed 244 segments with a
+103-word maximum dropped span and VAD committed 222 segments with a 15-word
+maximum dropped span, versus the four-word threshold. VAD had lower measured
+WER (0.041 versus 0.149) and lower p50/p95 finalization latency (431 ms versus
+984 ms), but neither is a promotion-quality long-form result.
+
+**Browser evidence:** Routed Workflow Health runs pass four Dictation Studio
+cases for Kyutai passthrough, Overlap, and VAD selections. These are short
+product-path/fault-recovery checks, not 60-minute swarm-manager qualification;
+the swarm-manager workflow remains blocked by unrelated static workflow errors
+and unavailable routed storage isolation. No physical-device evidence exists.
+
+### 2026-08-09 — Long-form repair in qualification: bound transcript overlap and retain failed audio
+
+**Finding:** The first valid Whisper long-form cells completed for the full
+duration but failed the four-word dropped-span safety gate. Investigation found
+that transcript deduplication searched the entire committed transcript; repeated
+phrases later in a long dictation could be mistaken for physical pre-roll and
+silently removed. The VAD and Overlap strategies also advanced their audio
+cursor after provider errors, empty results, or a no-op stall fallback.
+
+**Resolution:** `DeduplicateOverlapBounded` now limits overlap to the configured
+physical pre-roll/prompt window. VAD and Overlap retain the pending audio after
+provider errors and empty transcripts, and advance the cursor only after a
+non-empty forward commit. Focused regressions cover repeated phrases, physical
+overlap, VAD retry, Overlap retry, and forced/stall commit behavior. The focused
+and full audio-tools Go suites pass; the browser workflow schema/action labels
+validate cleanly. Fresh two-cell Whisper realtime qualification is running as
+`002334e2-cf24-4b4b-990f-82f7ff6cc983`; until its terminal report is inspected,
+the repair is implementation evidence rather than a promotion claim.
+
+### 2026-08-09 — Overlap qualification budget exposed redundant post-force calls
+
+**Observation:** The explicit 15-minute production-default Overlap run
+`9913fdc1-78c9-4eed-b933-9bd8d1fbc556` failed without a report after exceeding
+the 18m45s runtime budget. The server trace showed a successful 10.1-second
+force commit, then a clean VAD boundary produced a first LocalAgreement
+hypothesis that could not commit until a later hypothesis. The next force
+window therefore paid for an additional Whisper call over audio that had
+already been safely cursor-advanced.
+
+**Root cause:** `lastAdvanced` correctly identified that the force commit had
+moved the cursor, but the normal two-hypothesis LocalAgreement path still ran
+for the first clean post-force VAD boundary. That added a call per safety
+window and pushed real-time consumption behind the source.
+
+**Resolution:** Production VAD mode now accepts the first non-empty result at
+the first clean boundary after a successful force commit, advances the cursor
+through that boundary, and retains the stricter two-hypothesis behavior for
+stopwatch mode and timestamp-alignment tests. A focused regression,
+`TestOverlapAgree_VAD_CommitsFirstPostForceBoundary`, prevents the redundant
+uncommittable partial from returning. The focused strategy suite passes; a
+fresh 15-minute qualification is queued as
+`4798add5-9aa9-4558-9bbf-1327d53b3fbc`.
+
+**Qualification result:** The post-force repair completed inside the runtime
+budget with WER 0.1282 and max dropped span 5. Tightening the window to 8s
+made the result worse (WER 0.1453, max dropped span 9). Retaining a 300ms
+physical tail improved WER to 0.1244 but did not clear the five-word safety
+failure in `b83d7890-9f9f-4c51-b387-8c2d4e2a3b90`. Overlap therefore remains
+diagnostic-only; the shipped VAD strategy is the production qualification
+candidate.
+
+### 2026-08-10 — VAD long-form boundary context is qualified
+
+**Finding:** The first fresh 60-minute VAD run with 300ms pre-roll completed
+the duration but failed safety with a nine-word contiguous deletion. The edit
+trace localized the loss to a boundary phrase, not ingress or egress loss.
+
+**Resolution:** Production VAD pre-roll now uses the existing supported maximum
+of 800ms, and the bounded text-overlap calculation follows that physical
+window. The 800ms 15-minute run `8defc72d-6b88-46c4-a0de-0e8655866152` passed
+with max dropped span 0. The final 60-minute run
+`e3d3b4ff-5c1f-4fd7-8cef-b92552c1f73c` realized 3,602,659ms, passed safety
+with max dropped span 1 against threshold 4, measured WER 0.022994, RTF
+0.031923, 226 commits, and 488.8ms p95 finalization latency.
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)

@@ -122,6 +122,10 @@ type ProviderTraits struct {
 	Batch      bool
 	Stream     bool
 	Strategies []StrategyKind
+	// BackendAcknowledgements means the adapter emits
+	// StreamEventAcknowledgement only after its backend confirms processed
+	// coverage. Passthrough must not also acknowledge those chunks locally.
+	BackendAcknowledgements bool
 }
 
 // Supports reports whether the provider declares the given strategy in
@@ -228,6 +232,82 @@ type AudioChunk struct {
 	StartSample int64
 	EndSample   int64
 	Digest      []byte
+}
+
+// ConsumptionCursor records the highest contiguous audio range a strategy has
+// handed to its recognizer. It deliberately tracks coverage rather than
+// committed text: a streaming recognizer may consume many seconds of fluent
+// speech before it commits a durable segment.
+//
+// The cursor emits at most one acknowledgement per interval of audio and is
+// flushed by the segmenter when the strategy returns. The transport owns the
+// callback, so strategies remain independent of WebSocket/Connect details.
+type ConsumptionCursor struct {
+	emit                     func(StreamEvent)
+	minAdvanceSamples        int64
+	receivedSequence         int64
+	processedSequence        int64
+	receivedEndSample        int64
+	processedEndSample       int64
+	lastAcknowledgedSequence int64
+	lastAckEndSample         int64
+	hasCoverage              bool
+}
+
+func NewConsumptionCursor(emit func(StreamEvent), minAdvanceSamples int64) *ConsumptionCursor {
+	if minAdvanceSamples <= 0 {
+		minAdvanceSamples = 1600 // approximately 100 ms at the canonical 16 kHz rate
+	}
+	return &ConsumptionCursor{
+		emit: emit, minAdvanceSamples: minAdvanceSamples,
+		receivedSequence: -1, processedSequence: -1, lastAcknowledgedSequence: -1,
+	}
+}
+
+// Observe advances coverage for one contiguous input chunk. Repeated or
+// out-of-order observations are ignored so a reconnect/replay cannot create
+// duplicate acknowledgements or move the processed cursor backwards.
+func (c *ConsumptionCursor) Observe(chunk AudioChunk) {
+	if c == nil || c.emit == nil || chunk.EndSample < chunk.StartSample {
+		return
+	}
+	if c.hasCoverage && chunk.Sequence <= uint64(c.processedSequence) {
+		return
+	}
+	c.receivedSequence = int64(chunk.Sequence)
+	c.receivedEndSample = chunk.EndSample
+	if !c.hasCoverage || chunk.Sequence == uint64(c.processedSequence+1) {
+		c.processedSequence = int64(chunk.Sequence)
+		c.processedEndSample = chunk.EndSample
+		c.hasCoverage = true
+		if c.processedSequence == 0 || c.processedEndSample-c.lastAckEndSample >= c.minAdvanceSamples {
+			c.emitCurrent()
+		}
+	}
+}
+
+// Flush emits the latest coverage even when the remaining tail is shorter
+// than the normal acknowledgement interval.
+func (c *ConsumptionCursor) Flush() {
+	if c == nil || !c.hasCoverage || c.processedSequence <= c.lastAcknowledgedSequence {
+		return
+	}
+	c.emitCurrent()
+}
+
+func (c *ConsumptionCursor) emitCurrent() {
+	if c == nil || !c.hasCoverage || c.processedSequence <= c.lastAcknowledgedSequence {
+		return
+	}
+	c.emit(StreamEvent{
+		Kind: StreamEventAcknowledgement,
+		Acknowledgement: &AcknowledgementEvent{
+			ReceivedSequence: c.receivedSequence, ProcessedSequence: c.processedSequence,
+			ReceivedEndSample: c.receivedEndSample, ProcessedEndSample: c.processedEndSample,
+		},
+	})
+	c.lastAcknowledgedSequence = c.processedSequence
+	c.lastAckEndSample = c.processedEndSample
 }
 
 // StreamEventKind enumerates the event types emitted on the output channel.

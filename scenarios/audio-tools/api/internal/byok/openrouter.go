@@ -11,8 +11,9 @@ import (
 	"strings"
 
 	"audio-tools/internal/ai/summarizechain"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/httpc"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // OpenRouterSummarize calls OpenRouter's chat-completions endpoint for the
@@ -25,7 +26,7 @@ type OpenRouterSummarize struct {
 	Endpoint string
 	Role     string
 	Doer     httpc.Doer
-	Clock    clock.Clock
+	Clock    schedule.Clock
 
 	// ResolveModel is a test seam; production callers leave it nil and the real
 	// resource-openrouter binary is exec'd to resolve the role.
@@ -37,7 +38,7 @@ func NewOpenRouterSummarize() *OpenRouterSummarize {
 		Endpoint: "https://openrouter.ai/api/v1/chat/completions",
 		Role:     "summarize.default",
 		Doer:     httpc.DefaultDoer(),
-		Clock:    clock.System{},
+		Clock:    schedule.System(),
 	}
 }
 
@@ -109,7 +110,7 @@ func (a *OpenRouterSummarize) Summarize(ctx context.Context, key string, req sum
 
 	clk := a.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	start := clk.Now()
 	resp, err := a.Doer.Do(httpReq)

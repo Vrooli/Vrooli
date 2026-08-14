@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"audio-tools/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // CacheKey identifies a cached TTS audio entry. Pre-existing CacheKey in
@@ -45,31 +45,31 @@ type Cache struct {
 	order    []string // LRU order: oldest first
 	maxSize  int
 	currSize int
-	clk      clock.Clock
+	clk      schedule.Clock
 }
 
 // NewCache creates a cache with the given maximum size in bytes using
-// the system clock.
+// the system schedule.
 func NewCache(maxSizeBytes int) *Cache {
 	return &Cache{
 		entries: make(map[string]*CacheEntry),
 		maxSize: maxSizeBytes,
-		clk:     clock.System{},
+		clk:     schedule.System(),
 	}
 }
 
 func (c *Cache) now() time.Time {
 	if c.clk == nil {
-		return clock.System{}.Now()
+		return schedule.System().Now()
 	}
 	return c.clk.Now()
 }
 
 // NewCacheWithClock is the clock-injected constructor for deterministic
 // CreatedAt stamping in tests.
-func NewCacheWithClock(maxSizeBytes int, clk clock.Clock) *Cache {
+func NewCacheWithClock(maxSizeBytes int, clk schedule.Clock) *Cache {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &Cache{
 		entries: make(map[string]*CacheEntry),

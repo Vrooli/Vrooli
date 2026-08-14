@@ -147,7 +147,12 @@ export function DictationRecorder({ onCaptured }: Props) {
       };
       p.onPartial = (text) => setPartial(text);
 
-      p.onStatus = ({ message }) => setStreamStatus(message);
+      p.onStatus = ({ code, message }) => {
+        // Processed coverage is a durability signal consumed by the
+        // diagnostic ledger. It must not replace the user-facing connection
+        // state while a deterministic or real microphone turn is running.
+        if (code !== "processed_acknowledgement") setStreamStatus(message);
+      };
       p.onDiagnostic = (next) => setDiagnostic(next);
       providerRef.current = p;
     }

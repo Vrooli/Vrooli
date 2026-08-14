@@ -15,12 +15,13 @@ import (
 	"audio-tools/internal/ai/ttschain"
 	ttsmocks "audio-tools/internal/ai/ttschain/mocks"
 	"audio-tools/internal/byok/envelope"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/store"
 	intsumm "audio-tools/internal/summarize"
-	"audio-tools/internal/testutil/db"
 	inttts "audio-tools/internal/tts"
+	db "github.com/vrooli/api-core/databasetest"
+
+	"github.com/vrooli/api-core/schedule"
 
 	apidb "github.com/vrooli/api-core/database"
 
@@ -37,7 +38,7 @@ func newServer2(t *testing.T, deps ttsH.Deps) ttsconnect.TTSServiceClient {
 		deps.Logger = logx.Std{}
 	}
 	if deps.Clock == nil {
-		deps.Clock = clock.System{}
+		deps.Clock = schedule.System()
 	}
 	mod := ttsH.Module(deps)
 	r := mux.NewRouter()

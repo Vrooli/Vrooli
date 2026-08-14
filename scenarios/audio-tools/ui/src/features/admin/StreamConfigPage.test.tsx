@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
-import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 
 const listEngines = vi.fn();
 const getEngineSwitchImpact = vi.fn();

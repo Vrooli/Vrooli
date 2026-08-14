@@ -23,10 +23,14 @@ const (
 )
 
 type streamTestFault struct {
+	profile                     string
 	providerBusy                bool
 	closeAfterChunks            int
 	closeAfterChunksRecoverable int
 	closeAfterCommits           int
+	terminateAfterChunks        int
+	terminateCode               string
+	terminateText               string
 	pauseAfterChunks            int
 	pauseReadsFor               time.Duration
 	delayProcessedAckFor        time.Duration
@@ -34,7 +38,7 @@ type streamTestFault struct {
 }
 
 func (f streamTestFault) enabled() bool {
-	return f.providerBusy || f.closeAfterChunks > 0 || f.closeAfterChunksRecoverable > 0 || f.closeAfterCommits > 0 || f.pauseAfterChunks > 0 || f.delayProcessedAckFor > 0 || f.suppressProcessedAck
+	return f.profile != "" || f.providerBusy || f.closeAfterChunks > 0 || f.closeAfterChunksRecoverable > 0 || f.closeAfterCommits > 0 || f.terminateAfterChunks > 0 || f.pauseAfterChunks > 0 || f.delayProcessedAckFor > 0 || f.suppressProcessedAck
 }
 
 // streamTestFaultFromRequest accepts only deterministic faults with a bounded
@@ -57,7 +61,34 @@ func streamTestFaultFromRequest(r *http.Request, isolationActive bool) (streamTe
 		return streamTestFault{}, nil
 	}
 	if raw == "provider_busy" {
-		return streamTestFault{providerBusy: true}, nil
+		return streamTestFault{profile: raw, providerBusy: true}, nil
+	}
+	if raw == "slow_consumer" {
+		return streamTestFault{profile: raw, pauseAfterChunks: 1, pauseReadsFor: 100 * time.Millisecond}, nil
+	}
+	if raw == "delayed_ready" {
+		return streamTestFault{profile: raw, pauseAfterChunks: 1, pauseReadsFor: 250 * time.Millisecond}, nil
+	}
+	if raw == "dropped_connection" {
+		return streamTestFault{profile: raw, closeAfterChunks: 1}, nil
+	}
+	if raw == "close_before_done" {
+		return streamTestFault{profile: raw, closeAfterCommits: 1}, nil
+	}
+	if raw == "backend_restart" {
+		return streamTestFault{profile: raw, closeAfterChunksRecoverable: 1}, nil
+	}
+	if raw == "page_interruption" {
+		return streamTestFault{profile: raw, terminateAfterChunks: 1, terminateCode: "page_interrupted", terminateText: "The dictation page was interrupted during capture (deterministic qualification fault)."}, nil
+	}
+	if raw == "retention_quota" {
+		return streamTestFault{profile: raw, terminateAfterChunks: 1, terminateCode: "resource_exhausted", terminateText: "The recovery journal quota was exhausted during capture (deterministic qualification fault)."}, nil
+	}
+	if raw == "verifier_outage" {
+		return streamTestFault{profile: raw, terminateAfterChunks: 1, terminateCode: "verifier_unavailable", terminateText: "Speaker verification became unavailable during capture (deterministic qualification fault)."}, nil
+	}
+	if raw == "extractor_outage" {
+		return streamTestFault{profile: raw, terminateAfterChunks: 1, terminateCode: "extractor_unavailable", terminateText: "Target-speaker extraction became unavailable during capture (deterministic qualification fault)."}, nil
 	}
 	const closeAfterPrefix = "close_after_chunk:"
 	if strings.HasPrefix(raw, closeAfterPrefix) {
@@ -105,7 +136,10 @@ func streamTestFaultFromRequest(r *http.Request, isolationActive bool) (streamTe
 		return streamTestFault{delayProcessedAckFor: time.Duration(delayMS) * time.Millisecond}, nil
 	}
 	if raw == "suppress_processed_ack" {
-		return streamTestFault{suppressProcessedAck: true}, nil
+		return streamTestFault{profile: "missing_acknowledgement", suppressProcessedAck: true}, nil
+	}
+	if raw == "missing_acknowledgement" {
+		return streamTestFault{profile: raw, suppressProcessedAck: true}, nil
 	}
 	return streamTestFault{}, fmt.Errorf("unsupported %s value %q", streamTestFaultHeader, raw)
 }

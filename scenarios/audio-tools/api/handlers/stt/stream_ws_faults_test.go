@@ -65,6 +65,22 @@ func TestStreamTestFaultFromRequest_ParsesSupportedDeterministicFaults(t *testin
 	suppressedAck, err := streamTestFaultFromRequest(faultRequest("suppress_processed_ack", true), true)
 	require.NoError(t, err)
 	require.True(t, suppressedAck.suppressProcessedAck)
+	slowConsumer, err := streamTestFaultFromRequest(faultRequest("slow_consumer", true), true)
+	require.NoError(t, err)
+	require.Equal(t, 1, slowConsumer.pauseAfterChunks)
+	require.Equal(t, 100*time.Millisecond, slowConsumer.pauseReadsFor)
+	missingAck, err := streamTestFaultFromRequest(faultRequest("missing_acknowledgement", true), true)
+	require.NoError(t, err)
+	require.True(t, missingAck.suppressProcessedAck)
+
+	for _, profile := range []string{"delayed_ready", "dropped_connection", "close_before_done", "backend_restart", "page_interruption", "retention_quota", "verifier_outage", "extractor_outage"} {
+		t.Run(profile, func(t *testing.T) {
+			fault, err := streamTestFaultFromRequest(faultRequest(profile, true), true)
+			require.NoError(t, err)
+			require.True(t, fault.enabled())
+			require.Equal(t, profile, fault.profile)
+		})
+	}
 
 	_, err = streamTestFaultFromRequest(faultRequest("close_after_chunk:0", true), true)
 	require.Error(t, err)

@@ -8,7 +8,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	"audio-tools/internal/modules"
-	"audio-tools/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func newTestDB(t *testing.T) *apidb.RoutedDB {

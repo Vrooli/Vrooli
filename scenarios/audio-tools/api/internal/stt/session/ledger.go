@@ -216,6 +216,12 @@ func (l *Ledger) Snapshot() Snapshot {
 	return l.snapshotLocked()
 }
 
+func (l *Ledger) SessionID() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.cfg.SessionID
+}
+
 func (l *Ledger) PersistedState() PersistedState {
 	l.mu.Lock()
 	defer l.mu.Unlock()

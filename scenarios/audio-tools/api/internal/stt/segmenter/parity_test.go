@@ -39,6 +39,11 @@ type EventProjection struct {
 func projectEvents(seq []sttchain.StreamEvent) []EventProjection {
 	out := make([]EventProjection, 0, len(seq))
 	for _, ev := range seq {
+		if ev.Kind == sttchain.StreamEventAcknowledgement {
+			// Coverage acknowledgements are transport durability metadata, not
+			// transcript output; Connect/WS adapters project them differently.
+			continue
+		}
 		p := EventProjection{Kind: ev.Kind}
 		switch ev.Kind {
 		case sttchain.StreamEventPartial:

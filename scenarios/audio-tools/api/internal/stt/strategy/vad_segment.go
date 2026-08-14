@@ -8,10 +8,11 @@ import (
 	"strings"
 
 	"audio-tools/internal/ai/sttchain"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/protoint"
 	voice "audio-tools/internal/stt/pipeline"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // VAD state-emission cadence. See VadStateEvent doc. Throttling lives
@@ -62,7 +63,7 @@ type VADSegmenter struct {
 	// FrameMs is the frame size used for RMS evaluation. Default 20 ms.
 	FrameMs int
 
-	// PreRollMs (default 300) carries the trailing N ms of the previous
+	// PreRollMs (default 800) carries the trailing N ms of the previous
 	// segment into the next, so Whisper has pre-word audio context.
 	PreRollMs int
 
@@ -75,8 +76,8 @@ type VADSegmenter struct {
 	InitialPromptWords int
 
 	// Clock is the wall-clock seam used for per-segment latency
-	// measurement. Defaults to clock.System{}.
-	Clock clock.Clock
+	// measurement. Defaults to schedule.System().
+	Clock schedule.Clock
 	// Logger records VAD lifecycle diagnostics through the scenario seam.
 	Logger logx.Logger
 }
@@ -91,6 +92,7 @@ func (v *VADSegmenter) Run(
 	start sttchain.StreamStart,
 	chunks <-chan sttchain.AudioChunk,
 	events chan<- sttchain.StreamEvent,
+	cursor *sttchain.ConsumptionCursor,
 ) error {
 	if v.Provider == nil {
 		err := fmt.Errorf("audio-tools/stt/strategy: VADSegmenter requires a Provider")
@@ -122,6 +124,15 @@ func (v *VADSegmenter) Run(
 	silenceTimeoutMs := int64(silenceFramesNeeded * v.FrameMs)
 	preRollBytes := v.SampleRate * v.PreRollMs / 1000 * sampleBytes
 	trailingPadBytes := v.SampleRate * v.TrailingPadMs / 1000 * sampleBytes
+	// A segment can only duplicate the audio carried in its pre-roll (plus
+	// the small trailing-pad context). Keep the text merge bounded to that
+	// physical overlap. Searching the whole committed transcript is unsafe:
+	// repeated phrases later in a long dictation can otherwise be mistaken for
+	// pre-roll and silently deleted.
+	maxTextOverlapWords := (v.PreRollMs + v.TrailingPadMs + 99) / 100
+	if maxTextOverlapWords < 1 {
+		maxTextOverlapWords = 1
+	}
 
 	var buf []byte
 	segStart := 0      // offset in buf where the current segment begins
@@ -148,7 +159,7 @@ func (v *VADSegmenter) Run(
 	)
 	clk := v.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	emitVad := func(voiced bool, silenceElapsedMs int64, frameIdx int, timedOut bool) {
 		tickSeq++
@@ -209,8 +220,20 @@ func (v *VADSegmenter) Run(
 		latency := clk.Now().Sub(t0)
 		if err != nil {
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
-			segStart = advanceWithPreRoll(end, preRollBytes)
-			hasVoiced = false
+			// Keep the segment pending. The next voiced/silence boundary
+			// retries the complete audio window; advancing segStart here
+			// would make a provider outage indistinguishable from successful
+			// transcription and silently discard the user's speech.
+			return
+		}
+		if res == nil {
+			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+				"stt-vad: provider returned no result for %d bytes; retaining audio for retry", len(seg))}
+			return
+		}
+		if strings.TrimSpace(res.Text) == "" {
+			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+				"stt-vad: provider returned an empty transcript for %d bytes; retaining audio for retry", len(seg))}
 			return
 		}
 		lastTier = res.Tier
@@ -220,7 +243,7 @@ func (v *VADSegmenter) Run(
 
 		// Dedup against the per-session committed string. The new tail
 		// (everything after the overlap with committed) is what we emit.
-		merged := voice.DeduplicateOverlap(committed, res.Text)
+		merged := voice.DeduplicateOverlapBounded(committed, res.Text, maxTextOverlapWords)
 		newTail := strings.TrimSpace(strings.TrimPrefix(merged, committed))
 		committed = merged
 		lastPromptText = res.Text
@@ -354,6 +377,7 @@ func (v *VADSegmenter) Run(
 				emitDone()
 				return nil
 			}
+			cursor.Observe(ch)
 			buf = append(buf, ch.Audio...)
 			scan()
 		}

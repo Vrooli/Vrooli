@@ -7,13 +7,14 @@ import (
 
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/capabilities/mocks"
-	"audio-tools/internal/clock"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func TestRegistry_SharedContractAndMappings(t *testing.T) {
 	reg := capabilities.NewRegistryWithClock(
 		[]capabilities.Def{{ID: "cap", Name: "Capability", Description: "test", DependencyKind: capabilities.DependencyResource, DependencySlug: "cap"}},
-		map[string]capabilities.Checker{"cap": mocks.NewFakeChecker(capabilities.StatusAvailable, "ok")}, time.Minute, clock.System{},
+		map[string]capabilities.Checker{"cap": mocks.NewFakeChecker(capabilities.StatusAvailable, "ok")}, time.Minute, schedule.System(),
 	)
 	if _, err := reg.Describe(context.Background()); err != nil {
 		t.Fatalf("Describe: %v", err)

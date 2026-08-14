@@ -5,7 +5,7 @@ import { type CapabilityHealth } from "@vrooli/proto-types/audio-tools/v1/health
 import { ProviderState } from "@vrooli/proto-types/audio-tools/v1/shared/shared_pb";
 import { ProviderTier } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
 
-import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { CapabilityRow } from "./CapabilityRow";
 import { strings } from "../../consts/strings";
 

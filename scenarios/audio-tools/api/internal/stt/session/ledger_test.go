@@ -3,10 +3,12 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
@@ -20,6 +22,142 @@ func newLedger(t *testing.T, maxBytes int) *Ledger {
 		t.Fatal(err)
 	}
 	return ledger
+}
+
+func TestAcceleratedServerRetentionBaseline(t *testing.T) {
+	const (
+		sampleRate          = 16_000
+		bytesPerSample      = 2
+		frameSeconds        = 60
+		simulatedSeconds    = 60 * 60
+		frameSamples        = sampleRate * frameSeconds
+		frameBytes          = frameSamples * bytesPerSample
+		maxRetainedBytes    = 64 * 1024 * 1024
+		predictedCeilingSec = float64(maxRetainedBytes) / float64(sampleRate*bytesPerSample)
+	)
+
+	ledger := newLedger(t, maxRetainedBytes)
+	startedAt := time.Now()
+	framesReceived := 0
+	failureSeconds := 0
+	for sequence := 0; sequence < simulatedSeconds/frameSeconds; sequence++ {
+		_, err := ledger.Receive(Chunk{
+			Sequence:    uint64(sequence),
+			StartSample: int64(sequence * frameSamples),
+			EndSample:   int64((sequence + 1) * frameSamples),
+			Audio:       make([]byte, frameBytes),
+		})
+		if errors.Is(err, ErrResourceExhausted) {
+			failureSeconds = (sequence + 1) * frameSeconds
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		framesReceived++
+	}
+	if failureSeconds == 0 {
+		t.Fatal("unchanged server ledger did not reach its retention ceiling")
+	}
+	if delta := float64(failureSeconds) - predictedCeilingSec; delta < -60 || delta > 60 {
+		t.Fatalf("server retention ceiling = %ds, predicted %.3fs", failureSeconds, predictedCeilingSec)
+	}
+	if got := ledger.Snapshot().TerminalReason; got != TerminalResourceExhausted {
+		t.Fatalf("terminal reason = %q, want %q", got, TerminalResourceExhausted)
+	}
+
+	writeAcceleratedBaselineEvidence(t, map[string]any{
+		"server": map[string]any{
+			"predictedCeilingSeconds": predictedCeilingSec,
+			"observedFailureSeconds":  failureSeconds,
+			"framesCaptured":          simulatedSeconds / frameSeconds,
+			"framesReceived":          framesReceived,
+			"terminal":                string(TerminalResourceExhausted),
+			"wallClockMs":             time.Since(startedAt).Milliseconds(),
+		},
+		"serverAssertions": []map[string]any{
+			{
+				"name":               "server_retention_ceiling_within_60_seconds",
+				"passed":             true,
+				"failureTimeSeconds": failureSeconds,
+				"detail":             "real session ledger reached resource_exhausted at the predicted retained-byte ceiling",
+			},
+			{
+				"name":               "server_accepts_all_60_simulated_minutes",
+				"passed":             framesReceived == simulatedSeconds/frameSeconds,
+				"failureTimeSeconds": failureSeconds,
+				"detail":             "unchanged ledger terminates before all captured intervals are received",
+			},
+		},
+	})
+}
+
+func TestAcceleratedServerCoverageAcknowledgementKeepsRetentionBounded(t *testing.T) {
+	const (
+		sampleRate       = 16_000
+		frameSeconds     = 60
+		simulatedSeconds = 60 * 60
+		frameSamples     = sampleRate * frameSeconds
+		frameBytes       = frameSamples * 2
+		maxRetainedBytes = 64 * 1024 * 1024
+	)
+	ledger := newLedger(t, maxRetainedBytes)
+	for sequence := 0; sequence < simulatedSeconds/frameSeconds; sequence++ {
+		_, err := ledger.Receive(Chunk{
+			Sequence: uint64(sequence), StartSample: int64(sequence * frameSamples),
+			EndSample: int64((sequence + 1) * frameSamples), Audio: make([]byte, frameBytes),
+		})
+		if err != nil {
+			t.Fatalf("coverage-driven receive %d: %v", sequence, err)
+		}
+		if err := ledger.AcknowledgeProcessed(uint64(sequence)); err != nil {
+			t.Fatalf("coverage-driven acknowledgement %d: %v", sequence, err)
+		}
+		state := ledger.Snapshot()
+		if len(state.Replay) != 0 || state.ReceivedSequence != int64(sequence) || state.ProcessedSequence != int64(sequence) {
+			t.Fatalf("retention grew after coverage acknowledgement %d: %#v", sequence, state)
+		}
+	}
+	state := ledger.Snapshot()
+	if state.TerminalReason != TerminalNone {
+		t.Fatalf("coverage lane reached terminal state: %q", state.TerminalReason)
+	}
+	writeAcceleratedBaselineEvidence(t, map[string]any{
+		"serverRepaired": map[string]any{
+			"simulatedSeconds": simulatedSeconds,
+			"framesReceived":   simulatedSeconds / frameSeconds,
+			"terminal":         "none",
+			"replayChunks":     len(state.Replay),
+			"maxRetainedBytes": maxRetainedBytes,
+			"acknowledgement":  "coverage_driven",
+		},
+	})
+}
+
+func writeAcceleratedBaselineEvidence(t *testing.T, additions map[string]any) {
+	t.Helper()
+	path := os.Getenv("AUDIO_RELIABILITY_EVIDENCE_PATH")
+	if path == "" {
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence := map[string]any{}
+	if err := json.Unmarshal(data, &evidence); err != nil {
+		t.Fatal(err)
+	}
+	for key, value := range additions {
+		evidence[key] = value
+	}
+	updated, err := json.MarshalIndent(evidence, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, append(updated, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestLedgerReceiveRejectsGapsAndDeduplicatesChunks(t *testing.T) {

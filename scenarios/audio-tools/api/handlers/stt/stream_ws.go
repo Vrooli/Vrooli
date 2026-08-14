@@ -81,17 +81,21 @@ const wsWriterDrainTimeout = 5 * time.Second
 // wsCoalescingWriter owns every write to the browser socket. It applies the
 // event-durability contract to the browser-facing egress so a slow or stalled
 // consumer can never back-pressure the upstream relay — and therefore can never
-// wedge the kyutai socket reader. Durable messages (status, segment-final,
-// rejection, error, final, done, vad-state) are queued losslessly and in
-// order; partial messages coalesce into a single latest slot and may be dropped
-// under backpressure. The events loop enqueues without ever blocking on the
-// socket; only this one goroutine blocks on a slow consumer.
+// wedge the kyutai socket reader. Durable messages (status acknowledgements,
+// segment-final, rejection, error, final, and done) are queued losslessly and
+// in order. Partial, VAD, and ordinary status snapshots each have their own
+// latest-value slot: they may be coalesced under backpressure, but a VAD tick
+// can never erase the latest live text (or vice versa). The events loop enqueues
+// without ever blocking on the socket; only this one goroutine blocks on a slow
+// consumer.
 // See docs/domains/stt/streaming-pipeline.md#event-durability-contract.
 type wsCoalescingWriter struct {
 	conn    *websocket.Conn
 	mu      sync.Mutex
 	durable []wsMessage
 	partial *wsMessage
+	vad     *wsMessage
+	status  *wsMessage
 	closed  bool
 	signal  chan struct{}
 	done    chan struct{}
@@ -111,17 +115,31 @@ func (w *wsCoalescingWriter) wake() {
 }
 
 // enqueue classifies a message per the durability contract and never blocks on
-// the socket. Partial → coalesce-to-latest (droppable); everything else →
-// durable ordered queue. A committed/terminal durable (segment-final / final)
-// supersedes any unsent interim partial so stale text is never re-shown.
+// the socket. Each progress stream coalesces independently to its latest value;
+// durable messages go to the ordered queue. A committed/terminal durable
+// (segment-final / final) supersedes every unsent progress snapshot so stale
+// text or VAD state is never re-shown after a commit.
 func (w *wsCoalescingWriter) enqueue(m wsMessage) {
 	w.mu.Lock()
 	if wsMessageDeliveryClass(m) == sttchain.DeliveryProgress {
 		mm := m
-		w.partial = &mm
+		switch m.Type {
+		case wsMsgPartial:
+			w.partial = &mm
+		case wsMsgVadState:
+			w.vad = &mm
+		case wsMsgStatus:
+			w.status = &mm
+		default:
+			// Keep the classifier and the slot mapping fail-safe if a new
+			// progress message is introduced without a dedicated slot.
+			w.status = &mm
+		}
 	} else {
 		if m.Type == wsMsgSegmentFinal || m.Type == wsMsgFinal {
 			w.partial = nil
+			w.vad = nil
+			w.status = nil
 		}
 		w.durable = append(w.durable, m)
 	}
@@ -161,6 +179,12 @@ func (w *wsCoalescingWriter) run() {
 				has = true
 			case w.partial != nil:
 				next, w.partial = *w.partial, nil
+				has = true
+			case w.vad != nil:
+				next, w.vad = *w.vad, nil
+				has = true
+			case w.status != nil:
+				next, w.status = *w.status, nil
 				has = true
 			}
 			finished := w.closed && !has
@@ -246,7 +270,7 @@ func StreamWSHandler(d Deps) http.Handler {
 			return
 		}
 		if fault.enabled() && d.Logger != nil {
-			d.Logger.Printf("voice-ws: deterministic qualification fault armed providerBusy=%t closeAfterChunks=%d recoverableCloseAfterChunks=%d closeAfterCommits=%d pauseAfterChunks=%d pauseReadsFor=%s delayProcessedAckFor=%s suppressProcessedAck=%t", fault.providerBusy, fault.closeAfterChunks, fault.closeAfterChunksRecoverable, fault.closeAfterCommits, fault.pauseAfterChunks, fault.pauseReadsFor, fault.delayProcessedAckFor, fault.suppressProcessedAck)
+			d.Logger.Printf("voice-ws: deterministic qualification fault armed profile=%s providerBusy=%t closeAfterChunks=%d recoverableCloseAfterChunks=%d closeAfterCommits=%d terminateAfterChunks=%d pauseAfterChunks=%d pauseReadsFor=%s delayProcessedAckFor=%s suppressProcessedAck=%t", fault.profile, fault.providerBusy, fault.closeAfterChunks, fault.closeAfterChunksRecoverable, fault.closeAfterCommits, fault.terminateAfterChunks, fault.pauseAfterChunks, fault.pauseReadsFor, fault.delayProcessedAckFor, fault.suppressProcessedAck)
 		}
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -362,6 +386,16 @@ func StreamWSHandler(d Deps) http.Handler {
 						return
 					}
 					receivedChunks++
+					if fault.terminateAfterChunks > 0 && receivedChunks >= fault.terminateAfterChunks {
+						if ledger != nil {
+							ledger.Fail(session.TerminalReason(fault.terminateCode))
+							_ = ledgers.PersistContext(ctx, ledger)
+						}
+						writer.enqueue(wsMessage{Type: wsMsgError, Code: fault.terminateCode, Text: fault.terminateText})
+						cancel()
+						readerErr <- fmt.Errorf("deterministic stream fault: %s", fault.profile)
+						return
+					}
 					if fault.closeAfterChunks > 0 && receivedChunks >= fault.closeAfterChunks {
 						// Close after forwarding the selected chunk, so the pipeline sees
 						// a real in-flight transport interruption rather than a synthetic
@@ -438,6 +472,30 @@ func StreamWSHandler(d Deps) http.Handler {
 		providerCloseReason := "provider_done"
 		for ev := range events {
 			switch ev.Kind {
+			case sttchain.StreamEventAcknowledgement:
+				if fault.suppressProcessedAck || ledger == nil || ev.Acknowledgement == nil {
+					continue
+				}
+				ack := ev.Acknowledgement
+				if ack.ProcessedSequence < 0 {
+					continue
+				}
+				if err := ledger.AcknowledgeProcessed(uint64(ack.ProcessedSequence)); err != nil {
+					ledger.Fail(session.TerminalReason("processed_ack_failed"))
+					_ = ledgers.PersistContext(ctx, ledger)
+					writer.enqueue(wsMessage{Type: wsMsgError, Code: "processed_ack_failed", Text: "Unable to preserve processed audio coverage."})
+					continue
+				}
+				if err := ledgers.PersistContext(ctx, ledger); err != nil {
+					writer.enqueue(wsMessage{Type: wsMsgError, Code: "persistence_failed", Text: "Unable to preserve audio recovery state."})
+					continue
+				}
+				state := ledger.Snapshot()
+				writer.enqueue(wsMessage{
+					Type: wsMsgStatus, Code: "processed_acknowledgement",
+					ReceivedSequence: state.ReceivedSequence, ProcessedSequence: state.ProcessedSequence,
+					Text: "Captured audio processing coverage updated.",
+				})
 			case sttchain.StreamEventPartial:
 				if ev.Partial != nil {
 					writer.enqueue(wsMessage{Type: wsMsgPartial, Text: ev.Partial.Text})

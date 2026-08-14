@@ -364,6 +364,19 @@ func NormalizeToken(w string) string {
 // suffix of accumulated (in words) that matches a prefix of newText.
 // Comparison is case-insensitive and ignores Unicode punctuation/symbols.
 func DeduplicateOverlap(accumulated, newText string) string {
+	return DeduplicateOverlapBounded(accumulated, newText, 0)
+}
+
+// DeduplicateOverlapBounded merges newText into accumulated while considering
+// at most maxOverlapWords words as transport/audio overlap. A zero or
+// negative bound preserves the historical unbounded behaviour.
+//
+// Streaming segmenters must not search the entire committed transcript for an
+// overlap: a repeated phrase later in a dictation can be identical to an old
+// suffix and would then be deleted as though it were pre-roll. The caller
+// should set the bound from the actual overlap it carried (or use a small
+// provider-prompt bound when the provider may echo a prompt).
+func DeduplicateOverlapBounded(accumulated, newText string, maxOverlapWords int) string {
 	if accumulated == "" {
 		return newText
 	}
@@ -374,6 +387,9 @@ func DeduplicateOverlap(accumulated, newText string) string {
 	accWords := strings.Fields(accumulated)
 	newWords := strings.Fields(newText)
 	maxCheck := min(len(accWords), len(newWords))
+	if maxOverlapWords > 0 && maxCheck > maxOverlapWords {
+		maxCheck = maxOverlapWords
+	}
 
 	bestOverlap := 0
 	for k := maxCheck; k >= 1; k-- {

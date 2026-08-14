@@ -10,7 +10,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 
-	"audio-tools/cli/internal/testutil"
+	testutil "github.com/vrooli/cli-core/cliapptest"
 )
 
 // TestRegisterShape asserts the provider SubcommandGroup matches the

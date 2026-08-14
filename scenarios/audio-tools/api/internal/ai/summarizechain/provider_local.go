@@ -4,25 +4,26 @@ import (
 	"context"
 	"fmt"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/summarize"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // LocalProvider wraps summarize.Summarizer (Ollama backend).
 type LocalProvider struct {
 	summarizer   *summarize.Summarizer
 	defaultModel string
-	clk          clock.Clock
+	clk          schedule.Clock
 }
 
 func NewLocalProvider(summarizer *summarize.Summarizer, defaultModel string) *LocalProvider {
-	return &LocalProvider{summarizer: summarizer, defaultModel: defaultModel, clk: clock.System{}}
+	return &LocalProvider{summarizer: summarizer, defaultModel: defaultModel, clk: schedule.System()}
 }
 
-// NewLocalProviderWith constructs a LocalProvider with a custom clock.
-func NewLocalProviderWith(summarizer *summarize.Summarizer, defaultModel string, clk clock.Clock) *LocalProvider {
+// NewLocalProviderWith constructs a LocalProvider with a custom schedule.
+func NewLocalProviderWith(summarizer *summarize.Summarizer, defaultModel string, clk schedule.Clock) *LocalProvider {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &LocalProvider{summarizer: summarizer, defaultModel: defaultModel, clk: clk}
 }
@@ -43,7 +44,7 @@ func (p *LocalProvider) Summarize(ctx context.Context, req Request) (*Result, er
 	}
 	clk := p.clk
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	start := clk.Now()
 	resp, err := p.summarizer.Summarize(ctx, req.Text, model, req.Level)

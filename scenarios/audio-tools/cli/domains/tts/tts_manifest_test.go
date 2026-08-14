@@ -3,8 +3,8 @@ package tts
 import (
 	"testing"
 
-	"audio-tools/cli/internal/testutil"
 	"github.com/vrooli/cli-core/cliapp"
+	testutil "github.com/vrooli/cli-core/cliapptest"
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 )

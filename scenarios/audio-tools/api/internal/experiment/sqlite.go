@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"audio-tools/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -23,11 +23,11 @@ type SQLExecutor interface {
 
 type sqliteRepository struct {
 	db    SQLExecutor
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production experiment Repository.
-func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
+func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
 	_, _ = db.ExecContext(context.Background(), "PRAGMA foreign_keys = ON")
 	return &sqliteRepository{db: db, clock: clk}
 }

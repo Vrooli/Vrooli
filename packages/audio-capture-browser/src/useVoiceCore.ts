@@ -10,7 +10,7 @@ import type { LifecycleReleaseScope, MicReleaseReason, MicLeaseSnapshot } from "
 import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./voice/useServerVadStateStore";
 import { decideAutoStop } from "./voice/autoStopDecision";
 import { decidePassiveArm } from "./voice/passiveArmDecision";
-import { uncommittedRemainder } from "./voice/trailingPartial";
+import { TranscriptBuffer } from "./transcriptBuffer";
 import { CAP_CHECK_FAIL_THRESHOLD, WHISPER_FAILED_SENTINEL } from "./voice/types";
 import type { TranscriptionProvider, VoiceBackend, VoiceInputState, VoiceMode, VoiceSegment, VoiceRejection, CommandSuggestion, StartRecordingOpts } from "./voice/types";
 import type { AudioFeatures, WakeWordEngine, WakeWordTemplate } from "./voice/wakeword";
@@ -207,24 +207,12 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
    * "couldn't transcribe" banner instead of dropping the audio silently.
    */
   const turnDeliveredTextRef = useRef(false);
-  /**
-   * The latest interim partial hypothesis for the CURRENTLY-UNCOMMITTED tail —
-   * speech after the last committed segment that the server has not yet
-   * flushed into a segment-final. Updated on every `onPartial`, cleared when a
-   * segment-final commits (that partial is now durable) and at turn start.
-   *
-   * On turn end (`onResult`) a non-empty value here is a trailing partial the
-   * server never got to commit (a teardown race dropped the flush). Instead of
-   * wiping it — the silent tail-loss this plan fixes — we promote it to durable
-   * transcript text. Kept idempotent with the server flush: if the tail DID
-   * arrive as a segment-final or a non-empty final, this ref is already empty
-   * so no duplicate text is appended.
-   */
-  const trailingPartialRef = useRef("");
+  /** Single owner for replaceable interim text and durable transcript bounds. */
+  const transcriptBufferRef = useRef(new TranscriptBuffer());
   const dismissedFallbackNoticeRef = useRef<string | null>(null);
   /**
-   * Coalesced partial RENDER, decoupled from the exact trailingPartialRef used
-   * for tail recovery. A high partial rate must not jank the main thread and
+   * Coalesced partial RENDER, decoupled from TranscriptBuffer's exact state
+   * used for tail recovery. A high partial rate must not jank the main thread and
    * re-introduce client-side backpressure, so interim partial text is throttled
    * to one paint per animation frame; durable segment-finals still render
    * immediately. pendingPartialRenderRef holds the latest text awaiting paint;
@@ -359,19 +347,17 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   /** Handle a segment-final transcript in persistent mode. */
   const handleSegmentFinal = useCallback((text: string, segmentIndex: number) => {
     if (!text.trim()) return;
+    const transcript = transcriptBufferRef.current.segmentFinal(text, segmentIndex);
+    if (!transcript.accepted) return;
     // A recognized segment (dictation OR command) means this turn produced
     // usable output — it is not a silent loss. Record it before either branch.
     turnDeliveredTextRef.current = true;
-    // This segment-final commits the text the trailing partial was tracking, so
-    // the partial is now durable — clear it to keep the turn-end promotion
-    // idempotent (no double-append of the same words).
-    trailingPartialRef.current = "";
 
     // Check for command match (text-based, no prefix needed — wake word detected at audio level)
     const parsed = parseCommandRef.current(text);
     if (parsed) {
       console.info("[voice] Command detected via host parser");
-      setState((s) => ({ ...s, commandSuggestion: parsed, partialTranscript: "" }));
+      setState((s) => ({ ...s, commandSuggestion: parsed, partialTranscript: transcript.interimText }));
       onCommandSuggestRef.current?.(parsed);
       return;
     }
@@ -386,7 +372,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     setState((s) => ({
       ...s,
       segments: [...segmentsRef.current],
-      partialTranscript: "",
+      partialTranscript: transcript.interimText,
     }));
     // Deliver the segment text to the transcript callback. Consecutive
     // committed segments in a turn must be space-separated, otherwise the
@@ -922,8 +908,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     sessionCountRef.current++;
     // New turn: no text delivered yet. Drives the silent-loss guard in onResult.
     turnDeliveredTextRef.current = false;
-    // No trailing partial carried across turns.
-    trailingPartialRef.current = "";
+    // No transcript state carried across turns.
+    transcriptBufferRef.current.reset();
     // Tear down background wake-word listening (if armed) so the recorder owns
     // the mic cleanly. Wake-word detection also funnels through here and has
     // already disposed its listener, so this is a no-op in that path. The
@@ -1135,29 +1121,16 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // In persistent mode, segment-finals deliver text incrementally.
         // The final message contains only the un-segmented tail (speech
         // after the last segment boundary). Deliver it if non-empty.
-        if (text) {
-          onTranscriptRef.current(text);
+        const deliveredResult = transcriptBufferRef.current.result(text);
+        if (deliveredResult) {
+          onTranscriptRef.current(deliveredResult);
           turnDeliveredTextRef.current = true;
-          // The server's final carries the tail, so any tracked partial is now
-          // redundant — drop it so it can't be promoted below and duplicated.
-          trailingPartialRef.current = "";
         }
 
-        // Trailing-partial promotion via the committed-length cursor: the turn
-        // ended with an uncommitted partial the server never flushed (empty
-        // `text` because kyutai's final is empty once any segment committed, and
-        // a teardown race dropped the flush of the last words). Promote exactly
-        // the remainder of the latest partial that lies BEYOND what the durable
-        // segment-finals already committed — recovering the full uncommitted
-        // tail without ever double-appending committed words. handleSegmentFinal
-        // / the non-empty `text` branch above have already cleared the ref when
-        // the tail arrived normally, so this promotes nothing then.
-        const committedText = segmentsRef.current.map((seg) => seg.text).join(" ");
-        const promoted = uncommittedRemainder({
-          committedText,
-          latestPartial: trailingPartialRef.current,
-        });
-        trailingPartialRef.current = "";
+        // Promote a teardown-raced partial exactly once. TranscriptBuffer owns
+        // the committed-prefix cursor, so normal segment-finals cannot be
+        // appended again here.
+        const promoted = transcriptBufferRef.current.promoteTurnEnd();
         if (promoted !== null) {
           onTranscriptRef.current(promoted);
           turnDeliveredTextRef.current = true;
@@ -1251,18 +1224,14 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       if (provider.onPartial !== undefined) {
         provider.onPartial = (text) => {
           dismissedFallbackNoticeRef.current = null;
-          // Track the trailing (uncommitted) hypothesis IMMEDIATELY and exactly
-          // so a turn that ends before the server flushes this text can promote
-          // it to durable transcript instead of dropping it (see
-          // trailingPartialRef + uncommittedRemainder).
-          trailingPartialRef.current = text;
+          const transcript = transcriptBufferRef.current.partial(text);
           // Coalesce the RENDER to one paint per frame: at a high partial rate,
           // a setState per partial janks the main thread and re-introduces
           // client-side backpressure. The latest pending text wins.
-          setState((s) => ({ ...s, partialTranscript: text, fallbackNotice: null }));
-          pendingPartialRenderRef.current = text;
+          setState((s) => ({ ...s, partialTranscript: transcript.interimText, fallbackNotice: null }));
+          pendingPartialRenderRef.current = transcript.interimText;
           if (typeof requestAnimationFrame !== "function") {
-            setState((s) => ({ ...s, partialTranscript: text, fallbackNotice: null }));
+            setState((s) => ({ ...s, partialTranscript: transcript.interimText, fallbackNotice: null }));
             return;
           }
           if (partialRenderRafRef.current === 0) {

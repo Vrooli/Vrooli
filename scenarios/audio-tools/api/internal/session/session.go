@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"audio-tools/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 var (
@@ -38,16 +38,16 @@ type Session struct {
 	closed     atomic.Bool
 	cancelHook func(reason BargeInReason, eventID string)
 	inflightID atomic.Value // string
-	clk        clock.Clock
+	clk        schedule.Clock
 }
 
 // nowOrSystem is a tiny accessor that returns the injected clock or
-// falls back to clock.System{} if a Session was constructed via raw
+// falls back to schedule.System() if a Session was constructed via raw
 // struct literal in older tests. New() always wires opts.Clock or
-// clock.System{}, so this is a defensive read.
+// schedule.System(), so this is a defensive read.
 func (s *Session) nowOrSystem() time.Time {
 	if s.clk == nil {
-		return clock.System{}.Now()
+		return schedule.System().Now()
 	}
 	return s.clk.Now()
 }
@@ -61,9 +61,9 @@ type Options struct {
 	// short-circuit their TTS-out channel.
 	CancelHook func(reason BargeInReason, eventID string)
 	// Clock is the wall-clock seam used for createdAt + EmittedAt
-	// timestamps. Defaults to clock.System{}; tests inject FakeClock for
+	// timestamps. Defaults to schedule.System(); tests inject FakeClock for
 	// deterministic timestamps.
-	Clock clock.Clock
+	Clock schedule.Clock
 }
 
 // New creates a fresh Session. The session is not yet attached to a transport
@@ -71,7 +71,7 @@ type Options struct {
 func New(opts Options) *Session {
 	clk := opts.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	s := &Session{
 		id:         uuid.NewString(),

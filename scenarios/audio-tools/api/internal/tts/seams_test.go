@@ -5,12 +5,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func TestNewCacheWithClock(t *testing.T) {
-	c := NewCacheWithClock(1024, clock.System{})
+	c := NewCacheWithClock(1024, schedule.System())
 	require.NotNil(t, c)
 	c2 := NewCacheWithClock(1024, nil)
 	require.NotNil(t, c2)

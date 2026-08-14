@@ -5,11 +5,12 @@ import (
 	"context"
 
 	"audio-tools/internal/ai/summarizechain"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/store"
 	intsumm "audio-tools/internal/summarize"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -20,7 +21,7 @@ import (
 type Deps struct {
 	Chain               *summarizechain.Chain
 	Logger              logx.Logger
-	Clock               clock.Clock
+	Clock               schedule.Clock
 	GetSummarizeConfig  func() intsumm.SummarizeConfig
 	SetSummarizeConfig  func(intsumm.SummarizeConfig)
 	ListSummarizeModels func(context.Context) ([]intsumm.SummarizeModelInfo, error)
@@ -30,7 +31,7 @@ type Deps struct {
 // UsageRecorder is the summarize transport's narrow usage submission port.
 type UsageRecorder interface{ Enqueue(store.UsageRow) }
 
-func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), listModels func(context.Context) ([]intsumm.SummarizeModelInfo, error), logger logx.Logger, clk clock.Clock, usage UsageRecorder) modulekit.Module {
+func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), listModels func(context.Context) ([]intsumm.SummarizeModelInfo, error), logger logx.Logger, clk schedule.Clock, usage UsageRecorder) modulekit.Module {
 	if logger == nil {
 		panic("summarize.Module requires logger")
 	}

@@ -25,7 +25,6 @@ import (
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/byokstore"
 	"audio-tools/internal/capabilities"
-	"audio-tools/internal/clock"
 	intcorpus "audio-tools/internal/corpus"
 	diagcore "audio-tools/internal/diagnostics"
 	inteval "audio-tools/internal/eval"
@@ -44,6 +43,8 @@ import (
 	inttts "audio-tools/internal/tts"
 	"audio-tools/internal/usagereport"
 
+	"github.com/vrooli/api-core/schedule"
+
 	"github.com/vrooli/api-core/database"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 )
@@ -51,7 +52,7 @@ import (
 // Env is the small runtime configuration surface required by HTTP modules.
 type (
 	Env struct {
-		OllamaURL            string
+		OllamaURL           string
 		TestIsolationActive func() bool
 	}
 	Chains struct {
@@ -104,22 +105,22 @@ func Compose(d CompositionDeps) *Server {
 	stores, sessions, streamLedgers, tts, cache := d.Stores, d.Sessions, d.StreamLedgers, d.TTS, d.Cache
 	summarizeConfig, corpus, experimentManager, experiments := d.SummarizeConfig, d.Corpus, d.ExperimentManager, d.Experiments
 	sttDeps := sttH.Deps{
-		Chain:                  chains.STT,
-		Selector:               sttpkg.NewSelectorWithRegistry(chains.STT, audioEngine, engineRegistry),
-		Registry:               engineRegistry,
-		Voice:                  voice,
-		SpeakerResource:        speakerResource,
-		Engine:                 audioEngine,
-		Logger:                 logger,
-		Clock:                  clock.System{},
-		Usage:                  usage,
-		StreamConfig:           stores.STTStream,
-		SpeakerConfig:          stores.STTSpeaker,
-		Wakeword:               stores.Wakeword,
-		Speaker:                stores.Speaker,
-		Capacity:               sttcapacity.NewCLIReporter(),
-		Sessions:               streamLedgers,
-		TestIsolationActive:    env.TestIsolationActive,
+		Chain:               chains.STT,
+		Selector:            sttpkg.NewSelectorWithRegistry(chains.STT, audioEngine, engineRegistry),
+		Registry:            engineRegistry,
+		Voice:               voice,
+		SpeakerResource:     speakerResource,
+		Engine:              audioEngine,
+		Logger:              logger,
+		Clock:               schedule.System(),
+		Usage:               usage,
+		StreamConfig:        stores.STTStream,
+		SpeakerConfig:       stores.STTSpeaker,
+		Wakeword:            stores.Wakeword,
+		Speaker:             stores.Speaker,
+		Capacity:            sttcapacity.NewCLIReporter(),
+		Sessions:            streamLedgers,
+		TestIsolationActive: env.TestIsolationActive,
 	}
 	diagnostics := diagcore.New(diagcore.Deps{
 		STT:       chains.STT,
@@ -135,20 +136,20 @@ func Compose(d CompositionDeps) *Server {
 	})
 
 	return New(
-		Deps{Clock: clock.System{}, Logger: logger},
+		Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, capsRegistry, "audio-tools-api", "1.0.0"),
-		hsH.Module(hsH.Deps{Registry: capsRegistry, Logger: logger, Clock: clock.System{}}),
-		plH.Module(plH.Deps{Registry: capsRegistry, Controller: capabilities.NewCLIController(), Logger: logger, Clock: clock.System{}}),
+		hsH.Module(hsH.Deps{Registry: capsRegistry, Logger: logger, Clock: schedule.System()}),
+		plH.Module(plH.Deps{Registry: capsRegistry, Controller: capabilities.NewCLIController(), Logger: logger, Clock: schedule.System()}),
 		audioH.Module(logger),
-		sessionH.Module(sessions, logger, clock.System{}),
+		sessionH.Module(sessions, logger, schedule.System()),
 		settingsH.Module(settingsH.Deps{Logger: logger, ProviderConfig: stores.ProviderConfig, BYOK: stores.BYOK, VoiceOverrides: stores.VoiceOverrides, Coordinator: chains.Coordinator}),
 		sttH.Module(sttDeps),
 		summarizeH.Module(chains.Summarize, func() intsumm.SummarizeConfig { return *summarizeConfig }, func(c intsumm.SummarizeConfig) { *summarizeConfig = c }, func(ctx context.Context) ([]intsumm.SummarizeModelInfo, error) {
 			return intsumm.ListSummarizeModels(ctx, env.OllamaURL, httpc.DefaultDoer())
-		}, logger, clock.System{}, usage),
-		ttsH.Module(ttsH.Deps{Chain: chains.TTS, SummarizeChain: chains.Summarize, TTSService: tts, Engine: audioEngine, Logger: logger, Clock: clock.System{}, Usage: usage, Cache: cache, ConfigStore: stores.TTSConfig, Playback: stores.Playback}),
-		usageH.Module(usageH.Deps{Logger: logger, Clock: clock.System{}, Store: stores.Usage}),
-		corpusH.Module(corpusH.Deps{Logger: logger, Clock: clock.System{}, Service: corpus}),
+		}, logger, schedule.System(), usage),
+		ttsH.Module(ttsH.Deps{Chain: chains.TTS, SummarizeChain: chains.Summarize, TTSService: tts, Engine: audioEngine, Logger: logger, Clock: schedule.System(), Usage: usage, Cache: cache, ConfigStore: stores.TTSConfig, Playback: stores.Playback}),
+		usageH.Module(usageH.Deps{Logger: logger, Clock: schedule.System(), Store: stores.Usage}),
+		corpusH.Module(corpusH.Deps{Logger: logger, Clock: schedule.System(), Service: corpus}),
 		experimentH.Module(experimentH.Deps{Logger: logger, Manager: experimentManager, Service: experiments, EstimateClipSeconds: expreport.EstimateClipSeconds(corpus)}),
 		diagH.Module(diagnostics, logger),
 	)

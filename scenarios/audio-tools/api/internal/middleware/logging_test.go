@@ -10,7 +10,8 @@ import (
 
 	"audio-tools/internal/logx"
 	"audio-tools/internal/middleware"
-	"audio-tools/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +25,7 @@ import (
 // and assert on a fuzzy match — flaky on loaded CI, undefined on
 // fast hardware.
 func TestLoggingMiddleware_LogsDuration(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	buf := &bytes.Buffer{}
 	logger := log.New(buf, "", 0)
 
@@ -48,7 +49,7 @@ func TestLoggingMiddleware_LogsDuration(t *testing.T) {
 // a nil logger panics at construction so a forgotten wire-up surfaces at
 // boot rather than silently swallowing log lines.
 func TestLoggingMiddleware_NilLoggerPanics(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	require.Panics(t, func() {
 		middleware.NewLoggingMiddleware(clk, nil)
 	})

@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"audio-tools/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Slot identifies which of the three tier slots is being addressed.
@@ -100,8 +100,8 @@ type Options[Req, Resp any] struct {
 	// AllFailed is returned by Execute when no tier was attempted.
 	AllFailed error
 
-	// Clock seam for TTL comparisons. Defaults to clock.System{}.
-	Clock clock.Clock
+	// Clock seam for TTL comparisons. Defaults to schedule.System().
+	Clock schedule.Clock
 
 	// OnFallback, when non-nil, is invoked whenever Execute returns a
 	// successful result from a tier OTHER than the first-eligible tier
@@ -122,7 +122,7 @@ type Coordinator[Req, Resp any] struct {
 	allFailed  error
 	onFallback func(ctx context.Context, ev FallbackEvent)
 
-	clk clock.Clock
+	clk schedule.Clock
 
 	mu           sync.Mutex
 	enableBYOK   bool
@@ -147,7 +147,7 @@ func NewCoordinator[Req, Resp any](opts Options[Req, Resp]) *Coordinator[Req, Re
 		opts.TTLVrooli = 30 * time.Second
 	}
 	if opts.Clock == nil {
-		opts.Clock = clock.System{}
+		opts.Clock = schedule.System()
 	}
 	if opts.Route == nil {
 		opts.Route = func(Slot, Req) bool { return true }

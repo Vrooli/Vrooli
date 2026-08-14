@@ -12,8 +12,9 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/httpc"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // kyutaiDrainTimeout bounds how long the reader is given to receive the
@@ -42,6 +43,7 @@ const kyutaiMaxInFlightBatches = 8
 //   - client TEXT  {"type":"end"}
 //   - server TEXT  {"type":"partial","text":...}
 //     {"type":"segment","text":...,"start_ms":..,"end_ms":..}
+//     {"type":"processed","processed_batches":N}
 //     {"type":"done"} | {"type":"error","message":...}
 //
 // seam: KyutaiProvider is a sttchain.Provider (SEAMS.md row
@@ -60,7 +62,7 @@ type KyutaiProvider struct {
 	// construction from the manifest/env. Empty falls back to "kyutai".
 	ModelID string
 	Doer    httpc.Doer
-	Clock   clock.Clock
+	Clock   schedule.Clock
 }
 
 // NewKyutaiProvider constructs the Kyutai adapter for the given resource base
@@ -70,7 +72,7 @@ func NewKyutaiProvider(baseURL string) *KyutaiProvider {
 		BaseURL: baseURL,
 		ModelID: kyutaiModelID(),
 		Doer:    httpc.DefaultDoer(),
-		Clock:   clock.System{},
+		Clock:   schedule.System(),
 	}
 }
 
@@ -141,9 +143,10 @@ func (p *KyutaiProvider) Transcribe(_ context.Context, _ Request) (*Result, erro
 // registry is wired (tests).
 func (p *KyutaiProvider) Traits() ProviderTraits {
 	return ProviderTraits{
-		Batch:      false,
-		Stream:     true,
-		Strategies: []StrategyKind{StrategyPassthrough},
+		Batch:                   false,
+		Stream:                  true,
+		Strategies:              []StrategyKind{StrategyPassthrough},
+		BackendAcknowledgements: true,
 	}
 }
 
@@ -232,6 +235,18 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 			audio bool
 		}
 		writeCh := make(chan writeReq, 16)
+		// The resource's processed_batches counter is an absolute count of
+		// binary frames it has accepted and decoded. Keep the corresponding
+		// chunk identities so the reader can acknowledge coverage only after
+		// that backend confirmation, never merely when a local write is queued.
+		var sentMu sync.Mutex
+		sentChunks := make([]AudioChunk, 0, kyutaiMaxInFlightBatches)
+		acknowledgedBatches := int64(0)
+		recordAudio := func(chunk AudioChunk) {
+			sentMu.Lock()
+			sentChunks = append(sentChunks, chunk)
+			sentMu.Unlock()
+		}
 		credits := make(chan struct{}, kyutaiMaxInFlightBatches)
 		for range kyutaiMaxInFlightBatches {
 			credits <- struct{}{}
@@ -300,6 +315,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 			case <-streamDone:
 				return
 			}
+			recordAudio(first)
 			if !send(websocket.BinaryMessage, first.Audio, true) {
 				return
 			}
@@ -312,6 +328,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 						sendEnd()
 						return
 					}
+					recordAudio(ch)
 					if !send(websocket.BinaryMessage, ch.Audio, true) {
 						return
 					}
@@ -340,6 +357,20 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 				}
 			}
 		}
+		emitProcessedAcknowledgement := func(processed int64) {
+			sentMu.Lock()
+			if processed <= acknowledgedBatches || processed <= 0 || processed > int64(len(sentChunks)) {
+				sentMu.Unlock()
+				return
+			}
+			chunk := sentChunks[processed-1]
+			acknowledgedBatches = processed
+			sentMu.Unlock()
+			events <- StreamEvent{Kind: StreamEventAcknowledgement, Acknowledgement: &AcknowledgementEvent{
+				ReceivedSequence: int64(chunk.Sequence), ProcessedSequence: int64(chunk.Sequence),
+				ReceivedEndSample: chunk.EndSample, ProcessedEndSample: chunk.EndSample,
+			}}
+		}
 		for {
 			_, data, err := conn.ReadMessage()
 			if err != nil {
@@ -366,6 +397,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 			switch msg.Type {
 			case "processed":
 				grantProcessedBatches(msg.ProcessedBatches)
+				emitProcessedAcknowledgement(msg.ProcessedBatches)
 			case "queued":
 				events <- StreamEvent{Kind: StreamEventSessionStatus, SessionStatus: &SessionStatusEvent{
 					SessionID: start.SessionID, Generation: start.Generation, State: "queued", QueuePosition: msg.Position,

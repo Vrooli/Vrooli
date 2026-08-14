@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forgetUnfinishedSession, loadUnfinishedSession } from "./sessionIdentity";
-import { MemoryTurnJournalStore, TurnJournal } from "./turnJournal";
-import { PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
+import { MemoryTurnJournalStore, TurnJournal, type JournalRecord } from "./turnJournal";
+import { fallbackDelayMs, PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
 import {
   _resetMicOwnershipForTesting,
   acquireMicStream,
@@ -51,6 +51,18 @@ function makeStream(): { stream: MediaStream; track: FakeTrack } {
     stop: vi.fn(),
   };
   return { stream: { getTracks: () => [track] } as unknown as MediaStream, track };
+}
+
+class FailOnceJournalStore extends MemoryTurnJournalStore {
+  private failed = false;
+
+  override async appendRecord(key: string, record: JournalRecord): Promise<void> {
+    if (!this.failed) {
+      this.failed = true;
+      throw new Error("poisoned journal write chain");
+    }
+    await super.appendRecord(key, record);
+  }
 }
 
 async function settle(): Promise<void> {
@@ -103,20 +115,63 @@ describe("ported capture-path behavior", () => {
     captureOnFrame?.(new Float32Array(samples).fill(0.5), 16_000);
   }
 
+  it("surfaces a poisoned journal write and keeps the promise chain usable", async () => {
+    provider.dispose();
+    const onError = vi.fn();
+    const onDiagnostic = vi.fn();
+    const store = new FailOnceJournalStore();
+    provider = new PcmVoiceStreamProvider({
+      getUserMedia,
+      transport: { buildStreamUrl: () => "ws://voice.test/stream", transcribeRetained },
+      captureFactory: async (_stream, onFrame) => {
+        captureOnFrame = onFrame;
+        return { stop: vi.fn() };
+      },
+      journalFactory: () => new TurnJournal(store, "poisoned", 0n, 16 * 1024 * 1024, "memory"),
+    });
+    provider.onError = onError;
+    provider.onDiagnostic = onDiagnostic;
+    await start();
+    pushFrame(1_600);
+    await settle();
+
+    expect(onError).toHaveBeenCalledWith(expect.stringContaining("could not be saved safely"));
+    expect(provider.getDiagnostic()).toMatchObject({ state: "failed", terminalReason: "capture_write_failed" });
+    expect(provider.getDiagnostic().errorCodes).toContain("capture_write_failed");
+    expect(onDiagnostic).toHaveBeenCalled();
+
+    pushFrame(1_600);
+    await settle();
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
+  it("scales fallback time with captured duration and write backlog", () => {
+    expect(fallbackDelayMs(0n, 0)).toBe(10_000);
+    expect(fallbackDelayMs(16_000n * 60n, 3)).toBe(60_300);
+    expect(fallbackDelayMs(16_000n * 60n * 60n, 0)).toBe(3_600_000);
+  });
+
+  it("promotes only the uncommitted fallback tail after committed segments", async () => {
+    const { uncommittedRemainder } = await import("./voice/trailingPartial");
+    expect(uncommittedRemainder({ committedText: "committed words", latestPartial: "committed words final tail" })).toBe(" final tail");
+    expect(uncommittedRemainder({ committedText: "committed words", latestPartial: "final tail" })).toBe(" final tail");
+    expect(uncommittedRemainder({ committedText: "committed words", latestPartial: "committed words" })).toBeNull();
+  });
+
   it("sends versioned PCM frames in capture order", async () => {
     const socket = await start();
     pushFrame(128);
     pushFrame(64);
+    await vi.advanceTimersByTimeAsync(100);
     await vi.waitFor(() => {
       const sentFrames = socket.send.mock.calls.filter(([payload]) => payload instanceof ArrayBuffer);
-      expect(sentFrames).toHaveLength(2);
+      expect(sentFrames).toHaveLength(1);
     });
 
     const frames = socket.send.mock.calls.map(([payload]) => payload).filter((payload): payload is ArrayBuffer => payload instanceof ArrayBuffer);
-    expect(frames).toHaveLength(2);
+    expect(frames).toHaveLength(1);
     expect(new TextDecoder().decode(new Uint8Array(frames[0]).slice(0, 4))).toBe("ATV2");
     expect(new DataView(frames[0]).getBigUint64(4, false)).toBe(0n);
-    expect(new DataView(frames[1]).getBigUint64(4, false)).toBe(1n);
   });
 
   it("flushes buffered PCM before done when the socket opens after stop", async () => {
@@ -129,7 +184,7 @@ describe("ported capture-path behavior", () => {
 
     socket.readyState = FakeWebSocket.OPEN;
     socket.onopen?.();
-    await settle();
+    await vi.waitFor(() => expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ type: "done" })));
     const payloads = socket.send.mock.calls.map(([payload]) => payload);
     expect(payloads[0]).toBeInstanceOf(ArrayBuffer);
     expect(payloads.at(-1)).toBe(JSON.stringify({ type: "done" }));
@@ -138,6 +193,7 @@ describe("ported capture-path behavior", () => {
   it("replays journaled frames after reconnect without changing their identity", async () => {
     const first = await start();
     pushFrame();
+    await vi.advanceTimersByTimeAsync(100);
     await settle();
     const original = first.send.mock.calls.find(([payload]) => payload instanceof ArrayBuffer)?.[0] as ArrayBuffer;
 
@@ -152,8 +208,8 @@ describe("ported capture-path behavior", () => {
 
   it("compacts acknowledged journal coverage on reconnect", async () => {
     const first = await start();
-    pushFrame();
-    pushFrame();
+    pushFrame(1_600);
+    pushFrame(1_600);
     await settle();
     first.onmessage?.({ data: JSON.stringify({ type: "status", code: "processed_acknowledgement", text: "processed", processedSequence: 0 }) });
     await settle();

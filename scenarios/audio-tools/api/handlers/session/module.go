@@ -2,10 +2,11 @@
 package session
 
 import (
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 	intsession "audio-tools/internal/session"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -16,10 +17,10 @@ import (
 type Deps struct {
 	Registry *intsession.Registry
 	Logger   logx.Logger
-	Clock    clock.Clock
+	Clock    schedule.Clock
 }
 
-func Module(registry *intsession.Registry, logger logx.Logger, clk clock.Clock) modulekit.Module {
+func Module(registry *intsession.Registry, logger logx.Logger, clk schedule.Clock) modulekit.Module {
 	if logger == nil {
 		panic("session.Module requires logger")
 	}

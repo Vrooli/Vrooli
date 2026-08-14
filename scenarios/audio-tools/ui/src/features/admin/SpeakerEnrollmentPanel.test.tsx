@@ -3,7 +3,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
 import { AudioFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
-import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 
 const enrollMock = vi.hoisted(() => vi.fn());
 

@@ -8,22 +8,23 @@ import (
 	"net/http"
 
 	"audio-tools/internal/ai/ttschain"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/httpc"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // ElevenLabsTTS calls ElevenLabs' text-to-speech endpoint.
 type ElevenLabsTTS struct {
 	BaseURL string
 	Doer    httpc.Doer
-	Clock   clock.Clock
+	Clock   schedule.Clock
 }
 
 func NewElevenLabsTTS() *ElevenLabsTTS {
 	return &ElevenLabsTTS{
 		BaseURL: "https://api.elevenlabs.io",
 		Doer:    httpc.DefaultDoer(),
-		Clock:   clock.System{},
+		Clock:   schedule.System(),
 	}
 }
 

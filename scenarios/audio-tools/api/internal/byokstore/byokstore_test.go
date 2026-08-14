@@ -11,7 +11,7 @@ import (
 
 	"audio-tools/internal/byokstore"
 	"audio-tools/internal/store"
-	"audio-tools/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func newEnc(t *testing.T) *byokstore.Encryptor {

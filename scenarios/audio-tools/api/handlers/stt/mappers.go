@@ -71,7 +71,7 @@ type streamCfgDoc struct {
 	// is a *int32 (not a plain int32) because 0 is MEANINGFUL here — it
 	// disables the fallback — so an absent field (a doc written before the
 	// field existed) must NOT read as a deliberate "disabled". Presence
-	// tracking: nil backfills to the default (3); an explicit 0 stays
+	// tracking: nil backfills to the default (0); an explicit 0 stays
 	// disabled. Same rationale as the egress *bool toggles above.
 	OverlapMaxStallRejects *int32 `json:"overlap_max_stall_rejects,omitempty"`
 
@@ -105,7 +105,7 @@ func (d streamCfgDoc) toProto() *sttv1.StreamConfig {
 		VadSilenceMs:               d.VadSilenceMs,
 		OverlapWindowMs:            d.OverlapWindowMs,
 		OverlapCommitRuns:          d.OverlapCommitRuns,
-		OverlapMaxStallRejects:     int32OrDefault(d.OverlapMaxStallRejects, 3),
+		OverlapMaxStallRejects:     int32OrDefault(d.OverlapMaxStallRejects, 0),
 		HallucinationFilterEnabled: boolOrTrue(d.HallucinationFilterEnabled),
 		VadFilterEnabled:           boolOrTrue(d.VADFilterEnabled),
 		NoSpeechThreshold:          d.NoSpeechThreshold,
@@ -149,7 +149,7 @@ func defaultStreamCfg() streamCfgDoc {
 		VadSilenceMs:               sttpkg.DefaultVADSilenceMs,
 		OverlapWindowMs:            2000,
 		OverlapCommitRuns:          2,
-		OverlapMaxStallRejects:     int32Ptr(3),
+		OverlapMaxStallRejects:     int32Ptr(0),
 		HallucinationFilterEnabled: boolPtr(true),
 		VADFilterEnabled:           boolPtr(true),
 		NoSpeechThreshold:          0.6,

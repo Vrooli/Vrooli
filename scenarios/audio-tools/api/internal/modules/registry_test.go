@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"audio-tools/internal/modules"
-	"audio-tools/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 

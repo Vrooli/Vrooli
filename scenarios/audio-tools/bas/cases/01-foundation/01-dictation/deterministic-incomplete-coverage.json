@@ -51,7 +51,7 @@
             "wait_until": "NAVIGATE_WAIT_EVENT_UNSPECIFIED",
             "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
             "scenario": "audio-tools",
-            "scenario_path": "/dictation-studio?stt_test_mode=1&stt_test_fault=suppress_processed_ack"
+            "scenario_path": "/dictation-studio?stt_test_mode=1&stt_test_fault=missing_acknowledgement"
           },
           "metadata": { "label": "Open Dictation Studio with the bounded incomplete-coverage fault" }
         }

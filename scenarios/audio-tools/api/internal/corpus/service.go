@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"audio-tools/internal/blobbytes"
-	"audio-tools/internal/clock"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
@@ -18,11 +19,11 @@ import (
 type Service struct {
 	repo  Repository
 	blobs blobbytes.Store
-	clock clock.Clock
+	clock schedule.Clock
 }
 
 // NewService constructs a corpus Service.
-func NewService(repo Repository, blobs blobbytes.Store, clk clock.Clock) *Service {
+func NewService(repo Repository, blobs blobbytes.Store, clk schedule.Clock) *Service {
 	return &Service{repo: repo, blobs: blobs, clock: clk}
 }
 

@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // ResolveBYOKAdapter centralizes the credential and provider-name guard used
@@ -92,7 +93,7 @@ type CredentialOptions[Local, BYOK, Vrooli any] struct {
 	AvailTTLByOK   time.Duration
 	AvailTTLVrooli time.Duration
 
-	Clock clock.Clock
+	Clock schedule.Clock
 	Logx  logx.Logger
 }
 
@@ -114,7 +115,7 @@ type ChainOptions struct {
 	TTLByOK   time.Duration
 	TTLVrooli time.Duration
 
-	Clock clock.Clock
+	Clock schedule.Clock
 
 	// OnFallback, when non-nil, is forwarded to the Coordinator and fires
 	// whenever a successful response originates from a non-primary tier.

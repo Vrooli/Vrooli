@@ -3,7 +3,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
 import { selectors } from "../../consts/selectors";
-import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 
 // vi.hoisted so the value is available inside the hoisted vi.mock factory below.
 const savedConfig = vi.hoisted(() => ({

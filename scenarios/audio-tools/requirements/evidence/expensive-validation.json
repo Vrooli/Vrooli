@@ -1,15 +1,15 @@
 {
   "scenario": "audio-tools",
-  "started_at": "2026-08-04T16:50:06.019168441Z",
-  "finished_at": "2026-08-04T17:50:06.028602789Z",
-  "duration": "1h0m0.009434348s",
-  "duration_seconds": 3600.009434348,
+  "started_at": "2026-08-09T16:08:39.633218135Z",
+  "finished_at": "2026-08-09T17:08:39.633468384Z",
+  "duration": "1h0m0.000250249s",
+  "duration_seconds": 3600.000250249,
   "tts_requests": 360,
   "tts_frames": 360,
-  "tts_bytes": 103918860,
-  "stt_chunks": 301,
-  "stt_bytes": 963200,
-  "stt_events": 3,
+  "tts_bytes": 103916568,
+  "stt_chunks": 2,
+  "stt_bytes": 6400,
+  "stt_events": 2,
   "checks": [
     "hour-scale TTS streaming remained available for the full qualification duration",
     "continuous synthetic PCM dictation streamed in real time without a terminal transport error"

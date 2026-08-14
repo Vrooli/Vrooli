@@ -66,9 +66,11 @@ replace, the following functional cases:
    `3676aa0c-5fce-4159-bf93-17319d2e5d30`, 2026-07-12). The legacy
    `BAS_FAKE_MICROPHONE_FILE` env knob remains only as the default-browser
    fallback for dedicated qualification drivers. Audio Tools now has double-gated deterministic WebSocket
-   faults (`provider_busy`, `close_after_chunk:N`, `close_after_chunk_recoverable:N`, `close_after_commit:N`,
-   `pause_reads_after_chunk:N:MS`, `delay_processed_ack_ms:MS`, and
-   `suppress_processed_ack`), and BAS now has authored requirement-bound
+   faults (`provider_busy`, `delayed_ready`, `slow_consumer`,
+   `missing_acknowledgement`, `dropped_connection`, `close_before_done`,
+   `backend_restart`, `page_interruption`, `retention_quota`,
+   `verifier_outage`, and `extractor_outage`, plus the lower-level bounded
+   controls), and BAS now has authored requirement-bound
    `deterministic-provider-busy`, `deterministic-incomplete-coverage`, and
    `deterministic-reconnect-recovery` cases. The reconnect case is a bounded
    one-shot browser replay proof; it is not restart or full provider-resource
@@ -80,12 +82,14 @@ replace, the following functional cases:
    typed provider-busy recovery message, and execution
    `ed1006b3-8aff-4c65-8855-2f941a2b7c22` passed the missing-acknowledgement
    recovery path. Normal deployments ignore those URL parameters because they
-   never have an active routed-isolation lease. The remaining named
-   fault controls are delayed-ready, slow reader, missing acknowledgement,
-   close-before-done, backend restart, muted/ended track, journal quota,
-   verifier/extractor outage, and page interruption. Each needs a product-path
-   assertion and persisted seed/trigger evidence before it can count toward
-   promotion.
+   never have an active routed-isolation lease. The server seam now accepts all
+   eleven rubric names, and `handlers/stt` integration tests exercise each
+   named trigger after binary audio ingestion. The remaining product-path
+   work is to execute the full matrix under an active routed-isolation lease;
+   direct persisted-workflow executions on 2026-08-09 lacked that lease and
+   therefore correctly ignored the test-only faults. Those runs are not
+   promotion evidence. Muted/ended track coverage remains browser-package
+   coverage rather than a server fault profile.
 3. **Physical-device qualification.** Chromium fake audio cannot reproduce
    iOS audio-session behavior or establish the required iOS Safari, installed
    PWA, Android Chrome, and desktop-device matrix. Keep this as an explicit

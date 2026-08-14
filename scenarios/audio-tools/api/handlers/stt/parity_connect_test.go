@@ -10,10 +10,11 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	sttmocks "audio-tools/internal/ai/sttchain/mocks"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/stt/segmenter/testaudio"
+
+	"github.com/vrooli/api-core/schedule"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
@@ -75,7 +76,7 @@ func runConnectBidi(t *testing.T, audio []byte) []eventProjection {
 		Chain:    chain,
 		Selector: selector,
 		Logger:   logx.Std{},
-		Clock:    clock.System{},
+		Clock:    schedule.System(),
 	}))
 	mux := http.NewServeMux()
 	mux.Handle(connectPath, h)

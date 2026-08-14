@@ -14,7 +14,6 @@ import (
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/byok/envelope"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
@@ -24,6 +23,8 @@ import (
 	"audio-tools/internal/stt/session"
 	"audio-tools/internal/sttcapacity"
 	"audio-tools/internal/sttengine"
+
+	"github.com/vrooli/api-core/schedule"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -40,7 +41,7 @@ type Deps struct {
 	SpeakerResource *sttpipeline.SpeakerClient
 	Engine          *audioformat.Engine
 	Logger          logx.Logger
-	Clock           clock.Clock
+	Clock           schedule.Clock
 	Usage           UsageRecorder
 	StreamConfig    STTStreamConfigRepository
 	SpeakerConfig   SpeakerConfigRepository

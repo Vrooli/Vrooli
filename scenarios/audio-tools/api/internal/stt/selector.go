@@ -85,13 +85,13 @@ type StreamConfig struct {
 	// OverlapMaxWindowMs caps the uncommitted audio buffer for
 	// OverlapAgree. When no prefix commits before this ceiling, the
 	// strategy force-commits the current hypothesis tail instead of letting
-	// the window grow without bound. Default 25000ms.
+	// the window grow without bound. Default 10000ms.
 	OverlapMaxWindowMs int
 	// OverlapMaxStallRejects is the OverlapAgree stall-fallback policy:
 	// after this many consecutive divergence-rejects the strategy force-
 	// commits the freshest hypothesis tail (bounding tail growth before
 	// the MaxWindowMs net). 0 disables the fallback. See
-	// strategy.OverlapAgree.MaxStallRejects. Default 3 (Defaults()).
+	// strategy.OverlapAgree.MaxStallRejects. Default 0 (Defaults()).
 	OverlapMaxStallRejects int
 	// Boundary-accuracy levers for VADSegmenter. See pipeline.Config
 	// for documentation and acceptable ranges.
@@ -153,15 +153,22 @@ const DefaultSessionIdleTimeoutMs = 30000
 
 func Defaults() StreamConfig {
 	return StreamConfig{
-		Mode:                       ModeAuto,
-		StrategyPreference:         PreferenceAuto,
-		VADSilenceMs:               DefaultVADSilenceMs,
-		SessionIdleTimeoutMs:       DefaultSessionIdleTimeoutMs,
-		OverlapWindowMs:            2000,
-		OverlapCommitRuns:          2,
-		OverlapMaxWindowMs:         25000,
-		OverlapMaxStallRejects:     3,
-		VADPreRollMs:               300,
+		Mode:                 ModeAuto,
+		StrategyPreference:   PreferenceAuto,
+		VADSilenceMs:         DefaultVADSilenceMs,
+		SessionIdleTimeoutMs: DefaultSessionIdleTimeoutMs,
+		OverlapWindowMs:      2000,
+		OverlapCommitRuns:    2,
+		// Keep the overlap fallback short enough that a single batch
+		// transcription cannot erase a long contiguous reference span when
+		// Whisper misses a phrase. This is a safety ceiling, not a latency
+		// promise; successful local-agreement commits still arrive sooner.
+		OverlapMaxWindowMs: 10000,
+		// Do not best-guess divergent Whisper text by default. The bounded
+		// MaxWindowMs path retains audio and retries with backoff; operators
+		// can opt into the faster but lower-confidence stall fallback.
+		OverlapMaxStallRejects:     0,
+		VADPreRollMs:               800,
 		VADTrailingPadMs:           200,
 		VADInitialPromptWords:      20,
 		HallucinationFilterEnabled: true,

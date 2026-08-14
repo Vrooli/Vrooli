@@ -12,7 +12,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
-import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 
 afterEach(() => {

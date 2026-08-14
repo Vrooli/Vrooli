@@ -45,7 +45,7 @@
             "wait_until": "NAVIGATE_WAIT_EVENT_UNSPECIFIED",
             "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
             "scenario": "audio-tools",
-            "scenario_path": "/dictation-studio?stt_test_mode=1&stt_test_fault=close_after_chunk_recoverable:1"
+            "scenario_path": "/dictation-studio?stt_test_mode=1&stt_test_fault=backend_restart"
           },
           "metadata": { "label": "Open Dictation Studio with the one-shot reconnect fault" }
         }

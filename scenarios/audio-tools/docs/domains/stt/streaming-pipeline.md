@@ -216,7 +216,7 @@ selector error rather than silently falling back.
 | Strategy ↓ / Provider → | LocalWhisper | OpenAIWhisperAPI | Deepgram | Azure/Google | VrooliLPBS |
 |---|---|---|---|---|---|
 | VADSegment | ✅ **default for Local Whisper** (silence-bounded segments; one Segment per utterance; the most seamless batch strategy today) | ✅ only choice (API has no streaming) | ⛔ forbidden — Deepgram has native streaming, use Passthrough | ⛔ forbidden | ✅ until LPBS streaming lands |
-| OverlapAgree | ✅ opt-in via explicit `preference=overlap` (growing-buffer LocalAgreement-N + VAD-anchored triggering; incremental Segment events mid-utterance; word-aligned cursor advance). No longer the auto default while its low-latency UX is being honed (2026-05-29). See PROBLEMS.md "OverlapAgree commit gap" for the rewrite history. | ⛔ forbidden — would burn money on each overlapping API call | ⛔ forbidden | ⛔ forbidden | ⛔ forbidden |
+| OverlapAgree | ✅ opt-in via explicit `preference=overlap` (growing-buffer LocalAgreement-N + VAD-anchored triggering; incremental Segment events mid-utterance; bounded prompt context; word-aligned cursor advance). No longer the auto default while its long-form quality is being qualified. | ⛔ forbidden — would burn money on each overlapping API call | ⛔ forbidden | ⛔ forbidden | ⛔ forbidden |
 | Passthrough | ⛔ forbidden — provider can't stream | ⛔ forbidden — provider can't stream | ✅ only choice | ✅ only choice | ✅ when LPBS streaming flag flipped |
 
 The "forbidden" cells are not theoretical; the selector returns a
@@ -288,12 +288,22 @@ The handler verifies the digest before the server session ledger accepts the
 chunk. `done`, a socket close, and an empty final are **not** evidence that
 audio was processed.
 
-The server ledger persists received coverage and only advances its processed
-cursor after the pipeline has finished the relevant audio. It returns a durable
-`processed_acknowledgement` status with both cursors before terminal `final`
-and `done`. The browser stores the same ordered chunks and digests in a bounded
-turn journal before releasing a frame to the socket, compacts only after the
-processed cursor advances, and surfaces reduced durability or quota failure
+The server ledger persists received coverage and advances its processed cursor
+from the strategy consumption cursor, not from text commits. This matters for
+continuous speech: a recognizer can consume audio for many seconds while its
+silence-based segmenter has not committed a segment. The cursor emits at most
+one durable acknowledgement per roughly 100 ms of canonical audio, and the
+WebSocket ledger compacts that coverage immediately into a bounded replay tail.
+It returns a durable `processed_acknowledgement` status with both cursors before
+terminal `final` and `done`.
+
+The browser stores the same ordered batched chunks and digests in a bounded turn
+journal before releasing a frame to the socket. Worklet quanta are combined
+into approximately 100 ms ATV2 frames (at most 15 wire messages per second),
+and IndexedDB uses append records with periodic snapshot compaction rather than
+rewriting the entire retained turn for every frame. The server uses the same
+append-log-plus-compaction pattern for receive, acknowledgement, commit, and
+terminal mutations. Both sides surface reduced durability or quota failure
 instead of discarding unacknowledged audio. Replay is at-least-once; the ledger
 deduplicates the identical sequence/range/digest and rejects conflicts or gaps.
 
@@ -362,7 +372,11 @@ the default at the handler). The kyutai commit cadence is set by
 `KYUTAI_STT_MAX_SEGMENT_FRAMES` (default `48` ≈ 3.8 s at 12.5 Hz; `0`
 disables force-commit → legacy pause-or-flush-only) and
 `KYUTAI_STT_SILENCE_COMMIT_FRAMES` (default `16`). The whisper
-`VADSegment` strategy keeps parity with the same drain-then-close seam.
+`VADSegment` strategy keeps parity with the same drain-then-close seam. The
+`BufferedFallback` strategy has a declared `10 MiB` whole-turn ceiling,
+matching the unary transcription limit; it emits a typed refusal before
+acknowledging audio beyond that bound, leaving the session ledger as the
+replay owner rather than silently dropping the turn.
 
 ## Event-durability contract
 
@@ -374,14 +388,15 @@ without three ad-hoc buffers.
 
 A streaming session emits two classes of event:
 
-- **Disposable — `partial` only.** Interim hypotheses. They may be
-  **coalesced to the latest value or dropped** under consumer backpressure, and
-  they **MUST NEVER back-pressure their producer**. A slow or stalled consumer
-  therefore can never freeze the decode loop by making a partial write block —
-  the producer enqueues the latest partial and keeps stepping. Losing an
-  intermediate partial is invisible (the next one supersedes it).
+- **Disposable snapshots — `partial`, `vad-state`, and ordinary `status`.**
+  Interim hypotheses and live progress snapshots may be **coalesced to the
+  latest value or dropped** under consumer backpressure, and they **MUST NEVER
+  back-pressure their producer**. Each stream has an independent latest-value
+  slot at the browser WebSocket egress: a VAD tick cannot erase live text, and
+  a status update cannot erase the ring state. Losing an intermediate snapshot
+  is invisible because the next value supersedes it.
 - **Durable — everything else** (`segment`, `segment-rejected`/speaker
-  rejection, `error`, `done`, and the ancillary `wake_word` / `vad_state`).
+  rejection, `acknowledgement`, `error`, `done`, and the ancillary `wake_word`).
   These are **ordered and lossless**: they are delivered in emission order and
   are never dropped, even under sustained backpressure. Because durables are
   low-rate, buffering them losslessly is cheap; a producer must never drop a

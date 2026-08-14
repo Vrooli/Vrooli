@@ -10,7 +10,8 @@ import (
 
 	"audio-tools/internal/ai/ttschain"
 	ttsmocks "audio-tools/internal/ai/ttschain/mocks"
-	"audio-tools/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func TestLocalProvider_NilSvc(t *testing.T) {
@@ -102,7 +103,7 @@ func TestChain_Reconfigure_InvalidatesCache(t *testing.T) {
 
 func TestChain_AvailabilityCache_HitAndExpiry(t *testing.T) {
 	byok := ttschain.NewBYOKProvider(map[string]ttschain.BYOKAdapter{"x": &ttsmocks.FakeBYOK{IDStr: "x", Available: true}})
-	clk := mocks.NewFakeClock(time.Unix(1000, 0))
+	clk := scheduletest.New(time.Unix(1000, 0))
 	c := ttschain.NewChain(ttschain.Options{EnableBYOK: true, BYOK: byok, AvailTTLByOK: 10 * time.Second, Clock: clk})
 	_, _ = c.Execute(context.Background(), ttschain.Request{Text: "h", BYOKProvider: "x", BYOKKey: "k"})
 	clk.Advance(5 * time.Second)

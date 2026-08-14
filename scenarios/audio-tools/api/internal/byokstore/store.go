@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/store"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Store wraps the persistent BYOK store with encryption and
@@ -14,27 +15,27 @@ import (
 type Store struct {
 	enc  *Encryptor
 	repo *store.BYOKStore
-	clk  clock.Clock
+	clk  schedule.Clock
 }
 
 // New wires the encryptor + persistence into a single facade using the
-// system clock.
+// system schedule.
 func New(enc *Encryptor, repo *store.BYOKStore) *Store {
-	return &Store{enc: enc, repo: repo, clk: clock.System{}}
+	return &Store{enc: enc, repo: repo, clk: schedule.System()}
 }
 
 // NewWithClock is the clock-injected constructor used by tests for
 // deterministic CreatedAt / LastUsedAt timestamps.
-func NewWithClock(enc *Encryptor, repo *store.BYOKStore, clk clock.Clock) *Store {
+func NewWithClock(enc *Encryptor, repo *store.BYOKStore, clk schedule.Clock) *Store {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &Store{enc: enc, repo: repo, clk: clk}
 }
 
 func (s *Store) now() time.Time {
 	if s.clk == nil {
-		return clock.System{}.Now().UTC()
+		return schedule.System().Now().UTC()
 	}
 	return s.clk.Now().UTC()
 }

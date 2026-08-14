@@ -26,6 +26,24 @@ type BatchExecutor interface {
 	Execute(ctx context.Context, req sttchain.Request) (*sttchain.Result, error)
 }
 
+// BufferedFallbackMaxBytes is the declared whole-turn ceiling for the unary
+// fallback. The streaming ledger remains the lossless recovery owner; this
+// strategy refuses before appending beyond the same 10 MiB limit enforced by
+// the batch transcription entrypoints.
+const BufferedFallbackMaxBytes = 10 << 20
+
+// BufferedFallbackCeilingError is typed so callers can distinguish an
+// intentional bounded refusal from a provider or transport failure. Chunks
+// already received remain unacknowledged in the session ledger for replay.
+type BufferedFallbackCeilingError struct {
+	ObservedBytes int
+	MaxBytes      int
+}
+
+func (e *BufferedFallbackCeilingError) Error() string {
+	return fmt.Sprintf("audio-tools/stt/strategy: buffered fallback ceiling exceeded (%d > %d bytes)", e.ObservedBytes, e.MaxBytes)
+}
+
 // BufferedFallback is the strategy the selector returns when streaming
 // is disabled (stt.streaming_mode=off) or when no eligible
 // (strategy, provider) pair exists for the negotiated session. It
@@ -57,6 +75,7 @@ func (b *BufferedFallback) Run(
 	start sttchain.StreamStart,
 	chunks <-chan sttchain.AudioChunk,
 	events chan<- sttchain.StreamEvent,
+	cursor *sttchain.ConsumptionCursor,
 ) error {
 	if b.Executor == nil {
 		err := fmt.Errorf("audio-tools/stt/strategy: BufferedFallback requires a BatchExecutor")
@@ -66,6 +85,7 @@ func (b *BufferedFallback) Run(
 	}
 
 	var buf []byte
+	var coverage []sttchain.AudioChunk
 	for {
 		select {
 		case <-ctx.Done():
@@ -76,7 +96,14 @@ func (b *BufferedFallback) Run(
 			if !ok {
 				goto run
 			}
+			if len(buf)+len(ch.Audio) > BufferedFallbackMaxBytes {
+				err := &BufferedFallbackCeilingError{ObservedBytes: len(buf) + len(ch.Audio), MaxBytes: BufferedFallbackMaxBytes}
+				events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
+				events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{FellBackToUnary: true}}
+				return err
+			}
 			buf = append(buf, ch.Audio...)
+			coverage = append(coverage, ch)
 		}
 	}
 run:
@@ -97,6 +124,9 @@ run:
 		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
 		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{FellBackToUnary: true}}
 		return err
+	}
+	for _, ch := range coverage {
+		cursor.Observe(ch)
 	}
 	events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
 		Text:             res.Text,

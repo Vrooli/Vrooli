@@ -4,11 +4,12 @@ import (
 	intsumm "audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/audioformat"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/store"
 	inttts "audio-tools/internal/tts"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -23,7 +24,7 @@ type Deps struct {
 	TTSService     *inttts.Service
 	Engine         *audioformat.Engine
 	Logger         logx.Logger
-	Clock          clock.Clock
+	Clock          schedule.Clock
 	Usage          UsageRecorder
 	Cache          *inttts.Cache
 	ConfigStore    TTSConfigRepository

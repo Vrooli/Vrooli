@@ -6,17 +6,18 @@ package middleware
 import (
 	"net/http"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // NewLoggingMiddleware returns a middleware that logs each request's
 // method, URI, and elapsed duration. Time is read from the injected
-// Clock so tests using mocks.FakeClock can assert exact durations
-// without depending on the wall clock. Logger is required (logx.Logger);
+// Clock so tests using scheduletest.FakeClock can assert exact durations
+// without depending on the wall schedule. Logger is required (logx.Logger);
 // a nil value panics so a forgotten wire-up surfaces at boot rather than
 // silently swallowing log lines.
-func NewLoggingMiddleware(clk clock.Clock, logger logx.Logger) func(http.Handler) http.Handler {
+func NewLoggingMiddleware(clk schedule.Clock, logger logx.Logger) func(http.Handler) http.Handler {
 	if logger == nil {
 		panic("middleware.NewLoggingMiddleware requires logger")
 	}

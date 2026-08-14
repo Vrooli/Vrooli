@@ -31,6 +31,7 @@ export * from "./voice/streamHealth";
 export * from "./voice/autoStopDecision";
 export * from "./voice/passiveArmDecision";
 export * from "./voice/trailingPartial";
+export * from "./transcriptBuffer";
 export * from "./voice/useServerVadStateStore";
 export * from "./voice/wakeword";
 export * from "./voice/services";

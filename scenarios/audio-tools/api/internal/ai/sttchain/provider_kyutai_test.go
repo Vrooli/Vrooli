@@ -397,6 +397,40 @@ func TestKyutaiProvider_TranslatesEventStream(t *testing.T) {
 	require.Equal(t, sttchain.TierLocal, done.LockedTier)
 }
 
+func TestKyutaiProvider_EmitsCoverageOnlyAfterResourceProcessed(t *testing.T) {
+	// A queued write is not durable processing. The resource's absolute
+	// processed_batches cursor is the first point at which the browser ledger
+	// may compact the corresponding captured audio.
+	srv := vendorws.NewKyutaiServer(vendorws.Options{
+		Prelude: []vendorws.Frame{{Text: vendorws.EncodeJSON(map[string]any{"type": "ready"})}},
+		Script: []vendorws.Frame{
+			{Text: vendorws.EncodeJSON(map[string]any{"type": "processed", "processed_batches": 1})},
+			{Text: vendorws.EncodeJSON(map[string]any{"type": "done"})},
+		},
+		WaitForFrames: 2, // start header + one PCM batch
+	})
+	defer srv.Close()
+
+	p := sttchain.NewKyutaiProvider("http://example.invalid")
+	p.StreamEndpoint = wsURL(srv.URL)
+	chunks := make(chan sttchain.AudioChunk, 1)
+	chunks <- sttchain.AudioChunk{Sequence: 7, StartSample: 112_000, EndSample: 113_600, Audio: []byte{1, 2}}
+	close(chunks)
+
+	events, err := p.TranscribeStreaming(context.Background(), sttchain.StreamStart{SessionID: "session"}, chunks)
+	require.NoError(t, err)
+	var acknowledgements []sttchain.AcknowledgementEvent
+	for ev := range events {
+		if ev.Acknowledgement != nil {
+			acknowledgements = append(acknowledgements, *ev.Acknowledgement)
+		}
+	}
+	require.Equal(t, []sttchain.AcknowledgementEvent{{
+		ReceivedSequence: 7, ProcessedSequence: 7,
+		ReceivedEndSample: 113_600, ProcessedEndSample: 113_600,
+	}}, acknowledgements)
+}
+
 func TestKyutaiProvider_MapsAdmissionLifecycleAndApproximateSpan(t *testing.T) {
 	srv := vendorws.NewKyutaiServer(vendorws.Options{Prelude: []vendorws.Frame{
 		{Text: vendorws.EncodeJSON(map[string]any{"type": "queued", "position": 2})},
@@ -540,6 +574,7 @@ func TestKyutaiProvider_TraitsAndBatch(t *testing.T) {
 	require.True(t, tr.Stream)
 	require.False(t, tr.Batch)
 	require.Equal(t, []sttchain.StrategyKind{sttchain.StrategyPassthrough}, tr.Strategies)
+	require.True(t, tr.BackendAcknowledgements)
 	require.Equal(t, sttchain.TierLocal, p.Type())
 
 	_, err := p.Transcribe(context.Background(), sttchain.Request{})

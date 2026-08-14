@@ -238,7 +238,7 @@
             },
             {
               "name": "overlap-max-stall-rejects",
-              "description": "Force-commit the freshest hypothesis tail after N consecutive overlap divergence-rejects (bounds tail growth before the max_window_ms net); range 1\u201310, 0 disables (default 3)"
+              "description": "Force-commit the freshest hypothesis tail after N consecutive overlap divergence-rejects (bounds tail growth before the max_window_ms net); range 1\u201310, 0 disables (default 0; safer quality-first mode)"
             },
             {
               "name": "hallucination-filter",

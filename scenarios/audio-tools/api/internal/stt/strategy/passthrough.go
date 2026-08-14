@@ -30,6 +30,7 @@ func (p *Passthrough) Run(
 	start sttchain.StreamStart,
 	chunks <-chan sttchain.AudioChunk,
 	events chan<- sttchain.StreamEvent,
+	cursor *sttchain.ConsumptionCursor,
 ) error {
 	if p.Provider == nil {
 		err := fmt.Errorf("audio-tools/stt/strategy: Passthrough requires a Provider")
@@ -37,13 +38,48 @@ func (p *Passthrough) Run(
 		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}
 		return err
 	}
-	vendor, err := p.Provider.TranscribeStreaming(ctx, start, chunks)
+	backendAcknowledgements := p.Provider.Traits().BackendAcknowledgements
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	tracked := make(chan sttchain.AudioChunk)
+	trackedDone := make(chan struct{})
+	go func() {
+		defer close(trackedDone)
+		defer close(tracked)
+		for {
+			select {
+			case <-runCtx.Done():
+				return
+			case chunk, ok := <-chunks:
+				if !ok {
+					return
+				}
+				select {
+				case tracked <- chunk:
+					// A backend-confirmed provider (Kyutai) emits coverage only
+					// after its resource reports processed audio. Other native
+					// providers have no such signal, so acknowledge after their
+					// adapter has accepted the chunk into its input stream.
+					if !backendAcknowledgements {
+						cursor.Observe(chunk)
+					}
+				case <-runCtx.Done():
+					return
+				}
+			}
+		}
+	}()
+	vendor, err := p.Provider.TranscribeStreaming(runCtx, start, tracked)
 	if err != nil {
+		cancel()
+		<-trackedDone
 		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
 		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}
 		return err
 	}
 	if vendor == nil {
+		cancel()
+		<-trackedDone
 		err := fmt.Errorf("audio-tools/stt/strategy: passthrough provider returned nil event channel")
 		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
 		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}
@@ -59,6 +95,8 @@ func (p *Passthrough) Run(
 				goto vendorDrained
 			}
 		case <-ctx.Done():
+			cancel()
+			<-trackedDone
 			return ctx.Err()
 		}
 		if ev.Kind == sttchain.StreamEventDone {
@@ -72,6 +110,8 @@ func (p *Passthrough) Run(
 	}
 
 vendorDrained:
+	cancel()
+	<-trackedDone
 	if !sawDone {
 		select {
 		case events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}:

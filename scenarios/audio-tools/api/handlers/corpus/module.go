@@ -5,10 +5,11 @@
 package corpus
 
 import (
-	"audio-tools/internal/clock"
 	intcorpus "audio-tools/internal/corpus"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -19,7 +20,7 @@ import (
 // Deps is the corpus handler's dependency bundle.
 type Deps struct {
 	Logger  logx.Logger
-	Clock   clock.Clock
+	Clock   schedule.Clock
 	Service *intcorpus.Service
 }
 

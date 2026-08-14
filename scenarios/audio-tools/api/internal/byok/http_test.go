@@ -9,11 +9,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"audio-tools/internal/testutil/mocks"
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func TestDoAudioRequestReturnsBodyLatencyAndProviderErrors(t *testing.T) {
-	clock := mocks.NewFakeClock(time.Unix(100, 0))
+	clock := scheduletest.New(time.Unix(100, 0))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/error" {
 			w.WriteHeader(http.StatusBadGateway)

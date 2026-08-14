@@ -34,5 +34,6 @@ type Strategy interface {
 		start sttchain.StreamStart,
 		chunks <-chan sttchain.AudioChunk,
 		events chan<- sttchain.StreamEvent,
+		cursor *sttchain.ConsumptionCursor,
 	) error
 }

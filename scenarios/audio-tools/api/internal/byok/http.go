@@ -7,16 +7,17 @@ import (
 	"net/http"
 	"time"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/httpc"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // DoAudioRequest executes a unary BYOK audio request and returns its response
 // bytes plus measured latency. Provider-specific request construction and
 // result mapping stay with each adapter.
-func DoAudioRequest(ctx context.Context, doer httpc.Doer, clk clock.Clock, provider string, request *http.Request) ([]byte, time.Duration, error) {
+func DoAudioRequest(ctx context.Context, doer httpc.Doer, clk schedule.Clock, provider string, request *http.Request) ([]byte, time.Duration, error) {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	started := clk.Now()
 	response, err := doer.Do(request.WithContext(ctx))

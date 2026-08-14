@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { selectors } from "../../consts/selectors";
 import { AudioFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
-import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 
 const getWakeWordConfig = vi.fn();
 const saveWakeWordTemplate = vi.fn();

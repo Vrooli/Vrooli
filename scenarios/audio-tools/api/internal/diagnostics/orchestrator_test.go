@@ -19,8 +19,8 @@ import (
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	intsumm "audio-tools/internal/summarize"
-	"audio-tools/internal/testutil/db"
 	"audio-tools/internal/usagereport"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"

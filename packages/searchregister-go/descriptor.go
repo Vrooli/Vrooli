@@ -91,6 +91,16 @@ func Descriptor(p aisearch.ProviderConfig) (*registryv1.ProviderDescriptor, erro
 	if lifecycle == "" {
 		lifecycle = "production"
 	}
+	switch strings.ToLower(strings.TrimSpace(lifecycle)) {
+	case "production":
+		lifecycle = "LIFECYCLE_PRODUCTION"
+	case "fixture":
+		lifecycle = "LIFECYCLE_FIXTURE"
+	case "experimental":
+		lifecycle = "LIFECYCLE_EXPERIMENTAL"
+	default:
+		return nil, fmt.Errorf("provider %q has invalid lifecycle %q: want production, fixture, or experimental", p.ProviderID, lifecycle)
+	}
 	if err := setString("lifecycle", lifecycle); err != nil {
 		return nil, err
 	}

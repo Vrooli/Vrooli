@@ -11,11 +11,13 @@ import (
 
 	"audio-tools/internal/experiment"
 	"audio-tools/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
-func newManager(t *testing.T, runner experiment.Runner) (*experiment.Manager, experiment.Repository, *mocks.FakeClock) {
+func newManager(t *testing.T, runner experiment.Runner) (*experiment.Manager, experiment.Repository, *scheduletest.FakeClock) {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
 	repo := experiment.NewSQLiteRepository(newSchemaDB(t), clk)
 	svc := experiment.NewService(repo, mocks.NewFakeBlobStore())
 	mgr := experiment.NewManager(experiment.Config{Service: svc, Runner: runner, Clock: clk})
@@ -178,7 +180,7 @@ func TestManager_StreamReportsQueuePosition(t *testing.T) {
 
 func TestManager_StartMarksOrphansFailed(t *testing.T) {
 	ctx := context.Background()
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
 	repo := experiment.NewSQLiteRepository(newSchemaDB(t), clk)
 	queued, err := repo.CreateExperiment(ctx, experiment.Experiment{Name: "queued"})
 	require.NoError(t, err)
@@ -221,7 +223,7 @@ func (failRunRepo) CompleteSucceeded(context.Context, experiment.Experiment, []e
 }
 
 func TestManager_RunPersistFailureMarksFailed(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
 	repo := failRunRepo{experiment.NewSQLiteRepository(newSchemaDB(t), clk)}
 	svc := experiment.NewService(repo, mocks.NewFakeBlobStore())
 	mgr := experiment.NewManager(experiment.Config{Service: svc, Clock: clk, Runner: func(context.Context, experiment.Experiment, func(int, string)) (experiment.RunResult, error) {
@@ -251,7 +253,7 @@ func TestManager_RunPersistFailureMarksFailed(t *testing.T) {
 
 func TestService_DeleteExperimentDeletesTerminalRowsAndBlob(t *testing.T) {
 	ctx := context.Background()
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
 	repo := experiment.NewSQLiteRepository(newSchemaDB(t), clk)
 	blobs := mocks.NewFakeBlobStore()
 	svc := experiment.NewService(repo, blobs)

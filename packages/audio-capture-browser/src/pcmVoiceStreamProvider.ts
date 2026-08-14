@@ -31,6 +31,25 @@ export interface SharedPcmVoiceStreamProviderOptions {
 
 export const MAX_CONSECUTIVE_RECONNECTS = 5;
 export const RECONNECT_BACKOFF_MS = [1_000, 2_000, 4_000, 8_000, 8_000] as const;
+export const PCM_WIRE_BATCH_SAMPLES = 1_600; // approximately 100 ms at 16 kHz
+export const PCM_WIRE_BATCH_FLUSH_MS = 100;
+export const FALLBACK_MIN_DELAY_MS = 10_000;
+
+/** Give a stopped turn time to drain durable writes before HTTP recovery. */
+export function fallbackDelayMs(capturedSamples: bigint, pendingWrites: number): number {
+  const audioDurationMs = Number((capturedSamples * 1_000n) / BigInt(TARGET_SAMPLE_RATE));
+  const backlogMs = Math.max(0, pendingWrites) * PCM_WIRE_BATCH_FLUSH_MS;
+  return Math.max(FALLBACK_MIN_DELAY_MS, audioDurationMs + backlogMs);
+}
+
+export class PcmStreamWriteError extends Error {
+  readonly code = "capture_write_failed";
+
+  constructor(readonly cause: unknown) {
+    super("Audio capture could not be persisted safely.");
+    this.name = "PcmStreamWriteError";
+  }
+}
 
 /** Shared durable PCM transport used by scenario adapters. */
 export class PcmVoiceStreamProvider {
@@ -43,7 +62,13 @@ export class PcmVoiceStreamProvider {
   private lease: MicLease | null = null;
   private journal: TurnJournal | null = null;
   private writes: Promise<void> = Promise.resolve();
+  private journalAcks: Promise<void> = Promise.resolve();
+  private pendingWriteCount = 0;
   private pending: ArrayBuffer[] = [];
+  private batchSamples: Int16Array[] = [];
+  private batchSampleCount = 0;
+  private batchStartSample = 0n;
+  private batchTimer: ReturnType<typeof setTimeout> | null = null;
   private allPcm: Int16Array[] = [];
   private sessionId = "";
   private resumeToken = "";
@@ -115,6 +140,17 @@ export class PcmVoiceStreamProvider {
     return /dial tcp|connect(?:ion)? refused|wss?:\/\//i.test(message)
       ? "The speech backend is unavailable; retry the turn."
       : message;
+  }
+
+  private handleWriteFailure(error: unknown): void {
+    if (this.terminalFailure) return;
+    const typed = error instanceof PcmStreamWriteError ? error : new PcmStreamWriteError(error);
+    this.terminalFailure = true;
+    this.diagnostic.error(typed.code);
+    this.diagnostic.terminal("failed", typed.code);
+    this.publishDiagnostic();
+    this.status(typed.code, "Audio recovery storage failed; the captured turn was retained for recovery.");
+    this.onError?.("Audio capture could not be saved safely; the turn was retained for recovery.");
   }
 
   private async acquireStream(): Promise<MicLease> {
@@ -193,30 +229,67 @@ export class PcmVoiceStreamProvider {
 
   private queue(samples: Int16Array): void {
     if (this.tailDropArmed) return;
-    const sequence = this.sequence++;
     const startSample = this.sample;
-    const endSample = startSample + BigInt(samples.length);
-    this.sample = endSample;
-    const bytes = new Uint8Array(samples.byteLength);
-    bytes.set(new Uint8Array(samples.buffer, samples.byteOffset, samples.byteLength));
+    this.sample += BigInt(samples.length);
     this.allPcm.push(samples);
-    this.diagnostic.captured(sequence);
+    this.diagnostic.captured(this.sequence + BigInt(this.batchSampleCount > 0 ? 1 : 0));
     this.publishDiagnostic();
+    if (this.batchSampleCount === 0) this.batchStartSample = startSample;
+    let offset = 0;
+    while (offset < samples.length) {
+      const room = PCM_WIRE_BATCH_SAMPLES - this.batchSampleCount;
+      const take = Math.min(room, samples.length - offset);
+      this.batchSamples.push(samples.slice(offset, offset + take));
+      this.batchSampleCount += take;
+      offset += take;
+      if (this.batchSampleCount === PCM_WIRE_BATCH_SAMPLES) this.flushBatch();
+    }
+    if (this.batchSampleCount > 0 && this.batchTimer === null) {
+      this.batchTimer = setTimeout(() => {
+        this.batchTimer = null;
+        this.flushBatch();
+      }, PCM_WIRE_BATCH_FLUSH_MS);
+    }
+  }
+
+  private flushBatch(): void {
+    if (this.batchSampleCount === 0) return;
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+    const audio = concatInt16(this.batchSamples);
+    const sequence = this.sequence++;
+    const startSample = this.batchStartSample;
+    const endSample = startSample + BigInt(this.batchSampleCount);
+    this.batchSamples = [];
+    this.batchSampleCount = 0;
+    this.batchStartSample = endSample;
+    const bytes = new Uint8Array(audio.byteLength);
+    bytes.set(new Uint8Array(audio.buffer, audio.byteOffset, audio.byteLength));
+    this.pendingWriteCount += 1;
     this.writes = this.writes.then(async () => {
-      const sha256 = await digestAudio(bytes.buffer);
-      const frame = encodeAudioFrame({ sequence, startSample, endSample, audio: samples, sha256: new Uint8Array(sha256) });
-      await this.journal?.append({ sequence, startSample, endSample, audio: bytes.buffer, sha256 });
-      if (this.ws?.readyState === WebSocket.OPEN && this.pending.length === 0) {
-        this.ws.send(frame);
-        this.diagnostic.sent(sequence);
-        this.publishDiagnostic();
-      } else this.pending.push(frame);
+      try {
+        const sha256 = await digestAudio(bytes.buffer);
+        const frame = encodeAudioFrame({ sequence, startSample, endSample, audio, sha256: new Uint8Array(sha256) });
+        await this.journal?.append({ sequence, startSample, endSample, audio: bytes.buffer, sha256 });
+        if (this.ws?.readyState === WebSocket.OPEN && this.pending.length === 0) {
+          this.ws.send(frame);
+          this.diagnostic.sent(sequence);
+          this.publishDiagnostic();
+        } else this.pending.push(frame);
+      } catch (error: unknown) {
+        this.handleWriteFailure(error);
+      } finally {
+        this.pendingWriteCount = Math.max(0, this.pendingWriteCount - 1);
+      }
     });
   }
 
   private install(ws: WebSocket, replay: boolean): void {
     ws.onopen = () => {
       this.ws = ws; this.reconnects = 0;
+      this.flushBatch();
       this.serverAcknowledged = false;
       if (this.serverAckTimer) clearTimeout(this.serverAckTimer);
       this.serverAckTimer = setTimeout(() => {
@@ -259,7 +332,16 @@ export class PcmVoiceStreamProvider {
         if (processed !== undefined) {
           this.diagnostic.processed(processed);
           this.publishDiagnostic();
-          this.writes = this.writes.then(() => this.journal?.acknowledgeProcessed(processed) ?? undefined);
+          // Acknowledgements are ordered independently from the capture write
+          // queue. The send that produced this status only occurs after its
+          // journal append completed; chaining onto the entire future capture
+          // queue would let an hour of pending appends hit the quota before
+          // the first acknowledgement could compact anything.
+          this.journalAcks = this.journalAcks
+            .then(() => this.journal?.acknowledgeProcessed(processed) ?? undefined)
+            .catch(() => {
+              this.status("durability_reduced", "Audio recovery acknowledgement could not be persisted.");
+            });
         }
         this.status(code, text);
       },
@@ -302,6 +384,7 @@ export class PcmVoiceStreamProvider {
       },
     }, this.deliveredSegments);
     ws.onclose = () => {
+      this.flushBatch();
       if (this.stopped || this.finalReceived || this.terminalFailure || !this.capture) return;
       if (this.reconnects >= MAX_CONSECUTIVE_RECONNECTS) {
         this.status("reconnect_exhausted", "Streaming recovery attempts were exhausted; using retained-audio recovery.");
@@ -378,7 +461,7 @@ export class PcmVoiceStreamProvider {
     if (this.serverAckTimer) clearTimeout(this.serverAckTimer);
     if (this.finalPendingTimer) clearTimeout(this.finalPendingTimer);
     if (this.fallbackTimer) clearTimeout(this.fallbackTimer);
-    this.stopped = false; this.finalReceived = false; this.terminalFailure = false; this.doneSent = false; this.reconnects = 0; this.micRecoveryAttempted = false; this.pending = []; this.allPcm = []; this.sequence = 0n; this.sample = 0n;
+    this.stopped = false; this.finalReceived = false; this.terminalFailure = false; this.doneSent = false; this.reconnects = 0; this.micRecoveryAttempted = false; this.pending = []; this.batchSamples = []; this.batchSampleCount = 0; this.batchStartSample = 0n; this.journalAcks = Promise.resolve(); this.pendingWriteCount = 0; this.allPcm = []; this.sequence = 0n; this.sample = 0n;
     const recovered = loadUnfinishedSession();
     if (recovered) { this.sessionId = recovered.sessionId; this.resumeToken = recovered.resumeToken; }
     else { this.sessionId = newSessionIdentity(); this.resumeToken = newSessionIdentity(); rememberUnfinishedSession({ sessionId: this.sessionId, resumeToken: this.resumeToken }); }
@@ -391,7 +474,7 @@ export class PcmVoiceStreamProvider {
     this.allStartedAt = Date.now();
     this.diagnostic.reset(this.sessionId, 0, "reduced");
     const persistent = this.options.journalFactory?.() ?? new TurnJournal(new IndexedDBTurnJournalStore(), this.sessionId, 0n, 16 * 1024 * 1024, "persistent");
-    try { const snapshot = await persistent.restore(); this.journal = persistent; this.sequence = snapshot.nextSequence; this.sample = snapshot.nextSample; }
+    try { const snapshot = await persistent.restore(); this.journal = persistent; this.sequence = snapshot.nextSequence; this.sample = snapshot.nextSample; this.batchStartSample = snapshot.nextSample; }
     catch { this.journal = new TurnJournal(new MemoryTurnJournalStore(), this.sessionId, 0n, 16 * 1024 * 1024, "reduced"); this.status("durability_reduced", "Persistent audio recovery is unavailable in this browser."); }
     this.capture = await this.makeCapture(this.stream); this.connect(this.sequence > 0n);
   }
@@ -401,6 +484,7 @@ export class PcmVoiceStreamProvider {
     if (this.serverAckTimer) clearTimeout(this.serverAckTimer);
     this.capture?.stop();
     this.capture = null;
+    this.flushBatch();
     const stoppedAt = Date.now();
     this.lastTurn = this.tailDropArmed || this.allPcm.length === 0
       ? null
@@ -420,7 +504,7 @@ export class PcmVoiceStreamProvider {
     }
     if (this.allPcm.length > 0 && !this.finalReceived && !this.terminalFailure) {
       this.finalPendingTimer = setTimeout(() => this.status("final_pending", "Speech audio was sent; waiting for the backend to finish transcription."), 3_000);
-      this.fallbackTimer = setTimeout(() => { void this.fallback(); }, 10_000);
+      this.fallbackTimer = setTimeout(() => { void this.fallback(); }, fallbackDelayMs(this.sample, this.pendingWriteCount));
     }
     this.releaseOwnStream("manual-stop");
   }
@@ -430,6 +514,8 @@ export class PcmVoiceStreamProvider {
     if (this.finalPendingTimer) clearTimeout(this.finalPendingTimer);
     if (this.fallbackTimer) clearTimeout(this.fallbackTimer);
     this.unbindTracks();
+    if (this.batchTimer) clearTimeout(this.batchTimer);
+    this.batchTimer = null;
     this.journal = null; this.pending = []; this.allPcm = []; this.lastTurn = null;
   }
 }

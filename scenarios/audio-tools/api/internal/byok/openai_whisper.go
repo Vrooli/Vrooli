@@ -10,8 +10,9 @@ import (
 	"net/http"
 
 	"audio-tools/internal/ai/sttchain"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/httpc"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // OpenAIWhisperSTT calls OpenAI's audio/transcriptions endpoint.
@@ -19,14 +20,14 @@ import (
 type OpenAIWhisperSTT struct {
 	Endpoint string
 	Doer     httpc.Doer
-	Clock    clock.Clock
+	Clock    schedule.Clock
 }
 
 func NewOpenAIWhisperSTT() *OpenAIWhisperSTT {
 	return &OpenAIWhisperSTT{
 		Endpoint: "https://api.openai.com/v1/audio/transcriptions",
 		Doer:     httpc.DefaultDoer(),
-		Clock:    clock.System{},
+		Clock:    schedule.System(),
 	}
 }
 
@@ -81,7 +82,7 @@ func (a *OpenAIWhisperSTT) Transcribe(ctx context.Context, key string, req sttch
 
 	clk := a.Clock
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	start := clk.Now()
 	resp, err := a.Doer.Do(httpReq)

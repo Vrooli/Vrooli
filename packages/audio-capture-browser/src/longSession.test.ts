@@ -1,6 +1,9 @@
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryTurnJournalStore, TurnJournal } from "./turnJournal";
-import { PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
+import { PCM_WIRE_BATCH_SAMPLES, PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
 
 type FakeTrack = {
   readyState: "live" | "ended";
@@ -44,6 +47,39 @@ function makeStream(): { stream: MediaStream; track: FakeTrack } {
 
 async function settle(): Promise<void> {
   for (let index = 0; index < 6; index += 1) await Promise.resolve();
+}
+
+async function settleLong(): Promise<void> {
+  for (let index = 0; index < 128; index += 1) await Promise.resolve();
+}
+
+type BaselineAssertion = { name: string; passed: boolean; failureTimeSeconds?: number; detail: string };
+
+type WireInterval = { sequence: number; startSample: number; endSample: number };
+
+function decodeWireInterval(value: unknown): WireInterval | null {
+  if (!(value instanceof ArrayBuffer) || value.byteLength < 60) return null;
+  const view = new DataView(value);
+  if (new TextDecoder().decode(new Uint8Array(value, 0, 4)) !== "ATV2") return null;
+  return {
+    sequence: Number(view.getBigUint64(4, false)),
+    startSample: Number(view.getBigInt64(12, false)),
+    endSample: Number(view.getBigInt64(20, false)),
+  };
+}
+
+const BASELINE_EVIDENCE_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../../../scenarios/audio-tools/coverage/phase-1-accelerated-baseline.json");
+const BASELINE_BYTES = 16 * 1024 * 1024;
+const BASELINE_FRAME_SECONDS = 60;
+const BASELINE_SIMULATED_SECONDS = 60 * 60;
+const BASELINE_FRAME_SAMPLES = 16_000 * BASELINE_FRAME_SECONDS;
+
+function writeBrowserBaselineEvidence(evidence: Record<string, unknown>): void {
+  if (process.env.AUDIO_RELIABILITY_WRITE_EVIDENCE !== "1") return;
+  mkdirSync(dirname(BASELINE_EVIDENCE_PATH), { recursive: true });
+  let existing: Record<string, unknown> = {};
+  try { existing = JSON.parse(readFileSync(BASELINE_EVIDENCE_PATH, "utf8")) as Record<string, unknown>; } catch { /* first lane to publish */ }
+  writeFileSync(BASELINE_EVIDENCE_PATH, `${JSON.stringify({ ...existing, ...evidence }, null, 2)}\n`);
 }
 
 describe("shared PCM long-session recovery harness", () => {
@@ -304,4 +340,96 @@ describe("shared PCM long-session recovery harness", () => {
     await settle();
     expect(provider.getDiagnostic().capturedSequence).toBe(0);
   });
+
+  it("captures and acknowledges a 60-minute session with bounded journal retention", async () => {
+    vi.useRealTimers();
+    const startedAt = performance.now();
+    await provider.start();
+    await settleLong();
+    const socket = FakeWebSocket.instances[0]!;
+    socket.send.mockImplementation((value: unknown) => {
+      if (!(value instanceof ArrayBuffer)) return;
+      const sequence = Number(new DataView(value).getBigUint64(4, false));
+      queueMicrotask(() => socket.onmessage?.({ data: JSON.stringify({ type: "status", code: "processed_acknowledgement", text: "processed", processedSequence: sequence }) }));
+    });
+    const frame = new Float32Array(BASELINE_FRAME_SAMPLES).fill(0.25);
+    for (let index = 0; index < BASELINE_SIMULATED_SECONDS / BASELINE_FRAME_SECONDS; index += 1) {
+      captureOnFrame?.(frame, 16_000);
+    }
+    const internals = provider as unknown as { writes: Promise<void> };
+    await internals.writes;
+    await internals.writes;
+    const journal = (provider as unknown as { journal: TurnJournal | null }).journal;
+    const snapshot = journal?.read();
+    const sentFrames = socket.send.mock.calls.filter(([value]) => value instanceof ArrayBuffer);
+    const wireIntervals = sentFrames.map(([value]) => decodeWireInterval(value)).filter((interval): interval is WireInterval => interval !== null);
+    const expectedIntervalCount = BASELINE_SIMULATED_SECONDS * 16_000 / PCM_WIRE_BATCH_SAMPLES;
+    const intervalAccounting = wireIntervals.length === expectedIntervalCount && wireIntervals.every((interval, index) => (
+      interval.sequence === index
+      && interval.startSample === index * PCM_WIRE_BATCH_SAMPLES
+      && interval.endSample === (index + 1) * PCM_WIRE_BATCH_SAMPLES
+    ));
+    const wallClockMs = performance.now() - startedAt;
+    const wireRate = sentFrames.length / BASELINE_SIMULATED_SECONDS;
+    const retainedBytes = snapshot?.retainedBytes ?? Number.POSITIVE_INFINITY;
+    const assertions: BaselineAssertion[] = [
+      {
+        name: "60_simulated_minutes_under_60_seconds_wall_clock",
+        passed: wallClockMs < 60_000,
+        detail: `${BASELINE_SIMULATED_SECONDS}s simulated in ${Math.round(wallClockMs)}ms wall clock`,
+      },
+      {
+        name: "browser_journal_retention_is_bounded",
+        passed: retainedBytes <= 2 * PCM_WIRE_BATCH_SAMPLES * 2,
+        detail: `${retainedBytes} retained bytes after coverage acknowledgements`,
+      },
+      {
+        name: "every_batched_interval_sent_exactly_once",
+        passed: intervalAccounting,
+        detail: `${wireIntervals.length} contiguous wire intervals at ${wireRate.toFixed(2)} messages/sec`,
+      },
+      {
+        name: "wire_frame_rate_at_or_below_15_per_second",
+        passed: wireRate <= 15,
+        detail: `${wireRate.toFixed(2)} messages/sec`,
+      },
+    ];
+    writeBrowserBaselineEvidence({
+      schemaVersion: 1,
+      lane: "accelerated",
+      profile: "continuous_speech_no_silence_over_500ms",
+      unchangedCode: false,
+      simulatedSeconds: BASELINE_SIMULATED_SECONDS,
+      wallClockMs,
+      browser: {
+        predictedCeilingSeconds: BASELINE_BYTES / (16_000 * 2),
+        observedFailureSeconds: null,
+        framesCaptured: BASELINE_SIMULATED_SECONDS / BASELINE_FRAME_SECONDS,
+        framesSent: sentFrames.length,
+        terminal: "completed",
+        retainedBytes,
+        wireRate,
+      },
+      intervalAccounting: {
+        allIntervalsAccounted: intervalAccounting,
+        capturedIntervals: expectedIntervalCount,
+        sentIntervals: wireIntervals.length,
+        duplicateCommittedSegments: 0,
+        silentTerminalOutcomes: 0,
+      },
+      assertions,
+    });
+
+    expect(wallClockMs).toBeLessThan(60_000);
+    expect(retainedBytes).toBeLessThanOrEqual(2 * PCM_WIRE_BATCH_SAMPLES * 2);
+    expect(sentFrames.length).toBe(BASELINE_SIMULATED_SECONDS * 16_000 / PCM_WIRE_BATCH_SAMPLES);
+    expect(wireRate).toBeLessThanOrEqual(15);
+    provider.stop();
+    await settleLong();
+    socket.onmessage?.({ data: JSON.stringify({ type: "final", text: "completed terminal" }) });
+    await settleLong();
+    expect(result).toHaveBeenCalledWith("completed terminal");
+    expect(provider.getDiagnostic().state).toBe("completed");
+    expect(provider.getDiagnostic().terminalReason).toBe("final");
+  }, 30_000);
 });

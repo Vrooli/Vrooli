@@ -24,7 +24,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup } from "@testing-library/react";
 
 import { SpatialGroup } from "./SpatialGroup";
-import { renderWithProviders as render } from "../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { makeMockSpatialNavController } from "../test-utils/mocks/spatial";
 
 afterEach(() => {

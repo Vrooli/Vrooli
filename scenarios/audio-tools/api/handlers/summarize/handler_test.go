@@ -17,9 +17,10 @@ import (
 	"audio-tools/internal/ai/summarizechain"
 	summocks "audio-tools/internal/ai/summarizechain/mocks"
 	"audio-tools/internal/byok/envelope"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	intsumm "audio-tools/internal/summarize"
+
+	"github.com/vrooli/api-core/schedule"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	summv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize"
@@ -40,7 +41,7 @@ func newServer(t *testing.T, chain *summarizechain.Chain) summconnect.SummarizeS
 		cfg = c
 	}, func(context.Context) ([]intsumm.SummarizeModelInfo, error) {
 		return intsumm.MergeSummarizeModels([]intsumm.OllamaModel{{Name: intsumm.DefaultSummarizeModel}}), nil
-	}, logx.Std{}, clock.System{}, nil)
+	}, logx.Std{}, schedule.System(), nil)
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewServer(r)

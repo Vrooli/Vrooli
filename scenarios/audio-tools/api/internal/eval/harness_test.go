@@ -134,7 +134,7 @@ func TestRunReport_RealOverlapAgreePath(t *testing.T) {
 				WindowMs: 100, AdvanceMs: 100, CommitRuns: 2, SampleRate: 16000,
 			}
 			return StrategySession(func(ctx context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
-				return strat.Run(ctx, sttchain.StreamStart{}, chunks, events)
+				return strat.Run(ctx, sttchain.StreamStart{}, chunks, events, nil)
 			}), meter
 		},
 	}

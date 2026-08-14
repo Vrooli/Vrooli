@@ -10,11 +10,13 @@ import (
 
 	"audio-tools/internal/corpus"
 	"audio-tools/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newService(t *testing.T) (*corpus.Service, *mocks.FakeBlobStore) {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
 	repo := corpus.NewSQLiteRepository(newSchemaDB(t), clk)
 	blobs := mocks.NewFakeBlobStore()
 	return corpus.NewService(repo, blobs, clk), blobs
@@ -64,7 +66,7 @@ func (failingRepo) Create(context.Context, corpus.Clip) (corpus.Clip, error) {
 }
 
 func TestService_RollsBackBlobOnMetadataFailure(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
 	blobs := mocks.NewFakeBlobStore()
 	svc := corpus.NewService(failingRepo{}, blobs, clk)
 

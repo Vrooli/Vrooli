@@ -12,8 +12,9 @@ import (
 
 	"audio-tools/internal/corpus"
 	localdb "audio-tools/internal/database"
-	"audio-tools/internal/testutil/db"
-	"audio-tools/internal/testutil/mocks"
+	db "github.com/vrooli/api-core/databasetest"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newSchemaDB(t *testing.T) *sql.DB {
@@ -26,9 +27,9 @@ func newSchemaDB(t *testing.T) *sql.DB {
 	return d
 }
 
-func newRepo(t *testing.T) (corpus.Repository, *mocks.FakeClock) {
+func newRepo(t *testing.T) (corpus.Repository, *scheduletest.FakeClock) {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
 	return corpus.NewSQLiteRepository(newSchemaDB(t), clk), clk
 }
 

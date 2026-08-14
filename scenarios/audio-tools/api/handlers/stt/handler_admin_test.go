@@ -17,11 +17,12 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	sttmocks "audio-tools/internal/ai/sttchain/mocks"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/store"
 	intstt "audio-tools/internal/stt"
-	"audio-tools/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
@@ -36,7 +37,7 @@ func newSTTClient(t *testing.T, d Deps) sttconnect.STTAdminServiceClient {
 		d.Logger = logx.Std{}
 	}
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		d.Clock = schedule.System()
 	}
 	mod := Module(d)
 	r := mux.NewRouter()
@@ -52,7 +53,7 @@ func newSTTRuntimeClient(t *testing.T, d Deps) sttconnect.STTServiceClient {
 		d.Logger = logx.Std{}
 	}
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		d.Clock = schedule.System()
 	}
 	mod := Module(d)
 	r := mux.NewRouter()
@@ -173,7 +174,7 @@ func TestStreamConfig_DenoiseRoundTrip(t *testing.T) {
 }
 
 // TestStreamConfig_StallRejectsRoundTrip is the stall-fallback config
-// contract: overlap_max_stall_rejects must default to 3, and — because 0
+// contract: overlap_max_stall_rejects must default to 0, and — because 0
 // is a MEANINGFUL "disabled" value, not "unset" — an explicitly-set 0 must
 // survive the proto → streamCfgDoc → sqlite → backfill → proto round trip
 // rather than backfilling to the default. This is the presence-tracking
@@ -186,7 +187,7 @@ func TestStreamConfig_StallRejectsRoundTrip(t *testing.T) {
 	// Default: 3 (operator default applied at the config layer).
 	res, err := c.GetStreamConfig(context.Background(), connect.NewRequest(&sttv1.GetStreamConfigRequest{}))
 	require.NoError(t, err)
-	require.Equal(t, int32(3), res.Msg.GetConfig().GetOverlapMaxStallRejects(), "stall-rejects must default to 3")
+	require.Equal(t, int32(0), res.Msg.GetConfig().GetOverlapMaxStallRejects(), "stall-rejects must default to 0")
 
 	// Set an explicit non-default value and round-trip.
 	_, err = c.UpdateStreamConfig(context.Background(), connect.NewRequest(&sttv1.UpdateStreamConfigRequest{
@@ -217,7 +218,7 @@ func TestStreamCfgDoc_ToProtoAndDefaults(t *testing.T) {
 	p := d.toProto()
 	require.Equal(t, int32(250), p.GetFlushIntervalMs())
 	require.Equal(t, sttv1.StreamingMode_STREAMING_MODE_AUTO, p.GetStreamingMode())
-	require.Equal(t, int32(3), p.GetOverlapMaxStallRejects(), "stall-rejects default is 3")
+	require.Equal(t, int32(0), p.GetOverlapMaxStallRejects(), "stall-rejects default is 0")
 	// The server-side VAD silence default drives where Whisper sees segment
 	// boundaries; 1200ms is the SSOT for both the mic-button ring countdown
 	// (via useHydrateVoiceConfig) and the actual segment cut.

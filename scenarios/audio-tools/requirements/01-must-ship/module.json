@@ -34,7 +34,7 @@
           "type": "automation"
         },
         {
-          "last_validated_at": "2026-08-04T17:50:06Z",
+          "last_validated_at": "2026-08-09T17:08:39Z",
           "notes": "[REQ:ATD-P0-001] Scenario-owned qualification command streams continuous synthetic PCM through the production bidi STT path for at least 60 minutes. Ordinary suites do not execute this validation; run `audio-tools validation run-expensive` to refresh evidence.",
           "out_of_band": true,
           "phase": "performance",
@@ -44,7 +44,7 @@
           "valid_for_days": 7
         },
         {
-          "last_validated_at": "2026-08-04T17:50:06Z",
+          "last_validated_at": "2026-08-09T17:08:39Z",
           "notes": "[REQ:ATD-P0-001] Scenario-owned qualification command exercises the production streaming TTS path for at least 60 minutes and records frame/byte counts.",
           "out_of_band": true,
           "phase": "performance",
@@ -54,7 +54,7 @@
           "valid_for_days": 7
         },
         {
-          "last_validated_at": "2026-08-04T17:50:06Z",
+          "last_validated_at": "2026-08-09T17:08:39Z",
           "notes": "[REQ:ATD-P0-001] Business-phase freshness contract: the scenario-owned gate fails when any expensive validation is missing or older than valid_for_days.",
           "out_of_band": true,
           "phase": "business",

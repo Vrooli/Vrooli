@@ -2,6 +2,7 @@ package strategy_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -12,6 +13,41 @@ import (
 	"audio-tools/internal/stt/segmenter/testaudio"
 	"audio-tools/internal/stt/strategy"
 )
+
+// TestVADSegmenter_RetainsAudioAfterProviderFailure proves a failed boundary
+// does not advance the segment cursor. The next boundary retries the same
+// speech plus the newly arrived audio, and the recovered transcript reaches
+// the consumer instead of the first utterance disappearing silently.
+func TestVADSegmenter_RetainsAudioAfterProviderFailure(t *testing.T) {
+	var calls int
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		calls++
+		if calls == 1 {
+			return nil, errors.New("temporary provider outage")
+		}
+		return &sttchain.Result{Text: "recovered speech", Tier: sttchain.TierLocal, ProviderID: "fake", ModelID: "fake"}, nil
+	}
+	strat := &strategy.VADSegmenter{Provider: prov, SilenceMs: 200, PreRollMs: 0, TrailingPadMs: 0}
+	audio := append(testaudio.SineSamples(440, 200), testaudio.SilenceSamples(240)...)
+	audio = append(audio, testaudio.SineSamples(440, 200)...)
+	audio = append(audio, testaudio.SilenceSamples(240)...)
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(audio))
+
+	var segments []string
+	var errorsSeen int
+	for _, ev := range got {
+		switch ev.Kind {
+		case sttchain.StreamEventSegment:
+			segments = append(segments, ev.Segment.Text)
+		case sttchain.StreamEventError:
+			errorsSeen++
+		}
+	}
+	require.GreaterOrEqual(t, calls, 2, "a later VAD boundary must retry the retained segment")
+	require.GreaterOrEqual(t, errorsSeen, 1, "the provider failure must be observable")
+	require.Contains(t, segments, "recovered speech", "retained audio must reach the consumer after retry")
+}
 
 // vadStateEvents extracts the VadState ticks from a strategy event run.
 func vadStateEvents(events []sttchain.StreamEvent) []*sttchain.VadStateEvent {

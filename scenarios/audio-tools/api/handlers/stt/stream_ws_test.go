@@ -175,6 +175,47 @@ func TestWSMessageDeliveryClass_ProcessedAcknowledgementIsDurable(t *testing.T) 
 	}))
 }
 
+func TestWSCoalescingWriterWakeSignalsAnIdleWriter(t *testing.T) {
+	writer := &wsCoalescingWriter{signal: make(chan struct{}, 1)}
+	writer.wake()
+	select {
+	case <-writer.signal:
+	default:
+		t.Fatal("wake must signal an idle writer")
+	}
+}
+
+func TestWSCoalescingWriterKeepsProgressStreamsIndependent(t *testing.T) {
+	writer := &wsCoalescingWriter{signal: make(chan struct{}, 1)}
+	writer.enqueue(wsMessage{Type: wsMsgPartial, Text: "live words"})
+	writer.enqueue(wsMessage{Type: wsMsgVadState, Text: "ring tick"})
+	writer.enqueue(wsMessage{Type: wsMsgStatus, Code: "stream_connected"})
+
+	writer.mu.Lock()
+	require.NotNil(t, writer.partial, "a VAD tick must not replace live text")
+	require.NotNil(t, writer.vad, "a status snapshot must not replace a VAD tick")
+	require.NotNil(t, writer.status, "ordinary status must retain its own latest-value slot")
+	require.Empty(t, writer.durable)
+	writer.mu.Unlock()
+
+	writer.enqueue(wsMessage{Type: wsMsgSegmentFinal, Text: "live words"})
+	writer.mu.Lock()
+	require.Nil(t, writer.partial, "a committed segment must clear stale live text")
+	require.Nil(t, writer.vad, "a committed segment must clear stale VAD state")
+	require.Nil(t, writer.status, "a committed segment must clear stale status")
+	require.Len(t, writer.durable, 1)
+	writer.mu.Unlock()
+}
+
+func TestPresenceTrackedMapperDefaults(t *testing.T) {
+	if !boolOrTrue(nil) || boolOrTrue(boolPtr(false)) {
+		t.Fatal("boolean presence defaults or explicit false are incorrect")
+	}
+	if int32OrDefault(nil, 3) != 3 || int32OrDefault(int32Ptr(0), 3) != 0 {
+		t.Fatal("integer presence defaults or explicit zero are incorrect")
+	}
+}
+
 // TestStreamWS_TestOnlyProviderBusyFault [REQ:ATD-P0-005] verifies the
 // qualification seam is observable on the real WebSocket protocol while
 // remaining disabled unless both an active isolation lease and the
@@ -250,6 +291,102 @@ func TestStreamWS_TestOnlyCloseAfterChunkFault(t *testing.T) {
 	require.True(t, sawIncompleteCoverage, "post-capture interruption must name incomplete coverage before closing")
 }
 
+// TestStreamWS_RequiredFaultProfilesAreMidSpeechObservable proves the named
+// qualification profiles are wired to the real browser WebSocket handler. The
+// profiles are double-gated and are triggered only after a binary audio frame;
+// this prevents a pre-connect error from being mistaken for recovery coverage.
+func TestStreamWS_RequiredFaultProfilesAreMidSpeechObservable(t *testing.T) {
+	profiles := []struct {
+		name string
+		code string
+	}{
+		{name: "page_interruption", code: "page_interrupted"},
+		{name: "retention_quota", code: "resource_exhausted"},
+		{name: "verifier_outage", code: "verifier_unavailable"},
+		{name: "extractor_outage", code: "extractor_unavailable"},
+	}
+	for _, profile := range profiles {
+		t.Run(profile.name, func(t *testing.T) {
+			deps := newNoProviderDeps(t)
+			deps.TestIsolationActive = func() bool { return true }
+			r := mux.NewRouter()
+			r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
+			srv := httptest.NewServer(r)
+			t.Cleanup(srv.Close)
+
+			wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?test_mode=1&test_fault=" + profile.name)
+			wsURL.Scheme = "ws"
+			c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = c.Close() })
+			require.NoError(t, c.WriteMessage(websocket.BinaryMessage, []byte("mid-speech qualification audio")))
+
+			_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
+			sawFault := false
+			for !sawFault {
+				_, raw, readErr := c.ReadMessage()
+				require.NoError(t, readErr)
+				var message wsMessage
+				require.NoError(t, json.Unmarshal(raw, &message))
+				if message.Type == wsMsgError && message.Code == profile.code {
+					sawFault = true
+				}
+			}
+			require.True(t, sawFault)
+		})
+	}
+}
+
+func TestStreamWS_TransportFaultProfilesTriggerAfterAudio(t *testing.T) {
+	profiles := []struct {
+		name        string
+		expectClose bool
+		minDelay    time.Duration
+	}{
+		{name: "dropped_connection", expectClose: true},
+		{name: "backend_restart", expectClose: true},
+		{name: "slow_consumer", minDelay: 100 * time.Millisecond},
+		{name: "delayed_ready", minDelay: 250 * time.Millisecond},
+	}
+	for _, profile := range profiles {
+		t.Run(profile.name, func(t *testing.T) {
+			deps := newNoProviderDeps(t)
+			deps.TestIsolationActive = func() bool { return true }
+			r := mux.NewRouter()
+			r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
+			srv := httptest.NewServer(r)
+			t.Cleanup(srv.Close)
+
+			wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?test_mode=1&test_fault=" + profile.name)
+			wsURL.Scheme = "ws"
+			c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = c.Close() })
+			started := time.Now()
+			require.NoError(t, c.WriteMessage(websocket.BinaryMessage, []byte("mid-speech transport audio")))
+			if !profile.expectClose {
+				require.NoError(t, c.WriteMessage(websocket.TextMessage, []byte(`{"type":"done"}`)))
+			}
+
+			_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
+			sawDone := false
+			for !sawDone {
+				_, raw, readErr := c.ReadMessage()
+				if readErr != nil {
+					require.True(t, profile.expectClose, "unexpected WebSocket close: %v", readErr)
+					break
+				}
+				var message wsMessage
+				require.NoError(t, json.Unmarshal(raw, &message))
+				if message.Type == wsMsgDone {
+					sawDone = true
+				}
+			}
+			require.GreaterOrEqual(t, time.Since(started), profile.minDelay)
+		})
+	}
+}
+
 // TestStreamWS_TestOnlySuppressProcessedAckFault [REQ:ATD-P0-004] proves a
 // terminal event cannot masquerade as success when the browser's replay cursor
 // was not acknowledged. The server must preserve the V2 replay tail and name
@@ -286,7 +423,7 @@ func TestStreamWS_TestOnlySuppressProcessedAckFault(t *testing.T) {
 	headers.Set(envelope.HeaderProvider, "fake")
 	headers.Set(envelope.HeaderBYOKKey, "secret")
 	headers.Set(streamTestModeHeader, "1")
-	headers.Set(streamTestFaultHeader, "suppress_processed_ack")
+	headers.Set(streamTestFaultHeader, "missing_acknowledgement")
 	c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), headers)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = c.Close() })
@@ -320,6 +457,86 @@ func TestStreamWS_TestOnlySuppressProcessedAckFault(t *testing.T) {
 	require.Equal(t, session.TerminalIncompleteCoverage, state.TerminalReason)
 	require.EqualValues(t, -1, state.ProcessedSequence)
 	require.Len(t, state.Replay, 1)
+}
+
+func TestStreamWS_EmitsProcessedAcknowledgementFromCoverageCursor(t *testing.T) {
+	adapter := &sttmocks.FakeBYOK{
+		IDStr:     "fake",
+		Available: true,
+		TranscribeFn: func(_ context.Context, _ string, _ sttchain.Request) (*sttchain.Result, error) {
+			return &sttchain.Result{Text: "coverage transcript", Tier: sttchain.TierBYOK, ProviderID: "fake", ModelID: "fake-model"}, nil
+		},
+	}
+	chain := sttchain.NewChain(sttchain.Options{BYOK: sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"fake": adapter}), EnableBYOK: true})
+	sessions := session.NewRegistry(0)
+	deps := Deps{Chain: chain, Selector: sttpkg.NewSelector(chain), Logger: &mocks.FakeLogger{}, StreamConfig: staticStreamConfig{raw: `{"streaming_mode":"off"}`}, Sessions: sessions}
+	r := mux.NewRouter()
+	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?language=en&format=pcm_s16le&protocol_version=2&session_id=coverage-session&resume_token=coverage-token")
+	wsURL.Scheme = "ws"
+	header := http.Header{}
+	header.Set(envelope.HeaderProvider, "fake")
+	header.Set(envelope.HeaderBYOKKey, "secret")
+	c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), header)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Close() })
+	require.NoError(t, c.WriteMessage(websocket.BinaryMessage, encodeWSV2AudioFrameForTest(0, 0, 2, []byte{1, 0, 2, 0})))
+	require.NoError(t, c.WriteMessage(websocket.TextMessage, []byte(`{"type":"done"}`)))
+	_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	sawAck, sawDone := false, false
+	for !sawDone {
+		_, raw, readErr := c.ReadMessage()
+		require.NoError(t, readErr)
+		var message wsMessage
+		require.NoError(t, json.Unmarshal(raw, &message))
+		if message.Type == wsMsgStatus && message.Code == "processed_acknowledgement" {
+			sawAck = true
+			require.EqualValues(t, 0, message.ProcessedSequence)
+		}
+		if message.Type == wsMsgDone {
+			sawDone = true
+		}
+	}
+	require.True(t, sawAck, "coverage acknowledgement must be emitted before terminal completion")
+}
+
+func TestStreamWS_IgnoresCoverageAcknowledgementWithoutV2Ledger(t *testing.T) {
+	adapter := &sttmocks.FakeBYOK{
+		IDStr: "fake", Available: true,
+		TranscribeFn: func(_ context.Context, _ string, _ sttchain.Request) (*sttchain.Result, error) {
+			return &sttchain.Result{Text: "legacy transcript", Tier: sttchain.TierBYOK, ProviderID: "fake", ModelID: "fake-model"}, nil
+		},
+	}
+	chain := sttchain.NewChain(sttchain.Options{BYOK: sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"fake": adapter}), EnableBYOK: true})
+	deps := Deps{Chain: chain, Selector: sttpkg.NewSelector(chain), Logger: &mocks.FakeLogger{}, StreamConfig: staticStreamConfig{raw: `{"streaming_mode":"off"}`}}
+	r := mux.NewRouter()
+	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?language=en&format=pcm_s16le")
+	wsURL.Scheme = "ws"
+	header := http.Header{}
+	header.Set(envelope.HeaderProvider, "fake")
+	header.Set(envelope.HeaderBYOKKey, "secret")
+	c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), header)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Close() })
+	require.NoError(t, c.WriteMessage(websocket.BinaryMessage, []byte{1, 0, 2, 0}))
+	require.NoError(t, c.WriteMessage(websocket.TextMessage, []byte(`{"type":"done"}`)))
+	_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	sawDone := false
+	for !sawDone {
+		_, raw, readErr := c.ReadMessage()
+		require.NoError(t, readErr)
+		var message wsMessage
+		require.NoError(t, json.Unmarshal(raw, &message))
+		if message.Type == wsMsgDone {
+			sawDone = true
+		}
+	}
 }
 
 // TestStreamWS_TestOnlyCloseAfterCommitFault [REQ:ATD-P0-001] closes at the
@@ -358,7 +575,7 @@ func TestStreamWS_TestOnlyCloseAfterCommitFault(t *testing.T) {
 	headers.Set(envelope.HeaderProvider, "fake")
 	headers.Set(envelope.HeaderBYOKKey, "secret")
 	headers.Set(streamTestModeHeader, "1")
-	headers.Set(streamTestFaultHeader, "close_after_commit:1")
+	headers.Set(streamTestFaultHeader, "close_before_done")
 	c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), headers)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = c.Close() })
@@ -393,7 +610,7 @@ func TestStreamWS_TestOnlyCloseAfterCommitFault(t *testing.T) {
 	state := ledger.Snapshot()
 	require.Equal(t, session.TerminalReason("test_fault_close_before_done"), state.TerminalReason)
 	require.Len(t, state.Committed, 1)
-	require.Len(t, state.Replay, 1)
+	require.Empty(t, state.Replay, "processed coverage is acknowledged before the injected close-after-commit fault")
 }
 
 func TestStreamWS_BinaryPCMAndDoneProducePromptSegmentFinal(t *testing.T) {

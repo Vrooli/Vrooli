@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/text/normalizer"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 const (
@@ -69,7 +70,7 @@ type SummarizationService struct {
 	summarizer *Summarizer
 	getConfig  func() SummarizeConfig
 	sem        chan struct{}
-	clk        clock.Clock
+	clk        schedule.Clock
 
 	mu          sync.Mutex
 	inflight    map[string]*summarizeFuture
@@ -79,14 +80,14 @@ type SummarizationService struct {
 // NewSummarizationService constructs a service backed by the given summarizer
 // and config accessor, using the system clock for backoff bookkeeping.
 func NewSummarizationService(summarizer *Summarizer, getConfig func() SummarizeConfig) *SummarizationService {
-	return NewSummarizationServiceWith(summarizer, getConfig, clock.System{})
+	return NewSummarizationServiceWith(summarizer, getConfig, schedule.System())
 }
 
 // NewSummarizationServiceWith is the clock-injected constructor. Tests
-// pass mocks.FakeClock to drive the autoBackoff TTL deterministically.
-func NewSummarizationServiceWith(summarizer *Summarizer, getConfig func() SummarizeConfig, clk clock.Clock) *SummarizationService {
+// pass scheduletest.FakeClock to drive the autoBackoff TTL deterministically.
+func NewSummarizationServiceWith(summarizer *Summarizer, getConfig func() SummarizeConfig, clk schedule.Clock) *SummarizationService {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	return &SummarizationService{
 		summarizer:  summarizer,
@@ -100,7 +101,7 @@ func NewSummarizationServiceWith(summarizer *Summarizer, getConfig func() Summar
 
 func (s *SummarizationService) now() time.Time {
 	if s.clk == nil {
-		return clock.System{}.Now()
+		return schedule.System().Now()
 	}
 	return s.clk.Now()
 }

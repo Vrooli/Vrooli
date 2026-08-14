@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 import { ProviderTier } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
 
-import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { ProviderTierBadge } from "./ProviderTierBadge";
 
 afterEach(() => {

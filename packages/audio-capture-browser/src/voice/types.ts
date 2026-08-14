@@ -260,8 +260,13 @@ export interface StartRecordingOpts {
 }
 
 export interface TranscriptionProvider {
-  /** Start recording. The provider acquires and owns its own mic stream. */
-  start(): void | Promise<void>;
+  /**
+   * Start recording. Providers may accept a live pre-warmed stream from a
+   * host, but remain responsible for registering/releasing any stream they
+   * actually use. The optional argument preserves the consumer adapter seam
+   * while the shared package owns the lifecycle contract.
+   */
+  start(preWarmedStream?: MediaStream): void | Promise<void>;
   stop(): void;
   dispose(): void;
   getStream(): MediaStream | null;

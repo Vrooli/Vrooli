@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vite
 import { cleanup, screen, waitFor } from "@testing-library/react";
 
 import { strings } from "./consts/strings";
-import { renderWithProviders } from "./test-utils/renderWithProviders";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 
 // Mock the api-base proxy info so BrowserRouter has a deterministic basename
 vi.mock("@vrooli/api-base", () => ({

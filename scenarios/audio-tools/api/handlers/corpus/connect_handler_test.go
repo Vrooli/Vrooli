@@ -14,8 +14,9 @@ import (
 	intcorpus "audio-tools/internal/corpus"
 	localdb "audio-tools/internal/database"
 	"audio-tools/internal/logx"
-	"audio-tools/internal/testutil/db"
-	"audio-tools/internal/testutil/mocks"
+	db "github.com/vrooli/api-core/databasetest"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	corpusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/corpus"
 )
@@ -44,7 +45,7 @@ func newHandler(t *testing.T) *connectHandler {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(intcorpus.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
 	svc := intcorpus.NewService(intcorpus.NewSQLiteRepository(d, clk), &memBlobs{m: map[string][]byte{}}, clk)
 	return NewConnectHandler(Deps{Logger: logx.Std{}, Clock: clk, Service: svc})
 }
@@ -90,7 +91,7 @@ func TestConnectHandler_CreateRequiresAudio(t *testing.T) {
 }
 
 func TestConnectHandler_NoServiceFailsPrecondition(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Now())
+	clk := scheduletest.New(time.Now())
 	h := NewConnectHandler(Deps{Logger: logx.Std{}, Clock: clk, Service: nil})
 	_, err := h.ListClips(context.Background(), connect.NewRequest(&corpusv1.ListClipsRequest{}))
 	require.Error(t, err)

@@ -12,8 +12,9 @@ import (
 
 	"audio-tools/internal/database"
 	"audio-tools/internal/experiment"
-	"audio-tools/internal/testutil/db"
-	"audio-tools/internal/testutil/mocks"
+	db "github.com/vrooli/api-core/databasetest"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func newSchemaDB(t *testing.T) *sql.DB {
@@ -26,9 +27,9 @@ func newSchemaDB(t *testing.T) *sql.DB {
 	return d
 }
 
-func newRepo(t *testing.T) (experiment.Repository, *mocks.FakeClock) {
+func newRepo(t *testing.T) (experiment.Repository, *scheduletest.FakeClock) {
 	t.Helper()
-	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
 	return experiment.NewSQLiteRepository(newSchemaDB(t), clk), clk
 }
 
@@ -186,7 +187,7 @@ func TestRepository_CompleteSucceededPersistsRunsAndTerminalStatusAtomically(t *
 func TestRepository_ForeignKeysCascadeRunRows(t *testing.T) {
 	ctx := context.Background()
 	d := newSchemaDB(t)
-	repo := experiment.NewSQLiteRepository(d, mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC)))
+	repo := experiment.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC)))
 	exp, err := repo.CreateExperiment(ctx, experiment.Experiment{Name: "cascade"})
 	require.NoError(t, err)
 	_, err = repo.CreateRun(ctx, experiment.Run{

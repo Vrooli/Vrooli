@@ -8,22 +8,23 @@ import (
 	"net/http"
 
 	"audio-tools/internal/ai/ttschain"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/httpc"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // OpenAITTS calls OpenAI's audio/speech endpoint. Model: tts-1.
 type OpenAITTS struct {
 	Endpoint string
 	Doer     httpc.Doer
-	Clock    clock.Clock
+	Clock    schedule.Clock
 }
 
 func NewOpenAITTS() *OpenAITTS {
 	return &OpenAITTS{
 		Endpoint: "https://api.openai.com/v1/audio/speech",
 		Doer:     httpc.DefaultDoer(),
-		Clock:    clock.System{},
+		Clock:    schedule.System(),
 	}
 }
 

@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"audio-tools/internal/clock"
 	voice "audio-tools/internal/stt/pipeline"
 	"audio-tools/internal/stt/whisperinfo"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // LocalProvider wraps voice.Service.Transcribe (Whisper backend).
@@ -17,21 +18,21 @@ import (
 // SEAMS.md row "whisperinfo.Client".
 type LocalProvider struct {
 	svc  *voice.Service
-	clk  clock.Clock
+	clk  schedule.Clock
 	info whisperinfo.Client
 }
 
 // NewLocalProvider constructs a Local STT provider with the system clock
 // and the env-backed whisperinfo.EnvClient.
 func NewLocalProvider(svc *voice.Service) *LocalProvider {
-	return &LocalProvider{svc: svc, clk: clock.System{}, info: whisperinfo.New()}
+	return &LocalProvider{svc: svc, clk: schedule.System(), info: whisperinfo.New()}
 }
 
 // NewLocalProviderWith constructs a LocalProvider with a custom clock
 // and (optional) custom info client. Either may be nil to use defaults.
-func NewLocalProviderWith(svc *voice.Service, clk clock.Clock, info whisperinfo.Client) *LocalProvider {
+func NewLocalProviderWith(svc *voice.Service, clk schedule.Clock, info whisperinfo.Client) *LocalProvider {
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	if info == nil {
 		info = whisperinfo.New()
@@ -54,7 +55,7 @@ func (p *LocalProvider) Transcribe(ctx context.Context, req Request) (*Result, e
 	}
 	clk := p.clk
 	if clk == nil {
-		clk = clock.System{}
+		clk = schedule.System()
 	}
 	start := clk.Now()
 	tr, err := p.svc.Transcribe(ctx, req.Audio, req.Format, req.Language, req.InitialPrompt, req.VADFilter)

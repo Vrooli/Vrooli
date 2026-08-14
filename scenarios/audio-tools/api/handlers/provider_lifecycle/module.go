@@ -7,9 +7,10 @@ package provider_lifecycle
 
 import (
 	"audio-tools/internal/capabilities"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -22,12 +23,12 @@ import (
 // after successful mutations. Controller is required for the actual
 // lifecycle shell-outs; in production it is *capabilities.CLIController,
 // in tests it is mocks.FakeController. Logger and Clock are required
-// seams (logx.Logger, clock.Clock) with no fallback.
+// seams (logx.Logger, schedule.Clock) with no fallback.
 type Deps struct {
 	Registry   *capabilities.Registry
 	Controller capabilities.ResourceController
 	Logger     logx.Logger
-	Clock      clock.Clock
+	Clock      schedule.Clock
 }
 
 // Module returns the provider_lifecycle module contribution.

@@ -9,7 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"audio-tools/internal/ai/chains/tiered"
-	"audio-tools/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 type req struct {
@@ -193,7 +194,7 @@ func TestCoordinator_AvailabilityCache_HitAndExpiry(t *testing.T) {
 		Execute:     func(context.Context, req) (*resp, error) { return &resp{Tier: "byok"}, nil },
 		IsAvailable: func(context.Context) bool { probes++; return true },
 	}
-	clk := mocks.NewFakeClock(time.Unix(1000, 0))
+	clk := scheduletest.New(time.Unix(1000, 0))
 	c := tiered.NewCoordinator(tiered.Options[req, *resp]{
 		BYOK:       byok,
 		EnableBYOK: true,

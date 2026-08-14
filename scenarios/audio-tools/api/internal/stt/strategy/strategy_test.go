@@ -34,7 +34,7 @@ func runStrategy(t *testing.T, ctx context.Context, strat strategy.Strategy, sta
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		_ = strat.Run(ctx, start, chunks, events)
+		_ = strat.Run(ctx, start, chunks, events, nil)
 		close(events)
 	}()
 	out := drainEvents(t, events)
@@ -137,6 +137,24 @@ func TestBufferedFallback_CtxCancelEndsImmediately(t *testing.T) {
 	got := runStrategy(t, ctx, &strategy.BufferedFallback{Executor: &sttmocks.FakeBatchExecutor{Result: &sttchain.Result{}}}, sttchain.StreamStart{}, chunks)
 	require.NotEmpty(t, got)
 	require.Equal(t, sttchain.StreamEventError, got[0].Kind)
+}
+
+func TestBufferedFallback_CeilingRefusesWithoutDroppingReplayOwnership(t *testing.T) {
+	executed := false
+	executor := &sttmocks.FakeBatchExecutor{ExecuteFn: func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		executed = true
+		return &sttchain.Result{Text: "must not run"}, nil
+	}}
+	chunk := make([]byte, strategy.BufferedFallbackMaxBytes+1)
+	got := runStrategy(t, context.Background(), &strategy.BufferedFallback{Executor: executor}, sttchain.StreamStart{}, chunksFrom(chunk))
+
+	require.Len(t, got, 2)
+	var ceiling *strategy.BufferedFallbackCeilingError
+	require.ErrorAs(t, got[0].Error, &ceiling)
+	require.Equal(t, strategy.BufferedFallbackMaxBytes+1, ceiling.ObservedBytes)
+	require.Equal(t, strategy.BufferedFallbackMaxBytes, ceiling.MaxBytes)
+	require.True(t, got[1].Done.FellBackToUnary)
+	require.False(t, executed)
 }
 
 // ----- Passthrough -----
@@ -258,6 +276,9 @@ func TestOverlapAgree_SilenceProducesOnlyDone(t *testing.T) {
 	// final tail transcribe sees no committed text. Done is terminal.
 	got := runStrategy(t, context.Background(), &strategy.OverlapAgree{Provider: prov}, sttchain.StreamStart{}, chunksFrom(testaudio.Silence1s()))
 	require.NotEmpty(t, got)
+	for _, ev := range got {
+		require.NotEqual(t, sttchain.StreamEventError, ev.Kind, "trailing silence is a successful empty terminal result")
+	}
 	require.Equal(t, sttchain.StreamEventDone, got[len(got)-1].Kind)
 }
 

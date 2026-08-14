@@ -14,6 +14,8 @@ import (
 	capmocks "audio-tools/internal/capabilities/mocks"
 	"audio-tools/internal/testutil/mocks"
 
+	"github.com/vrooli/api-core/scheduletest"
+
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
 	hsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
@@ -39,10 +41,10 @@ func testDefs() []capabilities.Def {
 	}
 }
 
-func newHandlerHarness(t *testing.T, checkers map[string]capabilities.Checker, ttl time.Duration) (*health_status.Deps, *capabilities.Registry, *mocks.FakeClock, *mocks.FakeLogger) {
+func newHandlerHarness(t *testing.T, checkers map[string]capabilities.Checker, ttl time.Duration) (*health_status.Deps, *capabilities.Registry, *scheduletest.FakeClock, *mocks.FakeLogger) {
 	t.Helper()
 	reg := capabilities.NewRegistry(testDefs(), checkers, ttl)
-	clk := mocks.NewFakeClock(canonicalNow)
+	clk := scheduletest.New(canonicalNow)
 	logger := mocks.NewFakeLogger()
 	deps := &health_status.Deps{Registry: reg, Logger: logger, Clock: clk}
 	return deps, reg, clk, logger
@@ -132,7 +134,7 @@ func TestHandlerWithoutRegistryReturnsUnavailable(t *testing.T) {
 	h := health_status.NewConnectHandler(health_status.Deps{
 		Registry: nil,
 		Logger:   logger,
-		Clock:    mocks.NewFakeClock(canonicalNow),
+		Clock:    scheduletest.New(canonicalNow),
 	})
 	_, err := h.GetProviderHealth(context.Background(), connect.NewRequest(&hsv1.GetProviderHealthRequest{}))
 	var connErr *connect.Error

@@ -4,12 +4,13 @@ import (
 	"net/http"
 	"testing"
 
-	"audio-tools/internal/clock"
 	inteval "audio-tools/internal/eval"
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/server"
-	"audio-tools/internal/testutil/httpx"
 	"audio-tools/internal/testutil/mocks"
+	httpx "github.com/vrooli/api-core/servertest"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -91,7 +92,7 @@ func TestServer_NewRequiresClock(t *testing.T) {
 
 func TestServer_NewRequiresLogger(t *testing.T) {
 	require.PanicsWithValue(t, "server.New requires Deps.Logger", func() {
-		server.New(server.Deps{Clock: clock.System{}})
+		server.New(server.Deps{Clock: schedule.System()})
 	})
 }
 
@@ -113,7 +114,7 @@ func TestReportToProto_MapsTransportBoundary(t *testing.T) {
 
 func newTestDeps() server.Deps {
 	return server.Deps{
-		Clock:  clock.System{},
+		Clock:  schedule.System(),
 		Logger: &mocks.FakeLogger{},
 	}
 }

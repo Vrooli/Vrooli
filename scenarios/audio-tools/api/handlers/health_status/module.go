@@ -9,9 +9,10 @@ import (
 	"net/http"
 
 	"audio-tools/internal/capabilities"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -20,12 +21,12 @@ import (
 )
 
 // Deps wires the handler. All fields are required; production wires
-// `clock.System{}` + `logx.Std{...}` in main.go / bootstrap, tests wire
-// mocks.FakeClock / mocks.FakeLogger.
+// `schedule.System()` + `logx.Std{...}` in main.go / bootstrap, tests wire
+// scheduletest.FakeClock / mocks.FakeLogger.
 type Deps struct {
 	Registry *capabilities.Registry
 	Logger   logx.Logger
-	Clock    clock.Clock
+	Clock    schedule.Clock
 }
 
 // Module returns the health_status module contribution.

@@ -18,7 +18,7 @@ import (
 	"audio-tools/internal/logx"
 	intsettings "audio-tools/internal/settings"
 	"audio-tools/internal/store"
-	"audio-tools/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	settv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings"
 	settconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings/settings_v1connect"
