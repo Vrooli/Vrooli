@@ -50,20 +50,20 @@ export const TOKEN_RAMPS = {
 } as const;
 
 export const SEMANTIC_TOKENS = {
-  background: "var(--app-background)",
-  foreground: "var(--app-foreground)",
-  surface: "var(--app-surface)",
-  surfaceMuted: "var(--app-surface-muted)",
-  border: "var(--app-border)",
-  muted: "var(--app-muted-foreground)",
-  primary: "var(--app-primary)",
-  primaryForeground: "var(--app-primary-foreground)",
-  accent: "var(--app-accent)",
-  success: "var(--app-success)",
-  warning: "var(--app-warning)",
-  danger: "var(--app-danger)",
-  info: "var(--app-info)",
-  focus: "var(--app-focus)",
+  background: "var(--color-background)",
+  foreground: "var(--color-foreground)",
+  surface: "var(--color-surface)",
+  surfaceMuted: "var(--color-surface-muted)",
+  border: "var(--color-border)",
+  muted: "var(--color-muted-foreground)",
+  primary: "var(--color-primary)",
+  primaryForeground: "var(--color-primary-foreground)",
+  accent: "var(--color-accent)",
+  success: "var(--color-success)",
+  warning: "var(--color-warning)",
+  danger: "var(--color-danger)",
+  info: "var(--color-info)",
+  focus: "var(--color-focus)",
 } as const;
 
 export const COMPONENT_TOKENS = {

@@ -29,17 +29,18 @@ import (
 type LibraryVersionStatus string
 
 const (
-	LibraryVersionStatusEmpty      LibraryVersionStatus = ""
-	LibraryVersionStatusCurrent    LibraryVersionStatus = "current"
-	LibraryVersionStatusBehind     LibraryVersionStatus = "behind"
-	LibraryVersionStatusDeprecated LibraryVersionStatus = "deprecated"
-	LibraryVersionStatusMissing    LibraryVersionStatus = "missing"
-	LibraryVersionStatusUnknown    LibraryVersionStatus = "unknown"
+	LibraryVersionStatusEmpty         LibraryVersionStatus = ""
+	LibraryVersionStatusCurrent       LibraryVersionStatus = "current"
+	LibraryVersionStatusBehind        LibraryVersionStatus = "behind"
+	LibraryVersionStatusDeprecated    LibraryVersionStatus = "deprecated"
+	LibraryVersionStatusMissing       LibraryVersionStatus = "missing"
+	LibraryVersionStatusUnknown       LibraryVersionStatus = "unknown"
+	LibraryVersionStatusSourceDrifted LibraryVersionStatus = "source_drifted"
 )
 
 func (s LibraryVersionStatus) Valid() bool {
 	switch s {
-	case LibraryVersionStatusEmpty, LibraryVersionStatusCurrent, LibraryVersionStatusBehind, LibraryVersionStatusDeprecated, LibraryVersionStatusMissing, LibraryVersionStatusUnknown:
+	case LibraryVersionStatusEmpty, LibraryVersionStatusCurrent, LibraryVersionStatusBehind, LibraryVersionStatusDeprecated, LibraryVersionStatusMissing, LibraryVersionStatusUnknown, LibraryVersionStatusSourceDrifted:
 		return true
 	}
 	return false
@@ -88,7 +89,10 @@ type Adoption struct {
 	// behind/modified. Cleared back to "" when status returns to current
 	// so a future drift files a fresh item.
 	DriftBacklogRef string
-	Files           []AdoptionFile
+	// IncludeSuggestions records optional dependencies the operator accepted;
+	// reapply carries the same choices forward.
+	IncludeSuggestions []string
+	Files              []AdoptionFile
 }
 
 // AdoptionFile is the per-file provenance and snapshot for a vendored unit.
@@ -129,6 +133,7 @@ type CreateInput struct {
 	AdoptedVersion        string
 	SourceSHA256          string
 	AdoptedSnapshotSHA256 string
+	IncludeSuggestions    []string
 	Files                 []AdoptionFile
 }
 
@@ -141,6 +146,134 @@ type ApplyInput struct {
 	OverrideValidation bool
 	ReplaceExisting    bool
 	IncludeSuggestions []string
+}
+
+type BatchApplyItem struct {
+	ComponentID        string
+	Scenario           string
+	AdoptedPath        string
+	Version            string
+	ConfirmOverwrite   bool
+	OverrideValidation bool
+	ReplaceExisting    bool
+	IncludeSuggestions []string
+}
+
+type BatchApplyInput struct{ Items []BatchApplyItem }
+
+type BatchApplyResult struct {
+	Results            []ApplyResult
+	SharedDependencies []string
+}
+
+// ErrBatchDependencyConflict identifies two roots that require the same
+// dependency at different pinned versions. A batch cannot safely materialize
+// both versions into one target tree, so the operator must split the batch.
+type ErrBatchDependencyConflict struct {
+	Dependency    string
+	FirstRoot     string
+	FirstVersion  string
+	SecondRoot    string
+	SecondVersion string
+}
+
+func (e ErrBatchDependencyConflict) Error() string {
+	return fmt.Sprintf("batch dependency %s is pinned by %s at %s and by %s at %s", e.Dependency, e.FirstRoot, e.FirstVersion, e.SecondRoot, e.SecondVersion)
+}
+
+type PreflightInput struct {
+	ComponentID string
+	Scenario    string
+	Version     string
+}
+
+type PreflightResult struct {
+	ComponentID    string
+	Scenario       string
+	Version        string
+	Verdict        AdoptionVerdict
+	Tokens         TokenVerdict
+	Dependency     string
+	StyleFit       string
+	StyleFitDetail string
+	Blocking       bool
+}
+
+// MaturityVerdict is the evidence-backed readiness projection consumed by
+// adoption policy. The adoptions domain does not compute catalog maturity; it
+// only consumes the catalogcoverage result through MaturityReader.
+type MaturityVerdict struct {
+	Achieved string
+	Floor    string
+}
+
+// AdoptionVerdict is the single adoptability decision for one asset/target.
+// The individual fields remain visible so a blocked operator can remediate
+// the actual failing dimension instead of receiving a generic refusal.
+type AdoptionVerdict struct {
+	Dependency     string
+	StyleFit       string
+	StyleFitDetail string
+	Tokens         TokenVerdict
+	Version        components.ComponentVersionStatus
+	Maturity       MaturityVerdict
+	Warnings       []string
+}
+
+func (v AdoptionVerdict) Blocking() bool {
+	if !v.Tokens.Satisfied() || v.Version == components.VersionStatusArchived {
+		return true
+	}
+	if v.Version == components.VersionStatusDraft {
+		return true
+	}
+	if v.Maturity.Floor != "" && maturityRank(v.Maturity.Achieved) < maturityRank(v.Maturity.Floor) {
+		return true
+	}
+	return v.Dependency == "block" || v.StyleFit == string(components.DesignAffinityDiscouraged)
+}
+
+func maturityRank(value string) int {
+	switch value {
+	case "missing":
+		return 0
+	case "scaffolded":
+		return 1
+	case "implemented":
+		return 2
+	case "verified":
+		return 3
+	case "production-ready":
+		return 4
+	default:
+		return -1
+	}
+}
+
+// ErrAdoptionReadinessBlocked names a non-token adoptability failure.
+type ErrAdoptionReadinessBlocked struct {
+	ComponentID string
+	Scenario    string
+	Verdict     AdoptionVerdict
+}
+
+func readinessBlockedError(componentID, scenario string, verdict AdoptionVerdict) error {
+	if verdict.Dependency == "block" || verdict.StyleFit == string(components.DesignAffinityDiscouraged) {
+		return ErrAdoptionValidationBlocked{ComponentID: componentID, Version: "", Scenario: scenario}
+	}
+	return ErrAdoptionReadinessBlocked{ComponentID: componentID, Scenario: scenario, Verdict: verdict}
+}
+
+func (e ErrAdoptionReadinessBlocked) Error() string {
+	return fmt.Sprintf("adoption %s into %s is not adoptable: version=%s maturity=%s (floor=%s) dependency=%s style=%s",
+		e.ComponentID, e.Scenario, e.Verdict.Version, e.Verdict.Maturity.Achieved, e.Verdict.Maturity.Floor, e.Verdict.Dependency, e.Verdict.StyleFit)
+}
+
+type DeleteResult struct {
+	AdoptionID           string
+	RemovableFiles       []string
+	RemovedFiles         []string
+	RequiresConfirmation bool
 }
 
 // ApplyResult keeps an adoption write and its immediate consumer evidence
@@ -163,6 +296,7 @@ type ReapplyInput struct {
 	Version               string
 	ConfirmLocalOverwrite bool
 	OverrideValidation    bool
+	DryRun                bool
 }
 
 // ReconcileInput intentionally defaults to dry-run. Apply is the only mode
@@ -215,6 +349,17 @@ type ReconvergeInput struct {
 // ReconvergeAction is the per-adoption disposition of a reconverge pass.
 type ReconvergeAction string
 
+// ReconvergeDisposition explains why a BEHIND + MODIFIED copy cannot be
+// auto-upgraded. Ambiguous changes are conservatively treated as forks.
+type ReconvergeDisposition string
+
+const (
+	ReconvergeDispositionTranslationOnly ReconvergeDisposition = "translation_only"
+	ReconvergeDispositionLocalAddition   ReconvergeDisposition = "local_addition"
+	ReconvergeDispositionLocalFork       ReconvergeDisposition = "local_fork"
+	ReconvergeDispositionTokenBlocked    ReconvergeDisposition = "token_blocked"
+)
+
 const (
 	// ReconvergeActionReapplied — the copy was BEHIND and CLEAN and was
 	// re-applied to the current library version.
@@ -231,6 +376,9 @@ const (
 	// ReconvergeActionError — an apply-mode re-apply attempt failed (e.g. a
 	// blocking dependency verdict, or an unresolved library version).
 	ReconvergeActionError ReconvergeAction = "error"
+	// ReconvergeActionBlockedTokens — an apply-mode re-apply was stopped by
+	// the target scenario's unsatisfied styling contract.
+	ReconvergeActionBlockedTokens ReconvergeAction = "blocked_tokens"
 )
 
 // ReconvergeFileOutcome is the per-file drift disposition inside one adoption.
@@ -251,19 +399,24 @@ type ReconvergeOutcome struct {
 	LibraryVersionStatus LibraryVersionStatus
 	LocalStatus          LocalStatus
 	Action               ReconvergeAction
+	Disposition          ReconvergeDisposition
 	Detail               string
 	Files                []ReconvergeFileOutcome
 }
 
 // ReconvergeResult is the outcome rollup of a reconverge pass.
 type ReconvergeResult struct {
-	Scanned   int
-	Behind    int
-	Reapplied int
-	Flagged   int
-	Skipped   int
-	Errored   int
-	Outcomes  []ReconvergeOutcome
+	Scanned         int
+	Behind          int
+	Reapplied       int
+	Flagged         int
+	TranslationOnly int
+	LocalAddition   int
+	LocalFork       int
+	TokenBlocked    int
+	Skipped         int
+	Errored         int
+	Outcomes        []ReconvergeOutcome
 }
 
 // DiscoverInput drives the content-similarity discovery pass. Discovery is

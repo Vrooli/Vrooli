@@ -14,7 +14,7 @@ export function Spinner({
         width: "var(--icon-size-md)",
         height: "var(--icon-size-md)",
         border: "var(--spinner-border)",
-        borderTopColor: "var(--app-primary)",
+        borderTopColor: "var(--color-primary)",
         borderRadius: "var(--radius-pill)",
         animation: "vrooli-spin var(--dur-slow) linear infinite",
         ...props.style,

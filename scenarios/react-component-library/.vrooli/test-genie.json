@@ -7,7 +7,7 @@
   "description": "Runs version-pinned React component and hook contracts through the React Component Library provider.",
   "source": "validation-provider",
   "orderHint": 21,
-  "timeout": "300s",
+  "timeout": "600s",
   "findingSource": "coverage",
   "phaseClass": "capability",
   "runtimeClass": "execution",

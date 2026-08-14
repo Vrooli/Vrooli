@@ -399,7 +399,7 @@ export function PopoverContent({
         }
         style={{
           background:
-            "linear-gradient(var(--color-surface-raised, var(--app-surface, #fff)), var(--color-surface-raised, var(--app-surface, #fff))), var(--color-background, #fff)",
+            "linear-gradient(var(--color-surface-raised, #fff), var(--color-surface-raised, #fff)), var(--color-background, #fff)",
           border: "1px solid var(--color-border, #cbd5e1)",
           borderRadius: "var(--radius-panel, .75rem)",
           boxShadow: "var(--elev-floating, 0 18px 48px rgb(15 23 42 / 18%))",

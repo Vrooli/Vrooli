@@ -271,6 +271,36 @@ func TestService_Refresh_StatusMatrix(t *testing.T) {
 	}
 }
 
+func TestService_Refresh_ReportsReleasedSourceDrift(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	clk := scheduletest.New(time.Date(2026, 5, 12, 12, 0, 0, 0, time.UTC))
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp": {ID: "cmp", LibraryID: "rcl:Button", LatestVersion: "1.0.0"},
+		},
+		body: map[string]string{"cmp": "CURRENT"},
+		versions: map[string]components.ComponentVersion{
+			"cmp@1.0.0": {
+				ComponentID: "cmp", LibraryID: "rcl:Button", Version: "1.0.0",
+				Status: components.VersionStatusReleased, ContentSHA256: sha("CURRENT"),
+			},
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{"target::Button.tsx": []byte("CURRENT")}}
+	repo.Seed(adoptions.Adoption{
+		ID: "drifted", ComponentID: "cmp", LibraryID: "rcl:Button", Scenario: "target",
+		AdoptedPath: "Button.tsx", AdoptedVersion: "1.0.0", SourceSHA256: sha("RECORDED"),
+		AdoptedSnapshotSHA256: sha("CURRENT"), CreatedAt: clk.Now(),
+	})
+
+	rows, summary, err := adoptions.NewService(repo, lib, files, clk).Refresh(context.Background(), "")
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, adoptions.LibraryVersionStatusSourceDrifted, rows[0].LibraryVersionStatus)
+	require.Contains(t, rows[0].StatusDetail, "recorded")
+	require.Equal(t, 1, summary.LibrarySourceDrifted)
+}
+
 func TestService_Refresh_FilterByComponent(t *testing.T) {
 	repo := adoptmocks.NewFakeRepository()
 	lib := &fakeLibrary{

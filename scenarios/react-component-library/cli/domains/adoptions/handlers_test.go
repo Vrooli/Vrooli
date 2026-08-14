@@ -95,6 +95,18 @@ func (s *adoptionsService) ListEffectiveAdoptions(_ context.Context, _ *connect.
 	return connect.NewResponse(s.effectiveResp), nil
 }
 
+func (s *adoptionsService) PreflightAdoption(_ context.Context, _ *connect.Request[adoptionsv1.PreflightAdoptionRequest]) (*connect.Response[adoptionsv1.PreflightAdoptionResponse], error) {
+	return connect.NewResponse(&adoptionsv1.PreflightAdoptionResponse{ComponentId: "cmp-btn", Scenario: "swarm-manager", Version: "1.0.0"}), nil
+}
+
+func (s *adoptionsService) SyncScenarioTokens(_ context.Context, _ *connect.Request[adoptionsv1.SyncScenarioTokensRequest]) (*connect.Response[adoptionsv1.SyncScenarioTokensResponse], error) {
+	return connect.NewResponse(&adoptionsv1.SyncScenarioTokensResponse{}), nil
+}
+
+func (s *adoptionsService) PruneScenarioTokens(_ context.Context, _ *connect.Request[adoptionsv1.PruneScenarioTokensRequest]) (*connect.Response[adoptionsv1.PruneScenarioTokensResponse], error) {
+	return connect.NewResponse(&adoptionsv1.PruneScenarioTokensResponse{}), nil
+}
+
 func (s *adoptionsService) ApplyAdoption(_ context.Context, req *connect.Request[adoptionsv1.ApplyAdoptionRequest]) (*connect.Response[adoptionsv1.ApplyAdoptionResponse], error) {
 	s.mu.Lock()
 	s.applyReqs = append(s.applyReqs, req.Msg)
@@ -103,6 +115,10 @@ func (s *adoptionsService) ApplyAdoption(_ context.Context, req *connect.Request
 		s.applyResp = &adoptionsv1.ApplyAdoptionResponse{Adoption: sampleAdoption(), WrittenPath: "/tmp/Button.tsx"}
 	}
 	return connect.NewResponse(s.applyResp), nil
+}
+
+func (s *adoptionsService) BatchApplyAdoptions(_ context.Context, _ *connect.Request[adoptionsv1.BatchApplyAdoptionsRequest]) (*connect.Response[adoptionsv1.BatchApplyAdoptionsResponse], error) {
+	return connect.NewResponse(&adoptionsv1.BatchApplyAdoptionsResponse{}), nil
 }
 
 func (s *adoptionsService) ReapplyAdoption(_ context.Context, req *connect.Request[adoptionsv1.ReapplyAdoptionRequest]) (*connect.Response[adoptionsv1.ReapplyAdoptionResponse], error) {

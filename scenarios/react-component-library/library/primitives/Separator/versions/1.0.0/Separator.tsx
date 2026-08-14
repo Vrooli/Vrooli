@@ -13,7 +13,7 @@ export function Separator({
       data-orientation={orientation}
       style={{
         border: 0,
-        background: "var(--app-border)",
+        background: "var(--color-border)",
         ...(orientation === "vertical"
           ? { width: "var(--separator-thickness)", height: "100%" }
           : { height: "var(--separator-thickness)", width: "100%" }),

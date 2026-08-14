@@ -100,6 +100,26 @@ CREATE TABLE IF NOT EXISTS component_version_files (
 CREATE INDEX IF NOT EXISTS idx_component_version_files_version
   ON component_version_files(version_id, is_entry DESC, path);
 
+-- Derived styling contract for one immutable version unit. This is rebuilt
+-- from source during indexing; it is never authored in component.json.
+CREATE TABLE IF NOT EXISTS component_version_required_tokens (
+  version_id TEXT NOT NULL,
+  property   TEXT NOT NULL,
+  PRIMARY KEY (version_id, property)
+);
+
+CREATE INDEX IF NOT EXISTS idx_component_version_required_tokens_version
+  ON component_version_required_tokens(version_id, property);
+
+CREATE TABLE IF NOT EXISTS component_version_required_token_patterns (
+  version_id TEXT NOT NULL,
+  pattern    TEXT NOT NULL,
+  PRIMARY KEY (version_id, pattern)
+);
+
+CREATE INDEX IF NOT EXISTS idx_component_version_required_token_patterns_version
+  ON component_version_required_token_patterns(version_id, pattern);
+
 CREATE TABLE IF NOT EXISTS component_version_parity_reports (
   version_id TEXT PRIMARY KEY,
   report_json TEXT NOT NULL

@@ -69,8 +69,8 @@ func (s *sqliteRepository) List(ctx context.Context, q ListQuery) ([]Version, er
 	rows, err := s.db.QueryContext(ctx, `
 SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at
 FROM component_versions
-WHERE component_id = ?
-`, q.ComponentID)
+WHERE (component_id = ? OR library_id = ?)
+`, q.ComponentID, q.ComponentID)
 	if err != nil {
 		return nil, fmt.Errorf("list versions: %w", err)
 	}
@@ -86,6 +86,16 @@ WHERE component_id = ?
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate versions: %w", err)
 	}
+	for i := range out {
+		out[i].RequiredTokens, err = s.requiredTokens(ctx, out[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		out[i].RequiredTokenPatterns, err = s.requiredTokenPatterns(ctx, out[i].ID)
+		if err != nil {
+			return nil, err
+		}
+	}
 	sortVersions(out)
 	if len(out) > limit {
 		out = out[:limit]
@@ -97,10 +107,10 @@ func (s *sqliteRepository) Get(ctx context.Context, componentID, version string)
 	row := s.db.QueryRowContext(ctx, `
 SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at
 FROM component_versions
-WHERE component_id = ? AND version = ?
+WHERE (component_id = ? OR library_id = ?) AND version = ?
 ORDER BY version DESC, id ASC
 LIMIT 1
-`, componentID, version)
+`, componentID, componentID, version)
 	v, err := scanVersion(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Version{}, ErrVersionNotFound{ComponentID: componentID, Version: version}
@@ -108,7 +118,49 @@ LIMIT 1
 	if err != nil {
 		return Version{}, fmt.Errorf("get version: %w", err)
 	}
+	v.RequiredTokens, err = s.requiredTokens(ctx, v.ID)
+	if err != nil {
+		return Version{}, err
+	}
+	v.RequiredTokenPatterns, err = s.requiredTokenPatterns(ctx, v.ID)
+	if err != nil {
+		return Version{}, err
+	}
 	return v, nil
+}
+
+func (s *sqliteRepository) requiredTokens(ctx context.Context, versionID string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT property FROM component_version_required_tokens WHERE version_id = ? ORDER BY property`, versionID)
+	if err != nil {
+		return nil, fmt.Errorf("list version required tokens: %w", err)
+	}
+	defer rows.Close()
+	var properties []string
+	for rows.Next() {
+		var property string
+		if err := rows.Scan(&property); err != nil {
+			return nil, err
+		}
+		properties = append(properties, property)
+	}
+	return properties, rows.Err()
+}
+
+func (s *sqliteRepository) requiredTokenPatterns(ctx context.Context, versionID string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT pattern FROM component_version_required_token_patterns WHERE version_id = ? ORDER BY pattern`, versionID)
+	if err != nil {
+		return nil, fmt.Errorf("list version required token patterns: %w", err)
+	}
+	defer rows.Close()
+	var patterns []string
+	for rows.Next() {
+		var pattern string
+		if err := rows.Scan(&pattern); err != nil {
+			return nil, err
+		}
+		patterns = append(patterns, pattern)
+	}
+	return patterns, rows.Err()
 }
 
 type rowScanner interface {

@@ -199,3 +199,34 @@ func TestService_Reconverge_MissingCopyIsSkippedNotReapplied(t *testing.T) {
 	require.Equal(t, adoptions.ReconvergeActionSkippedUnresolved, out.Outcomes[0].Action)
 	require.Equal(t, adoptions.LocalStatusMissing, out.Outcomes[0].Files[0].LocalStatus)
 }
+
+func TestService_Reconverge_BlockedTokensHasDistinctActionAndCount(t *testing.T) {
+	ctx := context.Background()
+	repo := adoptmocks.NewFakeRepository()
+	bodyV10, bodyV11 := "BODY-V10", "BODY-V11"
+	lib := reconvergeLibrary(bodyV10, bodyV11)
+	latest := lib.versions["cmp-btn@1.1.0"]
+	latest.RequiredTokens = []string{"--color-required"}
+	lib.versions["cmp-btn@1.1.0"] = latest
+	files := &fakeFiles{bytes: map[string][]byte{tmButtonKey(): []byte(bodyV10)}}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: files})
+	adoptions.SetValidationGates(svc, &validationDeps{verdict: deps.Verdict{Kind: deps.VerdictWarn}}, &validationStyles{})
+	repo.Seed(adoptions.Adoption{
+		ID: "row-token-blocked", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
+		Scenario: "template-manager", AdoptedPath: tmButtonPath,
+		AdoptedVersion: "1.0.0", AdoptedSnapshotSHA256: sha(bodyV10),
+		Files: []adoptions.AdoptionFile{{LibraryPath: "Button.tsx", AdoptedPath: tmButtonPath, AdoptedSnapshotSHA256: sha(bodyV10)}},
+	})
+
+	out, err := svc.Reconverge(ctx, adoptions.ReconvergeInput{Apply: true})
+	require.NoError(t, err)
+	require.Equal(t, 1, out.Behind)
+	require.Equal(t, 1, out.TokenBlocked)
+	require.Equal(t, 1, out.Errored)
+	require.Equal(t, 0, out.Reapplied)
+	require.Equal(t, adoptions.ReconvergeActionBlockedTokens, out.Outcomes[0].Action)
+	require.Equal(t, adoptions.ReconvergeDispositionTokenBlocked, out.Outcomes[0].Disposition)
+	require.Contains(t, out.Outcomes[0].Detail, "--color-required")
+	require.Equal(t, []byte(bodyV10), files.bytes[tmButtonKey()])
+}

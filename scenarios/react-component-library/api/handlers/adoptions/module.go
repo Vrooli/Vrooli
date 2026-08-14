@@ -223,6 +223,26 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "adoptions_preflight",
+		Path:        adoptionsconnect.AdoptionsServicePreflightAdoptionProcedure,
+		Method:      "POST",
+		Summary:     "Preflight an adoption",
+		Description: "Returns the dependency, style-fit, token, version-status, and maturity verdict without writing files.",
+		Category:    "adoptions",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"component_id": "string",
+			"scenario":     "string",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"verdict": "AdoptionVerdict",
+		}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing component_id or scenario"},
+			{Status: 412, Code: "failed_precondition", Description: "Adoption requirements are not satisfied"},
+			{Status: 500, Code: "internal", Description: "Repository or filesystem failure"},
+		},
+	},
+	{
 		ID:          "adoptions_list_effective",
 		Path:        adoptionsconnect.AdoptionsServiceListEffectiveAdoptionsProcedure,
 		Method:      "POST",
@@ -235,6 +255,44 @@ var Endpoints = []module.EndpointDescriptor{
 		}},
 		Response: &module.Schema{Type: "object", Properties: map[string]string{"adoptions": "array<EffectiveAdoption>"}},
 		Errors:   []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Repository read failure"}},
+	},
+	{
+		ID:          "adoptions_sync_tokens",
+		Path:        adoptionsconnect.AdoptionsServiceSyncScenarioTokensProcedure,
+		Method:      "POST",
+		Summary:     "Synchronize a scenario token ramp",
+		Description: "Adds missing library-required custom properties to the scenario's managed token region; dry-run is the default.",
+		Category:    "adoptions",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"scenario": "string",
+			"dry_run":  "boolean",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"scenario":   "string",
+			"added":      "array<string>",
+			"collisions": "array<string>",
+			"changed":    "boolean",
+		}},
+		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Missing scenario or token-ramp contract error"}},
+	},
+	{
+		ID:          "adoptions_prune_tokens",
+		Path:        adoptionsconnect.AdoptionsServicePruneScenarioTokensProcedure,
+		Method:      "POST",
+		Summary:     "Prune unused scenario token declarations",
+		Description: "Reports and optionally removes managed custom properties no adoption still requires.",
+		Category:    "adoptions",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"scenario": "string",
+			"apply":    "boolean",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"scenario": "string",
+			"removed":  "array<string>",
+			"retained": "array<string>",
+			"changed":  "boolean",
+		}},
+		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Missing scenario or token-ramp contract error"}},
 	},
 	{
 		ID:          "adoptions_apply",
@@ -263,6 +321,16 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Missing required field or unknown component_id"},
 			{Status: 500, Code: "internal", Description: "Repository write failure"},
 		},
+	},
+	{
+		ID:          "adoptions_batch_apply",
+		Path:        adoptionsconnect.AdoptionsServiceBatchApplyAdoptionsProcedure,
+		Method:      "POST",
+		Summary:     "Apply several components to scenarios as one batch",
+		Description: "Validates the union of dependency closures and target collisions before writing the batch.",
+		Category:    "adoptions",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"items": "array<BatchApplyItem>"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"results": "array<BatchApplyItemResult>", "shared_dependencies": "array<string>"}},
 	},
 	{
 		ID:          "adoptions_reapply",

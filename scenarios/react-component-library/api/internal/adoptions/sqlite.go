@@ -3,6 +3,7 @@ package adoptions
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -45,12 +46,16 @@ func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Adoption
 	if id == "" {
 		id = uuid.NewString()
 	}
+	suggestions, err := json.Marshal(in.IncludeSuggestions)
+	if err != nil {
+		return Adoption{}, fmt.Errorf("encode adoption suggestions: %w", err)
+	}
 	if _, err := s.db.ExecContext(ctx, `
 INSERT INTO adoption_records
-  (id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '')
+  (id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '', ?)
 `, id, in.ComponentID, in.LibraryID, in.Scenario, in.AdoptedPath, in.AdoptedVersion, in.SourceSHA256, in.AdoptedSnapshotSHA256,
-		string(LibraryVersionStatusCurrent), string(LocalStatusClean), now.Format(timeFormat), now.Format(timeFormat)); err != nil {
+		string(LibraryVersionStatusCurrent), string(LocalStatusClean), now.Format(timeFormat), now.Format(timeFormat), string(suggestions)); err != nil {
 		return Adoption{}, fmt.Errorf("insert adoption: %w", err)
 	}
 	for _, file := range in.Files {
@@ -59,6 +64,67 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '')
 		}
 	}
 	return s.Get(ctx, id)
+}
+
+// CreateBatch persists all adoption rows and their per-file provenance in one
+// SQLite transaction. Scenario files are written by the service before this
+// boundary and are rolled back there if this transaction fails.
+func (s *sqliteRepository) CreateBatch(ctx context.Context, inputs []CreateInput) ([]Adoption, error) {
+	if len(inputs) == 0 {
+		return nil, ErrInvalidAdoption{Field: "inputs", Reason: "at least one adoption is required"}
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin batch adoption transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	now := s.clock.Now().UTC().Format(timeFormat)
+	ids := make([]string, 0, len(inputs))
+	for _, in := range inputs {
+		if strings.TrimSpace(in.ComponentID) == "" {
+			return nil, ErrInvalidAdoption{Field: "component_id", Reason: "required"}
+		}
+		if strings.TrimSpace(in.Scenario) == "" {
+			return nil, ErrInvalidAdoption{Field: "scenario", Reason: "required"}
+		}
+		if strings.TrimSpace(in.AdoptedPath) == "" {
+			return nil, ErrInvalidAdoption{Field: "adopted_path", Reason: "required"}
+		}
+		id := strings.TrimSpace(in.ID)
+		if id == "" {
+			id = uuid.NewString()
+		}
+		suggestions, err := json.Marshal(in.IncludeSuggestions)
+		if err != nil {
+			return nil, fmt.Errorf("encode batch adoption suggestions: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `
+INSERT INTO adoption_records
+  (id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '', ?)
+`, id, in.ComponentID, in.LibraryID, in.Scenario, in.AdoptedPath, in.AdoptedVersion, in.SourceSHA256, in.AdoptedSnapshotSHA256,
+			string(LibraryVersionStatusCurrent), string(LocalStatusClean), now, now, string(suggestions)); err != nil {
+			return nil, fmt.Errorf("insert batch adoption %q: %w", id, err)
+		}
+		for _, file := range in.Files {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO adoption_files (adoption_id, library_path, adopted_path, source_sha256, adopted_snapshot_sha256, source_asset_id, source_library_id, source_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, id, file.LibraryPath, file.AdoptedPath, file.SourceSHA256, file.AdoptedSnapshotSHA256, file.SourceAssetID, file.SourceLibraryID, file.SourceVersion); err != nil {
+				return nil, fmt.Errorf("insert batch adoption file %q: %w", file.AdoptedPath, err)
+			}
+		}
+		ids = append(ids, id)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit batch adoptions: %w", err)
+	}
+	created := make([]Adoption, 0, len(ids))
+	for _, id := range ids {
+		adoption, err := s.Get(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		created = append(created, adoption)
+	}
+	return created, nil
 }
 
 func (s *sqliteRepository) UpdateAppliedSnapshot(ctx context.Context, in AppliedSnapshotUpdate) (Adoption, error) {
@@ -176,7 +242,7 @@ func (s *sqliteRepository) List(ctx context.Context, q ListQuery) ([]Adoption, e
 	}
 	args = append(args, limit)
 	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
-SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref
+SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies
 FROM adoption_records
 %s
 ORDER BY created_at DESC, id ASC
@@ -306,7 +372,7 @@ WHERE id = ?
 }
 
 const selectAdoptionByIDSQL = `
-SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref
+SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies
 FROM adoption_records WHERE id = ?
 `
 
@@ -322,10 +388,16 @@ func scanAdoption(s rowScanner) (Adoption, error) {
 		createdRaw       string
 		refreshedRaw     string
 		appliedRaw       string
+		suggestedRaw     string
 	)
 	if err := s.Scan(&a.ID, &a.ComponentID, &a.LibraryID, &a.Scenario, &a.AdoptedPath, &a.AdoptedVersion,
-		&a.SourceSHA256, &a.AdoptedSnapshotSHA256, &libraryStatusRaw, &localStatusRaw, &a.StatusDetail, &createdRaw, &refreshedRaw, &appliedRaw, &a.DriftBacklogRef); err != nil {
+		&a.SourceSHA256, &a.AdoptedSnapshotSHA256, &libraryStatusRaw, &localStatusRaw, &a.StatusDetail, &createdRaw, &refreshedRaw, &appliedRaw, &a.DriftBacklogRef, &suggestedRaw); err != nil {
 		return Adoption{}, err
+	}
+	if suggestedRaw != "" {
+		if err := json.Unmarshal([]byte(suggestedRaw), &a.IncludeSuggestions); err != nil {
+			return Adoption{}, fmt.Errorf("parse suggested dependencies: %w", err)
+		}
 	}
 	a.LibraryVersionStatus = LibraryVersionStatus(libraryStatusRaw)
 	a.LocalStatus = LocalStatus(localStatusRaw)

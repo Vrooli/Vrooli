@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -88,6 +89,11 @@ type IndexResult struct {
 // otherwise healthy run.
 func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 	var result IndexResult
+	// A manifest that was discovered but failed validation/upsert is still a
+	// live filesystem asset. Protect its last-known registry row from the
+	// end-of-run stale sweep; immutable-release failures must not look like
+	// deletions to adopters.
+	keepLibraryIDs := map[string]struct{}{}
 	if idx.fs == nil {
 		return result, fmt.Errorf("indexer has no filesystem configured")
 	}
@@ -113,6 +119,7 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 			return nil
 		}
 		result.Findings = append(result.Findings, in.Findings...)
+		keepLibraryIDs[in.Manifest.LibraryID] = struct{}{}
 		comp, err := idx.repo.UpsertManifest(ctx, in)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Errorf("upsert %s: %w", path, err))
@@ -149,7 +156,12 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 	// DeleteMissing removes stale registry rows (manifests gone from
 	// disk) and cascades their children — expected churn, so it emits no
 	// finding.
-	deleted, derr := idx.repo.DeleteMissing(ctx, result.LibraryIDs)
+	keep := make([]string, 0, len(keepLibraryIDs))
+	for libraryID := range keepLibraryIDs {
+		keep = append(keep, libraryID)
+	}
+	sort.Strings(keep)
+	deleted, derr := idx.repo.DeleteMissing(ctx, keep)
 	if derr != nil {
 		result.Errors = append(result.Errors, fmt.Errorf("delete missing: %w", derr))
 	}
@@ -442,16 +454,18 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			return IndexManifestInput{}, nil, err
 		}
 		versions = append(versions, ComponentVersion{
-			LibraryID:          manifest.LibraryID,
-			Version:            version,
-			Status:             status,
-			SourcePath:         sourcePath,
-			Content:            string(src),
-			ContentSHA256:      digestBytes(src),
-			Headers:            headers,
-			Files:              versionFiles,
-			ExperienceContract: experienceContract,
-			ParityReport:       parity,
+			LibraryID:             manifest.LibraryID,
+			Version:               version,
+			Status:                status,
+			SourcePath:            sourcePath,
+			Content:               string(src),
+			ContentSHA256:         digestBytes(src),
+			Headers:               headers,
+			Files:                 versionFiles,
+			RequiredTokens:        ExtractRequiredTokens(versionFiles),
+			RequiredTokenPatterns: ExtractRequiredTokenPatterns(versionFiles),
+			ExperienceContract:    experienceContract,
+			ParityReport:          parity,
 		})
 		story, storyFindings := idx.readVersionStory(filepath.ToSlash(filepath.Join(versionPath, "story.json")), manifest.LibraryID, version, manifest.AssetKind)
 		if story != nil {

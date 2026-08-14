@@ -117,7 +117,15 @@ func (s *service) Upsert(ctx context.Context, in UpsertInput) (Component, error)
 }
 
 func (s *service) Get(ctx context.Context, id string) (Component, error) {
-	return s.repo.Get(ctx, id)
+	c, err := s.repo.Get(ctx, id)
+	if err == nil || !errors.As(err, &ErrComponentNotFound{}) {
+		return c, err
+	}
+	// Public component identifiers are the stable manifest library IDs. Keep
+	// accepting the internal UUID as well, but make both identifiers equivalent
+	// at the service boundary so sibling domains do not need to guess which one
+	// the repository stores.
+	return s.repo.GetByLibraryID(ctx, id)
 }
 
 func (s *service) GetByLibraryID(ctx context.Context, libraryID string) (Component, error) {
@@ -139,7 +147,7 @@ func (s *service) GetContentAt(ctx context.Context, id, path string) (Content, e
 	if s.content == nil {
 		return Content{}, errNoContentStore
 	}
-	c, err := s.repo.Get(ctx, id)
+	c, err := s.Get(ctx, id)
 	if err != nil {
 		return Content{}, err
 	}
@@ -154,11 +162,19 @@ func (s *service) GetContentAt(ctx context.Context, id, path string) (Content, e
 }
 
 func (s *service) ListVersions(ctx context.Context, componentID string, limit int) ([]ComponentVersion, error) {
-	return s.repo.ListVersions(ctx, componentID, limit)
+	c, err := s.Get(ctx, componentID)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.ListVersions(ctx, c.ID, limit)
 }
 
 func (s *service) GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error) {
-	return s.repo.GetVersion(ctx, componentID, version)
+	c, err := s.Get(ctx, componentID)
+	if err != nil {
+		return ComponentVersion{}, err
+	}
+	return s.repo.GetVersion(ctx, c.ID, version)
 }
 
 func (s *service) ListStories(ctx context.Context, q StoryQuery) ([]ComponentStory, error) {
@@ -181,12 +197,12 @@ func (s *service) ValidateStyleFit(ctx context.Context, componentID, version, sc
 		return StyleFitVerdict{}, fmt.Errorf("service.json reader not configured")
 	}
 
-	component, err := s.repo.Get(ctx, cid)
+	component, err := s.Get(ctx, cid)
 	if err != nil {
 		return StyleFitVerdict{}, err
 	}
 	if strings.TrimSpace(version) != "" {
-		if _, err := s.repo.GetVersion(ctx, cid, strings.TrimSpace(version)); err != nil {
+		if _, err := s.GetVersion(ctx, cid, strings.TrimSpace(version)); err != nil {
 			return StyleFitVerdict{}, err
 		}
 	}
@@ -228,7 +244,7 @@ func (s *service) ValidateStyleFit(ctx context.Context, componentID, version, sc
 }
 
 func (s *service) GetVersionContent(ctx context.Context, componentID, version string) (Content, error) {
-	v, err := s.repo.GetVersion(ctx, componentID, version)
+	v, err := s.GetVersion(ctx, componentID, version)
 	if err != nil {
 		return Content{}, err
 	}
@@ -242,11 +258,11 @@ func (s *service) GetVersionContentAt(ctx context.Context, componentID, version,
 	if s.content == nil {
 		return Content{}, errNoContentStore
 	}
-	v, err := s.repo.GetVersion(ctx, componentID, version)
+	v, err := s.GetVersion(ctx, componentID, version)
 	if err != nil {
 		return Content{}, err
 	}
-	c, err := s.repo.Get(ctx, componentID)
+	c, err := s.Get(ctx, componentID)
 	if err != nil {
 		return Content{}, err
 	}

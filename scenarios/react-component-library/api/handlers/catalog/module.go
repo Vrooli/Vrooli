@@ -99,6 +99,12 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		result, err = gates.ValidateAPI(h.repoRoot)
 	case "tokens":
 		result, err = gates.ValidateTokens(h.repoRoot)
+	case "token-vocabulary":
+		result, err = gates.ValidateTokenVocabulary(h.repoRoot)
+	case "token-ramp-complete":
+		result, err = gates.ValidateTokenRampComplete(h.repoRoot)
+	case "released-version-immutable":
+		result, err = gates.ValidateReleasedVersionImmutable(h.repoRoot)
 	case "lifecycle":
 		result, err = gates.ValidateLifecycle(h.repoRoot)
 	case "fixture-adversarial":

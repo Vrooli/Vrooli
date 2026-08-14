@@ -28,23 +28,23 @@ export const motionTransition = (
 };
 export const CONTROL_VARIANTS = {
   primary: recipe(
-    "bg-[var(--app-primary)]",
-    "text-[var(--app-primary-foreground)]",
+    "bg-[var(--color-primary)]",
+    "text-[var(--color-primary-foreground)]",
     "border-transparent",
   ),
   secondary: recipe(
-    "bg-[var(--app-surface)]",
-    "text-[var(--app-foreground)]",
-    "border-[var(--app-border)]",
+    "bg-[var(--color-surface)]",
+    "text-[var(--color-foreground)]",
+    "border-[var(--color-border)]",
   ),
   ghost: recipe(
     "bg-transparent",
-    "text-[var(--app-foreground)]",
+    "text-[var(--color-foreground)]",
     "border-transparent",
   ),
   danger: recipe(
-    "bg-[var(--app-danger)]",
-    "text-[var(--app-primary-foreground)]",
+    "bg-[var(--color-danger)]",
+    "text-[var(--color-primary-foreground)]",
     "border-transparent",
   ),
 } as const;

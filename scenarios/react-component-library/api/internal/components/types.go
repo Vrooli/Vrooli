@@ -117,6 +117,25 @@ const (
 	VersionStatusArchived   ComponentVersionStatus = "archived"
 )
 
+// ErrReleasedVersionMutated protects the bytes promised by a released
+// version. Drafts remain mutable; once released, a changed source must use a
+// new version label instead of silently changing adopters underneath them.
+type ErrReleasedVersionMutated struct {
+	ComponentID string
+	Version     string
+	Path        string
+	Recorded    string
+	Incoming    string
+}
+
+func (e ErrReleasedVersionMutated) Error() string {
+	where := e.ComponentID + "@" + e.Version
+	if e.Path != "" {
+		where += "/" + e.Path
+	}
+	return fmt.Sprintf("released version %s is immutable: recorded hash %s differs from incoming hash %s", where, e.Recorded, e.Incoming)
+}
+
 // ComponentVersion is the immutable/draft source artifact indexed for
 // a component version folder.
 type ComponentVersion struct {
@@ -134,6 +153,10 @@ type ComponentVersion struct {
 	ReleasedAt    time.Time
 	Headers       map[string]string
 	Files         []ComponentVersionFile
+	// RequiredTokens is derived from this version's source at index time.
+	RequiredTokens []string
+	// RequiredTokenPatterns describes dynamic names selected at runtime.
+	RequiredTokenPatterns []string
 	// ExperienceContract is the immutable behavior contract promoted beside
 	// the version. It is separate from source files so adopters can copy the
 	// contract into their own experience registry deliberately.

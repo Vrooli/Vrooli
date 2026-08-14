@@ -6,6 +6,7 @@
     "schema": "catalog-asset/v1"
   },
   "schemaVersion": "1.0.0",
+  "x-adoptionMaturityFloor": "verified",
   "description": "Vocabularies and per-kind defaults for the desired-state UI asset catalog. Domains organize; kinds carry dependency rank and select gates. Nothing here records what exists.",
   "domains": [
     { "id": "foundations", "order": 10, "description": "Tokens, themes, recipes, providers, base styles, icon registry, and capability detection — the layer every other asset styles and composes against." },
@@ -30,6 +31,30 @@
     { "id": "adapters", "order": 200, "description": "Ports to replaceable implementations: router, validation, icons, motion, positioning, virtualization, editors, storage, and telemetry." }
   ],
   "gates": [
+    {
+      "id": "token-vocabulary",
+      "rung": "implemented",
+      "description": "Active library source uses the single retained CSS custom-property vocabulary.",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service"],
+      "blocking": true,
+      "runner": { "react-vite": "react-component-library catalog gates token-vocabulary" }
+    },
+    {
+      "id": "token-ramp-complete",
+      "rung": "implemented",
+      "description": "Every externally required literal custom property is published by the canonical reference ramp.",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service"],
+      "blocking": true,
+      "runner": { "react-vite": "react-component-library catalog gates token-ramp-complete" }
+    },
+    {
+      "id": "released-version-immutable",
+      "rung": "verified",
+      "description": "Every indexed released version still matches its on-disk source bytes.",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service"],
+      "blocking": true,
+      "runner": { "react-vite": "react-component-library catalog gates released-version-immutable" }
+    },
     {
       "id": "types",
       "rung": "scaffolded",

@@ -6,6 +6,8 @@ package gates
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 type Finding struct{ Code, AssetID, Message string }
@@ -25,6 +29,120 @@ type Finding struct{ Code, AssetID, Message string }
 type Result struct {
 	Findings  []Finding
 	Inspected int
+}
+
+var (
+	cssVarRefGateRE  = regexp.MustCompile(`var\(\s*(--[A-Za-z0-9_-]+)`)
+	cssVarDeclGateRE = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:`)
+)
+
+// ValidateTokenVocabulary rejects the retired app-prefixed CSS vocabulary in
+// active library source. The consumer-side token-map vocabulary is separate
+// and is intentionally not inspected here.
+func ValidateTokenVocabulary(root string) (Result, error) {
+	sources, err := activeLibrarySources(root)
+	if err != nil {
+		return Result{}, err
+	}
+	result := Result{Inspected: len(sources)}
+	for _, path := range sources {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return Result{}, err
+		}
+		if strings.Contains(string(raw), "--app-") {
+			result.Findings = append(result.Findings, Finding{Code: "catalog.token_vocabulary", AssetID: implementationName(path), Message: fmt.Sprintf("%s still references retired --app-* vocabulary", path)})
+		}
+	}
+	return nonEmpty(result, "token-vocabulary"), nil
+}
+
+// ValidateTokenRampComplete verifies that every external literal custom
+// property used by active library source is published by the canonical RCL
+// ramp. Self-defined --rcl-* properties and dynamic families are excluded.
+func ValidateTokenRampComplete(root string) (Result, error) {
+	sources, err := activeLibrarySources(root)
+	if err != nil {
+		return Result{}, err
+	}
+	rampRaw, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "ui", "src", "design-tokens.css"))
+	if err != nil {
+		return Result{}, err
+	}
+	ramp := map[string]struct{}{}
+	for _, match := range cssVarDeclGateRE.FindAllStringSubmatch(string(rampRaw), -1) {
+		ramp[match[1]] = struct{}{}
+	}
+	result := Result{Inspected: len(sources)}
+	for _, path := range sources {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return Result{}, err
+		}
+		text := string(raw)
+		declared := map[string]struct{}{}
+		for _, match := range cssVarDeclGateRE.FindAllStringSubmatch(text, -1) {
+			declared[match[1]] = struct{}{}
+		}
+		for _, match := range cssVarRefGateRE.FindAllStringSubmatch(text, -1) {
+			property := match[1]
+			if _, local := declared[property]; local || strings.HasPrefix(property, "--rcl-") || strings.HasSuffix(property, "-") {
+				continue
+			}
+			if _, published := ramp[property]; !published {
+				result.Findings = append(result.Findings, Finding{Code: "catalog.token_ramp_complete", AssetID: implementationName(path), Message: fmt.Sprintf("%s requires %s but the canonical ramp does not publish it", path, property)})
+			}
+		}
+	}
+	return nonEmpty(result, "token-ramp-complete"), nil
+}
+
+// ValidateReleasedVersionImmutable compares every indexed released version
+// with its current on-disk entry and companion files. It is intentionally a
+// corpus gate, independent of the indexer's write path, so direct filesystem
+// edits remain observable.
+func ValidateReleasedVersionImmutable(root string) (Result, error) {
+	dbPath := filepath.Join(root, "scenarios", "react-component-library", "data", "react-component-library.db")
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)", dbPath),
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		return Result{}, fmt.Errorf("open component index: %w", err)
+	}
+	defer db.Close()
+	rows, err := db.QueryContext(context.Background(), `SELECT v.status, v.source_path, v.content_sha256 FROM component_versions v WHERE v.status = 'released'`)
+	if err != nil {
+		return Result{}, fmt.Errorf("read released version hashes: %w", err)
+	}
+	defer rows.Close()
+	result := Result{}
+	for rows.Next() {
+		var status, sourcePath, recorded string
+		if err := rows.Scan(&status, &sourcePath, &recorded); err != nil {
+			return Result{}, err
+		}
+		if status != "released" {
+			continue
+		}
+		result.Inspected++
+		raw, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "library", sourcePath))
+		if err != nil {
+			result.Findings = append(result.Findings, Finding{Code: "catalog.released_version_immutable", AssetID: sourcePath, Message: fmt.Sprintf("released source %s cannot be read: %v", sourcePath, err)})
+			continue
+		}
+		sum := sha256.Sum256(raw)
+		current := hex.EncodeToString(sum[:])
+		if recorded != "" && recorded != current {
+			result.Findings = append(result.Findings, Finding{Code: "catalog.released_version_immutable", AssetID: sourcePath, Message: fmt.Sprintf("released source %s changed: recorded %s, current %s", sourcePath, recorded, current)})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return Result{}, err
+	}
+	return nonEmpty(result, "released-version-immutable"), nil
 }
 
 type assetDoc struct {

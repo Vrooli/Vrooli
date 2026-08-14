@@ -123,7 +123,66 @@ func (h *handlers) listEffective(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d effective adoption(s).", len(rows))}, ResultsHeading: "Effective adoptions", Results: rows})
 }
 
+func (h *handlers) preflight(ctx cliapp.RunContext) error {
+	resp, err := h.client.PreflightAdoption(context.Background(), connect.NewRequest(&adoptionsv1.PreflightAdoptionRequest{
+		ComponentId: ctx.Positional("component-id"), Scenario: ctx.Positional("scenario"), Version: ctx.Flag("version"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("preflight adoption", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no preflight response")
+	}
+	rows := append([]string{}, resp.Msg.RequiredTokens...)
+	rows = append(rows, resp.Msg.RequiredTokenPatterns...)
+	for _, token := range resp.Msg.UnsatisfiedTokens {
+		rows = append(rows, "UNSATISFIED "+token)
+	}
+	rows = append(rows, fmt.Sprintf("version=%s maturity=%s (floor=%s)", resp.Msg.VersionStatus, resp.Msg.MaturityRung, resp.Msg.MaturityFloor))
+	rows = append(rows, resp.Msg.Warnings...)
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Preflight %s@%s for %s: blocking=%t", resp.Msg.ComponentId, resp.Msg.Version, resp.Msg.Scenario, resp.Msg.Blocking)}, ResultsHeading: "Adoptability verdict", Results: rows})
+}
+
+func (h *handlers) syncTokens(ctx cliapp.RunContext) error {
+	resp, err := h.client.SyncScenarioTokens(context.Background(), connect.NewRequest(&adoptionsv1.SyncScenarioTokensRequest{Scenario: ctx.Positional("scenario"), DryRun: ctx.Flag("dry-run") == "true"}))
+	if err != nil {
+		return cliapp.WrapAPIError("sync scenario tokens", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Token sync for %s: added=%d changed=%t", resp.Msg.Scenario, len(resp.Msg.Added), resp.Msg.Changed)}, ResultsHeading: "Added tokens", Results: resp.Msg.Added})
+}
+
+func (h *handlers) pruneTokens(ctx cliapp.RunContext) error {
+	resp, err := h.client.PruneScenarioTokens(context.Background(), connect.NewRequest(&adoptionsv1.PruneScenarioTokensRequest{Scenario: ctx.Positional("scenario"), Apply: ctx.Flag("apply") == "true"}))
+	if err != nil {
+		return cliapp.WrapAPIError("prune scenario tokens", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Token prune for %s: removed=%d changed=%t", resp.Msg.Scenario, len(resp.Msg.Removed), resp.Msg.Changed)}, ResultsHeading: "Removed tokens", Results: resp.Msg.Removed})
+}
+
 func (h *handlers) apply(ctx cliapp.RunContext) error {
+	if ctx.FlagDeclared("set") {
+		values := ctx.FlagValues("set")
+		if len(values) == 0 {
+			return h.applySingle(ctx)
+		}
+		items := make([]*adoptionsv1.BatchApplyItem, 0, len(values))
+		for _, value := range values {
+			parts := strings.SplitN(value, ":", 4)
+			if len(parts) < 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
+				return fmt.Errorf("--set must be component-id:scenario:adopted-path[:version] (got %q)", value)
+			}
+			item := &adoptionsv1.BatchApplyItem{ComponentId: parts[0], Scenario: parts[1], AdoptedPath: parts[2], ConfirmOverwrite: ctx.Flag("confirm-overwrite") == "true", OverrideValidation: ctx.Flag("override-validation") == "true", ReplaceExisting: ctx.Flag("replace-existing") == "true"}
+			if len(parts) == 4 {
+				item.Version = parts[3]
+			}
+			items = append(items, item)
+		}
+		return h.batchApply(ctx, items)
+	}
+	return h.applySingle(ctx)
+}
+
+func (h *handlers) applySingle(ctx cliapp.RunContext) error {
 	req := &adoptionsv1.ApplyAdoptionRequest{
 		ComponentId:        ctx.Positional("component-id"),
 		Scenario:           ctx.Positional("scenario"),
@@ -152,6 +211,43 @@ func (h *handlers) apply(ctx cliapp.RunContext) error {
 		Results:        []string{formatAdoption(resp.Msg.Adoption)},
 		RetrievalHints: []string{"`adoptions refresh` — compute drift status now"},
 	})
+}
+
+func (h *handlers) batchApply(ctx cliapp.RunContext, items []*adoptionsv1.BatchApplyItem) error {
+	resp, err := h.client.BatchApplyAdoptions(context.Background(), connect.NewRequest(&adoptionsv1.BatchApplyAdoptionsRequest{Items: items}))
+	if err != nil {
+		return cliapp.WrapAPIError("batch apply adoptions", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no batch adoption response")
+	}
+	rows := make([]string, 0, len(resp.Msg.Results))
+	for _, item := range resp.Msg.Results {
+		if item != nil && item.Adoption != nil {
+			rows = append(rows, formatAdoption(item.Adoption))
+		}
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Batch-applied %d adoption(s); shared dependencies=%d.", len(rows), len(resp.Msg.SharedDependencies))}, ResultsHeading: "Adoptions", Results: rows})
+}
+
+func (h *handlers) batchApplyCommand(ctx cliapp.RunContext) error {
+	values := ctx.FlagValues("set")
+	if len(values) == 0 {
+		return fmt.Errorf("batch apply requires at least one --set value")
+	}
+	items := make([]*adoptionsv1.BatchApplyItem, 0, len(values))
+	for _, value := range values {
+		parts := strings.SplitN(value, ":", 4)
+		if len(parts) < 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
+			return fmt.Errorf("--set must be component-id:scenario:adopted-path[:version] (got %q)", value)
+		}
+		item := &adoptionsv1.BatchApplyItem{ComponentId: parts[0], Scenario: parts[1], AdoptedPath: parts[2], ConfirmOverwrite: ctx.Flag("confirm-overwrite") == "true", OverrideValidation: ctx.Flag("override-validation") == "true", ReplaceExisting: ctx.Flag("replace-existing") == "true"}
+		if len(parts) == 4 {
+			item.Version = parts[3]
+		}
+		items = append(items, item)
+	}
+	return h.batchApply(ctx, items)
 }
 
 func (h *handlers) suggest(ctx cliapp.RunContext) error {
@@ -185,11 +281,16 @@ func formatImportSites(sites []string) []string {
 }
 
 func (h *handlers) reapply(ctx cliapp.RunContext) error {
+	dryRun := false
+	if ctx.FlagDeclared("dry-run") {
+		dryRun = ctx.Flag("dry-run") == "true"
+	}
 	req := &adoptionsv1.ReapplyAdoptionRequest{
 		Id:                    ctx.Positional("id"),
 		Version:               ctx.Flag("version"),
 		ConfirmLocalOverwrite: ctx.Flag("confirm-local-overwrite") == "true",
 		OverrideValidation:    ctx.Flag("override-validation") == "true",
+		DryRun:                dryRun,
 	}
 	resp, err := h.client.ReapplyAdoption(context.Background(), connect.NewRequest(req))
 	if err != nil {
@@ -207,13 +308,11 @@ func (h *handlers) reapply(ctx cliapp.RunContext) error {
 
 func (h *handlers) delete(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
-	resp, err := h.client.DeleteAdoption(context.Background(), connect.NewRequest(&adoptionsv1.DeleteAdoptionRequest{Id: id}))
+	resp, err := h.client.DeleteAdoption(context.Background(), connect.NewRequest(&adoptionsv1.DeleteAdoptionRequest{Id: id, ConfirmRemoveFiles: ctx.Flag("confirm-remove-files") == "true"}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("delete adoption %q", id), err, nil)
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary: []string{fmt.Sprintf("Deleted adoption %s.", id)},
-	})
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Deleted adoption %s; removed %d file(s).", id, len(resp.Msg.RemovedFiles))}, ResultsHeading: "Removable files", Results: resp.Msg.RemovableFiles})
 }
 
 func (h *handlers) refresh(ctx cliapp.RunContext) error {
@@ -229,8 +328,8 @@ func (h *handlers) refresh(ctx cliapp.RunContext) error {
 	for _, a := range resp.Msg.Adoptions {
 		results = append(results, formatAdoption(a))
 	}
-	summary := fmt.Sprintf("Refreshed %d adoption(s): library current=%d behind=%d; local clean=%d modified=%d missing=%d.",
-		len(resp.Msg.Adoptions), resp.Msg.LibraryCurrent, resp.Msg.LibraryBehind, resp.Msg.LocalClean, resp.Msg.LocalModified, resp.Msg.LocalMissing)
+	summary := fmt.Sprintf("Refreshed %d adoption(s): library current=%d behind=%d source-drifted=%d; local clean=%d modified=%d missing=%d.",
+		len(resp.Msg.Adoptions), resp.Msg.LibraryCurrent, resp.Msg.LibraryBehind, resp.Msg.LibrarySourceDrifted, resp.Msg.LocalClean, resp.Msg.LocalModified, resp.Msg.LocalMissing)
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{summary},
 		ResultsHeading: "Adoptions",

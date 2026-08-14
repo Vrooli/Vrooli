@@ -78,10 +78,26 @@ func (f *FakeRepository) Create(ctx context.Context, in adoptions.CreateInput) (
 		LocalStatus:           adoptions.LocalStatusClean,
 		CreatedAt:             f.NowFn(),
 		AppliedAt:             f.NowFn(),
+		IncludeSuggestions:    append([]string(nil), in.IncludeSuggestions...),
 		Files:                 append([]adoptions.AdoptionFile(nil), in.Files...),
 	}
 	f.items[a.ID] = a
 	return a, nil
+}
+
+func (f *FakeRepository) CreateBatch(ctx context.Context, inputs []adoptions.CreateInput) ([]adoptions.Adoption, error) {
+	created := make([]adoptions.Adoption, 0, len(inputs))
+	for _, input := range inputs {
+		adoption, err := f.Create(ctx, input)
+		if err != nil {
+			for _, prior := range created {
+				_ = f.Delete(ctx, prior.ID)
+			}
+			return nil, err
+		}
+		created = append(created, adoption)
+	}
+	return created, nil
 }
 
 func (f *FakeRepository) UpdateAppliedSnapshot(_ context.Context, in adoptions.AppliedSnapshotUpdate) (adoptions.Adoption, error) {

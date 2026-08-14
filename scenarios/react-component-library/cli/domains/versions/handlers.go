@@ -165,8 +165,8 @@ func formatVersion(v *versionsv1.Version) string {
 	if len(sha) > 12 {
 		sha = sha[:12]
 	}
-	return fmt.Sprintf("%s — v=%s sha=%s first-seen=%s changelog=%q",
-		v.Id, v.Version, sha, created, v.ChangelogMd)
+	return fmt.Sprintf("%s — v=%s sha=%s first-seen=%s required-tokens=%v required-token-patterns=%v changelog=%q",
+		v.Id, v.Version, sha, created, v.RequiredTokens, v.RequiredTokenPatterns, v.ChangelogMd)
 }
 
 func formatDiffRow(r *versionsv1.DiffRow) string {

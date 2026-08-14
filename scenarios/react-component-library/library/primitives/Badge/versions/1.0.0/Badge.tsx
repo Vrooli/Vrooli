@@ -2,11 +2,11 @@
 import type { HTMLAttributes } from "react";
 
 const badgeTones = {
-  neutral: "var(--app-muted-foreground)",
-  info: "var(--app-info)",
-  success: "var(--app-success)",
-  warning: "var(--app-warning)",
-  danger: "var(--app-danger)",
+  neutral: "var(--color-muted-foreground)",
+  info: "var(--color-info)",
+  success: "var(--color-success)",
+  warning: "var(--color-warning)",
+  danger: "var(--color-danger)",
 } as const;
 
 export function Badge({

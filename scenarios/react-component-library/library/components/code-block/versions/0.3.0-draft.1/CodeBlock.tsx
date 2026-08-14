@@ -32,6 +32,7 @@ export interface CodeBlockProps {
   copiedLabel?: string;
 }
 
+
 function useHighlightedCode(code: string, language: string) {
   const normalizedLanguage = normalizeCodeLanguage(language);
   const key = `${normalizedLanguage}\u0000${code}`;

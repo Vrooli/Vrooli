@@ -80,6 +80,9 @@ func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestI
 	if strings.TrimSpace(in.Manifest.Category) == "" {
 		in.Manifest.Category = strings.TrimSpace(in.Headers["category"])
 	}
+	if err := s.checkReleasedVersionHashes(ctx, in); err != nil {
+		return Component{}, err
+	}
 	sourcePath := ""
 	for _, v := range in.Versions {
 		if v.Version == in.Manifest.LatestVersion {
@@ -93,6 +96,12 @@ func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestI
 	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_files WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ?)`, c.ID); err != nil {
 		return Component{}, fmt.Errorf("clear component version files for %q: %w", c.ID, err)
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_required_tokens WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ?)`, c.ID); err != nil {
+		return Component{}, fmt.Errorf("clear component version required tokens for %q: %w", c.ID, err)
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_required_token_patterns WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ?)`, c.ID); err != nil {
+		return Component{}, fmt.Errorf("clear component version required token patterns for %q: %w", c.ID, err)
 	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_parity_reports WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ?)`, c.ID); err != nil {
 		return Component{}, fmt.Errorf("clear component parity reports for %q: %w", c.ID, err)
@@ -151,6 +160,16 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 				return Component{}, fmt.Errorf("upsert component version file %s@%s/%s: %w", c.LibraryID, v.Version, file.Path, err)
 			}
 		}
+		for _, property := range v.RequiredTokens {
+			if _, err := s.db.ExecContext(ctx, `INSERT INTO component_version_required_tokens (version_id, property) VALUES (?, ?)`, v.ID, property); err != nil {
+				return Component{}, fmt.Errorf("upsert component version required token %s@%s/%s: %w", c.LibraryID, v.Version, property, err)
+			}
+		}
+		for _, pattern := range v.RequiredTokenPatterns {
+			if _, err := s.db.ExecContext(ctx, `INSERT INTO component_version_required_token_patterns (version_id, pattern) VALUES (?, ?)`, v.ID, pattern); err != nil {
+				return Component{}, fmt.Errorf("upsert component version required token pattern %s@%s/%s: %w", c.LibraryID, v.Version, pattern, err)
+			}
+		}
 		if v.ParityReport != nil {
 			report, err := json.Marshal(v.ParityReport)
 			if err != nil {
@@ -203,6 +222,39 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 		return Component{}, err
 	}
 	return s.Get(ctx, c.ID)
+}
+
+func (s *sqliteRepository) checkReleasedVersionHashes(ctx context.Context, in IndexManifestInput) error {
+	for _, version := range in.Versions {
+		var status, recorded string
+		err := s.db.QueryRowContext(ctx, `SELECT v.status, v.content_sha256 FROM component_versions v JOIN components c ON c.id = v.component_id WHERE c.library_id = ? AND v.version = ?`, in.Manifest.LibraryID, version.Version).Scan(&status, &recorded)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("check released version %s@%s: %w", in.Manifest.LibraryID, version.Version, err)
+		}
+		if status == string(VersionStatusReleased) && recorded != "" && recorded != version.ContentSHA256 {
+			return ErrReleasedVersionMutated{ComponentID: in.Manifest.LibraryID, Version: version.Version, Recorded: recorded, Incoming: version.ContentSHA256}
+		}
+		if status != string(VersionStatusReleased) {
+			continue
+		}
+		for _, file := range version.Files {
+			var fileHash string
+			err := s.db.QueryRowContext(ctx, `SELECT f.content_sha256 FROM component_version_files f JOIN component_versions v ON v.id = f.version_id JOIN components c ON c.id = v.component_id WHERE c.library_id = ? AND v.version = ? AND f.path = ?`, in.Manifest.LibraryID, version.Version, file.Path).Scan(&fileHash)
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
+			if err != nil {
+				return fmt.Errorf("check released version file %s@%s/%s: %w", in.Manifest.LibraryID, version.Version, file.Path, err)
+			}
+			if fileHash != "" && fileHash != file.ContentSHA256 {
+				return ErrReleasedVersionMutated{ComponentID: in.Manifest.LibraryID, Version: version.Version, Path: file.Path, Recorded: fileHash, Incoming: file.ContentSHA256}
+			}
+		}
+	}
+	return nil
 }
 
 type versionMetadata struct {
@@ -776,6 +828,14 @@ LIMIT ?
 		}
 		out[i].Files = files
 		out[i].ExperienceContract = experienceContractFromFiles(files)
+		out[i].RequiredTokens, err = s.listVersionRequiredTokens(ctx, out[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		out[i].RequiredTokenPatterns, err = s.listVersionRequiredTokenPatterns(ctx, out[i].ID)
+		if err != nil {
+			return nil, err
+		}
 		out[i].ParityReport, err = s.getVersionParity(ctx, out[i].ID)
 		if err != nil {
 			return nil, err
@@ -802,6 +862,14 @@ WHERE component_id = ? AND version = ?
 		return ComponentVersion{}, err
 	}
 	v.ExperienceContract = experienceContractFromFiles(v.Files)
+	v.RequiredTokens, err = s.listVersionRequiredTokens(ctx, v.ID)
+	if err != nil {
+		return ComponentVersion{}, err
+	}
+	v.RequiredTokenPatterns, err = s.listVersionRequiredTokenPatterns(ctx, v.ID)
+	if err != nil {
+		return ComponentVersion{}, err
+	}
 	v.ParityReport, err = s.getVersionParity(ctx, v.ID)
 	if err != nil {
 		return ComponentVersion{}, err
@@ -849,6 +917,40 @@ func (s *sqliteRepository) listVersionFiles(ctx context.Context, versionID strin
 		files = append(files, f)
 	}
 	return files, rows.Err()
+}
+
+func (s *sqliteRepository) listVersionRequiredTokens(ctx context.Context, versionID string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT property FROM component_version_required_tokens WHERE version_id = ? ORDER BY property`, versionID)
+	if err != nil {
+		return nil, fmt.Errorf("list component version required tokens: %w", err)
+	}
+	defer rows.Close()
+	var properties []string
+	for rows.Next() {
+		var property string
+		if err := rows.Scan(&property); err != nil {
+			return nil, err
+		}
+		properties = append(properties, property)
+	}
+	return properties, rows.Err()
+}
+
+func (s *sqliteRepository) listVersionRequiredTokenPatterns(ctx context.Context, versionID string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT pattern FROM component_version_required_token_patterns WHERE version_id = ? ORDER BY pattern`, versionID)
+	if err != nil {
+		return nil, fmt.Errorf("list component version required token patterns: %w", err)
+	}
+	defer rows.Close()
+	var patterns []string
+	for rows.Next() {
+		var pattern string
+		if err := rows.Scan(&pattern); err != nil {
+			return nil, err
+		}
+		patterns = append(patterns, pattern)
+	}
+	return patterns, rows.Err()
 }
 
 func (s *sqliteRepository) ListStories(ctx context.Context, q StoryQuery) ([]ComponentStory, error) {

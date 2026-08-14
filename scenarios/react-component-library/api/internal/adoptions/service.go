@@ -36,6 +36,10 @@ const defaultListLimit = 200
 type Service interface {
 	Create(ctx context.Context, in CreateInput) (Adoption, error)
 	Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
+	BatchApply(ctx context.Context, in BatchApplyInput) (BatchApplyResult, error)
+	Preflight(ctx context.Context, in PreflightInput) (PreflightResult, error)
+	SyncScenarioTokens(ctx context.Context, in TokenSyncInput) (TokenSyncResult, error)
+	PruneScenarioTokens(ctx context.Context, in TokenPruneInput) (TokenPruneResult, error)
 	Reapply(ctx context.Context, in ReapplyInput) (Adoption, string, error)
 	Reconcile(ctx context.Context, in ReconcileInput) (ReconcileResult, error)
 	Reconverge(ctx context.Context, in ReconvergeInput) (ReconvergeResult, error)
@@ -45,21 +49,410 @@ type Service interface {
 	ListEffective(ctx context.Context, componentID string, limit int) ([]EffectiveAdoption, error)
 	Get(ctx context.Context, id string) (Adoption, error)
 	Delete(ctx context.Context, id string) error
+	DeleteWithOptions(ctx context.Context, id string, confirmRemoveFiles bool) (DeleteResult, error)
 	Refresh(ctx context.Context, componentID string) ([]Adoption, RefreshSummary, error)
+}
+
+// BatchApply validates every root and its closure before writing anything.
+// Shared dependency files are materialized once, while every root receives
+// provenance rows for the files in its effective closure. The production
+// repository commits those rows in one SQLite transaction; scenario files are
+// restored from snapshots if either the write or transaction fails.
+func (s *service) BatchApply(ctx context.Context, in BatchApplyInput) (BatchApplyResult, error) {
+	if len(in.Items) == 0 {
+		return BatchApplyResult{}, ErrInvalidAdoption{Field: "items", Reason: "at least one batch item is required"}
+	}
+
+	type preparedItem struct {
+		input          BatchApplyItem
+		root           components.Component
+		version        components.ComponentVersion
+		closure        components.ClosureReport
+		plans          []adoptionPlan
+		verdict        AdoptionVerdict
+		adoptionID     string
+		experiencePath string
+		entrySnapshot  string
+		writtenPath    string
+		importSites    []string
+	}
+	type targetOwner struct {
+		itemIndex int
+		assetID   string
+		version   string
+		isRoot    bool
+	}
+	type uniqueFile struct {
+		scenario string
+		path     string
+		file     adoptionUnitFile
+		plan     adoptionPlan
+		owner    int
+		body     string
+		written  string
+	}
+
+	prepared := make([]preparedItem, 0, len(in.Items))
+	seenDependency := map[string]struct {
+		rootID  string
+		version string
+	}{}
+	shared := map[string]struct{}{}
+	seenTargets := map[string]targetOwner{}
+	targetControls := map[string]struct {
+		replaceExisting  bool
+		confirmOverwrite bool
+	}{}
+	uniqueFiles := map[string]*uniqueFile{}
+	snapshots := map[string]batchFileSnapshot{}
+
+	for index, raw := range in.Items {
+		item := raw
+		item.ComponentID = strings.TrimSpace(item.ComponentID)
+		item.Scenario = strings.TrimSpace(item.Scenario)
+		item.AdoptedPath = strings.TrimSpace(item.AdoptedPath)
+		if item.ComponentID == "" || item.Scenario == "" || item.AdoptedPath == "" {
+			return BatchApplyResult{}, ErrInvalidAdoption{Field: "component_id/scenario/adopted_path", Reason: "all are required"}
+		}
+		root, err := s.library.Get(ctx, item.ComponentID)
+		if err != nil {
+			return BatchApplyResult{}, err
+		}
+		versionName := strings.TrimSpace(item.Version)
+		if versionName == "" {
+			versionName = firstNonEmpty(root.LatestVersion, root.Version)
+		}
+		version, err := s.library.GetVersion(ctx, root.ID, versionName)
+		if err != nil {
+			return BatchApplyResult{}, err
+		}
+		closure, err := s.resolveAdoptionClosure(ctx, root, version, item.Scenario, item.IncludeSuggestions)
+		if err != nil {
+			return BatchApplyResult{}, err
+		}
+		if _, err := s.requireTokenVerdict(ctx, root.ID, item.Scenario, closure, item.OverrideValidation); err != nil {
+			return BatchApplyResult{}, err
+		}
+		verdict, err := s.adoptionVerdict(ctx, root, version, closure, item.Scenario)
+		if err != nil {
+			return BatchApplyResult{}, err
+		}
+		if verdict.Blocking() && !item.OverrideValidation {
+			return BatchApplyResult{}, readinessBlockedError(root.ID, item.Scenario, verdict)
+		}
+		plans := adoptionPlansForClosure(closure.Assets, item.AdoptedPath)
+		if err := ensureDistinctAdoptionTargets(plans); err != nil {
+			return BatchApplyResult{}, err
+		}
+		prepared = append(prepared, preparedItem{input: item, root: root, version: version, closure: closure, plans: plans, verdict: verdict, adoptionID: uuid.NewString()})
+		current := &prepared[len(prepared)-1]
+		if version.ExperienceContract != "" {
+			current.experiencePath = cmpExperiencePath(root)
+		}
+		if err := s.captureBatchSnapshots(ctx, item.Scenario, current.experiencePath, plans, snapshots); err != nil {
+			return BatchApplyResult{}, err
+		}
+
+		for _, plan := range plans {
+			key := plan.Asset.ID
+			if prior, ok := seenDependency[key]; ok {
+				if prior.version != plan.Version.Version {
+					return BatchApplyResult{}, ErrBatchDependencyConflict{Dependency: plan.Asset.LibraryID, FirstRoot: prior.rootID, FirstVersion: prior.version, SecondRoot: root.ID, SecondVersion: plan.Version.Version}
+				}
+				if prior.rootID != root.ID {
+					shared[plan.Asset.LibraryID] = struct{}{}
+				}
+			} else {
+				seenDependency[key] = struct {
+					rootID  string
+					version string
+				}{rootID: root.ID, version: plan.Version.Version}
+			}
+			for _, file := range plan.Files {
+				targetKey := batchSnapshotKey(item.Scenario, file.AdoptedPath)
+				owner := targetOwner{itemIndex: index, assetID: plan.Asset.ID, version: plan.Version.Version, isRoot: plan.Asset.ID == root.ID}
+				if prior, ok := seenTargets[targetKey]; ok {
+					sharedAsset := prior.assetID == owner.assetID && prior.version == owner.version && !prior.isRoot && !owner.isRoot
+					if !sharedAsset {
+						return BatchApplyResult{}, fmt.Errorf("batch target collision at %q between %s and %s", file.AdoptedPath, prepared[prior.itemIndex].root.ID, root.ID)
+					}
+				} else {
+					seenTargets[targetKey] = owner
+					targetControls[targetKey] = struct {
+						replaceExisting  bool
+						confirmOverwrite bool
+					}{replaceExisting: item.ReplaceExisting, confirmOverwrite: item.ConfirmOverwrite}
+					uniqueFiles[targetKey] = &uniqueFile{scenario: item.Scenario, path: file.AdoptedPath, file: file, plan: plan, owner: index}
+				}
+				if prior, exists := seenTargets[targetKey]; exists && prior.itemIndex != index {
+					controls := targetControls[targetKey]
+					controls.replaceExisting = controls.replaceExisting && item.ReplaceExisting
+					controls.confirmOverwrite = controls.confirmOverwrite && item.ConfirmOverwrite
+					targetControls[targetKey] = controls
+				}
+			}
+		}
+	}
+
+	// Validate existing targets once, using the strictest overwrite controls
+	// from all roots that reference a shared target.
+	for key := range seenTargets {
+		file := uniqueFiles[key]
+		if file == nil {
+			continue
+		}
+		controls := targetControls[key]
+		exists, err := s.files.Exists(ctx, file.scenario, file.path)
+		if err != nil {
+			return BatchApplyResult{}, err
+		}
+		if !exists {
+			continue
+		}
+		if !controls.replaceExisting {
+			return BatchApplyResult{}, ErrInvalidAdoption{Field: "replace_existing", Reason: "target file already exists; set replace_existing to replace it"}
+		}
+		existing, err := s.files.Read(ctx, file.scenario, file.path)
+		if err != nil {
+			return BatchApplyResult{}, err
+		}
+		if hashBytes([]byte(stripSourceHeader(string(existing)))) != hashBytes([]byte(stripSourceHeader(file.file.Content))) && !controls.confirmOverwrite {
+			return BatchApplyResult{}, ErrInvalidAdoption{Field: "confirm_overwrite", Reason: "existing target differs from the ingested library source"}
+		}
+	}
+
+	// Experience contracts are root-owned files, so validate them separately.
+	for i := range prepared {
+		if prepared[i].experiencePath == "" {
+			continue
+		}
+		exists, err := s.files.Exists(ctx, prepared[i].input.Scenario, prepared[i].experiencePath)
+		if err != nil {
+			return BatchApplyResult{}, err
+		}
+		if !exists || prepared[i].input.ReplaceExisting {
+			continue
+		}
+		return BatchApplyResult{}, ErrInvalidAdoption{Field: "replace_existing", Reason: "component experience contract already exists; set replace_existing to replace it"}
+	}
+
+	mappings := map[string]TokenMapping{}
+	for i := range prepared {
+		if _, ok := mappings[prepared[i].input.Scenario]; ok {
+			continue
+		}
+		mapping, err := s.resolveTokenMapping(ctx, prepared[i].input.Scenario)
+		if err != nil {
+			return BatchApplyResult{}, err
+		}
+		mappings[prepared[i].input.Scenario] = mapping
+	}
+
+	keys := make([]string, 0, len(uniqueFiles))
+	for key := range uniqueFiles {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		unique := uniqueFiles[key]
+		item := &prepared[unique.owner]
+		mapping := mappings[unique.scenario]
+		translated, translations, err := TranslateDesignTokens(stripSourceHeader(unique.file.Content), mapping.Namespace, mapping)
+		if err != nil {
+			if rollbackErr := s.rollbackBatch(ctx, snapshots, nil); rollbackErr != nil {
+				return BatchApplyResult{}, fmt.Errorf("batch translation failed: %w (rollback failed: %v)", err, rollbackErr)
+			}
+			return BatchApplyResult{}, err
+		}
+		now := s.clock.Now().UTC()
+		body := formatProvenance(unique.plan.Version, item.adoptionID, now, hashBytes([]byte(translated)), formatTokenTranslations(translations)) + translated
+		path, actual, err := s.writeAdoptedSource(ctx, unique.scenario, unique.path, []byte(body))
+		if err != nil {
+			if rollbackErr := s.rollbackBatch(ctx, snapshots, nil); rollbackErr != nil {
+				return BatchApplyResult{}, fmt.Errorf("batch write failed: %w (rollback failed: %v)", err, rollbackErr)
+			}
+			return BatchApplyResult{}, err
+		}
+		unique.written, unique.body = path, actual
+	}
+	for i := range prepared {
+		for _, plan := range prepared[i].plans {
+			for _, file := range plan.Files {
+				key := batchSnapshotKey(prepared[i].input.Scenario, file.AdoptedPath)
+				unique := uniqueFiles[key]
+				if unique == nil {
+					continue
+				}
+				if file.IsEntry && plan.Asset.ID == prepared[i].root.ID {
+					prepared[i].entrySnapshot = adoptedSnapshotHash(unique.body)
+					prepared[i].writtenPath = unique.written
+				}
+				if finder, ok := s.files.(ScenarioImportSiteFinder); ok {
+					sites, err := finder.FindImportSites(ctx, prepared[i].input.Scenario, file.AdoptedPath)
+					if err != nil {
+						if rollbackErr := s.rollbackBatch(ctx, snapshots, nil); rollbackErr != nil {
+							return BatchApplyResult{}, fmt.Errorf("batch import-site scan failed: %w (rollback failed: %v)", err, rollbackErr)
+						}
+						return BatchApplyResult{}, err
+					}
+					prepared[i].importSites = append(prepared[i].importSites, sites...)
+				}
+			}
+		}
+		if prepared[i].experiencePath != "" {
+			if _, err := s.files.Write(ctx, prepared[i].input.Scenario, prepared[i].experiencePath, []byte(prepared[i].version.ExperienceContract)); err != nil {
+				if rollbackErr := s.rollbackBatch(ctx, snapshots, nil); rollbackErr != nil {
+					return BatchApplyResult{}, fmt.Errorf("batch experience write failed: %w (rollback failed: %v)", err, rollbackErr)
+				}
+				return BatchApplyResult{}, fmt.Errorf("write component experience contract: %w", err)
+			}
+		}
+	}
+
+	inputs := make([]CreateInput, 0, len(prepared))
+	for i := range prepared {
+		adoptionFiles := make([]AdoptionFile, 0)
+		for _, plan := range prepared[i].plans {
+			for _, file := range plan.Files {
+				unique := uniqueFiles[batchSnapshotKey(prepared[i].input.Scenario, file.AdoptedPath)]
+				adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: adoptedSnapshotHash(unique.body), SourceAssetID: plan.Asset.ID, SourceLibraryID: plan.Asset.LibraryID, SourceVersion: plan.Version.Version})
+			}
+		}
+		inputs = append(inputs, CreateInput{ID: prepared[i].adoptionID, ComponentID: prepared[i].root.ID, LibraryID: prepared[i].root.LibraryID, Scenario: prepared[i].input.Scenario, AdoptedPath: prepared[i].input.AdoptedPath, AdoptedVersion: prepared[i].version.Version, SourceSHA256: prepared[i].version.ContentSHA256, AdoptedSnapshotSHA256: prepared[i].entrySnapshot, IncludeSuggestions: append([]string(nil), prepared[i].input.IncludeSuggestions...), Files: adoptionFiles})
+	}
+	var created []Adoption
+	var err error
+	if batchRepo, ok := s.repo.(BatchCreator); ok {
+		created, err = batchRepo.CreateBatch(ctx, inputs)
+	} else {
+		created = make([]Adoption, 0, len(inputs))
+		for _, input := range inputs {
+			var adoption Adoption
+			adoption, err = s.repo.Create(ctx, input)
+			if err != nil {
+				for _, prior := range created {
+					_ = s.repo.Delete(ctx, prior.ID)
+				}
+				break
+			}
+			created = append(created, adoption)
+		}
+	}
+	if err != nil {
+		if rollbackErr := s.rollbackBatch(ctx, snapshots, nil); rollbackErr != nil {
+			return BatchApplyResult{}, fmt.Errorf("batch persistence failed: %w (rollback failed: %v)", err, rollbackErr)
+		}
+		return BatchApplyResult{}, err
+	}
+
+	result := BatchApplyResult{Results: make([]ApplyResult, 0, len(prepared))}
+	for i := range prepared {
+		copied := make([]string, 0, len(prepared[i].closure.Assets))
+		for _, asset := range prepared[i].closure.Assets {
+			copied = append(copied, asset.Asset.LibraryID)
+		}
+		result.Results = append(result.Results, ApplyResult{Adoption: created[i], WrittenPath: prepared[i].writtenPath, ExperiencePath: prepared[i].experiencePath, ImportSites: prepared[i].importSites, StyleFitAffinity: components.DesignAffinity(prepared[i].verdict.StyleFit), StyleFitDetail: prepared[i].verdict.StyleFitDetail, CopiedAssets: copied, SatisfiedPorts: prepared[i].closure.SatisfiedPorts, AvailableSuggestions: prepared[i].closure.AvailableSuggestions})
+	}
+	for dependency := range shared {
+		result.SharedDependencies = append(result.SharedDependencies, dependency)
+	}
+	sort.Strings(result.SharedDependencies)
+	return result, nil
+}
+
+type batchFileSnapshot struct {
+	scenario string
+	path     string
+	existed  bool
+	content  []byte
+}
+
+func batchSnapshotKey(scenario, path string) string { return scenario + "::" + path }
+
+func (s *service) captureBatchSnapshots(ctx context.Context, scenario, experiencePath string, plans []adoptionPlan, snapshots map[string]batchFileSnapshot) error {
+	paths := make([]string, 0)
+	for _, plan := range plans {
+		for _, file := range plan.Files {
+			paths = append(paths, file.AdoptedPath)
+		}
+	}
+	if experiencePath != "" {
+		paths = append(paths, experiencePath)
+	}
+	for _, path := range paths {
+		key := batchSnapshotKey(scenario, path)
+		if _, seen := snapshots[key]; seen {
+			continue
+		}
+		exists, err := s.files.Exists(ctx, scenario, path)
+		if err != nil {
+			return err
+		}
+		snapshot := batchFileSnapshot{scenario: scenario, path: path, existed: exists}
+		if exists {
+			content, err := s.files.Read(ctx, scenario, path)
+			if err != nil {
+				return err
+			}
+			snapshot.content = append([]byte(nil), content...)
+		}
+		snapshots[key] = snapshot
+	}
+	return nil
+}
+
+func (s *service) rollbackBatch(ctx context.Context, snapshots map[string]batchFileSnapshot, results []ApplyResult) error {
+	if len(results) == 0 && len(snapshots) == 0 {
+		return nil
+	}
+	var firstErr error
+	for _, result := range results {
+		if err := s.repo.Delete(ctx, result.Adoption.ID); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	for _, snapshot := range snapshots {
+		var err error
+		if snapshot.existed {
+			if raw, ok := s.files.(interface {
+				WriteRaw(context.Context, string, string, []byte) error
+			}); ok {
+				err = raw.WriteRaw(ctx, snapshot.scenario, snapshot.path, snapshot.content)
+			} else {
+				_, err = s.files.Write(ctx, snapshot.scenario, snapshot.path, snapshot.content)
+			}
+		} else if remover, ok := s.files.(ScenarioFileRemover); ok {
+			err = remover.Remove(ctx, snapshot.scenario, snapshot.path)
+		} else {
+			return fmt.Errorf("file writer cannot remove newly created batch files")
+		}
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
+func cmpExperiencePath(root components.Component) string {
+	if root.Slug == "" {
+		return ""
+	}
+	return componentExperiencePath(root.Slug)
 }
 
 // RefreshSummary is the counter rollup returned by Refresh — used by
 // CLI/UI to render a one-line outcome alongside the per-row table.
 type RefreshSummary struct {
-	LibraryCurrent    int
-	LibraryBehind     int
-	LibraryDeprecated int
-	LibraryMissing    int
-	LibraryUnknown    int
-	LocalClean        int
-	LocalModified     int
-	LocalMissing      int
-	LocalUnknown      int
+	LibraryCurrent       int
+	LibraryBehind        int
+	LibraryDeprecated    int
+	LibraryMissing       int
+	LibraryUnknown       int
+	LibrarySourceDrifted int
+	LocalClean           int
+	LocalModified        int
+	LocalMissing         int
+	LocalUnknown         int
 }
 
 // LibraryReader is the components-side seam Refresh needs. Hides the
@@ -119,6 +512,10 @@ type ScenarioFileWriter interface {
 	Write(ctx context.Context, scenario, adoptedPath string, content []byte) (string, error)
 }
 
+type ScenarioFileRemover interface {
+	Remove(ctx context.Context, scenario, adoptedPath string) error
+}
+
 // ScenarioImportSiteFinder reports source files that directly import a target
 // within a scenario tree. It is deliberately optional so narrow test fakes can
 // retain their read/write-only contract.
@@ -148,6 +545,12 @@ type StyleFitValidator interface {
 	ValidateStyleFit(ctx context.Context, componentID, version, scenario string) (components.StyleFitVerdict, error)
 }
 
+// MaturityReader consumes the catalog's evidence-backed readiness rung. The
+// catalog remains the authority for how evidence becomes a rung.
+type MaturityReader interface {
+	Maturity(ctx context.Context, component components.Component, version, scenario string) (MaturityVerdict, error)
+}
+
 // ErrAdoptedFileMissing is the typed sentinel ScenarioFileReader
 // implementations return when the adopted_path does not exist. Refresh
 // translates it to StatusUnknown rather than failing the whole batch.
@@ -169,8 +572,10 @@ type service struct {
 	logger         *log.Logger
 	deps           DependencyValidator
 	styles         StyleFitValidator
+	maturity       MaturityReader
 	tokens         ScenarioTokenNamespaceReader
 	mappings       ScenarioTokenMappingReader
+	tokenInventory ScenarioTokenInventoryReader
 	manifestLoader uimanifest.Loader
 }
 
@@ -206,11 +611,20 @@ func SetValidationGates(svc Service, dependency DependencyValidator, style Style
 	}
 }
 
+func SetMaturityReader(svc Service, reader MaturityReader) {
+	if s, ok := svc.(*service); ok {
+		s.maturity = reader
+	}
+}
+
 func SetTokenNamespaceReader(svc Service, reader ScenarioTokenNamespaceReader) {
 	if s, ok := svc.(*service); ok {
 		s.tokens = reader
 		if mappingReader, ok := reader.(ScenarioTokenMappingReader); ok {
 			s.mappings = mappingReader
+		}
+		if inventoryReader, ok := reader.(ScenarioTokenInventoryReader); ok {
+			s.tokenInventory = inventoryReader
 		}
 	}
 }
@@ -297,6 +711,7 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Adoption, error) 
 }
 
 func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error) {
+	explicitVersion := strings.TrimSpace(in.Version) != ""
 	in.ComponentID = strings.TrimSpace(in.ComponentID)
 	in.Scenario = strings.TrimSpace(in.Scenario)
 	in.AdoptedPath = strings.TrimSpace(in.AdoptedPath)
@@ -326,10 +741,6 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	if version == "" {
 		return ApplyResult{}, ErrInvalidAdoption{Field: "version", Reason: "component has no latest version"}
 	}
-	styleFit, err := s.validateAdoption(ctx, in.ComponentID, version, in.Scenario, in.OverrideValidation)
-	if err != nil {
-		return ApplyResult{}, err
-	}
 	exists, err := s.files.Exists(ctx, in.Scenario, in.AdoptedPath)
 	if err != nil {
 		return ApplyResult{}, err
@@ -342,6 +753,16 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	closure, err := s.resolveAdoptionClosure(ctx, cmp, v, in.Scenario, in.IncludeSuggestions)
 	if err != nil {
 		return ApplyResult{}, err
+	}
+	if _, err := s.requireTokenVerdict(ctx, in.ComponentID, in.Scenario, closure, in.OverrideValidation); err != nil {
+		return ApplyResult{}, err
+	}
+	verdict, err := s.adoptionVerdict(ctx, cmp, v, closure, in.Scenario)
+	if err != nil {
+		return ApplyResult{}, err
+	}
+	if verdict.Blocking() && (!in.OverrideValidation || (v.Status == components.VersionStatusDraft && !explicitVersion)) {
+		return ApplyResult{}, readinessBlockedError(in.ComponentID, in.Scenario, verdict)
 	}
 	plans := adoptionPlansForClosure(closure.Assets, in.AdoptedPath)
 	if err := ensureDistinctAdoptionTargets(plans); err != nil {
@@ -437,7 +858,7 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 			return ApplyResult{}, fmt.Errorf("write component experience contract: %w", err)
 		}
 	}
-	root, err := s.repo.Create(ctx, CreateInput{ID: adoptionID, ComponentID: cmp.ID, LibraryID: cmp.LibraryID, Scenario: in.Scenario, AdoptedPath: in.AdoptedPath, AdoptedVersion: version, SourceSHA256: v.ContentSHA256, AdoptedSnapshotSHA256: entrySnapshot, Files: adoptionFiles})
+	root, err := s.repo.Create(ctx, CreateInput{ID: adoptionID, ComponentID: cmp.ID, LibraryID: cmp.LibraryID, Scenario: in.Scenario, AdoptedPath: in.AdoptedPath, AdoptedVersion: version, SourceSHA256: v.ContentSHA256, AdoptedSnapshotSHA256: entrySnapshot, IncludeSuggestions: append([]string(nil), in.IncludeSuggestions...), Files: adoptionFiles})
 	if err != nil {
 		return ApplyResult{}, err
 	}
@@ -446,9 +867,76 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 		copied = append(copied, asset.Asset.LibraryID)
 	}
 	result := ApplyResult{Adoption: root, WrittenPath: written, ExperiencePath: experiencePath, ImportSites: importSites, CopiedAssets: copied, SatisfiedPorts: closure.SatisfiedPorts, AvailableSuggestions: closure.AvailableSuggestions}
-	if styleFit != nil {
-		result.StyleFitAffinity = styleFit.Affinity
-		result.StyleFitDetail = styleFit.Detail
+	result.StyleFitAffinity = components.DesignAffinity(verdict.StyleFit)
+	result.StyleFitDetail = verdict.StyleFitDetail
+	return result, nil
+}
+
+func (s *service) Preflight(ctx context.Context, in PreflightInput) (PreflightResult, error) {
+	componentID := strings.TrimSpace(in.ComponentID)
+	scenario := strings.TrimSpace(in.Scenario)
+	if componentID == "" || scenario == "" {
+		return PreflightResult{}, ErrInvalidAdoption{Field: "component_id/scenario", Reason: "required"}
+	}
+	root, err := s.library.Get(ctx, componentID)
+	if err != nil {
+		return PreflightResult{}, err
+	}
+	version := strings.TrimSpace(in.Version)
+	if version == "" {
+		version = firstNonEmpty(root.LatestVersion, root.Version)
+	}
+	v, err := s.library.GetVersion(ctx, componentID, version)
+	if err != nil {
+		return PreflightResult{}, err
+	}
+	closure, err := s.resolveAdoptionClosure(ctx, root, v, scenario, nil)
+	if err != nil {
+		return PreflightResult{}, err
+	}
+	tokens, err := s.resolveTokenVerdict(ctx, closure, scenario)
+	if err != nil {
+		return PreflightResult{}, err
+	}
+	readiness, err := s.adoptionVerdict(ctx, root, v, closure, scenario)
+	if err != nil {
+		return PreflightResult{}, err
+	}
+	result := PreflightResult{ComponentID: componentID, Scenario: scenario, Version: version, Verdict: readiness, Tokens: tokens, Dependency: readiness.Dependency, StyleFit: readiness.StyleFit, Blocking: readiness.Blocking()}
+	return result, nil
+}
+
+func (s *service) adoptionVerdict(ctx context.Context, root components.Component, version components.ComponentVersion, closure components.ClosureReport, scenario string) (AdoptionVerdict, error) {
+	result := AdoptionVerdict{Version: version.Status}
+	if s.deps != nil {
+		verdict, err := s.deps.ValidateAdoption(ctx, root.ID, version.Version, scenario)
+		if err != nil {
+			return AdoptionVerdict{}, err
+		}
+		result.Dependency = string(verdict.Kind)
+	}
+	if s.styles != nil {
+		verdict, err := s.styles.ValidateStyleFit(ctx, root.ID, version.Version, scenario)
+		if err != nil {
+			return AdoptionVerdict{}, err
+		}
+		result.StyleFit = string(verdict.Affinity)
+		result.StyleFitDetail = verdict.Detail
+	}
+	if s.maturity != nil {
+		maturity, err := s.maturity.Maturity(ctx, root, version.Version, scenario)
+		if err != nil {
+			return AdoptionVerdict{}, err
+		}
+		result.Maturity = maturity
+	}
+	var err error
+	result.Tokens, err = s.resolveTokenVerdict(ctx, closure, scenario)
+	if err != nil {
+		return AdoptionVerdict{}, err
+	}
+	if version.Status == components.VersionStatusDeprecated {
+		result.Warnings = []string{"selected version is deprecated"}
 	}
 	return result, nil
 }
@@ -613,7 +1101,7 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		return Adoption{}, "", err
 	}
 	_, localStatus, _ := s.computeStatus(ctx, row)
-	if localStatus == LocalStatusModified && !in.ConfirmLocalOverwrite {
+	if localStatus == LocalStatusModified && !in.ConfirmLocalOverwrite && !in.DryRun {
 		return Adoption{}, "", ErrInvalidAdoption{Field: "confirm_local_overwrite", Reason: "adopted file has local modifications"}
 	}
 	version := strings.TrimSpace(in.Version)
@@ -624,9 +1112,6 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		}
 		version = firstNonEmpty(cmp.LatestVersion, cmp.Version, row.AdoptedVersion)
 	}
-	if _, err := s.validateAdoption(ctx, row.ComponentID, version, row.Scenario, in.OverrideValidation); err != nil {
-		return Adoption{}, "", err
-	}
 	root, err := s.library.Get(ctx, row.ComponentID)
 	if err != nil {
 		return Adoption{}, "", err
@@ -636,11 +1121,33 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		return Adoption{}, "", err
 	}
 	now := s.clock.Now().UTC()
-	closure, err := s.resolveAdoptionClosure(ctx, root, v, row.Scenario, nil)
+	closure, err := s.resolveAdoptionClosure(ctx, root, v, row.Scenario, row.IncludeSuggestions)
 	if err != nil {
 		return Adoption{}, "", err
 	}
+	if _, err := s.requireTokenVerdict(ctx, row.ComponentID, row.Scenario, closure, in.OverrideValidation); err != nil {
+		return Adoption{}, "", err
+	}
+	readiness, err := s.adoptionVerdict(ctx, root, v, closure, row.Scenario)
+	if err != nil {
+		return Adoption{}, "", err
+	}
+	if readiness.Blocking() && !in.OverrideValidation {
+		return Adoption{}, "", readinessBlockedError(row.ComponentID, row.Scenario, readiness)
+	}
 	plans := adoptionPlansForClosure(closure.Assets, row.AdoptedPath)
+	if in.DryRun {
+		if _, err := s.resolveTokenMapping(ctx, row.Scenario); err != nil {
+			return Adoption{}, "", err
+		}
+		return row, "", nil
+	}
+	newPaths := make(map[string]struct{})
+	for _, plan := range plans {
+		for _, file := range plan.Files {
+			newPaths[file.AdoptedPath] = struct{}{}
+		}
+	}
 	adoptionFiles := make([]AdoptionFile, 0)
 	written, entrySnapshot := "", ""
 	tokenMapping, err := s.resolveTokenMapping(ctx, row.Scenario)
@@ -684,6 +1191,33 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 	if err != nil {
 		return Adoption{}, "", err
 	}
+	// Remove orphaned files only after the replacement unit and its registry
+	// row have been written successfully. Other live adoptions retain shared
+	// files; failed writes never delete the previous unit.
+	if remover, ok := s.files.(ScenarioFileRemover); ok {
+		ownedByOther := make(map[string]struct{})
+		if rows, listErr := s.repo.List(ctx, ListQuery{Scenario: row.Scenario, Limit: 100000}); listErr == nil {
+			for _, other := range rows {
+				if other.ID == row.ID {
+					continue
+				}
+				for _, file := range other.Files {
+					ownedByOther[file.AdoptedPath] = struct{}{}
+				}
+			}
+		}
+		for _, oldFile := range row.Files {
+			if _, stillPresent := newPaths[oldFile.AdoptedPath]; stillPresent {
+				continue
+			}
+			if _, shared := ownedByOther[oldFile.AdoptedPath]; shared {
+				continue
+			}
+			if err := remover.Remove(ctx, row.Scenario, oldFile.AdoptedPath); err != nil {
+				return updated, written, fmt.Errorf("remove orphaned adopted file %q: %w", oldFile.AdoptedPath, err)
+			}
+		}
+	}
 	return updated, written, nil
 }
 
@@ -725,35 +1259,6 @@ func (s *service) resolveTokenMapping(ctx context.Context, scenario string) (Tok
 	return TokenMapping{Namespace: "app"}, nil
 }
 
-// validateAdoption deliberately executes both checks before deciding whether
-// either blocking verdict is allowed. A discouraged style affinity is an
-// explicit incompatibility, not advisory copy: applying it without an
-// operator override would silently undermine the catalog's style contract.
-// An override never bypasses execution of either server-side validation.
-func (s *service) validateAdoption(ctx context.Context, componentID, version, scenario string, override bool) (*components.StyleFitVerdict, error) {
-	blocked := false
-	if s.deps != nil {
-		verdict, err := s.deps.ValidateAdoption(ctx, componentID, version, scenario)
-		if err != nil {
-			return nil, fmt.Errorf("validate adoption dependencies: %w", err)
-		}
-		blocked = verdict.Kind == deps.VerdictBlock
-	}
-	var styleFit *components.StyleFitVerdict
-	if s.styles != nil {
-		verdict, err := s.styles.ValidateStyleFit(ctx, componentID, version, scenario)
-		if err != nil {
-			return nil, fmt.Errorf("validate adoption style fit: %w", err)
-		}
-		styleFit = &verdict
-		blocked = blocked || verdict.Affinity == components.DesignAffinityDiscouraged
-	}
-	if blocked && !override {
-		return styleFit, ErrAdoptionValidationBlocked{ComponentID: componentID, Version: version, Scenario: scenario}
-	}
-	return styleFit, nil
-}
-
 func (s *service) List(ctx context.Context, q ListQuery) ([]Adoption, error) {
 	if q.Limit <= 0 {
 		q.Limit = defaultListLimit
@@ -776,7 +1281,60 @@ func (s *service) Get(ctx context.Context, id string) (Adoption, error) {
 }
 
 func (s *service) Delete(ctx context.Context, id string) error {
-	return s.repo.Delete(ctx, id)
+	_, err := s.DeleteWithOptions(ctx, id, false)
+	return err
+}
+
+func (s *service) DeleteWithOptions(ctx context.Context, id string, confirmRemoveFiles bool) (DeleteResult, error) {
+	row, err := s.repo.Get(ctx, strings.TrimSpace(id))
+	if err != nil {
+		return DeleteResult{}, err
+	}
+	files := append([]AdoptionFile(nil), row.Files...)
+	if len(files) == 0 {
+		files = []AdoptionFile{{AdoptedPath: row.AdoptedPath}}
+	}
+	rows, err := s.repo.List(ctx, ListQuery{Scenario: row.Scenario, Limit: 100000})
+	if err != nil {
+		return DeleteResult{}, err
+	}
+	owned := make(map[string]struct{})
+	for _, other := range rows {
+		if other.ID == row.ID {
+			continue
+		}
+		for _, file := range other.Files {
+			owned[file.AdoptedPath] = struct{}{}
+		}
+		if other.AdoptedPath != "" {
+			owned[other.AdoptedPath] = struct{}{}
+		}
+	}
+	result := DeleteResult{AdoptionID: row.ID}
+	for _, file := range files {
+		if _, exists := owned[file.AdoptedPath]; exists {
+			continue
+		}
+		result.RemovableFiles = append(result.RemovableFiles, file.AdoptedPath)
+	}
+	if !confirmRemoveFiles && len(result.RemovableFiles) > 0 {
+		result.RequiresConfirmation = true
+		return result, ErrInvalidAdoption{Field: "confirm_remove_files", Reason: fmt.Sprintf("deletion would remove %s; re-run with --confirm-remove-files", strings.Join(result.RemovableFiles, ", "))}
+	}
+	if confirmRemoveFiles {
+		if remover, ok := s.files.(ScenarioFileRemover); ok {
+			for _, path := range result.RemovableFiles {
+				if err := remover.Remove(ctx, row.Scenario, path); err != nil {
+					return result, err
+				}
+				result.RemovedFiles = append(result.RemovedFiles, path)
+			}
+		}
+	}
+	if err := s.repo.Delete(ctx, row.ID); err != nil {
+		return result, err
+	}
+	return result, nil
 }
 
 func (s *service) Refresh(ctx context.Context, componentID string) ([]Adoption, RefreshSummary, error) {
@@ -831,6 +1389,8 @@ func (s *service) Refresh(ctx context.Context, componentID string) ([]Adoption, 
 			summary.LibraryMissing++
 		case LibraryVersionStatusUnknown:
 			summary.LibraryUnknown++
+		case LibraryVersionStatusSourceDrifted:
+			summary.LibrarySourceDrifted++
 		}
 		switch localStatus {
 		case LocalStatusClean:
@@ -959,6 +1519,7 @@ var (
 	_ ScenarioProvenanceScanner    = (*FSScenarioFileReader)(nil)
 	_ ScenarioCandidateScanner     = (*FSScenarioFileReader)(nil)
 	_ ScenarioTokenNamespaceReader = (*FSScenarioFileReader)(nil)
+	_ ScenarioTokenInventoryReader = (*FSScenarioFileReader)(nil)
 )
 
 // TokenNamespace reads the consumer's declared semantic namespace. The
@@ -1004,6 +1565,55 @@ func (r *FSScenarioFileReader) TokenMapping(_ context.Context, scenario string) 
 		return TokenMapping{}, fmt.Errorf("validate adoption token mapping for %q: %w", scenario, err)
 	}
 	return mapping, nil
+}
+
+// DeclaredTokens returns every custom property declared by the scenario UI.
+// It intentionally scans source rather than only the canonical ramp so a
+// consumer-owned declaration outside the managed region still satisfies a
+// library requirement without being overwritten.
+func (r *FSScenarioFileReader) DeclaredTokens(_ context.Context, scenario string) ([]string, error) {
+	base := filepath.Join(r.root, scenario, "ui")
+	declared := map[string]struct{}{}
+	if _, err := os.Stat(base); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == "node_modules" || entry.Name() == "dist" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".css" && ext != ".ts" && ext != ".tsx" {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		for _, match := range scenarioTokenDeclarationRE.FindAllStringSubmatch(string(raw), -1) {
+			if len(match) == 2 {
+				declared[match[1]] = struct{}{}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("scan declared tokens for scenario %q: %w", scenario, err)
+	}
+	result := make([]string, 0, len(declared))
+	for property := range declared {
+		result = append(result, property)
+	}
+	sort.Strings(result)
+	return result, nil
 }
 
 // scannedSource is one .ts/.tsx file yielded by walkScenarioSources: its
@@ -1159,6 +1769,33 @@ func (r *FSScenarioFileReader) Write(ctx context.Context, scenario, adoptedPath 
 	return cleaned, nil
 }
 
+// WriteRaw restores a batch snapshot without invoking the scenario formatter.
+// Rollback must recover the exact bytes that existed before the batch began.
+func (r *FSScenarioFileReader) WriteRaw(_ context.Context, scenario, adoptedPath string, content []byte) error {
+	cleaned, err := r.resolve(scenario, adoptedPath)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(cleaned), 0o755); err != nil {
+		return fmt.Errorf("create restored file dir: %w", err)
+	}
+	if err := os.WriteFile(cleaned, content, 0o600); err != nil {
+		return fmt.Errorf("restore adopted file %q: %w", adoptedPath, err)
+	}
+	return nil
+}
+
+func (r *FSScenarioFileReader) Remove(_ context.Context, scenario, adoptedPath string) error {
+	cleaned, err := r.resolve(scenario, adoptedPath)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(cleaned); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove adopted file %q: %w", adoptedPath, err)
+	}
+	return nil
+}
+
 // formatWrittenSource keeps copied source readable without imposing a
 // library-global formatter on consumers. Each adopting scenario owns its UI
 // toolchain; when that toolchain includes Prettier, use that exact binary and
@@ -1277,6 +1914,9 @@ func (s *service) libraryStatusFor(ctx context.Context, row Adoption, cmp compon
 	version, err := s.library.GetVersion(ctx, row.ComponentID, row.AdoptedVersion)
 	if err != nil {
 		return LibraryVersionStatusUnknown, fmt.Sprintf("adopted version %s not found in library", emptyOrVersion(row.AdoptedVersion))
+	}
+	if row.SourceSHA256 != "" && version.ContentSHA256 != "" && row.SourceSHA256 != version.ContentSHA256 {
+		return LibraryVersionStatusSourceDrifted, fmt.Sprintf("source bytes for released version %s changed: recorded %s, current %s", row.AdoptedVersion, row.SourceSHA256, version.ContentSHA256)
 	}
 	status, detail, _ = libraryStatusFor(row, cmp, version.Status)
 	return status, detail

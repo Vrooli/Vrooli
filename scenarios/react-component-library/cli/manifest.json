@@ -83,6 +83,101 @@
           }
         },
         {
+          "name": "preflight",
+          "description": "Read the dependency, style, and CSS custom-property contract before an adoption",
+          "positionals": [
+            {
+              "name": "component-id",
+              "required": true,
+              "description": "Library component id"
+            },
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Library version; defaults to latest"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdoptionsService",
+            "method": "PreflightAdoption"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "tokens-sync",
+          "description": "Add missing library token requirements to the scenario managed ramp",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Report changes without writing"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdoptionsService",
+            "method": "SyncScenarioTokens"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "tokens-prune",
+          "description": "Report or remove managed token declarations no live adoption requires",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "apply",
+              "description": "Apply the reported removals"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdoptionsService",
+            "method": "PruneScenarioTokens"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
           "name": "apply",
           "description": "Copy a component version into a target scenario and record the adoption",
           "positionals": [
@@ -113,6 +208,12 @@
               "bind": {
                 "field": "include_suggestions"
               }
+            },
+            {
+              "name": "set",
+              "local_only": true,
+              "description": "Batch item as component-id:scenario:adopted-path[:version]",
+              "bind_waiver": "The repeatable set syntax is parsed by the custom batch handler into typed BatchApplyAdoptionsRequest.items."
             },
             {
               "name": "replace-existing",
@@ -172,6 +273,18 @@
           }
         },
         {
+          "name": "batch-apply",
+          "description": "Apply several component-and-target pairs as one validated batch",
+          "flags": [
+            {"name": "set", "local_only": true, "description": "Repeat: component-id:scenario:adopted-path[:version]", "bind_waiver": "The repeatable set syntax is parsed by the custom batch handler into typed BatchApplyAdoptionsRequest.items."},
+            {"name": "confirm-overwrite", "local_only": true, "description": "Set to true to overwrite existing target files", "bind_waiver": "The custom batch handler folds this CLI control into each typed BatchApplyItem."},
+            {"name": "replace-existing", "local_only": true, "description": "Set to true to replace existing scenario source", "bind_waiver": "The custom batch handler folds this CLI control into each typed BatchApplyItem."},
+            {"name": "override-validation", "local_only": true, "description": "Explicitly allow blocking readiness findings", "bind_waiver": "The custom batch handler folds this CLI control into each typed BatchApplyItem."}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AdoptionsService", "method": "BatchApplyAdoptions"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
+        },
+        {
           "name": "reapply",
           "description": "Overwrite an adoption from a library version",
           "positionals": [
@@ -193,6 +306,10 @@
             {
               "name": "override-validation",
               "description": "Explicitly allow a blocking dependency validation verdict"
+            },
+            {
+              "name": "dry-run",
+              "description": "Validate closure and token requirements without writing"
             }
           ],
           "binding": {
@@ -218,6 +335,12 @@
               "name": "id",
               "required": true,
               "description": "Adoption record id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "confirm-remove-files",
+              "description": "Confirm removal of files owned only by this adoption"
             }
           ],
           "binding": {
@@ -1585,7 +1708,7 @@
             {
               "name": "gate",
               "required": true,
-              "description": "Gate: types, api, tokens, lifecycle, fixture-adversarial, or examples"
+              "description": "Gate: types, api, tokens, token-vocabulary, token-ramp-complete, released-version-immutable, lifecycle, fixture-adversarial, or examples"
             }
           ],
           "binding": {

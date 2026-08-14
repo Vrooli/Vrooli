@@ -105,6 +105,45 @@ func (h *connectHandler) ListEffectiveAdoptions(ctx context.Context, req *connec
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) PreflightAdoption(ctx context.Context, req *connect.Request[adoptionsv1.PreflightAdoptionRequest]) (*connect.Response[adoptionsv1.PreflightAdoptionResponse], error) {
+	out, err := h.deps.Service.Preflight(ctx, adoptions.PreflightInput{ComponentID: req.Msg.ComponentId, Scenario: req.Msg.Scenario, Version: req.Msg.Version})
+	if err != nil {
+		return nil, adoptions.ToConnectError(err)
+	}
+	return connect.NewResponse(&adoptionsv1.PreflightAdoptionResponse{
+		ComponentId:           out.ComponentID,
+		Scenario:              out.Scenario,
+		Version:               out.Version,
+		RequiredTokens:        out.Tokens.Required,
+		RequiredTokenPatterns: out.Tokens.RequiredPatterns,
+		DefinedTokens:         out.Tokens.Defined,
+		UnsatisfiedTokens:     out.Tokens.Unsatisfied,
+		DependencyVerdict:     out.Dependency,
+		StyleFit:              out.StyleFit,
+		Blocking:              out.Blocking,
+		VersionStatus:         string(out.Verdict.Version),
+		MaturityRung:          out.Verdict.Maturity.Achieved,
+		MaturityFloor:         out.Verdict.Maturity.Floor,
+		Warnings:              out.Verdict.Warnings,
+	}), nil
+}
+
+func (h *connectHandler) SyncScenarioTokens(ctx context.Context, req *connect.Request[adoptionsv1.SyncScenarioTokensRequest]) (*connect.Response[adoptionsv1.SyncScenarioTokensResponse], error) {
+	out, err := h.deps.Service.SyncScenarioTokens(ctx, adoptions.TokenSyncInput{Scenario: req.Msg.Scenario, DryRun: req.Msg.DryRun})
+	if err != nil {
+		return nil, adoptions.ToConnectError(err)
+	}
+	return connect.NewResponse(&adoptionsv1.SyncScenarioTokensResponse{Scenario: out.Scenario, Added: out.Added, Collisions: out.Collisions, Changed: out.Changed}), nil
+}
+
+func (h *connectHandler) PruneScenarioTokens(ctx context.Context, req *connect.Request[adoptionsv1.PruneScenarioTokensRequest]) (*connect.Response[adoptionsv1.PruneScenarioTokensResponse], error) {
+	out, err := h.deps.Service.PruneScenarioTokens(ctx, adoptions.TokenPruneInput{Scenario: req.Msg.Scenario, Apply: req.Msg.Apply})
+	if err != nil {
+		return nil, adoptions.ToConnectError(err)
+	}
+	return connect.NewResponse(&adoptionsv1.PruneScenarioTokensResponse{Scenario: out.Scenario, Removed: out.Removed, Retained: out.Retained, Changed: out.Changed}), nil
+}
+
 func (h *connectHandler) ApplyAdoption(ctx context.Context, req *connect.Request[adoptionsv1.ApplyAdoptionRequest]) (*connect.Response[adoptionsv1.ApplyAdoptionResponse], error) {
 	result, err := h.deps.Service.Apply(ctx, adoptions.ApplyInput{
 		ComponentID:        req.Msg.ComponentId,
@@ -126,12 +165,32 @@ func (h *connectHandler) ApplyAdoption(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&adoptionsv1.ApplyAdoptionResponse{Adoption: domainToProto(result.Adoption), WrittenPath: result.WrittenPath, ImportSites: result.ImportSites, StyleFitAffinity: string(result.StyleFitAffinity), StyleFitDetail: result.StyleFitDetail, CopiedAssets: result.CopiedAssets, SatisfiedPorts: result.SatisfiedPorts, AvailableSuggestions: result.AvailableSuggestions}), nil
 }
 
+func (h *connectHandler) BatchApplyAdoptions(ctx context.Context, req *connect.Request[adoptionsv1.BatchApplyAdoptionsRequest]) (*connect.Response[adoptionsv1.BatchApplyAdoptionsResponse], error) {
+	items := make([]adoptions.BatchApplyItem, 0, len(req.Msg.Items))
+	for _, item := range req.Msg.Items {
+		if item == nil {
+			continue
+		}
+		items = append(items, adoptions.BatchApplyItem{ComponentID: item.ComponentId, Scenario: item.Scenario, AdoptedPath: item.AdoptedPath, Version: item.Version, ConfirmOverwrite: item.ConfirmOverwrite, OverrideValidation: item.OverrideValidation, ReplaceExisting: item.ReplaceExisting, IncludeSuggestions: item.IncludeSuggestions})
+	}
+	out, err := h.deps.Service.BatchApply(ctx, adoptions.BatchApplyInput{Items: items})
+	if err != nil {
+		return nil, adoptions.ToConnectError(err)
+	}
+	resp := &adoptionsv1.BatchApplyAdoptionsResponse{SharedDependencies: out.SharedDependencies}
+	for _, item := range out.Results {
+		resp.Results = append(resp.Results, &adoptionsv1.BatchApplyItemResult{Adoption: domainToProto(item.Adoption), WrittenPath: item.WrittenPath, ImportSites: item.ImportSites, StyleFitAffinity: string(item.StyleFitAffinity), StyleFitDetail: item.StyleFitDetail, CopiedAssets: item.CopiedAssets, SatisfiedPorts: item.SatisfiedPorts, AvailableSuggestions: item.AvailableSuggestions})
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (h *connectHandler) ReapplyAdoption(ctx context.Context, req *connect.Request[adoptionsv1.ReapplyAdoptionRequest]) (*connect.Response[adoptionsv1.ReapplyAdoptionResponse], error) {
 	got, writtenPath, err := h.deps.Service.Reapply(ctx, adoptions.ReapplyInput{
 		ID:                    req.Msg.Id,
 		Version:               req.Msg.Version,
 		ConfirmLocalOverwrite: req.Msg.ConfirmLocalOverwrite,
 		OverrideValidation:    req.Msg.OverrideValidation,
+		DryRun:                req.Msg.DryRun,
 	})
 	if err != nil {
 		connectErr := adoptions.ToConnectError(err)
@@ -144,14 +203,15 @@ func (h *connectHandler) ReapplyAdoption(ctx context.Context, req *connect.Reque
 }
 
 func (h *connectHandler) DeleteAdoption(ctx context.Context, req *connect.Request[adoptionsv1.DeleteAdoptionRequest]) (*connect.Response[adoptionsv1.DeleteAdoptionResponse], error) {
-	if err := h.deps.Service.Delete(ctx, req.Msg.Id); err != nil {
+	out, err := h.deps.Service.DeleteWithOptions(ctx, req.Msg.Id, req.Msg.ConfirmRemoveFiles)
+	if err != nil {
 		connectErr := adoptions.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
 			h.deps.Logger.Printf("adoptions.DeleteAdoption(%q): %v", req.Msg.Id, err)
 		}
 		return nil, connectErr
 	}
-	return connect.NewResponse(&adoptionsv1.DeleteAdoptionResponse{}), nil
+	return connect.NewResponse(&adoptionsv1.DeleteAdoptionResponse{RemovableFiles: out.RemovableFiles, RemovedFiles: out.RemovedFiles, RequiresConfirmation: out.RequiresConfirmation}), nil
 }
 
 func (h *connectHandler) RefreshAdoptions(ctx context.Context, req *connect.Request[adoptionsv1.RefreshAdoptionsRequest]) (*connect.Response[adoptionsv1.RefreshAdoptionsResponse], error) {
@@ -161,16 +221,17 @@ func (h *connectHandler) RefreshAdoptions(ctx context.Context, req *connect.Requ
 		return nil, adoptions.ToConnectError(err)
 	}
 	resp := &adoptionsv1.RefreshAdoptionsResponse{
-		Adoptions:         make([]*adoptionsv1.Adoption, 0, len(rows)),
-		LibraryCurrent:    int32(summary.LibraryCurrent),
-		LibraryBehind:     int32(summary.LibraryBehind),
-		LibraryDeprecated: int32(summary.LibraryDeprecated),
-		LibraryMissing:    int32(summary.LibraryMissing),
-		LibraryUnknown:    int32(summary.LibraryUnknown),
-		LocalClean:        int32(summary.LocalClean),
-		LocalModified:     int32(summary.LocalModified),
-		LocalMissing:      int32(summary.LocalMissing),
-		LocalUnknown:      int32(summary.LocalUnknown),
+		Adoptions:            make([]*adoptionsv1.Adoption, 0, len(rows)),
+		LibraryCurrent:       int32(summary.LibraryCurrent),
+		LibraryBehind:        int32(summary.LibraryBehind),
+		LibraryDeprecated:    int32(summary.LibraryDeprecated),
+		LibraryMissing:       int32(summary.LibraryMissing),
+		LibraryUnknown:       int32(summary.LibraryUnknown),
+		LibrarySourceDrifted: int32(summary.LibrarySourceDrifted),
+		LocalClean:           int32(summary.LocalClean),
+		LocalModified:        int32(summary.LocalModified),
+		LocalMissing:         int32(summary.LocalMissing),
+		LocalUnknown:         int32(summary.LocalUnknown),
 	}
 	for _, a := range rows {
 		resp.Adoptions = append(resp.Adoptions, domainToProto(a))
@@ -198,12 +259,16 @@ func (h *connectHandler) ReconvergeAdoptions(ctx context.Context, req *connect.R
 		return nil, adoptions.ToConnectError(err)
 	}
 	resp := &adoptionsv1.ReconvergeAdoptionsResponse{
-		Scanned:   int32(out.Scanned),
-		Behind:    int32(out.Behind),
-		Reapplied: int32(out.Reapplied),
-		Flagged:   int32(out.Flagged),
-		Skipped:   int32(out.Skipped),
-		Errored:   int32(out.Errored),
+		Scanned:         int32(out.Scanned),
+		Behind:          int32(out.Behind),
+		Reapplied:       int32(out.Reapplied),
+		Flagged:         int32(out.Flagged),
+		Skipped:         int32(out.Skipped),
+		Errored:         int32(out.Errored),
+		TranslationOnly: int32(out.TranslationOnly),
+		LocalAddition:   int32(out.LocalAddition),
+		LocalFork:       int32(out.LocalFork),
+		TokenBlocked:    int32(out.TokenBlocked),
 	}
 	for _, o := range out.Outcomes {
 		resp.Outcomes = append(resp.Outcomes, reconvergeOutcomeToProto(o))

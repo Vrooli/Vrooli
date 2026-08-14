@@ -39,3 +39,10 @@ type Repository interface {
 	// actually touched.
 	ApplyRefresh(ctx context.Context, updates []RefreshUpdate) (int, error)
 }
+
+// BatchCreator is implemented by repositories that can persist several
+// adoption rows in one transaction. The service keeps this as an optional
+// capability so narrow test repositories remain useful.
+type BatchCreator interface {
+	CreateBatch(ctx context.Context, inputs []CreateInput) ([]Adoption, error)
+}

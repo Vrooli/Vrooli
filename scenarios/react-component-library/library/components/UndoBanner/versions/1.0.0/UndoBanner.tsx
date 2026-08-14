@@ -14,7 +14,7 @@ const styles = `
   [data-rcl-undo-banner][data-status="submitting"] { border-inline-start: var(--border-strong) solid var(--color-warning); }
   [data-rcl-undo-banner][data-status="success"] { border-inline-start: var(--border-strong) solid var(--color-success); }
   [data-rcl-undo-banner][data-status="error"] { border-inline-start: var(--border-strong) solid var(--color-danger); }
-  [data-rcl-undo-icon] { display: grid; place-items: center; inline-size: 2.5rem; block-size: 2.5rem; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--color-primary) 12%, var(--app-surface)); color: var(--color-primary); }
+  [data-rcl-undo-icon] { display: grid; place-items: center; inline-size: 2.5rem; block-size: 2.5rem; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface)); color: var(--color-primary); }
   [data-rcl-undo-copy] { display: grid; gap: var(--space-3xs); min-inline-size: 0; }
   [data-rcl-undo-title] { color: var(--color-foreground); font: var(--text-label); }
   [data-rcl-undo-detail] { color: var(--color-muted-foreground); font: var(--text-body-sm); overflow-wrap: anywhere; }

@@ -12,7 +12,7 @@ export const Surface = forwardRef<
     className={className}
     data-elevation={elevation}
     style={{
-      background: "var(--app-surface)",
+      background: "var(--color-surface)",
       border: "var(--surface-border)",
       borderRadius: "var(--panel-radius)",
       boxShadow: `var(--elev-${elevation})`,

@@ -8,6 +8,10 @@ This document is the canonical workflow map for ordered behavior.
 |---|---|---|---|---|
 | Index library | components | CLI/API/UI `components index` | Manifests and version folders are validated and reflected in SQLite | Indexer, repository, handler, CLI tests |
 | Apply component | adoptions | CLI/API/UI `adoptions apply` | Selected version source is copied into a target scenario with provenance and an adoption row | Service, handler, CLI, UI tests |
+| Preflight styling contract | adoptions | CLI/API `adoptions preflight` | Dependency, style-fit, version, maturity, and token findings are combined into one read-only adoptability verdict | Service and handler tests |
+| Sync scenario ramp | adoptions | CLI/API `adoptions tokens-sync` | Missing closure tokens are added only inside the managed design-token region | Ramp parser and service tests |
+| Prune scenario ramp | adoptions | CLI/API `adoptions tokens-prune` | Unused managed declarations are reported, then removed only with explicit apply | Ramp parser and service tests |
+| Batch apply | adoptions | API/CLI batch apply | Several roots share one union closure and persistence transaction | Service, handler, and CLI tests |
 | Assisted extract/adopt | workflows | CLI/API/UI `workflows start` | RCL records a scoped Agent Manager task/run and exposes honest queued/running/terminal status | Workflow service, handler, CLI tests |
 | Promotion readiness | workflows | CLI/API/UI `workflows promotion-readiness` | Read-only evidence report joins parity, examples, dependency closure, origin replacement, and drift | Workflow readiness service, handler, CLI, UI tests |
 | Refresh drift | adoptions | CLI/API/UI `adoptions refresh` | Adoption rows receive separate library-version and local-edit statuses | Service status matrix and UI tests |
@@ -63,7 +67,26 @@ Refresh computes two dimensions:
 - `local_status`: `clean`, `modified`, `missing`, or `unknown`.
 
 This lets the UI distinguish a clean but behind copy from a locally
-edited copy that is also behind.
+edited copy that is also behind. A fixed-version hash mismatch is reported as
+`source_drifted`, which means the released bytes changed under the adoption
+and must be repaired as a version-integrity issue.
+
+## Adoptability preflight
+
+Preflight resolves the complete pinned closure without writing files. It
+returns the dependency verdict, style-fit verdict, version status, achieved
+maturity rung, required and defined CSS properties, and the blocking decision.
+Apply and reapply use the same verdict. A missing managed token ramp is
+remediated with `adoptions tokens-sync`; an explicit override is recorded as
+an operator decision rather than hiding the finding.
+
+## Asset update and batch adoption
+
+Asset source changes are published as a new version. Released version bytes
+are immutable, so reindexing a changed released folder fails. Operators then
+refresh adopters, classify local drift, and reapply only clean copies. Several
+roots can be submitted as one batch so shared dependencies are resolved once
+and target collisions are rejected before any write.
 
 ## Graduate Scenario Component
 

@@ -204,6 +204,33 @@ INSERT INTO adoption_files (adoption_id, library_path, adopted_path) VALUES
 	require.Equal(t, "rcl:useFocusTrap", effective[0].SourceLibraryID)
 }
 
+func TestEnsureSchemaMigrations_RenamesRetiredScenarioInPlace(t *testing.T) {
+	d := db.NewSQLite(t)
+	ctx := context.Background()
+	require.NoError(t, apidb.EnsureSchemas(ctx, d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(components.Schema),
+		apidb.SchemaProviderFunc(adoptions.Schema),
+	))
+	_, err := d.ExecContext(ctx, `
+INSERT INTO adoption_records
+  (id, component_id, library_id, scenario, adopted_path, adopted_version, created_at)
+VALUES ('retired-scenario-adoption', 'cmp', 'react-component-library:Button', 'cleanup-manager', 'ui/src/components/ui/button.tsx', '1.0.0', '2026-01-01T00:00:00Z')`)
+	require.NoError(t, err)
+
+	require.NoError(t, adoptions.EnsureSchemaMigrations(ctx, d))
+	require.NoError(t, adoptions.EnsureSchemaMigrations(ctx, d), "scenario remap must be boot-idempotent")
+
+	repo := adoptions.NewSQLiteRepository(d, scheduletest.New(time.Now()))
+	current, err := repo.List(ctx, adoptions.ListQuery{Scenario: "storage-manager", Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, current, 1)
+	require.Equal(t, "retired-scenario-adoption", current[0].ID)
+	retired, err := repo.List(ctx, adoptions.ListQuery{Scenario: "cleanup-manager", Limit: 10})
+	require.NoError(t, err)
+	require.Empty(t, retired)
+}
+
 func TestSQLiteRepository_DeleteAndApplyRefresh(t *testing.T) {
 	repo, clk := newAdoptionsDB(t)
 	ctx := context.Background()

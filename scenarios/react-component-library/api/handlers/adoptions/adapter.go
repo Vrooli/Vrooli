@@ -58,6 +58,7 @@ func reconvergeOutcomeToProto(o adoptions.ReconvergeOutcome) *adoptionsv1.Reconv
 		LocalStatus:          localStatusToProto(o.LocalStatus),
 		Action:               reconvergeActionToProto(o.Action),
 		Detail:               o.Detail,
+		Disposition:          string(o.Disposition),
 	}
 	for _, file := range o.Files {
 		out.Files = append(out.Files, &adoptionsv1.ReconvergeFileOutcome{
@@ -81,6 +82,8 @@ func reconvergeActionToProto(a adoptions.ReconvergeAction) adoptionsv1.Reconverg
 		return adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_SKIPPED_UNRESOLVED
 	case adoptions.ReconvergeActionError:
 		return adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_ERROR
+	case adoptions.ReconvergeActionBlockedTokens:
+		return adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_BLOCKED_TOKENS
 	}
 	return adoptionsv1.ReconvergeAction_RECONVERGE_ACTION_UNSPECIFIED
 }
@@ -97,6 +100,8 @@ func libraryStatusToProto(s adoptions.LibraryVersionStatus) adoptionsv1.LibraryV
 		return adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_MISSING
 	case adoptions.LibraryVersionStatusUnknown:
 		return adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_UNKNOWN
+	case adoptions.LibraryVersionStatusSourceDrifted:
+		return adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_SOURCE_DRIFTED
 	}
 	return adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_UNSPECIFIED
 }

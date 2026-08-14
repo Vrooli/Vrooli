@@ -33,6 +33,7 @@ type sharedHandler struct {
 	sourceRoot string
 	logger     *log.Logger
 	evidence   *catalogcoverage.EvidenceStore
+	fixture    GeneratedFixtureValidator
 }
 
 // The catalog suite is transport-bound: Test Genie keeps the validation RPC
@@ -128,6 +129,16 @@ func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 		failedAssets = append(failedAssets, result.libraryID)
 		if result.detail != "" {
 			failureDetails[result.libraryID] = result.detail
+		}
+	}
+	if h.fixture != nil {
+		if fixtureErr := h.fixture.Validate(ctx); fixtureErr != nil {
+			failed = true
+			failedAssets = append(failedAssets, "generated-fixture")
+			failureDetails["generated-fixture"] = fixtureErr.Error()
+			if h.logger != nil {
+				h.logger.Printf("generated-fixture validation failed: %v", fixtureErr)
+			}
 		}
 	}
 	status := scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED

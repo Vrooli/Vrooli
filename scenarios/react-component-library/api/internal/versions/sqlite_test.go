@@ -36,6 +36,7 @@ func TestSQLiteRepository_InsertGetList(t *testing.T) {
 
 	first, err := repo.Insert(ctx, versions.Version{
 		ComponentID:   "cmp-1",
+		LibraryID:     "react-component-library:Button",
 		Version:       "1.0.0",
 		Content:       "body v1",
 		ContentSHA256: "abc",
@@ -60,10 +61,18 @@ func TestSQLiteRepository_InsertGetList(t *testing.T) {
 	require.Equal(t, "body v1", got.Content)
 	require.Equal(t, "first", got.ChangelogMD)
 
+	got, err = repo.Get(ctx, "react-component-library:Button", "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, "cmp-1", got.ComponentID)
+
 	rows, err := repo.List(ctx, versions.ListQuery{ComponentID: "cmp-1", Limit: 10})
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
 	require.Equal(t, "1.0.1", rows[0].Version) // newest first
+
+	rows, err = repo.List(ctx, versions.ListQuery{ComponentID: "react-component-library:Button", Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, rows, 1, "library-id lookup should select only versions carrying that library id")
 }
 
 func TestSQLiteRepository_Latest_EmptyAndPopulated(t *testing.T) {

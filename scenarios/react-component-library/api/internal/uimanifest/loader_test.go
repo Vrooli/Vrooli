@@ -74,6 +74,17 @@ func TestLoad_Happy(t *testing.T) {
 	}
 }
 
+func TestLoad_TemplateScenarioPath(t *testing.T) {
+	root := setupRepo(t)
+	mf, err := NewFSLoader(root).Load("../templates/scenarios/react-vite")
+	if err != nil {
+		t.Fatalf("Load template scenario path: %v", err)
+	}
+	if mf.Contract.Template != "react-vite" {
+		t.Fatalf("unexpected template contract: %+v", mf.Contract)
+	}
+}
+
 func TestLoad_ScenarioMissing(t *testing.T) {
 	root := setupRepo(t)
 	l := NewFSLoader(root)

@@ -25,5 +25,17 @@ func ToConnectError(err error) error {
 	if errors.As(err, &blocked) {
 		return connect.NewError(connect.CodeFailedPrecondition, blocked)
 	}
+	var tokens ErrAdoptionTokensUnsatisfied
+	if errors.As(err, &tokens) {
+		return connect.NewError(connect.CodeFailedPrecondition, tokens)
+	}
+	var readiness ErrAdoptionReadinessBlocked
+	if errors.As(err, &readiness) {
+		return connect.NewError(connect.CodeFailedPrecondition, readiness)
+	}
+	var dependencyConflict ErrBatchDependencyConflict
+	if errors.As(err, &dependencyConflict) {
+		return connect.NewError(connect.CodeFailedPrecondition, dependencyConflict)
+	}
 	return connect.NewError(connect.CodeInternal, err)
 }

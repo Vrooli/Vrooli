@@ -150,13 +150,9 @@ func TestSQLiteRepository_UpsertManifestPreservesCreatedAtAndReleasedAt(t *testi
 	_ = now()
 	input.Versions[0].Content = "export const Button = () => true;"
 	input.Versions[0].ContentSHA256 = "second"
-	second, err := repo.UpsertManifest(ctx, input)
-	require.NoError(t, err)
-	secondVersion, err := repo.GetVersion(ctx, second.ID, "1.0.0")
-	require.NoError(t, err)
-	require.Equal(t, firstVersion.ID, secondVersion.ID)
-	require.Equal(t, firstVersion.CreatedAt, secondVersion.CreatedAt)
-	require.Equal(t, firstVersion.ReleasedAt, secondVersion.ReleasedAt)
+	_, err = repo.UpsertManifest(ctx, input)
+	var immutable components.ErrReleasedVersionMutated
+	require.ErrorAs(t, err, &immutable)
 
 	var count int
 	require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM component_versions WHERE component_id = ?`, first.ID).Scan(&count))

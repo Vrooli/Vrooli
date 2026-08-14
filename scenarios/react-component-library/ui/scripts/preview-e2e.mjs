@@ -33,6 +33,10 @@ function chromeExecutable() {
   return process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || process.env.CHROME_BIN || DEFAULT_CHROME;
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function fail(message, details) {
   console.error(JSON.stringify({ ok: false, message, ...details }, null, 2));
   process.exitCode = 1;
@@ -596,8 +600,16 @@ async function assertAssetPreview(page, componentID, target = {}) {
     // focused component run exercises the same navigation contract as the
     // catalog-scale sweep.
     const assetLink = page.locator(`a[href="${assetPath}"]:visible`).first();
-    await assetLink.waitFor({ state: "visible", timeout: 15_000 });
-    await assetLink.click();
+    const assetTreeItem = page
+      .getByRole("treeitem", { name: new RegExp(`\\b${escapeRegExp(target.label)}\\b`) })
+      .first();
+    if (await assetLink.count()) {
+      await assetLink.waitFor({ state: "visible", timeout: 15_000 });
+      await assetLink.click();
+    } else {
+      await assetTreeItem.waitFor({ state: "visible", timeout: 15_000 });
+      await assetTreeItem.click();
+    }
     await page
       .locator('[data-testid="components-editor-panel"]')
       .waitFor({ state: "visible", timeout: 15_000 });

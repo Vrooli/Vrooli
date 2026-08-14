@@ -33,6 +33,10 @@ func ToConnectError(err error) error {
 	if errors.As(err, &conflict) {
 		return connect.NewError(connect.CodeFailedPrecondition, conflict)
 	}
+	var immutable ErrReleasedVersionMutated
+	if errors.As(err, &immutable) {
+		return connect.NewError(connect.CodeFailedPrecondition, immutable)
+	}
 	var parity ErrParityWaiverRequired
 	if errors.As(err, &parity) {
 		return connect.NewError(connect.CodeFailedPrecondition, parity)

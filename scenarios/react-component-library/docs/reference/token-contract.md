@@ -1,8 +1,22 @@
 # Design-token contract for adopted assets
 
-Catalog source uses the `app-*` semantic vocabulary. An adopter must either
-define these utilities or use the governed adoption translator; an adopted
-file must not silently retain a token class its Tailwind config cannot emit.
+The library has two related but distinct contracts:
+
+* Tailwind utility roles use the governed `app-*` semantic names. They are
+  translated into the adopter's namespace through `ui/token-map.json`.
+* Raw CSS custom properties use the library's single retained vocabulary:
+  `--color-*`, `--space-*`, `--radius-*`, `--text-*`, `--elev-*`, `--dur-*`,
+  `--ease-*`, and the other published ramp families. Library source must not
+  reference the retired `--app-*` CSS-property prefix.
+
+An adopted file must not silently retain a token class its Tailwind config
+cannot emit, nor a raw CSS property the target scenario does not declare.
+
+The derived `requiredTokens[]` and `requiredTokenPatterns[]` fields are
+computed from each indexed version's `.tsx`, `.ts`, and `.css` source. They
+are not authored in a manifest. Preflight unions those fields across the
+dependency closure and reports every target-side omission before apply or
+reapply.
 
 The current `app-*` contract is:
 
@@ -21,12 +35,28 @@ The current `app-*` contract is:
 | `app-surface-muted` | muted/inset surface |
 | `app-warning` | warning state |
 
-`react-component-library` defines the source vocabulary. The mapping is owned
-by each adopting scenario in `ui/token-map.json`, next to its isolated
-Tailwind configuration. `audio-tools` maps into its `app-*` variables,
+`react-component-library` defines the source utility vocabulary. The mapping
+is owned by each adopting scenario in `ui/token-map.json`, next to its
+isolated Tailwind configuration. `audio-tools` maps into its `app-*` variables,
 `web-console` maps into its `wc-*` variables, and `swarm-manager` maps into its
 `slate-*` variables. The library reads the file during apply/reapply; it does
 not carry a consumer palette in Go source.
+
+The canonical raw-property ramp is `ui/src/design-tokens.css`. Each adopting
+scenario carries exactly one managed region:
+
+```css
+/* rcl:tokens:begin */
+/* declarations maintained by `adoptions tokens-sync` */
+/* rcl:tokens:end */
+```
+
+Bytes outside that region are scenario-owned. `adoptions tokens-sync
+<scenario> [--dry-run]` adds missing required properties using values from the
+library reference ramp; a declaration already owned outside the region is a
+collision and is never overwritten. `adoptions tokens-prune <scenario>`
+reports managed declarations no live adoption requires and removes them only
+with `--apply`.
 
 Each mapping entry declares both the generated utility target and the CSS
 custom property behind it. A mapping is rejected when an entry is incomplete,

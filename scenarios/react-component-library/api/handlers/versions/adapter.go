@@ -10,16 +10,18 @@ import (
 
 func versionToProto(v versions.Version, _ bool) *versionsv1.Version {
 	out := &versionsv1.Version{
-		Id:            v.ID,
-		ComponentId:   v.ComponentID,
-		LibraryId:     v.LibraryID,
-		Version:       v.Version,
-		ContentSha256: v.ContentSHA256,
-		ChangelogMd:   v.ChangelogMD,
-		RecordedAt:    timestamppb.New(v.RecordedAt.UTC()),
-		CreatedAt:     timestamppb.New(v.CreatedAt.UTC()),
-		Status:        v.Status,
-		SourcePath:    v.SourcePath,
+		Id:                    v.ID,
+		ComponentId:           v.ComponentID,
+		LibraryId:             v.LibraryID,
+		Version:               v.Version,
+		ContentSha256:         v.ContentSHA256,
+		ChangelogMd:           v.ChangelogMD,
+		RecordedAt:            timestamppb.New(v.RecordedAt.UTC()),
+		CreatedAt:             timestamppb.New(v.CreatedAt.UTC()),
+		Status:                v.Status,
+		SourcePath:            v.SourcePath,
+		RequiredTokens:        append([]string(nil), v.RequiredTokens...),
+		RequiredTokenPatterns: append([]string(nil), v.RequiredTokenPatterns...),
 	}
 	if !v.ReleasedAt.IsZero() {
 		out.ReleasedAt = timestamppb.New(v.ReleasedAt.UTC())

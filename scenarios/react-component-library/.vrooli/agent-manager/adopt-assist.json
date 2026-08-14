@@ -3,19 +3,25 @@
   "owner": "react-component-library",
   "key": "react-component-library/adopt-assist",
   "version": "1.0.0",
-  "description": "Integrate and adopt one RCL catalog asset into a target scenario through the authoritative CLI.",
+  "description": "Integrate and adopt one or more RCL catalog assets into a target scenario through the authoritative CLI.",
   "inputSchema": {
     "type": "object",
     "properties": {
       "kind": {"type": "string", "enum": ["adopt"]},
-      "assetId": {"type": "string", "minLength": 1, "maxLength": 256},
-      "targetScenario": {"type": "string", "minLength": 1, "maxLength": 255},
-      "sourcePath": {"type": "string", "maxLength": 4096},
-      "requestedVersion": {"type": "string", "maxLength": 128},
-      "confirmOverwrite": {"type": "boolean"},
-      "overrideValidation": {"type": "boolean"}
+      "assets": {"type": "array", "minItems": 1, "maxItems": 16, "items": {
+        "type": "object", "properties": {
+          "assetId": {"type": "string", "minLength": 1, "maxLength": 256},
+          "targetScenario": {"type": "string", "minLength": 1, "maxLength": 255},
+          "sourcePath": {"type": "string", "maxLength": 4096},
+          "requestedVersion": {"type": "string", "maxLength": 128},
+          "confirmOverwrite": {"type": "boolean"},
+          "overrideValidation": {"type": "boolean"}
+        },
+        "required": ["assetId", "targetScenario"],
+        "additionalProperties": false
+      }}
     },
-    "required": ["kind", "assetId", "targetScenario"],
+    "required": ["kind", "assets"],
     "additionalProperties": false
   },
   "outputSchema": {
@@ -40,10 +46,10 @@
     }, "required": ["summary", "outcome", "evidence"], "additionalProperties": false}},
     "bindings": [
       {"name": "operation", "source": "workflow_input", "selector": "$", "limit": 1, "maxBytes": 16384, "renderAs": "json_pretty", "missingPolicy": "error"},
-      {"name": "scope_scenario", "source": "workflow_input", "selector": "$.targetScenario", "limit": 1, "maxBytes": 255, "renderAs": "text", "missingPolicy": "error"}
+      {"name": "scope_scenario", "source": "workflow_input", "selector": "$.assets[0].targetScenario", "limit": 1, "maxBytes": 255, "renderAs": "text", "missingPolicy": "error"}
     ],
     "maxTurns": 100, "timeoutSeconds": 3600
   }}],
-  "budgets": {"wallTimeSeconds": 5400, "maxTurns": 100, "maxTokens": 1000000, "maxCostUsd": 50, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 3600},
+  "budgets": {"wallTimeSeconds": 5400, "maxTurns": 100, "maxTokens": 1000000, "maxCostUsd": 50, "maxNodeAttempts": 2, "maxChildren": 16, "maxConcurrency": 16, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 3600},
   "metadata": {"feature": "assisted-catalog-workflows", "owner": "react-component-library"}
 }

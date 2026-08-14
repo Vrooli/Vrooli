@@ -40,6 +40,7 @@ import (
 	"react-component-library/internal/uimanifest"
 
 	adoptionsInternal "react-component-library/internal/adoptions"
+	catalogcoverageInternal "react-component-library/internal/catalogcoverage"
 	componentsInternal "react-component-library/internal/components"
 	depsInternal "react-component-library/internal/deps"
 	experienceInternal "react-component-library/internal/experience"
@@ -244,6 +245,7 @@ func main() {
 	depsSvc := depsH.BuildService(primaryDB, depsInternal.NewFSPackageJSONReader(scenariosRoot))
 	depsObserver := &componentsDepsObserver{svc: depsSvc, logger: log.Default()}
 	adoptionsInternal.SetValidationGates(adoptionsSvc, depsSvc, componentsSvc)
+	adoptionsInternal.SetMaturityReader(adoptionsSvc, adoptionsInternal.NewCatalogMaturityReader(filepath.Dir(scenariosRoot), catalogcoverageInternal.NewEvidenceStore(primaryDB)))
 
 	// Wire the themes domain (req 12). Same scenariosRoot as adoptions
 	// + deps so the DESIGN.md reader walks the same tree. Seed the
@@ -275,7 +277,7 @@ func main() {
 			adoptionsH.WithSuggestions(componentsSvc, depsSvc, inventoryScanner, scenariosRoot),
 		),
 		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot))), componentsH.WithVersionLedger(versionLedger)),
-		componentTestsH.Module(primaryDB, componentsSvc, sourceRoot, log.Default()),
+		componentTestsH.ModuleWithGeneratedFixture(primaryDB, componentsSvc, adoptionsSvc, sourceRoot, log.Default()),
 		catalogH.Module(filepath.Dir(scenariosRoot), primaryDB),
 		depsH.ModuleFromService(depsSvc, log.Default()),
 		healthH.Module(primaryDB, "react-component-library-api", "1.0.0"),
@@ -294,10 +296,10 @@ func main() {
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
 		// The catalog provider executes one browser-backed report per latest
-		// asset. Keep the response open for the descriptor's 300s phase budget
+		// asset. Keep the response open for the descriptor's 600s phase budget
 		// plus a bounded transport margin so a complete aggregate result is not
 		// truncated into an opaque unexpected EOF.
-		WriteTimeout: 6 * time.Minute,
+		WriteTimeout: 12 * time.Minute,
 		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)

@@ -11,19 +11,24 @@ import (
 // as unknown attribution: historical rows must never be guessed from paths.
 func EnsureSchemaMigrations(ctx context.Context, db schemaMigrator) error {
 	migrations := []struct{ column, sql string }{
+		{"suggested_dependencies", `ALTER TABLE adoption_records ADD COLUMN suggested_dependencies TEXT NOT NULL DEFAULT '';`},
 		{"source_asset_id", `ALTER TABLE adoption_files ADD COLUMN source_asset_id TEXT NOT NULL DEFAULT '';`},
 		{"source_library_id", `ALTER TABLE adoption_files ADD COLUMN source_library_id TEXT NOT NULL DEFAULT '';`},
 		{"source_version", `ALTER TABLE adoption_files ADD COLUMN source_version TEXT NOT NULL DEFAULT '';`},
 	}
 	for _, migration := range migrations {
-		has, err := tableHasColumn(ctx, db, "adoption_files", migration.column)
+		table := "adoption_files"
+		if migration.column == "suggested_dependencies" {
+			table = "adoption_records"
+		}
+		has, err := tableHasColumn(ctx, db, table, migration.column)
 		if err != nil {
 			return err
 		}
 		if has {
 			continue
 		}
-		exists, err := tableExists(ctx, db, "adoption_files")
+		exists, err := tableExists(ctx, db, table)
 		if err != nil {
 			return err
 		}
@@ -31,10 +36,63 @@ func EnsureSchemaMigrations(ctx context.Context, db schemaMigrator) error {
 			continue
 		}
 		if _, err := db.ExecContext(ctx, migration.sql); err != nil {
-			return fmt.Errorf("migrate adoption_files.%s: %w", migration.column, err)
+			return fmt.Errorf("migrate %s.%s: %w", table, migration.column, err)
 		}
 	}
-	return backfillDeterministicFileAttribution(ctx, db)
+	if err := backfillDeterministicFileAttribution(ctx, db); err != nil {
+		return err
+	}
+	if err := remapRegistryComponentIDs(ctx, db); err != nil {
+		return err
+	}
+	return remapConsolidatedScenarioNames(ctx, db)
+}
+
+// remapConsolidatedScenarioNames preserves adoption records when a scenario
+// is renamed in place. The storage-manager consolidation retired the
+// cleanup-manager directory after its files and runtime identity moved to
+// storage-manager; leaving the old scenario name in the registry makes those
+// otherwise valid records unreachable by refresh/reapply.
+func remapConsolidatedScenarioNames(ctx context.Context, db schemaMigrator) error {
+	exists, err := tableExists(ctx, db, "adoption_records")
+	if err != nil || !exists {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `
+UPDATE adoption_records
+SET scenario = 'storage-manager'
+WHERE scenario = 'cleanup-manager'`); err != nil {
+		return fmt.Errorf("remap consolidated adoption scenarios: %w", err)
+	}
+	return nil
+}
+
+// remapRegistryComponentIDs repairs soft references after a rebuild restored
+// a component by library id with a new internal UUID. Adoption records carry
+// library_id precisely so this recovery does not guess from filenames.
+func remapRegistryComponentIDs(ctx context.Context, db schemaMigrator) error {
+	for _, table := range []string{"adoption_records", "adoption_files", "components"} {
+		exists, err := tableExists(ctx, db, table)
+		if err != nil || !exists {
+			return err
+		}
+	}
+	if _, err := db.ExecContext(ctx, `
+UPDATE adoption_records
+SET component_id = (SELECT id FROM components c WHERE c.library_id = adoption_records.library_id)
+WHERE EXISTS (SELECT 1 FROM components c WHERE c.library_id = adoption_records.library_id)
+  AND component_id <> (SELECT id FROM components c WHERE c.library_id = adoption_records.library_id)`); err != nil {
+		return fmt.Errorf("remap adoption component ids: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+UPDATE adoption_files
+SET source_asset_id = (SELECT id FROM components c WHERE c.library_id = adoption_files.source_library_id)
+WHERE source_library_id <> ''
+  AND EXISTS (SELECT 1 FROM components c WHERE c.library_id = adoption_files.source_library_id)
+  AND source_asset_id <> (SELECT id FROM components c WHERE c.library_id = adoption_files.source_library_id)`); err != nil {
+		return fmt.Errorf("remap adoption file component ids: %w", err)
+	}
+	return nil
 }
 
 // backfillDeterministicFileAttribution restores provenance for rows written

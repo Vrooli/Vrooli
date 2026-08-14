@@ -11,7 +11,7 @@ export function Skeleton({
       aria-label={label}
       data-skeleton="true"
       style={{
-        background: "var(--app-surface-muted)",
+        background: "var(--color-surface-muted)",
         borderRadius: "var(--radius-sm)",
         minHeight: "var(--skeleton-line-height)",
         ...props.style,

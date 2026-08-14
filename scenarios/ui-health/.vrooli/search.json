@@ -4,6 +4,7 @@
   "providers": [
     {
       "provider_id": "ui-health.surfaces",
+      "lifecycle": "production",
       "provider_group": "ui-health",
       "bucket": "BUCKET_REUSE",
       "type": "surface",

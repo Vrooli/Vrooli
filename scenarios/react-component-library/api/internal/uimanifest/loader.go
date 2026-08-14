@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -120,6 +121,17 @@ type serviceJSON struct {
 func (l *FSLoader) Load(scenario string) (Manifest, error) {
 	if l == nil || l.RepoRoot == "" {
 		return Manifest{}, errors.New("uimanifest: loader has no repo root")
+	}
+	// Historical adoption records can point at a template tree using the
+	// scenario-root-relative form ../templates/scenarios/<id>.  That tree is
+	// intentionally not a scenario and therefore has no service.json; resolve
+	// its manifest directly while keeping the normal scenario path strict.
+	const templateScenarioPrefix = "../templates/scenarios/"
+	if templateID, ok := strings.CutPrefix(filepath.ToSlash(strings.TrimSpace(scenario)), templateScenarioPrefix); ok {
+		if templateID == "" || strings.Contains(templateID, "/") || strings.Contains(templateID, "..") {
+			return Manifest{}, ErrScenarioNotFound{Scenario: scenario}
+		}
+		return l.LoadTemplate(templateID)
 	}
 	svcPath, err := repocontract.ScenarioServiceManifestPath(l.RepoRoot, scenario)
 	if err != nil {

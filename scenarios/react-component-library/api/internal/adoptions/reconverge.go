@@ -51,6 +51,16 @@ func (s *service) Reconverge(ctx context.Context, in ReconvergeInput) (Reconverg
 		case LocalStatusModified:
 			// Never auto-overwrite a locally edited copy. Surface it instead.
 			outcome.Action = ReconvergeActionFlaggedModified
+			outcome.Disposition = s.classifyModified(ctx, row)
+			switch outcome.Disposition {
+			case ReconvergeDispositionTranslationOnly:
+				result.TranslationOnly++
+			case ReconvergeDispositionLocalAddition:
+				result.LocalAddition++
+			default:
+				result.LocalFork++
+			}
+			outcome.Detail = string(outcome.Disposition)
 			result.Flagged++
 		case LocalStatusClean:
 			// Snapshot-based CLEAN is necessary but not sufficient to overwrite:
@@ -63,7 +73,9 @@ func (s *service) Reconverge(ctx context.Context, in ReconvergeInput) (Reconverg
 			if !s.verifiedCleanAgainstLibrary(ctx, row) {
 				outcome.Action = ReconvergeActionFlaggedModified
 				outcome.LocalStatus = LocalStatusModified
+				outcome.Disposition = ReconvergeDispositionLocalFork
 				outcome.Detail = "on-disk body diverges from the adopted library version; refusing to overwrite (stale or poisoned snapshot)"
+				result.LocalFork++
 				result.Flagged++
 			} else if !in.Apply {
 				outcome.Action = ReconvergeActionWouldReapply
@@ -74,6 +86,12 @@ func (s *service) Reconverge(ctx context.Context, in ReconvergeInput) (Reconverg
 				if rerr != nil {
 					outcome.Action = ReconvergeActionError
 					outcome.Detail = rerr.Error()
+					var tokenErr ErrAdoptionTokensUnsatisfied
+					if errors.As(rerr, &tokenErr) {
+						outcome.Action = ReconvergeActionBlockedTokens
+						outcome.Disposition = ReconvergeDispositionTokenBlocked
+						result.TokenBlocked++
+					}
 					result.Errored++
 				} else {
 					outcome.Action = ReconvergeActionReapplied
@@ -88,6 +106,69 @@ func (s *service) Reconverge(ctx context.Context, in ReconvergeInput) (Reconverg
 		result.Outcomes = append(result.Outcomes, outcome)
 	}
 	return result, nil
+}
+
+// classifyModified compares a locally modified copy with the exact body the
+// old adoption would have produced. Token translations and relative-import
+// rewrites are mechanical; an exact mechanical match is translation_only.
+// If every source line remains present and extra lines exist, it is a
+// local_addition. Ambiguous content is a local_fork.
+func (s *service) classifyModified(ctx context.Context, row Adoption) ReconvergeDisposition {
+	v, err := s.library.GetVersion(ctx, row.ComponentID, row.AdoptedVersion)
+	if err != nil {
+		return ReconvergeDispositionLocalFork
+	}
+	files := row.Files
+	if len(files) == 0 {
+		files = []AdoptionFile{{LibraryPath: filepath.Base(row.AdoptedPath), AdoptedPath: row.AdoptedPath}}
+	}
+	targets := make(map[string]string, len(files))
+	for _, file := range files {
+		targets[moduleKey(firstNonEmpty(file.LibraryPath, filepath.Base(file.AdoptedPath)))] = file.AdoptedPath
+	}
+	mapping, err := s.resolveTokenMapping(ctx, row.Scenario)
+	if err != nil {
+		return ReconvergeDispositionLocalFork
+	}
+	addition := false
+	for _, file := range files {
+		libraryFile, ok := libraryFileByPath(v, file.LibraryPath)
+		if !ok {
+			return ReconvergeDispositionLocalFork
+		}
+		disk, err := s.files.Read(ctx, row.Scenario, file.AdoptedPath)
+		if err != nil {
+			return ReconvergeDispositionLocalFork
+		}
+		expected := expectedAppliedBody(libraryFile, file.AdoptedPath, targets)
+		expected, _, err = TranslateDesignTokens(expected, mapping.Namespace, mapping)
+		if err != nil {
+			return ReconvergeDispositionLocalFork
+		}
+		local := stripSourceHeader(string(disk))
+		if local == expected {
+			continue
+		}
+		if containsEverySourceLine(local, expected) {
+			addition = true
+			continue
+		}
+		return ReconvergeDispositionLocalFork
+	}
+	if addition {
+		return ReconvergeDispositionLocalAddition
+	}
+	return ReconvergeDispositionTranslationOnly
+}
+
+func containsEverySourceLine(local, source string) bool {
+	for _, line := range strings.Split(source, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.Contains(local, line) {
+			return false
+		}
+	}
+	return true
 }
 
 // verifiedCleanAgainstLibrary re-derives, from the adopted library version, the

@@ -48,6 +48,20 @@ func TestService_GetByLibraryIDPropagatesNotFound(t *testing.T) {
 	require.True(t, errors.As(err, &nf))
 }
 
+func TestService_GetAcceptsLibraryIDOrInternalID(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	svc := components.NewService(repo)
+
+	created, err := svc.Upsert(context.Background(), components.UpsertInput{LibraryID: "react-component-library:Button"})
+	require.NoError(t, err)
+
+	byID, err := svc.Get(context.Background(), created.ID)
+	require.NoError(t, err)
+	byLibraryID, err := svc.Get(context.Background(), created.LibraryID)
+	require.NoError(t, err)
+	require.Equal(t, byID.ID, byLibraryID.ID)
+}
+
 func TestService_ValidateStyleFitFoldsAffinityVerdicts(t *testing.T) {
 	tests := []struct {
 		name     string
