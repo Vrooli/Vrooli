@@ -49,9 +49,16 @@ func resolveBaseURL() string {
 }
 
 type tagsResponse struct {
-	Models []struct {
-		Name string `json:"name"`
-	} `json:"models"`
+	Models []ModelInfo `json:"models"`
+}
+
+// ModelInfo is the authoritative model identity reported by Ollama's
+// /api/tags endpoint. Size is the logical model size from the service API;
+// callers must not infer identity or size by walking Ollama's shared blobs.
+type ModelInfo struct {
+	Name   string `json:"name"`
+	Size   int64  `json:"size"`
+	Digest string `json:"digest,omitempty"`
 }
 
 // ListModels returns the installed model references (e.g. "qwen3:4b"),
@@ -70,6 +77,19 @@ func (c *Client) ListModels(ctx context.Context) ([]string, error) {
 		}
 	}
 	sort.Strings(out)
+	return out, nil
+}
+
+// ListModelInventory returns the complete model identity and size inventory
+// from the live daemon, sorted by model name for stable machine-readable
+// output.
+func (c *Client) ListModelInventory(ctx context.Context) ([]ModelInfo, error) {
+	modelMap, err := c.listModelInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := append([]ModelInfo(nil), modelMap...)
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out, nil
 }
 
@@ -124,6 +144,20 @@ func (c *Client) ShowModel(ctx context.Context, model string) (ShowResponse, err
 
 // ListTags returns the set of installed model references (e.g. "qwen3:4b").
 func (c *Client) ListTags(ctx context.Context) (map[string]bool, error) {
+	models, err := c.listModelInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]bool, len(models))
+	for _, model := range models {
+		if model.Name != "" {
+			out[model.Name] = true
+		}
+	}
+	return out, nil
+}
+
+func (c *Client) listModelInfo(ctx context.Context) ([]ModelInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/api/tags", nil)
 	if err != nil {
 		return nil, err
@@ -141,11 +175,7 @@ func (c *Client) ListTags(ctx context.Context) (map[string]bool, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
 		return nil, fmt.Errorf("decode tags: %w", err)
 	}
-	out := make(map[string]bool, len(parsed.Models))
-	for _, m := range parsed.Models {
-		out[m.Name] = true
-	}
-	return out, nil
+	return parsed.Models, nil
 }
 
 type RunningModel struct {
@@ -185,6 +215,16 @@ func SummarizeProcessors(models []RunningModel) ProcessorReport {
 		case strings.Contains(processor, "gpu"):
 			report.HasGPUModel = true
 		case strings.Contains(processor, "cpu"):
+			report.HasCPUModel = true
+		case model.SizeVRAM > 0:
+			// Ollama versions in the wild do not consistently populate the
+			// processor field in /api/ps. A non-zero size_vram is the service's
+			// authoritative residency signal and must not be downgraded to
+			// unknown merely because the optional label is absent.
+			report.HasGPUModel = true
+		case model.Size > 0:
+			// A loaded model with no VRAM allocation is CPU-resident. Keep an
+			// entirely empty/ambiguous row unknown so health can fail closed.
 			report.HasCPUModel = true
 		}
 	}

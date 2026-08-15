@@ -572,6 +572,17 @@
           }
         },
         {
+          "name": "compare-strategies",
+          "description": "Compare registered retrieval strategies against router.routing with guarded evidence",
+          "flags": [
+            {"name": "strategy_names", "description": "Comma-separated registered strategy names (defaults to all)"},
+            {"name": "apply", "bool": true, "description": "Request write-back eligibility; insignificant winners are refused"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "EvalService", "method": "CompareStrategies"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
           "name": "runs",
           "description": "List a suite's run history (newest first; --tag/--limit filters)",
           "positionals": [
@@ -946,6 +957,48 @@
     }
     ,
     {
+      "name": "strategy",
+      "description": "Inspect and reproduce measured retrieval strategy benchmarks",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List the active retrieval strategy and all registered strategy rows",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "show",
+          "description": "Show one data-defined retrieval strategy ladder",
+          "positionals": [{"name": "strategy_name", "required": true, "description": "Registered strategy name"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "compare",
+          "description": "Compare registered strategies with held-out and significance guards",
+          "flags": [
+            {"name": "strategies", "description": "Comma-separated strategy names; defaults to the full registered catalog"},
+            {"name": "apply", "bool": true, "description": "Request write-back eligibility; insignificant winners are refused"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "benchmark",
+          "description": "Benchmark the active strategy against the router.routing fixture",
+          "flags": [
+            {"name": "strategy", "description": "Active strategy name; use strategy compare for other registered arms", "default": "lexical-cross-encoder"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        }
+      ]
+    },
+    {
       "name": "embedding",
       "description": "Inventory and safely rehearse embedding retargets",
       "commands": [
@@ -1025,6 +1078,21 @@
     ]
   },
   "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateTarget",
+      "reason": "Validation target probing is consumed by the maturity workflow; the operator uses `maturity scan` rather than a standalone validation-target verb."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "DescribeProvider",
+      "reason": "Validation provider self-description is an internal readiness contract; the operator uses `maturity scan` rather than a standalone provider-description verb."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ApplyFix",
+      "reason": "Validation fixes are deliberately scoped to the maturity workflow and require its safety review; no standalone mutation verb is exposed."
+    },
     {
       "service": "RegistryService",
       "method": "ExecuteEmbeddingMigration",

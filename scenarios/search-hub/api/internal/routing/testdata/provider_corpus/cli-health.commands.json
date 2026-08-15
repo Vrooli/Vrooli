@@ -1,5 +1,6 @@
 {
-  "provider_id": "cli-health.commands",
+ "provider_id": "cli-health.commands",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "cli-health",
   "bucket": "BUCKET_DO",
   "type": "command",

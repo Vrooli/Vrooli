@@ -35,6 +35,24 @@ type SQLExecutor interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
+// CorpusValidationStats is the fleet rollup of the newest scheduled corpus
+// validation for each suite. The buckets are exhaustive for reviewed
+// positives; candidates are intentionally outside the quality denominator.
+type CorpusValidationStats struct {
+	Live              int64
+	Hard              int64
+	Stale             int64
+	ProviderErrors    int64
+	Inconclusive      int64
+	OldestStaleAgeSec int64
+}
+
+func (s *sqliteStore) ZeroYieldRoutableIDCount(ctx context.Context, minimumRoutes int64) (int64, error) {
+	var count int64
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM provider_demotion_state WHERE routed >= ? AND hits = 0`, minimumRoutes).Scan(&count)
+	return count, err
+}
+
 // Sample is one federated query's telemetry, recorded by the router after the
 // response is built. QueryHash is the hashed query text (never the raw text).
 // ProviderResults maps each provider_id the query fanned out to → that leaf's
@@ -112,23 +130,25 @@ type Insights struct {
 	// counts: how many queries in the window folded an external provider in via
 	// the web-shaped path, and how many escalated to external on an empty project
 	// corpus. Both stay 0 while the opt-in flag is off.
-	AutoRoutedExternalQueries int64
-	EscalatedQueries          int64
-	LatencyP50Ms              int64
-	LatencyP95Ms              int64
-	WindowFrom                time.Time
-	WindowTo                  time.Time
-	SampleCount               int64
-	MinimumSampleCount        int64
-	SampleSufficient          bool
-	RecentSampleCount         int64
-	RecentLatencyP50Ms        int64
-	RecentLatencyP95Ms        int64
-	ProviderUsage             []ProviderUsage
-	ResolverCacheHits         int64
-	ResolverCacheMisses       int64
-	ResolverCacheHitRate      float64
-	RoutingBuckets            []RoutingBucket
+	AutoRoutedExternalQueries   int64
+	EscalatedQueries            int64
+	LatencyP50Ms                int64
+	LatencyP95Ms                int64
+	WindowFrom                  time.Time
+	WindowTo                    time.Time
+	SampleCount                 int64
+	MinimumSampleCount          int64
+	SampleSufficient            bool
+	RecentSampleCount           int64
+	RecentLatencyP50Ms          int64
+	RecentLatencyP95Ms          int64
+	ProviderUsage               []ProviderUsage
+	ResolverCacheHits           int64
+	ResolverCacheMisses         int64
+	ResolverCacheHitRate        float64
+	RoutingBuckets              []RoutingBucket
+	SubstrateDegradationReasons []ProviderDegradationReason
+	SubstrateDegradedLegs       int64
 }
 
 // RoutingBucket is the fleet-scale read model. Its bucket is derived from the
@@ -173,6 +193,88 @@ type sqliteStore struct {
 // deterministically.
 func NewSQLiteStore(db SQLExecutor, clk schedule.Clock) Store {
 	return &sqliteStore{db: db, clock: clk}
+}
+
+// StuckProviderCount reports demoted providers whose persisted probation slot
+// is still held after its recovery deadline. It is intentionally a current
+// state measure; the requested time is the observation boundary.
+func (s *sqliteStore) StuckProviderCount(ctx context.Context, at time.Time) (int64, error) {
+	var count int64
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM provider_demotion_state WHERE demoted = 1 AND probation = 1 AND decay_deadline <> '' AND decay_deadline <= ?`, at.UTC().Format(time.RFC3339Nano)).Scan(&count)
+	return count, err
+}
+
+// IncubatingProviderStats returns the current experimental population and the
+// age, in seconds, of its oldest declaration. Lifecycle is read from the
+// persisted provider descriptor so this remains scenario-agnostic.
+func (s *sqliteStore) IncubatingProviderStats(ctx context.Context, at time.Time) (int64, int64, error) {
+	var count int64
+	var oldest sql.NullString
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*), MIN(json_extract(descriptor, '$.declared_at')) FROM providers WHERE json_extract(descriptor, '$.lifecycle') = 'LIFECYCLE_EXPERIMENTAL'`).Scan(&count, &oldest); err != nil {
+		return 0, 0, err
+	}
+	if !oldest.Valid || oldest.String == "" {
+		return count, 0, nil
+	}
+	declared, err := time.Parse(time.RFC3339Nano, oldest.String)
+	if err != nil {
+		return count, 0, err
+	}
+	age := int64(at.UTC().Sub(declared.UTC()).Seconds())
+	if age < 0 {
+		age = 0
+	}
+	return count, age, nil
+}
+
+// CorpusValidationStats returns the newest validation rollup per suite. JSON
+// extraction keeps the telemetry package independent of the eval domain's
+// storage types while preserving the durable result contract.
+func (s *sqliteStore) CorpusValidationStats(ctx context.Context, at time.Time) (CorpusValidationStats, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT v.created_at,
+	       COALESCE(CAST(json_extract(v.result, '$.rollup.live') AS INTEGER), 0),
+	       COALESCE(CAST(json_extract(v.result, '$.rollup.hard') AS INTEGER), 0),
+	       COALESCE(CAST(json_extract(v.result, '$.rollup.stale') AS INTEGER), 0),
+	       COALESCE(CAST(json_extract(v.result, '$.rollup.provider_errors') AS INTEGER), 0),
+	       COALESCE(CAST(json_extract(v.result, '$.rollup.inconclusive') AS INTEGER), 0)
+FROM eval_corpus_validations v
+WHERE v.id = (
+  SELECT latest.id FROM eval_corpus_validations latest
+  WHERE latest.suite_id = v.suite_id
+  ORDER BY latest.created_at DESC, latest.id DESC LIMIT 1
+)`)
+	if err != nil {
+		return CorpusValidationStats{}, fmt.Errorf("query corpus validation stats: %w", err)
+	}
+	defer rows.Close()
+	var stats CorpusValidationStats
+	for rows.Next() {
+		var createdAt string
+		var live, hard, stale, providerErrors, inconclusive int64
+		if err := rows.Scan(&createdAt, &live, &hard, &stale, &providerErrors, &inconclusive); err != nil {
+			return CorpusValidationStats{}, fmt.Errorf("scan corpus validation stats: %w", err)
+		}
+		stats.Live += live
+		stats.Hard += hard
+		stats.Stale += stale
+		stats.ProviderErrors += providerErrors
+		stats.Inconclusive += inconclusive
+		if stale > 0 {
+			when, parseErr := time.Parse(time.RFC3339Nano, createdAt)
+			if parseErr != nil {
+				return CorpusValidationStats{}, fmt.Errorf("parse corpus validation age: %w", parseErr)
+			}
+			age := int64(at.UTC().Sub(when.UTC()).Seconds())
+			if age > stats.OldestStaleAgeSec {
+				stats.OldestStaleAgeSec = age
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return CorpusValidationStats{}, fmt.Errorf("iterate corpus validation stats: %w", err)
+	}
+	return stats, nil
 }
 
 // Compile-time guarantee.
@@ -362,6 +464,10 @@ FROM query_telemetry`+filter.queryWhere, filter.queryArgs...)
 		return nil, err
 	}
 	out.ProviderUsage = usage
+	out.SubstrateDegradationReasons, out.SubstrateDegradedLegs, err = s.substrateDegradation(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
 	buckets, err := s.routingBuckets(ctx, filter)
 	if err != nil {
 		return nil, err
@@ -582,7 +688,7 @@ SELECT
   p.provider_id,
   COUNT(*) AS times_routed,
   COALESCE(SUM(p.hit_count), 0) AS total_hits,
-  COALESCE(SUM(p.degraded), 0) AS degraded_count
+  COALESCE(SUM(CASE WHEN p.degraded = 1 AND NOT (` + sharedSubstrateReasonSQL + `) THEN 1 ELSE 0 END), 0) AS degraded_count
 FROM query_telemetry_provider p` + filter.providerJoin + filter.providerWhere + `
 GROUP BY p.provider_id
 ORDER BY p.provider_id ASC`
@@ -691,7 +797,7 @@ func (s *sqliteStore) providerDegradationReasons(ctx context.Context, providerID
 SELECT p.degrade_reason, COUNT(*) AS count
 FROM query_telemetry_provider p`
 	args := []any{providerID}
-	where := ` WHERE p.provider_id = ? AND p.degraded = 1 AND p.degrade_reason <> ''`
+	where := ` WHERE p.provider_id = ? AND p.degraded = 1 AND p.degrade_reason <> '' AND NOT (` + sharedSubstrateReasonSQL + `)`
 	if filter.providerJoin != "" {
 		q += ` JOIN query_telemetry t ON t.id = p.query_id`
 		where += filter.providerAndWhere
@@ -719,6 +825,51 @@ ORDER BY count DESC, p.degrade_reason ASC`
 		return nil, fmt.Errorf("iterate provider degradation reasons %s: %w", providerID, err)
 	}
 	return out, nil
+}
+
+const sharedSubstrateReasonSQL = `p.degrade_reason IN ('reranker_absent', 'reranker_unavailable', 'reranker_degraded_to_llm')`
+
+func isSharedSubstrateReason(reason string) bool {
+	switch strings.ToLower(strings.TrimSpace(reason)) {
+	case "reranker_absent", "reranker_unavailable", "reranker_degraded_to_llm":
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *sqliteStore) substrateDegradation(ctx context.Context, filter telemetryFilter) ([]ProviderDegradationReason, int64, error) {
+	q := `
+SELECT p.degrade_reason, COUNT(*) AS count
+FROM query_telemetry_provider p`
+	args := make([]any, 0, len(filter.providerArgs))
+	where := ` WHERE p.degraded = 1 AND ` + sharedSubstrateReasonSQL
+	if filter.providerJoin != "" {
+		q += ` JOIN query_telemetry t ON t.id = p.query_id`
+		where += filter.providerAndWhere
+		args = append(args, filter.providerArgs...)
+	}
+	q += where + ` GROUP BY p.degrade_reason ORDER BY count DESC, p.degrade_reason ASC`
+
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("aggregate substrate degradation: %w", err)
+	}
+	defer rows.Close()
+	reasons := make([]ProviderDegradationReason, 0)
+	var total int64
+	for rows.Next() {
+		var reason ProviderDegradationReason
+		if err := rows.Scan(&reason.Reason, &reason.Count); err != nil {
+			return nil, 0, fmt.Errorf("scan substrate degradation: %w", err)
+		}
+		total += reason.Count
+		reasons = append(reasons, reason)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate substrate degradation: %w", err)
+	}
+	return reasons, total, nil
 }
 
 func boolToInt(b bool) int {

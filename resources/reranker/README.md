@@ -1,10 +1,12 @@
 # Reranker Resource
 
 Cross-encoder relevance **reranking** for the second stage of hybrid retrieval.
-Wraps the prebuilt HuggingFace **Text-Embeddings-Inference (TEI)** image serving
+Runs the checksum-verified Hugging Face **Text-Embeddings-Inference (TEI)** server
+binary serving
 **`BAAI/bge-reranker-v2-m3`** — a multilingual cross-encoder that scores how well
 each candidate passage answers a query. No custom inference code: TEI is the
-engine; the model is auto-pulled from the HuggingFace Hub on first start.
+engine; the model is auto-pulled from the HuggingFace Hub into the resource-owned
+cache on first start.
 
 This resource is the `CrossEncoderReranker` backend for
 [`packages/ai-go/search`](../../packages/ai-go/search) and the shared reranker for
@@ -32,24 +34,20 @@ vrooli resource logs reranker         # follow model-pull / serving logs
 vrooli resource stop reranker
 ```
 
-First start downloads the model into a bind-mounted cache
-(`${RESOURCE_DATA_DIR}/model-cache` → container `/data`); subsequent starts are
-fully local and fast.
+First start downloads the model into `${RESOURCE_DATA_DIR}/model-cache`;
+subsequent starts are fully local and fast. The managed-service supervisor owns
+the TEI process and verifies the staged artifact checksum before every launch.
 
 ## GPU vs CPU
 
-The base compose runs the **CPU** TEI image (`cpu-1.7`). When the `nvidia` probe
-passes, the GPU overlay (`docker/docker-compose.gpu.yml`) swaps to the CUDA image
-(`89-1.7`, matching an Ada/sm_89 GPU) and adds the device reservation.
+The staged Linux amd64 TEI 1.7.4 binary uses the host CUDA driver when compatible
+and otherwise runs its CPU backend. The resource reports native GPU capability
+conditionally; it never claims GPU health from a scheduler hint alone.
 
-> **Known CPU-fallback limitation (AMD hosts):** TEI's `cpu-1.7` image uses Intel
-> MKL, which crashes (`Intel MKL ERROR: Parameter 13 ... SGEMM`) on AMD CPUs, and
-> `bge-reranker-v2-m3` ships no ONNX weights (TEI CPU's preferred path). So on a
-> GPU-less **AMD** host the default CPU image will not serve this model. Verified
-> on an AMD Ryzen 9 7950X. Mitigations for a CPU-only AMD deployment: pin a
-> reranker that ships ONNX weights (e.g. `BAAI/bge-reranker-base` has community
-> ONNX exports) via `RERANKER_MODEL`, or run on Intel/GPU. The GPU path (this
-> repo's primary target) is unaffected and fully validated.
+> **Known CPU-fallback limitation:** TEI CPU support depends on the host
+> processor and selected model backend. Keep the resource conditional on hosts
+> where the selected model has been smoke-tested; the GPU path is the primary
+> validated target.
 
 ## CLI gateway
 
@@ -84,14 +82,19 @@ the URL client-side.
 
 ```bash
 make check                                          # Go gates (lint/type/test)
-bash resources/reranker/test/integration-test.sh    # live smoke (needs the running container)
+vrooli resource status reranker                     # readiness and model-serving state
+resource-reranker gateway rerank --query "q" \
+  --document "candidate passage" --json              # live gateway smoke
 ```
 
-## TEI API surface (served by the image)
+## TEI API surface (served by the managed service)
 
 - `GET /health` — 200 once the model is loaded.
 - `GET /info` — model id, type, dtype, device.
 - `POST /rerank` — body `{"query": str, "texts": [str], "raw_scores": bool, "return_text": bool}`; returns `[{"index": int, "score": float}, ...]` sorted by score descending.
 ## Maturity
 
-M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.
+M5 (2026-08-15): the managed-service lifecycle, readiness, platform gates,
+capacity profile, Go CLI tests, and Search Hub consumer evidence are covered by
+the fleet contract. See [the full assessment](docs/maturity-assessment.md) for
+the per-dimension score and the deliberately unsupported targets.

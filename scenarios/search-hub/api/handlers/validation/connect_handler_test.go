@@ -178,6 +178,9 @@ func writeSearchConfig(t *testing.T, root, scenario, content string) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if !strings.Contains(content, `"lifecycle"`) {
+		content = strings.Replace(content, `"providers":[{`, `"providers":[{"lifecycle":"production",`, 1)
+	}
 	if err := os.WriteFile(filepath.Join(dir, "search.json"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}

@@ -54,3 +54,9 @@ ON CONFLICT(provider_id) DO UPDATE SET routed=excluded.routed, hits=excluded.hit
 		state.ProviderID, state.Routed, state.Hits, state.EmptyStreak, boolToInt(state.Demoted), boolToInt(state.Probation), deadline, state.Trigger, s.clock.Now().UTC().Format(time.RFC3339Nano))
 	return err
 }
+
+func (s *sqliteDemotionStore) StuckProviderCount(ctx context.Context, at time.Time) (int64, error) {
+	var count int64
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM provider_demotion_state WHERE demoted = 1 AND probation = 1 AND decay_deadline <> '' AND decay_deadline <= ?`, at.UTC().Format(time.RFC3339Nano)).Scan(&count)
+	return count, err
+}

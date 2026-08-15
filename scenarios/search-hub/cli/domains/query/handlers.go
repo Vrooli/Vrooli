@@ -68,7 +68,7 @@ func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryRe
 	summary := []string{
 		fmt.Sprintf("Searched %d corpora; %d total hit(s)%s.",
 			len(msg.GetGroups()), totalHits, degradedSuffix(msg.GetDegraded())),
-		fmt.Sprintf("Latency: %dms. Ranking: %s.", msg.GetLatencyMs(), rankingMode(msg.GetReranked())),
+		fmt.Sprintf("Latency: %dms. Ranking: %s (ordered by %s descending).", msg.GetLatencyMs(), rankingMode(msg.GetReranked()), orderedBy(msg)),
 	}
 	if len(msg.GetRoutingExplanation()) > 0 {
 		summary = append(summary, "Routing:")
@@ -84,7 +84,7 @@ func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryRe
 	resultsHeading := "Results by provider"
 	results := renderGroups(msg.GetGroups())
 	if msg.GetReranked() && len(msg.GetRanked()) > 0 {
-		resultsHeading = "Unified ranking (reranked across providers)"
+		resultsHeading = fmt.Sprintf("Unified ranking (reranked across providers; ordered by %s)", orderedBy(msg))
 		results = renderRanked(msg.GetRanked())
 		results = append(results, "", "Provenance by provider:")
 		results = append(results, renderGroups(msg.GetGroups())...)
@@ -104,6 +104,16 @@ func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryRe
 			"`providers list` — see every registered provider and its type",
 		},
 	}
+}
+
+func orderedBy(msg *routingv1.QueryResponse) string {
+	if value := strings.TrimSpace(msg.GetOrderedBy()); value != "" {
+		return value
+	}
+	if msg.GetReranked() {
+		return "rerank_score"
+	}
+	return "score"
 }
 
 // renderGroups flattens the by-provider grouping into operator-friendly lines:

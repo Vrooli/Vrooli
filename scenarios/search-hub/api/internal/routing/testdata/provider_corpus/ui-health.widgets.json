@@ -1,5 +1,6 @@
 {
-  "provider_id": "ui-health.widgets",
+ "provider_id": "ui-health.widgets",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "ui-health",
   "bucket": "BUCKET_REUSE",
   "type": "widget",

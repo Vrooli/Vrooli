@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-11T11:12:43-04:00"
+    "last_validated_at": "2026-08-15T02:03:54-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-001",
       "title": "Provider descriptor + validation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "description": "The ProviderDescriptor message (registry proto) is implemented with validation: provider_id unique and group-qualified, NL description required (the classifier routes on it), endpoint present for ACTIVE providers, ResultMapping present for ACTIVE providers, scope defaults PROJECT, state in {ACTIVE, CAPABILITY_GAP}.",
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "An ACTIVE descriptor missing endpoint or result_mapping is rejected."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A CAPABILITY_GAP descriptor with no endpoint but with intended_home is accepted."
         }
       ]
@@ -28,7 +28,7 @@
     {
       "id": "REQ-P0-002",
       "title": "Registry CRUD (Connect + CLI)",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "description": "RegisterProvider (upsert), ListProviders (optional bucket/type/state filters), DeregisterProvider, exposed over Connect and as CLI `providers register|list|remove`. Registrations persist in postgres and survive restart.",
@@ -36,7 +36,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "RegisterProvider upserts by provider_id; created flag false on second register."
         },
         {
@@ -50,7 +50,7 @@
     {
       "id": "REQ-P0-003",
       "title": "First provider registered via thin adapter",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "description": "cli-health.commands is registered via a declarative descriptor whose ResultMapping maps cli-health's existing Search response onto the unified SearchHit. No change to cli-health.",
@@ -58,7 +58,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Applying the cli-health.commands ResultMapping to a sample Search response yields well-formed SearchHits."
         }
       ]

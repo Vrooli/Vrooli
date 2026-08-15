@@ -24,9 +24,6 @@ func Normalize(d *registryv1.ProviderDescriptor) {
 	if d.Scope == registryv1.Scope_SCOPE_UNSPECIFIED {
 		d.Scope = registryv1.Scope_SCOPE_PROJECT
 	}
-	if strings.TrimSpace(d.Lifecycle) == "" {
-		d.Lifecycle = "production"
-	}
 	if d.StatusEndpoint != nil && strings.TrimSpace(d.IndexTimestampField) == "" {
 		d.IndexTimestampField = "last_indexed_at"
 	}
@@ -66,10 +63,10 @@ func Validate(d *registryv1.ProviderDescriptor) error {
 	if d.Bucket == registryv1.Bucket_BUCKET_UNSPECIFIED {
 		return ErrInvalidDescriptor{Field: "bucket", Reason: "must be one of DO/REUSE/KNOW/STATE"}
 	}
-	switch strings.TrimSpace(d.Lifecycle) {
-	case "production", "fixture", "experimental":
+	switch d.Lifecycle {
+	case registryv1.Lifecycle_LIFECYCLE_PRODUCTION, registryv1.Lifecycle_LIFECYCLE_FIXTURE, registryv1.Lifecycle_LIFECYCLE_EXPERIMENTAL:
 	default:
-		return ErrInvalidDescriptor{Field: "lifecycle", Reason: "must be production, fixture, or experimental"}
+		return ErrInvalidDescriptor{Field: "lifecycle", Reason: "must be LIFECYCLE_PRODUCTION, LIFECYCLE_FIXTURE, or LIFECYCLE_EXPERIMENTAL"}
 	}
 
 	switch d.State {

@@ -45,8 +45,26 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
-export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
+import {
+  renderWithProviders as renderWithBaseProviders,
+  type ProviderRenderOptions,
+  type ProviderRenderResult,
+} from "@vrooli/api-base/testing";
+import { i18n } from "../i18n";
+
+/**
+ * Scenario adapter for the shared renderer. The shared package owns the
+ * provider composition, while the scenario owns its initialized catalogs.
+ * Supplying the singleton here prevents react-i18next from suspending against
+ * the shared package's intentionally empty default instance.
+ */
+export function renderWithProviders(
+  ui: Parameters<typeof renderWithBaseProviders>[0],
+  options: ProviderRenderOptions = {},
+): ProviderRenderResult {
+  return renderWithBaseProviders(ui, { i18n, ...options });
+}
+export type { ProviderRenderOptions, ProviderRenderResult };
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 // Note: HealthResponse is the *generated proto type* re-exported by

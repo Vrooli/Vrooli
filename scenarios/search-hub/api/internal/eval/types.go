@@ -20,7 +20,13 @@
 // ResultMapping, so there is zero provider-specific code here either.
 package eval
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+	"time"
+
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
+)
 
 // ListSuitesFilter narrows ListSuites. A zero value means "no filter".
 type ListSuitesFilter struct {
@@ -34,6 +40,19 @@ type ListRunsFilter struct {
 	Tag     string // empty = all tags
 	Tier    string // empty = all tiers
 	Limit   int    // <= 0 = all
+}
+
+// CorpusValidationRecord is a durable label-freshness observation retained
+// independently of graded runs.
+type CorpusValidationRecord struct {
+	CreatedAt time.Time
+	Result    *evalv1.ValidateCorpusResponse
+}
+
+// CorpusValidationReader is optional so existing in-memory Store fakes remain
+// source-compatible while production can consume scheduled validation data.
+type CorpusValidationReader interface {
+	LatestCorpusValidation(context.Context, string) (*CorpusValidationRecord, error)
 }
 
 // ErrInvalidSuite is the typed sentinel returned by Validate (and propagated by

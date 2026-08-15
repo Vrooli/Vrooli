@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "search-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "66b19688a118c1c33ed9f4e7df6334c35c87b083ef99cfeb5050263c47949a94",
+  "manifest_hash": "79483105397841f5660f87cfeb173c0141debbc791b8fb5790ba60bd3353e7f9",
   "commands": [
     {
       "path": "embedding abort",
@@ -69,6 +69,14 @@
       "binding": "EvalService.CompareRuns",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals compare-strategies",
+      "group": "evals",
+      "command": "compare-strategies",
+      "binding": "EvalService.CompareStrategies",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "evals generate",
@@ -251,6 +259,38 @@
       "group": "query",
       "command": "query",
       "binding": "RoutingService.Query",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "strategy benchmark",
+      "group": "strategy",
+      "command": "benchmark",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "strategy compare",
+      "group": "strategy",
+      "command": "compare",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "strategy list",
+      "group": "strategy",
+      "command": "list",
+      "binding": ".",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "strategy show",
+      "group": "strategy",
+      "command": "show",
+      "binding": ".",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     }

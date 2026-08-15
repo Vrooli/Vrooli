@@ -85,7 +85,7 @@ func TestValidateScenarioRegisteredProviderWithoutDescriptorUsesGenericFinding(t
 		t.Fatal(err)
 	}
 	service := New(root)
-	service.RegistryStore = fakeRegistryStore{providers: []*registryv1.ProviderDescriptor{{ProviderId: "demo.docs", ProviderGroup: "demo"}}}
+	service.RegistryStore = fakeRegistryStore{providers: []*registryv1.ProviderDescriptor{{ProviderId: "demo.docs", ProviderGroup: "demo", Lifecycle: registryv1.Lifecycle_LIFECYCLE_PRODUCTION}}}
 	report, err := service.ValidateScenario("demo", "")
 	if err != nil {
 		t.Fatalf("ValidateScenario: %v", err)
@@ -97,7 +97,7 @@ func TestValidateScenarioReportsOrphanSuiteGenerically(t *testing.T) {
 	root := t.TempDir()
 	writeSearchConfig(t, root, "demo", cleanSearchConfig("demo"))
 	service := New(root)
-	service.RegistryStore = fakeRegistryStore{providers: []*registryv1.ProviderDescriptor{{ProviderId: "demo.docs", ProviderGroup: "demo"}}}
+	service.RegistryStore = fakeRegistryStore{providers: []*registryv1.ProviderDescriptor{{ProviderId: "demo.docs", ProviderGroup: "demo", Lifecycle: registryv1.Lifecycle_LIFECYCLE_PRODUCTION}}}
 	service.EvalStore = fakeEvalStore{suites: map[string]*evalv1.EvalSuite{
 		"retired.primary": evalSuite("retired.primary", "retired.docs"),
 	}}
@@ -112,7 +112,7 @@ func TestValidateScenarioDoesNotReportPairedSuiteAsOrphan(t *testing.T) {
 	root := t.TempDir()
 	writeSearchConfig(t, root, "demo", cleanSearchConfig("demo"))
 	service := New(root)
-	service.RegistryStore = fakeRegistryStore{providers: []*registryv1.ProviderDescriptor{{ProviderId: "demo.docs", ProviderGroup: "demo"}}}
+	service.RegistryStore = fakeRegistryStore{providers: []*registryv1.ProviderDescriptor{{ProviderId: "demo.docs", ProviderGroup: "demo", Lifecycle: registryv1.Lifecycle_LIFECYCLE_PRODUCTION}}}
 	service.EvalStore = fakeEvalStore{suites: map[string]*evalv1.EvalSuite{
 		"demo.docs.primary": evalSuite("demo.docs.primary", "demo.docs"),
 	}}
@@ -1479,6 +1479,9 @@ func writeSearchConfig(t *testing.T, root, scenario, content string) {
 	dir := filepath.Join(root, "scenarios", scenario, ".vrooli")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
+	}
+	if !strings.Contains(content, `"lifecycle"`) {
+		content = strings.Replace(content, `"providers":[{`, `"providers":[{"lifecycle":"production",`, 1)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "search.json"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)

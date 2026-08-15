@@ -2,6 +2,7 @@ package registry_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -20,6 +21,7 @@ func validActive() *registryv1.ProviderDescriptor {
 		Bucket:        registryv1.Bucket_BUCKET_DO,
 		Type:          "command",
 		Description:   "CLI commands searchable by what they do.",
+		Lifecycle:     registryv1.Lifecycle_LIFECYCLE_PRODUCTION,
 		Endpoint: &registryv1.Endpoint{
 			Kind: &registryv1.Endpoint_HttpJson{HttpJson: &registryv1.HttpJsonEndpoint{
 				ScenarioId: "cli-health",
@@ -37,6 +39,29 @@ func validActive() *registryv1.ProviderDescriptor {
 	}
 }
 
+func TestValidateLifecycleEnum(t *testing.T) {
+	for _, lifecycle := range []registryv1.Lifecycle{
+		registryv1.Lifecycle_LIFECYCLE_PRODUCTION,
+		registryv1.Lifecycle_LIFECYCLE_FIXTURE,
+		registryv1.Lifecycle_LIFECYCLE_EXPERIMENTAL,
+	} {
+		d := validActive()
+		d.Lifecycle = lifecycle
+		if err := registry.Validate(d); err != nil {
+			t.Fatalf("lifecycle %s: %v", lifecycle, err)
+		}
+	}
+	d := validActive()
+	d.Lifecycle = registryv1.Lifecycle(99)
+	if err := registry.Validate(d); err == nil || !strings.Contains(err.Error(), "lifecycle") {
+		t.Fatalf("unknown lifecycle error = %v", err)
+	}
+	d.Lifecycle = registryv1.Lifecycle_LIFECYCLE_UNSPECIFIED
+	if err := registry.Validate(d); err == nil || !strings.Contains(err.Error(), "lifecycle") {
+		t.Fatalf("unspecified lifecycle error = %v", err)
+	}
+}
+
 func TestNormalizeDefaults(t *testing.T) {
 	d := validActive()
 	d.State = registryv1.ProviderState_PROVIDER_STATE_UNSPECIFIED
@@ -47,6 +72,7 @@ func TestNormalizeDefaults(t *testing.T) {
 
 	require.Equal(t, registryv1.ProviderState_PROVIDER_STATE_ACTIVE, d.State)
 	require.Equal(t, registryv1.Scope_SCOPE_PROJECT, d.Scope)
+	require.Equal(t, registryv1.Lifecycle_LIFECYCLE_PRODUCTION, d.Lifecycle)
 	require.Equal(t, "cli-health.commands", d.ProviderId, "identity fields trimmed")
 }
 
@@ -113,6 +139,7 @@ func TestValidateCapabilityGap(t *testing.T) {
 			Bucket:        registryv1.Bucket_BUCKET_REUSE,
 			Type:          "code",
 			Description:   "Source symbols searchable by intent.",
+			Lifecycle:     registryv1.Lifecycle_LIFECYCLE_PRODUCTION,
 			State:         registryv1.ProviderState_PROVIDER_STATE_CAPABILITY_GAP,
 			IntendedHome:  "code-reference",
 		}

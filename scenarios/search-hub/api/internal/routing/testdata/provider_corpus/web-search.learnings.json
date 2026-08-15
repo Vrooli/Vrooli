@@ -1,5 +1,6 @@
 {
-  "provider_id": "web-search.learnings",
+ "provider_id": "web-search.learnings",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "web-search",
   "bucket": "BUCKET_KNOW",
   "type": "learning",

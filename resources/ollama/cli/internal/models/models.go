@@ -36,6 +36,13 @@ type Daemon interface {
 	Generate(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error)
 }
 
+// InventoryDaemon is an optional extension used by the storage inventory
+// command. It is deliberately separate from Daemon so existing probe fakes do
+// not need to implement a storage concern.
+type InventoryDaemon interface {
+	ListModelInventory(ctx context.Context) ([]ensure.ModelInfo, error)
+}
+
 // ToolCapability is the Ollama capability string that signals native
 // tool-calling support on /api/show.
 const ToolCapability = "tools"
@@ -43,6 +50,24 @@ const ToolCapability = "tools"
 // ListResult is the `models list` payload.
 type ListResult struct {
 	Models []string `json:"models"`
+}
+
+// InventoryModel is the storage identity reported for one installed model.
+// Regenerable is true because Ollama can re-pull model weights; the reason is
+// always present so a future non-regenerable classification cannot be opaque.
+type InventoryModel struct {
+	Name              string `json:"name"`
+	Digest            string `json:"digest,omitempty"`
+	Size              int64  `json:"size"`
+	PolicyReachable   bool   `json:"policy_reachable"`
+	Regenerable       bool   `json:"regenerable"`
+	RegenerableReason string `json:"regenerable_reason"`
+}
+
+type InventoryResult struct {
+	Source     string           `json:"source"`
+	Models     []InventoryModel `json:"models"`
+	TotalBytes int64            `json:"total_bytes"`
 }
 
 // ToolProbeResult is the `models probe-tools` payload.
@@ -111,6 +136,47 @@ func List(ctx context.Context, d Daemon) (ListResult, error) {
 		refs = []string{}
 	}
 	return ListResult{Models: refs}, nil
+}
+
+// Inventory joins live Ollama model metadata with the role/fallback policy.
+// Policy reachability is intentionally a report-only property: an installed
+// model outside policy remains visible and is not silently treated as lost.
+func Inventory(ctx context.Context, d Daemon, p policy.Policy) (InventoryResult, error) {
+	reporter, ok := d.(InventoryDaemon)
+	if !ok {
+		return InventoryResult{}, fmt.Errorf("ollama daemon does not expose model inventory")
+	}
+	models, err := reporter.ListModelInventory(ctx)
+	if err != nil {
+		return InventoryResult{}, err
+	}
+	reachable := make(map[string]bool)
+	for _, role := range p.Roles {
+		if name := strings.TrimSpace(role.Model); name != "" {
+			reachable[name] = true
+		}
+		for _, fallback := range role.Fallbacks {
+			if name := strings.TrimSpace(fallback); name != "" {
+				reachable[name] = true
+			}
+		}
+	}
+	out := InventoryResult{Source: "ollama /api/tags", Models: make([]InventoryModel, 0, len(models))}
+	for _, model := range models {
+		if strings.TrimSpace(model.Name) == "" {
+			continue
+		}
+		out.Models = append(out.Models, InventoryModel{
+			Name:              model.Name,
+			Digest:            model.Digest,
+			Size:              model.Size,
+			PolicyReachable:   reachable[model.Name],
+			Regenerable:       true,
+			RegenerableReason: "model weights can be re-pulled from the Ollama registry",
+		})
+		out.TotalBytes += model.Size
+	}
+	return out, nil
 }
 
 // ProbeTools runs a live /api/chat write-file tool smoke against a model and

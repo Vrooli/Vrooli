@@ -52,7 +52,8 @@ func pairedMarginCI(winner, incumbent []float64, count int, r *rand.Rand) (mean,
 		count = 2000
 	}
 	if r == nil {
-		r = rand.New(rand.NewSource(1))
+		//nolint:gosec // this PRNG is for deterministic bootstrap resampling, never secrets.
+		r = rand.New(rand.NewSource(1)) // #nosec G404 -- deterministic bootstrap resampling is not security-sensitive.
 	}
 	means := make([]float64, count)
 	for b := 0; b < count; b++ {

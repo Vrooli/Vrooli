@@ -81,7 +81,7 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{
 				Name:        "degrade",
 				Description: "Unload the Nth-largest loaded model to free VRAM at the capacity broker's request",
-				Usage:       "resource-ollama capacity degrade [--nth N] [--json]",
+				Usage:       "resource-ollama capacity degrade [--to <model>] [--nth N] [--json]",
 				Run:         h.Degrade,
 			},
 		},
@@ -90,10 +90,11 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 
 // degradeResult is the JSON envelope of a degrade actuation.
 type degradeResult struct {
-	Unloaded   string `json:"unloaded,omitempty"`
-	FreedBytes int64  `json:"freed_bytes"`
-	Remaining  int    `json:"remaining_loaded"`
-	Message    string `json:"message"`
+	Unloaded       string   `json:"unloaded,omitempty"`
+	UnloadedModels []string `json:"unloaded_models,omitempty"`
+	FreedBytes     int64    `json:"freed_bytes"`
+	Remaining      int      `json:"remaining_loaded"`
+	Message        string   `json:"message"`
 }
 
 // Degrade unloads the Nth-largest loaded model (default the single largest) to
@@ -105,6 +106,7 @@ func (h *Handlers) Degrade(args []string) error {
 	fs.SetOutput(h.Stderr)
 	nth := fs.Int("nth", 1, "unload the Nth-largest loaded model (1 = largest)")
 	jsonOut := fs.Bool("json", false, "emit JSON")
+	target := fs.String("to", "", "degrade to a model-policy capacity rung")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -130,19 +132,65 @@ func (h *Handlers) Degrade(args []string) error {
 	}
 	// Largest VRAM footprint first, so the default unloads what frees the most.
 	sort.SliceStable(running, func(i, j int) bool { return running[i].SizeVRAM > running[j].SizeVRAM })
+	if strings.TrimSpace(*target) != "" {
+		targetBytes, err := h.targetBytes(strings.TrimSpace(*target))
+		if err != nil {
+			return err
+		}
+		var total int64
+		for _, model := range running {
+			total += model.SizeVRAM
+		}
+		for total > targetBytes && len(running) > 0 {
+			model := running[0]
+			if err := client.Unload(ctx, model.Name); err != nil {
+				return fmt.Errorf("unload %s: %w", model.Name, err)
+			}
+			result.UnloadedModels = append(result.UnloadedModels, model.Name)
+			result.FreedBytes += model.SizeVRAM
+			total -= model.SizeVRAM
+			running = running[1:]
+		}
+		result.Remaining = len(running)
+		result.Message = fmt.Sprintf("degraded to %s (%d model(s) unloaded)", *target, len(result.UnloadedModels))
+		return h.writeDegrade(*jsonOut, result)
+	}
 	if *nth > len(running) {
 		result.Message = fmt.Sprintf("only %d model(s) loaded; nothing at position %d to unload", len(running), *nth)
 		return h.writeDegrade(*jsonOut, result)
 	}
-	target := running[*nth-1]
-	if err := client.Unload(ctx, target.Name); err != nil {
-		return fmt.Errorf("unload %s: %w", target.Name, err)
+	modelTarget := running[*nth-1]
+	if err := client.Unload(ctx, modelTarget.Name); err != nil {
+		return fmt.Errorf("unload %s: %w", modelTarget.Name, err)
 	}
-	result.Unloaded = target.Name
-	result.FreedBytes = target.SizeVRAM
+	result.Unloaded = modelTarget.Name
+	result.UnloadedModels = []string{modelTarget.Name}
+	result.FreedBytes = modelTarget.SizeVRAM
 	result.Remaining = len(running) - 1
-	result.Message = fmt.Sprintf("unloaded %s (freed %d bytes VRAM)", target.Name, target.SizeVRAM)
+	result.Message = fmt.Sprintf("unloaded %s (freed %d bytes VRAM)", modelTarget.Name, modelTarget.SizeVRAM)
 	return h.writeDegrade(*jsonOut, result)
+}
+
+func (h *Handlers) targetBytes(label string) (int64, error) {
+	getenv := h.GetEnv
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	var p policy.Policy
+	var err error
+	if strings.TrimSpace(h.PolicyPath) != "" {
+		p, err = policy.LoadFile(h.PolicyPath)
+	} else {
+		p, _, err = policy.LoadDefaultFile(getenv)
+	}
+	if err != nil {
+		return 0, fmt.Errorf("load model policy for capacity rung %q: %w", label, err)
+	}
+	model, ok := p.Models[label]
+	if !ok || model.VRAMGBEstimate <= 0 {
+		return 0, fmt.Errorf("capacity rung %q is not a model with a positive VRAM estimate", label)
+	}
+	return int64(model.VRAMGBEstimate * bytesPerGB), nil
 }
 
 func (h *Handlers) writeDegrade(jsonOut bool, result degradeResult) error {
@@ -552,65 +600,24 @@ func readRuntimeSettings(path string) (RuntimeSettings, []string) {
 		return settings, []string{fmt.Sprintf("read Ollama resource runtime settings: %v", err)}
 	}
 	var raw struct {
-		Runtime struct {
-			MemoryLimit string            `json:"memory_limit"`
-			Env         map[string]string `json:"env"`
-		} `json:"runtime"`
+		ManagedService struct {
+			Environment map[string]string `json:"environment"`
+		} `json:"managed_service"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return settings, []string{fmt.Sprintf("parse Ollama resource runtime settings: %v", err)}
 	}
-	if raw.Runtime.MemoryLimit != "" {
-		if gb, err := parseByteSizeGB(raw.Runtime.MemoryLimit); err == nil && gb > 0 {
-			settings.MemoryLimitGB = gb
-		} else {
-			warnings = append(warnings, fmt.Sprintf("ignore invalid runtime.memory_limit=%q", raw.Runtime.MemoryLimit))
-		}
-	}
-	if v := strings.TrimSpace(raw.Runtime.Env["OLLAMA_NUM_PARALLEL"]); v != "" {
+	if v := strings.TrimSpace(raw.ManagedService.Environment["OLLAMA_NUM_PARALLEL"]); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			settings.NumParallel = n
 		}
 	}
-	if v := strings.TrimSpace(raw.Runtime.Env["OLLAMA_MAX_LOADED_MODELS"]); v != "" {
+	if v := strings.TrimSpace(raw.ManagedService.Environment["OLLAMA_MAX_LOADED_MODELS"]); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			settings.MaxLoadedModels = n
 		}
 	}
 	return settings, warnings
-}
-
-func parseByteSizeGB(raw string) (float64, error) {
-	s := strings.TrimSpace(strings.ToLower(raw))
-	if s == "" {
-		return 0, errors.New("empty size")
-	}
-	multiplier := float64(1)
-	for _, suffix := range []struct {
-		suffix string
-		gb     float64
-	}{
-		{"gib", 1},
-		{"gb", 1},
-		{"g", 1},
-		{"mib", 1.0 / 1024},
-		{"mb", 1.0 / 1024},
-		{"m", 1.0 / 1024},
-		{"kib", 1.0 / (1024 * 1024)},
-		{"kb", 1.0 / (1024 * 1024)},
-		{"k", 1.0 / (1024 * 1024)},
-	} {
-		if strings.HasSuffix(s, suffix.suffix) {
-			multiplier = suffix.gb
-			s = strings.TrimSpace(strings.TrimSuffix(s, suffix.suffix))
-			break
-		}
-	}
-	value, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, err
-	}
-	return value * multiplier, nil
 }
 
 func summarizeHost(snap hostinventory.Snapshot) HostSummary {

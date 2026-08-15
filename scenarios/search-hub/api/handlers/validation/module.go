@@ -22,7 +22,7 @@ import (
 
 var ProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_proto
 
-func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB, clk schedule.Clock) module.Module {
+func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB, clk schedule.Clock, live ...internalvalidation.LiveRoutingReader) module.Module {
 	// DescribeProvider answers readiness from this provider's own descriptor,
 	// so a readiness probe no longer costs a full target analysis. A load
 	// failure yields the zero Describer, which reports Unimplemented and makes
@@ -33,6 +33,9 @@ func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB, clk sche
 		logger.Printf("validation: maturity assessment disabled: %v", err)
 	}
 	validator := internalvalidation.New(repoRoot)
+	if len(live) > 0 {
+		validator.LiveRouter = live[0]
+	}
 	if db != nil {
 		resolver := internalregistry.NewSQLiteStore(db, clk)
 		validator.RegistryStore = resolver

@@ -9,6 +9,7 @@ import (
 	"search-hub/cli/domains/metrics"
 	"search-hub/cli/domains/providers"
 	"search-hub/cli/domains/query"
+	"search-hub/cli/domains/strategy"
 
 	"github.com/vrooli/api-core/spacecli"
 	"github.com/vrooli/api-core/spacedoc"
@@ -81,5 +82,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{providersGroup, queryGroup, federationGroup, insightsGroup, metricsGroup, evalsGroup, maturityGroup, embeddingGroup}, nil
+	strategyGroup, err := strategy.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{providersGroup, queryGroup, federationGroup, insightsGroup, metricsGroup, evalsGroup, maturityGroup, embeddingGroup, strategyGroup}, nil
 }

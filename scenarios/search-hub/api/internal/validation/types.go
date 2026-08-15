@@ -37,6 +37,7 @@ const (
 	CodeEvalCorpusInvalid          = "SEARCH_EVAL_CORPUS_INVALID"
 	CodeEvalCorpusInadequate       = "SEARCH_EVAL_CORPUS_INADEQUATE"
 	CodeEvalCorpusThin             = "SEARCH_EVAL_CORPUS_THIN"
+	CodeEvalCorpusDegenerate       = "SEARCH_EVAL_CORPUS_DEGENERATE"
 	CodeEvalCorpusCoverage         = "SEARCH_EVAL_CORPUS_COVERAGE"
 	CodeEvalRunMissing             = "SEARCH_EVAL_RUN_MISSING"
 	CodeEvalRunStale               = "SEARCH_EVAL_RUN_STALE"
@@ -52,6 +53,8 @@ const (
 	CodePerfBudgetUnproven         = "SEARCH_PERF_BUDGET_UNPROVEN"
 	CodePerfSamplesUnproven        = "SEARCH_PERF_SAMPLES_UNPROVEN"
 	CodePerfDegraded               = "SEARCH_PERF_DEGRADED"
+	CodeLiveDegraded               = "SEARCH_LIVE_DEGRADED"
+	CodeLiveZeroYield              = "SEARCH_LIVE_ZERO_YIELD"
 )
 
 type Severity string

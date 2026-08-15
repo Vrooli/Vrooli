@@ -20,7 +20,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        routingconnect.RoutingServiceQueryProcedure,
 		Method:      "POST",
 		Summary:     "Federated query across registered providers",
-		Description: "Fans out a query to providers selected by explicit --type, --all, or --group, or automatically via the Ollama classifier when no explicit selector is given; maps each response through the generic adapter, and returns results grouped by provider. Degraded providers are skipped with a note, never failing the whole query.",
+		Description: "Fans out a query to providers selected by explicit --type, --all, or --group, or automatically via the model-free lexical strategy when no explicit selector is given; maps each response through the generic adapter, and returns results grouped by provider. Degraded providers are skipped with a note, never failing the whole query.",
 		Category:    "routing",
 		Request: &module.Schema{
 			Type: "object",
@@ -46,7 +46,7 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 400, Code: "invalid_argument", Description: "Empty query, or no routing selector while no classifier is wired (pass --type/--all/--group)"},
+			{Status: 400, Code: "invalid_argument", Description: "Empty query"},
 			{Status: 500, Code: "internal", Description: "Registry read failure"},
 		},
 		Examples: []module.Example{
@@ -58,14 +58,14 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        routingconnect.RoutingServiceStatusProcedure,
 		Method:      "POST",
 		Summary:     "Federation status (per-provider health + model availability)",
-		Description: "Reports each ACTIVE provider's reachability, circuit-open share/quorum, lifecycle and quality exclusions, plus classifier/reranker availability. An unreachable leaf is reported degraded rather than failing the call; only a registry read failure errors. Backs `search-hub federation status`.",
+		Description: "Reports each ACTIVE provider's reachability, circuit-open share/quorum, lifecycle and quality exclusions, plus cross-encoder availability. An unreachable leaf is reported degraded rather than failing the call; only a registry read failure errors. Backs `search-hub federation status`.",
 		Category:    "routing",
 		Request:     &module.Schema{Type: "object"},
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"providers":            "array<ProviderHealth> — per-leaf reachability + probed index age",
-				"classifier_available": "bool — automatic routing model reachable",
+				"classifier_available": "bool — retained compatibility field; false after LLM classifier retirement",
 				"reranker_available":   "bool — unified-rerank model reachable (false ⇒ degraded ranking mode)",
 				"circuit_open_share":   "double — active leaves with an open transport circuit",
 				"circuit_open_quorum":  "double — declared federation-degraded threshold",

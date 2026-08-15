@@ -1,12 +1,7 @@
 package metrics
 
-import _ "embed"
+import "search-hub/internal/telemetry"
 
-//go:embed schema.sql
-var schemaSQL string
-
-// Schema returns the metrics domain's SQL contribution (the query_telemetry +
-// query_telemetry_provider tables). Applied by database.EnsureSchemas via the
-// modules.AllSchemas() registry. Forward-only declarative — re-runs are no-ops
-// (CREATE TABLE IF NOT EXISTS).
-func Schema() string { return schemaSQL }
+// Schema is retained as a compatibility seam for metrics stores and tests.
+// Ownership of the tables lives in the telemetry domain.
+func Schema() string { return telemetry.Schema() }

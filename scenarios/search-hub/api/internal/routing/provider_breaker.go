@@ -3,9 +3,12 @@ package routing
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
+
+	aisearch "github.com/vrooli/ai-go/search"
 )
 
 // ProviderDemotionState is the durable, queryable portion of zero-yield
@@ -28,11 +31,11 @@ type DemotionStore interface {
 
 // defaultZeroYieldMinimumRoutes requires repeated successful empty responses
 // before demotion; transport failures are deliberately excluded.
-const defaultZeroYieldMinimumRoutes int64 = 5
+const defaultZeroYieldMinimumRoutes int64 = aisearch.DefaultRouterZeroYieldMinimumRoutes
 
 // defaultZeroYieldDemotionWindow bounds how long a provider stays out of
 // automatic routing before a shadow/probation request can test recovery.
-const defaultZeroYieldDemotionWindow = 15 * time.Minute
+const defaultZeroYieldDemotionWindow = aisearch.DefaultRouterDemotionWindow
 
 // DefaultRecoveryProbeInterval keeps unattended recovery traffic low-rate:
 // the loop checks for expired demotions once per minute, while a provider still
@@ -91,30 +94,46 @@ func newProviderBreakers(cfg rerankBreakerConfig, stores ...DemotionStore) *prov
 	}
 }
 
-func (p *providerBreakers) restore(ctx context.Context) {
+func (p *providerBreakers) restore(ctx context.Context) int {
 	if p == nil || p.store == nil {
-		return
+		return 0
 	}
 	p.mu.Lock()
 	if p.restored {
 		p.mu.Unlock()
-		return
+		return 0
 	}
 	p.restored = true
 	p.mu.Unlock()
 	states, err := p.store.Load(ctx)
 	if err != nil {
-		return
+		return 0
 	}
+	reconciled := make([]ProviderDemotionState, 0)
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	for _, state := range states {
+		if state.Probation {
+			state.Probation = false
+			reconciled = append(reconciled, state)
+		}
 		p.stats[state.ProviderID] = &providerYieldStats{
 			routed: state.Routed, hits: state.Hits, emptyStreak: state.EmptyStreak,
 			demoted: state.Demoted, probation: state.Probation,
 			decayDeadline: state.DecayDeadline, trigger: state.Trigger,
 		}
 	}
+	p.mu.Unlock()
+	for _, state := range reconciled {
+		p.persist(state.ProviderID, providerYieldStats{
+			routed: state.Routed, hits: state.Hits, emptyStreak: state.EmptyStreak,
+			demoted: state.Demoted, probation: false,
+			decayDeadline: state.DecayDeadline, trigger: state.Trigger,
+		})
+	}
+	if len(reconciled) > 0 {
+		log.Printf("search-hub routing: reconciled %d persisted probation state(s) at startup", len(reconciled))
+	}
+	return len(reconciled)
 }
 
 func (p *providerBreakers) persist(id string, stats providerYieldStats) {
@@ -194,6 +213,9 @@ func (p *providerBreakers) recordResult(id string, hitCount int, degraded, expli
 	// A transport/dependency failure belongs to the circuit breaker. It is not
 	// evidence that a healthy corpus yielded nothing.
 	if degraded {
+		if s.demoted && s.probation {
+			p.recoveryProbeFailedLocked(s, now, "provider response degraded")
+		}
 		return
 	}
 	s.routed++
@@ -239,19 +261,24 @@ func (p *providerBreakers) eligibleAutomatic(id string, now time.Time) bool {
 	if p == nil {
 		return true
 	}
+	p.clearExpiredProbation(id, now)
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	s := p.stats[id]
 	if s == nil || !s.demoted {
+		p.mu.Unlock()
 		return true
 	}
 	if now.Before(s.decayDeadline) || s.probation {
+		p.mu.Unlock()
 		return false
 	}
 	// The first automatic request after decay is the shadow/probation probe.
 	// Its result is fed back through recordResult and either restores eligibility
 	// or starts a fresh decay window.
 	s.probation = true
+	snapshot := *s
+	p.mu.Unlock()
+	p.persist(id, snapshot)
 	return true
 }
 
@@ -262,6 +289,7 @@ func (p *providerBreakers) beginRecoveryProbe(id string, now time.Time) bool {
 	if p == nil {
 		return false
 	}
+	p.clearExpiredProbation(id, now)
 	p.mu.Lock()
 	s := p.stats[id]
 	if s == nil || !s.demoted || now.Before(s.decayDeadline) || s.probation {
@@ -332,13 +360,42 @@ func (p *providerBreakers) finishFailureRecoveryProbe(id string, now time.Time, 
 	b.probing = false
 	b.mu.Unlock()
 	p.mu.Lock()
+	var snapshot providerYieldStats
+	persistState := false
 	if s := p.stats[id]; s != nil {
 		s.probation = false
 		if strings.TrimSpace(reason) != "" {
 			s.trigger = "failure recovery probe unavailable: " + strings.TrimSpace(reason)
 		}
+		snapshot = *s
+		persistState = true
 	}
 	p.mu.Unlock()
+	if persistState {
+		p.persist(id, snapshot)
+	}
+}
+
+// clearExpiredProbation prevents a persisted or in-memory recovery slot from
+// becoming a permanent latch when the probe owner disappears. Once the decay
+// deadline has elapsed, the slot is no longer in-flight; the next automatic
+// request may claim a fresh probation probe.
+func (p *providerBreakers) clearExpiredProbation(id string, now time.Time) bool {
+	if p == nil {
+		return false
+	}
+	p.mu.Lock()
+	s := p.stats[id]
+	if s == nil || !s.demoted || !s.probation || s.decayDeadline.IsZero() || now.Before(s.decayDeadline) {
+		p.mu.Unlock()
+		return false
+	}
+	s.probation = false
+	s.trigger = "expired recovery probation cleared"
+	snapshot := *s
+	p.mu.Unlock()
+	p.persist(id, snapshot)
+	return true
 }
 
 // recoveryProbeFailed releases a probation slot after a transport/degraded
@@ -353,6 +410,13 @@ func (p *providerBreakers) recoveryProbeFailed(id string, now time.Time, reason 
 		p.mu.Unlock()
 		return
 	}
+	p.recoveryProbeFailedLocked(s, now, reason)
+	snapshot := *s
+	p.mu.Unlock()
+	p.persist(id, snapshot)
+}
+
+func (p *providerBreakers) recoveryProbeFailedLocked(s *providerYieldStats, now time.Time, reason string) {
 	s.probation = false
 	s.decayDeadline = now.Add(p.demotionWindow)
 	if strings.TrimSpace(reason) == "" {
@@ -360,9 +424,6 @@ func (p *providerBreakers) recoveryProbeFailed(id string, now time.Time, reason 
 	} else {
 		s.trigger = "recovery probe unavailable: " + strings.TrimSpace(reason)
 	}
-	snapshot := *s
-	p.mu.Unlock()
-	p.persist(id, snapshot)
 }
 
 func (p *providerBreakers) demotion(id string) (bool, int64, int64) {
@@ -401,6 +462,24 @@ func (p *providerBreakers) state(id string) *providerYieldStats {
 		return &copy
 	}
 	return nil
+}
+
+// states returns every persisted accounting key, including scope-derived
+// keys that are not registry leaves. Status uses this to keep historical
+// accounting visible instead of silently dropping it.
+func (p *providerBreakers) states() map[string]providerYieldStats {
+	out := make(map[string]providerYieldStats)
+	if p == nil {
+		return out
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for id, stats := range p.stats {
+		if stats != nil {
+			out[id] = *stats
+		}
+	}
+	return out
 }
 
 func (p *providerBreakers) openImmediately(id string, now time.Time) {

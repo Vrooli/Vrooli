@@ -47,6 +47,33 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
+func (h *handlers) compareStrategiesCall(ctx cliapp.OperationContext) (*evalv1.CompareStrategiesResponse, error) {
+	names := make([]string, 0)
+	for _, name := range strings.Split(ctx.Flag("strategy_names"), ",") {
+		if name = strings.TrimSpace(name); name != "" {
+			names = append(names, name)
+		}
+	}
+	resp, err := h.client.CompareStrategies(context.Background(), connect.NewRequest(&evalv1.CompareStrategiesRequest{
+		SuiteId: "router.routing", StrategyNames: names, Apply: ctx.BoolFlag("apply"), Limit: 10,
+	}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("compare retrieval strategies", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no strategy comparison")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) compareStrategiesReport(_ cliapp.OperationContext, result *evalv1.CompareStrategiesResponse) cliapp.MutationReport {
+	changes := []string{result.GetWritebackReason()}
+	for _, arm := range result.GetArms() {
+		changes = append(changes, fmt.Sprintf("%s run=%s all=%d precision=%.4f routable=%d precision=%.4f heldout=%t significant=%t accepted=%t rejection=%s", arm.GetStrategyName(), arm.GetRunId(), arm.GetAllDenominator(), arm.GetAllRoutingPrecision(), arm.GetRoutableDenominator(), arm.GetRoutableRoutingPrecision(), arm.GetHeldoutHolds(), arm.GetSignificant(), arm.GetAccepted(), emptyDash(arm.GetRejectionReason())))
+	}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Compared %d strategy arms; active=%s.", len(result.GetArms()), result.GetActiveStrategy())}, Changes: changes}
+}
+
 // register reads an EvalSuite from --suite (raw JSON, or @path) and upserts it.
 func (h *handlers) registerCall(ctx cliapp.OperationContext) (*evalv1.RegisterSuiteResponse, error) {
 	blob, err := readSuiteArg(ctx.Flag("suite"))
@@ -521,8 +548,19 @@ func (h *handlers) compareReport(ctx cliapp.OperationContext, msg *evalv1.Compar
 	}
 	tagA := msg.GetRunA().GetTag()
 	tagB := msg.GetRunB().GetTag()
+	summary := []string{fmt.Sprintf("A=%s (%s)  →  B=%s (%s)", a, tagA, b, tagB)}
+	if delta, ok := rateDelta(msg.GetRunA().GetAggregate().GetRoutingPrecision(), msg.GetRunB().GetAggregate().GetRoutingPrecision(), msg.GetRunA().GetAggregate().RoutingPrecision != nil, msg.GetRunB().GetAggregate().RoutingPrecision != nil); ok {
+		summary = append(summary, fmt.Sprintf("routing_precision delta: %+.3f", delta))
+	} else {
+		summary = append(summary, "routing_precision delta: unset")
+	}
+	if delta, ok := rateDelta(msg.GetRunA().GetAggregate().GetRetrievalRecall(), msg.GetRunB().GetAggregate().GetRetrievalRecall(), msg.GetRunA().GetAggregate().RetrievalRecall != nil, msg.GetRunB().GetAggregate().RetrievalRecall != nil); ok {
+		summary = append(summary, fmt.Sprintf("retrieval_recall delta: %+.3f", delta))
+	} else {
+		summary = append(summary, "retrieval_recall delta: unset")
+	}
 	return cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("A=%s (%s)  →  B=%s (%s)", a, tagA, b, tagB)},
+		Summary:        summary,
 		ResultsHeading: "Per-case delta (A → B)",
 		Results:        results,
 	}
@@ -551,7 +589,7 @@ func parseLimit(raw string) (int32, error) {
 	if raw == "" {
 		return 0, nil
 	}
-	n, err := strconv.Atoi(raw)
+	n, err := strconv.ParseInt(raw, 10, 32)
 	if err != nil || n < 0 {
 		return 0, fmt.Errorf("invalid --limit %q (want a non-negative integer)", raw)
 	}
@@ -609,8 +647,23 @@ func formatCase(c *evalv1.EvalCase) string {
 
 func formatAggregate(r *evalv1.EvalRun) string {
 	a := r.GetAggregate()
-	return fmt.Sprintf("aggregate: cases=%d met=%d below=%d mean_strong_top1=%.3f max_gibberish=%.3f p95=%dms",
-		a.GetCases(), a.GetMet(), a.GetBelow(), a.GetMeanStrongTop1(), a.GetMaxGibberishScore(), a.GetLatencyP95Ms())
+	rates := fmt.Sprintf("routing_precision=%s retrieval_recall=%s", optionalRate(a.RoutingPrecision), optionalRate(a.RetrievalRecall))
+	return fmt.Sprintf("aggregate: cases=%d met=%d below=%d pass_rate=%.3f %s mean_strong_top1=%.3f max_gibberish=%.3f p95=%dms",
+		a.GetCases(), a.GetMet(), a.GetBelow(), a.GetPassRate(), rates, a.GetMeanStrongTop1(), a.GetMaxGibberishScore(), a.GetLatencyP95Ms())
+}
+
+func optionalRate(value *float64) string {
+	if value == nil {
+		return "unset"
+	}
+	return fmt.Sprintf("%.3f", *value)
+}
+
+func rateDelta(a, b float64, aSet, bSet bool) (float64, bool) {
+	if !aSet || !bSet {
+		return 0, false
+	}
+	return b - a, true
 }
 
 func formatConfig(c *evalv1.ConfigSnapshot) string {

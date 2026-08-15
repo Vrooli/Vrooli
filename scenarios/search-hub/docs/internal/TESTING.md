@@ -1005,6 +1005,21 @@ actual percentage in the error message (`::error::API coverage 71.4%
 < 75%`). The fix is to raise coverage in the missing file, not to
 lower the gate.
 
+### Retrieval trust seams
+
+The composed router suite is generated from the registered provider-owned
+corpora, so routing cases grow and shrink with registry state. Corpus-shape
+validation is tested with descriptor-only fixtures, and federated evals retain
+`routing_precision` separately from `retrieval_recall`. Lifecycle/evidence
+tests assert that experimental or unproven providers remain explicitly
+selectable but are excluded from automatic routing.
+
+The persistent description index has tests for changed-descriptor
+incrementality, restart reuse, embedding metadata invalidation, deterministic
+fallback ordering, and isolated failed-entry drops. Long-running validation is
+owned by Test Genie; start a run with `vrooli scenario test <name>` and block
+once with `test-genie runs wait --json <name> <run-id>`.
+
 ## Common patterns and anti-patterns
 
 | ✅ DO | ❌ DON'T |

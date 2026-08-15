@@ -5,6 +5,7 @@ import "context"
 type (
 	backgroundEvaluationContextKey  struct{}
 	backgroundEvaluationProviderKey struct{}
+	routingEvaluationContextKey     struct{}
 	recoveryProbeContextKey         struct{}
 	failureRecoveryProbeContextKey  struct{}
 )
@@ -21,6 +22,15 @@ func WithBackgroundEvaluation(ctx context.Context) context.Context {
 // stretching the scheduler's cycle or competing with interactive traffic.
 func WithBackgroundEvaluationProvider(ctx context.Context, providerID string) context.Context {
 	return context.WithValue(WithBackgroundEvaluation(ctx), backgroundEvaluationProviderKey{}, providerID)
+}
+
+// WithRoutingEvaluation marks the composed router suite's automatic-routing
+// probe. Unlike background evaluation, it must exercise classification and
+// evidence-gated leaf selection; it only bypasses reranking because reranking
+// cannot change which provider was selected and should not make routing recall
+// depend on an optional model resource.
+func WithRoutingEvaluation(ctx context.Context) context.Context {
+	return context.WithValue(ctx, routingEvaluationContextKey{}, true)
 }
 
 // WithRecoveryProbe marks a bounded, unattended request that is testing a
@@ -40,6 +50,11 @@ func WithFailureRecoveryProbe(ctx context.Context) context.Context {
 
 func isBackgroundEvaluation(ctx context.Context) bool {
 	value, _ := ctx.Value(backgroundEvaluationContextKey{}).(bool)
+	return value
+}
+
+func isRoutingEvaluation(ctx context.Context) bool {
+	value, _ := ctx.Value(routingEvaluationContextKey{}).(bool)
 	return value
 }
 

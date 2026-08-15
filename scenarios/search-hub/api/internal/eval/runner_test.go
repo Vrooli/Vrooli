@@ -140,6 +140,30 @@ func TestRunner_SearchErrorDegradesCaseNotRun(t *testing.T) {
 	require.EqualValues(t, 1, run.GetAggregate().GetGradedCases())
 }
 
+func TestRunner_ExcludesCandidateCasesFromProviderAndAggregate(t *testing.T) {
+	client := fakeClient{
+		errQuery: map[string]error{"candidate": errors.New("candidate must not be searched")},
+		byQuery:  map[string][]*routingv1.SearchHit{"reviewed": {hit("a", 0.9)}},
+	}
+	run, err := newRunner(client).Run(context.Background(), suiteWith(
+		&evalv1.EvalCase{CaseId: "candidate", Query: "candidate", Status: "candidate", Tags: []string{"candidate"}, ExpectIds: []string{"a"}},
+		&evalv1.EvalCase{CaseId: "reviewed", Query: "reviewed", ExpectIds: []string{"a"}},
+	), "candidate-exclusion", 0)
+	require.NoError(t, err)
+	results := map[string]*evalv1.CaseResult{}
+	for _, result := range run.GetResults() {
+		results[result.GetCaseId()] = result
+	}
+	require.Equal(t, "n/a", results["candidate"].GetOutcome())
+	require.Equal(t, "candidate excluded from acceptance denominator", results["candidate"].GetOutcomeReason())
+	require.Equal(t, "met", results["reviewed"].GetOutcome())
+	require.False(t, run.GetDegraded(), "candidate must not invoke the provider")
+	require.EqualValues(t, 2, run.GetAggregate().GetCases())
+	require.EqualValues(t, 1, run.GetAggregate().GetGradedCases())
+	require.EqualValues(t, 1, run.GetAggregate().GetMet())
+	require.InDelta(t, 1.0, run.GetAggregate().GetPassRate(), 1e-9)
+}
+
 func TestRunner_InfrastructureFailureIsUnavailableAndExcluded(t *testing.T) {
 	client := fakeClient{
 		errQuery: map[string]error{"down": errors.New("request: provider returned HTTP 503")},

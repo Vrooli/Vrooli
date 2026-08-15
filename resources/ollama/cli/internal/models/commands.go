@@ -50,6 +50,12 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 				Run:         h.List,
 			},
 			{
+				Name:        "inventory",
+				Description: "Report named model sizes, digests, and policy reachability",
+				Usage:       "resource-ollama models inventory [--json]",
+				Run:         h.Inventory,
+			},
+			{
 				Name:        "probe-tools",
 				Description: "Run a live tool-call smoke against a model or role",
 				Usage:       "resource-ollama models probe-tools (--model <ref> | --role <role>) [--json]",
@@ -87,6 +93,32 @@ func (h *Handlers) List(args []string) error {
 	}
 	for _, m := range res.Models {
 		if _, err := fmt.Fprintln(h.Stdout, m); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h *Handlers) Inventory(args []string) error {
+	fs := flag.NewFlagSet("models inventory", flag.ContinueOnError)
+	fs.SetOutput(h.Stderr)
+	asJSON := fs.Bool("json", false, "Emit a JSON inventory")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	p, _, err := h.loadPolicy()
+	if err != nil {
+		return err
+	}
+	res, err := Inventory(context.Background(), h.NewDaemon(), p)
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		return writeJSON(h.Stdout, res)
+	}
+	for _, model := range res.Models {
+		if _, err := fmt.Fprintf(h.Stdout, "%s\t%d\t%s\tpolicy_reachable=%t\tregenerable=%t\n", model.Name, model.Size, model.Digest, model.PolicyReachable, model.Regenerable); err != nil {
 			return err
 		}
 	}

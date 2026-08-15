@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -292,7 +291,7 @@ func resolveTarget(ctx context.Context, model, role, dimensions string) (aisearc
 	if err != nil {
 		return aisearch.EmbeddingMetadata{}, err
 	}
-	return aisearch.EmbeddingMetadata{Role: policy.Role, Model: policy.Model, Dimensions: policy.Dimensions, PolicySchemaVersion: policy.PolicySchemaVersion}, nil
+	return aisearch.EmbeddingMetadata(policy), nil
 }
 
 func qdrantURL() string {
@@ -355,10 +354,4 @@ func deleteCollection(ctx context.Context, collection string) error {
 		return fmt.Errorf("drop shadow collection %q: HTTP %d", collection, resp.StatusCode)
 	}
 	return nil
-}
-
-func sortStrings(values []string) []string {
-	out := append([]string(nil), values...)
-	sort.Strings(out)
-	return out
 }

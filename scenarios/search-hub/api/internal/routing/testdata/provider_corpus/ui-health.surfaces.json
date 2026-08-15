@@ -1,5 +1,6 @@
 {
-  "provider_id": "ui-health.surfaces",
+ "provider_id": "ui-health.surfaces",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "ui-health",
   "bucket": "BUCKET_REUSE",
   "type": "component",

@@ -32,7 +32,7 @@ for the full policy.
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/search-hub.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
-| `SEARCH_HUB_QUERY_TIMEOUT` | `25s` | Total router budget for listing providers, fan-out, optional external escalation, and reranking. Supported range: `1s`-`29s`. Keep this below the CLI HTTP timeout so degraded responses can return before clients give up. |
+| `scenarios/search-hub/api/internal/routing/strategies.json:router_factors.query_budget` | `25s` | Total router budget for listing providers, fan-out, optional external escalation, and reranking. Keep this below the CLI HTTP timeout so degraded responses can return before clients give up. |
 | `SEARCH_HUB_RERANK_TIMEOUT` | `10s` | Maximum reranker-chain duration. Supported range: `100ms`-`20s`; the router also clips it to the remaining query budget minus a response cushion. |
 | `SEARCH_HUB_RERANK_BREAKER_FAILURES` | `3` | Consecutive reranker failures/timeouts before the router opens the reranker circuit and skips rerank. Supported range: `1`-`20`. |
 | `SEARCH_HUB_RERANK_BREAKER_COOLDOWN` | `60s` | How long an open reranker circuit stays open before one half-open probe is allowed. Supported range: `1s`-`10m`. |
@@ -56,7 +56,7 @@ the by-provider groups, marks the query response degraded, and adds a
 failures, the circuit breaker opens and later allows a single half-open probe;
 a successful probe closes the circuit. Operators who raise
 `SEARCH_HUB_RERANK_TIMEOUT` for cold Ollama fallback must keep the CLI HTTP
-timeout above `SEARCH_HUB_QUERY_TIMEOUT`; the server will still clip rerank to
+timeout above the strategy's `query_budget`; the server will still clip rerank to
 the remaining query budget minus its response cushion.
 
 ### Corpus generation model role

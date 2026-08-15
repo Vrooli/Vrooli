@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-11T11:12:43-04:00"
+    "last_validated_at": "2026-08-15T02:03:54-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-004",
       "title": "Bounded concurrent fan-out with provenance",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "core",
       "description": "Query fans out to every registered provider whose type matches the requested --type tokens (or all active providers under --all), bounded by a concurrency cap and a per-provider timeout. Each returned hit carries provider_id, provider_group, type, and a path/id locator.",
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Query --type a,b only calls providers of types a and b."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A provider exceeding the per-provider timeout is dropped; the query still returns the rest."
         }
       ]
@@ -28,7 +28,7 @@
     {
       "id": "REQ-P0-005",
       "title": "Declarative result-mapping (no per-provider code)",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "core",
       "description": "The fan-out applies each provider's declarative ResultMapping (JSON-path field selectors + score scale + optional filter_field/filter_value for multi-leaf-on-one-endpoint) to map heterogeneous responses onto unified SearchHits. Scores normalize to a common [0,1] band before any ranking.",
@@ -36,13 +36,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A REST and a Connect-via-JSON provider both map onto identical SearchHit shape via their mappings alone."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A filter_field/filter_value mapping selects only matching leaf rows from a shared endpoint (e.g. ui-health kind=surface)."
         }
       ]

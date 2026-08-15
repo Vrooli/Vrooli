@@ -205,8 +205,8 @@ func main() {
 		metricsH.Module(db, schedule.System(), log.Default()),
 		registryH.Module(db, schedule.System(), log.Default(), repoRoot),
 		routingH.ModuleWithRouter(router, log.Default()),
-		evalH.Module(db, schedule.System(), log.Default()),
-		validationH.Module(log.Default(), repoRoot, db, schedule.System()),
+		evalH.ModuleWithRoutability(db, schedule.System(), log.Default(), router),
+		validationH.Module(log.Default(), repoRoot, db, schedule.System(), router),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

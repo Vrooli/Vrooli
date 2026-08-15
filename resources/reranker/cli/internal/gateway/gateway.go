@@ -1,7 +1,7 @@
 // Package gateway provides the `resource-reranker gateway ...` subcommand group.
 //
 // It is the canonical entrypoint scenarios use to talk to the shared reranker
-// (TEI) container — never raw HTTP. The reranker scores a query against a set of
+// (TEI) service — never raw HTTP. The reranker scores a query against a set of
 // candidate passages and returns them ordered by relevance; it is the
 // second-stage reranker for aisearch-go / search-hub hybrid retrieval.
 package gateway

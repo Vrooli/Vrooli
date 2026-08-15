@@ -20,12 +20,36 @@ const (
 	MeasureDegradedQueryRate       = "query_telemetry.degraded-query-rate"
 	MeasureProviderDegradationRate = "query_telemetry.provider-degradation-rate"
 	MeasureProviderRerankerLeg     = "query_telemetry.provider-reranker-leg"
+	MeasureStuckProviderCount      = "federation.stuck-provider-count"
+	MeasureIncubatingProviderCount = "federation.incubating-provider-count"
+	MeasureOldestIncubatingAge     = "federation.oldest-incubating-age"
+	MeasureCorpusValidationLive    = "federation.corpus-validation-live-count"
+	MeasureCorpusValidationHard    = "federation.corpus-validation-hard-count"
+	MeasureCorpusValidationStale   = "federation.corpus-validation-stale-count"
+	MeasureOldestStaleCorpusAge    = "federation.oldest-stale-corpus-age"
+	MeasureZeroYieldRoutableIDs    = "federation.zero-yield-routable-id-count"
 )
 
 // RangeInsightsReader is the exact-window telemetry seam used by declared
 // measures after resolving the canonical time_window param.
 type RangeInsightsReader interface {
 	InsightsRange(ctx context.Context, from, to time.Time) (*internalmetrics.Insights, error)
+}
+
+type stuckProviderReader interface {
+	StuckProviderCount(context.Context, time.Time) (int64, error)
+}
+
+type incubatingProviderReader interface {
+	IncubatingProviderStats(context.Context, time.Time) (count int64, oldestAgeSeconds int64, err error)
+}
+
+type corpusValidationReader interface {
+	CorpusValidationStats(context.Context, time.Time) (internalmetrics.CorpusValidationStats, error)
+}
+
+type zeroYieldReader interface {
+	ZeroYieldRoutableIDCount(context.Context, int64) (int64, error)
 }
 
 type measureSpec struct {
@@ -102,7 +126,47 @@ func measureSpecs() []measureSpec {
 			),
 			compute: computeProviderRerankerLeg,
 		},
+		{
+			decl: measureDecl(
+				MeasureStuckProviderCount,
+				"Number of providers stranded in an elapsed recovery probation state.",
+				[]string{
+					"how many search hub providers are stuck in recovery",
+					"show the search hub stuck provider count",
+					"are any search hub providers stuck",
+				},
+				"count", "providers", "{count} stuck provider(s)",
+				map[string]gomeasures.Param{"window": windowParam},
+			),
+			compute: computeStuckProviderCount,
+		},
+		{
+			decl: measureDecl(MeasureIncubatingProviderCount, "Number of registered providers in the experimental adoption lane.", []string{
+				"how many search hub providers are incubating", "show the experimental provider count", "how many providers still need adoption evidence",
+			}, "count", "providers", "{count} incubating provider(s)", map[string]gomeasures.Param{"window": windowParam}),
+			compute: computeIncubatingProviderCount,
+		},
+		{
+			decl: measureDecl(MeasureOldestIncubatingAge, "Age of the oldest registered experimental provider.", []string{
+				"how old is the oldest incubating search provider", "show the oldest experimental provider age", "how long has the oldest provider been incubating",
+			}, "age_seconds", "seconds", "oldest incubating provider age is {age_seconds}s", map[string]gomeasures.Param{"window": windowParam}),
+			compute: computeOldestIncubatingAge,
+		},
+		corpusMeasureSpec(MeasureCorpusValidationLive, "Number of reviewed positives currently live in the newest validation per suite.", "live", "count", computeCorpusLive),
+		corpusMeasureSpec(MeasureCorpusValidationHard, "Number of reviewed positives currently hard in the newest validation per suite.", "hard", "count", computeCorpusHard),
+		corpusMeasureSpec(MeasureCorpusValidationStale, "Number of reviewed positives currently stale in the newest validation per suite.", "stale", "count", computeCorpusStale),
+		corpusMeasureSpec(MeasureOldestStaleCorpusAge, "Age in seconds of the oldest suite with stale reviewed positives.", "age_seconds", "seconds", computeOldestStaleCorpusAge),
+		{
+			decl: measureDecl(MeasureZeroYieldRoutableIDs, "Number of routable accounting ids that have routed repeatedly without a hit.", []string{
+				"how many search hub providers have zero yield", "show routable providers with no hits", "which search hub ids route but return nothing",
+			}, "count", "ids", "{count} zero-yield routable id(s)", map[string]gomeasures.Param{"window": windowParam}),
+			compute: computeZeroYieldRoutableIDs,
+		},
 	}
+}
+
+func corpusMeasureSpec(name, intent, field, unit string, compute func(context.Context, RangeInsightsReader, gomeasures.Range, map[string]string) (gomeasures.MeasureResult, error)) measureSpec {
+	return measureSpec{decl: measureDecl(name, intent, []string{intent}, field, unit, "{"+field+"} corpus validation", map[string]gomeasures.Param{"window": {Name: "window", Type: gomeasures.ParamTypeTimeWindow, Default: string(gomeasures.TokenThisWeek)}}), compute: compute}
 }
 
 func measureDecl(name, intent string, questions []string, valueField, unit, summary string, params map[string]gomeasures.Param) gomeasures.MeasureDeclaration {
@@ -309,6 +373,101 @@ func computeProviderRerankerLeg(ctx context.Context, reader RangeInsightsReader,
 		}},
 		Provenance: gomeasures.Provenance{ExecutedQuery: rangeQuery("latest query_telemetry_provider.reranker_leg by provider_id", rng)},
 	}, nil
+}
+
+func computeStuckProviderCount(ctx context.Context, reader RangeInsightsReader, rng gomeasures.Range, _ map[string]string) (gomeasures.MeasureResult, error) {
+	stuckReader, ok := reader.(stuckProviderReader)
+	if !ok {
+		return gomeasures.MeasureResult{}, fmt.Errorf("stuck provider count is unavailable")
+	}
+	count, err := stuckReader.StuckProviderCount(ctx, rng.To)
+	if err != nil {
+		return gomeasures.MeasureResult{}, err
+	}
+	return gomeasures.MeasureResult{
+		Value:      strconv.FormatInt(count, 10),
+		Provenance: gomeasures.Provenance{ExecutedQuery: rangeQuery("COUNT(*) FROM provider_demotion_state WHERE demoted=1 AND probation=1 AND decay_deadline<=", rng)},
+	}, nil
+}
+
+func incubatingStats(ctx context.Context, reader RangeInsightsReader, at time.Time) (int64, int64, error) {
+	provider, ok := reader.(incubatingProviderReader)
+	if !ok {
+		return 0, 0, fmt.Errorf("incubating provider stats are unavailable")
+	}
+	return provider.IncubatingProviderStats(ctx, at)
+}
+
+func computeIncubatingProviderCount(ctx context.Context, reader RangeInsightsReader, rng gomeasures.Range, _ map[string]string) (gomeasures.MeasureResult, error) {
+	count, _, err := incubatingStats(ctx, reader, rng.To)
+	if err != nil {
+		return gomeasures.MeasureResult{}, err
+	}
+	return gomeasures.MeasureResult{Value: strconv.FormatInt(count, 10), Provenance: gomeasures.Provenance{ExecutedQuery: rangeQuery("COUNT(*) FROM providers WHERE lifecycle=experimental", rng)}}, nil
+}
+
+func computeOldestIncubatingAge(ctx context.Context, reader RangeInsightsReader, rng gomeasures.Range, _ map[string]string) (gomeasures.MeasureResult, error) {
+	_, age, err := incubatingStats(ctx, reader, rng.To)
+	if err != nil {
+		return gomeasures.MeasureResult{}, err
+	}
+	return gomeasures.MeasureResult{Value: strconv.FormatInt(age, 10), Provenance: gomeasures.Provenance{ExecutedQuery: rangeQuery("MIN(declared_at) FROM providers WHERE lifecycle=experimental", rng)}}, nil
+}
+
+func corpusStats(ctx context.Context, reader RangeInsightsReader, at time.Time) (internalmetrics.CorpusValidationStats, error) {
+	validation, ok := reader.(corpusValidationReader)
+	if !ok {
+		return internalmetrics.CorpusValidationStats{}, fmt.Errorf("corpus validation stats are unavailable")
+	}
+	return validation.CorpusValidationStats(ctx, at)
+}
+
+func corpusMeasureResult(value int64, name string, rng gomeasures.Range) gomeasures.MeasureResult {
+	return gomeasures.MeasureResult{Value: strconv.FormatInt(value, 10), Provenance: gomeasures.Provenance{ExecutedQuery: rangeQuery(name, rng)}}
+}
+
+func computeCorpusLive(ctx context.Context, reader RangeInsightsReader, rng gomeasures.Range, _ map[string]string) (gomeasures.MeasureResult, error) {
+	stats, err := corpusStats(ctx, reader, rng.To)
+	if err != nil {
+		return gomeasures.MeasureResult{}, err
+	}
+	return corpusMeasureResult(stats.Live, "SUM(latest_validation.rollup.live)", rng), nil
+}
+
+func computeCorpusHard(ctx context.Context, reader RangeInsightsReader, rng gomeasures.Range, _ map[string]string) (gomeasures.MeasureResult, error) {
+	stats, err := corpusStats(ctx, reader, rng.To)
+	if err != nil {
+		return gomeasures.MeasureResult{}, err
+	}
+	return corpusMeasureResult(stats.Hard, "SUM(latest_validation.rollup.hard)", rng), nil
+}
+
+func computeCorpusStale(ctx context.Context, reader RangeInsightsReader, rng gomeasures.Range, _ map[string]string) (gomeasures.MeasureResult, error) {
+	stats, err := corpusStats(ctx, reader, rng.To)
+	if err != nil {
+		return gomeasures.MeasureResult{}, err
+	}
+	return corpusMeasureResult(stats.Stale, "SUM(latest_validation.rollup.stale)", rng), nil
+}
+
+func computeOldestStaleCorpusAge(ctx context.Context, reader RangeInsightsReader, rng gomeasures.Range, _ map[string]string) (gomeasures.MeasureResult, error) {
+	stats, err := corpusStats(ctx, reader, rng.To)
+	if err != nil {
+		return gomeasures.MeasureResult{}, err
+	}
+	return corpusMeasureResult(stats.OldestStaleAgeSec, "MAX(age(latest_validation) WHERE stale>0)", rng), nil
+}
+
+func computeZeroYieldRoutableIDs(ctx context.Context, reader RangeInsightsReader, rng gomeasures.Range, _ map[string]string) (gomeasures.MeasureResult, error) {
+	zeroYield, ok := reader.(zeroYieldReader)
+	if !ok {
+		return gomeasures.MeasureResult{}, fmt.Errorf("zero-yield routable id stats are unavailable")
+	}
+	count, err := zeroYield.ZeroYieldRoutableIDCount(ctx, 5)
+	if err != nil {
+		return gomeasures.MeasureResult{}, err
+	}
+	return corpusMeasureResult(count, "COUNT(provider_demotion_state WHERE routed>=5 AND hits=0)", rng), nil
 }
 
 func formatRate(v float64) string {

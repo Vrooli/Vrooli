@@ -50,6 +50,9 @@ func Validate(s *evalv1.EvalSuite) error {
 	if s.SuiteId == "" {
 		return ErrInvalidSuite{Field: "suite_id", Reason: "required"}
 	}
+	if s.SuiteId == RouterSuiteID {
+		return ErrInvalidSuite{Field: "suite_id", Reason: "reserved for the composed router suite"}
+	}
 	if s.ProviderId == "" {
 		return ErrInvalidSuite{Field: "provider_id", Reason: "required (the runner reuses that provider's endpoint)"}
 	}

@@ -21,18 +21,19 @@ const GroupName = "evals"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]cliapp.PrimitiveHandler{
-		"EvalService.RegisterSuite":    cliapp.ProtoMutation(h.registerCall, h.registerReport),
-		"EvalService.ListSuites":       cliapp.ProtoList(h.listCall, h.listReport),
-		"EvalService.GetSuite":         cliapp.ProtoList(h.showCall, h.showReport),
-		"EvalService.RunSuite":         cliapp.ProtoMutationOutcome(h.runCall, h.runReport, h.runOutcome),
-		"EvalService.ValidateCorpus":   cliapp.ProtoList(h.validateCall, h.validateReport),
-		"EvalService.ListRuns":         cliapp.ProtoList(h.runsCall, h.runsReport),
-		"EvalService.GetRun":           cliapp.ProtoList(h.showRunCall, h.showRunReport),
-		"EvalService.CompareRuns":      cliapp.ProtoList(h.compareCall, h.compareReport),
-		"EvalService.Sweep":            cliapp.ProtoList(h.sweepCall, h.sweepReport),
-		"EvalService.Generate":         cliapp.ProtoList(h.generateCall, h.generateReport),
-		"EvalService.PromoteCases":     cliapp.ProtoList(h.promoteCall, h.promoteReport),
-		"EvalService.ReapOrphanSuites": cliapp.ProtoList(h.reapCall, h.reapReport),
+		"EvalService.RegisterSuite":     cliapp.ProtoMutation(h.registerCall, h.registerReport),
+		"EvalService.ListSuites":        cliapp.ProtoList(h.listCall, h.listReport),
+		"EvalService.GetSuite":          cliapp.ProtoList(h.showCall, h.showReport),
+		"EvalService.RunSuite":          cliapp.ProtoMutationOutcome(h.runCall, h.runReport, h.runOutcome),
+		"EvalService.ValidateCorpus":    cliapp.ProtoList(h.validateCall, h.validateReport),
+		"EvalService.ListRuns":          cliapp.ProtoList(h.runsCall, h.runsReport),
+		"EvalService.GetRun":            cliapp.ProtoList(h.showRunCall, h.showRunReport),
+		"EvalService.CompareRuns":       cliapp.ProtoList(h.compareCall, h.compareReport),
+		"EvalService.Sweep":             cliapp.ProtoList(h.sweepCall, h.sweepReport),
+		"EvalService.CompareStrategies": cliapp.ProtoMutation(h.compareStrategiesCall, h.compareStrategiesReport),
+		"EvalService.Generate":          cliapp.ProtoList(h.generateCall, h.generateReport),
+		"EvalService.PromoteCases":      cliapp.ProtoList(h.promoteCall, h.promoteReport),
+		"EvalService.ReapOrphanSuites":  cliapp.ProtoList(h.reapCall, h.reapReport),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {

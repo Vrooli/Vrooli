@@ -14,15 +14,15 @@ Vrooli had no way to serve one. Ollama (the local model runtime) serves only
 
 ## Solution
 
-A dedicated, compose-backed resource wrapping the prebuilt HuggingFace
-**Text-Embeddings-Inference (TEI)** image serving **`BAAI/bge-reranker-v2-m3`**:
+A dedicated managed-service resource wrapping the checksum-verified Hugging Face
+**Text-Embeddings-Inference (TEI)** server serving **`BAAI/bge-reranker-v2-m3`**:
 
 - **No inference code.** TEI is the engine; the model auto-pulls from the HF Hub
-  on first start into a bind-mounted cache. One-time ~2.3GB download, fully local
-  thereafter.
-- **GPU-accelerated with CPU fallback.** CUDA image on hosts with an NVIDIA GPU
-  (the `nvidia` probe + GPU overlay), CPU image otherwise; TEI degrades to CPU on
-  its own if no device is visible.
+  on first start into a relocatable resource cache. One-time ~2.3GB download,
+  fully local thereafter.
+- **Native GPU with conditional CPU fallback.** The supervised binary uses the
+  host CUDA driver when compatible; platform support is conditional until each
+  target/backend combination has smoke evidence.
 - **A typed Go CLI gateway** (`resource-reranker gateway rerank|health|info`) so
   scenarios never hand-roll HTTP, resolving the service via the exported
   `RERANKER_URL`.
@@ -52,4 +52,4 @@ A dedicated, compose-backed resource wrapping the prebuilt HuggingFace
 3. GPU path runs on a GPU host; CPU fallback runs without one.
 4. On the KO accuracy corpus, cross-encoder reranking improves MRR@3 over
    no-rerank and over the LLM reranker (measured in KO Phase 7 validation).
-5. `make check` green; gateway unit tests pass with no live container.
+5. `make check` green; gateway unit tests pass without a live service.

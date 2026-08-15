@@ -242,6 +242,32 @@ VALUES (?, ?, ?)`, suiteID, observedAt.UTC().Format(timeFormat), string(blob))
 	return nil
 }
 
+// LatestCorpusValidation returns the newest persisted label-freshness
+// observation for a suite. It is deliberately an optional read seam: old
+// Store fakes can continue to support eval runs without pretending to have
+// corpus-freshness evidence.
+func (s *sqliteStore) LatestCorpusValidation(ctx context.Context, suiteID string) (*CorpusValidationRecord, error) {
+	var createdAt, blob string
+	err := s.db.QueryRowContext(ctx, `
+SELECT created_at, result FROM eval_corpus_validations
+WHERE suite_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`, suiteID).Scan(&createdAt, &blob)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("latest corpus validation: %w", err)
+	}
+	when, err := time.Parse(timeFormat, createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("parse corpus validation timestamp: %w", err)
+	}
+	result := &evalv1.ValidateCorpusResponse{}
+	if err := protojson.Unmarshal([]byte(blob), result); err != nil {
+		return nil, fmt.Errorf("unmarshal corpus validation: %w", err)
+	}
+	return &CorpusValidationRecord{CreatedAt: when, Result: result}, nil
+}
+
 func (s *sqliteStore) ListRuns(ctx context.Context, filter ListRunsFilter) ([]*evalv1.EvalRun, error) {
 	clauses := []string{"suite_id = ?"}
 	args := []any{filter.SuiteID}

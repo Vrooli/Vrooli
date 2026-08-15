@@ -115,6 +115,20 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 	var unavailable []*evalv1.UnavailableCase
 	var firstFailure string
 	for _, c := range suite.GetCases() {
+		// Candidate cases are exploratory evidence, not part of the acceptance
+		// denominator. Keep an explicit result for operator visibility, but do
+		// not call the provider or let the case affect aggregate quality or
+		// latency. This mirrors aisearch.GradeSuite and prevents a candidate
+		// corpus from masquerading as reviewed evidence in stored runs.
+		if c.GetStatus() == "candidate" {
+			results = append(results, &evalv1.CaseResult{
+				CaseId:        c.GetCaseId(),
+				Outcome:       "n/a",
+				OutcomeReason: "candidate excluded from acceptance denominator",
+			})
+			latencies = append(latencies, 0)
+			continue
+		}
 		start := r.clock.Now()
 		caseOpts := opts
 		caseOpts.Scope = c.GetScope()
@@ -266,8 +280,10 @@ func scoredToSearchResults(top []*evalv1.ScoredHit) []aisearch.SearchResult {
 // descriptive summary, not a verdict.
 func aggregate(suite *evalv1.EvalSuite, results []*evalv1.CaseResult, latencies []int64) *evalv1.EvalAggregate {
 	tagsByCase := make(map[string][]string, len(suite.GetCases()))
+	statusByCase := make(map[string]string, len(suite.GetCases()))
 	for _, c := range suite.GetCases() {
 		tagsByCase[c.GetCaseId()] = c.GetTags()
+		statusByCase[c.GetCaseId()] = c.GetStatus()
 	}
 
 	agg := &evalv1.EvalAggregate{Cases: int32(len(results))}
@@ -275,6 +291,9 @@ func aggregate(suite *evalv1.EvalSuite, results []*evalv1.CaseResult, latencies 
 	var strongN int
 	gradedLatencies := make([]int64, 0, len(latencies))
 	for i, cr := range results {
+		if statusByCase[cr.GetCaseId()] == "candidate" {
+			continue
+		}
 		graded := false
 		switch cr.GetOutcome() {
 		case "met":

@@ -2,10 +2,10 @@
 
 This guide covers installing and running Ollama for local LLM inference.
 
-Ollama runs **exclusively as a Docker container** managed by the Vrooli
-docker-service driver. There is no host-systemd install, no `/usr/local/bin/ollama`
-binary, and no `manage.sh` script — the container *is* the deployment. The runtime
-image, memory cap, ports, environment, and health checks are declared in
+Ollama runs as a Vrooli-managed service from a checksum-verified native artifact.
+There is no host-systemd install, no `/usr/local/bin/ollama` binary, no Docker
+fallback, and no `manage.sh` script — the managed-service supervisor owns the
+deployment. Ports, environment, artifact, and health checks are declared in
 [`resource.json`](../resource.json) and applied by `vrooli resource …`.
 
 ## Prerequisites
@@ -15,76 +15,67 @@ image, memory cap, ports, environment, and health checks are declared in
   - Recommended: 16GB+ RAM, 50GB+ disk space
   - GPU: NVIDIA with 8GB+ VRAM (optional but recommended)
 - **Software**:
-  - Docker (the only hard requirement)
-  - NVIDIA Container Toolkit (only for GPU acceleration)
+  - A staged Ollama server artifact matching the manifest checksum
+  - NVIDIA driver/runtime (only for GPU acceleration)
 
 ## Install / Start / Stop
 
-All lifecycle actions route through the Docker driver:
+All lifecycle actions route through the managed-service driver:
 
 ```bash
-vrooli resource install ollama   # pull the runtime image (ollama/ollama:<pin>)
-vrooli resource start ollama     # run the container, bind :11434, apply env + memory cap
+vrooli resource install ollama   # verify the pinned native server artifact
+vrooli resource start ollama     # supervise the native server on :11434
 vrooli resource status ollama    # report Running/Healthy via the /api/tags health check
-vrooli resource stop ollama      # stop the container (data volume persists)
-vrooli resource logs ollama      # tail container logs (or: docker logs ollama)
+vrooli resource stop ollama      # stop the managed process (model data persists)
+vrooli resource logs ollama      # read the managed-service log
 ```
 
-`install` is image-only; `start` creates the container with the declared ports,
-environment, `--memory 12g` cap, and the `${RESOURCE_DATA_DIR}:/root/.ollama`
-bind-mount volume so pulled models survive restarts.
+`install` verifies the staged artifact before the supervisor grants it lifecycle
+authority. The model directory is `${RESOURCE_DATA_DIR}/models`, so pulled
+models survive restarts.
 
 ### Port-conflict preflight
 
-Because Ollama now runs as a container, a **host** process already listening on
-`:11434` (for example a leftover host-systemd Ollama from before the Docker
-migration) would make `docker run -p 11434:11434` fail. The driver detects this
-*before* starting and fails fast with an actionable message instead of crash-looping:
+The managed-service driver performs the normal host-port preflight and fails
+fast if `:11434` is already occupied. Stop the conflicting service and retry:
 
 ```
-resource "ollama" cannot start: host port 11434 is already in use by a
-non-container process. … Stop and remove the host process — e.g.
+resource "ollama" cannot start: host port 11434 is already in use. Stop and
+remove the conflicting process — e.g.
 `sudo systemctl disable --now ollama` or terminate whatever is listening on
 :11434 — then retry.
 ```
 
 ## Models
 
-There is no host `ollama` CLI. Manage models inside the container or via the
-resource CLI:
+There is no host `ollama` CLI. Manage models through the service API or the
+resource CLI; this keeps model identity and deletion inside Ollama's ownership
+boundary:
 
 ```bash
 # List installed models
-docker exec ollama ollama list
+curl http://localhost:11434/api/tags
 
-# Pull a model
-docker exec ollama ollama pull llama3.1:8b
-
-# Remove a model
-docker exec ollama ollama rm llama3.1:8b
+# Pull a model through the service API
+curl http://localhost:11434/api/pull -d '{"name":"llama3.1:8b","stream":false}'
 ```
 
 Scenarios should not pull models by hand. They declare model **roles** (resolved
 through [`model-policy.json`](../model-policy.json)) in their ollama dependency
 config, and `resource-ollama ensure` pulls any missing resolved models into the
-running container automatically.
+running managed service automatically.
 
 ## Configuration
 
-Runtime configuration lives in [`resource.json`](../resource.json) under `runtime`:
+Runtime configuration lives in [`resource.json`](../resource.json). The normal
+managed-service settings are under `managed_service`:
 
 | Setting | Where | Default |
 | --- | --- | --- |
-| Image pin | `runtime.image` | `ollama/ollama:0.30.10` |
-| Memory cap | `runtime.memory_limit` | `12g` (container OOM-kill ceiling) |
-| API port | `ports[].host` / `.container` | `11434` |
-| Concurrency / loaded models / flash-attn / keep-alive / CORS | `runtime.env` | see file |
-| Model storage | `runtime.volumes` bind-mount | `${RESOURCE_DATA_DIR}` → `/root/.ollama` |
-
-The `memory_limit: 12g` cap is the Docker equivalent of the cgroup `MemoryMax`
-limit the old host-systemd unit used to render — it keeps an embeddings burst from
-exhausting host RAM (the failure mode behind the 2026-05-07 host-stability incident)
-by letting Docker OOM-kill the container instead of hanging the host.
+| Artifact pin | `managed_service.artifact` | Ollama `0.30.10`, checksum verified |
+| API port | `ports[].host` | `11434` |
+| Concurrency / loaded models / flash-attn / keep-alive / CORS | `managed_service.environment` | see file |
+| Model storage | `managed_service.environment.OLLAMA_MODELS` | `${RESOURCE_DATA_DIR}/models` |
 
 To change any of these, edit `resource.json` and `vrooli resource restart ollama`.
 
@@ -108,24 +99,20 @@ curl http://localhost:11434/api/generate \
 # Verify host drivers
 nvidia-smi
 
-# Verify Docker GPU passthrough
-docker run --rm --gpus all nvidia/cuda:12-base-ubuntu22.04 nvidia-smi
-
-# Install the NVIDIA Container Toolkit if missing
-curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
-  | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+# Verify host GPU access
+nvidia-smi
 ```
 
 ## Troubleshooting
 
 - **Port already in use** — see the [port-conflict preflight](#port-conflict-preflight)
   above; stop the host process holding `:11434`, then `vrooli resource start ollama`.
-- **GPU not detected** — confirm `nvidia-smi` works on the host and the NVIDIA
-  Container Toolkit is installed; restart the container.
+- **GPU not detected** — confirm `nvidia-smi` works on the host, then inspect
+  `vrooli resource status ollama --json` for processor and GPU findings.
 - **Insufficient memory** — prefer a smaller role target (e.g. the `chat.small`
-  role; see `resource-ollama policy roles`) or raise `runtime.memory_limit` in
-  `resource.json`.
-- **Inspect the container** — `docker logs ollama`, `docker inspect ollama`.
+  role; see `resource-ollama policy roles`) or lower concurrency/model residency
+  in `managed_service.environment`.
+- **Inspect managed logs** — `vrooli resource logs ollama`.
 
 ## Next Steps
 

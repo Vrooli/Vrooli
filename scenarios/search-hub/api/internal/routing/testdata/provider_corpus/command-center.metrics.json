@@ -1,5 +1,6 @@
 {
-  "provider_id": "command-center.metrics",
+ "provider_id": "command-center.metrics",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "command-center",
   "bucket": "BUCKET_STATE",
   "type": "runtime-metrics",

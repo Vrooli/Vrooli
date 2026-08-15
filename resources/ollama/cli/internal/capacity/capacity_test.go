@@ -76,15 +76,8 @@ func TestBuildReportResolvesScenarioRolesAndBudgets(t *testing.T) {
 
 func TestBuildReportFlagsDirectModelsAndBudgetFailure(t *testing.T) {
 	root := testRoot(t)
-	// Shrink the runtime memory budget below the direct model's footprint so the
-	// oversized-direct-model budget-failure path fires. gemma4:12b is ~12 GB, so
-	// an 8 GB runtime limit makes the resident estimate exceed the budget. (This
-	// no longer relies on a specific too-big catalog model — qwen2.5-coder:14b,
-	// which it used to use, was retired.)
-	if err := os.WriteFile(filepath.Join(root, "resources", "ollama", "resource.json"),
-		[]byte(`{"runtime":{"memory_limit":"8g","env":{"OLLAMA_NUM_PARALLEL":"4","OLLAMA_MAX_LOADED_MODELS":"3"}}}`), 0o644); err != nil {
-		t.Fatalf("write resource manifest: %v", err)
-	}
+	// Use the declared host policy as the budget source. gemma4:12b is ~12 GB,
+	// so a host with 8 GB and the policy's 70% resident budget must reject it.
 	writeScenario(t, root, "agent-manager", `{
 	  "dependencies": {
 	    "resources": {
@@ -98,6 +91,10 @@ func TestBuildReportFlagsDirectModelsAndBudgetFailure(t *testing.T) {
 	}`)
 
 	h := testHandlers(root)
+	host := h.Host.(fakeHost)
+	host.snap.Memory.TotalBytes = 8 * bytesPerGB
+	host.snap.Memory.AvailableBytes = 6 * bytesPerGB
+	h.Host = host
 	report, err := h.BuildReport(context.Background(), PlanRequest{Scenario: "agent-manager"})
 	if err != nil {
 		t.Fatalf("BuildReport() error = %v", err)
@@ -106,7 +103,7 @@ func TestBuildReportFlagsDirectModelsAndBudgetFailure(t *testing.T) {
 		t.Fatalf("Models = %+v, want one direct model", report.Models)
 	}
 	if len(report.Failures) == 0 {
-		t.Fatal("Failures empty, want runtime memory budget failure")
+		t.Fatal("Failures empty, want host memory policy failure")
 	}
 	if !containsSubstring(report.Warnings, "direct model") {
 		t.Fatalf("Warnings = %v, want direct model warning", report.Warnings)
@@ -190,9 +187,8 @@ func testRoot(t *testing.T) string {
 		t.Fatalf("write model policy: %v", err)
 	}
 	resourceData := []byte(`{
-	  "runtime": {
-	    "memory_limit": "12g",
-	    "env": {
+	  "managed_service": {
+	    "environment": {
 	      "OLLAMA_NUM_PARALLEL": "4",
 	      "OLLAMA_MAX_LOADED_MODELS": "3"
 	    }
@@ -256,5 +252,23 @@ func TestDegradeNoModelsLoadedIsNoop(t *testing.T) {
 	}
 	if len(fake.unloaded) != 0 {
 		t.Errorf("unloaded = %v, want none", fake.unloaded)
+	}
+}
+
+func TestDegradeToPolicyRungUnloadsUntilTargetFootprint(t *testing.T) {
+	root := testRoot(t)
+	fake := &fakeOllama{running: []ensure.RunningModel{
+		{Name: "qwen3:1.7b", SizeVRAM: 3 * bytesPerGB},
+		{Name: "qwen3.5:9b", SizeVRAM: 10 * bytesPerGB},
+	}}
+	h := &Handlers{
+		Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, PolicyPath: filepath.Join(root, "resources", "ollama", "model-policy.json"),
+		NewClient: func() OllamaClient { return fake },
+	}
+	if err := h.Degrade([]string{"--to", "qwen3.5:4b", "--json"}); err != nil {
+		t.Fatalf("Degrade() error = %v", err)
+	}
+	if len(fake.unloaded) != 1 || fake.unloaded[0] != "qwen3.5:9b" {
+		t.Fatalf("unloaded = %v, want the largest resident model", fake.unloaded)
 	}
 }

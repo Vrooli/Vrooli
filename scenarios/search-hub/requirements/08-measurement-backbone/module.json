@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-11T11:12:43-04:00"
+    "last_validated_at": "2026-08-15T02:03:54-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-003",
       "title": "Per-query telemetry row",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "core",
       "description": "Each query writes a telemetry row (query hashed/opt-in, classified types, providers hit, per-provider counts, latency_ms, zero-result flag). No corpus content is stored.",
@@ -14,7 +14,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A query produces one telemetry row with providers-hit, counts, and latency."
         }
       ]
@@ -22,7 +22,7 @@
     {
       "id": "REQ-P1-004",
       "title": "Insights aggregates",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "core",
       "description": "Status/insights compute per-provider utilization, under-utilized providers, zero-result rate, and p50/p95 latency from the telemetry table.",
@@ -30,8 +30,25 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Under-utilized and zero-result aggregates compute correctly over seeded telemetry."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-018",
+      "title": "Safe embedding migration controls",
+      "status": "complete",
+      "prd_ref": "OT-P1-007",
+      "category": "operations",
+      "description": "Search Hub shall expose read-only embedding inventory, shadow reindex planning, evaluation-gated cutover, abort, and pointer-only rollback while retaining the previous live collection and never writing a migration into that collection.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/domains/embedding/handlers_test.go::TestRequirePassingCompareRejectsMissingOrNonPassingVerdicts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Cutover is rejected unless a recorded comparison verdict is pass. Shared inventory and retarget planning behavior is covered by packages/ai-go/search tests; the Search Hub requirement remains anchored to this scenario's orchestration boundary."
         }
       ]
     }

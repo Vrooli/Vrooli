@@ -52,6 +52,10 @@ var _ = func() any {
 
 func (h *connectHandler) RegisterProvider(ctx context.Context, req *connect.Request[registryv1.RegisterProviderRequest]) (*connect.Response[registryv1.RegisterProviderResponse], error) {
 	desc := req.Msg.GetDescriptor_()
+	var prior []*registryv1.ProviderDescriptor
+	if existing, listErr := h.deps.Store.List(ctx, internalregistry.ListFilter{State: int32(registryv1.ProviderState_PROVIDER_STATE_ACTIVE)}); listErr == nil {
+		prior = existing
+	}
 	if h.deps.Probe != nil {
 		if err := h.deps.Probe.Probe(ctx, desc); err != nil {
 			h.deps.Logger.Printf("registry.RegisterProvider(%q): endpoint probe failed: %v", desc.GetProviderId(), err)
@@ -65,6 +69,9 @@ func (h *connectHandler) RegisterProvider(ctx context.Context, req *connect.Requ
 			h.deps.Logger.Printf("registry.RegisterProvider(%q): %v", desc.GetProviderId(), err)
 		}
 		return nil, connectErr
+	}
+	for _, warning := range internalregistry.SimilarDescriptorWarnings(desc, prior) {
+		h.deps.Logger.Printf("registry.RegisterProvider(%q): descriptor is similar to %q (Jaccard %.2f); automatic routing may need more discriminative description text", desc.GetProviderId(), warning.ExistingProviderID, warning.Similarity)
 	}
 	return connect.NewResponse(&registryv1.RegisterProviderResponse{
 		Descriptor_:  desc,

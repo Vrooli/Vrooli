@@ -1,7 +1,7 @@
 # Reranker — API & Operations
 
-The reranker resource serves the prebuilt HuggingFace Text-Embeddings-Inference
-(TEI) image with `BAAI/bge-reranker-v2-m3`. This page documents the HTTP surface
+The reranker resource serves the checksum-verified Hugging Face
+Text-Embeddings-Inference (TEI) binary with `BAAI/bge-reranker-v2-m3`. This page documents the HTTP surface
 TEI exposes and how to operate the resource. For an overview see
 [`../README.md`](../README.md); for product rationale see [`../PRD.md`](../PRD.md).
 
@@ -9,8 +9,7 @@ TEI exposes and how to operate the resource. For an overview see
 
 ### `GET /health`
 Returns `200 OK` once the model is loaded. Used by the Vrooli host-level health
-check (`resource.json` → `health_checks`). The TEI image does not bundle `curl`,
-so readiness is probed from the host, not inside the container.
+check (`resource.json` → `health_checks`).
 
 ### `GET /info`
 Returns the served-model descriptor:
@@ -46,36 +45,34 @@ Set `"return_text": true` to echo each passage back in the result.
 
 ## Configuration
 
-Environment variables (set in the compose files; override per-deploy):
+Environment values exported by the resource and supplied to the supervised process:
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `RERANKER_PORT` | `11453` | host port (container listens on 80) |
-| `RERANKER_MODEL` / `MODEL_ID` | `BAAI/bge-reranker-v2-m3` | served model |
-| `RERANKER_IMAGE` | `…text-embeddings-inference:cpu-1.7` (CPU) / `:89-1.7` (GPU) | TEI image tag |
-| `RERANKER_MEMORY_LIMIT` | `6G` | container memory cap |
+| `RERANKER_PORT` | `11453` | supervised service port |
+| `RERANKER_MODEL` | `BAAI/bge-reranker-v2-m3` | served model |
+| `RESOURCE_DATA_DIR` | platform-specific | resource-owned model cache root |
 
-The HF model cache lives in a Docker-managed named volume (`reranker_models`,
-mounted at container `/data`); it persists across restarts and auto-creates on
-first start.
+The HF model cache lives under the relocatable `model_cache` storage entry; it
+persists across restarts and is measured by Storage Manager.
 
 ## Operations
 
 - **First start** downloads ~2.3GB; `startup_timeout_seconds` is 180 to allow it.
   Watch progress: `vrooli resource logs reranker`.
-- **Model cache** persists in the `reranker_models` named volume; removing it
-  (`docker volume rm vrooli-reranker_reranker_models`) forces a re-download.
-- **GPU**: the overlay (`docker/docker-compose.gpu.yml`) is applied only when the
-  `nvidia` probe passes. To force CPU, start without the overlay or unset GPU
-  visibility.
-- **Swapping the model**: change `RERANKER_MODEL` (any TEI-compatible
-  cross-encoder, e.g. `BAAI/bge-reranker-base`) and restart. `RERANKER_MODEL` is
-  exported so consumers can report which model is active.
+- **Model cache** persists in the resource-owned model-cache directory. Model
+  cleanup must go through the resource/provider contract rather than deleting
+  individual blobs.
+- **GPU**: the native process uses the host driver when available. The status
+  surface reports the active model and TEI device; do not infer GPU use from a
+  host capability flag alone.
+- **Swapping the model**: use the resource model-policy command once the target
+  catalog entry has a measured `router.routing` result. Restarting with an
+  unmeasured model is not a supported operator path.
 
-## Image tags
+## Artifact provenance
 
-Pinned in the KO search cutover Phase 0 spike:
-- GPU: `ghcr.io/huggingface/text-embeddings-inference:89-1.7` (Ada/sm_89, CUDA 12.x)
-- CPU: `ghcr.io/huggingface/text-embeddings-inference:cpu-1.7`
-
-Do not use `:*-latest` (unpinned).
+The Linux amd64 artifact is TEI 1.7.4's `text-embeddings-router` executable,
+staged from the pinned upstream image digest recorded in `artifacts.json` and
+verified by SHA-256 before launch. macOS and Windows remain unsupported until a
+signed native bundle and target smoke evidence exist.

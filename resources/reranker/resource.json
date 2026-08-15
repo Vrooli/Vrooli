@@ -26,7 +26,7 @@
     }
   },
   "display_name": "Reranker",
-  "description": "Managed cross-encoder reranking service (HuggingFace Text-Embeddings-Inference serving BAAI/bge-reranker-v2-m3) with a compose-backed lifecycle. Scores query/passage relevance for the second stage of hybrid retrieval; consumed by aisearch-go and search-hub.",
+  "description": "Managed cross-encoder reranking service using the checksum-verified Hugging Face Text-Embeddings-Inference server. Scores query/passage relevance for the second stage of hybrid retrieval; consumed by aisearch-go and search-hub.",
   "cli": {
     "enabled": true,
     "command": "resource-reranker",
@@ -56,87 +56,134 @@
         "cli/internal/**",
         "docs/**",
         "README.md",
-        "resource.json"
+        "resource.json",
+        "artifacts.json",
+        "model-policy.json"
       ]
     },
     "source_build": {
       "kind": "go_module"
     }
   },
-  "template": "compose-service",
-  "driver": "compose-service",
+  "template": "managed-service",
+  "driver": "managed-service",
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/reranker",
+      "version": "1.7.4",
+      "sha256_by_platform": {
+        "linux-amd64": "0e18dd5070cf9a3dbb6833e6f546afe8030cf9e731c73236d84d301f9093bc4a"
+      },
+      "bundle_artifact": "reranker_${os}_${arch}"
+    },
+    "attach_health_path": "/health",
+    "arguments": [
+      "--model-id=${RERANKER_MODEL}",
+      "--port=${RESOURCE_PORT_HTTP}",
+      "--hostname=127.0.0.1",
+      "--huggingface-hub-cache=${RESOURCE_DATA_DIR}/model-cache"
+    ],
+    "environment_file": "active.env",
+    "environment": {
+      "RERANKER_MODEL": "BAAI/bge-reranker-v2-m3",
+      "HUGGINGFACE_HUB_CACHE": "${RESOURCE_DATA_DIR}/model-cache",
+      "HF_HOME": "${RESOURCE_DATA_DIR}/model-cache"
+    }
+  },
   "deployment": {
     "profiles": {
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "docker-desktop",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker"
-          ],
+          "mode": "bundled-service",
+          "architectures": ["amd64"],
+          "requires": [],
           "limitations": [
-            "Compose images, storage, and networking remain host-managed."
+            "The pinned TEI 1.7.4 server binary is evidenced on Linux amd64. GPU acceleration depends on the host CUDA driver; CPU mode remains available where the selected model supports it."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "artifact-checksum",
+            "target-smoke"
           ]
         },
         "macos": {
-          "support": "conditional",
-          "mode": "docker-desktop",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker"
-          ],
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": ["amd64", "arm64"],
+          "requires": [],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "A signed native macOS TEI bundle has not yet been staged and exercised."
           ],
-          "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+          "evidence": [],
+          "reason": "Native macOS delivery remains pending an artifact and target smoke evidence."
         },
         "windows": {
-          "support": "conditional",
-          "mode": "docker-desktop",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker"
-          ],
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": ["amd64", "arm64"],
+          "requires": [],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "A signed native Windows TEI bundle has not yet been staged and exercised."
           ],
-          "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+          "evidence": [],
+          "reason": "Native Windows delivery remains pending an artifact and target smoke evidence."
         }
       }
     }
   },
-  "compose_file": "docker/docker-compose.yml",
   "gpu": {
     "probe": "nvidia",
-    "compose_overlay": "docker/docker-compose.gpu.yml"
+    "env_overrides": {
+      "NVIDIA_VISIBLE_DEVICES": "all"
+    }
   },
   "capacity": {
     "resource_kind": "vram",
     "gpu_index": 0,
-    "preferred_bytes": 1503238553,
-    "floor_bytes": 1503238553,
-    "priority": "service"
+    "preferred_bytes": 1447034880,
+    "floor_bytes": 633339904,
+    "priority": "service",
+    "yield_when_idle": true,
+    "idle_grace_seconds": 900,
+    "profile": {
+      "steps": [
+        {"label": "BAAI/bge-reranker-v2-m3", "amount_bytes": 1447034880},
+        {"label": "Alibaba-NLP/gte-reranker-modernbert-base", "amount_bytes": 633339904}
+      ],
+      "apply": {
+        "verb": "models",
+        "argv": ["activate", "--model", "{label}"]
+      },
+      "upshift": true
+    }
   },
+  "companions": [
+    {
+      "name": "capacity-sync",
+      "command": "resource-reranker",
+      "args": ["capacity-sync"]
+    }
+  ],
   "category": "ai",
   "requirements": {
     "ram_mb": 3072,
@@ -152,8 +199,8 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "partial",
-    "windows": "partial"
+    "macos": "unsupported",
+    "windows": "unsupported"
   },
   "ports": [
     {
@@ -194,7 +241,7 @@
     {
       "type": "http",
       "kind": "readiness",
-      "target": "http://127.0.0.1:11453/health",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health",
       "interval_seconds": 10,
       "timeout_seconds": 10
     }

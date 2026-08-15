@@ -3,6 +3,7 @@ package federation
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -53,14 +54,38 @@ func (h *handlers) statusReport(_ cliapp.OperationContext, msg *routingv1.Status
 		fmt.Sprintf("Classifier (auto-routing): %s. Reranker (unified ranking): %s.",
 			availability(msg.GetClassifierAvailable()), availability(msg.GetRerankerAvailable())),
 	}
+	stuck := make([]string, 0)
+	for _, p := range msg.GetProviders() {
+		if p.GetStuck() {
+			stuck = append(stuck, p.GetProviderId())
+		}
+	}
+	if len(stuck) == 0 {
+		summary = append(summary, "Recovery: no stuck providers.")
+	} else {
+		summary = append(summary, fmt.Sprintf("Recovery: stuck provider(s): %s.", strings.Join(stuck, ", ")))
+	}
 	if !msg.GetRerankerAvailable() {
 		summary = append(summary, "Reranker unavailable ⇒ queries degrade to honest by-provider grouping.")
+	}
+	if incubating := msg.GetIncubating(); len(incubating) > 0 {
+		summary = append(summary, fmt.Sprintf("Incubating providers: %d.", len(incubating)))
+	}
+	results := renderProviderHealth(msg.GetProviders())
+	if audit := msg.GetAuditProviders(); len(audit) > 0 {
+		summary = append(summary, fmt.Sprintf("Audit-only accounting rows: %d.", len(audit)))
+		for _, p := range audit {
+			results = append(results, fmt.Sprintf("Audit: %s — demotion-window-routed=%d demotion-window-hits=%d", p.GetProviderId(), p.GetTimesRouted(), p.GetTotalHits()))
+		}
+	}
+	for _, p := range msg.GetIncubating() {
+		results = append(results, fmt.Sprintf("Incubating: %s — declared=%s — next action: %s", p.GetProviderId(), p.GetDeclaredAt(), p.GetNextAction()))
 	}
 
 	return cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Provider health",
-		Results:        renderProviderHealth(msg.GetProviders()),
+		Results:        results,
 		RetrievalHints: []string{
 			"`providers list` — see every registered provider and its descriptor",
 			"`insights` — telemetry: utilization, zero-result rate, latency",
@@ -101,14 +126,20 @@ func renderProviderHealth(providers []*routingv1.ProviderHealth) []string {
 			marker = "✗"
 		}
 		line := fmt.Sprintf("%s %s", marker, p.GetProviderId())
+		if lifecycle := p.GetLifecycle(); lifecycle != "" && lifecycle != "production" {
+			line += " — lifecycle: " + lifecycle
+		}
 		if note := p.GetReachability(); note != "" {
 			line += " — reachability: " + note
 		}
 		if age := p.GetIndexAge(); age != "" {
 			line += " — index age: " + age
 		}
+		if state := p.GetRecoveryState(); state != "" {
+			line += " — recovery: " + state
+		}
 		if p.GetDemoted() {
-			line += fmt.Sprintf(" — demoted (%s; routed=%d hits=%d)", p.GetDemotionReason(), p.GetTimesRouted(), p.GetTotalHits())
+			line += fmt.Sprintf(" — demoted (%s; demotion-window-routed=%d demotion-window-hits=%d)", p.GetDemotionReason(), p.GetTimesRouted(), p.GetTotalHits())
 		}
 		if p.GetQualityGateOptedOut() {
 			line += " — quality gate opt-out: " + p.GetQualityGateOptOutReason()

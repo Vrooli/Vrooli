@@ -1,0 +1,46 @@
+{
+  "active_strategy": "lexical-cross-encoder",
+  "router_factors": {
+    "max_fanout_width": 6,
+    "widen_threshold": 0.45,
+    "per_provider_timeout": "4s",
+    "concurrency": 8,
+    "query_budget": "25s",
+    "zero_yield_minimum_routes": 5,
+    "demotion_window": "15m"
+  },
+  "strategies": [
+    {
+      "name": "current",
+      "description": "Current Search Hub pipeline: indexed description shortlist, LLM classifier, bounded provider fan-out, and shared reranker chain.",
+      "stages": [
+        {"kind": "lexical", "params": {"role": "provider_description_fallback"}},
+        {"kind": "embedding", "params": {"role": "provider_description_shortlist"}},
+        {"kind": "cross_encoder", "params": {"role": "shared_reranker_primary"}},
+        {"kind": "llm", "params": {"role": "routing_classifier_and_reranker_fallback"}}
+      ]
+    },
+    {
+      "name": "lexical-cross-encoder",
+      "description": "Measured target: lexical provider shortlist followed by cross-encoder selection.",
+      "stages": [
+        {"kind": "lexical", "params": {"shortlist_width": 6}},
+        {"kind": "cross_encoder", "params": {"selection": "provider_pick"}}
+      ]
+    },
+    {
+      "name": "lexical-fallback",
+      "description": "Zero-dependency fallback: lexical provider shortlist returning its top candidate.",
+      "stages": [
+        {"kind": "lexical", "params": {"shortlist_width": 6}}
+      ]
+    },
+    {
+      "name": "llm-classifier",
+      "description": "Retained comparison row for the incumbent LLM classifier path.",
+      "stages": [
+        {"kind": "llm", "params": {"role": "routing_classifier"}}
+      ]
+    }
+  ]
+}

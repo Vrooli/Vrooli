@@ -5,8 +5,8 @@
 //
 // This package is the wiring edge: it composes the pure internal/routing.Router
 // with the concrete cross-scenario URL resolver (api-core/discovery), the timed
-// outbound HTTP client (internal/httpc), the local-Ollama classifier (Phase 5
-// automatic routing), and the shared TEI-primary reranker chain (Phase 6 unified ranking).
+// outbound HTTP client (internal/httpc), and the shared TEI-primary reranker
+// chain (Phase 6 unified ranking).
 // internal/routing itself stays dependency-light (interfaces only) so it is
 // unit-testable without the network, a model, or the CLI.
 package routing
@@ -18,8 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	aisearch "github.com/vrooli/ai-go/search"
 
 	internaleval "search-hub/internal/eval"
 	"search-hub/internal/httpc"
@@ -33,6 +31,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
 
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
 
 	internalregistry "search-hub/internal/registry"
@@ -59,22 +58,33 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recor
 // NewRouter builds the production router once so the health domain and the
 // RoutingService observe the same breaker state and registry snapshot.
 func NewRouter(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder) *internalrouting.Router {
+	activeStrategy, routerFactors, err := internalrouting.LoadActiveStrategy()
+	if err != nil {
+		// Strategy data is part of the executable's startup contract. Continuing
+		// with guessed defaults would make measurements non-reproducible, so fail
+		// the wiring edge loudly before serving a query.
+		panic(err)
+	}
+	strategyCatalog, err := internalrouting.LoadStrategyCatalog()
+	if err != nil {
+		panic(err)
+	}
 	store := internalregistry.NewSQLiteStore(db, clk)
 	router := internalrouting.NewRouter(internalrouting.Deps{
-		Lister:             store,
-		Resolver:           newScenarioResolver(),
-		Doer:               httpc.NewDefault(),
-		Classifier:         internalrouting.NewOllamaClassifier(),
-		DescriptionIndex:   internalrouting.NewEmbeddingDescriptionIndex(aisearch.NewEmbedder(aisearch.DefaultEmbedModel)),
-		Reranker:           internalrouting.NewDefaultRerankerChain(),
-		Recorder:           recorder,
-		EvalQuality:        newEvalQualityReader(db, clk),
-		DemotionStore:      internalmetrics.NewSQLiteDemotionStore(db, clk),
-		Logger:             logger,
-		Concurrency:        intEnv(logger, "SEARCH_HUB_ROUTING_CONCURRENCY", 8, 1, 128),
-		PerProviderTimeout: durationEnv(logger, "SEARCH_HUB_PROVIDER_TIMEOUT", 4*time.Second, 100*time.Millisecond, 20*time.Second),
-		QueryTimeout:       durationEnv(logger, "SEARCH_HUB_QUERY_TIMEOUT", 25*time.Second, time.Second, 29*time.Second),
-		RerankTimeout:      durationEnv(logger, "SEARCH_HUB_RERANK_TIMEOUT", 10*time.Second, 100*time.Millisecond, 20*time.Second),
+		Lister:                    store,
+		Resolver:                  newScenarioResolver(),
+		Doer:                      httpc.NewDefault(),
+		Reranker:                  internalrouting.NewDefaultRerankerChain(),
+		Recorder:                  recorder,
+		EvalQuality:               newEvalQualityReader(db, clk),
+		DemotionStore:             internalmetrics.NewSQLiteDemotionStore(db, clk),
+		Logger:                    logger,
+		Strategy:                  &activeStrategy,
+		StrategyCatalog:           strategyCatalog,
+		RouterFactors:             &routerFactors,
+		RerankTimeout:             durationEnv(logger, "SEARCH_HUB_RERANK_TIMEOUT", 10*time.Second, 100*time.Millisecond, 20*time.Second),
+		CrossEncoderRerankTimeout: durationEnv(logger, "SEARCH_HUB_CROSS_ENCODER_RERANK_TIMEOUT", 500*time.Millisecond, 100*time.Millisecond, 20*time.Second),
+		LLMRerankTimeout:          durationEnv(logger, "SEARCH_HUB_LLM_RERANK_TIMEOUT", 8*time.Second, time.Second, 20*time.Second),
 		RerankBreaker: internalrouting.RerankBreakerConfig{
 			FailureThreshold: intEnv(logger, "SEARCH_HUB_RERANK_BREAKER_FAILURES", 3, 1, 20),
 			Cooldown:         durationEnv(logger, "SEARCH_HUB_RERANK_BREAKER_COOLDOWN", 60*time.Second, time.Second, 10*time.Minute),
@@ -82,8 +92,8 @@ func NewRouter(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, re
 		ProviderBreaker: internalrouting.RerankBreakerConfig{
 			FailureThreshold:       intEnv(logger, "SEARCH_HUB_PROVIDER_BREAKER_FAILURES", 3, 1, 20),
 			Cooldown:               durationEnv(logger, "SEARCH_HUB_PROVIDER_BREAKER_COOLDOWN", 30*time.Second, time.Second, 10*time.Minute),
-			ZeroYieldMinimumRoutes: int64(intEnv(logger, "SEARCH_HUB_ZERO_YIELD_ROUTES", 5, 1, 1000)),
-			DemotionWindow:         durationEnv(logger, "SEARCH_HUB_ZERO_YIELD_WINDOW", 15*time.Minute, time.Minute, 24*time.Hour),
+			ZeroYieldMinimumRoutes: routerFactors.ZeroYieldMinimumRoutes,
+			DemotionWindow:         routerFactors.DemotionWindow,
 		},
 		AutoRouteExternal: autoRouteExternalEnabled(),
 	})
@@ -134,37 +144,98 @@ func (r *evalQualityReader) LatestProviderEval(ctx context.Context, providerID s
 		return internalrouting.EvalQualityEvidence{}, err
 	}
 	if len(suites) == 0 || suites[0] == nil {
-		return internalrouting.EvalQualityEvidence{}, nil
+		return internalrouting.EvalQualityEvidence{EvidenceAvailable: true}, nil
 	}
-	runs, err := r.store.ListRuns(ctx, internaleval.ListRunsFilter{SuiteID: suites[0].GetSuiteId(), Limit: 1})
+	evidence := internalrouting.EvalQualityEvidence{EvidenceAvailable: true, SuitePresent: true}
+	for _, testCase := range suites[0].GetCases() {
+		if testCase != nil && strings.EqualFold(strings.TrimSpace(testCase.GetStatus()), "candidate") {
+			continue
+		}
+		if testCase != nil && len(testCase.GetExpectIds()) > 0 {
+			evidence.LiveReviewedPositive = true
+			break
+		}
+	}
+	// Automatic eligibility is a provider-quality gate, so use provider-direct
+	// evidence. The newest stored run is often a federated run and may be
+	// unavailable because routing or a sibling provider was degraded; allowing
+	// that run to erase a fresh direct pass would make the gate fail closed for
+	// the wrong owner. Keep a bounded history so a single newer unavailable run
+	// cannot hide a recent passing direct run.
+	runs, err := r.store.ListRuns(ctx, internaleval.ListRunsFilter{
+		SuiteID: suites[0].GetSuiteId(),
+		Tier:    "provider_direct",
+		Limit:   20,
+	})
 	if err != nil {
 		return internalrouting.EvalQualityEvidence{}, err
 	}
 	if len(runs) == 0 || runs[0] == nil {
-		return internalrouting.EvalQualityEvidence{}, nil
+		return evidence, nil
 	}
 	run := runs[0]
 	created, err := time.Parse(time.RFC3339Nano, run.GetCreatedAt())
 	if err != nil {
-		return internalrouting.EvalQualityEvidence{}, nil
+		return evidence, nil
 	}
 	age := r.now().UTC().Sub(created)
 	aggregate := run.GetAggregate()
-	evidence := internalrouting.EvalQualityEvidence{
-		RunID:    run.GetRunId(),
-		Fresh:    age >= 0 && age <= evalQualityFreshnessWindow,
-		Degraded: run.GetDegraded(),
+	evidence = internalrouting.EvalQualityEvidence{
+		EvidenceAvailable:    true,
+		RunID:                run.GetRunId(),
+		Fresh:                age >= 0 && age <= evalQualityFreshnessWindow,
+		Degraded:             run.GetDegraded(),
+		SuitePresent:         true,
+		LiveReviewedPositive: evidence.LiveReviewedPositive,
 	}
 	if aggregate != nil {
 		evidence.MeanStrongTop1 = aggregate.GetMeanStrongTop1()
 		evidence.MaxGibberishScore = aggregate.GetMaxGibberishScore()
 		evidence.GibberishLeak = evidence.MeanStrongTop1 > 0 && evidence.MaxGibberishScore >= evidence.MeanStrongTop1
 	}
+	evidence.RecentPassingRun = hasRecentPassingDirectRun(runs, r.now())
+	if validator, ok := r.store.(internaleval.CorpusValidationReader); ok {
+		validation, validationErr := validator.LatestCorpusValidation(ctx, suites[0].GetSuiteId())
+		if validationErr == nil && validation != nil && validation.Result != nil && validation.Result.GetRollup() != nil {
+			rollup := validation.Result.GetRollup()
+			evidence.CorpusAllStale = rollup.GetPositives() > 0 && rollup.GetStale() == rollup.GetPositives()
+			if evidence.CorpusAllStale {
+				evidence.RecentPassingRun = false
+			}
+		}
+	}
 	return evidence, nil
 }
 
+// hasRecentPassingDirectRun answers the evidence-gate question over the
+// bounded provider-direct history. A newer unavailable or degraded run must
+// not erase a still-fresh passing run: the gate measures whether the provider
+// has recent direct quality evidence, not whether the latest federated attempt
+// happened to reach every provider.
+func hasRecentPassingDirectRun(runs []*evalv1.EvalRun, now time.Time) bool {
+	for _, run := range runs {
+		if run == nil || run.GetTier() != "provider_direct" || run.GetDegraded() {
+			continue
+		}
+		created, err := time.Parse(time.RFC3339Nano, run.GetCreatedAt())
+		if err != nil {
+			continue
+		}
+		age := now.UTC().Sub(created)
+		if age < 0 || age > evalQualityFreshnessWindow {
+			continue
+		}
+		aggregate := run.GetAggregate()
+		if aggregate == nil || aggregate.GetGradedCases() <= 0 || aggregate.GetPassRate() < 0.5 {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
 // autoRouteExternalEnabled reads the OT-P2-002 opt-in flag from the environment.
-// DEFAULT FALSE: classifier-driven external auto-routing + fallback escalation
+// DEFAULT FALSE: strategy-driven external auto-routing + fallback escalation
 // only fire when an operator explicitly sets SEARCH_HUB_AUTO_ROUTE_EXTERNAL to a
 // truthy value (1/true/yes/on). Keeps the thin-router default behavior — a plain
 // federated query never reaches a rate-limited external corpus on its own.

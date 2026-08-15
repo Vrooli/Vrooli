@@ -36,6 +36,14 @@ func TestMeasureRegistryDeclarations(t *testing.T) {
 		handler.MeasureDegradedQueryRate,
 		handler.MeasureProviderDegradationRate,
 		handler.MeasureProviderRerankerLeg,
+		handler.MeasureStuckProviderCount,
+		handler.MeasureIncubatingProviderCount,
+		handler.MeasureOldestIncubatingAge,
+		handler.MeasureCorpusValidationLive,
+		handler.MeasureCorpusValidationHard,
+		handler.MeasureCorpusValidationStale,
+		handler.MeasureOldestStaleCorpusAge,
+		handler.MeasureZeroYieldRoutableIDs,
 	}, names)
 }
 

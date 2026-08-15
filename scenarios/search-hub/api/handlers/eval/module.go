@@ -43,17 +43,33 @@ import (
 	"search-hub/internal/sweep"
 )
 
+// RoutabilityReader supplies the router's live automatic-eligibility view for
+// the second, end-to-end denominator in strategy comparisons.
+type RoutabilityReader interface {
+	Status(context.Context) (*routingv1.StatusResponse, error)
+}
+
 // Module returns the eval domain's contribution to the API: the generated
 // EvalService Connect handler backed by the SQLite eval store and a Runner that
 // reaches each provider through its registry descriptor (resolving the live base
 // URL at call-time and reusing the shared providers.MapResults adapter).
 func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
+	return ModuleWithRoutability(db, clk, logger, nil)
+}
+
+// ModuleWithRoutability wires the optional shared router status seam. Keeping
+// Module's original signature preserves lightweight consumers and tests.
+func ModuleWithRoutability(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, routability RoutabilityReader) module.Module {
 	store := internaleval.NewSQLiteStore(db, clk)
 	// The registry store doubles as the runner's provider resolver (its Get
 	// returns the descriptor whose endpoint the runner reuses) and the sweep's
 	// provider reader (Get + Token, to present the control token on the secured
 	// reindex/config-write verbs).
 	resolver := internalregistry.NewSQLiteStore(db, clk)
+	activeStrategy, _, strategyErr := internalrouting.LoadActiveStrategy()
+	if strategyErr != nil {
+		panic(strategyErr)
+	}
 	client := newHTTPProviderClient(newScenarioResolver(), httpc.NewDefault())
 	runner := internaleval.NewRunner(resolver, client, clk, uuid.NewString)
 	federated := internaleval.NewFederatedRunner(resolver, newRoutingQueryClient(), clk, uuid.NewString)
@@ -86,13 +102,15 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 	go scheduler.Run(context.Background())
 
 	connectPath, connectHandler := evalconnect.NewEvalServiceHandler(NewConnectHandler(Deps{
-		Store:     store,
-		Registry:  resolver,
-		Providers: resolver,
-		Runner:    runner,
-		Federated: federated,
-		Validator: validator,
-		Sweeper:   sweeper,
+		Store:          store,
+		Registry:       resolver,
+		Providers:      resolver,
+		Runner:         runner,
+		Federated:      federated,
+		Validator:      validator,
+		Sweeper:        sweeper,
+		ActiveStrategy: activeStrategy.Name,
+		Routability:    routability,
 		// The corpus generator samples the provider through the SAME client the
 		// runner/sweep use (its index is reached only via its search endpoint) and
 		// inverts items with the local Ollama gateway.
@@ -123,16 +141,26 @@ func newRoutingQueryClient() internaleval.QueryClient {
 }
 
 func (c *routingQueryClient) Query(ctx context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error) {
-	ctx = internalrouting.WithBackgroundEvaluation(ctx)
+	// FederatedRunner marks router.routing contexts with WithRoutingEvaluation
+	// (and provider-owned suites with a provider-scoped background marker).
+	// Preserve that marker: replacing it here would make strategy overrides look
+	// like public queries and would erase the evaluation-only authorization.
 	base, err := c.resolver.ResolveScenarioURL(ctx, "search-hub")
 	if err != nil {
 		return nil, err
 	}
-	resp, err := routingconnect.NewRoutingServiceClient(c.http, base).Query(ctx, connect.NewRequest(req))
+	runQuery := routingconnect.NewRoutingServiceClient(c.http, base).Query
+	rpcRequest := connect.NewRequest(req)
+	// The federated runner and router are separate HTTP handlers, so Go context
+	// values cannot cross this Connect hop. Carry the evaluation authorization as
+	// an internal metadata marker; the routing handler turns it back into its
+	// request context before invoking the router.
+	rpcRequest.Header().Set("X-Vrooli-Search-Hub-Evaluation", "1")
+	rpcResponse, err := runQuery(ctx, rpcRequest)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Msg, nil
+	return rpcResponse.Msg, nil
 }
 
 // Schema re-exports internaleval.Schema so the modules registry collects both

@@ -1,5 +1,6 @@
 {
-  "provider_id": "vrooli-onboarding.config",
+ "provider_id": "vrooli-onboarding.config",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "vrooli-onboarding",
   "bucket": "BUCKET_STATE",
   "type": "config",

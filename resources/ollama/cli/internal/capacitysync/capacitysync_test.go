@@ -55,7 +55,9 @@ func callContains(calls []string, sub string) bool {
 	return false
 }
 
-// A model loaded with no existing claim → the poller creates a claim sized to it.
+// A model loaded with no existing claim → the poller creates the declared
+// preferred/floor reservation rather than making the reservation disappear
+// between model loads.
 func TestSyncClaimsWhenModelLoadsWithNoClaim(t *testing.T) {
 	ps := fakePS{running: []ensure.RunningModel{{Name: "qwen3:4b", SizeVRAM: 4 << 30}}}
 	h, rec := newHandlers(ps, `{"claims":[]}`)
@@ -63,8 +65,11 @@ func TestSyncClaimsWhenModelLoadsWithNoClaim(t *testing.T) {
 	if !callContains(rec.calls, "capacity claim") {
 		t.Fatalf("expected a claim call, got %v", rec.calls)
 	}
-	if !callContains(rec.calls, "--preferred "+itoa(4<<30)) {
-		t.Errorf("claim must be sized to the loaded footprint, got %v", rec.calls)
+	if !callContains(rec.calls, "--preferred "+itoa(11<<30)) || !callContains(rec.calls, "--floor "+itoa(3<<30)) {
+		t.Errorf("claim must carry the declared model ladder, got %v", rec.calls)
+	}
+	if !callContains(rec.calls, `"steps":[{"label":"qwen3.5:9b"`) {
+		t.Errorf("claim must include the policy-derived degrade profile, got %v", rec.calls)
 	}
 }
 

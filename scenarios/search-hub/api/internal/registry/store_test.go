@@ -146,6 +146,7 @@ func TestStoreListFilters(t *testing.T) {
 		Bucket:        registryv1.Bucket_BUCKET_REUSE,
 		Type:          "code",
 		Description:   "Source symbols.",
+		Lifecycle:     registryv1.Lifecycle_LIFECYCLE_PRODUCTION,
 		State:         registryv1.ProviderState_PROVIDER_STATE_CAPABILITY_GAP,
 		IntendedHome:  "code-reference",
 	}

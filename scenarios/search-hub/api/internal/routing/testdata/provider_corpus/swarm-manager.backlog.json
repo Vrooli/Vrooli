@@ -1,5 +1,6 @@
 {
-  "provider_id": "swarm-manager.backlog",
+ "provider_id": "swarm-manager.backlog",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "swarm-manager",
   "bucket": "BUCKET_STATE",
   "type": "backlog",

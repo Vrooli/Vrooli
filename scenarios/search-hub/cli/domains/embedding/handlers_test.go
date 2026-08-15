@@ -2,6 +2,7 @@ package embedding
 
 import "testing"
 
+// TestRequirePassingCompareRejectsMissingOrNonPassingVerdicts [REQ:REQ-P1-018]
 func TestRequirePassingCompareRejectsMissingOrNonPassingVerdicts(t *testing.T) {
 	for _, verdict := range []string{"", "withheld", "fail"} {
 		if err := requirePassingCompare(migrationState{CompareVerdict: verdict}); err == nil {

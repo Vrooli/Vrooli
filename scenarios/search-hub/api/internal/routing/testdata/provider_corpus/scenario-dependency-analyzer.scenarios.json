@@ -1,5 +1,6 @@
 {
-  "provider_id": "scenario-dependency-analyzer.scenarios",
+ "provider_id": "scenario-dependency-analyzer.scenarios",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "scenario-dependency-analyzer",
   "bucket": "BUCKET_REUSE",
   "type": "scenarios",

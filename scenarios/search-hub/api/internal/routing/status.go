@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +16,7 @@ import (
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -53,7 +55,49 @@ func (r *Router) Status(ctx context.Context) (*routingv1.StatusResponse, error) 
 	}
 	wg.Wait()
 	resp := &routingv1.StatusResponse{Providers: health}
-	resp.ClassifierAvailable = r.deps.Classifier != nil && r.deps.Classifier.Available(ctx)
+	resp.ActiveStrategy = r.strategy.Name
+	resp.Strategies = strategyInfos(r.strategies)
+	registered := make(map[string]struct{}, len(active))
+	for _, provider := range active {
+		registered[provider.GetProviderId()] = struct{}{}
+	}
+	for providerID, stats := range r.providerBreakers.states() {
+		if _, ok := registered[providerID]; ok {
+			continue
+		}
+		resp.AuditProviders = append(resp.AuditProviders, &routingv1.ProviderHealth{
+			ProviderId: providerID, Reachable: false, Degraded: true,
+			AutomaticEligible: false, AutomaticExclusionReason: "unregistered accounting key; retained for audit",
+			Reachability: "no registered provider descriptor", CircuitState: "unregistered",
+			RecoveryState: "unregistered", TimesRouted: stats.routed, TotalHits: stats.hits,
+			Stuck: proto.Bool(false), Lifecycle: "unregistered",
+		})
+	}
+	for i, p := range active {
+		if p.GetLifecycle() != registryv1.Lifecycle_LIFECYCLE_EXPERIMENTAL || health[i] == nil {
+			continue
+		}
+		item := &registryv1.IncubatingProvider{
+			ProviderId:  p.GetProviderId(),
+			DeclaredAt:  p.GetDeclaredAt(),
+			TimesRouted: health[i].GetTimesRouted(),
+			TotalHits:   health[i].GetTotalHits(),
+		}
+		if r.deps.EvalQuality != nil {
+			if evidence, evidenceErr := r.deps.EvalQuality.LatestProviderEval(ctx, p.GetProviderId()); evidenceErr == nil {
+				item.SuitePresent = evidence.SuitePresent
+				item.NextAction = incubatingNextAction(evidence)
+			}
+		}
+		if item.GetNextAction() == "" {
+			item.NextAction = "establish a reviewed suite and passing evidence"
+		}
+		resp.Incubating = append(resp.Incubating, item)
+	}
+	// The proto field is retained for wire compatibility with older clients;
+	// the interactive LLM classifier was retired in favor of the lexical
+	// strategy, so it is always false.
+	resp.ClassifierAvailable = false
 	resp.RerankerAvailable = r.deps.Reranker != nil && r.deps.Reranker.Available(ctx)
 	resp.RerankerLeg = activeRerankerLeg(ctx, r.deps.Reranker)
 	open, breached, err := r.CircuitOpenQuorum(ctx)
@@ -64,6 +108,24 @@ func (r *Router) Status(ctx context.Context) (*routingv1.StatusResponse, error) 
 	resp.CircuitOpenQuorum = CircuitOpenQuorumThreshold
 	resp.FederationDegraded = breached
 	return resp, nil
+}
+
+func strategyInfos(catalog map[string]RetrievalStrategy) []*routingv1.RetrievalStrategyInfo {
+	items := make([]RetrievalStrategy, 0, len(catalog))
+	for _, strategy := range catalog {
+		items = append(items, strategy)
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
+	result := make([]*routingv1.RetrievalStrategyInfo, 0, len(items))
+	for _, strategy := range items {
+		info := &routingv1.RetrievalStrategyInfo{Name: strategy.Name, Description: strategy.Description}
+		for _, stage := range strategy.Stages {
+			params, _ := json.Marshal(stage.Params)
+			info.Stages = append(info.Stages, &routingv1.RetrievalStageInfo{Kind: string(stage.Kind), ParamsJson: string(params)})
+		}
+		result = append(result, info)
+	}
+	return result
 }
 
 func activeRerankerLeg(ctx context.Context, reranker Reranker) string {
@@ -83,35 +145,53 @@ func activeRerankerLeg(ctx context.Context, reranker Reranker) string {
 // is deliberately absent from Query, so status inspection cannot add query
 // latency or turn Search Hub into the owner of provider corpus state.
 func (r *Router) providerHealth(ctx context.Context, p *registryv1.ProviderDescriptor) *routingv1.ProviderHealth {
-	h := &routingv1.ProviderHealth{ProviderId: p.GetProviderId(), AutomaticEligible: true}
+	h := &routingv1.ProviderHealth{ProviderId: p.GetProviderId(), AutomaticEligible: true, Stuck: proto.Bool(false), Lifecycle: lifecycleName(p.GetLifecycle()), DeclaredAt: p.GetDeclaredAt()}
+	h.RecoveryState = "healthy"
 	h.CircuitState = "closed"
 	if reason := strings.TrimSpace(p.GetJunkLeakOptOutReason()); reason != "" {
 		h.QualityGateOptedOut = true
 		h.QualityGateOptOutReason = reason
 	}
-	if lifecycle := strings.TrimSpace(p.GetLifecycle()); lifecycle != "" && lifecycle != "production" {
+	if lifecycle := p.GetLifecycle(); lifecycle != registryv1.Lifecycle_LIFECYCLE_UNSPECIFIED && lifecycle != registryv1.Lifecycle_LIFECYCLE_PRODUCTION {
 		h.AutomaticEligible = false
-		h.AutomaticExclusionReason = fmt.Sprintf("lifecycle=%s; explicit selector required", lifecycle)
+		h.AutomaticExclusionReason = fmt.Sprintf("lifecycle=%s; explicit selector required", lifecycleName(lifecycle))
 	}
 	if r.deps.EvalQuality != nil {
-		if evidence, err := r.deps.EvalQuality.LatestProviderEval(ctx, p.GetProviderId()); err == nil && evidence.Fresh && !evidence.Degraded && evidence.GibberishLeak && !h.QualityGateOptedOut {
-			h.AutomaticEligible = false
-			h.QualityWithheld = true
-			h.QualityEvidenceRunId = evidence.RunID
-			h.QualityWithheldReason = fmt.Sprintf("withheld (junk leak): gibberish=%.3f >= strongest real=%.3f", evidence.MaxGibberishScore, evidence.MeanStrongTop1)
-			h.AutomaticExclusionReason = h.QualityWithheldReason + "; run=" + evidence.RunID
+		if evidence, err := r.deps.EvalQuality.LatestProviderEval(ctx, p.GetProviderId()); err == nil {
+			if evidence.EvidenceAvailable {
+				if reason := automaticEvidenceExclusion(evidence); reason != "" {
+					h.AutomaticEligible = false
+					h.AutomaticExclusionReason = "evidence: " + reason
+				}
+			}
+			if evidence.Fresh && !evidence.Degraded && evidence.GibberishLeak && !h.QualityGateOptedOut {
+				h.AutomaticEligible = false
+				h.QualityWithheld = true
+				h.QualityEvidenceRunId = evidence.RunID
+				h.QualityWithheldReason = fmt.Sprintf("withheld (junk leak): gibberish=%.3f >= strongest real=%.3f", evidence.MaxGibberishScore, evidence.MeanStrongTop1)
+				h.AutomaticExclusionReason = h.QualityWithheldReason + "; run=" + evidence.RunID
+			}
 		}
 	}
+	r.providerBreakers.clearExpiredProbation(p.GetProviderId(), r.deps.Now())
 	h.Demoted, h.TimesRouted, h.TotalHits = r.providerBreakers.demotion(p.GetProviderId())
+	stats := r.providerBreakers.state(p.GetProviderId())
+	var stuck bool
+	h.RecoveryState, stuck = providerRecoveryState(stats, h.Demoted, r.deps.Now())
+	h.Stuck = proto.Bool(stuck)
 	if h.Demoted {
 		h.AutomaticEligible = false
 		deadline := r.providerBreakers.demotionDeadline(p.GetProviderId())
-		if stats := r.providerBreakers.state(p.GetProviderId()); stats != nil && !deadline.IsZero() && !r.deps.Now().Before(deadline) && !stats.probation {
+		if stats != nil && !deadline.IsZero() && !r.deps.Now().Before(deadline) && !stats.probation {
 			h.AutomaticEligible = true
 			h.AutomaticExclusionReason = "graded-empty demotion decay elapsed; next automatic route is a recovery probe"
 		}
-		h.DemotionReason = fmt.Sprintf("demoted from automatic routing after %d successful empty routes (hits=%d); decay deadline=%s", h.TimesRouted, h.TotalHits, deadline.Format(time.RFC3339))
-		if stats := r.providerBreakers.state(p.GetProviderId()); stats != nil && stats.trigger != "" {
+		emptyStreak := int64(0)
+		if stats != nil {
+			emptyStreak = stats.emptyStreak
+		}
+		h.DemotionReason = fmt.Sprintf("demoted from automatic routing after %d successful empty responses (demotion-window routed=%d, demotion-window hits=%d); decay deadline=%s", emptyStreak, h.TimesRouted, h.TotalHits, deadline.Format(time.RFC3339))
+		if stats != nil && stats.trigger != "" {
 			h.DemotionReason += "; trigger=" + stats.trigger
 		}
 		if h.AutomaticExclusionReason == "" {
@@ -158,6 +238,51 @@ func (r *Router) providerHealth(ctx context.Context, p *registryv1.ProviderDescr
 		h.LastIndexedAt = timestamppb.New(lastIndexedAt)
 	}
 	return h
+}
+
+func incubatingNextAction(evidence EvalQualityEvidence) string {
+	if !evidence.SuitePresent {
+		return "register a reviewed provider suite"
+	}
+	if !evidence.LiveReviewedPositive {
+		return "add a live reviewed positive case"
+	}
+	if evidence.CorpusAllStale {
+		return "re-anchor stale reviewed positives"
+	}
+	if !evidence.RecentPassingRun {
+		return "run a recent passing evaluation"
+	}
+	return "declare production lifecycle"
+}
+
+func lifecycleName(value registryv1.Lifecycle) string {
+	switch value {
+	case registryv1.Lifecycle_LIFECYCLE_PRODUCTION:
+		return "production"
+	case registryv1.Lifecycle_LIFECYCLE_FIXTURE:
+		return "fixture"
+	case registryv1.Lifecycle_LIFECYCLE_EXPERIMENTAL:
+		return "experimental"
+	default:
+		return "unspecified"
+	}
+}
+
+func providerRecoveryState(stats *providerYieldStats, demoted bool, now time.Time) (string, bool) {
+	if !demoted || stats == nil {
+		return "healthy", false
+	}
+	if stats.probation {
+		if !stats.decayDeadline.IsZero() && !now.Before(stats.decayDeadline) {
+			return "stuck", true
+		}
+		return "probing", false
+	}
+	if !stats.decayDeadline.IsZero() && !now.Before(stats.decayDeadline) {
+		return "probe_due", false
+	}
+	return "demoted", false
 }
 
 func (r *Router) probeIndexStatus(ctx context.Context, p *registryv1.ProviderDescriptor) (string, int64, time.Time) {

@@ -3,7 +3,10 @@ package eval
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -20,6 +23,13 @@ import (
 // persists). internal/eval.Runner satisfies it; handler tests inject a fake.
 type Runner interface {
 	Run(ctx context.Context, suite *evalv1.EvalSuite, tag string, limit int32) (*evalv1.EvalRun, error)
+}
+
+// StrategyRunner is implemented by the federated runner because strategy
+// selection is meaningful only for router-level evaluation arms. Keeping this
+// optional preserves the provider-direct runner seam and its test doubles.
+type StrategyRunner interface {
+	RunWithStrategy(ctx context.Context, suite *evalv1.EvalSuite, tag string, limit int32, strategyName string) (*evalv1.EvalRun, error)
 }
 
 type Validator interface {
@@ -55,11 +65,13 @@ type Deps struct {
 	Registry internalregistry.Store
 	// Providers resolves a suite's provider descriptor (Generate samples the
 	// provider's index; the corpus generator needs its endpoint + facets).
-	Providers internaleval.ProviderResolver
-	Runner    Runner
-	Federated Runner
-	Validator Validator
-	Sweeper   Sweeper
+	Providers      internaleval.ProviderResolver
+	Runner         Runner
+	Federated      Runner
+	Validator      Validator
+	Sweeper        Sweeper
+	ActiveStrategy string
+	Routability    RoutabilityReader
 	// Generator proposes machine-generated cases for a suite (Generate RPC).
 	Generator CorpusGenerator
 	// Control + Tokens drive the corpus write-back: `generate --apply` persists the
@@ -92,6 +104,7 @@ var _ = func() any {
 		ListSuites(context.Context, *connect.Request[evalv1.ListSuitesRequest]) (*connect.Response[evalv1.ListSuitesResponse], error)
 		GetSuite(context.Context, *connect.Request[evalv1.GetSuiteRequest]) (*connect.Response[evalv1.GetSuiteResponse], error)
 		RunSuite(context.Context, *connect.Request[evalv1.RunSuiteRequest]) (*connect.Response[evalv1.RunSuiteResponse], error)
+		CompareStrategies(context.Context, *connect.Request[evalv1.CompareStrategiesRequest]) (*connect.Response[evalv1.CompareStrategiesResponse], error)
 		ValidateCorpus(context.Context, *connect.Request[evalv1.ValidateCorpusRequest]) (*connect.Response[evalv1.ValidateCorpusResponse], error)
 		ListRuns(context.Context, *connect.Request[evalv1.ListRunsRequest]) (*connect.Response[evalv1.ListRunsResponse], error)
 		GetRun(context.Context, *connect.Request[evalv1.GetRunRequest]) (*connect.Response[evalv1.GetRunResponse], error)
@@ -162,16 +175,30 @@ func (h *connectHandler) ReapOrphanSuites(ctx context.Context, req *connect.Requ
 }
 
 func (h *connectHandler) ListSuites(ctx context.Context, req *connect.Request[evalv1.ListSuitesRequest]) (*connect.Response[evalv1.ListSuitesResponse], error) {
+	if req.Msg.GetProviderId() == internaleval.RouterSuiteID {
+		suite, err := h.composedSuite(ctx)
+		if err != nil {
+			return nil, toConnectError(err)
+		}
+		return connect.NewResponse(&evalv1.ListSuitesResponse{Suites: []*evalv1.EvalSuite{suite}}), nil
+	}
 	suites, err := h.deps.Store.ListSuites(ctx, internaleval.ListSuitesFilter{ProviderID: req.Msg.GetProviderId()})
 	if err != nil {
 		h.deps.Logger.Printf("eval.ListSuites: %v", err)
 		return nil, toConnectError(err)
 	}
+	if req.Msg.GetProviderId() == "" && h.deps.Registry != nil {
+		composed, composeErr := h.composedSuite(ctx)
+		if composeErr != nil {
+			return nil, toConnectError(composeErr)
+		}
+		suites = append(suites, composed)
+	}
 	return connect.NewResponse(&evalv1.ListSuitesResponse{Suites: suites}), nil
 }
 
 func (h *connectHandler) GetSuite(ctx context.Context, req *connect.Request[evalv1.GetSuiteRequest]) (*connect.Response[evalv1.GetSuiteResponse], error) {
-	suite, err := h.deps.Store.GetSuite(ctx, req.Msg.GetSuiteId())
+	suite, err := h.getSuite(ctx, req.Msg.GetSuiteId())
 	if err != nil {
 		return nil, h.logged("eval.GetSuite", req.Msg.GetSuiteId(), err)
 	}
@@ -183,16 +210,45 @@ func (h *connectHandler) GetSuite(ctx context.Context, req *connect.Request[eval
 
 func (h *connectHandler) RunSuite(ctx context.Context, req *connect.Request[evalv1.RunSuiteRequest]) (*connect.Response[evalv1.RunSuiteResponse], error) {
 	suiteID := req.Msg.GetSuiteId()
-	suite, err := h.deps.Store.GetSuite(ctx, suiteID)
+	suite, err := h.getSuite(ctx, suiteID)
 	if err != nil {
 		return nil, h.logged("eval.RunSuite.getSuite", suiteID, err)
 	}
 	runner := h.deps.Runner
-	if req.Msg.GetTier() == "federated" {
+	// The composed router suite is a synthetic corpus owned by Search Hub;
+	// its only meaningful default execution is through the federated path.
+	// Keep `evals run router.routing` useful without requiring callers to know
+	// the implementation detail that this suite has no provider endpoint.
+	if suiteID == internaleval.RouterSuiteID && strings.TrimSpace(req.Msg.GetTier()) == "" {
 		if h.deps.Federated == nil {
 			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("federated eval tier is not configured"))
 		}
 		runner = h.deps.Federated
+	} else if req.Msg.GetTier() == "federated" {
+		if h.deps.Federated == nil {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("federated eval tier is not configured"))
+		}
+		runner = h.deps.Federated
+	}
+	strategyName := strings.TrimSpace(req.Msg.GetStrategyName())
+	if strategyName != "" {
+		if suiteID != internaleval.RouterSuiteID || runner == nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("strategy_name requires the router.routing federated suite"))
+		}
+		strategyRunner, ok := runner.(StrategyRunner)
+		if !ok {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("federated strategy evaluation is not configured"))
+		}
+		run, err := strategyRunner.RunWithStrategy(ctx, suite, req.Msg.GetTag(), req.Msg.GetLimit(), strategyName)
+		if err != nil {
+			h.deps.Logger.Printf("eval.RunSuite(%q, strategy=%q): %v", suiteID, strategyName, err)
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		if err := h.deps.Store.AppendRun(ctx, run); err != nil {
+			h.deps.Logger.Printf("eval.RunSuite(%q, strategy=%q) persist: %v", suiteID, strategyName, err)
+			return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
+		}
+		return connect.NewResponse(&evalv1.RunSuiteResponse{Run: run, Adequacy: internaleval.CheckAdequacy(suite, nil)}), nil
 	}
 	run, err := runner.Run(ctx, suite, req.Msg.GetTag(), req.Msg.GetLimit())
 	if err != nil {
@@ -211,6 +267,32 @@ func (h *connectHandler) RunSuite(ctx context.Context, req *connect.Request[eval
 	}), nil
 }
 
+func (h *connectHandler) getSuite(ctx context.Context, id string) (*evalv1.EvalSuite, error) {
+	if id == internaleval.RouterSuiteID {
+		return h.composedSuite(ctx)
+	}
+	return h.deps.Store.GetSuite(ctx, id)
+}
+
+func (h *connectHandler) composedSuite(ctx context.Context) (*evalv1.EvalSuite, error) {
+	if h.deps.Registry == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("router suite requires registry"))
+	}
+	suites, err := h.deps.Store.ListSuites(ctx, internaleval.ListSuitesFilter{})
+	if err != nil {
+		return nil, err
+	}
+	providers, err := h.deps.Registry.List(ctx, internalregistry.ListFilter{})
+	if err != nil {
+		return nil, err
+	}
+	registered := make(map[string]struct{}, len(providers))
+	for _, provider := range providers {
+		registered[provider.GetProviderId()] = struct{}{}
+	}
+	return internaleval.ComposeRoutingSuite(suites, registered), nil
+}
+
 func (h *connectHandler) ValidateCorpus(ctx context.Context, req *connect.Request[evalv1.ValidateCorpusRequest]) (*connect.Response[evalv1.ValidateCorpusResponse], error) {
 	if h.deps.Validator == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("corpus validation is not configured on this server"))
@@ -224,6 +306,17 @@ func (h *connectHandler) ValidateCorpus(ctx context.Context, req *connect.Reques
 	if err != nil {
 		h.deps.Logger.Printf("eval.ValidateCorpus(%q): %v", suiteID, err)
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	// Manual validation is an operator diagnostic that must participate in the
+	// same freshness gate as scheduled validation. Persist it when the backing
+	// store exposes the durable seam; keeping the assertion optional preserves
+	// small in-memory handler fakes used by unit tests.
+	if appender, ok := h.deps.Store.(interface {
+		AppendCorpusValidation(context.Context, string, *evalv1.ValidateCorpusResponse, time.Time) error
+	}); ok {
+		if err := appender.AppendCorpusValidation(ctx, suiteID, resp, time.Now().UTC()); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist corpus validation: %w", err))
+		}
 	}
 	return connect.NewResponse(resp), nil
 }

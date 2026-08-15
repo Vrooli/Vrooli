@@ -96,6 +96,35 @@ func ResponseDegradeReasonWithReranker(classifierFailed, rerankerFailed bool, re
 	return strings.Join(reasons, ",")
 }
 
+// ResponseDegradeReasonWithSelection is the post-classifier taxonomy. The
+// legacy function above remains for older callers, while automatic routing now
+// reports a failed cross-encoder provider pick as a router selection fallback
+// rather than pretending an LLM classifier failed.
+func ResponseDegradeReasonWithSelection(selectionFallback, rerankerFailed bool, rerankerReason string, groups []*routingv1.ProviderResultGroup, resultCount int) string {
+	reasons := make([]string, 0, 4)
+	if selectionFallback {
+		reasons = append(reasons, "router_selection_fallback")
+	}
+	if rerankerFailed {
+		if rerankerReason == "" {
+			rerankerReason = "reranker_absent"
+		}
+		reasons = append(reasons, rerankerReason)
+	} else if rerankerReason != "" {
+		reasons = append(reasons, rerankerReason)
+	}
+	for _, g := range groups {
+		if g.GetDegraded() {
+			reasons = append(reasons, "provider_leg")
+			break
+		}
+	}
+	if resultCount == 0 {
+		reasons = append(reasons, "zero_result")
+	}
+	return strings.Join(reasons, ",")
+}
+
 // ProviderTelemetry is one provider leg's telemetry projection. DegradeReason
 // is a closed category derived from ProviderResultGroup.Note; raw notes are not
 // persisted because they are freeform provider output.

@@ -1,5 +1,6 @@
 {
-  "provider_id": "agent-manager.runs",
+ "provider_id": "agent-manager.runs",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "agent-manager",
   "bucket": "BUCKET_STATE",
   "type": "runs",

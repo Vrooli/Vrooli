@@ -1,5 +1,6 @@
 {
-  "provider_id": "swarm-manager.initiative",
+ "provider_id": "swarm-manager.initiative",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "swarm-manager",
   "bucket": "BUCKET_STATE",
   "type": "initiative",

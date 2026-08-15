@@ -161,6 +161,67 @@ workflow, then re-run full maturity validation.
 
 **Refs:** `search-hub evals`; `packages/searchregister-go`; plan Phase 8.
 
+## Work ladder
+
+- Rung: W3
+- Evidence: W0/W1/W2 passed through the business-health and requirements
+  gates. The authoritative managed Search Hub suite
+  `20260814-064118-c97a610f` passed all 21/21 phases with zero failures;
+  focused Go/UI coverage and lint are also green.
+- Blocker: The fleet-wide maturity command still reports unrelated provider
+  debt, but Search Hub's own result is `passed` with fresh live self-eval
+  recall 1.0. Router routing precision remains an honest below-target signal
+  (0.4258) while retrieval recall is 0.8788; this is recorded evidence, not a
+  hidden failure.
+- Phase-10 note: the active retrieval strategy and seven router factors now
+  load from `api/internal/routing/strategies.json`, with closed stage-kind
+  validation and taxonomy drift tests. The reproducible benchmark command
+  measured 107 successful/non-degraded cases of a 213-case fixture on
+  2026-08-15: routing precision 0.4486, expected-id top-1/3/6 recall
+  0.2897/0.3364/0.3645, p50 3341ms, p95 9171ms, with 106 cases unavailable
+  or degraded. This denominator is not comparable to the earlier 155-case
+  stored run; provider/circuit substrate availability remains the limiting
+  evidence, not a strategy-loader failure.
+- Measured: 2026-08-15
+- Phase-13 measurement repair: provider degradation now excludes shared
+  reranker faults and reports them under `substrate_degradation_reasons`;
+  unknown metrics window tokens fail closed; `times_routed` labels identify
+  windowed telemetry versus demotion-window evidence; unregistered accounting
+  keys are audit-only; and eval aggregate counts are explicit zeroes in JSON.
+  The valid-token recapture on 2026-08-15 measured `last_7d` p50/p95
+  1,344/6,825 ms and degraded queries 5,629/17,735 (31.74%). The routing
+  comparison remains below the 0.60 target, so no strategy write-back was
+  applied; this is retained as an honest plan outcome rather than a defect in
+  the measurement surface.
+- Phase-14 Answer-board repair: Meta-Optimization Manager now joins `provider_direct`
+  and `federated` eval tiers independently, ignores terminal `.starter` migration
+  suites for readiness, requires every leg of compound owners, and reports the
+  labelled corpus-capable/end-to-end pair. Direct corpus debt and federated router
+  debt remain distinct warnings; `validate-docs` reports zero `eval_gate_unmet`
+  errors. Live evidence on 2026-08-15 was 30/36 corpus-capable and 0/36
+  end-to-end-answerable, with all 32 served cells condition `degraded`; this is
+  honest current quality debt, not a readiness-board success claim.
+
+### 2026-08-14 — Final plan audit: shared validation and self-certification
+
+**Result:** Search Hub's own retrieval-trust contract is green. The final
+server-owned run passed portability, structure, contracts, UI health, API,
+architecture, dependency, quality, docs, performance, unit, storage,
+workflow, business, tidiness, security, measures, proto, branding,
+provider-conformance, and template phases (21/21).
+
+The run initially exposed two honest shared-infrastructure defects: the UI
+test adapter did not pass the scenario i18n singleton, and Storage Manager
+treated a generated empty BAS registry as a mutating file workflow. Both were
+fixed at their owning seams with regression tests. Search Hub now has no BAS
+workflows, so requiring file-routing seams would have been a false safety
+proof; malformed or missing registries remain fail-closed.
+
+The fleet `maturity scan` still exits non-zero because other providers have
+their own open findings. Its Search Hub result is independently `passed`,
+with the fresh self suite run `7fa1b03e-c24a-4c5f-8942-a3d5056edcc6`, two of
+two cases met, recall 1.0 against the 0.8 target, and p95 79 ms.
+
 ### 2026-06-08 — Provider descriptors retired from the binary; providers self-register
 
 **Symptom:** (by design, not a bug) search-hub no longer ships any provider's
@@ -606,6 +667,20 @@ knowledge-observatory}/docs/`; bug `knw-1780935292042898963`; plan §7 Phase 8 +
 §13 DoD.
 
 ## Architecture Drift
+
+### 2026-08-13 — Code Facts natural-language retrieval remains unavailable
+
+**Symptom:** The rebuilt Code Facts corpus now asks natural-language questions, but ordinary queries still return no provider results from the live Code Facts endpoint. After re-registering the descriptor and both suites, provider-direct runs measure 3/15 met (the three negative cases) for each provider, with 12 positive cases below expectation. The measured p95 is 1,500 ms for `code-facts.code` and 152 ms for `code-facts.contracts`.
+
+**Root cause:** The Code Facts provider's live search implementation does not currently answer the natural-language query contract declared by its descriptor. This is outside this plan's acceptance boundary, which permits only the Code Facts descriptor.
+
+**Workaround:** Keep the unanswerable positives as explicit `candidate` cases with notes rather than counting them as reviewed evidence; use the lexical evidence path for exact identifiers and route code questions explicitly while the provider defect is investigated. This keeps the failure visible without certifying an unsupported corpus.
+
+**Real fix:** Update Code Facts' provider-owned query/index implementation to support natural-language code questions, then rerun the provider-owned suite and live corpus validation.
+
+**Owner:** code-facts.
+
+**Refs:** bug `knw-1786652384902715770`; `scenarios/code-facts/.vrooli/search.json`; plan Phase 8.
 
 ### 2026-08-11 — comprehensive maturity suite still has pre-existing debt
 

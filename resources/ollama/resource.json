@@ -6,18 +6,18 @@
   "storage": {
     "entries": {
       "models": {
-        "rung": "pinned",
+        "rung": "relocatable",
         "kind": "dir",
-        "regenerable": false,
+        "regenerable": true,
         "budget": {
           "max_bytes": "90423MiB",
-          "rationale": "Measured at 47407507702 bytes on 2026-08-03; ceiling is two times observed size."
+          "rationale": "Measured at 62434233666 bytes on 2026-08-15 from Ollama /api/tags; ceiling is two times observed size."
         },
         "relocation": {
           "key": "OLLAMA_MODELS",
           "scope": "process-tree"
         },
-        "rationale": "Model weights are large, durable host state; the resource mounts this directory into the managed Ollama service.",
+        "rationale": "Model weights are large but recoverable from their registry sources. The live model inventory reports each model's name, digest, size, policy reachability, and regeneration rationale; the resource relocates the shared blob store through OLLAMA_MODELS.",
         "class": "data",
         "subpath": "models"
       },
@@ -102,64 +102,98 @@
       "kind": "go_module"
     }
   },
-  "template": "docker-service",
-  "driver": "docker-service",
+  "template": "managed-service",
+  "driver": "managed-service",
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/ollama",
+      "version": "0.30.10",
+      "sha256_by_platform": {
+        "linux-amd64": "d173d44ec6992090968ddbd20230873a00852ccedcd532bfddd0d307829ebb78",
+        "macos-amd64": "88abf6776aa83f8d975a486ddac82a285be61cdadd5705153338a49e0f2c5139",
+        "macos-arm64": "88abf6776aa83f8d975a486ddac82a285be61cdadd5705153338a49e0f2c5139"
+      },
+      "bundle_artifact": "ollama_${os}_${arch}"
+    },
+    "attach_health_path": "/api/tags",
+    "arguments": ["serve"],
+    "environment": {
+      "OLLAMA_HOST": "127.0.0.1:${RESOURCE_PORT_HTTP}",
+      "OLLAMA_MODELS": "${RESOURCE_DATA_DIR}/models",
+      "OLLAMA_LIBRARY_PATH": "${RESOURCE_ARTIFACT_DIR}/lib/ollama",
+      "OLLAMA_NUM_PARALLEL": "4",
+      "OLLAMA_MAX_LOADED_MODELS": "3",
+      "OLLAMA_FLASH_ATTENTION": "1",
+      "OLLAMA_KEEP_ALIVE": "5m",
+      "OLLAMA_CONTEXT_LENGTH": "8192",
+      "OLLAMA_ORIGINS": "*"
+    }
+  },
   "deployment": {
     "profiles": {
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "docker-desktop",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker"
-          ],
+          "mode": "bundled-service",
+          "architectures": ["amd64"],
+          "requires": [],
           "limitations": [
-            "Docker images, storage, and networking remain host-managed."
+            "The signed native Linux artifact is currently evidenced for amd64; arm64 remains conditional until a matching Vrooli bundle is published."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "artifact-checksum",
+            "target-smoke"
           ]
         },
         "macos": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
+          "requires": [],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "The pinned upstream macOS application contains a universal Ollama server binary; native target smoke evidence is still pending."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "artifact-checksum"
           ]
         },
         "windows": {
-          "support": "conditional",
-          "mode": "docker-desktop",
+          "support": "unsupported",
+          "mode": "manual",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
+          "requires": [],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "The native Windows release is available upstream, but a Vrooli-extracted, checksum-paired server bundle and target smoke evidence have not yet been staged."
           ],
-          "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+          "evidence": [],
+          "reason": "Windows remains unsupported until the signed native server bundle is staged and exercised by the managed-service supervisor."
         }
       }
     }
@@ -173,6 +207,28 @@
       ]
     }
   ],
+  "capacity": {
+    "resource_kind": "vram",
+    "gpu_index": 0,
+    "preferred_bytes": 11811160064,
+    "floor_bytes": 3221225472,
+    "priority": "service",
+    "yield_when_idle": true,
+    "idle_grace_seconds": 900,
+    "profile": {
+      "steps": [
+        {"label": "qwen3.5:9b", "amount_bytes": 11811160064},
+        {"label": "qwen3.5:4b", "amount_bytes": 6442450944},
+        {"label": "qwen3:4b", "amount_bytes": 5368709120},
+        {"label": "qwen3:1.7b", "amount_bytes": 3221225472}
+      ],
+      "apply": {
+        "verb": "capacity",
+        "argv": ["degrade", "--to", "{label}"]
+      },
+      "upshift": true
+    }
+  },
   "category": "ai",
   "requirements": {
     "ram_mb": 8192,
@@ -188,8 +244,8 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
-    "windows": "partial"
+    "macos": "partial",
+    "windows": "unsupported"
   },
   "ports": [
     {
@@ -220,26 +276,6 @@
       "timeout_seconds": 10
     }
   ],
-  "runtime": {
-    "image": "ollama/ollama@sha256:bfc9c6d53cc6989aa5131a6fde6b162b2802d4d337657f3253b5f69579bddeee",
-    "container_name": "ollama",
-    "memory_limit": "12g",
-    "env": {
-      "OLLAMA_HOST": "0.0.0.0:11434",
-      "OLLAMA_NUM_PARALLEL": "4",
-      "OLLAMA_MAX_LOADED_MODELS": "3",
-      "OLLAMA_FLASH_ATTENTION": "1",
-      "OLLAMA_KEEP_ALIVE": "5m",
-      "OLLAMA_CONTEXT_LENGTH": "8192",
-      "OLLAMA_ORIGINS": "*"
-    },
-    "volumes": [
-      {
-        "source": "${RESOURCE_DATA_DIR}",
-        "target": "/root/.ollama"
-      }
-    ]
-  },
   "gpu": {
     "probe": "nvidia",
     "env_overrides": {

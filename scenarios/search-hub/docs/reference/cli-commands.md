@@ -185,6 +185,24 @@ backoff state durably. It does not contain provider identifiers or provider-
 specific policy. A new registrant therefore requires descriptor and corpus data,
 not a Search Hub source change.
 
+### `search-hub strategy benchmark [--strategy current]`
+
+Runs the active retrieval strategy against the composed `router.routing` fixture
+through the public Query RPC. The report includes the fixture size, the actual
+successful non-degraded denominator, expected-provider routing precision,
+expected-id top-1/top-3/top-6 recall, and p50/p95 query latency. Unavailable or
+degraded cases are retained in the report and excluded from quality rates, so a
+substrate outage cannot masquerade as a clean zero score.
+
+```bash
+search-hub strategy benchmark --strategy current --json
+```
+
+The phase-10 data file records `current`, `lexical-cross-encoder`, and
+`llm-classifier` strategy rows. Only `current` is executable by this command;
+strategy selection becomes an overfit-guarded comparison arm in the later
+strategy-compare phase.
+
 `maturity scan --json` exits non-zero when blocking findings remain, even though
 it returns the complete per-scenario report. Use `finding_class`, `eval_evidence`,
 and `repair_commands` to distinguish static contract debt from live execution

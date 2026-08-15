@@ -18,10 +18,15 @@ type fakeDaemon struct {
 	toolNames  map[string][]string // model -> tool_call names to return
 	chatErr    map[string]error
 	chatImages []string
+	inventory  []ensure.ModelInfo
 }
 
 func (f *fakeDaemon) ListModels(ctx context.Context) ([]string, error) {
 	return f.models, f.listErr
+}
+
+func (f *fakeDaemon) ListModelInventory(ctx context.Context) ([]ensure.ModelInfo, error) {
+	return f.inventory, nil
 }
 
 func (f *fakeDaemon) ShowModel(ctx context.Context, model string) (ensure.ShowResponse, error) {
@@ -69,6 +74,29 @@ func TestList(t *testing.T) {
 	}
 	if len(res.Models) != 2 {
 		t.Fatalf("models=%v", res.Models)
+	}
+}
+
+func TestInventoryAttributesPolicyReachabilityAndRegeneration(t *testing.T) {
+	d := &fakeDaemon{inventory: []ensure.ModelInfo{
+		{Name: "orphan:latest", Digest: "sha256:orphan", Size: 11},
+		{Name: "primary:latest", Digest: "sha256:primary", Size: 22},
+	}}
+	p := policy.Policy{Roles: map[string]policy.Role{
+		"code.local": {Model: "primary:latest", Fallbacks: []string{"fallback:latest"}},
+	}}
+	res, err := Inventory(context.Background(), d, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Models) != 2 || res.TotalBytes != 33 {
+		t.Fatalf("inventory = %+v", res)
+	}
+	if res.Models[0].Name != "orphan:latest" || res.Models[0].PolicyReachable {
+		t.Fatalf("orphan reachability = %+v", res.Models[0])
+	}
+	if res.Models[0].RegenerableReason == "" || !res.Models[1].PolicyReachable {
+		t.Fatalf("regeneration/reachability = %+v", res.Models)
 	}
 }
 

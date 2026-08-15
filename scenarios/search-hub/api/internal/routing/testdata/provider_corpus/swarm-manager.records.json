@@ -1,5 +1,6 @@
 {
-  "provider_id": "swarm-manager.records",
+ "provider_id": "swarm-manager.records",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "swarm-manager",
   "bucket": "BUCKET_KNOW",
   "type": "record",

@@ -1,6 +1,6 @@
 // Package client is a thin HTTP client for the Text-Embeddings-Inference (TEI)
 // reranker service. It is the canonical way scenarios reach the shared reranker
-// container — never raw HTTP. The base URL is resolved from the resource's
+// service — never raw HTTP. The base URL is resolved from the resource's
 // exported environment (RERANKER_URL), never computed by callers.
 package client
 

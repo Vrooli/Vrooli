@@ -155,8 +155,8 @@ func healthGPU(args []string) error {
 	} else {
 		fmt.Fprintf(os.Stdout, "processor: %s (models: %d, host_nvidia_gpu: %t)\n", report.Processor, len(models), hostGPU)
 	}
-	if hostGPU && report.HasCPUModel {
-		return fmt.Errorf("loaded Ollama model is executing on CPU while the host exposes an NVIDIA GPU")
+	if hostGPU && !report.HasGPUModel {
+		return fmt.Errorf("Ollama has no GPU-resident model while the host exposes an NVIDIA GPU (processor: %s)", report.Processor)
 	}
 	return nil
 }

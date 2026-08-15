@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/maturity-go/assessment"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 )
 
 func TestSearchHubMaturitySpecLoads(t *testing.T) {
@@ -15,6 +16,35 @@ func TestSearchHubMaturitySpecLoads(t *testing.T) {
 	}
 	if spec.Phase != "search" {
 		t.Fatalf("phase = %q, want search", spec.Phase)
+	}
+}
+
+func TestLiveEvidenceKeepsCertificationHonest(t *testing.T) {
+	cases := []struct {
+		name        string
+		health      *routingv1.ProviderHealth
+		wantCode    string
+		wantFinding bool
+	}{
+		{name: "healthy full corpus", health: &routingv1.ProviderHealth{ProviderId: "leaf", Reachable: true, TotalHits: 4, TimesRouted: 8}},
+		{name: "healthy thin corpus", health: &routingv1.ProviderHealth{ProviderId: "leaf", Reachable: true, TotalHits: 1, TimesRouted: 2}},
+		{name: "high degradation", health: &routingv1.ProviderHealth{ProviderId: "leaf", Degraded: true, Reachable: false, Reachability: "timeout"}, wantCode: CodeLiveDegraded, wantFinding: true},
+		{name: "open circuit", health: &routingv1.ProviderHealth{ProviderId: "leaf", Degraded: true, CircuitState: "open", Reachability: "circuit_open"}, wantCode: CodeLiveDegraded, wantFinding: true},
+		{name: "zero yield", health: &routingv1.ProviderHealth{ProviderId: "leaf", Reachable: true, TimesRouted: 5}, wantCode: CodeLiveZeroYield, wantFinding: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			finding := liveEvidenceFinding("leaf", tc.health)
+			if !tc.wantFinding {
+				if finding != nil {
+					t.Fatalf("unexpected finding: %+v", finding)
+				}
+				return
+			}
+			if finding == nil || finding.Code != tc.wantCode {
+				t.Fatalf("finding = %+v, want code %s", finding, tc.wantCode)
+			}
+		})
 	}
 }
 

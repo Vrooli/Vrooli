@@ -163,14 +163,12 @@ func TestStatusReportsProviderHealthAndModels(t *testing.T) {
 		urls: map[string]string{"cli-health": "http://cli-health.test", "ui-health": "http://ui-health.test"},
 		errs: map[string]error{"swarm-manager": errors.New("not running")},
 	}
-	clf := &fakeClassifier{result: routing.ClassifyResult{}}     // Available ⇒ true (err nil)
 	rrk := &fakeReranker{err: errors.New("reranker model down")} // Available ⇒ false
 	r := routing.NewRouter(routing.Deps{
-		Lister:     threeProviderLister(),
-		Resolver:   resolver,
-		Doer:       threeProviderDoer(),
-		Classifier: clf,
-		Reranker:   rrk,
+		Lister:   threeProviderLister(),
+		Resolver: resolver,
+		Doer:     threeProviderDoer(),
+		Reranker: rrk,
 	})
 
 	st, err := r.Status(context.Background())
@@ -187,7 +185,7 @@ func TestStatusReportsProviderHealthAndModels(t *testing.T) {
 	require.True(t, byID["swarm-manager.records"].GetDegraded())
 	require.Contains(t, byID["swarm-manager.records"].GetReachability(), "unreachable")
 
-	require.True(t, st.GetClassifierAvailable())
+	require.False(t, st.GetClassifierAvailable(), "the interactive LLM classifier is retired")
 	require.False(t, st.GetRerankerAvailable())
 }
 

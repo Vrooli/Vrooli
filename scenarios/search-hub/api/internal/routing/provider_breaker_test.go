@@ -102,6 +102,33 @@ func TestProviderBreakersFailureRecoveryProbeClaimsAndReleasesSlot(t *testing.T)
 	require.Contains(t, note, "circuit open")
 }
 
+func TestProviderBreakersFailureRecoveryReleasePersists(t *testing.T) {
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
+	store := &fakeDemotionStore{states: []ProviderDemotionState{{
+		ProviderID: "leaf", Demoted: true, DecayDeadline: now,
+	}}}
+	p := newProviderBreakers(rerankBreakerConfig{FailureThreshold: 1, Cooldown: time.Minute}, store)
+	p.restore(context.Background())
+	// A transport probe can claim probation after the decay window; its
+	// completion must persist the released slot, not only mutate memory.
+	p.openImmediately("leaf", now)
+	require.True(t, p.beginFailureRecoveryProbe("leaf", now.Add(time.Minute)))
+	store.saved = nil
+	p.finishFailureRecoveryProbe("leaf", now.Add(time.Minute), "provider unavailable")
+	require.NotEmpty(t, store.saved)
+	require.False(t, store.saved[len(store.saved)-1].Probation)
+}
+
+func TestProviderBreakersExpiredProbationIsCleared(t *testing.T) {
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
+	store := &fakeDemotionStore{}
+	p := newProviderBreakers(rerankBreakerConfig{FailureThreshold: 1, Cooldown: time.Minute}, store)
+	p.stats["leaf"] = &providerYieldStats{demoted: true, probation: true, decayDeadline: now}
+	require.True(t, p.clearExpiredProbation("leaf", now))
+	require.False(t, p.state("leaf").probation)
+	require.Contains(t, store.saved[len(store.saved)-1].Trigger, "expired recovery probation cleared")
+}
+
 func TestProviderBreakersIgnoreDegradedZeroHitForDemotion(t *testing.T) {
 	p := newProviderBreakers(rerankBreakerConfig{FailureThreshold: 3, Cooldown: time.Minute})
 	for i := int64(0); i < defaultZeroYieldMinimumRoutes+2; i++ {
@@ -141,6 +168,76 @@ func TestProviderBreakersProbeAfterDecayCanRecover(t *testing.T) {
 	p.recordResult("leaf", 1, false, false, now.Add(defaultZeroYieldDemotionWindow+time.Second))
 	demoted, _, _ := p.demotion("leaf")
 	require.False(t, demoted)
+}
+
+func TestProviderBreakersDegradedProbationProbeReleasesAndRestartsDecay(t *testing.T) {
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
+	p := newProviderBreakers(rerankBreakerConfig{FailureThreshold: 3, Cooldown: time.Minute})
+	for i := int64(0); i < defaultZeroYieldMinimumRoutes; i++ {
+		p.recordResult("leaf", 0, false, false, now)
+	}
+	probeAt := now.Add(defaultZeroYieldDemotionWindow + time.Second)
+	require.True(t, p.eligibleAutomatic("leaf", probeAt))
+	require.True(t, p.state("leaf").probation)
+
+	p.recordResult("leaf", 0, true, false, probeAt)
+	state := p.state("leaf")
+	require.NotNil(t, state)
+	require.True(t, state.demoted)
+	require.False(t, state.probation)
+	require.Equal(t, probeAt.Add(defaultZeroYieldDemotionWindow), state.decayDeadline)
+	require.False(t, p.eligibleAutomatic("leaf", probeAt.Add(time.Second)))
+	require.True(t, p.eligibleAutomatic("leaf", state.decayDeadline))
+}
+
+func TestProviderBreakersAutomaticProbationClaimPersists(t *testing.T) {
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
+	store := &fakeDemotionStore{}
+	p := newProviderBreakers(rerankBreakerConfig{FailureThreshold: 3, Cooldown: time.Minute}, store)
+	for i := int64(0); i < defaultZeroYieldMinimumRoutes; i++ {
+		p.recordResult("leaf", 0, false, false, now)
+	}
+	store.saved = nil
+	require.True(t, p.eligibleAutomatic("leaf", now.Add(defaultZeroYieldDemotionWindow)))
+	require.Len(t, store.saved, 1)
+	require.True(t, store.saved[0].Probation)
+}
+
+func TestProviderBreakersRestoreReconcilesPersistedProbation(t *testing.T) {
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
+	store := &fakeDemotionStore{states: []ProviderDemotionState{{
+		ProviderID: "leaf", Routed: defaultZeroYieldMinimumRoutes, Demoted: true,
+		Probation: true, DecayDeadline: now,
+	}}}
+	p := newProviderBreakers(rerankBreakerConfig{FailureThreshold: 3, Cooldown: time.Minute}, store)
+	require.Equal(t, 1, p.restore(context.Background()))
+	require.False(t, p.state("leaf").probation)
+	require.Len(t, store.saved, 1)
+	require.False(t, store.saved[0].Probation)
+}
+
+func TestProviderRecoveryState(t *testing.T) {
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name      string
+		stats     *providerYieldStats
+		demoted   bool
+		want      string
+		wantStuck bool
+	}{
+		{name: "healthy", want: "healthy"},
+		{name: "demoted", demoted: true, stats: &providerYieldStats{decayDeadline: now.Add(time.Hour)}, want: "demoted"},
+		{name: "probe due", demoted: true, stats: &providerYieldStats{decayDeadline: now}, want: "probe_due"},
+		{name: "probing", demoted: true, stats: &providerYieldStats{probation: true, decayDeadline: now.Add(time.Hour)}, want: "probing"},
+		{name: "stuck", demoted: true, stats: &providerYieldStats{probation: true, decayDeadline: now}, want: "stuck", wantStuck: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, stuck := providerRecoveryState(tt.stats, tt.demoted, now)
+			require.Equal(t, tt.want, got)
+			require.Equal(t, tt.wantStuck, stuck)
+		})
+	}
 }
 
 func TestProviderBreakersPersistAndRestoreDemotionEvidence(t *testing.T) {

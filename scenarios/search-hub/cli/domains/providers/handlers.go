@@ -94,6 +94,16 @@ func (h *handlers) listCall(ctx cliapp.OperationContext) (*registryv1.ListProvid
 	if resp == nil || resp.Msg == nil {
 		return nil, fmt.Errorf("server returned no providers response")
 	}
+	resp.Msg.Incubating = nil
+	for _, provider := range resp.Msg.GetProviders() {
+		if provider.GetLifecycle() != registryv1.Lifecycle_LIFECYCLE_EXPERIMENTAL {
+			continue
+		}
+		resp.Msg.Incubating = append(resp.Msg.Incubating, &registryv1.IncubatingProvider{
+			ProviderId: provider.GetProviderId(), DeclaredAt: provider.GetDeclaredAt(),
+			NextAction: "establish a reviewed suite and recent passing evidence",
+		})
+	}
 	return resp.Msg, nil
 }
 
@@ -101,6 +111,12 @@ func (h *handlers) listReport(_ cliapp.OperationContext, msg *registryv1.ListPro
 	results := make([]string, 0, len(msg.GetProviders()))
 	for _, p := range msg.GetProviders() {
 		results = append(results, formatProvider(p))
+	}
+	if incubating := msg.GetIncubating(); len(incubating) > 0 {
+		results = append(results, "", "Incubating providers")
+		for _, p := range incubating {
+			results = append(results, fmt.Sprintf("• %s — declared=%s — next action: %s", p.GetProviderId(), p.GetDeclaredAt(), p.GetNextAction()))
+		}
 	}
 	return cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Found %d provider(s).", len(msg.GetProviders()))},
@@ -196,9 +212,13 @@ func formatProvider(p *registryv1.ProviderDescriptor) string {
 	}
 	bucket := strings.TrimPrefix(p.GetBucket().String(), "BUCKET_")
 	state := strings.TrimPrefix(p.GetState().String(), "PROVIDER_STATE_")
+	lifecycle := strings.ToLower(strings.TrimPrefix(p.GetLifecycle().String(), "LIFECYCLE_"))
+	if lifecycle == "unspecified" {
+		lifecycle = "unset"
+	}
 	tag := ""
 	if p.GetState() == registryv1.ProviderState_PROVIDER_STATE_CAPABILITY_GAP {
 		tag = fmt.Sprintf(" → gap (home: %s)", p.GetIntendedHome())
 	}
-	return fmt.Sprintf("%s [%s/%s] %s%s", p.GetProviderId(), bucket, p.GetType(), strings.ToLower(state), tag)
+	return fmt.Sprintf("%s [%s/%s] %s lifecycle=%s%s", p.GetProviderId(), bucket, p.GetType(), strings.ToLower(state), lifecycle, tag)
 }

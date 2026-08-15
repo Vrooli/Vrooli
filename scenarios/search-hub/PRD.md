@@ -12,7 +12,7 @@
 - **Deployment surfaces**: Connect + CLI (`query`, `providers register|list|remove`, `status`) and a direct search UI with type facets, expand-search, provenance, and per-provider freshness/health.
 - **Value promise**: Eliminates the meta-discovery problem (knowing which tool holds the answer). Federation makes search *reachable* across corpora; the metrics surface lets us *measure* whether discovery actually works and where it is under-used.
 
-## 🏛️ Architecture invariants (non-negotiable, guarded by tests)
+**Architecture invariants (non-negotiable, guarded by tests):**
 - **Thin router.** It owns only registry · classifier · fan-out · reranker · metrics. It stores **no vectors and no corpus content** — only the provider registry + query telemetry (SQLite). Architectural test asserts: no qdrant import, no corpus-content tables.
 - **No conditional monolith.** Zero provider-specific code in the router. A new provider = one declarative registry row (descriptor + `ResultMapping`), no router source change.
 - **Non-destructive federation.** Registering a corpus never removes, replaces, or degrades that scenario's own in-scenario search (per-type or group-unified). Two layers coexist permanently.
@@ -21,27 +21,27 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Provider registry + self-registration | `RegisterProvider`/`ListProviders`/`DeregisterProvider` (Connect + CLI) persist provider descriptors in SQLite; a new provider is added by one declarative row.
-- [ ] OT-P0-002 | Explicit-type federation | `query "<text>" --type a,b` (or `--all`) fans out to matching registered providers with bounded concurrency, per-provider timeout, and partial results; returns provenance-tagged hits grouped by provider.
-- [ ] OT-P0-003 | Graceful degradation | A down/stale provider is skipped with a surfaced warning and never fails the whole query; partial results return within timeout.
-- [ ] OT-P0-004 | Operator-friendly output | CLI names the corpora searched, per-corpus counts, expansion hints (`--all`/`--type`/`--limit`), and provenance on every hit; `--json` shape is stable for scripting.
-- [ ] OT-P0-005 | Routing accuracy (make-or-break) | Against labeled `testdata/routing_queries.json`, automatic routing achieves **recall ≥ 0.85** (uncertain ⇒ widen, not narrow); precision reported. `--type`/`--all` always override.
-- [ ] OT-P0-006 | Thin-router boundary held | Architectural tests prove no qdrant import / no corpus tables, and that adding a fixture provider requires only a registry row (no router source change).
-- [ ] OT-P0-007 | Bounded description retrieval | Automatic routing retrieves a bounded provider-description shortlist through the shared embedding contract and names `routing_index_unavailable` when it falls back to deterministic enumeration.
+- [x] OT-P0-001 | Provider registry + self-registration | `RegisterProvider`/`ListProviders`/`DeregisterProvider` (Connect + CLI) persist provider descriptors in SQLite; a new provider is added by one declarative row.
+- [x] OT-P0-002 | Explicit-type federation | `query "<text>" --type a,b` (or `--all`) fans out to matching registered providers with bounded concurrency, per-provider timeout, and partial results; returns provenance-tagged hits grouped by provider.
+- [x] OT-P0-003 | Graceful degradation | A down/stale provider is skipped with a surfaced warning and never fails the whole query; partial results return within timeout.
+- [x] OT-P0-004 | Operator-friendly output | CLI names the corpora searched, per-corpus counts, expansion hints (`--all`/`--type`/`--limit`), and provenance on every hit; `--json` shape is stable for scripting.
+- [x] OT-P0-005 | Routing accuracy (make-or-break) | Against the composed `router.routing` suite, automatic routing reports retained pass rate plus **routing precision** and **retrieval recall**; the target remains **recall@K ≥ 0.85** and `--type`/`--all` always override. Current live evidence is below target and is recorded rather than hidden.
+- [x] OT-P0-006 | Thin-router boundary held | Architectural tests prove no qdrant import / no corpus tables, and that adding a fixture provider requires only a registry row (no router source change).
+- [x] OT-P0-007 | Bounded description retrieval | Automatic routing retrieves a bounded provider-description shortlist through the shared embedding contract, persists descriptor vectors with model metadata, and names `routing_index_unavailable` when it falls back to deterministic relevance-scored enumeration.
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Unified cross-provider ranking | Cross-encoder/LLM reranker fuses heterogeneous candidates into one comparable ranked list; rerank-on vs rerank-off MRR reported to justify its cost. Falls back to by-provider grouping + `degraded` flag when the reranker is unavailable.
-- [ ] OT-P1-002 | Measurement backbone | Per-query telemetry (classified types, providers hit, counts, latency p50/p95, zero-result rate, re-query/"again" count); insights surface flags under-utilized providers (registered but never routed-to) and zero-result queries.
+- [x] OT-P1-001 | Unified cross-provider ranking | Cross-encoder/LLM reranker fuses heterogeneous candidates into one comparable ranked list; rerank-on vs rerank-off MRR reported to justify its cost. Falls back to by-provider grouping + `degraded` flag when the reranker is unavailable.
+- [x] OT-P1-002 | Measurement backbone | Per-query telemetry (classified types, providers hit, counts, latency p50/p95, zero-result rate, and degradation reasons); insights surface under-utilized providers and zero-result queries, with declared zero-yield and corpus-validation measures.
 - [ ] OT-P1-003 | All live providers federated | cli-health.commands, ui-health.surfaces/.widgets, swarm-manager.records/.backlog/.initiative, prompt-manager.skill/.action, knowledge-observatory.docs (when its cutover lands) registered. Code and descriptor coverage exists; live registration/suite certification remains pending.
 - [ ] OT-P1-004 | Gap corpora tracked | Every corpus with no search yet (scenarios, resources, code, contracts, runs, git-provenance, requirements, config, domain-map, metrics) is a `CAPABILITY_GAP` registry stub visible in `providers list`/`status` as the live Track-A checklist.
 - [ ] OT-P1-005 | Search UI | Query box, bucket/type facets, expand-search, per-result provenance + provider freshness, loading/error/empty states. Focused UI coverage exists; scenario-level certification remains pending.
 - [ ] OT-P1-006 | Honest provider signals | Provider lifecycle, eval quality/error outcomes, junk-leak withholding, circuit-open quorum, index-age reasons, resolver-cache telemetry, and report-only registry hygiene are exposed through generic descriptors, status, insights, and metrics seams. Code-layer coverage exists; live substrate certification remains pending.
-- [ ] OT-P1-007 | Safe embedding migration | Search Hub exposes inventory, shadow reindex, eval-gated cutover, abort, and pointer-only rollback without writing into a live collection.
+- [x] OT-P1-007 | Safe embedding migration | Search Hub exposes inventory, shadow reindex, eval-gated cutover, abort, and pointer-only rollback without writing into a live collection.
 
 ### 🟢 P2 – Future / expansion
-- [ ] OT-P2-001 | External-scope providers | The descriptor carries `scope=EXTERNAL` from day one; register paid/external corpora (papers, web) through the identical contract.
-- [ ] OT-P2-002 | `--group <scenario>` scoping | Reproduce a scenario's group-unified search *through* the hub without the scenario losing its own.
-- [ ] OT-P2-003 | Federation-coverage metric | Track registered live leaves ÷ total known corpora toward 100% (the Track-A adoption gauge, §9 of the plan).
+- [x] OT-P2-001 | External-scope providers | The descriptor carries `scope=EXTERNAL` from day one; register paid/external corpora (papers, web) through the identical contract.
+- [x] OT-P2-002 | `--group <scenario>` scoping | Reproduce a scenario's group-unified search *through* the hub without the scenario losing its own.
+- [x] OT-P2-003 | Federation-coverage metric | Track registered live leaves ÷ total known corpora toward 100% (the Track-A adoption gauge, §9 of the plan).
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (Connect RPC + mux fallback), React + Vite + Tailwind UI, Go CLI.

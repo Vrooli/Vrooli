@@ -64,6 +64,7 @@ func (h *handlers) insightsReport(ctx cliapp.OperationContext, msg *metricsv1.In
 		fmt.Sprintf("Latency in window: p50 %dms, p95 %dms.", msg.GetLatencyP50Ms(), msg.GetLatencyP95Ms()),
 		fmt.Sprintf("Evidence: %d sample(s), bounds %s to %s; recent-%d latency p50 %dms, p95 %dms.", msg.GetSampleCount(), msg.GetWindowFrom(), msg.GetWindowTo(), msg.GetRecentSampleCount(), msg.GetRecentLatencyP50Ms(), msg.GetRecentLatencyP95Ms()),
 		fmt.Sprintf("Address-resolution cache: %.1f%% hit rate (%d hits, %d misses).", msg.GetResolverCacheHitRate()*100, msg.GetResolverCacheHits(), msg.GetResolverCacheMisses()),
+		fmt.Sprintf("Shared substrate degradation: %d provider leg(s) (%s).", msg.GetSubstrateDegradedLegs(), substrateReasons(msg.GetSubstrateDegradationReasons())),
 	}
 	if !msg.GetSampleSufficient() {
 		summary = append(summary, fmt.Sprintf("Latency percentile is provisional: %d sample(s), minimum %d required.", msg.GetSampleCount(), msg.GetMinimumSampleCount()))
@@ -96,7 +97,7 @@ func renderUtilization(providers []*metricsv1.ProviderUtilization) []string {
 	}
 	out := make([]string, 0, len(providers))
 	for _, p := range providers {
-		line := fmt.Sprintf("• %s — routed %d×, %d hit(s), p95 %dms, degraded %.1f%%",
+		line := fmt.Sprintf("• %s — window-routed %d×, %d hit(s), p95 %dms, corpus-degraded %.1f%%",
 			p.GetProviderId(), p.GetTimesRouted(), p.GetTotalHits(), p.GetLatencyP95Ms(), p.GetDegradationRate()*100)
 		if reasons := p.GetDegradationReasons(); len(reasons) > 0 {
 			line += fmt.Sprintf(" (%s)", reasons[0].GetReason())
@@ -107,6 +108,17 @@ func renderUtilization(providers []*metricsv1.ProviderUtilization) []string {
 		out = append(out, line)
 	}
 	return out
+}
+
+func substrateReasons(reasons []*metricsv1.ProviderDegradationReason) string {
+	if len(reasons) == 0 {
+		return "none"
+	}
+	parts := make([]string, 0, len(reasons))
+	for _, reason := range reasons {
+		parts = append(parts, fmt.Sprintf("%s=%d", reason.GetReason(), reason.GetCount()))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func parseWindow(raw string) (int32, error) {

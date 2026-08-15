@@ -133,17 +133,18 @@ type scenarioResult struct {
 // evidence from the validation RPC's native detail so operators can repair a
 // failing suite without scraping logs.
 type evalEvidenceReport struct {
-	SuiteID       string  `json:"suite_id,omitempty"`
-	Freshness     string  `json:"freshness,omitempty"`
-	CorpusStatus  string  `json:"corpus_status,omitempty"`
-	LastRunID     string  `json:"last_run_id,omitempty"`
-	LastRunAt     string  `json:"last_run_at,omitempty"`
-	Recall        float64 `json:"recall,omitempty"`
-	RecallTarget  float64 `json:"recall_target,omitempty"`
-	MetCases      int     `json:"met_cases,omitempty"`
-	BelowCases    int     `json:"below_cases,omitempty"`
-	LatencyP95Ms  int     `json:"latency_p95_ms,omitempty"`
-	FailureReason string  `json:"failure_reason,omitempty"`
+	SuiteID            string  `json:"suite_id,omitempty"`
+	Freshness          string  `json:"freshness,omitempty"`
+	CorpusStatus       string  `json:"corpus_status,omitempty"`
+	LastRunID          string  `json:"last_run_id,omitempty"`
+	LastRunAt          string  `json:"last_run_at,omitempty"`
+	Recall             float64 `json:"recall,omitempty"`
+	RecallTarget       float64 `json:"recall_target,omitempty"`
+	GradeablePositives int     `json:"gradeable_positives"`
+	MetCases           int     `json:"met_cases"`
+	BelowCases         int     `json:"below_cases"`
+	LatencyP95Ms       int     `json:"latency_p95_ms,omitempty"`
+	FailureReason      string  `json:"failure_reason,omitempty"`
 }
 
 type priorityFocus struct {
@@ -605,17 +606,18 @@ func decodeEvalEvidence(detail *anypb.Any) []evalEvidenceReport {
 			continue
 		}
 		out = append(out, evalEvidenceReport{
-			SuiteID:       stringField(m, "suite_id"),
-			Freshness:     stringField(m, "freshness"),
-			CorpusStatus:  stringField(m, "corpus_status"),
-			LastRunID:     stringField(m, "last_run_id"),
-			LastRunAt:     stringField(m, "last_run_at"),
-			Recall:        floatField(m, "recall"),
-			RecallTarget:  floatField(m, "recall_target"),
-			MetCases:      intField(m, "met_cases"),
-			BelowCases:    intField(m, "below_cases"),
-			LatencyP95Ms:  intField(m, "latency_p95_ms"),
-			FailureReason: stringField(m, "failure_reason"),
+			SuiteID:            stringField(m, "suite_id"),
+			Freshness:          stringField(m, "freshness"),
+			CorpusStatus:       stringField(m, "corpus_status"),
+			LastRunID:          stringField(m, "last_run_id"),
+			LastRunAt:          stringField(m, "last_run_at"),
+			Recall:             floatField(m, "recall"),
+			RecallTarget:       floatField(m, "recall_target"),
+			GradeablePositives: intField(m, "gradeable_positives"),
+			MetCases:           intField(m, "met_cases"),
+			BelowCases:         intField(m, "below_cases"),
+			LatencyP95Ms:       intField(m, "latency_p95_ms"),
+			FailureReason:      stringField(m, "failure_reason"),
 		})
 	}
 	return out

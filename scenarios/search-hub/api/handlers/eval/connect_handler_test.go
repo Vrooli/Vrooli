@@ -119,6 +119,16 @@ func newClient(t *testing.T, store internaleval.Store, runner handler.Runner) ev
 	return evalconnect.NewEvalServiceClient(server.Client(), server.URL)
 }
 
+func newComposedClient(t *testing.T, store internaleval.Store, registry internalregistry.Store, providerDirect, federated handler.Runner) evalconnect.EvalServiceClient {
+	t.Helper()
+	logger, _ := connectxtest.NewLogger(t)
+	path, h := evalconnect.NewEvalServiceHandler(handler.NewConnectHandler(handler.Deps{
+		Store: store, Registry: registry, Runner: providerDirect, Federated: federated, Logger: logger,
+	}))
+	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: h})
+	return evalconnect.NewEvalServiceClient(server.Client(), server.URL)
+}
+
 func newOrphanClient(t *testing.T, store internaleval.Store, registry *fakeRegistry) evalconnect.EvalServiceClient {
 	t.Helper()
 	logger, _ := connectxtest.NewLogger(t)
@@ -223,6 +233,24 @@ func TestRunSuiteExecutesAndPersists(t *testing.T) {
 	require.Equal(t, "cli-health.commands.primary", runner.gotSuite.GetSuiteId())
 	require.Len(t, store.appended, 1, "the run must be persisted")
 	require.Equal(t, "run-xyz", store.appended[0].GetRunId())
+}
+
+func TestRunComposedRouterSuiteDefaultsToFederatedRunner(t *testing.T) {
+	store := newFakeStore()
+	providerSuite := validSuite()
+	store.suites[providerSuite.GetSuiteId()] = providerSuite
+	providerDirect := &fakeRunner{out: &evalv1.EvalRun{RunId: "direct-should-not-run", SuiteId: "router.routing"}}
+	federated := &fakeRunner{out: &evalv1.EvalRun{RunId: "federated-router-run", SuiteId: internaleval.RouterSuiteID}}
+	client := newComposedClient(t, store, &fakeRegistry{providers: map[string]*registryv1.ProviderDescriptor{
+		providerSuite.GetProviderId(): {ProviderId: providerSuite.GetProviderId()},
+	}}, providerDirect, federated)
+
+	resp, err := client.RunSuite(context.Background(), connect.NewRequest(&evalv1.RunSuiteRequest{SuiteId: internaleval.RouterSuiteID}))
+	require.NoError(t, err)
+	require.Equal(t, "federated-router-run", resp.Msg.GetRun().GetRunId())
+	require.Equal(t, internaleval.RouterSuiteID, federated.lastID)
+	require.Nil(t, providerDirect.gotSuite)
+	require.Len(t, store.appended, 1)
 }
 
 func TestRunSuiteUnknownSuiteNotFound(t *testing.T) {

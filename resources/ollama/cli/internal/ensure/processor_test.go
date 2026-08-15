@@ -11,7 +11,9 @@ func TestSummarizeProcessors(t *testing.T) {
 		gpu  bool
 	}{
 		{"gpu", []RunningModel{{Name: "a", Processor: "100% GPU"}}, ProcessorGPU, false, true},
+		{"gpu from vram", []RunningModel{{Name: "a", Size: 100, SizeVRAM: 90}}, ProcessorGPU, false, true},
 		{"cpu", []RunningModel{{Name: "a", Processor: "100% CPU"}}, ProcessorCPU, true, false},
+		{"cpu from zero vram", []RunningModel{{Name: "a", Size: 100}}, ProcessorCPU, true, false},
 		{"mixed", []RunningModel{{Name: "a", Processor: "100% GPU"}, {Name: "b", Processor: "100% CPU"}}, ProcessorState("mixed"), true, true},
 		{"empty", nil, ProcessorUnknown, false, false},
 	}

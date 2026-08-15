@@ -6,7 +6,7 @@ Managed Ollama runtime for local model serving and inference workloads.
 
 - Resource ID: `ollama`
 - Category: `ai`
-- Driver: `docker-service`
+- Driver: `managed-service` (checksum-verified native artifact)
 - Portability tier: `partial`
 
 ## Use Cases
@@ -17,8 +17,9 @@ Managed Ollama runtime for local model serving and inference workloads.
 
 ## Architecture
 
-This resource follows the `docker-service` structure. Ollama runs exclusively as a
-Docker container — there is no host-systemd install and no `lib/` shell layer.
+This resource follows the `managed-service` structure. Ollama runs under the
+shared Vrooli supervisor from a checksum-verified native artifact; there is no
+host-systemd install, Docker fallback, or `lib/` shell layer.
 
 - `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
 - `model-policy.json` is the declarative authority for Ollama roles, concrete model catalog entries, capacity estimates, and estimate provenance.
@@ -187,9 +188,9 @@ Defaults are tuned for a single-host workstation:
 
 | Setting | Default | Where set | Override path |
 |---|---|---|---|
-| Container memory cap | `12g` | `runtime.memory_limit` in `resource.json` (passed as `docker run --memory`) | Edit `resource.json` and `vrooli scenario restart ollama` |
-| Concurrent requests in-flight | `4` | `runtime.env.OLLAMA_NUM_PARALLEL` | Same — edit and restart |
-| Models kept resident | `3` | `runtime.env.OLLAMA_MAX_LOADED_MODELS` | Same |
+| Host memory budget | policy-derived | `requirements` and model policy | Select a smaller model role or adjust the declared policy after measurement |
+| Concurrent requests in-flight | `4` | `managed_service.environment.OLLAMA_NUM_PARALLEL` | Same — edit and restart |
+| Models kept resident | `3` | `managed_service.environment.OLLAMA_MAX_LOADED_MODELS` | Same |
 
 The 12 GiB cap is intended to keep one 7-8B model resident plus headroom; raise
 it on hosts with more RAM, lower it on smaller boxes. Keep `OLLAMA_NUM_PARALLEL`
@@ -258,8 +259,11 @@ until the daemon has at least one installed model that can serve requests.
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for model workflows.
 - Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
-- New logic lands in Go under `cli/internal/...`; the deployment/management axis stays in the Docker driver and `resource.json`.
+- New logic lands in Go under `cli/internal/...`; deployment and management stay in the shared managed-service driver and `resource.json`.
 - Keep user-facing model and API guidance in the existing docs set, and use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/ollama/docs/OPERATIONS.md) as the architecture boundary for future migrations.
 ## Maturity
 
-M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.
+M5 (2026-08-15): the managed-service lifecycle, readiness, platform gates,
+capacity profile, Go CLI tests, and Search Hub consumer evidence are covered by
+the fleet contract. See [the full assessment](docs/maturity-assessment.md) for
+the per-dimension score and deliberately conditional or unsupported targets.

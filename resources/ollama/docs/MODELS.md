@@ -2,8 +2,9 @@
 
 How models are selected, pulled, and managed for the Ollama resource.
 
-Ollama runs as a Docker container, so there is no host `ollama` CLI. Pull models
-inside the container with `docker exec ollama ollama pull <model>`.
+Ollama is supervised as a managed service, so there is no host package install
+for the `ollama` CLI. Pull models through the service API or
+`resource-ollama ensure`.
 
 ## Models are governed by roles, not hard-coded lists
 
@@ -22,25 +23,41 @@ resource-ollama policy roles                  # role -> resolved model
 resource-ollama policy models                 # catalog entries + capacity estimates
 resource-ollama policy resolve --role code.local
 resource-ollama capacity                      # plan demand against host/runtime budget
+resource-ollama models inventory --json        # named sizes/digests + policy reachability
 ```
 
 - Scenarios should declare model **roles** in their ollama dependency config
   rather than naming a model. `resource-ollama ensure` then pulls any missing
   resolved models automatically.
-- Use ad-hoc `docker exec ollama ollama pull <model>` only for local
-  experimentation; anything a scenario depends on belongs in the policy.
+- Use the Ollama API for ad-hoc local experimentation; anything a scenario
+  depends on belongs in the policy.
 
 ## Model management
 
 ```bash
-docker exec ollama ollama list                 # list installed models
-docker exec ollama ollama show <model>         # show model details
-docker exec ollama ollama rm <model>           # remove a model
-docker exec ollama ollama pull <model>         # (re-)pull a model
+curl http://localhost:11434/api/tags
+curl http://localhost:11434/api/show -d '{"name":"<model>"}'
+curl http://localhost:11434/api/delete -d '{"name":"<model>"}'
+curl http://localhost:11434/api/pull -d '{"name":"<model>","stream":false}'
 ```
 
-Model files live in the `${RESOURCE_DATA_DIR}` → `/root/.ollama` bind-mount and
-persist across container restarts.
+Model files live in `${RESOURCE_DATA_DIR}/models` and persist across managed
+service restarts.
+
+### Storage identity and attribution
+
+Use `resource-ollama models inventory --json` as the authoritative model census.
+It reads `name`, `digest`, and logical `size` from Ollama's `/api/tags` API and
+marks whether each installed tag is reachable from a policy role or fallback.
+Every row is explicitly regenerable because the weights can be re-pulled from
+the Ollama registry, with that reason included in the output. Do not infer
+model identity by walking the `blobs/` directory: Ollama shares blobs between
+models, so filesystem paths cannot safely attribute bytes to a single tag.
+
+Storage Manager exposes the same rows at `GET /api/v1/storage/inventory` under
+`ollama_models`. It also measures the configured model root and reports a
+physical remainder and path when bytes cannot be attributed by the service
+inventory.
 
 ## Performance by model size
 
@@ -56,23 +73,22 @@ model, so size is the useful axis when choosing a role target:
 
 Smaller roles (`chat.small`, `classify.routing`) favour latency; larger roles
 (`code.local`, `chat.default`) favour quality. The policy's `disk/ram/vram`
-estimates and `resource-ollama capacity` enforce the container's memory ceiling.
+estimates and `resource-ollama capacity` enforce the declared host/runtime budget.
 
 ## Advanced configuration
 
 ### Memory / concurrency
 
 Concurrency and loaded-model limits are declared in
-[`resource.json`](../resource.json) under `runtime.env` (`OLLAMA_NUM_PARALLEL`,
-`OLLAMA_MAX_LOADED_MODELS`). The container's hard memory ceiling is
-`runtime.memory_limit: 12g`. Edit those and `vrooli resource restart ollama`.
+[`resource.json`](../resource.json) under `managed_service.environment`
+(`OLLAMA_NUM_PARALLEL`, `OLLAMA_MAX_LOADED_MODELS`). Edit those and
+`vrooli resource restart ollama`.
 
 ### Custom models
 
-```bash
-# Create a custom model from a Modelfile placed in the data volume
-docker exec ollama ollama create my-assistant -f /root/.ollama/Modelfile
-```
+Create custom models through the Ollama API or the managed resource CLI; keep
+the source Modelfile under `${RESOURCE_DATA_DIR}` so it remains in the resource
+data boundary.
 
 ## Next steps
 

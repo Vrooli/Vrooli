@@ -139,6 +139,33 @@ func TestRecordAndAggregate(t *testing.T) {
 	require.Equal(t, int64(150), auto.FanoutP95Ms)
 }
 
+func TestSharedSubstrateDegradationIsNotChargedToProviders(t *testing.T) {
+	store, _ := newStore(t)
+	ctx := context.Background()
+	require.NoError(t, store.Record(ctx, metrics.Sample{
+		QueryHash: "substrate",
+		ProviderResults: map[string]metrics.ProviderResult{
+			"provider.cross-encoder": {Degraded: true, DegradeReason: "reranker_absent"},
+			"provider.corpus":        {Degraded: true, DegradeReason: "timeout"},
+		},
+		Degraded:  true,
+		LatencyMs: 100,
+	}))
+
+	got, err := store.Insights(ctx, 0)
+	require.NoError(t, err)
+	usage := map[string]metrics.ProviderUsage{}
+	for _, item := range got.ProviderUsage {
+		usage[item.ProviderID] = item
+	}
+	require.Zero(t, usage["provider.cross-encoder"].DegradedCount)
+	require.Empty(t, usage["provider.cross-encoder"].DegradationReasons)
+	require.Equal(t, int64(1), usage["provider.corpus"].DegradedCount)
+	require.Equal(t, []metrics.ProviderDegradationReason{{Reason: "timeout", Count: 1}}, usage["provider.corpus"].DegradationReasons)
+	require.Equal(t, int64(1), got.SubstrateDegradedLegs)
+	require.Equal(t, []metrics.ProviderDegradationReason{{Reason: "reranker_absent", Count: 1}}, got.SubstrateDegradationReasons)
+}
+
 func TestInsightsWindowFiltersOldRows(t *testing.T) {
 	store, clk := newStore(t)
 	ctx := context.Background()

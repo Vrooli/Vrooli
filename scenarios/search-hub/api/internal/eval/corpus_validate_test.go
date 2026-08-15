@@ -71,6 +71,28 @@ func TestValidatorProbeErrorIsProviderErrorNotStale(t *testing.T) {
 	require.Zero(t, resp.GetRollup().GetStale())
 }
 
+func TestValidatorRollupBucketsPartitionReviewedPositives(t *testing.T) {
+	client := fakeClient{
+		byQuery: map[string][]*routingv1.SearchHit{
+			"live":       {hit("want-live", 0.9)},
+			"hard":       {hit("other", 0.9), hit("want-hard", 0.8)},
+			"stale":      {hit("other", 0.9)},
+			"want-stale": {hit("other", 0.9)},
+		},
+		errQuery: map[string]error{"error": errors.New("provider unavailable")},
+	}
+	suite := suiteWith(
+		&evalv1.EvalCase{CaseId: "live", Query: "live", ExpectIds: []string{"want-live"}},
+		&evalv1.EvalCase{CaseId: "hard", Query: "hard", ExpectIds: []string{"want-hard"}, ExpectWithinTopK: 1},
+		&evalv1.EvalCase{CaseId: "stale", Query: "stale", ExpectIds: []string{"want-stale"}},
+		&evalv1.EvalCase{CaseId: "error", Query: "error", ExpectIds: []string{"want-error"}},
+	)
+	resp, err := eval.NewValidator(fakeResolver{desc: validationDescriptor()}, client).ValidateCorpus(context.Background(), suite, 5)
+	require.NoError(t, err)
+	rollup := resp.GetRollup()
+	require.EqualValues(t, rollup.GetPositives(), rollup.GetLive()+rollup.GetHard()+rollup.GetStale()+rollup.GetProviderErrors()+rollup.GetInconclusive())
+}
+
 func validationDescriptor() *registryv1.ProviderDescriptor {
 	return &registryv1.ProviderDescriptor{ProviderId: "p"}
 }

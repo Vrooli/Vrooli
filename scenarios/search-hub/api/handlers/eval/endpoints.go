@@ -121,6 +121,17 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "evals_compare_strategies",
+		Path:        evalconnect.EvalServiceCompareStrategiesProcedure,
+		Method:      "POST",
+		Summary:     "Compare registered retrieval strategies",
+		Description: "Runs at least three registered strategy arms against router.routing, stores every tagged run, reports all-case and currently-routable denominators, and retains significance/held-out rejection evidence.",
+		Category:    "eval",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"suite_id": "string (required)", "strategy_names": "array<string> (at least three)", "apply": "bool (gate write-back eligibility)", "limit": "int (per-case fetch depth)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"arms": "array<StrategyComparisonArm>", "writeback_reason": "string"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "At least three registered strategies and the active strategy are required"}},
+	},
+	{
 		ID:          "evals_sweep",
 		Path:        evalconnect.EvalServiceSweepProcedure,
 		Method:      "POST",

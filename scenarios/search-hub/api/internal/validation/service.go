@@ -17,6 +17,7 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	internaleval "search-hub/internal/eval"
@@ -33,6 +34,7 @@ type Service struct {
 	RegistryStore internalregistry.Store
 	EvalValidator EvalValidator
 	StatusProbe   StatusProbe
+	LiveRouter    LiveRoutingReader
 	Now           func() time.Time
 }
 
@@ -49,6 +51,14 @@ type EvalStore interface {
 
 type EvalValidator interface {
 	ValidateCorpus(ctx context.Context, suite *evalv1.EvalSuite, deepK int32) (*evalv1.ValidateCorpusResponse, error)
+}
+
+// LiveRoutingReader is optional because providers can be validated without a
+// running router. When present, it lets the maturity ladder distinguish a
+// healthy full corpus from a live provider that is open-circuit or repeatedly
+// routed without yielding a hit.
+type LiveRoutingReader interface {
+	Status(context.Context) (*routingv1.StatusResponse, error)
 }
 
 func New(repoRoot string) *Service {
@@ -275,6 +285,59 @@ func (s *Service) validateConfig(ctx context.Context, report *Report, cfg search
 			s.validateEvalEvidence(ctx, report, providerPath, provider, extras, opts)
 		}
 	}
+	s.validateLiveEvidence(ctx, report, cfg)
+}
+
+func (s *Service) validateLiveEvidence(ctx context.Context, report *Report, cfg searchConfig) {
+	if s.LiveRouter == nil {
+		return
+	}
+	status, err := s.LiveRouter.Status(ctx)
+	if err != nil {
+		return
+	}
+	byID := make(map[string]*routingv1.ProviderHealth, len(status.GetProviders()))
+	for _, health := range status.GetProviders() {
+		byID[health.GetProviderId()] = health
+	}
+	for _, rawProvider := range cfg.Providers {
+		provider, _, err := decodeProvider(rawProvider)
+		if err != nil {
+			continue
+		}
+		health := byID[provider.GetProviderId()]
+		if health == nil {
+			continue
+		}
+		if finding := liveEvidenceFinding(provider.GetProviderId(), health); finding != nil {
+			report.add(*finding)
+		}
+	}
+}
+
+func liveEvidenceFinding(providerID string, health *routingv1.ProviderHealth) *Finding {
+	if health == nil {
+		return nil
+	}
+	if health.GetCircuitState() == "open" || (health.GetDegraded() && !health.GetReachable()) {
+		return &Finding{
+			Code: CodeLiveDegraded, Severity: SeverityWarning,
+			Title:       "Search provider is degraded or open-circuit",
+			Message:     fmt.Sprintf("provider %q is not serving a healthy live route: %s", providerID, health.GetReachability()),
+			Location:    providerID + ".live_health",
+			Remediation: "Restore the provider endpoint or circuit before certifying production readiness.",
+		}
+	}
+	if health.GetTimesRouted() >= 5 && health.GetTotalHits() == 0 {
+		return &Finding{
+			Code: CodeLiveZeroYield, Severity: SeverityWarning,
+			Title:       "Search provider has live zero yield",
+			Message:     fmt.Sprintf("provider %q has routed %d lifetime request(s) and produced no hit", providerID, health.GetTimesRouted()),
+			Location:    providerID + ".live_health",
+			Remediation: "Repair the provider corpus or keep it explicit-only until live hit yield is demonstrated.",
+		}
+	}
+	return nil
 }
 
 func (s *Service) validateProviderOperationalPosture(ctx context.Context, report *Report, providerPath string, provider *registryv1.ProviderDescriptor, extras providerExtras) {
@@ -561,7 +624,66 @@ func validateCorpusAdequacy(report *Report, providerPath string, suite *aisearch
 			Remediation: "Tag reviewed positives across difficulty bands (strong/weak/weak-real/hard).",
 		})
 	}
+	degenerateCases := degenerateCorpusCases(suite.Cases)
+	if len(degenerateCases) > 0 {
+		report.add(Finding{
+			Code:        CodeEvalCorpusDegenerate,
+			Severity:    SeverityWarning,
+			Title:       "Search eval corpus contains degenerate positives",
+			Message:     fmt.Sprintf("%d reviewed positive case(s) can be satisfied by echoing a short query token already present in its expected id; these cases do not prove retrieval intent (examples: %s).", len(degenerateCases), strings.Join(degenerateCases, ", ")),
+			Location:    providerPath + ".tests.cases",
+			Remediation: "Rewrite degenerate cases as natural-language questions that describe the desired information without repeating an expected id token.",
+		})
+	}
+	if familyCount := declaredFamilyCount(suite); len(suite.Coverage.RequiredTagGroups) >= 2 && familyCount < 2 {
+		report.add(Finding{
+			Code:        CodeEvalCorpusDegenerate,
+			Severity:    SeverityWarning,
+			Title:       "Search eval corpus spans too few question families",
+			Message:     fmt.Sprintf("only %d declared question family has reviewed positive coverage; at least two are required to make the corpus shape informative.", familyCount),
+			Location:    providerPath + ".tests.coverage.required_tag_groups",
+			Remediation: "Add reviewed positives across at least two declared question families.",
+		})
+	}
 	validateCorpusCoverage(report, providerPath, suite.Coverage, reviewedPositiveTags)
+}
+
+func degenerateCorpusCases(cases []aisearch.TestCase) []string {
+	var out []string
+	for _, c := range cases {
+		if c.IsCandidate() || c.ExpectNoStrongHit || len(c.ExpectIDs) == 0 {
+			continue
+		}
+		query := normalizeCorpusQuery(c.Query)
+		if query == "" || len(strings.Fields(query)) > 3 {
+			continue
+		}
+		for _, expected := range c.ExpectIDs {
+			if strings.Contains(strings.ToLower(expected), query) {
+				out = append(out, c.ID)
+				break
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func declaredFamilyCount(suite *aisearch.TestSuite) int {
+	covered := make(map[string]bool)
+	for _, group := range suite.Coverage.RequiredTagGroups {
+		for _, c := range suite.Cases {
+			if c.IsCandidate() || c.ExpectNoStrongHit {
+				continue
+			}
+			for _, tag := range group.Tags {
+				if c.HasTag(tag) {
+					covered[group.ID] = true
+				}
+			}
+		}
+	}
+	return len(covered)
 }
 
 func validateCorpusCoverage(report *Report, providerPath string, coverage aisearch.CoverageConfig, reviewedPositiveTags map[string]int) {
@@ -1239,6 +1361,24 @@ type providerExtras struct {
 }
 
 func decodeProvider(raw json.RawMessage) (*registryv1.ProviderDescriptor, providerExtras, error) {
+	// Scenario-owned descriptors use the human-facing schema tokens
+	// production|fixture|experimental; the RPC contract uses the generated
+	// enum symbols. Normalize only this field at the boundary so validation and
+	// registration interpret the same descriptor without scenario knowledge.
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err == nil {
+		var lifecycle string
+		if value, ok := fields["lifecycle"]; ok && json.Unmarshal(value, &lifecycle) == nil {
+			if lifecycle != "" && !strings.HasPrefix(lifecycle, "LIFECYCLE_") {
+				encoded, _ := json.Marshal("LIFECYCLE_" + strings.ToUpper(lifecycle))
+				fields["lifecycle"] = encoded
+				normalized, marshalErr := json.Marshal(fields)
+				if marshalErr == nil {
+					raw = normalized
+				}
+			}
+		}
+	}
 	var provider registryv1.ProviderDescriptor
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, &provider); err != nil {
 		return nil, providerExtras{}, err

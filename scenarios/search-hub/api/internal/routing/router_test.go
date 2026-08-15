@@ -188,15 +188,29 @@ func TestQueryRejectsEmptyText(t *testing.T) {
 	require.ErrorAs(t, err, &routing.ErrInvalidQuery{})
 }
 
-func TestQueryRejectsNoSelector(t *testing.T) {
+func TestStrategyOverrideIsEvaluationOnlyAndRetiredLLMIsNotSilentlyExecuted(t *testing.T) {
 	r := routing.NewRouter(routing.Deps{
 		Lister: &fakeLister{}, Resolver: staticResolver{}, Doer: routeDoer{},
+		StrategyCatalog: []routing.RetrievalStrategy{
+			{Name: "lexical-fallback", Stages: []routing.RetrievalStage{{Kind: routing.StageLexical}}},
+			{Name: "llm-classifier", Stages: []routing.RetrievalStage{{Kind: routing.StageLLM}}},
+		},
 	})
-	// No --all, no types, no group, and no Classifier wired in Deps: this is an
-	// honest InvalidArgument rather than a silent widen. (With a Classifier set,
-	// the same request routes automatically — see TestAutoRouteUsesClassifierTypes.)
-	_, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario"})
-	require.ErrorAs(t, err, &routing.ErrInvalidQuery{})
+	_, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "find a command", StrategyName: "lexical-fallback"})
+	require.ErrorContains(t, err, "restricted to federated evaluation")
+	_, err = r.Query(routing.WithRoutingEvaluation(context.Background()), &routingv1.QueryRequest{Query: "find a command", StrategyName: "llm-classifier"})
+	require.ErrorContains(t, err, "retired")
+}
+
+func TestQueryAutomaticallyUsesModelFreeRouting(t *testing.T) {
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(),
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario", Explain: true})
+	require.NoError(t, err)
+	require.Len(t, resp.GetGroups(), 1)
+	require.Equal(t, "cli-health.commands", resp.GetGroups()[0].GetProviderId())
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "no LLM classifier")
 }
 
 func TestQueryReturnsPartialResultsWhenDeadlineLeavesProviderPending(t *testing.T) {
@@ -473,7 +487,7 @@ func threeProviderDoer() routeDoer {
 	}}
 }
 
-func TestAutoRouteUsesClassifierTypes(t *testing.T) {
+func TestLegacyClassifierCompatibilityIsNotProductionWiring(t *testing.T) {
 	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.9, Rationale: "CLI op"}}
 	r := routing.NewRouter(routing.Deps{
 		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(), Classifier: clf,
@@ -490,51 +504,44 @@ func TestAutoRouteUsesClassifierTypes(t *testing.T) {
 	require.False(t, resp.GetDegraded())
 
 	joined := strings.Join(resp.GetRoutingExplanation(), "\n")
-	require.Contains(t, joined, "automatic routing via classifier")
-	require.Contains(t, joined, "CLI op")
-	require.Contains(t, joined, "routed to provider leaves: cli-health.commands")
+	require.Contains(t, joined, "legacy classifier compatibility path")
 	require.Contains(t, joined, "cli-health.commands")
 }
 
-func TestAutoRouteCachesDecisionForNormalizedQueryAndRegistryGeneration(t *testing.T) {
-	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.9}}
+func TestAutoRouteDoesNotCacheProviderSelections(t *testing.T) {
 	r := routing.NewRouter(routing.Deps{
-		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(), Classifier: clf,
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(),
 	})
 
-	_, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "  Restart   A Scenario  "})
+	first, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "  Restart   A Scenario  "})
 	require.NoError(t, err)
-	require.True(t, clf.called)
-	clf.called = false
-	_, err = r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario"})
+	second, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario"})
 	require.NoError(t, err)
-	require.False(t, clf.called, "normalized repeat should reuse only the routing decision")
+	require.Equal(t, first.GetGroups()[0].GetProviderId(), second.GetGroups()[0].GetProviderId())
 }
 
-func TestAutoRouteWidensWithinSelectedLeafScope(t *testing.T) {
-	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.2}}
+func TestAutoRouteLexicalFallbackReturnsOneBoundedProvider(t *testing.T) {
 	r := routing.NewRouter(routing.Deps{
-		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(), Classifier: clf,
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(),
 	})
 
 	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "something vague", Explain: true})
 	require.NoError(t, err)
-	require.Len(t, resp.GetGroups(), 1, "uncertain ⇒ widen within the selected leaf's sibling scope")
-	require.False(t, resp.GetDegraded(), "widening is not degradation")
-	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "widened within sibling scope")
+	require.Len(t, resp.GetGroups(), 1, "model-free fallback is bounded to one lexical candidate")
+	require.True(t, resp.GetDegraded(), "missing cross-encoder is visible as a strategy fallback")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "cross-encoder provider pick unavailable")
 }
 
-func TestAutoRouteClassifierErrorWidensAndFlagsDegraded(t *testing.T) {
-	clf := &fakeClassifier{err: errors.New("model unreachable")}
+func TestAutoRouteCrossEncoderErrorFallsBackToLexical(t *testing.T) {
 	r := routing.NewRouter(routing.Deps{
-		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(), Classifier: clf,
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(), Reranker: &fakeReranker{err: errors.New("model unreachable")},
 	})
 
 	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "anything", Explain: true})
-	require.NoError(t, err, "a classifier failure never fails the query")
-	require.Len(t, resp.GetGroups(), 3, "degrade ⇒ fall back to all active providers")
-	require.True(t, resp.GetDegraded(), "classifier failure flags the response degraded")
-	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "classifier unavailable")
+	require.NoError(t, err, "a cross-encoder failure never fails the query")
+	require.Len(t, resp.GetGroups(), 1)
+	require.True(t, resp.GetDegraded(), "cross-encoder selection failure flags the response degraded")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "cross-encoder provider pick unavailable")
 }
 
 func TestExplicitSelectorBypassesClassifier(t *testing.T) {
@@ -632,10 +639,14 @@ func TestRerankProducesUnifiedRankedList(t *testing.T) {
 	require.Equal(t, 2, rr.gotCount, "every group's hit is fused into the shortlist")
 
 	require.True(t, resp.GetReranked(), "a successful rerank flags the response reranked")
+	require.Equal(t, "rerank_score", resp.GetOrderedBy())
 	require.False(t, resp.GetDegraded())
 	require.Len(t, resp.GetRanked(), 2)
 	require.Equal(t, "pt-1", resp.GetRanked()[0].GetId(), "highest rerank_score ranks first across providers")
 	require.InDelta(t, 0.95, resp.GetRanked()[0].GetRerankScore(), 1e-9)
+	for i := 1; i < len(resp.GetRanked()); i++ {
+		require.LessOrEqual(t, resp.GetRanked()[i].GetRerankScore(), resp.GetRanked()[i-1].GetRerankScore())
+	}
 
 	// Groups stay populated for provenance.
 	require.Len(t, resp.GetGroups(), 2)
@@ -673,6 +684,29 @@ func TestBackgroundEvaluationCanScopeToOneProvider(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, resp.GetGroups(), 1)
 	require.Equal(t, "cli-health.commands", resp.GetGroups()[0].GetProviderId())
+}
+
+func TestRoutingEvaluationUsesAutomaticSelectionWithoutReranking(t *testing.T) {
+	clf := &fakeClassifier{result: routing.ClassifyResult{
+		ProviderIDs: []string{"cli-health.commands"}, Confidence: 0.95,
+	}}
+	rr := &fakeReranker{scoreByID: map[string]float64{}}
+	r := routing.NewRouter(routing.Deps{
+		Lister:     threeProviderLister(),
+		Resolver:   threeProviderResolver(),
+		Doer:       threeProviderDoer(),
+		Classifier: clf,
+		Reranker:   rr,
+	})
+
+	resp, err := r.Query(routing.WithRoutingEvaluation(context.Background()), &routingv1.QueryRequest{
+		Query: "restart a scenario", Explain: true,
+	})
+	require.NoError(t, err)
+	require.True(t, clf.called, "router evaluation must exercise automatic classification")
+	require.False(t, rr.called, "router evaluation should not require optional reranking")
+	require.Equal(t, []string{"cli-health.commands"}, resp.GetCorporaSearched())
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "provider selection remains automatic")
 }
 
 func TestRecoveryProbeRunsUnattendedAfterDecayAndRestoresAutomaticRouting(t *testing.T) {
@@ -780,7 +814,7 @@ func TestRerankSkippedForSingleCandidate(t *testing.T) {
 	require.False(t, rr.called, "one candidate cannot benefit from reranking")
 	require.False(t, resp.GetReranked())
 	require.False(t, resp.GetDegraded())
-	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker skipped (single candidate)")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker skipped (single provider group)")
 }
 
 func TestRerankTimeoutDegradesBeforeQueryTimeout(t *testing.T) {

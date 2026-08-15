@@ -53,7 +53,11 @@ var _ = func() any {
 }()
 
 func (h *connectHandler) Query(ctx context.Context, req *connect.Request[routingv1.QueryRequest]) (*connect.Response[routingv1.QueryResponse], error) {
-	resp, err := h.deps.Router.Query(ctx, req.Msg)
+	if req.Header().Get("X-Vrooli-Search-Hub-Evaluation") == "1" {
+		ctx = internalrouting.WithRoutingEvaluation(ctx)
+	}
+	runQuery := h.deps.Router.Query
+	queryResponse, err := runQuery(ctx, req.Msg)
 	if err != nil {
 		connectErr := toConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
@@ -61,7 +65,7 @@ func (h *connectHandler) Query(ctx context.Context, req *connect.Request[routing
 		}
 		return nil, connectErr
 	}
-	return connect.NewResponse(resp), nil
+	return connect.NewResponse(queryResponse), nil
 }
 
 func (h *connectHandler) Repromote(ctx context.Context, req *connect.Request[routingv1.RepromoteRequest]) (*connect.Response[routingv1.RepromoteResponse], error) {

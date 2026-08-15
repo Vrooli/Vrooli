@@ -91,12 +91,14 @@ func (s *sqliteStore) Upsert(ctx context.Context, d *registryv1.ProviderDescript
 		return false, "", err
 	}
 
+	now := s.clock.Now().UTC().Format(providerTimeFormat)
+	if strings.TrimSpace(d.DeclaredAt) == "" {
+		d.DeclaredAt = now
+	}
 	blob, err := marshalOpts.Marshal(d)
 	if err != nil {
 		return false, "", fmt.Errorf("marshal descriptor: %w", err)
 	}
-
-	now := s.clock.Now().UTC().Format(providerTimeFormat)
 
 	// Determine insert vs update so we can report `created` honestly and so the
 	// token is minted exactly once (on insert) and echoed thereafter. SQLite is a
@@ -253,7 +255,15 @@ func scanDescriptor(s scanner) (*registryv1.ProviderDescriptor, error) {
 func unmarshalDescriptor(blob string) (*registryv1.ProviderDescriptor, error) {
 	d := &registryv1.ProviderDescriptor{}
 	if err := protojson.Unmarshal([]byte(blob), d); err != nil {
-		return nil, fmt.Errorf("unmarshal descriptor: %w", err)
+		// Rows written before lifecycle became an enum contain the descriptor
+		// policy strings. Preserve those registrations and normalize them on
+		// read so the wire-contract migration is backward compatible.
+		legacy := strings.ReplaceAll(blob, `"lifecycle":"production"`, `"lifecycle":"LIFECYCLE_PRODUCTION"`)
+		legacy = strings.ReplaceAll(legacy, `"lifecycle":"fixture"`, `"lifecycle":"LIFECYCLE_FIXTURE"`)
+		legacy = strings.ReplaceAll(legacy, `"lifecycle":"experimental"`, `"lifecycle":"LIFECYCLE_EXPERIMENTAL"`)
+		if legacy == blob || protojson.Unmarshal([]byte(legacy), d) != nil {
+			return nil, fmt.Errorf("unmarshal descriptor: %w", err)
+		}
 	}
 	return d, nil
 }

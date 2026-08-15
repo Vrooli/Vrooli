@@ -1,5 +1,6 @@
 {
-  "provider_id": "contract-registry.contracts",
+ "provider_id": "contract-registry.contracts",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "contract-registry",
   "bucket": "BUCKET_REUSE",
   "type": "contracts",

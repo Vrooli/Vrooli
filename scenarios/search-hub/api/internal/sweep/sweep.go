@@ -150,7 +150,8 @@ func New(deps Deps, opts Options) *Orchestrator {
 		deps.Sleep = time.Sleep
 	}
 	if deps.Rand == nil {
-		deps.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+		//nolint:gosec // sweep arm selection is statistical experimentation, not security-sensitive.
+		deps.Rand = rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec G404 -- arm selection is statistical experimentation, not security-sensitive.
 	}
 	return &Orchestrator{deps: deps, opts: opts.withDefaults()}
 }

@@ -28,6 +28,9 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) federatedLatencyCall(ctx cliapp.OperationContext) (*shmeasuresv1.FederatedLatencyResponse, error) {
+	if err := validateWindowToken(ctx.Flag("window")); err != nil {
+		return nil, err
+	}
 	resp, err := h.client.FederatedLatency(context.Background(), connect.NewRequest(&shmeasuresv1.FederatedLatencyRequest{
 		Window: timeWindow(ctx.Flag("window")),
 	}))
@@ -55,6 +58,9 @@ func (h *handlers) federatedLatencyReport(ctx cliapp.OperationContext, msg *shme
 }
 
 func (h *handlers) degradedQueryRateCall(ctx cliapp.OperationContext) (*shmeasuresv1.DegradedQueryRateResponse, error) {
+	if err := validateWindowToken(ctx.Flag("window")); err != nil {
+		return nil, err
+	}
 	resp, err := h.client.DegradedQueryRate(context.Background(), connect.NewRequest(&shmeasuresv1.DegradedQueryRateRequest{
 		Window: timeWindow(ctx.Flag("window")),
 	}))
@@ -83,6 +89,9 @@ func (h *handlers) degradedQueryRateReport(ctx cliapp.OperationContext, msg *shm
 }
 
 func (h *handlers) providerDegradationRateCall(ctx cliapp.OperationContext) (*shmeasuresv1.ProviderDegradationRateResponse, error) {
+	if err := validateWindowToken(ctx.Flag("window")); err != nil {
+		return nil, err
+	}
 	resp, err := h.client.ProviderDegradationRate(context.Background(), connect.NewRequest(&shmeasuresv1.ProviderDegradationRateRequest{
 		Window:     timeWindow(ctx.Flag("window")),
 		ProviderId: strings.TrimSpace(ctx.Flag("provider-id")),
@@ -109,7 +118,7 @@ func (h *handlers) providerDegradationRateReport(ctx cliapp.OperationContext, ms
 		Results: []string{
 			fmt.Sprintf("rate: %.6f", msg.GetRate()),
 			fmt.Sprintf("degraded_count: %d", msg.GetDegradedCount()),
-			fmt.Sprintf("times_routed: %d", msg.GetTimesRouted()),
+			fmt.Sprintf("window_times_routed: %d", msg.GetTimesRouted()),
 		},
 		RetrievalHints: []string{"`--provider-id <provider_id>` — scope the rate to one provider"},
 	}
@@ -117,6 +126,15 @@ func (h *handlers) providerDegradationRateReport(ctx cliapp.OperationContext, ms
 
 func timeWindow(raw string) *measuresv1.TimeWindow {
 	return &measuresv1.TimeWindow{Window: &measuresv1.TimeWindow_Token{Token: timeWindowToken(raw)}}
+}
+
+func validateWindowToken(raw string) error {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "this_week", "last_7d", "last_30d", "this_month", "last_month", "this_quarter":
+		return nil
+	default:
+		return fmt.Errorf("invalid --window %q: use this_week, last_7d, last_30d, this_month, last_month, or this_quarter", raw)
+	}
 }
 
 func timeWindowToken(raw string) measuresv1.TimeWindowToken {

@@ -1,5 +1,6 @@
 {
-  "provider_id": "architecture-cartographer.domain-map",
+ "provider_id": "architecture-cartographer.domain-map",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "architecture-cartographer",
   "bucket": "BUCKET_STATE",
   "type": "domain-map",

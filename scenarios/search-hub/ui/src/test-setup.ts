@@ -23,8 +23,16 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
+import { createElement } from "react";
 import { afterEach, beforeEach, vi } from "vitest";
+import { configureTestProviders } from "@vrooli/api-base/testing";
 import { i18n } from "./i18n";
+import { Providers } from "./app/providers";
+
+// Keep the shared renderer generic while making Search Hub component tests
+// match the production provider graph (theme + i18n). The scenario adapter
+// supplies i18n; this registration supplies the scenario-owned context layer.
+configureTestProviders((children) => createElement(Providers, null, children));
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;

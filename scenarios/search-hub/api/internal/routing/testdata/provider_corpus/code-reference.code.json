@@ -1,5 +1,6 @@
 {
-  "provider_id": "code-reference.code",
+ "provider_id": "code-reference.code",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "code-reference",
   "bucket": "BUCKET_REUSE",
   "type": "code",

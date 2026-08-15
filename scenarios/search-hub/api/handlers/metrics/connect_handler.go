@@ -112,25 +112,27 @@ func (h *connectHandler) Insights(ctx context.Context, req *connect.Request[metr
 	}
 
 	resp := &metricsv1.InsightsResponse{
-		TotalQueries:         agg.TotalQueries,
-		ZeroResultQueries:    agg.ZeroResultQueries,
-		ZeroResultRate:       rate(agg.ZeroResultQueries, agg.TotalQueries),
-		DegradedQueries:      agg.DegradedQueries,
-		RerankedQueries:      agg.RerankedQueries,
-		LatencyP50Ms:         agg.LatencyP50Ms,
-		LatencyP95Ms:         agg.LatencyP95Ms,
-		ResolverCacheHits:    agg.ResolverCacheHits,
-		ResolverCacheMisses:  agg.ResolverCacheMisses,
-		ResolverCacheHitRate: agg.ResolverCacheHitRate,
-		WindowFrom:           formatWindowTime(agg.WindowFrom),
-		WindowTo:             formatWindowTime(agg.WindowTo),
-		SampleCount:          agg.SampleCount,
-		MinimumSampleCount:   agg.MinimumSampleCount,
-		SampleSufficient:     agg.SampleSufficient,
-		RecentSampleCount:    agg.RecentSampleCount,
-		RecentLatencyP50Ms:   agg.RecentLatencyP50Ms,
-		RecentLatencyP95Ms:   agg.RecentLatencyP95Ms,
-		Providers:            reconcileUtilization(active, agg.ProviderUsage),
+		TotalQueries:                agg.TotalQueries,
+		ZeroResultQueries:           agg.ZeroResultQueries,
+		ZeroResultRate:              rate(agg.ZeroResultQueries, agg.TotalQueries),
+		DegradedQueries:             agg.DegradedQueries,
+		RerankedQueries:             agg.RerankedQueries,
+		LatencyP50Ms:                agg.LatencyP50Ms,
+		LatencyP95Ms:                agg.LatencyP95Ms,
+		ResolverCacheHits:           agg.ResolverCacheHits,
+		ResolverCacheMisses:         agg.ResolverCacheMisses,
+		ResolverCacheHitRate:        agg.ResolverCacheHitRate,
+		WindowFrom:                  formatWindowTime(agg.WindowFrom),
+		WindowTo:                    formatWindowTime(agg.WindowTo),
+		SampleCount:                 agg.SampleCount,
+		MinimumSampleCount:          agg.MinimumSampleCount,
+		SampleSufficient:            agg.SampleSufficient,
+		RecentSampleCount:           agg.RecentSampleCount,
+		RecentLatencyP50Ms:          agg.RecentLatencyP50Ms,
+		RecentLatencyP95Ms:          agg.RecentLatencyP95Ms,
+		SubstrateDegradationReasons: convertReasons(agg.SubstrateDegradationReasons),
+		SubstrateDegradedLegs:       agg.SubstrateDegradedLegs,
+		Providers:                   reconcileUtilization(active, agg.ProviderUsage),
 	}
 	resp.RetirementCandidates, resp.GroupAdvisories = HygieneReports(resp.Providers)
 	return connect.NewResponse(resp), nil
@@ -147,7 +149,7 @@ func HygieneReports(providers []*metricsv1.ProviderUtilization) ([]*metricsv1.Pr
 		if provider.GetTimesRouted() >= retirementRouteThreshold && provider.GetTotalHits() == 0 {
 			retire = append(retire, &metricsv1.ProviderRetirementCandidate{
 				ProviderId: provider.GetProviderId(), TimesRouted: provider.GetTimesRouted(), TotalHits: provider.GetTotalHits(),
-				Reason: fmt.Sprintf("zero lifetime hits across %d routed calls", provider.GetTimesRouted()),
+				Reason: fmt.Sprintf("zero hits across %d window-routed calls", provider.GetTimesRouted()),
 			})
 		}
 	}

@@ -290,6 +290,37 @@
       ]
     },
     {
+      "id": "evals_compare_strategies",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/CompareStrategies",
+      "method": "POST",
+      "summary": "Compare registered retrieval strategies",
+      "description": "Runs at least three registered strategy arms against router.routing, stores every tagged run, reports all-case and currently-routable denominators, and retains significance/held-out rejection evidence.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "bool (gate write-back eligibility)",
+          "limit": "int (per-case fetch depth)",
+          "strategy_names": "array<string> (at least three)",
+          "suite_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "arms": "array<StrategyComparisonArm>",
+          "writeback_reason": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "At least three registered strategies and the active strategy are required"
+        }
+      ]
+    },
+    {
       "id": "evals_sweep",
       "path": "/vrooli.search_hub.v1.eval.EvalService/Sweep",
       "method": "POST",
@@ -406,6 +437,40 @@
       ]
     },
     {
+      "id": "evals_reap_orphan_suites",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/ReapOrphanSuites",
+      "method": "POST",
+      "summary": "Audit and explicitly reap orphan evaluation suites",
+      "description": "Lists suites whose provider_id is absent from the live registry. The same operation removes them only when confirm=true; the observed orphan set is returned for auditability.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "confirm": "bool (required for deletion; false is read-only)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "confirmed": "bool",
+          "orphan_suites": "array<EvalSuite>",
+          "reaped_suite_ids": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Registry dependency is not configured"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Orphan audit or deletion failed"
+        }
+      ]
+    },
+    {
       "id": "metrics_insights",
       "path": "/vrooli.search_hub.v1.metrics.MetricsService/Insights",
       "method": "POST",
@@ -415,29 +480,34 @@
       "request": {
         "type": "object",
         "properties": {
-          "window_days": "int32 — legacy day window (0 = all-time)",
-          "window": "string — duration such as 15m or 2h; bare integer means days"
+          "window": "string — duration such as 15m or 2h; bare integer means days",
+          "window_days": "int32 — legacy day window (0 = all-time)"
         }
       },
       "response": {
         "type": "object",
         "properties": {
           "degraded_queries": "int64 — queries where a provider degraded",
+          "group_advisories": "array<ProviderGroupAdvisory> — report-only concentration warnings",
           "latency_p50_ms": "int64 — median latency",
           "latency_p95_ms": "int64 — p95 latency",
+          "minimum_sample_count": "int64 — evidence threshold for stable percentiles",
           "providers": "array<ProviderUtilization> — per-provider routed/hit totals + under_utilized flag",
+          "recent_latency_p50_ms": "int64 — recent-N median when stable",
+          "recent_latency_p95_ms": "int64 — recent-N p95 when stable",
+          "recent_sample_count": "int64 — rows in the rolling recent-N view",
           "reranked_queries": "int64 — queries that produced a unified rerank",
+          "resolver_cache_hit_rate": "double — hits / (hits + misses)",
+          "resolver_cache_hits": "int64 — successful address-cache lookups",
+          "resolver_cache_misses": "int64 — address-cache misses",
+          "retirement_candidates": "array<ProviderRetirementCandidate> — report-only zero-yield candidates",
+          "sample_count": "int64 — telemetry rows in the window",
+          "sample_sufficient": "bool — whether the window meets the evidence threshold",
           "total_queries": "int64 — queries recorded in the window",
-          "zero_result_queries": "int64 — queries that returned no results",
-          "zero_result_rate": "double — zero_result_queries / total_queries",
           "window_from": "string — inclusive RFC3339Nano lower bound",
           "window_to": "string — exclusive RFC3339Nano upper bound",
-          "sample_count": "int64 — telemetry rows in the window",
-          "minimum_sample_count": "int64 — evidence threshold for stable percentiles",
-          "sample_sufficient": "bool — whether the window meets the evidence threshold",
-          "recent_sample_count": "int64 — rows in the rolling recent-N view",
-          "recent_latency_p50_ms": "int64 — recent-N median when stable",
-          "recent_latency_p95_ms": "int64 — recent-N p95 when stable"
+          "zero_result_queries": "int64 — queries that returned no results",
+          "zero_result_rate": "double — zero_result_queries / total_queries"
         }
       },
       "errors": [
@@ -467,7 +537,21 @@
       "category": "measures",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "measures-go serves a framework-neutral harvest endpoint consumed without a generated client."
+        "note": "measures-go serves a framework-neutral harvest endpoint consumed without a generated client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
       }
     },
     {
@@ -545,7 +629,21 @@
       "category": "measures",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "measures-go serves a uniform JSON execution endpoint shared across scenarios."
+        "note": "measures-go serves a uniform JSON execution endpoint shared across scenarios.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
       }
     },
     {
@@ -623,6 +721,49 @@
       ]
     },
     {
+      "id": "embedding_migration_execute",
+      "path": "/vrooli.search_hub.v1.registry.RegistryService/ExecuteEmbeddingMigration",
+      "method": "POST",
+      "summary": "Execute an authenticated provider embedding migration action",
+      "description": "Proxies a shadow, status, cutover, or rollback action through the provider's declared reindex endpoint while retaining the provider control token inside Search Hub.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "action": "string (shadow|status|cutover|rollback)",
+          "dry_run": "boolean",
+          "embedding_dimensions": "int32",
+          "embedding_model": "string",
+          "embedding_policy_schema_version": "string",
+          "embedding_role": "string",
+          "job_id": "string (status only)",
+          "provider_id": "string (required)",
+          "rollback_collection": "string",
+          "scope": "string",
+          "shadow_collection": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "error": "string",
+          "job_id": "string",
+          "planned_deletes": "int32",
+          "planned_upserts": "int32",
+          "processed": "int32",
+          "state": "string",
+          "total": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Provider control endpoint failed"
+        }
+      ]
+    },
+    {
       "id": "providers_remove",
       "path": "/vrooli.search_hub.v1.registry.RegistryService/DeregisterProvider",
       "method": "POST",
@@ -656,11 +797,35 @@
       ]
     },
     {
+      "id": "maturity_targets_list",
+      "path": "/vrooli.search_hub.v1.registry.RegistryService/ListMaturityTargets",
+      "method": "POST",
+      "summary": "List Search Hub maturity targets",
+      "description": "Returns the descriptor/capability scenario set used by Search Hub maturity scans, including scenarios without a registered provider leaf.",
+      "category": "registry",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "targets": "array<MaturityTarget>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Maturity target discovery failure"
+        }
+      ]
+    },
+    {
       "id": "routing_query",
       "path": "/vrooli.search_hub.v1.routing.RoutingService/Query",
       "method": "POST",
       "summary": "Federated query across registered providers",
-      "description": "Fans out a query to providers selected by explicit --type, --all, or --group, or automatically via the Ollama classifier when no explicit selector is given; maps each response through the generic adapter, and returns results grouped by provider. Degraded providers are skipped with a note, never failing the whole query.",
+      "description": "Fans out a query to providers selected by explicit --type, --all, or --group, or automatically via the model-free lexical strategy when no explicit selector is given; maps each response through the generic adapter, and returns results grouped by provider. Degraded providers are skipped with a note, never failing the whole query.",
       "category": "routing",
       "request": {
         "type": "object",
@@ -670,6 +835,7 @@
           "group": "string — scope to one scenario's leaves",
           "limit": "int32 — per-provider result cap (default 10)",
           "query": "string (required) — natural-language query text",
+          "scope": "string — optional corpus facet passed to scoped providers",
           "types": "array<string> — explicit leaf types to route to"
         }
       },
@@ -688,7 +854,7 @@
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Empty query, or no routing selector while no classifier is wired (pass --type/--all/--group)"
+          "description": "Empty query"
         },
         {
           "status": 500,
@@ -708,7 +874,7 @@
       "path": "/vrooli.search_hub.v1.routing.RoutingService/Status",
       "method": "POST",
       "summary": "Federation status (per-provider health + model availability)",
-      "description": "Reports each ACTIVE provider's reachability plus whether the classifier and reranker models are available. An unreachable leaf is reported degraded rather than failing the call; only a registry read failure errors. Backs `search-hub status`.",
+      "description": "Reports each ACTIVE provider's reachability, circuit-open share/quorum, lifecycle and quality exclusions, plus cross-encoder availability. An unreachable leaf is reported degraded rather than failing the call; only a registry read failure errors. Backs `search-hub federation status`.",
       "category": "routing",
       "request": {
         "type": "object"
@@ -716,8 +882,11 @@
       "response": {
         "type": "object",
         "properties": {
-          "classifier_available": "bool — automatic routing model reachable",
-          "providers": "array<ProviderHealth> — per-leaf reachability + freshness note",
+          "circuit_open_quorum": "double — declared federation-degraded threshold",
+          "circuit_open_share": "double — active leaves with an open transport circuit",
+          "classifier_available": "bool — retained compatibility field; false after LLM classifier retirement",
+          "federation_degraded": "bool — circuit-open share meets quorum",
+          "providers": "array<ProviderHealth> — per-leaf reachability + probed index age",
           "reranker_available": "bool — unified-rerank model reachable (false ⇒ degraded ranking mode)"
         }
       },
@@ -734,6 +903,48 @@
           "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.routing.RoutingService/Status -H 'Content-Type: application/json' -d '{}'"
         }
       ]
+    },
+    {
+      "id": "routing_repromote",
+      "path": "/vrooli.search_hub.v1.routing.RoutingService/Repromote",
+      "method": "POST",
+      "summary": "Clear a provider's graded-empty demotion evidence",
+      "description": "Explicit operator escape hatch for a verified or repaired provider. Clears zero-yield demotion evidence only; transport breaker state remains authoritative.",
+      "category": "routing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "provider_id": "string (required) — registered active provider leaf"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "message": "string",
+          "provider_id": "string",
+          "reset": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "provider_id is required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Provider is not active or registry read failed"
+        }
+      ]
+    },
+    {
+      "id": "validation_validate_target",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateTarget",
+      "method": "POST",
+      "summary": "Validate a first-class repository target",
+      "description": "",
+      "category": "validation"
     },
     {
       "id": "validation_validate_scenario",
@@ -771,6 +982,34 @@
         {
           "name": "Validate search maturity",
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_describe_provider",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider",
+      "method": "POST",
+      "summary": "Describe this provider's identity and contract",
+      "description": "Reports provider identity, backed phase, maturity spec version, contract, build provenance, and capabilities. Inspects no target, so readiness consumers can confirm this provider is live and current without paying for a full validation run.",
+      "category": "validation",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "build": "scenario_validation.v1.ProviderBuild",
+          "capabilities": "scenario_validation.v1.ProviderCapabilities",
+          "contract": "string",
+          "phase": "string",
+          "provider": "string",
+          "spec_version": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Describe provider",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider -H 'Content-Type: application/json' -d '{}'"
         }
       ]
     },

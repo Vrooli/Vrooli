@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	"resource-reranker/cli/internal/capacitysync"
 	"resource-reranker/cli/internal/gateway"
+	"resource-reranker/cli/internal/models"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -48,8 +50,16 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	app.SetCommandsWithSubgroups(
-		app.StandardLifecycleCommands(),
-		[]cliapp.SubcommandGroup{gateway.Commands(nil)},
+		append(app.StandardLifecycleCommands(), models.StatusCommand(nil), cliapp.CommandGroup{
+			Title: "Capacity",
+			Commands: []cliapp.Command{{
+				Name:        "capacity-sync",
+				Description: "Keep the reranker VRAM capacity claim alive",
+				Usage:       "resource-reranker capacity-sync [--interval 15s] [--once]",
+				Run:         capacitysync.Command(nil),
+			}},
+		}),
+		[]cliapp.SubcommandGroup{gateway.Commands(nil), models.Commands(nil)},
 	)
 	return app, nil
 }

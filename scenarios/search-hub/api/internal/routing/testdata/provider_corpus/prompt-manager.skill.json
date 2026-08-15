@@ -1,5 +1,6 @@
 {
-  "provider_id": "prompt-manager.skill",
+ "provider_id": "prompt-manager.skill",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "prompt-manager",
   "bucket": "BUCKET_DO",
   "type": "skill",

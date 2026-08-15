@@ -420,6 +420,17 @@
         "fix_class": "manual",
         "reason": "Duplicate queries and single-band difficulty over-report recall; production certification requires a reviewed corpus with coverage depth."
       },
+      "SEARCH_EVAL_CORPUS_DEGENERATE": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["test"],
+        "fix_class": "manual",
+        "reason": "A corpus whose query echoes its expected id or covers only one declared question family over-reports retrieval quality."
+      },
       "SEARCH_EVAL_CORPUS_COVERAGE": {
         "capability_id": "search_eval_performance",
         "local_level_impact": "L3",
@@ -617,6 +628,32 @@
         ],
         "fix_class": "manual",
         "reason": "Production readiness requires empty-result degradation to stay within the provider's declared budget."
+      },
+      "SEARCH_LIVE_DEGRADED": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "failure-topography-and-graceful-degradation"
+        ],
+        "fix_class": "manual",
+        "reason": "Production readiness requires the live provider route to be reachable and not open-circuit."
+      },
+      "SEARCH_LIVE_ZERO_YIELD": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "failure-topography-and-graceful-degradation"
+        ],
+        "fix_class": "manual",
+        "reason": "Production readiness requires repeated live routing to demonstrate hit yield."
       },
       "SEARCH_TUNING_BUDGET_INVALID": {
         "capability_id": "search_operability",

@@ -1,5 +1,6 @@
 {
-  "provider_id": "git-control-tower.git-provenance",
+ "provider_id": "git-control-tower.git-provenance",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
   "provider_group": "git-control-tower",
   "bucket": "BUCKET_KNOW",
   "type": "git-provenance",

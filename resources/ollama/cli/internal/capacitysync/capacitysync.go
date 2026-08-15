@@ -31,6 +31,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 )
 
 const (
@@ -135,6 +136,20 @@ type ledgerClaim struct {
 	Generation  int64  `json:"generation"`
 }
 
+type profileStep struct {
+	Label       string `json:"label"`
+	AmountBytes int64  `json:"amount_bytes"`
+}
+
+type degradeProfile struct {
+	Steps []profileStep `json:"steps"`
+	Apply struct {
+		Verb string   `json:"verb"`
+		Argv []string `json:"argv"`
+	} `json:"apply"`
+	Upshift bool `json:"upshift"`
+}
+
 // syncOnce reconciles the ollama claim against the live loaded footprint. It is
 // fail-open at every step: a poll or ledger error leaves the ledger untouched.
 func (h *Handlers) syncOnce(ctx context.Context) {
@@ -192,20 +207,63 @@ func (h *Handlers) activeClaim(ctx context.Context) *ledgerClaim {
 	return nil
 }
 
-// claim records ollama's current loaded footprint as a single-size service-tier
-// reservation. It deliberately carries NO degrade profile: ollama is a
-// self-managing resident — OLLAMA_KEEP_ALIVE unloads idle models on its own and
-// the next poll then releases the claim — so the broker never needs to
-// degrade/unload ollama itself. The claim's job is honest footprint accounting,
-// not handing the broker a degrade-to-zero step (which, under a contended fleet,
-// Decide would pick in advisory and the ledger would then record 0 bytes while
-// the model is actually resident).
-func (h *Handlers) claim(ctx context.Context, total int64) {
+// claim records Ollama's declared preferred/floor ladder as a service-tier
+// reservation. The profile is derived from model-policy.json so the broker can
+// request a real lower resident-model set under contention; subsequent polls
+// still heartbeat and resize the claim against the live /api/ps footprint.
+
+func (h *Handlers) claim(ctx context.Context, _ int64) {
+	preferred, floor, profile := h.claimProfile()
 	_, _ = h.Exec(ctx, "vrooli", "capacity", "claim",
 		"--owner-kind", "resource", "--owner-id", resourceName,
 		"--resource-kind", "vram", "--gpu-index", "0",
-		"--preferred", strconv.FormatInt(total, 10), "--floor", strconv.FormatInt(total, 10),
-		"--priority", "service", "--json")
+		"--preferred", strconv.FormatInt(preferred, 10), "--floor", strconv.FormatInt(floor, 10),
+		"--priority", "service", "--yield-when-idle", "--idle-grace", "15m",
+		"--profile", profile, "--json")
+}
+
+// claimProfile derives the broker reservation and ladder from the same model
+// policy used by the resource's capacity planner. If policy is unavailable,
+// the conservative manifest-equivalent defaults preserve an honest claim
+// rather than silently falling back to the currently loaded footprint.
+func (h *Handlers) claimProfile() (int64, int64, string) {
+	refs := []string{"qwen3.5:9b", "qwen3.5:4b", "qwen3:4b", "qwen3:1.7b"}
+	profile := degradeProfile{}
+	profile.Apply.Verb = "capacity"
+	profile.Apply.Argv = []string{"degrade", "--to", "{label}"}
+	profile.Upshift = true
+	getenv := h.GetEnv
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	if p, _, err := policy.LoadDefaultFile(getenv); err == nil {
+		for _, ref := range refs {
+			model, ok := p.Models[ref]
+			if !ok || model.VRAMGBEstimate <= 0 {
+				continue
+			}
+			profile.Steps = append(profile.Steps, profileStep{Label: ref, AmountBytes: int64(model.VRAMGBEstimate * float64(bytesPerGiB))})
+		}
+	}
+	if len(profile.Steps) == 0 {
+		profile.Steps = []profileStep{
+			{Label: "qwen3.5:9b", AmountBytes: 11 * bytesPerGiB},
+			{Label: "qwen3.5:4b", AmountBytes: 6 * bytesPerGiB},
+			{Label: "qwen3:4b", AmountBytes: 5 * bytesPerGiB},
+			{Label: "qwen3:1.7b", AmountBytes: 3 * bytesPerGiB},
+		}
+	}
+	return profile.Steps[0].AmountBytes, profile.Steps[len(profile.Steps)-1].AmountBytes, mustJSON(profile)
+}
+
+const bytesPerGiB int64 = 1024 * 1024 * 1024
+
+func mustJSON(v any) string {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return `{"steps":[],"apply":{"verb":"capacity","argv":["degrade","--to","{label}"]}}`
+	}
+	return string(data)
 }
 
 func (h *Handlers) release(ctx context.Context, claimID string) {

@@ -153,7 +153,7 @@ func OptionsFromEnv(logger *log.Logger) Options {
 		}
 	}
 	if raw := os.Getenv("SEARCH_HUB_EVAL_SCHEDULER_CASE_LIMIT"); raw != "" {
-		if value, err := strconv.Atoi(raw); err == nil {
+		if value, err := strconv.ParseInt(raw, 10, 32); err == nil && value >= 0 {
 			o.CaseLimit = int32(value)
 		}
 	}

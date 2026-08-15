@@ -29,6 +29,8 @@ import (
 	routingH "search-hub/handlers/routing"
 	validationH "search-hub/handlers/validation"
 	localdb "search-hub/internal/database"
+	routingDomain "search-hub/internal/routing"
+	telemetryDomain "search-hub/internal/telemetry"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
@@ -100,6 +102,8 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(evalH.Schema),
 		apidb.SchemaProviderFunc(metricsH.Schema),
 		apidb.SchemaProviderFunc(registryH.Schema),
+		apidb.SchemaProviderFunc(routingDomain.Schema),
+		apidb.SchemaProviderFunc(telemetryDomain.Schema),
 		apidb.SchemaProviderFunc(validationH.Schema),
 	}
 }

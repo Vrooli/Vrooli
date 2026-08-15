@@ -178,7 +178,7 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
 - Requirements: MOD-P0-002 (explicit-type federation), MOD-P0-003
   (graceful degradation), MOD-P0-004 (operator-friendly output),
   MOD-P0-005 (automatic routing), MOD-P0-006 (thin-router boundary).
-- Tests: routing recall ≥0.85 against `testdata/routing_queries.json`,
+- Tests: routing recall@K ≥0.85 against the composed `router.routing` suite,
   uncertain-widens-not-drops, partial-results-on-timeout, operator
   output shape.
 

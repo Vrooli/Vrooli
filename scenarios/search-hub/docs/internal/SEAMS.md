@@ -630,6 +630,24 @@ may preview repairs or apply a mutation only through an explicitly confirmed,
 provider-owned control endpoint; its eval store is a cache. Orphan cleanup is
 dry-run by default and requires explicit confirmation.
 
+### End-to-end retrieval trust seams
+
+- **Composed router suite:** `internal/eval` derives the router corpus from
+  registered suites and excludes candidate/degenerate cases. No provider id is
+  authored in Search Hub source.
+- **Corpus-shape analyzer:** `internal/validation` evaluates reviewed-positive
+  query/label shape and required tag groups from descriptor content only.
+- **Evidence gate:** `internal/routing` joins lifecycle, reachability, live
+  reviewed labels, and recent passing runs before automatic eligibility; the
+  incubating surface exposes the next missing evidence item.
+- **Persistent description index:** `internal/routing/provider_index.go` owns
+  descriptor-fingerprint caching and embedding metadata compatibility. It never
+  stores corpus content or query text and degrades to deterministic lexical
+  relevance ordering when unavailable.
+- **Coverage trend:** Meta-Optimization Manager reads live numerator joins and
+  prior snapshots through `SnapshotRepository`; the public contract includes
+  explicit zero ratios and per-projection deltas.
+
 ## Cross-references
 
 - Test fakes lifecycle and naming convention: [`docs/internal/TESTING.md`](TESTING.md).
